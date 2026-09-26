@@ -14,9 +14,9 @@ Faust signed a pact with no way out. This one has escape clauses written in: the
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 
 **The familiars, by effort:**
-- **Low:** `scout`, `Explore` and `mech-executor`.
-- **Medium:** `executor`, `plan-verifier`, `verifier` and `test-integrity-reviewer`.
-- **High:** `security-reviewer` and `security-executor`.
+- **Low:** `scout`, `Explore` and `spec-builder`.
+- **Medium:** `builder`, `plan-reviewer`, `result-checker` and `test-reviewer`.
+- **High:** `security-reviewer` and `security-builder`.
 
 ## What never goes in here
 
@@ -32,11 +32,11 @@ Faust signed a pact with no way out. This one has escape clauses written in: the
 - the advisor moved to Opus;
 - the "Implementing a change" and "Watching usage" sections;
 - the review-table format;
-- the `test-integrity-reviewer` agent.
+- the `test-reviewer` agent;
+- the agent renames and tool allowlists, so cloud sessions still use the old names and give every agent full connector access.
 
 `gen.ps1` built the script from files in a temporary folder that no longer applies. **Next step:** rewrite the cloud setup to clone this repo and copy `claude/` into place, so it can never go stale again.
 
 ## Planned
 
 - **Split the instructions** into a vendor-neutral `AGENTS.md` (plain language, the plan → review → build → verify flow, stop signals, usage) and a thin `CLAUDE.md` adapter that imports it and adds what is specific to Claude Code.
-- **Tool allowlists** for `executor`, `mech-executor`, `security-executor` and `verifier`. Today they inherit every tool, including mail, drive and cloud connectors.

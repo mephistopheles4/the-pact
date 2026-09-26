@@ -57,17 +57,18 @@ comes to me first.
 Otherwise, run this flow instead of implementing in the main session:
 
 1. **Think before building.** Write the plan: the intent, the unhappy paths,
-   the constraints, and each decision with its why. `plan-verifier` reviews
+   the constraints, and each decision with its why. `plan-reviewer` reviews
    it; show me a table of its findings (its own headlines, with severity),
    and link its full findings, verbatim, in a kept file. I decide proceed,
    fix or kill. Never start building on READY alone.
 2. **Build to the approved plan.** Send fully specified work to
-   `mech-executor`, and work with design decisions left to `executor`.
+   `spec-builder`, and work with design decisions left to `builder`.
    Anything touching auth, secrets, crypto or input validation goes through
-   `security-reviewer` on the plan, then `security-executor`, whatever its
-   size.
+   `security-reviewer` on the plan, then `security-builder`, whatever its
+   size. If a named agent is unavailable, stop and report.
+   Never substitute another agent, especially for security work.
 3. **Verify, then hand back.** Tests and any gates the repo has decide pass
-   or fail. `verifier` advises: give me its verdict and a table of its
+   or fail. `result-checker` advises: give me its verdict and a table of its
    findings (its own headlines, with severity), and link its full findings,
    verbatim, in a kept file. Never merge or summarise them. I decide
    whether it's done.

@@ -1,5 +1,5 @@
 ---
-name: plan-verifier
+name: plan-reviewer
 description: Read-only fresh-context review of one stable Plan envelope or execution slice before approval. Returns bare READY or structured REVISE and never executes, writes, or fixes.
 model: opus
 effort: medium
