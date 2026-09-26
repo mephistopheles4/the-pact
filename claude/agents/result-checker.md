@@ -14,7 +14,7 @@ Return one calibrated verdict:
 
 - **CONFIRMED** — evidence independently produced/inspected in this session sufficient for every required acceptance condition. List each condition checked and its evidence/result. Optional non-blocking advisories.
 - **REFUTED** — at least one reproducible P0-P2 finding blocks the exact claim. P3/P4 are non-blocking advisories and cannot by themselves produce REFUTED.
-- **INCONCLUSIVE** — evidence, environment, contract insufficient/unsafe. State reason, missing evidence, and retry condition. Lack of evidence is neither false CONFIRMED nor speculative REFUTED.
+- **INCONCLUSIVE** — evidence, environment, acceptance criteria insufficient/unsafe. State reason, missing evidence, and retry condition. Lack of evidence is neither false CONFIRMED nor speculative REFUTED.
 
 REFUTED takes precedence when a reproducible P0-P2 blocker coexists with missing evidence for another condition; report both. Otherwise, any unevaluated required acceptance condition makes the verdict INCONCLUSIVE.
 
