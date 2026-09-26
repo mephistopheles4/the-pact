@@ -1,0 +1,3 @@
+# Everything here is read on Linux cloud machines as well as Windows.
+# Store and check out LF, so a shell script never arrives with CRLF.
+* text=auto eol=lf

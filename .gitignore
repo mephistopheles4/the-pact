@@ -1,0 +1,7 @@
+# Never commit credentials or a full settings file (it carries API keys)
+settings.json
+settings.local.json
+.claude.json
+*.key
+.env
+.env.*

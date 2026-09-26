@@ -1,0 +1,18 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "fallbackModel": [
+    "opus",
+    "sonnet"
+  ],
+  "advisorModel": "opus",
+  "outputStyle": "Concise",
+  "showThinkingSummaries": true,
+  "skipWorkflowUsageWarning": true,
+  "autoContinueAtUsageLimit": true,
+  "skipAutoPermissionPrompt": true
+}
