@@ -1,3 +1,9 @@
+## Where this config lives
+
+This file and `~/.claude/agents/` are installed from the `claude/` folder of
+the-pact repo. Edit the repo copy, then copy it into `~/.claude/`; a direct
+edit to the live file drifts.
+
 ## Shell
 
 **On Windows, use the PowerShell tool for shell commands. Do not use Bash.**
@@ -25,7 +31,6 @@ Applies to explanations, summaries, and answers in chat. Code, commit messages, 
 - **Use active voice.** "Run the migration", not "the migration should be run".
 - **Define a term the first time it appears**, including acronyms and internal names.
 - **Bold the lead-in of each bullet** so a list scans.
-- **Explaining technical work?** Also apply the `explaining-technical-work` skill — architecture, data flow, algorithms, code review, debugging, performance.
 - **Writing documentation files?** Use the `diataxis` skill — it classifies a doc as tutorial, how-to, reference, or explanation, and keeps those types unmixed.
 - **Accuracy outranks simplicity.** When plain phrasing would make something wrong or vague, stay precise and explain the term instead.
 
