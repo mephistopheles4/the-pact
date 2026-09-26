@@ -11,7 +11,7 @@ Faust signed a pact with no way out. This one has escape clauses written in: the
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
 | `claude/agents/` | **The familiars:** nine agents, all on Opus, with cost set through effort | `~/.claude/agents/` |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
-| `cloud/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
+| `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 
 **The familiars, by effort:**
 - **Low:** `scout`, `Explore` and `mech-executor`.
@@ -26,11 +26,9 @@ Faust signed a pact with no way out. This one has escape clauses written in: the
 
 ## Status
 
-**Bootstrapped on 2026-09-26: local only, no remote.** Whether to publish it is still open:
-- **Public:** cloud sessions can clone it with no token. It needs a privacy pass first, because `CLAUDE.md` names my projects and tools.
-- **Private:** every cloud environment needs a GitHub token configured.
+**Bootstrapped on 2026-09-26, and it will be public.** Cloud sessions can then clone it with no token. A privacy pass found no credentials or personal paths. The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill.
 
-**`cloud/` is the pre-repo version, and it is behind.** `cloud-setup.sh` embeds its own copies of the instructions and agents, and those copies date from before these changes:
+**`cloud-sessions/` is the pre-repo version, and it is behind.** `cloud-setup.sh` embeds its own copies of the instructions and agents, and those copies date from before these changes:
 - the advisor moved to Opus;
 - the "Implementing a change" and "Watching usage" sections;
 - the review-table format;

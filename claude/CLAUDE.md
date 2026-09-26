@@ -103,7 +103,7 @@ misses.
 
 **Assignee is not a claim here.** Every parallel session authenticates as the
 same GitHub user, so an assignee check cannot tell "mine, claimed a minute ago"
-from "free to take". That is how G36 got claimed twice. The two rules below
+from "free to take". That is how gate G36 in stacks got claimed twice. The two rules below
 exist because the tracker alone cannot answer the question.
 
 **Check for a live session before claiming.** Call
