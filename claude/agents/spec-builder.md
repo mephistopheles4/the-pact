@@ -3,7 +3,7 @@ name: spec-builder
 description: Mechanical execution of fully-specified work - pattern-based refactors and renames, writing tests that follow existing conventions, documentation updates, bulk multi-file edits from an explicit spec, running test suites and fixing trivial failures. Use when the task needs no design decisions; give it a complete spec (goal, exact scope, done-criteria).
 model: opus
 effort: low
-tools: Read, Write, Edit, NotebookEdit, Glob, Grep, LSP, Bash, PowerShell, TodoWrite
+tools: Read, Write, Edit, NotebookEdit, Glob, Grep, Bash, PowerShell
 ---
 
 Leaf agent: do whole task yourself, this session. Never delegate — Agent/Workflow tools disabled by design. Task seems to need sub-agents → mis-routed; stop/report.

@@ -44,10 +44,10 @@ Filenames change to match `name:`. The docs say an agent is identified by `name:
 
 | Agent | `tools:` | Why this shape |
 |---|---|---|
-| `builder` | Read, Write, Edit, NotebookEdit, Glob, Grep, LSP, Bash, PowerShell, TodoWrite, Skill, WebFetch, WebSearch, ToolSearch, `mcp__Claude_Browser__*` | Verifies by exercising the change, which for UI work means the browser pane. `ToolSearch` loads the browser tools if they are deferred. `Skill`: accepted risk, see F1 below. `WebFetch` and `WebSearch`: it looks up library and API docs while building. |
-| `spec-builder` | Read, Write, Edit, NotebookEdit, Glob, Grep, LSP, Bash, PowerShell, TodoWrite | Mechanical work plus running tests. No web, no browser, no skills: a spec that needs them is mis-routed. |
-| `security-builder` | Read, Write, Edit, NotebookEdit, Glob, Grep, LSP, Bash, PowerShell, TodoWrite | No web: advisory lookups belong to `security-reviewer` before approval. No browser and no skills, to keep the security surface small. New advisory data needed mid-build → stop and report. |
-| `result-checker` | Read, Glob, Grep, LSP, Bash, PowerShell, TodoWrite, ToolSearch, `mcp__Claude_Browser__*` | Read-and-run: drives the affected flow, including UI, through shell or the browser. No `WebFetch`: it cannot reach localhost. Still no Write/Edit. |
+| `builder` | Read, Write, Edit, NotebookEdit, Glob, Grep, Bash, PowerShell, Skill, WebFetch, WebSearch, ToolSearch, `mcp__Claude_Browser__*` | Verifies by exercising the change, which for UI work means the browser pane. `ToolSearch` loads the browser tools if they are deferred. `Skill`: accepted risk, see F1 below. `WebFetch` and `WebSearch`: it looks up library and API docs while building. |
+| `spec-builder` | Read, Write, Edit, NotebookEdit, Glob, Grep, Bash, PowerShell | Mechanical work plus running tests. No web, no browser, no skills: a spec that needs them is mis-routed. |
+| `security-builder` | Read, Write, Edit, NotebookEdit, Glob, Grep, Bash, PowerShell | No web: advisory lookups belong to `security-reviewer` before approval. No browser and no skills, to keep the security surface small. New advisory data needed mid-build → stop and report. |
+| `result-checker` | Read, Glob, Grep, Bash, PowerShell, ToolSearch, `mcp__Claude_Browser__*` | Read-and-run: drives the affected flow, including UI, through shell or the browser. No `WebFetch`: it cannot reach localhost. Still no Write/Edit. |
 
 **Bash and PowerShell both stay everywhere.** Without PowerShell, a builder on Windows falls back to Bash and breaks the owner's shell rule. Cloud sessions are Linux and need Bash.
 
@@ -139,3 +139,9 @@ The-pact is a git repo: `git revert` the commit, then copy `claude/agents/` and 
 ## Cost
 
 Plan review: `plan-verifier` rounds plus one `security-reviewer` run (done). Build: one `security-executor` run. Tool allowlists are access control, so the owner's rule routes the build there whatever its size (owner approved, 2026-09-26). Verify: one `verifier` run plus the fresh-session check (about six small dispatches, including the probes). Roughly ten subagent runs, two of them at high effort.
+
+## Outcome (2026-09-26)
+
+Acceptance checks 4 and 5 ran in a fresh session; the report is kept verbatim in `.check-4-5.md`. Check 5, the forbidden-tool check, P1, P2 on `builder` and P3 passed. Check 4 failed only because `LSP` and `TodoWrite` do not exist in this Claude Code build (the main session lacks them too), and `result-checker` receives no `ToolSearch` (it appears to be given only to agents with deferred tools).
+
+**Owner decision:** remove `LSP` and `TodoWrite` from all four `tools:` lines, which changes no agent's actual tools, so it was edited directly without another security round. Keep `ToolSearch` on `result-checker`: harmless, and needed if its browser tools are ever deferred. **Known gap:** P2 could not be exercised on `result-checker`, since it had no `ToolSearch`. **F1 evidence:** a `context: fork` skill invoked from `builder` got `builder`'s tool set, not general-purpose's, so the accepted risk showed no hole in this run.

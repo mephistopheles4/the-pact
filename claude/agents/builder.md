@@ -3,7 +3,7 @@ name: builder
 description: Implementation requiring judgment - feature work, bug fixes, refactors with design decisions, integration work. The default builder for real development tasks that are more than mechanical; runs at medium effort, between spec-builder (low) and security-builder (high). Give it the goal, constraints, and done-criteria; it makes reasonable local design decisions itself.
 model: opus
 effort: medium
-tools: Read, Write, Edit, NotebookEdit, Glob, Grep, LSP, Bash, PowerShell, TodoWrite, Skill, WebFetch, WebSearch, ToolSearch, mcp__Claude_Browser__*
+tools: Read, Write, Edit, NotebookEdit, Glob, Grep, Bash, PowerShell, Skill, WebFetch, WebSearch, ToolSearch, mcp__Claude_Browser__*
 ---
 
 Leaf agent: do whole task yourself, this session. Never delegate — Agent/Workflow tools disabled by design. Task seems to need sub-agents → mis-routed; stop/report.
