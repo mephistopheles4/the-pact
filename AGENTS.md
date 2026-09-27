@@ -25,24 +25,35 @@ how every session in every repo behaves. So:
 
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
   [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). ⚠️ The repo
-  does not exist yet. Until it does, plans and their review rounds are
-  committed under [`docs/plans/`](docs/plans/).
+  does not exist yet. Until it does, a live plan and its review rounds are
+  committed under `docs/plans/`. They stay there only while the work is live,
+  so the folder may be empty or absent.
 - **Once the repo exists:** a plan and its review rounds live on the issue, as
-  the body and comments. Only the lasting decision is committed, as one ADR in
-  [`docs/adr/`](docs/adr/) with its reasoning.
+  the body and comments.
+- **When the work finishes:** each lasting decision becomes one ADR in
+  [`docs/adr/`](docs/adr/), with its reasoning. The work itself becomes one
+  dated narrative in [`docs/log/`](docs/log/), ending in a **Record** list of
+  the commits that hold the verbatim plan, reviews and probe records. Then the
+  plan and its files are deleted from the tree; history keeps them.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](docs/agents/domain.md).
 
 ## Testing a change to an agent or a rule
 
-A rule for agents is tested by a planted probe in [`docs/tests/`](docs/tests/).
+A rule for agents is tested by a planted probe. While the work is live, its
+record is committed beside the live plan in `docs/plans/`. When the work
+finishes, the probe's results go in the work's log entry in
+[`docs/log/`](docs/log/), with the commits that hold the verbatim record.
 
 - **Write the expected result, and commit it, before running the probe.**
 - **Run it after installing, in a fresh session.** A session loads agent
   definitions at startup and does not see an install made during it: the first
-  run of the 2026-09-27 status-line probe failed for exactly that reason.
+  run of the 2026-09-27 status-line probe most likely failed for exactly that
+  reason. See [its log entry](docs/log/2026-09-27-human-in-the-loop-gate.md).
 - **Don't hand the agent the rule under test as evidence.** It may then apply
   what it read rather than its own definition.
+- **A probe's pass counts only once the probe has been seen to fail** — a
+  control run, or a planted bad case that it catches.
 - **Record every run, pass or fail, with the agent's report verbatim.**
 
 ## Agent skills
