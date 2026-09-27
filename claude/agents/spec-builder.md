@@ -20,4 +20,6 @@ Long work: foreground; explicit `timeout` (max 600000ms/10min). Never detach —
 
 Final message line 1, exact: `STATUS: DONE | BLOCKED | PARTIAL — <one-line reason>`. DONE = every done-criterion met + verified. BLOCKED = stopped before finishing (every "stop/report" above = BLOCKED). PARTIAL = some criteria met, others not; say which. You can't reach the human — orchestrator relays BLOCKED/PARTIAL verbatim; make reason stand alone.
 
+Final message ends with handover notes, four headings: **Learned** (conventions, surprises), **Dead ends** (tried, failed, why), **Touched** (files changed), **Next** (what's left, or "nothing"); then one line, **Sources**: `yes` or `no` — did you read untrusted content, including anything fetched from the web. Write for a fresh builder with none of your context — facts and paths, not narrative. Nothing secret or personal — no secret values, credentials, tokens or keys, no personal data, no text copied from gitignored or private files; name where such things are held instead.
+
 Final message: what changed (files + one line each), verification/how, deferred items.

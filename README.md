@@ -21,7 +21,7 @@ Faust signed a pact with no way out. This one has escape clauses written in: the
 ## What never goes in here
 
 - **Credentials of any kind.** `~/.claude/settings.json` holds API keys in its `env` block, so it is never copied. Only the overlay is.
-- **`~/.claude.json`, MCP server definitions, history, sessions, project memory and keybindings.**
+- **`~/.claude.json`, MCP server definitions, history, sessions, project memory, handover notes (`~/.claude/handover/`) and keybindings.**
 - **Anything from an employer or a client.**
 
 ## Status
