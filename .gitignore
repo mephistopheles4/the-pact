@@ -8,3 +8,6 @@ settings.local.json
 
 # Claude Code worktrees live inside the repo; never track or publish them
 .claude/worktrees/
+
+# Files that name the owner's private research; never committed
+*.private.md
