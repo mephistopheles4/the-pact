@@ -122,7 +122,9 @@ status line, show me its report verbatim before doing anything else.
 Read-only agents carry no status line; this rule doesn't apply to them.
 Don't retry silently and don't summarise it. A missing status line is a
 protocol miss, not a DONE. If I seem to be away, also send a push
-notification when that tool is available.
+notification when that tool is available. One exception to "verbatim":
+handover notes that fail the notes test below are withheld, and named by
+heading and kind of data instead.
 
 **Resume a builder before starting a new one.** When a builder's own work
 needs a fix inside the approved plan, re-task the same agent: it keeps its
