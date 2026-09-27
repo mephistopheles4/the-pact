@@ -12,5 +12,5 @@ When a plan has gone through two paper review rounds and `plan-reviewer` still h
 ## How this was decided
 
 - **2026-09-27** — The coherence check between the pact and the owner's private research found this rule settled there and not reflected in `claude/CLAUDE.md`. The owner decided that this ADR records it now, and the `claude/CLAUDE.md` change is queued as follow-up F1, with its own plan. Recorded in the ADR/log plan in `c115eee`.
-- **2026-09-27** — The check and the owner's call are told in this work's own log entry, `docs/log/2026-09-27-adr-and-log.md`.
+- **2026-09-27** — The check and the owner's call are told in [the ADR and log entry](../log/2026-09-27-adr-and-log.md).
 - **Not yet in the pact's text:** until F1 lands, a session that follows `claude/CLAUDE.md` will not offer this option on its own.

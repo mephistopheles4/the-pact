@@ -70,4 +70,4 @@ The five canonical roles, each label string equal to its name, as in stacks. `re
 
 ### Domain docs
 
-Single-context: one [`CONTEXT.md`](CONTEXT.md) and [`docs/adr/`](docs/adr/) at the root, both created when first needed. See [`docs/agents/domain.md`](docs/agents/domain.md).
+Single-context: one [`CONTEXT.md`](CONTEXT.md) and [`docs/adr/`](docs/adr/) at the root. `CONTEXT.md` is created when a term first needs it. See [`docs/agents/domain.md`](docs/agents/domain.md).

@@ -13,6 +13,6 @@ Before the main session hands a step to `builder`, `spec-builder` or `security-b
 
 ## How this was decided
 
-- **2026-09-27** — Planned over five `plan-reviewer` rounds. Each round found one more routine hand-off the gate blocked, and round 3 reframed the gate around needs that arise after dispatch. The rounds and the reframe are told in [the human-in-the-loop gate log](../log/2026-09-27-human-in-the-loop-gate.md). The plan and all five reviews are in `f2cee57`.
+- **2026-09-27** — Planned over five `plan-reviewer` rounds. Each round found one more rule that, read literally, fired on routine work: round 1 the relay on every read-only return, then rounds 2 to 5 the gate on one more routine hand-off each. Round 3 reframed the gate around needs that arise after dispatch. The rounds and the reframe are told in [the human-in-the-loop gate log](../log/2026-09-27-human-in-the-loop-gate.md). The plan and all five reviews are in `f2cee57`.
 - **2026-09-27** — Built in `c0c8179` (CLAUDE.md, the three builders, `plan-reviewer`). A probe run in a fresh session showed `plan-reviewer` returning `REVISE` on a plan with its "Needs a human" section deleted, and `READY` on the unchanged plan (`507a6ab`).
 - **Deferred:** a hook that enforces the gate, until the owner sees the main session skip it despite the rule.

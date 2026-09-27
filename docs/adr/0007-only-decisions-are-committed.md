@@ -13,5 +13,5 @@ A plan, its review rounds, its check reports and its probe records are process, 
 ## How this was decided
 
 - **2026-09-27** — Planned in `d692989`, with the owner's calls recorded in `b773cf8` and `c115eee`. `plan-reviewer` round 1 (`af2c056`) asked for an end-state check before `main` moves and for private material to stay with the main session; fixed in `8e899b7`. Round 2 returned `READY` (`b11335c`).
-- **2026-09-27** — The full story, and the commits that built it, go in this work's own log entry, `docs/log/2026-09-27-adr-and-log.md`.
+- **2026-09-27** — The full story, and the commits that built it, are in [the ADR and log entry](../log/2026-09-27-adr-and-log.md).
 - **Foreshadowed:** the root `AGENTS.md` already said, from `804e25a`, that once the GitHub repo exists only the lasting decision is committed, as one ADR.
