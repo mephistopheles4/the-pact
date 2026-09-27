@@ -1,6 +1,6 @@
 # Plan: decisions to ADRs, work to logs, and a coherence check against the research
 
-*Status: draft 1, written 2026-09-27. Not yet reviewed. **Parked until the weekly usage reset (2026-09-29, 12pm Toronto)**: the owner chose to split the work, writing this plan now with no agents and running everything else after the reset.*
+*Status: draft 2, for `plan-reviewer` round 1. Written 2026-09-27. The owner first parked it until the usage reset, then chose to run it the same day while monitoring usage. C1–C3 are done.*
 
 ## Intent
 
@@ -42,7 +42,7 @@ Title as the decision in words. One paragraph stating it. A **Why** section. A *
 
 A title, then prose: what the work set out to do, what each review round caught, what was built, what the probes showed, and what is still open. It closes with a **Record** list: each commit SHA and what verbatim artefact it holds.
 
-### D4. The ADR list (draft — the coherence check may change it)
+### D4. The ADR list (settled after C3, 2026-09-27)
 
 | # | Decision | Source in this repo |
 |---|---|---|
@@ -53,7 +53,9 @@ A title, then prose: what the work set out to do, what each review round caught,
 | 0005 | Builders open with a status line; blocked is relayed verbatim | `f2cee57`, `c0c8179`, probes to `507a6ab` |
 | 0006 | This repo's rules live in root AGENTS.md; root CLAUDE.md imports it | `804e25a` |
 | 0007 | Plans and reviews are process; only decisions are committed | this plan |
-| 0008? | After two paper review rounds without READY, try a throwaway | **Candidate.** Settled in the research, missing from `claude/CLAUDE.md`. See D6. |
+| 0008 | After two paper review rounds without READY, build a throwaway and use it | Owner's decision, confirmed at C3 on 2026-09-27; it predates this repo. The ADR says plainly that `claude/CLAUDE.md` does not yet offer it (follow-up F1), and that the 2026-09-27 gate plan went five paper rounds for that reason. |
+
+Each ADR states the decision and its reasoning in the pact's own words. Where the reasoning came from the owner's private research, the ADR says "from the owner's research" and gives no file, path or quote.
 
 ### D5. The log list
 
@@ -66,9 +68,28 @@ A title, then prose: what the work set out to do, what each review round caught,
 
 **Step C1: extract (read-only, `scout`).** Pull every settled decision, rule and stop signal from the research, each with a file:line reference. **Which files, and which are read only by targeted search, is listed in `2026-09-27-adr-and-log.private.md` beside this plan.** That file is gitignored (`*.private.md`), because naming the research's files in a public repo's history would leak them. The scout's extract stays out of the tree too: it goes to the session scratchpad.
 
-**Step C2: compare (main session).** A table with one row per D4 decision and one per research decision: *consistent*, *conflicts*, *research silent*, or *research settled it, the pact doesn't reflect it*.
+**Step C2: compare (main session). Done 2026-09-27.** The scout's extract (≈51k tokens) is in the session scratchpad, not the tree. Result, paraphrased:
 
-**Step C3: owner decides.** Every *conflicts* row and every *not reflected* row goes to the owner. The known one so far: **after two paper rounds without READY, build a throwaway and use it.** The research settles this, and the owner reports seeing it happen as prototyping or build suggestions after round 2 in several sessions. But `claude/CLAUDE.md` only says "tell me after two rounds" and offers keep going, `fable`, or stop. So in this session's gate plan, after rounds 2 and 3, no throwaway was offered. Building was first suggested after round 5.
+| Pact decision or research rule | Research | Verdict |
+|---|---|---|
+| 0001 Plain agent names | Silent; near it: plain names over internal codes | Consistent |
+| 0002 Tool allowlists | Queued as next work; least-privilege is a candidate rule | Consistent — the pact did what the research queued |
+| 0003 Report a missing tool | Silent; near it: "stops and reports" | Consistent |
+| 0004 Gate on after-dispatch needs | Silent; near it: an agent can't pause mid-run, so it stops and reports with the question | Consistent — same premise |
+| 0005 Status line, verbatim relay | Verbatim relay settled for reviewer findings | Consistent — the pact extends it to builders |
+| 0006 Root AGENTS.md | Silent | Pact-only |
+| 0007 Only decisions committed | Keep records for learning apart from records for judgment | Consistent — logs and ADRs are that split |
+| Throwaway after two paper rounds | Settled | **Not reflected** in `claude/CLAUDE.md` |
+| A check counts only once seen to fail | Settled | **Not reflected** in the probe rules |
+| Review in layers | Settled: paper, hands-on, adversarial, claim-checking, test integrity | **Partly reflected** — no adversarial or claim-checking reviewer |
+| Opus plus effort; reviewer independence; never merge findings; stop signals; human at every seam; size dials rigor; recommend before acting; ask before expensive work | Settled | Consistent |
+
+The research holds one open conflict of its own: whether reviewer independence means a different model or a different session. It is not the pact's to settle.
+
+**Step C3: owner decides. Done 2026-09-27.**
+- **Throwaway after two rounds:** write ADR 0008 now, and queue the `claude/CLAUDE.md` change as follow-up F1.
+- **Seen to fail:** add it to the probe rules in `AGENTS.md` (D8).
+- **Review layers:** record the gap as follow-up F2 in the log; no ADR and no new agents here. The owner adds a third gap: **no mutation tester**.
 
 **Why first:** an ADR written before the conflicts are settled would record a decision the owner may not hold.
 
@@ -78,14 +99,21 @@ After the builder writes ADRs and logs, it deletes `docs/plans/2026-09-26-*`, `d
 
 ### D8. AGENTS.md follows
 
-Update the root `AGENTS.md` sections "Where work lives" and "Testing a change to an agent or a rule" to point at `docs/adr/` and `docs/log/`. Plans live in `docs/plans/` only while live; probe records go in the work's log entry, with the expected result still committed before the run.
+Update the root `AGENTS.md` sections "Where work lives" and "Testing a change to an agent or a rule" to point at `docs/adr/` and `docs/log/`. Plans live in `docs/plans/` only while live; probe records go in the work's log entry, with the expected result still committed before the run. Add one probe rule (C3): **a probe's pass counts only once the probe has been seen to fail** — a control run or a planted bad case that it catches.
+
+### D9. Follow-ups, recorded in this work's log entry
+
+Nothing below is built in this plan. Each becomes an issue once the tracker exists.
+
+- **F1.** Add "build a throwaway and use it" to the options `claude/CLAUDE.md` offers after two review rounds (ADR 0008).
+- **F2.** Review layers the pact lacks: an **adversarial** reviewer, a **claim-checking** reviewer, and a **mutation tester**.
 
 ## Needs a human
 
-- **C3, the coherence conflicts** — *at sign-off, before the builder is dispatched.* The owner settles each conflict row; the answers go into D4 before `plan-reviewer` runs. Nothing is written for an unsettled row.
+- **C3, the coherence conflicts** — *settled 2026-09-27* (see D6). All answers are in D4, D8 and D9.
 - **The privacy check** — *after dispatch.* The owner reads the finished ADRs and logs for anything private before merge. Kept in the main session: the main session shows the owner the private-term search results (acceptance A4) and waits.
 - **A private name is already in history** — *settled 2026-09-27: accepted, no history rewrite.* Commit `3828f29` added a plan that names the research folder on two lines. A full-history scan found nothing else: no research file names, contents or personal paths, in any commit or commit message. The owner already says publicly that they keep private research, so the folder name exposes little. D7 deletes the file from the tree; history keeps it.
-- **Usage** — *at sign-off.* Weekly usage was 94% on 2026-09-27. Nothing below runs before the reset without the owner's go-ahead.
+- **Usage** — *settled 2026-09-27.* Weekly usage was 94%; the owner said to run the agents now and monitor usage. The main session checks usage after each agent and reports it.
 - **Deleting the old plans and probe files** — *at sign-off.* Approved by the owner on 2026-09-27; reversible through git.
 - **Builder steps** — *at sign-off*, once C3 is settled: exact files, sources and acceptance checks are in this plan.
 
