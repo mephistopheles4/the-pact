@@ -21,3 +21,10 @@
 ## What this record holds
 
 For each run: the STATUS line, which headings and whether the Sources line are present, and the Sources value. The content under the headings is withheld, per the plan. Each full report is kept verbatim in the gitignored `2026-09-27-resume-and-handoff.probe.private.md`.
+
+## Control result (2026-09-27): as expected — no handover notes
+
+- **STATUS line:** `STATUS: DONE — README.md has 42 lines, and the command succeeded.`
+- **Headings present:** none of Learned, Dead ends, Touched, Next. **Sources line:** absent.
+- The probe is seen to fail on the pre-install definition, so a test pass can count.
+- Full report: in the gitignored `.probe.private.md` (it contains a home path).
