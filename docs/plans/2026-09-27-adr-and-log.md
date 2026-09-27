@@ -125,6 +125,7 @@ Nothing below is built in this plan. Each becomes an issue once the tracker exis
 4. **`builder`, pass 1:** writes ADRs 0001–0008 and the first three D5 log entries, deletes the D7 files, and updates AGENTS.md (D8). Main session commits.
 5. **`result-checker`** checks A1–A3, A5 and A6 against the pass-1 commit. Main session runs A4 and A4a itself. Main session commits the check report verbatim to `docs/plans/`.
 6. **`builder`, pass 2** (a re-task, same plan): writes this work's own log entry (the fourth D5 entry). Its Record list cites this plan's commits, the review files, the pass-1 commit and the check-report commit. Then it deletes this plan, its review files and the check report. Main session commits.
+   **Scope added by the owner after step 5 (2026-09-27):** pass 2 also fixes the four `result-checker` advisories in `.verify-1.md`, which resolves advisory 4 by turning ADR 0007's and 0008's log references into links. It also closes the two gaps the builder flagged: a fifth log entry, `2026-09-27-repo-rules-and-tracker.md`, for ADR 0006's work (`804e25a`), linked from ADR 0006; and the stale "created when first needed" wording about `docs/adr/` in AGENTS.md's "Domain docs" section. A2's end state becomes five entries.
 7. **Final check, main session, on the final commit, before `main` moves:** end-state A2 (all four entries), A3-end, A4, A4a and A5. These are mechanical commands, so no agent is needed. Then the owner's privacy read (see Needs a human). On the owner's yes, fast-forward `main`.
 
 ### Private material: who may open it
