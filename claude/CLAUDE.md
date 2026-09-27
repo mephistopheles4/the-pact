@@ -62,10 +62,11 @@ comes to me first.
 Otherwise, run this flow instead of implementing in the main session:
 
 1. **Think before building.** Write the plan: the intent, the unhappy paths,
-   the constraints, and each decision with its why. `plan-reviewer` reviews
-   it; show me a table of its findings (its own headlines, with severity),
-   and link its full findings, verbatim, in a kept file. I decide proceed,
-   fix or kill. Never start building on READY alone.
+   the constraints, each decision with its why, and a **Needs a human**
+   section (below). `plan-reviewer` reviews it; show me a table of its
+   findings (its own headlines, with severity), and link its full findings,
+   verbatim, in a kept file. I decide proceed, fix or kill. Never start
+   building on READY alone.
 2. **Build to the approved plan.** Send fully specified work to
    `spec-builder`, and work with design decisions left to `builder`.
    Anything touching auth, secrets, crypto or input validation goes through
@@ -78,8 +79,55 @@ Otherwise, run this flow instead of implementing in the main session:
    verbatim, in a kept file. Never merge or summarise them. I decide
    whether it's done.
 
+**Gate every builder hand-off for a human in the loop.** An agent cannot
+reach me. This gate covers hand-offs to the builders (`builder`,
+`spec-builder`, `security-builder`) only. Read-only agents — reviewers,
+checkers, `scout`, `Explore`, a `fable` second opinion — are never gated.
+Before sending a step to a builder, ask one question: will it need me
+*after* it is dispatched? Anything I settle at plan sign-off — a decision,
+an approval, done-criteria — is handled, and the agent carries it with it.
+So is an explicit answer I give later in chat, for example to a relayed
+`BLOCKED` or to a gate warning: the re-task carrying it isn't gated again
+for that need. Only these signals block, and only when neither the
+signed-off plan nor my later answer settles them:
+
+- **A decision that needs me,** left for build time: a product or scope
+  choice, or an architecture fork with codebase-wide consequences. Local
+  design decisions left to `builder` (naming, structure, error handling)
+  don't count.
+- **Something only I can do during the build:** sign in, enter
+  credentials, pay, or approve at run time.
+- **An irreversible action the agent would carry out itself** — publish,
+  push, send, migrate real data — that the plan doesn't name for my
+  sign-off. Writing code, auth code included, is reviewed and revertible;
+  it doesn't count.
+- **No checkable done-criteria** for the step.
+
+Every plan's **Needs a human** section lists each step that needs me and
+when: *at sign-off* (say how the plan settles it) or *after dispatch* (say
+how it's handled). It says "None" if there are none. When a step trips a
+signal the plan doesn't handle, don't send it. Warn me in this form, then
+wait:
+
+`⚠ Needs a human: <step> — <signal>. Not sending to <agent>.`
+
+Name the options — settle it in the plan then delegate, split off my part,
+or keep it in the main session — with your recommendation. A security step
+can't stay in the main session, so offer only the first two for it.
+
+**Relay every blocked agent.** Builders open their final message with
+`STATUS: DONE | BLOCKED | PARTIAL — <reason>`. When a builder (`builder`,
+`spec-builder`, `security-builder`) returns `BLOCKED`, `PARTIAL`, or no
+status line, show me its report verbatim before doing anything else.
+Read-only agents carry no status line; this rule doesn't apply to them.
+Don't retry silently and don't summarise it. A missing status line is a
+protocol miss, not a DONE. If I seem to be away, also send a push
+notification when that tool is available.
+
 **When to stop or escalate is my call.** Tell me, and wait, when:
 
+- a builder (`builder`, `spec-builder`, `security-builder`) reports
+  `BLOCKED` or `PARTIAL`, or omits its status line;
 - the build or review has gone round twice without converging;
 - the work has left the approved plan;
 - the change is hard to reverse: auth, secrets, data migrations, or anything

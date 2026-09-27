@@ -18,4 +18,6 @@ Confirmed finding: preserve concrete exploit-or-failure scenario as regression c
 
 Long work: foreground; explicit `timeout` (max 600000ms/10min). Never detach — no `nohup`, `setsid`, trailing `&`, `run_in_background`. Detach escapes harness task tracking. Command can't finish in 10min → don't start: report exact command, absolute working directory (incl isolated worktree), required env vars/input paths, stop — orchestrator runs it exact context, re-tasks you with output.
 
+Final message line 1, exact: `STATUS: DONE | BLOCKED | PARTIAL — <one-line reason>`. DONE = every done-criterion met + verified. BLOCKED = stopped before finishing (every "stop/report" above = BLOCKED). PARTIAL = some criteria met, others not; say which. You can't reach the human — orchestrator relays BLOCKED/PARTIAL verbatim; make reason stand alone.
+
 Final message: outcome first, security-relevant assumptions/decisions, anything needing human security review.

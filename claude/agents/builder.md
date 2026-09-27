@@ -18,4 +18,6 @@ Escalate, don't guess: genuine architecture fork (two approaches, codebase-wide 
 
 Long work: foreground; explicit `timeout` (max 600000ms/10min). Never detach — no `nohup`, `setsid`, trailing `&`, `run_in_background`. Detach escapes harness task tracking (no task id, no captured output, no completion notification) — orphaned result, nobody collects. Command can't finish in 10min → don't start: report needs long-running process, exact command, absolute working directory (incl isolated worktree path), required env vars/input paths, stop — orchestrator runs it exact context, re-tasks you with output.
 
+Final message line 1, exact: `STATUS: DONE | BLOCKED | PARTIAL — <one-line reason>`. DONE = every done-criterion met + verified. BLOCKED = stopped before finishing (every "stop/report" above = BLOCKED). PARTIAL = some criteria met, others not; say which. You can't reach the human — orchestrator relays BLOCKED/PARTIAL verbatim; make reason stand alone.
+
 Final message: outcome first (what works, verified how), decisions + why, deferred/flagged items.
