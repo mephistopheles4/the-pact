@@ -1,6 +1,6 @@
 # Plan: decisions to ADRs, work to logs, and a coherence check against the research
 
-*Status: draft 2, for `plan-reviewer` round 1. Written 2026-09-27. The owner first parked it until the usage reset, then chose to run it the same day while monitoring usage. C1–C3 are done.*
+*Status: draft 3, for `plan-reviewer` round 2. Round 1 (`.review-1.md`) fixes: A5 exempts on-demand targets; the Order section adds a builder second pass and a final check before `main` moves; only the main session may open private material. Written 2026-09-27. The owner first parked it until the usage reset, then chose to run it the same day while monitoring usage. C1–C3 are done.*
 
 ## Intent
 
@@ -95,11 +95,11 @@ The research holds one open conflict of its own: whether reviewer independence m
 
 ### D7. Delete, don't archive
 
-After the builder writes ADRs and logs, it deletes `docs/plans/2026-09-26-*`, `docs/plans/2026-09-27-human-in-the-loop-gate*`, and `docs/tests/`. This plan and its reviews stay until this work finishes, then go the same way in the last commit.
+In its first pass, the builder writes the ADRs and the first three logs, then deletes `docs/plans/2026-09-26-*`, `docs/plans/2026-09-27-human-in-the-loop-gate*`, and `docs/tests/`. This plan, its reviews and the check report stay until the builder's second pass (see Order). That pass writes this work's own log entry and then deletes them. **Why the builder writes the last entry, not the main session:** it is real writing, and it is the entry most likely to leak, so it gets the same route and the same checks as the others.
 
 ### D8. AGENTS.md follows
 
-Update the root `AGENTS.md` sections "Where work lives" and "Testing a change to an agent or a rule" to point at `docs/adr/` and `docs/log/`. Plans live in `docs/plans/` only while live; probe records go in the work's log entry, with the expected result still committed before the run. Add one probe rule (C3): **a probe's pass counts only once the probe has been seen to fail** — a control run or a planted bad case that it catches.
+Update the root `AGENTS.md` sections "Where work lives" and "Testing a change to an agent or a rule" to point at `docs/adr/` and `docs/log/`. Plans live in `docs/plans/` only while live. The folder may be empty or absent, so name it in code formatting, never as a link. Probe records go in the work's log entry, with the expected result still committed before the run. Add one probe rule (C3): **a probe's pass counts only once the probe has been seen to fail** — a control run or a planted bad case that it catches.
 
 ### D9. Follow-ups, recorded in this work's log entry
 
@@ -111,7 +111,7 @@ Nothing below is built in this plan. Each becomes an issue once the tracker exis
 ## Needs a human
 
 - **C3, the coherence conflicts** — *settled 2026-09-27* (see D6). All answers are in D4, D8 and D9.
-- **The privacy check** — *after dispatch.* The owner reads the finished ADRs and logs for anything private before merge. Kept in the main session: the main session shows the owner the private-term search results (acceptance A4) and waits.
+- **The privacy check** — *after dispatch, kept in the main session.* At step 7, after the final commit and before `main` moves, the owner reads every ADR and log entry for anything private, starting with this work's own entry. The main session shows the A4 results and waits. `main` moves only on the owner's yes.
 - **A private name is already in history** — *settled 2026-09-27: accepted, no history rewrite.* Commit `3828f29` added a plan that names the research folder on two lines. A full-history scan found nothing else: no research file names, contents or personal paths, in any commit or commit message. The owner already says publicly that they keep private research, so the folder name exposes little. D7 deletes the file from the tree; history keeps it.
 - **Usage** — *settled 2026-09-27.* Weekly usage was 94%; the owner said to run the agents now and monitor usage. The main session checks usage after each agent and reports it.
 - **Deleting the old plans and probe files** — *at sign-off.* Approved by the owner on 2026-09-27; reversible through git.
@@ -119,21 +119,31 @@ Nothing below is built in this plan. Each becomes an issue once the tracker exis
 
 ## Order
 
-1. `scout` runs C1. Main session writes C2 into this plan.
-2. Owner settles C3. Main session updates D4 and D5.
+1. `scout` runs C1. Main session writes C2 into this plan. *(Done.)*
+2. Owner settles C3. Main session updates D4 and D5. *(Done.)*
 3. `plan-reviewer` reviews this plan. Owner decides proceed, fix or kill.
-4. `builder` writes the ADRs and logs, deletes the old files, updates AGENTS.md.
-5. `result-checker` checks it. Owner reads the ADRs and logs for privacy and decides whether it's done.
-6. Main session converts this plan into its own log entry and deletes it, then fast-forwards `main`.
+4. **`builder`, pass 1:** writes ADRs 0001–0008 and the first three D5 log entries, deletes the D7 files, and updates AGENTS.md (D8). Main session commits.
+5. **`result-checker`** checks A1–A3, A5 and A6 against the pass-1 commit. Main session runs A4 and A4a itself. Main session commits the check report verbatim to `docs/plans/`.
+6. **`builder`, pass 2** (a re-task, same plan): writes this work's own log entry (the fourth D5 entry). Its Record list cites this plan's commits, the review files, the pass-1 commit and the check-report commit. Then it deletes this plan, its review files and the check report. Main session commits.
+7. **Final check, main session, on the final commit, before `main` moves:** end-state A2 (all four entries), A3-end, A4, A4a and A5. These are mechanical commands, so no agent is needed. Then the owner's privacy read (see Needs a human). On the owner's yes, fast-forward `main`.
+
+### Private material: who may open it
+
+Only the main session opens a `*.private.md` file or the research, and only the main session runs A4. The briefs for `builder` (both passes) and `result-checker` must say three things:
+- don't open any `*.private.md` file or anything outside the repo;
+- don't copy the research folder's name forward from the 2026-09-26 plan;
+- refer to the research only as "the owner's private research".
+
+The main session has checked that A4's private term list includes the research folder's name. It won't write the name here.
 
 ## Acceptance
 
 - **A1.** Every D4 row the owner kept has one ADR in `docs/adr/`, numbered in order, in D2's format.
-- **A2.** Every D5 entry exists in `docs/log/`, in D3's format, with a Record list whose SHAs all resolve (`git cat-file -e <sha>`).
-- **A3.** `docs/tests/` is gone. `docs/plans/` tracks nothing but this plan and its review files.
-- **A4.** A search of every tracked file for the private terms listed in the `.private.md` file finds nothing. (`git grep`, so the gitignored file itself is not searched.)
-- **A4a.** `git check-ignore docs/plans/2026-09-27-adr-and-log.private.md` confirms the private file is ignored, and `git log --all -- '*.private.md'` shows it was never committed.
-- **A5.** Every relative link in `docs/`, `AGENTS.md` and `README.md` resolves to a file in the tree.
+- **A2.** After step 4: the first three D5 entries exist in `docs/log/`, in D3's format, with Record lists whose SHAs all resolve (`git cat-file -e <sha>`). **End state (step 7):** all four entries do.
+- **A3.** After step 4: `docs/tests/` is gone, and `docs/plans/` tracks nothing but this plan and its review files. **A3-end (step 7):** `docs/plans/` tracks nothing.
+- **A4.** *Main session only.* A search of every tracked file (`git grep`) for the private terms in the `.private.md` file finds nothing except the two lines of the 2026-09-26 plan that is accepted in history. After D7 deletes that plan, the search must find nothing at all. Runs at step 5 and again at step 7.
+- **A4a.** *Main session only.* `git check-ignore` confirms the `.private.md` file is ignored, and `git log --all -- '*.private.md'` shows it was never committed.
+- **A5.** Every relative link in `docs/`, `AGENTS.md` and `README.md` resolves to a file in the tree. One exemption: targets that `docs/agents/domain.md` says are created on demand (`CONTEXT.md`). Runs at step 5 and again at step 7.
 - **A6.** `git diff --stat` touches only `docs/` and `AGENTS.md`. Nothing in `claude/` changes.
 
 ## Unhappy paths
@@ -149,4 +159,4 @@ Nothing below is built in this plan. Each becomes an issue once the tracker exis
 
 ## Stop conditions
 
-Stop and tell the owner if: the builder returns anything but `STATUS: DONE`; review goes round twice without converging (and offer a throwaway try, per the pending D6 row); the diff touches `claude/`; A4 finds anything.
+Stop and tell the owner if: the builder returns anything but `STATUS: DONE`; review goes round twice without converging (and offer a throwaway try, per ADR 0008); the diff touches `claude/`; A4 finds anything.
