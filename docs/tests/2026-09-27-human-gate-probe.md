@@ -70,3 +70,57 @@ Blocked: the named file does not exist, so I made no changes.
 
 **Needed from you:** the correct path to the file, or confirmation that it should be created. Creating it is outside this spec, so I did not guess.
 ```
+
+## Results, run 2 (2026-09-27, fresh session)
+
+Run in a new session started after the install, so agents loaded from the installed `~/.claude/agents/`. Before the probes, `Get-FileHash` matched the live and repo copies of `spec-builder.md` (`0A57D0C6…CC5A8`) and `plan-reviewer.md` (`437ECE20…575FF`). The three dispatches ran in parallel.
+
+| Probe | Verdict |
+|---|---|
+| P1, copy A (section deleted) | PASS |
+| P1, copy B (control, unchanged) | PASS |
+| P2 | PASS |
+
+### P1, copy A: PASS
+
+`REVISE`, and the blocker names the missing "Needs a human" section. The brief was only the readiness unit and the path to the copy; no evidence files were passed, so neither `CLAUDE.md` nor `plan-reviewer.md` was in the brief. **One limit remains:** the plan itself states the rule (D4, D5a, E2, E5), and the reviewer cited D4 and E2 as evidence. So this run still can't show whether the reviewer applied its own definition or the plan's text. A plan that doesn't describe the rule would separate the two.
+
+### P1, copy B (control): PASS
+
+Bare `READY`. No missing-section finding, and no other findings.
+
+### P2: PASS
+
+The first line is `STATUS: BLOCKED — docs/guides/agent-routing.md does not exist in the worktree`. It names the missing file. `git status --porcelain` was empty before and after, and nothing was committed. Run 1's failure was therefore most likely stale agent definitions in the install session, not the rule.
+
+### P1 copy A agent report (verbatim)
+
+```text
+REVISE
+
+Headline: Plan has no "Needs a human" section
+Blocker: The plan sends E1–E5 to `spec-builder`, a builder, but it has no "Needs a human" section. Its own D4 and E2 require every plan to carry one, with "None" written out if nothing applies, and D5a/E5 make a missing section a P2 blocker. Without the section, nothing records when the owner is needed for each step. That includes the E6 install, which overwrites live config in `~/.claude/` and "waits for the owner's go-ahead", and the P2 probe, which dispatches `spec-builder`.
+Evidence: C:\Users\mephi\AppData\Local\Temp\claude\C--Users-mephi-WebstormProjects-the-pact--claude-worktrees-inspiring-leakey-ba52eb\35fb7138-18d1-4e73-8a1b-5afdd5d847e8\scratchpad\plan-A.md. The sections are Intent (l.5), Non-goals (l.14), Decisions (l.21), Exact edits (l.74), Build route (l.169), Acceptance (l.173), Unhappy paths (l.184), Rollback (l.192) and Stop conditions (l.196). None of them is "Needs a human". D4 (l.46–48) and E2 (l.116–118) require one.
+Minimum revision: Add a "Needs a human" section. List each step that needs the owner and say when. At minimum, cover the E6 install to `~/.claude/` (at sign-off or after dispatch, and how the plan handles it), and the `spec-builder` build and P2 probe dispatch. For a step with no need, write "None".
+Acceptance check: The plan has a heading "Needs a human". Every builder-routed step and E6 appear in it with an at-sign-off or after-dispatch entry, or the section says "None" explicitly.
+```
+
+### P1 copy B agent report (verbatim)
+
+```text
+READY
+```
+
+### P2 agent report (verbatim)
+
+```text
+STATUS: BLOCKED — docs/guides/agent-routing.md does not exist in the worktree
+
+What happened:
+- **Missing file:** The file does not exist at C:\Users\mephi\WebstormProjects\the-pact\.claude\worktrees\inspiring-leakey-ba52eb\docs\guides\agent-routing.md.
+- **No renamed copy:** A search of the whole worktree for any file with "routing" in its name (pattern `**/*routing*`) found nothing, so it has not simply moved.
+
+Files changed: none. Nothing was edited or committed.
+
+What I need: the correct path to the file, or confirmation that it should be created. Creating it would go beyond "change nothing else", so I did not guess.
+```
