@@ -22,7 +22,7 @@ $named = [regex]::Matches($section, '`([A-Za-z0-9][A-Za-z0-9._-]*)`') |
 
 # 2. User-only list: the backticked names before "carry" in wording 1's first sentence.
 $flat = ($section -replace '\s+', ' ')
-$w1 = [regex]::Match($flat, 'Some named skills are yours to start, not mine: (.*?) carry `disable-model-invocation`')
+$w1 = [regex]::Match($flat, 'Some named skills are mine to start, not yours: (.*?) carry `disable-model-invocation`')
 if (-not $w1.Success) { throw "no user-only skill sentence in $ClaudeMd" }
 $userOnly = [regex]::Matches($w1.Groups[1].Value, '`([^`]+)`') | ForEach-Object { $_.Groups[1].Value }
 

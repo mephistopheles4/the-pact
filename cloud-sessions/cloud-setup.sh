@@ -231,10 +231,10 @@ Otherwise, run the four moves of my engineering playbook instead of
 implementing in the main session. Each move names the skills that carry it
 out, most of them from
 [mattpocock/skills](https://github.com/mattpocock/skills). Some named skills
-are yours to start, not mine: `triage`, `to-spec`, `to-tickets`, `wayfinder`
-and `implement` carry `disable-model-invocation`, so only you can run them,
-by typing the command. When a move reaches one, stop and hand it to you
-(below). Use the other named skills yourself. If a named skill is in neither
+are mine to start, not yours: `triage`, `to-spec`, `to-tickets`, `wayfinder`
+and `implement` carry `disable-model-invocation`, so only I can run them, by
+typing the command. When a move reaches one, stop and hand it to me (below).
+Use the other named skills yourself. If a named skill is in neither
 group, because it isn't installed, do the step by hand and say in one line
 which skill was missing. Never read a user-only skill's `SKILL.md` and follow
 it in its place; the flag is its author's choice. A missing *agent* still
@@ -290,7 +290,7 @@ The argument is the issue, ticket or plan file the step works on, so the line
 runs as typed. Above it, say in one sentence what the step produces. Don't
 start the step, draft its output, or ask a question in the same turn.
 
-If it is also a good point for a fresh session (above), say so above the
+If it is also a good point for a fresh session (below), say so above the
 line. The `▶` line is then the one to start the new session with, and it
 stays last.
 

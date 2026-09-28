@@ -34,7 +34,7 @@ Five wordings, all in `claude/CLAUDE.md`. The owner signs off on these texts; th
 
 **Wording 1. Replace the missing-skill sentence** in the section's second paragraph. Current text: "If a named skill isn't installed, do the step by hand and say in one line which skill was missing." New text:
 
-> Some named skills are yours to start, not mine: `triage`, `to-spec`, `to-tickets`, `wayfinder` and `implement` carry `disable-model-invocation`, so only you can run them, by typing the command. When a move reaches one, stop and hand it to you (below). Use the other named skills yourself. If a named skill is in neither group, because it isn't installed, do the step by hand and say in one line which skill was missing. Never read a user-only skill's `SKILL.md` and follow it in its place; the flag is its author's choice.
+> Some named skills are mine to start, not yours: `triage`, `to-spec`, `to-tickets`, `wayfinder` and `implement` carry `disable-model-invocation`, so only I can run them, by typing the command. When a move reaches one, stop and hand it to me (below). Use the other named skills yourself. If a named skill is in neither group, because it isn't installed, do the step by hand and say in one line which skill was missing. Never read a user-only skill's `SKILL.md` and follow it in its place; the flag is its author's choice.
 
 **Wording 2. The hand-off form**, a new paragraph straight after move 4:
 
@@ -44,7 +44,7 @@ Five wordings, all in `claude/CLAUDE.md`. The owner signs off on these texts; th
 >
 > The argument is the issue, ticket or plan file the step works on, so the line runs as typed. Above it, say in one sentence what the step produces. Don't start the step, draft its output, or ask a question in the same turn.
 >
-> If it is also a good point for a fresh session (above), say so above the line. The `▶` line is then the one to start the new session with, and it stays last.
+> If it is also a good point for a fresh session (below), say so above the line. The `▶` line is then the one to start the new session with, and it stays last.
 
 **Wording 3. The offload response**, a new paragraph straight after wording 2:
 
