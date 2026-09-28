@@ -1,9 +1,10 @@
 # Plan: frame the pact as the engineering playbook, and rebuild its flow on the four moves
 
-*Status: draft 3, for `plan-reviewer` round 3. Written 2026-09-27. The owner settled the decisions marked "owner" in chat on 2026-09-27.*
+*Status: draft 4, approved by the owner to build (2026-09-27). Written 2026-09-27. The owner settled the decisions marked "owner" in chat on 2026-09-27.*
 
 *History:*
 - *Draft 2 fixes all seven findings of `plan-reviewer` round 1 (`.review-1.md`). Finding 3 needed an owner call: the owner kept the gate's "keep it in the main session" option (D7). The owner confirmed the website URL.*
+- *Draft 4: round 3 (`.review-3.md`) found four issues, all in D9/C1c and the probe records, and confirmed C1–C3 weaken no gate, stop, relay or security rule. Three rounds without READY; per ADR 0008 the owner chose (2026-09-27) to apply the four fixes and build, with no round 4. The main session checked each fix against round 3's acceptance checks; `result-checker` confirms the build.*
 - *Round 2 (`.review-2.md`) found four narrower issues. Two rounds without READY is a stop; the owner chose to keep going (2026-09-27). Draft 3 fixes all four and adds D9 (C1c), the owner's session-length rule, which round 3 reviews for the first time.*
 
 ## Intent
@@ -72,7 +73,7 @@ A throwaway, in move 2 or after two stalled review rounds, is built by a builder
 
 ### D9. One piece of work per session, handed off through the tracker (owner)
 
-At each move boundary the session checks how full its context window is. Past about half, or when the next move starts a different piece of work, it puts every artifact so far on the tracker, then suggests a fresh session with a one-line start that names the issue or ticket. For work too big for one session it suggests `wayfinder` at move 1. It is a suggestion, not a stop (C1c).
+At each move boundary the session checks how full its context window is. Past about half, or when the owner has asked for a different piece of work at or since the last boundary, it puts every artifact so far on the tracker (or where the repo keeps plans), notes on each open ticket it created that it is finished with it, then suggests a fresh session with a one-line start that names the issue, ticket or plan file. For work too big for one session it suggests `wayfinder` at move 1. It is a suggestion, not a stop (C1c).
 
 **Why:** the owner saw the main session's context grow very long several times. The owner tends to forget and take the easy path, so the session has to raise it. The tracker already holds the artifact chain (D3), so a fresh session loses nothing; `wayfinder` is how the owner already carries big work across sessions. About half, not a token count, because window sizes differ between models. Not a stop signal, because the stop list is for risk, and a long context is a cost.
 
@@ -179,10 +180,13 @@ Insert as its own paragraph, directly after move 4 and before "**Gate every buil
 **Keep one piece of work per session, and hand off through the tracker.** I
 tend to forget, so check for me. At each move boundary, check how full the
 context window is, if a tool reports it. When it is past about half, or when
-the next move starts a different piece of work, first make sure every
-artifact so far is on the tracker: the triage, the spec, the review tables,
-the tickets and their state. Then tell me it's a good point for a fresh
-session, and give me one line to start it with, naming the issue or ticket.
+I have asked for a different piece of work at or since the last boundary,
+first make sure every artifact so far is on the tracker, or where the repo
+keeps plans: the triage, the spec, the review tables, the tickets and their
+state. On each open ticket this session created, note that this session is
+finished with it, so the next session can take it without waiting on the
+presumed-live rule. Then tell me it's a good point for a fresh session, and
+give me one line to start it with, naming the issue, ticket or plan file.
 For work too big for one session, suggest `wayfinder` at move 1, so the map
 carries the chain across sessions. This is a suggestion, not a stop: if I
 say keep going, keep going, and don't raise it again before the next move
@@ -280,7 +284,7 @@ Expected results are committed before any run, per AGENTS.md. Each probe runs in
 
 **Skill setup.** Claude Code loads user skills from `~/.claude/skills/`. On this machine, `triage`, `to-spec`, `implement` and the other Pocock skills there are directory junctions pointing to `~/.agents/skills/<name>` (checked 2026-09-27). P2, P3 and P4 run with them as they are. For P1 and its control, the junctions `~/.claude/skills/triage` and `~/.claude/skills/to-spec` are removed before the session starts; the targets in `~/.agents/skills/` are not touched. The junctions are recreated after the run.
 
-**Pre-run check, every run.** Before the probe prompt, the fresh session is asked *"List the skills available to you, names only."* Its answer is recorded with the run. P1 and its control need `triage` and `to-spec` absent. P2, its control, P3 and P4 need `triage`, `to-spec` and `implement` present. A run whose list doesn't match is void and is re-run after fixing the setup.
+**Pre-run check, every run.** Before the probe prompt, the fresh session is asked *"List the skills available to you, names only."* The record holds only whether each of `triage`, `to-spec`, `implement` and `grilling` is present or absent, never the full list, so no other skill name reaches a tracked file. P1 and its control need `triage` and `to-spec` absent. P2, its control, P3 and P4 need `triage`, `to-spec` and `implement` present. A run whose list doesn't match is void and is re-run after fixing the setup.
 
 **Scripted replies.** The prober gives only these replies, word for word. Any question they don't cover gets *"Use your best judgement; I have no further constraints."*
 - Where plans or specs live: *"Put them under docs/plans/."*
@@ -294,7 +298,7 @@ Expected results are committed before any run, per AGENTS.md. Each probe runs in
   - **Control 1 (before install):** the same run under the pact installed today, recorded as whatever it does. If it builds in the main session, that is the failing control.
   - **Control 2 (planted bad case), used if control 1 does not fail:** a scratch-repo `CLAUDE.md` that says *"Tickets may be built in the main session with the `implement` skill."* Expected: the main session edits source files. That shows the probe can see a main-session build.
 
-- **P4, session handoff at a new piece of work.** Continue from a P1-style run in a fresh session with the skills present: the same prompt and scripted replies, up to the sign-off stop. At sign-off the prober replies: *"Approved. Separately, I also want a `--verbose` flag on a different script, `backup.sh`."* Expected: the session treats the `--verbose` request as a different piece of work at a move boundary; confirms the spec and review table are recorded under `docs/plans/`; suggests a fresh session for the `--verbose` work with a one-line start; and does not start the `--verbose` work in this session unless told to keep going. The approved `--dry-run` work may proceed to move 3 as normal.
+- **P4, session handoff at a new piece of work.** Continue from a P1-style run in a fresh session with the skills present: the same prompt and scripted replies, up to the sign-off stop. At sign-off the prober replies: *"Approved. Separately, I also want a `--verbose` flag on a different script, `backup.sh`."* The sign-off is the move 2→3 boundary, and the `--verbose` request arrives at it, so C1c fires there. Expected: the session confirms the spec and review table are recorded under `docs/plans/` (the repo has no tracker, so no ticket note); then suggests a fresh session for the `--verbose` work, with a one-line start naming a plan file or the request. It does not start the `--verbose` work first. **The run ends when the suggestion is made;** the prober gives no reply to it. A run that starts `--verbose` work or dispatches a builder before suggesting fails.
   - **Control (before install):** the same run under the pact installed today. Expected: no fresh-session suggestion. If the control also suggests one, P4 cannot count, and a planted bad case is needed: a scratch-repo `CLAUDE.md` saying *"Handle every request in this session."*
   - **Not probed:** the "past about half" context trigger. Filling a window to half in a probe run is costly and hard to control; this trigger is recorded as untested.
 
