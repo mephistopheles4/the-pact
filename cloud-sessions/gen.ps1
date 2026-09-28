@@ -1,10 +1,18 @@
 $ErrorActionPreference = 'Stop'
+# Regenerates the config section of cloud-setup.sh and cloud-setup-wrapper.sh
+# in place, from the repo copies: CLAUDE.cloud.md, claude/agents/*.md and
+# claude/settings.overlay.json. Never reads the live ~/.claude.
 $d = $PSScriptRoot
+$repo = Split-Path $d -Parent
 $utf8 = New-Object Text.UTF8Encoding($false)
 $DELIM = '__CLAUDE_CONFIG_EOF__'
 
 $files = [ordered]@{ 'CLAUDE.md' = "$d\CLAUDE.cloud.md" }
-Get-ChildItem "$env:USERPROFILE\.claude\agents\*.md" | Sort-Object Name | ForEach-Object { $files["agents/$($_.Name)"] = $_.FullName }
+Get-ChildItem "$repo\claude\agents\*.md" | Sort-Object Name | ForEach-Object { $files["agents/$($_.Name)"] = $_.FullName }
+
+$overlay = [IO.File]::ReadAllText("$repo\claude\settings.overlay.json", $utf8).TrimEnd("`n")
+if ($overlay.Contains("'")) { throw "single quote in settings.overlay.json" }
+[void]($overlay | ConvertFrom-Json)
 
 $sb = New-Object Text.StringBuilder
 [void]$sb.Append([IO.File]::ReadAllText("$d\tpl-config-head.sh", $utf8))
@@ -16,16 +24,23 @@ foreach ($k in $files.Keys) {
   $embedded += $utf8.GetByteCount($body)
   [void]$sb.Append("write_config $k <<'$DELIM'`n$body$DELIM`n`n")
 }
-[void]$sb.Append([IO.File]::ReadAllText("$d\tpl-config-tail.sh", $utf8))
+$tail = [IO.File]::ReadAllText("$d\tpl-config-tail.sh", $utf8)
+if (-not $tail.Contains('__SETTINGS_OVERLAY__')) { throw 'no overlay placeholder in tail' }
+[void]$sb.Append($tail.Replace('__SETTINGS_OVERLAY__', $overlay))
+$config = $sb.ToString()
+$expected = $files.Count + 1   # every embedded file, plus the settings merge
 
-$orig = [IO.File]::ReadAllText("$d\cloud-skills-setup.sh", $utf8)
-$orig = $orig.Replace('# Reinstall global Claude Code skills and plugins in a fresh cloud container.', '# Reinstall global Claude Code skills, plugins and config in a fresh cloud container.')
-$i = $orig.IndexOf('echo "== Result"')
-if ($i -lt 0) { throw 'no Result marker' }
-$new = $orig.Substring(0, $i) + $sb.ToString() + $orig.Substring($i)
-$old = 'skills present"' + "`n" + 'exit 0'
-if (-not $new.Contains($old)) { throw 'tail not found' }
-$new = $new.Replace($old, 'skills present"' + "`n" + 'echo "$CONFIG_WRITTEN config files written (expected 10)"' + "`n" + 'exit 0')
-if ($new.Contains("`r")) { throw 'CR in output' }
-[IO.File]::WriteAllText("$d\cloud-setup.sh", $new, $utf8)
-"script bytes: $($utf8.GetByteCount($new)); embedded file bytes: $embedded; files: $($files.Count)"
+$resultLine = 'echo "$CONFIG_WRITTEN config files written (expected ' + $expected + ')"'
+foreach ($name in 'cloud-setup.sh', 'cloud-setup-wrapper.sh') {
+  $path = "$d\$name"
+  $orig = [IO.File]::ReadAllText($path, $utf8)
+  $s = $orig.IndexOf('echo "== Config"'); $e = $orig.IndexOf('echo "== Result"')
+  if ($s -lt 0 -or $e -lt $s) { throw "no Config/Result markers in $name" }
+  $new = $orig.Substring(0, $s) + $config + $orig.Substring($e)
+  $new = [regex]::Replace($new, 'echo "\$CONFIG_WRITTEN config files written \(expected \d+\)"', { $resultLine })
+  if (-not $new.Contains($resultLine)) { throw "no result line in $name" }
+  if ($new.Contains("`r")) { throw "CR in $name" }
+  [IO.File]::WriteAllText($path, $new, $utf8)
+  "${name}: $($utf8.GetByteCount($new)) bytes"
+}
+"embedded file bytes: $embedded; files: $($files.Count); expected config writes: $expected"

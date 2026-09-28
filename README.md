@@ -60,14 +60,7 @@ The pact does not cover Anthropic's Maintain stage yet.
 
 **Bootstrapped on 2026-09-26, and it will be public.** Cloud sessions can then clone it with no token. A privacy pass found no credentials or personal paths. The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill.
 
-**`cloud-sessions/` is the pre-repo version, and it is behind.** `cloud-setup.sh` embeds its own copies of the instructions and agents, and those copies date from before these changes:
-- the advisor moved to Opus;
-- the "Implementing a change" and "Watching usage" sections;
-- the review-table format;
-- the `test-reviewer` agent;
-- the agent renames and tool allowlists, so cloud sessions still use the old names and give every agent full connector access.
-
-`gen.ps1` built the script from files in a temporary folder that no longer applies. **Next step:** rewrite the cloud setup to clone this repo and copy `claude/` into place, so it can never go stale again.
+**`cloud-sessions/` embeds its own copies, so it goes stale on every change to `claude/`.** Run `cloud-sessions/gen.ps1` after any such change. It rewrites the config section of `cloud-setup.sh` and `cloud-setup-wrapper.sh` in place, from the repo's agents and settings overlay and from `CLAUDE.cloud.md`. `CLAUDE.cloud.md` is hand-kept: it is `claude/CLAUDE.md` without the Windows Shell rule and the install note, with cloud wording for the desktop-only session tools, and with handover notes kept on the tracker, since the container is wiped. Last regenerated 2026-09-28. **Next step:** once this repo is public, have the setup clone it and copy `claude/` into place, so it can never go stale again.
 
 ## Planned
 

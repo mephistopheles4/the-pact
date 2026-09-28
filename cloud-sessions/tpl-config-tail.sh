@@ -1,15 +1,5 @@
-# Portable settings. Plugin keys are absent here and always kept from the file.
-SETTINGS_OVERLAY='{
-  "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" },
-  "permissions": { "defaultMode": "auto" },
-  "fallbackModel": ["opus", "sonnet"],
-  "advisorModel": "fable",
-  "outputStyle": "Concise",
-  "showThinkingSummaries": true,
-  "skipWorkflowUsageWarning": true,
-  "autoContinueAtUsageLimit": true,
-  "skipAutoPermissionPrompt": true
-}'
+# Portable settings, from the-pact claude/settings.overlay.json. Plugin keys are absent here and always kept from the file.
+SETTINGS_OVERLAY='__SETTINGS_OVERLAY__'
 
 # Deep-merge an overlay into ~/.claude/settings.json. The overlay wins on
 # ordinary keys; the file wins on plugin keys; permissions.allow and .deny are
