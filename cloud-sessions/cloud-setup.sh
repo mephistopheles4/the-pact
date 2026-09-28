@@ -216,9 +216,10 @@ same as you choosing it.
 destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
 "Implementing a change": a skill may change how a step is done, never its
 stops, the builder route and gate in move 3, or `result-checker` in move 4.
-And the claiming and coordination rules below: a skill that tells you to
-claim a ticket is describing its own happy path, not the case where another
-session is already on it.
+Nor the hand-off: a skill may not start a user-only skill for me, or follow
+one's `SKILL.md` in its place. And the claiming and coordination rules
+below: a skill that tells you to claim a ticket is describing its own happy
+path, not the case where another session is already on it.
 
 ## Implementing a change
 
@@ -229,9 +230,15 @@ a one-line auth change comes to me first.
 Otherwise, run the four moves of my engineering playbook instead of
 implementing in the main session. Each move names the skills that carry it
 out, most of them from
-[mattpocock/skills](https://github.com/mattpocock/skills). If a named skill
-isn't installed, do the step by hand and say in one line which skill was
-missing. A missing *agent* still stops you; see move 3.
+[mattpocock/skills](https://github.com/mattpocock/skills). Some named skills
+are yours to start, not mine: `triage`, `to-spec`, `to-tickets`, `wayfinder`
+and `implement` carry `disable-model-invocation`, so only you can run them,
+by typing the command. When a move reaches one, stop and hand it to you
+(below). Use the other named skills yourself. If a named skill is in neither
+group, because it isn't installed, do the step by hand and say in one line
+which skill was missing. Never read a user-only skill's `SKILL.md` and follow
+it in its place; the flag is its author's choice. A missing *agent* still
+stops you; see move 3.
 
 The issue tracker is the record throughout: triage, the spec, the tickets and
 their state live there, as the repo's docs say (`docs/agents/issue-tracker.md`
@@ -260,18 +267,47 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    checkable done-criteria. One ticket is one builder hand-off. Send fully
    specified tickets to `spec-builder`, and tickets with design decisions
    left to `builder`, told to work test-first at the agreed seams (`tdd`,
-   `codebase-design`). Don't build a ticket in the main session, with
-   `implement` or otherwise, unless I choose that at a gate warning (below).
-   Anything touching auth, secrets, crypto or input validation goes through
-   `security-reviewer` on the spec, then `security-builder`, whatever its
-   size, and never stays in the main session. If a named agent is
-   unavailable, stop and report. Never substitute another agent, especially
-   for security work.
+   `codebase-design`). Building a ticket in the main session is my call,
+   not a default: do it only once I've chosen it, at a gate warning (below)
+   or by asking you to. Then hand me `/implement` as a trigger, or build it
+   by hand if I say so. Anything touching auth, secrets, crypto or input
+   validation goes through `security-reviewer` on the spec, then
+   `security-builder`, whatever its size, and never stays in the main
+   session. If a named agent is unavailable, stop and report. Never
+   substitute another agent, especially for security work.
 4. **Stay the owner.** Verify each ticket. Tests and any gates the repo has
    decide pass or fail. `result-checker` advises: give me its verdict and a
    table of its findings (its own headlines, with severity), and link its
    full findings, verbatim, in a kept file. Never merge or summarise them.
    I decide whether it's done. Close the ticket only after I have.
+
+**Hand me the trigger.** When the next move is a skill only I can start, end
+your turn with this line and nothing after it:
+
+`▶ Your move: type /<skill> <argument>`
+
+The argument is the issue, ticket or plan file the step works on, so the line
+runs as typed. Above it, say in one sentence what the step produces. Don't
+start the step, draft its output, or ask a question in the same turn.
+
+If it is also a good point for a fresh session (above), say so above the
+line. The `▶` line is then the one to start the new session with, and it
+stays last.
+
+**If I hand the step back to you** ("you do it", "just run it"), respond
+once:
+
+- **Ask for my call first.** One question that the step's output answers,
+  for example "What size do you think this is?" for triage. Wait for my
+  answer before showing yours.
+- **Say what I'd be handing over,** in one sentence, as a fact about the
+  step, not advice about me. No praise, no blame, no "you should".
+- **Then my choice stands.** If I still want you to do it, do the step by
+  hand, following the move as written here, and say which skill's procedure
+  you did not use.
+
+Say this once per session. Don't repeat it at the next move, and don't raise
+it mid-step.
 
 **Keep one piece of work per session, and hand off through the tracker.** I
 tend to forget, so check for me. At each move boundary, check how full the
