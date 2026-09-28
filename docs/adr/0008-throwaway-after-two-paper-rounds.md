@@ -1,6 +1,6 @@
 # After two paper review rounds without READY, build a throwaway and use it
 
-When a plan has gone through two paper review rounds and `plan-reviewer` still has not returned `READY`, one of the options is to stop reviewing on paper, build a throwaway version, and use it. What the throwaway shows then feeds the plan. **`claude/CLAUDE.md` does not offer this yet.** After two rounds without converging, it offers only three options: keep going, get a second opinion from a different model (`fable`), or stop. Adding the throwaway is follow-up F1.
+When a plan has gone through two paper review rounds and `plan-reviewer` still has not returned `READY`, one of the options is to stop reviewing on paper, build a throwaway version, and use it. What the throwaway shows then feeds the plan.
 
 ## Why
 
@@ -13,4 +13,4 @@ When a plan has gone through two paper review rounds and `plan-reviewer` still h
 
 - **2026-09-27** — The coherence check between the pact and the owner's private research found this rule settled there and not reflected in `claude/CLAUDE.md`. The owner decided that this ADR records it now, and the `claude/CLAUDE.md` change is queued as follow-up F1, with its own plan. Recorded in the ADR/log plan in `c115eee`.
 - **2026-09-27** — The check and the owner's call are told in [the ADR and log entry](../log/2026-09-27-adr-and-log.md).
-- **Not yet in the pact's text:** until F1 lands, a session that follows `claude/CLAUDE.md` will not offer this option on its own.
+- **2026-09-27** — Landed in `claude/CLAUDE.md` by the playbook-framing plan, as an option under 'When to stop or escalate' (F1 closed).

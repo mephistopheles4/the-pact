@@ -48,36 +48,79 @@ same as you choosing it.
 **What no skill overrides, invoked or not.** The Shell rule above — PowerShell,
 not Bash, because Bash fails silently here. Any judgement about what is
 destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
-"Implementing a change": a skill may replace that section's steps, never its
-stops. And the claiming and coordination rules below: a skill that tells you to
+"Implementing a change": a skill may change how a step is done, never its
+stops, the builder route and gate in move 3, or `result-checker` in move 4.
+And the claiming and coordination rules below: a skill that tells you to
 claim a ticket is describing its own happy path, not the case where another
 session is already on it.
 
 ## Implementing a change
 
-Size the work first. If the change fits in one sentence, just do it, except
-that the hard-to-reverse signal below still applies: a one-line auth change
-comes to me first.
+Size the work first. If the change fits in one sentence, just do it and
+skip the four moves below. The hard-to-reverse signal below still applies:
+a one-line auth change comes to me first.
 
-Otherwise, run this flow instead of implementing in the main session:
+Otherwise, run the four moves of my engineering playbook instead of
+implementing in the main session. Each move names the skills that carry it
+out, most of them from
+[mattpocock/skills](https://github.com/mattpocock/skills). If a named skill
+isn't installed, do the step by hand and say in one line which skill was
+missing. A missing *agent* still stops you; see move 3.
 
-1. **Think before building.** Write the plan: the intent, the unhappy paths,
-   the constraints, each decision with its why, and a **Needs a human**
-   section (below). `plan-reviewer` reviews it; show me a table of its
-   findings (its own headlines, with severity), and link its full findings,
-   verbatim, in a kept file. I decide proceed, fix or kill. Never start
-   building on READY alone.
-2. **Build to the approved plan.** Send fully specified work to
-   `spec-builder`, and work with design decisions left to `builder`.
+The issue tracker is the record throughout: triage, the spec, the tickets and
+their state live there, as the repo's docs say (`docs/agents/issue-tracker.md`
+for a repo set up for those skills). A repo without a tracker says where plans
+live instead; follow it. If it says neither, ask me once, before the spec.
+
+1. **Sense the work before you process it.** Triage it (`triage`): what
+   kind of work it is, how big, and whether it's ready. A bug goes through
+   `diagnosing-bugs` before any fix. Work too big for one session is
+   charted with `wayfinder`.
+2. **Do the thinking before the doing.** Grill the idea until it's clear
+   (`grilling`; `domain-modeling` when terms need pinning down). Then write
+   the spec (`to-spec`): the intent, the unhappy paths, the constraints, the
+   design — modules, interfaces and seams (`codebase-design`) — each
+   decision with its why, and a **Needs a human** section (below). When a
+   question in it needs running code to answer, have a throwaway built
+   (`prototype`) and fold what it shows back into the spec. A throwaway is
+   built like any other step: by a builder, and through the security route
+   in move 3 if it touches auth, secrets, crypto or input validation.
+   `plan-reviewer` reviews the spec; show me a table of its findings (its
+   own headlines, with severity), and link its full findings, verbatim, in
+   a kept file. I decide proceed, fix or kill. Never start building on
+   READY alone.
+3. **Checkpoint the seams.** Cut the approved spec into tickets
+   (`to-tickets`): thin end-to-end slices, each with its blocking edges and
+   checkable done-criteria. One ticket is one builder hand-off. Send fully
+   specified tickets to `spec-builder`, and tickets with design decisions
+   left to `builder`, told to work test-first at the agreed seams (`tdd`,
+   `codebase-design`). Don't build a ticket in the main session, with
+   `implement` or otherwise, unless I choose that at a gate warning (below).
    Anything touching auth, secrets, crypto or input validation goes through
-   `security-reviewer` on the plan, then `security-builder`, whatever its
-   size. If a named agent is unavailable, stop and report.
-   Never substitute another agent, especially for security work.
-3. **Verify, then hand back.** Tests and any gates the repo has decide pass
-   or fail. `result-checker` advises: give me its verdict and a table of its
-   findings (its own headlines, with severity), and link its full findings,
-   verbatim, in a kept file. Never merge or summarise them. I decide
-   whether it's done.
+   `security-reviewer` on the spec, then `security-builder`, whatever its
+   size, and never stays in the main session. If a named agent is
+   unavailable, stop and report. Never substitute another agent, especially
+   for security work.
+4. **Stay the owner.** Verify each ticket. Tests and any gates the repo has
+   decide pass or fail. `result-checker` advises: give me its verdict and a
+   table of its findings (its own headlines, with severity), and link its
+   full findings, verbatim, in a kept file. Never merge or summarise them.
+   I decide whether it's done. Close the ticket only after I have.
+
+**Keep one piece of work per session, and hand off through the tracker.** I
+tend to forget, so check for me. At each move boundary, check how full the
+context window is, if a tool reports it. When it is past about half, or when
+I have asked for a different piece of work at or since the last boundary,
+first make sure every artifact so far is on the tracker, or where the repo
+keeps plans: the triage, the spec, the review tables, the tickets and their
+state. On each open ticket this session created, note that this session is
+finished with it, so the next session can take it without waiting on the
+presumed-live rule. Then tell me it's a good point for a fresh session, and
+give me one line to start it with, naming the issue, ticket or plan file.
+For work too big for one session, suggest `wayfinder` at move 1, so the map
+carries the chain across sessions. This is a suggestion, not a stop: if I
+say keep going, keep going, and don't raise it again before the next move
+boundary.
 
 **Gate every builder hand-off for a human in the loop.** An agent cannot
 reach me. This gate covers hand-offs to the builders (`builder`,
@@ -105,9 +148,9 @@ signed-off plan nor my later answer settles them:
 
 Every plan's **Needs a human** section lists each step that needs me and
 when: *at sign-off* (say how the plan settles it) or *after dispatch* (say
-how it's handled). It says "None" if there are none. When a step trips a
-signal the plan doesn't handle, don't send it. Warn me in this form, then
-wait:
+how it's handled). It says "None" if there are none. The spec is the plan.
+When a step trips a signal the plan doesn't handle, don't send it. Warn me in
+this form, then wait:
 
 `⚠ Needs a human: <step> — <signal>. Not sending to <agent>.`
 
@@ -167,7 +210,9 @@ before quoting any notes into a `security-builder` brief.
 - you can no longer explain why the result is right.
 
 Name the options — keep going, get a second opinion from a different model
-(`fable`), or stop — with your recommendation. Don't pick one yourself.
+(`fable`), have a throwaway built and use it (`prototype`, built as in move
+2) when a review has gone round twice, or stop — with your recommendation.
+Don't pick one yourself.
 
 ## Watching usage
 

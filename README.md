@@ -4,6 +4,38 @@
 
 Faust signed a pact with no way out. This one has escape clauses written in: the human decides at every seam, and the agent stops and asks when it should. The skills live in [grimoire](https://github.com/mephistopheles4/grimoire), the spellbook. This repo holds the terms, and the familiars bound by them.
 
+## Why this exists
+
+The pact is a small, runnable version of my engineering playbook: how humans
+and AI agents build software together, with the human as the architect of
+intent and the agent as the executor. The playbook is on
+[my website](https://aymandiab.com/work/engineering-workflow-playbook). Four moves govern it:
+
+1. **Sense the work before you process it.**
+2. **Do the thinking before the doing.**
+3. **Checkpoint the seams.**
+4. **Stay the owner.**
+
+Anthropic published a six-stage playbook of its own, [*The AI-Native SDLC
+playbook*](https://claude.com/blog/the-ai-native-sdlc-playbook). This is how
+the pact's moves line up with its stages:
+
+| Move | Anthropic stage | What the pact does |
+|---|---|---|
+| Sense the work | Plan | Triage; size the work; route bugs and large efforts |
+| Do the thinking before the doing | Plan, Design | Grill, write the spec, prototype open questions, `plan-reviewer` |
+| Checkpoint the seams | Build, Test | Tickets with done-criteria; builders work test-first at agreed seams |
+| Stay the owner | Test, Deploy | `result-checker` advises; the human decides |
+
+The pact does not cover Anthropic's Maintain stage yet.
+
+**Built on:**
+- **[Matt Pocock's skills](https://github.com/mattpocock/skills)** for the
+  design work: triage, grilling, specs, prototypes, tickets, test-driven
+  development and deep modules. The pact names them rather than copying them.
+- **John Ousterhout's *A Philosophy of Software Design*,** the source of the
+  deep-module idea those skills apply.
+
 ## What's here
 
 | Path | What it is | Installs to |
