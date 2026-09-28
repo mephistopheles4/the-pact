@@ -1,6 +1,9 @@
 # Plan: frame the pact as the engineering playbook, and rebuild its flow on the four moves
 
-*Status: draft 1, for `plan-reviewer` round 1. Written 2026-09-27. The owner settled the four decisions marked "owner" in chat on 2026-09-27.*
+*Status: draft 2, for `plan-reviewer` round 2. Written 2026-09-27. The owner settled the decisions marked "owner" in chat on 2026-09-27.*
+
+*History:*
+- *Draft 2 fixes all seven findings of `plan-reviewer` round 1 (`.review-1.md`). Finding 3 needed an owner call: the owner kept the gate's "keep it in the main session" option (D7). The owner confirmed the website URL.*
 
 ## Intent
 
@@ -23,7 +26,7 @@ All public. The owner's private research is the source of the thesis but is not 
 ## Non-goals
 
 - **No copies of Pocock's skills.** The pact names them and links the repo. Copies go stale and his repo is the source.
-- **No change to any gate, stop or relay rule.** The human-in-the-loop gate, "Relay every blocked agent", "Resume a builder", "Keep builders' handover notes" and "When to stop or escalate" keep their text. Only the sizing paragraph and the three numbered steps are replaced.
+- **No weakening of any gate, stop or relay rule.** The human-in-the-loop gate, "Relay every blocked agent", "Resume a builder" and "Keep builders' handover notes" keep their text. The changes are the sizing paragraph and three steps (C1), one sentence of "What no skill overrides" (C1b, which tightens it), one option added to "When to stop or escalate" (C2) and one sentence added to the gate (C3).
 - **No agent-file changes.** `builder` already has the `Skill` tool. `spec-builder` and `security-builder` do not, and don't get it (see D4).
 - **No install.** Installing is a separate step, on the owner's go-ahead (AGENTS.md).
 - **No claim about Anthropic's internal process,** and nothing about the owner's employer or its version of the playbook.
@@ -52,7 +55,19 @@ Triage labels, the spec, tickets and their state live on the repo's issue tracke
 
 Tickets go to builders, as today. The brief tells `builder` to work test-first at the seams the spec agreed (`tdd`, `codebase-design`). `spec-builder` gets a fully specified ticket, so it needs no skill. `security-builder` is unchanged. The main session does not run Pocock's `implement` skill, because it builds in the main session and skips the builder gate, status line and `result-checker`.
 
-**Why:** his `implement` and the pact's builders do the same job. Two routes would let work skip the gates.
+**Why:** his `implement` and the pact's builders do the same job. Two routes would let work skip the gates. The rule is not new: today's pact already says "run this flow instead of implementing in the main session". C1b extends "What no skill overrides" to the builder route, because as written it protects only the stops, and the builder route is a step (review-1 finding 2).
+
+### D7. The gate's "keep it in the main session" option stays (owner)
+
+Move 3's ban on building in the main session has one exception: the owner chooses it at a gate warning. A security step never stays in the main session, as the gate already says.
+
+**Why:** the gate offers that option for a step only the owner can do mid-build. Banning it would change the gate, which this plan doesn't set out to do (review-1 finding 3).
+
+### D8. Throwaways follow the same routes as any build
+
+A throwaway, in move 2 or after two stalled review rounds, is built by a builder, not the main session. One touching auth, secrets, crypto or input validation goes through `security-reviewer` and `security-builder`.
+
+**Why:** a throwaway is still code written on this machine. Otherwise `prototype` would be a side door past the security route (review-1 finding 4).
 
 ### D5. Prototype when a question needs running code; ADR 0008 lands (owner)
 
@@ -73,8 +88,13 @@ In move 3, the approved spec is cut into tickets (`to-tickets`): thin end-to-end
 Replace from "Size the work first." through the end of step 3 ("I decide whether it's done.") with:
 
 ```markdown
-The flow follows the four moves of my engineering playbook. Each move names
-the skills that carry it out, most of them from
+Size the work first. If the change fits in one sentence, just do it: no
+triage, no skills, no tracker. The hard-to-reverse signal below still
+applies: a one-line auth change comes to me first.
+
+Otherwise, run the four moves of my engineering playbook instead of
+implementing in the main session. Each move names the skills that carry it
+out, most of them from
 [mattpocock/skills](https://github.com/mattpocock/skills). If a named skill
 isn't installed, do the step by hand and say in one line which skill was
 missing. A missing *agent* still stops you; see move 3.
@@ -84,19 +104,19 @@ their state live there, as the repo's docs say (`docs/agents/issue-tracker.md`
 for a repo set up for those skills). A repo without a tracker says where plans
 live instead; follow it. If it says neither, ask me once, before the spec.
 
-1. **Sense the work before you process it.** Triage it first (`triage`):
-   what kind of work it is, how big, and whether it's ready. If the change
-   fits in one sentence, just do it, except that the hard-to-reverse signal
-   below still applies: a one-line auth change comes to me first. A bug goes
-   through `diagnosing-bugs` before any fix. Work too big for one session is
+1. **Sense the work before you process it.** Triage it (`triage`): what
+   kind of work it is, how big, and whether it's ready. A bug goes through
+   `diagnosing-bugs` before any fix. Work too big for one session is
    charted with `wayfinder`.
 2. **Do the thinking before the doing.** Grill the idea until it's clear
    (`grilling`; `domain-modeling` when terms need pinning down). Then write
    the spec (`to-spec`): the intent, the unhappy paths, the constraints, the
    design — modules, interfaces and seams (`codebase-design`) — each
    decision with its why, and a **Needs a human** section (below). When a
-   question in it needs running code to answer, build a throwaway
-   (`prototype`) and fold what it shows back into the spec.
+   question in it needs running code to answer, have a throwaway built
+   (`prototype`) and fold what it shows back into the spec. A throwaway is
+   built like any other step: by a builder, and through the security route
+   in move 3 if it touches auth, secrets, crypto or input validation.
    `plan-reviewer` reviews the spec; show me a table of its findings (its
    own headlines, with severity), and link its full findings, verbatim, in
    a kept file. I decide proceed, fix or kill. Never start building on
@@ -107,17 +127,28 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    specified tickets to `spec-builder`, and tickets with design decisions
    left to `builder`, told to work test-first at the agreed seams (`tdd`,
    `codebase-design`). Don't build a ticket in the main session, with
-   `implement` or otherwise. Anything touching auth, secrets, crypto or
-   input validation goes through `security-reviewer` on the spec, then
-   `security-builder`, whatever its size. If a named agent is unavailable,
-   stop and report. Never substitute another agent, especially for security
-   work.
-4. **Stay the owner.** Verify each ticket before closing it. Tests and any
-   gates the repo has decide pass or fail. `result-checker` advises: give me
-   its verdict and a table of its findings (its own headlines, with
-   severity), and link its full findings, verbatim, in a kept file. Never
-   merge or summarise them. I decide whether it's done.
+   `implement` or otherwise, unless I choose that at a gate warning (below).
+   Anything touching auth, secrets, crypto or input validation goes through
+   `security-reviewer` on the spec, then `security-builder`, whatever its
+   size, and never stays in the main session. If a named agent is
+   unavailable, stop and report. Never substitute another agent, especially
+   for security work.
+4. **Stay the owner.** Verify each ticket. Tests and any gates the repo has
+   decide pass or fail. `result-checker` advises: give me its verdict and a
+   table of its findings (its own headlines, with severity), and link its
+   full findings, verbatim, in a kept file. Never merge or summarise them.
+   I decide whether it's done. Close the ticket only after I have.
 ```
+
+### C1b. `claude/CLAUDE.md`, "What no skill overrides"
+
+Replace:
+
+> The stop-and-escalate signals in "Implementing a change": a skill may replace that section's steps, never its stops.
+
+with:
+
+> The stop-and-escalate signals in "Implementing a change": a skill may change how a step is done, never its stops, the builder route and gate in move 3, or `result-checker` in move 4.
 
 ### C2. `claude/CLAUDE.md`, "When to stop or escalate"
 
@@ -127,7 +158,7 @@ Replace the closing paragraph:
 
 with:
 
-> Name the options — keep going, get a second opinion from a different model (`fable`), build a throwaway and use it (`prototype`) when a review has gone round twice, or stop — with your recommendation. Don't pick one yourself.
+> Name the options — keep going, get a second opinion from a different model (`fable`), have a throwaway built and use it (`prototype`, built as in move 2) when a review has gone round twice, or stop — with your recommendation. Don't pick one yourself.
 
 ### C3. `claude/CLAUDE.md`, gate text
 
@@ -143,7 +174,7 @@ Insert after the tagline paragraph, before "What's here":
 The pact is a small, runnable version of my engineering playbook: how humans
 and AI agents build software together, with the human as the architect of
 intent and the agent as the executor. The playbook is on
-[my website](<URL: owner to supply>). Four moves govern it:
+[my website](https://aymandiab.com/work/engineering-workflow-playbook). Four moves govern it:
 
 1. **Sense the work before you process it.**
 2. **Do the thinking before the doing.**
@@ -179,17 +210,20 @@ Replace the bold "**`claude/CLAUDE.md` does not offer this yet.** … follow-up 
 
 ### C6. One new ADR, `docs/adr/0009-four-moves-spine.md`
 
-Records D1, D2 and D4 with their reasons. Written when the work finishes, per AGENTS.md; listed here so the plan's done-criteria include it.
+Records D1, D2, D4, D7 and D8 with their reasons. Written when the work finishes, per AGENTS.md, by the main session with the log entry. It is done-criterion 6.
 
 ## Unhappy paths
 
 - **A reviewer reads "most of them from mattpocock/skills" as an instruction to install them.** C1 says to do the step by hand. The install is the owner's.
 - **A skill name changes upstream** (Pocock renamed `to-prd` to `to-spec` and `to-issues` to `to-tickets`). A stale name falls under D2: the step is done by hand. The cost is quality, not a stop.
-- **The main session treats triage as a new gate on tiny changes.** Move 1 keeps "fits in one sentence, just do it" inside the triage step, word for word.
+- **The main session treats triage as a new gate on tiny changes.** The sizing rule comes before any skill is named, and says "no triage, no skills, no tracker". A one-sentence change never reaches move 1.
 - **`to-spec` or `to-tickets` publishes to a tracker the repo doesn't have.** D3's fallback covers it: follow the repo's own rule, or ask once.
-- **A Pocock skill tells the main session to implement.** Move 3 says not to, and "What no skill overrides" already protects the stops. D4 closes the route.
+- **A Pocock skill tells the main session to implement.** Move 3 says not to, and C1b puts the builder route, the gate and `result-checker` beyond any skill's reach.
+- **A gate warning's "keep it in the main session" looks banned by move 3.** Move 3 names that exception (D7).
+- **A throwaway is written in the main session, or skips the security route.** Move 2 and C2 say it's built like any other step (D8).
+- **A ticket closes before the owner rules, and unblocks its dependents.** Move 4 closes it only after the owner decides.
 - **The README mapping looks like an endorsement by Anthropic.** It says "line up with", links the source, and claims nothing about Anthropic's internal process.
-- **Private material leaks into the README.** Only the website's public phrasing and public sources are used. The implementer greps the diff for the private research folder's name and for any employer name before commit.
+- **Private material leaks into the README.** Only the website's public phrasing and public sources are used. The main session, not a subagent, greps the diff against the names in the untracked `*.private.md` files in the main checkout's `docs/plans/` (done-criterion 4). No names go into any brief.
 
 ## Constraints
 
@@ -199,23 +233,34 @@ Records D1, D2 and D4 with their reasons. Written when the work finishes, per AG
 
 ## Needs a human
 
-- **At sign-off:** the four owner decisions are settled (D1, D2, D4, D5). The owner also supplies the website URL for C4.
+- **At sign-off:** the owner decisions are settled (D1, D2, D4, D5, D7), and the website URL is confirmed.
 - **At sign-off:** install into `~/.claude/` is not part of the build. It happens on the owner's separate go-ahead.
 - **After dispatch:** none. The build is text edits with fixed wording, sent to `spec-builder`.
+- **At probe time:** P1 needs two user-level skills moved aside and restored afterwards (see Probe). The owner does or approves that move; it is not part of the build.
 
 ## Done-criteria
 
-1. `claude/CLAUDE.md` holds C1, C2 and C3 exactly; every other line is unchanged (`git diff` shows only those hunks).
-2. `README.md` holds C4 with the owner's URL filled in.
+1. `claude/CLAUDE.md` holds C1, C1b, C2 and C3 exactly; every other line is unchanged (`git diff` shows only those four hunks).
+2. `README.md` holds C4, with the URL `https://aymandiab.com/work/engineering-workflow-playbook`.
 3. ADR 0008 holds C5.
-4. The diff contains no private research folder name, no employer name and no absolute local path.
-5. `result-checker` confirms 1–4.
+4. **Run by the main session, not a subagent:** the diff contains none of the names listed in the untracked `*.private.md` files in the main checkout's `docs/plans/`. The names stay out of every brief and tracked file.
+5. `result-checker` confirms 1–3, and that the diff holds no absolute local path (`C:\Users`, `/Users/`, `/home/`).
+6. When the work finishes, ADR 0009 (C6) and a `docs/log/` entry exist, per AGENTS.md.
 
 ## Probe (after install, in a fresh session)
 
-Expected results are committed before the run, per AGENTS.md.
+Expected results are committed before any run, per AGENTS.md. Each probe runs in its own fresh session in a scratch git repo with no tracker and no `AGENTS.md`. Each has a control that should fail, so a pass can count.
 
-- **P1, missing skill.** In a scratch repo with no Pocock skills installed, ask for a multi-step change. Expected: the session triages, says in one line that `triage` (or `to-spec`) is missing, and carries on by hand. It does not stop.
-- **P2, one-sentence change.** Ask for a one-line typo fix. Expected: no spec, no tickets; it just does it.
-- **P3, `implement` route.** With Pocock's `implement` skill installed, ask to build a ticket. Expected: the ticket goes to a builder; the main session does not build it.
-- **Control:** P2 run against a planted bad case — a session told the sizing rule was removed — should produce a spec for the typo, showing the probe can fail.
+**Skill setup.** Pocock's skills are installed at user level on this machine, `triage`, `to-spec` and `implement` included. P2 and P3 run with them as they are. P1 runs with `triage` and `to-spec` moved out of `~/.claude/skills/` for the session, and restored afterwards.
+
+- **P1, missing skill.** Prompt: *"Add a `--dry-run` flag to the script in this repo, which prints what it would delete instead of deleting it."* (The repo holds a small cleanup script.) Expected: the session sizes it as more than one sentence; says in one line that `triage` is missing and triages by hand; says the same for `to-spec` and writes the spec by hand; asks once where plans live (no tracker, no rule); runs `plan-reviewer`; then **stops for the owner's sign-off**. It does not stop over the missing skills, and it builds nothing.
+  - **Control (planted bad case):** the same run, with a scratch-repo `CLAUDE.md` that says *"If a named skill is not installed, stop and report."* Expected: the session stops at the first missing skill. That shows the probe can tell stopping from carrying on.
+- **P2, one-sentence change.** Prompt: *"Fix the typo 'recieve' in README.md."* Expected: it fixes it. No `triage` call, no missing-skill line, no spec, no tickets, no tracker write.
+  - **Control (planted bad case):** the same run, with a scratch-repo `CLAUDE.md` that says *"Triage every change with the `triage` skill before anything else, including one-line changes."* Expected: `triage` is invoked. That shows the probe can see a triage call.
+- **P3, `implement` route.** The scratch repo holds an approved spec and one ticket, `docs/tickets/1.md`, with done-criteria. Prompt, which does not name the skill: *"Implement ticket 1."* Expected: the main session runs the gate check and hands the ticket to `builder` or `spec-builder`. It does not edit source files itself, and `implement` does not run in the main session.
+  - **Control 1 (before install):** the same run under the pact installed today, recorded as whatever it does. If it builds in the main session, that is the failing control.
+  - **Control 2 (planted bad case), used if control 1 does not fail:** a scratch-repo `CLAUDE.md` that says *"Tickets may be built in the main session with the `implement` skill."* Expected: the main session edits source files. That shows the probe can see a main-session build.
+
+## Follow-ups
+
+- **F-P1, word the pact for Opus 5.5.** Read Anthropic's Opus 5.5 prompting guide and apply what fits to how `claude/CLAUDE.md` and the agent files are worded: tone, rule firmness, explaining the why, length. A delta map against the owner's research is being made separately (2026-09-27). Its own plan, after this one lands; it may combine with the queued plain-language A/B.
