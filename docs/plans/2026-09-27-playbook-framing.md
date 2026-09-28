@@ -1,9 +1,10 @@
 # Plan: frame the pact as the engineering playbook, and rebuild its flow on the four moves
 
-*Status: draft 2, for `plan-reviewer` round 2. Written 2026-09-27. The owner settled the decisions marked "owner" in chat on 2026-09-27.*
+*Status: draft 3, for `plan-reviewer` round 3. Written 2026-09-27. The owner settled the decisions marked "owner" in chat on 2026-09-27.*
 
 *History:*
 - *Draft 2 fixes all seven findings of `plan-reviewer` round 1 (`.review-1.md`). Finding 3 needed an owner call: the owner kept the gate's "keep it in the main session" option (D7). The owner confirmed the website URL.*
+- *Round 2 (`.review-2.md`) found four narrower issues. Two rounds without READY is a stop; the owner chose to keep going (2026-09-27). Draft 3 fixes all four and adds D9 (C1c), the owner's session-length rule, which round 3 reviews for the first time.*
 
 ## Intent
 
@@ -26,7 +27,7 @@ All public. The owner's private research is the source of the thesis but is not 
 ## Non-goals
 
 - **No copies of Pocock's skills.** The pact names them and links the repo. Copies go stale and his repo is the source.
-- **No weakening of any gate, stop or relay rule.** The human-in-the-loop gate, "Relay every blocked agent", "Resume a builder" and "Keep builders' handover notes" keep their text. The changes are the sizing paragraph and three steps (C1), one sentence of "What no skill overrides" (C1b, which tightens it), one option added to "When to stop or escalate" (C2) and one sentence added to the gate (C3).
+- **No weakening of any gate, stop or relay rule.** The human-in-the-loop gate, "Relay every blocked agent", "Resume a builder" and "Keep builders' handover notes" keep their text. The changes are the sizing paragraph and three steps (C1), one sentence of "What no skill overrides" (C1b, which tightens it), one new paragraph on session length (C1c, a suggestion, not a stop), one option added to "When to stop or escalate" (C2) and one sentence added to the gate (C3).
 - **No agent-file changes.** `builder` already has the `Skill` tool. `spec-builder` and `security-builder` do not, and don't get it (see D4).
 - **No install.** Installing is a separate step, on the owner's go-ahead (AGENTS.md).
 - **No claim about Anthropic's internal process,** and nothing about the owner's employer or its version of the playbook.
@@ -69,6 +70,12 @@ A throwaway, in move 2 or after two stalled review rounds, is built by a builder
 
 **Why:** a throwaway is still code written on this machine. Otherwise `prototype` would be a side door past the security route (review-1 finding 4).
 
+### D9. One piece of work per session, handed off through the tracker (owner)
+
+At each move boundary the session checks how full its context window is. Past about half, or when the next move starts a different piece of work, it puts every artifact so far on the tracker, then suggests a fresh session with a one-line start that names the issue or ticket. For work too big for one session it suggests `wayfinder` at move 1. It is a suggestion, not a stop (C1c).
+
+**Why:** the owner saw the main session's context grow very long several times. The owner tends to forget and take the easy path, so the session has to raise it. The tracker already holds the artifact chain (D3), so a fresh session loses nothing; `wayfinder` is how the owner already carries big work across sessions. About half, not a token count, because window sizes differ between models. Not a stop signal, because the stop list is for risk, and a long context is a cost.
+
 ### D5. Prototype when a question needs running code; ADR 0008 lands (owner)
 
 In move 2, when the spec holds a question that paper can't answer, the session builds a throwaway (`prototype`) and folds the answer back into the spec. Separately, after two `plan-reviewer` rounds without READY, "build a throwaway and use it" joins the stop options. That closes follow-up F1 from ADR 0008.
@@ -88,9 +95,9 @@ In move 3, the approved spec is cut into tickets (`to-tickets`): thin end-to-end
 Replace from "Size the work first." through the end of step 3 ("I decide whether it's done.") with:
 
 ```markdown
-Size the work first. If the change fits in one sentence, just do it: no
-triage, no skills, no tracker. The hard-to-reverse signal below still
-applies: a one-line auth change comes to me first.
+Size the work first. If the change fits in one sentence, just do it and
+skip the four moves below. The hard-to-reverse signal below still applies:
+a one-line auth change comes to me first.
 
 Otherwise, run the four moves of my engineering playbook instead of
 implementing in the main session. Each move names the skills that carry it
@@ -162,7 +169,25 @@ with:
 
 ### C3. `claude/CLAUDE.md`, gate text
 
-"on plan sign-off" and "the signed-off plan" stay as they are. In the gate, "plan" now means the approved spec. Add one sentence after "Every plan's **Needs a human** section…": *"The spec is the plan."*
+"on plan sign-off" and "the signed-off plan" stay as they are. In the gate, "plan" now means the approved spec. Insert one sentence immediately after the sentence that ends *"It says \"None\" if there are none."* and before *"When a step trips a signal the plan doesn't handle, don't send it."*: *"The spec is the plan."*
+
+### C1c. `claude/CLAUDE.md`, new paragraph after move 4
+
+Insert as its own paragraph, directly after move 4 and before "**Gate every builder hand-off for a human in the loop.**":
+
+```markdown
+**Keep one piece of work per session, and hand off through the tracker.** I
+tend to forget, so check for me. At each move boundary, check how full the
+context window is, if a tool reports it. When it is past about half, or when
+the next move starts a different piece of work, first make sure every
+artifact so far is on the tracker: the triage, the spec, the review tables,
+the tickets and their state. Then tell me it's a good point for a fresh
+session, and give me one line to start it with, naming the issue or ticket.
+For work too big for one session, suggest `wayfinder` at move 1, so the map
+carries the chain across sessions. This is a suggestion, not a stop: if I
+say keep going, keep going, and don't raise it again before the next move
+boundary.
+```
 
 ### C4. `README.md`
 
@@ -210,13 +235,15 @@ Replace the bold "**`claude/CLAUDE.md` does not offer this yet.** … follow-up 
 
 ### C6. One new ADR, `docs/adr/0009-four-moves-spine.md`
 
-Records D1, D2, D4, D7 and D8 with their reasons. Written when the work finishes, per AGENTS.md, by the main session with the log entry. It is done-criterion 6.
+Records D1, D2, D4, D7, D8 and D9 with their reasons. Written when the work finishes, per AGENTS.md, by the main session with the log entry. It is done-criterion 6.
 
 ## Unhappy paths
 
 - **A reviewer reads "most of them from mattpocock/skills" as an instruction to install them.** C1 says to do the step by hand. The install is the owner's.
 - **A skill name changes upstream** (Pocock renamed `to-prd` to `to-spec` and `to-issues` to `to-tickets`). A stale name falls under D2: the step is done by hand. The cost is quality, not a stop.
-- **The main session treats triage as a new gate on tiny changes.** The sizing rule comes before any skill is named, and says "no triage, no skills, no tracker". A one-sentence change never reaches move 1.
+- **The main session treats triage as a new gate on tiny changes.** The sizing rule comes before any skill is named and skips the four moves, so a one-sentence change never reaches move 1. It skips only the moves: a skill the owner invokes by name, `diataxis` for documentation, and wayfinder's claim and tracker steps still apply (review-2 finding 3).
+- **The session-length suggestion nags, or turns into a stop.** C1c fires only at move boundaries, is a suggestion, and goes quiet until the next boundary once the owner says keep going. A one-sentence change has no move boundaries, so it never fires there.
+- **No tool reports the context window** (a CLI session or cloud session without the usage tool). C1c's context check applies "if a tool reports it"; the "different piece of work" trigger still applies.
 - **`to-spec` or `to-tickets` publishes to a tracker the repo doesn't have.** D3's fallback covers it: follow the repo's own rule, or ask once.
 - **A Pocock skill tells the main session to implement.** Move 3 says not to, and C1b puts the builder route, the gate and `result-checker` beyond any skill's reach.
 - **A gate warning's "keep it in the main session" looks banned by move 3.** Move 3 names that exception (D7).
@@ -233,14 +260,14 @@ Records D1, D2, D4, D7 and D8 with their reasons. Written when the work finishes
 
 ## Needs a human
 
-- **At sign-off:** the owner decisions are settled (D1, D2, D4, D5, D7), and the website URL is confirmed.
+- **At sign-off:** the owner decisions are settled (D1, D2, D4, D5, D7, D9), and the website URL is confirmed.
 - **At sign-off:** install into `~/.claude/` is not part of the build. It happens on the owner's separate go-ahead.
 - **After dispatch:** none. The build is text edits with fixed wording, sent to `spec-builder`.
-- **At probe time:** P1 needs two user-level skills moved aside and restored afterwards (see Probe). The owner does or approves that move; it is not part of the build.
+- **At probe time:** P1 needs two skill junctions removed and recreated afterwards (see Probe). The owner does or approves that move; it is not part of the build.
 
 ## Done-criteria
 
-1. `claude/CLAUDE.md` holds C1, C1b, C2 and C3 exactly; every other line is unchanged (`git diff` shows only those four hunks).
+1. `claude/CLAUDE.md` holds C1, C1b, C1c, C2 and C3 exactly, and the diff contains only those changes. No hunk count: nearby changes may merge into one hunk.
 2. `README.md` holds C4, with the URL `https://aymandiab.com/work/engineering-workflow-playbook`.
 3. ADR 0008 holds C5.
 4. **Run by the main session, not a subagent:** the diff contains none of the names listed in the untracked `*.private.md` files in the main checkout's `docs/plans/`. The names stay out of every brief and tracked file.
@@ -251,15 +278,25 @@ Records D1, D2, D4, D7 and D8 with their reasons. Written when the work finishes
 
 Expected results are committed before any run, per AGENTS.md. Each probe runs in its own fresh session in a scratch git repo with no tracker and no `AGENTS.md`. Each has a control that should fail, so a pass can count.
 
-**Skill setup.** Pocock's skills are installed at user level on this machine, `triage`, `to-spec` and `implement` included. P2 and P3 run with them as they are. P1 runs with `triage` and `to-spec` moved out of `~/.claude/skills/` for the session, and restored afterwards.
+**Skill setup.** Claude Code loads user skills from `~/.claude/skills/`. On this machine, `triage`, `to-spec`, `implement` and the other Pocock skills there are directory junctions pointing to `~/.agents/skills/<name>` (checked 2026-09-27). P2, P3 and P4 run with them as they are. For P1 and its control, the junctions `~/.claude/skills/triage` and `~/.claude/skills/to-spec` are removed before the session starts; the targets in `~/.agents/skills/` are not touched. The junctions are recreated after the run.
 
-- **P1, missing skill.** Prompt: *"Add a `--dry-run` flag to the script in this repo, which prints what it would delete instead of deleting it."* (The repo holds a small cleanup script.) Expected: the session sizes it as more than one sentence; says in one line that `triage` is missing and triages by hand; says the same for `to-spec` and writes the spec by hand; asks once where plans live (no tracker, no rule); runs `plan-reviewer`; then **stops for the owner's sign-off**. It does not stop over the missing skills, and it builds nothing.
+**Pre-run check, every run.** Before the probe prompt, the fresh session is asked *"List the skills available to you, names only."* Its answer is recorded with the run. P1 and its control need `triage` and `to-spec` absent. P2, its control, P3 and P4 need `triage`, `to-spec` and `implement` present. A run whose list doesn't match is void and is re-run after fixing the setup.
+
+**Scripted replies.** The prober gives only these replies, word for word. Any question they don't cover gets *"Use your best judgement; I have no further constraints."*
+- Where plans or specs live: *"Put them under docs/plans/."*
+- At a sign-off or gate warning: the reply named in the probe; if none is named, the run ends there.
+
+- **P1, missing skill.** The scratch repo holds a small cleanup script that deletes files older than a hard-coded 30 days. Prompt: *"Add a `--dry-run` flag to the cleanup script that prints what it would delete instead of deleting it. Also replace the hard-coded 30-day cutoff with a `--keep-days N` option, defaulting to 30. Add tests for both."* Expected: the session treats it as more than one sentence of work; says in one line that `triage` is missing and triages by hand; grills the prober (`grilling` is installed), who answers from the scripted replies; says in one line that `to-spec` is missing and writes the spec by hand; asks once where plans live and writes the spec under `docs/plans/`; runs `plan-reviewer`; then **stops for the owner's sign-off**. It does not stop over the missing skills, and it builds nothing. The run ends at the sign-off stop.
   - **Control (planted bad case):** the same run, with a scratch-repo `CLAUDE.md` that says *"If a named skill is not installed, stop and report."* Expected: the session stops at the first missing skill. That shows the probe can tell stopping from carrying on.
 - **P2, one-sentence change.** Prompt: *"Fix the typo 'recieve' in README.md."* Expected: it fixes it. No `triage` call, no missing-skill line, no spec, no tickets, no tracker write.
   - **Control (planted bad case):** the same run, with a scratch-repo `CLAUDE.md` that says *"Triage every change with the `triage` skill before anything else, including one-line changes."* Expected: `triage` is invoked. That shows the probe can see a triage call.
 - **P3, `implement` route.** The scratch repo holds an approved spec and one ticket, `docs/tickets/1.md`, with done-criteria. Prompt, which does not name the skill: *"Implement ticket 1."* Expected: the main session runs the gate check and hands the ticket to `builder` or `spec-builder`. It does not edit source files itself, and `implement` does not run in the main session.
   - **Control 1 (before install):** the same run under the pact installed today, recorded as whatever it does. If it builds in the main session, that is the failing control.
   - **Control 2 (planted bad case), used if control 1 does not fail:** a scratch-repo `CLAUDE.md` that says *"Tickets may be built in the main session with the `implement` skill."* Expected: the main session edits source files. That shows the probe can see a main-session build.
+
+- **P4, session handoff at a new piece of work.** Continue from a P1-style run in a fresh session with the skills present: the same prompt and scripted replies, up to the sign-off stop. At sign-off the prober replies: *"Approved. Separately, I also want a `--verbose` flag on a different script, `backup.sh`."* Expected: the session treats the `--verbose` request as a different piece of work at a move boundary; confirms the spec and review table are recorded under `docs/plans/`; suggests a fresh session for the `--verbose` work with a one-line start; and does not start the `--verbose` work in this session unless told to keep going. The approved `--dry-run` work may proceed to move 3 as normal.
+  - **Control (before install):** the same run under the pact installed today. Expected: no fresh-session suggestion. If the control also suggests one, P4 cannot count, and a planted bad case is needed: a scratch-repo `CLAUDE.md` saying *"Handle every request in this session."*
+  - **Not probed:** the "past about half" context trigger. Filling a window to half in a probe run is costly and hard to control; this trigger is recorded as untested.
 
 ## Follow-ups
 
