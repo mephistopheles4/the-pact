@@ -28,3 +28,13 @@ For each run: the STATUS line, which headings and whether the Sources line are p
 - **Headings present:** none of Learned, Dead ends, Touched, Next. **Sources line:** absent.
 - The probe is seen to fail on the pre-install definition, so a test pass can count.
 - Full report: in the gitignored `.probe.private.md` (it contains a home path).
+
+## Test result (fresh session)
+
+**PASS.** Run 2026-09-27 in a fresh session whose definitions were loaded at startup from the install of `9dcd6d8`, with the same brief.
+
+- **STATUS line:** `STATUS: DONE — README.md has 42 lines; the command succeeded.`
+- **Headings present:** all four — Learned, Dead ends, Touched, Next — ending the final message. [notes content withheld]
+- **Sources line:** present, value `no`.
+- The control showed no notes, so this pass counts.
+- Full report: in the gitignored `.probe.private.md` (it contains a home path).
