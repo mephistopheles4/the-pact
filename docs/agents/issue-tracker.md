@@ -2,7 +2,7 @@
 
 Issues and PRDs for this repo live as GitHub issues on `mephistopheles4/the-pact`. Use the `gh` CLI for all operations; it infers the repo from `git remote -v` when run inside a clone.
 
-⚠️ **The repo does not exist yet.** The owner is holding it back until the agents are refined. Until then every `gh issue` command here fails, and plans are committed under `docs/plans/` instead. See [`AGENTS.md`](../../AGENTS.md#where-work-lives).
+⚠️ **The repo is private, and no code is pushed yet.** It was created on 2026-09-29 to hold issues; the owner pushes once the agents are refined. No local clone has a remote, so pass `-R mephistopheles4/the-pact` to every `gh` command. See [`AGENTS.md`](../../AGENTS.md#where-work-lives).
 
 ## Conventions
 

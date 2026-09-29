@@ -24,12 +24,12 @@ how every session in every repo behaves. So:
 ## Where work lives
 
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
-  [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). ⚠️ The repo
-  does not exist yet. Until it does, a live plan and its review rounds are
-  committed under `docs/plans/`. They stay there only while the work is live,
-  so the folder may be empty or absent.
-- **Once the repo exists:** a plan and its review rounds live on the issue, as
-  the body and comments.
+  [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). The repo is
+  private and nothing is pushed yet, so issues can't link to commits; cite a
+  commit by its short hash.
+- **Plans:** a plan and its review rounds live on the issue, as the body and
+  comments. The two plans created before the repo existed stay in
+  `docs/plans/` until their close-out issues finish them.
 - **When the work finishes:** each lasting decision becomes one ADR in
   [`docs/adr/`](docs/adr/), with its reasoning. The work itself becomes one
   dated narrative in [`docs/log/`](docs/log/), ending in a **Record** list of
@@ -62,7 +62,7 @@ Configuration for the optional [engineering skills](https://github.com/mattpococ
 
 ### Issue tracker
 
-GitHub issues on `mephistopheles4/the-pact`, via the `gh` CLI; external PRs are not a triage surface. The repo does not exist yet. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+GitHub issues on `mephistopheles4/the-pact`, via the `gh` CLI; external PRs are not a triage surface. The repo is private, with nothing pushed yet. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
 
 ### Triage labels
 

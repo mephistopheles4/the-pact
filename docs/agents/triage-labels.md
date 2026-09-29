@@ -21,7 +21,7 @@ The pact gates every builder hand-off with one question: will the builder need t
 
 ## Creating the labels
 
-GitHub creates `wontfix` on a new repo by default. The other four must be created once, after the repo exists:
+All five exist on the tracker (created 2026-09-29; this repo got no default labels, so `wontfix` was created too). For reference:
 
 ```bash
 gh label create needs-triage --description "Maintainer needs to evaluate this issue" --color fef2c0
