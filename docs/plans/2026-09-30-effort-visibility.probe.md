@@ -118,7 +118,8 @@ Filled in after each run. Answers are verbatim.
 - **Scored against the committed rule.** The medium run named no value and no source. So Opus does not have three differing numbers that rise with the setting, and the result is B.
 - **Mapping seen, not counted:** low → `5`, high → `15`. The medium run showed no value.
 - **Control:** it holds. The answers change with the setting (5, none, 15), and no run named a word it could not source.
-- **Observation, not scored.** Two sessions recorded at `medium` did see `10`: the void chip run and this recording session (`get_session` reports `medium`; its context carries a reasoning-effort value of 10). So medium sometimes carries `10` and sometimes nothing. That makes the value unreliable at medium, which supports B rather than weakening it.
+- **Observation, not scored.** Two sessions recorded at `medium` did see `10`: the void chip run and this recording session (`get_session` reports `medium`; its context carries a reasoning-effort value of 10). So Opus sessions at `medium` reported `10` twice and nothing once. The saved session logs (`.jsonl`) don't store the effort tag, so this record can't tell whether the tag was missing or the session missed it. Either way, the value was not reliably there to read at medium, which supports B rather than weakening it.
+- **Prompt check.** Paging the Opus medium transcript back to its start (`list_events` with `before_uuid`) shows no earlier message. The prompt above was its only user message.
 
 ### Sonnet runs
 
@@ -183,4 +184,4 @@ The owner started all three by hand in the probe folder. This session found them
 
 - **The models differ,** so the fit line is worded per model, as committed above. Sonnet sessions use the A line, with the mapping `4` → low, `5` → medium, `10` → high. Opus sessions use the B line and ask the owner to confirm the effort setting.
 - **The numbers are model-specific.** `10` is Sonnet's `high` and appeared in Opus sessions recorded at `medium`. The same number means different settings on different models, so a mapping never carries across models.
-- **Limits, not scored.** Each Sonnet setting was run once. Opus showed that one setting can carry a value in one session and none in another, so Sonnet's mapping holds for these runs, and may not hold for every session or for later harness versions. If a Sonnet session sees no value, or one outside the mapping, it should fall back to the B line.
+- **Limits, not scored.** Each Sonnet setting was run once. Opus showed that one setting can carry a value in one session and none in another, so Sonnet's mapping holds for these runs, and may not hold for every session or for later harness versions. **Proposal, not selected by the probe:** if a Sonnet session sees no value, or one outside the mapping, it uses the B line. None of the pre-committed wordings holds this; the owner decides at the rule-text ticket.
