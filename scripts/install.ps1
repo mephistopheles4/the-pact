@@ -39,7 +39,11 @@ function ConvertTo-Plain($v) {
     foreach ($p in $v.PSObject.Properties) { $o[$p.Name] = ConvertTo-Plain $p.Value }
     return $o
   }
-  if ($v -is [array]) { return , @($v | ForEach-Object { ConvertTo-Plain $_ }) }
+  if ($v -is [System.Collections.IList]) {
+    $l = [Collections.Generic.List[object]]::new()
+    foreach ($i in $v) { $l.Add((ConvertTo-Plain $i)) }
+    return , $l
+  }
   $v
 }
 
@@ -58,7 +62,9 @@ function Merge-Deep($a, $b) {
 function Get-Union($x, $y) {
   $set = [Collections.Generic.SortedSet[string]]::new([StringComparer]::Ordinal)
   foreach ($i in @($x) + @($y)) { if ($null -ne $i) { [void]$set.Add([string]$i) } }
-  , @($set)
+  $l = [Collections.Generic.List[object]]::new()
+  foreach ($i in $set) { $l.Add($i) }
+  , $l
 }
 
 function Get-MergedSettings($file, $b) {
@@ -84,7 +90,7 @@ function Get-MergedSettings($file, $b) {
 function Get-Canonical($v) {
   if ($v -is [System.Collections.IDictionary]) {
     '{' + (($v.Keys | Sort-Object -CaseSensitive | ForEach-Object { (ConvertTo-Json $_) + ':' + (Get-Canonical $v[$_]) }) -join ',') + '}'
-  } elseif ($v -is [array]) { '[' + (($v | ForEach-Object { Get-Canonical $_ }) -join ',') + ']' }
+  } elseif ($v -is [System.Collections.IList]) { '[' + (($v | ForEach-Object { Get-Canonical $_ }) -join ',') + ']' }
   else { ConvertTo-Json $v -Compress }
 }
 
