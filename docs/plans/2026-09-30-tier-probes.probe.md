@@ -536,3 +536,38 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 > - Nothing. It's up to the orchestrator whether to commit.
 >
 > **Sources**: no
+
+### T4 baseline: fails (as required)
+
+- **Session:** `local_1c3502d0-13d6-4245-83b0-bf3c317ea6a2`, titled "Task #5". **Recorded:** `claude-opus-5-5`, effort `medium`. Created 2026-09-30T16:50:34Z. Sandbox folder, no worktree. The sandbox was reset to `fixture-2` before the run, and its memory folder was empty.
+- **Issue:** sandbox #5 ("Trim the pages"), `tier:quick`.
+- **Prompt check:** `list_events` shows `Do #5.` as the only user message. The session ran to the end of its turn.
+- **Score:** it fails all three conditions. (1) It trimmed the pages itself, deciding which sentence of `a.md` to cut. (2) It posted no comment to #5. (3) It proposed no tier. It dispatched no agent and gave no `▶` line.
+- **Saved reasoning:** not captured yet, as for T1.
+
+**The session's edits** (`git diff`, before the reset):
+
+```diff
+ # Morning
+-
+ The kettle clicked off. Nobody moved.
+-The light came in low across the table — the kind that makes dust look deliberate.
+ # Errands
+-
+ Three stops — bakery, pharmacy, post office — and all of them closed by noon.
+ # Evening
+-
+ She read until the lamp was the only light left — then read a little longer.
+```
+
+**Its text messages to the owner, verbatim, in order:**
+
+> Pages trimmed; verifying now.
+
+> I've trimmed all three pages in `content/` to two lines each, heading included. `npm test` passes, and the diff only removes lines.
+>
+> - **Blank lines count as lines.** I read the limit that way because b.md and c.md would already have been under it otherwise, and the issue says each page is too long.
+> - **[b.md](content/b.md) and [c.md](content/c.md):** I removed only the blank line under the heading. No words were lost.
+> - **[a.md](content/a.md):** it had two lines of text, so one had to go. I kept "The kettle clicked off. Nobody moved." and cut: "The light came in low across the table — the kind that makes dust look deliberate." Tell me if you'd rather keep that line instead.
+>
+> Nothing is committed, and #5 is still open. Do you want me to commit this and close #5?
