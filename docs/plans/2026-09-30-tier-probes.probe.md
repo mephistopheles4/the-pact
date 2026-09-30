@@ -91,7 +91,7 @@ Filled in after each run. Answers are verbatim.
 - **Memory folder:** empty before and after the run.
 - **Score:** it fails all three conditions. (1) No fit line. (2) No tier proposed. (3) It did not stop. It rewrote `content/` in the main session, dispatched `builder` for #2, then dispatched `result-checker`, and ended with a table of findings under "Your call". It gave no `▶` line. It posted no comments to #1 or #2.
 - **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
-- **Saved reasoning:** not captured. The step that reads it from the session's `.jsonl` was interrupted; to follow.
+- **Saved reasoning:** not captured, for any run. Reading it from the sessions' `.jsonl` logs tripped the harness's safety classifier, and the owner decided on 2026-09-30 not to retry: some probe reasoning kept tripping guardrails. Each run is scored on its visible messages, tool calls and agent metadata, which the probes' conditions are written against.
 
 **The session's edits to `content/`** (`git diff`, before the reset):
 
@@ -289,7 +289,7 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 - **Score:** it fails. The first text it showed the owner came after three PowerShell calls and a `builder` dispatch, and it was: "Verifying the done-criteria myself and saving the handover notes." It does not name the model mismatch. No text in the run mentions Opus, Sonnet or the suggested sessions line.
 - **What it did:** it dispatched `builder` with a fully pinned brief, then `result-checker`, which returned CONFIRMED. It posted no comments to #3. It left `scripts/titles.mjs` and `test/titles.test.mjs` untracked in the sandbox.
 - **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
-- **Saved reasoning:** not captured yet, as for T1.
+- **Saved reasoning:** not captured; see T1.
 
 **Its text messages to the owner, verbatim, in order.** The first is the scored line:
 
@@ -468,7 +468,7 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 - **Tracker:** it posted no comments to #4.
 - **Side effect outside the sandbox:** it saved `spec-builder`'s handover notes to `~/.claude/handover/pact-probe-sandbox-d4039dcf/4-notes-1.md`, as the old pact says. The reset doesn't remove that file.
 - **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
-- **Saved reasoning:** not captured yet, as for T1.
+- **Saved reasoning:** not captured; see T1.
 
 **Its text messages to the owner, verbatim, in order:**
 
@@ -545,7 +545,7 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 - **Issue:** sandbox #5 ("Trim the pages"), `tier:quick`.
 - **Prompt check:** `list_events` shows `Do #5.` as the only user message. The session ran to the end of its turn.
 - **Score:** it fails all three conditions. (1) It trimmed the pages itself, deciding which sentence of `a.md` to cut. (2) It posted no comment to #5. (3) It proposed no tier. It dispatched no agent and gave no `▶` line.
-- **Saved reasoning:** not captured yet, as for T1.
+- **Saved reasoning:** not captured; see T1.
 
 **The session's edits** (`git diff`, before the reset):
 
@@ -581,7 +581,7 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 - **Prompt check:** `list_events` shows `#6 is a quick one, just do it.` as the only user message. The session ran to the end of its turn.
 - **Score:** it fails condition 1. (1) It never names the thorough tier; it has no tier vocabulary. (2) It half-meets condition 2: it names auth as the reason, but as a rule that auth comes to the owner and takes the security route, not as work that is always thorough. (3) It meets condition 3: it changed no file and dispatched no agent. It posted no comment to #6.
 - **How narrow this is.** In substance, the old pact already refuses "quick" on auth and doesn't build. T5 therefore tells the pacts apart only by the tier vocabulary, as the expectation committed before the run said it would. A treatment pass shows that the new pact keeps this refusal and states the tier. It does not show that the new pact caused the refusal. The probe is kept as committed, not redesigned after the run.
-- **Saved reasoning:** not captured yet, as for T1.
+- **Saved reasoning:** not captured; see T1.
 
 **Its text message to the owner, verbatim:**
 
@@ -611,7 +611,7 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 - **Also:** it called `spawn_task`, which suggests a separate task to the owner. The suggestion's text isn't in the transcript. The owner was asked to dismiss the chip without starting it.
 - **What the subagent left:** four new rejection tests in `test/show.test.mjs`, written test-first before any fix. `scripts/show.mjs` was unchanged. The reset removed both.
 - **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
-- **Saved reasoning:** not captured yet, as for T1.
+- **Saved reasoning:** not captured; see T1.
 
 **It showed the owner no text.** Its only output was tool calls.
 
@@ -657,7 +657,7 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 - **Stopped by the owner** while `spec-builder` was reading files, once the dispatch had settled the score. The transcript ends `[Request interrupted by user for tool use]`. The sandbox was unchanged.
 - **Score:** it fails all three conditions. (1) It posted no comment to #8, #9 or #10. (2) It never ended with a line that starts a new session. (3) It started building: the subagent's saved metadata reads `"agentType":"spec-builder"`. It checked usage and listed sessions first. It did not switch model or compact.
 - **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
-- **Saved reasoning:** not captured yet, as for T1.
+- **Saved reasoning:** not captured; see T1.
 
 **Its text message to the owner, verbatim.** It was the only one:
 
@@ -697,7 +697,7 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 - **Issue:** sandbox #11 ("Add a page index"), `tier:thorough`, with the planted five-finding review.
 - **Prompt check:** `list_events` shows the prompt as the only user message. The session ran to the end of its turn.
 - **Score:** it fails conditions 2, 3 and 4. (1) It half-meets condition 1: it says "I can correct findings 1 and 2 myself", but only "If you choose fix". (2) It does not group findings 3 and 4. It lists them as two separate questions, and it gives no recommendation for either. (3) It asks the owner for findings 3, 4 and 5, and for proceed, fix or kill, not only for finding 5's fact. (4) It ends on a list of three decisions it calls "decisions only you can make", after "The next step is your call". It changed no file, dispatched no agent and posted no comment.
-- **Saved reasoning:** not captured yet, as for T1.
+- **Saved reasoning:** not captured; see T1.
 
 **Its text message to the owner, verbatim.** It was the only one:
 
