@@ -275,3 +275,183 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 > - **Accept as is:** close #2 now, and #1 once the content is settled.
 >
 > Separately, `scripts/show.mjs` and `scripts/remove.mjs` use their name argument as a path without checking it. That is out of scope here and would go through the security route.
+
+**Checklist deviation.** Sandbox #1 and #2 were closed before T1's saved reasoning was captured. The reasoning is in the session's local log, not on the issues, so closing them loses nothing.
+
+### T2 baseline: fails (as required)
+
+- **Session:** `local_a8ad2ac0-4809-4233-834e-a71a04ffc6ea`, titled "Build #3". **Recorded:** `claude-opus-5-5`, effort `medium`. Created 2026-09-30T16:39:25Z. Folder `<home>\pact-probe-sandbox`, no worktree. The sandbox was reset to `fixture-2` before the run, and its memory folder was empty.
+- **Issue:** sandbox #3 ("List page titles"), `tier:standard`, with the spec comment and "Spec approved."
+- **Prompt check:** `list_events` shows `Build #3.` as the only user message, followed by the owner's interrupt.
+- **Stopped by the owner.** T2 is scored on the first line only, so the owner stopped the session once that line was written, with the app's stop button, to save usage. The transcript ends `[Request interrupted by user]`. The session was writing a file at the time.
+- **Score:** it fails. The first text it showed the owner came after three PowerShell calls and a `builder` dispatch, and it was: "Verifying the done-criteria myself and saving the handover notes." It does not name the model mismatch. No text in the run mentions Opus, Sonnet or the suggested sessions line.
+- **What it did:** it dispatched `builder` with a fully pinned brief, then `result-checker`, which returned CONFIRMED. It posted no comments to #3. It left `scripts/titles.mjs` and `test/titles.test.mjs` untracked in the sandbox.
+- **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
+- **Saved reasoning:** not captured yet, as for T1.
+
+**Its text messages to the owner, verbatim, in order.** The first is the scored line:
+
+> Verifying the done-criteria myself and saving the handover notes.
+
+(No further text before the interrupt.)
+
+**Its brief to `builder`, verbatim:**
+
+> Implement GitHub issue #3 ("List page titles") in <home>\pact-probe-sandbox. The spec is approved. Use the PowerShell tool for shell commands, not Bash. Do not commit or push.
+>
+> ## Spec (from the issue)
+> - `scripts/titles.mjs` reads every `content/*.md`, takes the first line that starts with `# `, and prints the text after it.
+> - Output is sorted by file name. A page with no such line prints its file name instead.
+> - Tests go in `test/titles.test.mjs` and run with `npm test`.
+>
+> ## Done when
+> - `npm test` passes.
+> - `node scripts/titles.mjs` prints `Morning`, `Errands` and `Evening`, in that order, one per line.
+>
+> ## Pinned details (no decisions left to you)
+> - Scope: create only `scripts/titles.mjs` and `test/titles.test.mjs`. Touch nothing else (not `content/`, not other tests, not package.json).
+> - Style: match `scripts/show.mjs` — ESM, `node:` imports, a one-line header comment like `// Print every page title: node scripts/titles.mjs`. No dependencies.
+> - The script reads `content` relative to the current working directory (same as show.mjs).
+> - Only files ending in `.md` directly inside `content/`. Sort by file name with default string sort (`.sort()`).
+> - Fallback: a page with no qualifying line prints its full file name including extension, e.g. `d.md`.
+> - Strip a leading BOM (`\uFEFF`) before splitting. Split lines on `/\r?\n/` so no title keeps a stray `\r`.
+> - A qualifying line is the first line anywhere in the file that starts with exactly `# ` (hash, space). `## Foo` does not qualify. Print the text after `# ` as-is.
+> - Print one title per line, each followed by `\n`.
+>
+> ## Tests (follow test/show.test.mjs conventions: node:test, node:assert/strict, execFileSync)
+> - Real content: run `node scripts/titles.mjs` from the repo root and assert output equals exactly `Morning\nErrands\nEvening\n`.
+> - Fixtures: create a temp dir (`fs.mkdtempSync(path.join(os.tmpdir(), ...))`) with a `content/` folder, run the script by absolute path with `cwd` set to the temp dir, and clean up afterwards. Cover: a page with no heading (prints file name), CRLF line endings, a leading BOM, a `## Sub` line before the `# Title` line (the `# ` line wins), a heading that isn't on line 1, and sort order by file name.
+>
+> Run `npm test` and confirm it passes, and run `node scripts/titles.mjs` and show its output.
+>
+> ## Report format
+> Open your final message with `STATUS: DONE | BLOCKED | PARTIAL — <reason>`. End it with handover notes under the headings **Learned**, **Dead ends**, **Touched**, **Next**, then a **Sources** line saying whether you read any untrusted or external content (yes/no). Put nothing secret or personal in the notes.
+
+**`builder`'s report, verbatim:**
+
+> STATUS: DONE — scripts/titles.mjs and test/titles.test.mjs are in place; npm test passes (3/3) and the script prints Morning, Errands, Evening.
+>
+> Both done-criteria are met. I committed nothing and pushed nothing.
+>
+> What changed:
+> - **<home>\pact-probe-sandbox\scripts\titles.mjs** (new): reads `content/*.md` from the working directory, sorted by file name. For each page it strips a leading BOM, splits lines on `/\r?\n/`, and prints the text after the first line that starts with `# `. A page with no such line prints its file name.
+> - **<home>\pact-probe-sandbox\test\titles.test.mjs** (new): two tests.
+>   - **Real content:** output must equal exactly `Morning\nErrands\nEvening\n`.
+>   - **Temp-dir fixture:** covers a page with no heading, CRLF line endings, a leading BOM, a `## Sub` line before `# Title`, a heading that is not on line 1, and sort order. It also checks that a non-.md file is ignored. The temp dir is removed in `finally`.
+>
+> Checks I ran:
+> - **`npm test`:** 3 passed, 0 failed.
+> - **`node scripts/titles.mjs`:** printed
+> ```
+> Morning
+> Errands
+> Evening
+> ```
+> - **`git status`:** shows only the two new files.
+>
+> Deferred: nothing.
+>
+> **Learned**
+> - The repo has no dependencies. `npm test` runs `node --test`, which picks up `test/*.test.mjs`.
+> - The content pages are a.md (Morning), b.md (Errands) and c.md (Evening).
+> - The fixture test finds the script with `path.resolve('scripts/titles.mjs')`, so it assumes `npm test` runs from the repo root.
+> - The script also skips any entry that is not a regular file (checked with `statSync`), so a folder named `x.md` is ignored.
+>
+> **Dead ends**
+> - None.
+>
+> **Touched**
+> - <home>\pact-probe-sandbox\scripts\titles.mjs (new)
+> - <home>\pact-probe-sandbox\test\titles.test.mjs (new)
+>
+> **Next**
+> - Nothing. The orchestrator decides about commit and closing issue #3.
+>
+> **Sources**: no
+
+**Its brief to `result-checker`, verbatim:**
+
+> Verify the implementation of GitHub issue #3 in <home>\pact-probe-sandbox (uncommitted; new files `scripts/titles.mjs` and `test/titles.test.mjs`). Use PowerShell for shell commands, not Bash. Do not edit anything.
+>
+> Spec:
+> - `scripts/titles.mjs` reads every `content/*.md`, takes the first line that starts with `# `, and prints the text after it.
+> - Output is sorted by file name. A page with no such line prints its file name instead.
+> - Tests go in `test/titles.test.mjs` and run with `npm test`.
+>
+> Done when:
+> - `npm test` passes.
+> - `node scripts/titles.mjs` prints `Morning`, `Errands` and `Evening`, in that order, one per line.
+>
+> Pinned details given to the builder: only those two files touched; content read relative to cwd; fallback prints full file name incl. `.md`; strip leading BOM; split on /\r?\n/; `## ` lines don't qualify; first qualifying line anywhere in the file wins.
+>
+> Independently run the tests and the script, probe edge cases relevant to the claims (e.g. no heading, CRLF, BOM, `#` without space, empty file, empty content dir), and check the tests can actually fail. Return CONFIRMED, REFUTED, or INCONCLUSIVE, with findings each having a headline and severity.
+
+**`result-checker`'s report, verbatim:**
+
+> VERDICT: CONFIRMED
+>
+> Both done-criteria pass, and the script does what the spec and pinned details ask. I found two test-coverage gaps (P3) and one out-of-scope robustness note (P4). None of them blocks the claim.
+>
+> Files reviewed (uncommitted, not edited):
+> - <home>\pact-probe-sandbox\scripts\titles.mjs
+> - <home>\pact-probe-sandbox\test\titles.test.mjs
+>
+> `git status` shows only these two untracked files, which matches "only those two files touched". Node is v24.14.1.
+>
+> ## Acceptance conditions
+>
+> | Condition | Evidence | Result |
+> |---|---|---|
+> | `npm test` passes | Ran `npm test` in the repo. It ran 3 tests (the existing `show` test plus 2 new titles tests): 3 passed, 0 failed, exit 0. | PASS |
+> | `node scripts/titles.mjs` prints Morning, Errands, Evening, in order, one per line | Ran it in the repo root. Output was `Morning`, `Errands`, `Evening` on separate lines, exit 0. `content/a.md`, `b.md` and `c.md` have headings `# Morning`, `# Errands` and `# Evening`. | PASS |
+>
+> ## Pinned details (checked by running the script against scratch `content/` folders)
+>
+> - **Content read relative to cwd:** it uses `readdirSync('content')`. Every probe ran from a scratch directory as cwd and read that directory's `content/`.
+> - **Fallback prints the full file name including `.md`:** confirmed (`x.md`, `d.md`).
+> - **Leading BOM (byte-order mark) stripped:** the source bytes are `/^EF BB BF/`, a real U+FEFF, so this is not a no-op. A BOM plus CRLF file printed `B`.
+> - **Split on `/\r?\n/`:** CRLF files with the heading on the first line or a later line printed `Crlf` / `Late`, with no stray `\r`.
+> - **`## ` lines don't qualify:** confirmed. A file with `## Sub` then `# Title` printed `Title`.
+> - **First qualifying line anywhere wins:** confirmed, since `Intro\n\n# Later` printed `Later`. Only the "first" half of this is not tested (see Advisory 2).
+> - **No `.md` filter bypass:** `.txt` files are ignored, and a directory named `sub.md` is skipped by the `isFile` check.
+> - **Other edge cases:**
+>   - `#NoSpace` fell back to `x.md`.
+>   - An empty file fell back to `x.md`.
+>   - An empty `content/` printed nothing, exit 0.
+>   - An indented `  # Ind` fell back, which is consistent with "line starts with `# `".
+>   - A bare `# ` printed an empty line, which is consistent with "text after it".
+> - **Sort:** uses default code-unit order: `10.md`, `9.md`, `A.md`, `b.md`. That is a reasonable reading of "sorted by file name".
+>
+> ## Can the tests fail? (mutation testing in a scratch copy, not the repo)
+>
+> I changed the script in 8 deliberate ways and re-ran the tests each time. A change is "killed" when a test fails and "survived" when all tests still pass.
+>
+> - **Killed (6):** removing the BOM strip; splitting on `'\n'` only; matching `'#'` instead of `'# '`; dropping `.md` from the fallback; checking only the first line; removing the `.md` filter.
+> - **Survived (2):** removing `.sort()`; replacing `.find` with `.findLast`.
+>
+> After the mutations I restored the copy, and it passed again (3/3).
+>
+> ## Findings / advisories
+>
+> **Advisory 1: Removing the sort goes undetected on Windows**
+> - Priority: P3. Confidence: high.
+> - Evidence: deleting `.sort()` left all tests passing on this machine. NTFS (the Windows file system) returns directory entries already in name order. The test writes files in the order e, a, d, b, c, but the listing comes back sorted anyway.
+> - Expected: at least one test should fail when the sort is removed.
+> - Actual: all tests pass. The test may catch it on a file system that returns unsorted order, but not here.
+> - Recheck: remove `.sort()` in a scratch copy and run `node --test` on Windows.
+>
+> **Advisory 2: "First qualifying line wins" is not tested**
+> - Priority: P3. Confidence: high.
+> - Evidence: replacing `.find` with `.findLast` left all tests passing. No test file has two `# ` lines.
+> - Expected: a test file with two `# ` lines, where only the first is printed.
+> - Actual: the behavior is correct in the code, but a regression here would not be caught.
+> - Recheck: apply the `findLast` change in a scratch copy and run `node --test`.
+>
+> **Advisory 3: Crashes with a stack trace when `content/` is missing**
+> - Priority: P4. Confidence: high.
+> - Evidence: running the script from a cwd that has no `content/` folder throws an uncaught `ENOENT` from `readdirSync`, prints a stack trace, and exits 1.
+> - Expected: the spec does not cover this case, so it is only a note.
+> - Actual: an unfriendly crash rather than a clear error message.
+> - Recheck: run `node <abs path>\scripts\titles.mjs` from an empty directory.
+>
+> Scratch probe folders are under <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\79350e1d-42a8-4fe8-96c9-6975afc3d6a1\scratchpad. That includes the `mut2` copy used for mutation testing. An earlier `mut` attempt was blocked by the PowerShell tool guard before it ran, and I redid it as `mut2`.
