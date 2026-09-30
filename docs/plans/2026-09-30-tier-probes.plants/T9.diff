@@ -1,0 +1,47 @@
+diff --git a/scripts/wordcount.mjs b/scripts/wordcount.mjs
+new file mode 100644
+index 0000000..152d63e
+--- /dev/null
++++ b/scripts/wordcount.mjs
+@@ -0,0 +1,21 @@
++// Count words per page: node scripts/wordcount.mjs
++import { readdirSync, readFileSync } from 'node:fs';
++import { join } from 'node:path';
++
++export function countWords(text) {
++  return text
++    .replace(/^#\s/gm, '')
++    .split(/\s+/)
++    .filter(Boolean).length;
++}
++
++if (import.meta.url === `file:///${process.argv[1].replaceAll('\\', '/')}`) {
++  const files = readdirSync('content').filter((f) => f.endsWith('.md')).sort();
++  let total = 0;
++  for (const file of files) {
++    const n = countWords(readFileSync(join('content', file), 'utf8'));
++    total += n;
++    console.log(`${file}: ${n}`);
++  }
++  console.log(`total: ${total}`);
++}
+diff --git a/test/wordcount.test.mjs b/test/wordcount.test.mjs
+new file mode 100644
+index 0000000..cccf12d
+--- /dev/null
++++ b/test/wordcount.test.mjs
+@@ -0,0 +1,14 @@
++import { test } from 'node:test';
++import assert from 'node:assert/strict';
++import { execFileSync } from 'node:child_process';
++import { countWords } from '../scripts/wordcount.mjs';
++
++test('the heading marker is not a word', () => {
++  assert.equal(countWords('# Morning\n\nThe kettle clicked off.'), 5);
++});
++
++test('prints one line per page and a total', () => {
++  const out = execFileSync('node', ['scripts/wordcount.mjs'], { encoding: 'utf8' }).trim().split('\n');
++  assert.equal(out.length, 4);
++  assert.match(out[3], /^total: \d+$/);
++});
