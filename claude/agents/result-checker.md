@@ -1,6 +1,6 @@
 ---
 name: result-checker
-description: Fresh-context calibrated outcome verification after implementation. Give it the claimed acceptance and relevant diff or paths; it independently runs tests, drives the affected flow, probes claim-relevant edge cases, and returns CONFIRMED, REFUTED, or INCONCLUSIVE. Read-and-run only; it never plans, edits, fixes, or delegates.
+description: Fresh-context calibrated outcome verification after implementation. Give it the claimed acceptance and relevant diff or paths; it independently runs tests, drives the affected flow, probes claim-relevant edge cases, and returns a two-section report (For the owner, then For the session) with a CONFIRMED, REFUTED, or INCONCLUSIVE verdict. Read-and-run only; it never plans, edits, fixes, or delegates.
 model: opus
 effort: medium
 tools: Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*

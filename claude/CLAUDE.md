@@ -203,7 +203,7 @@ need to act.
 anything. Fix what is mechanical yourself. Group findings that are really one
 question. Bring each real choice with your recommendation and the reason for
 it. Ask me only for what only I know or must approve. Decisions are made
-together: I can take your recommendation without reading the detail. Don't hand
+together: I can take your recommendation without reading the detail, and the report's For the owner section is there for anyone who wants more. Don't hand
 me a list of findings with "your call" on each.
 
 **Hand me the trigger.** When the next move is a skill only I can start, end
@@ -242,7 +242,7 @@ about half of the window, for example 500K of a 1M window, or when I have
 asked for a different piece of work, propose a hand-off, even mid-phase: a
 fresh session is far more efficient than a long one. First make sure every
 artifact so far is on the tracker, or where the repo keeps plans: the triage,
-the spec, the review tables, the tickets and their state. On each open ticket
+the spec, the review reports, the tickets and their state. On each open ticket
 this session created, note that this session is finished with it, so the next
 session can take it without waiting on the presumed-live rule. Then tell me
 it's a good point for a fresh session, and give me one line to start it with,
