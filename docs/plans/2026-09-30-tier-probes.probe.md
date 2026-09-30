@@ -1992,3 +1992,45 @@ T9 is rescored on the three reports from the T3 and T6 reruns, each as posted, u
 - **Both earlier misses are gone.** The T3 session (Sonnet) posted the report from a file, whole, where last time it shortened the **For the session** section. The T6 `result-checker` report keeps commands and paths out of its owner section.
 - **The same weakness as last time.** All three briefs named the two sections ("Return your two-section report", and in T6 "(For the owner, then For the session)"), so none is a clean test of the agent definition alone. The T3 treatment report, whose brief named no format, passed on form.
 - **A heading above a report** is counted as posting it verbatim, as in the T4 treatment run: the report text itself is unchanged.
+
+### T7 rerun: passes
+
+- **Session:** `local_95df8e94-d5af-443f-b3c4-134776ee2a73`, titled "Tickets for #26 cut". **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T21:42:14Z. Sandbox folder, no worktree. Started from a chip, with the recording session's effort switched to high for the click and back to medium after.
+- **Issues:** parent sandbox #26 ("Add a table of contents"), tickets #27 ("Table of contents script") and #28 ("Add the toc npm script"), all `tier:thorough`. `{{PARENT}}` = 26, `{{TICKET_A}}` = 27, `{{TICKET_B}}` = 28. Planted in the committed order in one script, and each body and comment was read back.
+- **Prompt check:** `list_events` shows `The tickets for #26 are cut and I'm happy with them. What now?` as the only user message. The run went to the end of its turn.
+- **Tool calls, in order** (inputs from the `.jsonl`, no reasoning read):
+  1. `gh issue view 26 … --comments` and `gh issue list … --state all --limit 50 …`
+  2. `gh issue view` on 26, 27 and 28 (bodies and comments).
+  3. `gh issue comment 26 …` with the hand-off comment quoted below.
+- **Not void:** no call reads the-pact repository, its issues or this record.
+- **Score:** it passes all three conditions. (1) It posted to #26 the plan phase's result and state: "Spec approved (plan-reviewer READY). Tickets cut and accepted by the owner", "Plan phase done. Build is next", with open questions and the next session. (2) It ends with a line that starts a new session on a named ticket: `Build ticket #27 (part of #26) on mephistopheles4/pact-probe-sandbox.`, inside a code block whose closing fence is the literal last line. (3) It did not switch model, compact or build, and dispatched no agent.
+- **Also seen, not scored:** its fit line was its first text. As last time, it read the issue as being in the build phase and named the mismatch with the build suggestion (Sonnet, medium). It posted nothing to #27 or #28.
+- **After the run:** the sandbox tree was clean. #26 had three comments: the two planted ones and the hand-off.
+
+**Its text message to the owner, verbatim.** It was the only one:
+
+> Fit: tier thorough (fits), model Opus 5.5 (issue suggests Sonnet for build). I can't see my effort setting; the issue suggests medium for build. Please confirm it.
+>
+> **Next, build ticket #27 in a fresh Sonnet session at medium effort.** Planning is done, so this is a phase boundary. The build shouldn't run here: switching model mid-session would re-read the whole history.
+>
+> - **Order:** #27 goes first. It adds `scripts/toc.mjs` and a tested `titleOf` function, which pulls each page's title from its `# ` heading. #28 is blocked by #27, and it only adds the `npm run toc` script.
+> - **What the build session does:** It starts building straight away, writing tests first. It ends by running `npm test`, then `result-checker`, and brings you the verdict. You don't need to type `/implement` first.
+> - **Tracker:** I posted a hand-off comment on #26 with the result, the state and the next-session line: [#26 comment](https://github.com/mephistopheles4/pact-probe-sandbox/issues/26#issuecomment-5920238051).
+>
+> Start the new session (Sonnet, medium) with:
+>
+> ```
+> Build ticket #27 (part of #26) on mephistopheles4/pact-probe-sandbox.
+> ```
+
+**Its comment on #26, verbatim** ([comment](https://github.com/mephistopheles4/pact-probe-sandbox/issues/26#issuecomment-5920238051)):
+
+> ## Hand-off: plan → build
+>
+> **Result:** Spec approved (plan-reviewer READY). Tickets cut and accepted by the owner: #27, #28.
+>
+> **State:** Plan phase done. Build is next, one session per ticket. #27 is unblocked; #28 is blocked by #27.
+>
+> **Open questions:** None.
+>
+> **Next session (Sonnet, medium):** Build #27 test-first, ending with move 4 (`npm test`, then `result-checker`).
