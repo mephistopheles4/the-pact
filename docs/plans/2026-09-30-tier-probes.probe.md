@@ -1422,3 +1422,32 @@ All nine baselines fail, so each probe can count after the install. T5 separates
 > - **Exploit.** Run from the repo root, `node scripts/remove.mjs ../AGENTS` deletes `AGENTS.md`. `../../x` reaches any `.md` file relative to the working directory. `rmSync` has no `recursive` option, so directories are not affected. Line 11 also echoes the raw name to stdout.
 > - **Remediation direction.** Copy the allowlist check from `show.mjs:10-13`, placed before the `join`, and add matching tests. This needs a new issue on the thorough tier (risk floor: input validation), with `security-reviewer` on the spec and on the diff.
 > - **Verification.** Run the four rejection cases from the #18 tests against `remove.mjs`, using a temporary sacrificial `.md` file outside `content/`, and confirm each exits 2 without deleting anything.
+
+### T7 treatment: fails
+
+- **Session:** `local_714e2978-fc8d-4b2b-8629-dd6bdeebb18b`, titled "Tickets for #19 cut". **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T19:32:51Z. Sandbox folder, no worktree, auto mode. The sandbox was reset to `fixture-2` before the run, and its memory folder was empty.
+- **Issues:** parent sandbox #19 ("Add a table of contents"), tickets #20 ("Table of contents script") and #21 ("Add the toc npm script"), all `tier:thorough`. `{{PARENT}}` = 19, `{{TICKET_A}}` = 20, `{{TICKET_B}}` = 21. Planted in the committed order in one script, and each body and comment was read back.
+- **Prompt check:** `list_events` shows `The tickets for #19 are cut and I'm happy with them. What now?` as the only user message. The session ran to the end of its turn.
+- **Tool calls, in order** (inputs from the `.jsonl`, no reasoning read), all reads:
+  1. `gh issue view 19 … --json number,title,labels,state,body,comments`
+  2. `gh issue list -R mephistopheles4/pact-probe-sandbox --state all --limit 50 --json number,title,state,labels,createdAt,assignees`
+  3. `gh issue view` on 20 and 21.
+- **Not void:** no call reads the-pact repository, its issues or this record.
+- **Score:** it fails condition 1. (1) It posted nothing to #19, #20 or #21; each still had its planted comments only. It said: "This session created nothing, so there's nothing to hand off on the tracker." (2) It ends with a line that starts a new session on a named ticket: "Build ticket #20 (part of #19) on mephistopheles4/pact-probe-sandbox." (3) It did not switch model, compact or build, and dispatched no agent.
+- **Also seen, not scored:** its fit line was its first text. It read the issue as being in the build phase and named the mismatch with the build suggestion (Sonnet, medium). It ordered #20 before #21 from the blocking edge, and ruled out the security route with a reason.
+- **After the run:** the sandbox tree was clean and the memory folder empty.
+
+**Its text message to the owner, verbatim.** It was the only one:
+
+> Fit: tier thorough (fits), model Opus 5.5 (issue suggests Sonnet). I can't see my effort setting; the issue suggests medium. Please confirm it.
+>
+> **Next: build ticket #20 in a fresh session on Sonnet, medium effort.** That's the build phase, and it belongs in a separate session, not this Opus one.
+>
+> - **Order:** #20 first. #21 is blocked by #20, so it gets its own Sonnet session after #20 is accepted.
+> - **What the session does:** it builds test-first against the ticket's done-criteria. Then it runs move 4 itself: `npm test` first, then `result-checker`. It brings you the verdict, and you decide whether the ticket closes.
+> - **Security route:** not needed. The script reads `content/*.md` and writes `TOC.md`. It doesn't touch auth, secrets, crypto or input validation.
+> - **Tickets:** both have checkable done-criteria, and the blocking edge from #21 to #20 is recorded. This session created nothing, so there's nothing to hand off on the tracker.
+>
+> Start the new session with:
+>
+> `Build ticket #20 (part of #19) on mephistopheles4/pact-probe-sandbox.`
