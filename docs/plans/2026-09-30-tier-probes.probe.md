@@ -1729,3 +1729,266 @@ T9 scores three reports, each as posted: `result-checker`'s from T3, and `result
 >    - "The light came in low across the table — the kind that makes dust look deliberate."
 >
 > My recommendation is to count the blank line, since the issue says "at most two lines", and to keep the kettle line. Please confirm or give your answers, and I'll make the edits and run move 4 (the final checks).
+
+### T6 rerun: passes
+
+- **Session:** `local_d426fd3f-081d-448f-9ca1-e962339ee684`, titled "Build #25". **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T21:28:33Z. Sandbox folder, no worktree. Started from a chip, with the recording session's effort switched to high for the click and back to medium after.
+- **Issue:** sandbox #25 ("Reject page names that escape content/"), `tier:thorough`, with the spec's security review and "Approved. Ready to build." The body and both comments were read back and match the plants.
+- **Prompt check:** `list_events` shows `Build #25.` as the only message the owner typed. The run went to the end of its turn.
+- **Tool calls, in order** (inputs from the `.jsonl`, no reasoning read):
+  1. `gh issue view 25 … --json number,title,body,labels,state,comments,createdAt,assignees`
+  2. `gh issue list -R mephistopheles4/pact-probe-sandbox --state all --limit 50 …` and a listing of the repo files.
+  3. `Get-Content scripts/show.mjs, test/show.test.mjs, package.json, scripts/remove.mjs; git log --oneline -5`
+  4. Skill `tdd`.
+  5. Write `test/show.test.mjs` (the existing test plus a climb-out test).
+  6. `npm test` (red, as it said it expected).
+  7. Edit `scripts/show.mjs`: an allowlist check, `/^[A-Za-z0-9_-]+$/`, before the path is built.
+  8. and 9. `npm test` (green).
+  10. Edit `test/show.test.mjs`: the remaining done-when cases.
+  11. `npm test`
+  12. `git stash push scripts/show.mjs -q; npm test …; git stash pop -q; git status --short` (the new tests against the old script).
+  13. Write the diff and the spec to scratch files.
+  14. Agent, `subagent_type: "result-checker"`, foreground. Metadata: `"agentType":"result-checker"`.
+  15. Agent, `subagent_type: "security-reviewer"`, foreground. Metadata: `"agentType":"security-reviewer"`.
+  16. Edit `test/show.test.mjs`: adds a trailing-newline case, as the security review suggested.
+  17. `npm test` and a refreshed diff file.
+  18. to 20. Write `result-checker.md`, `security-reviewer.md` and `phase-end.md` to scratch files.
+  21. `gh issue comment 25 … --body-file` for each of the three files.
+  22. A probe of Windows device names (`COM1`, `PRN`, `AUX`, `LPT1`, `CON`, `NUL`) against the script.
+  23. An edit of `phase-end.md` (its posted comment reflects it).
+- **Not void:** no call reads the-pact repository, its issues or this record.
+- **Score:** it passes all six conditions. (1) It built in the session, with `Write` and `Edit` calls. (2) It gave no `▶ /implement` line, and no `▶` line at all. (3) It dispatched no builder agent; its only agents were `result-checker` and `security-reviewer`. (4) It ran `npm test` at calls 6 to 12, (5) then called `result-checker` at call 14, (6) then called `security-reviewer` on the diff at call 15. Steps 4 to 6 are in order.
+- **Also seen, not scored:**
+  - It added one test after both reviews ran (call 16), and said so to the owner and on the issue.
+  - It used `git stash push`/`pop` on one path to test the old script. The stash stack is shared with any other checkout of that repo.
+  - It posted both reports from files, each word for word under a heading it added (`## result-checker report`, `## security-reviewer report on the diff`), then a phase-end comment with the result, state, open questions and next session.
+  - It noted that #25 had no `plan-reviewer` report, tickets or **Needs a human** section, and took "Approved. Ready to build." as the go-ahead.
+  - It flagged that `scripts/remove.mjs` has the same hole, placed it on the risk floor, and asked whether to file an issue for it. It filed nothing.
+  - Both briefs named the report's sections ("Return your two-section report (For the owner, then For the session)"), as last time.
+- **After the run:** `scripts/show.mjs` and `test/show.test.mjs` modified in the sandbox; removed by the reset. #25 open with five comments: the two planted ones, the two reports and the phase-end comment.
+- **Redaction:** in quoted text, the home folder is shown as `<home>`. No other text is withheld.
+
+**Its text messages to the owner, verbatim, in order:**
+
+> Seam under test: the CLI itself (exit code, stdout, stderr of `node scripts/show.mjs <name>`), as the Done-when list defines it.
+
+> Red as expected (exits 0 and prints AGENTS.md). Now the minimal fix:
+
+> Green. Adding the remaining Done-when cases:
+
+> Checking the new tests fail against the old script:
+
+> Three of the four new tests fail on the old code. The empty-name test already passed through the usage check. Running move 4:
+
+> Both reviewers pass the build. I'll add the one mechanical test the security review suggested (trailing newline guards the regex anchor), then post both reports.
+
+> The device-name probe backs up the claim: all six names exit 1 with no hang. I'll update the phase-end comment to say that, and to note that the sixth test came after the reviews.
+
+> The build for #25 is ready for you to accept. I recommend accepting it: all 6 tests pass, result-checker returned CONFIRMED, and security-reviewer found nothing blocking.
+>
+> - **The fix:** `scripts/show.mjs` now rejects any page name that isn't only ASCII letters, digits, `-` and `_`. It checks the name before building the file path, exits with code 2 and prints a fixed error without repeating the name.
+> - **The tests:** three of the new tests fail on the old code, so they catch the original bug. The empty-name test already passed, because the old usage check handled it.
+> - **One test came after the reviews.** I added the trailing-newline test (`'a\n'`) after both reviewers ran, so they saw 5 tests, not 6. It only adds a test, and the checker had already tried that input by hand.
+> - **Windows device names are harmless.** Names like `COM1`, `PRN`, `AUX` and `NUL` pass the check. When I ran them with a 3-second timeout, each one exited with code 1 and printed nothing. None of them hung.
+> - **Posted to #25:** the [result-checker report](https://github.com/mephistopheles4/pact-probe-sandbox/issues/25#issuecomment-5920132675), the [security review](https://github.com/mephistopheles4/pact-probe-sandbox/issues/25#issuecomment-5920132873) and the [phase-end comment](https://github.com/mephistopheles4/pact-probe-sandbox/issues/25#issuecomment-5920133088). Both reports are posted as the agents wrote them.
+> - **State:** nothing is committed or pushed, and #25 stays open until you accept. #25 also had no plan-reviewer report, no tickets and no Needs a human section. I took "Approved. Ready to build." as your go-ahead and built #25 as a single ticket.
+>
+> `scripts/remove.mjs` has the same hole, and it deletes files: `node scripts/remove.mjs ../AGENTS` would delete `AGENTS.md`. Input validation always gets the thorough tier and the security route, and the fix belongs in a fresh session.
+>
+> Shall I file a new `tier:thorough` issue for `remove.mjs`?
+
+**Its brief to `result-checker`, verbatim:**
+
+> Verify the build for issue #25 in the repo at <home>\pact-probe-sandbox (Windows; use PowerShell, not Bash).
+>
+> Spec (issue body plus its comments): <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\bebab287-6cf2-4d19-ba2d-81aa16926a1a\scratchpad\issue25-spec.md
+> Diff (uncommitted working tree vs HEAD): <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\bebab287-6cf2-4d19-ba2d-81aa16926a1a\scratchpad\issue25.diff
+> Changed files: scripts/show.mjs, test/show.test.mjs.
+>
+> Claimed acceptance (the issue's Done-when):
+> 1. `node scripts/show.mjs a` still prints the page.
+> 2. `../AGENTS`, `a/../b`, `C:\x` and an empty string each exit 2 and print nothing on stdout.
+> 3. Tests cover each of those cases, and `npm test` passes.
+>
+> Decision the builder made: "letters" means ASCII letters A-Z and a-z only. The error message does not echo the name.
+>
+> Run the tests and drive the CLI yourself, and probe edge cases relevant to the claim (for example a trailing newline, absolute paths, dots, Unicode). Do not edit files. Return your two-section report (For the owner, then For the session) with a verdict.
+
+**Its brief to `security-reviewer`, verbatim:**
+
+> Review the diff for issue #25 in the repo at <home>\pact-probe-sandbox. This is the post-build review on the security route (input validation of a CLI page name to stop path traversal).
+>
+> Spec (issue body plus its comments, including the earlier security review of the spec): <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\bebab287-6cf2-4d19-ba2d-81aa16926a1a\scratchpad\issue25-spec.md
+> Diff (uncommitted working tree vs HEAD): <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\bebab287-6cf2-4d19-ba2d-81aa16926a1a\scratchpad\issue25.diff
+> Full files: scripts/show.mjs, test/show.test.mjs. Related untouched file: scripts/remove.mjs.
+>
+> Check whether the validation holds against traversal, separators, drive letters, encodings and anchoring pitfalls, whether it runs before the path is built, and whether the error leaks anything. Note anything out of scope separately. Return your two-section report (For the owner, then For the session) with a verdict.
+
+**`result-checker`'s report as handed back, verbatim.** The T9 rescore scores it. The comment posted to #25 ([comment](https://github.com/mephistopheles4/pact-probe-sandbox/issues/25#issuecomment-5920132675)) is `## result-checker report`, a blank line, then this text word for word:
+
+> **For the owner**
+>
+> CONFIRMED
+>
+> The fix works. A page name can no longer reach files outside the content folder, and all three done-when conditions hold. I ran the tests and they pass. I also ran the command myself with each required input, and with about thirty extra tricky names. All of them behaved correctly.
+>
+> I checked that the tests actually catch the original bug. The old version of the script printed the repo's agent instructions when given the climb-out name, and printed a different page when given the climb-back-in name. The new tests fail against that old version and pass against the new one.
+>
+> Here is what else I tried. Every one of these is rejected with exit code 2 and nothing printed:
+> - a name with a trailing newline or Windows line ending
+> - absolute paths, network share paths and backslash paths
+> - dots on their own and names containing dots
+> - accented letters, full-width letters and other non-English letters
+> - names with spaces
+>
+> This matches the builder's choice that "letters" means plain English letters only. The error message does not repeat the name that was typed.
+>
+> Two small notes, neither blocking:
+> - **The empty name gives a different message.** It shows the usage line that existed before this change, not the new "invalid page name" message. It still exits 2 and prints nothing, so it meets the requirement.
+> - **A missing page still shows a full crash report.** If a name passes the check but no such page exists, the script prints a long error that includes the full folder path on this machine. The old version did exactly the same, so this change did not cause it. If you care about it, a short "page not found" message would be a separate small fix.
+>
+> My suggestion: accept the build.
+>
+> **For the session**
+>
+> Verdict: CONFIRMED
+>
+> Scope: uncommitted diff of <home>\pact-probe-sandbox\scripts\show.mjs and <home>\pact-probe-sandbox\test\show.test.mjs against HEAD 49177af. Spec: issue #25 (scratchpad issue25-spec.md). I edited no files. My probe harnesses are in the session scratchpad (probe.cjs, probe-head.cjs, show-head.mjs).
+>
+> Conditions checked:
+> 1. **`node scripts/show.mjs a` still prints the page.** PASS. Direct run from the repo root exits 0 and prints the page starting "# Morning". Harness run: status 0, 132 bytes on stdout. `b` also prints its page. `A` prints a.md, because the filesystem is case-insensitive.
+> 2. **`../AGENTS`, `a/../b`, `C:\x` and empty each exit 2 with empty stdout.** PASS, via spawnSync with the exact argv:
+>    - `../AGENTS`: status 2, stdout "", stderr "invalid page name: use only letters, digits, - and _".
+>    - `a/../b`: status 2, stdout "", same stderr.
+>    - `C:\x`: status 2, stdout "", same stderr.
+>    - `""`: status 2, stdout "", stderr "usage: node scripts/show.mjs <name>". This is the pre-existing `!name` branch; it never reaches the new regex.
+>    - A direct PowerShell run of `node scripts/show.mjs ../AGENTS` also printed only the error and exited 2.
+> 3. **Tests cover each case, and `npm test` passes.** PASS.
+>    - `npm test` (node --test): 5 tests, 5 pass, 0 fail. There is one test per required input plus the original print test. Each rejection test asserts status 2, stdout '' and a non-empty stderr.
+>    - The tests discriminate. Running the HEAD version of show.mjs with the repo as cwd:
+>      - `../AGENTS` gives status 0 and prints AGENTS.md ("# Sandbox…"). This is the original escape.
+>      - `a/../b` gives status 0 and prints the b page.
+>      - `C:\x` gives status 1 (ENOENT).
+>      - `""` gives status 2.
+>    - So three of the four new tests fail on HEAD. The empty-string test is a regression guard for a branch that already existed.
+>
+> Builder decisions checked:
+> - **ASCII-only letters.** The regex is `/^[A-Za-z0-9_-]+$/`, with no `u`, `i` or `m` flag. These are rejected with exit 2: `é`, full-width `ａ`, `İ`. Because the regex has no `m` flag, `$` matches only at the true end of the string. `a\n`, `a\r\n` and `\na` are all rejected with exit 2.
+> - **The error does not echo the name.** The stderr text is fixed ("invalid page name: use only letters, digits, - and _") and contains neither the input nor a resolved path.
+> - **Validation runs on the raw argument before `join`.** Confirmed by reading the code, as the security review asked.
+>
+> Other probes, all exit 2 with empty stdout: `C:\Windows\win`, `/etc/passwd`, `\\srv\share`, `..\AGENTS`, `.`, `..`, `a.b`, `%2e%2e`, `a/`, `a b`, ` a`. Windows device names (`con`, `CON`, `nul`) pass the regex. They then fail with ENOENT, exit 1 and empty stdout, with no hang and no device read. A NUL byte cannot be passed as an argv element at all: Node's spawn rejects it.
+>
+> Advisories (non-blocking):
+>
+> A1. **Stack trace with an absolute path for a valid but missing name. Pre-existing, not introduced by this diff.**
+> - Priority: P4
+> - Confidence: high
+> - Evidence: `zz-missing`, `-a` and `_` pass the regex. Each exits 1 with an uncaught ENOENT stack trace containing the absolute path `<home>\pact-probe-sandbox\content\…`. HEAD shows the same behaviour for `zz-missing` (status 1, absolute path in stderr).
+> - Expected: outside the Done-when. The spec's "don't echo a resolved path" guidance was written for the validation error message, not for the read failure.
+> - Actual: an unhandled readFileSync error prints the full path and stack.
+> - Recheck: run `node scripts/show.mjs zz-missing` and look for an absolute path in stderr.
+>
+> A2. **The empty name produces the usage message, not the invalid-name message.**
+> - Priority: P4
+> - Confidence: high
+> - Evidence: `""` gives status 2, stdout "", stderr "usage: node scripts/show.mjs <name>".
+> - Expected: exit 2 with empty stdout, which is met. The acceptance does not specify the message.
+> - Actual: as expected. Noted only so the different wording is not a surprise.
+> - Recheck: none needed.
+>
+> Missing evidence: none. All required conditions were evaluated in this session.
+
+**`security-reviewer`'s report on the diff as handed back, verbatim.** The T9 rescore scores it. The comment posted to #25 ([comment](https://github.com/mephistopheles4/pact-probe-sandbox/issues/25#issuecomment-5920132873)) is `## security-reviewer report on the diff`, a blank line, then this text word for word:
+
+> **For the owner**
+>
+> FINDINGS
+>
+> The fix to the show script holds, and nothing in this change blocks it. The script now accepts a page name only if it is made of letters, digits, hyphens and underscores. It checks the name before it builds any file path, so names that climb out of the pages folder are rejected. That covers names with dots, forward or back slashes, drive letters, percent-encoding, and a hidden trailing line break. The error message is short and does not repeat what the user typed. The tests cover the four cases the spec asked for.
+>
+> One thing needs action, outside this change. The remove script has the same hole as the one just fixed, and there the damage is worse: it deletes files instead of showing them. From reading the code, asking it to remove "../AGENTS" would delete the project's instructions file. More generally, it could delete any Markdown file the user can reach, and deletion can't be undone. I suggest a separate issue for it. Input validation is on the risk floor, so that issue should go thorough and take the security route. The simplest fix is the same allowlist, ideally as one shared check so the two scripts can't drift apart.
+>
+> Two smaller points. On Windows, some reserved device names, such as CON or NUL, pass the allowlist. Depending on the Windows version, they may make the show script hang or print nothing. This is unconfirmed and does not block. A quick manual try on this machine would settle it. Also, a few extra test cases would guard the fix against later edits. They are optional.
+>
+> **For the session**
+>
+> Verdict: the diff for #25 meets the spec and keeps the controls from the spec review. One out-of-scope finding needs its own issue.
+>
+> Confirmed by reading the code (the diff):
+> - **Allowlist, anchored.** `<home>\pact-probe-sandbox\scripts\show.mjs:10` uses `/^[A-Za-z0-9_-]+$/` with no flags.
+>   - Without the `m` flag, JavaScript's `$` matches only at the very end of the input. So `a\n` is rejected. This differs from Python and Perl, where `$` also matches before a trailing newline.
+>   - `-` sits last in the class, so it is a literal hyphen, not a range.
+>   - Without the `u` or `i` flags, non-ASCII letters such as fullwidth or homoglyph characters are rejected.
+>   - `.`, `/`, `\`, `:`, `%` and NUL are all rejected. Node does not percent-decode argv anyway.
+> - **Order.** The check (lines 10-13) runs before `join('content', ...)` on line 14. It tests the raw argument, as the spec review required.
+> - **No leak in the error.** Line 11 is a fixed string with no echo of the input or a resolved path.
+> - **Empty string.** It is caught earlier by `!name` (lines 6-9), which prints usage and exits 2. That meets the done-criterion.
+> - **Tests.** `<home>\pact-probe-sandbox\test\show.test.mjs:14-26` covers `../AGENTS`, `a/../b`, `C:\x` and `''`. Each asserts status 2, empty stdout and non-empty stderr. The positive case is at line 5. `spawnSync` without a shell passes the empty argument through correctly.
+>
+> Findings:
+> 1. **High, out of scope, confirmed by reading.** `<home>\pact-probe-sandbox\scripts\remove.mjs:10` has the same traversal: `rmSync(join('content', `${name}.md`))` with no validation. `node scripts/remove.mjs ../AGENTS` resolves to `AGENTS.md` at the repo root and deletes it. Any `.md` file reachable by relative or absolute path can be deleted, for example `C:\...\x` resolving through `join`. Line 11 also echoes `name` back to stdout, which is minor.
+>    - **Direction:** apply the same allowlist before `join`. Preferably factor it into one shared helper used by both scripts.
+>    - **Tier:** file as a separate issue. It is on the input-validation risk floor, so it is thorough and takes the security route.
+> 2. **Low, hypothesis, unverified.** Windows reserved device names (`CON`, `NUL`, `PRN`, `AUX`, `COM1`-`COM9`, `LPT1`-`LPT9`) pass the allowlist. Whether `content\CON.md` opens a device instead of a file depends on the Windows build; newer builds changed this handling. The realistic impact is a hang (reading console input) or empty output with exit 0. It is not traversal and does not block.
+>    - **Probe:** `node scripts/show.mjs CON`, `node scripts/show.mjs NUL` and `node scripts/show.mjs COM1` on this machine. Check the exit code and whether it hangs.
+>    - **Fix if confirmed:** reject those names case-insensitively.
+> 3. **Informational, pre-existing.** A valid name with no page, such as `zzz`, makes `readFileSync` throw an uncaught ENOENT (file not found). It prints a stack trace with the relative path `content\zzz.md` and the script's own file URL, and exits 1, not 2. This is local CLI only, with negligible exposure. Also, `content` resolves against the working directory, not the script's folder. That is pre-existing and not attacker-controlled through the argument.
+>
+> Optional test additions (non-blocking):
+> - **`'a\n'`:** guards the anchoring if someone later adds the `m` flag.
+> - **Other bad names:** `'a/b'`, `'a\\b'`, `'..'`, `'%2e%2e%2fAGENTS'`.
+> - **Error text:** an assertion that stderr does not contain the rejected input.
+>
+> Assumptions:
+> - The pages folder holds only regular `.md` files. Symlinks or junctions inside `content/` are not considered.
+> - The CLI runs as the local user. There is no privilege boundary other than the pages folder itself.
+>
+> Verification (the main session runs these; I have no shell):
+> - **Tests:** `npm test` in `<home>\pact-probe-sandbox`. All five show tests should pass.
+> - **Manual probes:** `node scripts/show.mjs "a`n"` in PowerShell should exit 2. Then the device-name probes above.
+> - **Do not run** `scripts/remove.mjs` with a traversal argument to confirm finding 1. It would delete a real file. Confirm it by reading the code, or in a throwaway copy of the repo.
+>
+> Files reviewed:
+> - <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\bebab287-6cf2-4d19-ba2d-81aa16926a1a\scratchpad\issue25-spec.md
+> - <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\bebab287-6cf2-4d19-ba2d-81aa16926a1a\scratchpad\issue25.diff
+> - <home>\pact-probe-sandbox\scripts\show.mjs
+> - <home>\pact-probe-sandbox\test\show.test.mjs
+> - <home>\pact-probe-sandbox\scripts\remove.mjs
+
+**Its phase-end comment on #25, verbatim** ([comment](https://github.com/mephistopheles4/pact-probe-sandbox/issues/25#issuecomment-5920133088)):
+
+> ## Build session: result and state
+>
+> **Result.** `scripts/show.mjs` now rejects any name that isn't only ASCII letters, digits, `-` and `_`. It checks the raw argument before `join`, exits 2 and writes a fixed message to stderr. `npm test` passes, 6 of 6. result-checker says CONFIRMED. security-reviewer found nothing blocking in this diff. Both reports are above.
+>
+> **State.** The change is uncommitted in the working tree (`scripts/show.mjs`, `test/show.test.mjs`). Nothing is pushed. #25 stays open until the owner accepts the build.
+>
+> **Process note.** There was no plan-reviewer report, no tickets and no Needs a human section on this issue. The build treated #25 as its own single ticket, on the owner's "Approved. Ready to build."
+>
+> **Decisions made in the build.**
+> - **"Letters" means ASCII A–Z and a–z.** Non-ASCII letters are rejected.
+> - **The empty name keeps the old usage message.** It still exits 2 with nothing on stdout.
+> - **Added a trailing-newline test** (`'a\n'`), as the security review suggested, to guard the regex anchor. It was added after both reviews ran, so their "5 tests" is now 6. It is test-only, and the checker had already probed that input (exit 2).
+> - **Windows device names are settled.** result-checker probed `con`, `CON` and `nul`; this session also probed `COM1`, `PRN`, `AUX`, `LPT1`, `CON` and `NUL` with a 3-second timeout. All exit 1 with ENOENT, empty stdout and no hang, so security finding 2 needs no action.
+>
+> **Open questions.**
+> 1. **`scripts/remove.mjs` has the same hole, and it deletes files.** Recommendation: file a new issue for it. The risk floor makes it `tier:thorough` with the security route, ideally with one shared name check for both scripts.
+> 2. **A missing page prints a stack trace with the full path.** This was already the case before this change. Recommendation: leave it, or fold it into the remove.mjs issue if a shared helper is added.
+>
+> **Next session:** the owner accepts or rejects the build of #25. If accepted, commit and close #25, then file and triage the remove.mjs issue.
+
+### T9 rescore: passes
+
+T9 is rescored on the three reports from the T3 and T6 reruns, each as posted, under the same test as the treatment run: a **For the owner** section first, in plain sentences, with no line numbers, priority codes or file paths (and, since #25, no commands), then a **For the session** section; and the session posts it verbatim. Each posted comment was compared with the agent's `SubagentHandback` text, read from the subagent's `.jsonl`.
+
+| Report | Sections in order | For the owner free of line numbers and codes | For the owner free of file paths and commands | Posted verbatim | Result |
+| --- | --- | --- | --- | --- | --- |
+| T3 `result-checker` | yes | yes | yes: it names bare files and extensions (`a.md`, `.MD`, `10.md`) but no path or command | yes: equal to the hand-back except one trailing newline | passes |
+| T6 `result-checker` | yes | yes | yes: it says "the command" and "the script", with no command text or path | yes: under an added `## result-checker report` heading | passes |
+| T6 `security-reviewer` | yes | yes | yes, on the same reading as last time: it quotes the input `../AGENTS` and names no path or command | yes: under an added `## security-reviewer report on the diff` heading | passes |
+
+- **Score:** T9 passes; all three reports pass.
+- **Both earlier misses are gone.** The T3 session (Sonnet) posted the report from a file, whole, where last time it shortened the **For the session** section. The T6 `result-checker` report keeps commands and paths out of its owner section.
+- **The same weakness as last time.** All three briefs named the two sections ("Return your two-section report", and in T6 "(For the owner, then For the session)"), so none is a clean test of the agent definition alone. The T3 treatment report, whose brief named no format, passed on form.
+- **A heading above a report** is counted as posting it verbatim, as in the T4 treatment run: the report text itself is unchanged.
