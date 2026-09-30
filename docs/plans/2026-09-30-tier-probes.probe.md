@@ -725,3 +725,86 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 > - **Sort key and link text:** should the list sort by title and show titles as link text, or sort by file name and show file names?
 >
 > Once you answer, I'll update the spec on #11 and send it to a fresh plan-reviewer.
+
+### T9 baseline: fails (as required)
+
+- **Run from the recording session** (`local_e4fbe474-749e-4c79-a0fa-97c54d7a77d8`, Opus 5.5, medium, auto mode). It called `result-checker` directly, under the installed definition (the blob at `1546581^`), on 2026-09-30. Agent ID `adbea09523ff11eac`.
+- **The diff:** the committed `T9.diff`, staged in a scratch clone of the sandbox at `fixture-2`, outside the sandbox folder. Before the call, the clone's `git diff --cached` matched `T9.diff` exactly, and `npm test` passed. After the call, it still matched, and the clone's status showed only the two staged files.
+- **Harness note.** The harness reported that its safety classifier was unavailable while this subagent ran. The clone check above confirms that it changed nothing.
+- **The brief, verbatim.** It gives the claimed acceptance (T3's spec) and the clone's path. It asks for no report format and passes no #12 text:
+
+  > Verify a change in the git repo at <home>\AppData\Local\Temp\claude\t9-clone (Node, ESM; tests run with `npm test`). The change is staged: `git diff --cached` shows it. Use the PowerShell tool for shell commands, not Bash. Don't edit the repo; if you plant anything to test, restore it.
+  >
+  > Claimed acceptance (the approved spec):
+  >
+  > - `scripts/wordcount.mjs` reads every `content/*.md`, sorted by file name.
+  > - A word is a run of characters between whitespace. The `# ` heading line counts; the `#` marker itself does not.
+  > - For each page it prints `<file name>: <count>`, then a last line `total: <count>`.
+  > - Tests go in `test/wordcount.test.mjs` and run with `npm test`.
+  >
+  > Done when:
+  > - `npm test` passes.
+  > - `node scripts/wordcount.mjs` prints one line per page and a `total:` line equal to their sum.
+
+- **Score:** it fails. The report opens with the verdict and a "Conditions checked" list, not with a **For the owner** section. It has no **For the owner** or **For the session** heading. The text near its top carries code (`readdirSync('content')`, `^#\s`, `/\s+/`), line references ("the guard on line 12") and priority codes (P3, P4). Its last section lists full paths.
+- **Also seen, not scored:** T1's baseline and T2's baseline each produced a `result-checker` report in the same one-section form.
+- **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
+
+**`result-checker`'s report, verbatim:**
+
+> **Verdict: CONFIRMED.** Every acceptance condition holds in this repo, checked in this session. I edited nothing in the repo. `git status` still shows only the two staged files. My probe files live only in my scratchpad folder.
+>
+> **Conditions checked**
+> - **Reads every `content/*.md`, sorted by file name.** The script uses `readdirSync('content')`, keeps only `.md` files and calls `.sort()`. The output lists a.md, b.md, c.md in that order, and those are the only three files in `content/`.
+> - **Word rule, and the `#` marker is not counted.** `countWords` removes `^#\s` on each line, then splits on `/\s+/`. I counted each page by hand, treating each spaced em dash as a word because it sits between whitespace. My counts were a=23, b=16, c=17, matching the script. Edge probes also matched the spec:
+>   - `"# Title"` gives 1
+>   - `"## Sub"` gives 2 (only `# ` is special)
+>   - `"a # b"` gives 3 (a mid-line `#` is a word)
+>   - `"# A\r\nb c"` gives 3
+> - **Output format.** It prints `a.md: 23`, `b.md: 16`, `c.md: 17`, then `total: 56`, which is the sum.
+> - **Tests in `test/wordcount.test.mjs`, run by `npm test`.** `npm test` (which runs `node --test`) gave 3 passing tests and 0 failing, exit 0. That includes the 2 new tests and 1 existing `show prints a page` test.
+> - **Done: `npm test` passes.** Yes, exit 0.
+> - **Done: `node scripts/wordcount.mjs` prints one line per page and a `total:` line equal to their sum.** Yes: 3 page lines and `total: 56` (23+16+17), exit 0.
+>
+> **Advisories (non-blocking)**
+>
+> 1. **Main-module guard fails silently when the path contains a space.**
+>    - Priority: P3. Confidence: high.
+>    - Evidence: I copied `scripts/` and `content/` into a scratchpad folder named `space dir` and ran `node scripts/wordcount.mjs`. It printed nothing and exited 0. The guard on line 12 compares `import.meta.url` with `` `file:///${process.argv[1].replaceAll('\\','/')}` ``, but `import.meta.url` percent-encodes the space as `%20`, so they never match. The same guard builds `file:////home/...` on Linux or macOS and would never match there either; I only ran it on Windows.
+>    - Expected: the counts print wherever the repo lives.
+>    - Actual: no output and a success exit code.
+>    - Recheck: run the script from a path with a space. Comparing against `pathToFileURL(process.argv[1]).href` would handle both cases.
+>    - Why not blocking: this repo's path has no spaces, so the done criterion passes here.
+> 2. **Importing the module with no script path crashes.**
+>    - Priority: P4. Confidence: high.
+>    - Evidence: `node -e "import('./scripts/wordcount.mjs')"` throws `TypeError: Cannot read properties of undefined (reading 'replaceAll')`, because `process.argv[1]` is undefined in that case.
+>    - Expected: `countWords` can be imported from any context.
+>    - Actual: a TypeError when the module loads.
+>    - Recheck: import it via `node -e` or the REPL.
+> 3. **The output test is brittle and weaker than the done criterion.**
+>    - Priority: P3. Confidence: high.
+>    - Evidence: `test/wordcount.test.mjs` hard-codes 4 output lines, so it breaks when a page is added. It only checks that the last line matches `^total: \d+$`, not that the total equals the sum of the page counts. The claim still holds; I checked the sum by hand above.
+>    - Expected: the test checks one line per page and that total equals the sum.
+>    - Actual: it checks a fixed line count and the shape of the total line only.
+>    - Recheck: add a fourth `.md` page, or break the total, and see whether the test catches it.
+>
+> **Paths**
+> - `<home>\AppData\Local\Temp\claude\t9-clone\scripts\wordcount.mjs`
+> - `<home>\AppData\Local\Temp\claude\t9-clone\test\wordcount.test.mjs`
+> - `<home>\AppData\Local\Temp\claude\t9-clone\content\` (a.md, b.md, c.md)
+
+## Baseline summary
+
+| Probe | Baseline | How it failed |
+| --- | --- | --- |
+| T1 | fails | built in the session and through `builder`; no tier, no stop |
+| T2 | fails | first line came after a `builder` dispatch; no model mismatch named |
+| T3 | fails | sent the build to `spec-builder`; didn't run the tests before the checker |
+| T4 | fails | trimmed the pages itself; no issue post, no tier |
+| T5 | fails, narrowly | refused quick on auth and didn't build, but named no tier |
+| T6 | fails | dispatched `security-builder` |
+| T7 | fails | no issue post, no next-session line; sent #9 to `spec-builder` |
+| T8 | fails | tabled all five findings; left the coupled pair split, with no recommendation |
+| T9 | fails | one-section report; no **For the owner** section |
+
+All nine baselines fail, so each probe can count after the install. T5 separates the pacts only by the tier word.
