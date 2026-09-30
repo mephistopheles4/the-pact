@@ -29,7 +29,7 @@ Every issue carries one process tier, as a label. The tier is the set of moves t
 | `tier:standard` | A short `to-spec` posted on the issue, then one build session that ends with move 4. |
 | `tier:thorough` | `to-spec`, `plan-reviewer`, `to-tickets`, then one build session per ticket, each ending with move 4. |
 
-Auth, secrets, data migrations and anything published are always `tier:thorough`. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
+Auth, secrets, crypto, input validation, data migrations and anything published are always `tier:thorough`. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
 
 ## Creating the labels
 

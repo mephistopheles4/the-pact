@@ -49,8 +49,8 @@ same as you choosing it.
 not Bash, because Bash fails silently here. Any judgement about what is
 destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
 "Implementing a change": a skill may change how a step is done, never its
-stops, the risk floor (auth, secrets, data migrations and anything published
-are always thorough), the security route in move 3, or
+stops, the risk floor (auth, secrets, crypto, input validation, data migrations
+and anything published are always thorough), the security route in move 3, or
 `result-checker` in move 4.
 Nor the hand-off: a skill may not start a user-only skill for me, or follow
 one's `SKILL.md` in its place. And the claiming and coordination rules
@@ -70,8 +70,8 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 | **Standard** | On an issue: a short `to-spec` posted on the issue, then one build session that ends with move 4. |
 | **Thorough** | On an issue: `to-spec`, `plan-reviewer`, `to-tickets`, then one build session per ticket, each ending with move 4. |
 
-**Risk floor.** Auth, secrets, data migrations and anything published are
-always thorough, whatever tier I name. For any other open decision under a
+**Risk floor.** Auth, secrets, crypto, input validation, data migrations and
+anything published are always thorough, whatever tier I name. For any other open decision under a
 lower tier than you would pick, name the decisions once ("quick means I
 decide X and Y, OK?"), then follow me.
 

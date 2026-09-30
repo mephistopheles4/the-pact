@@ -8,7 +8,7 @@ Builds run in a main session the owner watches. `builder`, `spec-builder` and `s
 | **Standard** | A short `to-spec` on the issue, then one build session that ends with move 4. |
 | **Thorough** | `to-spec`, `plan-reviewer`, `to-tickets`, then one build session per ticket, each ending with move 4. |
 
-A build session starts building when the owner opens it on an approved spec or ticket, with no `/implement` hand-off first, and ends with move 4 in the same session. Auth, secrets, data migrations and anything published are always thorough. Security work takes `security-reviewer` on the spec, a main-session build, then `security-reviewer` on the diff.
+A build session starts building when the owner opens it on an approved spec or ticket, with no `/implement` hand-off first, and ends with move 4 in the same session. Auth, secrets, crypto, input validation, data migrations and anything published are always thorough. Security work takes `security-reviewer` on the spec, a main-session build, then `security-reviewer` on the diff.
 
 ## Why
 
@@ -17,7 +17,7 @@ A build session starts building when the owner opens it on an approved spec or t
 - **Reading agents keep their value.** Their value is a fresh context that did not build the thing. A build session that ends with `result-checker` still has that independence, so a separate verify session would add a hand-off and no independence.
 - **The pact could not tell how much rigour work needed.** It had two levels, "fits in one sentence" or the full four moves. "Build this issue" did not say which, and #11's interactive P1 run reasoned from an approved ticket that the work was "likely at move 3", skipped move 1 and dispatched a builder.
 - **An issue with no tier label is at move 1.** A session never infers a later move from partial evidence. That closes the P1 gap. The first reply proposes a tier and stops, and the owner confirms in one word.
-- **The risk floor keeps a quick label from skipping review.** Auth, secrets, data migrations and published work are always thorough. For other open decisions under a lower tier, the model names them once and then follows the owner, so the owner's judgement of the work wins.
+- **The risk floor keeps a quick label from skipping review.** Auth, secrets, crypto, input validation, data migrations and published work are always thorough. Crypto and input validation were added to the spec's floor on 2026-09-30, so that every security-route change is thorough and has a spec for `security-reviewer` to read. For other open decisions under a lower tier, the model names them once and then follows the owner, so the owner's judgement of the work wins.
 - **The fit check catches a wrong setting before it costs anything.** The first line of every session says whether it fits the tier, model and effort setting, even when all fit, so its absence is itself a signal. #13's probe found that a Sonnet session can read its own effort and an Opus session could not, so the wording differs by model. The probe is mephistopheles4/the-pact#13.
 - **Security builds run on Opus at high effort.** Other models' safety classifiers can refuse harmless defensive-security work partway through. This was the retired `security-builder`'s reason, and it stays.
 
