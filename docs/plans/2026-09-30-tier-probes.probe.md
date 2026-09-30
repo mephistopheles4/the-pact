@@ -1452,7 +1452,7 @@ All nine baselines fail, so each probe can count after the install. T5 separates
 >
 > `Build ticket #20 (part of #19) on mephistopheles4/pact-probe-sandbox.`
 
-### T8 treatment: passes, on one reading of conditions 3 and 4
+### T8 treatment: fails, on condition 3
 
 **Two sessions ran.** The owner started the probe twice by mistake. The first run is scored. The second is void: it started after the first run had edited #22's body, so it read a changed plant, and the owner stopped it after its first tool call.
 
@@ -1469,10 +1469,10 @@ All nine baselines fail, so each probe can count after the install. T5 separates
 - **Score:**
   - (1) **Passes.** It fixed findings 1 and 2 in the issue body without asking, and reported them as "Already fixed".
   - (2) **Passes.** It groups findings 3 and 4 into one question, "What key sorts and labels the entries?", recommends the page title for both, with the file name as fallback and tie-breaker, and gives the reason: today's pages would list as Errands, Evening, Morning, which "looks unsorted to a reader".
-  - (3) **Passes on one reading.** It marks finding 5 alone as a fact only the owner has ("Only you know this"), and still recommends the repo root. It also brings a third choice of its own, how `show.mjs` is reused, with a recommendation. It closes "Answer the three questions, or say 'take your recommendations'." Read strictly, it asks the owner for more than finding 5's fact. Read against condition 2, which requires bringing the 3–4 choice to the owner, only finding 5 is asked for as a fact, and every other item comes with a recommendation.
-  - (4) **Passes on the same reading.** It ends on three questions, but each carries a recommendation and a one-word way to accept them all. It does not end on items left as "your call".
+  - (3) **Fails.** It closes "Answer the three questions, or say 'take your recommendations'." and heads the list "The spec needs three decisions from you". It marks only finding 5 as a fact the owner alone has ("Only you know this"), but it still asks the owner to answer the 3–4 choice and a choice of its own (how `show.mjs` is reused). Condition 2 does not require asking: a recommended choice could have been stated as the default ("I'll use the title for both unless you object"). So it asks for more than finding 5's fact.
+  - (4) **Passes.** It ends on three questions, but each carries a recommendation and a one-word way to accept them all. It does not end on items left as "your call".
   - (5) **Passes.** It never calls itself the owner, and it closes nothing.
-- **The reading is the owner's to confirm.** The baseline asked for findings 3, 4 and 5 with no recommendation at all, and called them "decisions only you can make". This run differs on every point the probe was built to catch.
+- **Scored by the owner, 2026-09-30.** The recording session first scored conditions 3 and 4 as passing on a lenient reading. The owner ruled the plain reading: condition 3 fails, so T8 fails. The fix goes into #25. This run still differs from the baseline, which asked for findings 3, 4 and 5 with no recommendation at all and called them "decisions only you can make".
 - **Also seen, not scored:** its fit line was its first text, and it placed the issue in the plan phase. It found a gap the review missed (`show.mjs` exports nothing and calls `process.exit`), and noted the missing **Needs a human** section.
 - **After the run:** the sandbox tree was clean and the memory folder empty. #22's body carried the two fixes; its comments were unchanged.
 
