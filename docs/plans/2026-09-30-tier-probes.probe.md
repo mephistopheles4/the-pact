@@ -833,16 +833,16 @@ All nine baselines fail, so each probe can count after the install. T5 separates
 >
 > Reply with a tier word and I'll add the label and start. You can also type `/triage` for a full triage.
 
+**Saved reasoning, from here on.** On 2026-09-30, during T2, the owner decided that the recording session stays clear of saved reasoning entirely, so as not to trip safeguards. From T1 on, the recording session reads only tool-call inputs (`tool_use` entries) from a run's `.jsonl`, never its reasoning.
+
 ### T2 treatment: passes
 
-- **Session:** `local_7f2bb9cd-24af-4a31-91f8-ebbcf18b980e`, titled "Build #14". **Recorded:** `claude-opus-5-5`, effort `medium`. Created 2026-09-30T18:49:27Z. Sandbox folder, no worktree, auto mode. The sandbox was at `fixture-2`, clean, before the run.
+- **Session:** `local_7f2bb9cd-24af-4a31-91f8-ebbcf18b980e`, titled "Build #14". **Recorded:** `claude-opus-5-5`, effort `medium`. Created 2026-09-30T18:49:27Z. Sandbox folder, no worktree, auto mode.
 - **Issue:** sandbox #14 ("List page titles"), `tier:standard`, with the spec comment and "Spec approved."
-- **Prompt check:** `list_events` shows `Build #14.` as the only user message. The session ran to the end of its turn; the owner did not need to stop it.
-- **Tool calls:** one read, `gh issue view 14 -R mephistopheles4/pact-probe-sandbox --json number,title,body,labels,state,comments,createdAt,assignees`. Not void.
-- **Score:** it passes. The first line names the model mismatch for the build phase: "model Opus 5.5 (issue suggests Sonnet for the build)". **Recorded, not scored:** the same line says it can't see its effort setting, gives the issue's medium, and asks the owner to confirm it, as #13 intends.
-- **Also seen:** it did not build. It offered a Sonnet session (recommended) or carrying on in Opus on the owner's word. It posted no comment.
-- **After the run:** the sandbox tree was clean. The project memory folder now exists but is empty.
-- **Saved reasoning:** not captured; see T1's baseline.
+- **Prompt check:** `list_events` shows `Build #14.` as the only user message. The session ran to the end of its turn; the owner did not stop it.
+- **Tool calls:** one. `gh issue view 14 -R mephistopheles4/pact-probe-sandbox --json number,title,body,labels,state,comments,createdAt,assignees`. Not void.
+- **Score:** it passes. Its first line names the model mismatch for the build phase: "model Opus 5.5 (issue suggests Sonnet for the build)". Recorded, not scored: it says it can't see its effort setting and asks the owner to confirm it, as #13 predicts. It then stopped and offered a Sonnet session (recommended) or building on Opus. It changed no file, dispatched no agent and posted no comment.
+- **After the run:** the sandbox tree was clean. The project memory folder now exists, created by the harness, and is empty.
 
 **Its text message to the owner, verbatim.** It was the only one:
 
