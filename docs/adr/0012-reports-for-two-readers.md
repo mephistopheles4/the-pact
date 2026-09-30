@@ -10,7 +10,7 @@ After a report, the main session helps the owner decide. It fixes mechanical fin
 - **The reports were written for machines.** They were full of line numbers, severity codes and file paths. The owner got a verbatim record they could not read.
 - **Verbatim is kept, and is why there are two sections.** The reasoning of [ADR 0005](0005-status-line-and-verbatim-relay.md) stands for reading agents: a summary decides for the owner, so the owner reads what the agent said. Retelling changes a report, like a game of telephone. The fix is to make the verbatim text readable at the source, not to have the session retell it.
 - **The pile of "your call" items left the owner with decisions and no understanding.** A session that sorts, fixes the mechanical findings and recommends leaves the owner only the real choices. They can take a recommendation without reading the detail.
-- **Advisories needed a home.** [ADR 0010](0010-build-in-the-main-session-with-process-tiers.md)'s human-in-the-loop check calls anything about "Needs a human" that is not a blocking signal "advisory, not REVISE", but the old output form held blockers only.
+- **Advisories needed a home.** `plan-reviewer`'s human-in-the-loop check calls anything about "Needs a human" that is not a blocking signal "advisory, not REVISE", but the old output form held blockers only.
 - **Local files in, issue comment out.** Reading agents have no way to ask for more, so they get their input written to files. The posted comment, not a separate kept file, is the verbatim record.
 
 ## Status

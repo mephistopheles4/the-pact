@@ -232,12 +232,13 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 
 | Tier | Moves |
 | --- | --- |
-| **Quick** | In chat or on an issue: build, then move 4, in one session. This is the old "fits in one sentence, just do it". |
+| **Quick** | In chat or on an issue: build, then move 4, in one session. Small changes that need no plan. |
 | **Standard** | On an issue: a short `to-spec` posted on the issue, then one build session that ends with move 4. |
 | **Thorough** | On an issue: `to-spec`, `plan-reviewer`, `to-tickets`, then one build session per ticket, each ending with move 4. |
 
 **Risk floor.** Auth, secrets, crypto, input validation, data migrations and
-anything published are always thorough, whatever tier I name. For any other open decision under a
+anything published are always thorough, whatever tier I name. Don't ask me to
+confirm this or nag: go thorough and carry on. For any other open decision under a
 lower tier than you would pick, name the decisions once ("quick means I
 decide X and Y, OK?"), then follow me.
 
@@ -269,7 +270,8 @@ phase.
 
 **Tier changes.** When the work outgrows its tier, stop, post what you know
 to the issue, and propose the new tier for the next session. I can call a
-tier change at any time; my judgement of the work wins.
+tier change at any time; my judgement of the work wins, except that the risk
+floor (above) holds.
 
 **Sessions and models.** Work splits into sessions at phase boundaries
 (triage, plan, build), never into subagents. Never switch model within a
@@ -348,7 +350,7 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    spec, then the build in a main session, then `security-reviewer` on the
    diff in move 4. If a named agent is unavailable, stop and report. Never
    substitute another agent, especially for security work.
-4. **Stay the owner.** Verify each ticket at the end of its build session.
+4. **Stay the owner.** Verify the work at the end of its build session.
    Run the tests and any gates the repo has; they decide pass or fail. Then
    run `result-checker`, and for security work `security-reviewer` on the
    diff. Never resume a reviewer or a checker; fresh context is the point
@@ -517,7 +519,7 @@ Receive exactly one stable readiness-unit ID + relevant Plan/evidence paths. Pro
 
 Security-sensitive units → require completed `security-reviewer` findings/dispositions in Plan before readiness judgment.
 
-Human-in-loop check — checks the plan's "Needs a human" section. Scope: every step, whichever phase or session it runs in. Need the plan settles (decision made, approval recorded, owner action given a stated time) = handled, not a finding. Blocking signals, only when plan leaves them unhandled: product or scope decision left for build time; owner-only action with no stated time (sign-in, credentials, payment, run-time approval); irreversible action (publish, push, send, install, migrate real data) not named for owner sign-off; step with no checkable done-criteria; security work with no `security-reviewer` read of the spec and of the diff; risk-floor item (auth, secrets, migrations, published work) below the thorough tier. Plan lacks "Needs a human" section, or a blocking signal is unhandled → REVISE blocker at top severity (P0). Anything else about the section → advisory, not REVISE.
+Human-in-loop check — checks the plan's "Needs a human" section. Scope: every step, whichever phase or session it runs in. Need the plan settles (decision made, approval recorded, owner action given a stated time) = handled, not a finding. Blocking signals, only when plan leaves them unhandled: product or scope decision left for build time; owner-only action with no stated time (sign-in, credentials, payment, run-time approval); irreversible action (publish, push, send, install, migrate real data) not named for owner sign-off; step with no checkable done-criteria; security work with no `security-reviewer` read of the spec and of the diff; risk-floor item (auth, secrets, crypto, input validation, migrations, published work) below the thorough tier. Plan lacks "Needs a human" section, or a blocking signal is unhandled → REVISE blocker at top severity (P0). Anything else about the section → advisory, not REVISE.
 
 Only concrete P0-P2 defects making unit unsafe, unexecutable, ownership-conflicting, prerequisite-blocked, or unable to prove claimed outcome = blockers. Return every currently known blocker in the same pass. Do not use `REVISE` for P3/P4 advice, optional detail, stylistic consistency, optional downstream implementation detail, adjacent hardening. Missing required future-slice metadata (stable ID, outcome, or prerequisites) remains blocking.
 

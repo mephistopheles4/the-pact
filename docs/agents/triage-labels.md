@@ -6,7 +6,7 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | -------------------------- | -------------------- | ---------------------------------------- |
 | `needs-triage`             | `needs-triage`       | Maintainer needs to evaluate this issue  |
 | `needs-info`               | `needs-info`         | Waiting on reporter for more information |
-| `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
+| `ready-for-agent`          | `ready-for-agent`    | Fully specified; an agent can start it unasked |
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
@@ -38,7 +38,7 @@ The five roles exist on the tracker (created 2026-09-29; this repo got no defaul
 ```bash
 gh label create needs-triage --description "Maintainer needs to evaluate this issue" --color fef2c0
 gh label create needs-info --description "Waiting on reporter for more information" --color f9d0c4
-gh label create ready-for-agent --description "Fully specified, ready for an AFK agent" --color c2e0c6
+gh label create ready-for-agent --description "Fully specified; an agent can start it unasked" --color c2e0c6
 gh label create ready-for-human --description "Requires human implementation" --color bfd4f2
 gh label create tier:quick --description "Quick tier: build, then verify, in one session" --color c5def5
 gh label create tier:standard --description "Standard tier: short spec on the issue, then one build session" --color fbca04
