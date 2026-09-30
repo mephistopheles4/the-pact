@@ -49,8 +49,8 @@ same as you choosing it.
 not Bash, because Bash fails silently here. Any judgement about what is
 destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
 "Implementing a change": a skill may change how a step is done, never its
-stops, the risk floor (auth, secrets, data migrations and anything published
-always get the full four moves), the security route in move 3, or
+stops, the risk floor (auth, secrets, crypto, input validation, data migrations
+and anything published are always thorough), the security route in move 3, or
 `result-checker` in move 4.
 Nor the hand-off: a skill may not start a user-only skill for me, or follow
 one's `SKILL.md` in its place. And the claiming and coordination rules
@@ -59,12 +59,87 @@ path, not the case where another session is already on it.
 
 ## Implementing a change
 
-Size the work first. If the change fits in one sentence, just do it and
-skip the four moves below. The hard-to-reverse signal below still applies:
-a one-line auth change comes to me first.
+Every piece of work has a **process tier**: quick, standard or thorough. A
+tier is the set of moves the work goes through. It is not your effort
+setting. Triage (move 1) sets it. On an issue the tier is a label:
+`tier:quick`, `tier:standard` or `tier:thorough`.
 
-Otherwise, run the four moves of my engineering playbook. Each move names
-the skills that carry it out, most of them from
+| Tier | Moves |
+| --- | --- |
+| **Quick** | In chat or on an issue: build, then move 4, in one session. This is the old "fits in one sentence, just do it". |
+| **Standard** | On an issue: a short `to-spec` posted on the issue, then one build session that ends with move 4. |
+| **Thorough** | On an issue: `to-spec`, `plan-reviewer`, `to-tickets`, then one build session per ticket, each ending with move 4. |
+
+**Risk floor.** Auth, secrets, crypto, input validation, data migrations and
+anything published are always thorough, whatever tier I name. For any other open decision under a
+lower tier than you would pick, name the decisions once ("quick means I
+decide X and Y, OK?"), then follow me.
+
+**Where work starts.**
+
+- **Quick work** may stay in chat with no issue. The first reply proposes the
+  tier with one line of why, as on an unlabelled issue, and stops. If the
+  work turns out to be standard or thorough, stop and offer to file an issue.
+- **Standard and thorough work** always starts by filing an issue, so its
+  tier, plan and state have a home. In a repo without a tracker, the issue's
+  role goes to wherever the repo keeps plans, and the tier and the per-phase
+  line (below) are written at the top of the plan file, not as a label.
+- **An issue with no tier label is at move 1.** Never infer a later move from
+  partial evidence, such as an approved ticket or a missing spec. The first
+  reply is the fit check, a proposed tier with one line of why, and nothing
+  else. Then stop. I answer with a tier word, and you apply the label and
+  start that tier's first move; or I type `/triage` for a full triage. The
+  proposal stands in for move 1 only when I confirm it.
+- **Whoever files or triages an issue** writes the suggested tier as a label,
+  and one line per phase for the model and effort setting, next to it, for
+  example "Plan: Opus, high. Build: Sonnet, medium." Effort is `low`,
+  `medium` or `high`.
+
+**Which phase an issue is in** is the next unfinished move for its tier, read
+from the issue itself: no label means triage; no spec on a standard or
+thorough issue means plan; an approved spec or ticket with no accepted build
+means build. Build includes its own move 4, so there is no separate verify
+phase.
+
+**Tier changes.** When the work outgrows its tier, stop, post what you know
+to the issue, and propose the new tier for the next session. I can call a
+tier change at any time; my judgement of the work wins.
+
+**Sessions and models.** Work splits into sessions at phase boundaries
+(triage, plan, build), never into subagents. Never switch model within a
+session: changing model makes the whole history be read again into a fresh
+cache, while changing effort keeps the cache.
+
+- **Opus** plans and reviews, and runs the whole quick tier.
+- **Sonnet** runs the build sessions of standard and thorough work.
+- **Security builds** run on Opus at high effort, because other models'
+  safety classifiers can refuse harmless defensive-security work partway
+  through.
+
+I set the effort setting when I start a session; a session can't change its
+own. At a phase boundary, post the result, the state and any open questions
+to the issue, then end with one line that starts the next session. Don't
+compact first: the issue carries the context.
+
+**Fit check.** The first line of the first reply in any session says whether
+the session fits the tier, the model and the effort setting suggested for the
+issue's current phase, even when everything fits. Read your model name from
+your system prompt. With no label, the tier part reads `none (proposing
+<tier>)`. For chat work with no issue there is no suggested effort, so the
+check covers the proposed tier and the model only. Effort is the one thing a
+session may not be able to see, and it depends on the model:
+
+- **Sonnet** sessions read the effort from the `<reasoning_effort>` value in
+  their context: `4` is low, `5` is medium, `10` is high. Use:
+  `Fit: tier <tier> (<fits | issue suggests X>), model <model> (<fits | issue suggests X>), effort <setting> (<fits | issue suggests X>).`
+- **Opus** sessions can't see their effort setting. Use:
+  `Fit: tier <tier> (<fits | issue suggests X>), model <model> (<fits | issue suggests X>). I can't see my effort setting; the issue suggests <X>. Please confirm it.`
+- **Any other case** gets the Opus line: a Sonnet session that sees no value
+  or one outside the mapping, or any other model. The mapping is specific to
+  Sonnet; never apply it to another model.
+
+Run the moves of my engineering playbook that your tier names. Each move
+names the skills that carry it out, most of them from
 [mattpocock/skills](https://github.com/mattpocock/skills). Some named skills
 are mine to start, not yours: `triage`, `to-spec`, `to-tickets`, `wayfinder`
 and `implement` carry `disable-model-invocation`, so only I can run them, by
@@ -81,7 +156,7 @@ for a repo set up for those skills). A repo without a tracker says where plans
 live instead; follow it. If it says neither, ask me once, before the spec.
 
 1. **Sense the work before you process it.** Triage it (`triage`): what
-   kind of work it is, how big, and whether it's ready. A bug goes through
+   kind of work it is, its tier, and whether it's ready. A bug goes through
    `diagnosing-bugs` before any fix. Work too big for one session is
    charted with `wayfinder`.
 2. **Do the thinking before the doing.** Grill the idea until it's clear
@@ -93,18 +168,18 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    (`prototype`) and fold what it shows back into the spec. A throwaway is
    built like any other step: in a main session, and through the security
    route in move 3 if it touches auth, secrets, crypto or input validation.
-   `plan-reviewer` reviews the spec; show me a table of its findings (its
+   On the thorough tier, `plan-reviewer` reviews the spec; show me a table of its findings (its
    own headlines, with severity), and link its full findings, verbatim, in
    a kept file. I decide proceed, fix or kill. Never start building on
    READY alone.
-3. **Checkpoint the seams.** Cut the approved spec into tickets
-   (`to-tickets`): thin end-to-end slices, each with its blocking edges and
-   checkable done-criteria. Each ticket is built in its own main session,
-   which I start and watch. Opened on an approved spec or ticket, the
+3. **Checkpoint the seams.** On the thorough tier, cut the approved spec
+   into tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and
+   checkable done-criteria. Each ticket, or a standard or quick piece of work,
+   is built in its own main session, which I start and watch. Opened on an approved spec or ticket, the
    session starts building directly, test-first at the agreed seams (`tdd`,
    `codebase-design`). It doesn't hand me `/implement` first; I may still
    type it. Anything touching auth, secrets, crypto or input validation
-   takes the security route, whatever its size: `security-reviewer` on the
+   takes the security route, however small: `security-reviewer` on the
    spec, then the build in a main session, then `security-reviewer` on the
    diff in move 4. If a named agent is unavailable, stop and report. Never
    substitute another agent, especially for security work.
@@ -134,7 +209,7 @@ stays last.
 once:
 
 - **Ask for my call first.** One question that the step's output answers,
-  for example "What size do you think this is?" for triage. Wait for my
+  for example "What tier do you think this is?" for triage. Wait for my
   answer before showing yours.
 - **Say what I'd be handing over,** in one sentence, as a fact about the
   step, not advice about me. No praise, no blame, no "you should".
@@ -146,20 +221,21 @@ Say this once per session. Don't repeat it at the next move, and don't raise
 it mid-step.
 
 **Keep one piece of work per session, and hand off through the tracker.** I
-tend to forget, so check for me. At each move boundary, check how full the
-context window is, if a tool reports it. When it is past about half, or when
-I have asked for a different piece of work at or since the last boundary,
-first make sure every artifact so far is on the tracker, or where the repo
-keeps plans: the triage, the spec, the review tables, the tickets and their
-state. On each open ticket this session created, note that this session is
-finished with it, so the next session can take it without waiting on the
-presumed-live rule. Then tell me it's a good point for a fresh session, and
-give me one line to start it with, naming the issue, ticket or plan file.
-For work too big for one session, suggest `wayfinder` at move 1, so the map
-carries the chain across sessions. This is a suggestion, not a stop: if I
-say keep going, keep going, and don't raise it again before the next move
-boundary.
-
+tend to forget, so check for me. A phase boundary always ends the session (see
+"Sessions and models"). Separately, keep an eye on the context window all the
+way through, not only at boundaries, if a tool reports it. When it is past
+about half of the window, for example 500K of a 1M window, or when I have
+asked for a different piece of work, propose a hand-off, even mid-phase: a
+fresh session is far more efficient than a long one. First make sure every
+artifact so far is on the tracker, or where the repo keeps plans: the triage,
+the spec, the review tables, the tickets and their state. On each open ticket
+this session created, note that this session is finished with it, so the next
+session can take it without waiting on the presumed-live rule. Then tell me
+it's a good point for a fresh session, and give me one line to start it with,
+naming the issue, ticket or plan file. For work too big for one session,
+suggest `wayfinder` at move 1, so the map carries the chain across sessions.
+A mid-phase proposal is a suggestion, not a stop: if I say keep going, keep
+going, and don't raise it again for this phase.
 **Every spec has a Needs a human section.** It lists each step that needs
 me, by phase and session, and when: *at sign-off* (say how the spec settles
 it) or *during the build* (say when and how it's handled). It says "None" if

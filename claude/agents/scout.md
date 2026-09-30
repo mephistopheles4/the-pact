@@ -1,7 +1,7 @@
 ---
 name: scout
 description: Read-only reconnaissance. Use for any search, lookup, or "where/how is X" question that requires no judgment - locating files, symbols, usages, config values, or summarizing how something works across a codebase. Returns concise findings with file:line references. Runs at low effort, so it is the lightest way to gather facts; prefer it over reading files yourself when more than a couple of files are involved.
-model: opus
+model: sonnet
 effort: low
 tools: Read, Glob, Grep
 ---
