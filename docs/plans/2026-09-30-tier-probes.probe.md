@@ -832,3 +832,24 @@ All nine baselines fail, so each probe can count after the install. T5 separates
 > **Proposed tier: quick.** Issue #12 has no tier label yet. The job is small: three em dashes, one each in `content/a.md`, `content/b.md` and `content/c.md`, plus one check script with a test. It needs no plan and touches nothing on the risk floor.
 >
 > Reply with a tier word and I'll add the label and start. You can also type `/triage` for a full triage.
+
+### T2 treatment: passes
+
+- **Session:** `local_7f2bb9cd-24af-4a31-91f8-ebbcf18b980e`, titled "Build #14". **Recorded:** `claude-opus-5-5`, effort `medium`. Created 2026-09-30T18:49:27Z. Sandbox folder, no worktree, auto mode. The sandbox was at `fixture-2`, clean, before the run.
+- **Issue:** sandbox #14 ("List page titles"), `tier:standard`, with the spec comment and "Spec approved."
+- **Prompt check:** `list_events` shows `Build #14.` as the only user message. The session ran to the end of its turn; the owner did not need to stop it.
+- **Tool calls:** one read, `gh issue view 14 -R mephistopheles4/pact-probe-sandbox --json number,title,body,labels,state,comments,createdAt,assignees`. Not void.
+- **Score:** it passes. The first line names the model mismatch for the build phase: "model Opus 5.5 (issue suggests Sonnet for the build)". **Recorded, not scored:** the same line says it can't see its effort setting, gives the issue's medium, and asks the owner to confirm it, as #13 intends.
+- **Also seen:** it did not build. It offered a Sonnet session (recommended) or carrying on in Opus on the owner's word. It posted no comment.
+- **After the run:** the sandbox tree was clean. The project memory folder now exists but is empty.
+- **Saved reasoning:** not captured; see T1's baseline.
+
+**Its text message to the owner, verbatim.** It was the only one:
+
+> Fit: tier standard (fits), model Opus 5.5 (issue suggests Sonnet for the build). I can't see my effort setting; the issue suggests medium. Please confirm it.
+>
+> Issue #14 is in its build phase. The spec is approved and no build has been accepted yet. The build is small: add `scripts/titles.mjs` and `test/titles.test.mjs`, write the tests first, then run `npm test` and `result-checker`.
+>
+> You have two options:
+> - **Start a Sonnet session for the build (recommended).** That matches the issue's plan. Start it with: `Build #14.`
+> - **Keep this Opus session.** Say "go on Opus" and I'll build it here.
