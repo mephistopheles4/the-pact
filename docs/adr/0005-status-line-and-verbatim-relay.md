@@ -4,7 +4,7 @@
 
 ## Status
 
-Superseded by [ADR 0010](0010-build-in-the-main-session-with-process-tiers.md) (2026-09-30): the builders it governs are retired. The verbatim-relay reasoning is kept, for reading agents' reports, in the reports ADR (mephistopheles4/the-pact#16).
+Superseded by [ADR 0010](0010-build-in-the-main-session-with-process-tiers.md) (2026-09-30): the builders it governs are retired. The verbatim-relay reasoning is kept, for reading agents' reports, in [ADR 0012](0012-reports-for-two-readers.md).
 
 ## Why
 
