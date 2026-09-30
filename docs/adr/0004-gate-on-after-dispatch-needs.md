@@ -2,6 +2,10 @@
 
 Before the main session hands a step to `builder`, `spec-builder` or `security-builder`, it asks one question: will this step need the owner after it is dispatched? Anything the owner settled at plan sign-off (a decision, an approval, done-criteria) is handled, and so is an explicit answer the owner gives later in chat. Only four signals block, and only when neither settles them: an owner decision left for build time, an owner-only action during the build, an irreversible action the agent would take itself that nobody approved, and no checkable done-criteria. On a trip, the main session does not send the step; it warns in a fixed form, names the options with a recommendation, and waits. Read-only agents are never gated. Every plan carries a "Needs a human" section, and `plan-reviewer` treats a missing one, or an unhandled signal, as a blocker.
 
+## Status
+
+Superseded by [ADR 0010](0010-build-in-the-main-session-with-process-tiers.md) (2026-09-30): the builders it governs are retired.
+
 ## Why
 
 - **A subagent cannot reach the owner.** When a task needs a human partway through, the agent can only stop and report. Catching the foreseeable cases before dispatch saves a wasted run.

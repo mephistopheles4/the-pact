@@ -1,6 +1,6 @@
 # Hand the owner the trigger for a user-only skill
 
-When a move reaches a skill that carries `disable-model-invocation` (`triage`, `to-spec`, `to-tickets`, `wayfinder`, `implement`), the model stops and ends its turn with one line: `▶ Your move: type /<skill> <argument>`. It does not read the skill's `SKILL.md` and follow it instead. If the owner hands the step back, the model asks for the owner's own call once per session, says in one sentence what is handed over, and then does the step by hand, saying which skill's procedure it did not use. A main-session build is the owner's call, not a ban: once the owner chooses it, the model hands over `/implement`.
+When a move reaches a skill that carries `disable-model-invocation` (`triage`, `to-spec`, `to-tickets`, `wayfinder`, `implement`), the model stops and ends its turn with one line: `▶ Your move: type /<skill> <argument>`. It does not read the skill's `SKILL.md` and follow it instead. If the owner hands the step back, the model asks for the owner's own call once per session, says in one sentence what is handed over, and then does the step by hand, saying which skill's procedure it did not use. A main-session build is the normal route: a session opened on an approved spec or ticket starts building directly, and the owner may still type `/implement`.
 
 ## Why
 
@@ -11,7 +11,7 @@ When a move reaches a skill that carries `disable-model-invocation` (`triage`, `
 
 ## Status
 
-Installed 2026-09-29. Probed in [the hand-over-the-trigger log](../log/2026-09-29-hand-over-the-trigger.md): the main-session build hand-off (P5) works in an interactive session, but the model can still infer its way past move 1 when part of an issue looks already approved (P1). That gap, and a proposal that may retire builders and replace much of this machinery with an effort tier, are in mephistopheles4/the-pact#12. This ADR may be superseded by it.
+Installed 2026-09-29. Probed in [the hand-over-the-trigger log](../log/2026-09-29-hand-over-the-trigger.md): the main-session build hand-off (P5) works in an interactive session, but the model can still infer its way past move 1 when part of an issue looks already approved (P1). That gap, and a proposal that may retire builders and replace much of this machinery with an effort tier, are in mephistopheles4/the-pact#12. [ADR 0010](0010-build-in-the-main-session-with-process-tiers.md) has since updated the main-session clause (2026-09-30): a build session builds directly and does not hand over `/implement` first. The rest of this ADR stands.
 
 ## How this was decided
 

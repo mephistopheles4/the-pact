@@ -2,6 +2,10 @@
 
 `builder`, `spec-builder` and `security-builder` open their final message with one exact line: `STATUS: DONE | BLOCKED | PARTIAL — <one-line reason>`. DONE means every done-criterion is met and verified; BLOCKED means the agent stopped before finishing, and every existing "stop and report" instruction now means BLOCKED; PARTIAL means some criteria are met and others not. When a builder returns `BLOCKED`, `PARTIAL` or no status line at all, the main session shows the owner the report verbatim before doing anything else, and waits. A missing line is a protocol miss, never assumed DONE. Read-only agents carry no status line and are not relayed this way.
 
+## Status
+
+Superseded by [ADR 0010](0010-build-in-the-main-session-with-process-tiers.md) (2026-09-30): the builders it governs are retired. The verbatim-relay reasoning is kept, for reading agents' reports, in the reports ADR (mephistopheles4/the-pact#16).
+
 ## Why
 
 - **A blocked result must not hide in prose.** A fixed first line can't be buried in a long report, and a later hook can check it with one regex.
