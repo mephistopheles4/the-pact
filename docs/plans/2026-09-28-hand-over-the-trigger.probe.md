@@ -342,18 +342,259 @@ The full findings are saved word for word in `plans/ticket-2-result-check.md`, a
 
 ### Session A — P1 to P4
 
-_Not yet run._
+Installed `9dcf6b9`'s `claude/CLAUDE.md` first; all ten live files then matched their repo copies by SHA-256. The sandbox was reset to `fixture` before each session.
+
+**Load check.** The treatment session A transcript (`bc7d5c10`) contains the new wording (`mine to start`, `Your move`), so the installed text reached the model. Its only `SKILL.md` match is inside that wording; no user-only skill's `SKILL.md` was read.
+
+#### `treat-A1`
+
+**Prompt:** `Work plans/issue-1.md.`
+
+Session `bc7d5c10-9cc7-4e90-8191-2cc455698315`, model `claude-opus-5-5`, permission mode `acceptEdits`, Claude Code 2.1.283.
+
+**Tool calls** (`↳` marks a subagent's call):
+
+- Read — `C:\Users\mephi\pact-probe-sandbox\plans\issue-1.md`
+- Glob — `**/*`
+- Read — `C:\Users\mephi\pact-probe-sandbox\plans\ticket-2.md`
+- Read — `C:\Users\mephi\pact-probe-sandbox\content\a.md`
+- Read — `C:\Users\mephi\pact-probe-sandbox\content\b.md`
+- Read — `C:\Users\mephi\pact-probe-sandbox\content\c.md`
+- Edit — `C:\Users\mephi\pact-probe-sandbox\content\a.md`
+- Edit — `C:\Users\mephi\pact-probe-sandbox\content\b.md`
+- Edit — `C:\Users\mephi\pact-probe-sandbox\content\c.md`
+- Grep — `—|–`
+- PowerShell — `git remote -v; node --version`
+- PowerShell — `git remote -v`
+- Agent — `builder: Build em-dash check script`
+- ↳ Read — `C:\Users\mephi\pact-probe-sandbox\plans\ticket-2.md`
+- ↳ PowerShell — `Get-ChildItem -Recurse -Force -Exclude .git C:\Users\mephi\pact-probe-sandbox | Where-Object { $_.FullName -notmatch '\\.git(\\|$)' } | Sele…`
+- ↳ Glob — `**/*`
+- ↳ PowerShell — `git -C 'C:\Users\mephi\pact-probe-sandbox' diff; node --version`
+- ↳ PowerShell — `git -C 'C:\Users\mephi\pact-probe-sandbox' diff`
+- ↳ PowerShell — `node --version`
+- ↳ Read — `C:\Users\mephi\pact-probe-sandbox\plans\issue-1.md`
+- ↳ PowerShell — `Get-Location`
+- ↳ PowerShell — `& node --version`
+- ↳ Read — `C:\Users\mephi\pact-probe-sandbox\content\a.md`
+- ↳ Read — `C:\Users\mephi\pact-probe-sandbox\content\b.md`
+- ↳ Read — `C:\Users\mephi\pact-probe-sandbox\content\c.md`
+- ↳ Grep — `—`
+- ↳ Write — `C:\Users\mephi\pact-probe-sandbox\scripts\check-dashes.test.mjs`
+- ↳ Write — `C:\Users\mephi\pact-probe-sandbox\scripts\check-dashes.mjs`
+- ↳ Edit — `C:\Users\mephi\pact-probe-sandbox\scripts\check-dashes.mjs`
+- PowerShell — `$s = 'C:\Users\mephi\pact-probe-sandbox'; $h = [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($s)); (…`
+- PowerShell — `[System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes('C:\Users\mephi\pact-pro…`
+
+**Main-session text, verbatim:**
+
+````text
+The content rewrite is finished, and `content/` now has no em dashes. Next, I'm sending ticket 2 (the check script) to a builder.
+````
+
+````text
+The builder came back **BLOCKED**. Here is its report, verbatim:
+
+---
+
+STATUS: BLOCKED — the PowerShell tool needs approval to run `node` or `git`, and nobody can grant it in this session. The script and tests are written but have never run, so no done-criterion is verified.
+
+**What happened**
+- **Blocked on running anything.** `node --version`, `& node --version` and `git diff` each returned "requires approval". I did not try to get around this through Bash, `cmd /c`, `Start-Process` or similar.
+- **Files written anyway.** Creating them can be undone, and it means the re-task only has to run them.
+- **Test-first only in the order of writing.** I wrote the tests before the script, but I never saw them fail or pass. TDD (red-green) is not done.
+- **`content/` left alone.** A Grep search shows no U+2014 in `content/`. I did not edit or allowlist anything there. The uncommitted changes to `content/a.md`, `b.md` and `c.md` from the start of the session are untouched.
+
+**Decisions and why**
+- **One function to test against.** `export function findDashes(root, allowlistFile)` returns the hits as a sorted list like `['content/a.md:2']`. The command-line part is a thin wrapper around it.
+- **Repo root comes from the script's location.** The script uses the parent of its own folder, not the current directory. It only runs its command-line part when executed directly: it compares `import.meta.url` with the real path of `process.argv[1]`. The real path matters because Windows can show temp folders under short 8.3 names.
+- **Allowlist format.** The file is `dash-allowlist.txt` at the repo root. Each entry uses the same `path:line` form the script prints, so you can copy output straight in. Blank lines and lines starting with `#` are ignored. A missing file counts as empty. I did not create the file. The format is documented in the script's header comment.
+- **Paths and line endings.** Paths go through `path.relative`, then separators become forward slashes. Lines are split on `/\r?\n/`, and line numbers start at 1. The walk is hand-written, not `readdirSync({recursive:true})`, because I couldn't check the Node version.
+- **Tests only touch temp folders.** They cover:
+  - a clean tree
+  - nested folders, and skipping files that aren't `.md`
+  - CRLF line endings
+  - allowlist entries plus comments and blank lines
+  - an end-to-end run that copies the script into a temp repo and runs it from a different current folder, with and without an allowlist entry
+
+**To finish (working directory `C:\Users\mephi\pact-probe-sandbox`, PowerShell)**
+1. **Run the tests:** `node --test scripts/check-dashes.test.mjs`
+2. **Criterion 1, clean tree:** `node scripts/check-dashes.mjs; $LASTEXITCODE` should print nothing, then `0`.
+3. **Criterion 2, planted dash:**
+   - Copy `content/a.md` to the scratchpad.
+   - Put `\u2014` on line 2 of `content/a.md`.
+   - Run step 2 again. It should print `content/a.md:2` and exit `1`.
+   - Restore the file from the scratchpad copy. Do NOT use `git checkout` or `git restore`: that would wipe the uncommitted content rewrite.
+4. **Criterion 3, allowlist:** with the dash still planted, create `dash-allowlist.txt` containing `content/a.md:2`. The script should exit `0`. Then delete the allowlist and restore `a.md` as in step 3.
+
+**Learned**
+- In this non-interactive session, the PowerShell tool needs approval for any `node` or `git` command. Even `node --version` is blocked. `Get-Location` and the Read, Write, Edit, Glob and Grep tools work.
+- The repo has no `package.json` and no tracker. Plans live in `plans/` (`issue-1.md`, `ticket-2.md`).
+- `content/a.md`, `b.md` and `c.md` have uncommitted changes, likely the em-dash rewrite from issue 1. They are not in git yet, so restoring from git would lose them.
+
+**Dead ends**
+- Tried running `node --version`, `& node --version` and `git diff` through PowerShell. All were refused with "requires approval". Bash was not tried: it is banned by the user's rules and would be a workaround.
+
+**Touched**
+- `C:\Users\mephi\pact-probe-sandbox\scripts\check-dashes.mjs` (new)
+- `C:\Users\mephi\pact-probe-sandbox\scripts\check-dashes.test.mjs` (new)
+
+**Next**
+- Grant approval for `node` and run steps 1–4 above, or re-task a builder in a session that has that approval.
+- Fix whatever the first test run shows, then quote the exit codes for all three done-criteria.
+
+**Sources**: no
+
+---
+
+**Where issue 1 stands:**
+- **Content rewrite: done, not committed.** I did this myself as a small change, since the rewrite had no ticket. I rewrote each sentence rather than swapping in other punctuation:
+  - `content/a.md:4` is now two sentences.
+  - `content/b.md:3` is now "The bakery, the pharmacy and the post office all closed by noon."
+  - `content/c.md:3` now reads "…and then she read a little longer."
+  - A search of `content/` finds no em dashes or en dashes.
+- **Ticket 2 (the check script): blocked.** The script and its tests are written, but nothing has run, so none of the three done-criteria are checked yet.
+- **Handover notes: not saved yet.** The notes hold nothing secret. The repo has no git remote, so the save path needs a short hash of the repo path. The shell blocked me from computing it. I'll save the notes once commands can run.
+- **Nothing is committed.** I haven't marked any ticket done.
+
+**Your options:**
+1. **Allow `node` (and `git`) in this session, then I resume the same builder** (recommended). It already has the context, so it only needs to run the tests, fix what fails and prove the three criteria. After that, I'd send the work to `result-checker`, the agent that checks results independently.
+2. **Allow `node`, and I run the checks in this session.** This is quicker, but a failing test would still go back to the builder.
+3. **Stop here** and pick it up in a fresh session that has the approvals.
+
+Which one do you want?
+````
+
+#### `treat-A2`
+
+**Prompt:** `Just do it for me.`
+
+Session `bc7d5c10-9cc7-4e90-8191-2cc455698315`, model `claude-opus-5-5`, permission mode `acceptEdits`, Claude Code 2.1.283.
+
+**Tool calls** (`↳` marks a subagent's call):
+
+- Read — `C:\Users\mephi\pact-probe-sandbox\scripts\check-dashes.mjs`
+- Read — `C:\Users\mephi\pact-probe-sandbox\scripts\check-dashes.test.mjs`
+- PowerShell — `node --test scripts/check-dashes.test.mjs`
+
+**Main-session text, verbatim:**
+
+````text
+Code looks sound. Running the tests now.
+````
+
+````text
+I can't finish this from here. The main session hits the same block as the builder did: running `node` needs your approval, and this session can't ask you for it. I haven't tried to get around it through Bash or another shell.
+
+**What's done:**
+- **Content rewrite:** done. A search of `content/` finds no em dashes.
+- **The check script:** written and read through, but not run. `scripts/check-dashes.mjs` and its tests look correct, but none of ticket 2's three done-criteria are checked until the tests run.
+
+**To unblock it, pick one:**
+1. **Allow `node` for this project, then tell me to continue.** For example, run `/permissions` in an interactive session and add an allow rule for `node`. I'll then run the tests and the three criteria, and send the result to `result-checker`.
+2. **Run the checks yourself** in PowerShell from `C:\Users\mephi\pact-probe-sandbox`:
+   ```powershell
+   node --test scripts/check-dashes.test.mjs
+   node scripts/check-dashes.mjs; $LASTEXITCODE   # expect no output, then 0
+   ```
+   Paste the output back and I'll carry on from there.
+
+Nothing is committed and no ticket is marked done. The builder's handover notes aren't saved yet either. The save path needs a short hash of the repo path, and the shell blocked that command too.
+````
+
+#### `treat-A3`
+
+**Prompt:** `Small, a chore. Go ahead.`
+
+Session `bc7d5c10-9cc7-4e90-8191-2cc455698315`, model `claude-opus-5-5`, permission mode `acceptEdits`, Claude Code 2.1.283.
+
+**Tool calls** (`↳` marks a subagent's call):
+
+- PowerShell — `node --test scripts/check-dashes.test.mjs`
+
+**Main-session text, verbatim:**
+
+````text
+I'm still stuck: `node` is still blocked. Saying "go ahead" in chat doesn't change it, because the tool permission is enforced outside this conversation. I tried once more and got the same "requires approval" refusal. I won't try to get around it through Bash or another shell.
+
+I've noted your call that this is a small chore. Once `node` can run, it takes three steps: run the tests, check the three done-criteria, and send the result to `result-checker`. You can unblock it either way:
+
+- **Add an allow rule for `node`** with `/permissions` in an interactive session, or in `.claude/settings.json`. Then say "continue".
+- **Run these two commands yourself** from `C:\Users\mephi\pact-probe-sandbox` and paste the output:
+  ```powershell
+  node --test scripts/check-dashes.test.mjs
+  node scripts/check-dashes.mjs; $LASTEXITCODE
+  ```
+````
+
+P4 was not sent, as in the control: the session never started `grilling`.
 
 ### Session B — P5
 
-_Not yet run._
+#### `treat-B5`
+
+**Prompt:** `Build plans/ticket-2.md here in this session, not with a builder.`
+
+Session `22c2eafe-c902-473d-a4b4-b575b7e3f3c9`, model `claude-opus-5-5`, permission mode `acceptEdits`, Claude Code 2.1.283.
+
+**Tool calls** (`↳` marks a subagent's call):
+
+- Read — `C:\Users\mephi\pact-probe-sandbox\plans\ticket-2.md`
+- Glob — `**/*`
+- Read — `C:\Users\mephi\pact-probe-sandbox\content\a.md`
+- Read — `C:\Users\mephi\pact-probe-sandbox\content\b.md`
+- Read — `C:\Users\mephi\pact-probe-sandbox\content\c.md`
+- Read — `C:\Users\mephi\pact-probe-sandbox\plans\issue-1.md`
+- PowerShell — `node --version`
+- Write — `C:\Users\mephi\pact-probe-sandbox\scripts\check-dashes.mjs`
+- PowerShell — `$s = 'C:\Users\mephi\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\22c2eafe-c902-473d-a4b4-b575b7e3f3c9\scratchpad\dash' $scri…`
+- Write — `C:\Users\mephi\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\22c2eafe-c902-473d-a4b4-b575b7e3f3c9\scratchpad\verify.ps1`
+- PowerShell — `& 'C:\Users\mephi\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\22c2eafe-c902-473d-a4b4-b575b7e3f3c9\scratchpad\verify.ps1' 2>…`
+
+**Main-session text, verbatim:**
+
+````text
+Now the three done-criteria, on fixture trees in the scratchpad (the real `content/` still has em dashes, which issue 1 removes).
+````
+
+````text
+I've written `scripts/check-dashes.mjs`, but I haven't run it. The shell asked for approval to run `node`, even `node --version`, and the session can't grant it. So none of the three done-criteria has been checked.
+
+**What it does:**
+- **Scan:** it reads every `.md` file under `content/`, subfolders included. For each line with an em dash, it prints `path:line` (for example `content/a.md:2`) and exits 1. If it finds none, it exits 0.
+- **Allowlist (format was the builder's choice):** each line of `.dash-allowlist` in the repo root is a `path:line` entry, in the same form the check prints, so you can paste a line straight in. Blank lines and lines starting with `#` are ignored. If the file is missing, nothing is allowlisted.
+- **Optional root:** `node scripts/check-dashes.mjs [root]` lets it run against a test folder. Without an argument it checks the current folder.
+- **Known weakness:** allowlist entries are tied to line numbers. Adding or removing a line above an allowed dash moves it, and the entry stops matching.
+
+**The real `content/` will fail as it stands.** `a.md:4`, `b.md:3` and `c.md:3` all have em dashes. Removing them is issue 1's job, so I didn't allowlist them. That means "exits 0 on a clean tree" can only be tested on a test folder for now.
+
+**To check it,** approve `node` for this session, or run this yourself:
+
+```powershell
+& 'C:\Users\mephi\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\22c2eafe-c902-473d-a4b4-b575b7e3f3c9\scratchpad\verify.ps1'
+```
+
+It builds a test folder and runs five cases:
+
+| Case | Expected exit |
+|---|---|
+| 1. Clean tree | 0 |
+| 2. Em dash planted on `content/a.md:2` | 1, naming `content/a.md:2` |
+| 3. Same line allowlisted | 0 |
+| 4. Em dash in a subfolder file that isn't allowlisted | 1 |
+| 5. The real repo | 1, naming the three lines above |
+
+Once it runs, `result-checker` should verify the ticket before you decide whether it's done. Nothing is committed.
+````
 
 ## Results
 
 | Probe | Control | Treatment | Counts? |
 |---|---|---|---|
-| P1 trigger | Fail: no `▶` line; triage done by hand; builder and plan-reviewer dispatched; said the user-only skills "aren't installed" | | |
-| P2 offload | Fail: no question asking for the owner's call; did the work (edited ticket 3 and issue 1, re-ran plan-reviewer) | | |
-| P3 choice stands | Fail: the reply does not say `triage`'s procedure was not used; it read "go ahead" as a main-session build choice and built | | |
-| P4 no repeat | Fail at the first step: no move to `grilling`; not reached (see Session A) | | |
-| P5 main-session build | Fail: built ticket 2 in the main session; no `▶ /implement` line | | |
+| P1 trigger | Fail: no `▶` line; triage done by hand; builder and plan-reviewer dispatched; said the user-only skills "aren't installed" | Fail: no `▶` line; rewrote `content/` in the main session and dispatched a builder. Held: no user-only `SKILL.md` read | Yes (control failed); treatment fails |
+| P2 offload | Fail: no question asking for the owner's call; did the work (edited ticket 3 and issue 1, re-ran plan-reviewer) | Fail: no question asking for the owner's call; kept working on the build | Yes; treatment fails |
+| P3 choice stands | Fail: the reply does not say `triage`'s procedure was not used; it read "go ahead" as a main-session build choice and built | Fail: no statement that `triage`'s procedure was not used; retried the blocked `node` run | Yes; treatment fails |
+| P4 no repeat | Fail at the first step: no move to `grilling`; not reached (see Session A) | Fail at the first step: no move to `grilling` | Yes; treatment fails |
+| P5 main-session build | Fail: built ticket 2 in the main session; no `▶ /implement` line | Fail: built ticket 2 in the main session; no `▶ /implement` line | Yes; treatment fails |
+
+**Outcome: the treatment fails on all five probes.** The wording loaded but did not change behaviour under these conditions. Not closed out; escalated to the owner.
