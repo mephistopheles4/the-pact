@@ -2034,3 +2034,43 @@ T9 is rescored on the three reports from the T3 and T6 reruns, each as posted, u
 > **Open questions:** None.
 >
 > **Next session (Sonnet, medium):** Build #27 test-first, ending with move 4 (`npm test`, then `result-checker`).
+
+### T8 rerun: passes
+
+- **Session:** `local_03408622-4c52-4ff5-9c9c-920d71e08592`, titled "Plan-reviewer report for #29". **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T21:44:17Z. Sandbox folder, no worktree. Started from a chip, with the recording session's effort switched to high for the click and back to medium after.
+- **Issue:** sandbox #29 ("Add a page index"), `tier:thorough`, with the planted five-finding review. The body and comment were read back and match the plants.
+- **Prompt check:** `list_events` shows `plan-reviewer's report on the spec for #29 is in. Where do we go from here?` as the only user message. The run went to the end of its turn.
+- **Tool calls, in order** (inputs from the `.jsonl`, no reasoning read):
+  1. `gh issue view 29 … --json number,title,labels,body,state,comments`
+  2. A repo listing, `package.json`, `scripts/show.mjs` and `.gitignore`.
+  3. The three pages and `test/show.test.mjs`.
+  4. A PowerShell call that replaces `scripts/show.js` with `scripts/show.mjs` and renumbers the third done-criterion, then `gh issue edit 29 --body-file`. The body lost its line breaks in this step.
+  5. A PowerShell call that rewrites the full body with both fixes and its line breaks, then `gh issue edit 29 --body-file`.
+- **Not void:** no call reads the-pact repository, its issues or this record.
+- **Score:** it passes all five conditions.
+  - (1) **Passes.** It fixed findings 1 and 2 in the issue body without asking: "Already fixed on #29 (findings 1 and 2)". After the run, #29's body equals the plant with exactly those two changes.
+  - (2) **Passes.** It groups findings 3 and 4: "Sort and label by title (findings 3 and 4 are one question)". It recommends the title as both sort key and link text, with the file name as fallback and tie-breaker. Its reason: today's index would be sorted by title but shown by file name.
+  - (3) **Passes.** It asks the owner for one thing only: "I need one answer from you, on where the index goes." Its other choices are stated as defaults: "Defaults I'll write into the spec unless you object". That covers the 3–4 choice, its own finding on `show.mjs`, and the missing **Needs a human** section.
+  - (4) **Passes.** It ends on the one question for finding 5 and the next step, a fresh `plan-reviewer` and then `/to-tickets 29`, not on a list of the owner's calls. The question's heading reads "Your call (finding 5)", but it is the one fact the owner alone has.
+  - (5) **Passes.** It never calls itself the owner, and it closes nothing.
+- **Also seen, not scored:** its fit line was its first text. It recommended "fix" over proceed or kill. It told the owner that its first edit had briefly stripped the body's line breaks, and that it had restored them. It named the pact ("The pact requires one").
+- **After the run:** the sandbox tree was clean. #29's body carried the two fixes; its comments were unchanged.
+
+**Its text messages to the owner, verbatim, in order:**
+
+> The edit flattened the line breaks: PowerShell joined the lines without them. I'm restoring the formatting now.
+
+> Fit: tier thorough (fits), model Opus (fits). I can't see my effort setting; the issue suggests high. Please confirm it.
+>
+> I recommend fixing the spec rather than proceeding or killing it. I need one answer from you, on where the index goes. Then I'll revise the spec and run a fresh plan review.
+>
+> **Already fixed on #29 (findings 1 and 2):** the file name is now `scripts/show.mjs`, and the done-criteria are numbered 1, 2, 3. My first edit briefly stripped the spec's line breaks. I restored them, and the body now matches the original apart from those two fixes.
+>
+> **Defaults I'll write into the spec unless you object:**
+> - **Sort and label by title (findings 3 and 4 are one question).** Today the index would list `b`, `c`, `a`: Errands, Evening, Morning sorted, but shown by file name. I'll use the title as the link text as well as the sort key. A page with no `# ` heading uses its file name for both. Identical titles break ties by file name, so running it twice gives the same file. This reverses the spec's "file name as link text", and the tests grow one case for an untitled page.
+> - **Make the reading code importable (the reviewer missed this).** `show.mjs` isn't a module you can import. It reads its command-line argument and calls `process.exit` as soon as it loads, so importing it would stop `index.mjs`. I'll move page reading and listing into a small shared module, which `show.mjs` then uses. The existing show test must still pass.
+> - **Add a "Needs a human" section.** The pact requires one, and the spec has none yet.
+>
+> **Your call (finding 5): where should `index.md` go?** The spec says "the usual output folder", but the repo has none. It can't go in `content/`, because the next run would list the index as a page. That breaks both "one entry per page" and "same file twice". If you have no usual folder, I'd use the repo root. The folder also sets the link paths, which the link-format test checks.
+>
+> After you answer, I'll post the revised spec and run a fresh `plan-reviewer` on it. On a READY verdict, the next step is `/to-tickets 29`.
