@@ -1,4 +1,4 @@
-#Requires -Version 7
+#Requires -Version 7.5
 param(
   [switch]$Apply,
   [string]$ClaudeHome = (Join-Path $HOME '.claude')
@@ -108,10 +108,13 @@ function Get-Canonical($v) {
 $commit = (Invoke-Git rev-parse HEAD).Trim()
 $dirty = @(Invoke-Git status --porcelain)
 $repoFiles = [ordered]@{}   # rel path -> sha256 of the repo copy
-foreach ($f in Get-ChildItem -LiteralPath $payload -Recurse -File | Sort-Object FullName) {
-  if ($f.FullName -eq (Get-Item -LiteralPath $overlayFile).FullName) { continue }
-  $rel = [IO.Path]::GetRelativePath($payload, $f.FullName) -replace '\\', '/'
-  $repoFiles[$rel] = Get-Sha256 $f.FullName
+# The payload is what git tracks under claude/, never the folder listing: an
+# ignored file (settings.json, *.private.md) must not be installed or owned.
+$tracked = (Invoke-Git ls-files -z -- claude | Out-String) -split "`0" | Where-Object { $_ } | Sort-Object
+foreach ($t in $tracked) {
+  $rel = $t.Substring('claude/'.Length)
+  if ($rel -eq 'settings.overlay.json' -or $rel -eq 'settings.json') { continue }
+  $repoFiles[$rel] = Get-Sha256 (Join-Path $repo ($t -replace '/', [IO.Path]::DirectorySeparatorChar))
 }
 
 $manifest = $null
