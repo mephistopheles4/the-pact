@@ -273,6 +273,12 @@ to the issue, and propose the new tier for the next session. I can call a
 tier change at any time; my judgement of the work wins, except that the risk
 floor (above) holds.
 
+**Quick work stops at an open decision.** Under quick, a decision the issue
+leaves open (for example, which content to cut or keep) is named to me and
+answered before any file changes. Don't pick it yourself, however small the
+diff. If my answer changes the size of the work, the rule above applies: stop,
+post what you know, propose the new tier.
+
 **Sessions and models.** Work splits into sessions at phase boundaries
 (triage, plan, build), never into subagents. Never switch model within a
 session: changing model makes the whole history be read again into a fresh
@@ -286,12 +292,16 @@ cache, while changing effort keeps the cache.
 
 I set the effort setting when I start a session; a session can't change its
 own. At a phase boundary, post the result, the state and any open questions
-to the issue, then end with one line that starts the next session. Don't
-compact first: the issue carries the context.
+to the issue, then end with one line that starts the next session. This
+comment is always posted, even when every artifact is already on the tracker:
+it gives the result, the state, any open questions and the next-session
+line. Don't compact first: the issue carries the context.
 
 **Fit check.** The first line of the first reply in any session says whether
 the session fits the tier, the model and the effort setting suggested for the
-issue's current phase, even when everything fits. Read your model name from
+issue's current phase, even when everything fits. It is the first text I see,
+before any build step or progress text; reading the issue first is fine.
+Read your model name from
 your system prompt. With no label, the tier part reads `none (proposing
 <tier>)`. For chat work with no issue there is no suggested effort, so the
 check covers the proposed tier and the model only. Effort is the one thing a
@@ -364,7 +374,8 @@ live instead; follow it. If it says neither, ask me once, before the spec.
 `security-reviewer` read; they don't build. Give them their input as local
 files: the spec text or the diff, written to a file, and the paths to it. Post
 each report on the issue, or in the repo's plan file, as a comment, word for
-word. Never retell it: a retelling changes it. Each report has two sections.
+word: post the agent's hand-back text unedited, from a file. Never retell or
+shorten it: that changes it. Each report has two sections.
 **For the owner** comes first: the verdict word, then what is wrong, why it
 matters and what it suggests, in plain sentences, with no line numbers, codes
 or paths. **For the session** follows, with the evidence and locations you
@@ -373,7 +384,9 @@ need to act.
 **Help me decide.** After a report, sort its findings before you bring me
 anything. Fix what is mechanical yourself. Group findings that are really one
 question. Bring each real choice with your recommendation and the reason for
-it. Ask me only for what only I know or must approve. Decisions are made
+it. A recommended choice is the default you take unless I object: state it, don't
+ask me to confirm it. Ask me only for facts only I have, or for approval the
+pact requires. Decisions are made
 together: I can take your recommendation without reading the detail, and the report's For the owner section is there for anyone who wants more. Don't hand
 me a list of findings with "your call" on each.
 
@@ -568,7 +581,7 @@ Input is local files: the claimed acceptance and the diff or paths. The main ses
 
 Return exactly two sections, in this order.
 
-**For the owner** — first. Open with the verdict word on its own (CONFIRMED, REFUTED or INCONCLUSIVE). Then plain sentences: what you found, why it matters, what you suggest. Cover blocking findings and advisories alike. No line numbers, priority codes or file paths in this section.
+**For the owner** — first. Open with the verdict word on its own (CONFIRMED, REFUTED or INCONCLUSIVE). Then plain sentences: what you found, why it matters, what you suggest. Cover blocking findings and advisories alike. No line numbers, priority codes, file paths or commands in this section.
 
 **For the session** — after. The full calibrated verdict, with every condition, finding and advisory in the fields below.
 

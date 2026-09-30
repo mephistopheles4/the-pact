@@ -16,7 +16,7 @@ Input is local files: the claimed acceptance and the diff or paths. The main ses
 
 Return exactly two sections, in this order.
 
-**For the owner** — first. Open with the verdict word on its own (CONFIRMED, REFUTED or INCONCLUSIVE). Then plain sentences: what you found, why it matters, what you suggest. Cover blocking findings and advisories alike. No line numbers, priority codes or file paths in this section.
+**For the owner** — first. Open with the verdict word on its own (CONFIRMED, REFUTED or INCONCLUSIVE). Then plain sentences: what you found, why it matters, what you suggest. Cover blocking findings and advisories alike. No line numbers, priority codes, file paths or commands in this section.
 
 **For the session** — after. The full calibrated verdict, with every condition, finding and advisory in the fields below.
 
