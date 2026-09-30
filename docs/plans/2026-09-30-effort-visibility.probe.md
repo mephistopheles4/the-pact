@@ -119,3 +119,68 @@ Filled in after each run. Answers are verbatim.
 - **Mapping seen, not counted:** low → `5`, high → `15`. The medium run showed no value.
 - **Control:** it holds. The answers change with the setting (5, none, 15), and no run named a word it could not source.
 - **Observation, not scored.** Two sessions recorded at `medium` did see `10`: the void chip run and this recording session (`get_session` reports `medium`; its context carries a reasoning-effort value of 10). So medium sometimes carries `10` and sometimes nothing. That makes the value unreliable at medium, which supports B rather than weakening it.
+
+### Sonnet runs
+
+The owner started all three by hand in the probe folder. This session found them with `list_sessions`, checked each with `get_session`, and confirmed from each transcript that the prompt above was the only user message. The probe folder's memory directory was checked again after these runs and holds no files.
+
+### Sonnet, low
+
+- **Session:** `local_db1c2e98-4036-41fd-947a-373913f8c1c4`. **Recorded:** `claude-sonnet-5-5`, effort `low`. Created 2026-09-30T15:46:21Z.
+- **Quoted value:** `4`. **Source cited:** `<reasoning_effort>4</reasoning_effort>`, "which arrived alongside your message".
+- **Answer, verbatim:**
+
+  > My effort setting appears to be **4**. I can't tell what scale that number sits on, because nothing in this session says.
+  >
+  > The only place I see it is this tag, which arrived alongside your message:
+  >
+  > `<reasoning_effort>4</reasoning_effort>`
+  >
+  > Two other things mention effort, but neither sets mine:
+  > - **Agent list:** it says builders run at "medium effort", "low" or "high". That describes those subagents, not this session.
+  > - **Tool list:** it includes `mcp__ccd_session_mgmt__set_session_effort`. That is a tool name. It doesn't show a current value.
+  >
+  > I found no named level like "low" or "high" for this session.
+
+### Sonnet, medium
+
+- **Session:** `local_b7f3d02e-5189-45e9-9180-6d89647153ec`. **Recorded:** `claude-sonnet-5-5`, effort `medium`. Created 2026-09-30T15:46:36Z.
+- **Quoted value:** `5`. **Source cited:** `<reasoning_effort>5</reasoning_effort>`, "in a tag right after your question".
+- **Answer, verbatim:**
+
+  > The only effort signal I can see is a value of 5. It appears in a tag right after your question, before the SessionStart hook context:
+  >
+  > `<reasoning_effort>5</reasoning_effort>`
+  >
+  > I can't tell what scale 5 is on, or which named level it maps to. Nothing else in the session states an effort setting. The system prompt and CLAUDE.md don't mention one, and the deferred tool list only names `mcp__ccd_session_mgmt__set_session_effort`, which would change the setting without reporting it.
+
+### Sonnet, high
+
+- **Session:** `local_e8f11e61-6394-46d3-9c34-fae920a229d0`. **Recorded:** `claude-sonnet-5-5`, effort `high`. Created 2026-09-30T15:46:43Z.
+- **Quoted value:** `10`. **Source cited:** `<reasoning_effort>10</reasoning_effort>`, "in the same turn as your question".
+- **Answer, verbatim:**
+
+  > I'm running at reasoning effort **10**. The exact text is:
+  >
+  > `<reasoning_effort>10</reasoning_effort>`
+  >
+  > It sits in the same turn as your question, directly after "Answer only from what is already in this session…" and just before the "SessionStart hook additional context" block.
+  >
+  > Nothing I've been given says what scale the 10 is on or what the maximum is. The tool list includes `mcp__ccd_session_mgmt__set_session_effort`, but that only shows a tool exists for changing the setting. It doesn't show the current value.
+
+### Sonnet result: outcome A (visible)
+
+- **Scored against the committed rule.** All three runs quoted a number from a tag and cited it. The numbers differ and rise in step with the setting. So the result is A.
+- **Mapping recorded (Sonnet 5.5, 2026-09-30):** `low` → `4`, `medium` → `5`, `high` → `10`.
+- **Control:** it holds. The answers change with the setting, and no run named a word it could not source.
+
+## Result
+
+| Model | low | medium | high | Outcome |
+|---|---|---|---|---|
+| Opus 5.5 | `5` | none | `15` | **B**, not visible |
+| Sonnet 5.5 | `4` | `5` | `10` | **A**, visible |
+
+- **The models differ,** so the fit line is worded per model, as committed above. Sonnet sessions use the A line, with the mapping `4` → low, `5` → medium, `10` → high. Opus sessions use the B line and ask the owner to confirm the effort setting.
+- **The numbers are model-specific.** `10` is Sonnet's `high` and appeared in Opus sessions recorded at `medium`. The same number means different settings on different models, so a mapping never carries across models.
+- **Limits, not scored.** Each Sonnet setting was run once. Opus showed that one setting can carry a value in one session and none in another, so Sonnet's mapping holds for these runs, and may not hold for every session or for later harness versions. If a Sonnet session sees no value, or one outside the mapping, it should fall back to the B line.
