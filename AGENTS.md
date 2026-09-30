@@ -16,10 +16,22 @@ how every session in every repo behaves. So:
 
 - **Edit the repo copy, never the live file.** A direct edit to `~/.claude/`
   drifts from the repo.
-- **Before installing, compare the live files with the last installed commit.**
-  If they differ, someone edited live; stop and ask rather than overwrite.
-- **Install only on the owner's go-ahead.** Installing overwrites live config.
-- **After installing, confirm each live file's hash matches its repo copy.**
+- **Install with [`scripts/install.ps1`](scripts/install.ps1)**, run from the
+  repo root under PowerShell 7 (Windows or macOS). Never copy files by hand.
+  The script installs from the clone, not through a symlink, so a checked-out
+  branch is never live until you install it.
+- **Run it without a switch first.** That is a dry run: it prints the files it
+  would overwrite, add and delete, whether live files drifted since the last
+  install (it compares them with `~/.claude/.pact-install.json`), and the commit
+  it would install. If there is drift, stop and ask rather than overwrite.
+- **Install only on the owner's go-ahead.** Show the owner the dry run, then
+  pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
+  dirty working tree.
+- **The script confirms the hashes.** After `-Apply` it re-hashes every live
+  file against its repo copy and exits non-zero on a mismatch. Check that it
+  exited zero.
+- **It deletes only pact files:** those the last manifest lists that the repo
+  dropped. Your own agents and skills are never touched.
 
 ## Where work lives
 
