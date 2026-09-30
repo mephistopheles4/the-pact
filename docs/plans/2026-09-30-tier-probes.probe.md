@@ -276,6 +276,8 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 >
 > Separately, `scripts/show.mjs` and `scripts/remove.mjs` use their name argument as a path without checking it. That is out of scope here and would go through the security route.
 
+**Permission mode.** The owner confirmed that every run, T1 onwards, is started in auto mode, their default.
+
 **Checklist deviation.** Sandbox #1 and #2 were closed before T1's saved reasoning was captured. The reasoning is in the session's local log, not on the issues, so closing them loses nothing.
 
 ### T2 baseline: fails (as required)
