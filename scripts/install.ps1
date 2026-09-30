@@ -26,6 +26,15 @@ function Resolve-Live($rel) {
   Join-Path $ClaudeHome ($rel -replace '/', [IO.Path]::DirectorySeparatorChar)
 }
 
+# Never deleted, overwritten or listed, whatever the install record says.
+function Test-Protected($rel) {
+  $n = ($rel -replace '\', '/').TrimStart('/')
+  while ($n.StartsWith('./')) { $n = $n.Substring(2) }
+  $leaf = ($n -split '/')[-1]
+  $n -ieq 'settings.json' -or $n -ieq '.pact-install.json' -or
+    $leaf -like '.credentials*' -or $n -match '^(?i)(projects|memory|skills|handover)(/|$)'
+}
+
 function Invoke-Git {
   $out = & git -C $repo @args
   if ($LASTEXITCODE -ne 0) { throw "git $($args -join ' ') failed" }
@@ -107,6 +116,7 @@ function Get-Canonical($v) {
 # --- plan ---------------------------------------------------------------------
 $commit = (Invoke-Git rev-parse HEAD).Trim()
 $dirty = @(Invoke-Git status --porcelain)
+$warnings = @()
 $repoFiles = [ordered]@{}   # rel path -> sha256 of the repo copy
 # The payload is what git tracks under claude/, never the folder listing: an
 # ignored file (settings.json, *.private.md) must not be installed or owned.
@@ -114,6 +124,7 @@ $tracked = @(Invoke-Git -c core.quotepath=false ls-files -- claude) | Where-Obje
 foreach ($t in $tracked) {
   $rel = $t.Substring('claude/'.Length)
   if ($rel -eq 'settings.overlay.json' -or $rel -eq 'settings.json') { continue }
+  if (Test-Protected $rel) { $warnings += "protected path in the repo payload, skipped: $rel"; continue }
   $repoFiles[$rel] = Get-Sha256 (Join-Path $repo ($t -replace '/', [IO.Path]::DirectorySeparatorChar))
 }
 
@@ -124,13 +135,17 @@ if (Test-Path -LiteralPath $manifestFile) {
 }
 
 $drift = @(); $overwrite = @(); $add = @(); $delete = @(); $same = 0
+$entries = @()
 if ($manifest) {
   foreach ($e in $manifest.files) {
+    if (Test-Protected $e.path) { $warnings += "protected path in the install record, skipped: $($e.path)" } else { $entries += $e }
+  }
+  foreach ($e in $entries) {
     $p = Resolve-Live $e.path
     if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { $drift += "$($e.path) (deleted since the install)" }
     elseif ((Get-Sha256 $p) -ne $e.sha256) { $drift += "$($e.path) (changed since the install)" }
   }
-  $delete = @($manifest.files | Where-Object { -not $repoFiles.Contains($_.path) } |
+  $delete = @($entries | Where-Object { -not $repoFiles.Contains($_.path) } |
     Where-Object { Test-Path -LiteralPath (Resolve-Live $_.path) } | ForEach-Object { $_.path })
 } else {
   $delete = @($retired | Where-Object { Test-Path -LiteralPath (Resolve-Live $_) })
@@ -164,6 +179,7 @@ Show-List 'Drift' $drift
 Show-List 'Overwrite' $overwrite
 Show-List 'Add' $add
 Show-List 'Delete' $delete
+foreach ($w in $warnings) { Write-Host "WARN: $w" }
 Write-Host "Unchanged: $same"
 Write-Host "settings.json: $settings"
 if ($dirty.Count) { Write-Host "Working tree: DIRTY ($($dirty.Count) path(s)); -Apply will refuse." } else { Write-Host 'Working tree: clean' }
