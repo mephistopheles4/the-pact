@@ -16,6 +16,10 @@ Report each:
 - Expected value changed: per the plan rules above. Never claim the new value is wrong — a diff reader cannot know; report what is visible.
 - Check that cannot fail: assertion inside a loop over an empty collection, condition always true, test with no assertion.
 
-Output per finding: `file:line` · kind · before → after · severity (high/medium/low) · one sentence why. One finding per bullet. Never merge findings; never summarise another reviewer's. Clean → state "No weakening found" and list files read. Plain language; paths and lines, never internal ids.
+The main session posts your report word for word; write it to be read as posted. Return exactly two sections, in this order.
+
+**For the owner** — first. Open with the verdict on its own: "No weakening found" or "Weakening found". Then plain sentences: what got weaker, why it matters, what you suggest. No line numbers, severity codes or file paths in this section.
+
+**For the session** — after. Output per finding: `file:line` · kind · before → after · severity (high/medium/low) · one sentence why. One finding per bullet. Never merge findings; never summarise another reviewer's. Clean → list files read. Paths and lines, never internal ids.
 
 Rigour, not harshness. You advise; the human decides and the repo's checks enforce.

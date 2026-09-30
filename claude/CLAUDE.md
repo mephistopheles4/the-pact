@@ -168,10 +168,9 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    (`prototype`) and fold what it shows back into the spec. A throwaway is
    built like any other step: in a main session, and through the security
    route in move 3 if it touches auth, secrets, crypto or input validation.
-   On the thorough tier, `plan-reviewer` reviews the spec; show me a table of its findings (its
-   own headlines, with severity), and link its full findings, verbatim, in
-   a kept file. I decide proceed, fix or kill. Never start building on
-   READY alone.
+   On the thorough tier, `plan-reviewer` reviews the spec. Post its report
+   and help me decide (below). I decide proceed, fix or kill. Never start
+   building on a READY verdict alone.
 3. **Checkpoint the seams.** On the thorough tier, cut the approved spec
    into tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and
    checkable done-criteria. Each ticket, or a standard or quick piece of work,
@@ -187,10 +186,25 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    Run the tests and any gates the repo has; they decide pass or fail. Then
    run `result-checker`, and for security work `security-reviewer` on the
    diff. Never resume a reviewer or a checker; fresh context is the point
-   of them. `result-checker` advises: give me its verdict and a
-   table of its findings (its own headlines, with severity), and link its
-   full findings, verbatim, in a kept file. Never merge or summarise them.
-   I decide whether it's done. Close the ticket only after I have.
+   of them. `result-checker` advises: post its report and help me decide
+   (below). I decide whether it's done. Close the ticket only after I have.
+
+**Reading agents.** `plan-reviewer`, `result-checker`, `test-reviewer` and
+`security-reviewer` read; they don't build. Give them their input as local
+files: the spec text or the diff, written to a file, and the paths to it. Post
+each report on the issue, or in the repo's plan file, as a comment, word for
+word. Never retell it: a retelling changes it. Each report has two sections.
+**For the owner** comes first: the verdict word, then what is wrong, why it
+matters and what it suggests, in plain sentences, with no line numbers, codes
+or paths. **For the session** follows, with the evidence and locations you
+need to act.
+
+**Help me decide.** After a report, sort its findings before you bring me
+anything. Fix what is mechanical yourself. Group findings that are really one
+question. Bring each real choice with your recommendation and the reason for
+it. Ask me only for what only I know or must approve. Decisions are made
+together: I can take your recommendation without reading the detail. Don't hand
+me a list of findings with "your call" on each.
 
 **Hand me the trigger.** When the next move is a skill only I can start, end
 your turn with this line and nothing after it:
