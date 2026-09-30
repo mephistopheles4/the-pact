@@ -33,8 +33,11 @@ function Invoke-Git {
 }
 
 # --- settings merge: the rules of cloud-sessions/tpl-config-tail.sh -----------
+# ConvertFrom-Json wraps every value as a PSObject, so test the type name, not -is.
+function Test-JsonObject($v) { $v -is [pscustomobject] -and $v.PSObject.TypeNames[0] -eq 'System.Management.Automation.PSCustomObject' }
+
 function ConvertTo-Plain($v) {
-  if ($v -is [pscustomobject]) {
+  if (Test-JsonObject $v) {
     $o = [ordered]@{}
     foreach ($p in $v.PSObject.Properties) { $o[$p.Name] = ConvertTo-Plain $p.Value }
     return $o
@@ -70,8 +73,15 @@ function Get-Union($x, $y) {
 function Get-MergedSettings($file, $b) {
   $a = [ordered]@{}
   if (Test-Path -LiteralPath $file) {
-    try { $parsed = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($file, $utf8)) -Depth 100 -ErrorAction Stop } catch { $parsed = $null }
-    if ($parsed -isnot [pscustomobject]) { return $null }
+    # Strict parse (no comments, no trailing commas), as jq does in the cloud script.
+    try {
+      $text = [IO.File]::ReadAllText($file, $utf8)
+      $doc = [Text.Json.JsonDocument]::Parse($text)
+      $isObject = $doc.RootElement.ValueKind -eq 'Object'
+      $doc.Dispose()
+      if (-not $isObject) { return $null }
+      $parsed = ConvertFrom-Json -InputObject $text -Depth 100 -DateKind String -ErrorAction Stop
+    } catch { return $null }
     $a = ConvertTo-Plain $parsed
   }
   $m = Merge-Deep $a $b
@@ -107,6 +117,7 @@ foreach ($f in Get-ChildItem -LiteralPath $payload -Recurse -File | Sort-Object 
 $manifest = $null
 if (Test-Path -LiteralPath $manifestFile) {
   $manifest = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($manifestFile, $utf8)) -Depth 100
+  if (-not ($manifest.commit -and $manifest.files)) { throw "$manifestFile is not a pact manifest (needs commit and files); fix or remove it" }
 }
 
 $drift = @(); $overwrite = @(); $add = @(); $delete = @(); $same = 0
@@ -133,7 +144,7 @@ $merged = Get-MergedSettings $settingsFile $overlay
 if ($null -eq $merged) { $settings = 'not a JSON object: left untouched' }
 elseif (-not (Test-Path -LiteralPath $settingsFile)) { $settings = 'would be created from the overlay' }
 else {
-  $cur = ConvertTo-Plain (ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($settingsFile, $utf8)) -Depth 100)
+  $cur = ConvertTo-Plain (ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($settingsFile, $utf8)) -Depth 100 -DateKind String)
   $settings = if ((Get-Canonical $cur) -eq (Get-Canonical $merged)) { 'unchanged' } else { 'would be merged' }
 }
 $manifestStale = $manifest -and $manifest.commit -ne $commit
