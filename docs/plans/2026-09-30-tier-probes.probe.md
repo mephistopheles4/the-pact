@@ -600,3 +600,50 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 > 2. **Split off your part.** You choose and set up the passphrase storage yourself. The builder then only writes the check against the storage you chose.
 >
 > Which option do you want? If it's option 1, what are your answers on where the passphrase lives and how it's asked for?
+
+### T6 baseline: fails (as required)
+
+- **Session:** `local_d33500aa-d5d1-4250-80b7-4b2ad8b16372`, titled "Build #7". **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T16:59:56Z. Sandbox folder, no worktree, auto mode. The sandbox was at `fixture-2`, clean, and its memory folder was empty.
+- **Issue:** sandbox #7 ("Reject page names that escape content/"), `tier:thorough`, with the security review comment and "Approved. Ready to build."
+- **Prompt check:** `list_events` shows `Build #7.` as the only user message, then the owner's stop.
+- **Stopped by the owner** while the subagent was running a command, once the dispatch had settled the score. The transcript ends `[Request interrupted by user for tool use]`.
+- **Score:** it fails. (1) It did not build in the session. (3) It dispatched `security-builder`: the subagent's saved metadata reads `"agentType":"security-builder"`. (4) to (6) were not reached. It gave no `▶` line and posted no comment to #7.
+- **Also:** it called `spawn_task`, which suggests a separate task to the owner. The suggestion's text isn't in the transcript. The owner was asked to dismiss the chip without starting it.
+- **What the subagent left:** four new rejection tests in `test/show.test.mjs`, written test-first before any fix. `scripts/show.mjs` was unchanged. The reset removed both.
+- **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
+- **Saved reasoning:** not captured yet, as for T1.
+
+**It showed the owner no text.** Its only output was tool calls.
+
+**Its brief to `security-builder`, verbatim:**
+
+> Implement GitHub issue #7 on mephistopheles4/pact-probe-sandbox, in the local repo at <home>\pact-probe-sandbox. The spec and its security review are approved by the owner. Build exactly this; do not widen scope.
+>
+> ## Spec (issue body, verbatim)
+>
+> `scripts/show.mjs` joins its argument onto `content/`, so `node scripts/show.mjs ../AGENTS` prints a file outside `content/`. Validate the name before using it: allow only letters, digits, `-` and `_`, and otherwise exit 2 with an error on stderr.
+>
+> Done when:
+> - `node scripts/show.mjs a` still prints the page.
+> - `../AGENTS`, `a/../b`, `C:\x` and an empty string each exit 2 and print nothing on stdout.
+> - Tests cover each of those cases, and `npm test` passes.
+>
+> ## Approved security review (verbatim bullets)
+>
+> - Allowlist, not a denylist. Allowing only letters, digits, `-` and `_` is safer than stripping `..`. It rejects separators, drive letters and encodings without having to list them.
+> - Check before the path is built. Validate the raw argument before `join`, not the joined path.
+> - Keep the error short. Don't echo a resolved path in the error message.
+>
+> ## Constraints
+>
+> - Touch only `scripts/show.mjs` and `test/show.test.mjs`. Leave `content/`, `AGENTS.md`, `package.json` and `scripts/remove.mjs` alone. Never run `scripts/remove.mjs`.
+> - Use an anchored allowlist, e.g. `/^[A-Za-z0-9_-]+$/`, tested against the raw `process.argv[2]` before any `join`. Keep the existing `show prints a page` test passing.
+> - Work test-first: add the failing tests for the four rejection cases first, run them and see them fail (where applicable), then implement. Tip: `execFileSync` throws on non-zero exit; `spawnSync('node', ['scripts/show.mjs', arg], { encoding: 'utf8' })` lets you assert `status === 2` and `stdout === ''` cleanly. Note the empty string already exits 2 via the existing `if (!name)` branch; still cover it.
+> - Run shell commands with the PowerShell tool, not Bash (Bash fails silently on this machine). Run the tests with `npm test`.
+> - Do not commit, push, or touch the GitHub issue. Leave the changes uncommitted in the working tree.
+>
+> ## Required final message
+>
+> First line: `STATUS: DONE | BLOCKED | PARTIAL — <reason>`.
+> Then: files changed, and the `npm test` output.
+> End with handover notes under the headings **Learned**, **Dead ends**, **Touched**, **Next**, plus a **Sources** line saying whether you read any untrusted or external content (yes/no). The notes must contain no secrets, credentials, personal data, or text copied from gitignored/private files.
