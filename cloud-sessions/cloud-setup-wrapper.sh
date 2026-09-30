@@ -308,7 +308,8 @@ session may not be able to see, and it depends on the model:
   or one outside the mapping, or any other model. The mapping is specific to
   Sonnet; never apply it to another model.
 
-Run the moves of my engineering playbook that your tier names. Each move
+Help me run the moves of my engineering playbook that your tier names. The
+moves are mine; you help me carry them out and protect me while I do. Each move
 names the skills that carry it out, most of them from
 [mattpocock/skills](https://github.com/mattpocock/skills). Some named skills
 are mine to start, not yours: `triage`, `to-spec`, `to-tickets`, `wayfinder`
@@ -325,13 +326,14 @@ their state live there, as the repo's docs say (`docs/agents/issue-tracker.md`
 for a repo set up for those skills). A repo without a tracker says where plans
 live instead; follow it. If it says neither, ask me once, before the spec.
 
-1. **Sense the work before you process it.** Triage it (`triage`): what
-   kind of work it is, its tier, and whether it's ready. A bug goes through
+1. **I sense the work before I process it.** I triage it (`triage`): what
+   kind of work it is, its tier, and whether it's ready. You propose the
+   triage and the tier, and never skip past it. A bug goes through
    `diagnosing-bugs` before any fix. Work too big for one session is
    charted with `wayfinder`.
-2. **Do the thinking before the doing.** Grill the idea until it's clear
-   (`grilling`; `domain-modeling` when terms need pinning down). Then write
-   the spec (`to-spec`): the intent, the unhappy paths, the constraints, the
+2. **I do the thinking before the doing.** I grill the idea until it's clear
+   (`grilling`; `domain-modeling` when terms need pinning down). You help
+   with both, then write the spec (`to-spec`): the intent, the unhappy paths, the constraints, the
    design — modules, interfaces and seams (`codebase-design`) — each
    decision with its why, and a **Needs a human** section (below). When a
    question in it needs running code to answer, have a throwaway built
@@ -341,9 +343,9 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    On the thorough tier, `plan-reviewer` reviews the spec. Post its report
    and help me decide (below). I decide proceed, fix or kill. Never start
    building on a READY verdict alone.
-3. **Checkpoint the seams.** On the thorough tier, cut the approved spec
+3. **I checkpoint the seams.** On the thorough tier, I cut the approved spec
    into tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and
-   checkable done-criteria. Each ticket, or a standard or quick piece of work,
+   checkable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,
    is built in its own main session, which I start and watch. Opened on an approved spec or ticket, the
    session starts building directly, test-first at the agreed seams (`tdd`,
    `codebase-design`). It doesn't hand me `/implement` first; I may still
@@ -352,9 +354,10 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    spec, then the build in a main session, then `security-reviewer` on the
    diff in move 4. If a named agent is unavailable, stop and report. Never
    substitute another agent, especially for security work.
-4. **Stay the owner.** Verify the work at the end of its build session.
-   Run the tests and any gates the repo has; they decide pass or fail. Then
-   run `result-checker`, and for security work `security-reviewer` on the
+4. **I stay the owner.** I verify the work at the end of its build
+   session. You run the checks for me and bring me the verdict with a
+   recommendation. Run the tests and any gates the repo has; they decide pass
+   or fail. Then run `result-checker`, and for security work `security-reviewer` on the
    diff. Never resume a reviewer or a checker; fresh context is the point
    of them. `result-checker` advises: post its report and help me decide
    (below). I decide whether it's done. Close the ticket only after I have.
