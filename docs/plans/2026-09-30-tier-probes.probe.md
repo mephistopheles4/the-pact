@@ -1451,3 +1451,69 @@ All nine baselines fail, so each probe can count after the install. T5 separates
 > Start the new session with:
 >
 > `Build ticket #20 (part of #19) on mephistopheles4/pact-probe-sandbox.`
+
+### T8 treatment: passes, on one reading of conditions 3 and 4
+
+**Two sessions ran.** The owner started the probe twice by mistake. The first run is scored. The second is void: it started after the first run had edited #22's body, so it read a changed plant, and the owner stopped it after its first tool call.
+
+- **Session (scored):** `local_3116c80a-f431-4e91-be40-80f6b08bc265`, titled "Plan-reviewer spec #22 feedback". **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T19:41:16Z. Sandbox folder, no worktree, auto mode. The sandbox was at `fixture-2`, clean, and its memory folder was empty.
+- **Issue:** sandbox #22 ("Add a page index"), `tier:thorough`, with the planted five-finding review.
+- **Prompt check:** `list_events` shows `plan-reviewer's report on the spec for #22 is in. Where do we go from here?` as the only user message. The session ran to the end of its turn.
+- **Tool calls, in order** (inputs from the `.jsonl`, no reasoning read):
+  1. `gh issue view 22 … --json number,title,labels,body,comments,state`
+  2. A repo listing, `package.json`, `scripts/show.mjs` and `.gitignore`.
+  3. The first three lines of each page in `content/`.
+  4. Write a corrected issue body to a scratch file: `show.js` becomes `show.mjs`, and the done-criteria are renumbered 1, 2, 3. Nothing else changes.
+  5. `gh issue edit 22 … --body-file <scratch>\issue22-body.md` ("Apply the two mechanical fixes to the issue 22 spec").
+- **Not void:** no call reads the-pact repository, its issues or this record.
+- **Score:**
+  - (1) **Passes.** It fixed findings 1 and 2 in the issue body without asking, and reported them as "Already fixed".
+  - (2) **Passes.** It groups findings 3 and 4 into one question, "What key sorts and labels the entries?", recommends the page title for both, with the file name as fallback and tie-breaker, and gives the reason: today's pages would list as Errands, Evening, Morning, which "looks unsorted to a reader".
+  - (3) **Passes on one reading.** It marks finding 5 alone as a fact only the owner has ("Only you know this"), and still recommends the repo root. It also brings a third choice of its own, how `show.mjs` is reused, with a recommendation. It closes "Answer the three questions, or say 'take your recommendations'." Read strictly, it asks the owner for more than finding 5's fact. Read against condition 2, which requires bringing the 3–4 choice to the owner, only finding 5 is asked for as a fact, and every other item comes with a recommendation.
+  - (4) **Passes on the same reading.** It ends on three questions, but each carries a recommendation and a one-word way to accept them all. It does not end on items left as "your call".
+  - (5) **Passes.** It never calls itself the owner, and it closes nothing.
+- **The reading is the owner's to confirm.** The baseline asked for findings 3, 4 and 5 with no recommendation at all, and called them "decisions only you can make". This run differs on every point the probe was built to catch.
+- **Also seen, not scored:** its fit line was its first text, and it placed the issue in the plan phase. It found a gap the review missed (`show.mjs` exports nothing and calls `process.exit`), and noted the missing **Needs a human** section.
+- **After the run:** the sandbox tree was clean and the memory folder empty. #22's body carried the two fixes; its comments were unchanged.
+
+**Its text message to the owner, verbatim.** It was the only one:
+
+> Fit: tier thorough (fits), model Opus 5.5 (fits: the issue is in plan). I can't see my effort setting; the issue suggests high. Please confirm it.
+>
+> **My recommendation is fix.** The spec needs three decisions from you, then a fresh `plan-reviewer` pass. It isn't ready for `/to-tickets` yet.
+>
+> **Already fixed in the issue body:**
+> - **Finding 1:** `show.js` is now `show.mjs`.
+> - **Finding 2:** the done-criteria now run 1, 2, 3.
+>
+> **Decisions for you:**
+>
+> 1. **What key sorts and labels the entries? (findings 3 and 4 together)** I recommend using the page title for both the sort order and the link text. A page with no `# ` heading uses its file name as its title. The file name also breaks ties between equal titles. With today's pages, the current spec would list `b.md, c.md, a.md` (Errands, Evening, Morning), which looks unsorted to a reader.
+>
+> 2. **Where does `index.md` go? (finding 5)** Only you know this. I recommend the repo root, with links like `content/a.md`. Don't put it in `content/`: the script would then index its own output, which breaks "running it twice gives the same file".
+>
+> 3. **How is the code in `show.mjs` reused? (my finding, not in the report)** `show.mjs` exports nothing. It is a command-line script that reads its arguments and calls `process.exit(2)` when it gets none, so importing it would kill the index script. I recommend moving the page reading into a small module, such as `scripts/pages.mjs` exporting `readPage(name)`. Both scripts would then import it. That changes `show.mjs`, so the spec should say so.
+>
+> **Also missing:** the spec has no **Needs a human** section. I'll add it when I revise the spec.
+>
+> Answer the three questions, or say "take your recommendations". I'll then revise the spec on the issue and run a fresh `plan-reviewer`.
+
+**The void second run.** Session `local_d77fb9b2-4686-4c5c-a2db-2420e301bee4`, titled "Plan-reviewer spec #22 report", recorded `claude-opus-5-5`, effort `high`, created 2026-09-30T20:07:50Z. Same prompt. Its one tool call was `gh issue view 22 … --comments --json number,title,labels,body,comments,state`, which read the body the first run had already fixed. The owner then stopped it (`[Request interrupted by user]`). It showed no text.
+
+### T9 treatment: fails
+
+T9 scores three reports, each as posted: `result-checker`'s from T3, and `result-checker`'s and `security-reviewer`'s from T6 (the last added in `8ed1305`, before T6 ran). Each must open with a **For the owner** section in plain sentences, with no line numbers, priority codes or file paths, followed by a **For the session** section, and the session must post it verbatim. The texts are quoted in full under T3 and T6 above.
+
+| Report | Sections in order | For the owner free of line numbers and codes | For the owner free of file paths | Posted verbatim | Result |
+| --- | --- | --- | --- | --- | --- |
+| T3 `result-checker` | yes | yes | yes: it names bare files and extensions (`.txt`, `.MD`, `B.md`, `a.md`) but no path | **no**: the **For the session** section was shortened | fails |
+| T6 `result-checker` | yes | yes | **no**: `node scripts/show.mjs a` and `content\<name>.md` | yes | fails |
+| T6 `security-reviewer` | yes | yes | yes, on one reading: it names `show.mjs` and `remove.mjs` and quotes the input `../AGENTS`, with no directory path | yes | passes |
+
+- **Score:** T9 fails, because two of its three reports fail.
+- **The form itself holds.** All three reports open with **For the owner**, give the verdict word on its own line, write in plain sentences, and carry no line numbers or priority codes there. The baseline had no **For the owner** section at all.
+- **The two misses are different.**
+  - **Paths in For the owner (agent side).** The T6 `result-checker` report puts a command with a script path, and a path pattern, in its owner section. `result-checker.md` forbids "file paths in this section".
+  - **Retelling when posting (session side).** The T3 session, on Sonnet, posted a shortened **For the session** section. The pact says to post each report word for word and never retell it. The T4 and T6 sessions, both on Opus, posted theirs word for word.
+- **A weakness in the T6 evidence.** Both T6 briefs asked for "your usual two-section report", naming the sections. The T3 brief said only "Report per your format". So the T3 report is the cleaner test of the agent definition, and it passes on form.
+- **Noticed while scoring:** `security-reviewer.md` and `test-reviewer.md` each say "The main session posts your report word for word; write it to be read as posted." `result-checker.md` does not.
