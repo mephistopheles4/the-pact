@@ -36,6 +36,28 @@ function Test-Protected($rel) {
     $leaf -like '.credentials*' -or $n -match '^(?i)(projects|memory|skills|handover)(/|$)'
 }
 
+# Windows gives long names short 8.3 aliases (SETTIN~1.JSO); expand them so a
+# record entry cannot reach a protected file by an alias. No-op elsewhere.
+if ($IsWindows) {
+  Add-Type -Namespace Pact -Name Win -MemberDefinition '[System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern uint GetLongPathName(string s, System.Text.StringBuilder b, uint n);'
+}
+function Get-LongPath($path) {
+  if (-not $IsWindows -or -not (Test-Path -LiteralPath $path)) { return $path }
+  $sb = New-Object Text.StringBuilder 32768
+  if ([Pact.Win]::GetLongPathName($path, $sb, $sb.Capacity) -eq 0) { return $path }
+  $sb.ToString()
+}
+
+# $null when the entry is safe to act on; otherwise the reason to skip it.
+function Get-SkipReason($rel) {
+  if ([IO.Path]::IsPathRooted($rel) -or $rel -match '(^|[\\/])\.\.([\\/]|$)') { return 'unsafe path' }
+  if (Test-Protected $rel) { return 'protected path' }
+  $root = (Get-LongPath $ClaudeHome).TrimEnd('\', '/')
+  $real = Get-LongPath (Resolve-Live $rel)
+  if ($real.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -and (Test-Protected $real.Substring($root.Length))) { return 'protected path' }
+  $null
+}
+
 function Invoke-Git {
   $out = & git -C $repo @args
   if ($LASTEXITCODE -ne 0) { throw "git $($args -join ' ') failed" }
@@ -139,7 +161,8 @@ $drift = @(); $overwrite = @(); $add = @(); $delete = @(); $same = 0
 $entries = @()
 if ($manifest) {
   foreach ($e in $manifest.files) {
-    if (Test-Protected $e.path) { $warnings += "protected path in the install record, skipped: $($e.path)" } else { $entries += $e }
+    $why = Get-SkipReason $e.path
+    if ($why) { $warnings += "$why in the install record, skipped: $($e.path)" } else { $entries += $e }
   }
   foreach ($e in $entries) {
     $p = Resolve-Live $e.path
