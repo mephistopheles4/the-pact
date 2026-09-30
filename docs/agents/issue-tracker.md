@@ -2,7 +2,7 @@
 
 Issues and PRDs for this repo live as GitHub issues on `mephistopheles4/the-pact`. Use the `gh` CLI for all operations; it infers the repo from `git remote -v` when run inside a clone.
 
-⚠️ **The repo is private, and no code is pushed yet.** It was created on 2026-09-29 to hold issues; the owner pushes once the agents are refined. No local clone has a remote, so pass `-R mephistopheles4/the-pact` to every `gh` command. See [`AGENTS.md`](../../AGENTS.md#where-work-lives).
+⚠️ **The repo is private.** It was created on 2026-09-29 to hold issues, and `main` was first pushed on 2026-09-30. It stays private until a sweep before going public (#9, #10). Pass `-R mephistopheles4/the-pact` to every `gh` command anyway: a clone without the `origin` remote, such as a probe sandbox, would otherwise resolve to the wrong repo or none. See [`AGENTS.md`](../../AGENTS.md#where-work-lives).
 
 ## Conventions
 

@@ -25,8 +25,8 @@ how every session in every repo behaves. So:
 
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
   [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). The repo is
-  private and nothing is pushed yet, so issues can't link to commits; cite a
-  commit by its short hash.
+  private; `main` was first pushed on 2026-09-30. Cite a commit by its short
+  hash; GitHub links it only once the commit is on the remote.
 - **Plans:** a plan and its review rounds live on the issue, as the body and
   comments. The two plans created before the repo existed stay in
   `docs/plans/` until their close-out issues finish them.
@@ -66,7 +66,7 @@ Configuration for the optional [engineering skills](https://github.com/mattpococ
 
 ### Issue tracker
 
-GitHub issues on `mephistopheles4/the-pact`, via the `gh` CLI; external PRs are not a triage surface. The repo is private, with nothing pushed yet. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+GitHub issues on `mephistopheles4/the-pact`, via the `gh` CLI; external PRs are not a triage surface. The repo is private; `main` is pushed, and going public waits for a sweep (#9, #10). See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
 
 ### Triage labels
 
