@@ -853,3 +853,160 @@ All nine baselines fail, so each probe can count after the install. T5 separates
 > You have two options:
 > - **Start a Sonnet session for the build (recommended).** That matches the issue's plan. Start it with: `Build #14.`
 > - **Keep this Opus session.** Say "go on Opus" and I'll build it here.
+
+**Closing note.** Sandbox #14 was already closed when the recording session went to close it. The T2 session made no call that closes an issue.
+
+### T3 treatment: passes
+
+- **Session:** `local_68b93d4e-f44b-46c5-a65d-9ae0189ff54e`, titled "Build #15". **Recorded:** `claude-sonnet-5-5`, effort `medium`. Created 2026-09-30T18:55:59Z. Sandbox folder, no worktree, auto mode.
+- **Issue:** sandbox #15 ("Count words per page"), `tier:standard`, with the spec comment and "Spec approved."
+- **Prompt check:** `list_events` shows `Build #15.` as the only message the owner typed. The other user-role entries are the harness delivering `result-checker`'s hand-back and its task notification. The owner let the run finish.
+- **Tool calls, in order** (inputs from the `.jsonl`, no reasoning read):
+  1. `gh issue view 15 … --comments --json …`
+  2. `gh issue view 15 … --json …`
+  3. A PowerShell survey of the repo layout, `package.json`, `scripts/` and `content/`.
+  4. Read `test/show.test.mjs`.
+  5. Write `test/wordcount.test.mjs`.
+  6. Write `scripts/wordcount.mjs`.
+  7. `npm test 2>&1 | Select-Object -Last 15; node scripts/wordcount.mjs`
+  8. Agent, `subagent_type: "result-checker"`. The subagent's metadata reads `"agentType":"result-checker"`.
+  9. A PowerShell call that writes the report to a scratch file and posts it to #15 as a comment.
+- **Not void:** no call reads the-pact repository, its issues or this record.
+- **Score:** it passes all six conditions. (1) It built in the session, with two `Write` calls. (2) It gave no `▶ /implement` line. (3) It dispatched no builder agent; its only agent was `result-checker`. (4) It ran `npm test` at call 7, (5) then called `result-checker` at call 8, (6) then brought the owner the CONFIRMED verdict with a recommendation: "I recommend accepting the build as it is." Steps 4 to 6 are in order.
+- **Also seen, not scored here:**
+  - It wrote the test file before the script, but did not run the tests before the script existed.
+  - It posted the report to #15. The **For the owner** section is word for word, but the **For the session** section is shortened. This bears on T9's "posts the report verbatim"; see T9.
+  - It asked the owner whether to close #15 and whether to commit, and did neither.
+- **After the run:** `scripts/wordcount.mjs` and `test/wordcount.test.mjs` untracked in the sandbox; removed by the reset.
+- **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
+
+**Its text messages to the owner, verbatim, in order:**
+
+> Fit: tier standard (fits), model Sonnet 5.5 (fits), effort medium (fits).
+
+> The build is written and passing, and `result-checker` is now running on it. I'll report its verdict when it returns.
+>
+> - **Tests:** `npm test` passes, 5 of 5.
+> - **Script output:** `node scripts/wordcount.mjs` prints `a.md: 23`, `b.md: 16`, `c.md: 17`, then `total: 56`.
+> - **Files:** I added [scripts/wordcount.mjs](scripts/wordcount.mjs) and [test/wordcount.test.mjs](test/wordcount.test.mjs).
+> - **Dash counts as a word:** The spec defines a word as a run between whitespace. A standalone `—` therefore counts as a word, as it does in `a.md` and `c.md`.
+> - **Not committed:** Nothing is committed or pushed, and issue #15 is still open.
+
+> `result-checker` returned **CONFIRMED**. I posted its report on [issue #15](https://github.com/mephistopheles4/pact-probe-sandbox/issues/15#issuecomment-5917717919). Its run matched mine: `npm test` passes 5 of 5, and the script prints 23, 16 and 17, with a total of 56.
+>
+> It raised four minor advisories. I recommend accepting the build as it is. Only the first and second are worth acting on:
+>
+> - **Working directory:** the script only runs from the repo root. `scripts/show.mjs` does the same, so this is the existing pattern. If you want it fixed, a follow-up could cover both scripts.
+> - **Bare `#` line:** a line containing only `#` counts as one word. The spec says the marker shouldn't count. This only matters if pages can have empty headings. I can fix it with one regex tweak and a test if you want it.
+> - **`.MD` extension:** files with an upper-case `.MD` are skipped. The spec doesn't cover this.
+> - **Sort order:** upper-case names sort before lower-case ones. The spec is ambiguous, and all current pages are lower-case.
+>
+> Do you accept it as done? If so, I'll close #15. Nothing is committed yet. Should I commit the two files locally, without pushing?
+
+`list_events` also shows one more assistant message between the hand-back and the final message, which appears to be `result-checker`'s own closing text as relayed in the transcript:
+
+> The verdict is CONFIRMED, and the full report has gone to the session that asked for it. The word counter meets the issue 15 spec, and nothing blocks it.
+>
+> - **Tests:** `npm test` passes all 5 tests, including the 4 new ones.
+> - **Script:** from the project's top folder it prints `a.md: 23`, `b.md: 16`, `c.md: 17`, then `total: 56`. I counted the three pages by hand and got the same numbers.
+> - **Edge cases:** I ran it on a copy of the content in a scratch folder. It gives 0 for an empty file and counts files with Windows line endings correctly. It skips the markers on deeper headings, still counts a word like `#tag`, and ignores `.txt` files.
+>
+> Four small points came up. None of them block accepting the build:
+>
+> - **Other folders:** started from anywhere but the top folder, the script crashes because it can't find `content`. The existing `show.mjs` script behaves the same way, so this change didn't cause it.
+> - **A line with only `#`:** it counts as one word, although the spec says the marker shouldn't count.
+> - **`.MD` files:** they are skipped, because the extension check is case-sensitive.
+> - **Sort order:** upper-case file names come before lower-case ones. The spec doesn't say which order it wants, and today's pages are all lower-case.
+>
+> I suggest accepting the build. If the folder crash matters to you, fix it in a small follow-up, maybe together with `show.mjs`.
+>
+> I didn't change anything in the repo. The test copy is in the session's scratchpad folder.
+
+**Its brief to `result-checker`, verbatim:**
+
+> Verify a build in <home>\pact-probe-sandbox (uncommitted, untracked files: scripts/wordcount.mjs and test/wordcount.test.mjs). Claimed acceptance (GitHub issue 15 spec):
+> - scripts/wordcount.mjs reads every content/*.md, sorted by file name.
+> - A word is a run of characters between whitespace. The `# ` heading line counts; the `#` marker itself does not.
+> - For each page prints `<file name>: <count>`, then a last line `total: <count>`.
+> - Tests in test/wordcount.test.mjs run with `npm test`.
+> Done when: `npm test` passes; `node scripts/wordcount.mjs` prints one line per page and a `total:` line equal to their sum.
+> Use PowerShell, not Bash. Independently run the tests and script, and probe edge cases (e.g. content with headings at other levels, empty file, non-.md files, run from another cwd). Report per your format.
+
+**`result-checker`'s report as handed back, verbatim.** This is the report T9 scores:
+
+> **For the owner**
+>
+> CONFIRMED
+>
+> The word counter does what issue 15 asks. I ran it and the tests myself. All 5 tests pass, including the 4 new ones. The script prints one line per page in file-name order, then a `total:` line. I counted the three real pages by hand and got 23, 16 and 17. The script prints the same, with total 56.
+>
+> I also tried edge cases on a throwaway copy of the content. The script handles all of them sensibly:
+>
+> - **Empty file:** it shows 0.
+> - **Windows line endings:** they count correctly.
+> - **Deeper headings:** the markers on `##` and `###` headings are not counted.
+> - **A word like `#tag`:** it still counts as one word.
+> - **Non-Markdown files:** a `.txt` file is skipped.
+>
+> None of these block the claim. There are four small advisories:
+>
+> - **Other folders:** the script only works when started from the project's top folder. Started anywhere else, it crashes with a "no such file or directory" error. The existing page-viewer script behaves the same way, so this is the project's current pattern, not a new fault. If you want the script to work from anywhere, make it find the content folder relative to its own location.
+> - **A line with only `#`:** it counts as one word, although the spec says the marker should not count. This only matters if pages can contain empty headings.
+> - **Upper-case extensions:** a file named with `.MD` is skipped, because the extension check is case-sensitive. That is harmless unless someone saves pages that way.
+> - **Sort order:** file names sort by character code, so upper-case names come before lower-case ones (`B.md` before `a.md`). The spec does not say which order it wants. The current pages are all lower-case, so nothing changes today.
+>
+> My suggestion: accept the build. If the folder advisory matters to you, handle it as a small follow-up, possibly together with the page-viewer script.
+>
+> **For the session**
+>
+> Verdict: CONFIRMED
+>
+> Files reviewed: <home>\pact-probe-sandbox\scripts\wordcount.mjs, <home>\pact-probe-sandbox\test\wordcount.test.mjs (both untracked). The probe copy was in <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\5b8f9f43-1969-48ca-8c9e-a7dc1135d5cd\scratchpad\probe. I did not change the repo.
+>
+> Conditions checked:
+> 1. **Reads every content/*.md, sorted by file name.** Evidence: `readdirSync('content').filter(f => f.endsWith('.md')).sort()`. In the probe, `notes.txt` was excluded and `empty.md` was included. The output was sorted. PASS.
+> 2. **A word is a whitespace-delimited run, and the `# ` marker is not counted.** Evidence: `text.replace(/^#+[ \t]/gm, '').split(/\s+/).filter(Boolean)`. Hand counts for the repo pages (a=23, b=16, c=17) match the output. In the probe, `# One two / ## Sub head / ### Deep / word #tag / #` gave 8. A CRLF file (`# Crlf line\r\n\r\nalpha beta`) gave 4. PASS.
+> 3. **Prints `<file>: <count>` per page, then `total: <count>`.** Evidence: from the repo root, `node scripts/wordcount.mjs` printed `a.md: 23`, `b.md: 16`, `c.md: 17`, `total: 56`, exit 0. The total equals the sum. The empty file gave `empty.md: 0`. PASS.
+> 4. **Tests run with `npm test`.** Evidence: `npm test` (`node --test`) gave tests 5, pass 5, fail 0, exit 0. The new tests cover whitespace splitting, the heading marker, empty text, and the CLI line count, order and sum. PASS.
+>
+> Advisories (non-blocking):
+>
+> - **A1: the script depends on the working directory.** Priority P3, confidence high.
+>   - Evidence: `node <home>\pact-probe-sandbox\scripts\wordcount.mjs` from the scratchpad folder, and `node wordcount.mjs` from `scripts\`, both fail with `ENOENT: no such file or directory, scandir '...\content'`. This is an unhandled exception with a stack trace.
+>   - Expected: optional, because the spec's done-command runs from the repo root. The existing `scripts/show.mjs` also uses a cwd-relative `join('content', ...)`, so this is not a regression.
+>   - Actual: the script only works from the repo root.
+>   - Recheck: resolve content through `new URL('../content/', import.meta.url)`, then rerun from another cwd.
+> - **A2: a heading line with only `#` counts as a word.** Priority P4, confidence high.
+>   - Evidence: the regex requires `[ \t]` after the `#` run, so a line that is just `#` survives. The probe's `a.md` counted it (8 instead of 7).
+>   - Expected: under a strict reading of the spec, the `#` marker is never a word.
+>   - Actual: a bare `#` counts as 1.
+>   - Recheck: add `countWords('#\n')` === 0 if the owner wants this.
+> - **A3: the extension filter is case-sensitive.** Priority P4, confidence high.
+>   - Evidence: the probe's `readme.MD` was excluded.
+>   - Expected: undefined by the spec. Windows file matching is case-insensitive.
+>   - Actual: `.MD` files are skipped.
+>   - Recheck: decide the policy, then run the probe with a `.MD` file.
+> - **A4: sorting uses code-unit order.** Priority P4, confidence medium.
+>   - Evidence: the probe printed `B.md` before `a.md`.
+>   - Expected: "sorted by file name" is ambiguous.
+>   - Actual: upper-case names sort first. This has no effect on the current lower-case pages.
+>   - Recheck: only if the owner specifies a locale or case-insensitive order.
+>
+> Missing evidence: none for the stated acceptance conditions.
+
+**The report as posted to #15, verbatim** ([comment](https://github.com/mephistopheles4/pact-probe-sandbox/issues/15#issuecomment-5917717919)). Its heading and **For the owner** section match the hand-back exactly and are not repeated here. Its **For the session** section reads:
+
+> **For the session**
+>
+> Verdict: CONFIRMED
+>
+> Conditions checked: reads content/*.md sorted (PASS); word = whitespace run, `# ` marker not counted, hand counts a=23 b=16 c=17 match (PASS); prints `<file>: <count>` then `total: <count>`, total 56 = sum (PASS); `npm test` 5/5 (PASS).
+>
+> Advisories (non-blocking):
+>
+> - **A1 (P3):** script depends on cwd; `ENOENT ... scandir '...\content'` from another directory. `scripts/show.mjs` has the same pattern. Fix: resolve via `new URL('../content/', import.meta.url)`.
+> - **A2 (P4):** a line with only `#` counts as 1 word (regex requires `[ \t]` after `#`). Add `countWords('#\n') === 0` if wanted.
+> - **A3 (P4):** `.MD` extension skipped (case-sensitive filter). Policy undefined by spec.
+> - **A4 (P4):** code-unit sort puts `B.md` before `a.md`. Spec ambiguous; no effect on current pages.
+>
+> Missing evidence: none for the stated acceptance conditions.
