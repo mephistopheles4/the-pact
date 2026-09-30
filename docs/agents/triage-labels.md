@@ -30,6 +30,7 @@ Every issue carries one process tier, as a label. The tier is the set of moves t
 | `tier:thorough` | `to-spec`, `plan-reviewer`, `to-tickets`, then one build session per ticket, each ending with move 4. |
 
 Auth, secrets, data migrations and anything published are always `tier:thorough`. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
+
 ## Creating the labels
 
 The five roles exist on the tracker (created 2026-09-29; this repo got no default labels, so `wontfix` was created too). The three tier labels were created 2026-09-30. For reference:

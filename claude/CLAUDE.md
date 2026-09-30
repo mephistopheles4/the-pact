@@ -78,8 +78,8 @@ decide X and Y, OK?"), then follow me.
 **Where work starts.**
 
 - **Quick work** may stay in chat with no issue. The first reply proposes the
-  tier with one line of why. If the work turns out to be standard or
-  thorough, stop and offer to file an issue.
+  tier with one line of why, as on an unlabelled issue, and stops. If the
+  work turns out to be standard or thorough, stop and offer to file an issue.
 - **Standard and thorough work** always starts by filing an issue, so its
   tier, plan and state have a home. In a repo without a tracker, the issue's
   role goes to wherever the repo keeps plans, and the tier and the per-phase
@@ -168,18 +168,18 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    (`prototype`) and fold what it shows back into the spec. A throwaway is
    built like any other step: in a main session, and through the security
    route in move 3 if it touches auth, secrets, crypto or input validation.
-   `plan-reviewer` reviews the spec; show me a table of its findings (its
+   On the thorough tier, `plan-reviewer` reviews the spec; show me a table of its findings (its
    own headlines, with severity), and link its full findings, verbatim, in
    a kept file. I decide proceed, fix or kill. Never start building on
    READY alone.
-3. **Checkpoint the seams.** Cut the approved spec into tickets
-   (`to-tickets`): thin end-to-end slices, each with its blocking edges and
-   checkable done-criteria. Each ticket is built in its own main session,
-   which I start and watch. Opened on an approved spec or ticket, the
+3. **Checkpoint the seams.** On the thorough tier, cut the approved spec
+   into tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and
+   checkable done-criteria. Each ticket, or a standard or quick piece of work,
+   is built in its own main session, which I start and watch. Opened on an approved spec or ticket, the
    session starts building directly, test-first at the agreed seams (`tdd`,
    `codebase-design`). It doesn't hand me `/implement` first; I may still
    type it. Anything touching auth, secrets, crypto or input validation
-   takes the security route, whatever its size: `security-reviewer` on the
+   takes the security route, however small: `security-reviewer` on the
    spec, then the build in a main session, then `security-reviewer` on the
    diff in move 4. If a named agent is unavailable, stop and report. Never
    substitute another agent, especially for security work.
@@ -209,7 +209,7 @@ stays last.
 once:
 
 - **Ask for my call first.** One question that the step's output answers,
-  for example "What size do you think this is?" for triage. Wait for my
+  for example "What tier do you think this is?" for triage. Wait for my
   answer before showing yours.
 - **Say what I'd be handing over,** in one sentence, as a fact about the
   step, not advice about me. No praise, no blame, no "you should".
@@ -221,20 +221,21 @@ Say this once per session. Don't repeat it at the next move, and don't raise
 it mid-step.
 
 **Keep one piece of work per session, and hand off through the tracker.** I
-tend to forget, so check for me. At each phase boundary, check how full the
-context window is, if a tool reports it. When it is past about half, or when
-I have asked for a different piece of work at or since the last boundary,
-first make sure every artifact so far is on the tracker, or where the repo
-keeps plans: the triage, the spec, the review tables, the tickets and their
-state. On each open ticket this session created, note that this session is
-finished with it, so the next session can take it without waiting on the
-presumed-live rule. Then tell me it's a good point for a fresh session, and
-give me one line to start it with, naming the issue, ticket or plan file.
-For work too big for one session, suggest `wayfinder` at move 1, so the map
-carries the chain across sessions. This is a suggestion, not a stop: if I
-say keep going, keep going, and don't raise it again before the next phase
-boundary.
-
+tend to forget, so check for me. A phase boundary always ends the session (see
+"Sessions and models"). Separately, keep an eye on the context window all the
+way through, not only at boundaries, if a tool reports it. When it is past
+about half of the window, for example 500K of a 1M window, or when I have
+asked for a different piece of work, propose a hand-off, even mid-phase: a
+fresh session is far more efficient than a long one. First make sure every
+artifact so far is on the tracker, or where the repo keeps plans: the triage,
+the spec, the review tables, the tickets and their state. On each open ticket
+this session created, note that this session is finished with it, so the next
+session can take it without waiting on the presumed-live rule. Then tell me
+it's a good point for a fresh session, and give me one line to start it with,
+naming the issue, ticket or plan file. For work too big for one session,
+suggest `wayfinder` at move 1, so the map carries the chain across sessions.
+A mid-phase proposal is a suggestion, not a stop: if I say keep going, keep
+going, and don't raise it again for this phase.
 **Every spec has a Needs a human section.** It lists each step that needs
 me, by phase and session, and when: *at sign-off* (say how the spec settles
 it) or *during the build* (say when and how it's handled). It says "None" if
