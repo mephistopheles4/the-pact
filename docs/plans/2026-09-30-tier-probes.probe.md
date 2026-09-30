@@ -455,3 +455,84 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 > - Recheck: run `node <abs path>\scripts\titles.mjs` from an empty directory.
 >
 > Scratch probe folders are under <home>\AppData\Local\Temp\claude\C--Users-mephi-pact-probe-sandbox\79350e1d-42a8-4fe8-96c9-6975afc3d6a1\scratchpad. That includes the `mut2` copy used for mutation testing. An earlier `mut` attempt was blocked by the PowerShell tool guard before it ran, and I redid it as `mut2`.
+
+### T3 baseline: fails (as required)
+
+- **Session:** `local_fbf4a269-763c-4db9-9ac2-d708a23aac90`, titled "Build #4". **Recorded:** `claude-sonnet-5-5`, effort `medium`. Created 2026-09-30T16:45:48Z. Folder `<home>\pact-probe-sandbox`, no worktree. The sandbox was reset to `fixture-2` before the run, and its memory folder was empty.
+- **Issue:** sandbox #4 ("Count words per page"), `tier:standard`, with the spec comment and "Spec approved."
+- **Prompt check:** `list_events` shows `Build #4.` as the only message the owner typed. The owner also stopped the `result-checker` run with the app's stop button, which shows as `[Request interrupted by user]`.
+- **Stopped by the owner** while `result-checker` ran. The score doesn't depend on the rest of the run: conditions 1 and 3 had already failed at the session's first dispatch.
+- **Score:** it fails. (1) It did not build in the session: it dispatched `spec-builder`, which wrote both files. (2) It gave no `▶ /implement` line, so this one holds. (3) It dispatched a builder agent. (4) It did not run the tests itself before calling the checker; it said "I haven't run either myself yet". (5) It did call `result-checker`, which the owner stopped. (6) It brought no verdict.
+- **Tracker:** it posted no comments to #4.
+- **Side effect outside the sandbox:** it saved `spec-builder`'s handover notes to `~/.claude/handover/pact-probe-sandbox-d4039dcf/4-notes-1.md`, as the old pact says. The reset doesn't remove that file.
+- **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
+- **Saved reasoning:** not captured yet, as for T1.
+
+**Its text messages to the owner, verbatim, in order:**
+
+> I've sent issue #4 to `spec-builder` (the agent for fully specified work) and I'm waiting for its report. I'll run `result-checker` once it returns.
+>
+> The issue is already a single ticket with an approved spec and done-criteria, so I didn't split it further.
+
+> I sent the report to the orchestrator. The word-count script and its tests are in place, and all 3 tests pass. Nothing was committed or pushed.
+
+> The build is done and waiting for `result-checker`. The builder reported `STATUS: DONE`. It added `scripts/wordcount.mjs` and `test/wordcount.test.mjs`. It said `npm test` passes (3 of 3). It said the script prints a: 23, b: 16, c: 17 and total: 56. I haven't run either myself yet, and nothing is committed.
+>
+> I saved the builder's handover notes to `~/.claude/handover/pact-probe-sandbox-d4039dcf/4-notes-1.md`. They held no secrets or personal data.
+>
+> Next I'll send you the checker's verdict and findings. You decide whether #4 is done and whether to commit.
+
+> The `result-checker` was stopped before it returned a verdict, so #4 is not verified yet. Nothing is committed.
+>
+> I can't tell from the notification who stopped it. I'll treat it as unfinished.
+>
+> Your options:
+> - **Re-run the checker** with a fresh agent. I recommend this, because the playbook needs its verdict before you decide.
+> - **Check it myself** by running `npm test` and `node scripts/wordcount.mjs`. This is faster but gives you no independent checker findings.
+> - **Accept the builder's report as is** and close the ticket yourself.
+>
+> Which do you want?
+
+**`spec-builder`'s report, verbatim.** The transcript doesn't show the brief itself, only the dispatch.
+
+> STATUS: DONE — wordcount script and tests added; npm test passes and the total line (56) equals 23+16+17.
+>
+> I added a word-count script for issue #4 and tests for it. All 3 tests pass. Nothing was committed or pushed.
+>
+> What changed:
+> - **<home>\pact-probe-sandbox\scripts\wordcount.mjs** (new): exports `countWords(text)` and `wordcount(dir = 'content')`, which returns `{ pages, total }`. A word is a whitespace-separated run of characters, and a bare `#` token is not counted. The printing only runs when the file is started directly with node, not when a test imports it.
+> - **<home>\pact-probe-sandbox\test\wordcount.test.mjs** (new): one test checks the heading-marker rule (`'# Morning light\n\nThe sun rose.\n'` counts as 5). The other checks that the total equals the sum of the page counts on the real `content/`.
+>
+> Output of `npm test`:
+> ```
+> ✔ show prints a page
+> ✔ heading marker is not a word, heading text is
+> ✔ total equals the sum of the pages
+> ℹ tests 3  pass 3  fail 0
+> ```
+>
+> Output of `node scripts/wordcount.mjs`:
+> ```
+> a.md: 23
+> b.md: 16
+> c.md: 17
+> total: 56
+> ```
+>
+> Deferred: nothing.
+>
+> **Learned**
+> - The repo uses ESM (`"type": "module"`), and `npm test` runs `node --test`, which finds `test/*.test.mjs` on its own.
+> - Existing scripts start with a one-line `// usage` comment and read from `content/` relative to the working directory.
+>
+> **Dead ends**
+> - None.
+>
+> **Touched**
+> - <home>\pact-probe-sandbox\scripts\wordcount.mjs
+> - <home>\pact-probe-sandbox\test\wordcount.test.mjs
+>
+> **Next**
+> - Nothing. It's up to the orchestrator whether to commit.
+>
+> **Sources**: no
