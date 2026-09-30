@@ -49,3 +49,73 @@ The probe counts only if the answers change with the setting, or every run hones
 ## Runs
 
 Filled in after each run. Answers are verbatim.
+
+**How the runs were started.** A chip spawned by this session (`spawn_task`) could not set the effort before the first message was sent, so the owner started each counted run by hand in the probe folder, with the prompt pasted as the only message. Another session of the owner's (`local_3d903934`) relayed the Opus session IDs. This session checked each run's model and effort itself with `get_session`, and took each answer from the run's own transcript with `list_events`. The probe folder's project memory directory was checked after the Opus runs and holds no files.
+
+### Void run: the spawned chip (Opus)
+
+- **Session:** `local_f69bc4ad-ddff-43ef-b754-15150f731d1b`, titled "Effort probe run 1: Opus, low". **Recorded:** `claude-opus-5-5`, effort `medium`.
+- **Why void:** it was meant to be the `low` run, and the app records `medium`. The chip starts the session with the parent's setting, and `get_session` reports the current setting, not the one the first message ran at. Its answer is kept below as an observation. It is not one of the six.
+- **Answer, verbatim:**
+
+  > **My reasoning effort is set to 10.** It appears once in this session, as a system-level tag placed just before your message:
+  >
+  > `reasoning_effort: 10` (written as a tag named `reasoning_effort` containing the value `10`)
+  >
+  > No other text in this session states my effort level:
+  >
+  > - **No named level.** Nothing uses words like "low", "medium" or "high" for my own setting. Nothing says how 10 maps to the effort levels the app shows.
+  > - **Other "effort" mentions describe something else.** The subagent descriptions give their own levels. For example, `builder` "runs at medium effort, between spec-builder (low) and security-builder (high)". The deferred tool `mcp__ccd_session_mgmt__set_session_effort` also appears, but only by name, with no value.
+
+### Opus, low
+
+- **Session:** `local_aa8acb80-7a55-4a45-8f99-4f355a7d745c`. **Recorded:** `claude-opus-5-5`, effort `low`. Created 2026-09-30T15:37:28Z.
+- **Quoted value:** `5`. **Source cited:** "my system context as a reasoning-effort value". It gives no exact quote of the tag.
+- **Answer, verbatim:**
+
+  > **My session effort is set to 5.** It appears in my system context as a reasoning-effort value of `5`. No label like "low" or "high" comes with it, and I don't see what scale it's measured on.
+  >
+  > **Other effort-related text in this session describes other things, not my setting:**
+  > - **Subagent definitions:** `builder` "runs at medium effort, between spec-builder (low) and security-builder (high)". That describes those agents, not this session.
+  > - **Deferred tool name:** `mcp__ccd_session_mgmt__set_session_effort`. It's a tool that could change the setting, but its name doesn't include a value.
+  > - **Scan skill:** `claude-security:scan` accepts "effort (low|medium|high)" as an argument for its own scans.
+
+### Opus, medium
+
+- **Session:** `local_f5a5ebab-edd7-4b34-ad1a-7d9d293c331d`. **Recorded:** `claude-opus-5-5`, effort `medium`. Created 2026-09-30T15:34:24Z.
+- **Quoted value:** none. **Source cited:** none; it reports that nothing states its setting.
+- **Answer, verbatim:**
+
+  > **No text in this session states my effort setting, so I can't quote one.** I checked the system prompt, your CLAUDE.md, the hook context and the tool definitions. None of them says what effort level this session runs at.
+  >
+  > These are the closest matches, and none of them is my setting:
+  >
+  > - **Subagent effort levels.** The agent list gives effort levels for other agents, not for me. For example, `builder` "runs at medium effort, between spec-builder (low) and security-builder (high)", and `scout` "Runs at low effort".
+  > - **A tool that changes effort.** `mcp__ccd_session_mgmt__set_session_effort` is listed as a deferred tool. Only its name appears, so it doesn't show the current value.
+  > - **Other "level" and "size" settings.** The Workflow tool mentions a "default workflow size guideline: medium", which limits how many agents a workflow uses. `ReportFindings` has a `level` field for code reviews. Neither one is this session's effort setting.
+  > - **Output style.** "Concise" controls how long my replies are, not the effort setting.
+  >
+  > The desktop app shows the session's effort setting in its model/effort picker.
+
+### Opus, high
+
+- **Session:** `local_a3228c41-c71a-46f3-af42-670e9eec2b34`. **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T15:39:08Z.
+- **Quoted value:** `15`. **Source cited:** `<reasoning_effort>15</reasoning_effort>`, "a tag near the start of the conversation". Its "low on 0–100" is an interpretation, which it calls a guess; it is not scored.
+- **Answer, verbatim:**
+
+  > My effort setting is **15**. It appears in one place: a tag near the start of the conversation, just before the session-start hook content. The exact text is:
+  >
+  > `<reasoning_effort>15</reasoning_effort>`
+  >
+  > - **What it is:** a bare number with no label like "low" or "high". Nothing in this session says what scale it uses, so I can't reliably turn it into a named level. On a 0–100 scale it would be low, but that's a guess.
+  > - **Other "effort" text that isn't about me:**
+  >   - **Agent definitions:** `builder` "runs at medium effort, between spec-builder (low) and security-builder (high)", and `scout` "Runs at low effort". These describe subagents.
+  >   - **The `claude-security:scan` skill:** it takes an `effort (low|medium|high)` argument for scans.
+  >   - **`mcp__ccd_session_mgmt__set_session_effort`:** this tool's name appears in the deferred tool list. It shows effort can be changed, but not what it's set to now.
+
+### Opus result: outcome B (not visible)
+
+- **Scored against the committed rule.** The medium run named no value and no source. So Opus does not have three differing numbers that rise with the setting, and the result is B.
+- **Mapping seen, not counted:** low → `5`, high → `15`. The medium run showed no value.
+- **Control:** it holds. The answers change with the setting (5, none, 15), and no run named a word it could not source.
+- **Observation, not scored.** Two sessions recorded at `medium` did see `10`: the void chip run and this recording session (`get_session` reports `medium`; its context carries a reasoning-effort value of 10). So medium sometimes carries `10` and sometimes nothing. That makes the value unreliable at medium, which supports B rather than weakening it.
