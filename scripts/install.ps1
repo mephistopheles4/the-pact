@@ -28,7 +28,7 @@ function Resolve-Live($rel) {
 
 # Never deleted, overwritten or listed, whatever the install record says.
 function Test-Protected($rel) {
-  $n = ($rel -replace '\', '/').TrimStart('/')
+  $n = $rel.Replace('\', '/').TrimStart('/')
   while ($n.StartsWith('./')) { $n = $n.Substring(2) }
   $leaf = ($n -split '/')[-1]
   $n -ieq 'settings.json' -or $n -ieq '.pact-install.json' -or
