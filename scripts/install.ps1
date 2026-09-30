@@ -28,9 +28,10 @@ function Resolve-Live($rel) {
 
 # Never deleted, overwritten or listed, whatever the install record says.
 function Test-Protected($rel) {
-  $n = $rel.Replace('\', '/').TrimStart('/')
-  while ($n.StartsWith('./')) { $n = $n.Substring(2) }
-  $leaf = ($n -split '/')[-1]
+  # Normalise as Windows does: drop empty and '.' segments, stream suffixes, trailing dots and spaces.
+  $segs = @($rel.Replace('\', '/') -split '/' | ForEach-Object { ($_ -replace ':.*$', '').TrimEnd('.', ' ') } | Where-Object { $_ })
+  $n = $segs -join '/'
+  $leaf = if ($segs.Count) { $segs[-1] } else { '' }
   $n -ieq 'settings.json' -or $n -ieq '.pact-install.json' -or
     $leaf -like '.credentials*' -or $n -match '^(?i)(projects|memory|skills|handover)(/|$)'
 }
