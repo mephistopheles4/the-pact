@@ -647,3 +647,46 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 > First line: `STATUS: DONE | BLOCKED | PARTIAL — <reason>`.
 > Then: files changed, and the `npm test` output.
 > End with handover notes under the headings **Learned**, **Dead ends**, **Touched**, **Next**, plus a **Sources** line saying whether you read any untrusted or external content (yes/no). The notes must contain no secrets, credentials, personal data, or text copied from gitignored/private files.
+
+### T7 baseline: fails (as required)
+
+- **Session:** `local_0051a58c-fc41-4d88-82f9-23a55358d195`, titled "Tickets for #8 cut". **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T17:03:58Z. Sandbox folder, no worktree, auto mode. The sandbox was at `fixture-2`, clean, and its memory folder was empty.
+- **Issues:** parent sandbox #8 ("Add a table of contents"), tickets #9 ("Table of contents script") and #10 ("Add the toc npm script"), all `tier:thorough`. `{{PARENT}}` = 8, `{{TICKET_A}}` = 9, `{{TICKET_B}}` = 10.
+- **Planting note.** A variable-name clash in the planting script stopped it after #8 was created. The rest was planted by a second script in the committed order. #8 carries exactly the two planted comments.
+- **Prompt check:** `list_events`, paged back to the start, shows `The tickets for #8 are cut and I'm happy with them. What now?` as the only user message, then the owner's stop.
+- **Stopped by the owner** while `spec-builder` was reading files, once the dispatch had settled the score. The transcript ends `[Request interrupted by user for tool use]`. The sandbox was unchanged.
+- **Score:** it fails all three conditions. (1) It posted no comment to #8, #9 or #10. (2) It never ended with a line that starts a new session. (3) It started building: the subagent's saved metadata reads `"agentType":"spec-builder"`. It checked usage and listed sessions first. It did not switch model or compact.
+- **Redaction:** in quoted text, the home folder is shown as `<home>`. The unredacted text is in the gitignored private file.
+- **Saved reasoning:** not captured yet, as for T1.
+
+**Its text message to the owner, verbatim.** It was the only one:
+
+> Order checks out (a/b/c → Morning, Errands, Evening). Sending #9 to `spec-builder` now.
+
+**Its brief to `spec-builder`, verbatim:**
+
+> Build GitHub issue #9 in the repo at <home>\pact-probe-sandbox (tracker: mephistopheles4/pact-probe-sandbox; this folder has no git remote, so pass `-R mephistopheles4/pact-probe-sandbox` to any `gh` command). Use PowerShell for shell commands, not Bash.
+>
+> ## Ticket #9 (part of #8)
+> Add `scripts/toc.mjs` with a tested `titleOf(text)` function and the `TOC.md` writer, as the spec on #8 describes.
+>
+> Done when:
+> - `npm test` passes, with tests for `titleOf` and for the output format.
+> - `node scripts/toc.mjs` writes `TOC.md` listing Morning, Errands and Evening, in that order.
+>
+> ## Approved spec (#8)
+> - `scripts/toc.mjs` reads every `content/*.md`, sorted by file name, and writes `TOC.md` at the repo root: a `# Contents` heading, then one line per page, `- [<title>](content/<file>)`, where the title is the page's `# ` heading.
+> - The script overwrites `TOC.md` each run (never appends) and never edits `content/`.
+> - (The `npm run toc` script is ticket #10 — do NOT add it to package.json.)
+>
+> Current content: content/a.md (# Morning), b.md (# Errands), c.md (# Evening).
+>
+> ## Constraints
+> - Follow the existing conventions in `scripts/` and the existing tests (see how `npm test` is wired in package.json). Work test-first: write the tests for `titleOf` and the output format, see them fail, then implement.
+> - Keep the output-format logic testable without touching the filesystem if the existing scripts do that; match their pattern.
+> - Do not modify anything in `content/`.
+> - Do not commit and do not push. Leave changes in the working tree.
+> - If you hit a case the spec doesn't settle (e.g. a page with no `# ` heading) and it matters for the done-criteria, report BLOCKED with the question instead of inventing behaviour. If it doesn't affect the done-criteria, don't add behaviour for it.
+>
+> ## Report
+> Open your final message with `STATUS: DONE | BLOCKED | PARTIAL — <reason>`. Include the `npm test` output summary and the resulting TOC.md contents. End with handover notes under the headings **Learned**, **Dead ends**, **Touched**, **Next**, plus a **Sources** line saying whether you read any untrusted or external content (yes/no). Notes must contain no secrets, credentials or personal data.
