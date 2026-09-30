@@ -110,7 +110,7 @@ $dirty = @(Invoke-Git status --porcelain)
 $repoFiles = [ordered]@{}   # rel path -> sha256 of the repo copy
 # The payload is what git tracks under claude/, never the folder listing: an
 # ignored file (settings.json, *.private.md) must not be installed or owned.
-$tracked = (Invoke-Git ls-files -z -- claude | Out-String) -split "`0" | Where-Object { $_ } | Sort-Object
+$tracked = @(Invoke-Git -c core.quotepath=false ls-files -- claude) | Where-Object { $_ } | Sort-Object
 foreach ($t in $tracked) {
   $rel = $t.Substring('claude/'.Length)
   if ($rel -eq 'settings.overlay.json' -or $rel -eq 'settings.json') { continue }
