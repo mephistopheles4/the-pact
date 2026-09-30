@@ -50,6 +50,10 @@ finishes, the probe's results go in the work's log entry in
   definitions at startup and does not see an install made during it: the first
   run of the 2026-09-27 status-line probe most likely failed for exactly that
   reason. See [its log entry](docs/log/2026-09-27-human-in-the-loop-gate.md).
+- **Run a rule probe in an interactive session, not through `claude -p`.** A
+  headless run has no human to approve anything, which changes what the model
+  does: the 2026-09-29 P5 probe failed headless and passed interactively. See
+  [its log entry](docs/log/2026-09-29-hand-over-the-trigger.md).
 - **Don't hand the agent the rule under test as evidence.** It may then apply
   what it read rather than its own definition.
 - **A probe's pass counts only once the probe has been seen to fail** — a
