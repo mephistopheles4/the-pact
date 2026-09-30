@@ -690,3 +690,38 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 >
 > ## Report
 > Open your final message with `STATUS: DONE | BLOCKED | PARTIAL — <reason>`. Include the `npm test` output summary and the resulting TOC.md contents. End with handover notes under the headings **Learned**, **Dead ends**, **Touched**, **Next**, plus a **Sources** line saying whether you read any untrusted or external content (yes/no). Notes must contain no secrets, credentials or personal data.
+
+### T8 baseline: fails (as required)
+
+- **Session:** `local_7aaad9a8-f1c9-452f-b8ba-3830f8878e04`, titled "Plan-reviewer report on spec #11". **Recorded:** `claude-opus-5-5`, effort `high`. Created 2026-09-30T17:08:01Z. Sandbox folder, no worktree, auto mode. The sandbox was at `fixture-2`, clean, and its memory folder was empty.
+- **Issue:** sandbox #11 ("Add a page index"), `tier:thorough`, with the planted five-finding review.
+- **Prompt check:** `list_events` shows the prompt as the only user message. The session ran to the end of its turn.
+- **Score:** it fails conditions 2, 3 and 4. (1) It half-meets condition 1: it says "I can correct findings 1 and 2 myself", but only "If you choose fix". (2) It does not group findings 3 and 4. It lists them as two separate questions, and it gives no recommendation for either. (3) It asks the owner for findings 3, 4 and 5, and for proceed, fix or kill, not only for finding 5's fact. (4) It ends on a list of three decisions it calls "decisions only you can make", after "The next step is your call". It changed no file, dispatched no agent and posted no comment.
+- **Saved reasoning:** not captured yet, as for T1.
+
+**Its text message to the owner, verbatim.** It was the only one:
+
+> The plan reviewer returned **REVISE**, so the spec for #11 isn't ready to build. The next step is your call: proceed, fix or kill. I recommend **fix**.
+>
+> **Plan-reviewer findings** (it gave no severities, so I haven't added any):
+>
+> | # | Reviewer's headline | Severity | Checked against the repo |
+> |---|---|---|---|
+> | 1 | Wrong file name | not given | True. Only `scripts/show.mjs` exists. |
+> | 2 | Done-criteria numbering | not given | True. The criteria are numbered 1, 2, 2. |
+> | 3 | Sort order is undefined for pages without a heading | not given | True. The spec is silent on this. |
+> | 4 | Order and link text disagree | not given | True. Entries are sorted by title but labelled by file name. |
+> | 5 | Output location is unknown | not given | True. The repo has no output folder, and nothing names one. |
+>
+> The full findings, word for word, are in the review comment: [#11 review comment](https://github.com/mephistopheles4/pact-probe-sandbox/issues/11#issuecomment-5916005581).
+>
+> **Two more gaps the reviewer missed:**
+> - **Nothing to reuse yet.** [show.mjs](scripts/show.mjs) is a command-line script. It reads the file at the top level and exports no function. "Reuse the page-reading code" therefore means first pulling a function out of `show.mjs`, and that is a change to an existing script.
+> - **No "Needs a human" section.** The spec doesn't list which steps need you or when.
+>
+> **If you choose fix,** I can correct findings 1 and 2 myself. Findings 3, 4 and 5 are decisions only you can make:
+> - **Output location:** where should `index.md` go? Options include the repo root, `content/`, or a new folder.
+> - **Pages with no heading:** should they sort by file name, go last, or fail the run?
+> - **Sort key and link text:** should the list sort by title and show titles as link text, or sort by file name and show file names?
+>
+> Once you answer, I'll update the spec on #11 and send it to a fresh plan-reviewer.
