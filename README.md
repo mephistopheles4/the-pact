@@ -22,10 +22,10 @@ the pact's moves line up with its stages:
 
 | Move | Anthropic stage | What the pact does |
 |---|---|---|
-| Sense the work | Plan | Triage; size the work; route bugs and large efforts |
+| Sense the work | Plan | Triage; set the process tier; route bugs and large efforts |
 | Do the thinking before the doing | Plan, Design | Grill, write the spec, prototype open questions, `plan-reviewer` |
-| Checkpoint the seams | Build, Test | Tickets with done-criteria; builders work test-first at agreed seams |
-| Stay the owner | Test, Deploy | `result-checker` advises; the human decides |
+| Checkpoint the seams | Build, Test | Tickets with done-criteria; each build runs in a main session, test-first at agreed seams |
+| Stay the owner | Test, Deploy | `result-checker` advises, and for security work `security-reviewer` on the diff; the human decides |
 
 The pact does not cover Anthropic's Maintain stage yet.
 
@@ -41,26 +41,28 @@ The pact does not cover Anthropic's Maintain stage yet.
 | Path | What it is | Installs to |
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
-| `claude/agents/` | **The familiars:** nine agents, all on Opus, with cost set through effort | `~/.claude/agents/` |
+| `claude/agents/` | **The familiars:** six read-only agents: the four reviewers and checkers on Opus, `scout` and `Explore` on Sonnet, with cost set through effort | `~/.claude/agents/` |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 
 **The familiars, by effort:**
-- **Low:** `scout`, `Explore` and `spec-builder`.
-- **Medium:** `builder`, `plan-reviewer`, `result-checker` and `test-reviewer`.
-- **High:** `security-reviewer` and `security-builder`.
+- **Low:** `scout` and `Explore`.
+- **Medium:** `plan-reviewer`, `result-checker` and `test-reviewer`.
+- **High:** `security-reviewer`.
+
+Builds run in a main session the owner watches, not in agents.
 
 ## What never goes in here
 
 - **Credentials of any kind.** `~/.claude/settings.json` holds API keys in its `env` block, so it is never copied. Only the overlay is.
-- **`~/.claude.json`, MCP server definitions, history, sessions, project memory, handover notes (`~/.claude/handover/`) and keybindings.**
+- **`~/.claude.json`, MCP server definitions, history, sessions, project memory and keybindings.**
 - **Anything from an employer or a client.**
 
 ## Status
 
 **Bootstrapped on 2026-09-26, and it will be public.** Cloud sessions can then clone it with no token. A privacy pass found no credentials or personal paths. The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill.
 
-**`cloud-sessions/` embeds its own copies, so it goes stale on every change to `claude/`.** Run `cloud-sessions/gen.ps1` after any such change. It rewrites the config section of `cloud-setup.sh` and `cloud-setup-wrapper.sh` in place, from the repo's agents and settings overlay and from `CLAUDE.cloud.md`. `CLAUDE.cloud.md` is hand-kept: it is `claude/CLAUDE.md` without the Windows Shell rule and the install note, with cloud wording for the desktop-only session tools, and with handover notes kept on the tracker, since the container is wiped. Last regenerated 2026-09-28. **Next step:** once this repo is public, have the setup clone it and copy `claude/` into place, so it can never go stale again.
+**`cloud-sessions/` embeds its own copies, so it goes stale on every change to `claude/`.** Run `cloud-sessions/gen.ps1` after any such change. It rewrites the config section of `cloud-setup.sh` and `cloud-setup-wrapper.sh` in place, from the repo's agents and settings overlay and from `CLAUDE.cloud.md`. `CLAUDE.cloud.md` is hand-kept: it is `claude/CLAUDE.md` without the Windows Shell rule and the install note, with cloud wording for the desktop-only session tools. Last regenerated 2026-09-30. **Next step:** once this repo is public, have the setup clone it and copy `claude/` into place, so it can never go stale again.
 
 ## Planned
 

@@ -236,6 +236,7 @@ naming the issue, ticket or plan file. For work too big for one session,
 suggest `wayfinder` at move 1, so the map carries the chain across sessions.
 A mid-phase proposal is a suggestion, not a stop: if I say keep going, keep
 going, and don't raise it again for this phase.
+
 **Every spec has a Needs a human section.** It lists each step that needs
 me, by phase and session, and when: *at sign-off* (say how the spec settles
 it) or *during the build* (say when and how it's handled). It says "None" if
