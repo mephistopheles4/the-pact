@@ -36,25 +36,33 @@ function Test-Protected($rel) {
     $leaf -like '.credentials*' -or $n -match '^(?i)(projects|memory|skills|handover)(/|$)'
 }
 
-# Windows gives long names short 8.3 aliases (SETTIN~1.JSO); expand them so a
-# record entry cannot reach a protected file by an alias. No-op elsewhere.
-if ($IsWindows) {
-  Add-Type -Namespace Pact -Name Win -MemberDefinition '[System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] public static extern uint GetLongPathName(string s, System.Text.StringBuilder b, uint n);'
+# Only plain, canonical record paths are acted on. Judging a name by its spelling
+# fails against Windows aliases (8.3 short names, trailing dots, stream suffixes),
+# so anything that is not already plain is skipped, as is any path through a link.
+function Test-Canonical($rel) {
+  if (-not $rel -or $rel.Contains('\')) { return $false }
+  foreach ($seg in $rel.Split('/')) {
+    if ($seg -notmatch '^[A-Za-z0-9_-][A-Za-z0-9._-]*$' -or $seg.EndsWith('.')) { return $false }
+  }
+  $true
 }
-function Get-LongPath($path) {
-  if (-not $IsWindows -or -not (Test-Path -LiteralPath $path)) { return $path }
-  $sb = New-Object Text.StringBuilder 32768
-  if ([Pact.Win]::GetLongPathName($path, $sb, $sb.Capacity) -eq 0) { return $path }
-  $sb.ToString()
+
+function Test-ThroughLink($rel) {
+  $p = $ClaudeHome
+  foreach ($seg in $rel.Split('/')) {
+    $p = Join-Path $p $seg
+    $item = Get-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue
+    if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $true }
+  }
+  $false
 }
 
 # $null when the entry is safe to act on; otherwise the reason to skip it.
 function Get-SkipReason($rel) {
-  if ([IO.Path]::IsPathRooted($rel) -or $rel -match '(^|[\\/])\.\.([\\/]|$)') { return 'unsafe path' }
+  if (-not $rel -or [IO.Path]::IsPathRooted($rel) -or $rel -match '(^|[\\/])\.\.([\\/]|$)') { return 'unsafe path' }
   if (Test-Protected $rel) { return 'protected path' }
-  $root = (Get-LongPath $ClaudeHome).TrimEnd('\', '/')
-  $real = Get-LongPath (Resolve-Live $rel)
-  if ($real.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) -and (Test-Protected $real.Substring($root.Length))) { return 'protected path' }
+  if (-not (Test-Canonical $rel)) { return 'non-canonical path' }
+  if (Test-ThroughLink $rel) { return 'path through a link' }
   $null
 }
 
