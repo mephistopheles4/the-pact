@@ -2,7 +2,7 @@
 
 **Written and committed before any run.** Issue: #18. Parent spec: #12, section "Seam 1: planted probes". T2's expectation uses #13's result.
 
-This record fixes each probe's plant, prompt, session settings and expected result. It then holds every run, verbatim. Baselines (control runs) happen now, on the currently installed pact. Treatment runs happen after #12 installs, under #19.
+This record fixes each probe's plant, prompt, session settings and expected result. It then holds every run, verbatim. Baselines (control runs) happen now, on the currently installed pact. Treatment runs happen after #12 installs, which is #19.
 
 ## What the baselines run on
 
@@ -806,5 +806,7 @@ It also left `scripts/check-dashes.mjs`, `test/check-dashes.test.mjs` (both from
 | T7 | fails | no issue post, no next-session line; sent #9 to `spec-builder` |
 | T8 | fails | tabled all five findings; left the coupled pair split, with no recommendation |
 | T9 | fails | one-section report; no **For the owner** section |
+
+**The pact was unchanged throughout.** After the T9 run, the live `~/.claude/CLAUDE.md` still matched the blob at `fd6fd23` (`f589621`), and `builder`, `spec-builder` and `security-builder` were still installed.
 
 All nine baselines fail, so each probe can count after the install. T5 separates the pacts only by the tier word.
