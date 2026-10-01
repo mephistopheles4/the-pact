@@ -293,6 +293,18 @@ test("an owner's own ask rule survives the merge", t => {
   for (const rule of PACT_ASK) assert.ok(ask.includes(rule), rule);
 });
 
+test("the merge keeps the owner's numbers exact, beyond 64-bit integers too", t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  writeLive(h, '{"big": 12345678901234567890, "small": 7, "frac": 0.1, "permissions": {"defaultMode": "auto"}}\n');
+  const r = install(repo, h, { apply: true });
+  assert.equal(r.code, 0, r.out);
+  const text = readFileSync(join(h, 'settings.json'), 'utf8');
+  assert.match(text, /"big": 12345678901234567890\b/, text);
+  assert.match(text, /"small": 7\b/, text);
+  assert.match(text, /"frac": 0\.1\b/, text);
+});
+
 test("live settings missing the pact's ask rules draw a warning", t => {
   const repo = makeRepo(t);
   const h = home(t);

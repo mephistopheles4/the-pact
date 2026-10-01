@@ -165,7 +165,12 @@ function ConvertFrom-JsonElement([Text.Json.JsonElement]$e) {
       return , $l
     }
     'String' { return $e.GetString() }
-    'Number' { $n = 0L; if ($e.TryGetInt64([ref]$n)) { return $n }; return $e.GetDouble() }
+    'Number' {
+      # The narrowest exact type, so a rewrite never rounds an owner's number.
+      $n = 0L; if ($e.TryGetInt64([ref]$n)) { return $n }
+      $d = [decimal]0; if ($e.TryGetDecimal([ref]$d)) { return $d }
+      return $e.GetDouble()
+    }
     'True' { return $true }
     'False' { return $false }
     default { return $null }
