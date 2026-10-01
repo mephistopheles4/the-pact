@@ -465,6 +465,13 @@ test('gate: an allow-list with a duplicate key fails', t => {
   assert.ok(failRules(r.stdout).includes('allowlist'), r.out);
 });
 
+test('gate: an allow-list with a duplicate key spelled with an escape fails', t => {
+  const script = gateCopy(t, g =>
+    writeFileSync(join(g, 'tool-allowlist.json'), '{"probe": ["Read", "Glob", "Grep"], "pro\\u0062e": ["Read", "Glob", "Grep", "Bash"]}\n'),
+  );
+  const r = runSeamA(stage(t, {}), script);
+  assert.ok(failRules(r.stdout).includes('allowlist'), r.out);
+});
 test('gate: an allow-list entry that is not a list of tool names fails', t => {
   const script = gateCopy(t, g => writeFileSync(join(g, 'tool-allowlist.json'), '{"probe": "Bash"}\n'));
   const r = runSeamA(stage(t, {}), script);

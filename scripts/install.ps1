@@ -86,15 +86,23 @@ function Get-SkipReason($rel) {
   $null
 }
 
+# Git, resolved once as an application and run by that exact path everywhere,
+# so no lookup can reach a git in the current folder (as .NET's own lookup may
+# on some systems).
+$gitCmd = Get-Command git -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $gitCmd) { Write-Host 'REFUSED: no git found on PATH. Nothing was changed.'; exit 1 }
+$git = $gitCmd.Source
+if ($IsWindows -and [IO.Path]::GetExtension($git) -ne '.exe') { Write-Host "REFUSED: git resolved to $git, which is not an .exe. Nothing was changed."; exit 1 }
+
 function Invoke-Git {
-  $out = & git -C $repo @args
+  $out = & $git -C $repo @args
   if ($LASTEXITCODE -ne 0) { throw "git $($args -join ' ') failed" }
   $out
 }
 
 # git's raw stdout as bytes: no PowerShell text decoding, no line splitting.
 function Invoke-GitBytes([string[]]$GitArgs) {
-  $psi = [Diagnostics.ProcessStartInfo]::new('git')
+  $psi = [Diagnostics.ProcessStartInfo]::new($git)
   foreach ($a in @('-C', $repo) + $GitArgs) { $psi.ArgumentList.Add($a) }
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
@@ -213,8 +221,12 @@ function Get-Canonical($v) {
 
 function Show-List($title, $items) {
   Write-Host "${title}: $(@($items).Count)"
-  foreach ($i in $items) { Write-Host "  $i" }
+  foreach ($i in $items) { Write-Host "  $(Format-Plain $i)" }
 }
+
+# Text from the install record, which anything that can write ~/.claude can
+# edit, made safe to print as Format-CheckLine makes the check's lines.
+function Format-Plain([string]$s) { $s -replace '[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]', '?' }
 
 # --- the gate's fingerprints ---------------------------------------------------
 $gateNow = $null      # ordered: path -> sha256, for this run
@@ -245,7 +257,7 @@ if (Test-Path -LiteralPath $manifestFile) {
 }
 
 Write-Host "Install from commit $commit into $ClaudeHome"
-if ($manifest) { Write-Host "Last install: $($manifest.commit)" }
+if ($manifest) { Write-Host "Last install: $(Format-Plain $manifest.commit)" }
 else { Write-Host 'No manifest found: first-install mode. Live files are compared with the repo; only the retired agents (builder, spec-builder, security-builder) can be deleted.' }
 
 # The set is HEAD's tree, never a directory listing or the working tree: an
@@ -298,7 +310,7 @@ else {
   foreach ($k in $gateNow.Keys) {
     if (-not $gateThen.Contains($k)) { $changes += "  added $k" } elseif ($gateThen[$k] -ne $gateNow[$k]) { $changes += "  changed $k" }
   }
-  foreach ($k in $gateThen.Keys) { if (-not $gateNow.Contains($k)) { $changes += "  removed $k" } }
+  foreach ($k in $gateThen.Keys) { if (-not $gateNow.Contains($k)) { $changes += "  removed $(Format-Plain $k)" } }
   # @() keeps a one-line block an array: PowerShell unrolls a one-element array into its element.
   $gateLines = @(if ($changes) { @('Gate: CHANGED since the last install') + $changes } else { 'Gate: unchanged since the last install' })
 }
@@ -325,6 +337,7 @@ $ver = Invoke-Node $node @('--version') $versionTimeoutMs
 if ($ver.TimedOut -or $ver.ExitCode -ne 0 -or $ver.Stdout.Trim() -cnotmatch '\Av(\d+)\.\d+\.\d+\z') { Stop-Refused "Node at $node did not report its version." }
 $nodeVersion = $ver.Stdout.Trim()
 if ([int]$Matches[1] -lt $nodeMinMajor) { Stop-Refused "Node $nodeVersion at $node is older than $nodeMinMajor." }
+Write-Host "Git: $git"
 Write-Host "Node: $node ($nodeVersion)"
 Write-Host "Pinned check: grimoire $pinCommit, sha256 verified"
 
@@ -425,7 +438,7 @@ Show-List 'Drift' $drift
 Show-List 'Overwrite' $overwrite
 Show-List 'Add' $add
 Show-List 'Delete' $delete
-foreach ($w in $warnings) { Write-Host "WARN: $w" }
+foreach ($w in $warnings) { Write-Host "WARN: $(Format-Plain $w)" }
 Write-Host "Unchanged: $same"
 Write-Host "settings.json: $settings"
 if ($dirty.Count) { Write-Host "Working tree: DIRTY ($($dirty.Count) path(s)); the check ran on commit $commit, and uncommitted edits are not checked. -Apply will refuse." }

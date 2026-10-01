@@ -432,7 +432,14 @@ function loadAllowlist(report) {
   }
   // JSON.parse keeps the last of two equal keys. Every string in this file is
   // a key or a tool name, and only a key is followed by a colon.
-  const keys = [...text.matchAll(/"((?:[^"\\]|\\.)*)"\s*:/g)].map(m => m[1]);
+  // Each key is decoded first, so an escape cannot spell one name two ways.
+  let keys;
+  try {
+    keys = [...text.matchAll(/"((?:[^"\\]|\\.)*)"\s*:/g)].map(m => JSON.parse(`"${m[1]}"`));
+  } catch {
+    report.fail('allowlist', null, null, 'the tool allow-list is not valid JSON');
+    return null;
+  }
   if (new Set(keys).size !== keys.length) {
     report.fail('allowlist', null, null, 'the tool allow-list names an agent twice');
     return null;

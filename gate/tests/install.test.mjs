@@ -336,6 +336,28 @@ test('bad case: two paths in the commit that differ only in case refuse', t => {
   assert.match(r.stdout, /differ only in case/);
 });
 
+test('bad case: a git planted in the folder the install runs from is never run', { skip: !WIN }, t => {
+  const repo = makeRepo(t);
+  // The stand-in logs to args.log beside itself whenever it runs.
+  cpSync(join(FAKE_SRC_DIR, 'node.exe'), join(repo, 'git.exe'));
+  const r = install(repo, home(t));
+  assert.equal(r.code, 0, r.out);
+  assert.ok(!existsSync(join(repo, 'args.log')), 'the planted git.exe ran');
+});
+
+test('lines built from the install record are cleaned', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true }).code, 0);
+  const mf = join(h, '.pact-install.json');
+  const m = JSON.parse(readFileSync(mf, 'utf8'));
+  m.gate.push({ path: 'gate/\u001b[2Kx', sha256: 'aa' });
+  m.files.push({ path: 'agents/\u001b[2Ky.md', sha256: 'aa' });
+  m.commit = '\u001b[2Kc';
+  writeFileSync(mf, JSON.stringify(m));
+  const r = install(repo, h);
+  assert.ok(!r.stdout.includes('\x1b'), JSON.stringify(r.stdout));
+});
 test('bad case: a live agents folder that is a link refuses', t => {
   const repo = makeRepo(t);
   const h = home(t);
