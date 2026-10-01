@@ -191,7 +191,7 @@ function parsePlain(v) {
     throw new Refused('value', 'a value that starts a list item or a complex key');
   }
   if (v.includes(': ') || v.endsWith(':')) throw new Refused('value', 'a colon followed by a space inside an unquoted value');
-  if (v.includes(' #')) throw new Refused('value', 'a trailing comment after a value');
+  if (v.includes(' #') || v.includes('\t#')) throw new Refused('value', 'a trailing comment after a value');
   if (v === '=' || v === '<<') throw new Refused('value', 'an unquoted = or <<');
   if (yamlReadsAsNonText(v)) throw new Refused('value', 'an unquoted value YAML reads as null, a boolean, a number or a date');
   return v;
@@ -310,6 +310,11 @@ function readAgent(buf, file, report) {
         continue;
       }
       const body = line.slice(2);
+      if (body.includes('\t')) {
+        // A tab can start a comment YAML drops and this reader would keep.
+        bad('value', ln, 'a tab in a metadata line');
+        continue;
+      }
       if (body[0] === '#') {
         bad('comment', ln, 'a comment');
         continue;

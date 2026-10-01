@@ -284,6 +284,14 @@ test('reader: a duplicate metadata key', t => {
   expectFail(t, { [A]: plainAgent('probe', ['metadata:', '  a: x', '  a: y']) }, 'duplicate-key');
 });
 
+test('reader: a comment after a tab in a metadata value', t => {
+  expectFail(t, { [A]: plainAgent('probe', ['metadata:', '  a: x\t#c']) }, 'value');
+});
+
+test('reader: a tab in a metadata value', t => {
+  expectFail(t, { [A]: plainAgent('probe', ['metadata:', '  a: x\ty']) }, 'value');
+});
+
 test('reader: metadata nested deeper than two spaces', t => {
   expectFail(t, { [A]: plainAgent('probe', ['metadata:', '    a: x']) }, 'indented');
 });

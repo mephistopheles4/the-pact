@@ -158,6 +158,7 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^Gate: unchanged since the last install$/m);
+  assert.match(again.stdout, /^Nothing to do\.$/m);
 });
 
 test('the owner\'s own live agent is never deleted, and an old manifest deletes nothing', t => {

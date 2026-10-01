@@ -299,7 +299,8 @@ else {
     if (-not $gateThen.Contains($k)) { $changes += "  added $k" } elseif ($gateThen[$k] -ne $gateNow[$k]) { $changes += "  changed $k" }
   }
   foreach ($k in $gateThen.Keys) { if (-not $gateNow.Contains($k)) { $changes += "  removed $k" } }
-  $gateLines = if ($changes) { @('Gate: CHANGED since the last install') + $changes } else { @('Gate: unchanged since the last install') }
+  # @() keeps a one-line block an array: PowerShell unrolls a one-element array into its element.
+  $gateLines = @(if ($changes) { @('Gate: CHANGED since the last install') + $changes } else { 'Gate: unchanged since the last install' })
 }
 if ($selfDiffers) { $gateLines += 'WARN: this install script differs from the committed copy; -Apply will refuse.' }
 
