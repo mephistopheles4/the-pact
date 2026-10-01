@@ -69,6 +69,14 @@ const SETTINGS_CONTAINERS = new Set(['env', 'permissions']);
 const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permissions.ask']);
 // Paths the overlay must set. A set must hold every allowed entry.
 const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions.ask']);
+// The "ask" rules that make the install's apply step prompt the owner. The
+// overlay must hold them, whatever the allow-list says.
+const SETTINGS_APPLY_ASK = Object.freeze([
+  'PowerShell(./scripts/install.ps1 -Apply)',
+  'PowerShell(*install.ps1*-A*)',
+  'Bash(*nstall.ps1*-A*)',
+  'Bash(*nstall.ps1*-a*)',
+]);
 
 const MAX_BYTES = 1024 * 1024;
 const PINNED_TIMEOUT_MS = 60_000;
@@ -703,6 +711,8 @@ function checkSettings(root, present, allow, report) {
   if (isObject(perms) && Object.hasOwn(perms, 'defaultMode') && perms.defaultMode !== SETTINGS_MODE) {
     fail('settings-mode', 'permissions.defaultMode may only be auto');
   }
+  const ask = isObject(perms) && Array.isArray(perms.ask) ? perms.ask : [];
+  if (!SETTINGS_APPLY_ASK.every(r => ask.includes(r))) fail('settings-required', "the overlay must hold the apply step's ask rules");
 
   // Default-deny: every key path, top level and inside env and permissions.
   const leaves = new Map();

@@ -586,6 +586,7 @@ if (-not $Apply) {
 if ($selfDiffers) { Stop-Refused 'this install script differs from the committed copy.' }
 if ($drift) { Stop-Refused 'live files drifted since the last install.' }
 if ($dirty.Count) { Stop-Refused 'the working tree is not clean.' }
+if ($null -eq $live) { Stop-Refused "settings.json is not a strict JSON object, so the pact's guard cannot be merged into it; fix the file first." }
 
 # --- apply ---------------------------------------------------------------------
 # Every staged byte is re-hashed before the first write.

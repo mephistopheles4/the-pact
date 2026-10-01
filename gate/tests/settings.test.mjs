@@ -7,7 +7,7 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { GATE, failRules, lastLine, realOverlay, runSeamA, stage, tempDir, writeTree } from './helpers.mjs';
-import { commitAll, home, install, makeRepo, refused } from './install-harness.mjs';
+import { commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const OVERLAY = 'claude/settings.overlay.json';
 
@@ -15,14 +15,21 @@ const OVERLAY = 'claude/settings.overlay.json';
 const PACT_ASK = [
   'PowerShell(./scripts/install.ps1 -Apply)',
   'PowerShell(*install.ps1*-A*)',
-  'Bash(*install.ps1*-A*)',
+  'Bash(*nstall.ps1*-A*)',
+  'Bash(*nstall.ps1*-a*)',
   'Edit(~/.claude/agents/**)',
   'Edit(~/.claude/settings.json)',
   'Edit(~/.claude/CLAUDE.md)',
   'Edit(~/.claude/.pact-install.json)',
   'Edit(~/.claude.json)',
   'Edit(~/.claude/skills/**)',
+  'Edit(~/.claude/plugins/**)',
+  'Edit(~/.claude/output-styles/**)',
+  'Edit(~/.claude/commands/**)',
 ];
+
+// The apply-step rules, hard-coded in seam A as the permission mode is.
+const APPLY_ASK = PACT_ASK.slice(0, 4);
 
 // Command-running settings, refused by name in seam A's own code.
 const BANNED = [
@@ -192,6 +199,13 @@ test("bad case: an ask list missing one of the pact's rules fails", t => {
   expectSettingsFail(t, overlayWith(o => o.permissions.ask.pop()), 'settings-required');
 });
 
+test('bad case: the apply-step rules stay required when both the allow-list and the overlay drop them', t => {
+  for (const rule of APPLY_ASK) {
+    const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== rule))));
+    expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== rule))), 'settings-required', script);
+  }
+});
+
 test('bad case: an overlay with no ask list fails', t => {
   expectSettingsFail(t, overlayWith(o => delete o.permissions.ask), 'settings-required');
 });
@@ -311,7 +325,7 @@ test("live settings missing the pact's ask rules draw a warning", t => {
   writeLive(h, { permissions: { defaultMode: 'auto' } });
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^WARN: settings\.json lacks 9 of the pact's ask rules/m, r.out);
+  assert.match(r.stdout, new RegExp(`^WARN: settings\\.json lacks ${PACT_ASK.length} of the pact's ask rules`, 'm'), r.out);
 });
 
 test('a live hooks key draws a warning, even beside keys that differ only in case', t => {
@@ -346,7 +360,7 @@ test('a live Permissions key (wrong case) is warned about, and -Apply still writ
   const h = home(t);
   writeLive(h, { Permissions: { ask: PACT_ASK, defaultMode: 'auto' } });
   const dry = install(repo, h);
-  assert.match(dry.stdout, /^WARN: settings\.json lacks 9 of the pact's ask rules/m, dry.out);
+  assert.match(dry.stdout, new RegExp(`^WARN: settings\\.json lacks ${PACT_ASK.length} of the pact's ask rules`, 'm'), dry.out);
   const r = install(repo, h, { apply: true });
   assert.equal(r.code, 0, r.out);
   const live = readLive(h);
@@ -354,15 +368,16 @@ test('a live Permissions key (wrong case) is warned about, and -Apply still writ
   assert.equal(live.permissions.defaultMode, 'auto');
 });
 
-test('a live file the merge cannot read draws a plain warning, and -Apply exits non-zero', t => {
+test('a live file the merge cannot read draws a plain warning, and -Apply refuses before writing anything', t => {
   const repo = makeRepo(t);
   const h = home(t);
   writeLive(h, '[1]\n');
   const dry = install(repo, h);
   assert.match(dry.stdout, /^WARN: settings\.json is not a strict JSON object/m, dry.out);
   const r = install(repo, h, { apply: true });
-  assert.notEqual(r.code, 0, r.out);
-  assert.match(r.stdout, /^MISMATCH settings\.json/m, r.out);
+  refused(r);
+  assert.match(r.stdout, /settings\.json/, r.out);
+  assert.deepEqual(listTree(h), ['settings.json']);
   assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), '[1]\n');
 });
 

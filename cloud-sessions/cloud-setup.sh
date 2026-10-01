@@ -685,13 +685,17 @@ SETTINGS_OVERLAY='{
     "ask": [
       "PowerShell(./scripts/install.ps1 -Apply)",
       "PowerShell(*install.ps1*-A*)",
-      "Bash(*install.ps1*-A*)",
+      "Bash(*nstall.ps1*-A*)",
+      "Bash(*nstall.ps1*-a*)",
       "Edit(~/.claude/agents/**)",
       "Edit(~/.claude/settings.json)",
       "Edit(~/.claude/CLAUDE.md)",
       "Edit(~/.claude/.pact-install.json)",
       "Edit(~/.claude.json)",
-      "Edit(~/.claude/skills/**)"
+      "Edit(~/.claude/skills/**)",
+      "Edit(~/.claude/plugins/**)",
+      "Edit(~/.claude/output-styles/**)",
+      "Edit(~/.claude/commands/**)"
     ]
   },
   "fallbackModel": [
