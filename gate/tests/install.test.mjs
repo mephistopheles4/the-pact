@@ -137,7 +137,6 @@ test('dry run on a clean tree passes and shows Node, the pin, the check and the 
   assert.match(r.stdout, /^Gate: no gate recorded at the last install$/m);
   assert.doesNotMatch(r.stdout, /not content-checked until #33/);
   assert.match(r.stdout, /^Partly checked: CLAUDE\.md's routing and marked clauses are checked; the rest of its text is not checked until ticket 4\.$/m);
-  assert.match(r.stdout, /not checked until #34/);
 });
 
 test('-Apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
@@ -163,6 +162,7 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
     'gate/grimoire/check.mjs.pin',
     'gate/pact-text.mjs',
     'gate/seam-a.mjs',
+    'gate/settings-allowlist.json',
     'gate/tool-allowlist.json',
     'scripts/install.ps1',
   ]);
