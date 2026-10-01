@@ -226,6 +226,9 @@ function Get-MergedSettings($a, $b) {
 $bannedSettings = @('hooks', 'mcpServers', 'statusLine', 'fileSuggestion', 'apiKeyHelper', 'awsAuthRefresh',
   'awsCredentialExport', 'otelHeadersHelper', 'enabledPlugins', 'extraKnownMarketplaces',
   'enableAllProjectMcpServers', 'enabledMcpjsonServers')
+# The plugin keys: banned in the overlay, but the owner's own in the live file,
+# which the merge keeps. The live warnings name them as the owner's, not as a risk.
+$liveOwnSettings = @('enabledPlugins', 'extraKnownMarketplaces')
 
 # Every banned name used as an object key, at any depth, compared exactly.
 function Get-BannedKeys($v) {
@@ -282,14 +285,16 @@ function Get-SettingsChanges($live, $overlay) {
 # rules. Live keys the pact does not set are named once, capped; live env
 # names are only counted, since a name can say what a secret is for.
 function Get-LiveSettingsLines($live, $overlay, [string[]]$pactAsk) {
-  foreach ($k in (Get-BannedKeys $live)) { "WARN: settings.json holds $k, a command-running setting the pact never sets." }
+  foreach ($k in (Get-BannedKeys $live)) {
+    if ($liveOwnSettings -cnotcontains $k) { "WARN: settings.json holds $k, a command-running setting the pact never sets." }
+  }
   $lp = $live['permissions']
   $liveAsk = if ($lp -is [System.Collections.IDictionary] -and $lp['ask'] -is [System.Collections.IList]) { @($lp['ask'] | ForEach-Object { "$_" }) } else { @() }
   $missing = @($pactAsk | Where-Object { $liveAsk -cnotcontains $_ })
   if ($missing) { "WARN: settings.json lacks $($missing.Count) of the pact's ask rules; -Apply adds them back." }
   $mode = if ($lp -is [System.Collections.IDictionary]) { $lp['defaultMode'] } else { $null }
   if ($mode -isnot [string] -or $mode -cne 'auto') { 'WARN: settings.json: permissions.defaultMode is not auto; -Apply sets it.' }
-  $own = @($live.Keys | Where-Object { -not $overlay.Contains($_) -and $bannedSettings -cnotcontains $_ } | Sort-Object -CaseSensitive)
+  $own = @($live.Keys | Where-Object { -not $overlay.Contains($_) -and ($bannedSettings -cnotcontains $_ -or $liveOwnSettings -ccontains $_) } | Sort-Object -CaseSensitive)
   if ($own) {
     $names = @($own | Select-Object -First 20 | ForEach-Object { $n = Format-Plain $_; if ($n.Length -gt 40) { $n.Substring(0, 40) + '...' } else { $n } })
     $line = "NOTE: live keys the pact does not set (yours, not checked): $($names -join ', ')"

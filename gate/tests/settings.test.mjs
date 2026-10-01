@@ -311,6 +311,16 @@ test('a live hooks key draws a warning, even beside keys that differ only in cas
   assert.match(r.stdout, /^WARN: settings\.json holds hooks/m, r.out);
 });
 
+test('live plugin keys, which the merge keeps from the live file, are named but not warned about', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  writeLive(h, { enabledPlugins: { 'x@y': true }, extraKnownMarketplaces: {}, permissions: { ask: PACT_ASK, defaultMode: 'auto' } });
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.stdout, /^WARN: /m, r.out);
+  assert.match(r.stdout, /^NOTE: live keys the pact does not set \(yours, not checked\): enabledPlugins, extraKnownMarketplaces$/m, r.out);
+});
+
 test('a live defaultMode other than auto draws a warning', t => {
   const repo = makeRepo(t);
   const h = home(t);
