@@ -9,6 +9,8 @@
 // copy and the pact's own text (pact-text.mjs), and prints the exact copy set
 // as INSTALL lines. The install copies those files
 // and nothing else, and refuses unless its own reading of the stage agrees.
+// It also holds the settings overlay to gate/settings-allowlist.json, and
+// prints its hash as one SETTINGS line, which the install's merge must match.
 //
 // Exit 0 and a last line "RESULT: pass", or exit 1 and "RESULT: fail". The
 // output names files, rules and line numbers. It never echoes a file's
@@ -28,6 +30,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const PINNED = join(HERE, 'grimoire', 'check.mjs');
 const PIN = join(HERE, 'grimoire', 'check.mjs.pin');
 const ALLOWLIST = join(HERE, 'tool-allowlist.json');
+const SETTINGS_ALLOWLIST = join(HERE, 'settings-allowlist.json');
+const OVERLAY = 'claude/settings.overlay.json';
 
 // Every agent gets these unless the allow-list names it. Hard-coded here, not
 // read from the allow-list, so a broken allow-list cannot widen the default.
@@ -39,6 +43,33 @@ const ALLOWED_KEYS = new Set(['name', 'description', 'tools', 'model', 'effort',
 const BROWSER_WILDCARD = 'mcp__Claude_Browser__*';
 const MARK_KEYS = ['contract-version', 'familiar-digest', 'contract-digest'];
 
+// Settings that run a command, load code or reach a tool server. Refused by
+// name as an object key at any depth of the overlay, whatever the settings
+// allow-list says. Hard-coded here so an allow-list edit cannot unban one.
+const BANNED_SETTINGS = Object.freeze([
+  'hooks',
+  'mcpServers',
+  'statusLine',
+  'fileSuggestion',
+  'apiKeyHelper',
+  'awsAuthRefresh',
+  'awsCredentialExport',
+  'otelHeadersHelper',
+  'enabledPlugins',
+  'extraKnownMarketplaces',
+  'enableAllProjectMcpServers',
+  'enabledMcpjsonServers',
+]);
+const BANNED_SETTINGS_SET = new Set(BANNED_SETTINGS);
+// The only permission mode the overlay may set, whatever the allow-list says.
+const SETTINGS_MODE = 'auto';
+// The two overlay keys whose children are key paths of their own.
+const SETTINGS_CONTAINERS = new Set(['env', 'permissions']);
+// Permission lists are sets of rules: each entry must be allowed, none twice.
+const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permissions.ask']);
+// Paths the overlay must set. A set must hold every allowed entry.
+const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions.ask']);
+
 const MAX_BYTES = 1024 * 1024;
 const PINNED_TIMEOUT_MS = 60_000;
 const CHARACTER_HITS_MAX = 20;
@@ -47,6 +78,10 @@ const PIN_RE = /^commit ([0-9a-f]{40})\nsha256 ([0-9a-f]{64})\n$/;
 const SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
 const TOP_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const META_KEY_RE = /^[a-z][a-z0-9-]*$/;
+const SETTINGS_KEY_RE = /^[A-Za-z0-9_]+$/;
+const SETTINGS_PATH_RE = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)?$/;
+const JSON_SCALAR_RE = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?)/;
+const JSON_DEPTH_MAX = 64;
 const TOOL_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
 // An unmigrated agent's name: letters and digits in hyphen-joined runs, as
 // today's files use (Explore keeps its capital). A familiar's stem must pass
@@ -485,6 +520,230 @@ function loadAllowlist(report) {
   return map;
 }
 
+// ---------------------------------------------------------------- settings
+
+function isObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+function isStringSet(v) {
+  return Array.isArray(v) && v.every(x => typeof x === 'string') && new Set(v).size === v.length;
+}
+
+/** Equal as JSON: lists in order, objects by their own keys. */
+function sameJson(a, b) {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => sameJson(x, b[i]));
+  }
+  if (isObject(a) || isObject(b)) {
+    if (!isObject(a) || !isObject(b)) return false;
+    const ka = Object.keys(a);
+    return ka.length === Object.keys(b).length && ka.every(k => Object.hasOwn(b, k) && sameJson(a[k], b[k]));
+  }
+  return a === b;
+}
+
+/**
+ * JSON read strictly, so every reader sees the same keys: no byte-order mark,
+ * and no key twice in one object, compared after decoding its escapes and also
+ * case-folded (PowerShell folds case; JSON.parse keeps the last). Throws
+ * Refused with rule 'read' or 'duplicate'.
+ */
+function readStrictJson(buf) {
+  if (buf.length > MAX_BYTES) throw new Refused('read', 'larger than 1 MiB');
+  let text;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(buf);
+  } catch {
+    throw new Refused('read', 'not valid UTF-8');
+  }
+  if (text.charCodeAt(0) === 0xfeff) throw new Refused('read', 'a byte-order mark');
+  const notJson = () => new Refused('read', 'not valid JSON');
+  let i = 0;
+  const space = () => {
+    while (i < text.length && ' \t\n\r'.includes(text[i])) i += 1;
+  };
+  const string = () => {
+    const start = i;
+    i += 1;
+    while (i < text.length && text[i] !== '"') i += text[i] === '\\' ? 2 : 1;
+    if (i >= text.length) throw notJson();
+    i += 1;
+    try {
+      return JSON.parse(text.slice(start, i));
+    } catch {
+      throw notJson();
+    }
+  };
+  // Each list and object closes with `end`, its members split by commas.
+  const members = (end, member) => {
+    i += 1;
+    space();
+    if (text[i] === end) {
+      i += 1;
+      return;
+    }
+    for (;;) {
+      member();
+      space();
+      const d = text[i];
+      i += 1;
+      if (d === end) return;
+      if (d !== ',') throw notJson();
+    }
+  };
+  const value = depth => {
+    if (depth > JSON_DEPTH_MAX) throw new Refused('read', 'nested too deeply');
+    space();
+    const c = text[i];
+    if (c === '{') {
+      const seen = new Set();
+      members('}', () => {
+        space();
+        if (text[i] !== '"') throw notJson();
+        const k = string().toLowerCase();
+        if (seen.has(k)) throw new Refused('duplicate', 'a key seen twice in one object (compared exactly and case-folded)');
+        seen.add(k);
+        space();
+        if (text[i] !== ':') throw notJson();
+        i += 1;
+        value(depth + 1);
+      });
+    } else if (c === '[') members(']', () => value(depth + 1));
+    else if (c === '"') string();
+    else {
+      const m = JSON_SCALAR_RE.exec(text.slice(i, i + 400));
+      if (!m) throw notJson();
+      i += m[0].length;
+    }
+  };
+  value(0);
+  space();
+  if (i !== text.length) throw notJson();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw notJson();
+  }
+}
+
+/** The settings allow-list, as a Map from key path to its one allowed value. */
+function loadSettingsAllowlist(report) {
+  const fail = reason => {
+    report.fail('settings-allowlist', null, null, reason);
+    return null;
+  };
+  let doc;
+  try {
+    doc = readStrictJson(readFileSync(SETTINGS_ALLOWLIST));
+  } catch (e) {
+    return fail(e instanceof Refused ? `the settings allow-list: ${e.reason}` : 'the settings allow-list is missing');
+  }
+  if (!isObject(doc)) return fail('the settings allow-list must be an object of key path to value');
+  const map = new Map();
+  for (const path of Object.keys(doc)) {
+    const segs = path.split('.');
+    const valid =
+      SETTINGS_PATH_RE.test(path) &&
+      SETTINGS_CONTAINERS.has(segs[0]) === (segs.length === 2) &&
+      !segs.some(s => BANNED_SETTINGS_SET.has(s)) &&
+      (!SETTINGS_SETS.has(path) || isStringSet(doc[path]));
+    if (!valid) return fail('a settings allow-list entry is not an allowed key path with its value');
+    map.set(path, doc[path]);
+  }
+  return map;
+}
+
+/** Call `visit` with every object key at any depth. */
+function eachKey(v, visit) {
+  if (Array.isArray(v)) for (const x of v) eachKey(x, visit);
+  else if (isObject(v)) {
+    for (const k of Object.keys(v)) {
+      visit(k);
+      eachKey(v[k], visit);
+    }
+  }
+}
+
+/**
+ * Hold the settings overlay to the allow-list: exact key paths, exact values,
+ * banned names and the permission mode hard-coded. Returns the overlay's
+ * sha256 when it passes, else null. Prints no key or value from the overlay;
+ * a banned name it prints is this file's own constant.
+ */
+function checkSettings(root, present, allow, report) {
+  if (!present) {
+    report.fail('settings-read', OVERLAY, null, 'the settings overlay is missing');
+    return null;
+  }
+  const buf = readFileSync(join(root, ...OVERLAY.split('/')));
+  let doc;
+  try {
+    doc = readStrictJson(buf);
+  } catch (e) {
+    if (!(e instanceof Refused)) throw e;
+    report.fail(`settings-${e.rule}`, OVERLAY, null, e.reason);
+    return null;
+  }
+  if (!isObject(doc)) {
+    report.fail('settings-read', OVERLAY, null, 'the root is not an object');
+    return null;
+  }
+  let ok = true;
+  const fail = (rule, reason) => {
+    ok = false;
+    report.fail(rule, OVERLAY, null, reason);
+  };
+
+  const banned = new Set();
+  eachKey(doc, k => BANNED_SETTINGS_SET.has(k) && banned.add(k));
+  for (const k of BANNED_SETTINGS) if (banned.has(k)) fail('settings-banned', `a command-running setting (${k})`);
+
+  const perms = doc.permissions;
+  if (isObject(perms) && Object.hasOwn(perms, 'defaultMode') && perms.defaultMode !== SETTINGS_MODE) {
+    fail('settings-mode', 'permissions.defaultMode may only be auto');
+  }
+
+  // Default-deny: every key path, top level and inside env and permissions.
+  const leaves = new Map();
+  const leaf = (path, key, v) => {
+    if (BANNED_SETTINGS_SET.has(key)) return;
+    if (!SETTINGS_KEY_RE.test(key)) fail('settings-key', "a key with characters outside letters, digits and '_'");
+    else leaves.set(path, v);
+  };
+  for (const top of Object.keys(doc)) {
+    if (!SETTINGS_CONTAINERS.has(top)) {
+      leaf(top, top, doc[top]);
+      continue;
+    }
+    if (!isObject(doc[top])) {
+      fail('settings-value', 'env and permissions must be objects');
+      continue;
+    }
+    for (const k of Object.keys(doc[top])) leaf(`${top}.${k}`, k, doc[top][k]);
+  }
+  if (!allow) return null;
+  for (const [path, v] of leaves) {
+    if (!allow.has(path)) {
+      fail('settings-unlisted', 'a key path outside the settings allow-list');
+      continue;
+    }
+    if (path === 'permissions.defaultMode') continue;
+    const want = allow.get(path);
+    if (SETTINGS_SETS.has(path)) {
+      if (!isStringSet(v) || !v.every(x => want.includes(x))) fail('settings-value', 'a rule list outside the settings allow-list');
+    } else if (!sameJson(v, want)) fail('settings-value', 'a value outside the settings allow-list');
+  }
+  for (const path of SETTINGS_REQUIRED) {
+    const v = leaves.get(path);
+    const whole = SETTINGS_SETS.has(path) ? Array.isArray(v) && allow.has(path) && allow.get(path).every(x => v.includes(x)) : v !== undefined;
+    if (!whole) fail('settings-required', `the overlay must set ${path}, in full`);
+  }
+  if (!ok) return null;
+  report.pass('settings', OVERLAY);
+  return sha256(buf);
+}
+
 // ---------------------------------------------------------------- the stage
 
 /** Every entry under root/<top>, as '/'-joined paths. Links and other non-files fail. */
@@ -523,6 +782,7 @@ function classify(root, report) {
   const agents = [];
   const installs = [];
   const contracts = new Set();
+  let overlay = false;
   const files = [...walk(root, 'claude', report), ...walk(root, 'familiars', report)];
   for (const rel of files) {
     if (!safePath(rel)) {
@@ -534,8 +794,8 @@ function classify(root, report) {
       if (rel === 'claude/CLAUDE.md') {
         installs.push({ file: rel, dest: 'CLAUDE.md' });
         report.note('partly-checked', 'claude/CLAUDE.md is checked for routing and its marked clauses only; the rest of its text is not checked until ticket 4');
-      } else if (rel === 'claude/settings.overlay.json') {
-        report.note('unchecked', 'claude/settings.overlay.json is merged, not installed, and not checked until #34');
+      } else if (rel === OVERLAY) {
+        overlay = true;
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
         const a = { file: rel, stem: seg[2].slice(0, -3), dest: `agents/${seg[2]}`, familiar: false };
         agents.push(a);
@@ -555,7 +815,7 @@ function classify(root, report) {
     } else report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   for (const a of agents) a.hasContract = a.familiar && contracts.has(`${a.stem}.contract.md`);
-  return { agents, installs };
+  return { agents, installs, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
@@ -626,7 +886,9 @@ function run(root, report) {
   // @@TEST-CRASH-HOOK@@
   const pinned = verifyPin(report);
   const allow = loadAllowlist(report);
-  const { agents, installs } = classify(root, report);
+  const settingsAllow = loadSettingsAllowlist(report);
+  const { agents, installs, overlay } = classify(root, report);
+  let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
     const buf = readFileSync(join(root, ...a.file.split('/')));
@@ -667,6 +929,9 @@ function run(root, report) {
     // @@TEST-INSTALL-HOOK@@
     report.lines.push(`INSTALL ${hash} ${file} ${dest}`);
   }
+  // The overlay is merged, not copied. Its hash binds the merge to the bytes checked here.
+  // @@TEST-SETTINGS-HOOK@@
+  report.lines.push(`SETTINGS ${settingsHash} ${OVERLAY}`);
 }
 
 function main(argv) {

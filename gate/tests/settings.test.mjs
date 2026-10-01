@@ -245,6 +245,15 @@ test('canary: seam A never echoes an overlay key or value', t => {
   assert.ok(!r.out.includes(C), r.out);
 });
 
+test("the install's banned names are seam A's", () => {
+  const names = text => [...text.matchAll(/'([A-Za-z]+)'/g)].map(m => m[1]);
+  const seam = readFileSync(join(GATE, 'seam-a.mjs'), 'utf8').match(/const BANNED_SETTINGS = Object\.freeze\(\[([^\]]*)\]\)/);
+  const inst = readFileSync(join(GATE, '..', 'scripts', 'install.ps1'), 'utf8').match(/\$bannedSettings = @\(([^)]*)\)/);
+  assert.ok(seam && inst);
+  assert.deepEqual(names(inst[1]), names(seam[1]));
+  assert.deepEqual(names(seam[1]), BANNED);
+});
+
 // ------------------------------------------------------------ install: the merge
 
 function writeLive(h, doc) {
