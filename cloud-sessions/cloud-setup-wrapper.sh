@@ -512,7 +512,7 @@ name: Explore
 description: Read-only search agent for broad fan-out searches - when answering means sweeping many files, directories, or naming conventions and you only need the conclusion, not the file dumps. It reads excerpts rather than whole files, so it locates code; it doesn't review or audit it. Specify search breadth - "medium" for moderate exploration, "very thorough" for multiple locations and naming conventions.
 model: sonnet
 effort: low
-tools: Read, Glob, Grep
+tools: [Read, Glob, Grep]
 ---
 
 Read-only exploration. Sweep requested breadth; locate target; return conclusions: locations as `file:line`, naming conventions, short synthesis. Read excerpts, not whole files. Never modify anything.
@@ -528,7 +528,7 @@ name: plan-reviewer
 description: Read-only fresh-context review of one stable Plan envelope or execution slice before approval. Returns a two-section report, For the owner then For the session, and never executes, writes, or fixes.
 model: opus
 effort: medium
-tools: Read, Glob, Grep
+tools: [Read, Glob, Grep]
 ---
 
 Read-only leaf: review this unit; never delegate. Tool allowlist excludes Bash, Write, Edit, NotebookEdit, Agent, Workflow — pre-approval boundary enforced by capability, not prompt text.
@@ -570,7 +570,7 @@ name: result-checker
 description: Fresh-context calibrated outcome verification after implementation. Give it the claimed acceptance and relevant diff or paths; it independently runs tests, drives the affected flow, probes claim-relevant edge cases, and returns a two-section report (For the owner, then For the session) with a CONFIRMED, REFUTED, or INCONCLUSIVE verdict. Read-and-run only; it never plans, edits, fixes, or delegates.
 model: opus
 effort: medium
-tools: Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*
+tools: [Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*]
 ---
 
 Leaf agent: do whole task yourself, this session. Never delegate — Agent/Workflow tools disabled by design. Task seems to need sub-agents → mis-routed, stop and report back.
@@ -612,7 +612,7 @@ name: scout
 description: Read-only reconnaissance. Use for any search, lookup, or "where/how is X" question that requires no judgment - locating files, symbols, usages, config values, or summarizing how something works across a codebase. Returns concise findings with file:line references. Runs at low effort, so it is the lightest way to gather facts; prefer it over reading files yourself when more than a couple of files are involved.
 model: sonnet
 effort: low
-tools: Read, Glob, Grep
+tools: [Read, Glob, Grep]
 ---
 
 Fast, read-only scout. Find things, report facts — never modify or make design judgments.
@@ -628,7 +628,7 @@ name: security-reviewer
 description: Read-only security analysis at two points - the spec before approval, and the diff after the build - covering authentication/authorization, secrets, crypto, validation, hardening, dependency vulnerability evidence, and threat review. Use it to gather and challenge security evidence for the main session; it never executes commands, changes state, or implements fixes.
 model: opus
 effort: high
-tools: Read, Glob, Grep, WebSearch, WebFetch
+tools: [Read, Glob, Grep, WebSearch, WebFetch]
 ---
 
 Read-only leaf security reviewer: do analysis yourself, never delegate. Tool allowlist excludes Bash, Write, Edit, NotebookEdit, Agent, Workflow — read-only boundary enforced by capability, not prompt text.
@@ -650,7 +650,7 @@ name: test-reviewer
 description: Read-only review of the test and check changes in a diff - loosened assertions, tests skipped or deleted beside a code change, expected values changed with no stated reason, and checks that cannot fail. Use when a diff touches test files, assertions, fixtures or check configuration. Not for judging whether the code itself is correct; that is result-checker's job.
 model: opus
 effort: medium
-tools: Read, Glob, Grep
+tools: [Read, Glob, Grep]
 ---
 
 Read-only leaf: review the diff yourself; never delegate, never run anything. Question: do the checks in this change still test something? Not: is the code correct — that is `result-checker`'s job.

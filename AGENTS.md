@@ -24,6 +24,12 @@ how every session in every repo behaves. So:
   would overwrite, add and delete, whether live files drifted since the last
   install (it compares them with `~/.claude/.pact-install.json`), and the commit
   it would install. If there is drift, stop and ask rather than overwrite.
+- **The install is gated.** It stages HEAD's files (never the working tree),
+  runs the pact's own check, `gate/seam-a.mjs`, on them under Node 20 or later,
+  and copies only the files that check listed. It refuses when the check fails
+  or can't run. The dry run also shows the Node it used, the pinned grimoire
+  commit, and whether the gate changed since the last install. Run the gate's
+  tests with `node --test "gate/tests/*.test.mjs"`.
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
   dirty working tree.
