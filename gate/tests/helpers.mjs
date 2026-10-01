@@ -93,12 +93,17 @@ export function routeTree(root) {
   if (after !== before) writeFileSync(md, after);
 }
 
+/** Today's settings overlay, as the repo holds it. */
+export function realOverlay() {
+  return readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8');
+}
+
 // Stages whose test agents runSeamA routes before each run.
 const ROUTED = new Set();
 
 /**
  * A stage built on the pact's real text (CLAUDE.md, AGENTS.md and the
- * risk-floor holder plan-reviewer), an empty overlay, and the given files.
+ * risk-floor holder plan-reviewer), today's overlay, and the given files.
  * Unless `route` is false, runSeamA routes the stage's test agents first.
  */
 export function stage(t, files = {}, { route = true } = {}) {
@@ -107,7 +112,7 @@ export function stage(t, files = {}, { route = true } = {}) {
     'claude/CLAUDE.md': read(join(REPO, 'claude', 'CLAUDE.md')),
     'AGENTS.md': read(join(REPO, 'AGENTS.md')),
     'claude/agents/plan-reviewer.md': read(join(REPO, 'claude', 'agents', 'plan-reviewer.md')),
-    'claude/settings.overlay.json': '{}\n',
+    'claude/settings.overlay.json': realOverlay(),
     'familiars/.gitkeep': '',
     ...files,
   });

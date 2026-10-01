@@ -681,7 +681,22 @@ SETTINGS_OVERLAY='{
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
-    "defaultMode": "auto"
+    "defaultMode": "auto",
+    "ask": [
+      "PowerShell(./scripts/install.ps1 -Apply)",
+      "PowerShell(*install.ps1*-A*)",
+      "Bash(*nstall.ps1*-A*)",
+      "Bash(*nstall.ps1*-a*)",
+      "Edit(~/.claude/agents/**)",
+      "Edit(~/.claude/settings.json)",
+      "Edit(~/.claude/CLAUDE.md)",
+      "Edit(~/.claude/.pact-install.json)",
+      "Edit(~/.claude.json)",
+      "Edit(~/.claude/skills/**)",
+      "Edit(~/.claude/plugins/**)",
+      "Edit(~/.claude/output-styles/**)",
+      "Edit(~/.claude/commands/**)"
+    ]
   },
   "fallbackModel": [
     "opus",
@@ -696,14 +711,14 @@ SETTINGS_OVERLAY='{
 }'
 
 # Deep-merge an overlay into ~/.claude/settings.json. The overlay wins on
-# ordinary keys; the file wins on plugin keys; permissions.allow and .deny are
+# ordinary keys; the file wins on plugin keys; permissions.allow, .deny and .ask are
 # joined and de-duplicated (jq's unique also sorts them), not replaced.
 MERGE_PROGRAM='
   .[0] as $a | .[1] as $b
   | ($a * $b)
   | reduce ("enabledPlugins", "extraKnownMarketplaces") as $k (.;
       if ($a | has($k)) then .[$k] = $a[$k] else . end)
-  | reduce ("allow", "deny") as $k (.;
+  | reduce ("allow", "deny", "ask") as $k (.;
       if (($a.permissions // {}) | has($k)) or (($b.permissions // {}) | has($k))
       then .permissions[$k] = ((($a.permissions[$k] // []) + ($b.permissions[$k] // [])) | unique)
       else . end)'

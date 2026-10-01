@@ -1,0 +1,28 @@
+{
+  "env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+  "permissions.defaultMode": "auto",
+  "permissions.allow": [],
+  "permissions.deny": [],
+  "permissions.ask": [
+    "PowerShell(./scripts/install.ps1 -Apply)",
+    "PowerShell(*install.ps1*-A*)",
+    "Bash(*nstall.ps1*-A*)",
+    "Bash(*nstall.ps1*-a*)",
+    "Edit(~/.claude/agents/**)",
+    "Edit(~/.claude/settings.json)",
+    "Edit(~/.claude/CLAUDE.md)",
+    "Edit(~/.claude/.pact-install.json)",
+    "Edit(~/.claude.json)",
+    "Edit(~/.claude/skills/**)",
+    "Edit(~/.claude/plugins/**)",
+    "Edit(~/.claude/output-styles/**)",
+    "Edit(~/.claude/commands/**)"
+  ],
+  "fallbackModel": ["opus", "sonnet"],
+  "advisorModel": "opus",
+  "outputStyle": "Concise",
+  "showThinkingSummaries": true,
+  "skipWorkflowUsageWarning": true,
+  "autoContinueAtUsageLimit": true,
+  "skipAutoPermissionPrompt": true
+}
