@@ -70,7 +70,7 @@ File tools:
 | 12 | `Write` a new file `~/.claude/agents/pact-probe-34-new.txt` | Prompted | `Edit(~/.claude/agents/**)`; per the docs, `Edit` rules cover every file-editing tool |
 | 13 | `Edit` `~/.claude/agents/pact-probe-34.txt` | Prompted | `Edit(~/.claude/agents/**)` |
 | 14 | `Edit` the same file as `C:\Users\mephi\.claude\agents\pact-probe-34.txt` | Prompted | The path is normalised before matching, per the docs |
-| 15 | `Edit` the same file as `~/.Claude/Agents/pact-probe-34.txt` | Unknown | Case-folded path matching isn't documented |
+| 15 | `Edit` the same file as `~/.Claude/Agents/pact-probe-34.txt` | Observation only, not counted | Case-folded path matching isn't documented; a miss joins the accepted risks |
 
 ## What counts
 

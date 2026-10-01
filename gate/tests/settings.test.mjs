@@ -133,9 +133,10 @@ test('a banned name inside a string value is not a banned key', t => {
   assert.ok(!failRules(r.stdout).includes('settings-banned'), r.out);
 });
 
-test('bad case: a banned name stays banned when the allow-list lists it', t => {
+test('bad case: an allow-list that lists a banned name is refused, and the name stays banned', t => {
   const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc.hooks = {})));
-  expectSettingsFail(t, overlayWith(o => (o.hooks = {})), 'settings-banned', script);
+  const r = expectSettingsFail(t, overlayWith(o => (o.hooks = {})), 'settings-banned', script);
+  assert.ok(failRules(r.stdout).includes('settings-allowlist'), r.out);
 });
 
 // ------------------------------------------------------------ seam A: the mode
@@ -421,16 +422,20 @@ test('bad case: a seam A that reports another overlay hash refuses', t => {
   const h = home(t);
   const r = install(repo, h, { apply: true });
   refused(r);
-  assert.match(r.stdout, /settings overlay/);
+  assert.match(r.stdout, /^REFUSED: the settings overlay's hash does not match the one the check passed\./m, r.out);
 });
 
 test('bad case: a missing or doubled SETTINGS line refuses', t => {
   const none = makeRepo(t, root => plantSeamA(root, s => s.replace('// @@TEST-SETTINGS-HOOK@@', 'return;')));
-  refused(install(none, home(t)));
+  const rn = install(none, home(t));
+  refused(rn);
+  assert.match(rn.stdout, /^REFUSED: the check did not report exactly one settings overlay hash\./m, rn.out);
   const two = makeRepo(t, root =>
     plantSeamA(root, s => s.replace('// @@TEST-SETTINGS-HOOK@@', 'report.lines.push(`SETTINGS ${settingsHash} claude/settings.overlay.json`);')),
   );
-  refused(install(two, home(t)));
+  const r2 = install(two, home(t));
+  refused(r2);
+  assert.match(r2.stdout, /^REFUSED: the check did not report exactly one settings overlay hash\./m, r2.out);
 });
 
 test('bad case: an overlay missing from the commit refuses', t => {
@@ -447,6 +452,18 @@ test('bad case: a banned key in the committed overlay refuses, and -Apply change
   refused(r);
   assert.match(r.stdout, /^seam-a\| FAIL settings-banned: claude\/settings\.overlay\.json: .*\(statusLine\)$/m, r.out);
   assert.throws(() => readFileSync(join(h, 'settings.json')));
+});
+
+test('bad case: an -Apply whose written settings lack the guard reports a mismatch and exits non-zero', t => {
+  const repo = makeRepo(t, root => {
+    const p = join(root, 'scripts', 'install.ps1');
+    writeFileSync(p, readFileSync(p, 'utf8').replace('((ConvertTo-Json $merged -Depth 100) + "`n")', "'{}'"));
+  });
+  const h = home(t);
+  writeLive(h, { theme: 'dark' });
+  const r = install(repo, h, { apply: true });
+  assert.notEqual(r.code, 0, r.out);
+  assert.match(r.stdout, /^MISMATCH settings\.json/m, r.out);
 });
 
 test('the dry run no longer says the overlay is unchecked', t => {
