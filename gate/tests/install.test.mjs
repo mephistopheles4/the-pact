@@ -259,7 +259,9 @@ test('bad case: a missing pinned script refuses', t => {
   const repo = makeRepo(t, root => {
     rmSync(join(root, 'gate', 'grimoire', 'check.mjs'));
   });
-  refused(install(repo, home(t)));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the pinned check script or its pin file is missing\./m, r.out);
 });
 
 test('bad case: a fake Node with no RESULT line refuses, and -Apply changes nothing', t => {
@@ -330,7 +332,9 @@ test('bad case: two sources for one live path refuse', t => {
   const repo = makeRepo(t, root =>
     sealedFamiliar(root, 'scout', { lines: ['name: scout', 'description: x', READ_ONLY] }),
   );
-  refused(install(repo, home(t)));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^seam-a\| FAIL destination-duplicate: /m, r.out);
 });
 
 test('bad case: two paths in the commit that differ only in case refuse', t => {
@@ -491,4 +495,14 @@ test('an edited canonical text, with its clause, shows in the dry run as a gate 
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Gate: CHANGED since the last install$/m);
   assert.match(r.stdout, /^ {2}changed gate\/clauses\/security-route\.md$/m);
+});
+
+test('bad case: an unrouted agent at HEAD refuses, naming its file', t => {
+  const repo = makeRepo(t);
+  // Planted after makeRepo, so the fixture router never sees it.
+  writeTree(repo, { 'claude/agents/probe.md': plainAgent('probe') });
+  commitAll(repo);
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^seam-a\| FAIL routing: claude\/agents\/probe\.md: /m, r.out);
 });

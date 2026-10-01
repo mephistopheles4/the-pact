@@ -51,6 +51,14 @@ const MOVES = [1, 2, 3, 4];
 
 const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 const FENCE_RE = /^ *(?:```|~~~)/;
+// The pact files' structure is held to the forms this module reads exactly as
+// CommonMark does: no fence of any kind, no setext heading, and ATX headings
+// only at column 0 with one space. Anything else could frame a block one way
+// for the model and another way for the check.
+const ANY_FENCE_RE = /^\s*(?:`{3,}|~{3,})/;
+const SETEXT_RE = /^ {0,3}(?:=+|-+)\s*$/;
+const HEADING_LIKE_RE = /^\s*#{1,6}(?:\s|$)/;
+const HEADING_RE = /^#{1,6} \S/;
 const MOVE_RE = /^([0-9]+)\. /;
 const SPAN_RE = /`([^`]+)`/g;
 const PACT_MARKER_RE = /<!--\s*pact\s*:/i;
@@ -87,6 +95,7 @@ function parseDoc(text, file, allowed, report) {
   const blocks = new Map();
   const seen = new Set();
   let section = null;
+  let sub = false;
   let fenced = false;
   let open = null;
   lines.forEach((line, i) => {
@@ -95,10 +104,11 @@ function parseDoc(text, file, allowed, report) {
     if (fence) fenced = !fenced;
     const inFence = fence || fenced;
     if (!inFence) {
-      if (line.startsWith('## ')) section = line.slice(3);
-      else if (line.startsWith('# ')) section = null;
+      if (line.startsWith('## ')) [section, sub] = [line.slice(3), false];
+      else if (line.startsWith('# ')) [section, sub] = [null, false];
+      else if (/^#{3,6} /.test(line)) sub = true;
     }
-    meta.push({ section, fenced: inFence, marker: false });
+    meta.push({ section, sub, fenced: inFence, marker: false });
     if (!line.includes('<!--')) return;
     meta[i].marker = true;
     if (inFence) return report.fail('marker', file, ln, 'a comment inside a fenced code block');
@@ -120,6 +130,22 @@ function parseDoc(text, file, allowed, report) {
   });
   if (open) report.fail('marker', file, open.line + 1, `${open.name} never closes`);
   return { lines, meta, blocks };
+}
+
+/** Refuse the Markdown forms a pact file may not use (see ANY_FENCE_RE). */
+function checkStructure(doc, file, report) {
+  const titles = new Set();
+  doc.lines.forEach((line, i) => {
+    const ln = i + 1;
+    if (ANY_FENCE_RE.test(line)) report.fail('structure', file, ln, 'a fenced code block; the pact files may hold none');
+    else if (SETEXT_RE.test(line)) report.fail('structure', file, ln, 'a setext heading underline');
+    else if (HEADING_LIKE_RE.test(line) && !HEADING_RE.test(line)) report.fail('structure', file, ln, 'a heading not written as "## title" at column 0');
+    else if (line.startsWith('# ') && i !== 0) report.fail('structure', file, ln, 'a top-level heading after the first line');
+    else if (line.startsWith('## ')) {
+      if (titles.has(line)) report.fail('structure', file, ln, 'a section title used twice');
+      titles.add(line);
+    }
+  });
 }
 
 /** Moves 1 to 4 of "Implementing a change": number -> [first line, last line]. */
@@ -196,7 +222,10 @@ export function checkPactText(root, agents, report, scanText) {
   const docs = new Map();
   for (const rel of [PACT, RULES]) {
     const text = readPactFile(root, rel, report, scanText);
-    if (text !== null) docs.set(rel, parseDoc(text, rel, namesFor(rel), report));
+    if (text === null) continue;
+    const doc = parseDoc(text, rel, namesFor(rel), report);
+    checkStructure(doc, rel, report);
+    docs.set(rel, doc);
   }
 
   // Required clauses: present, word for word, and where they belong.
@@ -211,7 +240,7 @@ export function checkPactText(root, agents, report, scanText) {
       continue;
     }
     if (canon.has(name) && block.text !== canon.get(name)) report.fail('required-clause', spec.file, null, `${name} differs from its canonical text`);
-    const inSection = doc.meta[block.begin].section === spec.section && doc.meta[block.end].section === spec.section;
+    const inSection = [block.begin, block.end].every(i => doc.meta[i].section === spec.section && !doc.meta[i].sub);
     const range = spec.move ? moves.get(spec.move) : null;
     const inMove = !spec.move || (range && block.begin >= range[0] && block.end <= range[1]);
     if (!inSection || !inMove) {
@@ -231,8 +260,11 @@ export function checkPactText(root, agents, report, scanText) {
     const doc = parseDoc(readFileSync(join(root, ...holder.file.split('/')), 'utf8'), holder.file, new Set([name]), report);
     const block = doc.blocks.get(name);
     const source = pact && pact.blocks.get(name);
+    // An agent body may hold examples in fences; the shared block comes before any.
+    const firstFence = doc.lines.findIndex(l => ANY_FENCE_RE.test(l));
     if (!block) report.fail('shared-block', holder.file, null, `no shared ${name} block`);
     else if (!source || block.text !== source.text) report.fail('shared-block', holder.file, block.begin + 1, `the shared ${name} block differs from the pact's`);
+    else if (firstFence >= 0 && firstFence < block.end) report.fail('shared-block', holder.file, block.begin + 1, `the shared ${name} block must come before any fenced code block`);
   }
   for (const a of agents) {
     if (holders.has(a)) continue;

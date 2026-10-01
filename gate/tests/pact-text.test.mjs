@@ -169,35 +169,39 @@ test('bad case: a name routed only in another case (explore for Explore)', t => 
 });
 
 test('bad case: a name only inside a longer code span does not route', t => {
-  expectFail(t, 'routing', {
+  const r = expectFail(t, 'routing', {
     route: false,
     files: { [PROBE]: plainAgent('probe') },
     prep: root => edit(root, MD, s => s.replace('use `scout`.', 'use `scout`. Also `probe-x` and `use probe`.')),
   });
+  assert.deepEqual(failFiles(r.stdout, 'routing'), [PROBE]);
 });
 
 test('bad case: a name only in a paragraph that is not a listed role line does not route', t => {
-  expectFail(t, 'routing', {
+  const r = expectFail(t, 'routing', {
     route: false,
     files: { [PROBE]: plainAgent('probe') },
     prep: root => edit(root, MD, s => s.replace('**Reading agents.** `plan-reviewer`,', '**Reading agents.** `probe`, `plan-reviewer`,')),
   });
+  assert.deepEqual(failFiles(r.stdout, 'routing'), [PROBE]);
 });
 
 test('bad case: a name only in an added move 5 does not route', t => {
-  expectFail(t, 'routing', {
+  const r = expectFail(t, 'routing', {
     route: false,
     files: { [PROBE]: plainAgent('probe') },
     prep: root => edit(root, MD, s => s.replace('   <!-- pact:end move-4 -->\n', '   <!-- pact:end move-4 -->\n5. **Extra.** Use `probe`.\n')),
   });
+  assert.deepEqual(failFiles(r.stdout, 'routing'), [PROBE]);
 });
 
 test('bad case: a name only in fenced text inside a move does not route', t => {
-  expectFail(t, 'routing', {
+  const r = expectFail(t, 'routing', {
     route: false,
     files: { [PROBE]: plainAgent('probe') },
     prep: root => edit(root, MD, s => s.replace('   <!-- pact:end move-4 -->\n', '   <!-- pact:end move-4 -->\n   ```\n   `probe`\n   ```\n')),
   });
+  assert.deepEqual(failFiles(r.stdout, 'routing'), [PROBE]);
 });
 
 test('bad case: a name hidden in a comment fails the marker rule, and does not route', t => {
@@ -488,4 +492,37 @@ test('the user-only-skill check still passes on the marked pact', t => {
   );
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /^named skills: 6; user-only: 5; OK\s*$/m, r.stdout + r.stderr);
+});
+
+// ------------------------------------------------------------ Markdown structure (diff review N1)
+
+for (const [label, change] of [
+  ['mixed fences around a block', s => s.replace('<!-- pact:begin risk-floor -->', '~~~\n```\n<!-- pact:begin risk-floor -->').replace('<!-- pact:end risk-floor -->', '<!-- pact:end risk-floor -->\n```\n~~~')],
+  ['a fence indented four spaces', s => s.replace('## Watching usage\n', '    ```\n## Watching usage\n')],
+  ['a setext heading', s => s.replace('**Risk floor.**\n', 'Retired rules\n=============\n\n**Risk floor.**\n')],
+  ['an indented heading', s => s.replace('**Risk floor.**\n', '   ## Retired rules\n\n**Risk floor.**\n')],
+  ['a heading after a tab', s => s.replace('**Risk floor.**\n', '##\tRetired rules\n\n**Risk floor.**\n')],
+  ['a section title used twice, under a new top heading', s => `${s}\n# Retired\n\n## Implementing a change\n`],
+]) {
+  test(`bad case: ${label} in CLAUDE.md`, t => {
+    expectFail(t, 'structure', { prep: root => edit(root, MD, change) });
+  });
+}
+
+test('bad case: a top-level heading in AGENTS.md after its first line', t => {
+  expectFail(t, 'structure', { prep: root => edit(root, AG, s => s.replace('## Changes here reach every project\n', '# Retired\n\n## Changes here reach every project\n')) });
+});
+
+test('bad case: a required clause under a subheading in its section', t => {
+  expectFail(t, 'anchor', { prep: root => edit(root, MD, s => s.replace('**Risk floor.**\n', '### Retired rules\n\n**Risk floor.**\n')) });
+});
+
+test('bad case: the shared block after a fenced code block in plan-reviewer', t => {
+  expectFail(t, 'shared-block', {
+    prep: root =>
+      edit(root, PR, s => {
+        const { text, block } = cutBlock(s, 'risk-floor');
+        return `${text}\n${block.join('\n')}\n`;
+      }),
+  });
 });

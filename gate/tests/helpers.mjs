@@ -46,9 +46,13 @@ export function realPayload(root) {
   writeFileSync(join(root, 'familiars', '.gitkeep'), '');
 }
 
-// The pact's own agents, which its real text routes.
+// The pact's own agents, from both sources, which its real text must route.
+// The fixture router never adds them, so it can't hide a real unrouted agent.
 const REAL_AGENTS = new Set(
-  readdirSync(join(REPO, 'claude', 'agents'))
+  [
+    ...readdirSync(join(REPO, 'claude', 'agents')),
+    ...readdirSync(join(REPO, 'familiars')).filter(f => !f.endsWith('.contract.md') && !f.endsWith('.practice-test.md')),
+  ]
     .filter(f => f.endsWith('.md'))
     .map(f => f.slice(0, -3)),
 );
@@ -73,12 +77,20 @@ export function routeTree(root) {
     }
   }
   const extra = [...new Set(stems)].filter(s => !REAL_AGENTS.has(s)).sort();
-  const lines = readFileSync(md, 'utf8').split('\n');
+  // A fixture that isn't valid UTF-8 is left byte for byte, never repaired.
+  let before;
+  try {
+    before = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(readFileSync(md));
+  } catch {
+    return;
+  }
+  const lines = before.split('\n');
   const i = lines.findIndex(l => l.startsWith(ROLE_LEAD));
   if (i < 0) return;
   lines[i] = lines[i].replace(TEST_ROUTE_RE, '');
   if (extra.length) lines[i] += ` Test agents: ${extra.map(s => `\`${s}\``).join(', ')}.`;
-  writeFileSync(md, lines.join('\n'));
+  const after = lines.join('\n');
+  if (after !== before) writeFileSync(md, after);
 }
 
 // Stages whose test agents runSeamA routes before each run.
