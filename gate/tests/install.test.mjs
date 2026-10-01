@@ -5,7 +5,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import { before, test } from 'node:test';
-import { REPO, READ_ONLY, agent, plainAgent, sealedFamiliar, tempDir, writeTree } from './helpers.mjs';
+import { REPO, READ_ONLY, agent, plainAgent, routeTree, sealedFamiliar, tempDir, writeTree } from './helpers.mjs';
 
 const WIN = process.platform === 'win32';
 
@@ -42,8 +42,10 @@ function makeRepo(t, mutate) {
   mkdirSync(join(root, 'scripts'));
   cpSync(join(REPO, 'scripts', 'install.ps1'), join(root, 'scripts', 'install.ps1'));
   cpSync(join(REPO, '.gitattributes'), join(root, '.gitattributes'));
+  cpSync(join(REPO, 'AGENTS.md'), join(root, 'AGENTS.md'));
   writeFileSync(join(root, '.gitignore'), 'settings.json\n');
   if (mutate) mutate(root);
+  routeTree(root);
   git(root, 'init', '-q', '-b', 'main');
   git(root, 'config', 'user.email', 'test@example.invalid');
   git(root, 'config', 'user.name', 'gate test');
@@ -133,7 +135,8 @@ test('dry run on a clean tree passes and shows Node, the pin, the check and the 
   assert.match(r.stdout, /^seam-a\| RESULT: pass$/m);
   assert.match(r.stdout, /^Check: passed on commit [0-9a-f]{40}$/m);
   assert.match(r.stdout, /^Gate: no gate recorded at the last install$/m);
-  assert.match(r.stdout, /not content-checked until #33/);
+  assert.doesNotMatch(r.stdout, /not content-checked until #33/);
+  assert.match(r.stdout, /^Partly checked: CLAUDE\.md's routing and marked clauses are checked; the rest of its text is not checked until ticket 4\.$/m);
   assert.match(r.stdout, /not checked until #34/);
 });
 
@@ -149,12 +152,21 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   const gatePaths = manifest.gate.map(g => g.path).sort();
   assert.deepEqual(gatePaths, [
+    'gate/clauses/install-go-ahead.md',
+    'gate/clauses/move-4.md',
+    'gate/clauses/never-substitute.md',
+    'gate/clauses/no-skill-overrides.md',
+    'gate/clauses/risk-floor.md',
+    'gate/clauses/security-route.md',
+    'gate/clauses/stop-and-escalate.md',
     'gate/grimoire/check.mjs',
     'gate/grimoire/check.mjs.pin',
+    'gate/pact-text.mjs',
     'gate/seam-a.mjs',
     'gate/tool-allowlist.json',
     'scripts/install.ps1',
   ]);
+  assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^Gate: unchanged since the last install$/m);
@@ -426,4 +438,56 @@ test('canary: the install never echoes agent file content', t => {
   const r = install(repo, home(t));
   refused(r);
   assert.ok(!r.out.includes(C), r.out);
+});
+
+// ------------------------------------------------------------ the pact text (#33)
+
+function weakenGoAhead(s) {
+  assert.ok(s.includes('only after they say so in chat'));
+  return s.replace('only after they say so in chat', 'when ready');
+}
+
+test('bad case: a weakened install go-ahead in AGENTS.md at HEAD refuses', t => {
+  const repo = makeRepo(t, root => writeFileSync(join(root, 'AGENTS.md'), weakenGoAhead(readFileSync(join(root, 'AGENTS.md'), 'utf8'))));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^seam-a\| FAIL required-clause: AGENTS\.md: install-go-ahead /m, r.out);
+});
+
+test('AGENTS.md is read from HEAD: a working-tree-only weakening is not what is checked', t => {
+  const repo = makeRepo(t);
+  const p = join(repo, 'AGENTS.md');
+  writeFileSync(p, weakenGoAhead(readFileSync(p, 'utf8')));
+  const r = install(repo, home(t));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /uncommitted edits are not checked/);
+});
+
+test('bad case: a weakened required clause in CLAUDE.md at HEAD refuses', t => {
+  const repo = makeRepo(t, root => {
+    const p = join(root, 'claude', 'CLAUDE.md');
+    writeFileSync(p, readFileSync(p, 'utf8').replace('takes the security route, however small:', 'takes the security route, when large:'));
+  });
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^seam-a\| FAIL required-clause: claude\/CLAUDE\.md: security-route /m, r.out);
+});
+
+test('an edited canonical text, with its clause, shows in the dry run as a gate change', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true }).code, 0);
+  const from = 'however small';
+  const to = 'however small or large';
+  for (const rel of [['claude', 'CLAUDE.md'], ['gate', 'clauses', 'security-route.md']]) {
+    const p = join(repo, ...rel);
+    const s = readFileSync(p, 'utf8');
+    assert.ok(s.includes(from), rel.join('/'));
+    writeFileSync(p, s.replace(from, to));
+  }
+  commitAll(repo);
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^Gate: CHANGED since the last install$/m);
+  assert.match(r.stdout, /^ {2}changed gate\/clauses\/security-route\.md$/m);
 });

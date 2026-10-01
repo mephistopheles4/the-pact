@@ -2,7 +2,7 @@
 // must fail on, not just a failure.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -78,9 +78,10 @@ test('an install line carries the staged bytes hash', t => {
   assert.match(hash, /^[0-9a-f]{64}$/);
 });
 
-test('CLAUDE.md is named as not yet content-checked', t => {
+test('CLAUDE.md is named as checked only for routing and its marked clauses', t => {
   const r = expectPass(t, {});
-  assert.match(r.stdout, /^NOTE unchecked: claude\/CLAUDE\.md/m);
+  assert.doesNotMatch(r.stdout, /^NOTE unchecked: claude\/CLAUDE\.md/m);
+  assert.match(r.stdout, /^NOTE partly-checked: claude\/CLAUDE\.md is checked for routing and its marked clauses only; the rest of its text is not checked until ticket 4$/m);
 });
 
 test('the settings overlay is never listed for install', t => {
@@ -429,8 +430,10 @@ test('a contract with no agent beside it is not installed and passes', t => {
 
 function gateCopy(t, edit) {
   const g = tempDir(t);
+  cpSync(join(GATE, 'clauses'), join(g, 'clauses'), { recursive: true });
   writeTree(g, {
     'seam-a.mjs': readFileSync(join(GATE, 'seam-a.mjs'), 'utf8'),
+    'pact-text.mjs': readFileSync(join(GATE, 'pact-text.mjs'), 'utf8'),
     'tool-allowlist.json': readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'),
     'grimoire/check.mjs': readFileSync(join(GATE, 'grimoire', 'check.mjs'), 'utf8'),
     'grimoire/check.mjs.pin': readFileSync(join(GATE, 'grimoire', 'check.mjs.pin'), 'utf8'),

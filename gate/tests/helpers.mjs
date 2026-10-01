@@ -1,7 +1,7 @@
 // Shared fixtures for the gate's tests. Everything is built in a fresh temp
 // folder per test; nothing here touches the repo tree or ~/.claude.
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,19 +41,65 @@ export function plainAgent(name, extra = [], tools = READ_ONLY) {
 /** Today's payload, copied from the repo, as the stage holds it. */
 export function realPayload(root) {
   cpSync(join(REPO, 'claude'), join(root, 'claude'), { recursive: true });
+  cpSync(join(REPO, 'AGENTS.md'), join(root, 'AGENTS.md'));
   mkdirSync(join(root, 'familiars'), { recursive: true });
   writeFileSync(join(root, 'familiars', '.gitkeep'), '');
 }
 
-/** A minimal stage: a CLAUDE.md, an overlay, and the given extra files. */
-export function stage(t, files = {}) {
+// The pact's own agents, which its real text routes.
+const REAL_AGENTS = new Set(
+  readdirSync(join(REPO, 'claude', 'agents'))
+    .filter(f => f.endsWith('.md'))
+    .map(f => f.slice(0, -3)),
+);
+export const ROLE_LEAD = '**Lookups and searches.**';
+const TEST_ROUTE_RE = / Test agents: [^\n]*$/;
+
+/**
+ * Route a fixture's test agents: add every agent stem in the tree that is not
+ * one of the pact's own to the fixture CLAUDE.md's "Lookups and searches."
+ * line, so a test about another rule isn't failed by routing. Idempotent.
+ */
+export function routeTree(root) {
+  const md = join(root, 'claude', 'CLAUDE.md');
+  if (!existsSync(md)) return;
+  const stems = [];
+  const agentsDir = join(root, 'claude', 'agents');
+  if (existsSync(agentsDir)) for (const f of readdirSync(agentsDir)) if (f.endsWith('.md')) stems.push(f.slice(0, -3));
+  const famDir = join(root, 'familiars');
+  if (existsSync(famDir)) {
+    for (const f of readdirSync(famDir)) {
+      if (f.endsWith('.md') && !f.endsWith('.contract.md') && !f.endsWith('.practice-test.md')) stems.push(f.slice(0, -3));
+    }
+  }
+  const extra = [...new Set(stems)].filter(s => !REAL_AGENTS.has(s)).sort();
+  const lines = readFileSync(md, 'utf8').split('\n');
+  const i = lines.findIndex(l => l.startsWith(ROLE_LEAD));
+  if (i < 0) return;
+  lines[i] = lines[i].replace(TEST_ROUTE_RE, '');
+  if (extra.length) lines[i] += ` Test agents: ${extra.map(s => `\`${s}\``).join(', ')}.`;
+  writeFileSync(md, lines.join('\n'));
+}
+
+// Stages whose test agents runSeamA routes before each run.
+const ROUTED = new Set();
+
+/**
+ * A stage built on the pact's real text (CLAUDE.md, AGENTS.md and the
+ * risk-floor holder plan-reviewer), an empty overlay, and the given files.
+ * Unless `route` is false, runSeamA routes the stage's test agents first.
+ */
+export function stage(t, files = {}, { route = true } = {}) {
   const root = tempDir(t);
   writeTree(root, {
-    'claude/CLAUDE.md': '# pact\n',
+    'claude/CLAUDE.md': read(join(REPO, 'claude', 'CLAUDE.md')),
+    'AGENTS.md': read(join(REPO, 'AGENTS.md')),
+    'claude/agents/plan-reviewer.md': read(join(REPO, 'claude', 'agents', 'plan-reviewer.md')),
     'claude/settings.overlay.json': '{}\n',
     'familiars/.gitkeep': '',
     ...files,
   });
+  if (route) ROUTED.add(root);
   return root;
 }
 
@@ -62,10 +108,10 @@ export function contractText(extraKeys = 'tools, model, effort') {
 }
 
 /** Write a familiar and its contract under root/familiars, then seal it with the pinned check (tests only). */
-export function sealedFamiliar(root, name, { lines, contract } = {}) {
+export function sealedFamiliar(root, name, { lines, contract, body } = {}) {
   const fm = lines ?? [`name: ${name}`, 'description: A test familiar.', READ_ONLY];
   writeTree(root, {
-    [`familiars/${name}.md`]: agent(fm),
+    [`familiars/${name}.md`]: agent(fm, body),
     [`familiars/${name}.contract.md`]: contract ?? contractText(),
   });
   const r = spawnSync(process.execPath, [PINNED, '--seal', join(root, 'familiars', `${name}.md`)], { encoding: 'utf8' });
@@ -73,6 +119,7 @@ export function sealedFamiliar(root, name, { lines, contract } = {}) {
 }
 
 export function runSeamA(root, script = SEAM_A) {
+  if (ROUTED.has(root)) routeTree(root);
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   const r = spawnSync(process.execPath, [script, root], { encoding: 'utf8', env });
