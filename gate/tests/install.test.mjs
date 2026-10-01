@@ -477,12 +477,13 @@ test('an edited canonical text, with its clause, shows in the dry run as a gate 
   const repo = makeRepo(t);
   const h = home(t);
   assert.equal(install(repo, h, { apply: true }).code, 0);
-  const from = 'however small';
-  const to = 'however small or large';
+  // Unique in both files, so the same edit lands inside the block.
+  const from = 'route, however small:';
+  const to = 'route, however small or large:';
   for (const rel of [['claude', 'CLAUDE.md'], ['gate', 'clauses', 'security-route.md']]) {
     const p = join(repo, ...rel);
     const s = readFileSync(p, 'utf8');
-    assert.ok(s.includes(from), rel.join('/'));
+    assert.equal(s.split(from).length, 2, rel.join('/'));
     writeFileSync(p, s.replace(from, to));
   }
   commitAll(repo);

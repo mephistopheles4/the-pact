@@ -535,7 +535,12 @@ Receive exactly one stable readiness-unit ID + relevant Plan/evidence paths. Pro
 
 Security-sensitive units → require completed `security-reviewer` findings/dispositions in Plan before readiness judgment.
 
-Human-in-loop check — checks the plan's "Needs a human" section. Scope: every step, whichever phase or session it runs in. Need the plan settles (decision made, approval recorded, owner action given a stated time) = handled, not a finding. Blocking signals, only when plan leaves them unhandled: product or scope decision left for build time; owner-only action with no stated time (sign-in, credentials, payment, run-time approval); irreversible action (publish, push, send, install, migrate real data) not named for owner sign-off; step with no checkable done-criteria; security work with no `security-reviewer` read of the spec and of the diff; risk-floor item (auth, secrets, crypto, input validation, migrations, published work) below the thorough tier. Plan lacks "Needs a human" section, or a blocking signal is unhandled → REVISE blocker at top severity (P0). Anything else about the section → advisory, not REVISE.
+Human-in-loop check — checks the plan's "Needs a human" section. Scope: every step, whichever phase or session it runs in. Need the plan settles (decision made, approval recorded, owner action given a stated time) = handled, not a finding. Blocking signals, only when plan leaves them unhandled: product or scope decision left for build time; owner-only action with no stated time (sign-in, credentials, payment, run-time approval); irreversible action (publish, push, send, install, migrate real data) not named for owner sign-off; step with no checkable done-criteria; security work with no `security-reviewer` read of the spec and of the diff; risk-floor item (the risk floor below) below the thorough tier. Plan lacks "Needs a human" section, or a blocking signal is unhandled → REVISE blocker at top severity (P0). Anything else about the section → advisory, not REVISE.
+
+Risk floor, in the pact's words ("I" is the owner):
+<!-- pact:begin risk-floor -->
+Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
+<!-- pact:end risk-floor -->
 
 Only concrete P0-P2 defects making unit unsafe, unexecutable, ownership-conflicting, prerequisite-blocked, or unable to prove claimed outcome = blockers. Return every currently known blocker in the same pass. Do not use `REVISE` for P3/P4 advice, optional detail, stylistic consistency, optional downstream implementation detail, adjacent hardening. Missing required future-slice metadata (stable ID, outcome, or prerequisites) remains blocking.
 
