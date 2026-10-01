@@ -320,6 +320,21 @@ test('bad case: two sources for one live path refuse', t => {
   refused(install(repo, home(t)));
 });
 
+test('bad case: two paths in the commit that differ only in case refuse', t => {
+  // Built in the index, since a folding disk cannot hold both files.
+  const repo = makeRepo(t);
+  const tmp = join(repo, 'Scout.tmp');
+  writeFileSync(tmp, plainAgent('Scout'));
+  const id = git(repo, 'hash-object', '-w', tmp).trim();
+  rmSync(tmp);
+  git(repo, 'update-index', '--add', '--cacheinfo', `100644,${id},claude/agents/Scout.md`);
+  git(repo, 'commit', '-q', '-m', 'case collision');
+  assert.match(git(repo, 'ls-tree', '-r', '--name-only', 'HEAD', '--', 'claude/agents'), /Scout\.md[\s\S]*scout\.md|scout\.md[\s\S]*Scout\.md/);
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /differ only in case/);
+});
+
 test('bad case: a live agents folder that is a link refuses', t => {
   const repo = makeRepo(t);
   const h = home(t);

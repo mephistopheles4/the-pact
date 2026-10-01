@@ -27,6 +27,10 @@ $checkTimeoutMs = 120000
 $checkLinesMax = 400
 $checkLineChars = 300
 
+# PowerShell's own hashtables fold case. Paths here are compared exactly, as git
+# and seam A compare them, so these maps never fold one name into another.
+function New-OrderedMap { , [Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal) }
+
 function Get-Sha256($path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() }
 function Get-BytesSha256([byte[]]$b) { [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($b)).ToLowerInvariant() }
 
@@ -247,7 +251,8 @@ else { Write-Host 'No manifest found: first-install mode. Live files are compare
 # The set is HEAD's tree, never a directory listing or the working tree: an
 # ignored file is never staged, and "installed commit X" is true of every byte.
 $treeRaw = Invoke-GitBytes @('ls-tree', '-r', '-z', '--full-tree', 'HEAD', '--', 'claude', 'familiars', 'gate', 'scripts/install.ps1')
-$tree = [ordered]@{}   # rel path -> blob id
+$tree = New-OrderedMap   # rel path -> blob id
+$treeFolded = @{}       # case-insensitive, to refuse paths that differ only in case
 foreach ($rec in ([Text.Encoding]::UTF8.GetString($treeRaw) -split "`0")) {
   if (-not $rec) { continue }
   if ($rec -cnotmatch '\A(\d{6}) (\w+) ([0-9a-f]{40})\t(.+)\z') { throw 'unreadable git ls-tree output' }
@@ -258,6 +263,8 @@ foreach ($rec in ([Text.Encoding]::UTF8.GetString($treeRaw) -split "`0")) {
   foreach ($seg in $rel.Split('/')) {
     if ($seg -cnotmatch '\A[A-Za-z0-9._-]+\z' -or $seg -eq '.' -or $seg -eq '..') { Stop-Refused "the commit holds a path with unsafe characters: $shownRel." }
   }
+  if ($treeFolded.ContainsKey($rel)) { Stop-Refused "the commit holds two paths that differ only in case: $shownRel." }
+  $treeFolded[$rel] = $true
   $tree[$rel] = $id
 }
 
@@ -267,7 +274,7 @@ $selfDiffers = -not $tree.Contains('scripts/install.ps1') -or (Get-BlobId $selfB
 $tree.Remove('scripts/install.ps1')
 
 $stage = [IO.Directory]::CreateTempSubdirectory('pact-stage-').FullName
-$staged = [ordered]@{}   # rel path -> sha256 of the staged bytes
+$staged = New-OrderedMap   # rel path -> sha256 of the staged bytes
 foreach ($rel in $tree.Keys) {
   $bytes = Invoke-GitBytes @('cat-file', 'blob', $tree[$rel])
   if ((Get-BlobId $bytes) -ne $tree[$rel]) { Stop-Refused "the bytes read for $rel are not its blob." }
@@ -280,10 +287,10 @@ foreach ($rel in $tree.Keys) {
 # Gate fingerprints: every gate file but the tests, and this script as it runs.
 # The self-fingerprint catches an honest or unaware edit only: a deliberately
 # altered install script can print anything it likes.
-$gateNow = [ordered]@{}
+$gateNow = New-OrderedMap
 foreach ($rel in ($staged.Keys | Where-Object { $_ -clike 'gate/*' } | Sort-Object)) { $gateNow[$rel] = $staged[$rel] }
 $gateNow['scripts/install.ps1'] = Get-BytesSha256 $selfBytes
-$gateThen = [ordered]@{}
+$gateThen = New-OrderedMap
 if ($manifest -and $manifest.gate) { foreach ($g in $manifest.gate) { $gateThen[[string]$g.path] = [string]$g.sha256 } }
 if (-not $gateThen.Count) { $gateLines = @('Gate: no gate recorded at the last install') }
 else {
@@ -338,14 +345,14 @@ if (-not $rawLines -or $rawLines[-1] -cne 'RESULT: pass') { Stop-Refused 'the ch
 # The copy set: seam A's INSTALL lines must match this script's own reading of
 # the stage exactly, by staged path, live path and hash. Matching here is
 # case-sensitive, as seam A's is, so the two cannot read one name two ways.
-$checked = [ordered]@{}   # staged rel -> @{ dest; sha256 }
+$checked = New-OrderedMap   # staged rel -> @{ dest; sha256 }
 foreach ($l in $rawLines) {
   if ($l -cmatch '\AINSTALL ([0-9a-f]{64}) (\S+) (\S+)\z') {
     if ($checked.Contains($Matches[2])) { Stop-Refused 'the check listed one file twice.' }
     $checked[$Matches[2]] = @{ dest = $Matches[3]; sha256 = $Matches[1] }
   }
 }
-$expected = [ordered]@{}
+$expected = New-OrderedMap
 foreach ($rel in $staged.Keys) {
   if ($rel -clike 'gate/*' -or $rel -ceq 'claude/settings.overlay.json' -or $rel -ceq 'familiars/.gitkeep') { continue }
   if ($rel -cmatch '\Afamiliars/[^/]+\.(contract|practice-test)\.md\z') { continue }
@@ -363,8 +370,8 @@ if (-not $setOk) { Stop-Refused "the check's copy set does not match the install
 Write-Host "Check: passed on commit $commit"
 Write-Host 'Not yet checked: CLAUDE.md is not content-checked until #33; the settings overlay is not checked until #34.'
 
-$repoFiles = [ordered]@{}   # live rel path -> sha256 of the staged copy
-$sourceOf = @{}             # live rel path -> staged rel path
+$repoFiles = New-OrderedMap   # live rel path -> sha256 of the staged copy
+$sourceOf = New-OrderedMap   # live rel path -> staged rel path
 $seenDest = @{}             # case-insensitive, as the live disk may fold case
 foreach ($rel in $checked.Keys) {
   $dest = $checked[$rel].dest
