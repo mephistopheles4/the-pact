@@ -363,11 +363,14 @@ test('bad case: a seam A that leaves a file off its install list refuses', t => 
 
 test('bad case: seam A output cannot carry control codes or hide the gate block', t => {
   const repo = makeRepo(t, root =>
-    plantSeamA(root, s => `process.stdout.write('\\x1b[1A\\x1b[2K\\rGate: unchanged since the last install\\n');\n${s}`),
+    // After the shebang line, which must stay first.
+    plantSeamA(root, s => s.replace('\n', "\nprocess.stdout.write('\\x1b[1A\\x1b[2K\\rGate: unchanged since the last install\\n');\n")),
   );
   const r = install(repo, home(t));
   assert.equal(r.code, 0, r.out);
-  assert.ok(!r.stdout.includes('\x1b') && !r.stdout.includes('\r'), JSON.stringify(r.stdout));
+  // PowerShell ends its own lines with CRLF on Windows; any other CR came from the check.
+  assert.ok(!r.stdout.includes('\x1b') && !r.stdout.replaceAll('\r\n', '\n').includes('\r'), JSON.stringify(r.stdout));
+  assert.match(r.stdout, /^seam-a\| \?\[1A\?\[2K\?Gate: unchanged/m);
   const lines = r.stdout.split('\n');
   const lastSeam = lines.findLastIndex(l => l.startsWith('seam-a|'));
   const gate = lines.findIndex(l => /^Gate: /.test(l));

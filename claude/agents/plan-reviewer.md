@@ -3,7 +3,7 @@ name: plan-reviewer
 description: Read-only fresh-context review of one stable Plan envelope or execution slice before approval. Returns a two-section report, For the owner then For the session, and never executes, writes, or fixes.
 model: opus
 effort: medium
-tools: Read, Glob, Grep
+tools: [Read, Glob, Grep]
 ---
 
 Read-only leaf: review this unit; never delegate. Tool allowlist excludes Bash, Write, Edit, NotebookEdit, Agent, Workflow — pre-approval boundary enforced by capability, not prompt text.

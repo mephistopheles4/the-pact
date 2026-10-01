@@ -2,7 +2,7 @@
 // must fail on, not just a failure.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -143,7 +143,8 @@ test('bad case: two agents with one name', t => {
 });
 
 test('bad case: two agents whose names differ only in case', t => {
-  expectFail(t, { 'claude/agents/probe.md': plainAgent('probe'), 'claude/agents/Probe.md': plainAgent('Probe') }, 'name-duplicate');
+  // In two folders, since a folding disk cannot hold both in one.
+  expectFail(t, { 'claude/agents/Probe.md': plainAgent('Probe') }, 'name-duplicate', root => sealedFamiliar(root, 'probe'));
 });
 
 test('bad case: two sources for one live path', t => {
@@ -326,10 +327,8 @@ test('classification: a subfolder in familiars', t => {
 });
 
 test('classification: a contract suffix in another case is an agent, and fails as one', t => {
-  const r = expectFail(t, {}, 'familiar-name', root => {
-    sealedFamiliar(root, 'probe');
-    copyFileSync(join(root, 'familiars', 'probe.md'), join(root, 'familiars', 'probe.CONTRACT.md'));
-  });
+  // Alone in its folder: a folding disk cannot hold it beside probe.contract.md.
+  const r = expectFail(t, { 'familiars/probe.CONTRACT.md': plainAgent('probe') }, 'familiar-name');
   assert.doesNotMatch(r.stdout, /^INSTALL .*probe\.CONTRACT\.md/m);
 });
 
@@ -502,7 +501,7 @@ test('canary: no value, key, metadata key or duplicate key is echoed', t => {
   const root = stage(t, files);
   // Sealed, so the pinned check runs on it and prints its own WARN line naming the key.
   sealedFamiliar(root, 'b2', {
-    lines: ['name: b2', 'description: x', READ_ONLY, `${C.toLowerCase()}k: y`],
+    lines: ['name: b2', 'description: x', READ_ONLY, `${C.toLowerCase()}k: yy`],
     contract: contractText(`tools, ${C.toLowerCase()}k`),
   });
   const r = runSeamA(root);
