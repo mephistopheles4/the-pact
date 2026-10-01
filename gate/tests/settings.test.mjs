@@ -3,10 +3,10 @@
 // warns about the live file, and never prints a live value.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { GATE, failRules, lastLine, realOverlay, runSeamA, stage, tempDir, writeTree } from './helpers.mjs';
+import { GATE, failRules, lastLine, realOverlay, runSeamA, stage, tempDir } from './helpers.mjs';
 import { commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const OVERLAY = 'claude/settings.overlay.json';
@@ -74,11 +74,11 @@ function sha256(text) {
   return createHash('sha256').update(text).digest('hex');
 }
 
-/** A copy of the gate, with `edit` applied, so a test can tamper with an allow-list. */
+/** A copy of the gate (all but its tests), with `edit` applied, so a test can tamper with an allow-list. */
 function gateCopy(t, edit) {
   const g = tempDir(t);
-  const files = ['seam-a.mjs', 'tool-allowlist.json', 'settings-allowlist.json', 'grimoire/check.mjs', 'grimoire/check.mjs.pin'];
-  writeTree(g, Object.fromEntries(files.map(f => [f, readFileSync(join(GATE, ...f.split('/')), 'utf8')])));
+  const tests = join(GATE, 'tests');
+  cpSync(GATE, g, { recursive: true, filter: src => src !== tests });
   edit(g);
   return join(g, 'seam-a.mjs');
 }
