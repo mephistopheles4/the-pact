@@ -262,7 +262,9 @@ else { Write-Host 'No manifest found: first-install mode. Live files are compare
 
 # The set is HEAD's tree, never a directory listing or the working tree: an
 # ignored file is never staged, and "installed commit X" is true of every byte.
-$treeRaw = Invoke-GitBytes @('ls-tree', '-r', '-z', '--full-tree', 'HEAD', '--', 'claude', 'familiars', 'gate', 'scripts/install.ps1')
+# AGENTS.md is staged for the check only (it holds the install go-ahead
+# clause); it is never installed.
+$treeRaw = Invoke-GitBytes @('ls-tree', '-r', '-z', '--full-tree', 'HEAD', '--', 'claude', 'familiars', 'gate', 'AGENTS.md', 'scripts/install.ps1')
 $tree = New-OrderedMap   # rel path -> blob id
 $treeFolded = @{}       # case-insensitive, to refuse paths that differ only in case
 foreach ($rec in ([Text.Encoding]::UTF8.GetString($treeRaw) -split "`0")) {
@@ -368,7 +370,7 @@ foreach ($l in $rawLines) {
 }
 $expected = New-OrderedMap
 foreach ($rel in $staged.Keys) {
-  if ($rel -clike 'gate/*' -or $rel -ceq 'claude/settings.overlay.json' -or $rel -ceq 'familiars/.gitkeep') { continue }
+  if ($rel -clike 'gate/*' -or $rel -ceq 'AGENTS.md' -or $rel -ceq 'claude/settings.overlay.json' -or $rel -ceq 'familiars/.gitkeep') { continue }
   if ($rel -cmatch '\Afamiliars/[^/]+\.(contract|practice-test)\.md\z') { continue }
   if ($rel -cmatch '\Aclaude/(.+)\z') { $expected[$rel] = $Matches[1] }
   elseif ($rel -cmatch '\Afamiliars/([^/]+\.md)\z') { $expected[$rel] = "agents/$($Matches[1])" }
@@ -382,7 +384,8 @@ foreach ($rel in $expected.Keys) {
 }
 if (-not $setOk) { Stop-Refused "the check's copy set does not match the install's own reading of commit $commit." }
 Write-Host "Check: passed on commit $commit"
-Write-Host 'Not yet checked: CLAUDE.md is not content-checked until #33; the settings overlay is not checked until #34.'
+Write-Host "Partly checked: CLAUDE.md's routing and marked clauses are checked; the rest of its text is not checked until ticket 4."
+Write-Host 'Not yet checked: the settings overlay is not checked until #34.'
 
 $repoFiles = New-OrderedMap   # live rel path -> sha256 of the staged copy
 $sourceOf = New-OrderedMap   # live rel path -> staged rel path

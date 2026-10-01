@@ -30,9 +30,11 @@ how every session in every repo behaves. So:
   or can't run. The dry run also shows the Node it used, the pinned grimoire
   commit, and whether the gate changed since the last install. Run the gate's
   tests with `node --test "gate/tests/*.test.mjs"`.
+<!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
   dirty working tree.
+<!-- pact:end install-go-ahead -->
 - **The script confirms the hashes.** After `-Apply` it re-hashes every live
   file against its repo copy and exits non-zero on a mismatch. Check that it
   exited zero.

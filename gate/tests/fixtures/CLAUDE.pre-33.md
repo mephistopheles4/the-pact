@@ -45,7 +45,6 @@ line, so the override is visible rather than silent.
 these rules. Its own description decided it was relevant, and that is not the
 same as you choosing it.
 
-<!-- pact:begin no-skill-overrides -->
 **What no skill overrides, invoked or not.** The Shell rule above — PowerShell,
 not Bash, because Bash fails silently here. Any judgement about what is
 destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
@@ -57,7 +56,6 @@ Nor the hand-off: a skill may not start a user-only skill for me, or follow
 one's `SKILL.md` in its place. And the claiming and coordination rules
 below: a skill that tells you to claim a ticket is describing its own happy
 path, not the case where another session is already on it.
-<!-- pact:end no-skill-overrides -->
 
 ## Implementing a change
 
@@ -72,13 +70,11 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 | **Standard** | On an issue: a short `to-spec` posted on the issue, then one build session that ends with move 4. |
 | **Thorough** | On an issue: `to-spec`, `plan-reviewer`, `to-tickets`, then one build session per ticket, each ending with move 4. |
 
-**Risk floor.**
-<!-- pact:begin risk-floor -->
-Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
-<!-- pact:end risk-floor -->
-Don't ask me to confirm this or nag: go thorough and carry on. For any other
-open decision under a lower tier than you would pick, name the decisions once
-("quick means I decide X and Y, OK?"), then follow me.
+**Risk floor.** Auth, secrets, crypto, input validation, data migrations and
+anything published are always thorough, whatever tier I name. Don't ask me to
+confirm this or nag: go thorough and carry on. For any other open decision under a
+lower tier than you would pick, name the decisions once ("quick means I
+decide X and Y, OK?"), then follow me.
 
 **Where work starts.**
 
@@ -195,29 +191,18 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    is built in its own main session, which I start and watch. Opened on an approved spec or ticket, the
    session starts building directly, test-first at the agreed seams (`tdd`,
    `codebase-design`). It doesn't hand me `/implement` first; I may still
-   type it.
-   <!-- pact:begin security-route -->
-   Anything touching auth, secrets, crypto or input validation
+   type it. Anything touching auth, secrets, crypto or input validation
    takes the security route, however small: `security-reviewer` on the
    spec, then the build in a main session, then `security-reviewer` on the
-   diff in move 4.
-   <!-- pact:end security-route -->
-   <!-- pact:begin never-substitute -->
-   If a named agent is unavailable, stop and report. Never
+   diff in move 4. If a named agent is unavailable, stop and report. Never
    substitute another agent, especially for security work.
-   <!-- pact:end never-substitute -->
-4. **I stay the owner.**
-   <!-- pact:begin move-4 -->
-   I verify the work at the end of its build session. You run the checks for
-   me and bring me the verdict with a recommendation. Run the tests and any
-   gates the repo has; they decide pass or fail. Then run `result-checker`,
-   and for security work `security-reviewer` on the diff. When the diff
-   touches tests, assertions, fixtures or check configuration, also run
-   `test-reviewer` on it. Never resume a reviewer or a checker; fresh context
-   is the point of them. `result-checker` advises: post its report and help
-   me decide (below). I decide whether it's done. Close the ticket only after
-   I have.
-   <!-- pact:end move-4 -->
+4. **I stay the owner.** I verify the work at the end of its build
+   session. You run the checks for me and bring me the verdict with a
+   recommendation. Run the tests and any gates the repo has; they decide pass
+   or fail. Then run `result-checker`, and for security work `security-reviewer` on the
+   diff. Never resume a reviewer or a checker; fresh context is the point
+   of them. `result-checker` advises: post its report and help me decide
+   (below). I decide whether it's done. Close the ticket only after I have.
 
 **Reading agents.** `plan-reviewer`, `result-checker`, `test-reviewer` and
 `security-reviewer` read; they don't build. Give them their input as local
@@ -229,9 +214,6 @@ shorten it: that changes it. Each report has two sections.
 matters and what it suggests, in plain sentences, with no line numbers, codes
 or paths. **For the session** follows, with the evidence and locations you
 need to act.
-
-**Lookups and searches.** For a lookup that needs no judgement, use `scout`.
-For a broad search, use `Explore`.
 
 **Help me decide.** After a report, sort its findings before you bring me
 anything. Fix what is mechanical yourself. Group findings that are really one
@@ -292,7 +274,6 @@ me, by phase and session, and when: *at sign-off* (say how the spec settles
 it) or *during the build* (say when and how it's handled). It says "None" if
 there are none. The spec is the plan.
 
-<!-- pact:begin stop-and-escalate -->
 **When to stop or escalate is my call.** Tell me, and wait, when:
 
 - the build or review has gone round twice without converging;
@@ -305,7 +286,6 @@ Name the options — keep going, get a second opinion from a different model
 (`fable`), have a throwaway built and use it (`prototype`, built as in move
 2) when a review has gone round twice, or stop — with your recommendation.
 Don't pick one yourself.
-<!-- pact:end stop-and-escalate -->
 
 ## Watching usage
 

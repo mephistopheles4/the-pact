@@ -4,9 +4,10 @@
 //
 //   node seam-a.mjs <stage root>
 //
-// The stage root holds claude/ and familiars/ as the commit has them. Seam A
-// decides what each file is, checks every agent the install would copy, and
-// prints the exact copy set as INSTALL lines. The install copies those files
+// The stage root holds claude/, familiars/ and AGENTS.md as the commit has
+// them. Seam A decides what each file is, checks every agent the install would
+// copy and the pact's own text (pact-text.mjs), and prints the exact copy set
+// as INSTALL lines. The install copies those files
 // and nothing else, and refuses unless its own reading of the stage agrees.
 //
 // Exit 0 and a last line "RESULT: pass", or exit 1 and "RESULT: fail". The
@@ -21,6 +22,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkPactText } from './pact-text.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PINNED = join(HERE, 'grimoire', 'check.mjs');
@@ -233,12 +235,11 @@ function parseValue(raw, key) {
 // ---------------------------------------------------------------- the strict reader
 
 /**
- * Read an agent file's frontmatter with a strict subset reader. Records every
- * failure in `report` and returns { top, metadata } or null. `top` maps key ->
- * { line, kind, value?, items? }. A file must mean the same thing to this
- * reader and to Claude Code, so anything outside the subset fails.
+ * A checked file's text: at most 1 MiB, valid UTF-8, no byte-order mark, and
+ * no control, line-separator or invisible character. Returns the text, or
+ * null after recording every failure in `report`.
  */
-function readAgent(buf, file, report) {
+function scanText(buf, file, report) {
   if (buf.length > MAX_BYTES) {
     report.fail('size', file, null, 'larger than 1 MiB');
     return null;
@@ -271,7 +272,19 @@ function readAgent(buf, file, report) {
     }
   });
   if (hits > CHARACTER_HITS_MAX) report.fail('characters', file, null, `${hits - CHARACTER_HITS_MAX} more lines hold a refused character`);
-  if (hits > 0) return null;
+  return hits > 0 ? null : text;
+}
+
+/**
+ * Read an agent file's frontmatter with a strict subset reader. Records every
+ * failure in `report` and returns { top, metadata } or null. `top` maps key ->
+ * { line, kind, value?, items? }. A file must mean the same thing to this
+ * reader and to Claude Code, so anything outside the subset fails.
+ */
+function readAgent(buf, file, report) {
+  const text = scanText(buf, file, report);
+  if (text === null) return null;
+  const lines = text.split('\n');
 
   if (lines[0] !== '---') {
     report.fail('frontmatter', file, 1, 'the first line must be ---');
@@ -520,7 +533,7 @@ function classify(root, report) {
     if (seg[0] === 'claude') {
       if (rel === 'claude/CLAUDE.md') {
         installs.push({ file: rel, dest: 'CLAUDE.md' });
-        report.note('unchecked', 'claude/CLAUDE.md is installed but not content-checked until #33');
+        report.note('partly-checked', 'claude/CLAUDE.md is checked for routing and its marked clauses only; the rest of its text is not checked until ticket 4');
       } else if (rel === 'claude/settings.overlay.json') {
         report.note('unchecked', 'claude/settings.overlay.json is merged, not installed, and not checked until #34');
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
@@ -638,6 +651,8 @@ function run(root, report) {
     if (dests.has(k)) report.fail('destination-duplicate', i.file, null, `installs to the same live path as ${shown(dests.get(k))}`);
     else dests.set(k, i.file);
   }
+
+  checkPactText(root, agents, report, scanText);
 
   for (const a of agents) if (!report.failedFiles.has(a.file)) report.pass('agent', a.file);
 
