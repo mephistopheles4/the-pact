@@ -165,9 +165,22 @@ test('at quick, one line and the not-checked lists show, and nothing else above 
   assert.ok(!r.page.includes('<h2>Cards</h2>'), 'the page has no cards at quick either');
 });
 
-test('unstated-lens alone: its own verdict, which advises, its cards placed by anchor, and no pick prompt', t => {
+test('unstated-lens alone at thorough: no prompt, and no severity or verdict before its fold, so it cannot hint at the pair\'s answer', t => {
+  const run = (sev, verdict) => cross(t, { reports: { 'unstated-lens': report(block('unstated-lens', verdict, [finding('F1', 'S2', sev, 'The issue asks for a phone view that no section covers')])) }, point: 'spec', anchors: 'S1,S2' });
+  const a = run('medium', 'findings');
+  const b = run('high', 'blocking');
+  assert.equal(a.code, 0, a.stdout);
+  assert.ok(!a.all.includes(PROMPT));
+  const beforeFold = r => r.comments[0].slice(0, r.comments[0].indexOf('<details>'));
+  assert.equal(beforeFold(a), beforeFold(b));
+  assert.match(beforeFold(a), /^- `S2`\n {2}- `unstated-lens` F1: /m);
+  assert.ok(!/`(high|medium|low|blocking|findings)`|verdict/i.test(beforeFold(a)), 'no severity or verdict before the fold');
+  assert.match(b.all, /<summary>Verdict, severities and non-risks<\/summary>\n\n\u{1f50d} \*\*Verdict: ⛔ `blocking`\.\*\* It advises/u);
+});
+
+test('unstated-lens alone at standard: its own verdict, which advises, its cards placed by anchor, and no pick prompt', t => {
   const reports = { 'unstated-lens': report(block('unstated-lens', 'findings', [finding('F1', 'S2', 'medium', 'The issue asks for a phone view that no section covers')])) };
-  const r = cross(t, { reports, point: 'spec', anchors: 'S1,S2' });
+  const r = cross(t, { reports, point: 'spec', anchors: 'S1,S2', tier: 'standard' });
   assert.equal(r.code, 0, r.stdout);
   const s = scriptWritten(r.all);
   assert.ok(!s.includes(PROMPT));

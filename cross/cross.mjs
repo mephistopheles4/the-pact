@@ -738,7 +738,7 @@ const FOLD_NON_RISKS = {
 /** The comment section as units, in order, for the tier. */
 function sectionUnits(m, setup, leftOut) {
   const units = [];
-  const thorough = m.tier === 'thorough' && m.area.pair;
+  const thorough = m.tier === 'thorough';
   if (m.tier === 'quick') {
     const v = m.joined.verdict;
     const nv = m.unverified.map(l => ` · ${NOT_VERIFIED} ${code(l)} not verified`).join('');
@@ -748,7 +748,9 @@ function sectionUnits(m, setup, leftOut) {
     units.push({ text: heading(m, false) }, { text: mapBlock(m) });
     for (const t of unverifiedLines(m)) units.push({ text: t });
     units.push({ text: NOTE }, ...cards(m, false), ...matrix(m));
-    units.push({ text: `${PROMPT} Name one or more anchors above, or none, in chat. Then open the fold below.\n\n` });
+    // unstated-lens takes no pick, but its verdict still stays folded, so it
+    // cannot hint at a pair's answer on the same anchors.
+    if (m.area.pair) units.push({ text: `${PROMPT} Name one or more anchors above, or none, in chat. Then open the fold below.\n\n` });
     units.push({ fold: FOLD_VERDICT, text: verdictText(m) }, ...findingsTable(m, FOLD_VERDICT), ...callsTable(m, FOLD_VERDICT), ...nonRiskUnits(m, setup, FOLD_VERDICT));
   } else {
     units.push({ text: heading(m, true) });
@@ -959,9 +961,9 @@ function page(m, setup, reports) {
   if (m.tier === 'quick') {
     const v = m.joined.verdict;
     body.push(`<p><b>${MARK[v]} ${html(v)}</b>${m.unverified.map(l => ` · ${NOT_VERIFIED} <code>${html(l)}</code> not verified`).join('')}</p>`, notChecked);
-  } else if (m.tier === 'thorough' && m.area.pair) {
+  } else if (m.tier === 'thorough') {
     body.push(crossCutSvg(m), warn, '<h2>Cards</h2>', pageCards(m, false), '<h2>Matrix</h2>', pageMatrix(m));
-    body.push('<h2>Where do you expect the problem?</h2>', '<p>Name one or more anchors, or none, in chat. Then open the verdict.</p>');
+    if (m.area.pair) body.push('<h2>Where do you expect the problem?</h2>', '<p>Name one or more anchors, or none, in chat. Then open the verdict.</p>');
     body.push(`<details><summary>Verdict, severities and non-risks</summary>\n${pageVerdict(m, setup)}\n</details>`, notChecked);
   } else {
     body.push(crossCutSvg(m), warn, pageVerdict(m, setup), '<h2>Cards</h2>', pageCards(m, true), '<h2>Matrix</h2>', pageMatrix(m), notChecked);
