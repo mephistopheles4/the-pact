@@ -97,9 +97,11 @@ open decision under a lower tier than you would pick, name the decisions once
   start that tier's first move; or I type `/triage` for a full triage. The
   proposal stands in for move 1 only when I confirm it.
 - **Whoever files or triages an issue** writes the suggested tier as a label,
-  and one line per phase for the model and effort setting, next to it, for
-  example "Plan: Opus, high. Build: Sonnet, medium." Effort is `low`,
-  `medium` or `high`.
+  and one line per phase for the model and effort setting, next to it. Copy
+  the lines for the tier from the table under "Sessions and models", for
+  example "Plan: Opus, medium. Build: Sonnet, medium." A different value needs
+  one stated reason on the issue. Effort is `low`, `medium` or `high`; xhigh is
+  never a starting setting.
 
 **Which phase an issue is in** is the next unfinished move for its tier, read
 from the issue itself: no label means triage; no spec on a standard or
@@ -129,8 +131,23 @@ cache, while changing effort keeps the cache.
   safety classifiers can refuse harmless defensive-security work partway
   through.
 
+Effort follows the tier. Security work stays on Opus at high, whatever the
+tier:
+
+| Work | Plan | Build |
+| --- | --- | --- |
+| **Quick** | none | Opus, low |
+| **Standard** | Opus, medium | Sonnet, medium |
+| **Thorough** | Opus, high | Sonnet, medium |
+| **Security route** (any tier) | Opus, high | Opus, high |
+
+Work outside the tiers (orchestration, research, evaluation) starts at medium.
+
 I set the effort setting when I start a session; a session can't change its
-own. At a phase boundary, post the result, the state and any open questions
+own. At a stop, one more option is to rerun the stuck step once at xhigh: I
+raise it with `/effort` and set it back afterwards, which keeps the cache. Use
+it when the reasoning is the bottleneck, and `fable` when reviewers disagree
+about direction. At a phase boundary, post the result, the state and any open questions
 to the issue, then end with one line that starts the next session. This
 comment is always posted, even when every artifact is already on the tracker:
 it gives the result, the state, any open questions and the next-session
