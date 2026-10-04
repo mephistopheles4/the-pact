@@ -35,6 +35,9 @@ const M = [
   ['path length 201 allowed', 'p.length > TEXT_MAX', 'p.length > TEXT_MAX + 1'],
   ['unstated takes a pick', "if (a.mode === 'pick' && !area.pair) return { rule: 'pick', area };", ''],
   ['part 1 names a total once the section splits', "  parts.push(cur + closing());\n  return parts;", "  parts.push(cur + closing());\n  if (parts.length > 1) parts[0] = `Part 1 of ${parts.length}\\n\\n${parts[0]}`;\n  return parts;"],
+  ['the calls table in the non-risks fold at standard', '...matrix(m), ...callsTable(m, null));', '...matrix(m), ...callsTable(m, FOLD_NON_RISKS));'],
+  ['a card cannot split between its lines', "units.push({ table: card, text: `  - ${code(m.area.lenses[li])}", "units.push({ text: (f === fs[0] && li === 0 ? card.open : '') + `  - ${code(m.area.lenses[li])}"],
+  ['an unbuildable section writes nothing', "return refusal(lines, outDir, reports, 'internal', []);", 'throw new Error();'],
   ['unstated-lens verdict open at thorough', "const thorough = m.tier === 'thorough';", "const thorough = m.tier === 'thorough' && m.area.pair;"],
 ];
 const results = [];

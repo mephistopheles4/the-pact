@@ -87,7 +87,7 @@ test('pick: a match, when a picked anchor holds a high finding', t => {
   const r = pick(t, 'C2,C4');
   assert.equal(r.code, 0, r.stdout);
   assert.deepEqual(lines(r), ['PICK match', 'MISSED none', 'EMPTY C4']);
-  assert.deepEqual(r.files, {}, 'the pick mode writes nothing');
+  assert.deepEqual(readdirSync(r.dir).sort(), ['behaviour-lens.md', 'integrity-lens.md'], 'the pick mode writes nothing beside its inputs');
 });
 
 test('pick: mismatch rule 1, "none" when the pair verdict is not clear', t => {
@@ -121,6 +121,7 @@ test('pick: an anchor not shown, a repeat, or unstated-lens alone is refused', t
   for (const p of ['C9', 'C2,C2', 'K1', 'C2,none', '']) {
     const r = pick(t, p);
     assert.equal(r.code, 1, `${p}: ${r.stdout}`);
+    assert.deepEqual(r.rules, ['pick'], p);
   }
   const unstated = { 'unstated-lens': report(block('unstated-lens', 'clear')) };
   const r = pick(t, 'none', unstated);
@@ -134,6 +135,7 @@ test('pick: a report that fails a check fails the pick mode too, and nothing is 
   const r = pick(t, 'C1', reports);
   assert.equal(r.code, 1);
   assert.deepEqual(r.rules, ['agreement']);
+  assert.deepEqual(readdirSync(r.dir).sort(), ['behaviour-lens.md', 'integrity-lens.md'], 'nothing written beside the inputs');
 });
 
 // ------------------------------------------------------------ determinism
@@ -141,6 +143,8 @@ test('pick: a report that fails a check fails the pick mode too, and nothing is 
 test('determinism: the same inputs give the same bytes, page included', t => {
   const a = cross(t, { reports: securityPair(), point: 'diff', anchors: null });
   const b = cross(t, { reports: securityPair(), point: 'diff', anchors: null });
+  assert.equal(a.code, 0, a.stdout);
+  assert.equal(b.code, 0, b.stdout);
   assert.deepEqual(Object.keys(a.files), Object.keys(b.files));
   for (const f of Object.keys(a.files)) assert.equal(a.files[f], b.files[f], f);
   assert.equal(a.stdout, b.stdout);
@@ -153,14 +157,17 @@ test('determinism: the order of the report arguments does not change the output'
   const run = (out, order) => {
     const env = { ...process.env };
     delete env.NODE_OPTIONS;
-    spawnSync(process.execPath, [CROSS, 'cross', '--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', '--out', join(dir, out), ...order.map(l => `${l}=${join(dir, `${l}.md`)}`)], { env });
+    const r = spawnSync(process.execPath, [CROSS, 'cross', '--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', '--out', join(dir, out), ...order.map(l => `${l}=${join(dir, `${l}.md`)}`)], { env, encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stdout);
     return Object.fromEntries(readdirSync(join(dir, out)).map(f => [f, readFileSync(join(dir, out, f), 'utf8')]));
   };
   assert.deepEqual(run('a', ['behaviour-lens', 'integrity-lens']), run('b', ['integrity-lens', 'behaviour-lens']));
 });
 
-test('determinism: locale and time zone change nothing', t => {
+test('determinism: the TZ and LANG settings change nothing (on Windows, Node may take its locale from the system, not LANG)', t => {
   const r = cross(t, { reports: qaPair(), env: { LANG: 'tr_TR.UTF-8', TZ: 'Pacific/Kiritimati' } });
   const base = cross(t, { reports: qaPair() });
+  assert.equal(r.code, 0, r.stdout);
+  assert.equal(base.code, 0, base.stdout);
   assert.deepEqual(r.files, base.files, 'locale and time zone change nothing');
 });

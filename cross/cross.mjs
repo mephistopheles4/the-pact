@@ -626,7 +626,11 @@ function unverifiedLines(m) {
 
 const NOTE = "_The cards come from each lens's findings block. Each lens's full text is in its folded report below._\n\n";
 
-/** The cards, crossings or disagreements first, each card one unit. */
+/**
+ * The cards, crossings or disagreements first. Each finding line is one unit
+ * inside its card, so a card too big for one comment splits between its lines
+ * and repeats its anchor line in the next part.
+ */
 function cards(m, withSeverity) {
   const units = [];
   const rows = m.joined.rows.filter(r => r.count > 0);
@@ -637,12 +641,11 @@ function cards(m, withSeverity) {
   for (const [group, title] of groups) {
     group.forEach((r, gi) => {
       const mark = r.crossing && !m.tension ? `${CROSSING} ` : '';
-      let text = `${gi === 0 ? `${title}\n\n` : ''}- ${mark}${rowAnchor(r)}\n`;
+      const head = `- ${mark}${rowAnchor(r)}\n`;
+      const card = { open: `${gi === 0 ? `${title}\n\n` : ''}${head}`, reopen: head, close: gi === group.length - 1 ? '\n' : '' };
       r.by.forEach((fs, li) => {
-        for (const f of fs) text += `  - ${code(m.area.lenses[li])} ${f.id}${withSeverity ? ` ${code(f.severity)}` : ''}: ${span(f.headline)}\n`;
+        for (const f of fs) units.push({ table: card, text: `  - ${code(m.area.lenses[li])} ${f.id}${withSeverity ? ` ${code(f.severity)}` : ''}: ${span(f.headline)}\n` });
       });
-      if (gi === group.length - 1) text += '\n';
-      units.push({ text });
     });
   }
   if (rows.length === 0) units.push({ text: `${m.area.pair ? 'No findings from either lens.' : 'No findings.'}\n\n` });
@@ -757,7 +760,7 @@ function sectionUnits(m, setup, leftOut) {
     if (m.area.pair) units.push({ text: '_Optional: name where you expect the problem, in chat, before you read on._\n\n' });
     units.push({ text: mapBlock(m) });
     for (const t of unverifiedLines(m)) units.push({ text: t });
-    units.push({ text: verdictText(m) }, { text: NOTE }, ...cards(m, true), ...matrix(m), ...callsTable(m, FOLD_NON_RISKS));
+    units.push({ text: verdictText(m) }, { text: NOTE }, ...cards(m, true), ...matrix(m), ...callsTable(m, null));
     units.push(...nonRiskUnits(m, setup, FOLD_NON_RISKS));
   }
   units.push(...notCheckedUnits(m));
@@ -990,6 +993,36 @@ function writeOut(dir, files) {
   for (const [name, text] of files) writeFileSync(join(dir, name), text);
 }
 
+/**
+ * Exit 1: no section. Names each rule, and writes every report that could be
+ * read in its fence and fold, counted. A report over the limit is kept local.
+ */
+function refusal(lines, outDir, reports, setupRule, failed) {
+  if (setupRule) lines.push(`FAIL ${setupRule}: ${RULE_TEXT[setupRule]}`);
+  for (const [r, rule] of failed) lines.push(`FAIL ${rule}: ${shownName(r.file)}: ${RULE_TEXT[rule]}`);
+  if (outDir === null) return 1;
+  const head = ['**The cross script refused the input.** No section was written. The reports follow, each in its fence and fold.\n\n'];
+  if (setupRule) head.push(`- the input as a whole: rule ${code(setupRule)}\n`);
+  for (const [r, rule] of failed) head.push(`- ${code(shownName(r.file))}: rule ${code(rule)}\n`);
+  head.push('\n');
+  const parts = [];
+  const kept = [];
+  for (const r of reports) {
+    if (r.text === undefined) {
+      kept.push(r);
+      continue;
+    }
+    const v = verbatim(knownLens(r.lens) ? r.lens : null, r.text);
+    if (v.length > LIMIT) kept.push(r);
+    else parts.push(v);
+  }
+  const out = comments([head.join('')], parts);
+  writeOut(outDir, out.map((c, i) => [`comment-${i + 1}.md`, c]));
+  out.forEach((_, i) => lines.push(`COMMENT comment-${i + 1}.md`));
+  for (const r of kept) lines.push(`KEPT-LOCAL ${shownName(r.file)}`);
+  return 1;
+}
+
 function run(argv, lines) {
   const a = parseArgs(argv);
   if (a.usage) {
@@ -1029,31 +1062,7 @@ function run(argv, lines) {
     }
   }
 
-  if (setup.rule || failed.length > 0) {
-    if (setup.rule) lines.push(`FAIL ${setup.rule}: ${RULE_TEXT[setup.rule]}`);
-    for (const [r, rule] of failed) lines.push(`FAIL ${rule}: ${shownName(r.file)}: ${RULE_TEXT[rule]}`);
-    if (outDir === null) return 1;
-    const head = ['**The cross script refused the input.** No section was written. The reports follow, each in its fence and fold.\n\n'];
-    if (setup.rule) head.push(`- the input as a whole: rule ${code(setup.rule)}\n`);
-    for (const [r, rule] of failed) head.push(`- ${code(shownName(r.file))}: rule ${code(rule)}\n`);
-    head.push('\n');
-    const parts = [head.join('')];
-    const kept = [];
-    for (const r of reports) {
-      if (r.text === undefined) {
-        kept.push(r);
-        continue;
-      }
-      const v = verbatim(knownLens(r.lens) ? r.lens : null, r.text);
-      if (v.length > LIMIT) kept.push(r);
-      else parts.push(v);
-    }
-    const out = comments([parts[0]], parts.slice(1));
-    writeOut(outDir, out.map((c, i) => [`comment-${i + 1}.md`, c]));
-    out.forEach((_, i) => lines.push(`COMMENT comment-${i + 1}.md`));
-    for (const r of kept) lines.push(`KEPT-LOCAL ${shownName(r.file)}`);
-    return 1;
-  }
+  if (setup.rule || failed.length > 0) return refusal(lines, outDir, reports, setup.rule, failed);
 
   const joined = joinPair(setup, docs);
   if (a.mode === 'pick') {
@@ -1079,9 +1088,17 @@ function run(argv, lines) {
     if (v.length > LIMIT) leftOut.push(r);
     else verbatims.push(v);
   }
-  const parts = pack(sectionUnits(m, setup, leftOut.map(r => r.lens)));
-  const out = comments(parts, verbatims);
-  writeOut(outDir, [...out.map((c, i) => [`comment-${i + 1}.md`, c]), ['page.html', page(m, setup, reports)]]);
+  let out;
+  let html;
+  try {
+    out = comments(pack(sectionUnits(m, setup, leftOut.map(r => r.lens))), verbatims);
+    html = page(m, setup, reports);
+  } catch {
+    // Every check passed, but the script could not build the section. It
+    // still writes every report in its fence and fold, as a refusal does.
+    return refusal(lines, outDir, reports, 'internal', []);
+  }
+  writeOut(outDir, [...out.map((c, i) => [`comment-${i + 1}.md`, c]), ['page.html', html]]);
   out.forEach((_, i) => lines.push(`COMMENT comment-${i + 1}.md`));
   lines.push('PAGE page.html');
   for (const r of leftOut) lines.push(`LEFT-OUT ${r.lens} ${shownName(r.file)}`);

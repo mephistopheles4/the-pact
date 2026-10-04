@@ -80,6 +80,8 @@ test('invariance on the tension pair: its heading, map label and settle nodes, w
 test('no mark but the crossing mark and the not-verified mark above the prompt, and no verdict word the script wrote', t => {
   for (const v of [qaPair(), qaPair({ bVerdict: 'inconclusive', bSev: 'medium' }), qaPair({ aVerdict: 'clear', bVerdict: 'clear' })]) {
     const r = cross(t, { reports: v });
+    assert.equal(r.code, 0, r.stdout);
+    assert.ok(r.all.includes(PROMPT), 'a comment with its prompt was written');
     const above = abovePrompt(r.comments).join('');
     const marks = [...above.matchAll(PICTOGRAPH)].map(m => m[0]);
     assert.ok(marks.every(c => c === '⚠'), `pictographs above the prompt: ${marks.map(c => c.codePointAt(0).toString(16))}`);
@@ -151,6 +153,23 @@ test('at standard, the verdict and the severities show, with no prompt', t => {
   assert.match(s, /\*\*Pair verdict: ⛔ `blocking`\*\*/);
   assert.match(s, /`integrity-lens` F1 `high`: ` The mutation run left the retry branch alive `/);
   assert.match(s, /^### \u{1f9ea} QA pair/mu);
+});
+
+test('at standard, the spec pair\'s calls show side by side in the open, not in the non-risks fold', t => {
+  const r = cross(t, {
+    reports: {
+      'executability-lens': report(block('executability-lens', 'blocking', [finding('F1', 'S2', 'high', 'The first ticket stalls here')])),
+      'good-enough-lens': report(block('good-enough-lens', 'findings', [finding('F1', 'S2', 'low', 'This step could come later')], { nonRisks: [{ anchor: { kind: 'section', id: 'S1' }, note: 'The intent is clear' }] })),
+    },
+    point: 'spec',
+    anchors: 'S1,S2',
+    tier: 'standard',
+  });
+  assert.equal(r.code, 0, r.stdout);
+  const s = scriptWritten(r.all);
+  const folds = s.replace(/<details>\n<summary>[^\n]*<\/summary>\n\n[\s\S]*?\n<\/details>\n/g, '');
+  assert.match(folds, /\*\*The calls, side by side\*\*/, 'the calls table is outside every fold');
+  assert.match(s, /<summary>Non-risks<\/summary>\n\n\*\*Non-risks from `good-enough-lens`:\*\*/);
 });
 
 test('at quick, one line and the not-checked lists show, and nothing else above the folded reports', t => {
@@ -322,6 +341,40 @@ test('a section over the limit splits at card boundaries, every finding exactly 
     const s = scriptWritten(c);
     assert.equal(s.split('<details>').length, s.split('</details>').length, 'every fold closes in its part');
   }
+});
+
+/** Both lenses put 100 findings on one claim, each headline 120 backticks: one card past the limit. */
+function oneHugeCard(sev = 'medium') {
+  const fs = Array.from({ length: 100 }, (_, i) => finding(`F${i + 1}`, 'C1', sev, '`'.repeat(120)));
+  const verdict = sev === 'high' ? 'blocking' : 'findings';
+  return { reports: { 'behaviour-lens': report(block('behaviour-lens', verdict, fs)), 'integrity-lens': report(block('integrity-lens', verdict, fs)) }, anchors: 'C1' };
+}
+
+for (const tier of ['thorough', 'standard']) {
+  test(`one card over the limit splits between its finding lines, repeating its anchor line, and drops none (${tier})`, t => {
+    const r = cross(t, { ...oneHugeCard(), tier });
+    assert.equal(r.code, 0, r.stdout);
+    for (const c of r.comments) assert.ok(c.length <= LIMIT, `a comment of ${c.length}`);
+    const s = r.comments.map(scriptWritten);
+    const cardParts = s.filter(c => /^- ✚ `C1`$/m.test(c));
+    assert.ok(cardParts.length >= 2, 'the card spans two parts, its anchor line repeated');
+    for (const lens of ['behaviour-lens', 'integrity-lens']) {
+      for (let i = 1; i <= 100; i += 1) {
+        const line = new RegExp(`^ {2}- \`${lens}\` F${i}( \`medium\`)?: `, 'm');
+        assert.equal(s.filter(c => line.test(c)).length, 1, `${lens} F${i} once`);
+      }
+    }
+    if (tier === 'thorough') assert.equal(r.comments.filter(c => c.includes(PROMPT)).length, 1);
+  });
+}
+
+test('invariance holds when the cards themselves split across parts', t => {
+  const runs = [oneHugeCard('medium'), oneHugeCard('low'), oneHugeCard('high')].map(v => cross(t, v));
+  for (const r of runs) assert.equal(r.code, 0, r.stdout);
+  const above = runs.map(r => abovePrompt(r.comments).filter(Boolean));
+  assert.ok(above[0].length >= 2, 'the part above the prompt splits');
+  assert.deepEqual(above[1], above[0]);
+  assert.deepEqual(above[2], above[0]);
 });
 
 test('later parts carry a header with no total', t => {

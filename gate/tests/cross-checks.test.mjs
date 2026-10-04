@@ -188,6 +188,9 @@ test('the character check applies to every string: notChecked, and a key', t => 
   const nc = qaWith(block('integrity-lens', 'clear', [], { notChecked: ['UNSAFE'] }));
   nc['integrity-lens'] = nc['integrity-lens'].replace('"UNSAFE"', '"a \\u202e b"');
   refused(cross(t, { reports: nc }), ['invisible'], nc);
+  // A refused character in a key fires its own rule, before the unknown-key rule.
+  const key = qaWith(JSON.stringify(block('integrity-lens', 'clear')).replace('{', '{"a\\u202eb": 1,'));
+  refused(cross(t, { reports: key }), ['invisible'], key);
 });
 
 // ------------------------------------------------------------ non-risks
