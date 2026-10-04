@@ -22,7 +22,7 @@ const ALLOWED_LINES = new Set([
 // Filled in with issue numbers when the probe creates the issue.
 const PLACEHOLDERS = new Set(['{{ISSUE}}', '{{PARENT}}', '{{TICKET_A}}', '{{TICKET_B}}']);
 
-const VOCABULARY = /\b(probes?|pact|tiers?|fit|phases?|effort)\b/i;
+const VOCABULARY = /\b(probes?|pact|tiers?|quick|standard|thorough|fit|phases?|effort)\b/i;
 
 /** Every broken rule in a plants folder, as { file, rule, detail }. */
 function checkPlants(dir) {
@@ -31,7 +31,7 @@ function checkPlants(dir) {
     const text = readFileSync(join(dir, file), 'utf8');
     text.split('\n').forEach((line, i) => {
       const at = `${file}:${i + 1}`;
-      if (line.startsWith('Suggested sessions') && !ALLOWED_LINES.has(line)) {
+      if (/suggested sessions/i.test(line) && !ALLOWED_LINES.has(line)) {
         bad.push({ file, rule: 'suggested-sessions', detail: `${at}: ${line}` });
         return;
       }
@@ -69,9 +69,15 @@ test('a plant that says "probe" fails on probe-vocabulary', t => {
   assert.deepEqual(bad.map(b => [b.file, b.rule]), [['T5.issue.md', 'probe-vocabulary']]);
 });
 
-test('a plant that names a tier as a rule fails on probe-vocabulary', t => {
+test('a plant that says "tier" fails on probe-vocabulary', t => {
   const dir = copyPlants(t);
-  append(dir, 'T3.issue.md', '\nThis is thorough-tier work.\n');
+  append(dir, 'T3.issue.md', '\nThis is tier work.\n');
+  assert.deepEqual(checkPlants(dir).map(b => b.rule), ['probe-vocabulary']);
+});
+
+test('a plant that names a tier without the word "tier" fails on probe-vocabulary', t => {
+  const dir = copyPlants(t);
+  append(dir, 'T3.issue.md', '\nThis is thorough work.\n');
   assert.deepEqual(checkPlants(dir).map(b => b.rule), ['probe-vocabulary']);
 });
 
@@ -85,5 +91,11 @@ test('a plant with an unknown placeholder fails on placeholder', t => {
 test('a "Suggested sessions" line other than the planted three fails', t => {
   const dir = copyPlants(t);
   writeFileSync(join(dir, 'T2.issue.md'), 'Suggested sessions: Plan: Opus, low. Build: Haiku, low.\n\nAdd `scripts/titles.mjs`.\n');
+  assert.deepEqual(checkPlants(dir).map(b => b.rule), ['suggested-sessions']);
+});
+
+test('a decorated "Suggested sessions" line fails too', t => {
+  const dir = copyPlants(t);
+  writeFileSync(join(dir, 'T2.issue.md'), '**Suggested sessions:** Plan: Opus, low. Build: Haiku, low.\n\nAdd `scripts/titles.mjs`.\n');
   assert.deepEqual(checkPlants(dir).map(b => b.rule), ['suggested-sessions']);
 });
