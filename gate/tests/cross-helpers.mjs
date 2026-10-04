@@ -7,7 +7,9 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO, tempDir } from './helpers.mjs';
 
-export const CROSS = join(REPO, 'cross', 'cross.mjs');
+// The script under test. Only the mutation battery sets PACT_CROSS_UNDER_TEST,
+// to point the tests at a mutated copy in a temp folder.
+export const CROSS = process.env.PACT_CROSS_UNDER_TEST || join(REPO, 'cross', 'cross.mjs');
 export const PROMPT = '**Where do you expect the problem?**';
 export const LIMIT = 65536;
 
