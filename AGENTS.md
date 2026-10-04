@@ -61,23 +61,27 @@ how every session in every repo behaves. So:
 ## Testing a change to an agent or a rule
 
 Some changes to an agent or a rule need a planted probe, seen to fail, before
-they count. Others may be proved by use. The protected set, at the end of this
-section, holds what no periodic review may cut or weaken.
+they count. Others may be proved by use.
 
 The words below come from #35, the review lenses. A lens is a reviewer agent
 that asks one question from one angle. A lens review is one run of lenses on
 real work. A practice case is a planted input for one lens, with its expected
-result written down first. A periodic review is the owner's recurring look at
-the standing measures (below), which can add, merge, cut or retune lenses.
+result written down first. The standing measures are the numbers recorded at
+every lens review on real work. A periodic review is the owner's recurring
+look at the standing measures, which can add, merge, cut or retune lenses. The
+protected set, at the end of this section, holds what no periodic review may
+cut or weaken.
 
 ### Which changes need a probe
 
 - **A change to the risk floor, the security route, a gated clause, anything
-  in the protected set, any lens in the security set, or this probe rule
-  itself still needs a planted probe that is seen to fail.** A gated clause
+  in the protected set, any lens in the security set, or anything in this
+  section still needs a planted probe that is seen to fail.** A gated clause
   is a block the install gate holds word for word; its canonical text is in
   `gate/clauses/`. The security set is the few practice cases that still run
-  for real, because the risk floor requires it. A security-set lens is one
+  for real, because the risk floor requires it. It covers every lens that
+  holds a shell or network tools, or guards the security route or the risk
+  floor, so each such lens has cases in it. A security-set lens is one
   that holds a shell or network tools, or guards the security route or the
   risk floor. A change to one reruns that lens's whole security set and
   rescores every bad report before the change is relied on. A bad report is a
@@ -91,13 +95,13 @@ the standing measures (below), which can add, merge, cut or retune lenses.
 - **Any other change to an agent or a rule is a two-way door.** Here that
   means only a change outside the list above; whether it can be undone does
   not decide it. It may instead go in with its bad reports scored and its
-  standing measures recorded, and be proved by use. The standing measures are
-  the numbers recorded at every lens review on real work.
+  standing measures recorded, and be proved by use.
 - **When it is unclear which kind a change is, the probe is required, and the
   owner classifies it.** No session, whether it writes the spec, builds the
   change or runs a periodic review, settles a change as a two-way door on its
   own. It states its classification to the owner, with the sentence of this
-  rule it rests on, and the probe stands until the owner agrees.
+  rule it rests on, and the probe stands until the owner agrees in chat. A
+  stated default or silence is not agreement.
 
 ### Running a probe
 
