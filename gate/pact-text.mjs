@@ -65,10 +65,12 @@ export const LENSES = Object.freeze([
 ]);
 export const ROSTER = Object.freeze([...OLD_REVIEWERS, ...LENSES]);
 // A roster name as a whole word: no letter, digit or '_' on either side. Case
-// is ignored and any dash stands for its hyphen, so a spelling that a reader
-// takes for the name counts as the name.
+// is ignored, any dash or the minus sign stands for its hyphen, and a line may
+// wrap after the hyphen, so a spelling that a reader takes for the name counts
+// as the name.
+const ROSTER_HYPHEN = '[\\p{Pd}\\u2212](?:[ \\t]*\\n[ \\t]*)?';
 const ROSTER_RES = new Map(
-  ROSTER.map(n => [n, new RegExp(`(?<![\\p{L}\\p{N}_])${n.split('-').join('\\p{Pd}')}(?![\\p{L}\\p{N}_])`, 'iu')]),
+  ROSTER.map(n => [n, new RegExp(`(?<![\\p{L}\\p{N}_])${n.split('-').join(ROSTER_HYPHEN)}(?![\\p{L}\\p{N}_])`, 'iu')]),
 );
 
 const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
@@ -229,11 +231,10 @@ function readPactFile(root, rel, report, scanText) {
   return scanText(readFileSync(abs), rel, report);
 }
 
-/** The first line (1-based) of `text` that holds `name` as a roster word, or 0. */
+/** The line (1-based) of `text` where `name` first starts as a roster word, or 0. */
 function rosterLine(text, name) {
-  const re = ROSTER_RES.get(name);
-  const i = text.split('\n').findIndex(l => re.test(l));
-  return i + 1;
+  const m = ROSTER_RES.get(name).exec(text);
+  return m ? text.slice(0, m.index).split('\n').length : 0;
 }
 
 /**

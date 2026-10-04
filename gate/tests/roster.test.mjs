@@ -115,6 +115,22 @@ test('bad case: a roster name in another case, or with a non-ASCII hyphen, still
   }
 });
 
+test('bad case: a roster name wrapped at its hyphen, or written with a minus sign, still counts', t => {
+  // result-checker's advisory A1 on #45: a line wrap is the likely accident.
+  for (const plant of ['integrity-\n   lens', 'integrity‑\nlens', 'integrity−lens']) {
+    const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} See ${plant}.`)));
+    expectRule(r, 'roster', MD);
+  }
+  const r = seam(t, { 'claude/agents/probe.md': plainAgent('probe').replace('Body.', 'Hand off to integrity-\nlens.') });
+  expectRule(r, 'roster', 'claude/agents/probe.md');
+});
+
+test('the roster check names the line where a wrapped name starts', t => {
+  const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} See integrity-\n   lens.`)));
+  const at = read(join(REPO, 'claude', 'CLAUDE.md')).split('\n').findIndex(l => l.includes(PLACES['move 2'])) + 1;
+  assert.ok(fails(r.stdout, 'roster').some(l => l.startsWith(`${MD} line ${at}: names ${ABSENT}`)), r.out);
+});
+
 test('whole words only: a roster name inside a longer word, and names off the roster, pass', t => {
   const r = seam(t, {}, root =>
     edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} See preintegrity-lens, integrity-lenses, integrity_lens and \`fable\`.`)),
