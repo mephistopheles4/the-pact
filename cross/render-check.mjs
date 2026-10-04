@@ -13,6 +13,9 @@
 //
 //   node cross/render-check.mjs <output folder>
 //
+// Write the output folder outside the repo, and post its record on the issue
+// the run belongs to. The first run's record is on #44.
+//
 // Needs `gh` signed in. Hostile characters are written as escapes, so this
 // source stays plain ASCII.
 
