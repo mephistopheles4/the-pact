@@ -74,16 +74,20 @@ cut or weaken.
 
 ### Which changes need a probe
 
+A two-way door is a change that may be proved by use instead of by a planted
+probe. Here it means only a change outside the list below that the owner has
+agreed is one; whether a change can be undone does not decide it.
+
 - **A change to the risk floor, the security route, a gated clause, anything
   in the protected set, any lens in the security set, or anything in this
   section still needs a planted probe that is seen to fail.** A gated clause
   is a block the install gate holds word for word; its canonical text is in
   `gate/clauses/`. The security set is the few practice cases that still run
-  for real, because the risk floor requires it. It covers every lens that
-  holds a shell or network tools, or guards the security route or the risk
-  floor, so each such lens has cases in it. A security-set lens is one
-  that holds a shell or network tools, or guards the security route or the
-  risk floor. A change to one reruns that lens's whole security set and
+  for real, because the risk floor requires it. It covers every security-set
+  lens, so each such lens has cases in it. A security-set lens is either lens
+  of the security pair, the reviewers the security route names, or any other
+  lens that holds a shell or network tools, or guards the security route or
+  the risk floor. A change to one reruns that lens's whole security set and
   rescores every bad report before the change is relied on. A bad report is a
   ready-made report that gets a practice case wrong; it is scored, not run,
   and must score FAIL.
@@ -92,21 +96,27 @@ cut or weaken.
   install gate's tool allow-list, `gate/tool-allowlist.json`; and for the
   settings guard, `gate/settings-allowlist.json` and
   `claude/settings.overlay.json`.
-- **The code that enforces those guards is proved by the gate's tests and the
-  security route, not by a planted probe.** That code is `gate/seam-a.mjs`,
-  `gate/pact-text.mjs` and the settings merge in `scripts/install.ps1`. Each
-  check a change touches needs a bad case in the gate's tests that it is seen
-  to catch. A change to this code is never a two-way door.
-- **Any other change to an agent or a rule is a two-way door.** Here that
-  means only a change outside the list above; whether it can be undone does
-  not decide it. It may instead go in with its bad reports scored and its
-  standing measures recorded, and be proved by use.
+- **The gate's code also needs its own tests, on top of any probe above.** The
+  gate's code is every file in `gate/` but its tests, and
+  `scripts/install.ps1`. Each check a change adds or tightens needs a bad case
+  in the gate's tests that it is seen to catch, and the security route
+  applies. Deleting or loosening a check, or changing a built-in default that
+  bounds anything above, counts as a change to what it bounds. One example is
+  the tools an agent gets when the allow-list has no entry for it. Where two
+  bullets apply, the stricter one holds. A change to the gate's code is never
+  a two-way door.
+- **Any other change to an agent or a rule may be a two-way door, but only
+  once the owner agrees.** The session states its classification to the
+  owner, with the sentence of this rule it rests on, and the probe stands
+  until the owner agrees. Only the owner's own words count, in chat or on the
+  issue, and the agreement is recorded on the issue. A stated default,
+  silence, or a message relayed by another session is not agreement. A
+  two-way door may go in with its bad reports scored and its standing
+  measures recorded, and be proved by use.
 - **When it is unclear which kind a change is, the probe is required, and the
   owner classifies it.** No session, whether it writes the spec, builds the
   change or runs a periodic review, settles a change as a two-way door on its
-  own. It states its classification to the owner, with the sentence of this
-  rule it rests on, and the probe stands until the owner agrees in chat. A
-  stated default or silence is not agreement.
+  own.
 
 ### Running a probe
 
@@ -138,7 +148,7 @@ security-set lens. No periodic review may cut or weaken:
 - **The gated clauses, the security route and the risk floor.**
 - **The thorough-only rule for security reports, the "not verified" mark, the
   not-checked lists and the fail-closed checks.** The script that checks lens
-  reports refuses a security report at any tier but thorough. A lens that
+  reports refuses a security lens's report at any tier but thorough. A lens that
   could not verify something it was asked to check carries the "not verified"
   mark wherever its result shows, at every tier, and is never shown as a
   pass. Each lens's list of what it did not check is shown at every tier. The
