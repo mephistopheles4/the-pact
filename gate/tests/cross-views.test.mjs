@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { LIMIT, PROMPT, abovePrompt, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
 
 const PICTOGRAPH = /\p{Extended_Pictographic}/gu;
+const CROSSING_MARK = '✚';
 const symbol = (file, sym) => ({ kind: 'symbol', file, symbol: sym });
 const nonRisk = (id, note) => ({ anchor: { kind: 'claim', id }, note });
 const claims = n => Array.from({ length: n }, (_, i) => `C${i + 1}`);
@@ -162,6 +163,18 @@ test('at quick, one line and the not-checked lists show, and nothing else above 
       '**Not checked**\n\n- `behaviour-lens`: ` behaviour-lens did not check the synthetic claim list `\n- `integrity-lens`: ` integrity-lens did not check the synthetic claim list `\n\n',
   );
   assert.ok(!r.page.includes('<h2>Cards</h2>'), 'the page has no cards at quick either');
+});
+
+test('unstated-lens alone: its own verdict, which advises, its cards placed by anchor, and no pick prompt', t => {
+  const reports = { 'unstated-lens': report(block('unstated-lens', 'findings', [finding('F1', 'S2', 'medium', 'The issue asks for a phone view that no section covers')])) };
+  const r = cross(t, { reports, point: 'spec', anchors: 'S1,S2' });
+  assert.equal(r.code, 0, r.stdout);
+  const s = scriptWritten(r.all);
+  assert.ok(!s.includes(PROMPT));
+  assert.match(s, /\*\*Verdict: \u{1f50e} `findings`\.\*\* It advises: it does not change a pair's verdict\./u);
+  assert.match(s, /^\| Anchor \| `unstated-lens` \|$/m);
+  assert.match(s, /^- `S2`\n {2}- `unstated-lens` F1 `medium`: /m);
+  assert.ok(!s.includes(CROSSING_MARK));
 });
 
 test('an inconclusive lens shows its not-verified mark at every tier', t => {
