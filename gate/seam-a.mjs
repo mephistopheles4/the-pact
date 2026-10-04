@@ -914,7 +914,7 @@ function checkImports(text, file, report) {
     const code = line.trimStart();
     if (code.startsWith('//')) return;
     if (LOADER_RE.test(line)) report.fail('cross-imports', file, i + 1, 'a require, createRequire or import() call');
-    else if (IMPORT_WORD_RE.test(line) && !NODE_IMPORT_RE.test(line)) report.fail('cross-imports', file, i + 1, "an import or export that is not one whole-line import from a node: built-in");
+    else if (IMPORT_WORD_RE.test(line) && !NODE_IMPORT_RE.test(line)) report.fail('cross-imports', file, i + 1, 'an import or export that is not one whole-line import from node:crypto, node:fs or node:path');
   });
 }
 
