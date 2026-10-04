@@ -24,7 +24,7 @@ This was part 2 of ticket 1 of the review-lenses work (#35). Part 1 (#44) wrote 
 
 ## The probe the owner dropped
 
-The repo's rules require a planted probe, seen to fail, for a change to a gated clause or the settings guard. `security-reviewer` raised this in rounds 1 to 3. The probe was split out to #63, as #46 had split out #54. The owner dropped #63 and changed the rule instead (#67). So this change went in without a probe of the half-pair stop or the new "ask" rule. The gate tests carry the evidence: each new check has a planted bad case.
+The repo's rules require a planted probe, seen to fail, for a change to a gated clause or the settings guard. `security-reviewer` raised this in rounds 1 to 3. The probe was split out to #63, as #46 had split out #54. The owner dropped #63, judging the cost of a missed case too small for a planted probe, and filed #67 to right-size the rule. So this change went in without a probe of the half-pair stop or the new "ask" rule. The gate tests carry the evidence: each new check has a planted bad case.
 
 ## What is still open
 
