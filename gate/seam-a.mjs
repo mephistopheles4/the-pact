@@ -4,10 +4,10 @@
 //
 //   node seam-a.mjs <stage root>
 //
-// The stage root holds claude/, familiars/ and AGENTS.md as the commit has
-// them. Seam A decides what each file is, checks every agent the install would
-// copy and the pact's own text (pact-text.mjs), and prints the exact copy set
-// as INSTALL lines. The install copies those files
+// The stage root holds claude/, familiars/, cross/cross.mjs and AGENTS.md as
+// the commit has them. Seam A decides what each file is, checks every agent
+// the install would copy, the cross script's characters and the pact's own
+// text (pact-text.mjs), and prints the exact copy set as INSTALL lines. The install copies those files
 // and nothing else, and refuses unless its own reading of the stage agrees.
 // It also holds the settings overlay to gate/settings-allowlist.json, and
 // prints its hash as one SETTINGS line, which the install's merge must match.
@@ -32,6 +32,9 @@ const PIN = join(HERE, 'grimoire', 'check.mjs.pin');
 const ALLOWLIST = join(HERE, 'tool-allowlist.json');
 const SETTINGS_ALLOWLIST = join(HERE, 'settings-allowlist.json');
 const OVERLAY = 'claude/settings.overlay.json';
+// The cross script (#35): one file, by exact path, to one fixed live path. The
+// pact calls only the live copy. Nothing else in cross/ is ever installed.
+const CROSS_FILES = Object.freeze([Object.freeze(['cross/cross.mjs', 'pact/cross.mjs'])]);
 
 // Every agent gets these unless the allow-list names it. Hard-coded here, not
 // read from the allow-list, so a broken allow-list cannot widen the default.
@@ -77,6 +80,9 @@ const SETTINGS_APPLY_ASK = Object.freeze([
   'Bash(*nstall.ps1*-A*)',
   'Bash(*nstall.ps1*-a*)',
 ]);
+// The "ask" rule on edits to the installed cross script's folder (#45). The
+// overlay must hold it too, whatever the allow-list says.
+const SETTINGS_CROSS_ASK = 'Edit(~/.claude/pact/**)';
 
 const MAX_BYTES = 1024 * 1024;
 const PINNED_TIMEOUT_MS = 60_000;
@@ -713,6 +719,7 @@ function checkSettings(root, present, allow, report) {
   }
   const ask = isObject(perms) && Array.isArray(perms.ask) ? perms.ask : [];
   if (!SETTINGS_APPLY_ASK.every(r => ask.includes(r))) fail('settings-required', "the overlay must hold the apply step's ask rules");
+  if (!ask.includes(SETTINGS_CROSS_ASK)) fail('settings-required', "the overlay must hold the cross script's ask rule");
 
   // Default-deny: every key path, top level and inside env and permissions.
   const leaves = new Map();
@@ -825,6 +832,20 @@ function classify(root, report) {
     } else report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   for (const a of agents) a.hasContract = a.familiar && contracts.has(`${a.stem}.contract.md`);
+  for (const [file, dest] of CROSS_FILES) {
+    let st;
+    try {
+      st = lstatSync(join(root, ...file.split('/')));
+    } catch {
+      report.fail('cross-script', file, null, 'the cross script is missing');
+      continue;
+    }
+    if (st.isSymbolicLink() || !st.isFile()) {
+      report.fail('cross-script', file, null, 'the cross script is not a regular file');
+      continue;
+    }
+    installs.push({ file, dest, text: true });
+  }
   return { agents, installs, overlay };
 }
 
@@ -909,6 +930,10 @@ function run(root, report) {
     if (!a.hasContract) report.fail('contract', a.file, null, 'a familiar without its sibling contract');
     if (pinned && parsed && !parsed.partial && a.hasContract && a.marked && nameOk(a.stem, true)) runPinned(root, a, report);
   }
+
+  // The cross script is code the pact runs: held to the same character rules
+  // as every other installed text, so nothing in it reads one way and runs another.
+  for (const i of installs) if (i.text) scanText(readFileSync(join(root, ...i.file.split('/'))), i.file, report);
 
   const names = new Map();
   for (const a of agents) {

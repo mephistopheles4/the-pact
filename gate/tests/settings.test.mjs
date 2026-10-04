@@ -26,10 +26,14 @@ const PACT_ASK = [
   'Edit(~/.claude/plugins/**)',
   'Edit(~/.claude/output-styles/**)',
   'Edit(~/.claude/commands/**)',
+  // The installed cross script (#45).
+  'Edit(~/.claude/pact/**)',
 ];
 
 // The apply-step rules, hard-coded in seam A as the permission mode is.
 const APPLY_ASK = PACT_ASK.slice(0, 4);
+// The cross script's rule, hard-coded in seam A beside them.
+const CROSS_ASK = 'Edit(~/.claude/pact/**)';
 
 // Command-running settings, refused by name in seam A's own code.
 const BANNED = [
@@ -205,6 +209,12 @@ test('bad case: the apply-step rules stay required when both the allow-list and 
     const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== rule))));
     expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== rule))), 'settings-required', script);
   }
+});
+
+test("bad case: the cross script's ask rule stays required when both the allow-list and the overlay drop it", t => {
+  const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== CROSS_ASK))));
+  const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== CROSS_ASK))), 'settings-required', script);
+  assert.match(r.stdout, /the cross script's ask rule/, r.out);
 });
 
 test('bad case: an overlay with no ask list fails', t => {
