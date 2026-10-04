@@ -330,10 +330,12 @@ test('a section over the limit splits between cards, every finding exactly once,
       assert.equal(scriptWritten(below).split(h).length - 1, 1, `fold row for ${name} ${i}`);
     }
   }
-  // Each part starts at a card or a repeated matrix header, and no card's anchor line shows in two parts.
+  // Each part starts at a card (under its group heading, or not) or a repeated
+  // matrix header. This fixture's cards hold one finding each, so it cannot
+  // show a cut card; the "card that fits" tests below cover multi-line cards.
   for (const c of r.comments.slice(1, promptAt + 1)) {
     const body = c.replace(/^_Continued, part [0-9]+\._\n\n/, '');
-    assert.match(body, /^(\*\*|- |\| Anchor \|)/, body.slice(0, 80));
+    assert.match(body, /^(\*\*[^*\n]+\*\*( \(continued\))?\n\n- |- |\| Anchor \|)/, body.slice(0, 80));
   }
   const heads = r.comments.slice(0, promptAt + 1).flatMap((c, i) => (c.match(/^- [^\n]*$/gm) ?? []).map(h => [h, i]));
   const partsOf = new Map();
@@ -381,18 +383,36 @@ for (const tier of ['thorough', 'standard']) {
     assert.equal(r.code, 0, r.stdout);
     const s = r.comments.map(scriptWritten);
     assert.ok(s.filter(c => /^- \u271a `C[1-4]`$/m.test(c)).length >= 2, 'the cards span more than one part');
+    const headPart = [];
     for (let n = 1; n <= 4; n += 1) {
       const head = new RegExp(`^- \\u271a \`C${n}\`$`, 'm');
-      assert.equal(s.filter(c => head.test(c)).length, 1, `card C${n} sits whole in one part`);
+      assert.equal(s.filter(c => head.test(c)).length, 1, `card C${n} has one anchor line`);
+      headPart[n] = s.findIndex(c => head.test(c));
     }
+    // Each finding line sits once, in the same part as its own card's anchor line.
     for (const lens of ['behaviour-lens', 'integrity-lens']) {
       for (let i = 1; i <= 100; i += 1) {
         const line = new RegExp(`^ {2}- \`${lens}\` F${i}( \`medium\`)?: `, 'm');
         assert.equal(s.filter(c => line.test(c)).length, 1, `${lens} F${i} once`);
+        assert.equal(s.findIndex(c => line.test(c)), headPart[((i - 1) % 4) + 1], `${lens} F${i} sits with its card`);
       }
     }
   });
 }
+
+test('invariance holds when whole cards move to the next part', t => {
+  const run = sev => {
+    const fs = Array.from({ length: 100 }, (_, i) => finding(`F${i + 1}`, `C${(i % 4) + 1}`, sev(i), '`'.repeat(120)));
+    const verdict = fs.some(f => f.severity === 'high') ? 'blocking' : 'findings';
+    return cross(t, { reports: { 'behaviour-lens': report(block('behaviour-lens', verdict, fs)), 'integrity-lens': report(block('integrity-lens', verdict, fs)) }, anchors: 'C1,C2,C3,C4' });
+  };
+  const runs = [run(() => 'medium'), run(() => 'low'), run(i => (i % 9 === 0 ? 'high' : 'low'))];
+  for (const r of runs) assert.equal(r.code, 0, r.stdout);
+  const above = runs.map(r => abovePrompt(r.comments).filter(Boolean));
+  assert.ok(above[0].length >= 2, 'the part above the prompt splits');
+  assert.deepEqual(above[1], above[0]);
+  assert.deepEqual(above[2], above[0]);
+});
 
 test('a disagreement card split across parts repeats its group heading', t => {
   const fs = Array.from({ length: 100 }, (_, i) => finding(`F${i + 1}`, 'S1', 'medium', '`'.repeat(120)));
@@ -404,7 +424,8 @@ test('a disagreement card split across parts repeats its group heading', t => {
   assert.equal(r.code, 0, r.stdout);
   const parts = r.comments.map(scriptWritten).filter(c => /^- `S1`$/m.test(c));
   assert.ok(parts.length >= 2, 'the card spans two parts');
-  for (const c of parts) assert.match(c, /\*\*Disagreements: both lenses called this; you settle it\*\*( \(continued\))?\n\n- `S1`\n/);
+  assert.match(parts[0], /\*\*Disagreements: both lenses called this; you settle it\*\*\n\n- `S1`\n/, 'the first part has the heading, not continued');
+  for (const c of parts.slice(1)) assert.match(c, /\*\*Disagreements: both lenses called this; you settle it\*\* \(continued\)\n\n- `S1`\n/);
 });
 
 test('invariance holds when the cards themselves split across parts', t => {
