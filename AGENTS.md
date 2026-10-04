@@ -66,10 +66,9 @@ finishes, the probe's results go in the work's log entry in
 [`docs/log/`](docs/log/), with the commits that hold the verbatim record.
 
 - **Write the expected result, and commit it, before running the probe.**
-- **Run it after installing, in a fresh session.** A session loads agent
-  definitions at startup and does not see an install made during it: the first
-  run of the 2026-09-27 status-line probe most likely failed for exactly that
-  reason. See [its log entry](docs/log/2026-09-27-human-in-the-loop-gate.md).
+- **Run it after installing, in a fresh session.** A fresh session starts
+  with a clean context: it holds no earlier instructions and no memory of the
+  change, and its record shows only the probe.
 - **Run a rule probe in an interactive session, not through `claude -p`.** A
   headless run has no human to approve anything, which changes what the model
   does: the 2026-09-29 P5 probe failed headless and passed interactively. See
