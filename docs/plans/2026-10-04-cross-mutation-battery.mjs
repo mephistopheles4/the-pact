@@ -42,17 +42,37 @@ const M = [
   ['a continued card loses its group heading', 'reopen: `${title} (continued)\\n\\n${head}`', 'reopen: head'],
   ['unstated-lens verdict open at thorough', "const thorough = m.tier === 'thorough';", "const thorough = m.tier === 'thorough' && m.area.pair;"],
 ];
-const results = [];
-for (const [name, from, to] of M) {
-  if (!orig.includes(from)) {
-    results.push(`MISSING  ${name}`);
-    continue;
-  }
-  writeFileSync(FILE, orig.replace(from, to));
-  const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', 'gate/tests/cross-join.test.mjs', 'gate/tests/cross-checks.test.mjs', 'gate/tests/cross-views.test.mjs', 'gate/tests/cross-page.test.mjs', 'gate/tests/cross-parity.test.mjs'], { encoding: 'utf8' });
+const TESTS = ['gate/tests/cross-join.test.mjs', 'gate/tests/cross-checks.test.mjs', 'gate/tests/cross-views.test.mjs', 'gate/tests/cross-page.test.mjs', 'gate/tests/cross-parity.test.mjs'];
+/** Run the cross tests: the failing test names, or null when the run itself broke. */
+function runTests() {
+  const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...TESTS], { encoding: 'utf8' });
+  if (r.error || typeof r.stdout !== 'string' || !/^# tests \d+$/m.test(r.stdout)) return null;
   const fails = (r.stdout.match(/^not ok \d+ - .*$/gm) ?? []).map(l => l.replace(/^not ok \d+ - /, ''));
-  results.push(`${fails.length ? 'CAUGHT ' : 'SURVIVED'} ${name}: ${fails.length} failing${fails.length ? ` (e.g. ${fails[0]})` : ''}`);
+  // A non-zero exit with no failing test is a broken run, not a survivor.
+  if (fails.length === 0 && r.status !== 0) return null;
+  return fails;
 }
-writeFileSync(FILE, orig);
+
+// The unmutated tests must pass first, or a caught mutation proves nothing.
+const baseline = runTests();
+if (baseline === null || baseline.length > 0) {
+  console.log(`BASELINE FAILED: ${baseline === null ? 'the test run broke' : `${baseline.length} failing, e.g. ${baseline[0]}`}`);
+  process.exit(1);
+}
+const results = [];
+try {
+  for (const [name, from, to] of M) {
+    if (!orig.includes(from)) {
+      results.push(`MISSING  ${name}`);
+      continue;
+    }
+    writeFileSync(FILE, orig.replace(from, to));
+    const fails = runTests();
+    if (fails === null) results.push(`ERROR    ${name}: the test run broke`);
+    else results.push(`${fails.length ? 'CAUGHT ' : 'SURVIVED'} ${name}: ${fails.length} failing${fails.length ? ` (e.g. ${fails[0]})` : ''}`);
+  }
+} finally {
+  writeFileSync(FILE, orig);
+}
 console.log(results.join('\n'));
 if (process.argv[2]) writeFileSync(process.argv[2], results.join('\n') + '\n');
