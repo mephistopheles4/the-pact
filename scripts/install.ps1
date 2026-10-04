@@ -366,8 +366,9 @@ else { Write-Host 'No manifest found: first-install mode. Live files are compare
 # The set is HEAD's tree, never a directory listing or the working tree: an
 # ignored file is never staged, and "installed commit X" is true of every byte.
 # AGENTS.md is staged for the check only (it holds the install go-ahead
-# clause); it is never installed.
-$treeRaw = Invoke-GitBytes @('ls-tree', '-r', '-z', '--full-tree', 'HEAD', '--', 'claude', 'familiars', 'gate', 'AGENTS.md', 'scripts/install.ps1')
+# clause); it is never installed. Of cross/, only the cross script is staged,
+# by its exact path; it installs to pact/cross.mjs, where the pact calls it.
+$treeRaw = Invoke-GitBytes @('ls-tree', '-r', '-z', '--full-tree', 'HEAD', '--', 'claude', 'familiars', 'gate', 'AGENTS.md', 'scripts/install.ps1', 'cross/cross.mjs')
 $tree = New-OrderedMap   # rel path -> blob id
 $treeFolded = @{}       # case-insensitive, to refuse paths that differ only in case
 foreach ($rec in ([Text.Encoding]::UTF8.GetString($treeRaw) -split "`0")) {
@@ -477,6 +478,7 @@ foreach ($rel in $staged.Keys) {
   if ($rel -cmatch '\Afamiliars/[^/]+\.(contract|practice-test)\.md\z') { continue }
   if ($rel -cmatch '\Aclaude/(.+)\z') { $expected[$rel] = $Matches[1] }
   elseif ($rel -cmatch '\Afamiliars/([^/]+\.md)\z') { $expected[$rel] = "agents/$($Matches[1])" }
+  elseif ($rel -ceq 'cross/cross.mjs') { $expected[$rel] = 'pact/cross.mjs' }
   else { $expected[$rel] = $null }
 }
 $setOk = $checked.Count -eq $expected.Count

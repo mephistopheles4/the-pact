@@ -234,6 +234,24 @@ for (const [name, rel] of Object.entries(CLAUSES)) {
   });
 }
 
+// The half-pair stop (#45) is part of never substitute; each of its parts is held.
+for (const [label, from, to] of [
+  ['without "especially for security work"', ', especially for security work.', '.'],
+  ['without the half-pair stop', ' A pair of\n   lenses with either lens missing is unavailable as a whole.', ''],
+  ['with the half-pair stop narrowed to one lens', 'either lens missing', 'both lenses missing'],
+]) {
+  test(`bad case: never substitute ${label} fails`, t => {
+    const r = expectFail(t, 'required-clause', { prep: root => edit(root, MD, s => inBlock(s, 'never-substitute', from, to)) });
+    assert.match(r.stdout, /^FAIL required-clause: claude\/CLAUDE\.md: never-substitute differs from its canonical text$/m, r.out);
+  });
+}
+
+test('the half-pair stop is in the canonical never-substitute text', () => {
+  const canon = read(join(GATE, 'clauses', 'never-substitute.md'));
+  assert.match(canon, /A pair of\n {3}lenses with either lens missing is unavailable as a whole\./);
+  assert.match(canon, /especially for security work\./);
+});
+
 test('bad case: a missing AGENTS.md', t => {
   expectFail(t, 'pact-file', { prep: root => rmSync(file(root, AG)) });
 });

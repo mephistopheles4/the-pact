@@ -643,7 +643,10 @@ function cards(m, withSeverity) {
       const mark = r.crossing && !m.tension ? `${CROSSING} ` : '';
       const head = `- ${mark}${rowAnchor(r)}\n`;
       // A card split across parts repeats its group's heading and its anchor line.
-      const card = { keep: true, open: `${gi === 0 ? `${title}\n\n` : ''}${head}`, reopen: `${title} (continued)\n\n${head}`, close: gi === group.length - 1 ? '\n' : '' };
+      // A card that starts a fresh part carries the heading too (`fresh`), so a
+      // disagreement never reads as a one-lens card there.
+      const reopen = `${title} (continued)\n\n${head}`;
+      const card = { keep: true, open: `${gi === 0 ? `${title}\n\n` : ''}${head}`, fresh: gi === 0 ? undefined : reopen, reopen, close: gi === group.length - 1 ? '\n' : '' };
       r.by.forEach((fs, li) => {
         for (const f of fs) units.push({ table: card, text: `  - ${code(m.area.lenses[li])} ${f.id}${withSeverity ? ` ${code(f.severity)}` : ''}: ${span(f.headline)}\n` });
       });
@@ -789,7 +792,7 @@ function pack(units) {
       if (fold && fold !== u.fold) s += fold.close;
     }
     if (u.fold && (fresh || fold !== u.fold)) s += opened.has(u.fold) ? u.fold.reopen : u.fold.open;
-    if (u.table && (fresh || table !== u.table)) s += opened.has(u.table) ? u.table.reopen : u.table.open;
+    if (u.table && (fresh || table !== u.table)) s += opened.has(u.table) ? u.table.reopen : fresh && u.table.fresh ? u.table.fresh : u.table.open;
     return s;
   };
   const header = () => `_Continued, part ${parts.length + 2}._\n\n`;

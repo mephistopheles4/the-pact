@@ -44,6 +44,7 @@ The pact does not cover Anthropic's Maintain stage yet.
 | `claude/agents/` | **The familiars:** six read-only agents: the four reviewers and checkers on Opus, `scout` and `Explore` on Sonnet, with cost set through effort | `~/.claude/agents/` |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
 | `familiars/` | Agents migrated to a grimoire contract, each beside its contract and practice test. Empty until the first migration | `~/.claude/agents/` (agent files only) |
+| `cross/cross.mjs` | The cross script: checks a lens pair's findings blocks, joins them, and writes the comment section and a local page. The pact calls only the installed copy. `cross/render-check.mjs` is a one-off check and never installs | `~/.claude/pact/cross.mjs` |
 | `gate/` | The install gate: the pact's own check (seam A), a pinned copy of grimoire's check script, and the per-agent tool allow-list | Never installed |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 
