@@ -86,9 +86,10 @@ Where two bullets apply, the stricter one holds.
 
 - **A change to the risk floor, the security route, a gated clause, anything
   in the protected set below, any security-set lens, or anything in this
-  section still needs a planted probe that is seen to fail.** A change to a
-  security-set lens reruns that lens's whole security set and rescores every
-  bad report before the change is relied on.
+  whole section, "Testing a change to an agent or a rule", from its opening
+  to its end, still needs a planted probe that is seen to fail.** A change to
+  a security-set lens reruns that lens's whole security set and rescores
+  every bad report before the change is relied on.
 - **The same holds for any agent that is not a lens,** when it holds a shell
   or network tools, or guards the security route or the risk floor; for the
   install gate's tool allow-list, `gate/tool-allowlist.json`; and for the
