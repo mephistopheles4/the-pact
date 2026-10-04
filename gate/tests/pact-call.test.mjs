@@ -119,18 +119,23 @@ test("the pact's POSIX command reaches the installed script, not a planted one",
   reachedInstalled(runSh(cwd, home, bare(posix)));
 });
 
-test('control: a call through ~, a single-quoted $HOME, or without clearing NODE_OPTIONS is caught', { skip: !PWSH }, t => {
+// Each wrong call is caught, and for its own reason: the marker it trips.
+function caught(r, marker) {
+  assert.throws(() => reachedInstalled(r));
+  assert.ok(`${r.stdout}${r.stderr}`.includes(marker), `${marker} expected:\n${r.stdout}${r.stderr}`);
+}
+
+test('control (PowerShell): a call through ~, a single-quoted $HOME, or without clearing NODE_OPTIONS is caught', { skip: !PWSH }, t => {
   const { cwd, home } = setUp(t);
-  // Each wrong call is caught, and for its own reason: the marker it trips.
-  const caught = (r, marker) => {
-    assert.throws(() => reachedInstalled(r));
-    assert.ok(`${r.stdout}${r.stderr}`.includes(marker), `${marker} expected:\n${r.stdout}${r.stderr}`);
-  };
   caught(runPwsh(cwd, home, '$env:NODE_OPTIONS = $null; node "~/.claude/pact/cross.mjs"'), 'PLANTED');
   caught(runPwsh(cwd, home, "$env:NODE_OPTIONS = $null; node '$HOME/.claude/pact/cross.mjs'"), 'PLANTED');
   caught(runPwsh(cwd, home, 'node "$HOME/.claude/pact/cross.mjs"'), 'PRELOAD');
-  if (SH) {
-    caught(runSh(cwd, home, 'env -u NODE_OPTIONS node "~/.claude/pact/cross.mjs"'), 'PLANTED');
-    caught(runSh(cwd, home, 'node "$HOME/.claude/pact/cross.mjs"'), 'PRELOAD');
-  }
+});
+
+test('control (POSIX): a call through ~, a single-quoted $HOME, or without clearing NODE_OPTIONS is caught', t => {
+  assert.ok(SH, 'no POSIX shell found; the POSIX control must not go unrun');
+  const { cwd, home } = setUp(t);
+  caught(runSh(cwd, home, 'env -u NODE_OPTIONS node "~/.claude/pact/cross.mjs"'), 'PLANTED');
+  caught(runSh(cwd, home, "env -u NODE_OPTIONS node '$HOME/.claude/pact/cross.mjs'"), 'PLANTED');
+  caught(runSh(cwd, home, 'node "$HOME/.claude/pact/cross.mjs"'), 'PRELOAD');
 });

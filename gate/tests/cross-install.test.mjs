@@ -98,13 +98,17 @@ test('bad case: a tampered installed cross script is drift, and -Apply refuses',
   assert.match(read(live), /tampered/, 'a refused -Apply changes nothing');
 });
 
-test('bad case: a deleted installed cross script is drift', t => {
+test('bad case: a deleted installed cross script is drift, and -Apply refuses', t => {
   const repo = makeRepo(t);
   const h = home(t);
   assert.equal(install(repo, h, { apply: true }).code, 0);
   rmSync(join(h, 'pact', 'cross.mjs'));
   const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^Drift: 1$/m, dry.out);
   assert.match(dry.stdout, /^ {2}pact\/cross\.mjs \(deleted since the install\)$/m, dry.out);
+  refused(install(repo, h, { apply: true }));
+  assert.ok(!existsSync(join(h, 'pact', 'cross.mjs')), 'a refused -Apply changes nothing');
 });
 
 test('bad case: a seam A that leaves the cross script off its install list refuses', t => {
