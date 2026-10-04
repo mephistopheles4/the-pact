@@ -64,6 +64,41 @@ for (const [label, ch, rule] of [
   });
 }
 
+// The cross script loads only Node's built-in modules (security-reviewer's F3 on #45).
+const IMPORT_PLANTS = {
+  'a bare package import': "import x from 'pkg';",
+  'a relative import': "import { y } from './helper.mjs';",
+  'a node: import that does not fill its line': "import { readFileSync } from 'node:fs'; import z from 'pkg';",
+  'a multi-line import': "import {\n  readFileSync,\n} from 'pkg';",
+  'an export from a package': "export { x } from 'pkg';",
+  'a side-effect import': "import 'pkg';",
+  'a dynamic import()': "const m = await import ('pkg');",
+  'a require call': "const m = require('pkg');",
+  'createRequire': "import { createRequire } from 'node:module';",
+};
+
+for (const [label, plant] of Object.entries(IMPORT_PLANTS)) {
+  test(`bad case: a cross script with ${label} fails`, t => {
+    const root = stage(t);
+    const p = join(root, 'cross', 'cross.mjs');
+    const src = read(p);
+    const at = "import { createHash } from 'node:crypto';\n";
+    assert.ok(src.includes(at), 'the cross script no longer holds the line this test plants after');
+    writeFileSync(p, src.replace(at, () => `${at}${plant}\n`));
+    const r = runSeamA(root);
+    assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
+    assert.ok(failRules(r.stdout).includes('cross-imports'), r.out);
+  });
+}
+
+test("the cross script's own imports, and import.meta, pass the import rule", t => {
+  const root = stage(t);
+  const p = join(root, 'cross', 'cross.mjs');
+  writeFileSync(p, `${read(p)}\n// import x from 'pkg' in a comment is not code\nconst here = import.meta.url;\n`);
+  const r = runSeamA(root);
+  assert.equal(r.code, 0, r.out);
+});
+
 // ------------------------------------------------------------ the install
 
 test('-Apply installs the cross script byte for byte, the manifest records its hash, and render-check never installs', t => {

@@ -890,6 +890,27 @@ function checkAgent(a, parsed, allow, report) {
   }
 }
 
+// The one import form the cross script may use: a whole line, from a node: built-in.
+const NODE_IMPORT_RE = /^import (?:\{[A-Za-z0-9_$, ]*\}|[A-Za-z_$][A-Za-z0-9_$]*|\* as [A-Za-z_$][A-Za-z0-9_$]*) from 'node:[a-z_/]+';$/;
+const IMPORT_WORD_RE = /\b(?:import|export)\b(?!\.meta\b)/;
+const LOADER_RE = /\b(?:require|createRequire)\b|\bimport\s*\(/;
+
+/**
+ * The cross script loads only Node's built-in modules (#35, #45). Every line
+ * that is not a // comment and holds the word import or export must be one
+ * whole-line import from a node: specifier; require, createRequire and
+ * import() are refused anywhere. Strict on purpose: an unusual but harmless
+ * form fails, and is rewritten.
+ */
+function checkImports(text, file, report) {
+  text.split('\n').forEach((line, i) => {
+    const code = line.trimStart();
+    if (code.startsWith('//')) return;
+    if (LOADER_RE.test(line)) report.fail('cross-imports', file, i + 1, 'a require, createRequire or import() call');
+    else if (IMPORT_WORD_RE.test(line) && !NODE_IMPORT_RE.test(line)) report.fail('cross-imports', file, i + 1, "an import or export that is not one whole-line import from a node: built-in");
+  });
+}
+
 /** Run the pinned grimoire check on one familiar. Relays rule names and line numbers only. */
 function runPinned(root, a, report) {
   const env = { ...process.env };
@@ -932,8 +953,13 @@ function run(root, report) {
   }
 
   // The cross script is code the pact runs: held to the same character rules
-  // as every other installed text, so nothing in it reads one way and runs another.
-  for (const i of installs) if (i.text) scanText(readFileSync(join(root, ...i.file.split('/'))), i.file, report);
+  // as every other installed text, so nothing in it reads one way and runs
+  // another, and to Node's built-in modules, so nothing outside the pact loads.
+  for (const i of installs) {
+    if (!i.text) continue;
+    const text = scanText(readFileSync(join(root, ...i.file.split('/'))), i.file, report);
+    if (text !== null) checkImports(text, i.file, report);
+  }
 
   const names = new Map();
   for (const a of agents) {
