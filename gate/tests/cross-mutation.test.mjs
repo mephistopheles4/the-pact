@@ -27,9 +27,9 @@ const MUTATIONS = [
   ['agreement: inconclusive with high allowed', 'inconclusive: !high,', 'inconclusive: true,', 'inconclusive with a high finding is refused'],
   ['severity on cards above the prompt', '...cards(m, false)', '...cards(m, true)', 'on the spec pair, both calls at one anchor give a disagreement'],
   ['area icon above the prompt', 'heading(m, false)', 'heading(m, true)', 'no mark but the crossing mark'],
-  ['tab allowed', "if (isRefused(cp) || cp === 9) return 'characters';", "if (isRefused(cp)) return 'characters';", 'the character check refuses'],
-  ['pictographs allowed', "if (PICTOGRAPH_RE.test(String.fromCodePoint(cp))) return 'pictograph';", '', 'the character check refuses'],
-  ['crossing mark allowed', "if (cp >= 0x2719 && cp <= 0x2720) return 'mark';", '', 'the character check refuses'],
+  ['tab allowed', "if (isRefused(cp) || cp === 9) return 'characters';", "if (isRefused(cp)) return 'characters';", 'by the characters rule'],
+  ['pictographs allowed', "if (PICTOGRAPH_RE.test(String.fromCodePoint(cp))) return 'pictograph';", '', 'by the pictograph rule'],
+  ['crossing mark allowed', "if (cp >= 0x2719 && cp <= 0x2720) return 'mark';", '', 'by the mark rule'],
   ['file names echoed raw', "s += /[A-Za-z0-9._-]/.test(ch) ? ch : '?';", 's += ch;', 'a file name made of unsafe characters'],
   ['a crossing from one lens', 'r.crossing = docs.length === 2 && r.count === 2;', 'r.crossing = docs.length === 2 && r.count >= 1;', 'an exact anchor join finds the crossing'],
   ['code span fence fixed at one', "const fence = '`'.repeat(longestRun(t, '`') + 1);\n  return `${fence} ${t} ${fence}`;", "const fence = '`';\n  return `${fence} ${t} ${fence}`;", 'a headline holding three backticks'],
@@ -64,29 +64,50 @@ const MUTATIONS = [
 
 const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+test('the override is unset in a normal run, so the suite checks the real script', () => {
+  assert.equal(process.env.PACT_CROSS_UNDER_TEST, undefined, 'PACT_CROSS_UNDER_TEST is set: every cross test would check that file instead');
+});
+
 test('every mutation still matches the script, so the battery cannot go stale silently', () => {
   for (const [name, from] of MUTATIONS) assert.ok(SOURCE.includes(from), `${name}: its source text is no longer in cross/cross.mjs`);
 });
+
+/** Run the tests whose names hold `catcher`, against `script`. Returns the TAP lines that name a matching test. */
+async function runCatcher(script, catcher) {
+  const env = { ...process.env, PACT_CROSS_UNDER_TEST: script };
+  delete env.NODE_OPTIONS;
+  delete env.NODE_TEST_CONTEXT;
+  let stdout;
+  try {
+    ({ stdout } = await run(process.execPath, ['--test', '--test-reporter=tap', `--test-name-pattern=${escape(catcher)}`, ...TESTS], { env, maxBuffer: 64 * 1024 * 1024 }));
+  } catch (e) {
+    stdout = e.stdout ?? '';
+  }
+  const named = new RegExp(`^\\s*(not ok|ok) \\d+ - .*${escape(catcher)}`, 'gm');
+  const lines = [...stdout.matchAll(named)].filter(m => !/# SKIP/.test(m.input.slice(m.index, m.input.indexOf('\n', m.index))));
+  return { passed: lines.filter(m => m[1] === 'ok').length, failed: lines.filter(m => m[1] === 'not ok').length };
+}
 
 test('the mutation battery: each broken rule fails the tests named for it', { concurrency: 6 }, async t => {
   const dir = tempDir(t, 'pact-mutation-');
   await Promise.all(
     MUTATIONS.map(([name, from, to, catcher], i) =>
       t.test(name, async () => {
+        // Baseline: the catching tests pass on the real script, so a catch means something.
+        const base = await runCatcher(join(REPO, 'cross', 'cross.mjs'), catcher);
+        assert.ok(base.passed > 0 && base.failed === 0, `${name}: the tests matching "${catcher}" do not all pass on the real script (${base.passed} passed, ${base.failed} failed)`);
         const mutant = join(dir, `cross-${i}.mjs`);
         writeFileSync(mutant, SOURCE.replace(from, to));
-        const env = { ...process.env, PACT_CROSS_UNDER_TEST: mutant };
-        delete env.NODE_OPTIONS;
-        delete env.NODE_TEST_CONTEXT;
-        let stdout;
+        // The mutant must still load and run, so a crash on start cannot pass as a catch.
+        let ran;
         try {
-          ({ stdout } = await run(process.execPath, ['--test', '--test-reporter=tap', `--test-name-pattern=${escape(catcher)}`, ...TESTS], { env, maxBuffer: 64 * 1024 * 1024 }));
+          await run(process.execPath, [mutant]);
         } catch (e) {
-          stdout = e.stdout ?? '';
+          ran = e;
         }
-        const count = key => Number((stdout.match(new RegExp(`^# ${key} (\\d+)$`, 'm')) ?? [])[1] ?? -1);
-        assert.ok(count('tests') > 0, `${name}: no test matched "${catcher}"`);
-        assert.ok(count('fail') > 0, `${name}: survived; no test matching "${catcher}" failed`);
+        assert.ok(ran && ran.code === 1 && /^FAIL usage: /m.test(ran.stdout), `${name}: the mutant does not load and run`);
+        const hit = await runCatcher(mutant, catcher);
+        assert.ok(hit.failed > 0, `${name}: survived; no test named "${catcher}" failed`);
       }),
     ),
   );
