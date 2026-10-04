@@ -11,6 +11,8 @@ settings.local.json
 
 # Files that name the owner's private research; never committed
 *.private.md
+# The owner's private working files live here, never tracked
+private/
 
 # Handover notes belong in ~/.claude/handover/, never in a repo
 .claude/handover/

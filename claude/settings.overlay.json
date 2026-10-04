@@ -17,7 +17,8 @@
       "Edit(~/.claude/skills/**)",
       "Edit(~/.claude/plugins/**)",
       "Edit(~/.claude/output-styles/**)",
-      "Edit(~/.claude/commands/**)"
+      "Edit(~/.claude/commands/**)",
+      "Edit(~/.claude/pact/**)"
     ]
   },
   "fallbackModel": [

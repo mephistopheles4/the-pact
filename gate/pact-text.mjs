@@ -49,6 +49,33 @@ const SHARED = new Map([['risk-floor', 'plan-reviewer']]);
 const ROLE_LEADS = ['**Lookups and searches.**'];
 const MOVES = [1, 2, 3, 4];
 
+// The roster (#35): every reviewer name the pact may route, the four of today
+// and the nine lenses. Hard-coded, so no file the stage holds can shorten it.
+export const OLD_REVIEWERS = Object.freeze(['plan-reviewer', 'result-checker', 'test-reviewer', 'security-reviewer']);
+export const LENSES = Object.freeze([
+  'behaviour-lens',
+  'integrity-lens',
+  'adversarial-lens',
+  'data-lens',
+  'executability-lens',
+  'good-enough-lens',
+  'conventions-lens',
+  'reader-lens',
+  'unstated-lens',
+]);
+export const ROSTER = Object.freeze([...OLD_REVIEWERS, ...LENSES]);
+// A roster name as a whole word: no letter, digit or '_' on either side. Case
+// is ignored, any dash or the minus sign stands for its hyphen, and a line may
+// wrap after the hyphen, so a spelling that a reader takes for the name counts
+// as the name. Out of scope: a name split by an HTML entity, a backslash
+// escape or emphasis, which no accident produces, and a name wrapped inside a
+// quoted block, where the next line starts with '>', which a reflow could
+// produce but is rare in the installed texts (none holds a quoted block).
+const ROSTER_HYPHEN = '[\\p{Pd}\\u2212](?:[ \\t]*\\n[ \\t]*)?';
+const ROSTER_RES = new Map(
+  ROSTER.map(n => [n, new RegExp(`(?<![\\p{L}\\p{N}_])${n.split('-').join(ROSTER_HYPHEN)}(?![\\p{L}\\p{N}_])`, 'iu')]),
+);
+
 const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 const FENCE_RE = /^ *(?:```|~~~)/;
 // The pact files' structure is held to the forms this module reads exactly as
@@ -207,6 +234,46 @@ function readPactFile(root, rel, report, scanText) {
   return scanText(readFileSync(abs), rel, report);
 }
 
+/** The line (1-based) of `text` where `name` first starts as a roster word, or 0. */
+function rosterLine(text, name) {
+  const m = ROSTER_RES.get(name).exec(text);
+  return m ? text.slice(0, m.index).split('\n').length : 0;
+}
+
+/**
+ * The reverse routing check. The pact and every installed agent name only
+ * installed reviewers, and a lens file names no reviewer but itself, anywhere
+ * in the file. Prints the roster's own constant names, never a matched spelling.
+ */
+function checkRoster(pactText, root, agents, report) {
+  const installed = new Set(agents.map(a => a.stem));
+  if (pactText !== null) {
+    for (const name of ROSTER) {
+      if (installed.has(name)) continue;
+      const ln = rosterLine(pactText, name);
+      if (ln) report.fail('roster', PACT, ln, `names ${name}, which is not installed`);
+    }
+  }
+  for (const a of agents) {
+    let text;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(readFileSync(join(root, ...a.file.split('/'))));
+    } catch {
+      continue; // seam A's own reader has already failed it
+    }
+    // Compared case-folded, so a lens file is held to the lens rule whatever its case.
+    const self = a.stem.toLowerCase();
+    const lens = LENSES.includes(self);
+    for (const name of ROSTER) {
+      if (name === self) continue;
+      const ln = rosterLine(text, name);
+      if (!ln) continue;
+      if (lens) report.fail('roster-lens', a.file, ln, `a lens file names ${name}; a lens names no reviewer but itself`);
+      else if (!installed.has(name)) report.fail('roster', a.file, ln, `names ${name}, which is not installed`);
+    }
+  }
+}
+
 function namesFor(file) {
   return new Set([...CLAUSES].filter(([, c]) => c.file === file).map(([n]) => n));
 }
@@ -220,9 +287,11 @@ function namesFor(file) {
 export function checkPactText(root, agents, report, scanText) {
   const canon = loadClauses(report);
   const docs = new Map();
+  let pactText = null;
   for (const rel of [PACT, RULES]) {
     const text = readPactFile(root, rel, report, scanText);
     if (text === null) continue;
+    if (rel === PACT) pactText = text;
     const doc = parseDoc(text, rel, namesFor(rel), report);
     checkStructure(doc, rel, report);
     docs.set(rel, doc);
@@ -281,4 +350,6 @@ export function checkPactText(root, agents, report, scanText) {
       if (typeof a.name === 'string' && !routed.has(a.name)) report.fail('routing', a.file, null, 'not named in moves 1 to 4 or a listed role line');
     }
   }
+
+  checkRoster(pactText, root, agents, report);
 }

@@ -38,7 +38,7 @@ function git(cwd, ...args) {
 /** A git repo holding the files the install reads, committed; `mutate` runs before the commit. */
 function makeRepo(t, mutate) {
   const root = tempDir(t, 'pact-repo-');
-  for (const d of ['claude', 'gate', 'familiars']) cpSync(join(REPO, d), join(root, d), { recursive: true });
+  for (const d of ['claude', 'cross', 'gate', 'familiars']) cpSync(join(REPO, d), join(root, d), { recursive: true });
   mkdirSync(join(root, 'scripts'));
   cpSync(join(REPO, 'scripts', 'install.ps1'), join(root, 'scripts', 'install.ps1'));
   cpSync(join(REPO, '.gitattributes'), join(root, '.gitattributes'));

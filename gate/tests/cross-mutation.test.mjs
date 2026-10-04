@@ -58,7 +58,8 @@ const MUTATIONS = [
   ['the calls table in the non-risks fold at standard', '...matrix(m), ...callsTable(m, null));', '...matrix(m), ...callsTable(m, FOLD_NON_RISKS));', 'calls show side by side in the open'],
   ['a card cannot split between its lines', "units.push({ table: card, text: `  - ${code(m.area.lenses[li])}", "units.push({ text: (f === fs[0] && li === 0 ? card.open : '') + `  - ${code(m.area.lenses[li])}", 'one card over the limit splits between its finding lines'],
   ['a card that fits is cut at a part boundary', 'moveWhole = !fits(cur + enter(u, false)) && fits(header() + enter(u, true));', 'moveWhole = false;', 'a card that fits in one comment is never cut'],
-  ['a continued card loses its group heading', 'reopen: `${title} (continued)\\n\\n${head}`', 'reopen: head', 'a disagreement card split across parts'],
+  ['a continued card loses its group heading', 'const reopen = `${title} (continued)\\n\\n${head}`;', 'const reopen = head;', 'a disagreement card split across parts'],
+  ['a card that moves whole loses its group heading', 'fresh && u.table.fresh ? u.table.fresh : u.table.open', 'u.table.open', 'moves whole to the next part opens with its group heading'],
   ['unstated-lens verdict open at thorough', "const thorough = m.tier === 'thorough';", "const thorough = m.tier === 'thorough' && m.area.pair;", 'unstated-lens alone at thorough'],
 ];
 
@@ -90,14 +91,23 @@ async function runCatcher(script, catcher) {
 
 test('the mutation battery: each broken rule fails the tests named for it', { concurrency: 6 }, async t => {
   const dir = tempDir(t, 'pact-mutation-');
+  // One baseline run per catcher phrase, shared by every mutation that names it.
+  const baselines = new Map();
+  const baseline = catcher => {
+    if (!baselines.has(catcher)) baselines.set(catcher, runCatcher(join(REPO, 'cross', 'cross.mjs'), catcher));
+    return baselines.get(catcher);
+  };
   await Promise.all(
     MUTATIONS.map(([name, from, to, catcher], i) =>
       t.test(name, async () => {
         // Baseline: the catching tests pass on the real script, so a catch means something.
-        const base = await runCatcher(join(REPO, 'cross', 'cross.mjs'), catcher);
+        const base = await baseline(catcher);
         assert.ok(base.passed > 0 && base.failed === 0, `${name}: the tests matching "${catcher}" do not all pass on the real script (${base.passed} passed, ${base.failed} failed)`);
+        // A function replacement, so a `$` pattern in the replacement is taken literally.
+        const mutated = SOURCE.replace(from, () => to);
+        assert.notEqual(mutated, SOURCE, `${name}: the mutation does not change the script`);
         const mutant = join(dir, `cross-${i}.mjs`);
-        writeFileSync(mutant, SOURCE.replace(from, to));
+        writeFileSync(mutant, mutated);
         // The mutant must still load and run, so a crash on start cannot pass as a catch.
         let ran;
         try {

@@ -42,6 +42,8 @@ export function plainAgent(name, extra = [], tools = READ_ONLY) {
 export function realPayload(root) {
   cpSync(join(REPO, 'claude'), join(root, 'claude'), { recursive: true });
   cpSync(join(REPO, 'AGENTS.md'), join(root, 'AGENTS.md'));
+  mkdirSync(join(root, 'cross'), { recursive: true });
+  cpSync(join(REPO, 'cross', 'cross.mjs'), join(root, 'cross', 'cross.mjs'));
   mkdirSync(join(root, 'familiars'), { recursive: true });
   writeFileSync(join(root, 'familiars', '.gitkeep'), '');
 }
@@ -101,18 +103,29 @@ export function realOverlay() {
 // Stages whose test agents runSeamA routes before each run.
 const ROUTED = new Set();
 
+/** The pact's own agent files, as { 'claude/agents/<file>': text }. */
+export function realAgents() {
+  const out = {};
+  for (const f of readdirSync(join(REPO, 'claude', 'agents')).sort()) {
+    if (f.endsWith('.md')) out[`claude/agents/${f}`] = read(join(REPO, 'claude', 'agents', f));
+  }
+  return out;
+}
+
 /**
- * A stage built on the pact's real text (CLAUDE.md, AGENTS.md and the
- * risk-floor holder plan-reviewer), today's overlay, and the given files.
- * Unless `route` is false, runSeamA routes the stage's test agents first.
+ * A stage built on the pact's real text (CLAUDE.md, AGENTS.md and every agent
+ * it names, so the roster check sees each named reviewer installed), today's
+ * overlay, the cross script, and the given files. Unless `route` is false,
+ * runSeamA routes the stage's test agents first.
  */
 export function stage(t, files = {}, { route = true } = {}) {
   const root = tempDir(t);
   writeTree(root, {
     'claude/CLAUDE.md': read(join(REPO, 'claude', 'CLAUDE.md')),
     'AGENTS.md': read(join(REPO, 'AGENTS.md')),
-    'claude/agents/plan-reviewer.md': read(join(REPO, 'claude', 'agents', 'plan-reviewer.md')),
+    ...realAgents(),
     'claude/settings.overlay.json': realOverlay(),
+    'cross/cross.mjs': read(join(REPO, 'cross', 'cross.mjs')),
     'familiars/.gitkeep': '',
     ...files,
   });

@@ -428,6 +428,64 @@ test('a disagreement card split across parts repeats its group heading', t => {
   for (const c of parts.slice(1)) assert.match(c, /\*\*Disagreements: both lenses called this; you settle it\*\* \(continued\)\n\n- `S1`\n/);
 });
 
+/**
+ * Each part above the prompt that holds a card: the group heading that comes
+ * before its first card line, or null when there is none.
+ */
+function partHeadings(comments) {
+  return abovePrompt(comments)
+    .map(scriptWritten)
+    .filter(c => /^- /m.test(c))
+    .map(c => {
+      const before = c.slice(0, c.search(/^- /m));
+      const heads = before.match(/^\*\*(?:Disagreements|✚ Crossings|One lens only)[^\n]*$/gm);
+      return heads ? heads[heads.length - 1] : null;
+    });
+}
+
+test('a disagreement card that moves whole to the next part opens with its group heading, continued', t => {
+  // Four disagreement cards, each about a third of the limit: some move whole.
+  const fs = Array.from({ length: 100 }, (_, i) => finding(`F${i + 1}`, `S${(i % 4) + 1}`, 'medium', '`'.repeat(120)));
+  const r = cross(t, {
+    reports: { 'executability-lens': report(block('executability-lens', 'findings', fs)), 'good-enough-lens': report(block('good-enough-lens', 'findings', fs)) },
+    point: 'spec',
+    anchors: 'S1,S2,S3,S4',
+  });
+  assert.equal(r.code, 0, r.stdout);
+  const heads = partHeadings(r.comments);
+  assert.ok(heads.length >= 2, 'the cards span more than one part');
+  const title = '**Disagreements: both lenses called this; you settle it**';
+  assert.equal(heads[0], title, 'the first part has the heading, not continued');
+  for (const h of heads.slice(1)) assert.equal(h, `${title} (continued)`, 'a later part opens with the heading, continued');
+});
+
+test('a crossing card that moves whole to the next part opens with its group heading, continued', t => {
+  const fs = Array.from({ length: 100 }, (_, i) => finding(`F${i + 1}`, `C${(i % 4) + 1}`, 'medium', '`'.repeat(120)));
+  const r = cross(t, { reports: { 'behaviour-lens': report(block('behaviour-lens', 'findings', fs)), 'integrity-lens': report(block('integrity-lens', 'findings', fs)) }, anchors: 'C1,C2,C3,C4' });
+  assert.equal(r.code, 0, r.stdout);
+  const heads = partHeadings(r.comments);
+  assert.ok(heads.length >= 2, 'the cards span more than one part');
+  const title = '**✚ Crossings: two different problems meet at one anchor**';
+  assert.equal(heads[0], title);
+  for (const h of heads.slice(1)) assert.equal(h, `${title} (continued)`);
+});
+
+test('the first card of a group that moves whole carries its group heading once, not continued', t => {
+  // Two crossing cards fill most of part 1; the one-lens group's first card then moves whole.
+  const on = (n, from, anchor) => Array.from({ length: n }, (_, i) => finding(`F${from + i}`, anchor(i), 'medium', '`'.repeat(120)));
+  const two = i => `C${(i % 2) + 1}`;
+  const behaviour = on(100, 1, two);
+  const integrity = [...on(60, 1, two), ...on(40, 61, () => 'C3')];
+  const r = cross(t, { reports: { 'behaviour-lens': report(block('behaviour-lens', 'findings', behaviour)), 'integrity-lens': report(block('integrity-lens', 'findings', integrity)) }, anchors: 'C1,C2,C3' });
+  assert.equal(r.code, 0, r.stdout);
+  const s = abovePrompt(r.comments).map(scriptWritten);
+  const at = s.findIndex(c => /^- `C3`$/m.test(c));
+  assert.ok(at >= 1, 'the one-lens card moved to a later part');
+  assert.equal(s.join('').split('**One lens only**').length - 1, 1, 'its heading shows once');
+  assert.ok(!s.join('').includes('**One lens only** (continued)'));
+  assert.match(s[at], /\*\*One lens only\*\*\n\n- `C3`\n/, 'the heading opens the part with its card');
+});
+
 test('invariance holds when the cards themselves split across parts', t => {
   const runs = [oneHugeCard('medium'), oneHugeCard('low'), oneHugeCard('high')].map(v => cross(t, v));
   for (const r of runs) assert.equal(r.code, 0, r.stdout);
