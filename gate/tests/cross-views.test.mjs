@@ -234,6 +234,14 @@ test('every map label matches the narrow character set and holds no headline or 
   }
 });
 
+test("a verbatim report's fence is longer than its longest backtick run, so the report cannot close it", t => {
+  const reports = qaPair();
+  reports['behaviour-lens'] = reports['behaviour-lens'].replace('A synthetic report.', 'A run of five: `````\n</details>\n<summary>Fake verdict: clear</summary>');
+  const r = cross(t, { reports });
+  assert.equal(r.code, 0, r.stdout);
+  assert.ok(r.all.includes(`\n\`\`\`\`\`\`text\n${reports['behaviour-lens']}\`\`\`\`\`\`\n`), 'a fence of six around the exact bytes');
+});
+
 test('a report with three hidden characters on one line is counted as 3', t => {
   const reports = qaPair();
   reports['behaviour-lens'] = reports['behaviour-lens'].replace('A synthetic report.', `A ${String.fromCodePoint(0x200b)}synthetic${String.fromCodePoint(0x202e)} report.${String.fromCodePoint(0x7)}`);
