@@ -75,6 +75,11 @@ const IMPORT_PLANTS = {
   'a dynamic import()': "const m = await import ('pkg');",
   'a require call': "const m = require('pkg');",
   'createRequire': "import { createRequire } from 'node:module';",
+  // Round 3 on #45: only the three built-ins the script uses are allowed.
+  'a namespace import of node:module': "import * as mod from 'node:module';",
+  'an import from node:child_process': "import { execSync } from 'node:child_process';",
+  'an import from node:vm': "import vm from 'node:vm';",
+  'an import from node:os, harmless but not on the list': "import { tmpdir } from 'node:os';",
 };
 
 for (const [label, plant] of Object.entries(IMPORT_PLANTS)) {

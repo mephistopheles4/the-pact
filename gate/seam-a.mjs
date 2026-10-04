@@ -890,17 +890,24 @@ function checkAgent(a, parsed, allow, report) {
   }
 }
 
-// The one import form the cross script may use: a whole line, from a node: built-in.
-const NODE_IMPORT_RE = /^import (?:\{[A-Za-z0-9_$, ]*\}|[A-Za-z_$][A-Za-z0-9_$]*|\* as [A-Za-z_$][A-Za-z0-9_$]*) from 'node:[a-z_/]+';$/;
+// The one import form the cross script may use: a whole line, from one of the
+// three built-ins it needs. None of them can load or run other code.
+const NODE_IMPORT_RE = /^import (?:\{[A-Za-z0-9_$, ]*\}|[A-Za-z_$][A-Za-z0-9_$]*|\* as [A-Za-z_$][A-Za-z0-9_$]*) from 'node:(?:crypto|fs|path)';$/;
 const IMPORT_WORD_RE = /\b(?:import|export)\b(?!\.meta\b)/;
 const LOADER_RE = /\b(?:require|createRequire)\b|\bimport\s*\(/;
 
 /**
- * The cross script loads only Node's built-in modules (#35, #45). Every line
- * that is not a // comment and holds the word import or export must be one
- * whole-line import from a node: specifier; require, createRequire and
+ * The cross script loads only node:crypto, node:fs and node:path (#35, #45).
+ * Every line that is not a // comment and holds the word import or export
+ * must be one whole-line import from one of them; require, createRequire and
  * import() are refused anywhere. Strict on purpose: an unusual but harmless
  * form fails, and is rewritten.
+ *
+ * It guards against an accidental import, not a deliberate one. It reads
+ * lines, not JavaScript, so code made to look like a comment (inside a
+ * template string, say) or built from pieces at run time gets past it.
+ * Anyone who could write that can edit this gate too, and the dry run shows
+ * a gate change.
  */
 function checkImports(text, file, report) {
   text.split('\n').forEach((line, i) => {
@@ -954,7 +961,8 @@ function run(root, report) {
 
   // The cross script is code the pact runs: held to the same character rules
   // as every other installed text, so nothing in it reads one way and runs
-  // another, and to Node's built-in modules, so nothing outside the pact loads.
+  // another, and to three built-in modules, so no package is pulled in by
+  // accident (checkImports says what that rule does not catch).
   for (const i of installs) {
     if (!i.text) continue;
     const text = scanText(readFileSync(join(root, ...i.file.split('/'))), i.file, report);

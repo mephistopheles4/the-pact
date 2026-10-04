@@ -67,7 +67,9 @@ export const ROSTER = Object.freeze([...OLD_REVIEWERS, ...LENSES]);
 // A roster name as a whole word: no letter, digit or '_' on either side. Case
 // is ignored, any dash or the minus sign stands for its hyphen, and a line may
 // wrap after the hyphen, so a spelling that a reader takes for the name counts
-// as the name.
+// as the name. Out of scope, as no accident produces them: a name split by an
+// HTML entity, a backslash escape or emphasis, or wrapped inside a quoted
+// block, where the next line starts with '>'.
 const ROSTER_HYPHEN = '[\\p{Pd}\\u2212](?:[ \\t]*\\n[ \\t]*)?';
 const ROSTER_RES = new Map(
   ROSTER.map(n => [n, new RegExp(`(?<![\\p{L}\\p{N}_])${n.split('-').join(ROSTER_HYPHEN)}(?![\\p{L}\\p{N}_])`, 'iu')]),
