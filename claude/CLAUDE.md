@@ -92,8 +92,8 @@ open decision under a lower tier than you would pick, name the decisions once
   line (below) are written at the top of the plan file, not as a label.
 - **An issue with no tier label is at move 1.** Never infer a later move from
   partial evidence, such as an approved ticket or a missing spec. The first
-  reply is the fit check, a proposed tier with one line of why, and nothing
-  else. Then stop. I answer with a tier word, and you apply the label and
+  reply is the fit check and a proposed tier, shown as a next-move choice
+  (below), and nothing else. Then stop. I answer with a tier word, and you apply the label and
   start that tier's first move; or I type `/triage` for a full triage. The
   proposal stands in for move 1 only when I confirm it.
 - **Whoever files or triages an issue** writes the suggested tier as a label,
@@ -113,6 +113,15 @@ phase.
 to the issue, and propose the new tier for the next session. I can call a
 tier change at any time; my judgement of the work wins, except that the risk
 floor (above) holds.
+
+**Show the next move as a choice.** When you propose a tier or the next
+move, don't hand me one command as if it were the only path. Show the live
+options side by side, usually two or three: for example build now, prototype,
+spec first, or triage. Give each one line on when it fits and the risk it
+carries: what could go wrong, and what it costs to recover. Mark the one you
+recommend, and why. The risk floor still sets the tier for risky work; the
+choice shows what's open within it. A `▶ Your move` line, when there is one,
+still comes last.
 
 **Quick work stops at an open decision.** Under quick, a decision the issue
 leaves open (for example, which content to cut or keep) is named to me and
