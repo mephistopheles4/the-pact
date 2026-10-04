@@ -72,24 +72,32 @@ the standing measures (below), which can add, merge, cut or retune lenses.
 
 ### Which changes need a probe
 
-- **A change to the risk floor, the security route, a gated clause, the
-  protected set, or any lens in the security set still needs a planted probe
-  that is seen to fail.** A gated clause is a block the install gate holds
-  word for word; its canonical text is in `gate/clauses/`. The security set
-  is the few practice cases that still run for real, because the risk floor
-  requires it. A security-set lens is one that holds a shell or network tools,
-  or guards the security route or the risk floor. A change to one reruns that
-  lens's whole security set and rescores every bad report before the change
-  is relied on. A bad report is a ready-made report that gets a practice case
-  wrong; it is scored, not run, and must score FAIL.
+- **A change to the risk floor, the security route, a gated clause, anything
+  in the protected set, any lens in the security set, or this probe rule
+  itself still needs a planted probe that is seen to fail.** A gated clause
+  is a block the install gate holds word for word; its canonical text is in
+  `gate/clauses/`. The security set is the few practice cases that still run
+  for real, because the risk floor requires it. A security-set lens is one
+  that holds a shell or network tools, or guards the security route or the
+  risk floor. A change to one reruns that lens's whole security set and
+  rescores every bad report before the change is relied on. A bad report is a
+  ready-made report that gets a practice case wrong; it is scored, not run,
+  and must score FAIL.
+- **The same holds for any agent that is not a lens,** when it holds a shell
+  or network tools, or guards the security route or the risk floor; for the
+  install gate's tool allow-list, `gate/tool-allowlist.json`; and for the
+  settings guard, `gate/settings-allowlist.json` and
+  `claude/settings.overlay.json`.
 - **Any other change to an agent or a rule is a two-way door.** Here that
   means only a change outside the list above; whether it can be undone does
   not decide it. It may instead go in with its bad reports scored and its
   standing measures recorded, and be proved by use. The standing measures are
   the numbers recorded at every lens review on real work.
 - **When it is unclear which kind a change is, the probe is required, and the
-  owner classifies it.** The building session never classifies a change as a
-  two-way door on its own.
+  owner classifies it.** No session, whether it writes the spec, builds the
+  change or runs a periodic review, settles a change as a two-way door on its
+  own. It states its classification to the owner, with the sentence of this
+  rule it rests on, and the probe stands until the owner agrees.
 
 ### Running a probe
 
