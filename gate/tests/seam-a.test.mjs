@@ -61,6 +61,8 @@ test('seam A passes on the repo payload, and lists every file it would install',
     'agents/scout.md',
     'agents/security-reviewer.md',
     'agents/test-reviewer.md',
+    // The cross script (#45), at its one fixed live path.
+    'pact/cross.mjs',
   ]);
   for (const l of installs) assert.match(l, /^INSTALL [0-9a-f]{64} \S+ \S+$/);
 });

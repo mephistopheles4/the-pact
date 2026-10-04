@@ -1,8 +1,9 @@
 ## Where this config lives
 
 This file and `~/.claude/agents/` are installed from the `claude/` folder of
-the-pact repo. Edit the repo copy, then copy it into `~/.claude/`; a direct
-edit to the live file drifts.
+the-pact repo, and the cross script from its `cross/` folder to
+`~/.claude/pact/`. Edit the repo copy, then copy it into `~/.claude/`; a
+direct edit to the live file drifts.
 
 ## Shell
 
@@ -203,7 +204,8 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    diff in move 4.
    <!-- pact:end security-route -->
    <!-- pact:begin never-substitute -->
-   If a named agent is unavailable, stop and report. Never
+   If a named agent is unavailable, stop and report. A pair of
+   lenses with either lens missing is unavailable as a whole. Never
    substitute another agent, especially for security work.
    <!-- pact:end never-substitute -->
 4. **I stay the owner.**
@@ -229,6 +231,19 @@ shorten it: that changes it. Each report has two sections.
 matters and what it suggests, in plain sentences, with no line numbers, codes
 or paths. **For the session** follows, with the evidence and locations you
 need to act.
+
+**The cross script.** A lens is a reviewer that asks one question from one
+angle, and lenses run in pairs. A pair's two reports go through the
+installed cross script, never a copy in a repo. Call it by its full path,
+with `NODE_OPTIONS` cleared. In PowerShell:
+`$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" <arguments>`
+In a POSIX shell:
+`env -u NODE_OPTIONS node "$HOME/.claude/pact/cross.mjs" <arguments>`
+Exit 0: every check passed. Exit 1: a report failed a check, and no section
+was written. Post the fenced, folded reports it wrote, say the cross failed
+and why, and never rebuild the cards by hand. Exit 2: a report alone is over
+the comment limit. Post the section and the reports that fit, keep the
+oversize report as a local file, name its path, and tell me.
 
 **Lookups and searches.** For a lookup that needs no judgement, use `scout`.
 For a broad search, use `Explore`.
