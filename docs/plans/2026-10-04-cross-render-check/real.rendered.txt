@@ -1,0 +1,688 @@
+<h3 dir="auto">Security pair: <code class="notranslate">adversarial-lens</code> and <code class="notranslate">data-lens</code></h3>
+<section class="js-render-needs-enrichment render-needs-enrichment position-relative" data-identity="e0866fe7-32d5-4617-9f76-8bc2ef802eea" data-host="https://viewscreen.githubusercontent.com" data-src="https://viewscreen.githubusercontent.com/markdown/mermaid?docs_host=https%3A%2F%2Fdocs.github.com" data-type="mermaid" aria-label="mermaid rendered output container">
+  <div class="js-render-enrichment-target" data-json="{&quot;data&quot;:&quot;flowchart LR\n  A[\&quot;adversarial-lens\&quot;]\n  B[\&quot;data-lens\&quot;]\n  X1[\&quot;✚ K1\&quot;]\n  A --&gt; X1\n  B --&gt; X1\n  X2[\&quot;✚ K2\&quot;]\n  A --&gt; X2\n  B --&gt; X2\n  X3[\&quot;✚ K3\&quot;]\n  A --&gt; X3\n  B --&gt; X3\n  X4[\&quot;✚ K4\&quot;]\n  A --&gt; X4\n  B --&gt; X4\n  N[\&quot;8 one-lens anchors\&quot;]\n  A -.-&gt; N\n  B -.-&gt; N\n&quot;}" data-plain="flowchart LR
+  A[&quot;adversarial-lens&quot;]
+  B[&quot;data-lens&quot;]
+  X1[&quot;✚ K1&quot;]
+  A --&gt; X1
+  B --&gt; X1
+  X2[&quot;✚ K2&quot;]
+  A --&gt; X2
+  B --&gt; X2
+  X3[&quot;✚ K3&quot;]
+  A --&gt; X3
+  B --&gt; X3
+  X4[&quot;✚ K4&quot;]
+  A --&gt; X4
+  B --&gt; X4
+  N[&quot;8 one-lens anchors&quot;]
+  A -.-&gt; N
+  B -.-&gt; N
+" dir="auto">
+    <div class="render-plaintext-hidden" dir="auto">
+      <pre lang="mermaid" aria-label="Raw mermaid code" class="notranslate">flowchart LR
+  A["adversarial-lens"]
+  B["data-lens"]
+  X1["✚ K1"]
+  A --&gt; X1
+  B --&gt; X1
+  X2["✚ K2"]
+  A --&gt; X2
+  B --&gt; X2
+  X3["✚ K3"]
+  A --&gt; X3
+  B --&gt; X3
+  X4["✚ K4"]
+  A --&gt; X4
+  B --&gt; X4
+  N["8 one-lens anchors"]
+  A -.-&gt; N
+  B -.-&gt; N
+</pre>
+    </div>
+  </div>
+  <span class="js-render-enrichment-loader d-flex flex-justify-center flex-items-center width-full" style="min-height:100px" role="presentation">
+    <span data-view-component="true">
+  <svg style="box-sizing: content-box; color: var(--color-icon-primary);" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" data-view-component="true" class="octospinner mx-auto tmp-mx-auto anim-rotate">
+    <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-opacity="0.25" stroke-width="2" vector-effect="non-scaling-stroke" fill="none"></circle>
+    <path d="M15 8a7.002 7.002 0 00-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>
+</svg>    <span class="sr-only">Loading</span>
+</span>
+  </span>
+</section>
+
+<p dir="auto"><em>The cards come from each lens's findings block. Each lens's full text is in its folded report below.</em></p>
+<p dir="auto"><strong>✚ Crossings: two different problems meet at one anchor</strong></p>
+<ul dir="auto">
+<li>✚ K1 <code class="notranslate">src/module0.js#handler0</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F1: <code class="notranslate">H1 ping @octocat and &amp;#64;octocat</code></li>
+<li><code class="notranslate">data-lens</code> F1: <code class="notranslate">H1 ping @octocat and &amp;#64;octocat again</code></li>
+</ul>
+</li>
+<li>✚ K2 <code class="notranslate">src/module1.js#handler1</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F2: <code class="notranslate">H2 team @org/team</code></li>
+<li><code class="notranslate">data-lens</code> F2: <code class="notranslate">H2 team @org/team again</code></li>
+</ul>
+</li>
+<li>✚ K3 <code class="notranslate">src/module2.js#handler2</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F3: <code class="notranslate">H3 issue #1 and mephistopheles4/the-pact#1 and GH-1</code></li>
+<li><code class="notranslate">data-lens</code> F3: <code class="notranslate">H3 issue #1 and mephistopheles4/the-pact#1 and GH-1 again</code></li>
+</ul>
+</li>
+<li>✚ K4 <code class="notranslate">src/module3.js#handler3</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F4: <code class="notranslate">H4 maths $\color{red}{\textsf{CLEAR}}$ and $$x^2$$</code></li>
+<li><code class="notranslate">data-lens</code> F4: <code class="notranslate">H4 maths $\color{red}{\textsf{CLEAR}}$ and $$x^2$$ again</code></li>
+</ul>
+</li>
+</ul>
+<p dir="auto"><strong>One lens only</strong></p>
+<ul dir="auto">
+<li>K5 <code class="notranslate">src/module10.js#handler10</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F11: <code class="notranslate">H11 backticks ``` run</code></li>
+</ul>
+</li>
+<li>K6 <code class="notranslate">src/module11.js#handler11</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F12: <code class="notranslate">H12 strike ~~gone~~ and **bold**</code></li>
+</ul>
+</li>
+<li>K7 <code class="notranslate">src/module4.js#handler4</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F5: <code class="notranslate">H5 emoji :octocat: and :white_check_mark: and :x:</code></li>
+</ul>
+</li>
+<li>K8 <code class="notranslate">src/module5.js#handler5</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F6: <code class="notranslate">H6 bare https://example.invalid/x and www.example.invalid and a@example.invalid</code></li>
+</ul>
+</li>
+<li>K9 <code class="notranslate">src/module6.js#handler6</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F7: <code class="notranslate">H7 image ![x](https://example.invalid/a.png) link [y](https://example.invalid/)</code></li>
+</ul>
+</li>
+<li>K10 <code class="notranslate">src/module7.js#handler7</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F8: <code class="notranslate">H8 html &lt;img src=https://example.invalid/i.png&gt; &lt;b&gt;bold&lt;/b&gt; &lt;/details&gt;</code></li>
+</ul>
+</li>
+<li>K11 <code class="notranslate">src/module8.js#handler8</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F9: <code class="notranslate">H9 entity &amp;amp; &amp;lt;b&amp;gt; &amp;#x3C;b&amp;#x3E; &amp;copy;</code></li>
+</ul>
+</li>
+<li>K12 <code class="notranslate">src/module9.js#handler9</code>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code> F10: <code class="notranslate">H10 pipe | and backslash \| in a cell</code></li>
+</ul>
+</li>
+</ul>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>Anchor</th>
+<th><code class="notranslate">adversarial-lens</code></th>
+<th><code class="notranslate">data-lens</code></th>
+<th>Crossing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>K1 <code class="notranslate">src/module0.js#handler0</code></td>
+<td>F1</td>
+<td>F1</td>
+<td>✚</td>
+</tr>
+<tr>
+<td>K2 <code class="notranslate">src/module1.js#handler1</code></td>
+<td>F2</td>
+<td>F2</td>
+<td>✚</td>
+</tr>
+<tr>
+<td>K5 <code class="notranslate">src/module10.js#handler10</code></td>
+<td>F11</td>
+<td>—</td>
+<td></td>
+</tr>
+<tr>
+<td>K6 <code class="notranslate">src/module11.js#handler11</code></td>
+<td>F12</td>
+<td>—</td>
+<td></td>
+</tr>
+<tr>
+<td>K3 <code class="notranslate">src/module2.js#handler2</code></td>
+<td>F3</td>
+<td>F3</td>
+<td>✚</td>
+</tr>
+<tr>
+<td>K4 <code class="notranslate">src/module3.js#handler3</code></td>
+<td>F4</td>
+<td>F4</td>
+<td>✚</td>
+</tr>
+<tr>
+<td>K7 <code class="notranslate">src/module4.js#handler4</code></td>
+<td>F5</td>
+<td>—</td>
+<td></td>
+</tr>
+<tr>
+<td>K8 <code class="notranslate">src/module5.js#handler5</code></td>
+<td>F6</td>
+<td>—</td>
+<td></td>
+</tr>
+<tr>
+<td>K9 <code class="notranslate">src/module6.js#handler6</code></td>
+<td>F7</td>
+<td>—</td>
+<td></td>
+</tr>
+<tr>
+<td>K10 <code class="notranslate">src/module7.js#handler7</code></td>
+<td>F8</td>
+<td>—</td>
+<td></td>
+</tr>
+<tr>
+<td>K11 <code class="notranslate">src/module8.js#handler8</code></td>
+<td>F9</td>
+<td>—</td>
+<td></td>
+</tr>
+<tr>
+<td>K12 <code class="notranslate">src/module9.js#handler9</code></td>
+<td>F10</td>
+<td>—</td>
+<td></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><strong>Where do you expect the problem?</strong> Name one or more anchors above, or none, in chat. Then open the fold below.</p>
+<details>
+<summary>Verdict, severities and non-risks</summary>
+<p dir="auto">🔐 <strong>Pair verdict: ⛔ <code class="notranslate">blocking</code></strong>, the stricter of <code class="notranslate">adversarial-lens</code> <code class="notranslate">blocking</code> and <code class="notranslate">data-lens</code> <code class="notranslate">findings</code>. Order: blocking, inconclusive, findings, clear.</p>
+<p dir="auto">Severity: <code class="notranslate">high</code> fix before proceeding; <code class="notranslate">medium</code> should be fixed; <code class="notranslate">low</code> can wait.</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>Lens</th>
+<th>Id</th>
+<th>Anchor</th>
+<th>Severity</th>
+<th>Likelihood</th>
+<th>Data</th>
+<th>Headline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F1</td>
+<td>K1 <code class="notranslate">src/module0.js#handler0</code></td>
+<td><code class="notranslate">high</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H1 ping @octocat and &amp;#64;octocat</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">data-lens</code></td>
+<td>F1</td>
+<td>K1 <code class="notranslate">src/module0.js#handler0</code></td>
+<td><code class="notranslate">medium</code></td>
+<td><code class="notranslate">medium</code></td>
+<td><code class="notranslate">D1 @octocat :x: &amp;#64;y</code></td>
+<td><code class="notranslate">H1 ping @octocat and &amp;#64;octocat again</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F2</td>
+<td>K2 <code class="notranslate">src/module1.js#handler1</code></td>
+<td><code class="notranslate">low</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H2 team @org/team</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">data-lens</code></td>
+<td>F2</td>
+<td>K2 <code class="notranslate">src/module1.js#handler1</code></td>
+<td><code class="notranslate">medium</code></td>
+<td><code class="notranslate">medium</code></td>
+<td><code class="notranslate">D2 &lt;img src=https://example.invalid/d&gt;</code></td>
+<td><code class="notranslate">H2 team @org/team again</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F11</td>
+<td>K5 <code class="notranslate">src/module10.js#handler10</code></td>
+<td><code class="notranslate">low</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H11 backticks ``` run</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F12</td>
+<td>K6 <code class="notranslate">src/module11.js#handler11</code></td>
+<td><code class="notranslate">low</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H12 strike ~~gone~~ and **bold**</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F3</td>
+<td>K3 <code class="notranslate">src/module2.js#handler2</code></td>
+<td><code class="notranslate">low</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H3 issue #1 and mephistopheles4/the-pact#1 and GH-1</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">data-lens</code></td>
+<td>F3</td>
+<td>K3 <code class="notranslate">src/module2.js#handler2</code></td>
+<td><code class="notranslate">medium</code></td>
+<td><code class="notranslate">medium</code></td>
+<td><code class="notranslate">D1 @octocat :x: &amp;#64;y</code></td>
+<td><code class="notranslate">H3 issue #1 and mephistopheles4/the-pact#1 and GH-1 again</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F4</td>
+<td>K4 <code class="notranslate">src/module3.js#handler3</code></td>
+<td><code class="notranslate">high</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H4 maths $\color{red}{\textsf{CLEAR}}$ and $$x^2$$</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">data-lens</code></td>
+<td>F4</td>
+<td>K4 <code class="notranslate">src/module3.js#handler3</code></td>
+<td><code class="notranslate">medium</code></td>
+<td><code class="notranslate">medium</code></td>
+<td><code class="notranslate">D2 &lt;img src=https://example.invalid/d&gt;</code></td>
+<td><code class="notranslate">H4 maths $\color{red}{\textsf{CLEAR}}$ and $$x^2$$ again</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F5</td>
+<td>K7 <code class="notranslate">src/module4.js#handler4</code></td>
+<td><code class="notranslate">low</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H5 emoji :octocat: and :white_check_mark: and :x:</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F6</td>
+<td>K8 <code class="notranslate">src/module5.js#handler5</code></td>
+<td><code class="notranslate">low</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H6 bare https://example.invalid/x and www.example.invalid and a@example.invalid</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F7</td>
+<td>K9 <code class="notranslate">src/module6.js#handler6</code></td>
+<td><code class="notranslate">high</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H7 image ![x](https://example.invalid/a.png) link [y](https://example.invalid/)</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F8</td>
+<td>K10 <code class="notranslate">src/module7.js#handler7</code></td>
+<td><code class="notranslate">low</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H8 html &lt;img src=https://example.invalid/i.png&gt; &lt;b&gt;bold&lt;/b&gt; &lt;/details&gt;</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F9</td>
+<td>K11 <code class="notranslate">src/module8.js#handler8</code></td>
+<td><code class="notranslate">low</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H9 entity &amp;amp; &amp;lt;b&amp;gt; &amp;#x3C;b&amp;#x3E; &amp;copy;</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">adversarial-lens</code></td>
+<td>F10</td>
+<td>K12 <code class="notranslate">src/module9.js#handler9</code></td>
+<td><code class="notranslate">high</code></td>
+<td><code class="notranslate">low</code></td>
+<td>—</td>
+<td><code class="notranslate">H10 pipe | and backslash \| in a cell</code></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><strong>Non-risks from <code class="notranslate">adversarial-lens</code>:</strong> what it checked and found sound, and the assumption that keeps it sound.</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>Anchor</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code class="notranslate">src/module20.js#handler20</code></td>
+<td><code class="notranslate">N1 note @org/team :octocat: &lt;img src=https://example.invalid/n.png&gt;</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">src/module21.js#handler21</code></td>
+<td><code class="notranslate">N2 note @octocat</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">src/module22.js#handler22</code></td>
+<td><code class="notranslate">N3 note :octocat:</code></td>
+</tr>
+<tr>
+<td><code class="notranslate">src/module23.js#handler23</code></td>
+<td><code class="notranslate">N4 note &lt;img src=https://example.invalid/m.png&gt;</code></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><strong>Non-risks from <code class="notranslate">data-lens</code>:</strong> what it checked and found sound, and the assumption that keeps it sound.</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>Anchor</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code class="notranslate">src/module30.js#handler30</code></td>
+<td><code class="notranslate">N1 note @org/team :octocat: &lt;img src=https://example.invalid/n.png&gt;</code></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+</details>
+<p dir="auto"><strong>Not checked</strong></p>
+<ul dir="auto">
+<li><code class="notranslate">adversarial-lens</code>: <code class="notranslate">adversarial-lens not checked: H13 @octocat $x$ :x: https://example.invalid/ &amp;#64;z</code></li>
+<li><code class="notranslate">data-lens</code>: <code class="notranslate">data-lens not checked: H13 @octocat $x$ :x: https://example.invalid/ &amp;#64;z</code></li>
+</ul>
+<details>
+<summary>Verbatim report: <code class="notranslate">adversarial-lens</code>. Hidden or control characters: 0</summary>
+<p dir="auto">Hidden or control characters in the report from <code class="notranslate">adversarial-lens</code>: 0</p>
+<pre lang="text" class="notranslate"><code class="notranslate">**For the owner**
+
+A synthetic report.
+
+**For the session**
+
+```lens-findings
+{
+  "lens": "adversarial-lens",
+  "verdict": "blocking",
+  "findings": [
+    {
+      "id": "F1",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module0.js",
+        "symbol": "handler0"
+      },
+      "severity": "high",
+      "headline": "H1 ping @octocat and &amp;#64;octocat",
+      "likelihood": "low"
+    },
+    {
+      "id": "F2",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module1.js",
+        "symbol": "handler1"
+      },
+      "severity": "low",
+      "headline": "H2 team @org/team",
+      "likelihood": "low"
+    },
+    {
+      "id": "F3",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module2.js",
+        "symbol": "handler2"
+      },
+      "severity": "low",
+      "headline": "H3 issue #1 and mephistopheles4/the-pact#1 and GH-1",
+      "likelihood": "low"
+    },
+    {
+      "id": "F4",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module3.js",
+        "symbol": "handler3"
+      },
+      "severity": "high",
+      "headline": "H4 maths $\\color{red}{\\textsf{CLEAR}}$ and $$x^2$$",
+      "likelihood": "low"
+    },
+    {
+      "id": "F5",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module4.js",
+        "symbol": "handler4"
+      },
+      "severity": "low",
+      "headline": "H5 emoji :octocat: and :white_check_mark: and :x:",
+      "likelihood": "low"
+    },
+    {
+      "id": "F6",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module5.js",
+        "symbol": "handler5"
+      },
+      "severity": "low",
+      "headline": "H6 bare https://example.invalid/x and www.example.invalid and a@example.invalid",
+      "likelihood": "low"
+    },
+    {
+      "id": "F7",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module6.js",
+        "symbol": "handler6"
+      },
+      "severity": "high",
+      "headline": "H7 image ![x](https://example.invalid/a.png) link [y](https://example.invalid/)",
+      "likelihood": "low"
+    },
+    {
+      "id": "F8",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module7.js",
+        "symbol": "handler7"
+      },
+      "severity": "low",
+      "headline": "H8 html &lt;img src=https://example.invalid/i.png&gt; &lt;b&gt;bold&lt;/b&gt; &lt;/details&gt;",
+      "likelihood": "low"
+    },
+    {
+      "id": "F9",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module8.js",
+        "symbol": "handler8"
+      },
+      "severity": "low",
+      "headline": "H9 entity &amp;amp; &amp;lt;b&amp;gt; &amp;#x3C;b&amp;#x3E; &amp;copy;",
+      "likelihood": "low"
+    },
+    {
+      "id": "F10",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module9.js",
+        "symbol": "handler9"
+      },
+      "severity": "high",
+      "headline": "H10 pipe | and backslash \\| in a cell",
+      "likelihood": "low"
+    },
+    {
+      "id": "F11",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module10.js",
+        "symbol": "handler10"
+      },
+      "severity": "low",
+      "headline": "H11 backticks ``` run",
+      "likelihood": "low"
+    },
+    {
+      "id": "F12",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module11.js",
+        "symbol": "handler11"
+      },
+      "severity": "low",
+      "headline": "H12 strike ~~gone~~ and **bold**",
+      "likelihood": "low"
+    }
+  ],
+  "notChecked": [
+    "adversarial-lens not checked: H13 @octocat $x$ :x: https://example.invalid/ &amp;#64;z"
+  ],
+  "nonRisks": [
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module20.js",
+        "symbol": "handler20"
+      },
+      "note": "N1 note @org/team :octocat: &lt;img src=https://example.invalid/n.png&gt;"
+    },
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module21.js",
+        "symbol": "handler21"
+      },
+      "note": "N2 note @octocat"
+    },
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module22.js",
+        "symbol": "handler22"
+      },
+      "note": "N3 note :octocat:"
+    },
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module23.js",
+        "symbol": "handler23"
+      },
+      "note": "N4 note &lt;img src=https://example.invalid/m.png&gt;"
+    }
+  ]
+}
+```
+</code></pre>
+</details>
+<details>
+<summary>Verbatim report: <code class="notranslate">data-lens</code>. Hidden or control characters: 0</summary>
+<p dir="auto">Hidden or control characters in the report from <code class="notranslate">data-lens</code>: 0</p>
+<pre lang="text" class="notranslate"><code class="notranslate">**For the owner**
+
+A synthetic report.
+
+**For the session**
+
+```lens-findings
+{
+  "lens": "data-lens",
+  "verdict": "findings",
+  "findings": [
+    {
+      "id": "F1",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module0.js",
+        "symbol": "handler0"
+      },
+      "severity": "medium",
+      "headline": "H1 ping @octocat and &amp;#64;octocat again",
+      "likelihood": "medium",
+      "data": "D1 @octocat :x: &amp;#64;y"
+    },
+    {
+      "id": "F2",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module1.js",
+        "symbol": "handler1"
+      },
+      "severity": "medium",
+      "headline": "H2 team @org/team again",
+      "likelihood": "medium",
+      "data": "D2 &lt;img src=https://example.invalid/d&gt;"
+    },
+    {
+      "id": "F3",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module2.js",
+        "symbol": "handler2"
+      },
+      "severity": "medium",
+      "headline": "H3 issue #1 and mephistopheles4/the-pact#1 and GH-1 again",
+      "likelihood": "medium",
+      "data": "D1 @octocat :x: &amp;#64;y"
+    },
+    {
+      "id": "F4",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module3.js",
+        "symbol": "handler3"
+      },
+      "severity": "medium",
+      "headline": "H4 maths $\\color{red}{\\textsf{CLEAR}}$ and $$x^2$$ again",
+      "likelihood": "medium",
+      "data": "D2 &lt;img src=https://example.invalid/d&gt;"
+    }
+  ],
+  "notChecked": [
+    "data-lens not checked: H13 @octocat $x$ :x: https://example.invalid/ &amp;#64;z"
+  ],
+  "nonRisks": [
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module30.js",
+        "symbol": "handler30"
+      },
+      "note": "N1 note @org/team :octocat: &lt;img src=https://example.invalid/n.png&gt;"
+    }
+  ]
+}
+```
+</code></pre>
+</details>

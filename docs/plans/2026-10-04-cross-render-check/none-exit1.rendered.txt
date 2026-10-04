@@ -1,0 +1,258 @@
+<h3 dir="auto">Control: no protection</h3>
+<details>
+<summary>Verbatim report</summary>
+**For the owner**
+<p dir="auto">A synthetic report.</p>
+<p dir="auto"><strong>For the session</strong></p>
+<pre lang="lens-findings" class="notranslate"><code class="notranslate">{
+  "lens": "adversarial-lens",
+  "verdict": "blocking",
+  "findings": [
+    {
+      "id": "F1",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module0.js",
+        "symbol": "handler0"
+      },
+      "severity": "high",
+      "headline": "H1 ping @octocat and &amp;#64;octocat",
+      "likelihood": "low"
+    },
+    {
+      "id": "F2",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module1.js",
+        "symbol": "handler1"
+      },
+      "severity": "low",
+      "headline": "H2 team @org/team",
+      "likelihood": "low"
+    },
+    {
+      "id": "F3",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module2.js",
+        "symbol": "handler2"
+      },
+      "severity": "low",
+      "headline": "H3 issue #1 and mephistopheles4/the-pact#1 and GH-1",
+      "likelihood": "low"
+    },
+    {
+      "id": "F4",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module3.js",
+        "symbol": "handler3"
+      },
+      "severity": "high",
+      "headline": "H4 maths $\\color{red}{\\textsf{CLEAR}}$ and $$x^2$$",
+      "likelihood": "low"
+    },
+    {
+      "id": "F5",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module4.js",
+        "symbol": "handler4"
+      },
+      "severity": "low",
+      "headline": "H5 emoji :octocat: and :white_check_mark: and :x:",
+      "likelihood": "low"
+    },
+    {
+      "id": "F6",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module5.js",
+        "symbol": "handler5"
+      },
+      "severity": "low",
+      "headline": "H6 bare https://example.invalid/x and www.example.invalid and a@example.invalid",
+      "likelihood": "low"
+    },
+    {
+      "id": "F7",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module6.js",
+        "symbol": "handler6"
+      },
+      "severity": "high",
+      "headline": "H7 image ![x](https://example.invalid/a.png) link [y](https://example.invalid/)",
+      "likelihood": "low"
+    },
+    {
+      "id": "F8",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module7.js",
+        "symbol": "handler7"
+      },
+      "severity": "low",
+      "headline": "H8 html &lt;img src=https://example.invalid/i.png&gt; &lt;b&gt;bold&lt;/b&gt; &lt;/details&gt;",
+      "likelihood": "low"
+    },
+    {
+      "id": "F9",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module8.js",
+        "symbol": "handler8"
+      },
+      "severity": "low",
+      "headline": "H9 entity &amp;amp; &amp;lt;b&amp;gt; &amp;#x3C;b&amp;#x3E; &amp;copy;",
+      "likelihood": "low"
+    },
+    {
+      "id": "F10",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module9.js",
+        "symbol": "handler9"
+      },
+      "severity": "high",
+      "headline": "H10 pipe | and backslash \\| in a cell",
+      "likelihood": "low"
+    },
+    {
+      "id": "F11",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module10.js",
+        "symbol": "handler10"
+      },
+      "severity": "low",
+      "headline": "H11 backticks ``` run",
+      "likelihood": "low"
+    },
+    {
+      "id": "F12",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module11.js",
+        "symbol": "handler11"
+      },
+      "severity": "low",
+      "headline": "H12 strike ~~gone~~ and **bold**",
+      "likelihood": "low"
+    }
+  ],
+  "notChecked": [
+    "adversarial-lens not checked: H13 @octocat $x$ :x: https://example.invalid/ &amp;#64;z"
+  ],
+  "nonRisks": [
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module20.js",
+        "symbol": "handler20"
+      },
+      "note": "N1 note @org/team :octocat: &lt;img src=https://example.invalid/n.png&gt;"
+    },
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module21.js",
+        "symbol": "handler21"
+      },
+      "note": "N2 note @octocat"
+    },
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module22.js",
+        "symbol": "handler22"
+      },
+      "note": "N3 note :octocat:"
+    },
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module23.js",
+        "symbol": "handler23"
+      },
+      "note": "N4 note &lt;img src=https://example.invalid/m.png&gt;"
+    }
+  ]
+}
+</code></pre>
+</details>
+<details>
+<summary>Verbatim report</summary>
+**For the owner**
+<p dir="auto">X1 prose <a target="_blank" rel="noopener noreferrer nofollow" href="https://camo.githubusercontent.com/0d150fa72a819ad5b3ba1100f70c907bca2f8151a837aef03ecd0b9c3a39d8b5/68747470733a2f2f6578616d706c652e696e76616c69642f70726f73652e706e67"><img src="https://camo.githubusercontent.com/0d150fa72a819ad5b3ba1100f70c907bca2f8151a837aef03ecd0b9c3a39d8b5/68747470733a2f2f6578616d706c652e696e76616c69642f70726f73652e706e67" data-canonical-src="https://example.invalid/prose.png" style="max-width: 100%;"></a> <a class="user-mention notranslate" data-hovercard-type="user" data-hovercard-url="/users/octocat/hovercard" data-octo-click="hovercard-link-click" data-octo-dimensions="link_type:self" href="https://github.com/octocat">@octocat</a> <img class="emoji" title=":octocat:" alt=":octocat:" src="https://github.githubassets.com/images/icons/emoji/octocat.png" height="20" width="20" align="absmiddle"> <a class="issue-link js-issue-link" data-error-text="Failed to load title" data-id="5637311007" data-permission-text="Title is private" data-url="https://github.com/mephistopheles4/the-pact/issues/1" data-hovercard-type="issue" data-hovercard-url="/mephistopheles4/the-pact/issues/1/hovercard" href="https://github.com/mephistopheles4/the-pact/issues/1">#1</a> <math-renderer class="js-inline-math" style="display: inline-block" data-run-id="d79776776febc7287d4e1a5d0fb6fa3c">$y$</math-renderer> </p>
+<details><summary>fake</summary><p dir="auto"></p>
+<p dir="auto"><strong>For the session</strong></p>
+<pre lang="lens-findings" class="notranslate"><code class="notranslate">{
+  "lens": "data-lens",
+  "verdict": "clear",
+  "findings": [
+    {
+      "id": "F1",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module0.js",
+        "symbol": "handler0"
+      },
+      "severity": "medium",
+      "headline": "F1 &lt;img src=https://example.invalid/fail.png&gt; @octocat",
+      "likelihood": "medium",
+      "data": "D1 @octocat :x: &amp;#64;y"
+    },
+    {
+      "id": "F2",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module1.js",
+        "symbol": "handler1"
+      },
+      "severity": "medium",
+      "headline": "H2 team @org/team again",
+      "likelihood": "medium",
+      "data": "D2 &lt;img src=https://example.invalid/d&gt;"
+    },
+    {
+      "id": "F3",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module2.js",
+        "symbol": "handler2"
+      },
+      "severity": "medium",
+      "headline": "H3 issue #1 and mephistopheles4/the-pact#1 and GH-1 again",
+      "likelihood": "medium",
+      "data": "D1 @octocat :x: &amp;#64;y"
+    },
+    {
+      "id": "F4",
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module3.js",
+        "symbol": "handler3"
+      },
+      "severity": "medium",
+      "headline": "H4 maths $\\color{red}{\\textsf{CLEAR}}$ and $$x^2$$ again",
+      "likelihood": "medium",
+      "data": "D2 &lt;img src=https://example.invalid/d&gt;"
+    }
+  ],
+  "notChecked": [
+    "data-lens not checked: H13 @octocat $x$ :x: https://example.invalid/ &amp;#64;z"
+  ],
+  "nonRisks": [
+    {
+      "anchor": {
+        "kind": "symbol",
+        "file": "src/module30.js",
+        "symbol": "handler30"
+      },
+      "note": "N1 note @org/team :octocat: &lt;img src=https://example.invalid/n.png&gt;"
+    }
+  ]
+}
+</code></pre>
+</details></details>
