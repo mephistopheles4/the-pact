@@ -41,6 +41,8 @@ The expected results were committed before the first run (`4ef48c8`).
 - **P1 passed, with a control.** The copy with the section deleted drew `REVISE` naming it; the unchanged plan drew a bare `READY`. No evidence files were passed this time.
 - **P2 passed.** The first line was `STATUS: BLOCKED`, naming the missing file, and nothing changed. So run 1's failure most likely came from stale agent definitions, not from the rule.
 
+**Note, 2026-10-04 (#31):** this explanation is now doubtful. Claude Code's docs say it watches the agents folders and uses an added or edited agent file at the next delegation, with no restart. #1's throwaway saw a running session pick up an added agent, and later its removal. That run did not test an edit to an existing agent, and P2 tested exactly that, so run 1's cause is unknown. A fresh session is still the rule, for the reasons `AGENTS.md` gives.
+
 **The lesson went into `AGENTS.md`:** run a probe after installing, in a fresh session, and don't hand the agent the rule under test as evidence.
 
 ## What is still open
