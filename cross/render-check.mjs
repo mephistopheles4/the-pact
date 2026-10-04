@@ -122,7 +122,7 @@ function effects(html, source) {
   if (/class="user-mention|class="team-mention/.test(html)) e.push('mention');
   if (/class="issue-link/.test(html)) e.push('issue link');
   if (/<math-renderer/.test(html)) e.push('maths');
-  if (/class="emoji"|g-emoji/.test(html) || (/:x:|:white_check_mark:/.test(source) && /❌|✅/.test(html))) e.push('emoji');
+  if (/class="emoji"|g-emoji/.test(html) || (/:x:|:white_check_mark:/.test(source) && /\u274c|\u2705/.test(html))) e.push('emoji');
   if (/<img(?![^>]*class="emoji")/.test(html)) e.push('image');
   if (/<a (?![^>]*class="(user-mention|issue-link|team-mention))/.test(html)) e.push('link');
   // An entity in the source that the render decoded: the text a reader sees no longer holds it.

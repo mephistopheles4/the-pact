@@ -24,7 +24,7 @@ const M = [
   ['likelihood check removed', "if (LIKELIHOOD_LENSES.has(lens) ? !SEVERITIES.has(f.likelihood) : Object.hasOwn(f, 'likelihood')) refuse('likelihood');", ''],
   ['line ranges never join', 'if (last && s <= last.end)', 'if (last && s < last.start)'],
   ['strict reader stops case-folding', 'const k = string().toLowerCase();', 'const k = string();'],
-  ['part header carries a total', "cur = `_Continued, part ${parts.length + 1}._\\n\\n${enter(u, true)}${u.text}`;", "cur = `_Continued, part ${parts.length + 1} of ${units.length > 400 ? 9 : 3}._\\n\\n${enter(u, true)}${u.text}`;"],
+  ['part header carries a total', 'const header = () => `_Continued, part ${parts.length + 2}._\\n\\n`;', 'const header = () => `_Continued, part ${parts.length + 2} of ${units.length > 400 ? 9 : 3}._\\n\\n`;'],
   ['two blocks allowed', "if (opens.length !== 1) refuse('block-count');", "if (opens.length < 1) refuse('block-count');"],
   ['unlisted anchors allowed', "if (!listed.has(a.id)) refuse('anchor-unlisted');", ''],
   ['dispatched lens not checked', "if (doc.lens !== lens) refuse('lens');", "if (!LIKELIHOOD_LENSES && doc.lens !== lens) refuse('lens');"],
@@ -38,6 +38,8 @@ const M = [
   ['the calls table in the non-risks fold at standard', '...matrix(m), ...callsTable(m, null));', '...matrix(m), ...callsTable(m, FOLD_NON_RISKS));'],
   ['a card cannot split between its lines', "units.push({ table: card, text: `  - ${code(m.area.lenses[li])}", "units.push({ text: (f === fs[0] && li === 0 ? card.open : '') + `  - ${code(m.area.lenses[li])}"],
   ['an unbuildable section writes nothing', "return refusal(lines, outDir, reports, 'internal', []);", 'throw new Error();'],
+  ['a card that fits is cut at a part boundary', 'moveWhole = !fits(cur + enter(u, false)) && fits(header() + enter(u, true));', 'moveWhole = false;'],
+  ['a continued card loses its group heading', 'reopen: `${title} (continued)\\n\\n${head}`', 'reopen: head'],
   ['unstated-lens verdict open at thorough', "const thorough = m.tier === 'thorough';", "const thorough = m.tier === 'thorough' && m.area.pair;"],
 ];
 const results = [];

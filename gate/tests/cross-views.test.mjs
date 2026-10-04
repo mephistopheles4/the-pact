@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { LIMIT, PROMPT, abovePrompt, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
 
 const PICTOGRAPH = /\p{Extended_Pictographic}/gu;
-const CROSSING_MARK = '✚';
+const CROSSING_MARK = '\u271a';
 const symbol = (file, sym) => ({ kind: 'symbol', file, symbol: sym });
 const nonRisk = (id, note) => ({ anchor: { kind: 'claim', id }, note });
 const claims = n => Array.from({ length: n }, (_, i) => `C${i + 1}`);
@@ -55,8 +55,8 @@ test('invariance holds with an inconclusive lens, on its mark and its column', t
   ].map(v => cross(t, v));
   const above = runs.map(r => abovePrompt(r.comments).join(''));
   assert.equal(above[0], above[1]);
-  assert.match(above[0], /⚠️ \*\*`integrity-lens` not verified\.\*\*/);
-  assert.match(above[0], /\| `integrity-lens` ⚠️ not verified \|/);
+  assert.match(above[0], /\u26a0\ufe0f \*\*`integrity-lens` not verified\.\*\*/);
+  assert.match(above[0], /\| `integrity-lens` \u26a0\ufe0f not verified \|/);
 });
 
 test('invariance on the tension pair: its heading, map label and settle nodes, whatever the calls', t => {
@@ -84,7 +84,7 @@ test('no mark but the crossing mark and the not-verified mark above the prompt, 
     assert.ok(r.all.includes(PROMPT), 'a comment with its prompt was written');
     const above = abovePrompt(r.comments).join('');
     const marks = [...above.matchAll(PICTOGRAPH)].map(m => m[0]);
-    assert.ok(marks.every(c => c === '⚠'), `pictographs above the prompt: ${marks.map(c => c.codePointAt(0).toString(16))}`);
+    assert.ok(marks.every(c => c === '\u26a0'), `pictographs above the prompt: ${marks.map(c => c.codePointAt(0).toString(16))}`);
     for (const w of ['`high`', '`medium`', '`low`', '`blocking`', '`clear`', '`findings`', '`inconclusive`', 'verdict', 'Severity']) assert.ok(!above.includes(w), w);
   }
 });
@@ -119,7 +119,7 @@ test('fixed anchor order for code anchors: by file, then symbol; K ids in card o
   assert.equal(r.code, 0, r.stdout);
   const above = abovePrompt(r.comments).join('');
   // The crossing (zeta) is K1 and its card comes first; the singles follow by file, then symbol.
-  assert.match(above, /- ✚ K1 ` src\/b\.js#zeta `/);
+  assert.match(above, /- \u271a K1 ` src\/b\.js#zeta `/);
   const k2 = above.indexOf('- K2 ` src/a.js#alpha `');
   assert.ok(k2 > 0 && k2 < above.indexOf('- K3 ` src/a.js#beta `'));
   // Matrix rows: fixed anchor order, not card order.
@@ -139,7 +139,7 @@ test('line anchors join on file and overlap', t => {
     tier: 'standard',
   });
   assert.equal(r.code, 0, r.stdout);
-  assert.match(r.all, /- ✚ K1 ` a\.md:10-30 `/);
+  assert.match(r.all, /- \u271a K1 ` a\.md:10-30 `/);
   assert.match(r.all, /- K2 ` a\.md:40-41 `/);
 });
 
@@ -150,7 +150,7 @@ test('at standard, the verdict and the severities show, with no prompt', t => {
   assert.equal(r.code, 0, r.stdout);
   const s = scriptWritten(r.all);
   assert.ok(!s.includes(PROMPT));
-  assert.match(s, /\*\*Pair verdict: ⛔ `blocking`\*\*/);
+  assert.match(s, /\*\*Pair verdict: \u26d4 `blocking`\*\*/);
   assert.match(s, /`integrity-lens` F1 `high`: ` The mutation run left the retry branch alive `/);
   assert.match(s, /^### \u{1f9ea} QA pair/mu);
 });
@@ -178,7 +178,7 @@ test('at quick, one line and the not-checked lists show, and nothing else above 
   const before = r.comments[0].slice(0, r.comments[0].indexOf('<details>'));
   assert.equal(
     before,
-    '\u{1f9ea} **QA pair: ⚠️ `inconclusive`** · ⚠️ `integrity-lens` not verified. Not checked: `behaviour-lens` 1, `integrity-lens` 1.\n\n' +
+    '\u{1f9ea} **QA pair: \u26a0\ufe0f `inconclusive`** \u00b7 \u26a0\ufe0f `integrity-lens` not verified. Not checked: `behaviour-lens` 1, `integrity-lens` 1.\n\n' +
       '**Not checked**\n\n- `behaviour-lens`: ` behaviour-lens did not check the synthetic claim list `\n- `integrity-lens`: ` integrity-lens did not check the synthetic claim list `\n\n',
   );
   assert.ok(!r.page.includes('<h2>Cards</h2>'), 'the page has no cards at quick either');
@@ -194,7 +194,7 @@ test('unstated-lens alone at thorough: no prompt, and no severity or verdict bef
   assert.equal(beforeFold(a), beforeFold(b));
   assert.match(beforeFold(a), /^- `S2`\n {2}- `unstated-lens` F1: /m);
   assert.ok(!/`(high|medium|low|blocking|findings)`|verdict/i.test(beforeFold(a)), 'no severity or verdict before the fold');
-  assert.match(b.all, /<summary>Verdict, severities and non-risks<\/summary>\n\n\u{1f50d} \*\*Verdict: ⛔ `blocking`\.\*\* It advises/u);
+  assert.match(b.all, /<summary>Verdict, severities and non-risks<\/summary>\n\n\u{1f50d} \*\*Verdict: \u26d4 `blocking`\.\*\* It advises/u);
 });
 
 test('unstated-lens alone at standard: its own verdict, which advises, its cards placed by anchor, and no pick prompt', t => {
@@ -212,14 +212,14 @@ test('unstated-lens alone at standard: its own verdict, which advises, its cards
 test('an inconclusive lens shows its not-verified mark at every tier', t => {
   for (const tier of ['quick', 'standard', 'thorough']) {
     const r = cross(t, { reports: qaPair({ bVerdict: 'inconclusive', bSev: 'medium' }), tier });
-    assert.match(scriptWritten(r.all), /⚠️ (\*\*)?`integrity-lens` not verified/, tier);
-    assert.match(r.page, /⚠️ <b><code>integrity-lens<\/code> not verified\.<\/b>|⚠️ <code>integrity-lens<\/code> not verified/, tier);
+    assert.match(scriptWritten(r.all), /\u26a0\ufe0f (\*\*)?`integrity-lens` not verified/, tier);
+    assert.match(r.page, /\u26a0\ufe0f <b><code>integrity-lens<\/code> not verified\.<\/b>|\u26a0\ufe0f <code>integrity-lens<\/code> not verified/, tier);
   }
 });
 
 test('a pair of inconclusive and findings gives inconclusive', t => {
   const r = cross(t, { reports: qaPair({ aVerdict: 'findings', bVerdict: 'inconclusive', bSev: 'low' }) });
-  assert.match(r.all, /\*\*Pair verdict: ⚠️ `inconclusive`\*\*/);
+  assert.match(r.all, /\*\*Pair verdict: \u26a0\ufe0f `inconclusive`\*\*/);
   assert.match(r.all, /Inconclusive is not a pass/);
 });
 
@@ -250,7 +250,7 @@ test('a non-risk on an anchor where the other lens has a finding gives no crossi
   const a = cross(t, { reports: plain });
   const b = cross(t, { reports: withRisk });
   assert.equal(abovePrompt(b.comments).join(''), abovePrompt(a.comments).join(''));
-  assert.match(abovePrompt(b.comments)[0], /^\| `C3` \| — \| F2 \| {2}\|$/m);
+  assert.match(abovePrompt(b.comments)[0], /^\| `C3` \| \u2014 \| F2 \| {2}\|$/m);
 });
 
 // ------------------------------------------------------------ rendering safety
@@ -274,7 +274,7 @@ test('every map label matches the narrow character set and holds no headline or 
   const labels = [...map.matchAll(/\["([^"]*)"\]/g)].map(m => m[1]);
   assert.ok(labels.length >= 3);
   for (const l of labels) {
-    assert.match(l, /^(?:[A-Za-z0-9 -]|✚|⚠️)+$/u, l);
+    assert.match(l, /^(?:[A-Za-z0-9 -]|\u271a|\u26a0\ufe0f)+$/u, l);
     assert.ok(!l.includes('secret') && !l.includes('leaky') && !l.includes('Headline'), l);
   }
 });
@@ -313,7 +313,7 @@ function hugeSecurity() {
   };
 }
 
-test('a section over the limit splits at card boundaries, every finding exactly once, the prompt and fold after the last card part', t => {
+test('a section over the limit splits between cards, every finding exactly once, the prompt and fold after the last card part', t => {
   const r = cross(t, hugeSecurity());
   assert.equal(r.code, 0, r.stdout);
   assert.ok(r.comments.length >= 4, `${r.comments.length} comments`);
@@ -330,11 +330,15 @@ test('a section over the limit splits at card boundaries, every finding exactly 
       assert.equal(scriptWritten(below).split(h).length - 1, 1, `fold row for ${name} ${i}`);
     }
   }
-  // Each part starts at a card boundary or a repeated matrix header, never mid-card.
+  // Each part starts at a card or a repeated matrix header, and no card's anchor line shows in two parts.
   for (const c of r.comments.slice(1, promptAt + 1)) {
     const body = c.replace(/^_Continued, part [0-9]+\._\n\n/, '');
-    assert.match(body, /^(- |\| Anchor \|)/, body.slice(0, 80));
+    assert.match(body, /^(\*\*|- |\| Anchor \|)/, body.slice(0, 80));
   }
+  const heads = r.comments.slice(0, promptAt + 1).flatMap((c, i) => (c.match(/^- [^\n]*$/gm) ?? []).map(h => [h, i]));
+  const partsOf = new Map();
+  for (const [h, i] of heads) partsOf.set(h, new Set([...(partsOf.get(h) ?? []), i]));
+  for (const [h, set] of partsOf) assert.equal(set.size, 1, `${h} shows in parts ${[...set]}`);
   // The folded table split into further folds, each closed in its own part.
   assert.ok(r.all.includes('<summary>Verdict, severities and non-risks, continued</summary>'));
   for (const c of r.comments) {
@@ -356,7 +360,7 @@ for (const tier of ['thorough', 'standard']) {
     assert.equal(r.code, 0, r.stdout);
     for (const c of r.comments) assert.ok(c.length <= LIMIT, `a comment of ${c.length}`);
     const s = r.comments.map(scriptWritten);
-    const cardParts = s.filter(c => /^- ✚ `C1`$/m.test(c));
+    const cardParts = s.filter(c => /^- \u271a `C1`$/m.test(c));
     assert.ok(cardParts.length >= 2, 'the card spans two parts, its anchor line repeated');
     for (const lens of ['behaviour-lens', 'integrity-lens']) {
       for (let i = 1; i <= 100; i += 1) {
@@ -367,6 +371,41 @@ for (const tier of ['thorough', 'standard']) {
     if (tier === 'thorough') assert.equal(r.comments.filter(c => c.includes(PROMPT)).length, 1);
   });
 }
+
+for (const tier of ['thorough', 'standard']) {
+  test(`a card that fits in one comment is never cut, even when the cards overflow (${tier})`, t => {
+    // 100 findings per lens over four claims, headlines of 120 backticks: each card is about a third of the limit.
+    const fs = Array.from({ length: 100 }, (_, i) => finding(`F${i + 1}`, `C${(i % 4) + 1}`, 'medium', '`'.repeat(120)));
+    const reports = { 'behaviour-lens': report(block('behaviour-lens', 'findings', fs)), 'integrity-lens': report(block('integrity-lens', 'findings', fs)) };
+    const r = cross(t, { reports, anchors: 'C1,C2,C3,C4', tier });
+    assert.equal(r.code, 0, r.stdout);
+    const s = r.comments.map(scriptWritten);
+    assert.ok(s.filter(c => /^- \u271a `C[1-4]`$/m.test(c)).length >= 2, 'the cards span more than one part');
+    for (let n = 1; n <= 4; n += 1) {
+      const head = new RegExp(`^- \\u271a \`C${n}\`$`, 'm');
+      assert.equal(s.filter(c => head.test(c)).length, 1, `card C${n} sits whole in one part`);
+    }
+    for (const lens of ['behaviour-lens', 'integrity-lens']) {
+      for (let i = 1; i <= 100; i += 1) {
+        const line = new RegExp(`^ {2}- \`${lens}\` F${i}( \`medium\`)?: `, 'm');
+        assert.equal(s.filter(c => line.test(c)).length, 1, `${lens} F${i} once`);
+      }
+    }
+  });
+}
+
+test('a disagreement card split across parts repeats its group heading', t => {
+  const fs = Array.from({ length: 100 }, (_, i) => finding(`F${i + 1}`, 'S1', 'medium', '`'.repeat(120)));
+  const r = cross(t, {
+    reports: { 'executability-lens': report(block('executability-lens', 'findings', fs)), 'good-enough-lens': report(block('good-enough-lens', 'findings', fs)) },
+    point: 'spec',
+    anchors: 'S1',
+  });
+  assert.equal(r.code, 0, r.stdout);
+  const parts = r.comments.map(scriptWritten).filter(c => /^- `S1`$/m.test(c));
+  assert.ok(parts.length >= 2, 'the card spans two parts');
+  for (const c of parts) assert.match(c, /\*\*Disagreements: both lenses called this; you settle it\*\*( \(continued\))?\n\n- `S1`\n/);
+});
 
 test('invariance holds when the cards themselves split across parts', t => {
   const runs = [oneHugeCard('medium'), oneHugeCard('low'), oneHugeCard('high')].map(v => cross(t, v));

@@ -49,7 +49,7 @@ const READER = [
   ['nesting 60 deep (passes the reader)', null, json => json.replace('{', `{"deep": ${'['.repeat(60)}${']'.repeat(60)},`)],
   ['a trailing comma', 'read', json => json.replace(/}\s*$/, ',}')],
   ['text after the value', 'read', json => `${json} x`],
-  ['a byte-order mark', 'read', json => `﻿${json}`],
+  ['a byte-order mark', 'read', json => `\ufeff${json}`],
   ['a single-quoted string', 'read', json => json.replace('{', "{'q': 1,")],
 ];
 

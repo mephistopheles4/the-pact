@@ -23,14 +23,14 @@ test('an exact anchor join finds the crossing, and an unmatched finding stays in
   const r = cross(t, { reports: qaPair() });
   const [above] = abovePrompt(r.comments);
   // The crossing card comes first and carries the mark; C3 is one lens only.
-  const crossing = above.indexOf('- ✚ `C2`');
+  const crossing = above.indexOf('- \u271a `C2`');
   const single = above.indexOf('- `C3`');
   assert.ok(crossing > 0, 'the crossing card');
   assert.ok(single > crossing, 'the single-lens card after it');
-  assert.match(above, /^\| `C2` \| F1 \| F1 \| ✚ \|$/m);
-  assert.match(above, /^\| `C3` \| — \| F2 \| {2}\|$/m);
+  assert.match(above, /^\| `C2` \| F1 \| F1 \| \u271a \|$/m);
+  assert.match(above, /^\| `C3` \| \u2014 \| F2 \| {2}\|$/m);
   // Listed anchors with nothing on them still get their row.
-  assert.match(above, /^\| `C1` \| — \| — \| {2}\|$/m);
+  assert.match(above, /^\| `C1` \| \u2014 \| \u2014 \| {2}\|$/m);
 });
 
 test('nothing is dropped or capped: 100 findings per lens all show, once each, as cards and as fold rows', t => {
@@ -63,7 +63,7 @@ test('two different problems, one per lens question, at one anchor give a crossi
     },
   });
   assert.equal(r.code, 0, r.stdout);
-  assert.match(abovePrompt(r.comments)[0], /- ✚ `C1`/);
+  assert.match(abovePrompt(r.comments)[0], /- \u271a `C1`/);
 });
 
 test('one problem placed on different anchors by the two lenses gives no crossing', t => {
@@ -75,8 +75,8 @@ test('one problem placed on different anchors by the two lenses gives no crossin
   });
   assert.equal(r.code, 0, r.stdout);
   const [above] = abovePrompt(r.comments);
-  assert.ok(!above.includes('✚ `'), 'no crossing card');
-  assert.ok(!/✚ \|$/m.test(above), 'no crossing row');
+  assert.ok(!above.includes('\u271a `'), 'no crossing card');
+  assert.ok(!/\u271a \|$/m.test(above), 'no crossing row');
 });
 
 test('on the spec pair, both calls at one anchor give a disagreement, not a crossing', t => {
@@ -92,7 +92,7 @@ test('on the spec pair, both calls at one anchor give a disagreement, not a cros
   const [above] = abovePrompt(r.comments);
   assert.match(above, /\*\*Disagreements: both lenses called this; you settle it\*\*/);
   assert.match(above, /^- `S2`$/m);
-  assert.ok(!above.includes('✚'), 'no crossing mark anywhere above the prompt');
+  assert.ok(!above.includes('\u271a'), 'no crossing mark anywhere above the prompt');
   assert.match(above, /"settle S2"/);
   // The two calls show side by side only in the fold.
   const below = r.all.slice(r.all.indexOf(PROMPT));

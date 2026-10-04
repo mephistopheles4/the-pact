@@ -175,10 +175,10 @@ const HEADLINE_MAX = 120;
 const DATA_MAX = 60;
 const ANCHORS_MAX = 999;
 
-const MARK = { blocking: '⛔', inconclusive: '⚠️', findings: '\u{1f50e}', clear: '✅' };
-const CROSSING = '✚';
-const NOT_VERIFIED = '⚠️';
-const DASH = '—';
+const MARK = { blocking: '\u26d4', inconclusive: '\u26a0\ufe0f', findings: '\u{1f50e}', clear: '\u2705' };
+const CROSSING = '\u271a';
+const NOT_VERIFIED = '\u26a0\ufe0f';
+const DASH = '\u2014';
 const PROMPT = '**Where do you expect the problem?**';
 
 const LISTED_ID_RE = { claim: /^C[1-9][0-9]{0,2}$/, section: /^S[1-9][0-9]{0,2}$/ };
@@ -189,7 +189,7 @@ const LENS_ARG_RE = /^[a-z]+(?:-[a-z]+)*$/;
 const PICK_ID_RE = /^[CSK][1-9][0-9]{0,3}$/;
 const PICTOGRAPH_RE = /^\p{Extended_Pictographic}$/u;
 // A label in the map: letters, digits, hyphens and spaces, plus the two marks.
-const MAP_LABEL_RE = /^(?:[A-Za-z0-9 -]|✚|⚠️)+$/u;
+const MAP_LABEL_RE = /^(?:[A-Za-z0-9 -]|\u271a|\u26a0\ufe0f)+$/u;
 
 // ---------------------------------------------------------------- refusals
 
@@ -642,7 +642,8 @@ function cards(m, withSeverity) {
     group.forEach((r, gi) => {
       const mark = r.crossing && !m.tension ? `${CROSSING} ` : '';
       const head = `- ${mark}${rowAnchor(r)}\n`;
-      const card = { open: `${gi === 0 ? `${title}\n\n` : ''}${head}`, reopen: head, close: gi === group.length - 1 ? '\n' : '' };
+      // A card split across parts repeats its group's heading and its anchor line.
+      const card = { keep: true, open: `${gi === 0 ? `${title}\n\n` : ''}${head}`, reopen: `${title} (continued)\n\n${head}`, close: gi === group.length - 1 ? '\n' : '' };
       r.by.forEach((fs, li) => {
         for (const f of fs) units.push({ table: card, text: `  - ${code(m.area.lenses[li])} ${f.id}${withSeverity ? ` ${code(f.severity)}` : ''}: ${span(f.headline)}\n` });
       });
@@ -744,7 +745,7 @@ function sectionUnits(m, setup, leftOut) {
   const thorough = m.tier === 'thorough';
   if (m.tier === 'quick') {
     const v = m.joined.verdict;
-    const nv = m.unverified.map(l => ` · ${NOT_VERIFIED} ${code(l)} not verified`).join('');
+    const nv = m.unverified.map(l => ` \u00b7 ${NOT_VERIFIED} ${code(l)} not verified`).join('');
     const counts = m.docs.map(d => `${code(d.lens)} ${d.notChecked.length}`).join(', ');
     units.push({ text: `${m.area.icon} **${m.area.pair ? `${m.area.name} pair` : m.area.name}: ${MARK[v]} ${code(v)}**${nv}. Not checked: ${counts}.\n\n` });
   } else if (thorough) {
@@ -791,19 +792,30 @@ function pack(units) {
     if (u.table && (fresh || table !== u.table)) s += opened.has(u.table) ? u.table.reopen : u.table.open;
     return s;
   };
-  for (const u of units) {
+  const header = () => `_Continued, part ${parts.length + 2}._\n\n`;
+  units.forEach((u, i) => {
     const piece = enter(u, false) + u.text;
     const after = (u.table ? u.table.close : '') + (u.fold ? u.fold.close : '');
-    if (cur.length + piece.length + after.length > LIMIT && cur.length > 0) {
+    // A card that fits in a fresh part never starts in a part it would overflow.
+    // The look-ahead reads only this card's own lines.
+    let moveWhole = false;
+    if (u.table?.keep && table !== u.table && cur.length > 0) {
+      let lines = '';
+      for (let j = i; j < units.length && units[j].table === u.table; j += 1) lines += units[j].text;
+      const fits = s => s.length + lines.length + u.table.close.length <= LIMIT;
+      moveWhole = !fits(cur + enter(u, false)) && fits(header() + enter(u, true));
+    }
+    if (moveWhole || (cur.length + piece.length + after.length > LIMIT && cur.length > 0)) {
+      const next = header();
       parts.push(cur + closing());
-      cur = `_Continued, part ${parts.length + 1}._\n\n${enter(u, true)}${u.text}`;
+      cur = `${next}${enter(u, true)}${u.text}`;
     } else cur += piece;
     if (u.fold) opened.add(u.fold);
     if (u.table) opened.add(u.table);
     fold = u.fold ?? null;
     table = u.table ?? null;
     if (cur.length + after.length > LIMIT) throw new Error('a unit over the limit');
-  }
+  });
   parts.push(cur + closing());
   return parts;
 }
@@ -963,7 +975,7 @@ function page(m, setup, reports) {
   const notChecked = `<h2>Not checked</h2>\n<ul>${m.docs.flatMap(d => d.notChecked.map(s => `<li><code>${html(d.lens)}</code>: ${html(s)}</li>`)).join('')}</ul>`;
   if (m.tier === 'quick') {
     const v = m.joined.verdict;
-    body.push(`<p><b>${MARK[v]} ${html(v)}</b>${m.unverified.map(l => ` · ${NOT_VERIFIED} <code>${html(l)}</code> not verified`).join('')}</p>`, notChecked);
+    body.push(`<p><b>${MARK[v]} ${html(v)}</b>${m.unverified.map(l => ` \u00b7 ${NOT_VERIFIED} <code>${html(l)}</code> not verified`).join('')}</p>`, notChecked);
   } else if (m.tier === 'thorough') {
     body.push(crossCutSvg(m), warn, '<h2>Cards</h2>', pageCards(m, false), '<h2>Matrix</h2>', pageMatrix(m));
     if (m.area.pair) body.push('<h2>Where do you expect the problem?</h2>', '<p>Name one or more anchors, or none, in chat. Then open the verdict.</p>');
@@ -1001,8 +1013,11 @@ function refusal(lines, outDir, reports, setupRule, failed) {
   if (setupRule) lines.push(`FAIL ${setupRule}: ${RULE_TEXT[setupRule]}`);
   for (const [r, rule] of failed) lines.push(`FAIL ${rule}: ${shownName(r.file)}: ${RULE_TEXT[rule]}`);
   if (outDir === null) return 1;
-  const head = ['**The cross script refused the input.** No section was written. The reports follow, each in its fence and fold.\n\n'];
-  if (setupRule) head.push(`- the input as a whole: rule ${code(setupRule)}\n`);
+  const head =
+    setupRule === 'internal'
+      ? ['**The cross script could not build the section.** Every check passed, so no report is at fault. No section was written. The reports follow, each in its fence and fold.\n\n', `- rule ${code('internal')}\n`]
+      : ['**The cross script refused the input.** No section was written. The reports follow, each in its fence and fold.\n\n'];
+  if (setupRule && setupRule !== 'internal') head.push(`- the input as a whole: rule ${code(setupRule)}\n`);
   for (const [r, rule] of failed) head.push(`- ${code(shownName(r.file))}: rule ${code(rule)}\n`);
   head.push('\n');
   const parts = [];

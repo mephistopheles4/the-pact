@@ -63,7 +63,7 @@ test('the page: the reveal is a <details> block, holding the verdict and severit
   const r = cross(t, { reports: securityPair(), point: 'diff', anchors: null });
   const reveal = r.page.match(/<details><summary>Verdict, severities and non-risks<\/summary>([\s\S]*?)<\/details>/);
   assert.ok(reveal, 'the reveal');
-  assert.match(reveal[1], /Pair verdict: ⛔ blocking/);
+  assert.match(reveal[1], /Pair verdict: \u26d4 blocking/);
   assert.match(reveal[1], /Likelihood by severity/);
   assert.match(reveal[1], /Data flow and leak points/);
   assert.match(reveal[1], /Tokens are hashed at rest/, 'non-risks inside the reveal');
