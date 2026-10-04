@@ -92,6 +92,11 @@ cut or weaken.
   install gate's tool allow-list, `gate/tool-allowlist.json`; and for the
   settings guard, `gate/settings-allowlist.json` and
   `claude/settings.overlay.json`.
+- **The code that enforces those guards is proved by the gate's tests and the
+  security route, not by a planted probe.** That code is `gate/seam-a.mjs`,
+  `gate/pact-text.mjs` and the settings merge in `scripts/install.ps1`. Each
+  check a change touches needs a bad case in the gate's tests that it is seen
+  to catch. A change to this code is never a two-way door.
 - **Any other change to an agent or a rule is a two-way door.** Here that
   means only a change outside the list above; whether it can be undone does
   not decide it. It may instead go in with its bad reports scored and its
