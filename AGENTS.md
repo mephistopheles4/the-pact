@@ -47,14 +47,14 @@ how every session in every repo behaves. So:
   [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). The repo is
   private; `main` was first pushed on 2026-09-30. Cite a commit by its short
   hash; GitHub links it only once the commit is on the remote.
-- **Plans:** a plan and its review rounds live on the issue, as the body and
-  comments. The two plans created before the repo existed stay in
-  `docs/plans/` until their close-out issues finish them.
+- **Plans:** a plan, its review rounds and its probe records live on the
+  issue, as the body and comments. Nothing in the tree holds a plan. A record
+  a check can run becomes a test or fixture beside the code it checks.
 - **When the work finishes:** each lasting decision becomes one ADR in
   [`docs/adr/`](docs/adr/), with its reasoning. The work itself becomes one
   dated narrative in [`docs/log/`](docs/log/), ending in a **Record** list of
-  the commits that hold the verbatim plan, reviews and probe records. Then the
-  plan and its files are deleted from the tree; history keeps them.
+  the issue comments that hold the verbatim plan, reviews and probe records.
+  Work that finished before #52 keeps its commit citations.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](docs/agents/domain.md).
 
@@ -119,12 +119,12 @@ Where two bullets apply, the stricter one holds.
 
 ### Running a probe
 
-While the work is live, a probe's record is committed beside the live plan in
-`docs/plans/`. When the work finishes, the probe's results go in the work's
-log entry in [`docs/log/`](docs/log/), with the commits that hold the verbatim
-record.
+A probe's record lives on the issue, as comments. When the work finishes, the
+probe's results go in the work's log entry in [`docs/log/`](docs/log/), and its
+Record list cites the comments that hold the verbatim record.
 
-- **Write the expected result, and commit it, before running the probe.**
+- **Post the expected result on the issue before running the probe.** Never
+  edit it after a run; post a correction as a new comment.
 - **Run it after installing, in a fresh session.** A fresh session starts
   with a clean context: it holds no earlier instructions and no memory of the
   change, and its record shows only the probe.
@@ -136,7 +136,8 @@ record.
   what it read rather than its own definition.
 - **A probe's pass counts only once the probe has been seen to fail** — a
   control run, or a planted bad case that it catches.
-- **Record every run, pass or fail, with the agent's report verbatim.**
+- **Record every run, pass or fail, with the agent's report verbatim.** Post
+  each run on the issue.
 
 ### The protected set
 
