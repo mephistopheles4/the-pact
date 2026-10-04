@@ -239,11 +239,14 @@ with `NODE_OPTIONS` cleared. In PowerShell:
 `$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" <arguments>`
 In a POSIX shell:
 `env -u NODE_OPTIONS node "$HOME/.claude/pact/cross.mjs" <arguments>`
+Its last line is always a `RESULT:` line; output without one means the
+script is unavailable, so stop and report, as for any unavailable agent.
 Exit 0: every check passed. Exit 1: a report failed a check, and no section
-was written. Post the fenced, folded reports it wrote, say the cross failed
-and why, and never rebuild the cards by hand. Exit 2: a report alone is over
-the comment limit. Post the section and the reports that fit, keep the
-oversize report as a local file, name its path, and tell me.
+was written. Post only the fenced, folded reports it wrote, never the raw
+report text; say the cross failed and why, and never rebuild the cards by
+hand. Exit 2: a report alone is over the comment limit. Post the section and
+the reports that fit. On either failure code, keep each report it lists as
+kept local or left out as a local file, name its path, and tell me.
 
 **Lookups and searches.** For a lookup that needs no judgement, use `scout`.
 For a broad search, use `Explore`.

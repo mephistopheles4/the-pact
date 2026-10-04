@@ -54,8 +54,34 @@ test('the paragraph names both failure exit codes and what each means', () => {
   assert.match(p, /Exit 1: a report failed a check/);
   assert.match(p, /no section\s+was written/);
   assert.match(p, /Exit 2: a report alone is over\s+the comment limit/);
-  assert.match(p, /never rebuild the cards by hand/);
-  assert.match(p, /keep the\s+oversize report as a local file/);
+  assert.match(p, /never rebuild the cards by\s+hand/);
+  assert.match(p, /Post only the fenced, folded reports it wrote, never the raw\s+report text/);
+  assert.match(p, /On either failure code, keep each report it lists as\s+kept local or left out as a local file/);
+  assert.match(p, /output without one means the\s+script is unavailable, so stop and report/);
+});
+
+test("the script's own output always ends with a RESULT line, so its absence means the script did not run", t => {
+  // A refusal (exit 1) and a usage failure both end with RESULT.
+  const r = spawnSync(process.execPath, [join(REPO, 'cross', 'cross.mjs')], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } });
+  assert.equal(r.status, 1);
+  assert.match(r.stdout.trimEnd().split('\n').pop(), /^RESULT: fail$/);
+});
+
+test('with the live script missing, both commands exit 1 with no RESULT line: the "unavailable" case is real', t => {
+  const { cwd, home } = setUp(t);
+  const missing = join(home, 'elsewhere');
+  mkdirSync(missing);
+  const cmds = commands();
+  const checks = [];
+  if (PWSH) checks.push(runPwsh(cwd, missing, bare(cmds.find(c => c.includes('$env:NODE_OPTIONS')))));
+  if (SH) checks.push(runSh(cwd, missing, bare(cmds.find(c => c.startsWith('env -u NODE_OPTIONS ')))));
+  assert.ok(checks.length > 0, 'no shell to run the commands');
+  for (const r of checks) {
+    const out = `${r.stdout}${r.stderr}`;
+    assert.notEqual(r.status, 0, out);
+    assert.doesNotMatch(r.stdout, /^RESULT: /m, out);
+    assert.ok(!out.includes('PLANTED') && !out.includes('PRELOAD'), out);
+  }
 });
 
 /**
