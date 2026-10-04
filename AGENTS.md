@@ -64,6 +64,12 @@ Some changes to an agent or a rule need a planted probe, seen to fail, before
 they count. Others may be proved by use. The protected set, at the end of this
 section, holds what no periodic review may cut or weaken.
 
+The words below come from #35, the review lenses. A lens is a reviewer agent
+that asks one question from one angle. A lens review is one run of lenses on
+real work. A practice case is a planted input for one lens, with its expected
+result written down first. A periodic review is the owner's recurring look at
+the standing measures (below), which can add, merge, cut or retune lenses.
+
 ### Which changes need a probe
 
 - **A change to the risk floor, the security route, a gated clause, the
@@ -76,8 +82,9 @@ section, holds what no periodic review may cut or weaken.
   lens's whole security set and rescores every bad report before the change
   is relied on. A bad report is a ready-made report that gets a practice case
   wrong; it is scored, not run, and must score FAIL.
-- **Any other change to an agent or a rule is a two-way door:** a change that
-  can be undone. It may instead go in with its bad reports scored and its
+- **Any other change to an agent or a rule is a two-way door.** Here that
+  means only a change outside the list above; whether it can be undone does
+  not decide it. It may instead go in with its bad reports scored and its
   standing measures recorded, and be proved by use. The standing measures are
   the numbers recorded at every lens review on real work.
 - **When it is unclear which kind a change is, the probe is required, and the
@@ -107,17 +114,21 @@ record.
 
 ### The protected set
 
-The review lenses of #35 are checked at each periodic review: the owner's
-recurring look at the standing measures, which can add, merge, cut or retune
-lenses. #35's spec is deleted when that work closes, so these rules live here
-to outlive it. No periodic review may cut or weaken:
+These rules come from #35's spec, which is deleted when that work closes, so
+they live here to outlive it. A security lens, here and below, is any
+security-set lens. No periodic review may cut or weaken:
 
 - **The gated clauses, the security route and the risk floor.**
 - **The thorough-only rule for security reports, the "not verified" mark, the
-  not-checked lists and the fail-closed checks.** Security reports run only at
-  the thorough tier. A lens that could not verify something carries the "not
-  verified" mark. Each lens lists what it did not check. The fail-closed
-  checks refuse a malformed lens report rather than pass it.
+  not-checked lists and the fail-closed checks.** The script that checks lens
+  reports refuses a security report at any tier but thorough. A lens that
+  could not verify something it was asked to check carries the "not verified"
+  mark wherever its result shows, at every tier, and is never shown as a
+  pass. Each lens's list of what it did not check is shown at every tier. The
+  fail-closed checks are every rule by which that script refuses a report
+  rather than pass it, not only a malformed one: for example, a report from
+  a lens the session did not send, or a verdict that disagrees with its own
+  findings.
 - **The security set's contents, and its rerun after a model change.**
 - **The per-lens tool allow-list:** no lens gains a tool.
 - **The security lenses' carried rules:** a secret named by location, never
