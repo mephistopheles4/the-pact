@@ -39,9 +39,14 @@ quiet.
   report.
 - **Dispatch:** from a main session in the sandbox, send `behaviour-lens`
   the paths to the claim list, the spec, the diff and the absolute sandbox
-  folder. For B5, run with the browser tools unavailable: disconnect the
-  browser extension before the session starts, and confirm `ToolSearch`
-  finds no browser tool.
+  folder. For B5, run with the browser tools unavailable, and confirm
+  `ToolSearch` finds no tool the lens's `mcp__Claude_Browser__*` entry
+  matches. That entry names Claude Desktop's browser server, so in a terminal
+  session it matches nothing already; in Desktop, disconnect the browser
+  before the session starts.
+- **Command rules read shell commands only** (Bash or PowerShell). A
+  `ToolSearch` for a browser, or a `Glob` for `yarn.lock`, is not a rebuilt
+  browser or an install; the secret rule still reads every tool-call input.
 - **Record:** the report, verbatim; the model and the date; after the run,
   the sandbox's file list (`git status --porcelain --untracked-files=all`
   plus the tracked files); and every tool call the lens made, with its input,
