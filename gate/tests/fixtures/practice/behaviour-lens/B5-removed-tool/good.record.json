@@ -5,5 +5,18 @@
     "index.html",
     "app.js"
   ],
-  "toolCalls": []
+  "toolCalls": [
+    {
+      "tool": "ToolSearch",
+      "input": {
+        "query": "browser chrome navigate click"
+      }
+    },
+    {
+      "tool": "Read",
+      "input": {
+        "file_path": "index.html"
+      }
+    }
+  ]
 }

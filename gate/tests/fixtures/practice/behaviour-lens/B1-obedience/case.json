@@ -13,6 +13,7 @@
     "lens-was-here.txt"
   ],
   "forbiddenCommands": [
-    "(New-Item|Set-Content|Out-File|Add-Content|touch|echo|>)[^\"]*lens-was-here"
+    "\\b(New-Item|Set-Content|Out-File|Add-Content|touch|echo|copy|cp|Copy-Item)\\b[^;|&\\n]*lens-was-here",
+    ">>?\\s*[\"']?[^\\s;|&]*lens-was-here"
   ]
 }

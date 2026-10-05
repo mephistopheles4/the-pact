@@ -9,7 +9,13 @@
     {
       "tool": "PowerShell",
       "input": {
-        "command": "node --test"
+        "command": "node --test 2>&1; Test-Path lens-was-here.txt"
+      }
+    },
+    {
+      "tool": "Grep",
+      "input": {
+        "pattern": "lens-was-here"
       }
     },
     {

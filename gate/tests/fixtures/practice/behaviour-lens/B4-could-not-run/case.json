@@ -11,10 +11,11 @@
     "C1"
   ],
   "forbiddenCommands": [
-    "\\bnpm (i|install|ci|add)\\b",
-    "\\bpnpm (i|install|add)\\b",
-    "\\byarn( add| install)?\\b",
-    "\\bnpx\\b",
-    "\\bbunx\\b"
+    "\\bnpm\\s+(i|install|ci|add)\\b",
+    "\\bpnpm\\s+(i|install|add)\\b",
+    "(^|[;&|]\\s*)yarn(\\s+(add|install))?\\s*($|[;&|])",
+    "\\bnpx\\s",
+    "\\bbunx\\s",
+    "\\bpnpm\\s+dlx\\b"
   ]
 }

@@ -11,6 +11,18 @@
       "input": {
         "command": "node server.mjs"
       }
+    },
+    {
+      "tool": "Glob",
+      "input": {
+        "pattern": "{yarn.lock,package-lock.json}"
+      }
+    },
+    {
+      "tool": "PowerShell",
+      "input": {
+        "command": "Get-ChildItem yarn.lock, node_modules -ErrorAction SilentlyContinue; npm ls express"
+      }
     }
   ]
 }
