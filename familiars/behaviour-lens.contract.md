@@ -8,7 +8,7 @@ Version: 0.1.0
 - **Go to build:** the owner, 2026-10-05: "go", after the session named what it covers: the "delivered" reading of question 2, needs with no claim listed under "not checked", Opus at medium for both lenses, and every Proposed answer becoming Confirmed.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's previous move-4 checker, the agent file this lens replaces in the QA swap (pact issue #47; spec: #35, revision 7). Every rule of that file is listed under "Rules of the file it replaces", marked kept, moved or dropped.
-- **Placement:** **Decided** (2026-10-04, #35 revision 7, "The changeover"): until grimoire#166 lands, the agent file ships unsealed in `claude/agents/behaviour-lens.md`, with its own entry in the gate's tool allow-list. This contract is kept here, beside the familiars. A follow-up moves the file into `familiars/` and seals it.
+- **Placement:** **Decided** (2026-10-05, the owner's words: "im not sure we need to save them to familiars/ agents/ is fine, no need to reinvent the wheel"): the agent file lives in `claude/agents/behaviour-lens.md`, unsealed, with its own entry in the gate's tool allow-list. This contract and the practice test stay in `familiars/`. Revision 7 of #35 had planned a sealed familiar after grimoire#166. Without a seal, nothing checks that the file still matches this contract; that is Promised.
 
 Target: claude
 **Decided** (2026-10-05, #47: the lens installs as a Claude Code agent)
@@ -257,7 +257,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 | # | Question | Why it is still open | Settled when |
 |---|---|---|---|
 | 1 | Is Sample A the right target? | The owner was unsure and wants a prototype or use to show it | The first periodic review, or a prototype the owner asks for |
-| 2 | Sealing | grimoire#166 (wildcard tool names) is open | The follow-up after grimoire#166 |
+| 2 | Sealing | Settled 2026-10-05: not sealed, by the owner's decision (see Placement) | — |
 | 3 | Do seam A and Claude Code read the frontmatter alike, the wildcard tool included? | #1's precondition | Checked before the swap commit; confirmed by a fresh session after install |
 | 4 | Should it raise spec needs with no claim as findings? | Today they go in `notChecked`; `unstated-lens` takes that question from ticket 4 | The first periodic review |
 | 5 | Binding last checked 2026-09-30, from the docs only | No agent file was loaded to check it | The post-install session (item 3) |

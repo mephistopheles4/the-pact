@@ -5,9 +5,9 @@ tools: [Read, Glob, Grep]
 model: sonnet
 effort: low
 metadata:
-  contract-version: 0.1.0
+  contract-version: 0.1.1
   familiar-digest: "sha256:5ab93f19b319277fc4182131a7df1ca97a9c10b5bf6a96c0723c52a10efaf28b"
-  contract-digest: "sha256:6f2f76cf4e6d3a1b4a5a15f96a85599b8c8e2469626a679d688ab3f8769dda38"
+  contract-digest: "sha256:7da2786e41da862ced2b751172ffe84f17c36a596e28eff8224f673dedf0c3d8"
 ---
 
 # scout

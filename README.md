@@ -25,7 +25,7 @@ the pact's moves line up with its stages:
 | Sense the work | Plan | Triage; set the process tier; route bugs and large efforts |
 | Do the thinking before the doing | Plan, Design | Grill, write the spec, prototype open questions, `plan-reviewer` |
 | Checkpoint the seams | Build, Test | Tickets with done-criteria; each build runs in a main session, test-first at agreed seams |
-| Stay the owner | Test, Deploy | `result-checker` advises, and for security work `security-reviewer` on the diff; the human decides |
+| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, advises at every tier, and for security work `security-reviewer` on the diff; the human decides |
 
 The pact does not cover Anthropic's Maintain stage yet.
 
@@ -41,16 +41,16 @@ The pact does not cover Anthropic's Maintain stage yet.
 | Path | What it is | Installs to |
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
-| `claude/agents/` | **The agents not yet migrated:** the four read-only reviewers and checkers, on Opus, with cost set through effort | `~/.claude/agents/` |
+| `claude/agents/` | **The unsealed agents:** the read-only reviewers `plan-reviewer` and `security-reviewer`, and the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests. All run on Opus, with cost set through effort. The QA pair's contracts and practice tests are in `familiars/` | `~/.claude/agents/` |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
-| `familiars/` | Agents migrated to a grimoire contract, each beside its contract and practice test: `scout`, on Sonnet at low effort | `~/.claude/agents/` (agent files only) |
+| `familiars/` | Agents migrated to a grimoire contract, each beside its contract and practice test: `scout`, on Sonnet at low effort; and the QA pair's contracts and practice tests, which never install | `~/.claude/agents/` (agent files only) |
 | `cross/cross.mjs` | The cross script: checks a lens pair's findings blocks, joins them, and writes the comment section and a local page. The pact calls only the installed copy. `cross/render-check.mjs` is a one-off check and never installs | `~/.claude/pact/cross.mjs` |
 | `gate/` | The install gate: the pact's own check (seam A), a pinned copy of grimoire's check script, and the per-agent tool allow-list | Never installed |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 
 **The familiars, by effort:**
 - **Low:** `scout`. The pact ships no `Explore`; skills that call it get Claude Code's built-in.
-- **Medium:** `plan-reviewer`, `result-checker` and `test-reviewer`.
+- **Medium:** `plan-reviewer`, and the QA pair, `behaviour-lens` and `integrity-lens`.
 - **High:** `security-reviewer`.
 
 Builds run in a main session the owner watches, not in agents.

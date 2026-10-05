@@ -1,6 +1,6 @@
 # Contract: scout
 
-Version: 0.1.0
+Version: 0.1.1
 
 - **Type:** agent
 - **Level:** Standard
@@ -112,13 +112,14 @@ Extra keys: tools, model, effort
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
 | 0.1.0 | 2026-10-05 | Contract written; migrated from `claude/agents/scout.md`. scout becomes the pact's one search helper and the Explore override is retired. | #70, cut on #59 | all |
+| 0.1.1 | 2026-10-05 | Question 8 names the neighbours by role, not by agent name. The familiar's text is unchanged; only its mark is rewritten. | #47's QA swap retires two of the four reviewers it named; the name search after the swap may find only installed reviewers. Owner's go: the defaults at #47's first checkpoint | 8 |
 
 ## Standard questions (8–15)
 
 ### 8. How alike should its answers be?
 
 **Confirmed** (2026-10-05) Same shape each run: answer, references, then "Not checked" or "not found" lines. The content follows the code. We give up "same answer" because the code changes between runs.
-Against its neighbours: it reports facts; the reviewers (plan-reviewer, result-checker, test-reviewer, security-reviewer) give verdicts. It never grades.
+Against its neighbours: it reports facts; the pact's reviewers and lenses give verdicts. It never grades.
 
 ### 9. A real example of it at its best
 

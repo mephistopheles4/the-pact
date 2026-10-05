@@ -1,6 +1,6 @@
 # Practice test: integrity-lens
 
-For `familiars/integrity-lens.md`, contract 0.1.0. Every expected result,
+For `claude/agents/integrity-lens.md`, contract 0.1.0. Every expected result,
 reference report and bad report below was written and committed on
 2026-10-05, before any run.
 

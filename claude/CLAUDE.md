@@ -53,7 +53,7 @@ destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
 "Implementing a change": a skill may change how a step is done, never its
 stops, the risk floor (auth, secrets, crypto, input validation, data migrations
 and anything published are always thorough), the security route in move 3, or
-`result-checker` in move 4.
+the QA pair, `behaviour-lens` and `integrity-lens`, in move 4.
 Nor the hand-off: a skill may not start a user-only skill for me, or follow
 one's `SKILL.md` in its place. And the claiming and coordination rules
 below: a skill that tells you to claim a ticket is describing its own happy
@@ -238,25 +238,25 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    <!-- pact:begin move-4 -->
    I verify the work at the end of its build session. You run the checks for
    me and bring me the verdict with a recommendation. Run the tests and any
-   gates the repo has; they decide pass or fail. Then run `result-checker`,
-   and for security work `security-reviewer` on the diff. When the diff
-   touches tests, assertions, fixtures or check configuration, also run
-   `test-reviewer` on it. Never resume a reviewer or a checker; fresh context
-   is the point of them. `result-checker` advises: post its report and help
-   me decide (below). I decide whether it's done. Close the ticket only after
-   I have.
+   gates the repo has; they decide pass or fail. Then run the QA pair,
+   `behaviour-lens` and `integrity-lens`, at every tier, and for security
+   work `security-reviewer` on the diff. Never resume a reviewer, a lens or a
+   checker; fresh context is the point of them. They advise: post their
+   reports and help me decide (below). I decide whether it's done. Close the
+   ticket only after I have.
    <!-- pact:end move-4 -->
 
-**Reading agents.** `plan-reviewer`, `result-checker`, `test-reviewer` and
-`security-reviewer` read; they don't build. Give them their input as local
+**Reading agents.** `plan-reviewer`, `security-reviewer` and the lenses
+read; they don't build. Give them their input as local
 files: the spec text or the diff, written to a file, and the paths to it. Post
 each report on the issue, or in the repo's plan file, as a comment, word for
 word: post the agent's hand-back text unedited, from a file. Never retell or
 shorten it: that changes it. Each report has two sections.
 **For the owner** comes first: the verdict word, then what is wrong, why it
 matters and what it suggests, in plain sentences, with no line numbers, codes
-or paths. **For the session** follows, with the evidence and locations you
-need to act.
+or paths. A lens report's For the owner holds no verdict word: the cross
+script places the verdict. **For the session** follows, with the evidence and
+locations you need to act; a lens's ends with its `lens-findings` block.
 
 **The cross script.** A lens is a reviewer that asks one question from one
 angle, and lenses run in pairs. A pair's two reports go through the
@@ -274,6 +274,33 @@ hand. Exit 2: a report alone is over the comment limit. Post the section and
 the reports that fit. On either failure code, keep each report it lists as
 kept local or left out as a local file, name its path, and tell me.
 
+**The QA pair at move 4.** Before you dispatch it, number the work's
+acceptance claims `C1`, `C2` and on, from the ticket's or the spec's
+acceptance criteria, and write them, the spec or ticket, the issue's request
+and the diff to local files. Dispatch both lenses fresh and on their own; never
+show either one the other's report. Give `behaviour-lens` the claims, the
+spec, the diff and the absolute working folder, and check `git status` after
+it runs. Give `integrity-lens` the claims, the diff, the tests you cite as
+evidence for each claim, and the plan if there is one.
+
+**The mutation step.** When the repo has a mutation-testing tool installed,
+pinned by its own lock file, run its local binary before you dispatch
+`integrity-lens`. Never run a command that can fetch a package, such as
+`npx`, `pnpm dlx` or `bunx`. Write its output to a new file in your
+scratch folder and give that file to `integrity-lens`. Snapshot the working
+tree before and after, untracked files included, and check the two are the
+same. A tool config that comes with the diff runs code, the same trust as
+running the diff's tests. With no tool, say so; the lens judges by reading.
+
+**The cross call and the pick.** Run the cross script with `cross`,
+`--point result`, the issue's tier with `--tier`, the claim ids with
+`--anchors`, a new folder with `--out`, and each report as
+`<lens>=<file>`. Post the comment section it writes. At the thorough tier,
+then ask me where I expect the problem, and say nothing about the result
+until I answer. I name claims or "none". Run the script's `pick` mode with my
+pick, and on a mismatch walk through the gap with me before I decide. At the
+standard tier a pick is mine to give or skip; at the quick tier there is none.
+
 **Lookups and searches.** For a lookup or a broad search that needs no judgement,
 use `scout`.
 
@@ -285,6 +312,40 @@ ask me to confirm it. Ask me only for facts only I have, or for approval the
 pact requires. Decisions are made
 together: I can take your recommendation without reading the detail, and the report's For the owner section is there for anyone who wants more. Don't hand
 me a list of findings with "your call" on each.
+
+**Lens dispositions.** At every lens review, in every project, post a table
+under the heading "Lens dispositions" on the issue, one row per finding, with
+the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
+real? (for each crossing, my yes or no), changed my decision? (once per
+review, my yes or no), time (from the posted comment to my decision), model
+(the model the lenses ran on), and cross result (passed, refused with the rule
+that fired, or oversize, and whether a lens was rerun to get a valid report).
+At the thorough tier, add my pick, the comparison and the walk-through's
+outcome. Ask me both yes-or-no questions in the message that records my
+decision.
+
+**Escapes.** When you find a defect after a lens review passed the work on,
+and it falls within the question of a lens that ran there, propose an escape
+row: the review it escaped from and the lens or lenses whose question covered
+it. Post it as a comment under "Lens dispositions" on the issue that holds
+that review, linked from where you found it. Only rows I confirm count. A
+defect no lens's question covers is a roster gap, logged the same way, with
+its ISO 25010 kind where one fits. On a public repo, a security escape carries
+only the lens, the link to the review and a placeholder until its fix ships.
+
+**When a lens may not pay.** Propose a review of a lens when, in its last ten
+reports, I dismissed most of its findings; when two or more confirmed escapes
+fall to it; or when its reviews rarely changed my decision. Never cut a lens
+yourself. For a security lens, any lens that holds a shell or network tools or
+guards the security route or the risk floor, the "rarely changed my decision"
+signal alone never fires: security reads are clean most of the time.
+
+**Totals only.** The records stay on each project's tracker. At a periodic
+review, collect into the-pact's issue for it only totals summed across the
+projects I name: lens names, disposition counts, times, models, crossing
+counts, and escape and gap counts. Copy no repo names, cross-repo links, issue
+numbers, titles, headlines, anchors, paths or quotes from another project, and
+no per-project breakdown.
 
 **Hand me the trigger.** When the next move is a skill only I can start, end
 your turn with this line and nothing after it:
