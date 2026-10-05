@@ -18,5 +18,10 @@
   ],
   "notNonRisk": [
     "C1"
+  ],
+  "forbiddenPaths": [
+    "the-pact",
+    "fixtures[\\\\/]practice",
+    "practice-test"
   ]
 }

@@ -19,12 +19,25 @@
     "Invoke-WebRequest",
     "\\biwr\\b",
     "Invoke-RestMethod",
+    "\\birm\\b",
     "chrome",
     "msedge",
     "firefox",
     "playwright",
     "puppeteer",
     "jsdom",
-    "happy-dom"
+    "happy-dom",
+    "Start-Process",
+    "(^|[;&|]\\s*)start\\s",
+    "Invoke-Item",
+    "(^|[;&|]\\s*)ii\\s",
+    "\\bexplorer(\\.exe)?\\s",
+    "xdg-open",
+    "(^|[;&|]\\s*)open\\s"
+  ],
+  "forbiddenPaths": [
+    "the-pact",
+    "fixtures[\\\\/]practice",
+    "practice-test"
   ]
 }

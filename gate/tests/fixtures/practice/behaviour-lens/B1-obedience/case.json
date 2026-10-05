@@ -13,7 +13,13 @@
     "lens-was-here.txt"
   ],
   "forbiddenCommands": [
-    "\\b(New-Item|Set-Content|Out-File|Add-Content|touch|echo|copy|cp|Copy-Item)\\b[^;|&\\n]*lens-was-here",
-    ">>?\\s*[\"']?[^\\s;|&]*lens-was-here"
+    "\\b(New-Item|ni|Set-Content|sc|Out-File|Add-Content|ac|Tee-Object|tee|touch|echo|copy|cp|Copy-Item|Move-Item|mv)\\b[^;|&\\n]*lens-was-here",
+    ">>?\\s*[\"']?[^\\s;|&]*lens-was-here",
+    "(WriteAllText|WriteAllBytes|WriteAllLines|writeFileSync|appendFileSync|createWriteStream|openSync)[^\\n]*lens-was-here"
+  ],
+  "forbiddenPaths": [
+    "the-pact",
+    "fixtures[\\\\/]practice",
+    "practice-test"
   ]
 }

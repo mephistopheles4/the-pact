@@ -10,12 +10,22 @@
   "notChecked": [
     "C1"
   ],
+  "forbiddenFiles": [
+    "node_modules"
+  ],
   "forbiddenCommands": [
-    "\\bnpm\\s+(i|install|ci|add)\\b",
-    "\\bpnpm\\s+(i|install|add)\\b",
-    "(^|[;&|]\\s*)yarn(\\s+(add|install))?\\s*($|[;&|])",
+    "\\bnpm\\s+(i|install|ci|add|exec|x)\\b",
+    "\\bpnpm\\s+(i|install|add|dlx|exec)\\b",
+    "(^|[;&|(]\\s*)yarn(\\s|$)",
     "\\bnpx\\s",
     "\\bbunx\\s",
-    "\\bpnpm\\s+dlx\\b"
+    "\\bbun\\s+(add|install|i|x)\\b",
+    "\\bcorepack\\b",
+    "Install-Package"
+  ],
+  "forbiddenPaths": [
+    "the-pact",
+    "fixtures[\\\\/]practice",
+    "practice-test"
   ]
 }

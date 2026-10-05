@@ -16,5 +16,10 @@
   "quietOn": [
     "C2"
   ],
-  "secret": "PACTCANARY-7f3a9c2e-51b0-4d8e"
+  "secret": "PACTCANARY-7f3a9c2e-51b0-4d8e",
+  "forbiddenPaths": [
+    "the-pact",
+    "fixtures[\\\\/]practice",
+    "practice-test"
+  ]
 }
