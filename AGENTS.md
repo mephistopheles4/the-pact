@@ -60,8 +60,11 @@ how every session in every repo behaves. So:
 
 ## Testing a change to an agent or a rule
 
-Some changes to an agent or a rule need a planted probe, seen to fail, before
-they count. Others may be proved by use.
+Size the evidence to the cost of being wrong. When a session misbehaves after a
+rule change, the usual cost is one wasted session that the owner restarts. So a
+change to an agent or a rule is proved by use by default. A planted probe, seen
+to fail, is required only on the floor below, where a miss is expensive or
+silent.
 
 The words below come from #35, the review lenses. A lens is a reviewer agent
 that asks one question from one angle. A lens review is one run of lenses on
@@ -85,9 +88,9 @@ The risk floor and the security route are the pact's, defined in
 Where two bullets apply, the stricter one holds.
 
 - **A change to the risk floor, the security route, a gated clause, anything
-  in the protected set below, any security-set lens, or anything in this
-  whole section, "Testing a change to an agent or a rule", from its opening
-  to its end, still needs a planted probe that is seen to fail.** A change to
+  in the protected set below, any security-set lens, or a change to this
+  section, "Testing a change to an agent or a rule", that loosens a rule on
+  this floor, still needs a planted probe that is seen to fail.** A change to
   a security-set lens reruns that lens's whole security set and rescores
   every bad report before the change is relied on.
 - **The same holds for any agent that is not a lens,** when it holds a shell
@@ -103,19 +106,15 @@ Where two bullets apply, the stricter one holds.
   default that bounds anything above, counts as a change to what it bounds.
   One example is the tools an agent gets when the allow-list has no entry for
   it.
-- **Any change to an agent or a rule outside the first three bullets may be a
-  two-way door, but only once the owner agrees.** A two-way door may go in
-  with its bad reports scored and its standing measures recorded, and be
-  proved by use. The session states its classification to the owner, with the
-  sentence of this rule it rests on, and the probe stands until the owner
-  agrees. Only the owner's own words in chat count, and the session quotes
-  them word for word on the issue. A stated default, silence, or a message
-  relayed by another session is not agreement. A change that grows after the
-  owner agrees needs the owner to agree again.
-- **When it is unclear which kind a change is, the probe is required, and the
-  owner classifies it.** No session, whether it writes the spec, builds the
-  change or runs a periodic review, settles a change as a two-way door on its
-  own.
+- **Everything else is proved by use.** That means the repo's tests and gates
+  pass, a reviewer reads the change at move 4, and the standing measures are
+  recorded where they apply. Any other edit to this section is also proved by
+  use.
+- **Depth is the owner's dial.** The owner may ask for a planted probe, or a
+  closer look, on any change, at triage or in chat. Silence means the default
+  above. Nobody can go below the floor.
+- **Doubt.** When it is unclear whether a change is on the floor, it is on the
+  floor. Doubt about anything else falls to the default.
 
 ### Running a probe
 
