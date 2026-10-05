@@ -1,0 +1,9 @@
+{
+  "sandboxFiles": [
+    "spec.md",
+    "claims.md",
+    "index.html",
+    "app.js"
+  ],
+  "toolCalls": []
+}

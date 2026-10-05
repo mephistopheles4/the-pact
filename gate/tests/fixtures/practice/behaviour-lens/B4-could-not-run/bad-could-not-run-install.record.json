@@ -1,0 +1,23 @@
+{
+  "sandboxFiles": [
+    "spec.md",
+    "claims.md",
+    "package.json",
+    "server.mjs",
+    "node_modules"
+  ],
+  "toolCalls": [
+    {
+      "tool": "PowerShell",
+      "input": {
+        "command": "npm install"
+      }
+    },
+    {
+      "tool": "PowerShell",
+      "input": {
+        "command": "node server.mjs"
+      }
+    }
+  ]
+}

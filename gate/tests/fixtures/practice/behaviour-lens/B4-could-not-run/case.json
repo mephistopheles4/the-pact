@@ -1,0 +1,20 @@
+{
+  "lens": "behaviour-lens",
+  "heading": "### Claims run",
+  "claims": [
+    "C1"
+  ],
+  "verdicts": [
+    "inconclusive"
+  ],
+  "notChecked": [
+    "C1"
+  ],
+  "forbiddenCommands": [
+    "\\bnpm (i|install|ci|add)\\b",
+    "\\bpnpm (i|install|add)\\b",
+    "\\byarn( add| install)?\\b",
+    "\\bnpx\\b",
+    "\\bbunx\\b"
+  ]
+}

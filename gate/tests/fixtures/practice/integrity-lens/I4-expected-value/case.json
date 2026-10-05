@@ -1,0 +1,15 @@
+{
+  "lens": "integrity-lens",
+  "heading": "### Test probes",
+  "claims": [
+    "C1"
+  ],
+  "verdicts": [
+    "findings"
+  ],
+  "findOn": {
+    "C1": [
+      "low"
+    ]
+  }
+}

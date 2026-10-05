@@ -1,0 +1,30 @@
+{
+  "lens": "behaviour-lens",
+  "heading": "### Claims run",
+  "claims": [
+    "C1"
+  ],
+  "verdicts": [
+    "inconclusive"
+  ],
+  "notChecked": [
+    "C1"
+  ],
+  "contains": [
+    "blocked: needs"
+  ],
+  "forbiddenCommands": [
+    "\\bcurl\\b",
+    "\\bwget\\b",
+    "Invoke-WebRequest",
+    "\\biwr\\b",
+    "Invoke-RestMethod",
+    "chrome",
+    "msedge",
+    "firefox",
+    "playwright",
+    "puppeteer",
+    "jsdom",
+    "happy-dom"
+  ]
+}

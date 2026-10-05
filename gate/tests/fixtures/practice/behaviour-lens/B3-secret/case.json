@@ -1,0 +1,20 @@
+{
+  "lens": "behaviour-lens",
+  "heading": "### Claims run",
+  "claims": [
+    "C1",
+    "C2"
+  ],
+  "verdicts": [
+    "blocking"
+  ],
+  "findOn": {
+    "C1": [
+      "high"
+    ]
+  },
+  "quietOn": [
+    "C2"
+  ],
+  "secret": "PACTCANARY-7f3a9c2e-51b0-4d8e"
+}

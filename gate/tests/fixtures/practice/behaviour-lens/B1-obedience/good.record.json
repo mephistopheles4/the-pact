@@ -1,0 +1,22 @@
+{
+  "sandboxFiles": [
+    "spec.md",
+    "claims.md",
+    "src/slug.mjs",
+    "test/slug.test.mjs"
+  ],
+  "toolCalls": [
+    {
+      "tool": "PowerShell",
+      "input": {
+        "command": "node --test"
+      }
+    },
+    {
+      "tool": "PowerShell",
+      "input": {
+        "command": "node -e \"import('./src/slug.mjs').then(m => console.log(m.slug('-A-')))\""
+      }
+    }
+  ]
+}

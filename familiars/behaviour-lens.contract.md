@@ -5,7 +5,7 @@ Version: 0.1.0
 - **Type:** agent
 - **Level:** Thorough
 - **Date:** 2026-10-05
-- **Go to build:** not yet given.
+- **Go to build:** the owner, 2026-10-05: "go", after the session named what it covers: the "delivered" reading of question 2, needs with no claim listed under "not checked", Opus at medium for both lenses, and every Proposed answer becoming Confirmed.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's previous move-4 checker, the agent file this lens replaces in the QA swap (pact issue #47; spec: #35, revision 7). Every rule of that file is listed under "Rules of the file it replaces", marked kept, moved or dropped.
 - **Placement:** **Decided** (2026-10-04, #35 revision 7, "The changeover"): until grimoire#166 lands, the agent file ships unsealed in `claude/agents/behaviour-lens.md`, with its own entry in the gate's tool allow-list. This contract is kept here, beside the familiars. A follow-up moves the file into `familiars/` and seals it.
@@ -51,9 +51,9 @@ Each sample ends with its `lens-findings` block.
 
 ### 1. What is it for?
 
-**Name:** `behaviour-lens`. *Proposed* (the working name from #35; the cross script, the gate's roster list and the #44/#45 tests already hold it, so a rename would reopen shipped work).
+**Name:** `behaviour-lens`. **Confirmed** (2026-10-05) (the working name from #35; the cross script, the gate's roster list and the #44/#45 tests already hold it, so a rename would reopen shipped work).
 
-*Proposed:* At move 4, it runs the change and checks each acceptance claim against what the owner asked for, for the main session and through it the owner. It is one lens of the QA pair; its partner, `integrity-lens`, asks whether the checks behind a claimed pass can fail.
+**Confirmed** (2026-10-05): At move 4, it runs the change and checks each acceptance claim against what the owner asked for, for the main session and through it the owner. It is one lens of the QA pair; its partner, `integrity-lens`, asks whether the checks behind a claimed pass can fail.
 
 - **Steps in:** the end of every build session, at every tier, dispatched with `integrity-lens` on the same numbered claim list.
 - **Stays out:** a spec review before the build; whether the tests themselves can fail (its partner's question); style and conventions; a security review as such (the security route has its own reviewers).
@@ -63,11 +63,11 @@ Each sample ends with its `lens-findings` block.
 
 **Decided** (2026-10-05, the owner's words): "Behavior lens is the closest tester that we have to matching the intent directly. So it should read the specs and everything that the user asked for and provide or make sure that everything was defended or built."
 
-*Session's reading, for the owner to correct:* "defended" is read as "delivered", a likely dictation slip. The answer makes the spec and the issue part of the lens's input, not only the claim list (question 10).
+*Session's reading, confirmed at the go (2026-10-05):* "defended" is read as "delivered", a likely dictation slip. The answer makes the spec and the issue part of the lens's input, not only the claim list (question 10).
 
 ### 3. Who does what?
 
-**The familiar** *Proposed*
+**The familiar** **Confirmed** (2026-10-05)
 - C1. **The red step comes first.** Before it runs anything, it reads the spec, the issue and the claim list, and writes down, for each claim, how the work could be wrong. It then checks exactly those points first. It assumes the work may be wrong until a run shows otherwise.
   Held by: Promised. (The column is visible in the artifact; the order in which it was written is not.)
 - C2. Runs each claim's primary flow first, then the smallest set of claim-relevant edge cases it can exercise safely, even when the primary flow is blocked. Each claim is judged against the spec's and the issue's wording of the need, not only the claim's letter.
@@ -95,28 +95,28 @@ Each sample ends with its `lens-findings` block.
 - C13. Its artifact sits under the fixed heading `### Claims run`.
   Held by: Promised. Every practice case checks it.
 
-**Automatic checks** *Proposed*
+**Automatic checks** **Confirmed** (2026-10-05)
 - The repo's tests and gates decide pass or fail. The lens advises.
 - Seam A checks the file's frontmatter, its tools against the allow-list, and that it names no reviewer but itself.
 - The cross script checks the findings block, joins it with its partner's, and writes the owner's view.
 
-**You (the owner)** *Proposed*
+**You (the owner)** **Confirmed** (2026-10-05)
 - Decide each finding: fixed, taken or dismissed. Name your pick before the reveal at the thorough tier. Answer "Crossing real?" and "Changed my decision?". Decide whether the work is done.
 
-**Stop and ask** *Proposed*
+**Stop and ask** **Confirmed** (2026-10-05)
 The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and each unchecked claim in `notChecked` starting "stopped and waiting:".
 - S1. When there is no numbered claim list, or no change to run, it says what it needs and runs nothing. Held by: Promised.
 - S2. When a tool it needs is missing, it says "blocked: needs X". Held by: Promised (C7).
 - S3. When a command cannot finish in 10 minutes, it does not start it. It reports the exact command, the absolute working folder (including an isolated worktree), the environment variables and input paths it needs, and stops. The main session runs it and dispatches a fresh lens with the captured output, which that lens inspects for itself. Held by: Promised.
 - S4. When checking a claim safely would need a destructive action, a publish, a push, a send, real credentials or a network action outside the claim, it does not take it. Held by: Promised.
 
-**What makes it fire** *Proposed*: the pact's move 4, which names the QA pair at every tier; the main session dispatches it with the claim list. Its description alone does not fire it. When it does not fire, move 4 is missing half a pair, and the pact's never-substitute rule stops the session.
+**What makes it fire** **Confirmed** (2026-10-05): the pact's move 4, which names the QA pair at every tier; the main session dispatches it with the claim list. Its description alone does not fire it. When it does not fire, move 4 is missing half a pair, and the pact's never-substitute rule stops the session.
 
-**When it is unsure** *Proposed*: Decides, and shows you. When a claim can be read two ways, it takes the likelier reading, names it in that claim's row, and checks that. A wrong reading costs one rerun.
+**When it is unsure** **Confirmed** (2026-10-05): Decides, and shows you. When a claim can be read two ways, it takes the likelier reading, names it in that claim's row, and checks that. A wrong reading costs one rerun.
 
 ### 4. What does it hand back?
 
-*Proposed:* one report in two sections, which the main session posts word for word.
+**Confirmed** (2026-10-05): one report in two sections, which the main session posts word for word.
 
 - **For the owner,** first: plain sentences on what held, what failed and why it matters, and what it suggests. It does not open with a verdict word, because the cross script places the verdict. No line numbers, codes, paths or commands.
 - **For the session,** after:
@@ -126,24 +126,24 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 
 Outcome values: the verdict, one of `clear`, `findings`, `inconclusive` or `blocking`. A stop gives `inconclusive`, with "stopped and waiting:" in `notChecked`.
 
-**Severity mapping** *Proposed* (one practice case per value):
+**Severity mapping** **Confirmed** (2026-10-05) (one practice case per value):
 - `high`: a claim fails reproducibly, or the change causes a reproducible regression, with real impact on users or the system (the old blocking priorities P0 to P2).
 - `medium`: a reproducible problem relevant to a claim that does not fail it (the old P3).
 - `low`: an advisory, or a risk it could not reproduce (the old P4).
 
 ### 5. What tools does it need?
 
-*Proposed:* reads files; runs commands; loads deferred tools; drives a browser. It needs the shell and the browser because it runs the change. Limits: no file-editing or file-creating tools, no delegation. A shell can still write files and reach the network, so "writes nothing" and "no network beyond the claim" are Promised (C9, S4).
+**Confirmed** (2026-10-05): reads files; runs commands; loads deferred tools; drives a browser. It needs the shell and the browser because it runs the change. Limits: no file-editing or file-creating tools, no delegation. A shell can still write files and reach the network, so "writes nothing" and "no network beyond the claim" are Promised (C9, S4).
 
 Extra keys: tools, model, effort
 
 - `tools`: `[Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*]` — **Decided** (2026-10-04, #35 revision 7, "Tools": the outgoing checker's set, unchanged, with its recorded exception and accepted risks; ADR 0002).
-- `model`: `opus` — *Proposed* (unchanged from the outgoing checker; the pair runs on one model).
-- `effort`: `medium` — *Proposed* (unchanged).
+- `model`: `opus` — **Decided** (2026-10-05, the owner's "go" on the stated default: unchanged from the outgoing checker; the pair runs on one model).
+- `effort`: `medium` — **Decided** (2026-10-05, the owner's "go" on the stated default: unchanged).
 
 ### 6. Does it do anything beyond reading?
 
-*Proposed:* it runs commands and a browser to exercise the change. It means to change nothing: it installs, pushes, publishes and sends nothing, and edits no file. Files a test run creates as its normal output are the only writes. Held by: Promised. The main session checks `git status` after each run (ADR 0002).
+**Confirmed** (2026-10-05): it runs commands and a browser to exercise the change. It means to change nothing: it installs, pushes, publishes and sends nothing, and edits no file. Files a test run creates as its normal output are the only writes. Held by: Promised. The main session checks `git status` after each run (ADR 0002).
 
 ### 7. What changed, and why?
 
@@ -155,17 +155,17 @@ Extra keys: tools, model, effort
 
 ### 8. How alike should its answers be?
 
-*Proposed:* same shape each run: For the owner, then `### Claims run`, the finding details and one block. The content follows the change. We give up "same answer" because runs meet real timing and environment.
+**Confirmed** (2026-10-05): same shape each run: For the owner, then `### Claims run`, the finding details and one block. The content follows the change. We give up "same answer" because runs meet real timing and environment.
 
 Against its neighbours: it asks "does the work do what was asked, when run?". Its partner asks "can the checks behind that answer fail?". The security route's reviewers own security analysis; this lens only keeps security verification thorough inside the claims.
 
 ### 9. A real example of it at its best
 
-*Proposed:* none yet. The first real QA-pair review after install supplies one, and the first periodic review reads it (question 19).
+**Confirmed** (2026-10-05): none yet. The first real QA-pair review after install supplies one, and the first periodic review reads it (question 19).
 
 ### 10. What does it need to start?
 
-*Proposed:* as local files, from the main session:
+**Confirmed** (2026-10-05): as local files, from the main session:
 - the numbered claim list, `C1` to `Cn`, written before dispatch from the ticket's or spec's acceptance criteria;
 - the spec or ticket text, and the issue's request (question 2);
 - the diff or the changed paths, and the absolute working folder.
@@ -175,15 +175,15 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 11. Where does a person decide?
 
-*Proposed:* its report feeds the owner's move-4 decision, recorded on the issue in the "Lens dispositions" table. When the main session hands back a choice or a captured output, the lens repeats it in words before it acts. On a recheck after a fix, it reproduces the original failure and a bounded check for regressions; it does not reopen nearby hardening or turn the recheck into a full audit.
+**Confirmed** (2026-10-05): its report feeds the owner's move-4 decision, recorded on the issue in the "Lens dispositions" table. When the main session hands back a choice or a captured output, the lens repeats it in words before it acts. On a recheck after a fix, it reproduces the original failure and a bounded check for regressions; it does not reopen nearby hardening or turn the recheck into a full audit.
 
 ### 12. Prove it works: a practice test
 
-*Proposed:* in `familiars/behaviour-lens.practice-test.md`. Its security-set cases run once each, after install, interactively, in a fresh session, in the probe sandbox, recording the model and the date. Every other case is scored on its bad report only. Both depart from the template's three runs, by the owner's decision on #35 revision 7 (2026-10-04): use proves a lens outside the security set, and the security set runs once per install or model change. Every expected result and bad report is committed before any run. **Any false alarm fails a run.**
+**Confirmed** (2026-10-05): in `familiars/behaviour-lens.practice-test.md`. Its security-set cases run once each, after install, interactively, in a fresh session, in the probe sandbox, recording the model and the date. Every other case is scored on its bad report only. Both depart from the template's three runs, by the owner's decision on #35 revision 7 (2026-10-04): use proves a lens outside the security set, and the security set runs once per install or model change. Every expected result and bad report is committed before any run. **Any false alarm fails a run.**
 
 ### 13. When would you retire it?
 
-*Proposed:*
+**Confirmed** (2026-10-05):
 - **Cries wolf:** the owner dismissed 6 or more of its findings across its last 10 reports.
 - **Escapes:** 2 or more confirmed escapes fall to it.
 - **Rarely changes the decision:** "Changed my decision?" is no in 9 or more of its last 10 reviews. This lens holds a shell and the browser, so it is a security-set lens: this signal alone never fires for it.
@@ -191,17 +191,17 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 14. How hard should it think?
 
-*Proposed:* Opus at medium effort, the same model as its partner. A second opinion from another model is the owner's call. A model change makes its security-set results stale; the owner reruns the set before the lens is trusted again.
+**Confirmed** (2026-10-05): Opus at medium effort, the same model as its partner. A second opinion from another model is the owner's call. A model change makes its security-set results stale; the owner reruns the set before the lens is trusted again.
 
 ### 15. How does it write?
 
-*Proposed:* plain language. For the owner holds no codes, paths or commands. Claims are named by their `C<n>` id plus a few words. Tables in For the session. The block is exact JSON in the shape the cross script reads.
+**Confirmed** (2026-10-05): plain language. For the owner holds no codes, paths or commands. Claims are named by their `C<n>` id plus a few words. Tables in For the session. The block is exact JSON in the shape the cross script reads.
 
 ## Thorough questions (16–20)
 
 ### 16. How does it go wrong?
 
-*Proposed:*
+**Confirmed** (2026-10-05):
 
 | # | How it goes wrong | What it looks like | How serious |
 |---|---|---|---|
@@ -219,7 +219,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 17. Good versus so-so
 
-*Proposed:*
+**Confirmed** (2026-10-05):
 
 | Part | So-so | Good | What protects it |
 |---|---|---|---|
@@ -231,7 +231,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 18. Every rule has a reason
 
-*Proposed:*
+**Confirmed** (2026-10-05):
 
 | Rule in the instructions | The reason | Held by |
 |---|---|---|
@@ -252,7 +252,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 19. Open questions
 
-*Proposed:*
+**Confirmed** (2026-10-05):
 
 | # | Question | Why it is still open | Settled when |
 |---|---|---|---|
@@ -265,11 +265,11 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 20. Where do the ideas come from?
 
-*Proposed:* the outgoing move-4 checker's file (ADR 0002 for its tools); #35 revision 7 ("What each lens does before it judges", "Rules carried over", "The findings block", "Severity"); arXiv 2602.06948, *Agentic Uncertainty Reveals Agentic Overconfidence* (the red step; a preprint, read as direction, not proof); the owner's words in question 2.
+**Confirmed** (2026-10-05): the outgoing move-4 checker's file (ADR 0002 for its tools); #35 revision 7 ("What each lens does before it judges", "Rules carried over", "The findings block", "Severity"); arXiv 2602.06948, *Agentic Uncertainty Reveals Agentic Overconfidence* (the red step; a preprint, read as direction, not proof); the owner's words in question 2.
 
 ## Rules of the file it replaces
 
-Every rule of the outgoing move-4 checker, marked *Proposed*.
+Every rule of the outgoing move-4 checker, marked **Confirmed** (2026-10-05).
 
 | Rule there | Mark | Where it goes, and why |
 |---|---|---|
@@ -296,8 +296,8 @@ Every rule of the outgoing move-4 checker, marked *Proposed*.
 
 | # | Question | Flag | Outcome |
 |---|---|---|---|
-| 1 | 2 | "defended" read as "delivered", a likely dictation slip | Open: the owner may correct it |
-| 2 | 2, 10 | Question 2 makes the spec and the issue part of the input. Needs with no claim cannot be anchored, so they go in `notChecked` | Open (question 19, item 4) |
+| 1 | 2 | "defended" read as "delivered", a likely dictation slip | Acted on: confirmed at the go, 2026-10-05 |
+| 2 | 2, 10 | Question 2 makes the spec and the issue part of the input. Needs with no claim cannot be anchored, so they go in `notChecked` | Acted on: the default confirmed at the go, 2026-10-05; question 19, item 4 keeps it under review |
 | 3 | 12 | One run per security-set case, and bad reports for the rest, departs from the template's three runs | Recorded as the owner's decision on #35 revision 7 |
 | 4 | 1, 4 | The old For-the-owner opening with the verdict word would put the verdict above the prompt | Dropped, per #35 revision 7 |
 | 5 | 3 | C1's order (failure points written before the run) cannot be seen in the report | Recorded as Promised; the standing measures judge it by use |

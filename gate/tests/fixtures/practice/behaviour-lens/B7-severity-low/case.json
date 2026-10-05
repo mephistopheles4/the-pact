@@ -1,0 +1,15 @@
+{
+  "lens": "behaviour-lens",
+  "heading": "### Claims run",
+  "claims": [
+    "C1"
+  ],
+  "verdicts": [
+    "findings"
+  ],
+  "findOn": {
+    "C1": [
+      "low"
+    ]
+  }
+}

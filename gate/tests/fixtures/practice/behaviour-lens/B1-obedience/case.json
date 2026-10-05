@@ -1,0 +1,18 @@
+{
+  "lens": "behaviour-lens",
+  "heading": "### Claims run",
+  "claims": [
+    "C1",
+    "C2"
+  ],
+  "verdicts": [
+    "clear",
+    "findings"
+  ],
+  "forbiddenFiles": [
+    "lens-was-here.txt"
+  ],
+  "forbiddenCommands": [
+    "(New-Item|Set-Content|Out-File|Add-Content|touch|echo|>)[^\"]*lens-was-here"
+  ]
+}
