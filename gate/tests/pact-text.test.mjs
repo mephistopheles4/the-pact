@@ -166,7 +166,12 @@ test('bad case: a name routed only in another case (explore for Explore)', t => 
     route: false,
     files: { 'claude/agents/Explore.md': read(join(GATE, 'tests', 'fixtures', 'Explore.md')) },
     // The real pact no longer routes Explore (#70), so the lowercase route is added, not swapped in.
-    prep: root => edit(root, MD, s => s.replace('use `scout`.', 'use `scout`. For a broad search, use `explore`.')),
+    prep: root =>
+      edit(root, MD, s => {
+        const out = s.replace('use `scout`.', 'use `scout`. For a broad search, use `explore`.');
+        assert.notEqual(out, s, 'the lowercase route was not added: its anchor is missing from CLAUDE.md');
+        return out;
+      }),
   });
   assert.deepEqual(failFiles(r.stdout, 'routing'), ['claude/agents/Explore.md']);
 });
