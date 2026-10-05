@@ -55,7 +55,6 @@ test('seam A passes on the repo payload, and lists every file it would install',
   const dests = installs.map(l => l.split(' ')[3]).sort();
   assert.deepEqual(dests, [
     'CLAUDE.md',
-    'agents/Explore.md',
     'agents/plan-reviewer.md',
     'agents/result-checker.md',
     'agents/scout.md',

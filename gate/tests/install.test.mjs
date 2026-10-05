@@ -320,17 +320,17 @@ test('NODE_OPTIONS is cleared for the check', t => {
 
 test('bad case: an agent that fails seam A refuses, naming file and rule', t => {
   const repo = makeRepo(t, root => {
-    const p = join(root, 'claude', 'agents', 'scout.md');
+    const p = join(root, 'claude', 'agents', 'plan-reviewer.md');
     writeFileSync(p, readFileSync(p, 'utf8').replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]'));
   });
   const r = install(repo, home(t));
   refused(r);
-  assert.match(r.stdout, /^seam-a\| FAIL tools: claude\/agents\/scout\.md line \d+/m);
+  assert.match(r.stdout, /^seam-a\| FAIL tools: claude\/agents\/plan-reviewer\.md line \d+/m);
 });
 
 test('bad case: two sources for one live path refuse', t => {
   const repo = makeRepo(t, root =>
-    sealedFamiliar(root, 'scout', { lines: ['name: scout', 'description: x', READ_ONLY] }),
+    sealedFamiliar(root, 'plan-reviewer', { lines: ['name: plan-reviewer', 'description: x', READ_ONLY] }),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -340,13 +340,13 @@ test('bad case: two sources for one live path refuse', t => {
 test('bad case: two paths in the commit that differ only in case refuse', t => {
   // Built in the index, since a folding disk cannot hold both files.
   const repo = makeRepo(t);
-  const tmp = join(repo, 'Scout.tmp');
-  writeFileSync(tmp, plainAgent('Scout'));
+  const tmp = join(repo, 'Plan-reviewer.tmp');
+  writeFileSync(tmp, plainAgent('Plan-reviewer'));
   const id = git(repo, 'hash-object', '-w', tmp).trim();
   rmSync(tmp);
-  git(repo, 'update-index', '--add', '--cacheinfo', `100644,${id},claude/agents/Scout.md`);
+  git(repo, 'update-index', '--add', '--cacheinfo', `100644,${id},claude/agents/Plan-reviewer.md`);
   git(repo, 'commit', '-q', '-m', 'case collision');
-  assert.match(git(repo, 'ls-tree', '-r', '--name-only', 'HEAD', '--', 'claude/agents'), /Scout\.md[\s\S]*scout\.md|scout\.md[\s\S]*Scout\.md/);
+  assert.match(git(repo, 'ls-tree', '-r', '--name-only', 'HEAD', '--', 'claude/agents'), /Plan-reviewer\.md[\s\S]*plan-reviewer\.md|plan-reviewer\.md[\s\S]*Plan-reviewer\.md/);
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /differ only in case/);
@@ -392,7 +392,7 @@ test('bad case: a live agents folder that is a link refuses', t => {
 
 test('the check runs on the commit, not on uncommitted edits, and says so', t => {
   const repo = makeRepo(t);
-  const p = join(repo, 'claude', 'agents', 'scout.md');
+  const p = join(repo, 'claude', 'agents', 'plan-reviewer.md');
   writeFileSync(p, readFileSync(p, 'utf8').replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]'));
   const r = install(repo, home(t));
   assert.equal(r.code, 0, r.out);
