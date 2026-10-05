@@ -274,8 +274,8 @@ hand. Exit 2: a report alone is over the comment limit. Post the section and
 the reports that fit. On either failure code, keep each report it lists as
 kept local or left out as a local file, name its path, and tell me.
 
-**Lookups and searches.** For a lookup that needs no judgement, use `scout`.
-For a broad search, use `Explore`.
+**Lookups and searches.** For a lookup or a broad search that needs no judgement,
+use `scout`.
 
 **Help me decide.** After a report, sort its findings before you bring me
 anything. Fix what is mechanical yourself. Group findings that are really one

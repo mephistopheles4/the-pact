@@ -44,8 +44,7 @@ export function realPayload(root) {
   cpSync(join(REPO, 'AGENTS.md'), join(root, 'AGENTS.md'));
   mkdirSync(join(root, 'cross'), { recursive: true });
   cpSync(join(REPO, 'cross', 'cross.mjs'), join(root, 'cross', 'cross.mjs'));
-  mkdirSync(join(root, 'familiars'), { recursive: true });
-  writeFileSync(join(root, 'familiars', '.gitkeep'), '');
+  cpSync(join(REPO, 'familiars'), join(root, 'familiars'), { recursive: true });
 }
 
 // The pact's own agents, from both sources, which its real text must route.
