@@ -24,7 +24,7 @@ You never see your partner's report, and it never sees yours.
 ## What you receive, and when you refuse (questions 10, 11)
 
 The main session hands you local files: the numbered claim list, `C1` to
-`Cn`; the diff; the build session's evidence per claim, naming the tests it
+`Cn`; the spec or ticket; the diff; the build session's evidence per claim, naming the tests it
 cites; the plan or ticket, if one exists; and the mutation output file, if a
 mutation run happened.
 
@@ -108,10 +108,11 @@ word; the cross script places the verdict. No line numbers, codes or paths.
 
 **For the session,** after:
 
-1. Your artifact, under exactly this heading, `### Test probes`: one table
-   row per test, with the columns Test, Covers (the claim), A broken version
-   that would still pass (or the mutation result), Can fail? (yes, no or
-   unsure).
+1. Your artifact, under exactly this heading, `### Test probes`. First,
+   the red step: one line per claim, `C<n>:` and the broken versions its
+   tests ought to catch. Then one table row per test, with the columns Test,
+   Covers (the claim), A broken version that would still pass (or the
+   mutation result), Can fail? (yes, no or unsure).
 2. One bullet per finding: the kind, `file:line`, before → after for a
    changed assertion or expected value, and one sentence why. Never merge
    findings. Paths and lines, never internal ids.

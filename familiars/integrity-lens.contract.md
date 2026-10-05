@@ -1,6 +1,6 @@
 # Contract: integrity-lens
 
-Version: 0.1.0
+Version: 0.1.1
 
 - **Type:** agent
 - **Level:** Thorough
@@ -107,13 +107,15 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 
 **When it is unsure** **Confirmed** (2026-10-05): Decides, and shows you. When it cannot tell whether a test is hollow, it gives the broken version it tried and marks the row "unsure".
 
+**Checklist** **Confirmed** (2026-10-05): the four kinds in C5, over the tests C2 picks (the changed tests, and those cited as evidence).
+
 ### 4. What does it hand back?
 
 **Confirmed** (2026-10-05): one report in two sections, which the main session posts word for word.
 
 - **For the owner,** first: plain sentences on which tests can fail and which cannot, why it matters, and what it suggests. It does not open with a verdict word. No line numbers, codes or paths.
 - **For the session,** after:
-  1. `### Test probes`: one row per test, with the columns Test, Covers (the claim), A broken version that would still pass (or the mutation result), Can fail? (yes, no or unsure).
+  1. `### Test probes`: first the red step, one line per claim (`C<n>:` and the broken versions its tests ought to catch); then one row per test, with the columns Test, Covers (the claim), A broken version that would still pass (or the mutation result), Can fail? (yes, no or unsure).
   2. For each finding: the kind (from C5), the file and line, before and after for a changed assertion or expected value, and one sentence why. One finding per bullet; findings are never merged.
   3. Exactly one `lens-findings` block, last, with `lens` set to `integrity-lens` and every anchor a listed claim (`C<n>`): the claim whose evidence the test is.
 
@@ -142,6 +144,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.1 | 2026-10-05 | The red step shows in the artifact, one line per claim; the spec is an input; the checklist is labelled. | Move 4 before install on #47: the result check found the red step invisible, the spec named but not handed over, and the checklist unlabelled | 3, 4, 10 |
 | 0.1.0 | 2026-10-05 | Contract written, drafted from the outgoing test and check reviewer. Adds the red step, the per-test probe, mutation evidence, the claim-list anchors, the findings block and the fixed artifact heading. | #35 revision 7 (the QA pair), #47; the red step by the owner's choice, relayed 2026-10-05 | all |
 
 ## The mutation step
@@ -168,7 +171,7 @@ Against its neighbours: it asks "can these checks fail?". Its partner asks "does
 
 ### 10. What does it need to start?
 
-**Confirmed** (2026-10-05): as local files, from the main session: the numbered claim list; the diff; the build session's evidence per claim (which tests it cites); the plan or ticket, if one exists; and the mutation output file, if a run happened.
+**Confirmed** (2026-10-05): as local files, from the main session: the numbered claim list; the spec or ticket; the diff; the build session's evidence per claim (which tests it cites); the plan or ticket, if one exists; and the mutation output file, if a run happened.
 
 - **Refuse when:** no diff (S1), or no claim list (S2).
 - **The plan rules for a changed expected value:** no plan → report every changed expected value as "intent unchecked"; a plan that is silent on it → "changed and unexplained"; a plan that explains it → noted as explained, not a finding.

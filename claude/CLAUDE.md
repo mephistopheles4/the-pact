@@ -280,7 +280,7 @@ acceptance criteria, and write them, the spec or ticket, the issue's request
 and the diff to local files. Dispatch both lenses fresh and on their own; never
 show either one the other's report. Give `behaviour-lens` the claims, the
 spec, the diff and the absolute working folder, and check `git status` after
-it runs. Give `integrity-lens` the claims, the diff, the tests you cite as
+it runs. Give `integrity-lens` the claims, the spec, the diff, the tests you cite as
 evidence for each claim, and the plan if there is one.
 
 **The mutation step.** When the repo has a mutation-testing tool installed,

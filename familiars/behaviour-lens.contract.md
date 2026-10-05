@@ -1,6 +1,6 @@
 # Contract: behaviour-lens
 
-Version: 0.1.0
+Version: 0.1.1
 
 - **Type:** agent
 - **Level:** Thorough
@@ -82,11 +82,11 @@ Each sample ends with its `lens-findings` block.
   Held by: Promised. The cross script cannot force `inconclusive`. Security-set case (runs).
 - C7. When a tool it needs is missing, it says "blocked: needs X" and why. It never rebuilds the tool through the shell, such as `curl` in place of a fetch tool, or shell writes in place of an edit tool.
   Held by: Promised. Security-set case (runs).
-- C8. Security-sensitive verification stays thorough: for authentication, authorisation, secrets, crypto and input validation it probes abuse cases and trust-boundary bypasses, and returns `inconclusive` when safe verification is impossible.
+- C8. Security-sensitive verification stays thorough: for authentication, authorisation, secrets, crypto and input validation it probes abuse cases and trust-boundary bypasses, and returns `inconclusive` when safe verification is impossible. It describes each abuse case, and the inputs that failed, at the level needed to fix it, never as a working exploit or payload: its report is posted word for word, on a repo that may be public. (AGENTS.md's protected set carries this rule for every security-set lens.)
   Held by: Promised.
 - C9. Never plans, edits, fixes or delegates.
   Held by: Enforced for edit and delegation tools — the `tools` list, which Claude Code applies, and seam A, which fails the install when the list differs from the allow-list entry (`gate/tool-allowlist.json`). Promised for writes through the shell.
-- C10. Never detaches: no `nohup`, `setsid`, trailing `&` or background run. Every long command runs in the foreground with an explicit timeout of at most 10 minutes.
+- C10. Never detaches: no `nohup`, `setsid`, trailing `&`, `run_in_background` or any other background run. Every long command runs in the foreground with an explicit timeout of at most 10 minutes.
   Held by: Promised.
 - C11. Ends its report with exactly one `lens-findings` block in the shape the cross script reads.
   Held by: Enforced — the cross script refuses any other shape (exit 1). Mechanism read in `cross/cross.mjs` by the build session, 2026-10-05; not yet confirmed by the owner.
@@ -113,6 +113,8 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 **What makes it fire** **Confirmed** (2026-10-05): the pact's move 4, which names the QA pair at every tier; the main session dispatches it with the claim list. Its description alone does not fire it. When it does not fire, move 4 is missing half a pair, and the pact's never-substitute rule stops the session.
 
 **When it is unsure** **Confirmed** (2026-10-05): Decides, and shows you. When a claim can be read two ways, it takes the likelier reading, names it in that claim's row, and checks that. A wrong reading costs one rerun.
+
+**Checklist** **Confirmed** (2026-10-05): the claim list, `C1` to `Cn`, read against the spec and the issue (question 10).
 
 ### 4. What does it hand back?
 
@@ -149,6 +151,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.1 | 2026-10-05 | C8 gains "never a working exploit or payload"; C10 names `run_in_background` again; the checklist is labelled. | Move 4 before install on #47: the security read found the protected carried rule missing and the parameter name dropped; the result check found the checklist unlabelled | 3, 18 |
 | 0.1.0 | 2026-10-05 | Contract written, drafted from the outgoing move-4 checker. Adds the red step, the claim-list anchors, the findings block and the fixed artifact heading. | #35 revision 7 (the QA pair), #47; the red step by the owner's choice, relayed 2026-10-05 | all |
 
 ## Standard questions (8–15)
@@ -216,6 +219,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 | 9 | Audit creep | Findings about code merely near the change | medium |
 | 10 | Detaches | A background command that escapes the harness's tracking | medium |
 | 11 | Verdict words in headlines | "Blocking: retry missing" shows above the prompt | low |
+| 12 | Publishes an attack | A working exploit or payload in a report posted word for word | high |
 
 ### 17. Good versus so-so
 
@@ -244,6 +248,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 | `inconclusive` when anything went unrun (C6) | Failure 5 | Promised |
 | A missing tool is reported, never rebuilt (C7) | Failure 6 | Promised |
 | Never detach; 10-minute ceiling (C10, S3) | Failure 10 | Promised |
+| No working exploit or payload (C8) | Failure 12; AGENTS.md's protected set | Promised |
 | One block, in the cross script's shape (C11) | The format the cross script reads | Enforced — the cross script |
 | No verdict words in headlines (C12) | Failure 11 | Promised |
 | Artifact under `### Claims run` (C13) | The mechanical artifact check (#35, round 6) | Promised |
@@ -289,7 +294,7 @@ Every rule of the outgoing move-4 checker, marked **Confirmed** (2026-10-05).
 | Priority P0 to P4 with their definitions | Moved | To the severity mapping in Q4. |
 | Never plan, edit, fix or delegate; the main session owns plans, fixes and the final disposition | Kept | C9; "You" in Q3. |
 | Security-sensitive verification stays thorough; redact raw secrets; INCONCLUSIVE when safe verification is impossible | Kept, widened | C8, C5 (now also commands, URLs and browser actions), S4. |
-| Foreground only, explicit timeout of at most 10 minutes, never detach | Kept | C10. |
+| Foreground only, explicit timeout of at most 10 minutes, never detach | Kept | C10, with `run_in_background` named as before. |
 | A command that cannot finish in 10 minutes: report it and stop; the orchestrator runs it, then a new checker session inspects the captured output | Kept, phrased by role | S3: "a fresh lens", never an agent's name. |
 
 ## Flag log
