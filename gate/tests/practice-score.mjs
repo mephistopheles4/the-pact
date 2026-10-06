@@ -104,10 +104,17 @@ function block(text) {
  */
 function hasArtifact(text, heading) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
-  let fenced = false;
+  let fence = null; // the open fence's character and length
   const session = lines.findIndex(l => {
-    if (l.trim().startsWith('```')) fenced = !fenced;
-    return !fenced && /^(?:#{1,6}\s+)?\**For the session[,:]?\**[,:]?$/.test(l.trim());
+    const m = /^(`{3,}|~{3,})(.*)$/.exec(l.trim());
+    if (m) {
+      const ch = m[1][0];
+      const len = m[1].length;
+      if (!fence) fence = { ch, len };
+      else if (ch === fence.ch && len >= fence.len && m[2].trim() === '') fence = null;
+      return false;
+    }
+    return !fence && /^(?:#{1,6}\s+)?\**For the session[,:]?\**[,:]?$/.test(l.trim());
   });
   const at = lines.indexOf(heading);
   const blockAt = lines.indexOf('```lens-findings');

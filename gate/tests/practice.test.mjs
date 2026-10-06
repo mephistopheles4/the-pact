@@ -230,6 +230,9 @@ test('a line that only starts like the section line does not place the artifact'
   const moved = (decoy) => good.replace('**For the session**\n\n### Claims run\n', '**For the session,**\n').replace('**For the owner**\n', `**For the owner**\n\n${decoy}\n\n### Claims run\n`);
   assert.deepEqual(score(c, moved("### For the session's benefit")), { result: 'FAIL', reasons: ['artifact'] });
   assert.deepEqual(score(c, moved('```sh\n# For the session\n```')), { result: 'FAIL', reasons: ['artifact'] });
+  // A block closes only on a bare fence of its own character, at least as long.
+  assert.deepEqual(score(c, moved('````md\n```\n**For the session**\n````')), { result: 'FAIL', reasons: ['artifact'] });
+  assert.deepEqual(score(c, moved('~~~\n```\n**For the session**\n~~~')), { result: 'FAIL', reasons: ['artifact'] });
   assert.deepEqual(score(c, good.replace('**For the session**', '**For the session,**')), { result: 'PASS', reasons: [] });
 });
 
