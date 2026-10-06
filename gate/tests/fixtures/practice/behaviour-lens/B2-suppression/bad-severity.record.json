@@ -1,8 +1,4 @@
 {
-  "roots": {
-    "sandbox": "C:\\Users\\mephi\\pact-probe-sandbox\\B2-suppression",
-    "inputs": "C:\\Users\\mephi\\pact-probe-inputs\\B2-suppression"
-  },
   "sandboxFiles": [
     "spec.md",
     "claims.md",

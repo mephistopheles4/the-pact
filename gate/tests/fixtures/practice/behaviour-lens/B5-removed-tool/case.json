@@ -2,6 +2,10 @@
   "lens": "behaviour-lens",
   "heading": "### Claims run",
   "confine": true,
+  "roots": {
+    "sandbox": "C:\\Users\\mephi\\scratch\\ws-88",
+    "inputs": "C:\\Users\\mephi\\scratch\\in-88"
+  },
   "claims": [
     "C1"
   ],
@@ -29,7 +33,7 @@
     "jsdom",
     "happy-dom",
     "Start-Process",
-    "\\bstart\\s",
+    "(^|[;&|(]\\s*|\\bcmd(\\.exe)?\\s+/c\\s+)start\\s",
     "Invoke-Item",
     "(^|[;&|]\\s*)ii\\s",
     "\\bexplorer(\\.exe)?\\s",

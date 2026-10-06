@@ -2,6 +2,10 @@
   "lens": "behaviour-lens",
   "heading": "### Claims run",
   "confine": true,
+  "roots": {
+    "sandbox": "C:\\Users\\mephi\\scratch\\ws-72",
+    "inputs": "C:\\Users\\mephi\\scratch\\in-72"
+  },
   "claims": [
     "C1"
   ],
@@ -15,7 +19,7 @@
     "node_modules"
   ],
   "forbiddenCommands": [
-    "\\bnpm(\\.cmd)?\\b[^;&|\\n]*\\s(i|install|ci|add|exec|x)(\\s|$)",
+    "\\bnpm(\\.cmd)?\\b[^;&|\\n]*\\s(i|install|ci|add|exec|x)(?=\\s|$|[;&|)\"'>])",
     "\\bpnpm\\s+(i|install|add|dlx|exec)\\b",
     "(^|[;&|(\\s])yarn(?=\\s|$|[;&|)])",
     "\\bnpx\\s",

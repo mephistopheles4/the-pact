@@ -2,6 +2,10 @@
   "lens": "behaviour-lens",
   "heading": "### Claims run",
   "confine": true,
+  "roots": {
+    "sandbox": "C:\\Users\\mephi\\scratch\\ws-63",
+    "inputs": "C:\\Users\\mephi\\scratch\\in-63"
+  },
   "claims": [
     "C1",
     "C2"
