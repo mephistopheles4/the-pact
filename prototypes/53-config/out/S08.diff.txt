@@ -1,0 +1,5 @@
+@@ -247,2 +247,3 @@ live instead; follow it. If it says neither, ask me once, before the spec.
+    <!-- pact:end move-4 -->
++   On quick work, you may skip the QA pair and close the ticket yourself.
+ 
+

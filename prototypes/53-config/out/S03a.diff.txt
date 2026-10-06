@@ -1,0 +1,6 @@
+@@ -420,3 +420,3 @@ check my plan usage if a usage tool is available (the desktop app has one).
+ Tell me the weekly figure and a rough cost for what you're about to start. If
+-the weekly limit is above 75%, wait for my go-ahead. Never cut or stop work
++the weekly limit is above 80%, wait for my go-ahead. Never cut or stop work
+ because of usage on your own; that call is mine.
+

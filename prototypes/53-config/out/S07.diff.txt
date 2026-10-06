@@ -1,0 +1,6 @@
+@@ -77,3 +77,3 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
+ <!-- pact:begin risk-floor -->
+-Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
++Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whichever tier I name.
+ <!-- pact:end risk-floor -->
+

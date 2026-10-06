@@ -1,0 +1,5 @@
+@@ -218,2 +218,3 @@ live instead; follow it. If it says neither, ask me once, before the spec.
+    building on a READY verdict alone.
++   In this repo, also run `domain-modeling` before the spec.
+ 3. **I checkpoint the seams.** On the thorough tier, I cut the approved spec
+

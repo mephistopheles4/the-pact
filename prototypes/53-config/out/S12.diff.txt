@@ -1,0 +1,10 @@
+@@ -417,7 +417,3 @@ Don't pick one yourself.
+ 
+-Before starting anything expensive — several subagents, a workflow, an eval —
+-check my plan usage if a usage tool is available (the desktop app has one).
+-Tell me the weekly figure and a rough cost for what you're about to start. If
+-the weekly limit is above 75%, wait for my go-ahead. Never cut or stop work
+-because of usage on your own; that call is mine.
++In this repo, never start expensive work without asking me.
+ 
+

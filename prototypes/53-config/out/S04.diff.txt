@@ -1,0 +1,5 @@
+@@ -247,2 +247,3 @@ live instead; follow it. If it says neither, ask me once, before the spec.
+    <!-- pact:end move-4 -->
++   Then run `my-extra-reviewer` on the diff as well, and post its report beside the QA pair's.
+ 
+
