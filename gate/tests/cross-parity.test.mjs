@@ -27,42 +27,52 @@ const constant = (src, name) => src.find(l => l.startsWith(`const ${name} = `));
 const CONSTANTS = ['MAX_BYTES', 'JSON_SCALAR_RE', 'JSON_DEPTH_MAX', 'DEFAULT_IGNORABLE_RE'];
 const DECLARATIONS = ['function isInvisible(', 'function isRefused(', 'class Refused ', 'function readStrictJson('];
 
+// The two parity checks. The real tests and the bad cases below call these
+// same functions, so a bad case guards the check itself, not a copy of it.
+function constantParity(shared, name) {
+  assert.ok(constant(shared, name), `${name} not found in the shared module`);
+  assert.equal(constant(crossSource, name), constant(shared, name));
+}
+function declarationParity(shared, head) {
+  assert.equal(declaration(crossSource, head), declaration(shared, head));
+}
+
 // ------------------------------------------------------------ the source
 
 for (const name of CONSTANTS) {
-  test(`parity: the constant ${name} is the shared module's, byte for byte`, () => {
-    assert.ok(constant(sharedSource, name));
-    assert.equal(constant(crossSource, name), constant(sharedSource, name));
-  });
+  test(`parity: the constant ${name} is the shared module's, byte for byte`, () => constantParity(sharedSource, name));
 }
 
 for (const head of DECLARATIONS) {
-  test(`parity: ${head.trim()} is the shared module's, byte for byte`, () => {
-    assert.equal(declaration(crossSource, head), declaration(sharedSource, head));
-  });
+  test(`parity: ${head.trim()} is the shared module's, byte for byte`, () => declarationParity(sharedSource, head));
 }
 
-/** The shared source with one character changed on line `i`, halfway along it. */
-function plant(src, i) {
-  const line = src[i];
-  const at = Math.floor(line.length / 2);
-  const out = [...src];
-  out[i] = `${line.slice(0, at)}${line[at] === 'x' ? 'y' : 'x'}${line.slice(at + 1)}`;
-  return out;
+/** One character of `text` changed: its first digit from `from` on, or else the one halfway along. */
+function changed(text, from) {
+  const d = text.slice(from).search(/[0-9]/);
+  const at = d >= 0 ? from + d : from + Math.floor((text.length - from) / 2);
+  const ch = d >= 0 ? String((Number(text[at]) + 1) % 10) : text[at] === 'x' ? 'y' : 'x';
+  return `${text.slice(0, at)}${ch}${text.slice(at + 1)}`;
 }
 
 for (const name of CONSTANTS) {
-  test(`bad case: a divergence planted in the shared ${name} fails parity`, () => {
-    const planted = plant(sharedSource, sharedSource.findIndex(l => l.startsWith(`const ${name} = `)));
-    assert.throws(() => assert.equal(constant(crossSource, name), constant(planted, name)), assert.AssertionError);
+  test(`bad case: a value planted in the shared ${name} fails parity`, () => {
+    const head = `const ${name} = `;
+    const planted = sharedSource.map(l => (l.startsWith(head) ? changed(l, head.length) : l));
+    // The name still reads, so the failure is the changed value, not a lookup miss.
+    assert.ok(constant(planted, name));
+    assert.notEqual(constant(planted, name), constant(sharedSource, name));
+    assert.throws(() => constantParity(planted, name), assert.AssertionError);
   });
 }
 
 for (const head of DECLARATIONS) {
   test(`bad case: a divergence planted inside the shared ${head.trim()} fails parity`, () => {
     // The line after the head, so the change is inside the body, not the name.
-    const planted = plant(sharedSource, sharedSource.findIndex(l => l.startsWith(head)) + 1);
-    assert.throws(() => assert.equal(declaration(crossSource, head), declaration(planted, head)), assert.AssertionError);
+    const i = sharedSource.findIndex(l => l.startsWith(head)) + 1;
+    const planted = sharedSource.map((l, j) => (j === i ? changed(l, 0) : l));
+    assert.ok(declaration(planted, head));
+    assert.throws(() => declarationParity(planted, head), assert.AssertionError);
   });
 }
 

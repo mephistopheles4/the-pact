@@ -236,6 +236,10 @@ const PACT_MARKER_RE = /<!--\s*pact\s*:/i;
  * in a fence, and its blocks. `known` is every block name the pact defines;
  * `allowed` is the set of block names this file may hold. Every grammar
  * failure is recorded in `report`.
+ *
+ * Some failures name the block. That echoes no file content only because the
+ * name is first checked against `known`, so callers must pass a fixed set
+ * the gate defines itself, never one built from a file.
  */
 function parseDoc(text, file, known, allowed, report) {
   const lines = text.split('\n');
