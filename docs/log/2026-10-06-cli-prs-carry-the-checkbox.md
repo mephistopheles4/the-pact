@@ -16,4 +16,5 @@ Make agent-made PRs carry the close-out checkbox, by the simpler of two routes t
 
 Issue comments on mephistopheles4/the-pact#88:
 
-- The build and move-4 record, posted at the end of the build session.
+- `6026987841` — verbatim: the QA pair's cross section (`behaviour-lens`, `integrity-lens`).
+- `6026988045` — lens dispositions and the build record. `behaviour-lens` found the rule never said to tick the box on the finishing PR; the wording was fixed and #104 ticked.
