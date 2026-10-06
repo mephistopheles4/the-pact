@@ -55,6 +55,11 @@ how every session in every repo behaves. So:
   dated narrative in [`docs/log/`](docs/log/), ending in a **Record** list of
   the issue comments that hold the verbatim plan, reviews and probe records.
   Work that finished before #52 keeps its commit citations.
+- **Finding a decision or a log:** start from the indexes,
+  [`docs/adr/README.md`](docs/adr/README.md) and
+  [`docs/log/README.md`](docs/log/README.md), one line per file. Add a line
+  there with every new ADR or log entry; `gate/tests/docs-index.test.mjs`
+  fails when one is missing.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](docs/agents/domain.md).
 
