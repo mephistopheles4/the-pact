@@ -45,12 +45,16 @@ The configuration file looks like this:
 See `out/results.md` for every scenario and every gate line.
 
 1. **Values fit as templates in open marks, and the no-file install is byte-identical.** In S01, the rendered file equals HEAD's blob, and the gate's INSTALL hash equals the blob hash. The catch is that the source must carry open marks, and **today's gate refuses every open mark name**: four `unknown block name` failures on the future source. The gate needs a second kind of mark: a listed name, no canonical text, and stripped at render.
+   - **The byte-identity trade-off.** S01 compares against today's HEAD, which has no open marks. Once the repo source carries them, the staged blob is the source: today's file plus exactly four marker lines (checked).
+     - **Strip the marks at render.** The live file stays byte-identical to today's, but it never matches its own staged blob. So the hash rebinding in item 2 applies to **every** install, with or without a file.
+     - **Keep the marks.** The blob still matches, but the live file gains four comment lines compared with today's. The model never sees them, because Claude Code strips HTML comments.
+     - The triage criterion "byte-for-byte the same live files as today" can't hold alongside an unchanged install script. The spec picks one.
 2. **Ordering: render, then gate, is the only one where a gate reads what gets installed.**
    - **Gate, then render.** The gate checks HEAD's bytes, and every non-default install then writes bytes no check read.
    - **Render, then gate.** The gate catches some things beyond protected edits. In S05, replacing move 2 drops `plan-reviewer`, and the gate's routing check refuses it. In C18, a heading injected inside move 4 fails its structure check, but only because the renderer indented it. C18b puts the same kind of text after the usage-pause block, and today's gate passes it.
    - **The cost.** In this ordering, today's gate refuses *every* protected-block edit (S06, S07, S11). So "warn, then install" cannot happen without changing the gate's clause check.
    - **Both orderings need `install.ps1` changed.**
-     - In render-then-gate, the gate's INSTALL hash is the rendered file's, so the copy-set match against the staged blob hash (`install.ps1:484-490`) refuses every non-default install.
+     - In render-then-gate, the gate's INSTALL hash is the rendered file's, so the copy-set match against the staged blob hash (`install.ps1:484-490`) refuses every install whose rendered file differs from its source. Once the source carries open marks that are stripped at render, that is every install (item 1).
      - In gate-then-render, the pre-write re-hash (`:594-598`) or the post-write verify (`:628-631`) refuses.
      - The manifest and the drift check bind to the same hash.
      - `install.ps1` is gate code, so this is security-route work.
