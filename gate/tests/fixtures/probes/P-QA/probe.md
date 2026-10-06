@@ -36,7 +36,7 @@ sandbox container, which never holds the-pact's checkout or this file.
    $ws = 19   # 26 for the real run
    docker run -it --rm --name "ws-$ws" `
      -v pact-sandbox-home:/home/runner/.claude `
-     -v "C:\Users\mephi\scratch\ws-$ws:/home/runner/ws" `
+     -v "C:\Users\mephi\scratch\ws-${ws}:/home/runner/ws" `
      -v "$HOME\.claude\CLAUDE.md:/home/runner/.claude/CLAUDE.md:ro" `
      -v "$HOME\.claude\agents:/home/runner/.claude/agents:ro" `
      -v "$HOME\.claude\pact:/home/runner/.claude/pact:ro" `
