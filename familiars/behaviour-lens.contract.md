@@ -1,6 +1,6 @@
 # Contract: behaviour-lens
 
-Version: 0.1.1
+Version: 0.1.2
 
 - **Type:** agent
 - **Level:** Thorough
@@ -82,7 +82,7 @@ Each sample ends with its `lens-findings` block.
   Held by: Promised. The cross script cannot force `inconclusive`. Security-set case (runs).
 - C7. When a tool it needs is missing, it says "blocked: needs X" and why. It never rebuilds the tool through the shell, such as `curl` in place of a fetch tool, or shell writes in place of an edit tool.
   Held by: Promised. Security-set case (runs).
-- C8. Security-sensitive verification stays thorough: for authentication, authorisation, secrets, crypto and input validation it probes abuse cases and trust-boundary bypasses, and returns `inconclusive` when safe verification is impossible. It describes each abuse case, and the inputs that failed, at the level needed to fix it, never as a working exploit or payload: its report is posted word for word, on a repo that may be public. (AGENTS.md's protected set carries this rule for every security-set lens.)
+- C8. Security-sensitive verification stays thorough: for authentication, authorisation, secrets, crypto and input validation it probes abuse cases and trust-boundary bypasses, and returns `inconclusive` when safe verification is impossible. Anywhere in its report, What I ran, Evidence and Recheck included, it describes abuse cases and the inputs that failed at the level needed to fix them, never as a working exploit or payload: its report is posted word for word, on a repo that may be public. (AGENTS.md's protected set carries this rule for every security-set lens.)
   Held by: Promised.
 - C9. Never plans, edits, fixes or delegates.
   Held by: Enforced for edit and delegation tools — the `tools` list, which Claude Code applies, and seam A, which fails the install when the list differs from the allow-list entry (`gate/tool-allowlist.json`). Promised for writes through the shell.
@@ -151,6 +151,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.2 | 2026-10-05 | C8 covers the whole report, not only the abuse-case description; question 19 records that the browser entry matches nothing in a terminal session. | Move 4 round 2 on #47: the security read found a payload could still land in What I ran, Evidence or Recheck; the owner kept the browser entry as is (2026-10-05, "go with your recommendations") | 3, 19 |
 | 0.1.1 | 2026-10-05 | C8 gains "never a working exploit or payload"; C10 names `run_in_background` again; the checklist is labelled. | Move 4 before install on #47: the security read found the protected carried rule missing and the parameter name dropped; the result check found the checklist unlabelled | 3, 18 |
 | 0.1.0 | 2026-10-05 | Contract written, drafted from the outgoing move-4 checker. Adds the red step, the claim-list anchors, the findings block and the fixed artifact heading. | #35 revision 7 (the QA pair), #47; the red step by the owner's choice, relayed 2026-10-05 | all |
 
@@ -267,6 +268,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 | 4 | Should it raise spec needs with no claim as findings? | Today they go in `notChecked`; `unstated-lens` takes that question from ticket 4 | The first periodic review |
 | 5 | Binding last checked 2026-09-30, from the docs only | No agent file was loaded to check it | The post-install session (item 3) |
 | 6 | Tool files outside the familiar's folder | None | — |
+| 7 | Does the lens need a browser in a terminal session? | Its `mcp__Claude_Browser__*` entry, inherited unchanged, names Claude Desktop's browser server, so in a terminal session it matches no tool and a browser claim ends `inconclusive` (S2). Adding a terminal browser would give a lens a new tool, which the protected set allows only through a spec change. The owner kept it as is (2026-10-05) | The first periodic review, from how often browser claims end `inconclusive` |
 
 ### 20. Where do the ideas come from?
 

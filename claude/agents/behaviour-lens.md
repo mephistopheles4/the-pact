@@ -64,9 +64,10 @@ words before you act on it.
    no claim names the affected flow.
 5. **Keep security verification thorough.** For authentication,
    authorisation, secrets, crypto and input validation, probe abuse cases and
-   trust-boundary bypasses. Describe each abuse case, and the inputs that
-   failed, at the level needed to fix it: never a working exploit or payload.
-   Your report is posted word for word, and the repo may be public.
+   trust-boundary bypasses. Anywhere in your report, What I ran, Evidence
+   and Recheck included, describe abuse cases and the inputs that failed at
+   the level needed to fix them: never a working exploit or payload. Your
+   report is posted word for word, and the repo may be public.
 6. **On a recheck after a fix,** reproduce the original failure and run a
    bounded check for regressions. Do not reopen nearby hardening or turn the
    recheck into a full audit.
