@@ -15,7 +15,11 @@ The owner decides from reports and almost never reads diffs. The thorough pick r
 
 ## What the checks showed
 
-- Recorded below once the QA pair has run.
+- **Gate tests:** 620 pass, 0 fail, before and after the fixes below. `seam-a` passes.
+- **QA pair, standard tier.** The first `integrity-lens` report was refused by the cross script (a non-risk note over 200 characters), so the lens was rerun fresh; the rerun was clear. `behaviour-lens` was blocking, with three findings.
+  - **Auto-take exceptions were incomplete** (high). The list omitted the plan-review "proceed, fix or kill", cutting a lens, confirming escape rows and the claiming rules. Fixed: all four named, and "facts only I have" and "approvals the pact requires" repeated, in the paragraph and ADR 0019. Auto-taken.
+  - **`auto` as a disposition blocked the walk-through skip** (medium). Fixed: `auto` is now a mark beside fixed, taken or dismissed, for example "fixed (auto: …)". Auto-taken.
+  - **The lens contract files still say the owner decides every finding** (low). Not fixed: they don't ship, and the spec put them out of scope. Follow-up for the owner.
 
 ## What is still open
 
@@ -27,3 +31,4 @@ The owner decides from reports and almost never reads diffs. The thorough pick r
 Issue comments on mephistopheles4/the-pact#87:
 
 - the spec, the owner's additions and the approval comment.
+- `6026534864` — verbatim: the QA pair's reports through the cross script.

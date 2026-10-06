@@ -5,8 +5,8 @@ After a report or review, a session acts on its own recommendation for each find
 ## What it covers
 
 - **Scope:** choices that come out of a report or review. Nothing else.
-- **Exceptions:** every stop in "When to stop or escalate", every gated clause, tier decisions, "Quick work stops at an open decision", the thorough pick, user-only skill triggers, installs, and the owner's "done". Accepting the work, closing a ticket and merging are never auto-taken.
-- **The trail:** an `auto` row in the Lens dispositions table, or an "Auto-takes" list on the issue when no lens ran. A reversal changes the row to `auto, reversed` and keeps the original line.
+- **Exceptions:** facts only the owner has and approvals the pact requires; every stop in "When to stop or escalate"; every gated clause; tier decisions; "Quick work stops at an open decision"; the owner's "proceed, fix or kill" on a plan review; the thorough pick; user-only skill triggers; installs; cutting a lens; confirming escape and gap rows; the claiming and coordination rules; and the owner's "done". Accepting the work, closing a ticket and merging are never auto-taken.
+- **The trail:** an `auto` mark beside the disposition in the Lens dispositions table, for example "fixed (auto: …)". The disposition stays fixed, taken or dismissed, so the walk-through skip still works. With no lens review, the rows go in an "Auto-takes" list on the issue. A reversal changes the mark to `auto, reversed` and keeps the original line.
 - **The rudder check:** three totals at the periodic review: auto-takes, reversed auto-takes, and confirmed escapes after an auto-take. Summed across projects, no breakdown.
 
 ## Why

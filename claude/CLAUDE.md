@@ -324,15 +324,18 @@ me a list of findings with "your call" on each.
 
 **Auto-take.** After a report or review, act on your recommendation for each
 finding and carry on; don't wait for me. This covers choices that come out of
-a report or review, and nothing else. It never covers any stop in "When to
-stop or escalate", any gated clause, a tier decision, "Quick work stops at an
-open decision", the thorough pick, a user-only skill's trigger, an install,
-or my "done": accepting the work, closing a ticket and merging are mine.
-Record each auto-taken choice as an `auto` row (see Lens dispositions).
+a report or review, and nothing else. Facts only I have and approvals the
+pact requires still come to me. It never covers any stop in "When to stop or
+escalate", any gated clause, a tier decision, "Quick work stops at an open
+decision", my "proceed, fix or kill" on a plan review, the thorough pick, a
+user-only skill's trigger, an install, cutting a lens, confirming an escape or
+gap row, the claiming and coordination rules, or my "done": accepting the
+work, closing a ticket and merging are mine.
+Mark each auto-taken choice `auto` (see Lens dispositions).
 
 **Lens dispositions.** At every lens review, in every project, post a table
 under the heading "Lens dispositions" on the issue, one row per finding, with
-the columns: finding, lens, disposition (fixed, taken, dismissed or `auto`), crossing
+the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
 real? (for each crossing, my yes or no), changed my decision? (once per
 review, my yes or no), time (from the posted comment to my decision), model
 (the model the lenses ran on, not yours), and cross result (passed, refused with the rule
@@ -343,9 +346,12 @@ one-line reason and marked "pre-filled", for example "yes (pre-filled: both
 lenses hit C3)". In the message that records my decision, ask me to confirm or
 correct them. Until I do, the marker stays and the answer doesn't count.
 
-An `auto` row says "chose X because Y" in one line. With no lens review, keep
-these rows in an "Auto-takes" list on the issue instead. If I reverse one,
-change its disposition to `auto, reversed` and keep the original line.
+Mark an auto-taken finding `auto` beside its disposition, for example "fixed
+(auto: chose X because Y)", so a fix the session chose still counts as fixed.
+With no lens review, keep these rows in an "Auto-takes" list on the issue
+instead. If I reverse one, change its mark to `auto, reversed` and keep the
+original line. "When a lens may not pay" reads my own judgements, so it
+leaves out dismissals marked `auto`.
 
 **Escapes.** When you find a defect after a lens review passed the work on,
 and it falls within the question of a lens that ran there, propose an escape
