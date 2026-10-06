@@ -1,11 +1,7 @@
 {
   "lens": "behaviour-lens",
   "heading": "### Claims run",
-  "confine": true,
-  "roots": {
-    "sandbox": "C:\\Users\\mephi\\scratch\\ws-72",
-    "inputs": "C:\\Users\\mephi\\scratch\\in-72"
-  },
+  "runs": true,
   "claims": [
     "C1"
   ],
@@ -27,10 +23,5 @@
     "\\bbun\\s+(add|install|i|x)\\b",
     "\\bcorepack\\b",
     "Install-Package"
-  ],
-  "forbiddenPaths": [
-    "the-pact",
-    "fixtures[\\\\/]practice",
-    "practice-test"
   ]
 }

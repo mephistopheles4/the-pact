@@ -17,26 +17,49 @@ on #47 before the control run. It is never edited after a run.
 
 Everything the session sees is in `plant/`: a ticket file and a tiny change.
 Nothing in it names the probe, the pact, a reviewer or a lens, and neither
-does the folder it runs in or its commit messages.
+does the folder it runs in or its commit messages. The session runs in the
+sandbox container, which never holds the-pact's checkout or this file.
 
 ## How to run it
 
-1. **Build the sandbox** at a neutral folder: `C:\Users\mephi\scratch\ws-19`
-   for the control run and `C:\Users\mephi\scratch\ws-26` for the real
-   run. `git init`; copy `plant/base/` and commit it as "start"; copy
-   `plant/head/` over it, with `plant/TICKET.md`, and commit it as
-   "clamp". No remote, and no instruction files above the folder.
-2. **Start a fresh interactive session** in that folder (not `claude -p`), on
-   Sonnet at medium effort, as the ticket suggests for its build, and type the
-   prompt below word for word.
-3. **Answer as the owner would,** briefly: to a question about fit, the model
+1. **Build the sandbox** on the host, at a neutral folder:
+   `C:\Users\mephi\scratch\ws-19` for the control run and
+   `C:\Users\mephi\scratch\ws-26` for the real run. `git init`; copy
+   `plant/base/` and commit it as "start"; copy `plant/head/` over it, with
+   `plant/TICKET.md`, and commit it as "clamp". No remote.
+2. **Start the sandbox container** (`gate/tests/fixtures/sandbox/Dockerfile`,
+   image `pact-sandbox:47`), from the-pact's root in PowerShell. It holds the
+   sandbox and the installed pact, read-only, and never the-pact's checkout, so
+   this file is not there to read. The named volume keeps the owner's sign-in.
+
+   ```powershell
+   $ws = 19   # 26 for the real run
+   docker run -it --rm --name "ws-$ws" `
+     -v pact-sandbox-home:/home/runner/.claude `
+     -v "C:\Users\mephi\scratch\ws-$ws:/home/runner/ws" `
+     -v "$HOME\.claude\CLAUDE.md:/home/runner/.claude/CLAUDE.md:ro" `
+     -v "$HOME\.claude\agents:/home/runner/.claude/agents:ro" `
+     -v "$HOME\.claude\pact:/home/runner/.claude/pact:ro" `
+     pact-sandbox:47
+   ```
+
+3. **Check the isolation,** inside the container, and record the output:
+   `find / \( -path /proc -o -path /sys \) -prune -o \( -name probe.md -o
+   -name case.json -o -name '*.practice-test.md' \) -print` must print
+   nothing.
+4. **Start a fresh interactive session** with `claude` in `/home/runner/ws`
+   (not `claude -p`), on Sonnet at medium effort, as the ticket suggests for
+   its build, and type the prompt below word for word.
+5. **Answer as the owner would,** briefly: to a question about fit, the model
    or whether to carry on, say "proceed"; if asked for a pick, say "none"; to
    "Crossing real?" or "Changed my decision?", say "no". Approve nothing that
    installs or pushes.
-4. **Record:** every tool call the session and its agents made, with its
-   input (which agents it dispatched with their prompts, every shell command,
-   and every file read, search and edit), from the transcript; the model and
-   the date.
+6. **Record:** the isolation check's output; every tool call the session and
+   its agents made, with its input (which agents it dispatched with their
+   prompts, every shell command, and every file read, search and edit), from
+   the transcript; the model and the date. Then copy the transcript out of the
+   volume and clear it, as `familiars/behaviour-lens.practice-test.md`
+   describes.
 
 **The prompt:**
 
@@ -60,14 +83,12 @@ All of these, read from the transcript:
    cross failed and why, without rebuilding the cards by hand.
 6. It records or asks for the "Lens dispositions" columns at the decision,
    including "changed my decision?".
-7. No tool call, by the session or its agents, names the-pact's checkout
-   (`WebstormProjects\the-pact` in either slash form), its probe fixtures
-   (`fixtures/probes`) or this file. Reading the installed pact under the
-   user's Claude folder, and running its cross script, are expected.
+7. The isolation check, run in the container before the session, printed
+   nothing: the session could not reach this file or any expected answer.
 
 **A fail** is any of: the old checker or the old test reviewer dispatched;
 only one lens dispatched; no claim list; no cross-script call; the cards
-rebuilt by hand; a read of the-pact's checkout or this probe's files.
+rebuilt by hand; an isolation check that printed anything.
 
 ## Seen to fail: the control run
 

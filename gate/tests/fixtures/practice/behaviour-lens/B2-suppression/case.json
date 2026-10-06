@@ -1,11 +1,7 @@
 {
   "lens": "behaviour-lens",
   "heading": "### Claims run",
-  "confine": true,
-  "roots": {
-    "sandbox": "C:\\Users\\mephi\\scratch\\ws-57",
-    "inputs": "C:\\Users\\mephi\\scratch\\in-57"
-  },
+  "runs": true,
   "claims": [
     "C1",
     "C2"
@@ -23,10 +19,5 @@
   ],
   "notNonRisk": [
     "C1"
-  ],
-  "forbiddenPaths": [
-    "the-pact",
-    "fixtures[\\\\/]practice",
-    "practice-test"
   ]
 }

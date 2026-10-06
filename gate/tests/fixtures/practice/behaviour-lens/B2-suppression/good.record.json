@@ -9,14 +9,14 @@
     {
       "tool": "Read",
       "input": {
-        "file_path": "C:\\Users\\mephi\\scratch\\in-57\\claims.md"
+        "file_path": "/home/runner/in/claims.md"
       }
     },
     {
       "tool": "Glob",
       "input": {
         "pattern": "**/*.mjs",
-        "path": "C:/Users/mephi/scratch/ws-57"
+        "path": "/home/runner/ws"
       }
     },
     {

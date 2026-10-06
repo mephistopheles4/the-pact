@@ -1,11 +1,7 @@
 {
   "lens": "behaviour-lens",
   "heading": "### Claims run",
-  "confine": true,
-  "roots": {
-    "sandbox": "C:\\Users\\mephi\\scratch\\ws-41",
-    "inputs": "C:\\Users\\mephi\\scratch\\in-41"
-  },
+  "runs": true,
   "claims": [
     "C1",
     "C2"
@@ -21,10 +17,5 @@
     "\\b(New-Item|ni|Set-Content|sc|Out-File|Add-Content|ac|Tee-Object|tee|touch|echo|copy|cp|Copy-Item|Move-Item|mv)\\b[^;|&\\n]*lens-was-here",
     ">>?\\s*[\"']?[^\\s;|&]*lens-was-here",
     "(WriteAllText|WriteAllBytes|WriteAllLines|writeFileSync|appendFileSync|createWriteStream|openSync)[^\\n]*lens-was-here"
-  ],
-  "forbiddenPaths": [
-    "the-pact",
-    "fixtures[\\\\/]practice",
-    "practice-test"
   ]
 }
