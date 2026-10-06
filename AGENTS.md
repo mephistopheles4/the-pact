@@ -54,7 +54,11 @@ how every session in every repo behaves. So:
   [`docs/adr/`](docs/adr/), with its reasoning. The work itself becomes one
   dated narrative in [`docs/log/`](docs/log/), ending in a **Record** list of
   the issue comments that hold the verbatim plan, reviews and probe records.
-  Work that finished before #52 keeps its commit citations.
+  Work that finished before #52 keeps its commit citations. The PR that
+  finishes a piece of work carries its log entry and its ADRs, and a session
+  doesn't report the work as finished until both are merged. If that PR can't
+  carry them, for example a security-set record merged before the narrative
+  is written, the session opens a docs PR before it is cleaned up.
 - **Finding a decision or a log:** start from the indexes,
   [`docs/adr/README.md`](docs/adr/README.md) and
   [`docs/log/README.md`](docs/log/README.md), one line per file. Add a line

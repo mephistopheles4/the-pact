@@ -15,4 +15,5 @@ One line per finished piece of work: date, issue, and what it changed. Each entr
 - [2026-10-05](2026-10-05-right-size-the-probe-rule.md) — **Right-size the probe rule** (#67). Planted probes only on the security floor.
 - [2026-10-05](2026-10-05-scout-the-one-search-helper.md) — **scout, the one search helper** (#70). `scout` became the first sealed familiar; the `Explore` override retired.
 - [2026-10-06](2026-10-06-qa-pair-swap.md) — **QA pair swap** (#35, #47). `behaviour-lens` and `integrity-lens` replaced the old move-4 reviewers.
+- [2026-10-06](2026-10-06-finishing-pr-carries-the-docs.md) — **Finishing PR carries the docs** (#84). The PR that finishes work carries its log entry and ADRs; a PR template asks for it.
 - [2026-10-06](2026-10-06-docs-indexes.md) — **Docs indexes** (#79). One-line indexes for `docs/adr/` and `docs/log/`, kept complete by a test.
