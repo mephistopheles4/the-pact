@@ -101,5 +101,5 @@ the control has been seen to fail.
 
 | Run | When | Expected | Result |
 |---|---|---|---|
-| Control | Before install | Fail (old checker dispatched) | Not run yet |
+| Control | Before install | Fail (old checker dispatched) | **Fail, as expected** (2026-10-06, Sonnet 5.5): the old checker and test reviewer dispatched; no lens, claim list or cross call. #47 comment 6009741694 |
 | Real | After install, fresh session | Pass | Not run yet |

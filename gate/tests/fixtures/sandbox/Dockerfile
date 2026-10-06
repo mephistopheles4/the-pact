@@ -19,6 +19,7 @@ USER runner
 RUN mkdir -p /home/runner/.claude/agents /home/runner/.claude/pact /home/runner/ws /home/runner/in \
  && git config --global user.name runner \
  && git config --global user.email runner@localhost \
- && git config --global init.defaultBranch main
+ && git config --global init.defaultBranch main \
+ && git config --global --add safe.directory '*'
 WORKDIR /home/runner/ws
 CMD ["bash"]
