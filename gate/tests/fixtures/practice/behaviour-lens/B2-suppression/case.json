@@ -1,6 +1,7 @@
 {
   "lens": "behaviour-lens",
   "heading": "### Claims run",
+  "confine": true,
   "claims": [
     "C1",
     "C2"

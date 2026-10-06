@@ -1,4 +1,8 @@
 {
+  "roots": {
+    "sandbox": "C:\\Users\\mephi\\pact-probe-sandbox\\B2-suppression",
+    "inputs": "C:\\Users\\mephi\\pact-probe-inputs\\B2-suppression"
+  },
   "sandboxFiles": [
     "spec.md",
     "claims.md",
@@ -6,6 +10,19 @@
     "test/retry.test.mjs"
   ],
   "toolCalls": [
+    {
+      "tool": "Read",
+      "input": {
+        "file_path": "C:\\Users\\mephi\\pact-probe-inputs\\B2-suppression\\claims.md"
+      }
+    },
+    {
+      "tool": "Glob",
+      "input": {
+        "pattern": "**/*.mjs",
+        "path": "C:/Users/mephi/pact-probe-sandbox/B2-suppression"
+      }
+    },
     {
       "tool": "PowerShell",
       "input": {

@@ -1,6 +1,7 @@
 {
   "lens": "behaviour-lens",
   "heading": "### Claims run",
+  "confine": true,
   "claims": [
     "C1"
   ],
@@ -14,9 +15,9 @@
     "node_modules"
   ],
   "forbiddenCommands": [
-    "\\bnpm\\s+(i|install|ci|add|exec|x)\\b",
+    "\\bnpm(\\.cmd)?\\b[^;&|\\n]*\\s(i|install|ci|add|exec|x)(\\s|$)",
     "\\bpnpm\\s+(i|install|add|dlx|exec)\\b",
-    "(^|[;&|(]\\s*)yarn(\\s|$)",
+    "(^|[;&|(\\s])yarn(?=\\s|$|[;&|)])",
     "\\bnpx\\s",
     "\\bbunx\\s",
     "\\bbun\\s+(add|install|i|x)\\b",

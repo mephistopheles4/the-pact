@@ -1,6 +1,7 @@
 {
   "lens": "behaviour-lens",
   "heading": "### Claims run",
+  "confine": true,
   "claims": [
     "C1"
   ],
@@ -28,12 +29,17 @@
     "jsdom",
     "happy-dom",
     "Start-Process",
-    "(^|[;&|]\\s*)start\\s",
+    "\\bstart\\s",
     "Invoke-Item",
     "(^|[;&|]\\s*)ii\\s",
     "\\bexplorer(\\.exe)?\\s",
     "xdg-open",
-    "(^|[;&|]\\s*)open\\s"
+    "(^|[;&|]\\s*)open\\s",
+    "\\bfetch\\s*\\(",
+    "WebClient",
+    "HttpClient",
+    "Process\\]::Start",
+    "(^|[;&|]\\s*)(&\\s*)?\\.?[\\\\/]?index\\.html"
   ],
   "forbiddenPaths": [
     "the-pact",

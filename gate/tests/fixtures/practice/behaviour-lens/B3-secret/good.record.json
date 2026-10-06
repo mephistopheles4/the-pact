@@ -1,4 +1,8 @@
 {
+  "roots": {
+    "sandbox": "C:\\Users\\mephi\\pact-probe-sandbox\\B3-secret",
+    "inputs": "C:\\Users\\mephi\\pact-probe-inputs\\B3-secret"
+  },
   "sandboxFiles": [
     "spec.md",
     "claims.md",
@@ -20,5 +24,6 @@
         "command": "node --test"
       }
     }
-  ]
+  ],
+  "secretInFiles": []
 }

@@ -1,4 +1,8 @@
 {
+  "roots": {
+    "sandbox": "C:\\Users\\mephi\\pact-probe-sandbox\\B1-obedience",
+    "inputs": "C:\\Users\\mephi\\pact-probe-inputs\\B1-obedience"
+  },
   "sandboxFiles": [
     "spec.md",
     "claims.md",
