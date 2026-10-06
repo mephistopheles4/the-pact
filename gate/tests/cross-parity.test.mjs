@@ -1,15 +1,18 @@
-// Parity (#44): the cross script's copies of seam A's strict JSON reader and
-// its two character rules match seam A's, and the same refusal fixtures pass
-// and fail on both. Seam A runs its check when imported, so its side runs
-// through its own command line. The cross script's extra rules (tab refused,
-// pictographs, the crossing mark) sit outside the copies and are not compared.
+// Parity (#44): the cross script's copies of the gate's strict JSON reader and
+// its two character rules match the gate's, and the same refusal fixtures pass
+// and fail on both. The gate's copies live in its shared module (#91), which
+// seam A imports; the source comparison reads that module. The fixtures run
+// through seam A's own command line, since seam A runs its check when
+// imported. The cross script's extra rules (tab refused, pictographs, the
+// crossing mark) sit outside the copies and are not compared.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { CROSS, block, cross, finding, report } from './cross-helpers.mjs';
-import { SEAM_A, agent, failRules, realOverlay, runSeamA, stage } from './helpers.mjs';
+import { GATE, agent, failRules, realOverlay, runSeamA, stage } from './helpers.mjs';
 
-const seamSource = readFileSync(SEAM_A, 'utf8').split('\n');
+const sharedSource = readFileSync(join(GATE, 'shared.mjs'), 'utf8').split('\n');
 const crossSource = readFileSync(CROSS, 'utf8').split('\n');
 
 /** A top-level declaration's text, from its first line to its closing "}" line. */
@@ -21,18 +24,45 @@ function declaration(src, head) {
 }
 const constant = (src, name) => src.find(l => l.startsWith(`const ${name} = `));
 
+const CONSTANTS = ['MAX_BYTES', 'JSON_SCALAR_RE', 'JSON_DEPTH_MAX', 'DEFAULT_IGNORABLE_RE'];
+const DECLARATIONS = ['function isInvisible(', 'function isRefused(', 'class Refused ', 'function readStrictJson('];
+
 // ------------------------------------------------------------ the source
 
-for (const name of ['MAX_BYTES', 'JSON_SCALAR_RE', 'JSON_DEPTH_MAX', 'DEFAULT_IGNORABLE_RE']) {
-  test(`parity: the constant ${name} is seam A's, byte for byte`, () => {
-    assert.ok(constant(seamSource, name));
-    assert.equal(constant(crossSource, name), constant(seamSource, name));
+for (const name of CONSTANTS) {
+  test(`parity: the constant ${name} is the shared module's, byte for byte`, () => {
+    assert.ok(constant(sharedSource, name));
+    assert.equal(constant(crossSource, name), constant(sharedSource, name));
   });
 }
 
-for (const head of ['function isInvisible(', 'function isRefused(', 'class Refused ', 'function readStrictJson(']) {
-  test(`parity: ${head.trim()} is seam A's, byte for byte`, () => {
-    assert.equal(declaration(crossSource, head), declaration(seamSource, head));
+for (const head of DECLARATIONS) {
+  test(`parity: ${head.trim()} is the shared module's, byte for byte`, () => {
+    assert.equal(declaration(crossSource, head), declaration(sharedSource, head));
+  });
+}
+
+/** The shared source with one character changed on line `i`, halfway along it. */
+function plant(src, i) {
+  const line = src[i];
+  const at = Math.floor(line.length / 2);
+  const out = [...src];
+  out[i] = `${line.slice(0, at)}${line[at] === 'x' ? 'y' : 'x'}${line.slice(at + 1)}`;
+  return out;
+}
+
+for (const name of CONSTANTS) {
+  test(`bad case: a divergence planted in the shared ${name} fails parity`, () => {
+    const planted = plant(sharedSource, sharedSource.findIndex(l => l.startsWith(`const ${name} = `)));
+    assert.throws(() => assert.equal(constant(crossSource, name), constant(planted, name)), assert.AssertionError);
+  });
+}
+
+for (const head of DECLARATIONS) {
+  test(`bad case: a divergence planted inside the shared ${head.trim()} fails parity`, () => {
+    // The line after the head, so the change is inside the body, not the name.
+    const planted = plant(sharedSource, sharedSource.findIndex(l => l.startsWith(head)) + 1);
+    assert.throws(() => assert.equal(declaration(crossSource, head), declaration(planted, head)), assert.AssertionError);
   });
 }
 
