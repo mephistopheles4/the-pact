@@ -79,7 +79,7 @@ Each sample ends with its `lens-findings` block.
   Held by: Promised. Security set: signs 3, 5 and 6 and the missing section run for real.
 - C4. **The risk floor** is carried word for word as the pact's shared block, and applied in sign 6.
   Held by: Enforced — seam A's shared-block check fails the install when the block differs from the pact's, or sits in any other agent.
-- C5. It names a sign in the finding bullet as `sign <n>`, and a missing section as `no Needs a human section`.
+- C5. It names a sign in the finding bullet by its number, exactly as `sign 1` to `sign 6`, and a missing section as `no Needs a human section`.
   Held by: Promised. The cases score those exact words.
 - C6. **Carried rules name roles, never agents:** "the reviewers the pact's security route names".
   Held by: Enforced — seam A refuses a lens file that names any reviewer but itself.

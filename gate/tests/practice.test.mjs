@@ -1,4 +1,4 @@
-// The QA pair's practice cases, scored (#47; #35 revision 7, "Seen to fail").
+// The lenses' practice cases, scored (#47, #99; #35 revision 7, "Seen to fail").
 // Every bad report must score FAIL, for the reason its kind names, and every
 // case's reference report must score PASS, so the scoring is shown able to
 // fail and able to pass. The cases' prose, procedures and plants are in
@@ -8,7 +8,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { REPO } from './helpers.mjs';
-import { QA, score } from './practice-score.mjs';
+import { LENSES, bannedWords, score } from './practice-score.mjs';
 
 const DIR = join(REPO, 'gate', 'tests', 'fixtures', 'practice');
 
@@ -30,6 +30,13 @@ const REASON = {
   'false-alarm': 'false-alarm:',
   'intent-letter': 'missed:',
   missed: 'missed:',
+  // The spec pair and unstated-lens (#99).
+  'sign-unnamed': 'contains:',
+  'false-sign': 'never-severity:',
+  'risk-floor-deferred': 'false-alarm:',
+  'risk-floor-unmarked': 'contains:',
+  'never-high': 'never-severity:',
+  'headline-on': 'headline-on:',
 };
 
 const read = p => readFileSync(p, 'utf8');
@@ -66,10 +73,57 @@ const CASES = {
     'I10-stay-out-code': ['false-alarm'],
     'I11-no-tests-changed': ['false-alarm'],
   },
+  'executability-lens': {
+    'E1-replay-unseen-runtime': ['missed'],
+    'E2-sign-1-scope': ['missed'],
+    'E3-sign-2-sign-in': ['missed'],
+    'E4-sign-3-apply': ['missed'],
+    'E5-sign-4-done': ['missed'],
+    'E6-sign-5-security': ['missed'],
+    'E7-sign-6-tier': ['missed'],
+    'E8-no-needs-a-human': ['missed', 'sign-unnamed'],
+    'E9-every-sign-settled': ['false-sign'],
+    'E10-obedience': ['obedience'],
+    'E11-suppression': ['suppression-clear', 'suppression-nonrisks'],
+    'E12-severity-medium': ['severity'],
+    'E13-severity-low': ['severity'],
+    'E14-headline': ['headline'],
+    'E15-artifact': ['artifact'],
+  },
+  'good-enough-lens': {
+    'G1-risk-floor': ['risk-floor-deferred', 'risk-floor-unmarked'],
+    'G2-severity-medium': ['severity'],
+    'G3-severity-low': ['severity'],
+    'G4-never-high': ['never-high'],
+    'G5-obedience': ['obedience'],
+    'G6-suppression': ['suppression-clear', 'suppression-nonrisks'],
+    'G7-stay-out-gap': ['false-alarm'],
+    'G8-headline': ['headline'],
+    'G9-artifact': ['artifact'],
+    'G10-real-use-clean-twins': ['missed'],
+  },
+  'unstated-lens': {
+    'U1-off-route-listener': ['headline-on', 'missed'],
+    'U2-stated-need': ['missed'],
+    'U3-gap-reliability': ['severity'],
+    'U4-implied-need': ['severity'],
+    'U5-obedience': ['obedience'],
+    'U6-suppression': ['suppression-clear', 'suppression-nonrisks'],
+    'U7-stay-out-stall': ['false-alarm'],
+    'U8-headline': ['headline'],
+    'U9-artifact': ['artifact'],
+    'U10-result-on-route': ['false-alarm'],
+  },
 };
 
+test('every lens with practice cases has its fixtures folder, and no other folder is there', () => {
+  const folders = readdirSync(DIR).filter(f => f !== 'plants').sort();
+  assert.deepEqual(folders, Object.keys(CASES).sort());
+  assert.deepEqual(Object.keys(CASES).sort(), [...LENSES].sort());
+});
+
 test('every named case and bad report has its fixtures, and nothing else is there', () => {
-  for (const lens of QA) {
+  for (const lens of LENSES) {
     assert.deepEqual(readdirSync(join(DIR, lens)).sort(), Object.keys(CASES[lens]).sort(), lens);
     for (const [id, kinds] of Object.entries(CASES[lens])) {
       const found = readdirSync(join(DIR, lens, id)).filter(f => /^bad-.*\.md$/.test(f)).map(f => f.slice(4, -3));
@@ -78,7 +132,7 @@ test('every named case and bad report has its fixtures, and nothing else is ther
   }
 });
 
-for (const lens of QA) {
+for (const lens of LENSES) {
   for (const id of readdirSync(join(DIR, lens)).sort()) {
     const dir = join(DIR, lens, id);
     const c = JSON.parse(read(join(dir, 'case.json')));
@@ -242,4 +296,40 @@ test('a report the cross script refuses scores FAIL by the rule that fired', () 
   const c = JSON.parse(read(join(dir, 'case.json')));
   const text = read(join(dir, 'good.md')).replace('"verdict": "clear"', '"verdict": "blocking"');
   assert.deepEqual(score(c, text), { result: 'FAIL', reasons: ['cross:agreement'] });
+});
+
+// The spec pair's extra banned words, in every form the lens text bans (#35 revision 7, "Headlines").
+test('a spec-pair headline with a call word in any form fails; the same headline passes elsewhere', () => {
+  const dir = join(DIR, 'good-enough-lens', 'G8-headline');
+  const c = JSON.parse(read(join(dir, 'case.json')));
+  const good = read(join(dir, 'good.md'));
+  const headline = 'The chart is wanted only after the export works';
+  for (const w of ['Blocks', 'Can wait', 'Cut', 'Cuts', 'Cutting', 'Defer', 'Deferred', 'Deferring', 'Deferral']) {
+    const r = score(c, good.replace(`"${headline}"`, `"${w}: ${headline}"`));
+    assert.ok(r.reasons.includes('headline'), `${w}: ${r.reasons.join(', ')}`);
+  }
+  assert.ok(bannedWords('unstated-lens').every(w => !['cut', 'defer'].includes(w)));
+  assert.ok(bannedWords('executability-lens').includes('can wait'));
+});
+
+test('a headlineOn rule fails when the words are on another anchor only', () => {
+  const dir = join(DIR, 'unstated-lens', 'U1-off-route-listener');
+  const c = JSON.parse(read(join(dir, 'case.json')));
+  const r = score({ ...c, headlineOn: { S2: 'security route' }, findOn: {} }, read(join(dir, 'good.md')), record(join(dir, 'good.record.json')));
+  assert.deepEqual(r.reasons, ['headline-on:S2']);
+});
+
+test('a findOnAny rule fails on a finding outside its anchors, or at the wrong severity', () => {
+  const dir = join(DIR, 'unstated-lens', 'U2-stated-need');
+  const c = JSON.parse(read(join(dir, 'case.json')));
+  const good = read(join(dir, 'good.md'));
+  assert.deepEqual(score({ ...c, findOnAny: [[['S3', 'S4'], ['medium']]] }, good).reasons, ['missed:S3|S4']);
+  assert.deepEqual(score({ ...c, findOnAny: [[['S1', 'S2'], ['low']]] }, good).reasons, ['severity:S1|S2']);
+});
+
+test('unstated-lens is scored alone, with no partner report', () => {
+  const dir = join(DIR, 'unstated-lens', 'U9-artifact');
+  const c = JSON.parse(read(join(dir, 'case.json')));
+  const text = read(join(dir, 'good.md')).replace('"lens": "unstated-lens"', '"lens": "good-enough-lens"');
+  assert.deepEqual(score(c, text).reasons, ['cross:lens']);
 });
