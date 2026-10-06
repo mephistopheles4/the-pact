@@ -11,7 +11,7 @@ import * as shared from '../shared.mjs';
 import { GATE } from './helpers.mjs';
 
 const SHARED = join(GATE, 'shared.mjs');
-const USERS = ['seam-a.mjs', 'pact-text.mjs'];
+const USERS = ['seam-a.mjs', 'pact-text.mjs', 'render.mjs'];
 
 // Every piece that moved, by its declared name.
 const MOVED = [

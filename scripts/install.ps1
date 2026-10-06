@@ -11,10 +11,12 @@ $ErrorActionPreference = 'Stop'
 # temporary staging folder and -ClaudeHome. Never pushes, commits or uses the
 # network. Run from a clone on Windows or on macOS under PowerShell 7.
 #
-# The gate: every file to install is staged from HEAD's blobs, the pact's own
-# check (gate/seam-a.mjs, seam A) runs on the staged copy under Node 20 or
+# The gate: every file to install is staged from HEAD's blobs. The renderer
+# (gate/render.mjs) turns the staged source rules file into the rules file to
+# install, and that rendered buffer replaces it in the stage. Then the pact's
+# own check (gate/seam-a.mjs, seam A) runs on the staged copy under Node 20 or
 # later, and the install copies exactly the staged bytes seam A listed. It
-# refuses when the check fails, or cannot run at all.
+# refuses when the renderer or the check fails, or cannot run at all.
 
 $repo = Split-Path $PSScriptRoot -Parent
 $manifestFile = Join-Path $ClaudeHome '.pact-install.json'
@@ -138,13 +140,49 @@ function Invoke-Node([string]$exe, [string[]]$NodeArgs, [int]$timeoutMs) {
   [pscustomobject]@{ ExitCode = $p.ExitCode; Stdout = $out.Result; StderrChars = $err.Result.Length; TimedOut = $timedOut }
 }
 
-# A line from the check, safe to print: no control, format or separator
-# character (so no terminal escape, carriage return or direction override), cut
-# to length, and prefixed so it can never pass for the install's own output.
-function Format-CheckLine([string]$line) {
+# A line from the check or the renderer, safe to print: no control, format or
+# separator character (so no terminal escape, carriage return or direction
+# override), cut to length, and prefixed with the program it came from, so it
+# can never pass for the install's own output or for the other program's.
+function Format-CheckLine([string]$line, [string]$prefix = 'seam-a') {
   $s = $line -replace '[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]', '?'
   if ($s.Length -gt $checkLineChars) { $s = $s.Substring(0, $checkLineChars) + '...' }
-  "seam-a| $s"
+  "$prefix| $s"
+}
+
+# Print a program's output lines through Format-CheckLine, at most
+# $checkLinesMax of them.
+function Show-ProgramLines([string[]]$lines, [string]$prefix) {
+  $shown = 0
+  foreach ($l in $lines) {
+    if ($shown -ge $checkLinesMax) { Write-Host "$prefix| ($($lines.Count - $shown) more lines not shown)"; break }
+    Write-Host (Format-CheckLine $l $prefix)
+    $shown++
+  }
+}
+
+# Everything under $root, as one text: each entry's relative path and kind, and
+# each file's hash. Hidden and system entries are included. A link or other
+# reparse point is recorded as one and never followed.
+function Get-TreeState([string]$root) {
+  $opt = [IO.EnumerationOptions]::new()
+  $opt.AttributesToSkip = 0
+  $opt.IgnoreInaccessible = $false
+  $opt.RecurseSubdirectories = $false
+  $entries = [Collections.Generic.List[string]]::new()
+  $dirs = [Collections.Generic.Stack[string]]::new()
+  $dirs.Push($root)
+  while ($dirs.Count) {
+    foreach ($e in [IO.DirectoryInfo]::new($dirs.Pop()).EnumerateFileSystemInfos('*', $opt)) {
+      $rel = [IO.Path]::GetRelativePath($root, $e.FullName).Replace('\', '/')
+      if ($e.Attributes -band [IO.FileAttributes]::ReparsePoint) { $entries.Add("link $rel") }
+      elseif ($e -is [IO.DirectoryInfo]) { $entries.Add("dir $rel"); $dirs.Push($e.FullName) }
+      else { $entries.Add("file $rel $(Get-BytesSha256 ([IO.File]::ReadAllBytes($e.FullName)))") }
+    }
+  }
+  $sorted = [string[]]$entries.ToArray()
+  [Array]::Sort($sorted, [StringComparer]::Ordinal)
+  $sorted -join "`n"
 }
 
 # --- settings merge: the rules of cloud-sessions/tpl-config-tail.sh -----------
@@ -342,12 +380,15 @@ function Show-Gate {
 function Stop-Refused([string]$why) {
   Show-Gate
   Write-Host "REFUSED: $why Nothing was changed."
-  if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+  foreach ($d in @($stage, $renderOut)) {
+    if ($d -and (Test-Path -LiteralPath $d)) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
+  }
   exit 1
 }
 
 # --- stage HEAD ----------------------------------------------------------------
 $stage = $null
+$renderOut = $null
 try {
 $commit = (Invoke-Git rev-parse HEAD).Trim()
 $dirty = @(Invoke-Git status --porcelain)
@@ -447,16 +488,59 @@ Write-Host "Git: $git"
 Write-Host "Node: $node ($nodeVersion)"
 Write-Host "Pinned check: grimoire $pinCommit, sha256 verified"
 
+# --- render --------------------------------------------------------------------
+# The renderer runs from the stage, before seam A, through the same Node runner.
+# The whole stage is hashed before it runs and again after it exits, so it can
+# change nothing there. It writes the rendered rules file into a fresh folder
+# outside the stage. That file is read once, and the one buffer is hashed,
+# checked against the hash the renderer reported, and written into the stage
+# as the rules file. From here on the rules file's staged hash is the rendered
+# bytes' hash, so seam A checks, the install copies, the record holds and the
+# drift check compares the rendered bytes. Its lines are parsed here alone,
+# never with seam A's, so none can feed the INSTALL or SETTINGS parse.
+$rulesRel = 'claude/CLAUDE.md'
+$rulesStaged = Join-Path $stage ($rulesRel -replace '/', [IO.Path]::DirectorySeparatorChar)
+$renderer = Join-Path $stage 'gate/render.mjs'
+if (-not (Test-Path -LiteralPath $renderer -PathType Leaf)) { Stop-Refused 'the renderer (gate/render.mjs) is missing.' }
+if (-not $staged.Contains($rulesRel)) { Stop-Refused "the commit holds no $rulesRel." }
+try { $stageBefore = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read before the renderer ran.' }
+$renderOut = [IO.Directory]::CreateTempSubdirectory('pact-render-').FullName
+$render = Invoke-Node $node @($renderer, $rulesStaged, $renderOut) $checkTimeoutMs
+$renderLines = @($render.Stdout -split "`n" | Where-Object { $_ -ne '' })
+Show-ProgramLines $renderLines 'render'
+if ($render.StderrChars) { Write-Host 'The renderer wrote to stderr; it is not shown.' }
+if ($render.TimedOut) { Stop-Refused "the renderer did not finish within $($checkTimeoutMs / 1000) s." }
+if ($render.ExitCode -ne 0) { Stop-Refused "the renderer exited with code $($render.ExitCode)." }
+if (-not $renderLines -or $renderLines[-1] -cne 'RESULT: pass') { Stop-Refused 'the renderer did not end with "RESULT: pass".' }
+$renderHash = $null; $renderConfig = 0
+foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) {
+  if ($l -cmatch '\ARENDERED ([0-9a-f]{64})\z') {
+    if ($renderHash) { Stop-Refused 'the renderer reported two output hashes.' }
+    $renderHash = $Matches[1]
+  } elseif ($l -ceq 'CONFIG none') { $renderConfig++ }
+  else { Stop-Refused 'the renderer printed a line the install does not read.' }
+}
+if (-not $renderHash -or $renderConfig -ne 1) { Stop-Refused 'the renderer did not report exactly one output hash and one configuration line.' }
+try { $stageAfter = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read after the renderer ran.' }
+if ($stageAfter -cne $stageBefore) { Stop-Refused 'the renderer changed the stage.' }
+$outEntries = @([IO.DirectoryInfo]::new($renderOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }))
+if ($outEntries.Count -ne 1 -or $outEntries[0].Name -cne 'CLAUDE.md' -or $outEntries[0] -isnot [IO.FileInfo] -or
+  ($outEntries[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -or $outEntries[0].Length -gt 1MB) {
+  Stop-Refused 'the renderer did not leave exactly one plain rules file of at most 1 MiB.'
+}
+$renderedBytes = [IO.File]::ReadAllBytes($outEntries[0].FullName)
+$renderedHash = Get-BytesSha256 $renderedBytes
+if ($renderedBytes.Length -gt 1MB -or $renderedHash -cne $renderHash) { Stop-Refused "the rendered rules file's hash does not match the one the renderer reported." }
+[IO.File]::WriteAllBytes($rulesStaged, $renderedBytes)
+$staged[$rulesRel] = $renderedHash
+Remove-Item -LiteralPath $renderOut -Recurse -Force
+$renderOut = $null
+
 $seamA = Join-Path $stage 'gate/seam-a.mjs'
 if (-not (Test-Path -LiteralPath $seamA -PathType Leaf)) { Stop-Refused 'the check (gate/seam-a.mjs) is missing.' }
 $run = Invoke-Node $node @($seamA, $stage) $checkTimeoutMs
 $rawLines = @($run.Stdout -split "`n" | Where-Object { $_ -ne '' })
-$shown = 0
-foreach ($l in $rawLines) {
-  if ($shown -ge $checkLinesMax) { Write-Host "seam-a| ($($rawLines.Count - $shown) more lines not shown)"; break }
-  Write-Host (Format-CheckLine $l)
-  $shown++
-}
+Show-ProgramLines $rawLines 'seam-a'
 if ($run.StderrChars) { Write-Host 'The check wrote to stderr; it is not shown.' }
 if ($run.TimedOut) { Stop-Refused "the check did not finish within $($checkTimeoutMs / 1000) s." }
 if ($run.ExitCode -ne 0) { Stop-Refused "the check exited with code $($run.ExitCode)." }
@@ -574,6 +658,10 @@ Write-Host "Unchanged: $same"
 Write-Host "settings.json: $settings"
 if ($settings -like 'would*') { foreach ($l in $settingsChanges) { Write-Host $l } }
 foreach ($l in $settingsNotes) { Write-Host $l }
+# The renderer read no configuration (it reported "CONFIG none"), so the rules
+# file is the pact's source with its open-mark lines removed.
+Write-Host 'Configuration:'
+Write-Host '  no configuration'
 if ($dirty.Count) { Write-Host "Working tree: DIRTY ($($dirty.Count) path(s)); the check ran on commit $commit, and uncommitted edits are not checked. -Apply will refuse." }
 else { Write-Host 'Working tree: clean' }
 if ($nothing) { Write-Host 'Nothing to do.' }
@@ -645,5 +733,7 @@ if ($bad) { Write-Host "$bad mismatch(es)."; exit 1 }
 Write-Host "Installed commit $commit; all files verified."
 exit 0
 } finally {
-  if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+  foreach ($d in @($stage, $renderOut)) {
+    if ($d -and (Test-Path -LiteralPath $d)) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
+  }
 }
