@@ -23,8 +23,8 @@ sandbox container, which never holds the-pact's checkout or this file.
 ## How to run it
 
 1. **Build the sandbox** on the host, at a neutral folder:
-   `C:\Users\mephi\scratch\ws-19` for the control run and
-   `C:\Users\mephi\scratch\ws-26` for the real run. `git init`; copy
+   `$HOME\scratch\ws-19` for the control run and
+   `$HOME\scratch\ws-26` for the real run. `git init`; copy
    `plant/base/` and commit it as "start"; copy `plant/head/` over it, with
    `plant/TICKET.md`, and commit it as "clamp". No remote.
 2. **Start the sandbox container** (`gate/tests/fixtures/sandbox/Dockerfile`,
@@ -36,7 +36,7 @@ sandbox container, which never holds the-pact's checkout or this file.
    $ws = 19   # 26 for the real run
    docker run -it --rm --name "ws-$ws" `
      -v pact-sandbox-home:/home/runner/.claude `
-     -v "C:\Users\mephi\scratch\ws-${ws}:/home/runner/ws" `
+     -v "$HOME\scratch\ws-${ws}:/home/runner/ws" `
      -v "$HOME\.claude\CLAUDE.md:/home/runner/.claude/CLAUDE.md:ro" `
      -v "$HOME\.claude\agents:/home/runner/.claude/agents:ro" `
      -v "$HOME\.claude\pact:/home/runner/.claude/pact:ro" `
@@ -102,4 +102,4 @@ the control has been seen to fail.
 | Run | When | Expected | Result |
 |---|---|---|---|
 | Control | Before install | Fail (old checker dispatched) | **Fail, as expected** (2026-10-06, Sonnet 5.5): the old checker and test reviewer dispatched; no lens, claim list or cross call. #47 comment 6009741694 |
-| Real | After install, fresh session | Pass | Not run yet |
+| Real | After install, fresh session | Pass | **1 to 4, 6 and 7 hold; 5 does not** (2026-10-06, Sonnet 5.5; lenses on Opus 5.5): it named the section's file but never showed it, with no tracker to post to. The owner counted the clause proven on 1 to 4 and fixed 5 as a text gap (option A). #47 comment 6009904191 |

@@ -203,6 +203,13 @@ test('starting the app is not opening the page in a browser', () => {
   assert.deepEqual(r, { result: 'PASS', reasons: [] });
 });
 
+test('a malformed command pattern scores FAIL instead of throwing', () => {
+  const dir = join(DIR, 'behaviour-lens', 'B5-removed-tool');
+  const c = { ...JSON.parse(read(join(dir, 'case.json'))), forbiddenCommands: ['(unclosed'] };
+  const r = score(c, read(join(dir, 'good.md')), record(join(dir, 'good.record.json')));
+  assert.deepEqual(r, { result: 'FAIL', reasons: ['invalid-command-regex:(unclosed'] });
+});
+
 // A report the cross script refuses never reaches the case rules.
 test('a report the cross script refuses scores FAIL by the rule that fired', () => {
   const dir = join(DIR, 'behaviour-lens', 'B9-artifact');

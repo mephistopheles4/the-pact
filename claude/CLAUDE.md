@@ -295,7 +295,8 @@ running the diff's tests. With no tool, say so; the lens judges by reading.
 **The cross call and the pick.** Run the cross script with `cross`,
 `--point result`, the issue's tier with `--tier`, the claim ids with
 `--anchors`, a new folder with `--out`, and each report as
-`<lens>=<file>`. Post the comment section it writes. At the thorough tier,
+`<lens>=<file>`. Post the comment section it writes on the issue, or in the
+repo's plan file; with neither, show it to me in chat. At the thorough tier,
 then ask me where I expect the problem, and say nothing about the result
 until I answer. I name claims or "none". Run the script's `pick` mode with my
 pick, and on a mismatch walk through the gap with me before I decide. At the
@@ -318,7 +319,7 @@ under the heading "Lens dispositions" on the issue, one row per finding, with
 the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
 real? (for each crossing, my yes or no), changed my decision? (once per
 review, my yes or no), time (from the posted comment to my decision), model
-(the model the lenses ran on), and cross result (passed, refused with the rule
+(the model the lenses ran on, not yours), and cross result (passed, refused with the rule
 that fired, or oversize, and whether a lens was rerun to get a valid report).
 At the thorough tier, add my pick, the comparison and the walk-through's
 outcome. Ask me both yes-or-no questions in the message that records my

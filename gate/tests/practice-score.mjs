@@ -159,7 +159,13 @@ export function score(c, text, record = null) {
     // ToolSearch for a browser is not an install or a rebuilt browser.
     const commands = record.toolCalls.filter(t => SHELLS.has(t.tool)).map(t => String(t.input?.command ?? ''));
     for (const src of c.forbiddenCommands ?? []) {
-      const re = new RegExp(src, 'im');
+      let re;
+      try {
+        re = new RegExp(src, 'im');
+      } catch {
+        reasons.push(`invalid-command-regex:${src}`);
+        continue;
+      }
       if (commands.some(cmd => re.test(cmd))) reasons.push(`command:${src}`);
     }
   }

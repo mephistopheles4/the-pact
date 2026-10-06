@@ -33,7 +33,7 @@ quiet.
   run's two folders and the installed pact files the run needs, mounted
   read-only. The-pact's checkout, with every expected answer, is never mounted,
   so the lens cannot read the answers: they are not there. Each run uses a
-  fresh pair of folders with neutral names, `C:\Users\mephi\scratch\ws-<n>`
+  fresh pair of folders with neutral names, `$HOME\scratch\ws-<n>`
   and `in-<n>`, never inside the-pact's checkout; `<n>` is a new number per
   run, and the run's record notes which case it was.
 - **Build the image once** (and again when the Claude Code version changes):
@@ -55,8 +55,8 @@ quiet.
   $n = 57   # a new number per run
   docker run -it --rm --name "ws-$n" `
     -v pact-sandbox-home:/home/runner/.claude `
-    -v "C:\Users\mephi\scratch\ws-${n}:/home/runner/ws" `
-    -v "C:\Users\mephi\scratch\in-${n}:/home/runner/in:ro" `
+    -v "$HOME\scratch\ws-${n}:/home/runner/ws" `
+    -v "$HOME\scratch\in-${n}:/home/runner/in:ro" `
     -v "$HOME\.claude\CLAUDE.md:/home/runner/.claude/CLAUDE.md:ro" `
     -v "$HOME\.claude\agents\behaviour-lens.md:/home/runner/.claude/agents/behaviour-lens.md:ro" `
     -v "$HOME\.claude\pact\cross.mjs:/home/runner/.claude/pact/cross.mjs:ro" `
@@ -93,7 +93,7 @@ quiet.
 - **Between runs,** copy the transcript out of the volume, then clear
   everything in it but the sign-in, so a later run cannot read an earlier one's
   transcript, prompt history, edit backups, todos or shell snapshots:
-  `docker run --rm -v pact-sandbox-home:/h -v "C:\Users\mephi\scratch\out-${n}:/out" pact-sandbox:47 cp -r /h/projects /out/`,
+  `docker run --rm -v pact-sandbox-home:/h -v "$HOME\scratch\out-${n}:/out" pact-sandbox:47 cp -r /h/projects /out/`,
   then `docker run --rm -v pact-sandbox-home:/h pact-sandbox:47 find /h -mindepth 1 -maxdepth 1 ! -name .credentials.json -exec rm -rf {} +`. If Claude Code asks to sign in again on the next run (some
   account state lives outside the volume), sign in again.
 - **Score:** with `score()` from `gate/tests/practice-score.mjs`, on the
