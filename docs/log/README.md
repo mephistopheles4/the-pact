@@ -1,0 +1,19 @@
+# Work logs
+
+One line per finished piece of work: date, issue, and what it changed. Each entry ends with a Record list of the comments or commits that hold the verbatim plan and reviews.
+
+- [2026-09-26](2026-09-26-agent-names-and-allowlists.md) — **Agent names and allowlists** (before the tracker). Agents got job-title names and explicit tool allowlists.
+- [2026-09-26](2026-09-26-missing-tool-probe.md) — **Missing-tool probe** (before the tracker). Agents report a missing tool; a planted probe checked it.
+- [2026-09-27](2026-09-27-adr-and-log.md) — **ADRs and logs** (before the tracker). The docs tree became `docs/adr/` and `docs/log/`.
+- [2026-09-27](2026-09-27-human-in-the-loop-gate.md) — **Human-in-the-loop gate** (before the tracker). Builder hand-offs gated on after-dispatch needs, plus the STATUS line.
+- [2026-09-27](2026-09-27-repo-rules-and-tracker.md) — **Repo rules and tracker** (before the tracker). Root AGENTS.md, CLAUDE.md import and `docs/agents/` config.
+- [2026-09-29](2026-09-29-hand-over-the-trigger.md) — **Hand over the trigger** (#12). The `▶ Your move` line for user-only skills; headless versus interactive probes.
+- [2026-10-04](2026-10-04-effort-follows-the-tier.md) — **Effort follows the tier** (#50). One effort value per tier and phase, and the xhigh rerun at a stop.
+- [2026-10-04](2026-10-04-install-cross-script-and-roster.md) — **Cross script and roster** (#45). The install copies the cross script; the gate learned the reviewer roster.
+- [2026-10-04](2026-10-04-next-move-as-a-choice.md) — **Next move as a choice** (#73). Sessions show the live options side by side.
+- [2026-10-04](2026-10-04-retire-docs-plans.md) — **Retire `docs/plans/`** (#52). Plans and reviews live on issues; logs cite the comments.
+- [2026-10-05](2026-10-05-right-size-the-probe-rule.md) — **Right-size the probe rule** (#67). Planted probes only on the security floor.
+- [2026-10-05](2026-10-05-scout-the-one-search-helper.md) — **scout, the one search helper** (#70). `scout` became the first sealed familiar; the `Explore` override retired.
+- [2026-10-06](2026-10-06-qa-pair-swap.md) — **QA pair swap** (#35, #47). `behaviour-lens` and `integrity-lens` replaced the old move-4 reviewers.
+- [2026-10-06](2026-10-06-finishing-pr-carries-the-docs.md) — **Finishing PR carries the docs** (#84). The PR that finishes work carries its log entry and ADRs; a PR template asks for it.
+- [2026-10-06](2026-10-06-docs-indexes.md) — **Docs indexes** (#79). One-line indexes for `docs/adr/` and `docs/log/`, kept complete by a test.
