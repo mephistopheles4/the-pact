@@ -17,3 +17,4 @@ One line per finished piece of work: date, issue, and what it changed. Each entr
 - [2026-10-06](2026-10-06-qa-pair-swap.md) — **QA pair swap** (#35, #47). `behaviour-lens` and `integrity-lens` replaced the old move-4 reviewers.
 - [2026-10-06](2026-10-06-finishing-pr-carries-the-docs.md) — **Finishing PR carries the docs** (#84). The PR that finishes work carries its log entry and ADRs; a PR template asks for it.
 - [2026-10-06](2026-10-06-docs-indexes.md) — **Docs indexes** (#79). One-line indexes for `docs/adr/` and `docs/log/`, kept complete by a test.
+- [2026-10-06](2026-10-06-pick-as-prior-and-auto-take.md) — **Pick as prior, auto-take** (#87). The pick is the owner's prior, pre-filled answers, recommendations taken by default with an audit trail.

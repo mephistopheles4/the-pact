@@ -298,9 +298,17 @@ running the diff's tests. With no tool, say so; the lens judges by reading.
 `<lens>=<file>`. Post the comment section it writes on the issue, or in the
 repo's plan file; with neither, show it to me in chat. At the thorough tier,
 then ask me where I expect the problem, and say nothing about the result
-until I answer. I name claims or "none". Run the script's `pick` mode with my
-pick, and on a mismatch walk through the gap with me before I decide. At the
-standard tier a pick is mine to give or skip; at the quick tier there is none.
+until I answer. The pick is my prior, not a review: I answer from the claim
+list alone, without reading the diff. Show each claim with its id and a
+one-line, plain-language "how this could go wrong" gloss, for me only; the
+lenses get the claims without it. I name claims or "none", and "none" means "I
+expect it's fine". Run the script's `pick` mode with my pick, and record its
+result. On a mismatch, walk through the gap with me before I decide, unless
+every finding behind the mismatch has disposition `fixed`, and the fix landed
+before the cross section was posted to me. Then record "resolved before owner
+review" in place of the walk-through. A finding that was taken or dismissed
+does not count as fixed. At the standard tier a pick is mine to give or skip;
+at the quick tier there is none.
 
 **Lookups and searches.** For a lookup or a broad search that needs no judgement,
 use `scout`.
@@ -314,21 +322,36 @@ pact requires. Decisions are made
 together: I can take your recommendation without reading the detail, and the report's For the owner section is there for anyone who wants more. Don't hand
 me a list of findings with "your call" on each.
 
+**Auto-take.** After a report or review, act on your recommendation for each
+finding and carry on; don't wait for me. This covers choices that come out of
+a report or review, and nothing else. It never covers any stop in "When to
+stop or escalate", any gated clause, a tier decision, "Quick work stops at an
+open decision", the thorough pick, a user-only skill's trigger, an install,
+or my "done": accepting the work, closing a ticket and merging are mine.
+Record each auto-taken choice as an `auto` row (see Lens dispositions).
+
 **Lens dispositions.** At every lens review, in every project, post a table
 under the heading "Lens dispositions" on the issue, one row per finding, with
-the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
+the columns: finding, lens, disposition (fixed, taken, dismissed or `auto`), crossing
 real? (for each crossing, my yes or no), changed my decision? (once per
 review, my yes or no), time (from the posted comment to my decision), model
 (the model the lenses ran on, not yours), and cross result (passed, refused with the rule
 that fired, or oversize, and whether a lens was rerun to get a valid report).
 At the thorough tier, add my pick, the comparison and the walk-through's
-outcome. Ask me both yes-or-no questions in the message that records my
-decision.
+outcome. Pre-fill both yes-or-no answers from the evidence, each with a
+one-line reason and marked "pre-filled", for example "yes (pre-filled: both
+lenses hit C3)". In the message that records my decision, ask me to confirm or
+correct them. Until I do, the marker stays and the answer doesn't count.
+
+An `auto` row says "chose X because Y" in one line. With no lens review, keep
+these rows in an "Auto-takes" list on the issue instead. If I reverse one,
+change its disposition to `auto, reversed` and keep the original line.
 
 **Escapes.** When you find a defect after a lens review passed the work on,
 and it falls within the question of a lens that ran there, propose an escape
 row: the review it escaped from and the lens or lenses whose question covered
-it. Post it as a comment under "Lens dispositions" on the issue that holds
+it, and "after auto-take: yes/no", yes when the escaped finding's row was
+`auto`. Post it as a comment under "Lens dispositions" on the issue that holds
 that review, linked from where you found it. Only rows I confirm count. A
 defect no lens's question covers is a roster gap, logged the same way, with
 its ISO 25010 kind where one fits. On a public repo, a security escape carries
@@ -336,7 +359,8 @@ only the lens, the link to the review and a placeholder until its fix ships.
 
 **When a lens may not pay.** Propose a review of a lens when, in its last ten
 reports, I dismissed most of its findings; when two or more confirmed escapes
-fall to it; or when its reviews rarely changed my decision. Never cut a lens
+fall to it; or when its reviews rarely changed my decision. Count only answers
+I have confirmed, never pre-filled ones. Never cut a lens
 yourself. For a security lens, any lens that holds a shell or network tools or
 guards the security route or the risk floor, the "rarely changed my decision"
 signal alone never fires: security reads are clean most of the time.
@@ -344,7 +368,9 @@ signal alone never fires: security reads are clean most of the time.
 **Totals only.** The records stay on each project's tracker. At a periodic
 review, collect into the-pact's issue for it only totals summed across the
 projects I name: lens names, disposition counts, times, models, crossing
-counts, and escape and gap counts. Copy no repo names, cross-repo links, issue
+counts, and escape and gap counts. Add the rudder check: the total of
+auto-takes, the total I reversed, and the confirmed escapes after an
+auto-take. It shows whether the defaults steer the wrong way. Copy no repo names, cross-repo links, issue
 numbers, titles, headlines, anchors, paths or quotes from another project, and
 no per-project breakdown.
 

@@ -27,6 +27,8 @@ real work selects it.
 - **Standing measures:** the numbers recorded at every lens review on real work, and worked out at each periodic review.
 - **Escape:** a defect found after a lens review passed the work on, that falls within the question of a lens that ran at that review.
 - **Roster gap:** a defect found later that no lens's question covers.
+- **Auto-take:** a choice a session makes by acting on its own recommendation on a report finding, without waiting for the owner. It never covers a stop, a gated clause, a tier decision, the pick or the owner's "done". Each one gets an `auto` row.
+- **Rudder check:** the three totals a periodic review collects to show whether auto-takes steer the wrong way: auto-takes, reversed auto-takes, and confirmed escapes after an auto-take.
 - **Periodic review:** the owner's recurring look at the standing measures, which can add, merge, cut or retune lenses.
 
 ## Probes and records
