@@ -63,8 +63,8 @@ how every session in every repo behaves. So:
   [`.github/pull_request_template.md`](.github/pull_request_template.md) only
   in the web UI; `gh pr create --body` skips it. So a session that opens a PR
   from the CLI makes the template's checkbox line the first line of its
-  `--body`, copied word for word, and ticks it only when the PR finishes the
-  work.
+  `--body`, copied word for word. It ticks the box when the PR finishes the
+  work, and leaves it unticked otherwise.
 - **Finding a decision or a log:** start from the indexes,
   [`docs/adr/README.md`](docs/adr/README.md) and
   [`docs/log/README.md`](docs/log/README.md), one line per file. Add a line
