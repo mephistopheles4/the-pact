@@ -96,10 +96,13 @@ function block(text) {
   return JSON.parse(lines.slice(open + 1, close).join('\n'));
 }
 
-/** True when the report holds the heading on a line of its own, after "For the session" and before the block. */
+/**
+ * True when the report holds the heading on a line of its own, after "For the session" and before the block.
+ * The "For the session" line may be bold or a Markdown heading, as the cross script accepts both.
+ */
 function hasArtifact(text, heading) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
-  const session = lines.findIndex(l => /^\**For the session\**/.test(l.trim()));
+  const session = lines.findIndex(l => /^(?:#{1,6}\s+)?\**For the session\**/.test(l.trim()));
   const at = lines.indexOf(heading);
   const blockAt = lines.indexOf('```lens-findings');
   return session >= 0 && at > session && at < blockAt;
