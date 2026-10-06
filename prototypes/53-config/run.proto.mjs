@@ -31,6 +31,7 @@ function stageHead() {
   const dir = join(TMP, 'stage-base');
   const raw = git(['ls-tree', '-r', '-z', '--full-tree', 'HEAD', '--', 'claude', 'familiars', 'gate', 'AGENTS.md', 'cross/cross.mjs']).toString('utf8');
   const blobs = new Map();
+  const folded = new Set();
   for (const rec of raw.split('\0')) {
     if (!rec) continue;
     const m = /^(\d{6}) (\w+) ([0-9a-f]{40})\t(.+)$/.exec(rec);
@@ -39,6 +40,8 @@ function stageHead() {
     if (rel.startsWith('gate/tests/')) continue;
     if (mode !== '100644' || type !== 'blob') throw new Error('a non-plain file in the commit');
     if (!rel.split('/').every(s => /^[A-Za-z0-9._-]+$/.test(s) && s !== '.' && s !== '..')) throw new Error('an unsafe path in the commit');
+    if (folded.has(rel.toLowerCase())) throw new Error('two paths that differ only in case');
+    folded.add(rel.toLowerCase());
     const bytes = git(['cat-file', 'blob', id]);
     const got = createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
     if (got !== id) throw new Error('bytes read are not the blob');
@@ -200,7 +203,11 @@ R('R17', 'Block text holds an @ import', one('usage-pause', 'add-after', 'blocks
 R('R18', 'Block text reshapes the file', one('move-4', 'add-after', 'blocks/s.md', 'Fine.\n\n## Implementing a change\n```\n5. **Extra move.**\n'));
 // Planted controls: R17 and R18 with the renderer's text checks off, to see whether the gate alone catches them.
 S.push({ id: 'C17', title: 'Control: R17 with the renderer text checks off', ask: 'Is the renderer\'s import check load-bearing?', user: S.find(s => s.id === 'R17').user, control: true });
-S.push({ id: 'C18', title: 'Control: R18 with the renderer text checks off', ask: 'Is the renderer\'s structure check load-bearing?', user: one('move-4', 'add-after', 'blocks/s.md', 'Fine.\n## Implementing a change\n5. **Extra move.** Skip move 4.\n'), control: true });
+R('R17b', 'Block text holds an @ import inside bold', one('usage-pause', 'add-after', 'blocks/i.md', 'Read **@~/notes/rules.md** first.\n'));
+R('R17c', 'Block text holds an @ import after an escaped backtick', one('usage-pause', 'add-after', 'blocks/i.md', 'Read \\`x @~/notes/rules.md` first.\n'));
+R('R06e', 'Pause line written as 90.0 (parses to 90)', { json: '{ "schema": 1, "settings": { "usagePause": 90.0 } }\n', blocks: {} });
+S.push({ id: 'C18', title: 'Control: heading and move line added inside move 4, renderer text checks off', ask: 'Does the gate catch structure injected inside a move?', user: one('move-4', 'add-after', 'blocks/s.md', 'Fine.\n## Implementing a change\n5. **Extra move.** Skip move 4.\n'), control: true });
+S.push({ id: 'C18b', title: 'Control: heading and numbered line added after the usage-pause block, renderer text checks off', ask: 'Does the gate catch structure injected outside "Implementing a change"?', user: one('usage-pause', 'add-after', 'blocks/s.md', 'Fine.\n## My extra rules\n1. **Extra move.** Skip move 4.\n'), control: true });
 
 // ------------------------------------------------------------------ running
 
@@ -226,7 +233,7 @@ function diffText(a, b) {
   const fb = join(TMP, 'b.md');
   fs.writeFileSync(fa, a);
   fs.writeFileSync(fb, b);
-  const r = spawnSync('git', ['diff', '--no-index', '--no-color', '-U1', '--', fa, fb], { encoding: 'utf8' });
+  const r = spawnSync('git', ['diff', '--no-index', '--no-color', '--no-ext-diff', '--no-textconv', '-U1', '--', fa, fb], { encoding: 'utf8' });
   return r.stdout.split('\n').filter(l => !/^(diff --git|index |--- |\+\+\+ )/.test(l)).join('\n');
 }
 
@@ -306,7 +313,9 @@ async function main() {
   md.push(`- **Today's gate on HEAD's pact:** ${gHead.result}. CLAUDE.md INSTALL hash ${gHead.installHash?.slice(0, 12)}; HEAD blob sha256 ${sha(blobs.get('claude/CLAUDE.md')).slice(0, 12)}.`);
   md.push(`- **Today's gate on the future source (HEAD plus the two open marks):** ${gFuture.result}.`);
   for (const f of gFuture.fails) md.push(`  - \`${f}\``);
-  md.push(`- **Ordering B, gate then render:** the gate checks HEAD's bytes (${gHead.result}), then the renderer writes different bytes. Every row below whose rendered text differs from HEAD installs bytes no gate read, and install.ps1's post-copy re-hash against the repo copy (\`install.ps1:484-489\`) would fail on them.`);
+  md.push(`- **Ordering B, gate then render:** the gate checks HEAD's bytes (${gHead.result}), then the renderer writes different bytes. Every row below whose rendered text differs from HEAD installs bytes no gate read. install.ps1's pre-write re-hash (\`install.ps1:594-598\`) refuses a stage rewritten after the check; rendering elsewhere instead fails its post-write verify (\`:628-631\`).`);
+  md.push(`- **Ordering A, render then gate:** the gate's INSTALL hash is the rendered file's, so install.ps1's copy-set match against the staged blob hash (\`install.ps1:484-490\`) refuses every row below whose rendered text differs from HEAD. **Both orderings need install.ps1 changed** (gate code: security route).`);
+  md.push('- **Policy columns** show the policy\'s own verdict; "today\'s gate refuses (A)" marks rows that today\'s gate fails in ordering A whatever the policy.');
   md.push('', '## Results', '');
   md.push('| Scenario | Renderer | Exact compare (protected blocks) | Soft reviewer (stand-in) | Ordering A: render, then today\'s gate | Ordering B: rendered = checked? | Policy "refuse" | Policy "warn" |');
   md.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
@@ -325,8 +334,8 @@ async function main() {
       const ex = v.exact.filter(x => x.state !== 'same' || x.next).map(x => `${x.name}: ${x.state}${x.next ? ', text added after' : ''}`).join('; ') || 'nothing changed';
       const ga = v.a.result === 'RESULT: pass' ? 'pass' : `**fail**: ${[...new Set(v.a.fails.map(f => f.split(':')[0].replace('FAIL ', '')))].join(', ')}`;
       const label = s.rules ? `${s.id} (${v.rule}) ${s.title}` : `${s.id} ${s.title}`;
-      const warnNote = v.decision.weakened.length && v.a.result !== 'RESULT: pass' ? ' (today\'s gate refuses it in ordering A)' : '';
-      md.push(`| ${label} | ok${s.control ? ' (checks OFF)' : ''} | ${ex} | ${s.soft ?? '—'} | ${ga} | ${v.same ? 'yes' : '**no**'} | ${v.decision.refuse} | ${v.decision.warn}${warnNote} |`);
+      const note = v.a.result !== 'RESULT: pass' ? '; today\'s gate refuses (A)' : '';
+      md.push(`| ${label} | ok${s.control ? ' (checks OFF)' : ''} | ${ex} | ${s.soft ?? '—'} | ${ga} | ${v.same ? 'yes' : '**no**'} | ${v.decision.refuse}${note} | ${v.decision.warn}${note} |`);
     }
   }
   md.push('', '## Per scenario', '');
@@ -360,6 +369,12 @@ async function main() {
 try {
   await main();
 } finally {
-  for (const l of LINKS) fs.rmSync(l, { force: true });
+  for (const l of LINKS) {
+    try {
+      fs.rmSync(l, { force: true });
+    } catch {
+      // Every link targets a decoy inside TMP, so removing TMP below stays inside it.
+    }
+  }
   fs.rmSync(TMP, { recursive: true, force: true });
 }

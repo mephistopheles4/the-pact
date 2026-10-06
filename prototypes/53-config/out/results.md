@@ -10,7 +10,9 @@ Staged from HEAD of `prototype/53-config`. Node v24.14.1. PROTOTYPE, throwaway.
   - `FAIL marker: claude/CLAUDE.md line 220: an unknown block name`
   - `FAIL marker: claude/CLAUDE.md line 420: an unknown block name`
   - `FAIL marker: claude/CLAUDE.md line 426: an unknown block name`
-- **Ordering B, gate then render:** the gate checks HEAD's bytes (RESULT: pass), then the renderer writes different bytes. Every row below whose rendered text differs from HEAD installs bytes no gate read, and install.ps1's post-copy re-hash against the repo copy (`install.ps1:484-489`) would fail on them.
+- **Ordering B, gate then render:** the gate checks HEAD's bytes (RESULT: pass), then the renderer writes different bytes. Every row below whose rendered text differs from HEAD installs bytes no gate read. install.ps1's pre-write re-hash (`install.ps1:594-598`) refuses a stage rewritten after the check; rendering elsewhere instead fails its post-write verify (`:628-631`).
+- **Ordering A, render then gate:** the gate's INSTALL hash is the rendered file's, so install.ps1's copy-set match against the staged blob hash (`install.ps1:484-490`) refuses every row below whose rendered text differs from HEAD. **Both orderings need install.ps1 changed** (gate code: security route).
+- **Policy columns** show the policy's own verdict; "today's gate refuses (A)" marks rows that today's gate fails in ordering A whatever the policy.
 
 ## Results
 
@@ -21,14 +23,14 @@ Staged from HEAD of `prototype/53-config`. Node v24.14.1. PROTOTYPE, throwaway.
 | S03a User 90%, project 80%, installing into the project | ok | nothing changed | — | pass | **no** | INSTALL | INSTALL |
 | S03b User 90%, project 80%, installing into the home folder | ok | nothing changed | — | pass | **no** | INSTALL | INSTALL |
 | S04 Project adds a reviewer step after the move-4 block | ok | move-4: same, text added after | quiet: the added step adds a check and contradicts nothing | pass | **no** | INSTALL | INSTALL |
-| S05 User replaces move 2 with their own spec habit | ok | nothing changed | may flag: the thorough tier loses its plan review; no protected block says so | **fail**: routing | **no** | INSTALL | INSTALL |
-| S06 User removes the security route | ok | security-route: removed | flags: the risk floor still names the security route, which no longer exists | **fail**: required-clause | **no** | REFUSE: security-route removed | WARN, then INSTALL: security-route removed (today's gate refuses it in ordering A) |
-| S07 User rewords the risk floor, same meaning | ok | risk-floor: changed | quiet: same meaning | **fail**: required-clause, shared-block | **no** | REFUSE: risk-floor changed | WARN, then INSTALL: risk-floor changed (today's gate refuses it in ordering A) |
+| S05 User replaces move 2 with their own spec habit | ok | nothing changed | may flag: the thorough tier loses its plan review; no protected block says so | **fail**: routing | **no** | INSTALL; today's gate refuses (A) | INSTALL; today's gate refuses (A) |
+| S06 User removes the security route | ok | security-route: removed | flags: the risk floor still names the security route, which no longer exists | **fail**: required-clause | **no** | REFUSE: security-route removed; today's gate refuses (A) | WARN, then INSTALL: security-route removed; today's gate refuses (A) |
+| S07 User rewords the risk floor, same meaning | ok | risk-floor: changed | quiet: same meaning | **fail**: required-clause, shared-block | **no** | REFUSE: risk-floor changed; today's gate refuses (A) | WARN, then INSTALL: risk-floor changed; today's gate refuses (A) |
 | S08 Project adds a contradiction right after the move-4 block | ok | move-4: same, text added after | flags: contradicts move-4 (QA pair at every tier) and the owner closing tickets | pass | **no** | INSTALL | INSTALL |
 | S09 User adds a contradiction far from any protected block | ok | nothing changed | flags: contradicts never-substitute and the security route | pass | **no** | INSTALL | INSTALL |
 | S10 (per-mark) User replaces move 2, project adds after move 2 | ok | nothing changed | quiet | pass | **no** | INSTALL | INSTALL |
 | S10 (per-slot) User replaces move 2, project adds after move 2 | ok | nothing changed | quiet | pass | **no** | INSTALL | INSTALL |
-| S11 User removes the security route; project only sets the pause line | ok | security-route: removed | flags, as S06 | **fail**: required-clause | **no** | REFUSE: security-route removed | WARN, then INSTALL: security-route removed (today's gate refuses it in ordering A) |
+| S11 User removes the security route; project only sets the pause line | ok | security-route: removed | flags, as S06 | **fail**: required-clause | **no** | REFUSE: security-route removed; today's gate refuses (A) | WARN, then INSTALL: security-route removed; today's gate refuses (A) |
 | R01 Malformed JSON | **refused** by renderer: read | not reached | not reached | not reached (renderer refuses first in both orderings) | not reached | REFUSE | REFUSE |
 | R02 A key given twice, differing only in case | **refused** by renderer: duplicate | not reached | not reached | not reached (renderer refuses first in both orderings) | not reached | REFUSE | REFUSE |
 | R03 Unknown schema version | **refused** by renderer: schema | not reached | not reached | not reached (renderer refuses first in both orderings) | not reached | REFUSE | REFUSE |
@@ -70,7 +72,11 @@ Staged from HEAD of `prototype/53-config`. Node v24.14.1. PROTOTYPE, throwaway.
 | R17 Block text holds an @ import | **refused** by renderer: import | not reached | not reached | not reached (renderer refuses first in both orderings) | not reached | REFUSE | REFUSE |
 | R18 Block text reshapes the file | **refused** by renderer: structure, structure, structure, structure | not reached | not reached | not reached (renderer refuses first in both orderings) | not reached | REFUSE | REFUSE |
 | C17 Control: R17 with the renderer text checks off | ok (checks OFF) | nothing changed | — | pass | **no** | INSTALL | INSTALL |
-| C18 Control: R18 with the renderer text checks off | ok (checks OFF) | move-4: same, text added after | — | **fail**: structure | **no** | INSTALL | INSTALL |
+| R17b Block text holds an @ import inside bold | **refused** by renderer: import | not reached | not reached | not reached (renderer refuses first in both orderings) | not reached | REFUSE | REFUSE |
+| R17c Block text holds an @ import after an escaped backtick | **refused** by renderer: import | not reached | not reached | not reached (renderer refuses first in both orderings) | not reached | REFUSE | REFUSE |
+| R06e Pause line written as 90.0 (parses to 90) | ok | nothing changed | — | pass | **no** | INSTALL | INSTALL |
+| C18 Control: heading and move line added inside move 4, renderer text checks off | ok (checks OFF) | move-4: same, text added after | — | **fail**: structure | **no** | INSTALL; today's gate refuses (A) | INSTALL; today's gate refuses (A) |
+| C18b Control: heading and numbered line added after the usage-pause block, renderer text checks off | ok (checks OFF) | nothing changed | — | pass | **no** | INSTALL | INSTALL |
 
 ## Per scenario
 
@@ -504,9 +510,32 @@ Question: Is the renderer's import check load-bearing?
   - CLAUDE.md INSTALL hash 4fd5d47b68a4 = rendered bytes
 - Install manifest would record: {"policy":"warn","userConfig":"62297cc4eb10","projectConfig":null,"rendered":"4fd5d47b68a4","weakened":[]}
 
-### C18: Control: R18 with the renderer text checks off
+### R17b: Block text holds an @ import inside bold
 
-Question: Is the renderer's structure check load-bearing?
+Question: Q5: must refuse under both policies.
+
+- REFUSED by renderer, rule `import`: blocks/i.md line 1: an @ import
+
+### R17c: Block text holds an @ import after an escaped backtick
+
+Question: Q5: must refuse under both policies.
+
+- REFUSED by renderer, rule `import`: blocks/i.md line 1: an @ import
+
+### R06e: Pause line written as 90.0 (parses to 90)
+
+Question: Q5: must refuse under both policies.
+
+- Settings in effect: usagePause=90 (user)
+- Regions the soft reviewer would read: user setting usagePause usage-pause, rendered lines 418-422
+- Rendered sha256 68e00fc42130; byte-identical to HEAD: no
+- Ordering A gate: RESULT: pass; staged gate/ unchanged by rendering: yes
+  - CLAUDE.md INSTALL hash 68e00fc42130 = rendered bytes
+- Install manifest would record: {"policy":"warn","userConfig":"e7324941d0be","projectConfig":null,"rendered":"68e00fc42130","weakened":[]}
+
+### C18: Control: heading and move line added inside move 4, renderer text checks off
+
+Question: Does the gate catch structure injected inside a move?
 
 - Settings in effect: none
 - Regions the soft reviewer would read: user add-after move-4, rendered lines 248-250
@@ -514,3 +543,14 @@ Question: Is the renderer's structure check load-bearing?
 - Ordering A gate: RESULT: fail; staged gate/ unchanged by rendering: yes
   - `FAIL structure: claude/CLAUDE.md line 249: a heading not written as "## title" at column 0`
 - Install manifest would record: {"policy":"warn","userConfig":"2c25e2ffedcf","projectConfig":null,"rendered":"e3c5d28e7762","weakened":[]}
+
+### C18b: Control: heading and numbered line added after the usage-pause block, renderer text checks off
+
+Question: Does the gate catch structure injected outside "Implementing a change"?
+
+- Settings in effect: none
+- Regions the soft reviewer would read: user add-after usage-pause, rendered lines 423-425
+- Rendered sha256 68b5cdbd1c1a; byte-identical to HEAD: no
+- Ordering A gate: RESULT: pass; staged gate/ unchanged by rendering: yes
+  - CLAUDE.md INSTALL hash 68b5cdbd1c1a = rendered bytes
+- Install manifest would record: {"policy":"warn","userConfig":"8e55aad87f89","projectConfig":null,"rendered":"68b5cdbd1c1a","weakened":[]}

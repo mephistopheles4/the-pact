@@ -3,7 +3,8 @@
 // The pure part of "the installer renders a configuration file into the
 // installed rules". No fs, no process, no network. The runner injects the
 // gate's own helpers (readStrictJson, scanText, Refused, Report) taken from
-// the staged gate/seam-a.mjs, so nothing here re-implements a gate check.
+// the staged gate/seam-a.mjs. It still copies the gate's structure patterns and
+// has its own mark reader; the real build would put both in one shared module.
 //
 // Output never echoes configuration or block content. Messages name only this
 // module's own constant mark and setting names, and file names via shown().
@@ -45,9 +46,10 @@ const FENCE_RE = /^\s*(?:`{3,}|~{3,})/;
 const SETEXT_RE = /^ {0,3}(?:=+|-+)\s*$/;
 const HEADING_LIKE_RE = /^\s*#{1,6}(?:\s|$)/;
 const NUMBERED_RE = /^\s*[0-9]+[.)](?:\s|$)/;
-// Claude Code reads "@path" in CLAUDE.md as an import. Any @ that starts a word
-// counts, outside code spans.
-const IMPORT_RE = /(?:^|\s)@\S/;
+// Claude Code reads "@path" in CLAUDE.md as an import. Its exact grammar is not
+// checked here, so any @ followed by a non-space character refuses, anywhere,
+// code spans included.
+const IMPORT_RE = /@\S/;
 
 const isPlain = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const refusal = (component, rule, reason) => ({ component, rule, reason });
@@ -137,7 +139,7 @@ export function checkBlockText(buf, file, gate, skip = false) {
     else if (FENCE_RE.test(line)) R.push(refusal('renderer', 'structure', `${ln}: a code fence`));
     else if (SETEXT_RE.test(line) || HEADING_LIKE_RE.test(line)) R.push(refusal('renderer', 'structure', `${ln}: a heading`));
     else if (NUMBERED_RE.test(line)) R.push(refusal('renderer', 'structure', `${ln}: a numbered list line`));
-    if (IMPORT_RE.test(line.replace(/`[^`]*`/g, '``'))) R.push(refusal('renderer', 'import', `${ln}: an @ import`));
+    if (IMPORT_RE.test(line)) R.push(refusal('renderer', 'import', `${ln}: an @ import`));
   });
   return R.length ? { refusals: R } : { lines: text.slice(0, -1).split('\n') };
 }

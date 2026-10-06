@@ -1,6 +1,6 @@
 # PROTOTYPE (#53): the installer renders a configuration file
 
-Throwaway. It lives only on branch `prototype/53-config`, is never merged to `main`, and is never installed. It answers design questions for the #53 spec; the plan it was built to is on #53.
+Throwaway. It lives only on branch `prototype/53-config`, which is pushed to the private remote so the record survives the session. It is never merged to `main` and never installed. It answers design questions for the #53 spec; the plan it was built to is on #53.
 
 ## Run it
 
@@ -19,7 +19,7 @@ The prototype skill's logic branch is a single clickable HTML file. These questi
 
 ## Files
 
-- **`render.proto.mjs`:** the pure part: read the configuration, layer the files, render, compare and decide. It has no file system calls. The gate's own helpers are passed in, so it re-implements no gate check.
+- **`render.proto.mjs`:** the pure part: read the configuration, layer the files, render, compare and decide. It has no file system calls. The gate's own helpers (`readStrictJson`, `scanText`, `safePath`, `shown`) are passed in. It still copies the gate's structure patterns and has its own mark reader; the real build would put those in one shared module too.
 - **`run.proto.mjs`:** staging, safe block-file reading, the scenarios, the gate runs and the output.
 - **`out/`:** the results of the last run.
 
@@ -46,9 +46,14 @@ See `out/results.md` for every scenario and every gate line.
 
 1. **Values fit as templates in open marks, and the no-file install is byte-identical.** In S01, the rendered file equals HEAD's blob, and the gate's INSTALL hash equals the blob hash. The catch is that the source must carry open marks, and **today's gate refuses every open mark name**: four `unknown block name` failures on the future source. The gate needs a second kind of mark: a listed name, no canonical text, and stripped at render.
 2. **Ordering: render, then gate, is the only one where a gate reads what gets installed.**
-   - **Gate, then render.** The gate checks HEAD's bytes, and every non-default install then writes bytes no check read. `install.ps1`'s post-copy re-hash would also fail on them.
-   - **Render, then gate.** The gate catches more than protected edits. In S05, replacing move 2 drops `plan-reviewer` and the gate's routing check refuses it. In C18, injected structure fails its structure check.
+   - **Gate, then render.** The gate checks HEAD's bytes, and every non-default install then writes bytes no check read.
+   - **Render, then gate.** The gate catches some things beyond protected edits. In S05, replacing move 2 drops `plan-reviewer`, and the gate's routing check refuses it. In C18, a heading injected inside move 4 fails its structure check, but only because the renderer indented it. C18b puts the same kind of text after the usage-pause block, and today's gate passes it.
    - **The cost.** In this ordering, today's gate refuses *every* protected-block edit (S06, S07, S11). So "warn, then install" cannot happen without changing the gate's clause check.
+   - **Both orderings need `install.ps1` changed.**
+     - In render-then-gate, the gate's INSTALL hash is the rendered file's, so the copy-set match against the staged blob hash (`install.ps1:484-490`) refuses every non-default install.
+     - In gate-then-render, the pre-write re-hash (`:594-598`) or the post-write verify (`:628-631`) refuses.
+     - The manifest and the drift check bind to the same hash.
+     - `install.ps1` is gate code, so this is security-route work.
 3. **Exact compare and the soft reviewer catch different things.**
    - **What exact compare catches.** It flags removals and rewordings of protected blocks, including a harmless rewording (S07, a false alarm).
    - **What it misses.** It is blind to text added right after a protected block that undoes it (S08). It also misses a contradiction far from any protected block (S09).
@@ -60,8 +65,10 @@ See `out/results.md` for every scenario and every gate line.
 5. **Every must-refuse case is refused by the renderer, before either ordering.**
    - **Network paths.** UNC and device paths are refused on their text alone, before any file system call.
    - **Imports.** C17 is a planted control: an `@` import passes today's gate in ordering A. The renderer's import check is load-bearing.
-   - **Structure.** In C18, the gate catches the structure injection only in ordering A. The renderer's check carries ordering B.
-   - **Exponent values.** R06d is open for the spec: `9e1` is accepted as 90. That is harmless through a fixed template, but it is not refused.
+     - The rule refuses any `@` followed by a non-space character, anywhere, code spans included. R17b (inside bold) and R17c (after an escaped backtick) are refused.
+     - Claude Code's exact import grammar was not checked.
+   - **Structure.** C18b shows that today's gate passes a heading and a numbered line added outside "Implementing a change". The renderer owns the structure check in **both** orderings; the gate is no backstop.
+   - **Value forms.** These are open for the spec. R06d (`9e1`) and R06e (`90.0`) are both accepted as 90. That is harmless through a fixed template, but refusing them needs the raw token, which `readStrictJson` discards.
    - **The gate's helpers.** Reusing them needed a source rewrite of `seam-a.mjs`, which calls `main()` on import and exports nothing. The real build should move `readStrictJson`, `scanText`, `safePath` and `shown` into a module both can import.
 6. **Protected-block policy, both ways.**
    - **Policy "refuse":** S06, S07 and S11 refuse.
