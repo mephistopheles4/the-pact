@@ -44,9 +44,8 @@ sandbox container, which never holds the-pact's checkout or this file.
    ```
 
 3. **Check the isolation,** inside the container, and record the output:
-   `find / \( -path /proc -o -path /sys \) -prune -o \( -name probe.md -o
-   -name case.json -o -name '*.practice-test.md' \) -print` must print
-   nothing.
+   `find / \( -path /proc -o -path /sys \) -prune -o \( -name case.json -o -name good.md -o -name '*.record.json' -o -name '*.practice-test.md' -o -name probe.md \) -print 2>/dev/null` must print nothing. Clear the volume first, as below, so the
+   control run's history never reaches the real run.
 4. **Start a fresh interactive session** with `claude` in `/home/runner/ws`
    (not `claude -p`), on Sonnet at medium effort, as the ticket suggests for
    its build, and type the prompt below word for word.
@@ -58,8 +57,8 @@ sandbox container, which never holds the-pact's checkout or this file.
    its agents made, with its input (which agents it dispatched with their
    prompts, every shell command, and every file read, search and edit), from
    the transcript; the model and the date. Then copy the transcript out of the
-   volume and clear it, as `familiars/behaviour-lens.practice-test.md`
-   describes.
+   volume and clear everything in it but the sign-in:
+   `docker run --rm -v pact-sandbox-home:/h pact-sandbox:47 find /h -mindepth 1 -maxdepth 1 ! -name .credentials.json -exec rm -rf {} +`.
 
 **The prompt:**
 
