@@ -17,7 +17,10 @@
 // content: no value, no key, no name. The only text it prints from the stage
 // is a file's path, and only once the path is made of safe characters.
 //
-// Node 20 or later, ESM, node: built-ins only.
+// The strict JSON reader, the text scanner, the safe-path test, the name
+// filter and the report and refusal types live in shared.mjs (#91).
+//
+// Node 20 or later, ESM, node: built-ins and the gate's own modules only.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -25,6 +28,7 @@ import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkPactText } from './pact-text.mjs';
+import { Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PINNED = join(HERE, 'grimoire', 'check.mjs');
@@ -84,18 +88,13 @@ const SETTINGS_APPLY_ASK = Object.freeze([
 // overlay must hold it too, whatever the allow-list says.
 const SETTINGS_CROSS_ASK = 'Edit(~/.claude/pact/**)';
 
-const MAX_BYTES = 1024 * 1024;
 const PINNED_TIMEOUT_MS = 60_000;
-const CHARACTER_HITS_MAX = 20;
 
 const PIN_RE = /^commit ([0-9a-f]{40})\nsha256 ([0-9a-f]{64})\n$/;
-const SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
 const TOP_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const META_KEY_RE = /^[a-z][a-z0-9-]*$/;
 const SETTINGS_KEY_RE = /^[A-Za-z0-9_]+$/;
 const SETTINGS_PATH_RE = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)?$/;
-const JSON_SCALAR_RE = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?)/;
-const JSON_DEPTH_MAX = 64;
 const TOOL_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
 // An unmigrated agent's name: letters and digits in hyphen-joined runs, as
 // today's files use (Explore keeps its capital). A familiar's stem must pass
@@ -104,59 +103,6 @@ const AGENT_NAME_RE = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 const FAMILIAR_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const NAME_MAX = 64;
 const GRIMOIRE_RULE_RE = /^(?:FAIL|CANNOT-CHECK) ([a-z][a-z0-9-]*)(?::|$)/;
-
-// ---------------------------------------------------------------- output
-
-/** A path from the stage, safe to print: anything outside the safe set becomes '?'. */
-function shown(rel) {
-  let s = '';
-  for (const ch of rel.slice(0, 200)) s += /[A-Za-z0-9._/-]/.test(ch) ? ch : '?';
-  return s;
-}
-
-class Report {
-  constructor() {
-    this.lines = [];
-    this.failed = false;
-    this.failedFiles = new Set();
-  }
-  fail(rule, file, line, reason) {
-    this.failed = true;
-    if (file) this.failedFiles.add(file);
-    const where = file ? `${shown(file)}${line ? ` line ${line}` : ''}: ` : '';
-    this.lines.push(`FAIL ${rule}: ${where}${reason}`);
-  }
-  note(rule, text) {
-    this.lines.push(`NOTE ${rule}: ${text}`);
-  }
-  pass(rule, file) {
-    this.lines.push(`PASS ${rule}: ${shown(file)}`);
-  }
-}
-
-// ---------------------------------------------------------------- characters
-
-const DEFAULT_IGNORABLE_RE = /^\p{Default_Ignorable_Code_Point}$/u;
-
-/** Characters that change what a reader sees without being seen (as grimoire's isInvisible). */
-function isInvisible(cp) {
-  if (cp < 0xad) return false;
-  return (
-    (cp >= 0xe0000 && cp <= 0xe007f) ||
-    (cp >= 0x202a && cp <= 0x202e) ||
-    (cp >= 0x2066 && cp <= 0x2069) ||
-    (cp >= 0x200b && cp <= 0x200f) ||
-    cp === 0x061c ||
-    cp === 0x2060 ||
-    cp === 0xfeff ||
-    DEFAULT_IGNORABLE_RE.test(String.fromCodePoint(cp))
-  );
-}
-
-/** Characters that read as a line break or a terminal command to some tool (as grimoire's isRefusedChar), and CR. */
-function isRefused(cp) {
-  return (cp < 0x20 && cp !== 9) || (cp >= 0x7f && cp <= 0x9f) || cp === 0x2028 || cp === 0x2029 || cp === 0xfffe || cp === 0xffff;
-}
 
 // ---------------------------------------------------------------- values
 
@@ -197,14 +143,6 @@ function yamlReadsAsNonText(v) {
   if (bare === '.inf' || bare === '.nan') return true;
   if (YAML_NUMBER_RES.some(re => re.test(bare))) return true;
   return yamlBase60(bare);
-}
-
-class Refused extends Error {
-  constructor(rule, reason) {
-    super(reason);
-    this.rule = rule;
-    this.reason = reason;
-  }
 }
 
 function parseQuoted(raw) {
@@ -282,47 +220,6 @@ function parseValue(raw, key) {
 }
 
 // ---------------------------------------------------------------- the strict reader
-
-/**
- * A checked file's text: at most 1 MiB, valid UTF-8, no byte-order mark, and
- * no control, line-separator or invisible character. Returns the text, or
- * null after recording every failure in `report`.
- */
-function scanText(buf, file, report) {
-  if (buf.length > MAX_BYTES) {
-    report.fail('size', file, null, 'larger than 1 MiB');
-    return null;
-  }
-  let text;
-  try {
-    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(buf);
-  } catch {
-    report.fail('encoding', file, null, 'not valid UTF-8');
-    return null;
-  }
-  if (text.charCodeAt(0) === 0xfeff) {
-    report.fail('bom', file, 1, 'a byte-order mark');
-    return null;
-  }
-
-  const lines = text.split('\n');
-  let hits = 0;
-  lines.forEach((line, i) => {
-    for (const ch of line) {
-      const cp = ch.codePointAt(0);
-      let rule = null;
-      if (isRefused(cp)) rule = ['characters', cp === 13 ? 'a carriage return' : 'a control or line-separator character'];
-      else if (isInvisible(cp)) rule = ['invisible', 'an invisible or direction-changing character'];
-      if (rule) {
-        hits += 1;
-        if (hits <= CHARACTER_HITS_MAX) report.fail(rule[0], file, i + 1, rule[1]);
-        return;
-      }
-    }
-  });
-  if (hits > CHARACTER_HITS_MAX) report.fail('characters', file, null, `${hits - CHARACTER_HITS_MAX} more lines hold a refused character`);
-  return hits > 0 ? null : text;
-}
 
 /**
  * Read an agent file's frontmatter with a strict subset reader. Records every
@@ -557,90 +454,6 @@ function sameJson(a, b) {
   return a === b;
 }
 
-/**
- * JSON read strictly, so every reader sees the same keys: no byte-order mark,
- * and no key twice in one object, compared after decoding its escapes and also
- * case-folded (PowerShell folds case; JSON.parse keeps the last). Throws
- * Refused with rule 'read' or 'duplicate'.
- */
-function readStrictJson(buf) {
-  if (buf.length > MAX_BYTES) throw new Refused('read', 'larger than 1 MiB');
-  let text;
-  try {
-    text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(buf);
-  } catch {
-    throw new Refused('read', 'not valid UTF-8');
-  }
-  if (text.charCodeAt(0) === 0xfeff) throw new Refused('read', 'a byte-order mark');
-  const notJson = () => new Refused('read', 'not valid JSON');
-  let i = 0;
-  const space = () => {
-    while (i < text.length && ' \t\n\r'.includes(text[i])) i += 1;
-  };
-  const string = () => {
-    const start = i;
-    i += 1;
-    while (i < text.length && text[i] !== '"') i += text[i] === '\\' ? 2 : 1;
-    if (i >= text.length) throw notJson();
-    i += 1;
-    try {
-      return JSON.parse(text.slice(start, i));
-    } catch {
-      throw notJson();
-    }
-  };
-  // Each list and object closes with `end`, its members split by commas.
-  const members = (end, member) => {
-    i += 1;
-    space();
-    if (text[i] === end) {
-      i += 1;
-      return;
-    }
-    for (;;) {
-      member();
-      space();
-      const d = text[i];
-      i += 1;
-      if (d === end) return;
-      if (d !== ',') throw notJson();
-    }
-  };
-  const value = depth => {
-    if (depth > JSON_DEPTH_MAX) throw new Refused('read', 'nested too deeply');
-    space();
-    const c = text[i];
-    if (c === '{') {
-      const seen = new Set();
-      members('}', () => {
-        space();
-        if (text[i] !== '"') throw notJson();
-        const k = string().toLowerCase();
-        if (seen.has(k)) throw new Refused('duplicate', 'a key seen twice in one object (compared exactly and case-folded)');
-        seen.add(k);
-        space();
-        if (text[i] !== ':') throw notJson();
-        i += 1;
-        value(depth + 1);
-      });
-    } else if (c === '[') members(']', () => value(depth + 1));
-    else if (c === '"') string();
-    else {
-      const m = JSON_SCALAR_RE.exec(text.slice(i, i + 400));
-      if (!m) throw notJson();
-      i += m[0].length;
-    }
-  };
-  value(0);
-  space();
-  if (i !== text.length) throw notJson();
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw notJson();
-  }
-}
-
 /** The settings allow-list, as a Map from key path to its one allowed value. */
 function loadSettingsAllowlist(report) {
   const fail = reason => {
@@ -784,10 +597,6 @@ function walk(root, top, report) {
   };
   visit(top);
   return files;
-}
-
-function safePath(rel) {
-  return rel.split('/').every(s => SEGMENT_RE.test(s) && s !== '.' && s !== '..' && !s.endsWith('.'));
 }
 
 /**
@@ -983,7 +792,7 @@ function run(root, report) {
     else dests.set(k, i.file);
   }
 
-  checkPactText(root, agents, report, scanText);
+  checkPactText(root, agents, report);
 
   for (const a of agents) if (!report.failedFiles.has(a.file)) report.pass('agent', a.file);
 

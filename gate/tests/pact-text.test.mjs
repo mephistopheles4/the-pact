@@ -463,7 +463,7 @@ test('bad case: a carriage return in CLAUDE.md', t => {
 
 function gateCopy(t, editGate) {
   const g = tempDir(t);
-  for (const f of ['seam-a.mjs', 'pact-text.mjs', 'tool-allowlist.json', 'grimoire', 'clauses']) cpSync(join(GATE, f), join(g, f), { recursive: true });
+  for (const f of ['seam-a.mjs', 'pact-text.mjs', 'shared.mjs', 'tool-allowlist.json', 'grimoire', 'clauses']) cpSync(join(GATE, f), join(g, f), { recursive: true });
   editGate(g);
   return join(g, 'seam-a.mjs');
 }

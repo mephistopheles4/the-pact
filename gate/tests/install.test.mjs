@@ -163,6 +163,7 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
     'gate/pact-text.mjs',
     'gate/seam-a.mjs',
     'gate/settings-allowlist.json',
+    'gate/shared.mjs',
     'gate/tool-allowlist.json',
     'scripts/install.ps1',
   ]);
