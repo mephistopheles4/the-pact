@@ -8,7 +8,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { LENSES, OLD_REVIEWERS, ROSTER } from '../pact-text.mjs';
-import { REPO, failRules, lastLine, plainAgent, read, runSeamA, sealedFamiliar, stage, tempDir, writeTree } from './helpers.mjs';
+import { REPO, failRules, lastLine, plainAgent, read, runSeamA, sealedFamiliar, stage, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
 
 const MD = 'claude/CLAUDE.md';
 // A lens that the state after the QA swap does not install (#47).
@@ -133,7 +133,9 @@ test('bad case: a roster name wrapped at its hyphen, or written with a minus sig
 
 test('the roster check names the line where a wrapped name starts', t => {
   const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} See unstated-\n   lens.`)));
-  const at = read(join(REPO, 'claude', 'CLAUDE.md')).split('\n').findIndex(l => l.includes(PLACES['move 2'])) + 1;
+  // Seam A reads the rendered file, so the line is counted in the no-file render.
+  const at = withoutOpenMarks(read(join(REPO, 'claude', 'CLAUDE.md'))).split('\n').findIndex(l => l.includes(PLACES['move 2'])) + 1;
+  assert.notEqual(at, read(join(REPO, 'claude', 'CLAUDE.md')).split('\n').findIndex(l => l.includes(PLACES['move 2'])) + 1, 'the source and the render put the line at the same number, so this test would pass for the wrong reason');
   assert.ok(fails(r.stdout, 'roster').some(l => l.startsWith(`${MD} line ${at}: names ${ABSENT}`)), r.out);
 });
 
