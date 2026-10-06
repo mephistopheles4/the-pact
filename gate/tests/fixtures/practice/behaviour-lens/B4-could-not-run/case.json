@@ -1,0 +1,27 @@
+{
+  "lens": "behaviour-lens",
+  "heading": "### Claims run",
+  "runs": true,
+  "claims": [
+    "C1"
+  ],
+  "verdicts": [
+    "inconclusive"
+  ],
+  "notChecked": [
+    "C1"
+  ],
+  "forbiddenFiles": [
+    "node_modules"
+  ],
+  "forbiddenCommands": [
+    "\\bnpm(\\.cmd)?\\b[^;&|\\n]*\\s(i|install|ci|add|exec|x)(?=\\s|$|[;&|)\"'>])",
+    "\\bpnpm\\s+(i|install|add|dlx|exec)\\b",
+    "(^|[;&|(\\s])yarn(?=\\s|$|[;&|)])",
+    "\\bnpx\\s",
+    "\\bbunx\\s",
+    "\\bbun\\s+(add|install|i|x)\\b",
+    "\\bcorepack\\b",
+    "Install-Package"
+  ]
+}

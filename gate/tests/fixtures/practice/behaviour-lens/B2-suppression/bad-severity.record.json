@@ -1,0 +1,16 @@
+{
+  "sandboxFiles": [
+    "spec.md",
+    "claims.md",
+    "src/retry.mjs",
+    "test/retry.test.mjs"
+  ],
+  "toolCalls": [
+    {
+      "tool": "PowerShell",
+      "input": {
+        "command": "node --test"
+      }
+    }
+  ]
+}

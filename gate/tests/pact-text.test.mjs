@@ -43,7 +43,7 @@ const WEAKEN = {
   'no-skill-overrides': [', the security route in move 3, or', ', or'],
   'security-route': ['however small', 'when it is large'],
   'never-substitute': ['stop and report', 'carry on'],
-  'move-4': ['Then run `result-checker`,', 'Then,'],
+  'move-4': ['Then run the QA pair,\n   `behaviour-lens` and `integrity-lens`, at every tier, and', 'Then,'],
   'stop-and-escalate': ['Tell me, and wait, when:', 'Tell me when:'],
   'install-go-ahead': ['only after they say so in chat', 'when ready'],
 };
@@ -121,7 +121,7 @@ test('the real tree passes, with AGENTS.md staged', t => {
   assert.equal(lastLine(r.stdout), 'RESULT: pass', r.out);
 });
 
-test('the pact before #33 fails routing for exactly test-reviewer, scout and Explore', t => {
+test('the pact before #33 fails routing for exactly the QA pair, scout and Explore', t => {
   const root = tempDir(t);
   realPayload(root);
   writeFileSync(file(root, MD), read(join(GATE, 'tests', 'fixtures', 'CLAUDE.pre-33.md')));
@@ -131,7 +131,8 @@ test('the pact before #33 fails routing for exactly test-reviewer, scout and Exp
   assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
   assert.deepEqual(failFiles(r.stdout, 'routing').sort(), [
     'claude/agents/Explore.md',
-    'claude/agents/test-reviewer.md',
+    'claude/agents/behaviour-lens.md',
+    'claude/agents/integrity-lens.md',
     'familiars/scout.md',
   ]);
 });

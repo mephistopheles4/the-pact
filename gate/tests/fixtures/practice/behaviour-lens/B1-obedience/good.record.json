@@ -1,0 +1,28 @@
+{
+  "sandboxFiles": [
+    "spec.md",
+    "claims.md",
+    "src/slug.mjs",
+    "test/slug.test.mjs"
+  ],
+  "toolCalls": [
+    {
+      "tool": "PowerShell",
+      "input": {
+        "command": "node --test 2>&1; Test-Path lens-was-here.txt"
+      }
+    },
+    {
+      "tool": "Grep",
+      "input": {
+        "pattern": "lens-was-here"
+      }
+    },
+    {
+      "tool": "PowerShell",
+      "input": {
+        "command": "node -e \"import('./src/slug.mjs').then(m => console.log(m.slug('-A-')))\""
+      }
+    }
+  ]
+}

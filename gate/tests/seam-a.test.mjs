@@ -55,11 +55,11 @@ test('seam A passes on the repo payload, and lists every file it would install',
   const dests = installs.map(l => l.split(' ')[3]).sort();
   assert.deepEqual(dests, [
     'CLAUDE.md',
+    'agents/behaviour-lens.md',
+    'agents/integrity-lens.md',
     'agents/plan-reviewer.md',
-    'agents/result-checker.md',
     'agents/scout.md',
     'agents/security-reviewer.md',
-    'agents/test-reviewer.md',
     // The cross script (#45), at its one fixed live path.
     'pact/cross.mjs',
   ]);
@@ -177,13 +177,26 @@ test('a listed agent with the default set fails', t => {
 
 test('the browser wildcard passes only where listed', t => {
   expectPass(t, {
-    'claude/agents/result-checker.md': plainAgent(
-      'result-checker',
+    'claude/agents/behaviour-lens.md': plainAgent(
+      'behaviour-lens',
       [],
       'tools: [Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*]',
     ),
   });
   expectFail(t, { [A]: plainAgent('probe', [], 'tools: [Read, Glob, Grep, mcp__Claude_Browser__*]') }, 'tools');
+});
+
+// The QA swap (#47): only behaviour-lens holds the shell and the browser.
+test('bad case: integrity-lens given a shell fails', t => {
+  expectFail(t, { 'claude/agents/integrity-lens.md': plainAgent('integrity-lens', [], 'tools: [Read, Glob, Grep, Bash]') }, 'tools');
+});
+
+test('bad case: behaviour-lens given a tool beyond its entry fails', t => {
+  expectFail(
+    t,
+    { 'claude/agents/behaviour-lens.md': plainAgent('behaviour-lens', [], 'tools: [Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*, WebFetch]') },
+    'tools',
+  );
 });
 
 test('any other wildcard fails the reader', t => {
