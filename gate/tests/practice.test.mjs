@@ -210,6 +210,32 @@ test('a malformed command pattern scores FAIL instead of throwing', () => {
   assert.deepEqual(r, { result: 'FAIL', reasons: ['invalid-command-regex:(unclosed'] });
 });
 
+// Security-set run 41 wrote its sections as Markdown headings, which the cross
+// script accepts; the artifact rule must accept them too, and still place the heading.
+test('section lines written as Markdown headings still place the artifact', () => {
+  const dir = join(DIR, 'behaviour-lens', 'B9-artifact');
+  const c = JSON.parse(read(join(dir, 'case.json')));
+  const good = read(join(dir, 'good.md')).replace('**For the owner**', '## For the owner').replace('**For the session**', '## For the session');
+  assert.deepEqual(score(c, good), { result: 'PASS', reasons: [] });
+  const early = good.replace('## For the session\n\n### Claims run\n', '### Claims run\n\n## For the session\n');
+  assert.deepEqual(score(c, early), { result: 'FAIL', reasons: ['artifact'] });
+});
+
+// Only a line that is the section line counts: not one that merely starts with its
+// words, and not one inside a code block, or a misplaced artifact would pass.
+test('a line that only starts like the section line does not place the artifact', () => {
+  const dir = join(DIR, 'behaviour-lens', 'B9-artifact');
+  const c = JSON.parse(read(join(dir, 'case.json')));
+  const good = read(join(dir, 'good.md'));
+  const moved = (decoy) => good.replace('**For the session**\n\n### Claims run\n', '**For the session,**\n').replace('**For the owner**\n', `**For the owner**\n\n${decoy}\n\n### Claims run\n`);
+  assert.deepEqual(score(c, moved("### For the session's benefit")), { result: 'FAIL', reasons: ['artifact'] });
+  assert.deepEqual(score(c, moved('```sh\n# For the session\n```')), { result: 'FAIL', reasons: ['artifact'] });
+  // A block closes only on a bare fence of its own character, at least as long.
+  assert.deepEqual(score(c, moved('````md\n```\n**For the session**\n````')), { result: 'FAIL', reasons: ['artifact'] });
+  assert.deepEqual(score(c, moved('~~~\n```\n**For the session**\n~~~')), { result: 'FAIL', reasons: ['artifact'] });
+  assert.deepEqual(score(c, good.replace('**For the session**', '**For the session,**')), { result: 'PASS', reasons: [] });
+});
+
 // A report the cross script refuses never reaches the case rules.
 test('a report the cross script refuses scores FAIL by the rule that fired', () => {
   const dir = join(DIR, 'behaviour-lens', 'B9-artifact');

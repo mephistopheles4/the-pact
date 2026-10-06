@@ -96,10 +96,26 @@ function block(text) {
   return JSON.parse(lines.slice(open + 1, close).join('\n'));
 }
 
-/** True when the report holds the heading on a line of its own, after "For the session" and before the block. */
+/**
+ * True when the report holds the heading on a line of its own, after "For the session" and before the block.
+ * The "For the session" line may be bare, bold or a Markdown heading, with a trailing comma or colon,
+ * and nothing else on the line; a line inside a code block never counts. This scorer is the only
+ * check on where the sections sit: the cross script reads only the findings block.
+ */
 function hasArtifact(text, heading) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
-  const session = lines.findIndex(l => /^\**For the session\**/.test(l.trim()));
+  let fence = null; // the open fence's character and length
+  const session = lines.findIndex(l => {
+    const m = /^(`{3,}|~{3,})(.*)$/.exec(l.trim());
+    if (m) {
+      const ch = m[1][0];
+      const len = m[1].length;
+      if (!fence) fence = { ch, len };
+      else if (ch === fence.ch && len >= fence.len && m[2].trim() === '') fence = null;
+      return false;
+    }
+    return !fence && /^(?:#{1,6}\s+)?\**For the session[,:]?\**[,:]?$/.test(l.trim());
+  });
   const at = lines.indexOf(heading);
   const blockAt = lines.indexOf('```lens-findings');
   return session >= 0 && at > session && at < blockAt;
