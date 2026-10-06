@@ -11,7 +11,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export function indexGaps(dir) {
   const files = readdirSync(dir).filter((f) => f.endsWith(".md") && f !== "README.md");
   const readme = readFileSync(join(dir, "README.md"), "utf8");
-  const linked = [...readme.matchAll(/\]\(([^)#\s]+\.md)\)/g)].map((m) => m[1]);
+  const linked = [...readme.matchAll(/\]\((?:\.\/)?([^)#\s]+\.md)(?:#[^)\s]*)?\)/g)].map((m) => m[1]);
   return {
     unlisted: files.filter((f) => !linked.includes(f)),
     missing: linked.filter((f) => !files.includes(f)),
