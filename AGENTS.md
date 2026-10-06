@@ -54,7 +54,11 @@ how every session in every repo behaves. So:
   [`docs/adr/`](docs/adr/), with its reasoning. The work itself becomes one
   dated narrative in [`docs/log/`](docs/log/), ending in a **Record** list of
   the issue comments that hold the verbatim plan, reviews and probe records.
-  Work that finished before #52 keeps its commit citations.
+  Work that finished before #52 keeps its commit citations. The PR that
+  finishes a piece of work carries its log entry and its ADRs, and a session
+  doesn't report the work as finished until both are merged. If that PR can't
+  carry them, for example a security-set record merged before the narrative
+  is written, the session opens a docs PR before it is cleaned up.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](docs/agents/domain.md).
 

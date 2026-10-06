@@ -1,0 +1,1 @@
+- [ ] This PR finishes its work: the docs/log entry and its ADRs are included. Otherwise: this isn't the last PR for the work.
