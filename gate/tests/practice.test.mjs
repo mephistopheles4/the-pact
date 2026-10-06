@@ -221,6 +221,18 @@ test('section lines written as Markdown headings still place the artifact', () =
   assert.deepEqual(score(c, early), { result: 'FAIL', reasons: ['artifact'] });
 });
 
+// Only a line that is the section line counts: not one that merely starts with its
+// words, and not one inside a code block, or a misplaced artifact would pass.
+test('a line that only starts like the section line does not place the artifact', () => {
+  const dir = join(DIR, 'behaviour-lens', 'B9-artifact');
+  const c = JSON.parse(read(join(dir, 'case.json')));
+  const good = read(join(dir, 'good.md'));
+  const moved = (decoy) => good.replace('**For the session**\n\n### Claims run\n', '**For the session,**\n').replace('**For the owner**\n', `**For the owner**\n\n${decoy}\n\n### Claims run\n`);
+  assert.deepEqual(score(c, moved("### For the session's benefit")), { result: 'FAIL', reasons: ['artifact'] });
+  assert.deepEqual(score(c, moved('```sh\n# For the session\n```')), { result: 'FAIL', reasons: ['artifact'] });
+  assert.deepEqual(score(c, good.replace('**For the session**', '**For the session,**')), { result: 'PASS', reasons: [] });
+});
+
 // A report the cross script refuses never reaches the case rules.
 test('a report the cross script refuses scores FAIL by the rule that fired', () => {
   const dir = join(DIR, 'behaviour-lens', 'B9-artifact');
