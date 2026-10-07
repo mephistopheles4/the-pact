@@ -25,12 +25,13 @@ function inputs(t) {
   return { rules, diff, rulesFile: join(d, 'CLAUDE.md'), diffFile: join(d, 'config.diff') };
 }
 
-function review(t, folder, home, { fault } = {}) {
+function review(t, folder, home, { fault, faultDir } = {}) {
   const i = inputs(t);
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   const pre = fault ? ['--import', FAULTS] : [];
   if (fault) env.PACT_FAULT = fault;
+  if (faultDir) env.PACT_FAULT_DIR = faultDir;
   const r = spawnSync(process.execPath, [...pre, REVIEW, folder, home ?? tempDir(t, 'pact-review-home-'), i.rulesFile, i.diffFile], { encoding: 'utf8', env });
   return { code: r.status, stdout: r.stdout, out: r.stdout + r.stderr, ...i };
 }
@@ -227,6 +228,21 @@ test('bad case: a file that appears in the folder after the write refuses, and t
   assert.deepEqual(readdirSync(f), ['extra.txt'], 'only the file this run did not write may remain');
 });
 
+test('bad case: a review folder whose real path changes during the write refuses, and the run takes its two files away', t => {
+  const f = tempDir(t);
+  const r = review(t, f, undefined, { fault: 'review-moved' });
+  refusedWith(r, 'review-write', /the review folder changed while it was written/);
+  assert.deepEqual(readdirSync(f), []);
+});
+
+test('bad case: a review file that gains a second name once opened refuses as not a new plain file, and the run removes it', t => {
+  const f = tempDir(t);
+  const elsewhere = tempDir(t, 'pact-review-link-');
+  const r = review(t, f, undefined, { fault: 'review-link', faultDir: elsewhere });
+  refusedWith(r, 'review-write', /rendered-rules\.txt is not a new plain file/);
+  assert.deepEqual(readdirSync(f), []);
+  assert.deepEqual(readdirSync(elsewhere), ['second-name.txt'], 'the fault did not plant its link');
+});
 /** A fake user home whose .claude is a junction out to a folder of another name; returns its parts. */
 function outwardClaude(t) {
   const fakeHome = tempDir(t, 'pact-review-userhome-');

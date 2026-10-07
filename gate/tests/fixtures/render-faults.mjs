@@ -21,6 +21,11 @@
 //   review-fail-diff   (gate/review.mjs) the create of config.diff fails
 //   review-extra       (gate/review.mjs) a file appears in the review folder
 //                      after both files are written, before the last check
+//   review-moved       (gate/review.mjs) the review folder's real path reads
+//                      differently the second time it is looked up
+//   review-link        (gate/review.mjs) rendered-rules.txt gains a second
+//                      name (a hard link, in PACT_FAULT_DIR) just after it is
+//                      opened
 //
 // PACT_FAULT_FILE=block points the file faults (swap, hard link, link,
 // realpath, count) at block files under pact/blocks/ instead of the
@@ -48,6 +53,7 @@ fs.readdirSync = function (p, ...rest) {
 const { openSync, lstatSync, linkSync, readSync, readFileSync, renameSync, writeFileSync, symlinkSync, unlinkSync } = fs;
 const realNative = fs.realpathSync.native;
 const configFds = new Set();
+let reviewReals = 0;
 
 fs.openSync = function (p, ...rest) {
   // gate/review.mjs: a file planted at the review file's name just before its
@@ -57,6 +63,11 @@ fs.openSync = function (p, ...rest) {
     const e = new Error('EACCES: planted');
     e.code = 'EACCES';
     throw e;
+  }
+  if (fault === 'review-link' && typeof p === 'string' && /[\\/]pact-test-[^\\/]+[\\/]rendered-rules\.txt$/.test(p)) {
+    const fd = openSync(p, ...rest);
+    linkSync(p, `${process.env.PACT_FAULT_DIR}/second-name.txt`);
+    return fd;
   }
   if (isConfig(p)) {
     if (fault === 'swap-before-open') {
@@ -104,6 +115,7 @@ fs.realpathSync.native = function (p, ...rest) {
     throw e;
   }
   const r = realNative(p, ...rest);
+  if (fault === 'review-moved' && typeof p === 'string' && /[\\/]pact-test-[^\\/]+$/.test(p) && (reviewReals += 1) === 2) return `${r}-moved`;
   return fault === 'realpath-elsewhere' && isConfig(p) ? `${r}.elsewhere` : r;
 };
 
