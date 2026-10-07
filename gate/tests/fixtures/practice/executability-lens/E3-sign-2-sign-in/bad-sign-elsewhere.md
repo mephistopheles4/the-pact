@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S3. Stalls: S3: sign 2: the owner signs in to the hosting dashboard with no stated time.
 3. Check the done-criteria (S4).
 
-- S1 (F1): This section leaves a step with no clear finish
+- S1 (F1): This section leaves a step with no stated finish
 
 ```lens-findings
 {
@@ -32,7 +32,7 @@ Steps:
         "id": "S1"
       },
       "severity": "high",
-      "headline": "This section leaves a step with no clear finish"
+      "headline": "This section leaves a step with no stated finish"
     }
   ],
   "notChecked": [

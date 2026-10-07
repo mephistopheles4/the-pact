@@ -43,7 +43,9 @@ function missingFrom(list, items) {
 function restated(lens, before, after) {
   const flat = read(join(REPO, 'claude', 'agents', `${lens}.md`)).replace(/\s+/g, ' ');
   assert.equal(flat.split(before).length, 2, `${lens}: "${before}" must occur once`);
-  return flat.split(before)[1].split(after)[0];
+  const rest = flat.split(before)[1];
+  assert.equal(rest.split(after).length, 2, `${lens}: "${after}" must occur once after "${before}"`);
+  return rest.split(after)[0];
 }
 
 const RISK_FLOOR = listItems(read(join(CLAUSES, 'risk-floor.md')).split(' are always thorough')[0]);

@@ -1,24 +1,21 @@
 **For the owner**
 
-A builder could start most of this spec, but one safeguard is unhandled: a password reset change sits on the standard tier. I suggest naming it in the Needs a human section with a stated time.
+This spec has no Needs a human section, so nothing says where you decide, approve or act. I suggest adding one before sign-off.
 
 **For the session**
 
 ### First ticket, drafted
 
 Red step:
-- S1: a password reset change sits on the standard tier, and the Needs a human section does not handle it.
+- S1: nothing found that would fail to build.
 - S2: nothing found that would fail to build.
-- S3: nothing found that would fail to build.
+- S3: the publish step has no owner checkpoint anywhere.
 - S4: nothing found that would fail to build.
 - S5: nothing found that would fail to build.
-- S6: nothing found that would fail to build.
+- S3 (F1): the step has no stated finish. Change: name it. Check: it is named.
 Steps:
-1. Read the reading list (S2).
-2. Do the step in S1. Stalls: S1: sign 6: a password reset change sits on the standard tier.
-3. Check the done-criteria (S4).
-
-- S3 (F1): This section leaves a step with no stated finish
+1. Build the export (S2).
+2. Publish the export (S3). Stalls: S3: no Needs a human section, so no step says who signs off.
 
 ```lens-findings
 {

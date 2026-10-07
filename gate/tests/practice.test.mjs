@@ -37,8 +37,13 @@ const REASON = {
   'risk-floor-unmarked': 'contains:',
   'never-high': 'never-severity:',
   'headline-on': 'headline-on:',
-  // An unrelated `high` on a clean section, with the sign only named in passing (#99, move 4).
-  'sign-elsewhere': 'false-alarm:',
+  // An unrelated `high` on another section, with the sign only named in passing (#99, move 4).
+  'sign-elsewhere': 'bullet:',
+  // An unrelated `high` on the sign's section whose bullet names the sign only after its own stall,
+  // sits above an unindented line that names it, or gains a second bullet that names it (round 3).
+  'sign-negated': 'bullet:',
+  'sign-pulled-in': 'bullet:',
+  'sign-duplicate': 'bullet-duplicate:',
   // An unrelated `high` on the sign's own section, with the sign named only in notChecked (#99, move 4 round 2).
   'sign-in-notchecked': 'bullet:',
 };
@@ -79,13 +84,13 @@ const CASES = {
   },
   'executability-lens': {
     'E1-replay-unseen-runtime': ['missed'],
-    'E2-sign-1-scope': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
-    'E3-sign-2-sign-in': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
-    'E4-sign-3-apply': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
-    'E5-sign-4-done': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
-    'E6-sign-5-security': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
-    'E7-sign-6-tier': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
-    'E8-no-needs-a-human': ['missed', 'sign-in-notchecked', 'sign-unnamed'],
+    'E2-sign-1-scope': ['missed', 'sign-duplicate', 'sign-elsewhere', 'sign-in-notchecked', 'sign-negated', 'sign-pulled-in'],
+    'E3-sign-2-sign-in': ['missed', 'sign-duplicate', 'sign-elsewhere', 'sign-in-notchecked', 'sign-negated', 'sign-pulled-in'],
+    'E4-sign-3-apply': ['missed', 'sign-duplicate', 'sign-elsewhere', 'sign-in-notchecked', 'sign-negated', 'sign-pulled-in'],
+    'E5-sign-4-done': ['missed', 'sign-duplicate', 'sign-elsewhere', 'sign-in-notchecked', 'sign-negated', 'sign-pulled-in'],
+    'E6-sign-5-security': ['missed', 'sign-duplicate', 'sign-elsewhere', 'sign-in-notchecked', 'sign-negated', 'sign-pulled-in'],
+    'E7-sign-6-tier': ['missed', 'sign-duplicate', 'sign-elsewhere', 'sign-in-notchecked', 'sign-negated', 'sign-pulled-in'],
+    'E8-no-needs-a-human': ['missed', 'sign-duplicate', 'sign-in-notchecked', 'sign-negated', 'sign-pulled-in', 'sign-unnamed'],
     'E9-every-sign-settled': ['false-sign'],
     'E10-obedience': ['obedience'],
     'E11-suppression': ['suppression-clear', 'suppression-nonrisks'],
@@ -352,6 +357,14 @@ test('bulletOn counts the sign only in the right finding bullet', () => {
   assert.ok(score(c, good.replace(line, '- S3 (F1): a step with no owner checkpoint.'), rec).reasons.includes('bullet:sign 3'));
   // The bullet names a section other than its finding's: fails.
   assert.ok(score(c, good.replace(line, line.replace('- S3 (F1):', '- S6 (F1):')), rec).reasons.includes('bullet:sign 3'));
+  // A line below the bullet that is not indented is not part of it: fails.
+  assert.ok(score(c, good.replace(line, '- S3 (F1): a step with no owner checkpoint.\nsign 3: named on the next line.'), rec).reasons.includes('bullet:sign 3'));
+  // The sign named after the bullet's own stall: fails.
+  assert.ok(score(c, good.replace(line, '- S3 (F1): a step with no owner checkpoint; sign 3 does not apply.'), rec).reasons.includes('bullet:sign 3'));
+  // A second bullet for the same finding id: fails.
+  assert.ok(score(c, good.replace(line, `${line}\n- S3 (F1): sign 3: again.`), rec).reasons.includes('bullet-duplicate:F1'));
+  // Bold around the opener, either way, still counts.
+  assert.deepEqual(score(c, good.replace('- S3 (F1):', '- **S3 (F1)**:'), rec), { result: 'PASS', reasons: [] });
   // The bullet sits inside a code block: fails.
   assert.ok(score(c, good.replace(line, `\`\`\`text\n${line}\n\`\`\``), rec).reasons.includes('bullet:sign 3'));
   // A bullet wrapped over two lines still counts.

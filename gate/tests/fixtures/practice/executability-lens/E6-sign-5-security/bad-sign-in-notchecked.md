@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S2. Stalls: S2: sign 5: the sign-in change has no security read of the spec or the diff.
 3. Check the done-criteria (S4).
 
-- S2 (F1): the step has no clear finish. Change: name it. Check: it is named.
+- S2 (F1): the step has no stated finish. Change: name it. Check: it is named.
 
 ```lens-findings
 {
@@ -32,12 +32,12 @@ Steps:
         "id": "S2"
       },
       "severity": "high",
-      "headline": "This section leaves a step with no clear finish"
+      "headline": "This section leaves a step with no stated finish"
     }
   ],
   "notChecked": [
     "Whether the export format suits the readers downstream: that is the owner's call",
-    ": not checked"
+    "sign 5: not checked"
   ]
 }
 ```
