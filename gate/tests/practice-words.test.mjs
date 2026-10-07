@@ -23,7 +23,7 @@ test('every contains and headlineOn phrase, and the artifact heading, is written
 });
 
 
-// security-reviewer F2 on #99's swap: two lenses restate a gated list in their own text, outside the
+// The security reviewer's F2 on #99's swap: two lenses restate a gated list in their own text, outside the
 // one shared block. Each restatement must hold every item of its canonical clause, so a risk floor that
 // gains an item fails here until the lens's copy gains it too.
 const CLAUSES = join(REPO, 'gate', 'clauses');
@@ -75,7 +75,7 @@ test('bad case: a restated list that drops an item is caught, however short the 
 const ASVS_5 = ['V1 Encoding and Sanitization', 'V2 Validation and Business Logic', 'V3 Web Frontend Security', 'V4 API and Web Service', 'V5 File Handling', 'V6 Authentication', 'V7 Session Management', 'V8 Authorization', 'V9 Self-contained Tokens', 'V10 OAuth and OIDC', 'V11 Cryptography', 'V12 Secure Communication', 'V13 Configuration', 'V14 Data Protection', 'V15 Secure Coding and Architecture', 'V16 Security Logging and Error Handling', 'V17 WebRTC'];
 const CARRIED = {
   'adversarial-lens': ['OWASP ASVS 5.0.0', 'Spoofing', 'Tampering', 'Repudiation', 'Information disclosure', 'Denial of service', 'Elevation of privilege', ...ASVS_5],
-  'data-lens': ['OWASP ASVS 5.0.0', 'Linking', 'Identifying', 'Non-repudiation', 'Detecting', 'Data disclosure', 'Unawareness and unintervenability', 'Non-compliance', 'V13 Configuration', 'V13.3 Secret Management', 'V13.4 Unintended Information Leakage', 'V14 Data Protection', 'V14.2 General Data Protection', 'V14.3 Client-side Data Protection', 'V16 Security Logging and Error Handling', 'V16.2 General Logging', 'V16.4 Log Protection', 'V16.5 Error Handling'],
+  'data-lens': ['OWASP ASVS 5.0.0', 'Linking', 'Identifying', 'Non-repudiation', 'Detecting', 'Data disclosure', 'Unawareness and unintervenability', 'Non-compliance', 'V11 Cryptography', 'V11.3 Encryption Algorithms', 'V11.7 In-Use Data Cryptography', 'V12 Secure Communication', 'V12.1 General TLS Security Guidance', 'V12.2 HTTPS Communication with External Facing Services', 'V12.3 General Service to Service Communication Security', 'V13 Configuration', 'V13.3 Secret Management', 'V13.4 Unintended Information Leakage', 'V14 Data Protection', 'V14.2 General Data Protection', 'V14.3 Client-side Data Protection', 'V16 Security Logging and Error Handling', 'V16.2 General Logging', 'V16.4 Log Protection', 'V16.5 Error Handling'],
 };
 
 /** The carried titles missing from a lens text. */

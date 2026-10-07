@@ -1,11 +1,11 @@
 # Contract: adversarial-lens
 
-Version: 0.1.0
+Version: 0.1.1
 
 - **Type:** agent
 - **Level:** Thorough
 - **Date:** 2026-10-07
-- **Go to build:** not yet. The owner's words for question 2 and the target, then "go" on every *Proposed* answer.
+- **Go to build:** not yet. The owner's target, then "go" on every *Proposed* answer.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's outgoing security reviewer, the agent file this lens and its partner replace in the security swap (pact issue #100; spec: #35, revision 7). Every rule of that file is listed under "Rules of the file it replaces", marked kept, moved or dropped.
 - **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): the agent file lives in `claude/agents/adversarial-lens.md`, unsealed. This contract and the practice test stay in `familiars/`. Without a seal, nothing checks that the file still matches this contract; that is Promised.
@@ -70,7 +70,9 @@ Each sample ends with its `lens-findings` block.
 
 ### 2. What does it notice that nothing else does?
 
-**Waiting on the owner's words.** The session's draft, for the owner to rewrite: "It thinks like an attacker. It walks every way someone could reach the change and asks what stops them, so a missing check shows up as a path, not as a vague worry."
+**Decided** (2026-10-07, the owner's words): "The adversarial lens is the agent that will make sure our security is applied with the art of war perspective, where it informs us about the enemy and every possible move they can make. Maybe a bit too hardcore, but in general, that's how I see it."
+
+The lens text carries it as "know the enemy": who can reach the change, what they control, what they want, and every move they could make. C1's red step names the enemy for each part of the change.
 
 ### 3. Who does what?
 
@@ -158,6 +160,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.1 | 2026-10-07 | Question 2 in the owner's words; the lens text says "know the enemy". | The owner's answer on #100 | 2 |
 | 0.1.0 | 2026-10-07 | Contract drafted from the outgoing security reviewer. Adds the red step, the attack-path artifact under a fixed heading, the carried STRIDE and ASVS 5.0.0 checklist, section and symbol anchors, likelihood, and the findings block; keeps the read-only boundary, the two review points and evidence before new mechanisms. | #35 revision 7 (the security pair), #100 | all |
 
 ## Standard questions (8–15)

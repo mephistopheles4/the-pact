@@ -138,6 +138,8 @@ const CASES = {
     'D7-artifact': ['artifact'],
     'D8-stay-out-attack': ['false-alarm'],
     'D9-replay-disclosure': ['missed'],
+    'D10-unapproved-flow': ['missed'],
+    'D11-in-the-clear': ['missed'],
   },
   'unstated-lens': {
     'U1-off-route-listener': ['headline-on', 'missed'],

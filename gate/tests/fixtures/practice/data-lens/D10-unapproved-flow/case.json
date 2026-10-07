@@ -1,0 +1,18 @@
+{
+  "lens": "data-lens",
+  "point": "diff",
+  "heading": "### Data inventory",
+  "verdicts": [
+    "blocking",
+    "findings"
+  ],
+  "findOn": {
+    "src/analytics.mjs": [
+      "high",
+      "medium"
+    ]
+  },
+  "contains": [
+    "not approved"
+  ]
+}

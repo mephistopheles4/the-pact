@@ -1,11 +1,11 @@
 # Contract: data-lens
 
-Version: 0.1.0
+Version: 0.1.1
 
 - **Type:** agent
 - **Level:** Thorough
 - **Date:** 2026-10-07
-- **Go to build:** not yet. The owner's words for question 2 and the target, then "go" on every *Proposed* answer.
+- **Go to build:** not yet. The owner's target, then "go" on every *Proposed* answer.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's outgoing security reviewer, the agent file this lens and its partner replace in the security swap (pact issue #100; spec: #35, revision 7). Every rule of that file is listed in `familiars/adversarial-lens.contract.md`, "Rules of the file it replaces", marked kept, moved or dropped for both lenses; the rows that land on this lens are repeated below.
 - **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): the agent file lives in `claude/agents/data-lens.md`, unsealed. This contract and the practice test stay in `familiars/`. Without a seal, nothing checks that the file still matches this contract; that is Promised.
@@ -65,7 +65,9 @@ Each sample ends with its `lens-findings` block.
 
 ### 2. What does it notice that nothing else does?
 
-**Waiting on the owner's words.** The session's draft, for the owner to rewrite: "It follows the data, not the attacker. It lists every secret and every piece of personal data the change touches, and finds where each one ends up, so a password in a log shows up even when nobody is attacking."
+**Decided** (2026-10-07, the owner's words): "The data lens is a little similar, but more towards the data privacy side. Is our data always encrypted, at rest, and in transit? Does it stay private according to the app rules or specs? If data goes out of the app somewhere, where does it go to? And is that an approved data flow?"
+
+The owner's words add two checks to the draft: encryption at rest and in transit (C15), and approved flows (C16). To check encryption, the lens also carries ASVS 5.0.0's V11 Cryptography and V12 Secure Communication, beyond the three chapters #35 revision 7 named. Adding a carried chapter widens the checklist and no tool, so it is no roster change.
 
 ### 3. Who does what?
 
@@ -98,6 +100,10 @@ Each sample ends with its `lens-findings` block.
   Held by: Promised.
 - C14. Every leak point it knows of is reported in the same pass.
   Held by: Promised.
+- C15. **Encryption** (question 2). For each secret or personal item, it says whether it is encrypted at rest and in transit, and by what. An item stored or sent in the clear is a finding.
+  Held by: Promised. Case D11, scored on its bad report.
+- C16. **Approved flows** (question 2). Every flow that takes data out of the app must be one the spec, the issue or the app's written rules approve. It names the approving rule, or writes `not approved`; a flow that is not approved is a finding.
+  Held by: Promised. Case D10, scored on its bad report; the phrase is in the lens text in exact words.
 
 **Automatic checks** *Proposed*
 - Seam A checks the file's format, its tools, and that it names no reviewer but itself.
@@ -116,7 +122,7 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 
 **When it is unsure** *Proposed*: Decides, and shows you. An unconfirmed leak is recorded as a hypothesis, with what would confirm it and the likelihood it believes.
 
-**Checklist** *Proposed*: LINDDUN (linking, identifying, non-repudiation, detecting, data disclosure, unawareness and unintervenability, non-compliance), and from OWASP ASVS 5.0.0: V13 Configuration (V13.1 Configuration Documentation, V13.2 Backend Communication Configuration, V13.3 Secret Management, V13.4 Unintended Information Leakage); V14 Data Protection (V14.1 Data Protection Documentation, V14.2 General Data Protection, V14.3 Client-side Data Protection); V16 Security Logging and Error Handling (V16.1 Security Logging Documentation, V16.2 General Logging, V16.3 Security Events, V16.4 Log Protection, V16.5 Error Handling). Checked against the ASVS repository's `v5.0.0` tag on 2026-10-07, at build time; never fetched at review time.
+**Checklist** *Proposed*: LINDDUN (linking, identifying, non-repudiation, detecting, data disclosure, unawareness and unintervenability, non-compliance), and from OWASP ASVS 5.0.0: V11 Cryptography (V11.1 Cryptographic Inventory and Documentation, V11.2 Secure Cryptography Implementation, V11.3 Encryption Algorithms, V11.4 Hashing and Hash-based Functions, V11.5 Random Values, V11.6 Public Key Cryptography, V11.7 In-Use Data Cryptography); V12 Secure Communication (V12.1 General TLS Security Guidance, V12.2 HTTPS Communication with External Facing Services, V12.3 General Service to Service Communication Security); V13 Configuration (V13.1 Configuration Documentation, V13.2 Backend Communication Configuration, V13.3 Secret Management, V13.4 Unintended Information Leakage); V14 Data Protection (V14.1 Data Protection Documentation, V14.2 General Data Protection, V14.3 Client-side Data Protection); V16 Security Logging and Error Handling (V16.1 Security Logging Documentation, V16.2 General Logging, V16.3 Security Events, V16.4 Log Protection, V16.5 Error Handling). Checked against the ASVS repository's `v5.0.0` tag on 2026-10-07, at build time; never fetched at review time.
 
 ### 4. What does it hand back?
 
@@ -124,12 +130,12 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 
 - **For the owner,** first: plain sentences on what data could leak, to whom, why it matters, and what it suggests. It does not open with a verdict word. No line numbers, codes or paths.
 - **For the session,** after:
-  1. `### Data inventory`: first the red step, one line per part of the change; then one table row per item, with the columns Item, Kind, Stored, Flows to, Read by, Leak point. A secret's row names its location.
+  1. `### Data inventory`: first the red step, one line per part of the change; then one table row per item, with the columns Item, Kind, Stored (encrypted?), Flows to (encrypted?), Approved by, Read by, Leak point. A secret's row names its location.
   2. One bullet per finding, opening `- F1:`: the data item, the leak point, the evidence (confirmed or hypothesis), the smallest change that closes it, and an observable check.
   3. Exactly one `lens-findings` block, last, with `lens` set to `data-lens`; on the spec every anchor is a listed section, on the diff a file and symbol.
 
 **Severity mapping** *Proposed* (one practice case per value):
-- `high`: fix before sign-off: data that reaches someone who should not have it, with the change as written, such as a secret in the source, a log or a response, or personal data sent or shown beyond need (the old "fix before sign-off" findings).
+- `high`: fix before sign-off: data that reaches someone who should not have it, with the change as written, such as a secret in the source, a log or a response; personal data sent or shown beyond need; an item stored or sent in the clear; or data sent out by a flow that is not approved (the old "fix before sign-off" findings).
 - `medium`: should be fixed: data a protection only partly guards, kept longer than needed, or exposed only under a precondition.
 - `low`: can wait: hygiene, missing documentation of the data, or an unconfirmed hypothesis.
 
@@ -153,6 +159,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.1 | 2026-10-07 | Question 2 in the owner's words; encryption at rest and in transit (C15) and approved flows (C16); V11 and V12 carried; the inventory gains encryption and Approved by columns; cases D10 and D11. | The owner's answer on #100 | 2, 3, 4, 12 |
 | 0.1.0 | 2026-10-07 | Contract drafted from the outgoing security reviewer. Adds the red step, the data inventory under a fixed heading, the carried LINDDUN and ASVS 5.0.0 checklist, the `data` field, section and symbol anchors, likelihood, and the findings block; keeps secrets, the read-only boundary and the two review points. | #35 revision 7 (the security pair), #100 | all |
 
 ## Standard questions (8–15)

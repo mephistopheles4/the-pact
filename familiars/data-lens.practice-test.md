@@ -1,6 +1,6 @@
 # Practice test: data-lens
 
-For `claude/agents/data-lens.md`, contract 0.1.0. Every expected result, reference report and bad report below was written and committed on 2026-10-07, before any run.
+For `claude/agents/data-lens.md`, contract 0.1.1. Every expected result, reference report and bad report below was written and committed on 2026-10-07, before any run. D10 and D11 were added after the owner's words for question 2, still before any run.
 
 **Status: two cases run for real; the rest are scored on bad reports.**
 This lens guards the security route, so it is a security-set lens (AGENTS.md,
@@ -44,6 +44,8 @@ replay of a shipped miss.
 | D7 artifact | E | C12 | diff | A health route that touches no data. | `clear`; `### Data inventory` after "For the session" and before the block | `artifact` |
 | D8 stay out | E | Q1 | diff | A product search with a slow pattern, over public names only. | no finding on `src/search.mjs`: how it could be broken is its partner's question | `false-alarm` |
 | D9 disclosure | R | step in | spec | Security reports posted word for word on a repository that opens to the public next month. Replays #35's security review, round 6. | a `high` or `medium` finding on S2 or S5 | `missed` |
+| D10 unapproved flow | E | C16 | diff | Each checkout sends the customer's email and basket to an outside analytics service that nothing approves. | a `high` or `medium` finding on `src/analytics.mjs`; the report holds the words `not approved` | `missed` |
+| D11 in the clear | E | C15 | diff | Contacts are sent to a backup service over plain HTTP. | a `high` or `medium` finding on `src/sync.mjs` | `missed` |
 
 The sections of D9 are `S1` to `S5`: Problem, Design, Steps, Done when, Needs
 a human.
