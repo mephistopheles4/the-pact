@@ -45,9 +45,20 @@
   - **54 (U1):** an off-route listener drew a security-route question.
 - **Tooling.** A run script, `C:\Users\mephi\scratch\run-secset.ps1` (local), set each run up and cleared it after. Each run was still interactive, as the probe rule requires.
 
+## The periodic review
+
+It closed the ticket on #35, totals only, over 12 real lens reviews from the four repos the owner named:
+
+- **The QA pair:** `behaviour-lens` had 23 findings with 2 dismissed, and `integrity-lens` 55 with 4 dismissed.
+- **`unstated-lens`:** 1 real report.
+- **The spec pair:** no real use yet.
+- **Escapes and auto-takes:** one confirmed escape, and 73 auto-takes, none reversed.
+- **Signals:** none fired.
+
+The owner kept all five lenses, unchanged ("yup agreed"): "we have to build tacit knowledge together and encode it, thats why we need empirical testing, trial and errors."
+
 ## What is still open
 
-- **The closing periodic review,** on #35.
 - **#115:** AGENTS.md and ADR 0018 still route a protected-set change to "the plan review", whose reviewer this swap retired.
 - **#117:** with no tracker, sessions point at the cross section's file instead of showing it.
 - **The targets:** each is an open question until real spec reviews show it works.
@@ -72,3 +83,8 @@ Issue comments on mephistopheles4/the-pact#99:
 - `6037159532` — reader parity after install.
 - `6036348828`, `6037533600`, `6037556061` — P-SPEC's control run, real run, and the owner's "count it".
 - `6037628140`, `6037661755`, `6039321690`, `6039414353`, `6039433752`, `6039528342` — the security set, runs 49 to 54, verbatim reports.
+
+Issue comments on mephistopheles4/the-pact#35:
+
+- `6039666370` — the closing periodic review: the measures and the proposals.
+- `6039781449` — the owner's decision.
