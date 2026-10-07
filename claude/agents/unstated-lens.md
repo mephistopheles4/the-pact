@@ -97,7 +97,7 @@ numbers, codes or paths.
 ```json
 {
   "lens": "unstated-lens",
-  "verdict": "findings",
+  "verdict": "blocking",
   "findings": [
     { "id": "F1", "anchor": { "kind": "section", "id": "S4" }, "severity": "high", "headline": "Should the new listener take the security route?" }
   ],

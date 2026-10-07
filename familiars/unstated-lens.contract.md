@@ -1,6 +1,6 @@
 # Contract: unstated-lens
 
-Version: 0.1.1
+Version: 0.1.2
 
 - **Type:** agent
 - **Level:** Thorough
@@ -128,6 +128,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.2 | 2026-10-07 | The example block's verdict is `blocking`, as a `high` finding requires; the rules table points to its partner's for the rules it does not hold. | Move 4 on the swap: `behaviour-lens` F3 and F1 | 4, rules table |
 | 0.1.1 | 2026-10-07 | Question 2 in the owner's words; the target as a traceability matrix; every answer Confirmed. | The owner's answers and "go" on #99 | 2 |
 | 0.1.0 | 2026-10-06 | Contract drafted from the outgoing plan reviewer. | #35 revision 7, #99 | all |
 
@@ -209,4 +210,4 @@ The outgoing plan reviewer's rules go mostly to the spec pair (see `executabilit
 | Read-only leaf, never delegate | Kept | C7 |
 | Challenge the shared outcome against what was asked | Moved here | C1, C2: the issue's needs against the spec |
 | Security-sensitive units need a security read | Kept, by role, as a question | C4 |
-| Every other rule | Moved | To `executability-lens` |
+| Every other rule | Moved or dropped | See `executability-lens.contract.md`, which marks each one |

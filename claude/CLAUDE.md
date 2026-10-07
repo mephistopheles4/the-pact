@@ -70,7 +70,7 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 | Tier | Moves |
 | --- | --- |
 | **Quick** | In chat or on an issue: build, then move 4, in one session. Small changes that need no plan. |
-| **Standard** | On an issue: a short `to-spec` posted on the issue, then one build session that ends with move 4. |
+| **Standard** | On an issue: a short `to-spec` posted on the issue and read by `unstated-lens`, then one build session that ends with move 4. |
 | **Thorough** | On an issue: `to-spec`, the spec pair and `unstated-lens`, `to-tickets`, then one build session per ticket, each ending with move 4. |
 
 **Risk floor.**
@@ -318,8 +318,9 @@ number the spec's headings `S1`, `S2` and on, in order, and write that
 section list, the spec and the issue's request to local files. Dispatch
 `executability-lens` and `good-enough-lens` fresh and on their own, never
 showing either one the other's report, and give each the section list, the
-spec and the request. Give `unstated-lens` the same files, and say which
-reviewers ran in this review. Run the cross script as above, with
+spec, the request and the issue's tier. On the security route, run
+`security-reviewer` on the spec first. Give `unstated-lens` the same files,
+and say which reviewers ran in this review. Run the cross script as above, with
 `--point spec` and the section ids with `--anchors`: once for the spec pair,
 and once for `unstated-lens` alone. The pick works as above on the spec
 pair's sections; `unstated-lens` takes none. Where both lenses of the spec
@@ -345,7 +346,8 @@ finding and carry on; don't wait for me. This covers choices that come out of
 a report or review, and nothing else. Facts only I have and approvals the
 pact requires still come to me. It never covers any stop in "When to stop or
 escalate", any gated clause, a tier decision, "Quick work stops at an open
-decision", my "proceed, fix or kill" on a plan review, the thorough pick, a
+decision", my "proceed, fix or kill" on a spec review, a disagreement the spec
+pair leaves for me to settle, the thorough pick, a
 user-only skill's trigger, an install, cutting a lens, confirming an escape or
 gap row, the claiming and coordination rules, or my "done": accepting the
 work, closing a ticket and merging are mine.
