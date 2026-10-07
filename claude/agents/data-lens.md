@@ -59,7 +59,7 @@ on it.
    fallback". Never quote a secret, even in part.
 3. **Encryption.** For each secret or personal item, say whether it is
    encrypted at rest and in transit, and by what, such as the database's
-   encryption or TLS. A secret or personal item stored or sent in the clear
+   encryption or TLS. A secret or personal item stored or sent unencrypted
    is a finding.
 4. **Approved flows.** Every flow that takes data out of the app, to another
    service, a third party, a log host, an email or a browser, must be one the
@@ -200,7 +200,7 @@ cross script places the verdict. No line numbers, codes or paths.
   - `high`: fix before sign-off. Data that reaches someone who should not
     have it, with the change as written: a secret in the source, a log or a
     response; personal data sent or shown beyond need; a secret or personal
-    item stored or sent in the clear; or data sent out of the app by a flow
+    item stored or sent unencrypted; or data sent out of the app by a flow
     that is not approved;
   - `medium`: should be fixed. Data a protection only partly guards, kept
     longer than needed, or exposed only under a precondition;
@@ -214,7 +214,9 @@ cross script places the verdict. No line numbers, codes or paths.
   item, never its value.
 - `headline`: plain text, 1 to 120 characters, with no severity or verdict
   word: not "high", "blocking", "clear", "safe" or "ignore". A headline shows
-  before the owner's prediction.
+  before the owner's prediction. These words are banned in every sense: for
+  data that is not encrypted, write "unencrypted", never "in clear", "in the
+  clear" or "cleartext".
 - `findings`: a list of at most 100.
 - `notChecked`: 1 to 20 strings, each 1 to 200 characters. Every review has
   something it did not check.

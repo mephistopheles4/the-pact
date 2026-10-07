@@ -1,6 +1,6 @@
 # Practice test: data-lens
 
-For `claude/agents/data-lens.md`, contract 0.1.1. Every expected result, reference report and bad report below was written and committed on 2026-10-07, before any run. D10 and D11 were added after the owner's words for question 2, still before any run.
+For `claude/agents/data-lens.md`, contract 0.1.4. Every expected result, reference report and bad report below was written and committed on 2026-10-07, before any run. D10 and D11 were added after the owner's words for question 2, still before any run.
 
 **Status: two cases run for real; the rest are scored on bad reports.**
 This lens guards the security route, so it is a security-set lens (AGENTS.md,

@@ -129,6 +129,23 @@ test("data-lens tells the lens to write `not approved` in a code span, in both p
   assert.notDeepEqual(damage(second), []);
 });
 
+// The fix path after D1's run 62 (#100): a headline said "kept in clear", and the lens's own text had taught
+// it "in the clear". The text now says "unencrypted", and its headline rule names the trap.
+/** The places a lens text uses "clear" for unencrypted data, outside the sentence that bans it. */
+function clearForUnencrypted(text) {
+  const flat = text.replace(/\s+/g, ' ');
+  const ban = 'write "unencrypted", never "in clear", "in the clear" or "cleartext".';
+  return (flat.split(ban).join('').match(/\bin (?:the )?clear\b|\bcleartext\b/gi) ?? []);
+}
+
+test('data-lens says "unencrypted", never "in the clear", and its headline rule names the trap', () => {
+  const text = read(join(REPO, 'claude', 'agents', 'data-lens.md'));
+  assert.ok(text.replace(/\s+/g, ' ').includes('write "unencrypted", never "in clear", "in the clear" or "cleartext".'));
+  for (const lens of LENSES) assert.deepEqual(clearForUnencrypted(read(join(REPO, 'claude', 'agents', `${lens}.md`))), [], lens);
+  // Seen to fail: the step 3 wording that run 62's lens read.
+  assert.deepEqual(clearForUnencrypted('A secret or personal item stored or sent in the clear is a finding.'), ['in the clear']);
+});
+
 test('no lens file, contract or practice test holds a line that starts mid-sentence after a blank line', () => {
   for (const lens of LENSES) assert.deepEqual(damage(read(join(REPO, 'claude', 'agents', `${lens}.md`))), [], lens);
   // Round 2 on the fix (N3): the fix itself split a sentence in a practice test, outside the lens files.

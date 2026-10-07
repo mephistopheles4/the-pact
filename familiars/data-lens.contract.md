@@ -1,6 +1,6 @@
 # Contract: data-lens
 
-Version: 0.1.3
+Version: 0.1.4
 
 - **Type:** agent
 - **Level:** Thorough
@@ -92,7 +92,7 @@ The owner's words add two checks to the draft: encryption at rest and in transit
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]` and seam A's default.
 - C10. Ends its report with exactly one `lens-findings` block in the shape the cross script reads, with `likelihood` and `data` on every finding, inside the cross script's limits, written into the lens in exact words.
   Held by: Enforced — the cross script refuses any other shape (exit 1), and refuses a security-pair report at any tier but thorough.
-- C11. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore".
+- C11. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore", in any sense; for data that is not encrypted it writes "unencrypted", never "in clear", "in the clear" or "cleartext" (0.1.4, after D1's run 62).
   Held by: Promised. Headline case, scored on its bad report.
 - C12. Its artifact sits under the fixed heading `### Data inventory`.
   Held by: Promised. Every practice case checks it.
@@ -161,6 +161,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.4 | 2026-10-07 | "In the clear" becomes "unencrypted" in steps 3 and the severity mapping; the headline rule names the trap. On the fix path after D1's run 62 failed on a headline that said "kept in clear". | The owner's "I agree with build-100's fix" (relayed), #100 | 4, C11 |
 | 0.1.3 | 2026-10-07 | C17: the payload and fetched-page rules, so the lens holds all five carried rules; the cut "not approved" code span restored in the lens text. | Move 4 on the swap: behaviour-lens F1, F2; the security reviewer's F1 | 3 |
 | 0.1.2 | 2026-10-07 | The target, Sample A, and every answer Confirmed. | The owner's "A" and "go" on #100 | all |
 | 0.1.1 | 2026-10-07 | Question 2 in the owner's words; encryption at rest and in transit (C15) and approved flows (C16); V11 and V12 carried; the inventory gains encryption and Approved by columns; cases D10 and D11. | The owner's answer on #100 | 2, 3, 4, 12 |
