@@ -174,7 +174,10 @@ test('bad case: a source that is a link refuses', t => {
     t.skip('cannot create a file link here (not run)');
     return;
   }
-  refusedWith(render(t, link), 'source');
+  const r = render(t, link);
+  refusedWith(r, 'source');
+  // Refused by the first check, on the link itself, not only by the later open-handle match.
+  assert.match(r.stdout, /^FAIL source: the source rules file is not a regular file$/m, r.out);
 });
 
 test('bad case: a source larger than 1 MiB refuses', t => {

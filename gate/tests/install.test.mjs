@@ -679,6 +679,55 @@ test('bad case: a renderer that leaves a second file in its output folder refuse
   assert.match(r.stdout, /^REFUSED: the renderer did not leave exactly one plain rules file of at most 1 MiB\./m, r.out);
 });
 
+test('bad case: a renderer hash line with anything after the hash refuses', t => {
+  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, ".digest('hex')}`", ".digest('hex')} extra`")));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^render\| RENDERED [0-9a-f]{64} extra$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the renderer printed a line the install does not read\./m, r.out);
+});
+
+for (const [label, from, to, why] of [
+  ['no configuration line', "  report.lines.push('CONFIG none');", '', 'the renderer did not report exactly one output hash and one configuration line'],
+  ['two configuration lines', "  report.lines.push('CONFIG none');", "  report.lines.push('CONFIG none');\n  report.lines.push('CONFIG none');", 'the renderer did not report exactly one output hash and one configuration line'],
+  ['two hash lines', "  report.lines.push('CONFIG none');", "  report.lines.push(report.lines[0]);\n  report.lines.push('CONFIG none');", 'the renderer reported two output hashes'],
+]) {
+  test(`bad case: a renderer that prints ${label} refuses`, t => {
+    const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, from, to)));
+    const r = install(repo, home(t));
+    refused(r);
+    assert.match(r.stdout, new RegExp(`^REFUSED: ${why}\\.`, 'm'), r.out);
+  });
+}
+
+test('the renderer and the rules file come from the commit: working-tree-only edits to them are not what runs', t => {
+  const repo = makeRepo(t);
+  const { rendered } = rulesOf(repo);
+  writeFileSync(join(repo, 'gate', 'render.mjs'), "process.stdout.write('RESULT: fail\\n');\nprocess.exit(1);\n");
+  const md = join(repo, 'claude', 'CLAUDE.md');
+  writeFileSync(md, `${readFileSync(md, 'utf8')}CANARYworktree\n`);
+  const r = install(repo, home(t));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
+  assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(rendered)}$`, 'm'), r.out);
+  assert.match(r.stdout, /uncommitted edits are not checked/, r.out);
+});
+
+test('bad case: a renderer that adds a hidden file to the stage refuses', t => {
+  const repo = makeRepo(t, root =>
+    plantRenderer(root, s =>
+      replaceOnce(
+        replaceOnce(s, "import { createHash } from 'node:crypto';", "import { createHash } from 'node:crypto';\nimport { spawnSync } from 'node:child_process';"),
+        '  const rendered = stripOpenMarks(buf);',
+        "  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n  const rendered = stripOpenMarks(buf);",
+      ),
+    ),
+  );
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
+});
+
 test('bad case: a commit with no renderer refuses', t => {
   const repo = makeRepo(t, root => rmSync(join(root, 'gate', 'render.mjs')));
   const r = install(repo, home(t));

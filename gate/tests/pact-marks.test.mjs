@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { OPEN_MARKS, RENDER, REPO, read, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { OPEN_MARKS, RENDER, REPO, SEAM_A, lastLine, read, runSeamA, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
 
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const LINES = read(SOURCE).split('\n');
@@ -32,6 +32,18 @@ test('with no configuration, the installed pact is its source with the open-mark
   const want = withoutOpenMarks(read(SOURCE));
   assert.notEqual(want, read(SOURCE), 'the source carries no open marks, so this test would pass for the wrong reason');
   assert.equal(readFileSync(join(out, 'CLAUDE.md'), 'utf8'), want);
+});
+
+test('seam A refuses the unrendered source: the open marks are not marks it knows, so a skipped render fails closed', t => {
+  const root = stage(t, {}, { route: false });
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const r = spawnSync(process.execPath, [SEAM_A, root], { encoding: 'utf8', env });
+  assert.notEqual(r.status, 0, r.stdout);
+  assert.equal(lastLine(r.stdout), 'RESULT: fail', r.stdout);
+  assert.match(r.stdout, /^FAIL marker: claude\/CLAUDE\.md line \d+: an unknown block name$/m, r.stdout);
+  // The same stage, rendered first, passes.
+  assert.equal(runSeamA(root).code, 0);
 });
 
 test('the pact source carries each open mark once, as a begin then an end, each alone on its line', () => {

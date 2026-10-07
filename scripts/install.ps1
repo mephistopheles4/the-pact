@@ -490,8 +490,10 @@ Write-Host "Pinned check: grimoire $pinCommit, sha256 verified"
 
 # --- render --------------------------------------------------------------------
 # The renderer runs from the stage, before seam A, through the same Node runner.
-# The whole stage is hashed before it runs and again after it exits, so it can
-# change nothing there. It writes the rendered rules file into a fresh folder
+# The whole stage is hashed before it runs and again after it exits, so any
+# change it makes there while it runs refuses. (A process it left behind could
+# still write after the second hash; only the committed, fingerprinted
+# renderer could do that, as any gate file could.) It writes the rendered rules file into a fresh folder
 # outside the stage. That file is read once, and the one buffer is hashed,
 # checked against the hash the renderer reported, and written into the stage
 # as the rules file. From here on the rules file's staged hash is the rendered
