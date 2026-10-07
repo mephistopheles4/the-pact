@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
-import { PAGE_REL, buildPage } from '../../builder/build.mjs';
+import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
 import { RENDER, REPO, lastLine, tempDir } from './helpers.mjs';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
@@ -193,6 +193,114 @@ test('bad case: an example block changed makes the committed page out of date', 
   assert.notEqual(buildPage(root, PAGE), PAGE);
 });
 
+// ------------------------------------------------------------ builder files: the check, and pages from them
+
+/** A builder file written into a fresh folder, with `blocks` beside it; returns its path. */
+function builderFile(t, doc, blocks = {}) {
+  const dir = tempDir(t, 'pact-builder-file-');
+  for (const [rel, text] of Object.entries(blocks)) {
+    const p = join(dir, ...rel.split('/'));
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, text);
+  }
+  const f = join(dir, 'pact-builder.json');
+  writeFileSync(f, typeof doc === 'string' ? doc : `${JSON.stringify(doc, null, 2)}\n`);
+  return f;
+}
+
+const GOOD = {
+  schema: 1,
+  title: 'Test builder',
+  presets: [
+    { id: 'grill-first', title: 'Grill first', slot: 'move-2', text: 'Before the spec, use the `grill-me` skill.', why: 'I think better when grilled.' },
+    { id: 'ship-check', title: 'Ship check', slot: 'move-4-extra', file: 'presets/ship.md', why: 'Name the rollback.' },
+  ],
+  workflows: [{ id: 'mine', title: 'Mine', about: 'My usual run.', presets: ['grill-first', 'ship-check'] }],
+  yours: { skills: [{ name: 'grill-me', description: 'Grill the plan' }], commands: [{ name: 'ship', description: 'Ship it' }], agents: [{ name: 'my-reviewer', description: 'Reviews' }] },
+};
+const GOOD_BLOCKS = { 'presets/ship.md': 'Before a deploy, name the rollback step on the issue.\n' };
+
+test('the example builder file passes the check, with one finding: it lists none of the person\'s own skills', () => {
+  const r = checkBuilder(REPO, join(REPO, EXAMPLE_BUILDER_REL));
+  assert.deepEqual(r.refusals, []);
+  assert.deepEqual(r.findings, ['yours lists no skills, commands or agents; the page\'s "Yours" section will say so']);
+});
+
+test('a person\'s builder file passes, and its page carries their presets, workflow and own skills beside the pact\'s own spine', t => {
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  const r = checkBuilder(REPO, f);
+  assert.deepEqual(r.refusals, []);
+  assert.deepEqual(r.findings, []);
+  const page = buildPage(REPO, PAGE, f);
+  assert.deepEqual(pageProblems(page), []);
+  const script = [...page.matchAll(SCRIPT_RE)][0][2];
+  const D = JSON.parse(JSON.stringify(vm.runInContext(`${script}\n;PACT`, vm.createContext({}))));
+  assert.equal(D.title, 'Test builder');
+  assert.deepEqual(D.presets.map(p => [p.id, p.mark]), [['grill-first', 'move-2'], ['ship-check', 'move-4-extra']]);
+  assert.equal(D.presets[1].text, 'Before a deploy, name the rollback step on the issue.');
+  assert.deepEqual(D.yours.skills.map(x => x.name), ['grill-me']);
+  // The spine and the locked clauses come from the clone, never from the builder file.
+  assert.equal(JSON.stringify(D.moves), JSON.stringify(L.PACT.moves));
+  assert.equal(JSON.stringify(D.always), JSON.stringify(L.PACT.always));
+});
+
+const BAD_BUILDERS = [
+  ['not JSON', () => '{ nope', /not strict JSON/],
+  ['a duplicate key', () => '{ "schema": 1, "schema": 1 }\n', /not strict JSON/],
+  ['the pact\'s own text in the file', () => ({ ...GOOD, moves: [] }), /top-level key/],
+  ['another schema', () => ({ ...GOOD, schema: 2 }), /schema must be 1/],
+  ['a gated clause as a slot', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-4', text: 'Hi.' }], workflows: [] }), /slot must be one of/],
+  ['an unknown slot', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-9', text: 'Hi.' }], workflows: [] }), /slot must be one of/],
+  ['both text and file', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Hi.', file: 'a.md' }], workflows: [] }), /exactly one of text and file/],
+  ['a file path that climbs out', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', file: '../a.md' }], workflows: [] }), /no \. or \.\. segment/],
+  ['an absolute file path', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', file: 'C:/a.md' }], workflows: [] }), /must be relative/],
+  ['a missing preset file', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', file: 'nope.md' }], workflows: [] }), /could not be read|not a regular file/],
+  ['a bad preset id', () => ({ ...GOOD, presets: [{ id: 'Bad Id', title: 'X', slot: 'move-3', text: 'Hi.' }], workflows: [] }), /id must be lowercase/],
+  ['a duplicate preset id', () => ({ ...GOOD, presets: [GOOD.presets[0], GOOD.presets[0]], workflows: [] }), /used twice/],
+  ['a workflow naming a missing preset', () => ({ ...GOOD, workflows: [{ id: 'w', title: 'W', about: 'A', presets: ['nope'] }] }), /does not define/],
+  ['a bad skill name', () => ({ ...GOOD, yours: { skills: [{ name: 'bad name!' }] } }), /needs a name/],
+  ['a pact agent listed as yours', () => ({ ...GOOD, yours: { agents: [{ name: 'security-reviewer' }] } }), /pact's own agents/],
+  ['a two-line why', () => ({ ...GOOD, presets: [{ ...GOOD.presets[0], why: 'a\nb' }], workflows: [] }), /why must be one line/],
+  ['a preset the renderer refuses (an import)', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Read @notes.md first.' }], workflows: [] }), /renderer refuses its text \(FAIL block-text/],
+  ['a preset the renderer refuses (a heading)', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: '# Heading' }], workflows: [] }), /renderer refuses its text/],
+];
+
+for (const [name, make, rule] of BAD_BUILDERS) {
+  test(`bad builder file: ${name} is refused`, t => {
+    const r = checkBuilder(REPO, builderFile(t, make(), GOOD_BLOCKS));
+    assert.equal(r.builder, null);
+    assert.ok(r.refusals.some(m => rule.test(m)), JSON.stringify(r.refusals));
+  });
+}
+
+test('findings never refuse: a preset with no why, and one naming a skill the file does not list', t => {
+  const r = checkBuilder(REPO, builderFile(t, { ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Use the `ghost-skill` skill.' }], workflows: [] }));
+  assert.deepEqual(r.refusals, []);
+  assert.ok(r.findings.some(m => /no "why"/.test(m)), JSON.stringify(r.findings));
+  assert.ok(r.findings.some(m => /not in yours/.test(m)), JSON.stringify(r.findings));
+});
+
+test('the command line writes a page from a builder file, and refuses to write over the shipped page or without a builder', t => {
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const cli = args => spawnSync(process.execPath, [join(REPO, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env });
+  const out = join(tempDir(t, 'pact-builder-page-'), 'mine.html');
+  const ok = cli(['--builder', f, '--out', out]);
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  assert.match(ok.stdout, /^RESULT: pass/m);
+  assert.deepEqual(pageProblems(readFileSync(out, 'utf8')), []);
+  const check = cli(['--builder', f, '--check']);
+  assert.equal(check.status, 0, check.stdout);
+  const over = cli(['--builder', f, '--out', join(REPO, PAGE_REL)]);
+  assert.equal(over.status, 1, over.stdout);
+  assert.match(over.stdout, /must not be the shipped page/);
+  assert.equal(cli(['--out', out]).status, 2);
+  const bad = cli(['--builder', builderFile(t, { schema: 2 }), '--out', join(tempDir(t, 'pact-builder-page-'), 'x.html')]);
+  assert.equal(bad.status, 1);
+  assert.match(bad.stdout, /^REFUSE schema must be 1$/m);
+});
+
 // ------------------------------------------------------------ the page's own logic, run without a page
 
 /**
@@ -203,7 +311,7 @@ test('bad case: an example block changed makes the committed page out of date', 
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, catalogFrom, skillProblems });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -226,12 +334,12 @@ test('the page shows moves 1 to 4 as a fixed spine: gated clauses carry their te
   assert.deepEqual([...L.PACT.editable], ['move-1', 'move-2', 'move-3', 'move-4-extra']);
 });
 
-test('presets are the shipped example blocks, each placed in an editable slot', () => {
-  const files = readdirSync(join(REPO, 'examples', 'pact-config', 'blocks')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
-  assert.ok(files.length >= 4, JSON.stringify(files));
-  assert.deepEqual(L.PACT.presets.map(p => p.id), files);
+test('the shipped page\'s presets are the example builder file\'s, each from its example block, in an editable slot', () => {
+  const builder = JSON.parse(readFileSync(join(REPO, EXAMPLE_BUILDER_REL), 'utf8'));
+  assert.deepEqual(L.PACT.presets.map(p => p.id), builder.presets.map(p => p.id));
   for (const p of L.PACT.presets) {
-    assert.equal(`${p.text}\n`, readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', `${p.id}.md`), 'utf8'));
+    const b = builder.presets.find(x => x.id === p.id);
+    assert.equal(`${p.text}\n`, readFileSync(join(REPO, 'examples', 'pact-config', ...b.file.split('/')), 'utf8'));
     assert.ok(L.PACT.editable.includes(p.mark), p.mark);
     assert.deepEqual(L.blockProblems(`${p.text}\n`), [], p.id);
   }
@@ -375,24 +483,6 @@ test('every shipped workflow renders: the page finds no problem and the renderer
     const r = renderSaved(t, s);
     assert.equal(r.status, 0, `${w.id}: ${r.stdout}`);
   }
-});
-
-test('the catalog reads skills, commands and agents from a picked folder\'s files, by name, and leaves out bad names and the pact\'s own agents', () => {
-  const fm = (name, description) => `---\nname: ${name}\ndescription: "${description}"\n---\nBody.\n`;
-  const c = L.catalogFrom([
-    { path: '.claude/skills/grill-me/SKILL.md', text: fm('grill-me', 'Grill the plan') },
-    { path: '.claude/plugins/cache/x/skills/zeta/SKILL.md', text: '---\ndescription: Zed\n---\n' },
-    { path: '.claude/skills/grill-me/SKILL.md', text: fm('grill-me', 'a duplicate') },
-    { path: '.claude/skills/bad/SKILL.md', text: fm('bad name!', 'refused') },
-    { path: '.claude/skills/notes.md', text: fm('notes', 'not a skill file') },
-    { path: '.claude/commands/ship.md', text: '---\ndescription: Ship it\n---\n' },
-    { path: '.claude/commands/team/review.md', text: 'no frontmatter' },
-    { path: '.claude\\agents\\my-reviewer.md', text: fm('my-reviewer', 'Reviews') },
-    { path: '.claude/agents/security-reviewer.md', text: fm('security-reviewer', 'the pact\'s own') },
-  ]);
-  assert.deepEqual(c.skills, [{ name: 'grill-me', description: 'Grill the plan' }, { name: 'zeta', description: 'Zed' }]);
-  assert.deepEqual(c.commands, [{ name: 'ship', description: 'Ship it' }, { name: 'team:review', description: '' }]);
-  assert.deepEqual(c.agents, [{ name: 'my-reviewer', description: 'Reviews' }]);
 });
 
 test('skill and command cards write one plain line each, and refuse a bad name or a two-line "when"', () => {

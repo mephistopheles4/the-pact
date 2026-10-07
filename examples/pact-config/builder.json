@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "title": "Example builder",
+  "presets": [
+    {
+      "id": "move-1-no-wayfinder",
+      "title": "No wayfinder",
+      "slot": "move-1",
+      "file": "blocks/move-1-no-wayfinder.md",
+      "standsIn": true,
+      "why": "For a team that never charts big work across sessions: move 1 without the wayfinder step."
+    },
+    {
+      "id": "move-3-done-criteria",
+      "title": "Done criteria",
+      "slot": "move-3",
+      "file": "blocks/move-3-done-criteria.md",
+      "why": "Agree on what done means before the build starts."
+    },
+    {
+      "id": "move-4-docs-check",
+      "title": "Docs check",
+      "slot": "move-4-extra",
+      "file": "blocks/move-4-docs-check.md",
+      "why": "Catch public interfaces whose docs fell behind the change."
+    },
+    {
+      "id": "move-4-own-agent",
+      "title": "Own agent",
+      "slot": "move-4-extra",
+      "file": "blocks/move-4-own-agent.md",
+      "why": "Run a reviewer of your own beside the QA pair."
+    }
+  ],
+  "workflows": [
+    {
+      "id": "pact-default",
+      "title": "Pact default",
+      "about": "The pact as it ships: nothing added to any move.",
+      "presets": []
+    },
+    {
+      "id": "close-the-loop",
+      "title": "Close the loop",
+      "about": "Agree on done before the build, and say which docs the change touched after it.",
+      "presets": ["move-3-done-criteria", "move-4-docs-check"]
+    }
+  ]
+}

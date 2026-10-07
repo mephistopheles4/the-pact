@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wKTpi1fFlDV+6EBksaPxFMw9nQfJREuopr9kOpo/gU8='; style-src 'sha256-9OZIKWUU/3R6uokHQhO0bqz2P9txMJrRknOBFNUQPLs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hits/S2EsQXYe7QPzO2aHMl6EGcAtn0XOpJMlzudfgA='; style-src 'sha256-9OZIKWUU/3R6uokHQhO0bqz2P9txMJrRknOBFNUQPLs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -221,7 +221,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
   <div class="av-tool-sheet">
     <header class="av-tool-head">
       <div class="av-tool-head-text">
-        <span class="av-label">The pact · configuration · schema 1</span>
+        <span class="av-label" id="builder-title">The pact · configuration · schema 1</span>
         <h1 class="av-tool-title">Config builder</h1>
         <p class="av-tool-blurb">Moves 1 to 4 are a fixed spine. Gated clauses are locked. Open slots take presets from the library, or your own text. Nothing leaves this page until you save, and the installer checks what you save exactly as it checks a file written by hand.</p>
       </div>
@@ -432,34 +432,39 @@ const PACT = /* pact-data:begin */ {
    ]
   }
  ],
+ "title": "Example builder",
  "presets": [
   {
    "id": "move-1-no-wayfinder",
    "title": "No wayfinder",
    "mark": "move-1",
-   "op": "replace",
-   "text": "I triage it (`triage`): what kind of work it is, its tier, and whether it's\nready. You propose the triage and the tier, and never skip past it. A bug\ngoes through `diagnosing-bugs` before any fix."
+   "text": "I triage it (`triage`): what kind of work it is, its tier, and whether it's\nready. You propose the triage and the tier, and never skip past it. A bug\ngoes through `diagnosing-bugs` before any fix.",
+   "standsIn": true,
+   "why": "For a team that never charts big work across sessions: move 1 without the wayfinder step."
   },
   {
    "id": "move-3-done-criteria",
    "title": "Done criteria",
    "mark": "move-3",
-   "op": "add-after",
-   "text": "Before the build starts, read me each ticket's done-criteria back in one\nline each, so we agree on what done means."
+   "text": "Before the build starts, read me each ticket's done-criteria back in one\nline each, so we agree on what done means.",
+   "standsIn": false,
+   "why": "Agree on what done means before the build starts."
   },
   {
    "id": "move-4-docs-check",
    "title": "Docs check",
    "mark": "move-4-extra",
-   "op": "add-after",
-   "text": "After the checks, list each public interface the change touched, and say\nwhether its docs were updated."
+   "text": "After the checks, list each public interface the change touched, and say\nwhether its docs were updated.",
+   "standsIn": false,
+   "why": "Catch public interfaces whose docs fell behind the change."
   },
   {
    "id": "move-4-own-agent",
    "title": "Own agent",
    "mark": "move-4-extra",
-   "op": "add-after",
-   "text": "Then run `my-reviewer`, an agent of your own from your agents folder, on the\ndiff, and post its report beside the QA pair's."
+   "text": "Then run `my-reviewer`, an agent of your own from your agents folder, on the\ndiff, and post its report beside the QA pair's.",
+   "standsIn": false,
+   "why": "Run a reviewer of your own beside the QA pair."
   }
  ],
  "workflows": [
@@ -478,7 +483,12 @@ const PACT = /* pact-data:begin */ {
     "move-4-docs-check"
    ]
   }
- ]
+ ],
+ "yours": {
+  "skills": [],
+  "commands": [],
+  "agents": []
+ }
 } /* pact-data:end */;
 
 // The block-text rules, mirrored from gate/render.mjs for usability only.
@@ -577,48 +587,6 @@ function skillProblems(c) {
   if (!SKILL_NAME_RE.test(c.name)) return [`the ${c.kind} name must be letters, digits, '.', '_', '-' or ':'`];
   if (c.kind === 'skill' && /[\r\n]/.test(c.when || '')) return ['the "when" text must be one line'];
   return [];
-}
-
-/** A file's frontmatter fields, as plain strings. Anything not in the simple key: value form is skipped. */
-function frontmatter(text) {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(String(text));
-  const out = {};
-  if (!m) return out;
-  for (const line of m[1].split(/\r?\n/)) {
-    const kv = /^([A-Za-z-]+):[ \t]*(.*)$/.exec(line);
-    if (kv && !(kv[1] in out)) out[kv[1]] = kv[2].trim().replace(/^(["'])(.*)\1$/, '$2');
-  }
-  return out;
-}
-
-/**
- * The skills, commands and agents in files read from a folder the person
- * picked: [{ path, text }], paths with '/'. Skills are skills/<name>/SKILL.md,
- * commands are commands/<path>.md (nested folders join with ':'), agents are
- * agents/<name>.md. Names that fail the name check are left out; the pact's
- * own agents are left out of the agents. Sorted by name, one entry per name.
- */
-function catalogFrom(entries) {
-  const skills = new Map();
-  const commands = new Map();
-  const agents = new Map();
-  for (const e of entries) {
-    const path = String(e.path).replace(/\\/g, '/');
-    const fm = frontmatter(e.text);
-    let m;
-    if ((m = /(?:^|\/)skills\/([^/]+)\/SKILL\.md$/.exec(path))) {
-      const name = fm.name || m[1];
-      if (SKILL_NAME_RE.test(name) && !skills.has(name)) skills.set(name, { name, description: fm.description || '' });
-    } else if ((m = /(?:^|\/)commands\/((?:[^/]+\/)*[^/]+)\.md$/.exec(path))) {
-      const name = m[1].replace(/\//g, ':');
-      if (SKILL_NAME_RE.test(name) && !commands.has(name)) commands.set(name, { name, description: fm.description || '' });
-    } else if ((m = /(?:^|\/)agents\/([^/]+)\.md$/.exec(path))) {
-      const name = fm.name || m[1];
-      if (AGENT_NAME_RE.test(name) && !agents.has(name) && !PACT.agents.some(a => a.name === name)) agents.set(name, { name, description: fm.description || '' });
-    }
-  }
-  const sorted = map => [...map.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-  return { skills: sorted(skills), commands: sorted(commands), agents: sorted(agents) };
 }
 
 /** What the page finds wrong in a "Your agent" card. */
@@ -917,33 +885,16 @@ function boot() {
     );
   }
 
-  let catalog = null; // what the person loaded from their own Claude folder
   let filter = '';
 
-  /** Read the skill, command and agent files from the folder the person picked, on this computer only. */
-  async function loadFolder(files) {
-    const want = [...files].filter(f => {
-      const path = f.webkitRelativePath || f.name;
-      return /(?:^|\/)skills\/[^/]+\/SKILL\.md$|(?:^|\/)commands\/.+\.md$|(?:^|\/)agents\/[^/]+\.md$/.test(path);
-    }).slice(0, 3000);
-    const entries = [];
-    for (const f of want) {
-      try {
-        entries.push({ path: f.webkitRelativePath || f.name, text: await f.slice(0, 16384).text() });
-      } catch {}
-    }
-    catalog = catalogFrom(entries);
-    renderYours();
-  }
-
+  /** The person's own skills, commands and agents, as the builder file lists them. */
   function renderYours() {
-    const picker = el('input', { type: 'file', webkitdirectory: '', multiple: '', hidden: '', 'aria-label': 'Your Claude folder' });
-    picker.addEventListener('change', () => loadFolder(picker.files || []));
-    const load = chip(catalog ? 'Load another folder' : 'Load from a folder', !catalog, () => picker.click());
-    const head = el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Your skills, commands and agents' }), el('div', { class: 'chips' }, load), picker);
-    const note = el('p', { class: 'av-annot', text: 'Pick your Claude folder (~/.claude) or a project\'s .claude folder. The page reads only the names and descriptions of skills, commands and agents in it, on this computer; nothing is sent anywhere. Drag a card onto an open slot.' });
-    if (!catalog) return $('yours').replaceChildren(head, note);
-
+    const y = PACT.yours;
+    const total = y.skills.length + y.commands.length + y.agents.length;
+    const head = el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Yours' }), el('span', { class: 'av-annot', text: 'Your skills, commands and agents, from this builder file. Drag a card onto an open slot.' }));
+    if (!total) {
+      return $('yours').replaceChildren(head, el('p', { class: 'av-annot', text: 'This builder lists none of your own. Ask your agent to regenerate it with the pact-builder skill: it reads your skills, commands and agents and writes them in.' }));
+    }
     const search = el('input', { type: 'text', 'aria-label': 'Filter by name or description', placeholder: 'Filter', spellcheck: 'false' });
     search.value = filter;
     const groups = el('div');
@@ -964,19 +915,19 @@ function boot() {
         return t;
       };
       const group = (title, kind, list) => {
+        if (!list.length) return [];
         const shown = pick(list);
-        return [el('h3', { class: 'group-title', text: `${title} · ${shown.length} of ${list.length}` }), shown.length ? el('div', { class: 'tiles' }, ...shown.slice(0, 60).map(x => tile(kind, x))) : el('p', { class: 'av-annot', text: list.length ? 'None match the filter.' : 'None found in that folder.' })];
+        return [el('h3', { class: 'group-title', text: `${title} · ${shown.length} of ${list.length}` }), shown.length ? el('div', { class: 'tiles' }, ...shown.slice(0, 60).map(x => tile(kind, x))) : el('p', { class: 'av-annot', text: 'None match the filter.' })];
       };
-      groups.replaceChildren(...group('Skills', 'skill', catalog.skills), ...group('Commands', 'command', catalog.commands), ...group('Agents', 'agent', catalog.agents));
+      groups.replaceChildren(...group('Skills', 'skill', y.skills), ...group('Commands', 'command', y.commands), ...group('Agents', 'agent', y.agents));
     };
     search.addEventListener('input', () => {
       filter = search.value;
       drawGroups();
     });
     drawGroups();
-    $('yours').replaceChildren(head, note, el('div', { class: 'field-row' }, el('label', { text: 'Filter' }), search), groups);
+    $('yours').replaceChildren(head, el('div', { class: 'field-row' }, el('label', { text: 'Filter' }), search), groups);
   }
-
   /** The presets column beside move `m`: the presets for its slots, or a note that it has none. */
   function movePresets(m) {
     const marks = m.parts.filter(p => p.kind === 'open').map(p => p.mark);
@@ -985,7 +936,8 @@ function boot() {
         'div',
         { class: 'card preset', draggable: 'true' },
         el('span', { class: 'card-tab', text: p.title }),
-        el('span', { class: 'av-label', text: p.op === 'replace' ? `${p.mark} · written to stand in for the default` : p.mark }),
+        el('span', { class: 'av-label', text: p.standsIn ? `${p.mark} · written to stand in for the default` : p.mark }),
+        p.why ? el('p', { class: 'av-annot', text: p.why }) : null,
         prose(p.text),
         el('div', { class: 'card-foot' }, chip(`Add to ${p.mark}`, false, () => drop(p.mark, p.id))),
       );
@@ -998,7 +950,7 @@ function boot() {
     return el(
       'aside',
       { class: 'move-presets', 'aria-label': `Presets for move ${m.n}` },
-      el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Presets · move ${String(m.n).padStart(2, '0')}` }), el('p', { class: 'av-annot', text: items.length ? 'From the shipped example blocks. Drag one onto the slot, or use its button: it goes after the slot\'s text.' : 'No presets for this move yet. Use "Add your own text" in its slot.' })),
+      el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Presets · move ${String(m.n).padStart(2, '0')}` }), el('p', { class: 'av-annot', text: items.length ? 'From this builder file. Drag one onto the slot, or use its button: it goes after the slot\'s text.' : 'No presets for this move yet. Use "Add your own text" in its slot.' })),
       ...items,
     );
   }
@@ -1245,6 +1197,7 @@ function boot() {
     );
   }
 
+  if (PACT.title) $('builder-title').textContent = `The pact · configuration · ${PACT.title}`;
   renderActions();
   renderValues();
   renderWorkflows();
