@@ -41,6 +41,14 @@ how every session in every repo behaves. So:
   mismatch. Check that it exited zero.
 - **It deletes only pact files:** those the last manifest lists that the repo
   dropped. Your own agents and skills are never touched.
+- **Configuration.** The owner's settings live in `~/.claude/pact/config.json`
+  (an example is [`examples/pact-config/config.json`](examples/pact-config/config.json)).
+  The installer reads it, never writes, deletes or lists it, and renders its
+  values into the rules file. The dry run's Configuration block shows the
+  file's hash and whether it changed since the last install, the configuration
+  digest, the full rendered hash, and one warning per value set. When a
+  configuration applies, `-Apply` needs that full rendered hash handed back as
+  `-RenderedHash <hash>`, and refuses if it does not match this run's render.
 
 ## Where work lives
 

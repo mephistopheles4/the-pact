@@ -1,7 +1,14 @@
 #Requires -Version 7.5
+# A plain param block, never an advanced script: [CmdletBinding()] would let
+# $PSDefaultParameterValues turn on -Apply with no "-Apply" in the command text,
+# past the ask rules (ADR 0020, gate/tests/settings.test.mjs).
 param(
   [switch]$Apply,
-  [string]$ClaudeHome = (Join-Path $HOME '.claude')
+  [string]$ClaudeHome = (Join-Path $HOME '.claude'),
+  # The full rendered hash the dry run showed. -Apply needs it whenever a
+  # configuration applies, and a hash given is always compared. (Its name must
+  # not start with A or C, so -A and -C stay unambiguous.)
+  [string]$RenderedHash
 )
 $ErrorActionPreference = 'Stop'
 # Installs the pact from this clone's committed HEAD into -ClaudeHome (default
@@ -13,12 +20,46 @@ $ErrorActionPreference = 'Stop'
 #
 # The gate: every file to install is staged from HEAD's blobs. The renderer
 # (gate/render.mjs) turns the staged source rules file into the rules file to
-# install, and that rendered buffer replaces it in the stage. Then the pact's
-# own check (gate/seam-a.mjs, seam A) runs on the staged copy under Node 20 or
-# later, and the install copies exactly the staged bytes seam A listed. It
-# refuses when the renderer or the check fails, or cannot run at all.
+# install, with the user configuration file (pact/config.json under
+# -ClaudeHome) when there is one, and that rendered buffer replaces it in the
+# stage. Then the pact's own check (gate/seam-a.mjs, seam A) runs on the staged
+# copy under Node 20 or later, and the install copies exactly the staged bytes
+# seam A listed. It refuses when the renderer or the check fails, or cannot run
+# at all.
+#
+# The configuration binding: when a configuration applies, the dry run prints
+# the full hash of the rules file it rendered, and -Apply must be handed that
+# hash back with -RenderedHash. A hash given is always compared with this run's
+# render, so a configuration that changed, appeared or was deleted after the
+# dry run refuses. It proves the files did not change between the two runs; it
+# does not prove the owner read the dry run.
 
 $repo = Split-Path $PSScriptRoot -Parent
+# A plain script puts any option name it does not know, and the value after
+# it, into $args without a word. So a misspelled -RenderedHash would never be
+# compared, and a misspelled -ClaudeHome would fall back to the default. Any
+# such word refuses. Option names are shown, cleaned; values never are.
+if ($args.Count) {
+  $names = @($args | Where-Object { $_ -is [string] -and $_ -match '^-' } | ForEach-Object { $n = $_ -replace '[^A-Za-z0-9-]', '?'; if ($n.Length -gt 40) { $n.Substring(0, 40) + '...' } else { $n } })
+  $named = if ($names) { " ($($names -join ', '))" } else { '' }
+  $words = if ($args.Count -eq 1) { '1 word' } else { "$($args.Count) words" }
+  Write-Host "REFUSED: the command line holds $words the script does not read$named. Check each option's spelling. Nothing was changed."
+  exit 1
+}
+# -ClaudeHome must be a full path. A relative one could name three different
+# folders: PowerShell cmdlets resolve it against PowerShell's location, .NET
+# calls against the process's working folder, and the renderer runs in the
+# stage. And the parameters bind by position, so a hash typed after -Apply
+# without its name lands here, as a relative name; this refuses it before
+# anything runs.
+if (-not [IO.Path]::IsPathFullyQualified($ClaudeHome)) {
+  Write-Host 'REFUSED: -ClaudeHome must be a full path, such as the default (your home folder''s .claude). A hash goes after -RenderedHash. Nothing was changed.'
+  exit 1
+}
+$claudeHomeFull = [IO.Path]::GetFullPath($ClaudeHome)
+$ClaudeHome = $claudeHomeFull
+$configRel = 'pact/config.json'
+$blocksRel = 'pact/blocks'
 $manifestFile = Join-Path $ClaudeHome '.pact-install.json'
 $settingsFile = Join-Path $ClaudeHome 'settings.json'
 $retired = @('agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md')
@@ -48,14 +89,16 @@ function Resolve-Live($rel) {
   Join-Path $ClaudeHome ($rel -replace '/', [IO.Path]::DirectorySeparatorChar)
 }
 
-# Never deleted, overwritten or listed, whatever the install record says.
+# Never deleted, overwritten or listed, whatever the install record says. The
+# user configuration file and its blocks folder are the owner's, like the
+# settings file and the record.
 function Test-Protected($rel) {
   # Normalise as Windows does: drop empty and '.' segments, stream suffixes, trailing dots and spaces.
   $segs = @($rel.Replace('\', '/') -split '/' | ForEach-Object { ($_ -replace ':.*$', '').TrimEnd('.', ' ') } | Where-Object { $_ })
   $n = $segs -join '/'
   $leaf = if ($segs.Count) { $segs[-1] } else { '' }
-  $n -ieq 'settings.json' -or $n -ieq '.pact-install.json' -or
-    $leaf -like '.credentials*' -or $n -match '^(?i)(projects|memory|skills|handover)(/|$)'
+  $n -ieq 'settings.json' -or $n -ieq '.pact-install.json' -or $n -ieq 'pact/config.json' -or
+    $leaf -like '.credentials*' -or $n -match '^(?i)(projects|memory|skills|handover|pact/blocks)(/|$)'
 }
 
 # Only plain, canonical record paths are acted on. Judging a name by its spelling
@@ -408,8 +451,17 @@ if (Test-Path -LiteralPath $manifestFile) {
   if (-not ($manifest.commit -and $manifest.files)) { throw "$manifestFile is not a pact manifest (needs commit and files); fix or remove it" }
 }
 
+# The record's configuration: kind -> sha256 of each configuration file the
+# last install read. A record from before configurations holds none.
+$lastConfig = New-OrderedMap
+if ($manifest -and $manifest.config) {
+  foreach ($c in @($manifest.config)) { if ($c.kind -is [string] -and $c.sha256 -is [string]) { $lastConfig[$c.kind] = $c.sha256 } }
+}
 Write-Host "Install from commit $commit into $ClaudeHome"
-if ($manifest) { Write-Host "Last install: $(Format-Plain $manifest.commit)" }
+if ($manifest) {
+  $lastDigest = if ($manifest.digest -is [string] -and $manifest.digest -cmatch '\A[0-9a-f]{12}\z') { "configuration $($manifest.digest)" } else { 'no configuration' }
+  Write-Host "Last install: $(Format-Plain $manifest.commit) with $lastDigest"
+}
 else { Write-Host 'No manifest found: first-install mode. Live files are compared with the repo; only the retired agents (builder, spec-builder, security-builder) can be deleted.' }
 
 # The set is HEAD's tree, never a directory listing or the working tree: an
@@ -508,6 +560,18 @@ Write-Host "Pinned check: grimoire $pinCommit, sha256 verified"
 # bytes' hash, so seam A checks, the install copies, the record holds and the
 # drift check compares the rendered bytes. Its lines are parsed here alone,
 # never with seam A's, so none can feed the INSTALL or SETTINGS parse.
+#
+# Before it runs, the user configuration file and its blocks folder get the
+# reparse-attribute test: Node's lstat sees symbolic links and junctions, but
+# reads other reparse points as plain files, so this is the first layer and the
+# renderer's own checks the second. Hidden and system entries are included.
+if (Test-ThroughLink $configRel) { Stop-Refused 'the user configuration file, or the pact folder that holds it, is a link or other reparse point.' }
+if (Test-ThroughLink $blocksRel) { Stop-Refused 'the configuration blocks folder is a link or other reparse point.' }
+$blocksPath = Resolve-Live $blocksRel
+if (Test-Path -LiteralPath $blocksPath -PathType Container) {
+  try { $blocksState = Get-TreeState $blocksPath } catch { Stop-Refused 'the configuration blocks folder could not be read.' }
+  if (@($blocksState -split "`n" | Where-Object { $_ -clike 'link *' }).Count) { Stop-Refused 'the configuration blocks folder holds a link or other reparse point.' }
+}
 $rulesRel = 'claude/CLAUDE.md'
 $rulesStaged = Join-Path $stage ($rulesRel -replace '/', [IO.Path]::DirectorySeparatorChar)
 $renderer = Join-Path $stage 'gate/render.mjs'
@@ -515,22 +579,41 @@ if (-not (Test-Path -LiteralPath $renderer -PathType Leaf)) { Stop-Refused 'the 
 if (-not $staged.Contains($rulesRel)) { Stop-Refused "the commit holds no $rulesRel." }
 try { $stageBefore = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read before the renderer ran.' }
 $renderOut = [IO.Directory]::CreateTempSubdirectory('pact-render-').FullName
-$render = Invoke-Node $node @($renderer, $rulesStaged, $renderOut) $checkTimeoutMs
+$render = Invoke-Node $node @($renderer, $rulesStaged, $renderOut, $claudeHomeFull) $checkTimeoutMs
 $renderLines = @($render.Stdout -split "`n" | Where-Object { $_ -ne '' })
 Show-ProgramLines $renderLines 'render'
 if ($render.StderrChars) { Write-Host 'The renderer wrote to stderr; it is not shown.' }
 if ($render.TimedOut) { Stop-Refused "the renderer did not finish within $($checkTimeoutMs / 1000) s." }
 if ($render.ExitCode -ne 0) { Stop-Refused "the renderer exited with code $($render.ExitCode)." }
 if (-not $renderLines -or $renderLines[-1] -cne 'RESULT: pass') { Stop-Refused 'the renderer did not end with "RESULT: pass".' }
-$renderHash = $null; $renderConfig = 0
+# Every line before RESULT matches one exact pattern, in these counts: one
+# RENDERED; one CONFIG, either "none" or "user <hash>"; with "user", one
+# DIGEST, which must be the digest of the reported hash, and at most one VALUE
+# per known setting; with "none", neither.
+$renderHash = $null; $configs = @(); $configDigest = $null
+$configValues = New-OrderedMap   # setting -> value, in the renderer's order
 foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) {
   if ($l -cmatch '\ARENDERED ([0-9a-f]{64})\z') {
     if ($renderHash) { Stop-Refused 'the renderer reported two output hashes.' }
     $renderHash = $Matches[1]
-  } elseif ($l -ceq 'CONFIG none') { $renderConfig++ }
-  else { Stop-Refused 'the renderer printed a line the install does not read.' }
+  } elseif ($l -ceq 'CONFIG none') { $configs += , @{ kind = 'none' } }
+  elseif ($l -cmatch '\ACONFIG user ([0-9a-f]{64})\z') { $configs += , @{ kind = 'user'; sha256 = $Matches[1] } }
+  elseif ($l -cmatch '\ADIGEST ([0-9a-f]{12})\z') {
+    if ($configDigest) { Stop-Refused 'the renderer reported two configuration digests.' }
+    $configDigest = $Matches[1]
+  } elseif ($l -cmatch '\AVALUE (usage-pause) (0|[1-9][0-9]?|100)\z') {
+    if ($configValues.Contains($Matches[1])) { Stop-Refused 'the renderer reported one setting twice.' }
+    $configValues[$Matches[1]] = $Matches[2]
+  } else { Stop-Refused 'the renderer printed a line the install does not read.' }
 }
-if (-not $renderHash -or $renderConfig -ne 1) { Stop-Refused 'the renderer did not report exactly one output hash and one configuration line.' }
+if (-not $renderHash -or $configs.Count -ne 1) { Stop-Refused 'the renderer did not report exactly one output hash and one configuration line.' }
+$config = $configs[0]
+if ($config.kind -ceq 'none') {
+  if ($configDigest -or $configValues.Count) { Stop-Refused 'the renderer reported a digest or a value with no configuration.' }
+} else {
+  $wantDigest = (Get-BytesSha256 ([Text.Encoding]::ASCII.GetBytes("user $($config.sha256)`n"))).Substring(0, 12)
+  if ($configDigest -cne $wantDigest) { Stop-Refused "the renderer's configuration digest is missing or does not match the configuration hash it reported." }
+}
 try { $stageAfter = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read after the renderer ran.' }
 if ($stageAfter -cne $stageBefore) { Stop-Refused 'the renderer changed the stage.' }
 $outEntries = @([IO.DirectoryInfo]::new($renderOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }))
@@ -539,10 +622,11 @@ if ($outEntries.Count -ne 1 -or $outEntries[0].Name -cne 'CLAUDE.md' -or $outEnt
   Stop-Refused 'the renderer did not leave exactly one plain rules file of at most 1 MiB.'
 }
 $renderedBytes = [IO.File]::ReadAllBytes($outEntries[0].FullName)
-$renderedHash = Get-BytesSha256 $renderedBytes
-if ($renderedBytes.Length -gt 1MB -or $renderedHash -cne $renderHash) { Stop-Refused "the rendered rules file's hash does not match the one the renderer reported." }
+# Not $renderedHash: PowerShell names ignore case, so that would be -RenderedHash.
+$rulesHash = Get-BytesSha256 $renderedBytes
+if ($renderedBytes.Length -gt 1MB -or $rulesHash -cne $renderHash) { Stop-Refused "the rendered rules file's hash does not match the one the renderer reported." }
 [IO.File]::WriteAllBytes($rulesStaged, $renderedBytes)
-$staged[$rulesRel] = $renderedHash
+$staged[$rulesRel] = $rulesHash
 Remove-Item -LiteralPath $renderOut -Recurse -Force
 $renderOut = $null
 
@@ -600,7 +684,7 @@ $overlay = Read-JsonObject ($utf8.GetString($overlayBytes))
 if ($null -eq $overlay) { Stop-Refused 'the settings overlay is not a JSON object.' }
 $pactAsk = [string[]]@($overlay['permissions']['ask'])
 Write-Host "Check: passed on commit $commit"
-Write-Host "Partly checked: CLAUDE.md's routing and marked clauses are checked; the rest of its text is not checked until ticket 4."
+Write-Host "Partly checked: the rendered CLAUDE.md's marked clauses are checked word for word, and its open text for form, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file."
 
 $repoFiles = New-OrderedMap   # live rel path -> sha256 of the staged copy
 $sourceOf = New-OrderedMap   # live rel path -> staged rel path
@@ -657,7 +741,27 @@ if ($null -eq $live) {
 }
 $manifestStale = $manifest -and $manifest.commit -ne $commit
 $gateStale = $gateLines[0] -cne 'Gate: unchanged since the last install'
-$nothing = -not ($overwrite -or $add -or $delete -or $settings -like 'would*' -or $manifestStale -or $gateStale -or -not $manifest)
+# The configuration against the record: stale when a file was added, changed
+# or removed since the last install, even if the render came out the same.
+$userHash = if ($config.kind -ceq 'user') { $config.sha256 } else { $null }
+$lastUser = if ($lastConfig.Contains('user')) { $lastConfig['user'] } else { $null }
+$configStale = $userHash -cne $lastUser
+$nothing = -not ($overwrite -or $add -or $delete -or $settings -like 'would*' -or $manifestStale -or $gateStale -or $configStale -or -not $manifest)
+
+# The Configuration block, built from the renderer's parsed lines alone.
+$configBlock = @()
+if ($config.kind -ceq 'none') {
+  $configBlock += '  no configuration'
+  if ($lastConfig.Count) { $configBlock += '  the last install had a configuration; this install removes it from the rules file' }
+} else {
+  $since = if (-not $manifest) { 'no install recorded' } elseif (-not $lastUser) { 'new since the last install' }
+  elseif ($lastUser -ceq $userHash) { 'unchanged since the last install' } else { 'CHANGED since the last install' }
+  $configBlock += "  user file ${configRel}: sha256 $userHash, $since"
+  $configBlock += "  configuration digest: $configDigest"
+  $configBlock += "  rendered rules file: sha256 $rulesHash"
+  foreach ($k in $configValues.Keys) { $configBlock += "  WARN: the user configuration sets $k to $($configValues[$k])." }
+  $configBlock += '  Open text is checked for form, routing and the roster, not for meaning.'
+}
 
 Show-List 'Drift' $drift
 Show-List 'Overwrite' $overwrite
@@ -668,10 +772,8 @@ Write-Host "Unchanged: $same"
 Write-Host "settings.json: $settings"
 if ($settings -like 'would*') { foreach ($l in $settingsChanges) { Write-Host $l } }
 foreach ($l in $settingsNotes) { Write-Host $l }
-# The renderer read no configuration (it reported "CONFIG none"), so the rules
-# file is the pact's source with its open-mark lines removed.
 Write-Host 'Configuration:'
-Write-Host '  no configuration'
+foreach ($l in $configBlock) { Write-Host $l }
 if ($dirty.Count) { Write-Host "Working tree: DIRTY ($($dirty.Count) path(s)); the check ran on commit $commit, and uncommitted edits are not checked. -Apply will refuse." }
 else { Write-Host 'Working tree: clean' }
 if ($nothing) { Write-Host 'Nothing to do.' }
@@ -679,9 +781,19 @@ if ($nothing) { Write-Host 'Nothing to do.' }
 # check prints can stand in for it.
 Show-Gate
 
+# A hash given is always compared, dry run or -Apply, configuration or not: so
+# a configuration changed or deleted since the dry run refuses.
+$hashGiven = $PSBoundParameters.ContainsKey('RenderedHash')
+if ($hashGiven -and $RenderedHash -cne $rulesHash) {
+  Stop-Refused 'the hash given with -RenderedHash is not the full hash of the rules file this run rendered: the configuration or the commit changed since the dry run, or the hash was cut short or mistyped.'
+}
 if (-not $Apply) {
-  Write-Host 'Dry run only. Pass -Apply after the owner''s go-ahead.'
+  if ($config.kind -cne 'none') { Write-Host "Dry run only. After the owner's go-ahead, pass -Apply -RenderedHash $rulesHash" }
+  else { Write-Host 'Dry run only. Pass -Apply after the owner''s go-ahead.' }
   exit 0
+}
+if ($config.kind -cne 'none' -and -not $hashGiven) {
+  Stop-Refused 'a configuration applies, so -Apply needs the full rendered hash the dry run showed, given with -RenderedHash.'
 }
 if ($selfDiffers) { Stop-Refused 'this install script differs from the committed copy.' }
 if ($drift) { Stop-Refused 'live files drifted since the last install.' }
@@ -712,8 +824,12 @@ elseif ($settings -like 'would*') {
   Write-Host 'merged settings.json'
 }
 
+# The record names the configuration beside the commit: each file the render
+# read, by kind and hash, and the digest, so "installed commit X" stays true.
 $doc = [ordered]@{
   commit = $commit
+  digest = $configDigest
+  config = @(if ($userHash) { [ordered]@{ kind = 'user'; sha256 = $userHash } })
   files  = @($repoFiles.Keys | ForEach-Object { [ordered]@{ path = $_; sha256 = $repoFiles[$_] } })
   gate   = @($gateNow.Keys | ForEach-Object { [ordered]@{ path = $_; sha256 = $gateNow[$_] } })
 }
@@ -740,7 +856,8 @@ $guardOk = $ap -is [System.Collections.IDictionary] -and $ap['defaultMode'] -is 
 if ($guardOk) { Write-Host "OK       settings.json (the pact's ask rules and auto mode)" }
 else { Write-Host "MISMATCH settings.json (the pact's ask rules or auto mode are missing)"; $bad++ }
 if ($bad) { Write-Host "$bad mismatch(es)."; exit 1 }
-Write-Host "Installed commit $commit; all files verified."
+$withConfig = if ($configDigest) { "configuration $configDigest" } else { 'no configuration' }
+Write-Host "Installed commit $commit with $withConfig; all files verified."
 exit 0
 } finally {
   foreach ($d in @($stage, $renderOut)) {

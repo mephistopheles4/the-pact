@@ -17,12 +17,12 @@ const GATED = readdirSync(join(GATE, 'clauses'))
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
-/** Run the renderer on `src` into a fresh output folder (or `out`). */
-function render(t, src, { out, args } = {}) {
+/** Run the renderer on `src` into a fresh output folder (or `out`), against an empty Claude home folder (or `home`). */
+function render(t, src, { out, args, home } = {}) {
   const dir = out ?? tempDir(t, 'pact-render-out-');
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [RENDER, ...(args ?? [src, dir])], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [RENDER, ...(args ?? [src, dir, home ?? tempDir(t, 'pact-render-home-')])], { encoding: 'utf8', env });
   const file = join(dir, 'CLAUDE.md');
   return { code: r.status, stdout: r.stdout, out: r.stdout + r.stderr, stderr: r.stderr, dir, file, bytes: existsSync(file) ? readFileSync(file) : null };
 }
@@ -85,18 +85,17 @@ test('the pact source renders, and its output is what the tests expect', t => {
 });
 
 test('each of the six open marks is stripped, and only exact open-mark lines are', t => {
+  // Lines that are not an open mark: gated or unknown marks, and comments that
+  // name no open mark. They pass through for seam A to judge.
   const kept = [
-    '<!-- pact:begin move-1-->',
-    '<!-- pact:begin move-1 --> ',
-    '\t<!-- pact:begin move-1 -->',
     '<!-- pact:begin move-5 -->',
+    '<!-- pact:end move-5 -->',
     '<!-- pact:begin move-4 -->',
+    '<!-- pact:end move-4 -->',
     '<!-- pact:begin risk-floor -->',
     '<!-- pact:end security-route -->',
-    '<!-- pact:begin Move-1 -->',
     '<!-- pact:open move-1 -->',
-    '<!--  pact:begin move-1 -->',
-    'text <!-- pact:begin move-1 -->',
+    '<!-- pact:begin move-10 -->',
   ];
   const stripped = OPEN_MARKS.flatMap(n => [`<!-- pact:begin ${n} -->`, `   <!-- pact:end ${n} -->`]);
   const src = ['# Title', ...stripped, ...kept, 'last'].join('\n');
@@ -105,20 +104,48 @@ test('each of the six open marks is stripped, and only exact open-mark lines are
   assert.equal(r.bytes.toString('utf8'), ['# Title', ...kept, 'last'].join('\n'));
 });
 
+// Slice 2 passed these lines through for seam A to refuse. Since slice 3 the
+// renderer refuses them itself, before any part is filled (security-reviewer
+// F3 on #92): each would hide an open mark from the renderer while a reader
+// still takes it for one.
+for (const near of [
+  '<!-- pact:begin move-1-->',
+  '<!-- pact:begin move-1 --> ',
+  '\t<!-- pact:begin move-1 -->',
+  '<!-- pact:begin Move-1 -->',
+  '<!--  pact:begin move-1 -->',
+  'text <!-- pact:begin move-1 -->',
+  '<!-- pact:end usage-pause --><!-- pact:begin risk-floor -->',
+  '<!-- pact:begin risk-floor --> <!-- pact:begin move-4-extra -->',
+]) {
+  test(`bad case: an open mark not alone on its line refuses: ${JSON.stringify(near)}`, t => {
+    const r = render(t, sourceFile(t, `# Title\n${near}\nlast\n`));
+    refusedWith(r, 'placement');
+    assert.match(r.stdout, /^FAIL placement: claude\/CLAUDE\.md line 2: an open mark that is not alone on its line, exactly as written$/m, r.out);
+  });
+}
+
 test('every byte outside an open-mark line passes through: a carriage return, invalid UTF-8, a byte-order mark', t => {
+  // The carriage-return line was an open mark until slice 3, when a mark not
+  // exactly alone on its line began to refuse (the bad case below).
   const body = Buffer.concat([
     Buffer.from('﻿line one\r\n<!-- pact:begin move-2 -->\n'),
     Buffer.from([0xff, 0xfe, 0x0a]),
-    Buffer.from('<!-- pact:begin move-2 -->\r\n<!-- pact:end move-2 -->\nno final newline'),
+    Buffer.from('<!-- pact:begin risk-floor -->\r\n<!-- pact:end move-2 -->\nno final newline'),
   ]);
   const r = render(t, sourceFile(t, body));
   assert.equal(r.code, 0, r.out);
   const want = Buffer.concat([
     Buffer.from('﻿line one\r\n'),
     Buffer.from([0xff, 0xfe, 0x0a]),
-    Buffer.from('<!-- pact:begin move-2 -->\r\nno final newline'),
+    Buffer.from('<!-- pact:begin risk-floor -->\r\nno final newline'),
   ]);
   assert.deepEqual(r.bytes, want);
+});
+
+test('bad case: an open mark line ending in a carriage return refuses', t => {
+  const r = render(t, sourceFile(t, '<!-- pact:begin move-2 -->\r\n<!-- pact:end move-2 -->\n'));
+  refusedWith(r, 'placement');
 });
 
 test('an empty source renders to an empty file', t => {
@@ -135,7 +162,8 @@ test('no open-mark name is a gated clause name', () => {
 
 test('the renderer never echoes the source', t => {
   const C = 'CANARYrender';
-  const r = render(t, sourceFile(t, `${C}\n<!-- pact:begin move-1 -->\n${C}\n`));
+  // The mark is closed since slice 3, when an unclosed open mark began to refuse.
+  const r = render(t, sourceFile(t, `${C}\n<!-- pact:begin move-1 -->\n${C}\n<!-- pact:end move-1 -->\n`));
   assert.equal(r.code, 0, r.out);
   assert.ok(!r.out.includes(C), r.out);
 });
@@ -219,13 +247,18 @@ test('bad case: an output folder that is a link refuses', t => {
   assert.deepEqual(readdirSync(real), []);
 });
 
+// Since slice 3 the Claude home folder is a third argument the install always
+// passes, so two arguments are a usage failure and four are too many.
 for (const [label, args] of [
   ['no arguments', []],
   ['one argument', ['x']],
-  ['three arguments', ['a', 'b', 'c']],
-  ['a switch in place of the source', ['--skip-checks', 'b']],
-  ['a switch in place of the output folder', ['a', '--no-check']],
-  ['an empty argument', ['', 'b']],
+  ['two arguments', ['a', 'b']],
+  ['four arguments', ['a', 'b', 'c', 'd']],
+  ['a switch in place of the source', ['--skip-checks', 'b', 'c']],
+  ['a switch in place of the output folder', ['a', '--no-check', 'c']],
+  ['a switch in place of the Claude home folder', ['a', 'b', '--no-config']],
+  ['an empty argument', ['', 'b', 'c']],
+  ['an empty Claude home folder argument', ['a', 'b', '']],
 ]) {
   test(`bad case: ${label} is a usage failure; the renderer has no switch`, t => {
     const r = render(t, null, { args });
@@ -235,7 +268,7 @@ for (const [label, args] of [
 
 test('bad case: a switch added to good arguments is a usage failure, not a skipped check', t => {
   const out = tempDir(t, 'pact-render-out-');
-  const r = render(t, null, { args: [SOURCE, out, '--no-strip'], out });
+  const r = render(t, null, { args: [SOURCE, out, tempDir(t), '--no-strip'], out });
   refusedWith(r, 'usage');
   assert.deepEqual(readdirSync(out), []);
 });

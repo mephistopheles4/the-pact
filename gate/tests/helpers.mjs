@@ -163,11 +163,13 @@ export function sealedFamiliar(root, name, { lines, contract, body } = {}) {
 
 /**
  * Run the real renderer on the stage's rules file and put its output in its
- * place, as the install script does before seam A. A stage with no rules file,
- * or one that is not a regular file, is left as it is for seam A to judge.
- * Throws when the renderer refuses, since the install would stop there.
+ * place, as the install script does before seam A. With no `claudeHome`, it
+ * renders against an empty Claude home folder, so no configuration applies. A
+ * stage with no rules file, or one that is not a regular file, is left as it
+ * is for seam A to judge. Throws when the renderer refuses, since the install
+ * would stop there.
  */
-export function renderStage(root) {
+export function renderStage(root, claudeHome) {
   const md = join(root, 'claude', 'CLAUDE.md');
   let st;
   try {
@@ -177,14 +179,16 @@ export function renderStage(root) {
   }
   if (!st.isFile()) return;
   const out = mkdtempSync(join(tmpdir(), 'pact-render-'));
+  const empty = claudeHome ? null : mkdtempSync(join(tmpdir(), 'pact-render-home-'));
   try {
     const env = { ...process.env };
     delete env.NODE_OPTIONS;
-    const r = spawnSync(process.execPath, [RENDER, md, out], { encoding: 'utf8', env });
+    const r = spawnSync(process.execPath, [RENDER, md, out, claudeHome ?? empty], { encoding: 'utf8', env });
     if (r.status !== 0 || lastLine(r.stdout) !== 'RESULT: pass') throw new Error(`the renderer refused the stage:\n${r.stdout}${r.stderr}`);
     writeFileSync(md, readFileSync(join(out, 'CLAUDE.md')));
   } finally {
     rmSync(out, { recursive: true, force: true });
+    if (empty) rmSync(empty, { recursive: true, force: true });
   }
 }
 

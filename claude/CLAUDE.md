@@ -183,6 +183,10 @@ session may not be able to see, and it depends on the model:
   or one outside the mapping, or any other model. The mapping is specific to
   Sonnet; never apply it to another model.
 
+When a configuration notice follows "Where this config lives" at the top of
+this file, end the fit line with `Config: <digest>.`, the digest the notice
+names. With no notice, leave it out.
+
 Help me run the moves of my engineering playbook that your tier names. The
 moves are mine; you help me carry them out and protect me while I do. Each move
 names the skills that carry it out, most of them from
@@ -351,7 +355,8 @@ under the heading "Lens dispositions" on the issue, one row per finding, with
 the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
 real? (for each crossing, my yes or no), changed my decision? (once per
 review, my yes or no), time (from the posted comment to my decision), model
-(the model the lenses ran on, not yours), and cross result (passed, refused with the rule
+(the model the lenses ran on, not yours), configuration (the digest the
+configuration notice names, or none), and cross result (passed, refused with the rule
 that fired, or oversize, and whether a lens was rerun to get a valid report).
 At the thorough tier, add my pick, the comparison and the walk-through's
 outcome. Pre-fill both yes-or-no answers from the evidence, each with a

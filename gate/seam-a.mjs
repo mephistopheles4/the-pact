@@ -629,7 +629,10 @@ function classify(root, report) {
     if (seg[0] === 'claude') {
       if (rel === 'claude/CLAUDE.md') {
         installs.push({ file: rel, dest: 'CLAUDE.md' });
-        report.note('partly-checked', 'claude/CLAUDE.md is checked for routing and its marked clauses only; the rest of its text is not checked until ticket 4');
+        report.note(
+          'partly-checked',
+          'claude/CLAUDE.md is the rendered rules file: its marked clauses are checked word for word, and its open text for form, routing and the roster, not for meaning; line numbers count the rendered file',
+        );
       } else if (rel === OVERLAY) {
         overlay = true;
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
