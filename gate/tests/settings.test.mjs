@@ -11,12 +11,25 @@ import { commitAll, home, install, listTree, makeRepo, refused } from './install
 
 const OVERLAY = 'claude/settings.overlay.json';
 
+// The three characters PowerShell reads as a parameter's hyphen (#89): en
+// dash, em dash and horizontal bar. Always written as escapes, never typed.
+const DASHES = ['\u2013', '\u2014', '\u2015'];
+
 // The pact's "ask" rules, as #34 and its pre-build review settled them.
 const PACT_ASK = [
   'PowerShell(./scripts/install.ps1 -Apply)',
   'PowerShell(*install.ps1*-A*)',
   'Bash(*nstall.ps1*-A*)',
   'Bash(*nstall.ps1*-a*)',
+  // #89: a splat, and each dash PowerShell takes in place of the hyphen.
+  'PowerShell(*install.ps1* @*)',
+  'PowerShell(*install.ps1*\u2013*)',
+  'PowerShell(*install.ps1*\u2014*)',
+  'PowerShell(*install.ps1*\u2015*)',
+  'Bash(*nstall.ps1* @*)',
+  'Bash(*nstall.ps1*\u2013*)',
+  'Bash(*nstall.ps1*\u2014*)',
+  'Bash(*nstall.ps1*\u2015*)',
   'Edit(~/.claude/agents/**)',
   'Edit(~/.claude/settings.json)',
   'Edit(~/.claude/CLAUDE.md)',
@@ -30,8 +43,22 @@ const PACT_ASK = [
   'Edit(~/.claude/pact/**)',
 ];
 
-// The apply-step rules, hard-coded in seam A as the permission mode is.
-const APPLY_ASK = PACT_ASK.slice(0, 4);
+// The apply-step rules, hard-coded in seam A as the permission mode is. Named
+// one by one, so a rule added to the pact's list can't push one out.
+const APPLY_ASK = [
+  'PowerShell(./scripts/install.ps1 -Apply)',
+  'PowerShell(*install.ps1*-A*)',
+  'Bash(*nstall.ps1*-A*)',
+  'Bash(*nstall.ps1*-a*)',
+  'PowerShell(*install.ps1* @*)',
+  'PowerShell(*install.ps1*\u2013*)',
+  'PowerShell(*install.ps1*\u2014*)',
+  'PowerShell(*install.ps1*\u2015*)',
+  'Bash(*nstall.ps1* @*)',
+  'Bash(*nstall.ps1*\u2013*)',
+  'Bash(*nstall.ps1*\u2014*)',
+  'Bash(*nstall.ps1*\u2015*)',
+];
 // The cross script's rule, hard-coded in seam A beside them.
 const CROSS_ASK = 'Edit(~/.claude/pact/**)';
 
@@ -72,6 +99,28 @@ function expectSettingsFail(t, text, rule, script) {
   assert.ok(failRules(r.stdout).includes(rule), `expected rule "${rule}" in:\n${r.out}`);
   assert.doesNotMatch(r.stdout, /^SETTINGS /m, r.out);
   return r;
+}
+
+/** A rule as the dry run should print it: anything outside printable ASCII, and the backslash, as a \u-and-four-hex-digits escape. */
+function shown(rule) {
+  return rule.replace(/[^\x20-\x5b\x5d-\x7e]/g, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+}
+
+/** The rules among `rules` holding a character outside printable ASCII, other than the three dashes. */
+function nonAsciiRules(rules) {
+  return rules.filter(r => [...r].some(c => (c < ' ' || c > '~') && !DASHES.includes(c)));
+}
+
+/** The script's own parameter block, and what comes before it. */
+function paramHead(text) {
+  const m = text.match(/^[\s\S]*?^param\s*\([\s\S]*?^\)/im);
+  assert.ok(m, 'no top-level param block found');
+  return m[0];
+}
+
+/** True when the parameter block makes the script an advanced one. */
+function isAdvanced(head) {
+  return /\[\s*(?:cmdletbinding|parameter)\s*[(\]]/i.test(head);
 }
 
 function sha256(text) {
@@ -204,10 +253,70 @@ test("bad case: an ask list missing one of the pact's rules fails", t => {
   expectSettingsFail(t, overlayWith(o => o.permissions.ask.pop()), 'settings-required');
 });
 
-test('bad case: the apply-step rules stay required when both the allow-list and the overlay drop them', t => {
-  for (const rule of APPLY_ASK) {
+test("the apply-step rules are all among the pact's rules", () => {
+  for (const rule of APPLY_ASK) assert.ok(PACT_ASK.includes(rule), shown(rule));
+});
+
+// One test per rule, so a red run shows every rule that seam A doesn't hold.
+for (const rule of APPLY_ASK) {
+  test(`bad case: the apply-step rule ${shown(rule)} stays required when both the allow-list and the overlay drop it`, t => {
     const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== rule))));
     expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== rule))), 'settings-required', script);
+  });
+}
+
+// A hyphen in place of one dash, in both files: seam A must compare the exact
+// character, so the dash rule counts as missing. One dash at a time, since two
+// swapped rules could collide and fail as a repeat instead.
+for (const rule of APPLY_ASK.filter(r => DASHES.some(d => r.includes(d)))) {
+  test(`bad case: ${shown(rule)} with a hyphen for its dash, in both files, fails as missing`, t => {
+    const swap = r => (r === rule ? [...r].map(c => (DASHES.includes(c) ? '-' : c)).join('') : r);
+    const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].map(swap))));
+    const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.map(swap))), 'settings-required', script);
+    assert.deepEqual([...new Set(failRules(r.stdout))], ['settings-required'], r.out);
+  });
+}
+
+test('every pact ask rule is printable ASCII, but for the three dashes', () => {
+  const allow = JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8'))['permissions.ask'];
+  const overlay = JSON.parse(realOverlay()).permissions.ask;
+  assert.deepEqual(nonAsciiRules(allow), []);
+  assert.deepEqual(nonAsciiRules(overlay), []);
+  assert.deepEqual(nonAsciiRules(PACT_ASK), []);
+});
+
+test('bad case: an ask rule with another dash-like or invisible character is caught', () => {
+  for (const c of ['\u2010', '\u2212', '\u00ad', '\u200b', '\t']) {
+    assert.deepEqual(nonAsciiRules([`Bash(*nstall.ps1*${c}*)`]), [`Bash(*nstall.ps1*${c}*)`], shown(c));
+  }
+});
+
+test('each dash is written as an escape: the rule files and their code hold no dash character', () => {
+  const files = ['claude/settings.overlay.json', 'gate/settings-allowlist.json', 'gate/seam-a.mjs', 'gate/tests/settings.test.mjs'];
+  for (const f of files) {
+    const text = readFileSync(join(GATE, '..', ...f.split('/')), 'utf8');
+    for (const d of DASHES) assert.ok(!text.includes(d), `${f} holds ${shown(d)} as a character`);
+  }
+  const rules = readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8') + realOverlay();
+  assert.ok(/^[\x00-\x7f]*$/.test(rules), 'a rule file holds a byte outside ASCII');
+});
+
+test("the install script's parameters stay non-advanced: no CmdletBinding, no Parameter attribute", () => {
+  const head = paramHead(readFileSync(join(GATE, '..', 'scripts', 'install.ps1'), 'utf8'));
+  assert.match(head, /\[switch\]\$Apply/);
+  assert.equal(isAdvanced(head), false, head);
+});
+
+test('bad case: a parameter block made advanced is caught, in any case and spacing', () => {
+  const plain = 'param(\n  [switch]$Apply\n)\n';
+  assert.equal(isAdvanced(paramHead(plain)), false);
+  for (const head of [
+    '[CmdletBinding()]\nparam(\n  [switch]$Apply\n)\n',
+    '[cmdletbinding( )]\nparam(\n  [switch]$Apply\n)\n',
+    'param(\n  [Parameter(Mandatory)][switch]$Apply\n)\n',
+    'param(\n  [ parameter ()]\n  [switch]$Apply\n)\n',
+  ]) {
+    assert.equal(isAdvanced(paramHead(head)), true, head);
   }
 });
 
@@ -305,6 +414,39 @@ test("-Apply installs the pact's ask rules and auto mode, verifies them, and the
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^settings\.json: unchanged$/m, again.out);
   assert.doesNotMatch(again.stdout, /^WARN: /m, again.out);
+});
+
+/** The dry run's added "ask" lines. */
+function addedAsk(stdout) {
+  return stdout.split(/\r?\n/).filter(l => l.startsWith('  + permissions.ask: '));
+}
+
+test('the dry run lists every pact rule as an added ask line, each dash printed as an escape', t => {
+  const r = install(makeRepo(t), home(t));
+  assert.equal(r.code, 0, r.out);
+  const added = addedAsk(r.stdout);
+  for (const rule of PACT_ASK) assert.ok(added.includes(`  + permissions.ask: ${shown(rule)}`), `${shown(rule)} not listed:\n${r.out}`);
+  for (const d of DASHES) assert.ok(added.some(l => l.endsWith(`${shown(d)}*)`)), shown(d));
+  for (const l of added) assert.match(l, /^[\x20-\x7e]*$/, shown(l));
+});
+
+test('bad case: a rule holding a backslash and "u2013" as plain text prints apart from a real dash', t => {
+  const fake = String.raw`Bash(echo \u2013)`;
+  const repo = makeRepo(t, root => {
+    const a = join(root, 'gate', 'settings-allowlist.json');
+    const doc = JSON.parse(readFileSync(a, 'utf8'));
+    doc['permissions.ask'].push(fake);
+    writeFileSync(a, JSON.stringify(doc, null, 2));
+    const o = join(root, ...OVERLAY.split('/'));
+    const ov = JSON.parse(readFileSync(o, 'utf8'));
+    ov.permissions.ask.push(fake);
+    writeFileSync(o, JSON.stringify(ov, null, 2));
+  });
+  const r = install(repo, home(t));
+  assert.equal(r.code, 0, r.out);
+  const added = addedAsk(r.stdout);
+  assert.ok(added.includes(String.raw`  + permissions.ask: Bash(echo \u005cu2013)`), r.out);
+  assert.ok(!added.includes(`  + permissions.ask: ${shown('Bash(echo \u2013)')}`), r.out);
 });
 
 test("an owner's own ask rule survives the merge", t => {
