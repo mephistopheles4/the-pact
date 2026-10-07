@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S2. Stalls: S2: sign 1: whether exports include archived items is left for the build.
 3. Check the done-criteria (S4).
 
-- S1: This section leaves a step with no clear finish
+- S1 (F1): This section leaves a step with no clear finish
 
 ```lens-findings
 {

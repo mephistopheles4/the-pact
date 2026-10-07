@@ -12,7 +12,7 @@ Red step: the issue asks for an endpoint, its rate limit and its docs.
 | its rate limit | C2, read on the security route |
 | its docs | C3 |
 
-- C2: Should the endpoint take the security route?
+- C2 (F1): Should the endpoint take the security route?
 
 ```lens-findings
 {

@@ -15,6 +15,8 @@
 //   findOnAny  [[["S1", "S2"], ["medium"]]]: a finding is required on one of the anchors, at one of these severities
 //   headlineOn { "S3": "security route" }: a finding on the anchor must hold these words in its headline
 //   neverSeverity ["high"]: no finding may have these severities
+//   bulletOn   [[["S3", "S6"], ["high"], "sign 3"]]: a finding bullet ("- S3 (F1): ...") of a finding on one of
+//              the anchors, at one of the severities, must hold the words; nowhere else in the report counts
 //   quietOn    ["C3"]: no finding may sit on these claims (a false alarm fails the run)
 //   notNonRisk ["C2"]: these claims may not appear in nonRisks
 //   notChecked ["C1"]: each must be named in some notChecked item
@@ -120,6 +122,31 @@ function normalFile(s) {
     .toLowerCase();
 }
 
+/**
+ * The finding bullets of a report: lines "- S3 (F1): ..." outside code blocks, each with the lines
+ * that continue it, up to the next bullet, blank line or heading.
+ */
+export function bullets(text) {
+  const out = [];
+  let fence = false;
+  let cur = null;
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    if (/^\s*(`{3,}|~{3,})/.test(line)) {
+      fence = !fence;
+      cur = null;
+      continue;
+    }
+    if (fence) continue;
+    const m = /^\s*[-*] +(?:\*\*)?([A-Z][1-9][0-9]{0,2}) \((F[0-9]{1,3})\):(?:\*\*)?\s*(.*)$/.exec(line);
+    if (m) {
+      cur = { anchor: m[1], id: m[2], text: m[3] };
+      out.push(cur);
+    } else if (cur && line.trim() !== '' && !/^\s*([-*] |#)/.test(line)) cur.text += ` ${line.trim()}`;
+    else cur = null;
+  }
+  return out;
+}
+
 function block(text) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const open = lines.indexOf('```lens-findings');
@@ -177,6 +204,15 @@ export function score(c, text, record = null) {
   }
   for (const [id, words] of Object.entries(c.headlineOn ?? {})) {
     if (!on(id).some(f => f.headline.toLowerCase().includes(words.toLowerCase()))) reasons.push(`headline-on:${id}`);
+  }
+  for (const [ids, sevs, words] of c.bulletOn ?? []) {
+    // A finding bullet opens "S3 (F1):"; the words must be in the bullet of a finding on one of the
+    // anchors, at one of the severities, so text elsewhere in the report never counts.
+    const hit = bullets(text).some(b => {
+      const f = doc.findings.find(x => x.id === b.id);
+      return f && f.anchor.id === b.anchor && ids.includes(b.anchor) && sevs.includes(f.severity) && b.text.toLowerCase().includes(words.toLowerCase());
+    });
+    if (!hit) reasons.push(`bullet:${words}`);
   }
   for (const sev of c.neverSeverity ?? []) if (doc.findings.some(f => f.severity === sev)) reasons.push(`never-severity:${sev}`);
   for (const id of c.quietOn ?? []) if (on(id).length > 0) reasons.push(`false-alarm:${id}`);

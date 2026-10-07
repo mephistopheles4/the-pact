@@ -16,7 +16,7 @@ Steps:
 1. Build the export (S2).
 2. Publish the export (S3). Stalls: S3: a gap, so no step says who signs off.
 
-- S3: a gap. Evidence: the section list ends at S5. Change: add the section. Check: it exists and lists the publish.
+- S3 (F1): a gap. Evidence: the section list ends at S5. Change: add the section. Check: it exists and lists the publish.
 
 ```lens-findings
 {

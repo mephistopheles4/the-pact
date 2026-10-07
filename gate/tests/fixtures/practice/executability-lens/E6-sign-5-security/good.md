@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S2. Stalls: S2: sign 5: the sign-in change has no security read of the spec or the diff.
 3. Check the done-criteria (S4).
 
-- S2: sign 5: the sign-in change has no security read of the spec or the diff. Evidence: S2, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
+- S2 (F1): sign 5: the sign-in change has no security read of the spec or the diff. Evidence: S2, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
 
 ```lens-findings
 {

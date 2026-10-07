@@ -11,7 +11,7 @@ Red step: the issue asks for export and import.
 | export | S2 |
 | import | S3 |
 
-- S4: The steps in this section are hard to follow
+- S4 (F1): The steps in this section are hard to follow
 
 ```lens-findings
 {

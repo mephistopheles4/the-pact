@@ -2,7 +2,7 @@
 
 ## Problem, outcome and tier
 
-The team wants the reading list as a CSV each morning. Outcome: a CSV of every active item, published to the shared dashboard by 07:00. Tier: thorough.
+The team wants the reading list as a CSV each morning. Outcome: a CSV of every active item, published to the shared dashboard by 07:00. Non-goals: editing the reading list, and any export format but CSV. Tier: thorough.
 
 ## Design
 
@@ -15,6 +15,8 @@ Target environment: the team's shared Linux server, on Node 20 like development.
 1. Ticket 1: write the export job and its test.
 2. Ticket 2: publish the file to the dashboard with the existing dashboard upload, then run the job end to end once on the shared server.
 3. Ticket 2, last step: run `./scripts/install.ps1 -Apply` to install the job on the shared server.
+
+Stop and ask the owner if the read-only API changes shape, or if the shared server cannot be reached.
 
 ## Done when
 

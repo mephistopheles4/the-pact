@@ -1,8 +1,6 @@
 # Practice test: unstated-lens
 
-For `claude/agents/unstated-lens.md`, contract 0.1.2. Every expected result,
-reference report and bad report below was written and committed on
-2026-10-06, before any run.
+For `claude/agents/unstated-lens.md`, contract 0.1.2. Every expected result, reference report and bad report below was written and committed before any run: first on 2026-10-06, then changed on 2026-10-07 after move 4 on the swap (`1a4034f`, and the round-2 fix), still before any run.
 
 **Status: one case runs for real; the rest are scored on bad reports.** This
 lens guards the security route: it asks whether off-route work should have

@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S1. Stalls: S1: sign 6: a password reset change sits on the standard tier.
 3. Check the done-criteria (S4).
 
-- S3: This section leaves a step with no clear finish
+- S3 (F1): This section leaves a step with no clear finish
 
 ```lens-findings
 {

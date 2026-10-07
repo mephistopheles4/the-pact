@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S3. Stalls: S3: sign 4: the second ticket has no checkable done-criteria.
 3. Check the done-criteria (S4).
 
-- S3 (F1): sign 4: the second ticket has no checkable done-criteria. Evidence: S3, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
+- S3 (F1): the step has no clear finish. Change: name it. Check: it is named.
 
 ```lens-findings
 {
@@ -32,11 +32,12 @@ Steps:
         "id": "S3"
       },
       "severity": "high",
-      "headline": "Unhandled human step: the second ticket has no checkable done-criteria"
+      "headline": "This section leaves a step with no clear finish"
     }
   ],
   "notChecked": [
-    "Whether the export format suits the readers downstream: that is the owner's call"
+    "Whether the export format suits the readers downstream: that is the owner's call",
+    ": not checked"
   ]
 }
 ```

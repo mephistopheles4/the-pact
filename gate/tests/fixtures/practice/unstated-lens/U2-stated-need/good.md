@@ -12,7 +12,7 @@ Red step: the issue asks for export, import and offline use.
 | import | S3 |
 | works offline on the train | missing |
 
-- S2: Offline use, which the issue asks for, has no section
+- S2 (F1): Offline use, which the issue asks for, has no section
 
 ```lens-findings
 {

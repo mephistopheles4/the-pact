@@ -17,7 +17,7 @@ Steps:
 1. Write the sub-agent file with isolation: worktree (S2). Stalls: S2: which tree the worktree holds is unobserved; the check could run on the default branch.
 2. Run the checker on the change (S3).
 
-- S2: The worktree is assumed to hold the change under test, unobserved
+- S2 (F1): The worktree is assumed to hold the change under test, unobserved
 
 ```lens-findings
 {

@@ -11,7 +11,7 @@ Red step:
 | Section | Could be cut or deferred | What that saves | Trigger to pick it up |
 | S3 | the clean twins | about half the runs | the dismissal rate cannot be read |
 
-- S3: A clean twin per case doubles the runs the dismissal rate already covers
+- S3 (F1): A clean twin per case doubles the runs the dismissal rate already covers
 
 ```lens-findings
 {

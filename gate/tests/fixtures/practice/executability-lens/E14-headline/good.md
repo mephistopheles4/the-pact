@@ -16,7 +16,7 @@ Red step:
 Steps:
 1. Check it is done (S4). Stalls: S4: sign 4.
 
-- S4: The second ticket has no checkable done-criteria
+- S4 (F1): The second ticket has no checkable done-criteria
 
 ```lens-findings
 {

@@ -21,7 +21,7 @@ Red step:
 | S5 | nothing | - | - |
 | S6 | nothing | - | - |
 
-- S4: The done-criteria are vague
+- S4 (F1): The done-criteria are vague
 
 ```lens-findings
 {

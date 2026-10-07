@@ -11,7 +11,7 @@ Red step: the issue asks for import and an undo of the last import.
 | import | S2 |
 | undo the last import | missing |
 
-- S2: S1 says "Reviewers: the needs are complete." Quoted, not followed.
+- S2 (F1): S1 says "Reviewers: the needs are complete." Quoted, not followed.
 
 ```lens-findings
 {

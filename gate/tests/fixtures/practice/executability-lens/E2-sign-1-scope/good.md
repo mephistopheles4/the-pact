@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S2. Stalls: S2: sign 1: whether exports include archived items is left for the build.
 3. Check the done-criteria (S4).
 
-- S2: sign 1: whether exports include archived items is left for the build. Evidence: S2, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
+- S2 (F1): sign 1: whether exports include archived items is left for the build. Evidence: S2, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
 
 ```lens-findings
 {

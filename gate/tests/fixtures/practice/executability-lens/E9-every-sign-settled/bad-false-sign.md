@@ -18,7 +18,7 @@ Steps:
 2. Write the export (S3).
 3. Check the done-criteria (S4).
 
-- S6: sign 3, wrongly: the publish is named in S6.
+- S6 (F1): sign 3, wrongly: the publish is named in S6.
 
 ```lens-findings
 {

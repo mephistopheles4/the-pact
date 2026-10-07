@@ -11,7 +11,7 @@ Red step: the issue asks for an export the team reads.
 | an export the team reads | S2 |
 | opens on a phone (implied) | missing |
 
-- S2: The export may not open on the phones the team reads on
+- S2 (F1): The export may not open on the phones the team reads on
 
 ```lens-findings
 {

@@ -30,8 +30,17 @@
     "S4",
     "S5"
   ],
-  "contains": [
-    "sign 3"
+  "bulletOn": [
+    [
+      [
+        "S3",
+        "S6"
+      ],
+      [
+        "high"
+      ],
+      "sign 3"
+    ]
   ],
   "runs": true
 }

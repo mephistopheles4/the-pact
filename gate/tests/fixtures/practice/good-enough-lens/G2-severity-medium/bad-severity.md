@@ -11,7 +11,7 @@ Red step:
 | Section | Could be cut or deferred | What that saves | Trigger to pick it up |
 | S4 | the XML and JSON exports | two days | a reader asks for one |
 
-- S4: Two export formats have no reader in the issue
+- S4 (F1): Two export formats have no reader in the issue
 
 ```lens-findings
 {

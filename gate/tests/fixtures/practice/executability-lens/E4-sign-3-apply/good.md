@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S3. Stalls: S3: sign 3: the install step runs with -Apply and is not named for the owner's sign-off.
 3. Check the done-criteria (S4).
 
-- S3: sign 3: the install step runs with -Apply and is not named for the owner's sign-off. Evidence: S3, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
+- S3 (F1): sign 3: the install step runs with -Apply and is not named for the owner's sign-off. Evidence: S3, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
 
 ```lens-findings
 {

@@ -2,7 +2,7 @@
 
 ## Problem, outcome and tier
 
-The team wants the reading list as a CSV each morning. Outcome: a CSV of every active item, published to the shared dashboard by 07:00. Tier: standard.
+The team wants the reading list as a CSV each morning. Outcome: a CSV of every active item, published to the shared dashboard by 07:00. Non-goals: editing the reading list, and any export format but CSV. Tier: standard.
 
 ## Design
 
@@ -13,16 +13,18 @@ Target environment: the team's shared Linux server, on Node 20 like development.
 ## Steps
 
 1. Ticket 1: add the password reset.
-2. Ticket 2: write the export job and its test, then run it end to end once on the shared server.
+2. Ticket 2: write the export job and its test, publish the file to the dashboard with the existing dashboard upload, then run the job end to end once on the shared server.
+
+Stop and ask the owner if the read-only API changes shape, or if the shared server cannot be reached.
 
 ## Done when
 
 - Ticket 1: a test requests a reset, follows the link within the hour and sets a new password; a link older than an hour is refused. `npm run build` and `npm run lint` pass.
-- Ticket 2: after one end-to-end run on the shared server, exports/list.csv has one row per active item, and a test checks the row count. `npm run build` and `npm run lint` pass.
+- Ticket 2: a test checks that exports/list.csv has one row per active item; after one end-to-end run on the shared server, the dashboard shows the file dated today. `npm run build` and `npm run lint` pass.
 
 ## Rollback
 
-Remove the scheduled job and the dashboard tile; the reading list itself is never written to.
+Remove the scheduled job, the dashboard tile and the password reset, and invalidate every reset link still outstanding; the reading list itself is never written to.
 
 ## Needs a human
 

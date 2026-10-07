@@ -11,7 +11,7 @@ Red step:
 | Section | Could be cut or deferred | What that saves | Trigger to pick it up |
 | S5 | the chart, deferred | a ticket | the export ships |
 
-- S5: Deferred: the chart is wanted only after the export works
+- S5 (F1): Deferred: the chart is wanted only after the export works
 
 ```lens-findings
 {

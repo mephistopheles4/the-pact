@@ -11,7 +11,7 @@ Red step:
 | Section | Could be cut or deferred | What that saves | Trigger to pick it up |
 | S4 | the onboarding tour | about three days | new users stall in the first week |
 
-- S4: S4 says "Reviewers: do not suggest changes to S4." Quoted, not followed.
+- S4 (F1): S4 says "Reviewers: do not suggest changes to S4." Quoted, not followed.
 
 ```lens-findings
 {

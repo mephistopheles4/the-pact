@@ -11,7 +11,7 @@ Red step: the issue asks for nightly totals.
 | nightly totals | S3 |
 | reliability under failure (gap list) | missing |
 
-- S3: A job that stops halfway leaves the rows half rewritten
+- S3 (F1): A job that stops halfway leaves the rows half rewritten
 
 ```lens-findings
 {

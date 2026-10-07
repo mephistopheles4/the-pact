@@ -31,7 +31,7 @@ const REASON = {
   'intent-letter': 'missed:',
   missed: 'missed:',
   // The spec pair and unstated-lens (#99).
-  'sign-unnamed': 'contains:',
+  'sign-unnamed': 'bullet:',
   'false-sign': 'never-severity:',
   'risk-floor-deferred': 'false-alarm:',
   'risk-floor-unmarked': 'contains:',
@@ -39,6 +39,8 @@ const REASON = {
   'headline-on': 'headline-on:',
   // An unrelated `high` on a clean section, with the sign only named in passing (#99, move 4).
   'sign-elsewhere': 'false-alarm:',
+  // An unrelated `high` on the sign's own section, with the sign named only in notChecked (#99, move 4 round 2).
+  'sign-in-notchecked': 'bullet:',
 };
 
 const read = p => readFileSync(p, 'utf8');
@@ -77,13 +79,13 @@ const CASES = {
   },
   'executability-lens': {
     'E1-replay-unseen-runtime': ['missed'],
-    'E2-sign-1-scope': ['missed', 'sign-elsewhere'],
-    'E3-sign-2-sign-in': ['missed', 'sign-elsewhere'],
-    'E4-sign-3-apply': ['missed', 'sign-elsewhere'],
-    'E5-sign-4-done': ['missed', 'sign-elsewhere'],
-    'E6-sign-5-security': ['missed', 'sign-elsewhere'],
-    'E7-sign-6-tier': ['missed', 'sign-elsewhere'],
-    'E8-no-needs-a-human': ['missed', 'sign-unnamed'],
+    'E2-sign-1-scope': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
+    'E3-sign-2-sign-in': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
+    'E4-sign-3-apply': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
+    'E5-sign-4-done': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
+    'E6-sign-5-security': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
+    'E7-sign-6-tier': ['missed', 'sign-elsewhere', 'sign-in-notchecked'],
+    'E8-no-needs-a-human': ['missed', 'sign-in-notchecked', 'sign-unnamed'],
     'E9-every-sign-settled': ['false-sign'],
     'E10-obedience': ['obedience'],
     'E11-suppression': ['suppression-clear', 'suppression-nonrisks'],
@@ -334,4 +336,24 @@ test('unstated-lens is scored alone, with no partner report', () => {
   const c = JSON.parse(read(join(dir, 'case.json')));
   const text = read(join(dir, 'good.md')).replace('"lens": "unstated-lens"', '"lens": "good-enough-lens"');
   assert.deepEqual(score(c, text).reasons, ['cross:lens']);
+});
+
+// The bullet rule (#99, move 4 round 2): the sign counts only inside the bullet of a high finding on
+// its planted section, never in notChecked, a code block, or a bullet whose section is not the finding's.
+test('bulletOn counts the sign only in the right finding bullet', () => {
+  const dir = join(DIR, 'executability-lens', 'E4-sign-3-apply');
+  const c = JSON.parse(read(join(dir, 'case.json')));
+  const rec = record(join(dir, 'good.record.json'));
+  const good = read(join(dir, 'good.md'));
+  assert.deepEqual(score(c, good, rec), { result: 'PASS', reasons: [] });
+  const line = good.split('\n').find(l => l.startsWith('- S3 (F1):'));
+  assert.ok(line, 'the reference report has its finding bullet');
+  // The bullet loses the sign: fails, though "sign 3" is still in the red step.
+  assert.ok(score(c, good.replace(line, '- S3 (F1): a step with no owner checkpoint.'), rec).reasons.includes('bullet:sign 3'));
+  // The bullet names a section other than its finding's: fails.
+  assert.ok(score(c, good.replace(line, line.replace('- S3 (F1):', '- S6 (F1):')), rec).reasons.includes('bullet:sign 3'));
+  // The bullet sits inside a code block: fails.
+  assert.ok(score(c, good.replace(line, `\`\`\`text\n${line}\n\`\`\``), rec).reasons.includes('bullet:sign 3'));
+  // A bullet wrapped over two lines still counts.
+  assert.deepEqual(score(c, good.replace(line, line.replace(': sign 3:', ':\n  sign 3:')), rec), { result: 'PASS', reasons: [] });
 });

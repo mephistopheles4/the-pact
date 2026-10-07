@@ -2,7 +2,7 @@
 
 ## Problem, outcome and tier
 
-The team wants the reading list as a CSV each morning. Outcome: a CSV of every active item, published to the shared dashboard by 07:00. Tier: thorough.
+The team wants the reading list as a CSV each morning. Outcome: a CSV of every active item, published to the shared dashboard by 07:00. Non-goals: editing the reading list, and any export format but CSV. Tier: thorough.
 
 ## Design
 
@@ -16,6 +16,8 @@ Target environment: the team's shared Linux server, on Node 20 like development.
 2. Ticket 2: write the export job and its test.
 3. Ticket 3: publish the file to the dashboard with the existing dashboard upload, then run the job end to end once on the shared server.
 
+Stop and ask the owner if the read-only API changes shape, or if the shared server cannot be reached.
+
 ## Done when
 
 - Ticket 1: a test signs in with the right password and is let in, and with a wrong one is refused; a request without the session cookie gets 401. `npm run build` and `npm run lint` pass.
@@ -24,7 +26,7 @@ Target environment: the team's shared Linux server, on Node 20 like development.
 
 ## Rollback
 
-Remove the scheduled job and the dashboard tile; the reading list itself is never written to.
+Remove the scheduled job, the dashboard tile, and the sign-in form with its session-cookie check, so the export page is as it was; the reading list itself is never written to.
 
 ## Needs a human
 

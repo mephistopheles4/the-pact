@@ -10,7 +10,7 @@ Red step: the issue asks for nightly totals.
 | Need | Where it is covered |
 | reliability under failure (gap list) | missing |
 
-- S3: Not safe: a job that stops halfway leaves the rows half rewritten
+- S3 (F1): Not safe: a job that stops halfway leaves the rows half rewritten
 
 ```lens-findings
 {

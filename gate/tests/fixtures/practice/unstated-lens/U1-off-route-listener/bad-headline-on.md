@@ -12,7 +12,7 @@ Red step: the issue asks for a status page the team can open, kept up to date.
 | kept up to date | S4 |
 | a listener on port 8080 (security, reliability) | S3, with no security read |
 
-- S3: The new listener on port 8080 has no read
+- S3 (F1): The new listener on port 8080 has no read
 
 ```lens-findings
 {

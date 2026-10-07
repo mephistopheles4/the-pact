@@ -17,7 +17,7 @@ Steps:
 1. Write the export (S2).
 2. Check the done-criteria (S4).
 
-- S6: The owner rows are out of build order
+- S6 (F1): The owner rows are out of build order
 
 ```lens-findings
 {

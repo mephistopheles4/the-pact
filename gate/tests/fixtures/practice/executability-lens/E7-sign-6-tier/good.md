@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S1. Stalls: S1: sign 6: a password reset change sits on the standard tier.
 3. Check the done-criteria (S4).
 
-- S1: sign 6: a password reset change sits on the standard tier. Evidence: S1, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
+- S1 (F1): sign 6: a password reset change sits on the standard tier. Evidence: S1, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
 
 ```lens-findings
 {

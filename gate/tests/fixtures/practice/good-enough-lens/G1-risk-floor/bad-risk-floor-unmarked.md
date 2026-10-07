@@ -18,7 +18,7 @@ Red step:
 | S3 | nothing | - | - |
 | S4 | the theme picker, deferred | a ticket | after the first release |
 
-- S4: The theme picker has no user before the first release
+- S4 (F1): The theme picker has no user before the first release
 
 ```lens-findings
 {

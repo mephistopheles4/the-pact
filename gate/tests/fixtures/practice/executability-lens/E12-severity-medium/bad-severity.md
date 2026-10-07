@@ -17,7 +17,7 @@ Steps:
 1. Write the export (S2).
 2. Check the done-criteria (S4).
 
-- S4: A done-criterion names a different file path from the design
+- S4 (F1): A done-criterion names a different file path from the design
 
 ```lens-findings
 {

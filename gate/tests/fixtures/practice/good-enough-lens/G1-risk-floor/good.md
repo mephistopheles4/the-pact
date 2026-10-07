@@ -18,7 +18,7 @@ Red step:
 | S3 | input validation: risk floor: not deferrable | - | - |
 | S4 | the theme picker, deferred | a ticket | after the first release |
 
-- S4: The theme picker has no user before the first release
+- S4 (F1): The theme picker has no user before the first release
 
 ```lens-findings
 {

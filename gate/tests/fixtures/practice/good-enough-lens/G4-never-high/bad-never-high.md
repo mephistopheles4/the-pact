@@ -11,7 +11,7 @@ Red step:
 | Section | Could be cut or deferred | What that saves | Trigger to pick it up |
 | S4 | the settings page | a ticket | a user without a shell asks |
 
-- S4: The settings page repeats the command-line flags
+- S4 (F1): The settings page repeats the command-line flags
 
 ```lens-findings
 {
