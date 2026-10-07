@@ -360,7 +360,15 @@ test('bad case: a block name used twice in one file', t => {
 });
 
 test('bad case: an unclosed block', t => {
-  expectFail(t, 'marker', { prep: root => edit(root, MD, s => s.replace('<!-- pact:end stop-and-escalate -->\n', '')) });
+  // usage-pause's marks go too: since slice 3 the renderer refuses an open
+  // mark inside an unclosed gated block before seam A runs, and this case is
+  // about seam A's own marker check.
+  expectFail(t, 'marker', {
+    prep: root =>
+      edit(root, MD, s =>
+        s.replace('<!-- pact:end stop-and-escalate -->\n', '').replace('<!-- pact:begin usage-pause -->\n', '').replace('<!-- pact:end usage-pause -->\n', ''),
+      ),
+  });
 });
 
 test('bad case: an end marker with no begin', t => {

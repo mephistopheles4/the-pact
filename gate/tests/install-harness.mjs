@@ -58,9 +58,10 @@ export function makeRepo(t, mutate) {
   return root;
 }
 
-export function install(repo, home, { apply = false, path = [NODE_DIR, ...BASE_PATH], env = {} } = {}) {
+export function install(repo, home, { apply = false, path = [NODE_DIR, ...BASE_PATH], env = {}, extra = [] } = {}) {
   const args = ['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-ClaudeHome', home];
   if (apply) args.push('-Apply');
+  args.push(...extra);
   const r = spawnSync(PWSH, args, { cwd: repo, encoding: 'utf8', env: envWith(path, env), timeout: 180_000 });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
 }

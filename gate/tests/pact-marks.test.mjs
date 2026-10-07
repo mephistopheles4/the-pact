@@ -27,7 +27,8 @@ test('with no configuration, the installed pact is its source with the open-mark
   const out = tempDir(t, 'pact-render-out-');
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [RENDER, SOURCE, out], { encoding: 'utf8', env });
+  // An empty Claude home folder: no configuration.
+  const r = spawnSync(process.execPath, [RENDER, SOURCE, out, tempDir(t, 'pact-render-home-')], { encoding: 'utf8', env });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const want = withoutOpenMarks(read(SOURCE));
   assert.notEqual(want, read(SOURCE), 'the source carries no open marks, so this test would pass for the wrong reason');

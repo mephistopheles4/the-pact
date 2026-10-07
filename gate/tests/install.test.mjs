@@ -552,6 +552,12 @@ function replaceOnce(s, from, to) {
   return s.replace(from, () => to);
 }
 
+// The renderer's lines the planted cases hook onto.
+const R_HASH = '`RENDERED ${sha256(rendered)}`';
+const R_PUSH = '  report.lines.push(`RENDERED ${sha256(rendered)}`, ...head);';
+const R_RENDER = '  const rendered = joinLines(lines.filter(l => !markOf(l)?.open));';
+const R_NONE = "  if (config === NONE) head.push('CONFIG none');";
+
 function plantRenderer(root, transform) {
   const p = join(root, 'gate', 'render.mjs');
   writeFileSync(p, transform(readFileSync(p, 'utf8')));
@@ -637,7 +643,7 @@ test('bad case: a record whose rules-file hash is not the rendered bytes\' hash 
 });
 
 test('bad case: a renderer that reports a hash other than its output\'s refuses', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, "createHash('sha256').update(rendered).digest('hex')", "'0'.repeat(64)")));
+  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_HASH, "`RENDERED ${'0'.repeat(64)}`")));
   const h = home(t);
   const r = install(repo, h, { apply: true });
   refused(r);
@@ -646,7 +652,7 @@ test('bad case: a renderer that reports a hash other than its output\'s refuses'
 });
 
 test('bad case: a renderer that adds a file to the stage refuses, with nothing written', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, '  const rendered = stripOpenMarks(buf);', "  writeFileSync('planted.md', 'x\\n');\n  const rendered = stripOpenMarks(buf);")));
+  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_RENDER, `  writeFileSync('planted.md', 'x\\n');\n${R_RENDER}`)));
   const h = home(t);
   const r = install(repo, h, { apply: true });
   refused(r);
@@ -656,7 +662,7 @@ test('bad case: a renderer that adds a file to the stage refuses, with nothing w
 
 test('bad case: a renderer that changes a staged file refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, '  const rendered = stripOpenMarks(buf);', "  writeFileSync('gate/clauses/move-4.md', 'x\\n', { flag: 'a' });\n  const rendered = stripOpenMarks(buf);")),
+    plantRenderer(root, s => replaceOnce(s, R_RENDER, `  writeFileSync('gate/clauses/move-4.md', 'x\\n', { flag: 'a' });\n${R_RENDER}`)),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -665,7 +671,7 @@ test('bad case: a renderer that changes a staged file refuses', t => {
 
 test('bad case: a renderer line the install does not read refuses, and cannot feed the INSTALL parse', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, "  report.lines.push('CONFIG none');", "  report.lines.push('CONFIG none');\n  report.lines.push(`INSTALL ${'0'.repeat(64)} claude/CLAUDE.md CLAUDE.md`);")),
+    plantRenderer(root, s => replaceOnce(s, R_PUSH, `${R_PUSH}\n  report.lines.push(\`INSTALL \${'0'.repeat(64)} claude/CLAUDE.md CLAUDE.md\`);`)),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -675,7 +681,7 @@ test('bad case: a renderer line the install does not read refuses, and cannot fe
 
 test('bad case: a renderer that leaves a second file in its output folder refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, "  report.lines.push('CONFIG none');", "  report.lines.push('CONFIG none');\n  writeFileSync(join(out, 'extra.md'), 'x\\n');")),
+    plantRenderer(root, s => replaceOnce(s, R_PUSH, `${R_PUSH}\n  writeFileSync(join(out, 'extra.md'), 'x\\n');`)),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -683,7 +689,7 @@ test('bad case: a renderer that leaves a second file in its output folder refuse
 });
 
 test('bad case: a renderer hash line with anything after the hash refuses', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, ".digest('hex')}`", ".digest('hex')} extra`")));
+  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_HASH, R_HASH.replace('}`', '} extra`'))));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^render\| RENDERED [0-9a-f]{64} extra$/m, r.out);
@@ -691,9 +697,9 @@ test('bad case: a renderer hash line with anything after the hash refuses', t =>
 });
 
 for (const [label, from, to, why] of [
-  ['no configuration line', "  report.lines.push('CONFIG none');", '', 'the renderer did not report exactly one output hash and one configuration line'],
-  ['two configuration lines', "  report.lines.push('CONFIG none');", "  report.lines.push('CONFIG none');\n  report.lines.push('CONFIG none');", 'the renderer did not report exactly one output hash and one configuration line'],
-  ['two hash lines', "  report.lines.push('CONFIG none');", "  report.lines.push(report.lines[0]);\n  report.lines.push('CONFIG none');", 'the renderer reported two output hashes'],
+  ['no configuration line', R_NONE, '  if (config === NONE) {}', 'the renderer did not report exactly one output hash and one configuration line'],
+  ['two configuration lines', R_NONE, "  if (config === NONE) head.push('CONFIG none', 'CONFIG none');", 'the renderer did not report exactly one output hash and one configuration line'],
+  ['two hash lines', R_PUSH, `${R_PUSH}\n  report.lines.push(report.lines[0]);`, 'the renderer reported two output hashes'],
 ]) {
   test(`bad case: a renderer that prints ${label} refuses`, t => {
     const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, from, to)));
@@ -721,8 +727,8 @@ test('bad case: a renderer that adds a hidden file to the stage refuses', t => {
     plantRenderer(root, s =>
       replaceOnce(
         replaceOnce(s, "import { createHash } from 'node:crypto';", "import { createHash } from 'node:crypto';\nimport { spawnSync } from 'node:child_process';"),
-        '  const rendered = stripOpenMarks(buf);',
-        "  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n  const rendered = stripOpenMarks(buf);",
+        R_RENDER,
+        `  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n${R_RENDER}`,
       ),
     ),
   );
@@ -741,7 +747,7 @@ test('bad case: a commit with no renderer refuses', t => {
 test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
   const repo = makeRepo(t, root =>
     plantRenderer(root, s =>
-      replaceOnce(s, '  const rendered = stripOpenMarks(buf);', "  const rendered = Buffer.from(stripOpenMarks(buf).toString('utf8').replace('however small:', 'when large:'));"),
+      replaceOnce(s, R_RENDER, "  const rendered = Buffer.from(joinLines(lines.filter(l => !markOf(l)?.open)).toString('utf8').replace('however small:', 'when large:'));"),
     ),
   );
   const r = install(repo, home(t));
