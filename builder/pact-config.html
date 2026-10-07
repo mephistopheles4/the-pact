@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DCkmpKppaiubf1E1//4ehgQbHZrvaL94CQsaJv1scMk='; style-src 'sha256-hbczS6LPvH7NBWa7RKrNhjndugt6CJqGM7JbT7WpiVI='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pact config builder</title>
+<style>
+:root {
+  --bg: #f7f6f2;
+  --panel: #ffffff;
+  --ink: #1d1d1b;
+  --muted: #5f5e58;
+  --line: #d9d6cc;
+  --locked-bg: #eeece5;
+  --open-bg: #f1f6fb;
+  --open-line: #8fb3d6;
+  --accent: #2c5f8f;
+  --accent-ink: #ffffff;
+  --warn: #8a5a00;
+  --warn-bg: #fff4dc;
+  --error: #9b1c1c;
+  --error-bg: #fde8e8;
+  --ok: #26683a;
+  --struck: #8a887f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #18191b;
+    --panel: #222326;
+    --ink: #ecebe6;
+    --muted: #a9a7a0;
+    --line: #3a3b3f;
+    --locked-bg: #2a2b2e;
+    --open-bg: #1d2733;
+    --open-line: #44709b;
+    --accent: #7fb0e0;
+    --accent-ink: #10151b;
+    --warn: #f0c060;
+    --warn-bg: #3a2f17;
+    --error: #f39b9b;
+    --error-bg: #3d1f1f;
+    --ok: #7fcf96;
+    --struck: #77756e;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+header, main { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 24px; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 { font-size: 1.15rem; margin: 0 0 8px; }
+h3 { font-size: 0.95rem; margin: 0 0 6px; }
+p { margin: 0 0 8px; }
+.sub { color: var(--muted); max-width: 70ch; }
+section.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.layout { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
+@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+#library { position: sticky; top: 12px; }
+.preset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  margin: 0 0 10px;
+  background: var(--panel);
+  cursor: grab;
+}
+.preset:active { cursor: grabbing; }
+.preset .meta, .part .meta { color: var(--muted); font-size: 0.85rem; }
+pre {
+  margin: 6px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 13px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.move { border-left: 4px solid var(--line); padding: 4px 0 4px 14px; margin: 0 0 18px; }
+.lead { font-weight: 600; }
+.part { border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+.part.locked { background: var(--locked-bg); border: 1px solid var(--line); }
+.part.open { background: var(--open-bg); border: 1px dashed var(--open-line); }
+.part.open.over { border-style: solid; border-width: 2px; }
+.part .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.default.struck { color: var(--struck); text-decoration: line-through; }
+.card { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 8px; margin: 6px 0; }
+.card .head { font-size: 0.85rem; }
+textarea {
+  width: 100%;
+  min-height: 5.5em;
+  font: 13px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px;
+}
+button, select, input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+button { cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+input[type="range"] { flex: 1 1 200px; padding: 0; }
+input[type="number"] { width: 5.5em; }
+.problems { list-style: none; padding: 0; margin: 8px 0; }
+.problems li { border-radius: 6px; padding: 6px 10px; margin: 4px 0; }
+.problems li.error { background: var(--error-bg); color: var(--error); }
+.problems li.warn { background: var(--warn-bg); color: var(--warn); }
+.status { min-height: 1.5em; }
+.status.ok { color: var(--ok); }
+.status.error { color: var(--error); }
+.file { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+code { font: 13px ui-monospace, "Cascadia Mono", Consolas, monospace; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pact config builder</h1>
+  <p class="sub">Build a configuration for the pact without writing JSON. Moves 1 to 4 are a fixed spine. Gated clauses are locked and show their text. Open slots take preset cards from the library, or your own text. Nothing here leaves this page until you save, and the installer checks what you save exactly as it checks a file written by hand.</p>
+</header>
+<main>
+  <section class="panel" id="values"></section>
+  <div class="layout">
+    <aside class="panel" id="library"></aside>
+    <section class="panel" id="spine"></section>
+  </div>
+  <section class="panel" id="always"></section>
+  <section class="panel" id="output"></section>
+</main>
+<script>
+'use strict';
+const PACT = /* pact-data:begin */ {
+ "moves": [
+  {
+   "n": 1,
+   "lead": "I sense the work before I process it.",
+   "parts": [
+    {
+     "kind": "open",
+     "mark": "move-1",
+     "text": "I triage it (`triage`): what\nkind of work it is, its tier, and whether it's ready. You propose the\ntriage and the tier, and never skip past it. A bug goes through\n`diagnosing-bugs` before any fix. Work too big for one session is\ncharted with `wayfinder`.",
+     "agents": []
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "lead": "I do the thinking before the doing.",
+   "parts": [
+    {
+     "kind": "open",
+     "mark": "move-2",
+     "text": "I grill the idea until it's clear\n(`grilling`; `domain-modeling` when terms need pinning down). You help\nwith both, then write the spec (`to-spec`): the intent, the unhappy paths, the constraints, the\ndesign — modules, interfaces and seams (`codebase-design`) — each\ndecision with its why, and a **Needs a human** section (below). When a\nquestion in it needs running code to answer, have a throwaway built\n(`prototype`) and fold what it shows back into the spec. A throwaway is\nbuilt like any other step: in a main session, and through the security\nroute in move 3 if it touches auth, secrets, crypto or input validation.\nOn the standard and thorough tiers, `unstated-lens` reads the spec. On\nthe thorough tier, the spec pair, `executability-lens` and\n`good-enough-lens`, reads it too. Post their reports and help me decide\n(below). I decide proceed, fix or kill. Never start building on a clear\nverdict alone.",
+     "agents": [
+      "unstated-lens",
+      "executability-lens",
+      "good-enough-lens"
+     ]
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "lead": "I checkpoint the seams.",
+   "parts": [
+    {
+     "kind": "open",
+     "mark": "move-3",
+     "text": "On the thorough tier, I cut the approved spec\ninto tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and\ncheckable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,\nis built in its own main session, which I start and watch. Opened on an approved spec or ticket, the\nsession starts building directly, test-first at the agreed seams (`tdd`,\n`codebase-design`). It doesn't hand me `/implement` first; I may still\ntype it.",
+     "agents": []
+    },
+    {
+     "kind": "gated",
+     "mark": "security-route",
+     "text": "Anything touching auth, secrets, crypto or input validation\ntakes the security route, however small: `security-reviewer` on the\nspec, then the build in a main session, then `security-reviewer` on the\ndiff in move 4."
+    },
+    {
+     "kind": "gated",
+     "mark": "never-substitute",
+     "text": "If a named agent is unavailable, stop and report. A pair of\nlenses with either lens missing is unavailable as a whole. Never\nsubstitute another agent, especially for security work."
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "lead": "I stay the owner.",
+   "parts": [
+    {
+     "kind": "gated",
+     "mark": "move-4",
+     "text": "I verify the work at the end of its build session. You run the checks for\nme and bring me the verdict with a recommendation. Run the tests and any\ngates the repo has; they decide pass or fail. Then run the QA pair,\n`behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens` at\nthe standard and thorough tiers; and for security work\n`security-reviewer` on the diff. Never resume a reviewer, a lens or a\nchecker; fresh context is the point of them. They advise: post their\nreports and help me decide (below). I decide whether it's done. Close the\nticket only after I have."
+    },
+    {
+     "kind": "open",
+     "mark": "move-4-extra",
+     "text": "",
+     "agents": []
+    }
+   ]
+  }
+ ],
+ "always": [
+  {
+   "mark": "no-skill-overrides",
+   "text": "**What no skill overrides, invoked or not.** The Shell rule above — PowerShell,\nnot Bash, because Bash fails silently here. Any judgement about what is\ndestructive, irreversible, or unsafe to run. The stop-and-escalate signals in\n\"Implementing a change\": a skill may change how a step is done, never its\nstops, the risk floor (auth, secrets, crypto, input validation, data migrations\nand anything published are always thorough), the security route in move 3, or\nthe QA pair, `behaviour-lens` and `integrity-lens`, in move 4.\nNor the hand-off: a skill may not start a user-only skill for me, or follow\none's `SKILL.md` in its place. And the claiming and coordination rules\nbelow: a skill that tells you to claim a ticket is describing its own happy\npath, not the case where another session is already on it."
+  },
+  {
+   "mark": "risk-floor",
+   "text": "Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name."
+  },
+  {
+   "mark": "stop-and-escalate",
+   "text": "**When to stop or escalate is my call.** Tell me, and wait, when:\n\n- the build or review has gone round twice without converging;\n- the work has left the approved plan;\n- the change is hard to reverse: auth, secrets, data migrations, or anything\n  published;\n- you can no longer explain why the result is right.\n\nName the options — keep going, get a second opinion from a different model\n(`fable`), have a throwaway built and use it (`prototype`, built as in move\n2) when a review has gone round twice, or stop — with your recommendation.\nDon't pick one yourself."
+  }
+ ],
+ "editable": [
+  "move-1",
+  "move-2",
+  "move-3",
+  "move-4-extra"
+ ],
+ "setting": {
+  "name": "usage-pause",
+  "min": 0,
+  "max": 100,
+  "def": 75,
+  "text": "Before starting anything expensive — several subagents, a workflow, an eval —\ncheck my plan usage if a usage tool is available (the desktop app has one).\nTell me the weekly figure and a rough cost for what you're about to start. If\nthe weekly limit is above 75%, wait for my go-ahead. Never cut or stop work\nbecause of usage on your own; that call is mine."
+ },
+ "agents": [
+  "behaviour-lens",
+  "executability-lens",
+  "good-enough-lens",
+  "integrity-lens",
+  "security-reviewer",
+  "unstated-lens"
+ ],
+ "presets": [
+  {
+   "id": "move-1-no-wayfinder",
+   "title": "No wayfinder",
+   "mark": "move-1",
+   "op": "replace",
+   "text": "I triage it (`triage`): what kind of work it is, its tier, and whether it's\nready. You propose the triage and the tier, and never skip past it. A bug\ngoes through `diagnosing-bugs` before any fix."
+  },
+  {
+   "id": "move-3-done-criteria",
+   "title": "Done criteria",
+   "mark": "move-3",
+   "op": "add-after",
+   "text": "Before the build starts, read me each ticket's done-criteria back in one\nline each, so we agree on what done means."
+  },
+  {
+   "id": "move-4-docs-check",
+   "title": "Docs check",
+   "mark": "move-4-extra",
+   "op": "add-after",
+   "text": "After the checks, list each public interface the change touched, and say\nwhether its docs were updated."
+  },
+  {
+   "id": "move-4-own-agent",
+   "title": "Own agent",
+   "mark": "move-4-extra",
+   "op": "add-after",
+   "text": "Then run `my-reviewer`, an agent of your own from your agents folder, on the\ndiff, and post its report beside the QA pair's."
+  }
+ ]
+} /* pact-data:end */;
+
+// The block-text rules, mirrored from gate/render.mjs for usability only.
+// The renderer at install is the authority; a block that passes here can
+// still be refused there.
+const IMPORT_RE = /@[^ \n]/;
+const FENCE_RE = /^\s*(?:`{3,}|~{3,})/;
+const HEADING_RE = /^\s*#{1,6}(?:\s|$)/;
+const SETEXT_RE = /^ {0,3}(?:=+|-+)\s*$/;
+const THEMATIC_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+const NUMBERED_RE = /^[0-9]{1,9}[.)](?:[ \t]|$)/;
+const IGNORABLE_RE = /^\p{Default_Ignorable_Code_Point}$/u;
+const BLOCK_MAX = 16 * 1024;
+// Split, so the page's script never holds a comment opener.
+const COMMENT_OPEN = '<' + '!--';
+
+const MODES = {
+  keep: 'Keep the default text',
+  replace: 'Replace it',
+  'add-after': 'Add after it',
+  remove: 'Remove it',
+};
+const EMPTY_MODES = {
+  keep: 'Leave empty',
+  'add-after': 'Add text',
+};
+
+/** A character the gate's text scanner refuses: control, line-separator or invisible. */
+function refusedChar(cp) {
+  if ((cp < 0x20 && cp !== 9) || (cp >= 0x7f && cp <= 0x9f)) return true;
+  if (cp === 0x2028 || cp === 0x2029 || cp === 0xfffe || cp === 0xffff) return true;
+  if (cp < 0xad) return false;
+  return (
+    (cp >= 0xe0000 && cp <= 0xe007f) ||
+    (cp >= 0x202a && cp <= 0x202e) ||
+    (cp >= 0x2066 && cp <= 0x2069) ||
+    (cp >= 0x200b && cp <= 0x200f) ||
+    cp === 0x061c ||
+    cp === 0x2060 ||
+    cp === 0xfeff ||
+    IGNORABLE_RE.test(String.fromCodePoint(cp))
+  );
+}
+
+function utf8Length(text) {
+  let n = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    n += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+  }
+  return n;
+}
+
+/** Card text with Windows line endings made plain and trailing line breaks dropped. */
+function normalize(text) {
+  return String(text).replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+}
+
+/** What the page finds wrong in a block file's text, as plain sentences. */
+function blockProblems(text) {
+  const out = [];
+  if (utf8Length(text) > BLOCK_MAX) out.push('the block is larger than 16 KiB');
+  if (text.includes('\r')) out.push('a carriage return');
+  const body = text.endsWith('\n') ? text.slice(0, -1) : text;
+  if (body.trim() === '') return ['the block is empty'];
+  body.split('\n').forEach((line, i) => {
+    const at = `line ${i + 1}: `;
+    for (const ch of line) {
+      if (refusedChar(ch.codePointAt(0))) {
+        out.push(`${at}a control or invisible character`);
+        break;
+      }
+    }
+    if (line.includes(COMMENT_OPEN)) out.push(`${at}an HTML comment opener (${COMMENT_OPEN})`);
+    if (IMPORT_RE.test(line)) out.push(`${at}an @ followed by text, which Claude Code may read as an import`);
+    if (line.trim() === '') out.push(`${at}a blank line`);
+    else if (/^[ \t]/.test(line)) out.push(`${at}a leading space or tab`);
+    else if (FENCE_RE.test(line)) out.push(`${at}a code fence`);
+    else if (HEADING_RE.test(line)) out.push(`${at}a heading`);
+    else if (SETEXT_RE.test(line)) out.push(`${at}a heading underline`);
+    else if (THEMATIC_RE.test(line)) out.push(`${at}a thematic break`);
+    else if (NUMBERED_RE.test(line)) out.push(`${at}a numbered list line`);
+  });
+  return out;
+}
+
+const presetById = id => PACT.presets.find(p => p.id === id);
+const openPart = mark => PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === mark);
+const cardText = card => (card.kind === 'preset' ? presetById(card.id).text : card.text);
+
+function initialState() {
+  const slots = {};
+  for (const mark of PACT.editable) slots[mark] = { mode: 'keep', cards: [] };
+  return { usage: PACT.setting.def, slots };
+}
+
+/** A slot's block file text: its cards joined, ending in one line feed. */
+function slotText(slot) {
+  return `${slot.cards.map(c => normalize(cardText(c))).join('\n')}\n`;
+}
+
+/** Everything the page finds: [{ where, level: 'error' | 'warn', text }]. Errors stop a save. */
+function problems(state) {
+  const out = [];
+  const s = PACT.setting;
+  if (!Number.isInteger(state.usage) || state.usage < s.min || state.usage > s.max) {
+    out.push({ where: s.name, level: 'error', text: `must be a whole number from ${s.min} to ${s.max}` });
+  }
+  for (const mark of PACT.editable) {
+    const slot = state.slots[mark];
+    if (slot.mode === 'keep') continue;
+    if (slot.mode !== 'remove') {
+      if (!slot.cards.length) {
+        out.push({ where: mark, level: 'error', text: 'needs at least one card' });
+        continue;
+      }
+      slot.cards.forEach((c, i) => {
+        if (normalize(cardText(c)).trim() === '') out.push({ where: mark, level: 'error', text: `card ${i + 1} is empty` });
+      });
+      for (const p of blockProblems(slotText(slot))) out.push({ where: mark, level: 'error', text: p });
+    }
+    if (slot.mode === 'replace' || slot.mode === 'remove') {
+      const named = slot.mode === 'remove' ? [] : slotText(slot).match(/`[^`\n]+`/g) || [];
+      const lost = openPart(mark).agents.filter(a => !named.includes(`\`${a}\``));
+      if (lost.length) {
+        out.push({
+          where: mark,
+          level: 'warn',
+          text: `the default text names ${lost.map(a => `\`${a}\``).join(', ')}, and this edit drops ${lost.length === 1 ? 'it' : 'them'}. The install refuses a pact that leaves an installed agent unnamed where it is routed.`,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** The files a save writes: [{ path, text }], the configuration first, paths relative to the pact folder. */
+function buildFiles(state) {
+  const config = { schema: 1 };
+  if (state.usage !== PACT.setting.def) config.settings = { [PACT.setting.name]: state.usage };
+  const edits = [];
+  const blocks = [];
+  for (const mark of PACT.editable) {
+    const slot = state.slots[mark];
+    if (slot.mode === 'keep') continue;
+    if (slot.mode === 'remove') {
+      edits.push({ mark, op: 'remove' });
+      continue;
+    }
+    const file = `${mark}.md`;
+    edits.push({ mark, op: slot.mode, file });
+    blocks.push({ path: `blocks/${file}`, text: slotText(slot) });
+  }
+  if (edits.length) config.edits = edits;
+  return [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks];
+}
+
+/** Put a preset into its slot. Returns a message when it doesn't belong there. */
+function addPreset(state, mark, id) {
+  const p = presetById(id);
+  if (!p) return 'That card is not in the library.';
+  if (p.mark !== mark) return `"${p.title}" belongs in the ${p.mark} slot.`;
+  const slot = state.slots[mark];
+  if (slot.mode === 'keep' || slot.mode === 'remove') slot.mode = p.op;
+  slot.cards.push({ kind: 'preset', id });
+  return null;
+}
+
+// ------------------------------------------------------------ the page
+
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids) if (c !== null && c !== undefined && c !== false) e.append(c);
+  return e;
+}
+
+function boot() {
+  const state = initialState();
+  const $ = id => document.getElementById(id);
+  let status = { text: '', level: '' };
+
+  function setStatus(text, level) {
+    status = { text, level: level || '' };
+    renderOutput();
+  }
+
+  function renderValues() {
+    const s = PACT.setting;
+    const para = el('pre', { class: 'default' });
+    const range = el('input', { type: 'range', min: String(s.min), max: String(s.max), step: '1', 'aria-label': 'Usage pause line, percent' });
+    const num = el('input', { type: 'number', min: String(s.min), max: String(s.max), step: '1', 'aria-label': 'Usage pause line, percent' });
+    const show = () => {
+      range.value = String(state.usage);
+      num.value = String(state.usage);
+      para.textContent = s.text.replace(`above ${s.def}%`, `above ${state.usage}%`);
+    };
+    const take = v => {
+      state.usage = v === '' ? NaN : Number(v);
+      if (Number.isInteger(state.usage)) show();
+      renderOutput();
+    };
+    range.addEventListener('input', () => take(range.value));
+    num.addEventListener('input', () => take(num.value));
+    const reset = el('button', { type: 'button', onclick: () => take(String(s.def)) }, `Reset to ${s.def}%`);
+    $('values').replaceChildren(
+      el('h2', { text: 'Values' }),
+      el('p', { class: 'sub', text: `The usage pause line: the share of the weekly limit above which a session waits for your go-ahead before starting anything expensive. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
+      el('div', { class: 'row' }, range, num, el('span', { text: '%' }), reset),
+      para,
+    );
+    show();
+  }
+
+  function renderLibrary() {
+    const items = PACT.presets.map(p => {
+      const card = el(
+        'div',
+        { class: 'preset', draggable: 'true' },
+        el('h3', { text: p.title }),
+        el('div', { class: 'meta', text: `${p.mark} slot, ${p.op === 'replace' ? 'replaces the default' : 'adds after it'}` }),
+        el('pre', { text: p.text }),
+        el('button', { type: 'button', onclick: () => drop(p.mark, p.id) }, `Add to ${p.mark}`),
+      );
+      card.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', `preset:${p.id}`);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+      return card;
+    });
+    $('library').replaceChildren(
+      el('h2', { text: 'Library' }),
+      el('p', { class: 'sub', text: 'Presets from the shipped example blocks. Drag one onto its slot, or use its button.' }),
+      ...items,
+    );
+  }
+
+  function drop(mark, id) {
+    const msg = addPreset(state, mark, id);
+    if (msg) setStatus(msg, 'error');
+    else setStatus('', '');
+    renderSpine();
+  }
+
+  function lockedPart(p) {
+    return el(
+      'div',
+      { class: 'part locked' },
+      el('div', { class: 'head' }, el('strong', { text: `Locked: ${p.mark}` }), el('span', { class: 'meta', text: 'Gated clause. No configuration can change or move it.' })),
+      el('pre', { text: p.text }),
+    );
+  }
+
+  function openSlot(p) {
+    const slot = state.slots[p.mark];
+    const empty = p.text.trim() === '';
+    const modes = empty ? EMPTY_MODES : MODES;
+    const select = el('select', { 'aria-label': `What to do with ${p.mark}` });
+    for (const [k, label] of Object.entries(modes)) select.append(el('option', { value: k, text: label }));
+    if (!(slot.mode in modes)) slot.mode = 'keep';
+    select.value = slot.mode;
+    select.addEventListener('change', () => {
+      slot.mode = select.value;
+      renderSpine();
+    });
+
+    const cards = slot.cards.map((c, i) => {
+      const remove = el('button', { type: 'button', onclick: () => { slot.cards.splice(i, 1); renderSpine(); } }, 'Remove card');
+      if (c.kind === 'preset') {
+        const pre = presetById(c.id);
+        return el('div', { class: 'card' }, el('div', { class: 'head row' }, el('strong', { text: `Preset: ${pre.title}` }), remove), el('pre', { text: pre.text }));
+      }
+      const area = el('textarea', { 'aria-label': `Your text for ${p.mark}`, spellcheck: 'true' });
+      area.value = c.text;
+      area.addEventListener('input', () => {
+        c.text = area.value;
+        renderOutput();
+      });
+      return el('div', { class: 'card' }, el('div', { class: 'head row' }, el('strong', { text: 'Your text' }), remove), area);
+    });
+
+    const addOwn = el('button', { type: 'button', onclick: () => {
+      if (slot.mode === 'keep' || slot.mode === 'remove') slot.mode = empty ? 'add-after' : 'replace';
+      slot.cards.push({ kind: 'custom', text: '' });
+      renderSpine();
+    } }, 'Add your own text');
+
+    const struck = slot.mode === 'replace' || slot.mode === 'remove';
+    const box = el(
+      'div',
+      { class: 'part open', 'data-mark': p.mark },
+      el('div', { class: 'head' }, el('strong', { text: `Open slot: ${p.mark}` }), select),
+      empty ? el('div', { class: 'meta', text: 'Empty by default: a place for extra steps.' }) : el('pre', { class: struck ? 'default struck' : 'default', text: p.text }),
+      slot.mode === 'remove' ? el('div', { class: 'meta', text: 'This part is removed; cards here are not saved.' }) : null,
+      ...cards,
+      el('div', { class: 'row' }, addOwn, el('span', { class: 'meta', text: 'or drop a preset here' })),
+    );
+    box.addEventListener('dragover', e => {
+      e.preventDefault();
+      box.classList.add('over');
+    });
+    box.addEventListener('dragleave', () => box.classList.remove('over'));
+    box.addEventListener('drop', e => {
+      e.preventDefault();
+      box.classList.remove('over');
+      const data = e.dataTransfer.getData('text/plain');
+      if (data.startsWith('preset:')) drop(p.mark, data.slice('preset:'.length));
+    });
+    return box;
+  }
+
+  function renderSpine() {
+    const moves = PACT.moves.map(m =>
+      el('article', { class: 'move' }, el('h2', { text: `Move ${m.n}` }), el('p', { class: 'lead', text: m.lead }), ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p)))),
+    );
+    $('spine').replaceChildren(...moves);
+    renderOutput();
+  }
+
+  function renderAlways() {
+    $('always').replaceChildren(
+      el('h2', { text: 'Always on' }),
+      el('p', { class: 'sub', text: 'Gated clauses outside the four moves. They are locked too.' }),
+      ...PACT.always.map(lockedPart),
+    );
+  }
+
+  async function saveToFolder(files) {
+    let dir;
+    try {
+      dir = await window.showDirectoryPicker({ id: 'pact-config', mode: 'readwrite' });
+    } catch (e) {
+      if (e && e.name === 'AbortError') return setStatus('Save cancelled. Nothing was written.', '');
+      return setStatus('The folder could not be opened. Use the download buttons instead.', 'error');
+    }
+    try {
+      for (const f of files) {
+        const segs = f.path.split('/');
+        let d = dir;
+        for (const s of segs.slice(0, -1)) d = await d.getDirectoryHandle(s, { create: true });
+        const handle = await d.getFileHandle(segs[segs.length - 1], { create: true });
+        const w = await handle.createWritable();
+        await w.write(f.text);
+        await w.close();
+      }
+    } catch {
+      return setStatus('Saving failed part way. Check the folder before you install.', 'error');
+    }
+    const where = dir.name === 'pact' ? '' : ` The installer reads the folder named pact in your Claude folder; this one is "${dir.name}", so move the files there.`;
+    setStatus(`Saved ${files.length} file${files.length === 1 ? '' : 's'}.${where} Next, run the install's dry run.`, 'ok');
+  }
+
+  function download(f) {
+    const url = URL.createObjectURL(new Blob([f.text], { type: 'application/octet-stream' }));
+    const a = el('a', { download: f.path.split('/').pop() });
+    a.href = url;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  function renderOutput() {
+    const found = problems(state);
+    const errors = found.filter(f => f.level === 'error');
+    const files = buildFiles(state);
+    const canPick = typeof window.showDirectoryPicker === 'function' && window.isSecureContext;
+    const save = el('button', { type: 'button', class: 'primary', onclick: () => saveToFolder(files) }, 'Save to a folder');
+    if (errors.length || !canPick) save.disabled = true;
+
+    const list = found.length
+      ? el('ul', { class: 'problems' }, ...found.map(f => el('li', { class: f.level, text: `${f.level === 'error' ? 'Fix' : 'Check'}: ${f.where}: ${f.text}` })))
+      : el('p', { class: 'meta', text: 'No problems found here. The installer still checks everything.' });
+
+    const fileViews = files.map(f => {
+      const into = f.path.startsWith('blocks/') ? '~/.claude/pact/blocks/' : '~/.claude/pact/';
+      const btn = el('button', { type: 'button', onclick: () => download(f) }, `Download ${f.path.split('/').pop()}`);
+      if (errors.length) btn.disabled = true;
+      return el('div', { class: 'file' }, el('div', { class: 'row' }, el('strong', { text: f.path }), el('span', { class: 'meta', text: `goes in ${into}` }), btn), el('pre', { text: f.text }));
+    });
+
+    $('output').replaceChildren(
+      el('h2', { text: 'Save' }),
+      el('p', { class: 'sub', text: canPick
+        ? 'Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there. Then run the install script\'s dry run and read its Configuration block.'
+        : 'This browser has no folder picker, so save each file with its download button and put it where it says. Then run the install script\'s dry run and read its Configuration block.' }),
+      list,
+      el('div', { class: 'row' }, save, el('span', { class: `status ${status.level}`, text: status.text })),
+      ...fileViews,
+    );
+  }
+
+  renderValues();
+  renderLibrary();
+  renderAlways();
+  renderSpine();
+}
+
+if (typeof document !== 'undefined') boot();
+</script>
+</body>
+</html>
