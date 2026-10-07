@@ -1,11 +1,11 @@
 # Contract: data-lens
 
-Version: 0.1.1
+Version: 0.1.2
 
 - **Type:** agent
 - **Level:** Thorough
 - **Date:** 2026-10-07
-- **Go to build:** not yet. The owner's target, then "go" on every *Proposed* answer.
+- **Go to build:** the owner, 2026-10-07: "A" for the target and "go", after the session named what it covers: every Proposed answer becoming Confirmed, Sample A as the target, and Opus at high for both lenses.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's outgoing security reviewer, the agent file this lens and its partner replace in the security swap (pact issue #100; spec: #35, revision 7). Every rule of that file is listed in `familiars/adversarial-lens.contract.md`, "Rules of the file it replaces", marked kept, moved or dropped for both lenses; the rows that land on this lens are repeated below.
 - **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): the agent file lives in `claude/agents/data-lens.md`, unsealed. This contract and the practice test stay in `familiars/`. Without a seal, nothing checks that the file still matches this contract; that is Promised.
@@ -49,15 +49,15 @@ Red step:
 
 Each sample ends with its `lens-findings` block.
 
-**Target:** *Proposed* — Sample A. One row per item answers "where is it, where does it go, who reads it" in the same place every time, and the leak point sits at the end of the row the owner reads. This is the form of a record of processing activities (GDPR Article 30) narrowed to one change, and of LINDDUN's data-flow walk. **Waiting on the owner:** the owner's pick, in their words.
+**Target:** **Confirmed** (2026-10-07, the owner: "A") — Sample A. One row per item answers "where is it, where does it go, who reads it" in the same place every time, and the leak point sits at the end of the row the owner reads. This is the form of a record of processing activities (GDPR Article 30) narrowed to one change, and of LINDDUN's data-flow walk.
 
 ## Quick questions (1–7)
 
 ### 1. What is it for?
 
-**Name:** `data-lens`. *Proposed* (the working name from #35; the cross script and the gate's roster list already hold it).
+**Name:** `data-lens`. **Confirmed** (2026-10-07) (the working name from #35; the cross script and the gate's roster list already hold it).
 
-*Proposed*: On the security route, at any tier, it asks what data the change touches, where it lives, where it goes and where it can leak. It reads the spec before approval and the diff after the build. It is one lens of the security pair, a joining pair; its partner asks how someone could break the change. Where a leak point sits on an attack path, the two meet at one anchor: a crossing.
+**Confirmed** (2026-10-07): On the security route, at any tier, it asks what data the change touches, where it lives, where it goes and where it can leak. It reads the spec before approval and the diff after the build. It is one lens of the security pair, a joining pair; its partner asks how someone could break the change. Where a leak point sits on an attack path, the two meet at one anchor: a crossing.
 
 - **Steps in:** work on the security route, dispatched with its partner on the same work.
 - **Stays out:** attack paths as such (its partner's question); whether the spec can be built (the spec pair); whether the claims hold (the QA pair); style.
@@ -71,7 +71,7 @@ The owner's words add two checks to the draft: encryption at rest and in transit
 
 ### 3. Who does what?
 
-**The familiar** *Proposed*
+**The familiar** **Confirmed** (2026-10-07)
 - C1. **The red step comes first.** Before it lists any item, it reads what it was handed and writes, for each part of the change, what data it could expose, and to whom.
   Held by: Promised.
 - C2. **The data inventory.** It lists every data item the change stores, reads, sends, logs or shows: its kind, where it is stored, where it flows, who reads it, and where it could leak. A leak point nothing guards is a finding.
@@ -105,28 +105,28 @@ The owner's words add two checks to the draft: encryption at rest and in transit
 - C16. **Approved flows** (question 2). Every flow that takes data out of the app must be one the spec, the issue or the app's written rules approve. It names the approving rule, or writes `not approved`; a flow that is not approved is a finding.
   Held by: Promised. Case D10, scored on its bad report; the phrase is in the lens text in exact words.
 
-**Automatic checks** *Proposed*
+**Automatic checks** **Confirmed** (2026-10-07)
 - Seam A checks the file's format, its tools, and that it names no reviewer but itself.
 - The cross script checks the findings block, joins it with its partner's as a joining pair, and writes the owner's view.
 
-**You (the owner)** *Proposed*
+**You (the owner)** **Confirmed** (2026-10-07)
 - The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87), within the pact's listed exceptions. Your thorough pick, an install, and your "done" stay yours.
 
-**Stop and ask** *Proposed*
+**Stop and ask** **Confirmed** (2026-10-07)
 The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and `notChecked` starting "stopped and waiting:".
 - S1. When there is no spec and no diff, it says so and reviews nothing. Held by: Promised.
 - S2. On the spec, when there is no numbered section list, it says what it needs and reviews nothing. Held by: Promised.
 - S3. When the job would need running code, a write or a network call, it says so and stops. Held by: Enforced — the tools list (C9).
 
-**What makes it fire** *Proposed*: the pact's security route, on the spec and on the diff, and move 4's security part. When it does not fire, the security route is missing half a pair, and the never-substitute rule stops the session.
+**What makes it fire** **Confirmed** (2026-10-07): the pact's security route, on the spec and on the diff, and move 4's security part. When it does not fire, the security route is missing half a pair, and the never-substitute rule stops the session.
 
-**When it is unsure** *Proposed*: Decides, and shows you. An unconfirmed leak is recorded as a hypothesis, with what would confirm it and the likelihood it believes.
+**When it is unsure** **Confirmed** (2026-10-07): Decides, and shows you. An unconfirmed leak is recorded as a hypothesis, with what would confirm it and the likelihood it believes.
 
-**Checklist** *Proposed*: LINDDUN (linking, identifying, non-repudiation, detecting, data disclosure, unawareness and unintervenability, non-compliance), and from OWASP ASVS 5.0.0: V11 Cryptography (V11.1 Cryptographic Inventory and Documentation, V11.2 Secure Cryptography Implementation, V11.3 Encryption Algorithms, V11.4 Hashing and Hash-based Functions, V11.5 Random Values, V11.6 Public Key Cryptography, V11.7 In-Use Data Cryptography); V12 Secure Communication (V12.1 General TLS Security Guidance, V12.2 HTTPS Communication with External Facing Services, V12.3 General Service to Service Communication Security); V13 Configuration (V13.1 Configuration Documentation, V13.2 Backend Communication Configuration, V13.3 Secret Management, V13.4 Unintended Information Leakage); V14 Data Protection (V14.1 Data Protection Documentation, V14.2 General Data Protection, V14.3 Client-side Data Protection); V16 Security Logging and Error Handling (V16.1 Security Logging Documentation, V16.2 General Logging, V16.3 Security Events, V16.4 Log Protection, V16.5 Error Handling). Checked against the ASVS repository's `v5.0.0` tag on 2026-10-07, at build time; never fetched at review time.
+**Checklist** **Confirmed** (2026-10-07): LINDDUN (linking, identifying, non-repudiation, detecting, data disclosure, unawareness and unintervenability, non-compliance), and from OWASP ASVS 5.0.0: V11 Cryptography (V11.1 Cryptographic Inventory and Documentation, V11.2 Secure Cryptography Implementation, V11.3 Encryption Algorithms, V11.4 Hashing and Hash-based Functions, V11.5 Random Values, V11.6 Public Key Cryptography, V11.7 In-Use Data Cryptography); V12 Secure Communication (V12.1 General TLS Security Guidance, V12.2 HTTPS Communication with External Facing Services, V12.3 General Service to Service Communication Security); V13 Configuration (V13.1 Configuration Documentation, V13.2 Backend Communication Configuration, V13.3 Secret Management, V13.4 Unintended Information Leakage); V14 Data Protection (V14.1 Data Protection Documentation, V14.2 General Data Protection, V14.3 Client-side Data Protection); V16 Security Logging and Error Handling (V16.1 Security Logging Documentation, V16.2 General Logging, V16.3 Security Events, V16.4 Log Protection, V16.5 Error Handling). Checked against the ASVS repository's `v5.0.0` tag on 2026-10-07, at build time; never fetched at review time.
 
 ### 4. What does it hand back?
 
-*Proposed*: one report in two sections, which the main session posts word for word.
+**Confirmed** (2026-10-07): one report in two sections, which the main session posts word for word.
 
 - **For the owner,** first: plain sentences on what data could leak, to whom, why it matters, and what it suggests. It does not open with a verdict word. No line numbers, codes or paths.
 - **For the session,** after:
@@ -134,31 +134,32 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
   2. One bullet per finding, opening `- F1:`: the data item, the leak point, the evidence (confirmed or hypothesis), the smallest change that closes it, and an observable check.
   3. Exactly one `lens-findings` block, last, with `lens` set to `data-lens`; on the spec every anchor is a listed section, on the diff a file and symbol.
 
-**Severity mapping** *Proposed* (one practice case per value):
+**Severity mapping** **Confirmed** (2026-10-07) (one practice case per value):
 - `high`: fix before sign-off: data that reaches someone who should not have it, with the change as written, such as a secret in the source, a log or a response; personal data sent or shown beyond need; an item stored or sent in the clear; or data sent out by a flow that is not approved (the old "fix before sign-off" findings).
 - `medium`: should be fixed: data a protection only partly guards, kept longer than needed, or exposed only under a precondition.
 - `low`: can wait: hygiene, missing documentation of the data, or an unconfirmed hypothesis.
 
-**Likelihood** *Proposed*: `high` when the leak happens in normal use; `medium` when it needs a precondition, such as an error path; `low` when it needs a rare condition.
+**Likelihood** **Confirmed** (2026-10-07): `high` when the leak happens in normal use; `medium` when it needs a precondition, such as an error path; `low` when it needs a rare condition.
 
 ### 5. What tools does it need?
 
-*Proposed*: reads and searches files in the project folder. Limits: creates no file, changes no file, runs no command, no network.
+**Confirmed** (2026-10-07): reads and searches files in the project folder. Limits: creates no file, changes no file, runs no command, no network.
 
 Extra keys: tools, model, effort
 
 - `tools`: `[Read, Glob, Grep]` — **Decided** (2026-10-04, #35 revision 7, "Tools"; seam A's default). It drops the outgoing reviewer's web tools: the data inventory needs none.
-- `model`: `opus` — *Proposed*: unchanged from the outgoing reviewer; the pair runs on one model.
-- `effort`: `high` — *Proposed*: unchanged from the outgoing reviewer, as the pact's security-route row sets.
+- `model`: `opus` — **Confirmed** (2026-10-07): unchanged from the outgoing reviewer; the pair runs on one model.
+- `effort`: `high` — **Confirmed** (2026-10-07): unchanged from the outgoing reviewer, as the pact's security-route row sets.
 
 ### 6. Does it do anything beyond reading?
 
-*Proposed*: nothing. Held by: Enforced — the tools list (C9).
+**Confirmed** (2026-10-07): nothing. Held by: Enforced — the tools list (C9).
 
 ### 7. What changed, and why?
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.2 | 2026-10-07 | The target, Sample A, and every answer Confirmed. | The owner's "A" and "go" on #100 | all |
 | 0.1.1 | 2026-10-07 | Question 2 in the owner's words; encryption at rest and in transit (C15) and approved flows (C16); V11 and V12 carried; the inventory gains encryption and Approved by columns; cases D10 and D11. | The owner's answer on #100 | 2, 3, 4, 12 |
 | 0.1.0 | 2026-10-07 | Contract drafted from the outgoing security reviewer. Adds the red step, the data inventory under a fixed heading, the carried LINDDUN and ASVS 5.0.0 checklist, the `data` field, section and symbol anchors, likelihood, and the findings block; keeps secrets, the read-only boundary and the two review points. | #35 revision 7 (the security pair), #100 | all |
 
@@ -166,31 +167,31 @@ Extra keys: tools, model, effort
 
 ### 8. How alike should its answers be?
 
-*Proposed*: same shape each run: For the owner, then `### Data inventory`, the finding bullets and one block.
+**Confirmed** (2026-10-07): same shape each run: For the owner, then `### Data inventory`, the finding bullets and one block.
 
 Against its neighbours: it asks "where can data leak?". Its partner asks "how could someone break this?". On an anchor both report, an attack path reaches sensitive data: a crossing, shown first.
 
 ### 9. A real example of it at its best
 
-*Proposed*: none yet. The first real security-pair review after install supplies one.
+**Confirmed** (2026-10-07): none yet. The first real security-pair review after install supplies one.
 
 ### 10. What does it need to start?
 
-*Proposed*: as local files, from the main session. On the spec: the numbered section list, the spec and the issue's request. On the diff: the diff, the spec or ticket, the issue's request, and the working folder.
+**Confirmed** (2026-10-07): as local files, from the main session. On the spec: the numbered section list, the spec and the issue's request. On the diff: the diff, the spec or ticket, the issue's request, and the working folder.
 
 - **Refuse when:** nothing to review (S1); on the spec, no section list (S2).
 
 ### 11. Where does a person decide?
 
-*Proposed*: its report feeds the owner's decision on the spec or the build, through the main session's auto-take on each finding, recorded in the "Lens dispositions" table on the issue. Security reports are thorough only, so the owner names a pick before the verdict opens.
+**Confirmed** (2026-10-07): its report feeds the owner's decision on the spec or the build, through the main session's auto-take on each finding, recorded in the "Lens dispositions" table on the issue. Security reports are thorough only, so the owner names a pick before the verdict opens.
 
 ### 12. Prove it works: a practice test
 
-*Proposed*: in `familiars/data-lens.practice-test.md`. This lens guards the security route, so it is in the security set: D1 (suppression) and D2 (a planted credential absent from the report and the data inventory, and a canary image link absent from the generated markdown) run for real, after install, in the sandbox container. Every other case is scored on its bad report. Every expected result and bad report is committed before any run.
+**Confirmed** (2026-10-07): in `familiars/data-lens.practice-test.md`. This lens guards the security route, so it is in the security set: D1 (suppression) and D2 (a planted credential absent from the report and the data inventory, and a canary image link absent from the generated markdown) run for real, after install, in the sandbox container. Every other case is scored on its bad report. Every expected result and bad report is committed before any run.
 
 ### 13. When would you retire it?
 
-*Proposed*:
+**Confirmed** (2026-10-07):
 - **Cries wolf:** the owner dismissed 6 or more of its findings across its last 10 reports.
 - **Escapes:** 2 or more confirmed escapes fall to it, such as a leak it passed that was later found.
 - **Rarely changes the decision:** never fires alone for this lens. It is a security-set lens, and security reads are clean most of the time.
@@ -199,17 +200,17 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 
 ### 14. How hard should it think?
 
-*Proposed*: Opus at high effort, the same model and effort as its partner, as the pact sets for security work.
+**Confirmed** (2026-10-07): Opus at high effort, the same model and effort as its partner, as the pact sets for security work.
 
 ### 15. How does it write?
 
-*Proposed*: plain language. For the owner holds no codes, paths or line numbers. Rigour, not harshness: it advises; the owner decides.
+**Confirmed** (2026-10-07): plain language. For the owner holds no codes, paths or line numbers. Rigour, not harshness: it advises; the owner decides.
 
 ## Thorough questions (16–20)
 
 ### 16. How does it go wrong?
 
-*Proposed*:
+**Confirmed** (2026-10-07):
 
 | # | How it goes wrong | What it looks like | How serious |
 |---|---|---|---|
@@ -223,7 +224,7 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 
 ### 17. Good versus so-so
 
-*Proposed*:
+**Confirmed** (2026-10-07):
 
 | Part | So-so | Good | What protects it |
 |---|---|---|---|
@@ -234,7 +235,7 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 
 ### 18. Every rule has a reason
 
-*Proposed*:
+**Confirmed** (2026-10-07):
 
 | Rule in the instructions | The reason | Held by |
 |---|---|---|
@@ -250,7 +251,7 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 
 ### 19. Open questions
 
-*Proposed*:
+**Confirmed** (2026-10-07):
 
 | # | Question | Why it is still open | Settled when |
 |---|---|---|---|
@@ -260,11 +261,11 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 
 ### 20. Where do the ideas come from?
 
-*Proposed*: the outgoing security reviewer's file; #35 revision 7 ("What each lens does before it judges", "Rules carried over", "Tools"); LINDDUN (KU Leuven); OWASP ASVS 5.0.0; arXiv 2602.06948 (the red step); #35's security review, round 6, on verbatim security reports in a public repo (the replay case).
+**Confirmed** (2026-10-07): the outgoing security reviewer's file; #35 revision 7 ("What each lens does before it judges", "Rules carried over", "Tools"); LINDDUN (KU Leuven); OWASP ASVS 5.0.0; arXiv 2602.06948 (the red step); #35's security review, round 6, on verbatim security reports in a public repo (the replay case).
 
 ## Rules of the file it replaces: the rows on this lens
 
-The full table, for both lenses, is in `familiars/adversarial-lens.contract.md`. The rows that land on this lens, *Proposed*:
+The full table, for both lenses, is in `familiars/adversarial-lens.contract.md`. The rows that land on this lens, **Confirmed** (2026-10-07):
 
 | Rule there | Mark | Where it goes here |
 |---|---|---|
