@@ -36,8 +36,9 @@ how every session in every repo behaves. So:
   dirty working tree.
 <!-- pact:end install-go-ahead -->
 - **The script confirms the hashes.** After `-Apply` it re-hashes every live
-  file against its repo copy and exits non-zero on a mismatch. Check that it
-  exited zero.
+  file against the bytes it checked and installed: the rendered bytes for the
+  rules file, and the repo copy for every other file. It exits non-zero on a
+  mismatch. Check that it exited zero.
 - **It deletes only pact files:** those the last manifest lists that the repo
   dropped. Your own agents and skills are never touched.
 

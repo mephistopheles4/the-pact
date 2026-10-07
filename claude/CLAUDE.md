@@ -4,6 +4,8 @@ This file and `~/.claude/agents/` are installed from the `claude/` folder of
 the-pact repo, and the cross script from its `cross/` folder to
 `~/.claude/pact/`. Edit the repo copy, then copy it into `~/.claude/`; a
 direct edit to the live file drifts.
+<!-- pact:begin config-notice -->
+<!-- pact:end config-notice -->
 
 ## Shell
 
@@ -199,12 +201,17 @@ their state live there, as the repo's docs say (`docs/agents/issue-tracker.md`
 for a repo set up for those skills). A repo without a tracker says where plans
 live instead; follow it. If it says neither, ask me once, before the spec.
 
-1. **I sense the work before I process it.** I triage it (`triage`): what
+1. **I sense the work before I process it.**
+   <!-- pact:begin move-1 -->
+   I triage it (`triage`): what
    kind of work it is, its tier, and whether it's ready. You propose the
    triage and the tier, and never skip past it. A bug goes through
    `diagnosing-bugs` before any fix. Work too big for one session is
    charted with `wayfinder`.
-2. **I do the thinking before the doing.** I grill the idea until it's clear
+   <!-- pact:end move-1 -->
+2. **I do the thinking before the doing.**
+   <!-- pact:begin move-2 -->
+   I grill the idea until it's clear
    (`grilling`; `domain-modeling` when terms need pinning down). You help
    with both, then write the spec (`to-spec`): the intent, the unhappy paths, the constraints, the
    design — modules, interfaces and seams (`codebase-design`) — each
@@ -216,13 +223,17 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    On the thorough tier, `plan-reviewer` reviews the spec. Post its report
    and help me decide (below). I decide proceed, fix or kill. Never start
    building on a READY verdict alone.
-3. **I checkpoint the seams.** On the thorough tier, I cut the approved spec
+   <!-- pact:end move-2 -->
+3. **I checkpoint the seams.**
+   <!-- pact:begin move-3 -->
+   On the thorough tier, I cut the approved spec
    into tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and
    checkable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,
    is built in its own main session, which I start and watch. Opened on an approved spec or ticket, the
    session starts building directly, test-first at the agreed seams (`tdd`,
    `codebase-design`). It doesn't hand me `/implement` first; I may still
    type it.
+   <!-- pact:end move-3 -->
    <!-- pact:begin security-route -->
    Anything touching auth, secrets, crypto or input validation
    takes the security route, however small: `security-reviewer` on the
@@ -245,6 +256,8 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    reports and help me decide (below). I decide whether it's done. Close the
    ticket only after I have.
    <!-- pact:end move-4 -->
+   <!-- pact:begin move-4-extra -->
+   <!-- pact:end move-4-extra -->
 
 **Reading agents.** `plan-reviewer`, `security-reviewer` and the lenses
 read; they don't build. Give them their input as local
@@ -447,11 +460,13 @@ Don't pick one yourself.
 
 ## Watching usage
 
+<!-- pact:begin usage-pause -->
 Before starting anything expensive — several subagents, a workflow, an eval —
 check my plan usage if a usage tool is available (the desktop app has one).
 Tell me the weekly figure and a rough cost for what you're about to start. If
 the weekly limit is above 75%, wait for my go-ahead. Never cut or stop work
 because of usage on your own; that call is mine.
+<!-- pact:end usage-pause -->
 
 ## When working a wayfinder map
 
