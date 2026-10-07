@@ -77,12 +77,22 @@ const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permiss
 // Paths the overlay must set. A set must hold every allowed entry.
 const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions.ask']);
 // The "ask" rules that make the install's apply step prompt the owner. The
-// overlay must hold them, whatever the allow-list says.
+// overlay must hold them, whatever the allow-list says. #89 adds a splat and
+// each dash PowerShell takes in place of the hyphen: en dash, em dash and
+// horizontal bar, always written as escapes.
 const SETTINGS_APPLY_ASK = Object.freeze([
   'PowerShell(./scripts/install.ps1 -Apply)',
   'PowerShell(*install.ps1*-A*)',
   'Bash(*nstall.ps1*-A*)',
   'Bash(*nstall.ps1*-a*)',
+  'PowerShell(*install.ps1* @*)',
+  'PowerShell(*install.ps1*\u2013*)',
+  'PowerShell(*install.ps1*\u2014*)',
+  'PowerShell(*install.ps1*\u2015*)',
+  'Bash(*nstall.ps1* @*)',
+  'Bash(*nstall.ps1*\u2013*)',
+  'Bash(*nstall.ps1*\u2014*)',
+  'Bash(*nstall.ps1*\u2015*)',
 ]);
 // The "ask" rule on edits to the installed cross script's folder (#45). The
 // overlay must hold it too, whatever the allow-list says.
