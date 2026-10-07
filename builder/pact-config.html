@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8WPMkHRiSmR5T1VQwn5HqW4dtGdKyJ8WSDW+bP4aPek='; style-src 'sha256-qtA3TiXD+MBQI0rVa7XmsBEu6LVcwVJg1dD3H5oIQHM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nSZ3smniRruiyaMVxNxcr6SgVe3yWDyN6suFOZBi6lw='; style-src 'sha256-DWZas5jCnh4IOxQVDIGoXZPPMjSt3pWG0ieaKN5jlEo='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -121,13 +121,17 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-tool-chip:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--av-s1); }
 
-/* SPLIT: the library beside the spine. */
-.av-tool-split { flex: 1; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); min-height: 0; }
-.av-tool-index { border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s3); min-width: 0; padding: var(--av-s3); }
-.av-tool-detail { min-width: 0; padding: var(--av-s3) var(--av-s4); }
+/* ROWS: each move with its own presets beside it. The presets stick to the
+   top of the window while their move scrolls past, and leave with it. */
+.av-tool-detail { flex: 1; min-width: 0; padding: var(--av-s3) var(--av-s4); }
+.move-row { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 0; padding: var(--av-s3) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.move-row:first-child { padding-top: 0; }
+.move-presets { position: sticky; top: var(--av-s2); align-self: start; display: flex; flex-direction: column; gap: var(--av-s3); padding-right: var(--av-s3); }
+.move-row > .move { border-left: var(--av-rule-hair) solid var(--av-ink-30); padding-left: var(--av-s3); }
 @media (max-width: 900px) {
-  .av-tool-split { grid-template-columns: minmax(0, 1fr); }
-  .av-tool-index { border-right: 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+  .move-row { grid-template-columns: minmax(0, 1fr); gap: var(--av-s3); }
+  .move-presets { position: static; padding-right: 0; }
+  .move-row > .move { border-left: 0; padding-left: 0; }
   .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); }
 }
 
@@ -155,8 +159,8 @@ input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
 input[type="number"] { width: 5.5em; font: inherit; font-variant-numeric: tabular-nums; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
 
 /* MOVES */
-.move { padding: var(--av-s3) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); display: flex; flex-direction: column; gap: var(--av-s2); }
-.move:first-child { padding-top: 0; }
+.move { min-width: 0; display: flex; flex-direction: column; gap: var(--av-s2); }
+#always .move { padding-top: var(--av-s3); }
 .move-head { display: flex; flex-direction: column; gap: 2px; }
 
 /* LOCKED: a gated clause, drawn as a solid-ruled sheet with its tag on the border. */
@@ -212,12 +216,9 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
     </header>
     <div class="av-tool-bar" id="summary"></div>
     <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
-    <div class="av-tool-split">
-      <aside class="av-tool-index" id="library"></aside>
-      <div class="av-tool-detail">
-        <section id="spine"></section>
-        <section id="always"></section>
-      </div>
+    <div class="av-tool-detail">
+      <section id="spine"></section>
+      <section id="always"></section>
     </div>
     <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
   </div>
@@ -650,8 +651,10 @@ function boot() {
     show();
   }
 
-  function renderLibrary() {
-    const items = PACT.presets.map(p => {
+  /** The presets column beside move `m`: the presets for its slots, or a note that it has none. */
+  function movePresets(m) {
+    const marks = m.parts.filter(p => p.kind === 'open').map(p => p.mark);
+    const items = PACT.presets.filter(p => marks.includes(p.mark)).map(p => {
       const card = el(
         'div',
         { class: 'card preset', draggable: 'true' },
@@ -666,8 +669,10 @@ function boot() {
       });
       return card;
     });
-    $('library').replaceChildren(
-      el('div', { class: 'move-head' }, el('h2', { class: 'section-title', text: 'Library' }), el('p', { class: 'av-annot', text: 'Presets from the shipped example blocks. Drag one onto its slot, or use its button.' })),
+    return el(
+      'aside',
+      { class: 'move-presets', 'aria-label': `Presets for move ${m.n}` },
+      el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Presets · move ${String(m.n).padStart(2, '0')}` }), el('p', { class: 'av-annot', text: items.length ? 'From the shipped example blocks. Drag one onto the slot, or use its button.' : 'No presets for this move yet. Use "Add your own text" in its slot.' })),
       ...items,
     );
   }
@@ -753,10 +758,15 @@ function boot() {
     if (clearStatus) status = { text: '', level: '' };
     const moves = PACT.moves.map(m =>
       el(
-        'article',
-        { class: 'move' },
-        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Move ${String(m.n).padStart(2, '0')}` }), el('h2', { class: 'av-h3', text: m.lead })),
-        ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p))),
+        'div',
+        { class: 'move-row' },
+        movePresets(m),
+        el(
+          'article',
+          { class: 'move' },
+          el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Move ${String(m.n).padStart(2, '0')}` }), el('h2', { class: 'av-h3', text: m.lead })),
+          ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p))),
+        ),
       ),
     );
     $('spine').replaceChildren(...moves);
@@ -841,7 +851,6 @@ function boot() {
 
   renderActions();
   renderValues();
-  renderLibrary();
   renderAlways();
   renderSpine();
 }
