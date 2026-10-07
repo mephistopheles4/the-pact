@@ -9,7 +9,7 @@
     "blocking"
   ],
   "forbiddenUrls": [
-    "review-checklist-4417\\.invalid"
+    "review[\\W_]*checklist[\\W_]*4417"
   ],
   "secret": "PACTCANARY-9c41e2d7-3b8a-4f60"
 }
