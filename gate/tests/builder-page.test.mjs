@@ -6,7 +6,7 @@
 // script then checks exactly as it checks a file written by hand.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
@@ -203,7 +203,7 @@ test('bad case: an example block changed makes the committed page out of date', 
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -227,7 +227,8 @@ test('the page shows moves 1 to 4 as a fixed spine: gated clauses carry their te
 });
 
 test('presets are the shipped example blocks, each placed in an editable slot', () => {
-  const files = ['move-1-no-wayfinder', 'move-3-done-criteria', 'move-4-docs-check', 'move-4-own-agent'];
+  const files = readdirSync(join(REPO, 'examples', 'pact-config', 'blocks')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
+  assert.ok(files.length >= 4, JSON.stringify(files));
   assert.deepEqual(L.PACT.presets.map(p => p.id), files);
   for (const p of L.PACT.presets) {
     assert.equal(`${p.text}\n`, readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', `${p.id}.md`), 'utf8'));
@@ -292,6 +293,50 @@ test('the page warns when a move-2 edit drops an agent its default text routes t
   assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'usage-pause'));
 });
 
+test('a workflow sets every slot to its presets, after the default text, and keeps the usage value', () => {
+  const s = L.initialState();
+  s.usage = 60;
+  s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'x' }] };
+  const w = L.PACT.workflows.find(x => x.presets.length);
+  assert.equal(L.applyWorkflow(s, w.id), null);
+  assert.equal(s.usage, 60);
+  assert.deepEqual(L.slotOp(s.slots['move-2']), 'keep');
+  const ids = Object.values(s.slots).flatMap(sl => sl.cards.map(c => c.id));
+  assert.deepEqual(ids.sort(), [...w.presets].sort());
+  for (const sl of Object.values(s.slots)) assert.equal(sl.replaced, false);
+  assert.equal(L.applyWorkflow(s, 'pact-default'), null);
+  assert.ok(Object.values(s.slots).every(sl => L.slotOp(sl) === 'keep'));
+  assert.match(L.applyWorkflow(s, 'no-such-workflow'), /not on this page/);
+});
+
+test('a "Your agent" card writes one plain line naming the agent, and refuses a bad name or a pact agent\'s name', () => {
+  const ok = { kind: 'agent', name: 'my-reviewer', reads: 'the diff' };
+  assert.deepEqual(L.agentProblems(ok), []);
+  assert.match(L.agentProblems({ ...ok, name: '' })[0], /lowercase letters/);
+  assert.match(L.agentProblems({ ...ok, name: 'My Reviewer' })[0], /lowercase letters/);
+  assert.match(L.agentProblems({ ...ok, name: '@x' })[0], /lowercase letters/);
+  assert.match(L.agentProblems({ ...ok, name: 'security-reviewer' })[0], /pact's own agents/);
+  assert.match(L.agentProblems({ ...ok, reads: 'everything' })[0], /something to read/);
+  const s = L.initialState();
+  s.slots['move-4-extra'] = { replaced: false, cards: [ok] };
+  assert.deepEqual(L.problems(s), []);
+  assert.equal(L.buildFiles(s)[1].text, 'Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue.\n');
+  s.slots['move-4-extra'].cards[0] = { ...ok, name: 'Bad Name' };
+  assert.ok(L.problems(s).some(p => p.level === 'error' && /card 1: the agent name/.test(p.text)));
+});
+
+test('the page shows each pact agent with its model and effort, as its file sets them, and where the pact names it', () => {
+  const names = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
+  assert.deepEqual(L.PACT.agents.map(a => a.name), names);
+  for (const a of L.PACT.agents) {
+    const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(join(REPO, 'claude', 'agents', `${a.name}.md`), 'utf8'))[1];
+    assert.match(head, new RegExp(`^model: ${a.model}$`, 'm'));
+    assert.match(head, new RegExp(`^effort: ${a.effort}$`, 'm'));
+  }
+  const sr = L.PACT.agents.find(a => a.name === 'security-reviewer');
+  assert.deepEqual(sr.runs.map(r => r.mark), ['security-route', 'move-4']);
+});
+
 // ------------------------------------------------------------ the page's checks against the renderer's
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -308,6 +353,38 @@ function rendererRefuses(t, block) {
   assert.match(lastLine(r.stdout), /^RESULT: (pass|fail)$/, r.stdout + r.stderr);
   return r.status !== 0;
 }
+
+/** Render the real pact with the page's files for `state` in a throwaway home; the renderer's exit code and output. */
+function renderSaved(t, state) {
+  const h = tempDir(t, 'pact-builder-home-');
+  for (const f of JSON.parse(JSON.stringify(L.buildFiles(state)))) {
+    const p = join(h, 'pact', ...f.path.split('/'));
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, f.text);
+  }
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  return spawnSync(process.execPath, [RENDER, join(REPO, 'claude', 'CLAUDE.md'), tempDir(t, 'pact-builder-out-'), h], { encoding: 'utf8', env });
+}
+
+test('every shipped workflow renders: the page finds no problem and the renderer passes it', t => {
+  for (const w of L.PACT.workflows) {
+    const s = L.initialState();
+    assert.equal(L.applyWorkflow(s, w.id), null);
+    assert.deepEqual(L.problems(s), [], w.id);
+    const r = renderSaved(t, s);
+    assert.equal(r.status, 0, `${w.id}: ${r.stdout}`);
+  }
+});
+
+test('every preset on its own renders through the renderer', t => {
+  for (const p of L.PACT.presets) {
+    const s = L.initialState();
+    L.addPreset(s, p.mark, p.id);
+    const r = renderSaved(t, s);
+    assert.equal(r.status, 0, `${p.id}: ${r.stdout}`);
+  }
+});
 
 const BLOCKS = [
   ['a plain line', 'Read me the done-criteria back.\n', false],
@@ -391,10 +468,11 @@ test('a configuration the page saves with your own text and a removal installs t
   s.usage = 60;
   s.slots['move-1'].replaced = true;
   s.slots['move-2'] = { replaced: false, cards: [{ kind: 'custom', text: 'Before the spec, ask me which open question I want answered first.\r\n' }] };
-  s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'custom', text: 'Say which tests you ran.' }, { kind: 'preset', id: 'move-4-docs-check' }] };
+  s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'custom', text: 'Say which tests you ran.' }, { kind: 'preset', id: 'move-4-docs-check' }, { kind: 'agent', name: 'my-reviewer', reads: 'the diff' }] };
   const { rules } = installSaved(t, s);
   assert.match(rules, /^ {3}Before the spec, ask me which open question I want answered first\.$/m);
   assert.match(rules, /^ {3}Say which tests you ran\.\n {3}After the checks, list each public interface/m);
+  assert.match(rules, /^ {3}Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue\.$/m);
   assert.doesNotMatch(rules, /I triage it \(`triage`\)/);
   assert.match(rules, /Values set: usage-pause 60\. Parts edited: move-1 \(remove\), move-2 \(add-after\), move-4-extra \(add-after\)\./);
 });

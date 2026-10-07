@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-leoq1QEOhlhYxJc7JiDpYfCFF76J9IlWOiJnRBN7zXw='; style-src 'sha256-DWZas5jCnh4IOxQVDIGoXZPPMjSt3pWG0ieaKN5jlEo='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-p9IMcOjZjoOg7gRW9CWX9bf3QYl0GLq6FrPi3BtoTjU='; style-src 'sha256-AcczOTROsoj3T3gRx8+ZROg39i6gIxDw2Dckjua8vKg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -105,7 +105,7 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 
 /* BAR: a full-width strip under the head. */
 .av-tool-bar { display: flex; justify-content: space-between; align-items: center; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s2) var(--av-s4); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
-.av-tool-bar--stack { flex-direction: column; align-items: stretch; gap: var(--av-s2); }
+.av-tool-bar--stack { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: var(--av-s2); }
 .av-tool-stamp { font-size: var(--av-t-annot); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; white-space: nowrap; }
 .av-tool-stamp--caution { color: var(--av-caution); }
 .av-tool-stamp--normal { color: var(--av-normal); }
@@ -156,6 +156,16 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 #values .prose { max-width: 110ch; }
 .value-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
 input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
+input[type="text"], select { font: inherit; font-size: var(--av-t-annot); color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
+input[type="text"] { min-width: 14em; flex: 1 1 14em; }
+.field-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
+.field-row label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--av-s3) var(--av-s2); padding-top: var(--av-s1); }
+.tile { position: relative; border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-surface); padding: var(--av-s3) var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
+.tile--on { border: var(--av-rule-bold) solid var(--av-ink); }
+.tile--locked { background: var(--av-paper-tech); border-left: var(--av-rule-bold) solid var(--av-ink); }
+.tile--yours { border: var(--av-rule-thin) dashed var(--av-ink); cursor: grab; }
+.runs { list-style: none; margin: 0; padding: 0; font-size: var(--av-t-annot); color: var(--av-ink-80); }
 input[type="number"] { width: 5.5em; font: inherit; font-variant-numeric: tabular-nums; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
 
 /* MOVES */
@@ -216,6 +226,8 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
     </header>
     <div class="av-tool-bar" id="summary"></div>
     <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
+    <section class="av-tool-bar av-tool-bar--stack" id="workflows"></section>
+    <section class="av-tool-bar av-tool-bar--stack" id="agents"></section>
     <div class="av-tool-detail">
       <section id="spine"></section>
       <section id="always"></section>
@@ -323,12 +335,98 @@ const PACT = /* pact-data:begin */ {
   "text": "Before starting anything expensive — several subagents, a workflow, an eval —\ncheck my plan usage if a usage tool is available (the desktop app has one).\nTell me the weekly figure and a rough cost for what you're about to start. If\nthe weekly limit is above 75%, wait for my go-ahead. Never cut or stop work\nbecause of usage on your own; that call is mine."
  },
  "agents": [
-  "behaviour-lens",
-  "executability-lens",
-  "good-enough-lens",
-  "integrity-lens",
-  "security-reviewer",
-  "unstated-lens"
+  {
+   "name": "behaviour-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    },
+    {
+     "move": null,
+     "mark": "no-skill-overrides",
+     "kind": "gated"
+    }
+   ]
+  },
+  {
+   "name": "executability-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 2,
+     "mark": "move-2",
+     "kind": "open"
+    }
+   ]
+  },
+  {
+   "name": "good-enough-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 2,
+     "mark": "move-2",
+     "kind": "open"
+    }
+   ]
+  },
+  {
+   "name": "integrity-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    },
+    {
+     "move": null,
+     "mark": "no-skill-overrides",
+     "kind": "gated"
+    }
+   ]
+  },
+  {
+   "name": "security-reviewer",
+   "model": "opus",
+   "effort": "high",
+   "runs": [
+    {
+     "move": 3,
+     "mark": "security-route",
+     "kind": "gated"
+    },
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    }
+   ]
+  },
+  {
+   "name": "unstated-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 2,
+     "mark": "move-2",
+     "kind": "open"
+    },
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    }
+   ]
+  }
  ],
  "presets": [
   {
@@ -339,11 +437,39 @@ const PACT = /* pact-data:begin */ {
    "text": "I triage it (`triage`): what kind of work it is, its tier, and whether it's\nready. You propose the triage and the tier, and never skip past it. A bug\ngoes through `diagnosing-bugs` before any fix."
   },
   {
+   "id": "move-3-cite-the-docs",
+   "title": "Cite the docs",
+   "mark": "move-3",
+   "op": "add-after",
+   "text": "When the build uses a framework or library API, use `source-driven-development`.\nCheck each such call against the official docs, and cite them in the commit or on the issue.\nFlag any claim you could not check against a source."
+  },
+  {
    "id": "move-3-done-criteria",
    "title": "Done criteria",
    "mark": "move-3",
    "op": "add-after",
    "text": "Before the build starts, read me each ticket's done-criteria back in one\nline each, so we agree on what done means."
+  },
+  {
+   "id": "move-3-instrument-paths",
+   "title": "Instrument paths",
+   "mark": "move-3",
+   "op": "add-after",
+   "text": "When the change adds a production code path, use `observability-and-instrumentation`.\nAdd the structured logs and metrics someone would need to see that path fail."
+  },
+  {
+   "id": "move-3-ui-work",
+   "title": "Ui work",
+   "mark": "move-3",
+   "op": "add-after",
+   "text": "When the ticket changes a user interface, use `frontend-ui-engineering`.\nHold the result to WCAG 2.1 AA, and check it at phone width."
+  },
+  {
+   "id": "move-4-browser-check",
+   "title": "Browser check",
+   "mark": "move-4-extra",
+   "op": "add-after",
+   "text": "When the change runs in a browser, use `browser-testing-with-devtools` before the QA pair.\nRecord the console errors and failed network requests you saw, or say there were none."
   },
   {
    "id": "move-4-docs-check",
@@ -353,11 +479,61 @@ const PACT = /* pact-data:begin */ {
    "text": "After the checks, list each public interface the change touched, and say\nwhether its docs were updated."
   },
   {
+   "id": "move-4-launch-checklist",
+   "title": "Launch checklist",
+   "mark": "move-4-extra",
+   "op": "add-after",
+   "text": "When the work deploys to production, use `shipping-and-launch` for its checklist.\nName the rollback step on the issue before the deploy starts."
+  },
+  {
+   "id": "move-4-measure-performance",
+   "title": "Measure performance",
+   "mark": "move-4-extra",
+   "op": "add-after",
+   "text": "When the spec names a performance budget, use `performance-optimization`.\nMeasure before and after the change, and post both numbers on the issue."
+  },
+  {
    "id": "move-4-own-agent",
    "title": "Own agent",
    "mark": "move-4-extra",
    "op": "add-after",
    "text": "Then run `my-reviewer`, an agent of your own from your agents folder, on the\ndiff, and post its report beside the QA pair's."
+  }
+ ],
+ "workflows": [
+  {
+   "id": "pact-default",
+   "title": "Pact default",
+   "about": "The pact as it ships: nothing added to any move.",
+   "presets": []
+  },
+  {
+   "id": "front-end",
+   "title": "Front-end",
+   "about": "Build UI to WCAG 2.1 AA at phone width, then check it in the browser before the QA pair.",
+   "presets": [
+    "move-3-ui-work",
+    "move-4-browser-check"
+   ]
+  },
+  {
+   "id": "production-service",
+   "title": "Production service",
+   "about": "Instrument new code paths, measure against the performance budget, and name the rollback before a deploy.",
+   "presets": [
+    "move-3-instrument-paths",
+    "move-4-measure-performance",
+    "move-4-launch-checklist"
+   ]
+  },
+  {
+   "id": "library-heavy",
+   "title": "Library-heavy",
+   "about": "Check framework and library calls against their docs, and say which public docs the change touched.",
+   "presets": [
+    "move-3-cite-the-docs",
+    "move-4-docs-check"
+   ]
   }
  ]
 } /* pact-data:end */;
@@ -438,7 +614,19 @@ function blockProblems(text) {
 
 const presetById = id => PACT.presets.find(p => p.id === id);
 const openPart = mark => PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === mark);
-const cardText = card => (card.kind === 'preset' ? presetById(card.id).text : card.text);
+// What a "Your agent" card can hand its agent.
+const READS = ['the diff', 'the spec', 'the ticket'];
+const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const agentCardText = c => `Then run \`${c.name}\`, an agent from your own agents folder, on ${c.reads}, and post its report on the issue.`;
+const cardText = card => (card.kind === 'preset' ? presetById(card.id).text : card.kind === 'agent' ? agentCardText(card) : card.text);
+
+/** What the page finds wrong in a "Your agent" card. */
+function agentProblems(c) {
+  if (!AGENT_NAME_RE.test(c.name)) return ['the agent name must be lowercase letters, digits and hyphens, like my-reviewer'];
+  if (PACT.agents.some(a => a.name === c.name)) return [`${c.name} is one of the pact's own agents; it already runs where the pact names it`];
+  if (!READS.includes(c.reads)) return ['the agent needs something to read: the diff, the spec or the ticket'];
+  return [];
+}
 
 /**
  * Each slot holds two things: whether its default text is replaced, and the
@@ -479,7 +667,8 @@ function problems(state) {
     if (op === 'keep') continue;
     if (op !== 'remove') {
       slot.cards.forEach((c, i) => {
-        if (normalize(cardText(c)).trim() === '') out.push({ where: mark, level: 'error', text: `card ${i + 1} is empty` });
+        if (c.kind === 'agent') for (const t of agentProblems(c)) out.push({ where: mark, level: 'error', text: `card ${i + 1}: ${t}` });
+        else if (normalize(cardText(c)).trim() === '') out.push({ where: mark, level: 'error', text: `card ${i + 1} is empty` });
       });
       for (const p of blockProblems(slotText(slot))) out.push({ where: mark, level: 'error', text: p });
     }
@@ -526,6 +715,15 @@ function addPreset(state, mark, id) {
   if (!p) return 'That card is not in the library.';
   if (p.mark !== mark) return `"${p.title}" belongs in the ${p.mark} slot.`;
   state.slots[mark].cards.push({ kind: 'preset', id });
+  return null;
+}
+
+/** Apply a workflow: every slot back to its default, then the workflow's presets added. The usage value is kept. */
+function applyWorkflow(state, id) {
+  const w = PACT.workflows.find(x => x.id === id);
+  if (!w) return 'That workflow is not on this page.';
+  for (const mark of PACT.editable) state.slots[mark] = { replaced: false, cards: [] };
+  for (const pid of w.presets) addPreset(state, presetById(pid).mark, pid);
   return null;
 }
 
@@ -652,6 +850,71 @@ function boot() {
     show();
   }
 
+  /** A new "Your agent" card: a move-2 slot hands it the spec, every other slot the diff. */
+  function newAgentCard(mark) {
+    return { kind: 'agent', name: '', reads: mark === 'move-2' ? 'the spec' : 'the diff' };
+  }
+
+  let applied = null; // { id, before }: the last workflow applied, and the slots before it, for undo
+
+  function renderWorkflows() {
+    const tiles = PACT.workflows.map(w => {
+      const on = applied && applied.id === w.id;
+      const names = w.presets.map(id => `${presetById(id).title} (${presetById(id).mark})`);
+      return el(
+        'div',
+        { class: `tile${on ? ' tile--on' : ''}` },
+        el('span', { class: 'card-tab', text: w.title }),
+        el('p', { class: 'av-annot', text: w.about }),
+        el('p', { class: 'av-label', text: names.length ? names.join(' · ') : 'No presets' }),
+        el('div', { class: 'card-foot' }, chip(on ? 'Applied' : 'Apply', on, () => {
+          const before = JSON.stringify(state.slots);
+          applyWorkflow(state, w.id);
+          applied = { id: w.id, before };
+          renderWorkflows();
+          renderSpine();
+        })),
+      );
+    });
+    const undo = applied ? chip('Undo', false, () => {
+      state.slots = JSON.parse(applied.before);
+      applied = null;
+      renderWorkflows();
+      renderSpine();
+    }, 'av-tool-chip--ghost') : null;
+    $('workflows').replaceChildren(
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Workflows' }), el('div', { class: 'chips' }, el('span', { class: 'av-annot', text: 'One click sets every slot. Tweak the moves below after.' }), undo)),
+      el('div', { class: 'tiles' }, ...tiles),
+    );
+  }
+
+  function renderAgents() {
+    const where = r => (r.move ? `Move ${r.move} · ${r.mark}` : `Always on · ${r.mark}`);
+    const tiles = PACT.agents.map(a =>
+      el(
+        'div',
+        { class: 'tile tile--locked' },
+        el('span', { class: 'card-tab', text: a.name }),
+        el('span', { class: 'av-label', text: `${a.model || '?'} · ${a.effort || '?'} effort · locked` }),
+        el('ul', { class: 'runs' }, ...(a.runs.length ? a.runs.map(r => el('li', { text: where(r) })) : [el('li', { text: 'Not named in moves 1 to 4' })])),
+      ),
+    );
+    const yours = el(
+      'div',
+      { class: 'tile tile--yours', draggable: 'true' },
+      el('span', { class: 'card-tab', text: 'Your agent' }),
+      el('p', { class: 'av-annot', text: 'Drag onto any open slot, then name the agent and what it reads. It runs after the slot\'s text.' }),
+    );
+    yours.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', 'agent:new');
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    $('agents').replaceChildren(
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Add your own at any open slot.' })),
+      el('div', { class: 'tiles' }, yours, ...tiles),
+    );
+  }
+
   /** The presets column beside move `m`: the presets for its slots, or a note that it has none. */
   function movePresets(m) {
     const marks = m.parts.filter(p => p.kind === 'open').map(p => p.mark);
@@ -714,6 +977,33 @@ function boot() {
         const pre = presetById(c.id);
         return el('div', { class: 'card' }, el('span', { class: 'card-tab', text: `Preset · ${pre.title}` }), prose(pre.text), el('div', { class: 'card-foot' }, el('span'), remove));
       }
+      if (c.kind === 'agent') {
+        const name = el('input', { type: 'text', 'aria-label': `Your agent's name for ${p.mark}`, placeholder: 'my-reviewer', spellcheck: 'false', autocomplete: 'off' });
+        name.value = c.name;
+        const reads = el('select', { 'aria-label': `What your agent reads in ${p.mark}` }, ...READS.map(r => el('option', { value: r, text: r })));
+        reads.value = c.reads;
+        const preview = el('div');
+        const show = () => preview.replaceChildren(prose(agentCardText(c)));
+        name.addEventListener('input', () => {
+          c.name = name.value.trim();
+          show();
+          renderOutput();
+        });
+        reads.addEventListener('change', () => {
+          c.reads = reads.value;
+          show();
+          renderOutput();
+        });
+        show();
+        return el(
+          'div',
+          { class: 'card' },
+          el('span', { class: 'card-tab', text: 'Your agent' }),
+          el('div', { class: 'field-row' }, el('label', { text: 'Agent' }), name, el('label', { text: 'Reads' }), reads),
+          preview,
+          el('div', { class: 'card-foot' }, el('span', { class: 'av-annot', text: 'Install the agent in your own agents folder; the pact never installs it.' }), remove),
+        );
+      }
       const area = el('textarea', { 'aria-label': `Your text for ${p.mark}`, spellcheck: 'true', placeholder: 'Plain lines. No blank lines, headings, lists or leading spaces.' });
       area.value = c.text;
       area.addEventListener('input', () => {
@@ -725,6 +1015,11 @@ function boot() {
 
     const addOwn = chip('Add your own text', false, () => {
       slot.cards.push({ kind: 'custom', text: '' });
+      renderSpine();
+    }, 'av-tool-chip--ghost');
+
+    const addAgent = chip('Add your agent', false, () => {
+      slot.cards.push(newAgentCard(p.mark));
       renderSpine();
     }, 'av-tool-chip--ghost');
 
@@ -743,7 +1038,7 @@ function boot() {
       empty ? el('p', { class: 'av-annot', text: 'Empty by default: a place for extra steps.' }) : prose(p.text, slot.replaced ? 'prose prose--struck' : 'prose'),
       op === 'remove' ? el('p', { class: 'av-annot', text: 'The default text is removed and nothing takes its place. Add a card to put text here instead.' }) : null,
       ...cards,
-      el('div', { class: 'card-foot' }, addOwn, el('span', { class: 'av-annot', text: 'or drop a preset here' })),
+      el('div', { class: 'card-foot' }, el('div', { class: 'chips' }, addOwn, addAgent), el('span', { class: 'av-annot', text: 'or drop a preset or your agent here' })),
     );
     box.addEventListener('dragover', e => {
       e.preventDefault();
@@ -755,6 +1050,10 @@ function boot() {
       box.classList.remove('part--over');
       const data = e.dataTransfer.getData('text/plain');
       if (data.startsWith('preset:')) drop(p.mark, data.slice('preset:'.length));
+      else if (data === 'agent:new') {
+        slot.cards.push(newAgentCard(p.mark));
+        renderSpine();
+      }
     });
     return box;
   }
@@ -857,6 +1156,8 @@ function boot() {
 
   renderActions();
   renderValues();
+  renderWorkflows();
+  renderAgents();
   renderAlways();
   renderSpine();
 }

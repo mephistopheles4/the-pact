@@ -1,0 +1,28 @@
+{
+  "workflows": [
+    {
+      "id": "pact-default",
+      "title": "Pact default",
+      "about": "The pact as it ships: nothing added to any move.",
+      "presets": []
+    },
+    {
+      "id": "front-end",
+      "title": "Front-end",
+      "about": "Build UI to WCAG 2.1 AA at phone width, then check it in the browser before the QA pair.",
+      "presets": ["move-3-ui-work", "move-4-browser-check"]
+    },
+    {
+      "id": "production-service",
+      "title": "Production service",
+      "about": "Instrument new code paths, measure against the performance budget, and name the rollback before a deploy.",
+      "presets": ["move-3-instrument-paths", "move-4-measure-performance", "move-4-launch-checklist"]
+    },
+    {
+      "id": "library-heavy",
+      "title": "Library-heavy",
+      "about": "Check framework and library calls against their docs, and say which public docs the change touched.",
+      "presets": ["move-3-cite-the-docs", "move-4-docs-check"]
+    }
+  ]
+}

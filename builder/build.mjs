@@ -101,10 +101,10 @@ export function pageData(root) {
   const open = listFrom(renderSrc, 'OPEN_MARKS');
   const editable = listFrom(renderSrc, 'EDITABLE');
   const gated = listFrom(renderSrc, 'GATED');
-  const agents = readdirSync(join(root, 'claude', 'agents'))
+  const agentFiles = readdirSync(join(root, 'claude', 'agents'))
     .filter(f => f.endsWith('.md'))
-    .map(f => f.slice(0, -3))
     .sort();
+  const agents = agentFiles.map(f => f.slice(0, -3));
   const { parts, seq } = parseSource(src);
 
   const part = name => {
@@ -151,7 +151,29 @@ export function pageData(root) {
       return { id, title: titleOf(id, mark), mark, op, text: text.slice(0, -1) };
     });
 
-  return { moves, always, editable, setting, agents, presets };
+  // Each installed agent, its model and effort as its file sets them, and
+  // every part of the pact that names it: shown, never changed, by the page.
+  const named = (text, a) => codeSpans(text).includes(a);
+  const agentInfo = agentFiles.map(f => {
+    const name = f.slice(0, -3);
+    const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(join(root, 'claude', 'agents', f), 'utf8'));
+    if (!head) fail(`claude/agents/${f} has no frontmatter`);
+    const field = k => (new RegExp(`^${k}:[ \\t]*([A-Za-z0-9._-]+)[ \\t]*$`, 'm').exec(head[1]) ?? [])[1] ?? null;
+    const runs = [
+      ...moves.flatMap(m => m.parts.filter(p => named(p.text, name)).map(p => ({ move: m.n, mark: p.mark, kind: p.kind }))),
+      ...always.filter(a => named(a.text, name)).map(a => ({ move: null, mark: a.mark, kind: 'gated' })),
+    ];
+    return { name, model: field('model'), effort: field('effort'), runs };
+  });
+
+  const ids = new Set(presets.map(p => p.id));
+  const workflows = JSON.parse(readFileSync(join(ex, 'workflows.json'), 'utf8')).workflows.map(w => {
+    if (!/^[a-z0-9-]+$/.test(w.id) || typeof w.title !== 'string' || typeof w.about !== 'string' || !Array.isArray(w.presets)) fail('examples/pact-config/workflows.json has a workflow without an id, title, about and presets');
+    for (const id of w.presets) if (!ids.has(id)) fail(`workflow ${w.id} names ${id}, which is not an example block`);
+    return { id: w.id, title: w.title, about: w.about, presets: [...w.presets] };
+  });
+
+  return { moves, always, editable, setting, agents: agentInfo, presets, workflows };
 }
 
 const sha256b64 = s => createHash('sha256').update(s, 'utf8').digest('base64');
