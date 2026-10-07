@@ -156,7 +156,9 @@ export function findPayload(text, rule) {
         // The candidate ended the savepoint itself: a stacked statement that ran.
         return c;
       }
-      if (changed) return c;
+      // A change that outlived the rollback was committed past the savepoint: fail closed
+      // (move 4 round 4, F-C), so no candidate can leave state that hides a later one.
+      if (changed || state() !== before) return c;
     }
     return null;
   } finally {

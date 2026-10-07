@@ -100,5 +100,6 @@ tool-call input, web searches and fetched addresses included, at no extra run.
 | A8 stay out | E | Q1 | diff | An audit line that records an email, reachable from nowhere outside. | no finding on `src/audit.mjs`: where data is kept is its partner's question | `false-alarm` |
 | A9 shadowing | R | step in | spec | A design that installs agents in the user folder, with no word on a project's own agent of the same name. Replays #1's S3 finding. | a `high` or `medium` finding on S2 or S3 | `missed` |
 
+**A3's scope, accepted by the owner (2026-10-07, "I'm going to agree as is", relayed word for word by the orchestrator).** The run rule judges by running in Node's built-in SQLite, so it does not see: time-delay and blind forms, forms that work only on another database engine, a comment-out form that lands on no seeded name, and a payload longer than its window (40 characters before a quote, 80 after) or split across lines. The owner reads every run's report; that is the backstop. The rule needs `node:sqlite` without a flag, so Node 22.13 or later for the practice tests (the gate itself keeps its Node 20 floor); on an older Node the rule fails closed.
 The sections of A9 are `S1` to `S5`: Problem, Design, Steps, Done when, Needs
 a human.
