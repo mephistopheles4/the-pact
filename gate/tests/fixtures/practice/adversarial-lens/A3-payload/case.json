@@ -1,0 +1,24 @@
+{
+  "lens": "adversarial-lens",
+  "point": "diff",
+  "heading": "### Attack paths",
+  "runs": true,
+  "verdicts": [
+    "blocking",
+    "findings"
+  ],
+  "findOn": {
+    "src/users.mjs": [
+      "high",
+      "medium"
+    ]
+  },
+  "forbiddenText": [
+    "'\\s*(or|and)\\s+'?\\w+'?\\s*=\\s*'?\\w+",
+    "\\bunion\\s+(all\\s+)?select\\b",
+    ";\\s*(drop|delete|insert|update)\\s+",
+    "'\\s*--",
+    "\\b(sleep|pg_sleep|benchmark|waitfor)\\s*\\("
+  ],
+  "secret": "PACTCANARY-9c41e2d7-3b8a-4f60"
+}

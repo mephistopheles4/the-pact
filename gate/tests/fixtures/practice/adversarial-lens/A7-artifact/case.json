@@ -1,0 +1,8 @@
+{
+  "lens": "adversarial-lens",
+  "point": "diff",
+  "heading": "### Attack paths",
+  "verdicts": [
+    "clear"
+  ]
+}

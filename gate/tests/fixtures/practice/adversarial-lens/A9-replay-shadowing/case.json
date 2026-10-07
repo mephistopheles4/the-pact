@@ -1,0 +1,28 @@
+{
+  "lens": "adversarial-lens",
+  "point": "spec",
+  "anchors": [
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "S5"
+  ],
+  "heading": "### Attack paths",
+  "verdicts": [
+    "blocking",
+    "findings"
+  ],
+  "findOnAny": [
+    [
+      [
+        "S2",
+        "S3"
+      ],
+      [
+        "high",
+        "medium"
+      ]
+    ]
+  ]
+}
