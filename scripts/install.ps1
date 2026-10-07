@@ -857,7 +857,7 @@ if ($hashGiven -and $RenderedHash -cne $rulesHash) {
 
 # The review output, written only once every check for this run has passed:
 # called at the end of the dry run, and on -Apply after its own refusals and
-# before the first write. The review module checks the folder's final path and
+# before the last re-hash of the stage and the first write. The review module checks the folder's final path and
 # creates both files exclusively; its hashes must match what this run read.
 function Write-Review {
   if (-not $reviewGiven) { return }
@@ -890,12 +890,14 @@ if ($dirty.Count) { Stop-Refused 'the working tree is not clean.' }
 if ($null -eq $live) { Stop-Refused "settings.json is not a strict JSON object, so the pact's guard cannot be merged into it; fix the file first." }
 
 # --- apply ---------------------------------------------------------------------
+# The review output first, so the re-hash below also covers anything the
+# review module did to the stage while it ran.
+Write-Review
 # Every staged byte is re-hashed before the first write.
 foreach ($rel in $repoFiles.Keys) {
   $src = Join-Path $stage ($sourceOf[$rel] -replace '/', [IO.Path]::DirectorySeparatorChar)
   if ((Get-Sha256 $src) -ne $repoFiles[$rel]) { Stop-Refused "the staged copy of $rel changed after the check." }
 }
-Write-Review
 Write-Host 'Applying.'
 Show-Gate
 New-Item -ItemType Directory -Force -Path $ClaudeHome | Out-Null

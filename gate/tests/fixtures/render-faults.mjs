@@ -18,6 +18,9 @@
 //   lstat-blocks-eacces lstat of the blocks folder fails with EACCES
 //   review-plant       (gate/review.mjs) just before rendered-rules.txt is
 //                      created, plant a file at that name
+//   review-fail-diff   (gate/review.mjs) the create of config.diff fails
+//   review-extra       (gate/review.mjs) a file appears in the review folder
+//                      after both files are written, before the last check
 //
 // PACT_FAULT_FILE=block points the file faults (swap, hard link, link,
 // realpath, count) at block files under pact/blocks/ instead of the
@@ -33,6 +36,14 @@ const isBlocks = p => typeof p === 'string' && /[\\/]pact[\\/]blocks$/.test(p);
 const isPact = p => typeof p === 'string' && /[\\/]pact$/.test(p);
 const note = line => log && fs.appendFileSync(log, `${line}\n`);
 
+const { readdirSync } = fs;
+let readdirs = 0;
+fs.readdirSync = function (p, ...rest) {
+  readdirs += 1;
+  if (fault === 'review-extra' && readdirs === 2) writeFileSync(`${p}/extra.txt`, 'x\n');
+  return readdirSync(p, ...rest);
+};
+
 const { openSync, lstatSync, linkSync, readSync, readFileSync, renameSync, writeFileSync, symlinkSync, unlinkSync } = fs;
 const realNative = fs.realpathSync.native;
 const configFds = new Set();
@@ -41,6 +52,11 @@ fs.openSync = function (p, ...rest) {
   // gate/review.mjs: a file planted at the review file's name just before its
   // exclusive create, past the empty-folder check (#94).
   if (fault === 'review-plant' && typeof p === 'string' && /[\\/]rendered-rules\.txt$/.test(p)) writeFileSync(p, 'planted\n');
+  if (fault === 'review-fail-diff' && typeof p === 'string' && /[\\/]config\.diff$/.test(p) && !/pact-review-in-/.test(p)) {
+    const e = new Error('EACCES: planted');
+    e.code = 'EACCES';
+    throw e;
+  }
   if (isConfig(p)) {
     if (fault === 'swap-before-open') {
       writeFileSync(`${p}.swap`, '{"schema": 1}');

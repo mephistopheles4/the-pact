@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
+import { ROSTER } from '../pact-text.mjs';
 import { GATE, REPO, RENDER, applyDiff, editPart, failRules, lastLine, plainAgent, read, renderStage, runSeamA, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
 
 const WIN = process.platform === 'win32';
@@ -267,10 +268,28 @@ test('seam A: a move-2 replace that drops move 2\'s routed agents renders, then 
   assert.ok(failRules(r.stdout).includes('routing'), r.out);
 });
 
+test('seam A: a move-2 remove that drops its routed agents renders, then fails routing, as a replace does', t => {
+  assert.ok(routedOnlyInMove2().length > 0, 'the source routes no agent in move 2 alone, so this case cannot be planted');
+  const root = stage(t, {});
+  renderStage(root, homeWith(t, cfg([{ mark: 'move-2', op: 'remove' }])));
+  const r = runSeamA(root);
+  assert.notEqual(r.code, 0, r.out);
+  assert.ok(failRules(r.stdout).includes('routing'), r.out);
+});
+
+test('seam A: a block naming the user\'s own agent, not on the roster and not installed, passes', t => {
+  const root = stage(t, {});
+  renderStage(root, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'own.md' }]), { 'own.md': 'Then run `my-reviewer`, my own agent, on the diff.\n' }));
+  const r = runSeamA(root);
+  assert.equal(r.code, 0, r.out);
+});
 test('seam A: a block naming an uninstalled reviewer renders, then fails the roster', t => {
   const root = stage(t, {});
-  assert.ok(!readdirSync(join(root, 'claude', 'agents')).includes('test-reviewer.md'));
-  renderStage(root, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'r.md' }]), { 'r.md': 'Then run `test-reviewer` on the tests.\n' }));
+  // Taken from the gate's roster at run time: a retired name written here
+  // would fail the repo's own name search (roster.test.mjs).
+  const absent = ROSTER.find(n => !readdirSync(join(root, 'claude', 'agents')).includes(`${n}.md`));
+  assert.ok(absent, 'every roster name is installed, so this case cannot be planted');
+  renderStage(root, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'r.md' }]), { 'r.md': `Then run \`${absent}\` on the tests.\n` }));
   const r = runSeamA(root);
   assert.notEqual(r.code, 0, r.out);
   assert.ok(failRules(r.stdout).includes('roster'), r.out);

@@ -52,7 +52,8 @@ how every session in every repo behaves. So:
   digest, the full rendered hash, and one warning per value set and per part
   edited. When a configuration applies, `-Apply` needs that full rendered hash
   handed back as `-RenderedHash <hash>`, and refuses if it does not match this
-  run's render.
+  run's render. A pact from before edits (#94) refuses a file that has any, so
+  to install such a commit, empty the edit list first.
 - **Review output.** To read what a configuration does before installing it,
   add `-ReviewFolder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the

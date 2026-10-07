@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { applyDiff, editPart, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { REPO, applyDiff, editPart, tempDir, withoutOpenMarks } from './helpers.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
@@ -375,4 +375,95 @@ test('bad case: the sink parameter given by name refuses too', t => {
   const r = install(repo, home(t), { extra: ['-UnreadWord', join(tempDir(t), 'x')] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the command line holds 1 word the script does not read\./m, r.out);
+});
+// ------------------------------------------------------------ after the move-4 review (#94)
+
+test('a block naming the user\'s own agent installs: the shipped example passes the roster and routing checks', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const block = readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'move-4-own-agent.md'));
+  configure(h, '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "move-4-own-agent.md"}]}\n', { 'move-4-own-agent.md': block });
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
+  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  assert.equal(r.code, 0, r.out);
+  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^ {3}Then run `my-reviewer`, an agent of your own/m);
+  assert.ok(!existsSync(join(h, 'agents', 'my-reviewer.md')), 'the installer installs no agent from a configuration');
+});
+
+test('an upgrade from a slice-3 record, which holds the user file only: each block file is "new since the last install"', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  configure(h, '{"schema": 1, "settings": {"usage-pause": 90}}\n');
+  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  const m = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  assert.deepEqual(m.config.map(c => c.kind), ['user'], 'the record is slice-3 shaped');
+  const c = threeEdits(repo);
+  configure(h, c.config, c.blocks);
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^ {2}user file pact\/config\.json: sha256 [0-9a-f]{64}, CHANGED since the last install\r?$/m, r.out);
+  assert.match(r.stdout, /^ {2}block file pact\/blocks\/m2\.md: sha256 [0-9a-f]{64}, new since the last install\r?$/m, r.out);
+  assert.match(r.stdout, /^ {2}block file pact\/blocks\/team\/extra\.md: sha256 [0-9a-f]{64}, new since the last install\r?$/m, r.out);
+});
+
+test('a block file the last install read and this one no longer uses is counted in the dry run', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const c = threeEdits(repo);
+  configure(h, c.config, c.blocks);
+  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  writeFileSync(join(h, 'pact', 'config.json'), '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "team/extra.md"}]}\n');
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^ {2}1 block file\(s\) the last install read are no longer used\r?$/m, r.out);
+  assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
+});
+
+const REVIEW_PUSH = '  report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);';
+
+function plantFile(root, rel, from, to) {
+  const p = join(root, ...rel.split('/'));
+  const s = readFileSync(p, 'utf8');
+  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)} in ${rel}`);
+  writeFileSync(p, s.replace(from, () => to));
+}
+
+test('bad case: a review module that reports other hashes than this run rendered refuses', t => {
+  const repo = makeRepo(t, root => plantFile(root, 'gate/review.mjs', REVIEW_PUSH, `  report.lines.push(\`REVIEW ${'0'.repeat(64)} \${sha256(diff)}\`);`));
+  const folder = join(tempDir(t), 'review');
+  const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
+  refused(r);
+  assert.match(r.stdout, /^review\| RESULT: pass\r?$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the review output was not written, or not as this run rendered it\./m, r.out);
+});
+
+test('bad case: a staged rules file changed after the check refuses the review output before it is written', t => {
+  // A seam A that passes, then changes the staged rules file as it exits.
+  const repo = makeRepo(t, root =>
+    writeFileSync(join(root, 'gate', 'seam-a.mjs'), `${readFileSync(join(root, 'gate', 'seam-a.mjs'), 'utf8')}\nimport('node:fs').then(fs => fs.appendFileSync(process.argv[2] + '/claude/CLAUDE.md', 'x\\n'));\n`),
+  );
+  const folder = join(tempDir(t), 'review');
+  const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
+  refused(r);
+  assert.match(r.stdout, /^seam-a\| RESULT: pass\r?$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the staged rules file changed after the check\./m, r.out);
+  assert.ok(!existsSync(folder));
+});
+
+test('bad case: a review module that changes the stage on -Apply refuses before anything is installed', t => {
+  const repo = makeRepo(t, root =>
+    writeFileSync(
+      join(root, 'gate', 'review.mjs'),
+      `${readFileSync(join(root, 'gate', 'review.mjs'), 'utf8')}\nimport('node:fs').then(fs => { const d = 'claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n'); });\n`,
+    ),
+  );
+  const h = home(t);
+  const r = install(repo, h, { apply: true, extra: ['-ReviewFolder', join(tempDir(t), 'review')] });
+  refused(r);
+  assert.match(r.stdout, /^review\| RESULT: pass\r?$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the staged copy of agents\/[^ ]+ changed after the check\./m, r.out);
+  assert.doesNotMatch(r.stdout, /^Applying\./m, r.out);
+  assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f.startsWith('agents')), listTree(h).join('\n'));
 });

@@ -207,6 +207,57 @@ test('bad case: a file planted at a review name after the empty-folder check ref
   assert.equal(readFileSync(join(f, 'rendered-rules.txt'), 'utf8'), 'planted\n', 'the planted file was overwritten');
 });
 
+test('bad case: a failed second write refuses, and takes away the first file and the folder the run created', t => {
+  const f = join(tempDir(t), 'review');
+  const r = review(t, f, undefined, { fault: 'review-fail-diff' });
+  refusedWith(r, 'review-write', /config\.diff could not be created as a new file/);
+  assert.ok(!existsSync(f), 'the folder the run created was left behind');
+});
+
+test('bad case: a failed second write in an existing folder takes away the first file and keeps the folder', t => {
+  const f = tempDir(t);
+  refusedWith(review(t, f, undefined, { fault: 'review-fail-diff' }), 'review-write');
+  assert.deepEqual(readdirSync(f), []);
+});
+
+test('bad case: a file that appears in the folder after the write refuses, and the run takes its own two files away', t => {
+  const f = tempDir(t);
+  const r = review(t, f, undefined, { fault: 'review-extra' });
+  refusedWith(r, 'review-write', /the review folder changed while it was written/);
+  assert.deepEqual(readdirSync(f), ['extra.txt'], 'only the file this run did not write may remain');
+});
+
+/** A fake user home whose .claude is a junction out to a folder of another name; returns its parts. */
+function outwardClaude(t) {
+  const fakeHome = tempDir(t, 'pact-review-userhome-');
+  const target = join(tempDir(t), 'claude-data');
+  mkdirSync(target);
+  symlinkSync(target, join(fakeHome, '.claude'), 'junction');
+  return { fakeHome, target };
+}
+
+function reviewAs(t, fakeHome, folder) {
+  const i = inputs(t);
+  const env = { ...process.env, HOME: fakeHome, USERPROFILE: fakeHome };
+  delete env.NODE_OPTIONS;
+  const r = spawnSync(process.execPath, [REVIEW, folder, tempDir(t, 'pact-review-home-'), i.rulesFile, i.diffFile], { encoding: 'utf8', env });
+  return { code: r.status, stdout: r.stdout, out: r.stdout + r.stderr };
+}
+
+test('bad case: a folder under the real .claude refuses with another Claude home named, when .claude links out to a folder of another name', t => {
+  const { fakeHome, target } = outwardClaude(t);
+  refusedWith(reviewAs(t, fakeHome, join(fakeHome, '.claude', 'review')), 'review-folder', /in or under a folder named \.claude/);
+  assert.deepEqual(readdirSync(target), []);
+});
+
+test('bad case: the real default Claude folder reached by another name refuses, with another Claude home named', t => {
+  const { fakeHome, target } = outwardClaude(t);
+  const other = join(tempDir(t), 'innocent');
+  symlinkSync(target, other, 'junction');
+  refusedWith(reviewAs(t, fakeHome, join(other, 'review')), 'review-folder', /in or under the Claude home folder/);
+  assert.deepEqual(readdirSync(target), []);
+});
+
 test('bad case: an input that cannot be read refuses, and nothing is created', t => {
   const f = join(tempDir(t), 'review');
   const env = { ...process.env };

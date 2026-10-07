@@ -11,9 +11,12 @@
 // (its parent must), or else must be an empty folder that is not a link. Then
 // its final path, with links, short names and case resolved by the system
 // (realpath), is checked. It refuses a folder that is, or is under:
-//   - the Claude home folder (its real path), or
-//   - any folder named .claude, in any case.
-// A folder this run created is removed again when a check refuses it.
+//   - the Claude home folder named for the run, or the real default one
+//     (.claude in the user's home folder), by real path; or
+//   - any folder named .claude, in any case, on the path as given or on its
+//     final path.
+// On any refusal after the folder exists, what this run wrote is taken away:
+// the files it created, by name, and the folder if it created it.
 //
 // The files. REVIEW_RULES and REVIEW_DIFF, names Claude Code never loads as
 // rules. Each is created exclusively (and on Unix without following a link)
@@ -27,7 +30,8 @@
 // content. No switch turns a check off. Node 20 or later, ESM.
 
 import { createHash } from 'node:crypto';
-import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, writeSync } from 'node:fs';
+import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, writeSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { Report } from './shared.mjs';
 
@@ -71,8 +75,12 @@ function readInput(path, which, report) {
   }
 }
 
-/** Create `name` under `dir` exclusively and write `bytes` into it; false after a refusal. */
-function writeNew(dir, name, bytes, report) {
+/**
+ * Create `name` under `dir` exclusively and write `bytes` into it; false
+ * after a refusal. A file it created is added to `made`, so a later refusal can
+ * take it away again.
+ */
+function writeNew(dir, name, bytes, made, report) {
   let fd;
   try {
     fd = openSync(join(dir, name), constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0), 0o644);
@@ -80,6 +88,7 @@ function writeNew(dir, name, bytes, report) {
     report.fail('review-write', null, null, `${name} could not be created as a new file in the review folder`);
     return false;
   }
+  made.push(name);
   try {
     const st = fstatSync(fd, { bigint: true });
     if (!st.isFile() || st.nlink !== 1n) {
@@ -145,10 +154,28 @@ function run(argv, report) {
   } catch {
     return refuse('the review folder could not be read');
   }
-  if (segments(real).some(isClaudeSegment)) return refuse('the review folder is in or under a folder named .claude');
-  if (within(real, realHome(home))) return refuse('the review folder is in or under the Claude home folder');
+  // The .claude test runs on the path as given and on its final path, so a
+  // .claude link that leads out to a folder of another name still refuses.
+  if (segments(resolve(folder)).some(isClaudeSegment) || segments(real).some(isClaudeSegment)) return refuse('the review folder is in or under a folder named .claude');
+  // The Claude home named for the run, and the real default one, whatever was named.
+  if (within(real, realHome(home)) || within(real, realHome(join(homedir(), '.claude')))) return refuse('the review folder is in or under the Claude home folder');
 
-  if (!writeNew(real, REVIEW_RULES, rules, report) || !writeNew(real, REVIEW_DIFF, diff, report)) return;
+  // A refusal from here on takes away what this run wrote: its own files, by
+  // name (unlinking never follows a link), and the folder if it created it.
+  const made = [];
+  const undo = () => {
+    for (const n of made) {
+      try {
+        unlinkSync(join(real, n));
+      } catch {}
+    }
+    if (created) {
+      try {
+        rmdirSync(real);
+      } catch {}
+    }
+  };
+  if (!writeNew(real, REVIEW_RULES, rules, made, report) || !writeNew(real, REVIEW_DIFF, diff, made, report)) return undo();
 
   // Afterwards: exactly the two plain files, in a folder that still resolves where it did.
   try {
@@ -159,11 +186,11 @@ function run(argv, report) {
     });
     if (realpathSync.native(folder) !== real || names.join('/') !== [REVIEW_DIFF, REVIEW_RULES].join('/') || !plain) {
       report.fail('review-write', null, null, 'the review folder changed while it was written');
-      return;
+      return undo();
     }
   } catch {
     report.fail('review-write', null, null, 'the review folder could not be read after the write');
-    return;
+    return undo();
   }
   report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);
 }
