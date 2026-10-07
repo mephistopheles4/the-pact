@@ -54,6 +54,17 @@ how every session in every repo behaves. So:
   handed back as `-RenderedHash <hash>`, and refuses if it does not match this
   run's render. A pact from before edits (#94) refuses a file that has any, so
   to install such a commit, empty the edit list first.
+- **Agent settings.** The file's `agents` key may set `integrity-lens`'s
+  `model` (`opus` or `sonnet`) and `effort` (`low`, `medium` or `high`). The
+  installer renders and installs that agent's file with those two lines
+  changed, and warns about the setting in the dry run. Every other agent is
+  locked, and the setting is refused by name.
+- **The builder page.** [`builder/pact-config.html`](builder/pact-config.html)
+  builds a configuration without writing JSON. After a change to the pact
+  text, the renderer's lists or the example blocks, run
+  `node builder/build.mjs` to refresh it; a gate test fails until you do. A
+  person's own builder comes from the `pact-builder` skill in
+  `.claude/skills/`.
 - **Review output.** To read what a configuration does before installing it,
   add `-ReviewFolder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
@@ -148,7 +159,8 @@ Where two bullets apply, the stricter one holds.
   is seen to catch. Deleting or loosening a check, or changing a built-in
   default that bounds anything above, counts as a change to what it bounds.
   One example is the tools an agent gets when the allow-list has no entry for
-  it.
+  it. Another is the renderer's list of agents a configuration may set:
+  adding an agent to it is a spec change, and on this floor.
 - **Everything else is proved by use.** That means the repo's tests and gates
   pass, a reviewer reads the change at move 4, and the standing measures are
   recorded where they apply. Any other edit to this section is also proved by

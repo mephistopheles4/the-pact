@@ -495,7 +495,9 @@ if ($manifest) {
 else { Write-Host 'No manifest found: first-install mode. Live files are compared with the repo; only the retired agents (builder, spec-builder, security-builder) can be deleted.' }
 
 # The set is HEAD's tree, never a directory listing or the working tree: an
-# ignored file is never staged, and "installed commit X" is true of every byte.
+# ignored file is never staged, and "installed commit X with configuration Y"
+# is true of every byte: the rules file and a configured agent are rendered
+# from the commit and that configuration, and every other file is the commit's.
 # AGENTS.md is staged for the check only (it holds the install go-ahead
 # clause); it is never installed. Of cross/, only the cross script is staged,
 # by its exact path; it installs to pact/cross.mjs, where the pact calls it.

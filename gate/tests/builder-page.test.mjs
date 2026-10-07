@@ -433,6 +433,17 @@ test('a "Your agent" card writes one plain line naming the agent, and refuses a 
   assert.ok(L.problems(s).some(p => p.level === 'error' && /card 1: the agent name/.test(p.text)));
 });
 
+test('only the renderer\'s configurable agents take a model and effort, and only a change from the file is written', () => {
+  assert.deepEqual(L.PACT.agents.filter(a => a.configurable).map(a => a.name), ['integrity-lens']);
+  const s = L.initialState();
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text), { schema: 1 });
+  s.agents['integrity-lens'].effort = 'low';
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents, { 'integrity-lens': { effort: 'low' } });
+  s.agents['integrity-lens'].model = 'sonnet';
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents, { 'integrity-lens': { model: 'sonnet', effort: 'low' } });
+  assert.deepEqual(L.PACT.agentChoices, { models: ['opus', 'sonnet'], efforts: ['low', 'medium', 'high'] });
+});
+
 test('the page shows each pact agent with its model and effort, as its file sets them, and where the pact names it', () => {
   const names = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
   assert.deepEqual(L.PACT.agents.map(a => a.name), names);
@@ -593,15 +604,18 @@ test('a configuration the page saves with a value and every preset installs thro
 test('a configuration the page saves with your own text and a removal installs through the dry run and -Apply', t => {
   const s = L.initialState();
   s.usage = 60;
+  s.agents['integrity-lens'] = { model: 'sonnet', effort: 'low' };
   s.slots['move-1'].replaced = true;
   s.slots['move-2'] = { replaced: false, cards: [{ kind: 'custom', text: 'Before the spec, ask me which open question I want answered first.\r\n' }] };
   s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'custom', text: 'Say which tests you ran.' }, { kind: 'preset', id: 'move-4-docs-check' }, { kind: 'agent', name: 'my-reviewer', reads: 'the diff' }] };
-  const { rules } = installSaved(t, s);
+  const { rules, h } = installSaved(t, s);
   assert.match(rules, /^ {3}Before the spec, ask me which open question I want answered first\.$/m);
   assert.match(rules, /^ {3}Say which tests you ran\.\n {3}After the checks, list each public interface/m);
   assert.match(rules, /^ {3}Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue\.$/m);
   assert.doesNotMatch(rules, /I triage it \(`triage`\)/);
   assert.match(rules, /Values set: usage-pause 60\. Parts edited: move-1 \(remove\), move-2 \(add-after\), move-4-extra \(add-after\)\./);
+  assert.match(rules, /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
+  assert.match(readFileSync(join(h, 'agents', 'integrity-lens.md'), 'utf8'), /^model: sonnet\neffort: low$/m);
 });
 
 test('bad case: text the page flags is refused by the install too, since the page is not a trust boundary', t => {

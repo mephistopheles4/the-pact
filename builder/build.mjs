@@ -148,6 +148,9 @@ export function pactData(root) {
   // Each installed agent, its model and effort as its file sets them, and
   // every part of the pact that names it: shown, never changed, by the page.
   const named = (text, a) => codeSpans(text).includes(a);
+  // The agents a configuration may set, and to what: the renderer's own lists.
+  const configurable = listFrom(renderSrc, 'CONFIGURABLE_AGENTS');
+  const agentChoices = { models: listFrom(renderSrc, 'AGENT_MODELS'), efforts: listFrom(renderSrc, 'AGENT_EFFORTS') };
   const agentInfo = agentFiles.map(f => {
     const name = f.slice(0, -3);
     const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(join(root, 'claude', 'agents', f), 'utf8'));
@@ -157,12 +160,12 @@ export function pactData(root) {
       ...moves.flatMap(m => m.parts.filter(p => named(p.text, name)).map(p => ({ move: m.n, mark: p.mark, kind: p.kind }))),
       ...always.filter(a => named(a.text, name)).map(a => ({ move: null, mark: a.mark, kind: 'gated' })),
     ];
-    return { name, model: field('model'), effort: field('effort'), runs };
+    return { name, model: field('model'), effort: field('effort'), runs, configurable: configurable.includes(name) };
   });
 
   // Skills the pact's own text names, so a preset naming one is not a finding.
   const pactNames = [...new Set([...parts.values()].flatMap(codeSpans))];
-  return { moves, always, editable, setting, agents: agentInfo, pactNames };
+  return { moves, always, editable, setting, agents: agentInfo, agentChoices, pactNames };
 }
 
 // ------------------------------------------------------------ the builder file

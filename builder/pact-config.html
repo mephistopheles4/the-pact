@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hits/S2EsQXYe7QPzO2aHMl6EGcAtn0XOpJMlzudfgA='; style-src 'sha256-9OZIKWUU/3R6uokHQhO0bqz2P9txMJrRknOBFNUQPLs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kk2/vdVi+0KRjw/Aft+0UIm3W3zrTL+wZiytYweikMc='; style-src 'sha256-9OZIKWUU/3R6uokHQhO0bqz2P9txMJrRknOBFNUQPLs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -354,7 +354,8 @@ const PACT = /* pact-data:begin */ {
      "mark": "no-skill-overrides",
      "kind": "gated"
     }
-   ]
+   ],
+   "configurable": false
   },
   {
    "name": "executability-lens",
@@ -366,7 +367,8 @@ const PACT = /* pact-data:begin */ {
      "mark": "move-2",
      "kind": "open"
     }
-   ]
+   ],
+   "configurable": false
   },
   {
    "name": "good-enough-lens",
@@ -378,7 +380,8 @@ const PACT = /* pact-data:begin */ {
      "mark": "move-2",
      "kind": "open"
     }
-   ]
+   ],
+   "configurable": false
   },
   {
    "name": "integrity-lens",
@@ -395,7 +398,8 @@ const PACT = /* pact-data:begin */ {
      "mark": "no-skill-overrides",
      "kind": "gated"
     }
-   ]
+   ],
+   "configurable": true
   },
   {
    "name": "security-reviewer",
@@ -412,7 +416,8 @@ const PACT = /* pact-data:begin */ {
      "mark": "move-4",
      "kind": "gated"
     }
-   ]
+   ],
+   "configurable": false
   },
   {
    "name": "unstated-lens",
@@ -429,9 +434,21 @@ const PACT = /* pact-data:begin */ {
      "mark": "move-4",
      "kind": "gated"
     }
-   ]
+   ],
+   "configurable": false
   }
  ],
+ "agentChoices": {
+  "models": [
+   "opus",
+   "sonnet"
+  ],
+  "efforts": [
+   "low",
+   "medium",
+   "high"
+  ]
+ },
  "title": "Example builder",
  "presets": [
   {
@@ -605,7 +622,10 @@ function agentProblems(c) {
 function initialState() {
   const slots = {};
   for (const mark of PACT.editable) slots[mark] = { replaced: false, cards: [] };
-  return { usage: PACT.setting.def, slots };
+  // Each configurable agent starts at its file's own model and effort.
+  const agents = {};
+  for (const a of PACT.agents) if (a.configurable) agents[a.name] = { model: a.model, effort: a.effort };
+  return { usage: PACT.setting.def, slots, agents };
 }
 
 /**
@@ -661,6 +681,17 @@ function problems(state) {
 function buildFiles(state) {
   const config = { schema: 1 };
   if (state.usage !== PACT.setting.def) config.settings = { [PACT.setting.name]: state.usage };
+  // Only the fields that differ from the agent file's own are written.
+  const agents = {};
+  for (const a of PACT.agents) {
+    const want = a.configurable && state.agents && state.agents[a.name];
+    if (!want) continue;
+    const set = {};
+    if (want.model !== a.model) set.model = want.model;
+    if (want.effort !== a.effort) set.effort = want.effort;
+    if (Object.keys(set).length) agents[a.name] = set;
+  }
+  if (Object.keys(agents).length) config.agents = agents;
   const edits = [];
   const blocks = [];
   for (const mark of PACT.editable) {
@@ -860,15 +891,38 @@ function boot() {
 
   function renderAgents() {
     const where = r => (r.move ? `Move ${r.move} · ${r.mark}` : `Always on · ${r.mark}`);
-    const tiles = PACT.agents.map(a =>
-      el(
+    const runs = a => el('ul', { class: 'runs' }, ...(a.runs.length ? a.runs.map(r => el('li', { text: where(r) })) : [el('li', { text: 'Not named in moves 1 to 4' })]));
+    const pick = (label, list, value, set) => {
+      const s = el('select', { 'aria-label': label }, ...list.map(v => el('option', { value: v, text: v })));
+      s.value = value;
+      s.addEventListener('change', () => {
+        set(s.value);
+        renderAgents();
+        renderOutput();
+      });
+      return s;
+    };
+    const tiles = PACT.agents.map(a => {
+      if (!a.configurable) {
+        return el(
+          'div',
+          { class: 'tile tile--locked' },
+          el('span', { class: 'card-tab', text: a.name }),
+          el('span', { class: 'av-label', text: `${a.model || '?'} · ${a.effort || '?'} effort · locked` }),
+          runs(a),
+        );
+      }
+      const now = state.agents[a.name];
+      const changed = now.model !== a.model || now.effort !== a.effort;
+      return el(
         'div',
-        { class: 'tile tile--locked' },
+        { class: `tile${changed ? ' tile--on' : ''}` },
         el('span', { class: 'card-tab', text: a.name }),
-        el('span', { class: 'av-label', text: `${a.model || '?'} · ${a.effort || '?'} effort · locked` }),
-        el('ul', { class: 'runs' }, ...(a.runs.length ? a.runs.map(r => el('li', { text: where(r) })) : [el('li', { text: 'Not named in moves 1 to 4' })])),
-      ),
-    );
+        el('div', { class: 'field-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, PACT.agentChoices.models, now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
+        el('span', { class: 'av-label', text: changed ? `set by you · the file says ${a.model}, ${a.effort}` : 'configurable · not a security agent' }),
+        runs(a),
+      );
+    });
     const yours = el(
       'div',
       { class: 'tile tile--yours', draggable: 'true' },
@@ -880,7 +934,7 @@ function boot() {
       e.dataTransfer.effectAllowed = 'copy';
     });
     $('agents').replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Add your own at any open slot.' })),
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Security agents stay locked; a configurable one takes your model and effort. Add your own at any open slot.' })),
       el('div', { class: 'tiles' }, yours, ...tiles),
     );
   }
