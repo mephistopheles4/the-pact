@@ -43,12 +43,23 @@ how every session in every repo behaves. So:
   dropped. Your own agents and skills are never touched.
 - **Configuration.** The owner's settings live in `~/.claude/pact/config.json`
   (an example is [`examples/pact-config/config.json`](examples/pact-config/config.json)).
-  The installer reads it, never writes, deletes or lists it, and renders its
-  values into the rules file. The dry run's Configuration block shows the
+  Its edits to open parts take their text from block files in
+  `~/.claude/pact/blocks/` (examples are in
+  [`examples/pact-config/blocks/`](examples/pact-config/blocks/)).
+  The installer reads them, never writes, deletes or lists them, and renders
+  them into the rules file. The dry run's Configuration block shows each
   file's hash and whether it changed since the last install, the configuration
-  digest, the full rendered hash, and one warning per value set. When a
-  configuration applies, `-Apply` needs that full rendered hash handed back as
-  `-RenderedHash <hash>`, and refuses if it does not match this run's render.
+  digest, the full rendered hash, and one warning per value set and per part
+  edited. When a configuration applies, `-Apply` needs that full rendered hash
+  handed back as `-RenderedHash <hash>`, and refuses if it does not match this
+  run's render. A pact from before edits (#94) refuses a file that has any, so
+  to install such a commit, empty the edit list first.
+- **Review output.** To read what a configuration does before installing it,
+  add `-ReviewFolder <full path>`. Once every check for the run has passed, the
+  script writes `rendered-rules.txt` and `config.diff` (the change from the
+  no-configuration render) there. The folder must be new or empty, and outside
+  the Claude home folder and any `.claude` folder. Without the switch, a dry
+  run changes nothing on disk.
 
 ## Where work lives
 

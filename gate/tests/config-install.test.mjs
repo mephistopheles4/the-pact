@@ -132,7 +132,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
     `  configuration digest: ${digestOf(EXAMPLE)}`,
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
-    '  Open text is checked for form, routing and the roster, not for meaning.',
+    '  Open text is checked for form, imports, routing and the roster, not for meaning.',
     'Working tree: clean',
   ]);
   assert.ok(c < lines.findIndex(l => /^Gate: /.test(l)), dry.out);
@@ -432,13 +432,13 @@ function plantRenderer(root, from, to) {
 }
 
 for (const [label, withConfig, from, to, why] of [
-  ['a digest with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'DIGEST 000000000000');", 'the renderer reported a digest or a value with no configuration'],
-  ['a value with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'VALUE usage-pause 90');", 'the renderer reported a digest or a value with no configuration'],
-  ['a digest that is not the reported hash\'s', true, R_USER, R_USER.replace('`DIGEST ${digest}`', '`DIGEST 000000000000`'), "the renderer's configuration digest is missing or does not match the configuration hash it reported"],
-  ['no digest with a configuration', true, R_USER, R_USER.replace('`DIGEST ${digest}`, ', ''), "the renderer's configuration digest is missing or does not match the configuration hash it reported"],
+  ['a digest with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'DIGEST 000000000000');", 'the renderer reported a digest, a value or an edit with no configuration'],
+  ['a value with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'VALUE usage-pause 90');", 'the renderer reported a digest, a value or an edit with no configuration'],
+  ['a digest that is not the reported hash\'s', true, R_USER, R_USER.replace('`DIGEST ${digest}`', '`DIGEST 000000000000`'), "the renderer's configuration digest is missing or does not match the configuration hashes it reported"],
+  ['no digest with a configuration', true, R_USER, R_USER.replace('`DIGEST ${digest}`, ', ''), "the renderer's configuration digest is missing or does not match the configuration hashes it reported"],
   ['two digests', true, R_USER, R_USER.replace('`DIGEST ${digest}`', '`DIGEST ${digest}`, `DIGEST ${digest}`'), 'the renderer reported two configuration digests'],
   ['one setting twice', true, R_USER, `${R_USER}, 'VALUE usage-pause 90'`, 'the renderer reported one setting twice'],
-  ['a user and a none configuration line', true, R_USER, `${R_USER}, 'CONFIG none'`, 'the renderer did not report exactly one output hash and one configuration line'],
+  ['a user and a none configuration line', true, R_USER, `${R_USER}, 'CONFIG none'`, 'the renderer did not report exactly one output hash, one diff hash and one configuration line'],
   ['a value for no known setting', true, R_USER, `${R_USER}, 'VALUE usage-paws 90'`, 'the renderer printed a line the install does not read'],
   ['a value out of range', true, R_USER, `${R_USER}, 'VALUE usage-pause 101'`, 'the renderer printed a line the install does not read'],
   ['a digest of the wrong length', true, R_USER, R_USER.replace('`DIGEST ${digest}`', '`DIGEST ${digest}0`'), 'the renderer printed a line the install does not read'],

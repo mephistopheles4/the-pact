@@ -8,7 +8,15 @@ param(
   # The full rendered hash the dry run showed. -Apply needs it whenever a
   # configuration applies, and a hash given is always compared. (Its name must
   # not start with A or C, so -A and -C stay unambiguous.)
-  [string]$RenderedHash
+  [string]$RenderedHash,
+  # Never given by name. A plain script binds every parameter by position too,
+  # so a stray word after the named options would bind to the next one; this
+  # one comes first and takes it, and any word here refuses below.
+  [string]$UnreadWord,
+  # A folder for the review output: once every check passes, the rendered rules
+  # file and the diff from the no-configuration render are written there. (Its
+  # name must not start with A or C either.)
+  [string]$ReviewFolder
 )
 $ErrorActionPreference = 'Stop'
 # Installs the pact from this clone's committed HEAD into -ClaudeHome (default
@@ -33,16 +41,24 @@ $ErrorActionPreference = 'Stop'
 # render, so a configuration that changed, appeared or was deleted after the
 # dry run refuses. It proves the files did not change between the two runs; it
 # does not prove the owner read the dry run.
+#
+# The review output: with -ReviewFolder, once every check for the run has
+# passed (the dry run's, and on -Apply its own refusals too), gate/review.mjs
+# writes rendered-rules.txt and config.diff into that folder, which must be new
+# or empty and outside the Claude home folder and any .claude folder. Without
+# the switch, a dry run changes nothing on disk.
 
 $repo = Split-Path $PSScriptRoot -Parent
 # A plain script puts any option name it does not know, and the value after
 # it, into $args without a word. So a misspelled -RenderedHash would never be
 # compared, and a misspelled -ClaudeHome would fall back to the default. Any
-# such word refuses. Option names are shown, cleaned; values never are.
-if ($args.Count) {
-  $names = @($args | Where-Object { $_ -is [string] -and $_ -match '^-' } | ForEach-Object { $n = $_ -replace '[^A-Za-z0-9-]', '?'; if ($n.Length -gt 40) { $n.Substring(0, 40) + '...' } else { $n } })
+# such word refuses, and so does a word bound to -UnreadWord by position.
+# Option names are shown, cleaned; values never are.
+$unread = @(@(if ($PSBoundParameters.ContainsKey('UnreadWord')) { $UnreadWord }) + @($args))
+if ($unread.Count) {
+  $names = @($unread | Where-Object { $_ -is [string] -and $_ -match '^-' } | ForEach-Object { $n = $_ -replace '[^A-Za-z0-9-]', '?'; if ($n.Length -gt 40) { $n.Substring(0, 40) + '...' } else { $n } })
   $named = if ($names) { " ($($names -join ', '))" } else { '' }
-  $words = if ($args.Count -eq 1) { '1 word' } else { "$($args.Count) words" }
+  $words = if ($unread.Count -eq 1) { '1 word' } else { "$($unread.Count) words" }
   Write-Host "REFUSED: the command line holds $words the script does not read$named. Check each option's spelling. Nothing was changed."
   exit 1
 }
@@ -54,6 +70,13 @@ if ($args.Count) {
 # anything runs.
 if (-not [IO.Path]::IsPathFullyQualified($ClaudeHome)) {
   Write-Host 'REFUSED: -ClaudeHome must be a full path, such as the default (your home folder''s .claude). A hash goes after -RenderedHash. Nothing was changed.'
+  exit 1
+}
+# The review folder likewise: the review module runs in the stage, where a
+# relative path would name a third folder.
+$reviewGiven = $PSBoundParameters.ContainsKey('ReviewFolder')
+if ($reviewGiven -and -not [IO.Path]::IsPathFullyQualified($ReviewFolder)) {
+  Write-Host 'REFUSED: -ReviewFolder must be a full path. Nothing was changed.'
   exit 1
 }
 $claudeHomeFull = [IO.Path]::GetFullPath($ClaudeHome)
@@ -428,9 +451,11 @@ function Show-Gate {
   if ($gateLines) { foreach ($l in $gateLines) { Write-Host $l } }
 }
 
-function Stop-Refused([string]$why) {
+# $outcome says what is on disk. It is "Nothing was changed." everywhere but
+# after the review module has run, which may have written its two files.
+function Stop-Refused([string]$why, [string]$outcome = 'Nothing was changed.') {
   Show-Gate
-  Write-Host "REFUSED: $why Nothing was changed."
+  Write-Host "REFUSED: $why $outcome"
   foreach ($d in @($stage, $renderOut)) {
     if ($d -and (Test-Path -LiteralPath $d)) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
   }
@@ -451,11 +476,16 @@ if (Test-Path -LiteralPath $manifestFile) {
   if (-not ($manifest.commit -and $manifest.files)) { throw "$manifestFile is not a pact manifest (needs commit and files); fix or remove it" }
 }
 
-# The record's configuration: kind -> sha256 of each configuration file the
-# last install read. A record from before configurations holds none.
+# The record's configuration: "user", or "block <path>" -> sha256 of each
+# configuration file the last install read. A record from before
+# configurations holds none. Its keys are only compared, never printed.
 $lastConfig = New-OrderedMap
 if ($manifest -and $manifest.config) {
-  foreach ($c in @($manifest.config)) { if ($c.kind -is [string] -and $c.sha256 -is [string]) { $lastConfig[$c.kind] = $c.sha256 } }
+  foreach ($c in @($manifest.config)) {
+    if ($c.kind -isnot [string] -or $c.sha256 -isnot [string]) { continue }
+    if ($c.kind -ceq 'user') { $lastConfig['user'] = $c.sha256 }
+    elseif ($c.kind -ceq 'block' -and $c.path -is [string]) { $lastConfig["block $($c.path)"] = $c.sha256 }
+  }
 }
 Write-Host "Install from commit $commit into $ClaudeHome"
 if ($manifest) {
@@ -587,15 +617,33 @@ if ($render.TimedOut) { Stop-Refused "the renderer did not finish within $($chec
 if ($render.ExitCode -ne 0) { Stop-Refused "the renderer exited with code $($render.ExitCode)." }
 if (-not $renderLines -or $renderLines[-1] -cne 'RESULT: pass') { Stop-Refused 'the renderer did not end with "RESULT: pass".' }
 # Every line before RESULT matches one exact pattern, in these counts: one
-# RENDERED; one CONFIG, either "none" or "user <hash>"; with "user", one
-# DIGEST, which must be the digest of the reported hash, and at most one VALUE
-# per known setting; with "none", neither.
-$renderHash = $null; $configs = @(); $configDigest = $null
+# RENDERED and one DIFF; one CONFIG, either "none" or "user <hash>"; with
+# "user", one DIGEST, which must be the digest of the reported hashes, at most
+# one VALUE per known setting and at most one EDIT per open part; with "none",
+# none of those. An EDIT with a block names its hash and its path, which can
+# hold only the characters the renderer's path check allows.
+$renderHash = $null; $diffHash = $null; $configs = @(); $configDigest = $null
 $configValues = New-OrderedMap   # setting -> value, in the renderer's order
+$configEdits = New-OrderedMap    # open part -> @{ op; sha256; path }, in edit order
+$blockHashes = New-OrderedMap    # block path -> sha256
 foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) {
   if ($l -cmatch '\ARENDERED ([0-9a-f]{64})\z') {
     if ($renderHash) { Stop-Refused 'the renderer reported two output hashes.' }
     $renderHash = $Matches[1]
+  } elseif ($l -cmatch '\ADIFF ([0-9a-f]{64})\z') {
+    if ($diffHash) { Stop-Refused 'the renderer reported two diff hashes.' }
+    $diffHash = $Matches[1]
+  } elseif ($l -cmatch '\AEDIT (move-1|move-2|move-3|move-4-extra) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+){0,7}))\z') {
+    $mark = $Matches[1]
+    if ($configEdits.Contains($mark)) { Stop-Refused 'the renderer reported one open part edited twice.' }
+    if ($Matches[2]) { $configEdits[$mark] = @{ op = 'remove'; sha256 = $null; path = $null } }
+    else {
+      $bp = $Matches[5]
+      if ($bp.Length -gt 200 -or @($bp.Split('/') | Where-Object { $_ -eq '.' -or $_ -eq '..' -or $_.EndsWith('.') }).Count) { Stop-Refused 'the renderer reported a block path the install does not read.' }
+      if ($blockHashes.Contains($bp) -and $blockHashes[$bp] -cne $Matches[4]) { Stop-Refused 'the renderer reported two hashes for one block file: it changed while it was read.' }
+      $blockHashes[$bp] = $Matches[4]
+      $configEdits[$mark] = @{ op = $Matches[3]; sha256 = $Matches[4]; path = $bp }
+    }
   } elseif ($l -ceq 'CONFIG none') { $configs += , @{ kind = 'none' } }
   elseif ($l -cmatch '\ACONFIG user ([0-9a-f]{64})\z') { $configs += , @{ kind = 'user'; sha256 = $Matches[1] } }
   elseif ($l -cmatch '\ADIGEST ([0-9a-f]{12})\z') {
@@ -606,29 +654,36 @@ foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) 
     $configValues[$Matches[1]] = $Matches[2]
   } else { Stop-Refused 'the renderer printed a line the install does not read.' }
 }
-if (-not $renderHash -or $configs.Count -ne 1) { Stop-Refused 'the renderer did not report exactly one output hash and one configuration line.' }
+if (-not $renderHash -or -not $diffHash -or $configs.Count -ne 1) { Stop-Refused 'the renderer did not report exactly one output hash, one diff hash and one configuration line.' }
 $config = $configs[0]
 if ($config.kind -ceq 'none') {
-  if ($configDigest -or $configValues.Count) { Stop-Refused 'the renderer reported a digest or a value with no configuration.' }
+  if ($configDigest -or $configValues.Count -or $configEdits.Count) { Stop-Refused 'the renderer reported a digest, a value or an edit with no configuration.' }
 } else {
-  $wantDigest = (Get-BytesSha256 ([Text.Encoding]::ASCII.GetBytes("user $($config.sha256)`n"))).Substring(0, 12)
-  if ($configDigest -cne $wantDigest) { Stop-Refused "the renderer's configuration digest is missing or does not match the configuration hash it reported." }
+  # The digest, from the user file's hash and each edit's block, in edit order.
+  $digestText = "user $($config.sha256)`n"
+  foreach ($e in $configEdits.Values) { if ($e.path) { $digestText += "block $($e.path) $($e.sha256)`n" } }
+  $wantDigest = (Get-BytesSha256 ([Text.Encoding]::ASCII.GetBytes($digestText))).Substring(0, 12)
+  if ($configDigest -cne $wantDigest) { Stop-Refused "the renderer's configuration digest is missing or does not match the configuration hashes it reported." }
 }
 try { $stageAfter = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read after the renderer ran.' }
 if ($stageAfter -cne $stageBefore) { Stop-Refused 'the renderer changed the stage.' }
-$outEntries = @([IO.DirectoryInfo]::new($renderOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }))
-if ($outEntries.Count -ne 1 -or $outEntries[0].Name -cne 'CLAUDE.md' -or $outEntries[0] -isnot [IO.FileInfo] -or
-  ($outEntries[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -or $outEntries[0].Length -gt 1MB) {
-  Stop-Refused 'the renderer did not leave exactly one plain rules file of at most 1 MiB.'
+# Exactly the rules file and the diff, both plain files within their caps.
+$outEntries = @([IO.DirectoryInfo]::new($renderOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }) | Sort-Object Name)
+$outOk = $outEntries.Count -eq 2 -and $outEntries[0].Name -ceq 'CLAUDE.md' -and $outEntries[1].Name -ceq 'config.diff'
+foreach ($e in $outEntries) { if ($e -isnot [IO.FileInfo] -or ($e.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $e.Length -gt 4MB) { $outOk = $false } }
+if (-not $outOk -or $outEntries[0].Length -gt 1MB) {
+  Stop-Refused 'the renderer did not leave exactly its rules file of at most 1 MiB and its diff.'
 }
 $renderedBytes = [IO.File]::ReadAllBytes($outEntries[0].FullName)
 # Not $renderedHash: PowerShell names ignore case, so that would be -RenderedHash.
 $rulesHash = Get-BytesSha256 $renderedBytes
 if ($renderedBytes.Length -gt 1MB -or $rulesHash -cne $renderHash) { Stop-Refused "the rendered rules file's hash does not match the one the renderer reported." }
+# The diff is kept outside the stage, for the review output only; it is never installed.
+$diffFile = $outEntries[1].FullName
+if ((Get-BytesSha256 ([IO.File]::ReadAllBytes($diffFile))) -cne $diffHash) { Stop-Refused "the diff's hash does not match the one the renderer reported." }
 [IO.File]::WriteAllBytes($rulesStaged, $renderedBytes)
 $staged[$rulesRel] = $rulesHash
-Remove-Item -LiteralPath $renderOut -Recurse -Force
-$renderOut = $null
+Remove-Item -LiteralPath $outEntries[0].FullName -Force
 
 $seamA = Join-Path $stage 'gate/seam-a.mjs'
 if (-not (Test-Path -LiteralPath $seamA -PathType Leaf)) { Stop-Refused 'the check (gate/seam-a.mjs) is missing.' }
@@ -684,7 +739,7 @@ $overlay = Read-JsonObject ($utf8.GetString($overlayBytes))
 if ($null -eq $overlay) { Stop-Refused 'the settings overlay is not a JSON object.' }
 $pactAsk = [string[]]@($overlay['permissions']['ask'])
 Write-Host "Check: passed on commit $commit"
-Write-Host "Partly checked: the rendered CLAUDE.md's marked clauses are checked word for word, and its open text for form, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file."
+Write-Host "Partly checked: the rendered CLAUDE.md's marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file."
 
 $repoFiles = New-OrderedMap   # live rel path -> sha256 of the staged copy
 $sourceOf = New-OrderedMap   # live rel path -> staged rel path
@@ -745,7 +800,19 @@ $gateStale = $gateLines[0] -cne 'Gate: unchanged since the last install'
 # or removed since the last install, even if the render came out the same.
 $userHash = if ($config.kind -ceq 'user') { $config.sha256 } else { $null }
 $lastUser = if ($lastConfig.Contains('user')) { $lastConfig['user'] } else { $null }
-$configStale = $userHash -cne $lastUser
+# This run's configuration files, keyed as the record's are.
+$nowConfig = New-OrderedMap
+if ($userHash) { $nowConfig['user'] = $userHash }
+foreach ($bp in $blockHashes.Keys) { $nowConfig["block $bp"] = $blockHashes[$bp] }
+$configStale = $nowConfig.Count -ne $lastConfig.Count
+foreach ($k in $nowConfig.Keys) { if (-not $lastConfig.Contains($k) -or $lastConfig[$k] -cne $nowConfig[$k]) { $configStale = $true } }
+# "Since the last install" for one configuration file, by its record key.
+function Get-Since([string]$key) {
+  if (-not $manifest) { 'no install recorded' }
+  elseif (-not $lastConfig.Contains($key)) { 'new since the last install' }
+  elseif ($lastConfig[$key] -ceq $nowConfig[$key]) { 'unchanged since the last install' }
+  else { 'CHANGED since the last install' }
+}
 $nothing = -not ($overwrite -or $add -or $delete -or $settings -like 'would*' -or $manifestStale -or $gateStale -or $configStale -or -not $manifest)
 
 # The Configuration block, built from the renderer's parsed lines alone.
@@ -754,13 +821,15 @@ if ($config.kind -ceq 'none') {
   $configBlock += '  no configuration'
   if ($lastConfig.Count) { $configBlock += '  the last install had a configuration; this install removes it from the rules file' }
 } else {
-  $since = if (-not $manifest) { 'no install recorded' } elseif (-not $lastUser) { 'new since the last install' }
-  elseif ($lastUser -ceq $userHash) { 'unchanged since the last install' } else { 'CHANGED since the last install' }
-  $configBlock += "  user file ${configRel}: sha256 $userHash, $since"
+  $configBlock += "  user file ${configRel}: sha256 $userHash, $(Get-Since 'user')"
+  foreach ($bp in $blockHashes.Keys) { $configBlock += "  block file $blocksRel/${bp}: sha256 $($blockHashes[$bp]), $(Get-Since "block $bp")" }
+  $removedBlocks = @($lastConfig.Keys | Where-Object { $_ -clike 'block *' -and -not $nowConfig.Contains($_) }).Count
+  if ($removedBlocks) { $configBlock += "  $removedBlocks block file(s) the last install read are no longer used" }
   $configBlock += "  configuration digest: $configDigest"
   $configBlock += "  rendered rules file: sha256 $rulesHash"
   foreach ($k in $configValues.Keys) { $configBlock += "  WARN: the user configuration sets $k to $($configValues[$k])." }
-  $configBlock += '  Open text is checked for form, routing and the roster, not for meaning.'
+  foreach ($k in $configEdits.Keys) { $configBlock += "  WARN: the user configuration edits $k ($($configEdits[$k].op))." }
+  $configBlock += '  Open text is checked for form, imports, routing and the roster, not for meaning.'
 }
 
 Show-List 'Drift' $drift
@@ -787,7 +856,37 @@ $hashGiven = $PSBoundParameters.ContainsKey('RenderedHash')
 if ($hashGiven -and $RenderedHash -cne $rulesHash) {
   Stop-Refused 'the hash given with -RenderedHash is not the full hash of the rules file this run rendered: the configuration or the commit changed since the dry run, or the hash was cut short or mistyped.'
 }
+
+# The review output, written only once every check for this run has passed:
+# called at the end of the dry run, and on -Apply after its own refusals and
+# the last re-hash of the stage, just before the first write. The review module
+# checks the folder's final path and creates both files exclusively; its hashes
+# must match what this run read. The whole stage is hashed before and after it
+# runs, as around the renderer, so any change it makes there refuses before
+# anything is installed. A refusal once it has run says the folder may hold
+# what it wrote.
+function Write-Review {
+  if (-not $reviewGiven) { return }
+  $reviewer = Join-Path $stage 'gate/review.mjs'
+  if (-not (Test-Path -LiteralPath $reviewer -PathType Leaf)) { Stop-Refused 'the review module (gate/review.mjs) is missing.' }
+  if ((Get-Sha256 $rulesStaged) -cne $rulesHash) { Stop-Refused 'the staged rules file changed after the check.' }
+  try { $before = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read before the review module ran.' }
+  $rev = Invoke-Node $node @($reviewer, ([IO.Path]::GetFullPath($ReviewFolder)), $claudeHomeFull, $rulesStaged, $diffFile) $checkTimeoutMs
+  $after = 'The review folder may hold what the review module wrote; nothing was installed.'
+  $revLines = @($rev.Stdout -split "`n" | Where-Object { $_ -ne '' })
+  Show-ProgramLines $revLines 'review'
+  if ($rev.StderrChars) { Write-Host 'The review module wrote to stderr; it is not shown.' }
+  $stageNow = try { Get-TreeState $stage } catch { $null }
+  if ($stageNow -cne $before) { Stop-Refused 'the review module changed the stage.' $after }
+  if ($rev.TimedOut -or $rev.ExitCode -ne 0 -or $revLines.Count -ne 2 -or $revLines[-1] -cne 'RESULT: pass' -or
+    $revLines[0] -cne "REVIEW $rulesHash $diffHash") {
+    Stop-Refused 'the review output was not written, or not as this run rendered it.' $after
+  }
+  Write-Host 'Review output: rendered-rules.txt and config.diff written to the review folder.'
+}
+
 if (-not $Apply) {
+  Write-Review
   if ($config.kind -cne 'none') { Write-Host "Dry run only. After the owner's go-ahead, pass -Apply -RenderedHash $rulesHash" }
   else { Write-Host 'Dry run only. Pass -Apply after the owner''s go-ahead.' }
   exit 0
@@ -806,6 +905,9 @@ foreach ($rel in $repoFiles.Keys) {
   $src = Join-Path $stage ($sourceOf[$rel] -replace '/', [IO.Path]::DirectorySeparatorChar)
   if ((Get-Sha256 $src) -ne $repoFiles[$rel]) { Stop-Refused "the staged copy of $rel changed after the check." }
 }
+# The review output last of all, after every check; its own stage hash covers
+# anything it did to the stage while it ran.
+Write-Review
 Write-Host 'Applying.'
 Show-Gate
 New-Item -ItemType Directory -Force -Path $ClaudeHome | Out-Null
@@ -829,7 +931,10 @@ elseif ($settings -like 'would*') {
 $doc = [ordered]@{
   commit = $commit
   digest = $configDigest
-  config = @(if ($userHash) { [ordered]@{ kind = 'user'; sha256 = $userHash } })
+  config = @(
+    if ($userHash) { [ordered]@{ kind = 'user'; sha256 = $userHash } }
+    foreach ($bp in $blockHashes.Keys) { [ordered]@{ kind = 'block'; path = $bp; sha256 = $blockHashes[$bp] } }
+  )
   files  = @($repoFiles.Keys | ForEach-Object { [ordered]@{ path = $_; sha256 = $repoFiles[$_] } })
   gate   = @($gateNow.Keys | ForEach-Object { [ordered]@{ path = $_; sha256 = $gateNow[$_] } })
 }

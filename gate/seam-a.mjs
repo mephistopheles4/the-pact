@@ -631,7 +631,7 @@ function classify(root, report) {
         installs.push({ file: rel, dest: 'CLAUDE.md' });
         report.note(
           'partly-checked',
-          'claude/CLAUDE.md is the rendered rules file: its marked clauses are checked word for word, and its open text for form, routing and the roster, not for meaning; line numbers count the rendered file',
+          'claude/CLAUDE.md is the rendered rules file: its marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers count the rendered file',
         );
       } else if (rel === OVERLAY) {
         overlay = true;
