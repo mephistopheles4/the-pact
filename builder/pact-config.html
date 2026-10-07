@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8WPMkHRiSmR5T1VQwn5HqW4dtGdKyJ8WSDW+bP4aPek='; style-src 'sha256-UsI1Fs/pqDAVcN6mskVHPQhUEYqCPpNp+X+UR9SBe0E='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8WPMkHRiSmR5T1VQwn5HqW4dtGdKyJ8WSDW+bP4aPek='; style-src 'sha256-qtA3TiXD+MBQI0rVa7XmsBEu6LVcwVJg1dD3H5oIQHM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -100,7 +100,7 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-tool-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s3) var(--av-s4) var(--av-s2); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
 .av-tool-head-text { display: flex; flex-direction: column; min-width: 0; }
 .av-tool-title { font-size: var(--av-t-lead); font-weight: 600; line-height: 1.3; margin: 0; }
-.av-tool-blurb { font-size: var(--av-t-annot); color: var(--av-ink-70); margin: 2px 0 0; max-width: 78ch; }
+.av-tool-blurb { font-size: var(--av-t-annot); color: var(--av-ink-70); margin: 2px 0 0; max-width: 110ch; }
 .av-tool-actions { display: flex; gap: var(--av-s1); align-items: center; flex-wrap: wrap; }
 
 /* BAR: a full-width strip under the head. */
@@ -136,8 +136,8 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-annot { font-size: var(--av-t-annot); line-height: 1.5; color: var(--av-ink-70); margin: 0; }
 .av-h3 { font-size: var(--av-t-lead); font-weight: 600; line-height: 1.3; margin: 0; }
 .av-num { font-variant-numeric: tabular-nums; }
-.prose { font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-line; overflow-wrap: anywhere; margin: 0; max-width: 78ch; }
-.prose code { font-family: inherit; color: var(--av-ink); background: var(--av-ink-12); padding: 0 3px; }
+.prose { font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-line; overflow-wrap: anywhere; margin: 0; }
+.prose code { white-space: nowrap; font-family: inherit; color: var(--av-ink); background: var(--av-ink-12); padding: 0 3px; }
 .prose strong { color: var(--av-ink); font-weight: 600; }
 .prose--struck { color: var(--av-ink-70); text-decoration: line-through; text-decoration-color: var(--av-ink-55); }
 
@@ -149,6 +149,7 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-titleblock-val { font-size: var(--av-t-body); font-variant-numeric: tabular-nums; overflow-wrap: break-word; }
 
 /* VALUES */
+#values .prose { max-width: 110ch; }
 .value-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
 input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
 input[type="number"] { width: 5.5em; font: inherit; font-variant-numeric: tabular-nums; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
