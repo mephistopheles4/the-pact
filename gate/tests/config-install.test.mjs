@@ -30,6 +30,7 @@ test('bad case: a configuration path that is a folder refuses, and -Apply writes
   mkdirSync(configPath(h));
   const r = install(repo, h, { apply: true });
   refused(r);
+  assert.match(r.stdout, /^render\| FAIL config-file: pact\/config\.json: the user configuration file is not a regular file\r?$/m, r.out);
   assert.ok(!listTree(h).includes('CLAUDE.md'), listTree(h).join('\n'));
 });
 
@@ -41,6 +42,9 @@ test('bad case: a configuration path that is a dangling link refuses, and -Apply
   symlinkSync(join(tempDir(t), 'gone'), configPath(h), 'junction');
   const r = install(repo, h, { apply: true });
   refused(r);
+  // The install's own attribute test refuses it, before the renderer runs.
+  assert.match(r.stdout, /^REFUSED: the user configuration file, or the pact folder that holds it, is a link or other reparse point\./m, r.out);
+  assert.doesNotMatch(r.stdout, /^render\| /m, r.out);
   assert.ok(!listTree(h).includes('CLAUDE.md'), listTree(h).join('\n'));
 });
 
@@ -79,6 +83,7 @@ test('bad case: an unreadable configuration file refuses, and -Apply writes noth
     undo();
   }
   refused(r);
+  assert.match(r.stdout, /^render\| FAIL config-file: pact\/config\.json: /m, r.out);
   assert.ok(!listTree(h).includes('CLAUDE.md'), listTree(h).join('\n'));
 });
 
@@ -185,6 +190,23 @@ test('a configuration changed since the last install is shown as changed, and th
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, new RegExp(`^ {2}user file pact/config\\.json: sha256 ${sha256(next)}, CHANGED since the last install\\r?$`, 'm'), r.out);
   assert.match(r.stdout, /^Overwrite: 1\r?$/m, r.out);
+  assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
+});
+
+test('a record that names another configuration hash is stale: the dry run says changed, and not "nothing to do"', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  writeFileSync(configPath(h), EXAMPLE);
+  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  // Only the record changes: the render, and so every installed file, stays the same.
+  const mf = join(h, '.pact-install.json');
+  const m = JSON.parse(readFileSync(mf, 'utf8'));
+  m.config[0].sha256 = 'b'.repeat(64);
+  writeFileSync(mf, JSON.stringify(m));
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^Overwrite: 0\r?$/m, r.out);
+  assert.match(r.stdout, /, CHANGED since the last install\r?$/m, r.out);
   assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
 });
 

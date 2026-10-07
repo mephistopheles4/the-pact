@@ -390,6 +390,30 @@ for (const [label, change, reason] of PLACEMENT) {
   }
 }
 
+test('bad case: a render larger than 1 MiB refuses, though its source is within the cap', t => {
+  // A source of exactly 1 MiB with only the two parts a configuration fills:
+  // the notice and the wider value outgrow the four mark lines stripped.
+  const parts = [
+    '<!-- pact:begin config-notice -->',
+    '<!-- pact:end config-notice -->',
+    '<!-- pact:begin usage-pause -->',
+    'Before starting anything expensive — several subagents, a workflow, an eval —',
+    'check my plan usage if a usage tool is available (the desktop app has one).',
+    "Tell me the weekly figure and a rough cost for what you're about to start. If",
+    'the weekly limit is above 75%, wait for my go-ahead. Never cut or stop work',
+    'because of usage on your own; that call is mine.',
+    '<!-- pact:end usage-pause -->',
+    '',
+  ].join('\n');
+  const pad = 1024 * 1024 - Buffer.byteLength(parts);
+  const src = Buffer.concat([Buffer.from(parts), Buffer.alloc(pad - 1, 0x61), Buffer.from('\n')]);
+  assert.equal(src.length, 1024 * 1024);
+  refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'size', /would be larger than 1 MiB/);
+  // With no configuration, the same source renders: the marks only shrink it.
+  const none = render(t, tempDir(t), sourceFile(t, src));
+  assert.equal(none.code, 0, none.out);
+});
+
 test('a configured render leaves its inputs unchanged, and writes only into its output folder', t => {
   const root = stage(t, {});
   const h = homeWith(t, GOOD);
