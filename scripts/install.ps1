@@ -316,7 +316,7 @@ function Get-SettingsChanges($live, $overlay) {
     $old = Get-SettingsPath $live $segs
     if ($name -cin 'permissions.allow', 'permissions.deny', 'permissions.ask') {
       $had = if ($old.has -and $old.value -is [System.Collections.IList]) { @($old.value | ForEach-Object { "$_" }) } else { @() }
-      foreach ($rule in $new) { if ($had -cnotcontains $rule) { "  + ${name}: $(Format-Plain $rule)" } }
+      foreach ($rule in $new) { if ($had -cnotcontains $rule) { "  + ${name}: $(Format-Rule $rule)" } }
     } elseif (-not $old.has -or (Get-Canonical $old.value) -cne (Get-Canonical $new)) {
       "  set $name = $(Format-Plain (Get-Canonical $new))"
     }
@@ -368,6 +368,14 @@ function Show-List($title, $items) {
 # Text from the install record, which anything that can write ~/.claude can
 # edit, made safe to print as Format-CheckLine makes the check's lines.
 function Format-Plain([string]$s) { $s -replace '[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]', '?' }
+
+# A permission rule as the owner approves it: every character outside
+# printable ASCII, and the backslash itself, as a \u escape of four hex digits.
+# A console code page can show an en dash as a hyphen; this can't, and a rule
+# holding the plain text of an escape prints apart from the character (#89).
+function Format-Rule([string]$s) {
+  [regex]::Replace($s, '[^\x20-\x5b\x5d-\x7e]', { param($m) '\u{0:x4}' -f [int][char]$m.Value })
+}
 
 # --- the gate's fingerprints ---------------------------------------------------
 $gateNow = $null      # ordered: path -> sha256, for this run

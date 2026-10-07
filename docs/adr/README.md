@@ -21,3 +21,4 @@ One line per ADR: what it decided, and when to read it. Open the file for the re
 - [0017](0017-lens-files-ship-unsealed.md) — **Lens files ship unsealed.** The QA-pair lenses are plain files in `claude/agents/`. Read when changing where a lens lives.
 - [0018](0018-fix-path-stands-in-for-the-plan-review.md) — **Fix path for case fixes.** A security-set case fix that keeps its expected result goes through #35's fix path, not a spec change. Read when a security-set case fails.
 - [0019](0019-recommendations-are-auto-taken-with-a-trail.md) — **Recommendations are auto-taken, with a trail.** A session acts on its recommendation for report findings and logs an `auto` row. Read when changing "Help me decide".
+- [0020](0020-the-apply-guard-catches-what-text-can.md) — **The apply guard catches what text can.** The `-Apply` ask rules catch the script name followed by a dash or a splat; the rest are named misses. Read before adding or changing an apply rule.

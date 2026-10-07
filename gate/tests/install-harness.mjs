@@ -14,7 +14,7 @@ function which(cmd) {
   return r.stdout.split(/\r?\n/)[0].trim();
 }
 
-const PWSH = which('pwsh');
+export const PWSH = which('pwsh');
 const GIT_DIR = dirname(which('git'));
 const NODE_DIR = dirname(process.execPath);
 const SYS_DIRS = WIN ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')] : ['/usr/bin', '/bin'];
