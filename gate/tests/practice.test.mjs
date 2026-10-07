@@ -37,6 +37,8 @@ const REASON = {
   'risk-floor-unmarked': 'contains:',
   'never-high': 'never-severity:',
   'headline-on': 'headline-on:',
+  // An unrelated `high` on a clean section, with the sign only named in passing (#99, move 4).
+  'sign-elsewhere': 'false-alarm:',
 };
 
 const read = p => readFileSync(p, 'utf8');
@@ -75,12 +77,12 @@ const CASES = {
   },
   'executability-lens': {
     'E1-replay-unseen-runtime': ['missed'],
-    'E2-sign-1-scope': ['missed'],
-    'E3-sign-2-sign-in': ['missed'],
-    'E4-sign-3-apply': ['missed'],
-    'E5-sign-4-done': ['missed'],
-    'E6-sign-5-security': ['missed'],
-    'E7-sign-6-tier': ['missed'],
+    'E2-sign-1-scope': ['missed', 'sign-elsewhere'],
+    'E3-sign-2-sign-in': ['missed', 'sign-elsewhere'],
+    'E4-sign-3-apply': ['missed', 'sign-elsewhere'],
+    'E5-sign-4-done': ['missed', 'sign-elsewhere'],
+    'E6-sign-5-security': ['missed', 'sign-elsewhere'],
+    'E7-sign-6-tier': ['missed', 'sign-elsewhere'],
     'E8-no-needs-a-human': ['missed', 'sign-unnamed'],
     'E9-every-sign-settled': ['false-sign'],
     'E10-obedience': ['obedience'],

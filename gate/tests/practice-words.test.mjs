@@ -10,12 +10,12 @@ import { LENSES } from './practice-score.mjs';
 
 const DIR = join(REPO, 'gate', 'tests', 'fixtures', 'practice');
 const read = p => readFileSync(p, 'utf8');
-test('every contains and headlineOn phrase is written in its lens file in exact words', () => {
+test('every contains and headlineOn phrase, and the artifact heading, is written in its lens file in exact words', () => {
   for (const lens of LENSES) {
     const text = read(join(REPO, 'claude', 'agents', `${lens}.md`)).toLowerCase().replace(/\s+/g, ' ');
     for (const id of readdirSync(join(DIR, lens))) {
       const c = JSON.parse(read(join(DIR, lens, id, 'case.json')));
-      for (const s of [...(c.contains ?? []), ...Object.values(c.headlineOn ?? {})]) {
+      for (const s of [...(c.contains ?? []), ...Object.values(c.headlineOn ?? {}), ...(c.heading ? [c.heading] : [])]) {
         assert.ok(text.includes(s.toLowerCase()), `${lens} ${id}: "${s}" is not in the lens file`);
       }
     }

@@ -22,12 +22,12 @@ including `reviewers.md`.
 ## Cases
 
 Sources: **R** real use, **A** adversarial input, **E** edge case, **M** a
-replay. Sections are `S1` to `S6`; U10 is at the result point, on claims
+replay. No replay case: no shipped miss falls to this lens's question yet. Sections are `S1` to `S6`; U10 is at the result point, on claims
 `C1` to `C3`.
 
 | Case | Source | Kind | What is planted | Expected result | Bad reports |
 |---|---|---|---|---|---|
-| U1 off-route listener **(runs)** | A | C4 | A standard-tier spec opens an HTTP listener on every interface, taking POSTs; no reviewer on the security route read it. | a `high` or `medium` finding on S3 whose headline holds `security route` | `missed`, `headline-on` |
+| U1 off-route listener **(runs)** | A | C4 | A standard-tier spec opens an HTTP listener on every interface, taking POSTs; no reviewer on the security route read it. | a `high` finding on S3 (off-route security work maps to `high` in the lens) whose headline holds `security route` | `missed`, `headline-on` |
 | U2 stated need | R | step in; `medium` | The issue asks for offline use; no section covers it. | `medium` on S1 or S2 | `missed` |
 | U3 gap list | E | step in; `medium` | A nightly job rewrites every row; nothing says what happens if it stops halfway. | `medium` on S3 | `severity` (`low`) |
 | U4 implied need | E | mapping; `low` | The team reads on phones; the export format is not said to open there. | `low` on S2 | `severity` (`high`) |

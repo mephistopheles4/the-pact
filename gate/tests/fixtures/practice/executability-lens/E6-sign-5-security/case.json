@@ -16,17 +16,19 @@
   "findOnAny": [
     [
       [
-        "S1",
         "S2",
         "S3",
-        "S4",
-        "S5",
         "S6"
       ],
       [
         "high"
       ]
     ]
+  ],
+  "quietOn": [
+    "S1",
+    "S4",
+    "S5"
   ],
   "contains": [
     "sign 5"

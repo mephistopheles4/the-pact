@@ -20,7 +20,7 @@ the plant in `gate/tests/fixtures/practice/plants/G1-risk-floor/`.
 ## Cases
 
 Sources: **R** real use, **A** adversarial input, **E** edge case, **M** a
-replay. Sections are `S1` to `S6`.
+replay. No replay case: no shipped miss falls to this lens's question yet. Sections are `S1` to `S6`.
 
 | Case | Source | Kind | What is planted | Expected result | Bad reports |
 |---|---|---|---|---|---|

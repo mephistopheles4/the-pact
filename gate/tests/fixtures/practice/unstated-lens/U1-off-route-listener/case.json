@@ -16,8 +16,7 @@
   ],
   "findOn": {
     "S3": [
-      "high",
-      "medium"
+      "high"
     ]
   },
   "headlineOn": {
