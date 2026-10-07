@@ -1,148 +1,226 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DCkmpKppaiubf1E1//4ehgQbHZrvaL94CQsaJv1scMk='; style-src 'sha256-hbczS6LPvH7NBWa7RKrNhjndugt6CJqGM7JbT7WpiVI='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-8WPMkHRiSmR5T1VQwn5HqW4dtGdKyJ8WSDW+bP4aPek='; style-src 'sha256-UsI1Fs/pqDAVcN6mskVHPQhUEYqCPpNp+X+UR9SBe0E='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
+/* Aviation design system, deck theme, tool chrome: the tokens and classes this
+   page uses, carried inline because the page loads nothing. Light is the
+   default; dark is opt-in through the toggle, as the system asks. The fonts
+   are not carried: IBM Plex Mono is used when installed, else the platform
+   monospace. */
 :root {
-  --bg: #f7f6f2;
-  --panel: #ffffff;
-  --ink: #1d1d1b;
-  --muted: #5f5e58;
-  --line: #d9d6cc;
-  --locked-bg: #eeece5;
-  --open-bg: #f1f6fb;
-  --open-line: #8fb3d6;
-  --accent: #2c5f8f;
-  --accent-ink: #ffffff;
-  --warn: #8a5a00;
-  --warn-bg: #fff4dc;
-  --error: #9b1c1c;
-  --error-bg: #fde8e8;
-  --ok: #26683a;
-  --struck: #8a887f;
+  --av-rule-hair: 1px;
+  --av-rule-thin: 1.5px;
+  --av-rule-bold: 2px;
+  --av-s1: 6px;
+  --av-s2: 12px;
+  --av-s3: 24px;
+  --av-s4: 36px;
+  --av-s5: 48px;
+  --av-t-micro: 0.6875rem;
+  --av-t-annot: 0.8125rem;
+  --av-t-body: 0.9375rem;
+  --av-t-lead: 1.125rem;
+  --av-t-h3: 1.375rem;
+  --av-track-label: 0.16em;
+  --av-track-title: 0.12em;
+  --av-grid-size: 24px;
+  --av-grid-major-every: 5;
+
+  --av-paper: #fafaf7;
+  --av-ink: #22262b;
+  --av-caution: #b45309;
+  --av-normal: #15803d;
+  --av-ink-80: rgb(34 38 43 / 0.8);
+  --av-ink-70: rgb(34 38 43 / 0.7);
+  --av-ink-55: rgb(34 38 43 / 0.55);
+  --av-ink-30: rgb(34 38 43 / 0.3);
+  --av-ink-12: rgb(34 38 43 / 0.12);
+  --av-grid-minor: rgb(34 38 43 / 0.035);
+  --av-grid-major: rgb(34 38 43 / 0.085);
+  --av-surface: rgb(250 250 247 / 0.72);
+  --av-ground: #efefe9;
+  --av-paper-tech: #eaf0f6;
+  --av-font: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #18191b;
-    --panel: #222326;
-    --ink: #ecebe6;
-    --muted: #a9a7a0;
-    --line: #3a3b3f;
-    --locked-bg: #2a2b2e;
-    --open-bg: #1d2733;
-    --open-line: #44709b;
-    --accent: #7fb0e0;
-    --accent-ink: #10151b;
-    --warn: #f0c060;
-    --warn-bg: #3a2f17;
-    --error: #f39b9b;
-    --error-bg: #3d1f1f;
-    --ok: #7fcf96;
-    --struck: #77756e;
+@media screen {
+  [data-aviation-scheme="dark"] {
+    --av-paper: #1a1614;
+    --av-ink: #ece5df;
+    --av-caution: #d98a3c;
+    --av-normal: #4fae6d;
+    --av-ink-80: rgb(236 229 223 / 0.80);
+    --av-ink-70: rgb(236 229 223 / 0.70);
+    --av-ink-55: rgb(236 229 223 / 0.55);
+    --av-ink-30: rgb(236 229 223 / 0.28);
+    --av-ink-12: rgb(236 229 223 / 0.11);
+    --av-grid-minor: rgb(236 229 223 / 0.032);
+    --av-grid-major: rgb(236 229 223 / 0.075);
+    --av-surface: rgb(32 27 24 / 0.72);
+    --av-ground: #100e0d;
+    --av-paper-tech: #141a20;
+    color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+html, body { margin: 0; }
+body { background-color: var(--av-ground); color: var(--av-ink); }
+
+/* PAGE: the ground, with the two-tier drafting grid. */
+.av-tool {
+  min-height: 100vh;
+  padding: var(--av-s3);
+  background-color: var(--av-ground);
+  color: var(--av-ink);
+  font-family: var(--av-font);
+  font-size: var(--av-t-body);
+  line-height: 1.6;
+  display: flex;
+  background-image:
+    linear-gradient(to right, var(--av-grid-major) var(--av-rule-hair), transparent var(--av-rule-hair)),
+    linear-gradient(to bottom, var(--av-grid-major) var(--av-rule-hair), transparent var(--av-rule-hair)),
+    linear-gradient(to right, var(--av-grid-minor) var(--av-rule-hair), transparent var(--av-rule-hair)),
+    linear-gradient(to bottom, var(--av-grid-minor) var(--av-rule-hair), transparent var(--av-rule-hair));
+  background-size:
+    calc(var(--av-grid-size) * var(--av-grid-major-every)) calc(var(--av-grid-size) * var(--av-grid-major-every)),
+    calc(var(--av-grid-size) * var(--av-grid-major-every)) calc(var(--av-grid-size) * var(--av-grid-major-every)),
+    var(--av-grid-size) var(--av-grid-size),
+    var(--av-grid-size) var(--av-grid-size);
 }
-header, main { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
-header { padding-top: 24px; }
-h1 { font-size: 1.5rem; margin: 0 0 4px; }
-h2 { font-size: 1.15rem; margin: 0 0 8px; }
-h3 { font-size: 0.95rem; margin: 0 0 6px; }
-p { margin: 0 0 8px; }
-.sub { color: var(--muted); max-width: 70ch; }
-section.panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 16px;
-  margin: 16px 0;
+@media (max-width: 640px) { .av-tool { padding: 0; } }
+
+/* SHEET: the bordered document, one per page. */
+.av-tool-sheet { flex: 1; display: flex; flex-direction: column; min-width: 0; max-width: 1400px; margin: 0 auto; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-surface); }
+
+/* HEAD */
+.av-tool-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s3) var(--av-s4) var(--av-s2); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+.av-tool-head-text { display: flex; flex-direction: column; min-width: 0; }
+.av-tool-title { font-size: var(--av-t-lead); font-weight: 600; line-height: 1.3; margin: 0; }
+.av-tool-blurb { font-size: var(--av-t-annot); color: var(--av-ink-70); margin: 2px 0 0; max-width: 78ch; }
+.av-tool-actions { display: flex; gap: var(--av-s1); align-items: center; flex-wrap: wrap; }
+
+/* BAR: a full-width strip under the head. */
+.av-tool-bar { display: flex; justify-content: space-between; align-items: center; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s2) var(--av-s4); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.av-tool-bar--stack { flex-direction: column; align-items: stretch; gap: var(--av-s2); }
+.av-tool-stamp { font-size: var(--av-t-annot); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; white-space: nowrap; }
+.av-tool-stamp--caution { color: var(--av-caution); }
+.av-tool-stamp--normal { color: var(--av-normal); }
+
+/* CHIP: a mode, not a tag. Ink border off, ink fill on. */
+.av-tool-chip { font-family: inherit; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; padding: 5px var(--av-s2); border: var(--av-rule-hair) solid var(--av-ink); color: var(--av-ink); background: transparent; cursor: pointer; white-space: nowrap; }
+.av-tool-chip:hover { color: var(--av-caution); border-color: var(--av-caution); }
+.av-tool-chip--on { background: var(--av-ink); color: var(--av-paper); border-color: var(--av-ink); }
+.av-tool-chip--on:hover { color: var(--av-paper); border-color: var(--av-ink); }
+.av-tool-chip--ghost { border-color: var(--av-ink-30); color: var(--av-ink-80); }
+.av-tool-chip:disabled { border-color: var(--av-ink-12); color: var(--av-ink-30); cursor: not-allowed; }
+.av-tool-chip:disabled:hover { color: var(--av-ink-30); border-color: var(--av-ink-12); }
+.av-tool-chip:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--av-s1); }
+
+/* SPLIT: the library beside the spine. */
+.av-tool-split { flex: 1; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); min-height: 0; }
+.av-tool-index { border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s3); min-width: 0; padding: var(--av-s3); }
+.av-tool-detail { min-width: 0; padding: var(--av-s3) var(--av-s4); }
+@media (max-width: 900px) {
+  .av-tool-split { grid-template-columns: minmax(0, 1fr); }
+  .av-tool-index { border-right: 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+  .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); }
 }
-.layout { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
-@media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
-#library { position: sticky; top: 12px; }
-.preset {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px;
-  margin: 0 0 10px;
-  background: var(--panel);
-  cursor: grab;
-}
+
+/* TYPE */
+.av-label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; color: var(--av-ink-70); }
+.av-annot { font-size: var(--av-t-annot); line-height: 1.5; color: var(--av-ink-70); margin: 0; }
+.av-h3 { font-size: var(--av-t-lead); font-weight: 600; line-height: 1.3; margin: 0; }
+.av-num { font-variant-numeric: tabular-nums; }
+.prose { font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-line; overflow-wrap: anywhere; margin: 0; max-width: 78ch; }
+.prose code { font-family: inherit; color: var(--av-ink); background: var(--av-ink-12); padding: 0 3px; }
+.prose strong { color: var(--av-ink); font-weight: 600; }
+.prose--struck { color: var(--av-ink-70); text-decoration: line-through; text-decoration-color: var(--av-ink-55); }
+
+/* TITLE BLOCK: the ruled cells in the corner of a drawing sheet. */
+.av-titleblock { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border: var(--av-rule-bold) solid var(--av-ink); }
+.av-titleblock-cell { padding: var(--av-s2) var(--av-s3); border-right: var(--av-rule-hair) solid var(--av-ink-12); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.av-titleblock-cell:last-child { border-right: 0; }
+.av-titleblock-key { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
+.av-titleblock-val { font-size: var(--av-t-body); font-variant-numeric: tabular-nums; overflow-wrap: break-word; }
+
+/* VALUES */
+.value-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
+input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
+input[type="number"] { width: 5.5em; font: inherit; font-variant-numeric: tabular-nums; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
+
+/* MOVES */
+.move { padding: var(--av-s3) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); display: flex; flex-direction: column; gap: var(--av-s2); }
+.move:first-child { padding-top: 0; }
+.move-head { display: flex; flex-direction: column; gap: 2px; }
+
+/* LOCKED: a gated clause, drawn as a solid-ruled sheet with its tag on the border. */
+.part { position: relative; padding: var(--av-s3) var(--av-s3) var(--av-s2); }
+.part-tag { position: absolute; top: 0; left: var(--av-s2); transform: translateY(-50%); background: var(--av-paper); padding: 0 var(--av-s1); font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); display: flex; gap: var(--av-s1); }
+.part-tag b { color: var(--av-ink); font-weight: 600; }
+.part--locked { border: var(--av-rule-hair) solid var(--av-ink-30); border-left: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper-tech); }
+.part--locked .part-tag { background: var(--av-paper-tech); }
+
+/* OPEN: a slot drawn as a dashed cutaway, opened up for inspection. */
+.part--open { border: var(--av-rule-thin) dashed var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s2); }
+.part--open.part--edited { border: var(--av-rule-bold) solid var(--av-ink); }
+.part--open.part--over { border: var(--av-rule-bold) dashed var(--av-ink); background: var(--av-ink-12); }
+.slot-bar { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; justify-content: space-between; }
+
+/* CARDS: a labelled specimen, its tab on the border. */
+.card { position: relative; border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-surface); padding: var(--av-s3) var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
+.card-tab { position: absolute; top: 0; left: var(--av-s2); transform: translateY(-50%); background: var(--av-paper); padding: 0 var(--av-s1); font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink); font-weight: 600; }
+.card-foot { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; justify-content: space-between; }
+.preset { cursor: grab; }
 .preset:active { cursor: grabbing; }
-.preset .meta, .part .meta { color: var(--muted); font-size: 0.85rem; }
-pre {
-  margin: 6px 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font: 13px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
-}
-.move { border-left: 4px solid var(--line); padding: 4px 0 4px 14px; margin: 0 0 18px; }
-.lead { font-weight: 600; }
-.part { border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
-.part.locked { background: var(--locked-bg); border: 1px solid var(--line); }
-.part.open { background: var(--open-bg); border: 1px dashed var(--open-line); }
-.part.open.over { border-style: solid; border-width: 2px; }
-.part .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
-.default.struck { color: var(--struck); text-decoration: line-through; }
-.card { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 8px; margin: 6px 0; }
-.card .head { font-size: 0.85rem; }
-textarea {
-  width: 100%;
-  min-height: 5.5em;
-  font: 13px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
-  color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 6px;
-}
-button, select, input {
-  font: inherit;
-  color: var(--ink);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px 10px;
-}
-button { cursor: pointer; }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
-input[type="range"] { flex: 1 1 200px; padding: 0; }
-input[type="number"] { width: 5.5em; }
-.problems { list-style: none; padding: 0; margin: 8px 0; }
-.problems li { border-radius: 6px; padding: 6px 10px; margin: 4px 0; }
-.problems li.error { background: var(--error-bg); color: var(--error); }
-.problems li.warn { background: var(--warn-bg); color: var(--warn); }
-.status { min-height: 1.5em; }
-.status.ok { color: var(--ok); }
-.status.error { color: var(--error); }
-.file { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
-code { font: 13px ui-monospace, "Cascadia Mono", Consolas, monospace; }
+textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font-size: var(--av-t-annot); line-height: 1.6; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: var(--av-s1) var(--av-s2); }
+
+/* CALLOUT: a note on a leader line. Amber only where something needs attention. */
+.callouts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--av-s1); }
+.av-callout { position: relative; padding-left: var(--av-s4); font-size: var(--av-t-annot); line-height: 1.45; color: var(--av-ink-80); }
+.av-callout::before { content: ''; position: absolute; left: 0; top: 0.62em; width: calc(var(--av-s4) - var(--av-s2)); height: 0; border-top: var(--av-rule-thin) solid var(--av-ink-30); }
+.av-callout::after { content: ''; position: absolute; left: 0; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--av-ink); transform: translate(-2px, -2.5px); }
+.av-callout--caution { color: var(--av-ink); }
+.av-callout--caution::before { border-top-color: var(--av-caution); }
+.av-callout--caution::after { background: var(--av-caution); }
+.av-callout--normal::before { border-top-color: var(--av-normal); }
+.av-callout--normal::after { background: var(--av-normal); }
+
+/* OUTPUT: each file to save, as a value to copy. */
+.files { display: flex; flex-direction: column; gap: var(--av-s3); }
+.file-head { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: baseline; }
+.file-head > button { margin-left: auto; }
+.av-tool-code { margin: var(--av-s1) 0 0; padding: var(--av-s2); background: var(--av-paper-tech); border: var(--av-rule-hair) solid var(--av-ink-12); border-left: var(--av-rule-bold) solid var(--av-ink-30); font-family: var(--av-font); font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-wrap; overflow-wrap: anywhere; }
+.section-title { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; color: var(--av-ink); margin: 0; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Pact config builder</h1>
-  <p class="sub">Build a configuration for the pact without writing JSON. Moves 1 to 4 are a fixed spine. Gated clauses are locked and show their text. Open slots take preset cards from the library, or your own text. Nothing here leaves this page until you save, and the installer checks what you save exactly as it checks a file written by hand.</p>
-</header>
-<main>
-  <section class="panel" id="values"></section>
-  <div class="layout">
-    <aside class="panel" id="library"></aside>
-    <section class="panel" id="spine"></section>
+<div class="av-tool">
+  <div class="av-tool-sheet">
+    <header class="av-tool-head">
+      <div class="av-tool-head-text">
+        <span class="av-label">The pact · configuration · schema 1</span>
+        <h1 class="av-tool-title">Config builder</h1>
+        <p class="av-tool-blurb">Moves 1 to 4 are a fixed spine. Gated clauses are locked. Open slots take presets from the library, or your own text. Nothing leaves this page until you save, and the installer checks what you save exactly as it checks a file written by hand.</p>
+      </div>
+      <div class="av-tool-actions" id="actions"></div>
+    </header>
+    <div class="av-tool-bar" id="summary"></div>
+    <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
+    <div class="av-tool-split">
+      <aside class="av-tool-index" id="library"></aside>
+      <div class="av-tool-detail">
+        <section id="spine"></section>
+        <section id="always"></section>
+      </div>
+    </div>
+    <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
   </div>
-  <section class="panel" id="always"></section>
-  <section class="panel" id="output"></section>
-</main>
+</div>
 <script>
 'use strict';
 const PACT = /* pact-data:begin */ {
@@ -297,10 +375,10 @@ const BLOCK_MAX = 16 * 1024;
 const COMMENT_OPEN = '<' + '!--';
 
 const MODES = {
-  keep: 'Keep the default text',
-  replace: 'Replace it',
-  'add-after': 'Add after it',
-  remove: 'Remove it',
+  keep: 'Keep',
+  replace: 'Replace',
+  'add-after': 'Add after',
+  remove: 'Remove',
 };
 const EMPTY_MODES = {
   keep: 'Leave empty',
@@ -448,6 +526,21 @@ function addPreset(state, mark, id) {
   return null;
 }
 
+/**
+ * The pact's text laid out for reading: its hard line breaks joined back into
+ * paragraphs, with list items and blank-line breaks kept. Display only; the
+ * saved files keep the text exactly as written.
+ */
+function reflow(text) {
+  return String(text)
+    .split(/\n{2,}/)
+    .map(para => para.split('\n').reduce((acc, line) => {
+      if (!acc) return line;
+      return /^\s*(?:[-*] |\d+\. )/.test(line) ? `${acc}\n${line}` : `${acc} ${line.trim()}`;
+    }, ''))
+    .join('\n\n');
+}
+
 // ------------------------------------------------------------ the page
 
 function el(tag, props, ...kids) {
@@ -462,9 +555,29 @@ function el(tag, props, ...kids) {
   return e;
 }
 
+/** Reflowed text as nodes: `code` spans and **bold** become elements, everything else stays text. */
+function prose(text, cls) {
+  const p = el('p', { class: cls || 'prose' });
+  for (const piece of reflow(text).split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/)) {
+    if (!piece) continue;
+    if (piece.startsWith('`') && piece.endsWith('`') && piece.length > 2) p.append(el('code', { text: piece.slice(1, -1) }));
+    else if (piece.startsWith('**') && piece.endsWith('**') && piece.length > 4) p.append(el('strong', { text: piece.slice(2, -2) }));
+    else p.append(piece);
+  }
+  return p;
+}
+
+/** A chip button. A toggle (a mode, the scheme) says whether it is pressed; an action doesn't. */
+function chip(label, on, onclick, extra, toggle) {
+  const b = el('button', { type: 'button', class: `av-tool-chip${on ? ' av-tool-chip--on' : ''}${extra ? ` ${extra}` : ''}`, onclick }, label);
+  if (toggle) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  return b;
+}
+
 function boot() {
   const state = initialState();
   const $ = id => document.getElementById(id);
+  const root = document.documentElement;
   let status = { text: '', level: '' };
 
   function setStatus(text, level) {
@@ -472,15 +585,54 @@ function boot() {
     renderOutput();
   }
 
+  function renderActions() {
+    let dark = false;
+    try {
+      dark = window.localStorage.getItem('pact-config-scheme') === 'dark';
+    } catch {}
+    const apply = () => {
+      if (dark) root.setAttribute('data-aviation-scheme', 'dark');
+      else root.removeAttribute('data-aviation-scheme');
+      $('actions').replaceChildren(chip('Dark', dark, () => {
+        dark = !dark;
+        try {
+          window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
+        } catch {}
+        apply();
+      }, '', true));
+    };
+    apply();
+  }
+
+  function renderSummary() {
+    const found = problems(state);
+    const edits = PACT.editable.filter(m => state.slots[m].mode !== 'keep').length;
+    const errors = found.filter(f => f.level === 'error').length;
+    const warns = found.length - errors;
+    const stateText = errors ? `${errors} to fix` : warns ? `${warns} to check` : 'Ready';
+    const stamp = el('span', { class: `av-tool-stamp ${found.length ? 'av-tool-stamp--caution' : 'av-tool-stamp--normal'}`, text: stateText });
+    const cell = (k, v) => el('div', { class: 'av-titleblock-cell' }, el('span', { class: 'av-titleblock-key', text: k }), v instanceof Node ? v : el('span', { class: 'av-titleblock-val', text: v }));
+    $('summary').replaceChildren(
+      el(
+        'div',
+        { class: 'av-titleblock', role: 'group', 'aria-label': 'Configuration summary' },
+        cell('Usage pause', Number.isInteger(state.usage) ? `${state.usage}%` : '—'),
+        cell('Parts edited', `${edits} of ${PACT.editable.length}`),
+        cell('Files to save', String(buildFiles(state).length)),
+        cell('State', stamp),
+      ),
+    );
+  }
+
   function renderValues() {
     const s = PACT.setting;
-    const para = el('pre', { class: 'default' });
+    const para = el('div');
     const range = el('input', { type: 'range', min: String(s.min), max: String(s.max), step: '1', 'aria-label': 'Usage pause line, percent' });
     const num = el('input', { type: 'number', min: String(s.min), max: String(s.max), step: '1', 'aria-label': 'Usage pause line, percent' });
     const show = () => {
       range.value = String(state.usage);
       num.value = String(state.usage);
-      para.textContent = s.text.replace(`above ${s.def}%`, `above ${state.usage}%`);
+      para.replaceChildren(prose(s.text.replace(`above ${s.def}%`, `above ${state.usage}%`)));
     };
     const take = v => {
       state.usage = v === '' ? NaN : Number(v);
@@ -489,11 +641,9 @@ function boot() {
     };
     range.addEventListener('input', () => take(range.value));
     num.addEventListener('input', () => take(num.value));
-    const reset = el('button', { type: 'button', onclick: () => take(String(s.def)) }, `Reset to ${s.def}%`);
     $('values').replaceChildren(
-      el('h2', { text: 'Values' }),
-      el('p', { class: 'sub', text: `The usage pause line: the share of the weekly limit above which a session waits for your go-ahead before starting anything expensive. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
-      el('div', { class: 'row' }, range, num, el('span', { text: '%' }), reset),
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Value · usage pause line' }), el('span', { class: 'av-annot', text: `Default ${s.def}% · allowed ${s.min} to ${s.max}` })),
+      el('div', { class: 'value-row' }, range, num, el('span', { class: 'av-num', text: '%' }), chip(`Reset to ${s.def}%`, false, () => take(String(s.def)), 'av-tool-chip--ghost')),
       para,
     );
     show();
@@ -503,11 +653,11 @@ function boot() {
     const items = PACT.presets.map(p => {
       const card = el(
         'div',
-        { class: 'preset', draggable: 'true' },
-        el('h3', { text: p.title }),
-        el('div', { class: 'meta', text: `${p.mark} slot, ${p.op === 'replace' ? 'replaces the default' : 'adds after it'}` }),
-        el('pre', { text: p.text }),
-        el('button', { type: 'button', onclick: () => drop(p.mark, p.id) }, `Add to ${p.mark}`),
+        { class: 'card preset', draggable: 'true' },
+        el('span', { class: 'card-tab', text: p.title }),
+        el('span', { class: 'av-label', text: `${p.mark} · ${p.op === 'replace' ? 'replaces the default' : 'adds after it'}` }),
+        prose(p.text),
+        el('div', { class: 'card-foot' }, chip(`Add to ${p.mark}`, false, () => drop(p.mark, p.id))),
       );
       card.addEventListener('dragstart', e => {
         e.dataTransfer.setData('text/plain', `preset:${p.id}`);
@@ -516,25 +666,23 @@ function boot() {
       return card;
     });
     $('library').replaceChildren(
-      el('h2', { text: 'Library' }),
-      el('p', { class: 'sub', text: 'Presets from the shipped example blocks. Drag one onto its slot, or use its button.' }),
+      el('div', { class: 'move-head' }, el('h2', { class: 'section-title', text: 'Library' }), el('p', { class: 'av-annot', text: 'Presets from the shipped example blocks. Drag one onto its slot, or use its button.' })),
       ...items,
     );
   }
 
   function drop(mark, id) {
     const msg = addPreset(state, mark, id);
-    if (msg) setStatus(msg, 'error');
-    else setStatus('', '');
-    renderSpine();
+    status = { text: msg || '', level: msg ? 'error' : '' };
+    renderSpine(false);
   }
 
   function lockedPart(p) {
     return el(
       'div',
-      { class: 'part locked' },
-      el('div', { class: 'head' }, el('strong', { text: `Locked: ${p.mark}` }), el('span', { class: 'meta', text: 'Gated clause. No configuration can change or move it.' })),
-      el('pre', { text: p.text }),
+      { class: 'part part--locked' },
+      el('span', { class: 'part-tag' }, el('b', { text: 'Locked' }), el('span', { text: p.mark })),
+      prose(p.text),
     );
   }
 
@@ -542,63 +690,73 @@ function boot() {
     const slot = state.slots[p.mark];
     const empty = p.text.trim() === '';
     const modes = empty ? EMPTY_MODES : MODES;
-    const select = el('select', { 'aria-label': `What to do with ${p.mark}` });
-    for (const [k, label] of Object.entries(modes)) select.append(el('option', { value: k, text: label }));
     if (!(slot.mode in modes)) slot.mode = 'keep';
-    select.value = slot.mode;
-    select.addEventListener('change', () => {
-      slot.mode = select.value;
+    const setMode = k => {
+      slot.mode = k;
       renderSpine();
-    });
+    };
+    const chips = el('div', { class: 'chips', role: 'group', 'aria-label': `What to do with ${p.mark}` }, ...Object.entries(modes).map(([k, label]) => chip(label, slot.mode === k, () => setMode(k), '', true)));
 
     const cards = slot.cards.map((c, i) => {
-      const remove = el('button', { type: 'button', onclick: () => { slot.cards.splice(i, 1); renderSpine(); } }, 'Remove card');
+      const remove = chip('Remove card', false, () => {
+        slot.cards.splice(i, 1);
+        renderSpine();
+      }, 'av-tool-chip--ghost');
       if (c.kind === 'preset') {
         const pre = presetById(c.id);
-        return el('div', { class: 'card' }, el('div', { class: 'head row' }, el('strong', { text: `Preset: ${pre.title}` }), remove), el('pre', { text: pre.text }));
+        return el('div', { class: 'card' }, el('span', { class: 'card-tab', text: `Preset · ${pre.title}` }), prose(pre.text), el('div', { class: 'card-foot' }, el('span'), remove));
       }
-      const area = el('textarea', { 'aria-label': `Your text for ${p.mark}`, spellcheck: 'true' });
+      const area = el('textarea', { 'aria-label': `Your text for ${p.mark}`, spellcheck: 'true', placeholder: 'Plain lines. No blank lines, headings, lists or leading spaces.' });
       area.value = c.text;
       area.addEventListener('input', () => {
         c.text = area.value;
         renderOutput();
       });
-      return el('div', { class: 'card' }, el('div', { class: 'head row' }, el('strong', { text: 'Your text' }), remove), area);
+      return el('div', { class: 'card' }, el('span', { class: 'card-tab', text: 'Your text' }), area, el('div', { class: 'card-foot' }, el('span'), remove));
     });
 
-    const addOwn = el('button', { type: 'button', onclick: () => {
+    const addOwn = chip('Add your own text', false, () => {
       if (slot.mode === 'keep' || slot.mode === 'remove') slot.mode = empty ? 'add-after' : 'replace';
       slot.cards.push({ kind: 'custom', text: '' });
       renderSpine();
-    } }, 'Add your own text');
+    }, 'av-tool-chip--ghost');
 
     const struck = slot.mode === 'replace' || slot.mode === 'remove';
+    const edited = slot.mode !== 'keep';
     const box = el(
       'div',
-      { class: 'part open', 'data-mark': p.mark },
-      el('div', { class: 'head' }, el('strong', { text: `Open slot: ${p.mark}` }), select),
-      empty ? el('div', { class: 'meta', text: 'Empty by default: a place for extra steps.' }) : el('pre', { class: struck ? 'default struck' : 'default', text: p.text }),
-      slot.mode === 'remove' ? el('div', { class: 'meta', text: 'This part is removed; cards here are not saved.' }) : null,
+      { class: `part part--open${edited ? ' part--edited' : ''}`, 'data-mark': p.mark },
+      el('span', { class: 'part-tag' }, el('b', { text: 'Open' }), el('span', { text: p.mark })),
+      el('div', { class: 'slot-bar' }, chips, edited ? el('span', { class: 'av-label', text: 'Edited' }) : null),
+      empty ? el('p', { class: 'av-annot', text: 'Empty by default: a place for extra steps.' }) : prose(p.text, struck ? 'prose prose--struck' : 'prose'),
+      slot.mode === 'remove' ? el('p', { class: 'av-annot', text: 'This part is removed. Cards here are not saved.' }) : null,
       ...cards,
-      el('div', { class: 'row' }, addOwn, el('span', { class: 'meta', text: 'or drop a preset here' })),
+      el('div', { class: 'card-foot' }, addOwn, el('span', { class: 'av-annot', text: 'or drop a preset here' })),
     );
     box.addEventListener('dragover', e => {
       e.preventDefault();
-      box.classList.add('over');
+      box.classList.add('part--over');
     });
-    box.addEventListener('dragleave', () => box.classList.remove('over'));
+    box.addEventListener('dragleave', () => box.classList.remove('part--over'));
     box.addEventListener('drop', e => {
       e.preventDefault();
-      box.classList.remove('over');
+      box.classList.remove('part--over');
       const data = e.dataTransfer.getData('text/plain');
       if (data.startsWith('preset:')) drop(p.mark, data.slice('preset:'.length));
     });
     return box;
   }
 
-  function renderSpine() {
+  /** Redraw the spine. A structural change clears the last status message unless the caller just set it. */
+  function renderSpine(clearStatus = true) {
+    if (clearStatus) status = { text: '', level: '' };
     const moves = PACT.moves.map(m =>
-      el('article', { class: 'move' }, el('h2', { text: `Move ${m.n}` }), el('p', { class: 'lead', text: m.lead }), ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p)))),
+      el(
+        'article',
+        { class: 'move' },
+        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Move ${String(m.n).padStart(2, '0')}` }), el('h2', { class: 'av-h3', text: m.lead })),
+        ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p))),
+      ),
     );
     $('spine').replaceChildren(...moves);
     renderOutput();
@@ -606,9 +764,12 @@ function boot() {
 
   function renderAlways() {
     $('always').replaceChildren(
-      el('h2', { text: 'Always on' }),
-      el('p', { class: 'sub', text: 'Gated clauses outside the four moves. They are locked too.' }),
-      ...PACT.always.map(lockedPart),
+      el(
+        'article',
+        { class: 'move' },
+        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: 'Always on' }), el('h2', { class: 'av-h3', text: 'Gated clauses outside the four moves' })),
+        ...PACT.always.map(lockedPart),
+      ),
     );
   }
 
@@ -648,35 +809,36 @@ function boot() {
   }
 
   function renderOutput() {
+    renderSummary();
     const found = problems(state);
     const errors = found.filter(f => f.level === 'error');
     const files = buildFiles(state);
     const canPick = typeof window.showDirectoryPicker === 'function' && window.isSecureContext;
-    const save = el('button', { type: 'button', class: 'primary', onclick: () => saveToFolder(files) }, 'Save to a folder');
+    const save = chip('Save to a folder', !errors.length && canPick, () => saveToFolder(files));
     if (errors.length || !canPick) save.disabled = true;
 
-    const list = found.length
-      ? el('ul', { class: 'problems' }, ...found.map(f => el('li', { class: f.level, text: `${f.level === 'error' ? 'Fix' : 'Check'}: ${f.where}: ${f.text}` })))
-      : el('p', { class: 'meta', text: 'No problems found here. The installer still checks everything.' });
+    const notes = found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` }));
+    if (status.text) notes.push(el('li', { class: `av-callout${status.level === 'error' ? ' av-callout--caution' : status.level === 'ok' ? ' av-callout--normal' : ''}`, text: status.text }));
+    if (!notes.length) notes.push(el('li', { class: 'av-callout av-callout--normal', text: 'Nothing to fix here. The installer still checks everything.' }));
 
     const fileViews = files.map(f => {
       const into = f.path.startsWith('blocks/') ? '~/.claude/pact/blocks/' : '~/.claude/pact/';
-      const btn = el('button', { type: 'button', onclick: () => download(f) }, `Download ${f.path.split('/').pop()}`);
+      const btn = chip(`Download ${f.path.split('/').pop()}`, false, () => download(f), 'av-tool-chip--ghost');
       if (errors.length) btn.disabled = true;
-      return el('div', { class: 'file' }, el('div', { class: 'row' }, el('strong', { text: f.path }), el('span', { class: 'meta', text: `goes in ${into}` }), btn), el('pre', { text: f.text }));
+      return el('div', {}, el('div', { class: 'file-head' }, el('span', { class: 'section-title', text: f.path }), el('span', { class: 'av-annot', text: `goes in ${into}` }), btn), el('pre', { class: 'av-tool-code', text: f.text }));
     });
 
     $('output').replaceChildren(
-      el('h2', { text: 'Save' }),
-      el('p', { class: 'sub', text: canPick
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
+      el('p', { class: 'av-annot', text: canPick
         ? 'Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there. Then run the install script\'s dry run and read its Configuration block.'
         : 'This browser has no folder picker, so save each file with its download button and put it where it says. Then run the install script\'s dry run and read its Configuration block.' }),
-      list,
-      el('div', { class: 'row' }, save, el('span', { class: `status ${status.level}`, text: status.text })),
-      ...fileViews,
+      el('ul', { class: 'callouts' }, ...notes),
+      el('div', { class: 'files' }, ...fileViews),
     );
   }
 
+  renderActions();
   renderValues();
   renderLibrary();
   renderAlways();
