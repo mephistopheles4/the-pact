@@ -1,8 +1,7 @@
 #Requires -Version 7.5
-# No argument binds by position: a hash typed after -Apply without its name
-# must refuse, never become -ClaudeHome. (None of the common parameters this
-# adds starts with A, C or R.)
-[CmdletBinding(PositionalBinding = $false)]
+# A plain param block, never an advanced script: [CmdletBinding()] would let
+# $PSDefaultParameterValues turn on -Apply with no "-Apply" in the command text,
+# past the ask rules (ADR 0020, gate/tests/settings.test.mjs).
 param(
   [switch]$Apply,
   [string]$ClaudeHome = (Join-Path $HOME '.claude'),
@@ -12,9 +11,6 @@ param(
   [string]$RenderedHash
 )
 $ErrorActionPreference = 'Stop'
-# Write-Host goes to the information stream, so -InformationAction Ignore
-# would silence the dry run and every refusal. The owner always sees them.
-$InformationPreference = 'Continue'
 # Installs the pact from this clone's committed HEAD into -ClaudeHome (default
 # ~/.claude). Dry run by default: prints the plan and changes nothing. -Apply
 # installs, and only when there is no drift, the working tree is clean and
@@ -39,11 +35,17 @@ $InformationPreference = 'Continue'
 # does not prove the owner read the dry run.
 
 $repo = Split-Path $PSScriptRoot -Parent
-# Absolute, as PowerShell resolves it, and used for every path from here on:
-# PowerShell cmdlets resolve a relative path against PowerShell's location,
-# .NET calls against the process's working folder, and the renderer runs in
-# the stage, so a relative path could name three different folders.
-$claudeHomeFull = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ClaudeHome)
+# -ClaudeHome must be a full path. A relative one could name three different
+# folders: PowerShell cmdlets resolve it against PowerShell's location, .NET
+# calls against the process's working folder, and the renderer runs in the
+# stage. And the parameters bind by position, so a hash typed after -Apply
+# without its name lands here, as a relative name; this refuses it before
+# anything runs.
+if (-not [IO.Path]::IsPathFullyQualified($ClaudeHome)) {
+  Write-Host 'REFUSED: -ClaudeHome must be a full path, such as the default (your home folder''s .claude). A hash goes after -RenderedHash. Nothing was changed.'
+  exit 1
+}
+$claudeHomeFull = [IO.Path]::GetFullPath($ClaudeHome)
 $ClaudeHome = $claudeHomeFull
 $configRel = 'pact/config.json'
 $blocksRel = 'pact/blocks'

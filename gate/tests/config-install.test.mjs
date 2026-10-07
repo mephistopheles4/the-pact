@@ -472,10 +472,11 @@ test('bad case: a hash typed after -Apply without its parameter name, and no -Cl
   assert.ok(!existsSync(join(repo, hash)), `a folder named after the hash was created:\n${out}`);
   // The script's body never ran, whichever home folder PowerShell took.
   assert.doesNotMatch(r.stdout, /Install from commit/, out);
+  assert.match(r.stdout, /^REFUSED: -ClaudeHome must be a full path/m, out);
   // PowerShell keeps its own startup data under the home folder; no pact file may appear there.
   assert.ok(!existsSync(join(fakeHome, '.claude')), out);
 });
-test('bad case: a relative Claude home given after a change of location is checked where the renderer reads it', t => {
+test('bad case: a relative -ClaudeHome refuses before anything runs, even after a change of location', t => {
   // The process starts in one folder and PowerShell moves to another before
   // running the script, so a relative path could name two different places.
   const repo = makeRepo(t);
@@ -491,7 +492,10 @@ test('bad case: a relative Claude home given after a change of location is check
   const r = spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-Command', cmd], { cwd: procAt, encoding: 'utf8', env, timeout: 180_000 });
   const out = `${r.stdout}${r.stderr}`;
   assert.notEqual(r.status, 0, out);
-  assert.match(r.stdout, /^REFUSED: the configuration blocks folder holds a link or other reparse point\./m, out);
+  // It once named two folders: PowerShell's location for the attribute test,
+  // the process's working folder for .NET. Now it is refused outright.
+  assert.match(r.stdout, /^REFUSED: -ClaudeHome must be a full path/m, out);
+  assert.doesNotMatch(r.stdout, /Install from commit/, out);
 });
 
 // ------------------------------------------------------------ an upgrade from a slice-2 record, and the user file's edit guard
@@ -524,7 +528,7 @@ test('the settings overlay asks before any edit to the user file or its blocks f
   assert.ok(overlay.permissions.ask.includes('Edit(~/.claude/pact/**)'), overlay.permissions.ask.join('\n'));
 });
 
-test('bad case: -InformationAction Ignore cannot silence the install: the dry run and a refusal still print', t => {
+test('bad case: -InformationAction Ignore cannot silence the install (a plain script takes it as an unread argument): the dry run and a refusal still print', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const dry = install(repo, h, { extra: ['-InformationAction', 'Ignore'] });
