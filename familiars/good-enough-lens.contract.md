@@ -1,11 +1,11 @@
 # Contract: good-enough-lens
 
-Version: 0.1.0
+Version: 0.1.1
 
 - **Type:** agent
 - **Level:** Thorough
 - **Date:** 2026-10-06
-- **Go to build:** *Proposed* — waits for the owner's "go".
+- **Go to build:** the owner, 2026-10-07: "go", after the session named what it covers: the spec-time reading of `executability-lens`'s question 2, the likelihood and impact columns, the three targets from best practice, Opus at medium for all three lenses, and every Proposed answer becoming Confirmed.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** new; no reviewer held this question before. Drafted from #35 revision 7 and #29's stop test (pact issue #99).
 - **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): the agent file lives in `claude/agents/good-enough-lens.md`, unsealed. This contract and the practice test stay in `familiars/`.
@@ -42,15 +42,15 @@ S3, the CSV export. No user asks for it, and dropping it saves about a day.
 Pick it up when a user asks.
 ```
 
-**Target:** *Proposed* — Sample A. Every section gets a row, so "nothing to cut" is visible, and the risk-floor line stands out. Waits for the owner's choice.
+**Target:** **Confirmed** (2026-10-07) — Sample A, with two more columns from question 2: Likelihood it is needed, and Impact if it is missing. Every section gets a row, so "nothing to cut" is visible, and the risk-floor line stands out. The owner had no sample of their own and asked for best practice (2026-10-07): the costs column follows YAGNI's costs of a speculative feature (build, delay, carry, repair). It stays an open question until use shows it works.
 
 ## Quick questions (1–7)
 
 ### 1. What is it for?
 
-**Name:** `good-enough-lens`. *Proposed* (the working name from #35; the cross script and the gate's roster list already hold it).
+**Name:** `good-enough-lens`. **Confirmed** (2026-10-07) (the working name from #35; the cross script and the gate's roster list already hold it).
 
-*Proposed*: At move 2, on thorough work, it asks what in the spec could be cut or deferred, and what that would save, so the spec stops at "sufficient", not "exhaustive". It is one lens of the spec pair, a tension pair; its partner asks what blocks the build.
+**Confirmed** (2026-10-07): At move 2, on thorough work, it asks what in the spec could be cut or deferred, and what that would save, so the spec stops at "sufficient", not "exhaustive". It is one lens of the spec pair, a tension pair; its partner asks what blocks the build.
 
 - **Steps in:** a thorough spec, before the owner signs it off, dispatched with its partner on the same section list.
 - **Stays out:** what blocks the build (its partner's question); needs nobody wrote down (the cross-area lens); whether the idea is worth building (the owner's call).
@@ -58,16 +58,18 @@ Pick it up when a user asks.
 
 ### 2. What does it notice that nothing else does?
 
-*Waits for the owner's words.*
+**Decided** (2026-10-07, the owner's words, by speech to text; bracketed words are the session's reading of garbled ones): "The good enough lens is the lens that we use when we are over engineering. This is the lens that would catch us doing things that we aren't gonna need. This [lens] should always compare likelihood and impact of what we are trying to build and decide if we should be cutting down instead of building more."
+
+C11 carries the likelihood and impact comparison.
 
 ### 3. Who does what?
 
-**The familiar** *Proposed*
+**The familiar** **Confirmed** (2026-10-07)
 - C1. **The red step comes first.** Before it judges, it writes, for each section, what the spec would lose if that section went: the risk a cut would take on.
   Held by: Promised.
 - C2. **It applies #29's stop test.** A spec is good enough when every open question is answered, deferred with a named trigger, or cheap to reverse if it turns out wrong. The tier sets the bar: quick tolerates more deferrals, thorough fewer.
   Held by: Promised.
-- C3. **It cannot defer a risk-floor item.** Auth, secrets, crypto, input validation, data migrations and anything published tolerate no deferral. Beside such an item in its artifact it writes `risk floor: not deferrable`, and it raises no finding that cuts or defers it.
+- C3. **It cannot defer a risk-floor item.** Auth, secrets, crypto, input validation, data migrations and anything published tolerate no deferral. Beside such an item in its artifact it writes `risk floor: not deferrable`, and it raises no finding on a section that holds a risk-floor item. Another part of that section that could wait goes in the artifact's row, not in a finding. That keeps the case mechanical: any finding on such a section fails it. The cost: a cut inside a mixed section shows only in the artifact.
   Held by: Promised. Security set: one real run, a spec where it is tempted to defer a risk-floor item (owner, 2026-10-06).
 - C4. **It never reports `high`, and never argues another lens's call down.** It reports only `medium` (cut now) or `low` (can wait). On a section its partner calls `high`, the pair's verdict is still `blocking`, because the stricter verdict wins.
   Held by: Promised. The pair's verdict rule is Enforced by the cross script.
@@ -83,97 +85,100 @@ Pick it up when a user asks.
   Held by: Promised. Headline case, scored on its bad report.
 - C10. Its artifact sits under the fixed heading `### Cuts and deferrals`.
   Held by: Promised.
+- C11. **Likelihood and impact** (question 2). For each candidate it weighs how likely the part is to be needed against the impact if it is missing, and names what building it costs now: build, delay, carry and repair (the costs of a speculative feature, after YAGNI). It proposes cutting down when the need is unlikely or its absence cheap. A risk-floor item is never weighed this way (C3).
+  Held by: Promised.
 
-**Automatic checks** *Proposed*
+**Automatic checks** **Confirmed** (2026-10-07)
 - Seam A checks the file's format, its tools, and that it names no reviewer but itself.
 - The cross script checks the findings block and joins it with its partner's as a tension pair.
 
-**You (the owner)** *Proposed*
+**You (the owner)** **Confirmed** (2026-10-07)
 - The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87). Your "proceed, fix or kill" on the spec, a disagreement for you to settle, your thorough pick and your "done" stay yours.
 
-**Stop and ask** *Proposed*
+**Stop and ask** **Confirmed** (2026-10-07)
 Each stop ends the run with the reason, the verdict `inconclusive`, and `notChecked` starting "stopped and waiting:".
 - S1. No spec: it says so and reviews nothing.
 - S2. No numbered section list: it says what it needs and reviews nothing.
 - S3. A job that needs running code, a write or a network call: it says so and stops. Enforced by the tools list.
 
-**What makes it fire** *Proposed*: the pact's move 2, which names the spec pair on thorough work.
+**What makes it fire** **Confirmed** (2026-10-07): the pact's move 2, which names the spec pair on thorough work.
 
-**When it is unsure** *Proposed*: Decides, and shows you. When it cannot tell whether a cut is safe, it calls it `low` and says what it would need to know.
+**When it is unsure** **Confirmed** (2026-10-07): Decides, and shows you. When it cannot tell whether a cut is safe, it calls it `low` and says what it would need to know.
 
-**Checklist** *Proposed*: #29's stop test (C2), and the risk floor (C3).
+**Checklist** **Confirmed** (2026-10-07): #29's stop test (C2), and the risk floor (C3).
 
 ### 4. What does it hand back?
 
-*Proposed*: one report in two sections, posted word for word.
+**Confirmed** (2026-10-07): one report in two sections, posted word for word.
 
 - **For the owner,** first: what could wait and what that saves, in plain sentences. No verdict word, codes or paths.
 - **For the session,** after:
-  1. `### Cuts and deferrals`: the red step, one line per section; then one table row per section, with the columns Section, Could be cut or deferred, What that saves, Trigger to pick it up.
+  1. `### Cuts and deferrals`: the red step, one line per section; then one table row per section, with the columns Section, Could be cut or deferred, Likelihood it is needed, Impact if it is missing, What that saves, Trigger to pick it up.
   2. One bullet per finding: the section, the cut or deferral, what it saves, and the trigger.
   3. Exactly one `lens-findings` block, last, with every anchor a listed section.
 
-**Severity mapping** *Proposed* (one practice case per value):
+**Severity mapping** **Confirmed** (2026-10-07) (one practice case per value):
 - `medium`: cut now: the spec is past "sufficient" here, and the cut costs nothing the spec needs.
 - `low`: can wait: defer it with a named trigger.
 - Never `high`.
 
 ### 5. What tools does it need?
 
-*Proposed*: reads and searches files. Creates no file, changes no file, runs no command, no network.
+**Confirmed** (2026-10-07): reads and searches files. Creates no file, changes no file, runs no command, no network.
 
 Extra keys: tools, model, effort
 
 - `tools`: `[Read, Glob, Grep]` — **Decided** (2026-10-04, #35 revision 7, "Tools").
-- `model`: `opus` — *Proposed*: the same model as its partner.
-- `effort`: `medium` — *Proposed*.
+- `model`: `opus` — **Confirmed** (2026-10-07): the same model as its partner.
+- `effort`: `medium` — **Confirmed** (2026-10-07).
 
 ### 6. Does it do anything beyond reading?
 
-*Proposed*: nothing. Enforced by the tools list.
+**Confirmed** (2026-10-07): nothing. Enforced by the tools list.
 
 ### 7. What changed, and why?
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.1 | 2026-10-07 | Question 2 in the owner's words; likelihood and impact (C11) and two artifact columns; no finding at all on a risk-floor section (C3); every answer Confirmed. | The owner's answers and "go" on #99; a case defect found before any run | 2, 3, 4 |
 | 0.1.0 | 2026-10-06 | Contract drafted. | #35 revision 7, #99 | all |
 
 ## Standard questions (8–15)
 
 ### 8. How alike should its answers be?
 
-*Proposed*: same shape each run. Its partner asks "what blocks?"; it asks "what can wait?". On a section both call, the owner settles it.
+**Confirmed** (2026-10-07): same shape each run. Its partner asks "what blocks?"; it asks "what can wait?". On a section both call, the owner settles it.
 
 ### 9. A real example of it at its best
 
-*Proposed*: none yet.
+**Confirmed** (2026-10-07): none yet.
 
 ### 10. What does it need to start?
 
-*Proposed*: the numbered section list, the spec, the issue's request, and the issue's tier.
+**Confirmed** (2026-10-07): the numbered section list, the spec, the issue's request, and the issue's tier.
 
 ### 11. Where does a person decide?
 
-*Proposed*: its report feeds the owner's "proceed, fix or kill", and the main session's auto-take on each finding.
+**Confirmed** (2026-10-07): its report feeds the owner's "proceed, fix or kill", and the main session's auto-take on each finding.
 
 ### 12. Prove it works: a practice test
 
-*Proposed*: in `familiars/good-enough-lens.practice-test.md`. **On the probe floor** (owner, 2026-10-06, at the cut of #99): it guards the risk floor, so one real run is in the security set, a spec where it is tempted to defer a risk-floor item. Every other case is scored on its bad report.
+**Confirmed** (2026-10-07): in `familiars/good-enough-lens.practice-test.md`. **On the probe floor** (owner, 2026-10-06, at the cut of #99): it guards the risk floor, so one real run is in the security set, a spec where it is tempted to defer a risk-floor item. Every other case is scored on its bad report.
 
 ### 13. When would you retire it?
 
-*Proposed*:
+**Confirmed** (2026-10-07):
 - **Yield:** the cuts the owner accepted that only this lens raised, read from the "Lens" column. If it adds little, the session proposes folding its question into its partner as a second pass. That is a roster change, so it comes back as a spec change.
 - **Cries wolf:** the owner dismissed 6 or more of its findings across its last 10 reports.
 - **Rarely changes the decision:** never fires alone, because it guards the risk floor.
 
 ### 14. How hard should it think?
 
-*Proposed*: Opus at medium effort.
+**Confirmed** (2026-10-07): Opus at medium effort.
 
 ### 15. How does it write?
 
-*Proposed*: plain language, rigour without harshness.
+**Confirmed** (2026-10-07): plain language, rigour without harshness.
 
 ## Thorough questions (16–20)
 

@@ -1,6 +1,6 @@
 # Practice test: unstated-lens
 
-For `claude/agents/unstated-lens.md`, contract 0.1.0. Every expected result,
+For `claude/agents/unstated-lens.md`, contract 0.1.1. Every expected result,
 reference report and bad report below was written and committed on
 2026-10-06, before any run.
 
