@@ -1,6 +1,6 @@
 # Practice test: executability-lens
 
-For `claude/agents/executability-lens.md`, contract 0.1.4. Every expected result, reference report and bad report below was written and committed before any run: first on 2026-10-06, then changed on 2026-10-07 after move 4 on the swap (`1a4034f`, the round-2 fix and the round-3 and round-4 fixes), still before any run.
+For `claude/agents/executability-lens.md`, contract 0.1.5. Every expected result, reference report and bad report below was written and committed before any run: first on 2026-10-06, then changed on 2026-10-07 after move 4 on the swap (`1a4034f`, the round-2 fix and the round-3 and round-4 fixes), still before any run.
 
 **Status: four cases run for real; the rest are scored on bad reports.**
 This lens guards the risk floor and the owner's human-in-the-loop check, so
