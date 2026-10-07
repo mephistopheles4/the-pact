@@ -347,7 +347,8 @@ a report or review, and nothing else. Facts only I have and approvals the
 pact requires still come to me. It never covers any stop in "When to stop or
 escalate", any gated clause, a tier decision, "Quick work stops at an open
 decision", my "proceed, fix or kill" on a spec review, a disagreement the spec
-pair leaves for me to settle, the thorough pick, a
+pair leaves for me to settle, a scope decision or a time that a spec review
+brings to me, the thorough pick, a
 user-only skill's trigger, an install, cutting a lens, confirming an escape or
 gap row, the claiming and coordination rules, or my "done": accepting the
 work, closing a ticket and merging are mine.

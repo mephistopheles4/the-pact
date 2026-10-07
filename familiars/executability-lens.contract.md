@@ -1,6 +1,6 @@
 # Contract: executability-lens
 
-Version: 0.1.2
+Version: 0.1.3
 
 - **Type:** agent
 - **Level:** Thorough
@@ -97,7 +97,7 @@ Each sample ends with its `lens-findings` block.
   Held by: Promised. Every practice case checks it.
 - C12. Every blocking defect it knows of is reported in the same pass.
   Held by: Promised.
-- C14. **Signs 1 and 2 stay the owner's.** For a scope decision or an owner action with no time, the change it suggests is to bring the decision or the time to the owner, never an answer it chose, so the main session's auto-take cannot make the decision.
+- C14. *Proposed* (after the go, from move 4). **Signs 1 and 2 stay the owner's.** For a scope decision or an owner action with no time, the change it suggests is to bring the decision or the time to the owner, never an answer it chose, and the pact's auto-take exceptions name "a scope decision or a time that a spec review brings to me", so the main session brings it to the owner rather than taking its own default.
   Held by: Promised. (From `security-reviewer`'s move-4 read, F4, 2026-10-07.)
 - C13. **The target environment** (question 2), when the work is something that runs, such as an app, a service or a script. The spec names the environment the work must run on and how it differs from the development environment; its done-criteria include a clean build and a clean lint; and one step runs the work end to end on that environment. A missing one is a stall, so a finding on that section.
   Held by: Promised.
@@ -154,6 +154,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.3 | 2026-10-07 | Each finding bullet opens `S<n> (F<n>):`, so a case can score the sign inside its finding; C14 points to the pact's new auto-take exception; rows added after the go marked *Proposed*. | Move 4 round 2: `security-reviewer` R1, R3, R5 | 4, rules table |
 | 0.1.2 | 2026-10-07 | Every rule of the outgoing plan reviewer accounted for (ownership, budgets and future-slice metadata dropped with reasons; the readiness points narrowed; sign 5 narrowed; the check's scope kept); C14; a missing readiness point is `medium` unless it stalls. | Move 4 on the swap: the outgoing plan reviewer's REVISE, `behaviour-lens` F1, `security-reviewer` F3 and F4 | 3, 4, rules table |
 | 0.1.1 | 2026-10-07 | Question 2 in the owner's words, read at spec time; the target-environment check (C13); the target from ARID; every answer Confirmed. | The owner's answers and "go" on #99 | 2, 3, 19 |
 | 0.1.0 | 2026-10-06 | Contract drafted from the outgoing plan reviewer. Adds the red step, the ARID step, section anchors, the findings block and the fixed artifact heading; keeps the human-in-the-loop check and the risk floor. | #35 revision 7 (the spec pair), #99 | all |
@@ -258,22 +259,22 @@ Against its neighbours: it asks "can this be built as written, with the owner's 
 
 ## Rules of the file it replaces
 
-Every rule of the outgoing plan reviewer. **Confirmed** (2026-10-07).
+Every rule of the outgoing plan reviewer. **Confirmed** (2026-10-07), except the rows marked *Proposed*, which move 4 on the swap added after the go and which wait for the owner.
 
 | Rule there | Mark | Where it goes, and why |
 |---|---|---|
 | Read-only leaf: review this unit; never delegate; tools exclude the shell and writes | Kept | C8. |
 | Receive one stable readiness-unit id and the plan and evidence paths | Moved | Q10: the section list and the spec; readiness units are now sections. |
-| Program envelope: challenge outcome, architecture, security, dependencies, integration, budgets, stops | Kept, narrowed (2026-10-07) | Outcome and stops: the readiness points. Architecture, dependencies and integration: kept only as buildability, where the ARID step stalls on them. Security: moved to the security route's reviewers. Budgets: dropped, because the pact sets cost by tier and effort, and the owner watches usage. |
-| Execution slice: require outcome, scope and non-goals, prerequisites, ownership, acceptance, rollback, budget, stop conditions | Kept, narrowed (2026-10-07) | Outcome, scope and non-goals, prerequisites, acceptance (as done-criteria), rollback and stop conditions: the readiness points, a missing one high when it stalls the build, otherwise medium (the old rule blocked on any missing item; the ARID stall is now the test of blocking). Exclusive ownership: dropped, because each ticket is built in its own main session and the pact's claiming rules cover who holds it. Slice-local budget: dropped, as for budgets above. |
+| Program envelope: challenge outcome, architecture, security, dependencies, integration, budgets, stops | Kept, narrowed (2026-10-07, *Proposed*) | Outcome and stops: the readiness points. Architecture, dependencies and integration: kept only as buildability, where the ARID step stalls on them. Security: moved to the security route's reviewers. Budgets: dropped, because the pact sets cost by tier and effort, and the owner watches usage. |
+| Execution slice: require outcome, scope and non-goals, prerequisites, ownership, acceptance, rollback, budget, stop conditions | Kept, narrowed (2026-10-07, *Proposed*) | Outcome, scope and non-goals, prerequisites, acceptance (as done-criteria), rollback and stop conditions: the readiness points, a missing one high when it stalls the build, otherwise medium (the old rule blocked on any missing item; the ARID stall is now the test of blocking). Exclusive ownership: dropped, because each ticket is built in its own main session and the pact's claiming rules cover who holds it. Slice-local budget: dropped, as for budgets above. |
 | Reject cosmetic splits and unresolved shared blockers | Dropped | Ticket cutting is the owner's `to-tickets` step. |
-| Security-sensitive units need security findings and dispositions before readiness | Kept, by role, narrowed (2026-10-07) | C3, sign 5, as #35 revision 7 words it: a read of the spec and of the diff by the security route's reviewers, done or planned with a stated time. Completed dispositions are no longer required before this lens's read, because the pact now runs the security read of the spec first, beside the spec pair, and the security route still requires that read before the build. |
+| Security-sensitive units need security findings and dispositions before readiness | Kept, by role, narrowed (2026-10-07, *Proposed*) | C3, sign 5, as #35 revision 7 words it: a read of the spec and of the diff by the security route's reviewers, done or planned with a stated time. Completed dispositions are no longer required before this lens's read, because the pact now runs the security read of the spec first, beside the spec pair, and the security route still requires that read before the build. |
 | The human-in-the-loop check, six signs, missing section top severity | Kept | C3; `high`. |
-| The check's scope: every step, whichever phase or session it runs in | Kept (2026-10-07) | C3. |
+| The check's scope: every step, whichever phase or session it runs in | Kept (2026-10-07, *Proposed*) | C3. |
 | The risk floor as a shared block | Kept | C4: the block moves to this lens. |
 | Only concrete P0–P2 defects block; return every blocker in one pass | Kept | The severity mapping; C12. |
 | Priority by impact, P0 to P4 | Moved | The severity mapping: P0–P2 `high`, P3 `medium`, P4 `low`. |
-| Missing future-slice metadata stays blocking | Dropped (2026-10-07) | A spec's future slices get their ids, outcomes and prerequisites when the owner cuts tickets (`to-tickets`), so a spec review has none to check. |
+| Missing future-slice metadata stays blocking | Dropped (2026-10-07, *Proposed*) | A spec's future slices get their ids, outcomes and prerequisites when the owner cuts tickets (`to-tickets`), so a spec review has none to check. |
 | Read only the evidence needed for the unit | Kept | Q10: the lens reads the files handed to it. |
 | No blocker for P3/P4 advice, style, optional detail or adjacent hardening | Kept | The severity mapping: `medium` or `low`. |
 | Don't write a replacement plan | Kept | The drafted ticket is the artifact, not a plan. |
