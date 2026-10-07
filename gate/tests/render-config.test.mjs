@@ -152,6 +152,25 @@ test('bad case: a configuration path that is a folder refuses', t => {
   refusedWith(render(t, h), 'config-file', /not a regular file/);
 });
 
+// "Not a folder" is not "does not exist": only ENOENT means no configuration.
+// Unix reports a path through a file as ENOTDIR. Windows reports it as not
+// found, which is then the truth: no file can be there. So these run on Unix
+// only, and on Windows the ENOENT-only rule before the open has no plantable
+// case (a denied read-attributes right still lets lstat through).
+const NOT_ON_WINDOWS = WIN && 'Windows reports a path through a file as not found (not run)';
+
+test('bad case: a Claude home folder that is a file refuses, never read as no configuration', { skip: NOT_ON_WINDOWS }, t => {
+  const f = join(tempDir(t), 'home');
+  writeFileSync(f, 'x');
+  refusedWith(render(t, f), 'config-file', /the pact folder could not be read/);
+});
+
+test('bad case: a Claude home path through a file refuses, never read as no configuration', { skip: NOT_ON_WINDOWS }, t => {
+  const f = join(tempDir(t), 'file');
+  writeFileSync(f, 'x');
+  refusedWith(render(t, join(f, 'home')), 'config-file', /the Claude home folder could not be read/);
+});
+
 test('bad case: a pact folder that is a file refuses', t => {
   const h = tempDir(t);
   writeFileSync(join(h, 'pact'), 'x');
