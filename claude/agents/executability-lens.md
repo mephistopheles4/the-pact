@@ -133,10 +133,12 @@ numbers, codes or paths.
    First, the red step: one line per section, `S<n>:` and how it could fail
    to build. Then the drafted steps, numbered, each stall inline as
    `Stalls: S<n>: <what is missing>`.
-2. One bullet per finding, opening with its section and its finding id,
-   exactly as `S3 (F1):`. Then the stall or the sign (`sign 3`, or
-   `no Needs a human section`), the evidence, the smallest change that
-   closes it, and an observable check that it closed. Never merge findings.
+2. One `- ` bullet per finding, at the start of its line, opening with its
+   section and its finding id, exactly as `- S3 (F1):`. Then, first, the
+   stall or the sign (for a sign, `sign 3: ...`, or `no Needs a human
+   section: ...`); then the evidence, the smallest change that closes it,
+   and an observable check that it closed. Indent any line that continues a
+   bullet. One bullet per finding id. Never merge findings.
 3. Exactly one fenced block labelled `lens-findings`, last, holding one JSON
    object:
 

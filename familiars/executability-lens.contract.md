@@ -1,6 +1,6 @@
 # Contract: executability-lens
 
-Version: 0.1.3
+Version: 0.1.4
 
 - **Type:** agent
 - **Level:** Thorough
@@ -154,6 +154,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.4 | 2026-10-07 | The finding bullet is pinned: a `- ` bullet at the start of its line, opening `- S3 (F1):` and then the sign first; continuation lines indented; one bullet per finding id. | Move 4 round 3: `security-reviewer` N1, N3; the owner's choice to drop the quiet-sections rule and tighten the bullet rule | 4 |
 | 0.1.3 | 2026-10-07 | Each finding bullet opens `S<n> (F<n>):`, so a case can score the sign inside its finding; C14 points to the pact's new auto-take exception; rows added after the go marked *Proposed*. | Move 4 round 2: `security-reviewer` R1, R3, R5 | 4, rules table |
 | 0.1.2 | 2026-10-07 | Every rule of the outgoing plan reviewer accounted for (ownership, budgets and future-slice metadata dropped with reasons; the readiness points narrowed; sign 5 narrowed; the check's scope kept); C14; a missing readiness point is `medium` unless it stalls. | Move 4 on the swap: the outgoing plan reviewer's REVISE, `behaviour-lens` F1, `security-reviewer` F3 and F4 | 3, 4, rules table |
 | 0.1.1 | 2026-10-07 | Question 2 in the owner's words, read at spec time; the target-environment check (C13); the target from ARID; every answer Confirmed. | The owner's answers and "go" on #99 | 2, 3, 19 |
