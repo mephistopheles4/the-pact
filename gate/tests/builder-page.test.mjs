@@ -203,7 +203,7 @@ test('bad case: an example block changed makes the committed page out of date', 
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, catalogFrom, skillProblems });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -375,6 +375,43 @@ test('every shipped workflow renders: the page finds no problem and the renderer
     const r = renderSaved(t, s);
     assert.equal(r.status, 0, `${w.id}: ${r.stdout}`);
   }
+});
+
+test('the catalog reads skills, commands and agents from a picked folder\'s files, by name, and leaves out bad names and the pact\'s own agents', () => {
+  const fm = (name, description) => `---\nname: ${name}\ndescription: "${description}"\n---\nBody.\n`;
+  const c = L.catalogFrom([
+    { path: '.claude/skills/grill-me/SKILL.md', text: fm('grill-me', 'Grill the plan') },
+    { path: '.claude/plugins/cache/x/skills/zeta/SKILL.md', text: '---\ndescription: Zed\n---\n' },
+    { path: '.claude/skills/grill-me/SKILL.md', text: fm('grill-me', 'a duplicate') },
+    { path: '.claude/skills/bad/SKILL.md', text: fm('bad name!', 'refused') },
+    { path: '.claude/skills/notes.md', text: fm('notes', 'not a skill file') },
+    { path: '.claude/commands/ship.md', text: '---\ndescription: Ship it\n---\n' },
+    { path: '.claude/commands/team/review.md', text: 'no frontmatter' },
+    { path: '.claude\\agents\\my-reviewer.md', text: fm('my-reviewer', 'Reviews') },
+    { path: '.claude/agents/security-reviewer.md', text: fm('security-reviewer', 'the pact\'s own') },
+  ]);
+  assert.deepEqual(c.skills, [{ name: 'grill-me', description: 'Grill the plan' }, { name: 'zeta', description: 'Zed' }]);
+  assert.deepEqual(c.commands, [{ name: 'ship', description: 'Ship it' }, { name: 'team:review', description: '' }]);
+  assert.deepEqual(c.agents, [{ name: 'my-reviewer', description: 'Reviews' }]);
+});
+
+test('skill and command cards write one plain line each, and refuse a bad name or a two-line "when"', () => {
+  const s = L.initialState();
+  s.slots['move-2'] = { replaced: false, cards: [{ kind: 'skill', name: 'grill-me', when: 'the idea is still vague' }, { kind: 'command', name: 'team:review' }] };
+  assert.deepEqual(L.problems(s), []);
+  assert.equal(L.buildFiles(s)[1].text, 'Use the `grill-me` skill when the idea is still vague.\nAt this step, hand me the trigger: type `/team:review`.\n');
+  assert.match(L.skillProblems({ kind: 'skill', name: 'bad name', when: '' })[0], /skill name/);
+  assert.match(L.skillProblems({ kind: 'skill', name: 'ok', when: 'one\ntwo' })[0], /one line/);
+  assert.match(L.skillProblems({ kind: 'command', name: '@x' })[0], /command name/);
+});
+
+test('a slot holding a skill, a command and your agent renders through the renderer', t => {
+  const s = L.initialState();
+  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'skill', name: 'grill-me', when: '' }, { kind: 'command', name: 'ship' }] };
+  s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'agent', name: 'my-reviewer', reads: 'the diff' }] };
+  assert.deepEqual(L.problems(s), []);
+  const r = renderSaved(t, s);
+  assert.equal(r.status, 0, r.stdout);
 });
 
 test('every preset on its own renders through the renderer', t => {

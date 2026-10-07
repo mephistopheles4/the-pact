@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-p9IMcOjZjoOg7gRW9CWX9bf3QYl0GLq6FrPi3BtoTjU='; style-src 'sha256-AcczOTROsoj3T3gRx8+ZROg39i6gIxDw2Dckjua8vKg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wKTpi1fFlDV+6EBksaPxFMw9nQfJREuopr9kOpo/gU8='; style-src 'sha256-9OZIKWUU/3R6uokHQhO0bqz2P9txMJrRknOBFNUQPLs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -165,6 +165,9 @@ input[type="text"] { min-width: 14em; flex: 1 1 14em; }
 .tile--on { border: var(--av-rule-bold) solid var(--av-ink); }
 .tile--locked { background: var(--av-paper-tech); border-left: var(--av-rule-bold) solid var(--av-ink); }
 .tile--yours { border: var(--av-rule-thin) dashed var(--av-ink); cursor: grab; }
+.tile--drag { cursor: grab; }
+.tile .av-annot { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.group-title { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); margin: var(--av-s2) 0 var(--av-s1); }
 .runs { list-style: none; margin: 0; padding: 0; font-size: var(--av-t-annot); color: var(--av-ink-80); }
 input[type="number"] { width: 5.5em; font: inherit; font-variant-numeric: tabular-nums; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
 
@@ -228,6 +231,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
     <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="workflows"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="agents"></section>
+    <section class="av-tool-bar av-tool-bar--stack" id="yours"></section>
     <div class="av-tool-detail">
       <section id="spine"></section>
       <section id="always"></section>
@@ -437,13 +441,6 @@ const PACT = /* pact-data:begin */ {
    "text": "I triage it (`triage`): what kind of work it is, its tier, and whether it's\nready. You propose the triage and the tier, and never skip past it. A bug\ngoes through `diagnosing-bugs` before any fix."
   },
   {
-   "id": "move-3-cite-the-docs",
-   "title": "Cite the docs",
-   "mark": "move-3",
-   "op": "add-after",
-   "text": "When the build uses a framework or library API, use `source-driven-development`.\nCheck each such call against the official docs, and cite them in the commit or on the issue.\nFlag any claim you could not check against a source."
-  },
-  {
    "id": "move-3-done-criteria",
    "title": "Done criteria",
    "mark": "move-3",
@@ -451,46 +448,11 @@ const PACT = /* pact-data:begin */ {
    "text": "Before the build starts, read me each ticket's done-criteria back in one\nline each, so we agree on what done means."
   },
   {
-   "id": "move-3-instrument-paths",
-   "title": "Instrument paths",
-   "mark": "move-3",
-   "op": "add-after",
-   "text": "When the change adds a production code path, use `observability-and-instrumentation`.\nAdd the structured logs and metrics someone would need to see that path fail."
-  },
-  {
-   "id": "move-3-ui-work",
-   "title": "Ui work",
-   "mark": "move-3",
-   "op": "add-after",
-   "text": "When the ticket changes a user interface, use `frontend-ui-engineering`.\nHold the result to WCAG 2.1 AA, and check it at phone width."
-  },
-  {
-   "id": "move-4-browser-check",
-   "title": "Browser check",
-   "mark": "move-4-extra",
-   "op": "add-after",
-   "text": "When the change runs in a browser, use `browser-testing-with-devtools` before the QA pair.\nRecord the console errors and failed network requests you saw, or say there were none."
-  },
-  {
    "id": "move-4-docs-check",
    "title": "Docs check",
    "mark": "move-4-extra",
    "op": "add-after",
    "text": "After the checks, list each public interface the change touched, and say\nwhether its docs were updated."
-  },
-  {
-   "id": "move-4-launch-checklist",
-   "title": "Launch checklist",
-   "mark": "move-4-extra",
-   "op": "add-after",
-   "text": "When the work deploys to production, use `shipping-and-launch` for its checklist.\nName the rollback step on the issue before the deploy starts."
-  },
-  {
-   "id": "move-4-measure-performance",
-   "title": "Measure performance",
-   "mark": "move-4-extra",
-   "op": "add-after",
-   "text": "When the spec names a performance budget, use `performance-optimization`.\nMeasure before and after the change, and post both numbers on the issue."
   },
   {
    "id": "move-4-own-agent",
@@ -508,30 +470,11 @@ const PACT = /* pact-data:begin */ {
    "presets": []
   },
   {
-   "id": "front-end",
-   "title": "Front-end",
-   "about": "Build UI to WCAG 2.1 AA at phone width, then check it in the browser before the QA pair.",
+   "id": "close-the-loop",
+   "title": "Close the loop",
+   "about": "Agree on done before the build, and say which docs the change touched after it.",
    "presets": [
-    "move-3-ui-work",
-    "move-4-browser-check"
-   ]
-  },
-  {
-   "id": "production-service",
-   "title": "Production service",
-   "about": "Instrument new code paths, measure against the performance budget, and name the rollback before a deploy.",
-   "presets": [
-    "move-3-instrument-paths",
-    "move-4-measure-performance",
-    "move-4-launch-checklist"
-   ]
-  },
-  {
-   "id": "library-heavy",
-   "title": "Library-heavy",
-   "about": "Check framework and library calls against their docs, and say which public docs the change touched.",
-   "presets": [
-    "move-3-cite-the-docs",
+    "move-3-done-criteria",
     "move-4-docs-check"
    ]
   }
@@ -618,7 +561,65 @@ const openPart = mark => PACT.moves.flatMap(m => m.parts).find(p => p.kind === '
 const READS = ['the diff', 'the spec', 'the ticket'];
 const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const agentCardText = c => `Then run \`${c.name}\`, an agent from your own agents folder, on ${c.reads}, and post its report on the issue.`;
-const cardText = card => (card.kind === 'preset' ? presetById(card.id).text : card.kind === 'agent' ? agentCardText(card) : card.text);
+// Cards from the person's own Claude folder: a skill to use, or a command to hand back.
+const SKILL_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
+const skillCardText = c => `Use the \`${c.name}\` skill${c.when ? ` when ${c.when}` : ''}.`;
+const commandCardText = c => `At this step, hand me the trigger: type \`/${c.name}\`.`;
+const cardText = card =>
+  card.kind === 'preset' ? presetById(card.id).text
+    : card.kind === 'agent' ? agentCardText(card)
+    : card.kind === 'skill' ? skillCardText(card)
+    : card.kind === 'command' ? commandCardText(card)
+    : card.text;
+
+/** What the page finds wrong in a skill or command card. */
+function skillProblems(c) {
+  if (!SKILL_NAME_RE.test(c.name)) return [`the ${c.kind} name must be letters, digits, '.', '_', '-' or ':'`];
+  if (c.kind === 'skill' && /[\r\n]/.test(c.when || '')) return ['the "when" text must be one line'];
+  return [];
+}
+
+/** A file's frontmatter fields, as plain strings. Anything not in the simple key: value form is skipped. */
+function frontmatter(text) {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(String(text));
+  const out = {};
+  if (!m) return out;
+  for (const line of m[1].split(/\r?\n/)) {
+    const kv = /^([A-Za-z-]+):[ \t]*(.*)$/.exec(line);
+    if (kv && !(kv[1] in out)) out[kv[1]] = kv[2].trim().replace(/^(["'])(.*)\1$/, '$2');
+  }
+  return out;
+}
+
+/**
+ * The skills, commands and agents in files read from a folder the person
+ * picked: [{ path, text }], paths with '/'. Skills are skills/<name>/SKILL.md,
+ * commands are commands/<path>.md (nested folders join with ':'), agents are
+ * agents/<name>.md. Names that fail the name check are left out; the pact's
+ * own agents are left out of the agents. Sorted by name, one entry per name.
+ */
+function catalogFrom(entries) {
+  const skills = new Map();
+  const commands = new Map();
+  const agents = new Map();
+  for (const e of entries) {
+    const path = String(e.path).replace(/\\/g, '/');
+    const fm = frontmatter(e.text);
+    let m;
+    if ((m = /(?:^|\/)skills\/([^/]+)\/SKILL\.md$/.exec(path))) {
+      const name = fm.name || m[1];
+      if (SKILL_NAME_RE.test(name) && !skills.has(name)) skills.set(name, { name, description: fm.description || '' });
+    } else if ((m = /(?:^|\/)commands\/((?:[^/]+\/)*[^/]+)\.md$/.exec(path))) {
+      const name = m[1].replace(/\//g, ':');
+      if (SKILL_NAME_RE.test(name) && !commands.has(name)) commands.set(name, { name, description: fm.description || '' });
+    } else if ((m = /(?:^|\/)agents\/([^/]+)\.md$/.exec(path))) {
+      const name = fm.name || m[1];
+      if (AGENT_NAME_RE.test(name) && !agents.has(name) && !PACT.agents.some(a => a.name === name)) agents.set(name, { name, description: fm.description || '' });
+    }
+  }
+  const sorted = map => [...map.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  return { skills: sorted(skills), commands: sorted(commands), agents: sorted(agents) };
+}
 
 /** What the page finds wrong in a "Your agent" card. */
 function agentProblems(c) {
@@ -668,6 +669,7 @@ function problems(state) {
     if (op !== 'remove') {
       slot.cards.forEach((c, i) => {
         if (c.kind === 'agent') for (const t of agentProblems(c)) out.push({ where: mark, level: 'error', text: `card ${i + 1}: ${t}` });
+        else if (c.kind === 'skill' || c.kind === 'command') for (const t of skillProblems(c)) out.push({ where: mark, level: 'error', text: `card ${i + 1}: ${t}` });
         else if (normalize(cardText(c)).trim() === '') out.push({ where: mark, level: 'error', text: `card ${i + 1} is empty` });
       });
       for (const p of blockProblems(slotText(slot))) out.push({ where: mark, level: 'error', text: p });
@@ -915,6 +917,66 @@ function boot() {
     );
   }
 
+  let catalog = null; // what the person loaded from their own Claude folder
+  let filter = '';
+
+  /** Read the skill, command and agent files from the folder the person picked, on this computer only. */
+  async function loadFolder(files) {
+    const want = [...files].filter(f => {
+      const path = f.webkitRelativePath || f.name;
+      return /(?:^|\/)skills\/[^/]+\/SKILL\.md$|(?:^|\/)commands\/.+\.md$|(?:^|\/)agents\/[^/]+\.md$/.test(path);
+    }).slice(0, 3000);
+    const entries = [];
+    for (const f of want) {
+      try {
+        entries.push({ path: f.webkitRelativePath || f.name, text: await f.slice(0, 16384).text() });
+      } catch {}
+    }
+    catalog = catalogFrom(entries);
+    renderYours();
+  }
+
+  function renderYours() {
+    const picker = el('input', { type: 'file', webkitdirectory: '', multiple: '', hidden: '', 'aria-label': 'Your Claude folder' });
+    picker.addEventListener('change', () => loadFolder(picker.files || []));
+    const load = chip(catalog ? 'Load another folder' : 'Load from a folder', !catalog, () => picker.click());
+    const head = el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Your skills, commands and agents' }), el('div', { class: 'chips' }, load), picker);
+    const note = el('p', { class: 'av-annot', text: 'Pick your Claude folder (~/.claude) or a project\'s .claude folder. The page reads only the names and descriptions of skills, commands and agents in it, on this computer; nothing is sent anywhere. Drag a card onto an open slot.' });
+    if (!catalog) return $('yours').replaceChildren(head, note);
+
+    const search = el('input', { type: 'text', 'aria-label': 'Filter by name or description', placeholder: 'Filter', spellcheck: 'false' });
+    search.value = filter;
+    const groups = el('div');
+    const drawGroups = () => {
+      const f = filter.toLowerCase();
+      const pick = list => list.filter(x => !f || x.name.toLowerCase().includes(f) || x.description.toLowerCase().includes(f));
+      const tile = (kind, x) => {
+        const t = el(
+          'div',
+          { class: 'tile tile--drag', draggable: 'true' },
+          el('span', { class: 'card-tab', text: kind === 'command' ? `/${x.name}` : x.name }),
+          el('p', { class: 'av-annot', text: x.description || 'No description.' }),
+        );
+        t.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', `${kind}:${x.name}`);
+          e.dataTransfer.effectAllowed = 'copy';
+        });
+        return t;
+      };
+      const group = (title, kind, list) => {
+        const shown = pick(list);
+        return [el('h3', { class: 'group-title', text: `${title} · ${shown.length} of ${list.length}` }), shown.length ? el('div', { class: 'tiles' }, ...shown.slice(0, 60).map(x => tile(kind, x))) : el('p', { class: 'av-annot', text: list.length ? 'None match the filter.' : 'None found in that folder.' })];
+      };
+      groups.replaceChildren(...group('Skills', 'skill', catalog.skills), ...group('Commands', 'command', catalog.commands), ...group('Agents', 'agent', catalog.agents));
+    };
+    search.addEventListener('input', () => {
+      filter = search.value;
+      drawGroups();
+    });
+    drawGroups();
+    $('yours').replaceChildren(head, note, el('div', { class: 'field-row' }, el('label', { text: 'Filter' }), search), groups);
+  }
+
   /** The presets column beside move `m`: the presets for its slots, or a note that it has none. */
   function movePresets(m) {
     const marks = m.parts.filter(p => p.kind === 'open').map(p => p.mark);
@@ -976,6 +1038,30 @@ function boot() {
       if (c.kind === 'preset') {
         const pre = presetById(c.id);
         return el('div', { class: 'card' }, el('span', { class: 'card-tab', text: `Preset · ${pre.title}` }), prose(pre.text), el('div', { class: 'card-foot' }, el('span'), remove));
+      }
+      if (c.kind === 'skill' || c.kind === 'command') {
+        const preview = el('div');
+        const show = () => preview.replaceChildren(prose(cardText(c)));
+        const rows = [];
+        if (c.kind === 'skill') {
+          const when = el('input', { type: 'text', 'aria-label': `When to use ${c.name}`, placeholder: 'optional: the work touches the database', spellcheck: 'true' });
+          when.value = c.when || '';
+          when.addEventListener('input', () => {
+            c.when = when.value.replace(/[\r\n]+/g, ' ').trim().replace(/\.$/, '');
+            show();
+            renderOutput();
+          });
+          rows.push(el('div', { class: 'field-row' }, el('label', { text: 'When' }), when));
+        }
+        show();
+        return el(
+          'div',
+          { class: 'card' },
+          el('span', { class: 'card-tab', text: c.kind === 'skill' ? `Your skill · ${c.name}` : `Your command · /${c.name}` }),
+          ...rows,
+          preview,
+          el('div', { class: 'card-foot' }, el('span'), remove),
+        );
       }
       if (c.kind === 'agent') {
         const name = el('input', { type: 'text', 'aria-label': `Your agent's name for ${p.mark}`, placeholder: 'my-reviewer', spellcheck: 'false', autocomplete: 'off' });
@@ -1052,6 +1138,11 @@ function boot() {
       if (data.startsWith('preset:')) drop(p.mark, data.slice('preset:'.length));
       else if (data === 'agent:new') {
         slot.cards.push(newAgentCard(p.mark));
+        renderSpine();
+      } else if (/^(skill|command|agent):/.test(data)) {
+        const kind = data.slice(0, data.indexOf(':'));
+        const name = data.slice(kind.length + 1);
+        slot.cards.push(kind === 'agent' ? { ...newAgentCard(p.mark), name } : kind === 'skill' ? { kind, name, when: '' } : { kind, name });
         renderSpine();
       }
     });
@@ -1158,6 +1249,7 @@ function boot() {
   renderValues();
   renderWorkflows();
   renderAgents();
+  renderYours();
   renderAlways();
   renderSpine();
 }
