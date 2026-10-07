@@ -20,3 +20,4 @@ One line per finished piece of work: date, issue, and what it changed. Each entr
 - [2026-10-06](2026-10-06-pick-as-prior-and-auto-take.md) — **Pick as prior, auto-take** (#87). The pick is the owner's prior, pre-filled answers, recommendations taken by default with an audit trail.
 - [2026-10-06](2026-10-06-cli-prs-carry-the-checkbox.md) — **CLI PRs carry the checkbox** (#88). A session opening a PR with `gh pr create` starts `--body` with the template's close-out line.
 - [2026-10-06](2026-10-06-sessions-assign-their-issue.md) — **Sessions assign their issue** (#105). A session assigns the issue it takes, for visibility; the assignee is not a claim.
+- [2026-10-07](2026-10-07-apply-guard-splat-and-dashes.md) — **Apply guard: splat and Unicode dashes** (#89, #108). Eight ask rules catch a splatted `-Apply` and the three dashes PowerShell reads as a hyphen; the rest are named misses.
