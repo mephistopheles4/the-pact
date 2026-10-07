@@ -137,7 +137,10 @@ test('dry run on a clean tree passes and shows Node, the pin, the check and the 
   assert.match(r.stdout, /^Check: passed on commit [0-9a-f]{40}$/m);
   assert.match(r.stdout, /^Gate: no gate recorded at the last install$/m);
   assert.doesNotMatch(r.stdout, /not content-checked until #33/);
-  assert.match(r.stdout, /^Partly checked: CLAUDE\.md's routing and marked clauses are checked; the rest of its text is not checked until ticket 4\.$/m);
+  assert.match(
+    r.stdout,
+    /^Partly checked: the rendered CLAUDE\.md's marked clauses are checked word for word, and its open text for form, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file\.$/m,
+  );
 });
 
 test('-Apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
