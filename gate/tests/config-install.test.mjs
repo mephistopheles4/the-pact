@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { WIN, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { PWSH, WIN, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 import { REPO, tempDir, withoutOpenMarks } from './helpers.mjs';
 
 const CONFIG_REL = ['pact', 'config.json'];
@@ -141,7 +141,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
   const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
-  const text = want.toString('utf8');
+  const text = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.ok(text.includes('the weekly limit is above 90%') && !text.includes('above 75%'));
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.equal(manifest.digest, digestOf(EXAMPLE));
@@ -189,6 +189,8 @@ test('a configuration changed since the last install is shown as changed, and th
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, new RegExp(`^ {2}user file pact/config\\.json: sha256 ${sha256(next)}, CHANGED since the last install\\r?$`, 'm'), r.out);
+  assert.match(r.stdout, /^ {2}WARN: the user configuration sets usage-pause to 80\.\r?$/m, r.out);
+  assert.doesNotMatch(r.stdout, /usage-pause to 90/, r.out);
   assert.match(r.stdout, /^Overwrite: 1\r?$/m, r.out);
   assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
 });
@@ -210,6 +212,16 @@ test('a record that names another configuration hash is stale: the dry run says 
   assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
 });
 
+test('after a no-configuration install, the dry run says so, and a new file is "new since the last install"', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true }).code, 0);
+  writeFileSync(configPath(h), EXAMPLE);
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^Last install: [0-9a-f]{40} with no configuration\r?$/m, r.out);
+  assert.match(r.stdout, new RegExp(`^ {2}user file pact/config\\.json: sha256 ${sha256(EXAMPLE)}, new since the last install\\r?$`, 'm'), r.out);
+});
 test('a configuration removed since the last install is named in the dry run', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -442,3 +454,40 @@ for (const [label, withConfig, from, to, why] of [
     nothingWritten(h);
   });
 }
+
+// ------------------------------------------------------------ how the script reads its own command line
+
+test('bad case: a hash typed after -Apply without its parameter name, and no -ClaudeHome, refuses and installs nowhere', t => {
+  const repo = makeRepo(t);
+  // A throwaway home folder, so the default -ClaudeHome can never be the real one.
+  const fakeHome = tempDir(t, 'pact-fakehome-');
+  const hash = 'a'.repeat(64);
+  const env = { ...process.env, HOME: fakeHome, USERPROFILE: fakeHome };
+  delete env.NODE_OPTIONS;
+  // As typed: install.ps1 -Apply <hash>. Bound by position, the hash would
+  // become -ClaudeHome, a new folder named after it.
+  const r = spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-Apply', hash], { cwd: repo, encoding: 'utf8', env, timeout: 180_000 });
+  const out = `${r.stdout}${r.stderr}`;
+  assert.notEqual(r.status, 0, out);
+  assert.ok(!existsSync(join(repo, hash)), `a folder named after the hash was created:\n${out}`);
+  // PowerShell keeps its own startup data under the home folder; no pact file may appear there.
+  assert.ok(!existsSync(join(fakeHome, '.claude')), out);
+});
+test('bad case: a relative Claude home given after a change of location is checked where the renderer reads it', t => {
+  // The process starts in one folder and PowerShell moves to another before
+  // running the script, so a relative path could name two different places.
+  const repo = makeRepo(t);
+  const psAt = tempDir(t, 'pact-psloc-');
+  const procAt = tempDir(t, 'pact-proccwd-');
+  mkdirSync(join(psAt, 'h', 'pact', 'blocks', 'sub'), { recursive: true });
+  symlinkSync(tempDir(t), join(psAt, 'h', 'pact', 'blocks', 'sub', 'link'), 'junction');
+  mkdirSync(join(procAt, 'h', 'pact', 'blocks', 'sub'), { recursive: true });
+  const q = s => `'${s.replaceAll("'", "''")}'`;
+  const cmd = `Set-Location -LiteralPath ${q(psAt)}; & ${q(join(repo, 'scripts', 'install.ps1'))} -ClaudeHome h; exit $LASTEXITCODE`;
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const r = spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-Command', cmd], { cwd: procAt, encoding: 'utf8', env, timeout: 180_000 });
+  const out = `${r.stdout}${r.stderr}`;
+  assert.notEqual(r.status, 0, out);
+  assert.match(r.stdout, /^REFUSED: the configuration blocks folder holds a link or other reparse point\./m, out);
+});

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { linkSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { REPO, RENDER, SEAM_A, lastLine, read, renderStage, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
@@ -449,4 +450,57 @@ test('a configured render leaves its inputs unchanged, and writes only into its 
   assert.equal(r.code, 0, r.out);
   assert.deepEqual([snap(root), snap(h)], before);
   assert.deepEqual(readdirSync(r.dir), ['CLAUDE.md']);
+});
+
+
+// ------------------------------------------------------------ checks no plain input can reach, by test-only fault injection
+
+const FAULTS = pathToFileURL(join(REPO, 'gate', 'tests', 'fixtures', 'render-faults.mjs')).href;
+
+/** The renderer run with the test-only fault preload; `log` collects what it observed. */
+function renderFault(t, home, fault) {
+  const dir = tempDir(t, 'pact-render-out-');
+  const log = join(tempDir(t), 'faults.log');
+  const env = { ...process.env, PACT_FAULT: fault, PACT_FAULT_LOG: log };
+  delete env.NODE_OPTIONS;
+  const r = spawnSync(process.execPath, ['--import', FAULTS, RENDER, SOURCE, dir, home], { encoding: 'utf8', env });
+  let seen = [];
+  try {
+    seen = readFileSync(log, 'utf8').split('\n').filter(Boolean);
+  } catch {}
+  return { code: r.status, stdout: r.stdout, out: r.stdout + r.stderr, dir, seen };
+}
+
+for (const [fault, reason] of [
+  ['lstat-eacces', /the pact folder could not be read/],
+  ['lstat-config-eacces', /the user configuration file could not be read/],
+  ['realpath-home-eacces', /the Claude home folder could not be read/],
+]) {
+  test(`bad case: a read error other than "does not exist" refuses, never read as no configuration (${fault})`, t => {
+    refusedWith(renderFault(t, homeWith(t, GOOD), fault), 'config-file', reason);
+  });
+}
+
+test('bad case: a configuration file swapped for another between its lstat and its open refuses', t => {
+  refusedWith(renderFault(t, homeWith(t, GOOD), 'swap-before-open'), 'config-file', /changed while it was opened/);
+});
+
+test('bad case: a configuration file whose real path is elsewhere refuses', t => {
+  refusedWith(renderFault(t, homeWith(t, GOOD), 'realpath-elsewhere'), 'config-file', /resolves somewhere else/);
+});
+
+test('bad case: a configuration file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW', { skip: WIN && 'Windows defines no O_NOFOLLOW (not run)' }, t => {
+  refusedWith(renderFault(t, homeWith(t, GOOD), 'link-before-open'), 'config-file', /could not be opened/);
+});
+
+test('the configuration file is opened once and read once, and a large file is read no further than the cap', t => {
+  const small = renderFault(t, homeWith(t, GOOD), 'count');
+  assert.equal(small.code, 0, small.out);
+  assert.equal(small.seen.filter(l => l.startsWith('open ')).length, 1, small.seen.join('\n'));
+  assert.ok(!small.seen.includes('readFileSync'), small.seen.join('\n'));
+  const big = renderFault(t, homeWith(t, Buffer.from('{"schema": 1}'.padEnd(1024 * 1024, ' '))), 'count');
+  refusedWith(big, 'config-size', /larger than 64 KiB/);
+  assert.equal(big.seen.filter(l => l.startsWith('open ')).length, 1, big.seen.join('\n'));
+  const got = big.seen.filter(l => l.startsWith('read ')).reduce((n, l) => n + Number(l.split(' ')[2]), 0);
+  assert.ok(got <= 64 * 1024 + 1, `read ${got} bytes of a 1 MiB file`);
 });

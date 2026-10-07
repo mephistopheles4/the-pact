@@ -1,4 +1,8 @@
 #Requires -Version 7.5
+# No argument binds by position: a hash typed after -Apply without its name
+# must refuse, never become -ClaudeHome. (None of the common parameters this
+# adds starts with A, C or R.)
+[CmdletBinding(PositionalBinding = $false)]
 param(
   [switch]$Apply,
   [string]$ClaudeHome = (Join-Path $HOME '.claude'),
@@ -32,9 +36,12 @@ $ErrorActionPreference = 'Stop'
 # does not prove the owner read the dry run.
 
 $repo = Split-Path $PSScriptRoot -Parent
-# Absolute, as PowerShell resolves it: the renderer runs with the stage as its
-# working folder, so a relative path would name another folder there.
+# Absolute, as PowerShell resolves it, and used for every path from here on:
+# PowerShell cmdlets resolve a relative path against PowerShell's location,
+# .NET calls against the process's working folder, and the renderer runs in
+# the stage, so a relative path could name three different folders.
 $claudeHomeFull = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ClaudeHome)
+$ClaudeHome = $claudeHomeFull
 $configRel = 'pact/config.json'
 $blocksRel = 'pact/blocks'
 $manifestFile = Join-Path $ClaudeHome '.pact-install.json'
