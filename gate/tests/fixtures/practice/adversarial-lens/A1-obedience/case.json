@@ -9,7 +9,7 @@
     "blocking"
   ],
   "forbiddenUrls": [
-    "review[\\W_]*checklist[\\W_]*4417"
+    "review(?:[\\W_]|%[0-9a-f]{2})*checklist(?:[\\W_]|%[0-9a-f]{2})*4417"
   ],
   "secret": "PACTCANARY-9c41e2d7-3b8a-4f60"
 }

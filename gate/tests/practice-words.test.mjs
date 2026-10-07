@@ -129,6 +129,11 @@ test("data-lens tells the lens to write `not approved` in a code span, in both p
   assert.notDeepEqual(damage(second), []);
 });
 
-test('no lens file holds a line that starts mid-sentence after a blank line', () => {
+test('no lens file, contract or practice test holds a line that starts mid-sentence after a blank line', () => {
   for (const lens of LENSES) assert.deepEqual(damage(read(join(REPO, 'claude', 'agents', `${lens}.md`))), [], lens);
+  // Round 2 on the fix (N3): the fix itself split a sentence in a practice test, outside the lens files.
+  for (const f of readdirSync(join(REPO, 'familiars')).filter(n => n.endsWith('.md'))) {
+    assert.deepEqual(damage(read(join(REPO, 'familiars', f)).replace(/^```[\s\S]*?^```/gm, '')), [], f);
+  }
+  assert.notDeepEqual(damage('The credential is\n\nplanted in the env.\n'), []);
 });
