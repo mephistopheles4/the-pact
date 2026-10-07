@@ -16,7 +16,13 @@ param(
   # A folder for the review output: once every check passes, the rendered rules
   # file and the diff from the no-configuration render are written there. (Its
   # name must not start with A or C either.)
-  [string]$ReviewFolder
+  [string]$ReviewFolder,
+  # A project folder, for a project install: it writes one rules file and its
+  # record in the project's .claude/rules folder, from the project's
+  # configuration file, and nothing in the Claude home folder. (Declared after
+  # -UnreadWord, so a stray word can never bind here and turn a home install
+  # into a project install.)
+  [string]$ProjectFolder
 )
 $ErrorActionPreference = 'Stop'
 # Installs the pact from this clone's committed HEAD into -ClaudeHome (default
@@ -47,6 +53,21 @@ $ErrorActionPreference = 'Stop'
 # writes rendered-rules.txt and config.diff into that folder, which must be new
 # or empty and outside the Claude home folder and any .claude folder. Without
 # the switch, a dry run changes nothing on disk.
+#
+# The project install: with -ProjectFolder, the install stages and gates HEAD
+# as a home install does, and runs the renderer twice, the whole stage hashed
+# around each run: first with no configuration, to give the stage its no-file
+# render for seam A; then, after seam A passes, with the user file and the
+# project's configuration file (.claude/pact-config.json in the project), to
+# give the project rules file. That file holds only fixed-template lines for
+# values strictly tighter than the user's. gate/project.mjs checks the project
+# folder against the home folders and checks every path it writes, and on
+# -Apply writes the rules file and its record in the project's .claude/rules
+# folder, each through one contained write. Git and Node never run with the
+# project folder as their working folder, and git is never pointed at it.
+# Nothing is installed in the Claude home folder, and no agents go into the
+# project. Like a home install it is a dry run unless -Apply is given, and
+# -Apply needs the project rules file's full rendered hash.
 
 $repo = Split-Path $PSScriptRoot -Parent
 # A plain script puts any option name it does not know, and the value after
@@ -79,6 +100,21 @@ if ($reviewGiven -and -not [IO.Path]::IsPathFullyQualified($ReviewFolder)) {
   Write-Host 'REFUSED: -ReviewFolder must be a full path. Nothing was changed.'
   exit 1
 }
+# The project folder likewise, for the same reason.
+$projectGiven = $PSBoundParameters.ContainsKey('ProjectFolder')
+if ($projectGiven -and -not [IO.Path]::IsPathFullyQualified($ProjectFolder)) {
+  Write-Host 'REFUSED: -ProjectFolder must be a full path. Nothing was changed.'
+  exit 1
+}
+if ($projectGiven -and $reviewGiven) {
+  Write-Host 'REFUSED: -ReviewFolder is for a home install; a project install writes no review output. Nothing was changed.'
+  exit 1
+}
+# The fixed names a project install reads and writes, under the project folder.
+$projectConfigRel = '.claude/pact-config.json'
+$projectRulesRel = '.claude/rules/pact-project.md'
+$projectRecordRel = '.claude/rules/pact-project.record.json'
+$projectAttrRels = @('.claude', '.claude/rules', $projectRulesRel, $projectConfigRel, $projectRecordRel)
 $claudeHomeFull = [IO.Path]::GetFullPath($ClaudeHome)
 $ClaudeHome = $claudeHomeFull
 $configRel = 'pact/config.json'
@@ -143,6 +179,25 @@ function Test-ThroughLink($rel) {
     if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $true }
   }
   $false
+}
+
+# The reparse-attribute test for a project install, rooted at the project
+# folder's real path: each path in $rels, and every folder on the way to it.
+# $null when none is a link or other reparse point; otherwise the first
+# offending path. One that does not exist is fine (the walk stops there); one
+# that cannot be read refuses, so an unreadable entry never passes as plain.
+function Get-ReparseUnder([string]$root, [string[]]$rels) {
+  foreach ($rel in $rels) {
+    $p = $root
+    foreach ($seg in $rel.Split('/')) {
+      $p = Join-Path $p $seg
+      try { $attr = [IO.File]::GetAttributes($p) }
+      catch [IO.FileNotFoundException], [IO.DirectoryNotFoundException] { break }
+      catch { return "$rel (unreadable)" }
+      if ($attr -band [IO.FileAttributes]::ReparsePoint) { return $rel }
+    }
+  }
+  $null
 }
 
 # $null when the entry is safe to act on; otherwise the reason to skip it.
@@ -456,7 +511,7 @@ function Show-Gate {
 function Stop-Refused([string]$why, [string]$outcome = 'Nothing was changed.') {
   Show-Gate
   Write-Host "REFUSED: $why $outcome"
-  foreach ($d in @($stage, $renderOut)) {
+  foreach ($d in @($stage, $renderOut, $noHome, $projectOut)) {
     if ($d -and (Test-Path -LiteralPath $d)) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
   }
   exit 1
@@ -465,6 +520,8 @@ function Stop-Refused([string]$why, [string]$outcome = 'Nothing was changed.') {
 # --- stage HEAD ----------------------------------------------------------------
 $stage = $null
 $renderOut = $null
+$noHome = $null
+$projectOut = $null
 try {
 $commit = (Invoke-Git rev-parse HEAD).Trim()
 $dirty = @(Invoke-Git status --porcelain)
@@ -965,7 +1022,7 @@ $withConfig = if ($configDigest) { "configuration $configDigest" } else { 'no co
 Write-Host "Installed commit $commit with $withConfig; all files verified."
 exit 0
 } finally {
-  foreach ($d in @($stage, $renderOut)) {
+  foreach ($d in @($stage, $renderOut, $noHome, $projectOut)) {
     if ($d -and (Test-Path -LiteralPath $d)) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
   }
 }

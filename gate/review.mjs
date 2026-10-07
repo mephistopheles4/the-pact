@@ -42,36 +42,15 @@
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmdirSync, unlinkSync, writeSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve, sep } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
+import { isClaudeSegment, realOrResolved as realHome, segments, within } from './paths.mjs';
 import { Report } from './shared.mjs';
 
 const REVIEW_RULES = 'rendered-rules.txt';
 const REVIEW_DIFF = 'config.diff';
 const INPUT_MAX = 4 * 1024 * 1024;
-const FOLD_CASE = process.platform === 'win32' || process.platform === 'darwin';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
-const fold = s => (FOLD_CASE ? s.toLowerCase() : s);
-const segments = p => p.split(sep).filter(Boolean);
-
-/** True when `inner`'s segments start with all of `outer`'s, compared whole (and case-folded where the system folds case). */
-function within(inner, outer) {
-  const a = segments(inner).map(fold);
-  const b = segments(outer).map(fold);
-  return b.length <= a.length && b.every((s, i) => s === a[i]);
-}
-
-/** A segment that names a .claude folder, however it is cased or padded with the dots and spaces Windows drops. */
-const isClaudeSegment = s => s.replace(/[. ]+$/, '').toLowerCase() === '.claude';
-
-/** The real path of the Claude home folder, or its plain absolute path when it does not exist yet. */
-function realHome(home) {
-  try {
-    return realpathSync.native(home);
-  } catch {
-    return resolve(home);
-  }
-}
 
 /** One input file, at most INPUT_MAX bytes, or null after a refusal. */
 function readInput(path, which, report) {
