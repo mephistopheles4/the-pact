@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-lBMSkK8Na2Fti/YKos8zbQbtCl0yZRp7j8ByTPo8rcE='; style-src 'sha256-9OZIKWUU/3R6uokHQhO0bqz2P9txMJrRknOBFNUQPLs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fEKhrSlJLwu855Pu58uI/Lyc3ZeN4Eq7CoNhx4OenEA='; style-src 'sha256-18B67GsfB/alu8Iy2IFzlKdNjTLEx4KPxWgRi8S1FuU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -121,20 +121,31 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-tool-chip:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--av-s1); }
 
-/* ROWS: each move with its own presets beside it. The presets stick to the
-   top of the window while their move scrolls past, and leave with it. */
-.av-tool-detail { flex: 1; min-width: 0; padding: var(--av-s3) var(--av-s4); }
-.move-row { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 0; padding: var(--av-s3) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
-.move-row:first-child { padding-top: 0; }
-.move-presets { position: sticky; top: var(--av-s2); align-self: start; display: flex; flex-direction: column; gap: var(--av-s3); padding-right: var(--av-s3); }
-.move-row > .move { border-left: var(--av-rule-hair) solid var(--av-ink-30); padding-left: var(--av-s3); }
+/* WORKSPACE: a pinned sidebar of tabs (each move's presets, and yours)
+   beside the spine, so the library never scrolls away from the slots. */
+.workspace { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: start; }
+.av-tool-detail { min-width: 0; padding: var(--av-s3) var(--av-s4); }
+#sidebar { position: sticky; top: 0; max-height: 100vh; overflow-y: auto; padding: var(--av-s3) var(--av-s2) var(--av-s3) var(--av-s3); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s2); }
+.tabs { display: flex; flex-wrap: wrap; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+.tab { font: inherit; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); padding: var(--av-s1) var(--av-s2); border: 0; border-bottom: var(--av-rule-bold) solid transparent; background: transparent; color: var(--av-ink-70); cursor: pointer; }
+.tab:hover { color: var(--av-ink); }
+.tab--on { color: var(--av-ink); border-bottom-color: var(--av-ink); font-weight: 600; }
+.list { display: flex; flex-direction: column; }
+.list-row { border-bottom: var(--av-rule-hair) solid var(--av-ink-12); cursor: grab; }
+.list-row:hover { background: var(--av-ink-12); }
+.list-row--open { background: var(--av-surface); box-shadow: inset 3px 0 0 var(--av-ink); }
+.list-head { display: flex; flex-direction: column; width: 100%; min-width: 0; text-align: left; background: transparent; border: 0; padding: var(--av-s1) var(--av-s1) var(--av-s1) var(--av-s2); color: inherit; font: inherit; cursor: pointer; }
+.list-title, .list-line { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-title { font-size: var(--av-t-annot); font-weight: 600; }
+.list-line { font-size: var(--av-t-micro); color: var(--av-ink-70); }
+.list-details { padding: 0 var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
+#spine .move { padding: var(--av-s3) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+#spine .move:first-child { padding-top: 0; }
 @media (max-width: 900px) {
-  .move-row { grid-template-columns: minmax(0, 1fr); gap: var(--av-s3); }
-  .move-presets { position: static; padding-right: 0; }
-  .move-row > .move { border-left: 0; padding-left: 0; }
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  #sidebar { position: static; max-height: 22rem; border-right: 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
   .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); }
 }
-
 /* TYPE */
 .av-label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; color: var(--av-ink-70); }
 .av-annot { font-size: var(--av-t-annot); line-height: 1.5; color: var(--av-ink-70); margin: 0; }
@@ -231,10 +242,12 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
     <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="workflows"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="agents"></section>
-    <section class="av-tool-bar av-tool-bar--stack" id="yours"></section>
-    <div class="av-tool-detail">
-      <section id="spine"></section>
-      <section id="always"></section>
+    <div class="workspace">
+      <aside id="sidebar" aria-label="Presets and your own skills, commands and agents"></aside>
+      <div class="av-tool-detail">
+        <section id="spine"></section>
+        <section id="always"></section>
+      </div>
     </div>
     <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
   </div>
@@ -957,76 +970,102 @@ function boot() {
     );
   }
 
+  let tab = 'move-1'; // the sidebar's tab: move-1 to move-4, or yours
+  let openKey = null; // the row opened for its details
   let filter = '';
 
-  /** The person's own skills, commands and agents, as the builder file lists them. */
-  function renderYours() {
+  const firstLine = text => reflow(text).split('\n')[0];
+
+  /** One compact row: a title and a one-line summary, cut with an ellipsis. A click opens its details in place; it drags onto a slot. */
+  function listRow(key, title, line, dragData, details) {
+    const open = openKey === key;
+    const row = el('div', { class: `list-row${open ? ' list-row--open' : ''}`, draggable: 'true' });
+    row.append(el(
+      'button',
+      { type: 'button', class: 'list-head', 'aria-expanded': open ? 'true' : 'false', title: line || title, onclick: () => {
+        openKey = open ? null : key;
+        renderSidebar();
+      } },
+      el('span', { class: 'list-title', text: title }),
+      el('span', { class: 'list-line', text: line || 'No description.' }),
+    ));
+    if (open) row.append(el('div', { class: 'list-details' }, ...details()));
+    row.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', dragData);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    return row;
+  }
+
+  /** A slot picker and an Add button, for a card that fits any open slot. */
+  function addTo(make, label) {
+    const slot = el('select', { 'aria-label': `Slot for ${label}` }, ...PACT.editable.map(m => el('option', { value: m, text: m })));
+    slot.value = tab.startsWith('move-') ? PACT.editable.find(m => m.startsWith(tab)) || PACT.editable[0] : PACT.editable[0];
+    return el('div', { class: 'card-foot' }, slot, chip('Add', false, () => {
+      state.slots[slot.value].cards.push(make(slot.value));
+      setStatus('', '');
+      renderSpine();
+    }));
+  }
+
+  function presetList(m) {
+    const marks = m.parts.filter(p => p.kind === 'open').map(p => p.mark);
+    const items = PACT.presets.filter(p => marks.includes(p.mark));
+    return [
+      el('p', { class: 'av-annot', text: items.length ? `Presets for move ${m.n}. Drag one onto its slot, or open it to add it. It goes after the slot's text.` : `No presets for move ${m.n} in this builder. Use "Add your own text" in its slot.` }),
+      el('div', { class: 'list' }, ...items.map(p => listRow(`preset:${p.id}`, p.title, p.why || firstLine(p.text), `preset:${p.id}`, () => [
+        el('span', { class: 'av-label', text: p.standsIn ? `${p.mark} · written to stand in for the default` : p.mark }),
+        prose(p.text),
+        el('div', { class: 'card-foot' }, chip(`Add to ${p.mark}`, false, () => drop(p.mark, p.id))),
+      ]))),
+    ];
+  }
+
+  function yoursList() {
     const y = PACT.yours;
     const total = y.skills.length + y.commands.length + y.agents.length;
-    const head = el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Yours' }), el('span', { class: 'av-annot', text: 'Your skills, commands and agents, from this builder file. Drag a card onto an open slot.' }));
+    const newAgent = listRow('agent:new', 'A new agent of yours', 'Name it and pick what it reads once it is in a slot.', 'agent:new', () => [addTo(mark => newAgentCard(mark), 'a new agent')]);
     if (!total) {
-      return $('yours').replaceChildren(head, el('p', { class: 'av-annot', text: 'This builder lists none of your own. Ask your agent to regenerate it with the pact-builder skill: it reads your skills, commands and agents and writes them in.' }));
+      return [el('p', { class: 'av-annot', text: 'This builder lists none of your own skills, commands or agents. Ask your agent to regenerate it with the pact-builder skill.' }), el('div', { class: 'list' }, newAgent)];
     }
     const search = el('input', { type: 'text', 'aria-label': 'Filter by name or description', placeholder: 'Filter', spellcheck: 'false' });
     search.value = filter;
     const groups = el('div');
-    const drawGroups = () => {
+    const draw = () => {
       const f = filter.toLowerCase();
       const pick = list => list.filter(x => !f || x.name.toLowerCase().includes(f) || x.description.toLowerCase().includes(f));
-      const tile = (kind, x) => {
-        const t = el(
-          'div',
-          { class: 'tile tile--drag', draggable: 'true' },
-          el('span', { class: 'card-tab', text: kind === 'command' ? `/${x.name}` : x.name }),
-          el('p', { class: 'av-annot', text: x.description || 'No description.' }),
-        );
-        t.addEventListener('dragstart', e => {
-          e.dataTransfer.setData('text/plain', `${kind}:${x.name}`);
-          e.dataTransfer.effectAllowed = 'copy';
-        });
-        return t;
-      };
+      const make = (kind, name) => mark => (kind === 'agent' ? { ...newAgentCard(mark), name } : kind === 'skill' ? { kind, name, when: '' } : { kind, name });
       const group = (title, kind, list) => {
         if (!list.length) return [];
         const shown = pick(list);
-        return [el('h3', { class: 'group-title', text: `${title} · ${shown.length} of ${list.length}` }), shown.length ? el('div', { class: 'tiles' }, ...shown.slice(0, 60).map(x => tile(kind, x))) : el('p', { class: 'av-annot', text: 'None match the filter.' })];
+        return [
+          el('h3', { class: 'group-title', text: `${title} · ${shown.length} of ${list.length}` }),
+          el('div', { class: 'list' }, ...shown.slice(0, 200).map(x => listRow(`${kind}:${x.name}`, kind === 'command' ? `/${x.name}` : x.name, x.description, `${kind}:${x.name}`, () => [
+            el('p', { class: 'av-annot', text: x.description || 'No description.' }),
+            addTo(make(kind, x.name), x.name),
+          ]))),
+        ];
       };
-      groups.replaceChildren(...group('Skills', 'skill', y.skills), ...group('Commands', 'command', y.commands), ...group('Agents', 'agent', y.agents));
+      groups.replaceChildren(...group('Skills', 'skill', y.skills), ...group('Commands', 'command', y.commands), ...group('Agents', 'agent', y.agents), el('div', { class: 'list' }, newAgent));
     };
     search.addEventListener('input', () => {
       filter = search.value;
-      drawGroups();
+      draw();
     });
-    drawGroups();
-    $('yours').replaceChildren(head, el('div', { class: 'field-row' }, el('label', { text: 'Filter' }), search), groups);
-  }
-  /** The presets column beside move `m`: the presets for its slots, or a note that it has none. */
-  function movePresets(m) {
-    const marks = m.parts.filter(p => p.kind === 'open').map(p => p.mark);
-    const items = PACT.presets.filter(p => marks.includes(p.mark)).map(p => {
-      const card = el(
-        'div',
-        { class: 'card preset', draggable: 'true' },
-        el('span', { class: 'card-tab', text: p.title }),
-        el('span', { class: 'av-label', text: p.standsIn ? `${p.mark} · written to stand in for the default` : p.mark }),
-        p.why ? el('p', { class: 'av-annot', text: p.why }) : null,
-        prose(p.text),
-        el('div', { class: 'card-foot' }, chip(`Add to ${p.mark}`, false, () => drop(p.mark, p.id))),
-      );
-      card.addEventListener('dragstart', e => {
-        e.dataTransfer.setData('text/plain', `preset:${p.id}`);
-        e.dataTransfer.effectAllowed = 'copy';
-      });
-      return card;
-    });
-    return el(
-      'aside',
-      { class: 'move-presets', 'aria-label': `Presets for move ${m.n}` },
-      el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Presets · move ${String(m.n).padStart(2, '0')}` }), el('p', { class: 'av-annot', text: items.length ? 'From this builder file. Drag one onto the slot, or use its button: it goes after the slot\'s text.' : 'No presets for this move yet. Use "Add your own text" in its slot.' })),
-      ...items,
-    );
+    draw();
+    return [el('div', { class: 'field-row' }, el('label', { text: 'Filter' }), search), groups];
   }
 
+  function renderSidebar() {
+    const tabs = [...PACT.moves.map(m => [`move-${m.n}`, `Move ${m.n}`]), ['yours', 'Yours']];
+    const bar = el('div', { class: 'tabs', role: 'tablist' }, ...tabs.map(([k, label]) => el('button', { type: 'button', role: 'tab', class: `tab${tab === k ? ' tab--on' : ''}`, 'aria-selected': tab === k ? 'true' : 'false', onclick: () => {
+      tab = k;
+      openKey = null;
+      renderSidebar();
+    } }, label)));
+    const body = tab === 'yours' ? yoursList() : presetList(PACT.moves.find(m => `move-${m.n}` === tab));
+    $('sidebar').replaceChildren(bar, ...body);
+  }
   function drop(mark, id) {
     const msg = addPreset(state, mark, id);
     status = { text: msg || '', level: msg ? 'error' : '' };
@@ -1178,15 +1217,10 @@ function boot() {
     if (clearStatus) status = { text: '', level: '' };
     const moves = PACT.moves.map(m =>
       el(
-        'div',
-        { class: 'move-row' },
-        movePresets(m),
-        el(
-          'article',
-          { class: 'move' },
-          el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Move ${String(m.n).padStart(2, '0')}` }), el('h2', { class: 'av-h3', text: m.lead })),
-          ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p))),
-        ),
+        'article',
+        { class: 'move', id: `move-${m.n}` },
+        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Move ${String(m.n).padStart(2, '0')}` }), el('h2', { class: 'av-h3', text: m.lead })),
+        ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p))),
       ),
     );
     $('spine').replaceChildren(...moves);
@@ -1274,7 +1308,7 @@ function boot() {
   renderValues();
   renderWorkflows();
   renderAgents();
-  renderYours();
+  renderSidebar();
   renderAlways();
   renderSpine();
 }
