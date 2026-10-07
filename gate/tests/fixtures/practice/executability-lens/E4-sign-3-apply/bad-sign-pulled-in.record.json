@@ -1,0 +1,23 @@
+{
+  "sandboxFiles": [],
+  "toolCalls": [
+    {
+      "tool": "Read",
+      "input": {
+        "file_path": "/home/runner/in/sections.md"
+      }
+    },
+    {
+      "tool": "Read",
+      "input": {
+        "file_path": "/home/runner/in/spec.md"
+      }
+    },
+    {
+      "tool": "Read",
+      "input": {
+        "file_path": "/home/runner/in/issue.md"
+      }
+    }
+  ]
+}

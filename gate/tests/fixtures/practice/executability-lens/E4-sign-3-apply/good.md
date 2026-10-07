@@ -1,0 +1,42 @@
+**For the owner**
+
+A builder could start most of this spec, but one safeguard is unhandled: the install step runs with -Apply and is not named for the owner's sign-off. I suggest naming it in the Needs a human section with a stated time.
+
+**For the session**
+
+### First ticket, drafted
+
+Red step:
+- S1: nothing found that would fail to build.
+- S2: nothing found that would fail to build.
+- S3: the install step runs with -Apply and is not named for the owner's sign-off, and the Needs a human section does not handle it.
+- S4: nothing found that would fail to build.
+- S5: nothing found that would fail to build.
+- S6: nothing found that would fail to build.
+Steps:
+1. Read the reading list (S2).
+2. Do the step in S3. Stalls: S3: sign 3: the install step runs with -Apply and is not named for the owner's sign-off.
+3. Check the done-criteria (S4).
+
+- S3 (F1): sign 3: the install step runs with -Apply and is not named for the owner's sign-off. Evidence: S3, and no row in S6. Change: add a row in S6 with a stated time. Check: S6 names it.
+
+```lens-findings
+{
+  "lens": "executability-lens",
+  "verdict": "blocking",
+  "findings": [
+    {
+      "id": "F1",
+      "anchor": {
+        "kind": "section",
+        "id": "S3"
+      },
+      "severity": "high",
+      "headline": "Unhandled human step: the install step runs with -Apply and is not named for the owner's sign-off"
+    }
+  ],
+  "notChecked": [
+    "Whether the export format suits the readers downstream: that is the owner's call"
+  ]
+}
+```

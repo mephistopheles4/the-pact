@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { OLD_REVIEWERS } from '../pact-text.mjs';
 import {
   GATE,
   READ_ONLY,
@@ -24,7 +25,8 @@ import {
 
 const MD = 'claude/CLAUDE.md';
 const AG = 'AGENTS.md';
-const PR = 'claude/agents/plan-reviewer.md';
+// The shared risk-floor block's holder since the spec swap (#99).
+const EX = 'claude/agents/executability-lens.md';
 const PROBE = 'claude/agents/probe.md';
 
 const CLAUSES = {
@@ -43,7 +45,7 @@ const WEAKEN = {
   'no-skill-overrides': [', the security route in move 3, or', ', or'],
   'security-route': ['however small', 'when it is large'],
   'never-substitute': ['stop and report', 'carry on'],
-  'move-4': ['Then run the QA pair,\n   `behaviour-lens` and `integrity-lens`, at every tier, and', 'Then,'],
+  'move-4': ['; `unstated-lens` at\n   the standard and thorough tiers;', ','],
   'stop-and-escalate': ['Tell me, and wait, when:', 'Tell me when:'],
   'install-go-ahead': ['only after they say so in chat', 'when ready'],
 };
@@ -121,7 +123,7 @@ test('the real tree passes, with AGENTS.md staged', t => {
   assert.equal(lastLine(r.stdout), 'RESULT: pass', r.out);
 });
 
-test('the pact before #33 fails routing for exactly the QA pair, scout and Explore', t => {
+test('the pact before #33 fails routing for exactly the lenses, scout and Explore', t => {
   const root = tempDir(t);
   realPayload(root);
   writeFileSync(file(root, MD), read(join(GATE, 'tests', 'fixtures', 'CLAUDE.pre-33.md')));
@@ -132,7 +134,10 @@ test('the pact before #33 fails routing for exactly the QA pair, scout and Explo
   assert.deepEqual(failFiles(r.stdout, 'routing').sort(), [
     'claude/agents/Explore.md',
     'claude/agents/behaviour-lens.md',
+    'claude/agents/executability-lens.md',
+    'claude/agents/good-enough-lens.md',
     'claude/agents/integrity-lens.md',
+    'claude/agents/unstated-lens.md',
     'familiars/scout.md',
   ]);
 });
@@ -190,7 +195,7 @@ test('bad case: a name only in a paragraph that is not a listed role line does n
   const r = expectFail(t, 'routing', {
     route: false,
     files: { [PROBE]: plainAgent('probe') },
-    prep: root => edit(root, MD, s => s.replace('**Reading agents.** `plan-reviewer`,', '**Reading agents.** `probe`, `plan-reviewer`,')),
+    prep: root => edit(root, MD, s => s.replace('**Reading agents.** `security-reviewer` and', '**Reading agents.** `probe`, `security-reviewer` and')),
   });
   assert.deepEqual(failFiles(r.stdout, 'routing'), [PROBE]);
 });
@@ -412,46 +417,73 @@ test('bad case: a marker in an agent that holds no block', t => {
 });
 
 test('bad case: another comment in the holder agent', t => {
-  expectFail(t, 'marker', { prep: root => edit(root, PR, s => `${s}\n<!-- note -->\n`) });
+  expectFail(t, 'marker', { prep: root => edit(root, EX, s => `${s}\n<!-- note -->\n`) });
 });
 
 // ------------------------------------------------------------ C4 shared block
 
-test('bad case: a drifted shared block in plan-reviewer', t => {
-  expectFail(t, 'shared-block', { prep: root => edit(root, PR, s => inBlock(s, 'risk-floor', 'secrets, ', '')) });
+test('bad case: a drifted shared block in executability-lens', t => {
+  expectFail(t, 'shared-block', { prep: root => edit(root, EX, s => inBlock(s, 'risk-floor', 'secrets, ', '')) });
 });
 
-test('bad case: plan-reviewer without the shared block', t => {
-  expectFail(t, 'shared-block', { prep: root => edit(root, PR, s => cutBlock(s, 'risk-floor').text) });
+test('bad case: executability-lens without the shared block', t => {
+  expectFail(t, 'shared-block', { prep: root => edit(root, EX, s => cutBlock(s, 'risk-floor').text) });
 });
 
-test('bad case: no plan-reviewer to hold the shared block', t => {
-  expectFail(t, 'shared-block', { prep: root => rmSync(file(root, PR)) });
+test('bad case: no executability-lens to hold the shared block', t => {
+  expectFail(t, 'shared-block', { prep: root => rmSync(file(root, EX)) });
 });
 
-/** The real plan-reviewer's body, after its frontmatter. */
+/** The real executability-lens's body, after its frontmatter. */
 function reviewerBody() {
-  const s = read(join(REPO, ...PR.split('/')));
+  const s = read(join(REPO, ...EX.split('/')));
   return s.slice(s.indexOf('\n---\n') + 5);
 }
 
-test('the shared block is found in a plan-reviewer familiar, by name', t => {
+test('the shared block is found in an executability-lens familiar, by name', t => {
   expectPass(t, {
     prep: root => {
-      rmSync(file(root, PR));
-      sealedFamiliar(root, 'plan-reviewer', { body: reviewerBody() });
+      rmSync(file(root, EX));
+      sealedFamiliar(root, 'executability-lens', { body: reviewerBody() });
     },
   });
 });
 
-test('bad case: a drifted shared block in a plan-reviewer familiar', t => {
+test('bad case: a drifted shared block in an executability-lens familiar', t => {
   expectFail(t, 'shared-block', {
     prep: root => {
-      rmSync(file(root, PR));
-      sealedFamiliar(root, 'plan-reviewer', { body: inBlock(reviewerBody(), 'risk-floor', 'secrets, ', '') });
+      rmSync(file(root, EX));
+      sealedFamiliar(root, 'executability-lens', { body: inBlock(reviewerBody(), 'risk-floor', 'secrets, ', '') });
     },
   });
 });
+
+// The spec swap moved the block from the outgoing plan reviewer to
+// executability-lens in one step (#99): it may sit in no other agent.
+// Its name comes from the roster list, so the name search finds no retired name here.
+const RETIRED = OLD_REVIEWERS.find(n => n.startsWith('plan'));
+
+test('bad case: the shared block left in the retired plan reviewer', t => {
+  const rel = `claude/agents/${RETIRED}.md`;
+  const r = expectFail(t, 'marker', {
+    files: { [rel]: plainAgent(RETIRED, [], READ_ONLY).replace('Body.\n', `Body.\n${blockOf('risk-floor')}\n`) },
+  });
+  assert.ok(failFiles(r.stdout, 'marker').includes(rel), r.out);
+});
+
+test('bad case: the shared block in two agents at once', t => {
+  const r = expectFail(t, 'marker', {
+    prep: root => edit(root, 'claude/agents/good-enough-lens.md', s => s.replace('## How you work', `${blockOf('risk-floor')}\n\n## How you work`)),
+  });
+  assert.ok(failFiles(r.stdout, 'marker').includes('claude/agents/good-enough-lens.md'), r.out);
+});
+
+/** The real risk-floor block, its markers included, as the pact holds it. */
+function blockOf(name) {
+  const s = read(join(REPO, ...EX.split('/')));
+  const [b, e] = blockLines(s, name);
+  return s.split('\n').slice(b, e + 1).join('\n');
+}
 
 // ------------------------------------------------------------ the pact files' characters
 
@@ -504,7 +536,7 @@ test('canary: no drifted text, unknown block name or comment text is echoed', t 
     prep: root => {
       edit(root, MD, s => inBlock(s, 'move-4', 'Then run', `Then ${C} run`));
       edit(root, MD, s => s.replace('## Watching usage\n', `## Watching usage\n\n<!-- pact:begin ${C} -->\nx\n<!-- pact:end ${C} -->\n<!-- ${C} -->\n<!-- pact:begin ${C}-${C}-->\n`));
-      edit(root, PR, s => inBlock(s, 'risk-floor', 'secrets', `${C} secrets`));
+      edit(root, EX, s => inBlock(s, 'risk-floor', 'secrets', `${C} secrets`));
     },
   });
   assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
@@ -552,10 +584,10 @@ test('bad case: a required clause under a subheading in its section', t => {
   expectFail(t, 'anchor', { prep: root => edit(root, MD, s => s.replace('**Risk floor.**\n', '### Retired rules\n\n**Risk floor.**\n')) });
 });
 
-test('bad case: the shared block after a fenced code block in plan-reviewer', t => {
+test('bad case: the shared block after a fenced code block in executability-lens', t => {
   expectFail(t, 'shared-block', {
     prep: root =>
-      edit(root, PR, s => {
+      edit(root, EX, s => {
         const { text, block } = cutBlock(s, 'risk-floor');
         return `${text}\n${block.join('\n')}\n`;
       }),
