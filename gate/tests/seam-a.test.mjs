@@ -2,7 +2,7 @@
 // must fail on, not just a failure.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -55,12 +55,13 @@ test('seam A passes on the repo payload, and lists every file it would install',
   const dests = installs.map(l => l.split(' ')[3]).sort();
   assert.deepEqual(dests, [
     'CLAUDE.md',
+    'agents/adversarial-lens.md',
     'agents/behaviour-lens.md',
+    'agents/data-lens.md',
     'agents/executability-lens.md',
     'agents/good-enough-lens.md',
     'agents/integrity-lens.md',
     'agents/scout.md',
-    'agents/security-reviewer.md',
     'agents/unstated-lens.md',
     // The cross script (#45), at its one fixed live path.
     'pact/cross.mjs',
@@ -172,12 +173,30 @@ test('tools must match exactly: a repeated tool', t => {
 
 test('a listed agent gets its exact entry', t => {
   expectPass(t, {
-    'claude/agents/security-reviewer.md': plainAgent('security-reviewer', [], 'tools: [Read, Glob, Grep, WebFetch, WebSearch]'),
+    'claude/agents/adversarial-lens.md': plainAgent('adversarial-lens', [], 'tools: [Read, Glob, Grep, WebFetch, WebSearch]'),
   });
 });
 
 test('a listed agent with the default set fails', t => {
-  expectFail(t, { 'claude/agents/security-reviewer.md': plainAgent('security-reviewer') }, 'tools');
+  expectFail(t, { 'claude/agents/adversarial-lens.md': plainAgent('adversarial-lens') }, 'tools');
+});
+
+// The security swap (#100): only adversarial-lens holds the web tools, and no lens of the pair a shell.
+test('bad case: data-lens given a web tool fails', t => {
+  expectFail(t, { 'claude/agents/data-lens.md': plainAgent('data-lens', [], 'tools: [Read, Glob, Grep, WebFetch]') }, 'tools');
+});
+
+test('bad case: adversarial-lens given a tool beyond its entry fails', t => {
+  expectFail(t, { 'claude/agents/adversarial-lens.md': plainAgent('adversarial-lens', [], 'tools: [Read, Glob, Grep, WebFetch, WebSearch, Bash]') }, 'tools');
+});
+
+test('the allow-list names only agents the payload installs', () => {
+  const allow = JSON.parse(readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'));
+  const installed = new Set(readdirSync(join(GATE, '..', 'claude', 'agents')).map(f => f.replace(/\.md$/, '')));
+  const orphans = list => Object.keys(list).filter(n => !installed.has(n));
+  assert.deepEqual(orphans(allow), []);
+  // Seen to fail: a retired agent's entry, left behind, is caught.
+  assert.deepEqual(orphans({ ...allow, 'retired-reviewer': ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch'] }), ['retired-reviewer']);
 });
 
 test('the browser wildcard passes only where listed', t => {

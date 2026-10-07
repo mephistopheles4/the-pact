@@ -105,7 +105,7 @@ test('each of the six open marks is stripped, and only exact open-mark lines are
 });
 
 // Slice 2 passed these lines through for seam A to refuse. Since slice 3 the
-// renderer refuses them itself, before any part is filled (security-reviewer
+// renderer refuses them itself, before any part is filled (the security reviewer
 // F3 on #92): each would hide an open mark from the renderer while a reader
 // still takes it for one.
 for (const near of [

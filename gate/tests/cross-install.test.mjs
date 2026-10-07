@@ -64,7 +64,7 @@ for (const [label, ch, rule] of [
   });
 }
 
-// The cross script imports only node:crypto, node:fs and node:path (security-reviewer's F3 on #45, narrowed in round 3).
+// The cross script imports only node:crypto, node:fs and node:path (the security reviewer's F3 on #45, narrowed in round 3).
 const IMPORT_PLANTS = {
   'a bare package import': "import x from 'pkg';",
   'a relative import': "import { y } from './helper.mjs';",
