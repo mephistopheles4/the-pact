@@ -2,7 +2,7 @@
 //
 //   C3 routing: every installed agent's name is a whole code span in one of
 //     moves 1 to 4 of "Implementing a change", or in a listed role line.
-//   C4 shared blocks: plan-reviewer's risk-floor block equals the pact's.
+//   C4 shared blocks: executability-lens's risk-floor block equals the pact's.
 //   Required clauses: each marked block equals its canonical text in
 //     gate/clauses/, word for word, and sits where it belongs.
 //
@@ -43,7 +43,7 @@ const CLAUSES = new Map([
 ]);
 // Shared blocks: block name -> the installed agent that holds a copy of the
 // pact's block. Found by name, not path, so it holds wherever the agent lives.
-const SHARED = new Map([['risk-floor', 'plan-reviewer']]);
+const SHARED = new Map([['risk-floor', 'executability-lens']]);
 // The role lines that route agents, by their bold lead-in. "Reading agents."
 // is not one: it names agents without giving them work.
 const ROLE_LEADS = ['**Lookups and searches.**'];

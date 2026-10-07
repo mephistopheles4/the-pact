@@ -71,7 +71,7 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 | --- | --- |
 | **Quick** | In chat or on an issue: build, then move 4, in one session. Small changes that need no plan. |
 | **Standard** | On an issue: a short `to-spec` posted on the issue, then one build session that ends with move 4. |
-| **Thorough** | On an issue: `to-spec`, `plan-reviewer`, `to-tickets`, then one build session per ticket, each ending with move 4. |
+| **Thorough** | On an issue: `to-spec`, the spec pair and `unstated-lens`, `to-tickets`, then one build session per ticket, each ending with move 4. |
 
 **Risk floor.**
 <!-- pact:begin risk-floor -->
@@ -213,9 +213,11 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    (`prototype`) and fold what it shows back into the spec. A throwaway is
    built like any other step: in a main session, and through the security
    route in move 3 if it touches auth, secrets, crypto or input validation.
-   On the thorough tier, `plan-reviewer` reviews the spec. Post its report
-   and help me decide (below). I decide proceed, fix or kill. Never start
-   building on a READY verdict alone.
+   On the standard and thorough tiers, `unstated-lens` reads the spec. On
+   the thorough tier, the spec pair, `executability-lens` and
+   `good-enough-lens`, reads it too. Post their reports and help me decide
+   (below). I decide proceed, fix or kill. Never start building on a clear
+   verdict alone.
 3. **I checkpoint the seams.** On the thorough tier, I cut the approved spec
    into tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and
    checkable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,
@@ -239,14 +241,15 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    I verify the work at the end of its build session. You run the checks for
    me and bring me the verdict with a recommendation. Run the tests and any
    gates the repo has; they decide pass or fail. Then run the QA pair,
-   `behaviour-lens` and `integrity-lens`, at every tier, and for security
-   work `security-reviewer` on the diff. Never resume a reviewer, a lens or a
+   `behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens` at
+   the standard and thorough tiers; and for security work
+   `security-reviewer` on the diff. Never resume a reviewer, a lens or a
    checker; fresh context is the point of them. They advise: post their
    reports and help me decide (below). I decide whether it's done. Close the
    ticket only after I have.
    <!-- pact:end move-4 -->
 
-**Reading agents.** `plan-reviewer`, `security-reviewer` and the lenses
+**Reading agents.** `security-reviewer` and the lenses
 read; they don't build. Give them their input as local
 files: the spec text or the diff, written to a file, and the paths to it. Post
 each report on the issue, or in the repo's plan file, as a comment, word for
@@ -309,6 +312,21 @@ before the cross section was posted to me. Then record "resolved before owner
 review" in place of the walk-through. A finding that was taken or dismissed
 does not count as fixed. At the standard tier a pick is mine to give or skip;
 at the quick tier there is none.
+
+**The spec pair and `unstated-lens` at move 2.** Before you dispatch them,
+number the spec's headings `S1`, `S2` and on, in order, and write that
+section list, the spec and the issue's request to local files. Dispatch
+`executability-lens` and `good-enough-lens` fresh and on their own, never
+showing either one the other's report, and give each the section list, the
+spec and the request. Give `unstated-lens` the same files, and say which
+reviewers ran in this review. Run the cross script as above, with
+`--point spec` and the section ids with `--anchors`: once for the spec pair,
+and once for `unstated-lens` alone. The pick works as above on the spec
+pair's sections; `unstated-lens` takes none. Where both lenses of the spec
+pair call one section, that is a disagreement: show me both calls and let me
+settle it. At move 4, give `unstated-lens` the claims, the spec, the diff and
+the issue's request, say which reviewers ran in this review, and run its
+cross call alone, with `--point result` and the claim ids.
 
 **Lookups and searches.** For a lookup or a broad search that needs no judgement,
 use `scout`.
