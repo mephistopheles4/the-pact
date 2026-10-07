@@ -6,6 +6,8 @@
 //
 //   swap-before-open   just before the configuration file is opened, replace
 //                      it with another regular file (a new inode)
+//   hardlink-before-open just before the open, give the file a second name (a
+//                      hard link): same inode, two links
 //   link-before-open   just before the open, replace it with a link to a good
 //                      file (Unix: what O_NOFOLLOW catches)
 //   realpath-elsewhere realpathSync.native reports another path for the file
@@ -22,7 +24,7 @@ const isConfig = p => typeof p === 'string' && /[\\/]pact[\\/]config\.json$/.tes
 const isPact = p => typeof p === 'string' && /[\\/]pact$/.test(p);
 const note = line => log && fs.appendFileSync(log, `${line}\n`);
 
-const { openSync, lstatSync, readSync, readFileSync, renameSync, writeFileSync, symlinkSync, unlinkSync } = fs;
+const { openSync, lstatSync, linkSync, readSync, readFileSync, renameSync, writeFileSync, symlinkSync, unlinkSync } = fs;
 const realNative = fs.realpathSync.native;
 const configFds = new Set();
 
@@ -31,6 +33,8 @@ fs.openSync = function (p, ...rest) {
     if (fault === 'swap-before-open') {
       writeFileSync(`${p}.swap`, '{"schema": 1}');
       renameSync(`${p}.swap`, p);
+    } else if (fault === 'hardlink-before-open') {
+      linkSync(p, `${p}.2`);
     } else if (fault === 'link-before-open') {
       writeFileSync(`${p}.good`, '{"schema": 1}');
       unlinkSync(p);

@@ -12,6 +12,9 @@ param(
   [string]$RenderedHash
 )
 $ErrorActionPreference = 'Stop'
+# Write-Host goes to the information stream, so -InformationAction Ignore
+# would silence the dry run and every refusal. The owner always sees them.
+$InformationPreference = 'Continue'
 # Installs the pact from this clone's committed HEAD into -ClaudeHome (default
 # ~/.claude). Dry run by default: prints the plan and changes nothing. -Apply
 # installs, and only when there is no drift, the working tree is clean and

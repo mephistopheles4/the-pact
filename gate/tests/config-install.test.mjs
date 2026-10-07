@@ -470,6 +470,8 @@ test('bad case: a hash typed after -Apply without its parameter name, and no -Cl
   const out = `${r.stdout}${r.stderr}`;
   assert.notEqual(r.status, 0, out);
   assert.ok(!existsSync(join(repo, hash)), `a folder named after the hash was created:\n${out}`);
+  // The script's body never ran, whichever home folder PowerShell took.
+  assert.doesNotMatch(r.stdout, /Install from commit/, out);
   // PowerShell keeps its own startup data under the home folder; no pact file may appear there.
   assert.ok(!existsSync(join(fakeHome, '.claude')), out);
 });
@@ -520,4 +522,17 @@ test('a record from before configurations (no config, no digest) reads as no con
 test('the settings overlay asks before any edit to the user file or its blocks folder', () => {
   const overlay = JSON.parse(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
   assert.ok(overlay.permissions.ask.includes('Edit(~/.claude/pact/**)'), overlay.permissions.ask.join('\n'));
+});
+
+test('bad case: -InformationAction Ignore cannot silence the install: the dry run and a refusal still print', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const dry = install(repo, h, { extra: ['-InformationAction', 'Ignore'] });
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^Install from commit [0-9a-f]{40} /m, dry.out);
+  assert.match(dry.stdout, /^Dry run only\./m, dry.out);
+  writeFileSync(configPath(h), EXAMPLE);
+  const r = install(repo, h, { apply: true, extra: ['-InformationAction', 'Ignore'] });
+  refused(r);
+  nothingWritten(h);
 });

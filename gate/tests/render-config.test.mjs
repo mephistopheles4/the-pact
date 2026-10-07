@@ -485,6 +485,10 @@ test('bad case: a configuration file swapped for another between its lstat and i
   refusedWith(renderFault(t, homeWith(t, GOOD), 'swap-before-open'), 'config-file', /changed while it was opened/);
 });
 
+test('bad case: a configuration file given a second name between its lstat and its open refuses, by the link count', t => {
+  refusedWith(renderFault(t, homeWith(t, GOOD), 'hardlink-before-open'), 'config-file', /changed while it was opened/);
+});
+
 test('bad case: a configuration file whose real path is elsewhere refuses', t => {
   refusedWith(renderFault(t, homeWith(t, GOOD), 'realpath-elsewhere'), 'config-file', /resolves somewhere else/);
 });
