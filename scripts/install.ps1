@@ -35,6 +35,17 @@ $ErrorActionPreference = 'Stop'
 # does not prove the owner read the dry run.
 
 $repo = Split-Path $PSScriptRoot -Parent
+# A plain script puts any option name it does not know, and the value after
+# it, into $args without a word. So a misspelled -RenderedHash would never be
+# compared, and a misspelled -ClaudeHome would fall back to the default. Any
+# such word refuses. Option names are shown, cleaned; values never are.
+if ($args.Count) {
+  $names = @($args | Where-Object { $_ -is [string] -and $_ -match '^-' } | ForEach-Object { $n = $_ -replace '[^A-Za-z0-9-]', '?'; if ($n.Length -gt 40) { $n.Substring(0, 40) + '...' } else { $n } })
+  $named = if ($names) { " ($($names -join ', '))" } else { '' }
+  $words = if ($args.Count -eq 1) { '1 word' } else { "$($args.Count) words" }
+  Write-Host "REFUSED: the command line holds $words the script does not read$named. Check each option's spelling. Nothing was changed."
+  exit 1
+}
 # -ClaudeHome must be a full path. A relative one could name three different
 # folders: PowerShell cmdlets resolve it against PowerShell's location, .NET
 # calls against the process's working folder, and the renderer runs in the

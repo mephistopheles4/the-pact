@@ -528,15 +528,35 @@ test('the settings overlay asks before any edit to the user file or its blocks f
   assert.ok(overlay.permissions.ask.includes('Edit(~/.claude/pact/**)'), overlay.permissions.ask.join('\n'));
 });
 
-test('bad case: -InformationAction Ignore cannot silence the install (a plain script takes it as an unread argument): the dry run and a refusal still print', t => {
+test('bad case: -InformationAction Ignore is a word the script does not read: it refuses, and the refusal still prints', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const dry = install(repo, h, { extra: ['-InformationAction', 'Ignore'] });
-  assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^Install from commit [0-9a-f]{40} /m, dry.out);
-  assert.match(dry.stdout, /^Dry run only\./m, dry.out);
-  writeFileSync(configPath(h), EXAMPLE);
-  const r = install(repo, h, { apply: true, extra: ['-InformationAction', 'Ignore'] });
+  const r = install(repo, h, { extra: ['-InformationAction', 'Ignore'] });
   refused(r);
+  assert.match(r.stdout, /^REFUSED: the command line holds 2 words the script does not read \(-InformationAction\)/m, r.out);
+  assert.doesNotMatch(r.stdout, /Install from commit/, r.out);
+});
+
+test('bad case: a misspelled hash option is not dropped: after a configured dry run and a deleted configuration, -Apply refuses', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  writeFileSync(configPath(h), EXAMPLE);
+  const hash = dryRunHash(install(repo, h));
+  rmSync(configPath(h));
+  const r = install(repo, h, { apply: true, extra: ['-RenderHash', hash] });
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the command line holds 2 words the script does not read \(-RenderHash\)/m, r.out);
+  assert.ok(!r.stdout.includes(hash), 'a value from the command line was printed');
+  nothingWritten(h);
+});
+
+test('bad case: a stray word after the named options refuses, and is not printed', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
+  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', sha256(rendered), 'CANARYstray'] });
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the command line holds 1 word the script does not read\./m, r.out);
+  assert.ok(!r.out.includes('CANARYstray'), r.out);
   nothingWritten(h);
 });
