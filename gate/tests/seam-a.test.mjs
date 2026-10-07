@@ -450,6 +450,7 @@ function gateCopy(t, edit) {
   writeTree(g, {
     'seam-a.mjs': readFileSync(join(GATE, 'seam-a.mjs'), 'utf8'),
     'pact-text.mjs': readFileSync(join(GATE, 'pact-text.mjs'), 'utf8'),
+    'shared.mjs': readFileSync(join(GATE, 'shared.mjs'), 'utf8'),
     'tool-allowlist.json': readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'),
     'grimoire/check.mjs': readFileSync(join(GATE, 'grimoire', 'check.mjs'), 'utf8'),
     'grimoire/check.mjs.pin': readFileSync(join(GATE, 'grimoire', 'check.mjs.pin'), 'utf8'),

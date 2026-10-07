@@ -36,8 +36,9 @@ how every session in every repo behaves. So:
   dirty working tree.
 <!-- pact:end install-go-ahead -->
 - **The script confirms the hashes.** After `-Apply` it re-hashes every live
-  file against its repo copy and exits non-zero on a mismatch. Check that it
-  exited zero.
+  file against the bytes it checked and installed: the rendered bytes for the
+  rules file, and the repo copy for every other file. It exits non-zero on a
+  mismatch. Check that it exited zero.
 - **It deletes only pact files:** those the last manifest lists that the repo
   dropped. Your own agents and skills are never touched.
 
@@ -47,6 +48,14 @@ how every session in every repo behaves. So:
   [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). The repo is
   private; `main` was first pushed on 2026-09-30. Cite a commit by its short
   hash; GitHub links it only once the commit is on the remote.
+- **A session assigns the issue it takes.** When it starts work on an issue,
+  it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
+  is done, it removes itself with `--remove-assignee @me`.
+- **The assignee is for visibility, not a claim.** Every session
+  authenticates as the same GitHub user, so an assignee can't tell "mine, a
+  minute ago" from "free". Claims still go by the live-session check and the
+  presumed-live hour in the pact's wayfinder rules, in
+  [`claude/CLAUDE.md`](claude/CLAUDE.md).
 - **Plans:** a plan, its review rounds and its probe records live on the
   issue, as the body and comments. Nothing in the tree holds a plan. A record
   a check can run becomes a test or fixture beside the code it checks.
@@ -59,6 +68,12 @@ how every session in every repo behaves. So:
   doesn't report the work as finished until both are merged. If that PR can't
   carry them, for example a security-set record merged before the narrative
   is written, the session opens a docs PR before it is cleaned up.
+- **Every PR carries the close-out checkbox.** GitHub fills a PR from
+  [`.github/pull_request_template.md`](.github/pull_request_template.md) only
+  in the web UI; `gh pr create --body` skips it. So a session that opens a PR
+  from the CLI makes the template's checkbox line the first line of its
+  `--body`, copied word for word. It ticks the box when the PR finishes the
+  work, and leaves it unticked otherwise.
 - **Finding a decision or a log:** start from the indexes,
   [`docs/adr/README.md`](docs/adr/README.md) and
   [`docs/log/README.md`](docs/log/README.md), one line per file. Add a line

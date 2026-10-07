@@ -16,6 +16,9 @@
 // HTML comments from CLAUDE.md before the model reads it, so any other comment
 // in a checked file fails: text the check reads must be text the model reads.
 //
+// The marker parser, the structure patterns and the text scanner live in
+// shared.mjs (#91).
+//
 // Like seam A, nothing here echoes a file's content. Output names files, line
 // numbers and this module's own fixed clause names, never a name read from a
 // file.
@@ -23,6 +26,7 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ANY_FENCE_RE, HEADING_LIKE_RE, HEADING_RE, MOVE_RE, PACT_MARKER_RE, SETEXT_RE, parseDoc, scanText } from './shared.mjs';
 
 const CLAUSE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'clauses');
 
@@ -76,19 +80,7 @@ const ROSTER_RES = new Map(
   ROSTER.map(n => [n, new RegExp(`(?<![\\p{L}\\p{N}_])${n.split('-').join(ROSTER_HYPHEN)}(?![\\p{L}\\p{N}_])`, 'iu')]),
 );
 
-const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
-const FENCE_RE = /^ *(?:```|~~~)/;
-// The pact files' structure is held to the forms this module reads exactly as
-// CommonMark does: no fence of any kind, no setext heading, and ATX headings
-// only at column 0 with one space. Anything else could frame a block one way
-// for the model and another way for the check.
-const ANY_FENCE_RE = /^\s*(?:`{3,}|~{3,})/;
-const SETEXT_RE = /^ {0,3}(?:=+|-+)\s*$/;
-const HEADING_LIKE_RE = /^\s*#{1,6}(?:\s|$)/;
-const HEADING_RE = /^#{1,6} \S/;
-const MOVE_RE = /^([0-9]+)\. /;
 const SPAN_RE = /`([^`]+)`/g;
-const PACT_MARKER_RE = /<!--\s*pact\s*:/i;
 
 /** The canonical texts, as a Map from clause name to text. A bad file fails and is left out. */
 function loadClauses(report) {
@@ -111,55 +103,7 @@ function loadClauses(report) {
   return out;
 }
 
-/**
- * Read one checked file into lines, each with its section and whether it sits
- * in a fence, and its blocks. `allowed` is the set of block names this file
- * may hold. Every grammar failure is recorded in `report`.
- */
-function parseDoc(text, file, allowed, report) {
-  const lines = text.split('\n');
-  const meta = [];
-  const blocks = new Map();
-  const seen = new Set();
-  let section = null;
-  let sub = false;
-  let fenced = false;
-  let open = null;
-  lines.forEach((line, i) => {
-    const ln = i + 1;
-    const fence = FENCE_RE.test(line);
-    if (fence) fenced = !fenced;
-    const inFence = fence || fenced;
-    if (!inFence) {
-      if (line.startsWith('## ')) [section, sub] = [line.slice(3), false];
-      else if (line.startsWith('# ')) [section, sub] = [null, false];
-      else if (/^#{3,6} /.test(line)) sub = true;
-    }
-    meta.push({ section, sub, fenced: inFence, marker: false });
-    if (!line.includes('<!--')) return;
-    meta[i].marker = true;
-    if (inFence) return report.fail('marker', file, ln, 'a comment inside a fenced code block');
-    const m = MARKER_RE.exec(line);
-    if (!m) return report.fail('marker', file, ln, 'a comment that is not a pact marker alone on its line');
-    const [, kind, name] = m;
-    if (!CLAUSES.has(name)) return report.fail('marker', file, ln, 'an unknown block name');
-    if (!allowed.has(name)) return report.fail('marker', file, ln, `${name} is not a block this file may hold`);
-    if (kind === 'begin') {
-      if (open) return report.fail('marker', file, ln, 'a block that opens inside another');
-      if (seen.has(name)) return report.fail('marker', file, ln, `${name} opens twice`);
-      seen.add(name);
-      open = { name, line: i };
-      return;
-    }
-    if (!open || open.name !== name) return report.fail('marker', file, ln, `an end of ${name} with no open begin of the same name`);
-    blocks.set(name, { begin: open.line, end: i, text: lines.slice(open.line + 1, i).join('\n') });
-    open = null;
-  });
-  if (open) report.fail('marker', file, open.line + 1, `${open.name} never closes`);
-  return { lines, meta, blocks };
-}
-
-/** Refuse the Markdown forms a pact file may not use (see ANY_FENCE_RE). */
+/** Refuse the Markdown forms a pact file may not use (see ANY_FENCE_RE in shared.mjs). */
 function checkStructure(doc, file, report) {
   const titles = new Set();
   doc.lines.forEach((line, i) => {
@@ -217,8 +161,8 @@ function routedNames(doc, moves) {
   return names;
 }
 
-/** A pact file from the stage, read through seam A's own encoding and character rules. */
-function readPactFile(root, rel, report, scanText) {
+/** A pact file from the stage, read through the gate's text scanner. */
+function readPactFile(root, rel, report) {
   const abs = join(root, ...rel.split('/'));
   let st;
   try {
@@ -280,19 +224,17 @@ function namesFor(file) {
 
 /**
  * Check the pact's text. `agents` are seam A's installed agents, each with
- * `file` and, once its frontmatter was read, `name`. `scanText(buf, file,
- * report)` is seam A's encoding and character check; it returns the text, or
- * null after recording why not.
+ * `file` and, once its frontmatter was read, `name`.
  */
-export function checkPactText(root, agents, report, scanText) {
+export function checkPactText(root, agents, report) {
   const canon = loadClauses(report);
   const docs = new Map();
   let pactText = null;
   for (const rel of [PACT, RULES]) {
-    const text = readPactFile(root, rel, report, scanText);
+    const text = readPactFile(root, rel, report);
     if (text === null) continue;
     if (rel === PACT) pactText = text;
-    const doc = parseDoc(text, rel, namesFor(rel), report);
+    const doc = parseDoc(text, rel, CLAUSES, namesFor(rel), report);
     checkStructure(doc, rel, report);
     docs.set(rel, doc);
   }
@@ -326,7 +268,7 @@ export function checkPactText(root, agents, report, scanText) {
       continue;
     }
     holders.add(holder);
-    const doc = parseDoc(readFileSync(join(root, ...holder.file.split('/')), 'utf8'), holder.file, new Set([name]), report);
+    const doc = parseDoc(readFileSync(join(root, ...holder.file.split('/')), 'utf8'), holder.file, CLAUSES, new Set([name]), report);
     const block = doc.blocks.get(name);
     const source = pact && pact.blocks.get(name);
     // An agent body may hold examples in fences; the shared block comes before any.

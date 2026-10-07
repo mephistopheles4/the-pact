@@ -2,10 +2,11 @@
 // tree and a throwaway -ClaudeHome. Never touches ~/.claude.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import { before, test } from 'node:test';
-import { REPO, READ_ONLY, agent, plainAgent, routeTree, sealedFamiliar, tempDir, writeTree } from './helpers.mjs';
+import { REPO, READ_ONLY, agent, plainAgent, routeTree, sealedFamiliar, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
 
 const WIN = process.platform === 'win32';
 
@@ -147,7 +148,6 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) {
     assert.deepEqual(readFileSync(join(h, 'agents', f)), readFileSync(join(repo, 'claude', 'agents', f)), f);
   }
-  assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), readFileSync(join(repo, 'claude', 'CLAUDE.md')));
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   const gatePaths = manifest.gate.map(g => g.path).sort();
   assert.deepEqual(gatePaths, [
@@ -161,8 +161,10 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
     'gate/grimoire/check.mjs',
     'gate/grimoire/check.mjs.pin',
     'gate/pact-text.mjs',
+    'gate/render.mjs',
     'gate/seam-a.mjs',
     'gate/settings-allowlist.json',
+    'gate/shared.mjs',
     'gate/tool-allowlist.json',
     'scripts/install.ps1',
   ]);
@@ -264,13 +266,16 @@ test('bad case: a missing pinned script refuses', t => {
   assert.match(r.stdout, /^REFUSED: the pinned check script or its pin file is missing\./m, r.out);
 });
 
+// The renderer is the first program the install runs through Node, so a fake
+// Node is caught there; the planted seam A cases further down cover the
+// check's own runner.
 test('bad case: a fake Node with no RESULT line refuses, and -Apply changes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const bin = fakeNode(t, 'noresult');
   const r = install(repo, h, { apply: true, path: [bin, ...BASE_PATH] });
   refused(r);
-  assert.match(r.stdout, /did not end with "RESULT: pass"/);
+  assert.match(r.stdout, /^REFUSED: the renderer did not end with "RESULT: pass"/m, r.out);
   assert.deepEqual(listTree(h), []);
   assert.doesNotMatch(readFileSync(join(bin, 'args.log'), 'utf8'), /--seal/);
 });
@@ -284,12 +289,13 @@ test('bad case: Node older than 20 refuses', t => {
 test('bad case: a non-zero exit refuses even with a RESULT: pass line', t => {
   const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'exit1'), ...BASE_PATH] });
   refused(r);
-  assert.match(r.stdout, /exited with code 1/);
+  assert.match(r.stdout, /^REFUSED: the renderer exited with code 1/m, r.out);
 });
 
 test('bad case: a crash refuses, and its stderr is never echoed', t => {
   const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'crash'), ...BASE_PATH] });
   refused(r);
+  assert.match(r.stdout, /^The renderer wrote to stderr; it is not shown\.$/m, r.out);
   assert.doesNotMatch(r.out, /CANARYcrash/);
 });
 
@@ -309,12 +315,13 @@ test('bad case: a node.cmd shim is not accepted as Node', { skip: !WIN }, t => {
   refused(r);
 });
 
-test('NODE_OPTIONS is cleared for the check', t => {
+test('NODE_OPTIONS is cleared for the renderer and the check', t => {
   const d = tempDir(t, 'pact-nodeopt-');
   const hostile = join(d, 'hostile.cjs');
   writeFileSync(hostile, "process.stdout.write('RESULT: fail\\n'); process.exit(1);\n");
   const r = install(makeRepo(t), home(t), { env: { NODE_OPTIONS: `--require=${hostile}` } });
   assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
   assert.match(r.stdout, /^seam-a\| RESULT: pass$/m, r.out);
 });
 
@@ -505,4 +512,237 @@ test('bad case: an unrouted agent at HEAD refuses, naming its file', t => {
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^seam-a\| FAIL routing: claude\/agents\/probe\.md: /m, r.out);
+});
+
+// ------------------------------------------------------------ the check's runner, on real Node
+
+test('bad case: a seam A that exits non-zero refuses even with a RESULT: pass line', t => {
+  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, 'process.exitCode = report.failed ? 1 : 0;', 'process.exitCode = 1;')));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^seam-a\| RESULT: pass$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the check exited with code 1\./m, r.out);
+});
+
+test('bad case: a seam A with no RESULT line refuses', t => {
+  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, "report.lines.push(`RESULT: ${report.failed ? 'fail' : 'pass'}`);", '')));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the check did not end with "RESULT: pass"\./m, r.out);
+});
+
+test('bad case: a seam A crash refuses, and its stderr is never echoed', t => {
+  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, '// @@TEST-CRASH-HOOK@@', "process.stderr.write('CANARYseam\\n'); process.exit(134);")));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^The check wrote to stderr; it is not shown\.$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the check exited with code 134\./m, r.out);
+  assert.doesNotMatch(r.out, /CANARYseam/);
+});
+
+// ------------------------------------------------------------ the renderer (#53)
+
+const sha256 = b => createHash('sha256').update(b).digest('hex');
+
+function replaceOnce(s, from, to) {
+  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
+  return s.replace(from, () => to);
+}
+
+function plantRenderer(root, transform) {
+  const p = join(root, 'gate', 'render.mjs');
+  writeFileSync(p, transform(readFileSync(p, 'utf8')));
+}
+
+/** The repo's committed rules file: its source bytes, and the no-file render the tests expect. */
+function rulesOf(repo) {
+  const source = readFileSync(join(repo, 'claude', 'CLAUDE.md'));
+  const rendered = Buffer.from(withoutOpenMarks(source.toString('utf8')));
+  assert.notDeepEqual(rendered, source, 'the source carries no open marks, so this test would pass for the wrong reason');
+  return { source, rendered };
+}
+
+test('-Apply installs the no-file render as the rules file, and the record holds its hash', t => {
+  const repo = makeRepo(t);
+  const { source, rendered } = rulesOf(repo);
+  const h = home(t);
+  const r = install(repo, h, { apply: true });
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(rendered)}$`, 'm'), r.out);
+  assert.match(r.stdout, /^render\| CONFIG none$/m, r.out);
+  assert.match(r.stdout, /^OK {7}CLAUDE\.md$/m, r.out);
+  assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), rendered);
+  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const entry = manifest.files.find(f => f.path === 'CLAUDE.md');
+  assert.equal(entry.sha256, sha256(rendered));
+  assert.notEqual(entry.sha256, sha256(source));
+  const again = install(repo, h);
+  assert.equal(again.code, 0, again.out);
+  assert.match(again.stdout, /^Drift: 0$/m, again.out);
+  assert.match(again.stdout, /^Nothing to do\.$/m, again.out);
+});
+
+test('the dry run shows a Configuration block that says there is no configuration, before the gate block', t => {
+  const r = install(makeRepo(t), home(t));
+  assert.equal(r.code, 0, r.out);
+  const lines = r.stdout.replaceAll('\r\n', '\n').split('\n');
+  const c = lines.indexOf('Configuration:');
+  assert.ok(c >= 0, r.out);
+  assert.equal(lines[c + 1], '  no configuration');
+  assert.ok(c < lines.findIndex(l => /^Gate: /.test(l)), r.out);
+});
+
+test('bad case: the rules file changed in the stage after the check refuses -Apply, with nothing written', t => {
+  let source;
+  const repo = makeRepo(t, root => {
+    source = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
+    // After seam A has hashed the rendered file, it puts the unrendered source back.
+    plantSeamA(root, s =>
+      replaceOnce(
+        replaceOnce(s, "import { lstatSync, readFileSync, readdirSync } from 'node:fs';", "import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';"),
+        '// @@TEST-SETTINGS-HOOK@@',
+        `writeFileSync(join(root, 'claude', 'CLAUDE.md'), ${JSON.stringify(source)});`,
+      ),
+    );
+  });
+  rulesOf(repo);
+  const h = home(t);
+  const r = install(repo, h, { apply: true });
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the staged copy of CLAUDE\.md changed after the check\./m, r.out);
+  assert.deepEqual(listTree(h), []);
+});
+
+test('bad case: a record whose rules-file hash is not the rendered bytes\' hash is drift, and -Apply refuses', t => {
+  const repo = makeRepo(t);
+  const { source, rendered } = rulesOf(repo);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true }).code, 0);
+  // The hash an install that ignored the render would have recorded.
+  const mf = join(h, '.pact-install.json');
+  const m = JSON.parse(readFileSync(mf, 'utf8'));
+  m.files.find(f => f.path === 'CLAUDE.md').sha256 = sha256(source);
+  writeFileSync(mf, JSON.stringify(m));
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^Drift: 1$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}CLAUDE\.md \(changed since the install\)$/m, dry.out);
+  const r = install(repo, h, { apply: true });
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: live files drifted since the last install\./m, r.out);
+  assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), rendered);
+});
+
+test('bad case: a renderer that reports a hash other than its output\'s refuses', t => {
+  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, "createHash('sha256').update(rendered).digest('hex')", "'0'.repeat(64)")));
+  const h = home(t);
+  const r = install(repo, h, { apply: true });
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the rendered rules file's hash does not match the one the renderer reported\./m, r.out);
+  assert.deepEqual(listTree(h), []);
+});
+
+test('bad case: a renderer that adds a file to the stage refuses, with nothing written', t => {
+  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, '  const rendered = stripOpenMarks(buf);', "  writeFileSync('planted.md', 'x\\n');\n  const rendered = stripOpenMarks(buf);")));
+  const h = home(t);
+  const r = install(repo, h, { apply: true });
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
+  assert.deepEqual(listTree(h), []);
+});
+
+test('bad case: a renderer that changes a staged file refuses', t => {
+  const repo = makeRepo(t, root =>
+    plantRenderer(root, s => replaceOnce(s, '  const rendered = stripOpenMarks(buf);', "  writeFileSync('gate/clauses/move-4.md', 'x\\n', { flag: 'a' });\n  const rendered = stripOpenMarks(buf);")),
+  );
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
+});
+
+test('bad case: a renderer line the install does not read refuses, and cannot feed the INSTALL parse', t => {
+  const repo = makeRepo(t, root =>
+    plantRenderer(root, s => replaceOnce(s, "  report.lines.push('CONFIG none');", "  report.lines.push('CONFIG none');\n  report.lines.push(`INSTALL ${'0'.repeat(64)} claude/CLAUDE.md CLAUDE.md`);")),
+  );
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^render\| INSTALL 0{64} claude\/CLAUDE\.md CLAUDE\.md$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the renderer printed a line the install does not read\./m, r.out);
+});
+
+test('bad case: a renderer that leaves a second file in its output folder refuses', t => {
+  const repo = makeRepo(t, root =>
+    plantRenderer(root, s => replaceOnce(s, "  report.lines.push('CONFIG none');", "  report.lines.push('CONFIG none');\n  writeFileSync(join(out, 'extra.md'), 'x\\n');")),
+  );
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the renderer did not leave exactly one plain rules file of at most 1 MiB\./m, r.out);
+});
+
+test('bad case: a renderer hash line with anything after the hash refuses', t => {
+  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, ".digest('hex')}`", ".digest('hex')} extra`")));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^render\| RENDERED [0-9a-f]{64} extra$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the renderer printed a line the install does not read\./m, r.out);
+});
+
+for (const [label, from, to, why] of [
+  ['no configuration line', "  report.lines.push('CONFIG none');", '', 'the renderer did not report exactly one output hash and one configuration line'],
+  ['two configuration lines', "  report.lines.push('CONFIG none');", "  report.lines.push('CONFIG none');\n  report.lines.push('CONFIG none');", 'the renderer did not report exactly one output hash and one configuration line'],
+  ['two hash lines', "  report.lines.push('CONFIG none');", "  report.lines.push(report.lines[0]);\n  report.lines.push('CONFIG none');", 'the renderer reported two output hashes'],
+]) {
+  test(`bad case: a renderer that prints ${label} refuses`, t => {
+    const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, from, to)));
+    const r = install(repo, home(t));
+    refused(r);
+    assert.match(r.stdout, new RegExp(`^REFUSED: ${why}\\.`, 'm'), r.out);
+  });
+}
+
+test('the renderer and the rules file come from the commit: working-tree-only edits to them are not what runs', t => {
+  const repo = makeRepo(t);
+  const { rendered } = rulesOf(repo);
+  writeFileSync(join(repo, 'gate', 'render.mjs'), "process.stdout.write('RESULT: fail\\n');\nprocess.exit(1);\n");
+  const md = join(repo, 'claude', 'CLAUDE.md');
+  writeFileSync(md, `${readFileSync(md, 'utf8')}CANARYworktree\n`);
+  const r = install(repo, home(t));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
+  assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(rendered)}$`, 'm'), r.out);
+  assert.match(r.stdout, /uncommitted edits are not checked/, r.out);
+});
+
+test('bad case: a renderer that adds a hidden file to the stage refuses', t => {
+  const repo = makeRepo(t, root =>
+    plantRenderer(root, s =>
+      replaceOnce(
+        replaceOnce(s, "import { createHash } from 'node:crypto';", "import { createHash } from 'node:crypto';\nimport { spawnSync } from 'node:child_process';"),
+        '  const rendered = stripOpenMarks(buf);',
+        "  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n  const rendered = stripOpenMarks(buf);",
+      ),
+    ),
+  );
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
+});
+
+test('bad case: a commit with no renderer refuses', t => {
+  const repo = makeRepo(t, root => rmSync(join(root, 'gate', 'render.mjs')));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the renderer \(gate\/render\.mjs\) is missing\./m, r.out);
+});
+
+test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
+  const repo = makeRepo(t, root =>
+    plantRenderer(root, s =>
+      replaceOnce(s, '  const rendered = stripOpenMarks(buf);', "  const rendered = Buffer.from(stripOpenMarks(buf).toString('utf8').replace('however small:', 'when large:'));"),
+    ),
+  );
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
+  assert.match(r.stdout, /^seam-a\| FAIL required-clause: claude\/CLAUDE\.md: security-route /m, r.out);
 });
