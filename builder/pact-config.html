@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nSZ3smniRruiyaMVxNxcr6SgVe3yWDyN6suFOZBi6lw='; style-src 'sha256-DWZas5jCnh4IOxQVDIGoXZPPMjSt3pWG0ieaKN5jlEo='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-leoq1QEOhlhYxJc7JiDpYfCFF76J9IlWOiJnRBN7zXw='; style-src 'sha256-DWZas5jCnh4IOxQVDIGoXZPPMjSt3pWG0ieaKN5jlEo='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -376,16 +376,6 @@ const BLOCK_MAX = 16 * 1024;
 // Split, so the page's script never holds a comment opener.
 const COMMENT_OPEN = '<' + '!--';
 
-const MODES = {
-  keep: 'Keep',
-  replace: 'Replace',
-  'add-after': 'Add after',
-  remove: 'Remove',
-};
-const EMPTY_MODES = {
-  keep: 'Leave empty',
-  'add-after': 'Add text',
-};
 
 /** A character the gate's text scanner refuses: control, line-separator or invisible. */
 function refusedChar(cp) {
@@ -450,10 +440,25 @@ const presetById = id => PACT.presets.find(p => p.id === id);
 const openPart = mark => PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === mark);
 const cardText = card => (card.kind === 'preset' ? presetById(card.id).text : card.text);
 
+/**
+ * Each slot holds two things: whether its default text is replaced, and the
+ * cards added to it. Cards always come after whatever stays; the edit the
+ * renderer sees follows from the pair (see slotOp).
+ */
 function initialState() {
   const slots = {};
-  for (const mark of PACT.editable) slots[mark] = { mode: 'keep', cards: [] };
+  for (const mark of PACT.editable) slots[mark] = { replaced: false, cards: [] };
   return { usage: PACT.setting.def, slots };
+}
+
+/**
+ * The renderer's operation for a slot: keep (no edit), add-after (cards after
+ * the default), replace (cards instead of the default) or remove (the default
+ * replaced with nothing).
+ */
+function slotOp(slot) {
+  if (slot.replaced) return slot.cards.length ? 'replace' : 'remove';
+  return slot.cards.length ? 'add-after' : 'keep';
 }
 
 /** A slot's block file text: its cards joined, ending in one line feed. */
@@ -470,19 +475,16 @@ function problems(state) {
   }
   for (const mark of PACT.editable) {
     const slot = state.slots[mark];
-    if (slot.mode === 'keep') continue;
-    if (slot.mode !== 'remove') {
-      if (!slot.cards.length) {
-        out.push({ where: mark, level: 'error', text: 'needs at least one card' });
-        continue;
-      }
+    const op = slotOp(slot);
+    if (op === 'keep') continue;
+    if (op !== 'remove') {
       slot.cards.forEach((c, i) => {
         if (normalize(cardText(c)).trim() === '') out.push({ where: mark, level: 'error', text: `card ${i + 1} is empty` });
       });
       for (const p of blockProblems(slotText(slot))) out.push({ where: mark, level: 'error', text: p });
     }
-    if (slot.mode === 'replace' || slot.mode === 'remove') {
-      const named = slot.mode === 'remove' ? [] : slotText(slot).match(/`[^`\n]+`/g) || [];
+    if (op === 'replace' || op === 'remove') {
+      const named = op === 'remove' ? [] : slotText(slot).match(/`[^`\n]+`/g) || [];
       const lost = openPart(mark).agents.filter(a => !named.includes(`\`${a}\``));
       if (lost.length) {
         out.push({
@@ -504,27 +506,26 @@ function buildFiles(state) {
   const blocks = [];
   for (const mark of PACT.editable) {
     const slot = state.slots[mark];
-    if (slot.mode === 'keep') continue;
-    if (slot.mode === 'remove') {
-      edits.push({ mark, op: 'remove' });
+    const op = slotOp(slot);
+    if (op === 'keep') continue;
+    if (op === 'remove') {
+      edits.push({ mark, op });
       continue;
     }
     const file = `${mark}.md`;
-    edits.push({ mark, op: slot.mode, file });
+    edits.push({ mark, op, file });
     blocks.push({ path: `blocks/${file}`, text: slotText(slot) });
   }
   if (edits.length) config.edits = edits;
   return [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks];
 }
 
-/** Put a preset into its slot. Returns a message when it doesn't belong there. */
+/** Add a preset after its slot's text. Returns a message when it doesn't belong there. */
 function addPreset(state, mark, id) {
   const p = presetById(id);
   if (!p) return 'That card is not in the library.';
   if (p.mark !== mark) return `"${p.title}" belongs in the ${p.mark} slot.`;
-  const slot = state.slots[mark];
-  if (slot.mode === 'keep' || slot.mode === 'remove') slot.mode = p.op;
-  slot.cards.push({ kind: 'preset', id });
+  state.slots[mark].cards.push({ kind: 'preset', id });
   return null;
 }
 
@@ -608,7 +609,7 @@ function boot() {
 
   function renderSummary() {
     const found = problems(state);
-    const edits = PACT.editable.filter(m => state.slots[m].mode !== 'keep').length;
+    const edits = PACT.editable.filter(m => slotOp(state.slots[m]) !== 'keep').length;
     const errors = found.filter(f => f.level === 'error').length;
     const warns = found.length - errors;
     const stateText = errors ? `${errors} to fix` : warns ? `${warns} to check` : 'Ready';
@@ -659,7 +660,7 @@ function boot() {
         'div',
         { class: 'card preset', draggable: 'true' },
         el('span', { class: 'card-tab', text: p.title }),
-        el('span', { class: 'av-label', text: `${p.mark} · ${p.op === 'replace' ? 'replaces the default' : 'adds after it'}` }),
+        el('span', { class: 'av-label', text: p.op === 'replace' ? `${p.mark} · written to stand in for the default` : p.mark }),
         prose(p.text),
         el('div', { class: 'card-foot' }, chip(`Add to ${p.mark}`, false, () => drop(p.mark, p.id))),
       );
@@ -672,7 +673,7 @@ function boot() {
     return el(
       'aside',
       { class: 'move-presets', 'aria-label': `Presets for move ${m.n}` },
-      el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Presets · move ${String(m.n).padStart(2, '0')}` }), el('p', { class: 'av-annot', text: items.length ? 'From the shipped example blocks. Drag one onto the slot, or use its button.' : 'No presets for this move yet. Use "Add your own text" in its slot.' })),
+      el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Presets · move ${String(m.n).padStart(2, '0')}` }), el('p', { class: 'av-annot', text: items.length ? 'From the shipped example blocks. Drag one onto the slot, or use its button: it goes after the slot\'s text.' : 'No presets for this move yet. Use "Add your own text" in its slot.' })),
       ...items,
     );
   }
@@ -695,13 +696,14 @@ function boot() {
   function openSlot(p) {
     const slot = state.slots[p.mark];
     const empty = p.text.trim() === '';
-    const modes = empty ? EMPTY_MODES : MODES;
-    if (!(slot.mode in modes)) slot.mode = 'keep';
-    const setMode = k => {
-      slot.mode = k;
-      renderSpine();
-    };
-    const chips = el('div', { class: 'chips', role: 'group', 'aria-label': `What to do with ${p.mark}` }, ...Object.entries(modes).map(([k, label]) => chip(label, slot.mode === k, () => setMode(k), '', true)));
+    const op = slotOp(slot);
+    // An empty slot has no default to replace.
+    const replace = empty
+      ? null
+      : chip('Replace default text', slot.replaced, () => {
+          slot.replaced = !slot.replaced;
+          renderSpine();
+        }, '', true);
 
     const cards = slot.cards.map((c, i) => {
       const remove = chip('Remove card', false, () => {
@@ -722,20 +724,24 @@ function boot() {
     });
 
     const addOwn = chip('Add your own text', false, () => {
-      if (slot.mode === 'keep' || slot.mode === 'remove') slot.mode = empty ? 'add-after' : 'replace';
       slot.cards.push({ kind: 'custom', text: '' });
       renderSpine();
     }, 'av-tool-chip--ghost');
 
-    const struck = slot.mode === 'replace' || slot.mode === 'remove';
-    const edited = slot.mode !== 'keep';
+    const SAYS = {
+      keep: empty ? 'Empty' : 'Default',
+      'add-after': empty ? 'Text added' : 'Default + added',
+      replace: 'Replaced',
+      remove: 'Removed',
+    };
+    const edited = op !== 'keep';
     const box = el(
       'div',
       { class: `part part--open${edited ? ' part--edited' : ''}`, 'data-mark': p.mark },
       el('span', { class: 'part-tag' }, el('b', { text: 'Open' }), el('span', { text: p.mark })),
-      el('div', { class: 'slot-bar' }, chips, edited ? el('span', { class: 'av-label', text: 'Edited' }) : null),
-      empty ? el('p', { class: 'av-annot', text: 'Empty by default: a place for extra steps.' }) : prose(p.text, struck ? 'prose prose--struck' : 'prose'),
-      slot.mode === 'remove' ? el('p', { class: 'av-annot', text: 'This part is removed. Cards here are not saved.' }) : null,
+      el('div', { class: 'slot-bar' }, replace || el('span'), el('span', { class: 'av-label', text: SAYS[op] })),
+      empty ? el('p', { class: 'av-annot', text: 'Empty by default: a place for extra steps.' }) : prose(p.text, slot.replaced ? 'prose prose--struck' : 'prose'),
+      op === 'remove' ? el('p', { class: 'av-annot', text: 'The default text is removed and nothing takes its place. Add a card to put text here instead.' }) : null,
       ...cards,
       el('div', { class: 'card-foot' }, addOwn, el('span', { class: 'av-annot', text: 'or drop a preset here' })),
     );

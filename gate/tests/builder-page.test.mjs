@@ -203,7 +203,7 @@ test('bad case: an example block changed makes the committed page out of date', 
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -242,19 +242,28 @@ test('with nothing changed, the page saves a configuration that sets nothing', (
   assert.deepEqual(JSON.parse(JSON.stringify(L.buildFiles(s))), [{ path: 'config.json', text: '{\n  "schema": 1\n}\n' }]);
 });
 
-test('a preset goes only in its own slot, and turns a kept slot into the preset\'s operation', () => {
+test('a preset goes only in its own slot, and always goes after the slot\'s text', () => {
   const s = L.initialState();
   assert.match(L.addPreset(s, 'move-2', 'move-1-no-wayfinder'), /belongs in the move-1 slot/);
   assert.equal(s.slots['move-2'].cards.length, 0);
   assert.equal(L.addPreset(s, 'move-1', 'move-1-no-wayfinder'), null);
-  assert.equal(s.slots['move-1'].mode, 'replace');
+  assert.equal(L.slotOp(s.slots['move-1']), 'add-after');
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).edits, [{ mark: 'move-1', op: 'add-after', file: 'move-1.md' }]);
+});
+
+test('a slot\'s edit follows from two things: whether its default is replaced, and whether it holds cards', () => {
+  const card = { kind: 'custom', text: 'x' };
+  assert.equal(L.slotOp({ replaced: false, cards: [] }), 'keep');
+  assert.equal(L.slotOp({ replaced: false, cards: [card] }), 'add-after');
+  assert.equal(L.slotOp({ replaced: true, cards: [card] }), 'replace');
+  assert.equal(L.slotOp({ replaced: true, cards: [] }), 'remove');
 });
 
 test('two cards in one slot become one block file, joined with no blank line; remove carries no file', () => {
   const s = L.initialState();
   L.addPreset(s, 'move-4-extra', 'move-4-docs-check');
   L.addPreset(s, 'move-4-extra', 'move-4-own-agent');
-  s.slots['move-1'].mode = 'remove';
+  s.slots['move-1'].replaced = true;
   const files = JSON.parse(JSON.stringify(L.buildFiles(s)));
   assert.deepEqual(JSON.parse(files[0].text).edits, [
     { mark: 'move-1', op: 'remove' },
@@ -267,18 +276,18 @@ test('two cards in one slot become one block file, joined with no blank line; re
 
 test('custom text with Windows line endings is saved with LF only', () => {
   const s = L.initialState();
-  s.slots['move-3'] = { mode: 'add-after', cards: [{ kind: 'custom', text: 'One line.\r\nTwo lines.\r\n\r\n' }] };
+  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: 'One line.\r\nTwo lines.\r\n\r\n' }] };
   assert.equal(L.buildFiles(s)[1].text, 'One line.\nTwo lines.\n');
 });
 
 test('the page warns when a move-2 edit drops an agent its default text routes to, and stops a save on an error', () => {
   const s = L.initialState();
-  s.slots['move-2'] = { mode: 'replace', cards: [{ kind: 'custom', text: 'Think first, then write the spec.' }] };
+  s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Think first, then write the spec.' }] };
   const warn = L.problems(s).filter(p => p.level === 'warn');
   assert.equal(warn.length, 1);
   assert.match(warn[0].text, /`unstated-lens`/);
-  s.slots['move-3'] = { mode: 'replace', cards: [] };
-  assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'move-3'));
+  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: '' }] };
+  assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'move-3' && /card 1 is empty/.test(p.text)));
   s.usage = 101;
   assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'usage-pause'));
 });
@@ -374,15 +383,15 @@ test('a configuration the page saves with a value and every preset installs thro
   assert.deepEqual(files.map(f => f.path), ['config.json', 'blocks/move-1.md', 'blocks/move-3.md', 'blocks/move-4-extra.md']);
   assert.match(rules, /the weekly limit is above 90%/);
   for (const p of L.PACT.presets) for (const line of p.text.split('\n')) assert.ok(rules.includes(`   ${line}\n`), `${p.id}: ${line}`);
-  assert.match(rules, /Values set: usage-pause 90\. Parts edited: move-1 \(replace\), move-3 \(add-after\), move-4-extra \(add-after\)\./);
+  assert.match(rules, /Values set: usage-pause 90\. Parts edited: move-1 \(add-after\), move-3 \(add-after\), move-4-extra \(add-after\)\./);
 });
 
 test('a configuration the page saves with your own text and a removal installs through the dry run and -Apply', t => {
   const s = L.initialState();
   s.usage = 60;
-  s.slots['move-1'].mode = 'remove';
-  s.slots['move-2'] = { mode: 'add-after', cards: [{ kind: 'custom', text: 'Before the spec, ask me which open question I want answered first.\r\n' }] };
-  s.slots['move-4-extra'] = { mode: 'add-after', cards: [{ kind: 'custom', text: 'Say which tests you ran.' }, { kind: 'preset', id: 'move-4-docs-check' }] };
+  s.slots['move-1'].replaced = true;
+  s.slots['move-2'] = { replaced: false, cards: [{ kind: 'custom', text: 'Before the spec, ask me which open question I want answered first.\r\n' }] };
+  s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'custom', text: 'Say which tests you ran.' }, { kind: 'preset', id: 'move-4-docs-check' }] };
   const { rules } = installSaved(t, s);
   assert.match(rules, /^ {3}Before the spec, ask me which open question I want answered first\.$/m);
   assert.match(rules, /^ {3}Say which tests you ran\.\n {3}After the checks, list each public interface/m);
@@ -394,7 +403,7 @@ test('bad case: text the page flags is refused by the install too, since the pag
   const repo = makeRepo(t);
   const h = home(t);
   const s = L.initialState();
-  s.slots['move-3'] = { mode: 'add-after', cards: [{ kind: 'custom', text: 'Also read @secrets.md first.' }] };
+  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: 'Also read @secrets.md first.' }] };
   assert.ok(L.problems(s).some(p => p.level === 'error' && /import/.test(p.text)));
   saveInto(h, s);
   const dry = install(repo, h);
