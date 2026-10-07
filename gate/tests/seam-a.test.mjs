@@ -79,12 +79,12 @@ test('an install line carries the staged bytes hash', t => {
   assert.match(hash, /^[0-9a-f]{64}$/);
 });
 
-test('CLAUDE.md is named as the rendered file, checked for form, routing and the roster, not for meaning', t => {
+test('CLAUDE.md is named as the rendered file, checked for form, imports, routing and the roster, not for meaning', t => {
   const r = expectPass(t, {});
   assert.doesNotMatch(r.stdout, /^NOTE unchecked: claude\/CLAUDE\.md/m);
   assert.match(
     r.stdout,
-    /^NOTE partly-checked: claude\/CLAUDE\.md is the rendered rules file: its marked clauses are checked word for word, and its open text for form, routing and the roster, not for meaning; line numbers count the rendered file$/m,
+    /^NOTE partly-checked: claude\/CLAUDE\.md is the rendered rules file: its marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers count the rendered file$/m,
   );
 });
 

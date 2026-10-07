@@ -139,7 +139,7 @@ test('dry run on a clean tree passes and shows Node, the pin, the check and the 
   assert.doesNotMatch(r.stdout, /not content-checked until #33/);
   assert.match(
     r.stdout,
-    /^Partly checked: the rendered CLAUDE\.md's marked clauses are checked word for word, and its open text for form, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file\.$/m,
+    /^Partly checked: the rendered CLAUDE\.md's marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file\.$/m,
   );
 });
 
@@ -165,6 +165,7 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
     'gate/grimoire/check.mjs.pin',
     'gate/pact-text.mjs',
     'gate/render.mjs',
+    'gate/review.mjs',
     'gate/seam-a.mjs',
     'gate/settings-allowlist.json',
     'gate/shared.mjs',
@@ -554,8 +555,8 @@ function replaceOnce(s, from, to) {
 
 // The renderer's lines the planted cases hook onto.
 const R_HASH = '`RENDERED ${sha256(rendered)}`';
-const R_PUSH = '  report.lines.push(`RENDERED ${sha256(rendered)}`, ...head);';
-const R_RENDER = '  const rendered = joinLines(lines.filter(l => !markOf(l)?.open));';
+const R_PUSH = '  report.lines.push(`RENDERED ${sha256(rendered)}`, `DIFF ${sha256(diff)}`, ...head);';
+const R_RENDER = '  const { rendered, diff } = apply(lines, swaps);';
 const R_NONE = "  if (config === NONE) head.push('CONFIG none');";
 
 function plantRenderer(root, transform) {
@@ -685,7 +686,7 @@ test('bad case: a renderer that leaves a second file in its output folder refuse
   );
   const r = install(repo, home(t));
   refused(r);
-  assert.match(r.stdout, /^REFUSED: the renderer did not leave exactly one plain rules file of at most 1 MiB\./m, r.out);
+  assert.match(r.stdout, /^REFUSED: the renderer did not leave exactly its rules file of at most 1 MiB and its diff\./m, r.out);
 });
 
 test('bad case: a renderer hash line with anything after the hash refuses', t => {
@@ -697,8 +698,8 @@ test('bad case: a renderer hash line with anything after the hash refuses', t =>
 });
 
 for (const [label, from, to, why] of [
-  ['no configuration line', R_NONE, '  if (config === NONE) {}', 'the renderer did not report exactly one output hash and one configuration line'],
-  ['two configuration lines', R_NONE, "  if (config === NONE) head.push('CONFIG none', 'CONFIG none');", 'the renderer did not report exactly one output hash and one configuration line'],
+  ['no configuration line', R_NONE, '  if (config === NONE) {}', 'the renderer did not report exactly one output hash, one diff hash and one configuration line'],
+  ['two configuration lines', R_NONE, "  if (config === NONE) head.push('CONFIG none', 'CONFIG none');", 'the renderer did not report exactly one output hash, one diff hash and one configuration line'],
   ['two hash lines', R_PUSH, `${R_PUSH}\n  report.lines.push(report.lines[0]);`, 'the renderer reported two output hashes'],
 ]) {
   test(`bad case: a renderer that prints ${label} refuses`, t => {
@@ -747,7 +748,7 @@ test('bad case: a commit with no renderer refuses', t => {
 test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
   const repo = makeRepo(t, root =>
     plantRenderer(root, s =>
-      replaceOnce(s, R_RENDER, "  const rendered = Buffer.from(joinLines(lines.filter(l => !markOf(l)?.open)).toString('utf8').replace('however small:', 'when large:'));"),
+      replaceOnce(s, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('however small:', 'when large:'));"),
     ),
   );
   const r = install(repo, home(t));

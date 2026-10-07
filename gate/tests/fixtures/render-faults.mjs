@@ -16,6 +16,8 @@
 //   realpath-home-eacces realpath of the Claude home folder fails with EACCES
 //   count              no fault: log each open and read of the configuration file
 //   lstat-blocks-eacces lstat of the blocks folder fails with EACCES
+//   review-plant       (gate/review.mjs) just before rendered-rules.txt is
+//                      created, plant a file at that name
 //
 // PACT_FAULT_FILE=block points the file faults (swap, hard link, link,
 // realpath, count) at block files under pact/blocks/ instead of the
@@ -36,6 +38,9 @@ const realNative = fs.realpathSync.native;
 const configFds = new Set();
 
 fs.openSync = function (p, ...rest) {
+  // gate/review.mjs: a file planted at the review file's name just before its
+  // exclusive create, past the empty-folder check (#94).
+  if (fault === 'review-plant' && typeof p === 'string' && /[\\/]rendered-rules\.txt$/.test(p)) writeFileSync(p, 'planted\n');
   if (isConfig(p)) {
     if (fault === 'swap-before-open') {
       writeFileSync(`${p}.swap`, '{"schema": 1}');

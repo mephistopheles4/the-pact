@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { GATE, REPO, RENDER, failRules, lastLine, plainAgent, read, renderStage, runSeamA, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { GATE, REPO, RENDER, applyDiff, editPart, failRules, lastLine, plainAgent, read, renderStage, runSeamA, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
 
 const WIN = process.platform === 'win32';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
@@ -88,18 +88,6 @@ function sourceFile(t, content) {
 
 // ------------------------------------------------------------ the expected render, built here
 
-/** `src` with the lines between `mark`'s two mark lines replaced by fn(lines, indent). */
-function editPart(src, mark, fn) {
-  const re = new RegExp(`^( *)<!-- pact:begin ${mark} -->\\n((?:.*\\n)*?)\\1<!-- pact:end ${mark} -->\\n`, 'm');
-  const m = re.exec(src);
-  assert.ok(m, `no ${mark} part in the source`);
-  const [, indent, body] = m;
-  const now = body === '' ? [] : body.slice(0, -1).split('\n');
-  const next = fn(now, indent);
-  const part = `${indent}<!-- pact:begin ${mark} -->\n${next.map(l => `${l}\n`).join('')}${indent}<!-- pact:end ${mark} -->\n`;
-  return src.slice(0, m.index) + part + src.slice(m.index + m[0].length);
-}
-
 const blockLines = buf => buf.toString('utf8').slice(0, -1).split('\n');
 
 /** The configured render: each edit applied with its block re-indented, the usage value, the notice, open marks gone. */
@@ -125,45 +113,6 @@ function expected(src, { digest, value, edits }) {
 function digestOf(configBytes, edits) {
   const blocks = edits.filter(e => e.bytes).map(e => `block ${e.path} ${sha256(e.bytes)}\n`);
   return sha256(`user ${sha256(configBytes)}\n${blocks.join('')}`).slice(0, 12);
-}
-
-/** Apply a unified diff to `text`, checking each hunk's counts and context. Throws on any mismatch. */
-function applyDiff(text, diff) {
-  const src = text.split('\n');
-  const lines = diff.split('\n');
-  assert.equal(lines[0], '--- default/CLAUDE.md');
-  assert.equal(lines[1], '+++ configured/CLAUDE.md');
-  assert.equal(lines[lines.length - 1], '', 'the diff ends with a line feed');
-  const out = [];
-  let at = 0;
-  let i = 2;
-  while (i < lines.length - 1) {
-    const h = /^@@ -(\d+),(\d+) \+(\d+),(\d+) @@$/.exec(lines[i]);
-    assert.ok(h, `not a hunk header: ${lines[i]}`);
-    const [oldStart, oldLen, , newLen] = h.slice(1).map(Number);
-    const from = oldLen ? oldStart - 1 : oldStart;
-    assert.ok(from >= at, 'hunks out of order');
-    out.push(...src.slice(at, from));
-    at = from;
-    let o = 0;
-    let n = 0;
-    for (i += 1; i < lines.length - 1 && !lines[i].startsWith('@@'); i += 1) {
-      const [sign, rest] = [lines[i][0], lines[i].slice(1)];
-      if (sign === ' ' || sign === '-') {
-        assert.equal(src[at], rest, `context or removed line ${at + 1} does not match`);
-        at += 1;
-        o += 1;
-      }
-      if (sign === ' ' || sign === '+') {
-        out.push(rest);
-        n += 1;
-      }
-      assert.ok(' -+'.includes(sign), `a diff line with no sign: ${lines[i]}`);
-    }
-    assert.deepEqual([o, n], [oldLen, newLen], 'a hunk count does not match its lines');
-  }
-  out.push(...src.slice(at));
-  return out.join('\n');
 }
 
 // ------------------------------------------------------------ a configuration with edits
