@@ -2,12 +2,13 @@
 // allow-list, and the install merges it without losing the owner's rules,
 // warns about the live file, and never prints a live value.
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { GATE, failRules, lastLine, realOverlay, runSeamA, stage, tempDir } from './helpers.mjs';
-import { commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { PWSH, commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const OVERLAY = 'claude/settings.overlay.json';
 
@@ -111,16 +112,34 @@ function nonAsciiRules(rules) {
   return rules.filter(r => [...r].some(c => (c < ' ' || c > '~') && !DASHES.includes(c)));
 }
 
-/** The script's own parameter block, and what comes before it. */
-function paramHead(text) {
-  const m = text.match(/^[\s\S]*?^param\s*\([\s\S]*?^\)/im);
-  assert.ok(m, 'no top-level param block found');
-  return m[0];
-}
-
-/** True when the parameter block makes the script an advanced one. */
-function isAdvanced(head) {
-  return /\[\s*(?:cmdletbinding|parameter)\s*[(\]]/i.test(head);
+/**
+ * Whether PowerShell itself reads each script text as an advanced script. Each
+ * text becomes a function's body, which defines it without running it, and
+ * the function's CmdletBinding flag is the answer. Asking the engine catches
+ * every spelling it accepts, namespace-qualified attributes included.
+ */
+function advanced(t, texts) {
+  const dir = tempDir(t);
+  const files = texts.map((text, i) => {
+    const f = join(dir, `s${i}.ps1`);
+    writeFileSync(f, text);
+    return f;
+  });
+  // The paths go in through the environment: anything after -Command would be
+  // joined into the command and run.
+  const script =
+    "foreach ($f in $env:PACT_ADV_FILES -split \"`n\") { Set-Item function:pact_adv ([scriptblock]::Create([IO.File]::ReadAllText($f))); " +
+    '[string](Get-Command pact_adv).CmdletBinding }';
+  const env = { ...process.env, PACT_ADV_FILES: files.join('\n') };
+  delete env.NODE_OPTIONS;
+  const r = spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', env });
+  assert.equal(r.status, 0, r.stderr);
+  const out = r.stdout.trim().split(/\r?\n/);
+  assert.equal(out.length, texts.length, r.stdout);
+  return out.map(l => {
+    assert.match(l, /^(True|False)$/, r.stdout);
+    return l === 'True';
+  });
 }
 
 function sha256(text) {
@@ -277,6 +296,17 @@ for (const rule of APPLY_ASK.filter(r => DASHES.some(d => r.includes(d)))) {
   });
 }
 
+// The splat rule without its space, in both files: seam A must compare the
+// space exactly, so the splat rule counts as missing.
+for (const rule of APPLY_ASK.filter(r => r.includes(' @'))) {
+  test(`bad case: ${rule} without the space before its @, in both files, fails as missing`, t => {
+    const swap = r => (r === rule ? r.replace(' @', '@') : r);
+    const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].map(swap))));
+    const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.map(swap))), 'settings-required', script);
+    assert.deepEqual([...new Set(failRules(r.stdout))], ['settings-required'], r.out);
+  });
+}
+
 test('every pact ask rule is printable ASCII, but for the three dashes', () => {
   const allow = JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8'))['permissions.ask'];
   const overlay = JSON.parse(realOverlay()).permissions.ask;
@@ -301,23 +331,27 @@ test('each dash is written as an escape: the rule files and their code hold no d
   assert.ok(/^[\x00-\x7f]*$/.test(rules), 'a rule file holds a byte outside ASCII');
 });
 
-test("the install script's parameters stay non-advanced: no CmdletBinding, no Parameter attribute", () => {
-  const head = paramHead(readFileSync(join(GATE, '..', 'scripts', 'install.ps1'), 'utf8'));
-  assert.match(head, /\[switch\]\$Apply/);
-  assert.equal(isAdvanced(head), false, head);
+test("the install script's parameters stay non-advanced: no CmdletBinding, no Parameter attribute", t => {
+  const text = readFileSync(join(GATE, '..', 'scripts', 'install.ps1'), 'utf8');
+  assert.match(text, /^\s*\[switch\]\$Apply,$/m);
+  assert.deepEqual(advanced(t, [text]), [false]);
 });
 
-test('bad case: a parameter block made advanced is caught, in any case and spacing', () => {
-  const plain = 'param(\n  [switch]$Apply\n)\n';
-  assert.equal(isAdvanced(paramHead(plain)), false);
-  for (const head of [
-    '[CmdletBinding()]\nparam(\n  [switch]$Apply\n)\n',
-    '[cmdletbinding( )]\nparam(\n  [switch]$Apply\n)\n',
-    'param(\n  [Parameter(Mandatory)][switch]$Apply\n)\n',
-    'param(\n  [ parameter ()]\n  [switch]$Apply\n)\n',
-  ]) {
-    assert.equal(isAdvanced(paramHead(head)), true, head);
-  }
+test('bad case: a parameter block made advanced is caught, in every spelling PowerShell accepts', t => {
+  const body = attr => `${attr}\nparam(\n  [switch]$Apply\n)\n'x'\n`;
+  const param = attr => `param(\n  ${attr}[switch]$Apply\n)\n'x'\n`;
+  const plain = [body(''), body('[CmdletBindingAttribute()]'), param('[ParameterAttribute()]')];
+  const made = [
+    body('[CmdletBinding()]'),
+    body('[cmdletbinding( )]'),
+    body('[System.Management.Automation.CmdletBinding()]'),
+    body('[Management.Automation.CmdletBinding()]'),
+    body('[System.Management.Automation.CmdletBindingAttribute()]'),
+    param('[Parameter(Mandatory)]'),
+    param('[ parameter ()]'),
+    param('[System.Management.Automation.Parameter()]'),
+  ];
+  assert.deepEqual(advanced(t, [...plain, ...made]), [...plain.map(() => false), ...made.map(() => true)]);
 });
 
 test("bad case: the cross script's ask rule stays required when both the allow-list and the overlay drop it", t => {
@@ -430,19 +464,30 @@ test('the dry run lists every pact rule as an added ask line, each dash printed 
   for (const l of added) assert.match(l, /^[\x20-\x7e]*$/, shown(l));
 });
 
-test('bad case: a rule holding a backslash and "u2013" as plain text prints apart from a real dash', t => {
-  const fake = String.raw`Bash(echo \u2013)`;
-  const repo = makeRepo(t, root => {
+/** A test repo whose allow-list and overlay both hold `rule` as an extra ask rule. */
+function repoWithRule(t, rule) {
+  return makeRepo(t, root => {
     const a = join(root, 'gate', 'settings-allowlist.json');
     const doc = JSON.parse(readFileSync(a, 'utf8'));
-    doc['permissions.ask'].push(fake);
+    doc['permissions.ask'].push(rule);
     writeFileSync(a, JSON.stringify(doc, null, 2));
     const o = join(root, ...OVERLAY.split('/'));
     const ov = JSON.parse(readFileSync(o, 'utf8'));
-    ov.permissions.ask.push(fake);
+    ov.permissions.ask.push(rule);
     writeFileSync(o, JSON.stringify(ov, null, 2));
   });
-  const r = install(repo, home(t));
+}
+
+test('bad case: a rule with invisible and control characters prints each one as an escape', t => {
+  const r = install(repoWithRule(t, 'Bash(echo a\u00adb\u00a0c\td\u200be)'), home(t));
+  assert.equal(r.code, 0, r.out);
+  // Written out by hand, not built with the pattern the install uses.
+  assert.ok(addedAsk(r.stdout).includes(String.raw`  + permissions.ask: Bash(echo a\u00adb\u00a0c\u0009d\u200be)`), r.out);
+});
+
+test('bad case: a rule holding a backslash and "u2013" as plain text prints apart from a real dash', t => {
+  const fake = String.raw`Bash(echo \u2013)`;
+  const r = install(repoWithRule(t, fake), home(t));
   assert.equal(r.code, 0, r.out);
   const added = addedAsk(r.stdout);
   assert.ok(added.includes(String.raw`  + permissions.ask: Bash(echo \u005cu2013)`), r.out);
