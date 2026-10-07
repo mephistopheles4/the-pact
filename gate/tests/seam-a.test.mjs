@@ -56,10 +56,12 @@ test('seam A passes on the repo payload, and lists every file it would install',
   assert.deepEqual(dests, [
     'CLAUDE.md',
     'agents/behaviour-lens.md',
+    'agents/executability-lens.md',
+    'agents/good-enough-lens.md',
     'agents/integrity-lens.md',
-    'agents/plan-reviewer.md',
     'agents/scout.md',
     'agents/security-reviewer.md',
+    'agents/unstated-lens.md',
     // The cross script (#45), at its one fixed live path.
     'pact/cross.mjs',
   ]);

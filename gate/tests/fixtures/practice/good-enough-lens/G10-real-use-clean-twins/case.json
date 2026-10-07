@@ -1,0 +1,25 @@
+{
+  "lens": "good-enough-lens",
+  "point": "spec",
+  "anchors": [
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "S5",
+    "S6"
+  ],
+  "heading": "### Cuts and deferrals",
+  "neverSeverity": [
+    "high"
+  ],
+  "verdicts": [
+    "findings"
+  ],
+  "findOn": {
+    "S3": [
+      "medium",
+      "low"
+    ]
+  }
+}

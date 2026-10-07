@@ -21,3 +21,4 @@ One line per finished piece of work: date, issue, and what it changed. Each entr
 - [2026-10-06](2026-10-06-cli-prs-carry-the-checkbox.md) — **CLI PRs carry the checkbox** (#88). A session opening a PR with `gh pr create` starts `--body` with the template's close-out line.
 - [2026-10-06](2026-10-06-sessions-assign-their-issue.md) — **Sessions assign their issue** (#105). A session assigns the issue it takes, for visibility; the assignee is not a claim.
 - [2026-10-07](2026-10-07-apply-guard-splat-and-dashes.md) — **Apply guard: splat and Unicode dashes** (#89, #108). Eight ask rules catch a splatted `-Apply` and the three dashes PowerShell reads as a hyphen; the rest are named misses.
+- [2026-10-07](2026-10-07-spec-pair-swap.md) — **Spec pair swap** (#35, #99). `executability-lens`, `good-enough-lens` and `unstated-lens` replaced the plan reviewer; six of six security-set runs pass.
