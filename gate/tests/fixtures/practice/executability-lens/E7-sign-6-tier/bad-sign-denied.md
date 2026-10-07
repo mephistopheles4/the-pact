@@ -18,7 +18,7 @@ Steps:
 2. Do the step in S1. Stalls: S1: sign 6: a password reset change sits on the standard tier.
 3. Check the done-criteria (S4).
 
-- S4 (F1): This section leaves a step with no stated finish
+- S1 (F1):  does not apply; the step has no stated finish. Change: name it. Check: it is named.
 
 ```lens-findings
 {
@@ -29,7 +29,7 @@ Steps:
       "id": "F1",
       "anchor": {
         "kind": "section",
-        "id": "S4"
+        "id": "S1"
       },
       "severity": "high",
       "headline": "This section leaves a step with no stated finish"

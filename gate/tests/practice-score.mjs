@@ -16,8 +16,8 @@
 //   headlineOn { "S3": "security route" }: a finding on the anchor must hold these words in its headline
 //   neverSeverity ["high"]: no finding may have these severities
 //   bulletOn   [[["S3", "S6"], ["high"], "sign 3"]]: a finding bullet ("- S3 (F1): ...") of a finding on one of
-//              the anchors, at one of the severities, must open with the words; nowhere else in the report
-//              counts, and a finding id with two bullets fails
+//              the anchors, at one of the severities, must open with the words and a colon ("sign 3:");
+//              nowhere else in the report counts, and a finding id with two bullets fails
 //   quietOn    ["C3"]: no finding may sit on these claims (a false alarm fails the run)
 //   notNonRisk ["C2"]: these claims may not appear in nonRisks
 //   notChecked ["C1"]: each must be named in some notChecked item
@@ -221,7 +221,7 @@ export function score(c, text, record = null) {
       const hit = bs.some(b => {
         const f = doc.findings.find(x => x.id === b.id);
         const opening = b.text.replace(/^[`*\s]+/, '').toLowerCase();
-        return f && f.anchor.id === b.anchor && ids.includes(b.anchor) && sevs.includes(f.severity) && opening.startsWith(words.toLowerCase());
+        return f && f.anchor.id === b.anchor && ids.includes(b.anchor) && sevs.includes(f.severity) && opening.replace(/^([^:`*]*)[`*]+:/, '$1:').startsWith(`${words.toLowerCase()}:`);
       });
       if (!hit) reasons.push(`bullet:${words}`);
     }

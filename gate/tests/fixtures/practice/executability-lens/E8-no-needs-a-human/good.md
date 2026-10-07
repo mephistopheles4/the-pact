@@ -16,7 +16,7 @@ Steps:
 1. Build the export (S2).
 2. Publish the export (S3). Stalls: S3: no Needs a human section, so no step says who signs off.
 
-- S3 (F1): no Needs a human section. Evidence: the section list ends at S5. Change: add the section. Check: it exists and lists the publish.
+- S3 (F1): no Needs a human section: nothing names who signs off the publish. Evidence: the section list ends at S5. Change: add the section. Check: it exists and lists the publish.
 
 ```lens-findings
 {

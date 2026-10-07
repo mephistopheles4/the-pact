@@ -1,6 +1,6 @@
 **For the owner**
 
-This spec has a gap, so nothing says where you decide, approve or act. I suggest adding one before sign-off.
+This spec has no Needs a human section, so nothing says where you decide, approve or act. I suggest adding one before sign-off.
 
 **For the session**
 
@@ -14,9 +14,9 @@ Red step:
 - S5: nothing found that would fail to build.
 Steps:
 1. Build the export (S2).
-2. Publish the export (S3). Stalls: S3: a gap, so no step says who signs off.
+2. Publish the export (S3). Stalls: S3: no Needs a human section, so no step says who signs off.
 
-- S3 (F1): a gap: nothing names who signs off the publish. Evidence: the section list ends at S5. Change: add the section. Check: it exists and lists the publish.
+- S3 (F1):  does not apply; the step has no stated finish. Change: name it. Check: it is named.
 
 ```lens-findings
 {
@@ -30,7 +30,7 @@ Steps:
         "id": "S3"
       },
       "severity": "high",
-      "headline": "The spec has no section for the owner's steps"
+      "headline": "This section leaves a step with no stated finish"
     }
   ],
   "notChecked": [
