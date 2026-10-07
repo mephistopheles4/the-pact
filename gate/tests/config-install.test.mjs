@@ -491,3 +491,33 @@ test('bad case: a relative Claude home given after a change of location is check
   assert.notEqual(r.status, 0, out);
   assert.match(r.stdout, /^REFUSED: the configuration blocks folder holds a link or other reparse point\./m, out);
 });
+
+// ------------------------------------------------------------ an upgrade from a slice-2 record, and the user file's edit guard
+
+test('a record from before configurations (no config, no digest) reads as no configuration: a new file is "new since the last install"', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true }).code, 0);
+  const mf = join(h, '.pact-install.json');
+  const m = JSON.parse(readFileSync(mf, 'utf8'));
+  delete m.config;
+  delete m.digest;
+  writeFileSync(mf, JSON.stringify(m));
+  const none = install(repo, h);
+  assert.equal(none.code, 0, none.out);
+  assert.match(none.stdout, /^ {2}no configuration\r?$/m, none.out);
+  assert.doesNotMatch(none.stdout, /the last install had a configuration/, none.out);
+  writeFileSync(configPath(h), EXAMPLE);
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^Last install: [0-9a-f]{40} with no configuration\r?$/m, r.out);
+  assert.match(r.stdout, /, new since the last install\r?$/m, r.out);
+  assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
+  const a = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(r)] });
+  assert.equal(a.code, 0, a.out);
+});
+
+test('the settings overlay asks before any edit to the user file or its blocks folder', () => {
+  const overlay = JSON.parse(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
+  assert.ok(overlay.permissions.ask.includes('Edit(~/.claude/pact/**)'), overlay.permissions.ask.join('\n'));
+});
