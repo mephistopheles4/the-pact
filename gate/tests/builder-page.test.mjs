@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
 import { RENDER, REPO, lastLine, tempDir } from './helpers.mjs';
-import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { WIN, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');
 const sha256b64 = s => createHash('sha256').update(s, 'utf8').digest('base64');
@@ -180,6 +180,10 @@ function buildRoot(t, mutate) {
   return root;
 }
 
+test('control: a copied root with nothing changed rebuilds the committed page exactly', t => {
+  assert.equal(buildPage(buildRoot(t, () => {}), PAGE), PAGE);
+});
+
 test('bad case: a gated clause changed in the pact source makes the committed page out of date', t => {
   const root = buildRoot(t, r => {
     const p = join(r, 'claude', 'CLAUDE.md');
@@ -273,6 +277,52 @@ for (const [name, make, rule] of BAD_BUILDERS) {
   });
 }
 
+test('bad case: builder text the page\'s content policy refuses is refused by the check', t => {
+  for (const doc of [
+    { ...GOOD, yours: { skills: [{ name: 'x-y', description: 'Docs at https://example.invalid/x' }] } },
+    { ...GOOD, title: 'Uses fetch(x)' },
+    { ...GOOD, presets: [{ ...GOOD.presets[0], why: 'Sets innerHTML' }], workflows: [] },
+  ]) {
+    const r = checkBuilder(REPO, builderFile(t, doc, GOOD_BLOCKS));
+    assert.equal(r.builder, null);
+    assert.ok(r.refusals.some(m => /content policy refuses/.test(m)), JSON.stringify(r.refusals));
+  }
+});
+
+/** The logic of a page built from builder file `f`, run in vm as for the shipped page. */
+function logicOf(page) {
+  const script = [...page.matchAll(SCRIPT_RE)][0][2];
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, applyWorkflow, buildFiles, slotOp });`, vm.createContext({}));
+  const clone = v => (v === null || typeof v !== 'object' ? v : JSON.parse(JSON.stringify(v)));
+  const out = { PACT: clone(got.PACT) };
+  for (const [k, fn] of Object.entries(got)) if (typeof fn === 'function') out[k] = (...a) => clone(fn(...a));
+  return out;
+}
+
+test('a workflow with a stand-in preset turns that slot\'s Replace on, so the preset stands in for the text', t => {
+  const doc = { ...GOOD, presets: [...GOOD.presets, { id: 'lean-move-3', title: 'Lean move 3', slot: 'move-3', text: 'Build each ticket in its own session, test-first.', standsIn: true, why: 'Shorter.' }], workflows: [{ id: 'lean', title: 'Lean', about: 'Short move 3.', presets: ['lean-move-3', 'ship-check'] }] };
+  const page = buildPage(REPO, PAGE, builderFile(t, doc, GOOD_BLOCKS));
+  const P = logicOf(page);
+  const s = P.initialState();
+  assert.equal(P.applyWorkflow(s, 'lean'), null);
+  // applyWorkflow mutated the vm copy; run it again on a state the vm owns and read the files.
+  const files = vm.runInContext(`${[...page.matchAll(SCRIPT_RE)][0][2]}\n;(() => { const s = initialState(); applyWorkflow(s, 'lean'); return JSON.stringify(buildFiles(s)); })()`, vm.createContext({}));
+  const edits = JSON.parse(JSON.parse(files)[0].text).edits;
+  assert.deepEqual(edits, [{ mark: 'move-3', op: 'replace', file: 'move-3.md' }, { mark: 'move-4-extra', op: 'add-after', file: 'move-4-extra.md' }]);
+  const two = checkBuilder(REPO, builderFile(t, { ...doc, presets: [...doc.presets, { ...doc.presets[2], id: 'lean-two' }], workflows: [{ id: 'w', title: 'W', about: 'A', presets: ['lean-move-3', 'lean-two'] }] }, GOOD_BLOCKS));
+  assert.ok(two.refusals.some(m => /two presets stand in for one slot/.test(m)), JSON.stringify(two.refusals));
+});
+
+test('undo puts back the slots exactly as they were before a workflow', () => {
+  const s = L.initialState();
+  s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Mine.' }] };
+  const snap = L.snapshotSlots(s);
+  L.applyWorkflow(s, 'close-the-loop');
+  assert.notDeepEqual(JSON.parse(JSON.stringify(s.slots)), JSON.parse(snap));
+  L.restoreSlots(s, snap);
+  assert.deepEqual(JSON.parse(JSON.stringify(s.slots)), JSON.parse(snap));
+});
+
 test('findings never refuse: a preset with no why, and one naming a skill the file does not list', t => {
   const r = checkBuilder(REPO, builderFile(t, { ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Use the `ghost-skill` skill.' }], workflows: [] }));
   assert.deepEqual(r.refusals, []);
@@ -294,7 +344,21 @@ test('the command line writes a page from a builder file, and refuses to write o
   assert.equal(check.status, 0, check.stdout);
   const over = cli(['--builder', f, '--out', join(REPO, PAGE_REL)]);
   assert.equal(over.status, 1, over.stdout);
-  assert.match(over.stdout, /must not be the shipped page/);
+  assert.match(over.stdout, /must be outside this clone/);
+  // Any spelling of a path inside the clone, or of the builder file, is refused.
+  for (const spelt of [join(REPO, 'builder', 'PACT-CONFIG.html'), join(REPO, 'builder', 'mine.html'), WIN ? REPO.charAt(0).toLowerCase() + REPO.slice(1) + '\\builder\\mine.html' : join(REPO, 'builder', 'mine.html')]) {
+    const r = cli(['--builder', f, '--out', spelt]);
+    assert.equal(r.status, 1, `${spelt}: ${r.stdout}`);
+    assert.match(r.stdout, /must be outside this clone/);
+  }
+  const before = readFileSync(f);
+  for (const spelt of [f, WIN ? f.charAt(0).toLowerCase() + f.slice(1) : f, WIN ? f.toUpperCase() : f]) {
+    const r = cli(['--builder', f, '--out', spelt]);
+    assert.equal(r.status, 1, `${spelt}: ${r.stdout}`);
+    assert.match(r.stdout, /must not be the builder file/);
+  }
+  assert.deepEqual(readFileSync(f), before, 'the builder file was written over');
+  assert.equal(readFileSync(join(REPO, PAGE_REL), 'utf8'), PAGE, 'the shipped page was written over');
   assert.equal(cli(['--out', out]).status, 2);
   const bad = cli(['--builder', builderFile(t, { schema: 2 }), '--out', join(tempDir(t, 'pact-builder-page-'), 'x.html')]);
   assert.equal(bad.status, 1);
@@ -311,7 +375,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));

@@ -138,6 +138,8 @@ const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high']);
 const AGENT_FIELDS = Object.freeze(['model', 'effort']);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
+// The gated clauses that make a named agent security-set.
+const GUARD_CLAUSES = Object.freeze(['security-route', 'risk-floor']);
 const TOOL_ALLOWLIST = join(dirname(fileURLToPath(import.meta.url)), 'tool-allowlist.json');
 
 // Each setting: the open part it fills, its whole-number range, its default
@@ -596,7 +598,7 @@ function readCapped(path, cap, rule, shown, report) {
  * or null after recording the refusal. Only the frontmatter's column-0 model
  * and effort lines change, to allow-list constants.
  */
-function renderAgent(source, a, report) {
+function renderAgent(source, a, report, srcText = '') {
   const shown = `claude/agents/${a.name}.md`;
   const fail = reason => {
     report.fail('agent-file', shown, null, reason);
@@ -618,6 +620,13 @@ function renderAgent(source, a, report) {
   if (effortAt.length !== 1) return fail('the frontmatter must hold exactly one effort line');
   if (at(/^metadata:/).length) return fail('the agent carries a metadata (seal) key; a sealed agent cannot be configured');
   if (toolsAt.length !== 1 || lines[toolsAt[0]] !== DEFAULT_AGENT_TOOLS) return fail('the agent no longer holds exactly the default read tools; it cannot be configured');
+  // A lens the security route or the risk floor names is security-set,
+  // whatever its tools: the pact's own definition, checked on the source.
+  for (const clause of GUARD_CLAUSES) {
+    const m = new RegExp(`<!-- pact:begin ${clause} -->\\n([\\s\\S]*?)<!-- pact:end ${clause} -->`).exec(srcText);
+    if (!m) return fail(`the source has no ${clause} clause to check the agent against`);
+    if (m[1].includes(`\`${a.name}\``)) return fail(`the ${clause} clause names the agent, so it is security-set and cannot be configured`);
+  }
   const allow = readCapped(TOOL_ALLOWLIST, 64 * 1024, 'agent-file', 'gate/tool-allowlist.json', report);
   if (allow === null) return null;
   let allowDoc;
@@ -865,7 +874,7 @@ function run(argv, report) {
     const edits = readBlocks(home, checked.edits, report);
     if (edits === null) return;
     // An agent file is read only when a setting names its agent.
-    agents = checked.agents.map(a => renderAgent(source, a, report));
+    agents = checked.agents.map(a => renderAgent(source, a, report, buf.toString('utf8')));
     if (agents.some(a => a === null)) return;
     const hash = sha256(config.buf);
     const digest = sha256(`user ${hash}\n${edits.filter(e => e.path).map(e => `block ${e.path} ${e.hash}\n`).join('')}`).slice(0, 12);

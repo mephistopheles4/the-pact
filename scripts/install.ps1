@@ -712,15 +712,25 @@ if ($agentSet) {
     $newLines = $utf8Strict.GetString($agentBytes).Split("`n")
     $oldLines = $utf8Strict.GetString([IO.File]::ReadAllBytes($agentStaged)).Split("`n")
   } catch { Stop-Refused 'the rendered or the committed agent file is not UTF-8.' }
-  $agentOk = $newLines.Count -eq $oldLines.Count
-  $seenModel = 0; $seenEffort = 0
+  # Every changed line sits in the frontmatter (line 1 is ---, closed by the
+  # next ---) and is its model or effort line; and the frontmatter holds
+  # exactly one column-0 model line and one effort line, equal to the AGENT
+  # values whether or not they changed.
+  $agentOk = $newLines.Count -eq $oldLines.Count -and $newLines.Count -gt 2 -and $newLines[0] -ceq '---'
+  $close = -1
+  for ($i = 1; $agentOk -and $i -lt $newLines.Count; $i++) { if ($newLines[$i] -ceq '---') { $close = $i; break } }
+  if ($close -lt 0) { $agentOk = $false }
+  $modelLines = 0; $effortLines = 0
   for ($i = 0; $agentOk -and $i -lt $newLines.Count; $i++) {
+    if ($i -gt 0 -and $i -lt $close) {
+      if ($newLines[$i] -cmatch '\Amodel:') { $modelLines++; if ($newLines[$i] -cne "model: $($agentSet.model)") { $agentOk = $false } }
+      if ($newLines[$i] -cmatch '\Aeffort:') { $effortLines++; if ($newLines[$i] -cne "effort: $($agentSet.effort)") { $agentOk = $false } }
+    }
     if ($newLines[$i] -ceq $oldLines[$i]) { continue }
-    if ($oldLines[$i] -cmatch '\Amodel: ' -and $newLines[$i] -ceq "model: $($agentSet.model)") { $seenModel++ }
-    elseif ($oldLines[$i] -cmatch '\Aeffort: ' -and $newLines[$i] -ceq "effort: $($agentSet.effort)") { $seenEffort++ }
-    else { $agentOk = $false }
+    if ($i -le 0 -or $i -ge $close) { $agentOk = $false }
+    elseif (-not (($oldLines[$i] -cmatch '\Amodel:' -and $newLines[$i] -cmatch '\Amodel:') -or ($oldLines[$i] -cmatch '\Aeffort:' -and $newLines[$i] -cmatch '\Aeffort:'))) { $agentOk = $false }
   }
-  if (-not $agentOk -or $seenModel -gt 1 -or $seenEffort -gt 1) { Stop-Refused 'the rendered agent file differs from the committed one beyond its model and effort lines.' }
+  if (-not $agentOk -or $modelLines -ne 1 -or $effortLines -ne 1) { Stop-Refused 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values.' }
   [IO.File]::WriteAllBytes($agentStaged, $agentBytes)
   $staged[$agentRel] = $agentHash
   [IO.File]::Delete($agentOut.FullName)

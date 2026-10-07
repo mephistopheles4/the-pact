@@ -24,10 +24,10 @@ const withAgent = (model, effort) => AGENT.replace(/^model: .*$/m, `model: ${mod
  * claude/agents/integrity-lens.md holding `agent` (or none when null), with a
  * user file holding `config`. `renderer` defaults to the repo's.
  */
-function render(t, config, { agent = AGENT, renderer = RENDER, noConfig = false } = {}) {
+function render(t, config, { agent = AGENT, renderer = RENDER, noConfig = false, source = SOURCE } = {}) {
   const stage = tempDir(t, 'pact-agents-stage-');
   mkdirSync(join(stage, 'claude', 'agents'), { recursive: true });
-  writeFileSync(join(stage, 'claude', 'CLAUDE.md'), SOURCE);
+  writeFileSync(join(stage, 'claude', 'CLAUDE.md'), source);
   if (agent !== null) {
     if (typeof agent === 'function') agent(join(stage, 'claude', 'agents', 'integrity-lens.md'));
     else writeFileSync(join(stage, 'claude', 'agents', 'integrity-lens.md'), agent);
@@ -147,6 +147,10 @@ const BAD_AGENT_FILES = [
   ['CRLF line endings', AGENT.replace(/\n/g, '\r\n'), /carriage return/],
   ['a folder in place of the file', p => mkdirSync(p), /not a regular file/],
   ['a file over 1 MiB', `${AGENT}${'x'.repeat(1024 * 1024)}\n`, /larger than its cap/],
+  ['two model lines', AGENT.replace(/^model: .*$/m, 'model: opus\nmodel: opus'), /exactly one model line/],
+  ['no effort line', AGENT.replace(/^effort: .*\n/m, ''), /exactly one effort line/],
+  ['the file\'s own model off the list', AGENT.replace(/^model: .*$/m, 'model: haiku'), /model line is not one of/],
+  ['a second tools line after the default one', AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep]\ntools: [Bash]'), /default read tools/],
 ];
 
 for (const [name, agent, reason] of BAD_AGENT_FILES) {
@@ -164,6 +168,19 @@ test('bad case: an agent file that is a link is refused', { skip: WIN && 'not ru
   const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { agent: p => symlinkSync(target, p) });
   assert.equal(r.code, 1, r.out);
   assert.match(r.stdout, /not a regular file/);
+});
+
+test('bad case: an agent the security route or the risk floor names is security-set, and refused; today\'s source renders', t => {
+  const src = SOURCE.toString('utf8');
+  const route = src.replace(/(<!-- pact:begin security-route -->\n)/, '$1   The QA pair includes `integrity-lens` here.\n');
+  assert.notEqual(route, src);
+  const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { source: route });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.stdout, /the security-route clause names the agent/);
+  const floor = src.replace(/(<!-- pact:begin risk-floor -->\n)/, '$1`integrity-lens` too. ');
+  assert.notEqual(floor, src);
+  assert.match(render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { source: floor }).stdout, /the risk-floor clause names the agent/);
+  assert.equal(render(t, cfg({ 'integrity-lens': { model: 'sonnet' } })).code, 0);
 });
 
 test('bad case: an agent with an entry in the tool allow-list is refused', t => {
@@ -268,7 +285,11 @@ for (const [label, config, from, to, why] of [
   ['an AGENT line with no agent file', SET, R_AGENT_WRITE, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
   ['an agent file with no AGENT line', SET, R_AGENT_PUSH, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
   ['a third file under another name', null, R_DIFF_WRITE, `${R_DIFF_WRITE}\n  writeFileSync(join(out, 'agent-behaviour-lens.md'), 'x');`, 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
-  ['an agent file changed beyond its two lines', SET, R_AGENT_WRITE, "  for (const a of agents) { a.buf = Buffer.from(a.buf.toString('utf8').replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]')); writeFileSync(join(out, `${AGENT_OUTPUT_PREFIX}${a.name}.md`), a.buf, { flag: 'wx' }); }", 'the rendered agent file differs from the committed one beyond its model and effort lines'],
+  ['an agent file changed beyond its two lines', SET, R_AGENT_WRITE, "  for (const a of agents) { a.buf = Buffer.from(a.buf.toString('utf8').replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]')); writeFileSync(join(out, `${AGENT_OUTPUT_PREFIX}${a.name}.md`), a.buf, { flag: 'wx' }); }", 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
+  ['a model line other than the one it reports', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('model: sonnet', 'model: opus'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
+  ['the committed lines left unchanged while it reports a setting', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('model: sonnet', 'model: opus').replace('effort: low', 'effort: medium'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
+  ['an effort line other than the one it reports', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('effort: low', 'effort: medium'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
+  ['a body line changed in place of the frontmatter', SET, R_AGENT_WRITE, `  for (const a of agents) a.buf = Buffer.from(a.buf.toString('utf8').replace('# integrity-lens', 'model: sonnet'));\n${R_AGENT_WRITE}`, 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],
   ['an agent written into the stage', SET, R_AGENT_WRITE, `${R_AGENT_WRITE}\n  for (const a of agents) writeFileSync(join(dirname(source), 'agents', 'integrity-lens.md'), a.buf);`, 'the renderer changed the stage'],
 ]) {
   test(`bad case: a renderer that reports ${label} refuses, and nothing is installed`, t => {
@@ -283,10 +304,26 @@ for (const [label, config, from, to, why] of [
   });
 }
 
+test('bad case: a renderer that rewrites a model line in the body, not the frontmatter, refuses', t => {
+  // The committed lens carries a body line that starts like a model line, so
+  // only the frontmatter-only rule tells the two apart.
+  const repo = makeRepo(t, root => {
+    const f = join(root, 'claude', 'agents', 'integrity-lens.md');
+    writeFileSync(f, readFileSync(f, 'utf8').replace('# integrity-lens', 'model: opus\n\n# integrity-lens'));
+    plantRenderer(root, R_AGENT_WRITE, `  for (const a of agents) { const l = a.buf.toString('utf8').split('\\n'); const i = l.indexOf('model: opus', 8); l[i] = 'model: sonnet'; a.buf = Buffer.from(l.join('\\n')); }\n${R_AGENT_WRITE}`);
+  });
+  const h = home(t);
+  configure(h, SET);
+  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', A64] });
+  refused(r);
+  assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values\./m, r.out);
+});
+
 test('bad case: a configuration setting integrity-lens on a commit with no integrity-lens file refuses', t => {
   // A planted renderer that does not read the file, so only the install's own check stands.
   const repo = makeRepo(t, root => {
-    plantRenderer(root, '    agents = checked.agents.map(a => renderAgent(source, a, report));', "    agents = checked.agents.map(a => ({ name: a.name, model: 'sonnet', effort: 'low', buf: Buffer.from('x') }));");
+    plantRenderer(root, "    agents = checked.agents.map(a => renderAgent(source, a, report, buf.toString('utf8')));", "    agents = checked.agents.map(a => ({ name: a.name, model: 'sonnet', effort: 'low', buf: Buffer.from('x') }));");
     rmSync(join(root, 'claude', 'agents', 'integrity-lens.md'));
   });
   const h = home(t);

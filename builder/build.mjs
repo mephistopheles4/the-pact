@@ -318,6 +318,22 @@ export function loadBuilder(file, pact) {
       }
   }
 
+  // Text the page's content-policy test refuses never reaches a page.
+  const POLICY_RE = /[a-z][a-z0-9+.-]*:\/\/|\bfetch\s*\(|\bimport\s*\(|\binnerHTML\b|\bouterHTML\b|\binsertAdjacentHTML\b|\bdocument\s*\.\s*write/i;
+  const texts = [
+    ...presets.flatMap(p => [['preset', p.id, p.title], ['preset', p.id, p.text], ['preset', p.id, p.why]]),
+    ...workflows.flatMap(w => [['workflow', w.id, w.title], ['workflow', w.id, w.about]]),
+    ...['skills', 'commands', 'agents'].flatMap(k => yours[k].map(x => [`yours.${k}`, x.name, x.description])),
+    ['title', '', typeof doc.title === 'string' ? doc.title : ''],
+  ];
+  for (const [kind, id, text] of texts) if (POLICY_RE.test(text)) refuse(`${kind}${id ? ` ${id}` : ''}: holds text the page's content policy refuses (a URL, fetch(, import(, innerHTML or a document write)`);
+  // A workflow may not stand two presets for one slot in for its text.
+  for (const w of workflows) {
+    const standing = w.presets.map(id => presets.find(p => p.id === id)).filter(p => p && p.standsIn);
+    const slots = standing.map(p => p.mark);
+    if (new Set(slots).size !== slots.length) refuse(`workflow ${w.id}: two presets stand in for one slot's text`);
+  }
+
   // Findings: what is legal but probably not meant.
   const known = new Set([...pact.pactNames, ...pact.agents.map(a => a.name), ...yours.skills.map(x => x.name), ...yours.commands.map(x => x.name), ...yours.commands.map(x => `/${x.name}`), ...yours.agents.map(x => x.name)]);
   const listed = yours.skills.length + yours.commands.length + yours.agents.length;
@@ -403,6 +419,33 @@ export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_R
   return out;
 }
 
+const FOLD = process.platform === 'win32' || process.platform === 'darwin';
+/** A path's canonical form: its folder's real path joined with its name, case-folded where the file system folds case. */
+function canonical(p) {
+  const abs = resolve(p);
+  let real;
+  try {
+    real = join(realpathSync.native(dirname(abs)), abs.slice(dirname(abs).length + 1));
+  } catch {
+    real = abs;
+  }
+  return FOLD ? real.toLowerCase() : real;
+}
+
+/**
+ * Why a page may not be written at `out`, or null. A page carries the person's
+ * own presets and lists, so it is never written inside this clone, where a
+ * commit would publish it, and never over the builder file. Paths compare in
+ * canonical form, so a different spelling of the same file is caught.
+ */
+export function outProblem(root, out, builder) {
+  const o = canonical(out);
+  if (o === canonical(builder)) return 'must not be the builder file';
+  const r = canonical(join(root, 'x')).slice(0, -1);
+  if (o.startsWith(r)) return 'must be outside this clone: a page carries your own presets and lists, so keep it out of any repo';
+  return null;
+}
+
 function printCheck(name, r) {
   for (const m of r.refusals) process.stdout.write(`REFUSE ${m}\n`);
   for (const m of r.findings) process.stdout.write(`FINDING ${m}\n`);
@@ -455,14 +498,14 @@ function main(argv) {
     return;
   }
   if (opts.check) return;
-  const out = resolve(opts.out);
-  if (out === resolve(page) || out === resolve(opts.builder)) {
-    process.stdout.write('REFUSE --out must not be the shipped page or the builder file\n');
+  const why = outProblem(root, opts.out, opts.builder);
+  if (why) {
+    process.stdout.write(`REFUSE --out ${why}\n`);
     process.exitCode = 1;
     return;
   }
-  writeFileSync(out, buildPage(root, readFileSync(page, 'utf8'), opts.builder));
-  process.stdout.write(`WROTE ${out}\n`);
+  writeFileSync(resolve(opts.out), buildPage(root, readFileSync(page, 'utf8'), opts.builder));
+  process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv.slice(2));

@@ -58,13 +58,18 @@ how every session in every repo behaves. So:
   `model` (`opus` or `sonnet`) and `effort` (`low`, `medium` or `high`). The
   installer renders and installs that agent's file with those two lines
   changed, and warns about the setting in the dry run. Every other agent is
-  locked, and the setting is refused by name.
+  locked, and the setting is refused by name. A pact from before agent
+  settings (#97) refuses a file that has an `agents` key, so to install such
+  a commit, remove it first.
 - **The builder page.** [`builder/pact-config.html`](builder/pact-config.html)
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists or the example blocks, run
   `node builder/build.mjs` to refresh it; a gate test fails until you do. A
   person's own builder comes from the `pact-builder` skill in
-  `.claude/skills/`.
+  `.claude/skills/`. It reads their skills, commands, agents and
+  configuration, keeps the result in `~/.claude/pact/builder.json`, and
+  renders a page that carries those lists in plain text. Such a page belongs
+  outside any repo; `build.mjs` refuses to write one inside this clone.
 - **Review output.** To read what a configuration does before installing it,
   add `-ReviewFolder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the

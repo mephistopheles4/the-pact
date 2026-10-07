@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kk2/vdVi+0KRjw/Aft+0UIm3W3zrTL+wZiytYweikMc='; style-src 'sha256-9OZIKWUU/3R6uokHQhO0bqz2P9txMJrRknOBFNUQPLs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-lBMSkK8Na2Fti/YKos8zbQbtCl0yZRp7j8ByTPo8rcE='; style-src 'sha256-9OZIKWUU/3R6uokHQhO0bqz2P9txMJrRknOBFNUQPLs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -719,13 +719,31 @@ function addPreset(state, mark, id) {
   return null;
 }
 
-/** Apply a workflow: every slot back to its default, then the workflow's presets added. The usage value is kept. */
+/**
+ * Apply a workflow: every slot back to its default, then the workflow's
+ * presets added. A preset written to stand in for its slot's text turns that
+ * slot's Replace on, as the workflow's author meant. The usage value and the
+ * agent settings are kept.
+ */
 function applyWorkflow(state, id) {
   const w = PACT.workflows.find(x => x.id === id);
   if (!w) return 'That workflow is not on this page.';
   for (const mark of PACT.editable) state.slots[mark] = { replaced: false, cards: [] };
-  for (const pid of w.presets) addPreset(state, presetById(pid).mark, pid);
+  for (const pid of w.presets) {
+    const p = presetById(pid);
+    addPreset(state, p.mark, pid);
+    if (p.standsIn) state.slots[p.mark].replaced = true;
+  }
   return null;
+}
+
+/** The slots as they are now, to put back with restoreSlots. */
+function snapshotSlots(state) {
+  return JSON.stringify(state.slots);
+}
+
+function restoreSlots(state, snap) {
+  state.slots = JSON.parse(snap);
 }
 
 /**
@@ -869,7 +887,7 @@ function boot() {
         el('p', { class: 'av-annot', text: w.about }),
         el('p', { class: 'av-label', text: names.length ? names.join(' · ') : 'No presets' }),
         el('div', { class: 'card-foot' }, chip(on ? 'Applied' : 'Apply', on, () => {
-          const before = JSON.stringify(state.slots);
+          const before = snapshotSlots(state);
           applyWorkflow(state, w.id);
           applied = { id: w.id, before };
           renderWorkflows();
@@ -878,7 +896,7 @@ function boot() {
       );
     });
     const undo = applied ? chip('Undo', false, () => {
-      state.slots = JSON.parse(applied.before);
+      restoreSlots(state, applied.before);
       applied = null;
       renderWorkflows();
       renderSpine();
