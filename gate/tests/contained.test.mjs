@@ -7,7 +7,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, symlinkSyn
 import { join } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { readContained, randomTempName, writeContained } from '../contained.mjs';
+import { folderId, readContained, randomTempName, writeContained } from '../contained.mjs';
 import { REPO, tempDir } from './helpers.mjs';
 
 const WIN = process.platform === 'win32';
@@ -159,6 +159,23 @@ test('bad case: a temp file swapped between its open and the match refuses, with
   assert.ok(!r.calls.includes('write temp'), r.calls.join('\n'));
   assert.equal(readFileSync(join(dir, `${TEMP}.moved`)).length, 0);
   assert.ok(!existsSync(join(dir, 'pact-project.md')));
+});
+
+test('bad case: a folder swapped for a link to another folder partway through refuses, and nothing stays there', t => {
+  const { dir, outside } = folders(t);
+  const r = driven(t, 'swap-dir-at-open', dir, TEMP, 'pact-project.md', 'ours\n', { PACT_FAULT_DIR: outside });
+  assert.match(r.out, /^REFUSED the folder for pact-project\.md moved before the rename$/, r.out);
+  assert.deepEqual(readdirSync(outside), []);
+});
+
+test('bad case: a folder that is not the one the caller checked refuses before anything is created', t => {
+  const { root, dir } = folders(t);
+  const other = join(root, 'other');
+  mkdirSync(other);
+  assert.match(refusal(() => writeContained(dir, TEMP, 'pact-project.md', Buffer.from('ours\n'), folderId(other))), /not the plain folder the checks found/);
+  assert.deepEqual(readdirSync(dir), []);
+  writeContained(dir, TEMP, 'pact-project.md', Buffer.from('ours\n'), folderId(dir));
+  assert.equal(readFileSync(join(dir, 'pact-project.md'), 'utf8'), 'ours\n');
 });
 
 test('readContained reads a plain file once, and refuses a link', t => {

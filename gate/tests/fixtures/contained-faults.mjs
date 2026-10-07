@@ -10,9 +10,11 @@
 //                      <temp>.moved) and put a new empty file at its name
 //   link-after-rename  just after the rename, replace the target with a link
 //                      to PACT_FAULT_DIR/elsewhere.txt
+//   swap-dir-at-open   just before the temp file is opened, move its folder
+//                      aside and put a folder link to PACT_FAULT_DIR in its place
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
-import { basename } from 'node:path';
+import { basename, dirname } from 'node:path';
 
 const fault = process.env.PACT_FAULT ?? '';
 const log = process.env.PACT_FAULT_LOG;
@@ -23,6 +25,10 @@ const { openSync, lstatSync, fstatSync, writeSync, renameSync, writeFileSync, sy
 const tempFds = new Set();
 
 fs.openSync = function (p, ...rest) {
+  if (fault === 'swap-dir-at-open' && isTemp(p)) {
+    renameSync(dirname(p), `${dirname(p)}.real`);
+    symlinkSync(process.env.PACT_FAULT_DIR, dirname(p), 'junction');
+  }
   const fd = openSync(p, ...rest);
   if (isTemp(p)) {
     tempFds.add(fd);

@@ -6,12 +6,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
 import { WIN, git, install, makeRepo, refused } from './install-harness.mjs';
-import { tempDir } from './helpers.mjs';
+import { REPO, tempDir } from './helpers.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const RULES = ['.claude', 'rules', 'pact-project.md'];
@@ -67,7 +67,8 @@ function snapshot(dir) {
       else if (st.isDirectory()) {
         out.push(`dir ${rel}`);
         walk(p);
-      } else out.push(`file ${rel} ${sha256(readFileSync(p))}`);
+      } else if (!st.isFile()) out.push(`special ${rel}`); // never read: a named pipe would block
+      else out.push(`file ${rel} ${sha256(readFileSync(p))}`);
     }
   };
   if (existsSync(dir)) walk(dir);
@@ -121,7 +122,7 @@ test('a project nested under the throwaway home installs: only its rules file an
   assert.equal(rules.toString('utf8'), expectedRules(80));
   assert.equal(sha256(rules), hash);
   const record = JSON.parse(readFileSync(join(proj, ...RECORD), 'utf8'));
-  assert.deepEqual(Object.keys(record), ['file', 'sha256', 'commit', 'digest']);
+  assert.deepEqual(Object.keys(record), ['file', 'sha256']);
   assert.equal(record.file, 'pact-project.md');
   assert.equal(record.sha256, hash);
   const added = snapshot(proj).filter(e => !projBefore.includes(e));
@@ -138,7 +139,7 @@ test('a project nested under the throwaway home installs: only its rules file an
   assert.match(again.stdout, /^ {2}rules file \.claude\/rules\/pact-project\.md: unchanged\r?$/m, again.out);
   writeFileSync(join(proj, '.claude', 'pact-config.json'), projectJson(70));
   const next = projInstall(repo, ch, proj);
-  assert.match(next.stdout, /would replace the copy the pact recorded/, next.out);
+  assert.match(next.stdout, /would replace the existing file its record names .*not proof the pact wrote it/, next.out);
   const r2 = projInstall(repo, ch, proj, { apply: true, extra: ['-RenderedHash', projectHash(next)] });
   assert.equal(r2.code, 0, r2.out);
   assert.equal(readFileSync(join(proj, ...RULES), 'utf8'), expectedRules(70));
@@ -291,7 +292,10 @@ test('bad case: a linked record refuses', t => {
   }, /pact-project\.record\.json is a link/);
 });
 
-for (const which of ['configuration', 'record']) {
+for (const [which, why] of [
+  ['configuration', /FAIL project-file: \.claude\/pact-config\.json: the project configuration file is not a regular file/],
+  ['record', /FAIL project-file: pact-project\.record\.json is not a regular file/],
+]) {
   test(`bad case: a special-file ${which} refuses`, { skip: WIN && 'Windows has no named pipes in the file system to plant (not run)' }, t => {
     containment(t, proj => {
       const at = which === 'record' ? join(proj, ...RECORD) : join(proj, '.claude', 'pact-config.json');
@@ -302,9 +306,30 @@ for (const which of ['configuration', 'record']) {
         t.skip('mkfifo is not available (not run)');
         return false;
       }
-    });
+    }, why);
   });
 }
+
+test('a forged record never makes the dry run say the pact wrote the file', t => {
+  const repo = makeRepo(t);
+  const { homeDir, ch } = layout(t);
+  const proj = projectAt(join(homeDir, 'proj'));
+  mkdirSync(join(proj, '.claude', 'rules'));
+  writeFileSync(join(proj, ...RULES), 'the repo\'s own text\n');
+  writeFileSync(join(proj, ...RECORD), JSON.stringify({ file: 'pact-project.md', sha256: sha256('the repo\'s own text\n') }));
+  const r = projInstall(repo, ch, proj);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /the record is a file in the project, not proof the pact wrote it/, r.out);
+  assert.doesNotMatch(r.stdout, /the pact recorded/, r.out);
+});
+
+test('bad case: a rules file that no longer matches its record refuses, saying how to recover', t => {
+  containment(t, proj => {
+    mkdirSync(join(proj, '.claude', 'rules'));
+    writeFileSync(join(proj, ...RULES), 'edited\n');
+    writeFileSync(join(proj, ...RECORD), JSON.stringify({ file: 'pact-project.md', sha256: sha256('written\n') }));
+  }, /is not the file its record names: it was edited, or an earlier write stopped partway\. If the pact wrote it, delete it and pact-project\.record\.json, then install again/);
+});
 
 // ------------------------------------------------------------ home-folder relations
 
@@ -342,10 +367,31 @@ test('bad case: a project inside the Claude folder refuses', t => {
   relation(t, repo, ch, proj, root, CLAUDE_REL);
 });
 
-test('bad case: a project holding the Claude folder but not the home folder, with -ClaudeHome outside the home folder, refuses', { skip: under(tmpdir(), homedir()) && 'the temp folder is inside the home folder here, so no -ClaudeHome outside it can be planted (not run)' }, t => {
+/** A new folder outside the real home folder: under the temp folder when that is outside it, else under ProgramData on Windows; null when neither can be made. */
+function outsideHome(t) {
+  const bases = [tmpdir(), WIN ? process.env.ProgramData : null].filter(b => b && !under(b, homedir()));
+  for (const b of bases) {
+    try {
+      const d = mkdtempSync(join(b, 'pact-proj-'));
+      t.after(() => rmSync(d, { recursive: true, force: true }));
+      return d;
+    } catch {}
+  }
+  return null;
+}
+
+test('bad case: a project holding the Claude folder but not the home folder, with -ClaudeHome outside the home folder, refuses', t => {
+  const root = outsideHome(t);
+  if (!root) {
+    t.skip('no folder outside the home folder can be made here (not run)');
+    return;
+  }
   const repo = makeRepo(t);
-  const { root, homeDir, ch } = layout(t);
+  const homeDir = join(root, 'home');
+  const ch = join(homeDir, '.claude');
+  mkdirSync(ch, { recursive: true });
   projectAt(homeDir);
+  assert.ok(!under(ch, homedir()));
   relation(t, repo, ch, homeDir, root, CLAUDE_REL);
 });
 
@@ -377,6 +423,32 @@ test('bad case: a project holding the real home folder refuses, before any write
 
 test('bad case: a project equal to the real Claude folder refuses, before any write (dry run only)', { skip: !existsSync(join(homedir(), '.claude')) && 'there is no real Claude folder here (not run)' }, t => {
   realHomeCase(t, join(homedir(), '.claude'), /FAIL project-home: the project folder is the Claude folder in your home folder/);
+});
+
+// An existing folder inside the real Claude folder, so nothing is made there.
+const INSIDE_REAL = ['agents', 'pact', 'rules', 'projects'].map(n => join(homedir(), '.claude', n)).find(p => existsSync(p) && lstatSync(p).isDirectory() && !lstatSync(p).isSymbolicLink());
+
+test('bad case: a project inside the real Claude folder refuses, before any write (dry run only)', { skip: !INSIDE_REAL && 'the real Claude folder holds no plain folder to name (not run)' }, t => {
+  realHomeCase(t, INSIDE_REAL, /FAIL project-home: the project folder is the Claude folder in your home folder, holds it, or is inside it/);
+});
+
+test('bad case: HOME or USERPROFILE pointed elsewhere does not move the real home folder (check only)', t => {
+  // The fake home and the Claude home named for the run both sit outside the
+  // real home folder, so only the real home folder's own relation can refuse.
+  const root = outsideHome(t);
+  if (!root) {
+    t.skip('no folder outside the home folder can be made here (not run)');
+    return;
+  }
+  const fake = join(root, 'fake-home');
+  const ch = join(root, 'claude');
+  mkdirSync(fake);
+  mkdirSync(ch);
+  const env = { ...process.env, HOME: fake, USERPROFILE: fake };
+  delete env.NODE_OPTIONS;
+  const r = spawnSync(process.execPath, [join(REPO, 'gate', 'project.mjs'), 'check', homedir(), ch], { encoding: 'utf8', env });
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /^FAIL project-home: the project folder is your home folder, or holds it$/m, r.stdout);
 });
 
 // ------------------------------------------------------------ git and Node stay out of the project

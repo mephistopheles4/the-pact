@@ -18,6 +18,12 @@
 //      the target. A rename replaces a link; it does not follow it.
 //   4. After the rename, the target is lstat'ed and must be the plain file
 //      written: regular, not a link, the same device and inode.
+//   The folder itself is pinned across the write: its real path and its
+//   device and inode are taken at the start (and must match `expected`, the
+//   caller's own reading, when given), and checked again just before and just
+//   after the rename. A folder swapped for a link to somewhere else partway
+//   through refuses, and a file this call put there is removed again (only
+//   when its device and inode are the ones written).
 // Any failure throws Refused with rule 'project-write'. A temp file this call
 // created and verified is removed again on a later failure; a name it did not
 // create is never touched.
@@ -33,18 +39,24 @@
 // as the renderer's configuration reads: null when it does not exist; else it
 // must be a regular, one-link file that is not a link, the open handle must be
 // the file the lstat saw, and it is read once with its cap enforced during the
-// read. Any other outcome throws Refused with rule 'project-file'.
+// read. The open never blocks (O_NONBLOCK, where the system has it), so a
+// named pipe swapped in after the lstat cannot stall it; the handle check then
+// refuses it. Any other outcome throws Refused with rule 'project-file'.
+//
+// folderId(dir) is a folder's identity for `expected`: its real path, device
+// and inode, after checking it is a folder and not a link.
 //
 // Messages name only the caller's fixed file names, never a path or content.
 // Node 20 or later, ESM.
 
 import { randomBytes } from 'node:crypto';
-import { closeSync, constants, fstatSync, fsyncSync, lstatSync, openSync, readSync, renameSync, unlinkSync, writeSync } from 'node:fs';
+import { closeSync, constants, fstatSync, fsyncSync, lstatSync, openSync, readSync, realpathSync, renameSync, unlinkSync, writeSync } from 'node:fs';
 import { join } from 'node:path';
 import { Refused, SEGMENT_RE } from './shared.mjs';
 
 const TEMP_SUFFIX = '.pact-tmp';
 const NOFOLLOW = constants.O_NOFOLLOW ?? 0;
+const NONBLOCK = constants.O_NONBLOCK ?? 0;
 
 /** A random temp name in the folder: ".pact-<24 hex>.pact-tmp". */
 function randomTempName() {
@@ -54,10 +66,25 @@ function randomTempName() {
 const plainName = n => typeof n === 'string' && SEGMENT_RE.test(n) && n !== '.' && n !== '..' && !n.endsWith('.');
 const sameFile = (a, b) => a.dev === b.dev && a.ino === b.ino;
 
-function writeContained(dir, tempName, finalName, bytes) {
+/** A folder's identity: { real, dev, ino }, or null when it is not a plain folder (a link, a file, missing). */
+function folderId(dir) {
+  try {
+    const st = lstatSync(dir, { bigint: true });
+    if (st.isSymbolicLink() || !st.isDirectory()) return null;
+    return { real: realpathSync.native(dir), dev: st.dev, ino: st.ino };
+  } catch {
+    return null;
+  }
+}
+
+const sameFolder = (a, b) => a !== null && b !== null && a.real === b.real && a.dev === b.dev && a.ino === b.ino;
+
+function writeContained(dir, tempName, finalName, bytes, expected = null) {
   const refuse = reason => new Refused('project-write', reason);
   if (!plainName(tempName) || !plainName(finalName) || tempName === finalName) throw refuse('the temp or final name is not a plain file name');
   if (tempName.toLowerCase().endsWith('.md')) throw refuse('the temp name ends in .md, which Claude Code would load as rules');
+  const pinned = folderId(dir);
+  if (pinned === null || (expected !== null && !sameFolder(pinned, expected))) throw refuse(`the folder for ${finalName} is not the plain folder the checks found`);
   const temp = join(dir, tempName);
   const target = join(dir, finalName);
   let fd;
@@ -93,6 +120,10 @@ function writeContained(dir, tempName, finalName, bytes) {
     throw e;
   }
   closeSync(fd);
+  if (!sameFolder(folderId(dir), pinned)) {
+    removeIfWritten(temp, opened);
+    throw refuse(`the folder for ${finalName} moved before the rename`);
+  }
   try {
     renameSync(temp, target);
   } catch {
@@ -106,6 +137,18 @@ function writeContained(dir, tempName, finalName, bytes) {
     throw refuse(`${finalName} could not be checked after the rename`);
   }
   if (!after.isFile() || after.isSymbolicLink() || !sameFile(after, opened)) throw refuse(`${finalName} is not the plain file written, after the rename`);
+  if (!sameFolder(folderId(dir), pinned)) {
+    removeIfWritten(target, opened);
+    throw refuse(`the folder for ${finalName} moved during the rename`);
+  }
+}
+
+/** Remove `p` only when it is still the file written (same device and inode); never anything else. */
+function removeIfWritten(p, written) {
+  try {
+    const st = lstatSync(p, { bigint: true });
+    if (st.isFile() && !st.isSymbolicLink() && sameFile(st, written)) unlinkSync(p);
+  } catch {}
 }
 
 function removeQuietly(p) {
@@ -129,7 +172,7 @@ function readContained(dir, name, cap) {
   if (st.nlink !== 1n) throw refuse('has more than one link');
   let fd;
   try {
-    fd = openSync(p, constants.O_RDONLY | NOFOLLOW);
+    fd = openSync(p, constants.O_RDONLY | NOFOLLOW | NONBLOCK);
   } catch {
     throw refuse('could not be opened');
   }
@@ -153,4 +196,4 @@ function readContained(dir, name, cap) {
   }
 }
 
-export { TEMP_SUFFIX, randomTempName, writeContained, readContained };
+export { TEMP_SUFFIX, randomTempName, folderId, writeContained, readContained };

@@ -4,14 +4,17 @@
 // working folder: never the project folder.
 //
 //   node project.mjs check <project folder> <Claude home folder>
-//   node project.mjs write <project folder> <Claude home folder> <rendered file> <sha256> <commit> <digest>
+//   node project.mjs write <project folder> <Claude home folder> <rendered file> <sha256>
 //
 // What a project install writes: one pact-owned rules file, RULES_NAME, in the
 // project's .claude/rules folder, and a record beside it, RECORD_NAME, under a
 // non-.md name, since Claude Code loads .md files in a rules folder. The
-// record names only that one file and its hash, the commit and the
-// configuration digest; it can drive the deletion of nothing, since a project
-// install deletes nothing.
+// record holds only that one file's name and hash: nothing derived from the
+// user's own configuration, and not the pact's commit, since a team may commit
+// the record with the repo. It can drive the deletion of nothing, since a
+// project install deletes nothing. A record is a file in the project, so it is
+// no proof that the pact wrote anything; it only lets a later install replace
+// the file whose hash it names.
 //
 // Both modes first run every check below, in this order, and refuse on the
 // first that fails:
@@ -22,7 +25,14 @@
 //      refuses a project folder that equals or holds the real home folder, or
 //      that equals, holds or sits inside the real Claude folder (.claude in
 //      the home folder), whatever -ClaudeHome says; and likewise for the
-//      Claude home folder named for the run, when it differs.
+//      Claude home folder named for the run, when it differs. The real home
+//      folder is the account's, as the operating system reports it
+//      (os.userInfo), and also the one HOME or USERPROFILE names when that
+//      differs, so a changed environment cannot move it away.
+//      Known limit: the relations compare path text after realpath. A
+//      spelling realpath does not unify with the drive-letter form (a network
+//      share of a local folder, say) is not matched; the folder is the owner's
+//      choice, and such a project would still need a configuration file there.
 //   3. The project's .claude folder exists, is not a link, and stays where it
 //      was named; the project configuration file exists there and is not a
 //      link. (The renderer reads it, under its own rules.)
@@ -45,9 +55,9 @@
 // folder's real path. It reads the rendered file once (at most 1 MiB) and
 // refuses unless its hash is the one given. It makes .claude/rules if needed,
 // then writes the rules file and the record, each through writeContained
-// with a random temp name. Then it verifies both: the same lstat and open
-// checks, then the hash. It prints "WROTE <sha256 of the rules file> <sha256
-// of the record>".
+// with a random temp name, the rules folder pinned to the identity the checks
+// found. Then it verifies both: the same lstat and open checks, then the hash.
+// It prints "WROTE <sha256 of the rules file> <sha256 of the record>".
 //
 // Then "RESULT: pass", or FAIL lines and "RESULT: fail" with exit 1. Like seam
 // A, it never echoes a file's content: its messages are its own fixed text
@@ -55,9 +65,9 @@
 
 import { createHash } from 'node:crypto';
 import { lstatSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, userInfo } from 'node:os';
 import { isAbsolute, join } from 'node:path';
-import { randomTempName, readContained, writeContained } from './contained.mjs';
+import { folderId, randomTempName, readContained, writeContained } from './contained.mjs';
 import { fold, realOrResolved, within } from './paths.mjs';
 import { Refused, Report, readStrictJson } from './shared.mjs';
 
@@ -66,7 +76,7 @@ const RECORD_NAME = 'pact-project.record.json';
 const CONFIG_NAME = 'pact-config.json';
 const RULES_MAX = 1024 * 1024;
 const RECORD_MAX = 4096;
-const RECORD_KEYS = Object.freeze(['file', 'sha256', 'commit', 'digest']);
+const RECORD_KEYS = Object.freeze(['file', 'sha256']);
 const HEX64 = /^[0-9a-f]{64}$/;
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -107,11 +117,20 @@ function inspect(given, home) {
   }
   if (!lstatSync(root).isDirectory()) refuse('project-folder', 'the project folder is not a folder');
 
-  const realHome = realOrResolved(homedir());
-  const realClaude = realOrResolved(join(homedir(), '.claude'));
+  // The account's home folder from the operating system, and the one the
+  // environment names when that differs.
+  const homes = [homedir()];
+  try {
+    const sys = userInfo().homedir;
+    if (typeof sys === 'string' && sys !== '') homes.unshift(sys);
+  } catch {}
   const named = realOrResolved(home);
-  if (within(realHome, root)) refuse('project-home', 'the project folder is your home folder, or holds it');
-  if (within(realClaude, root) || within(root, realClaude)) refuse('project-home', 'the project folder is the Claude folder in your home folder, holds it, or is inside it');
+  for (const h of homes) {
+    const realHome = realOrResolved(h);
+    const realClaude = realOrResolved(join(h, '.claude'));
+    if (within(realHome, root)) refuse('project-home', 'the project folder is your home folder, or holds it');
+    if (within(realClaude, root) || within(root, realClaude)) refuse('project-home', 'the project folder is the Claude folder in your home folder, holds it, or is inside it');
+  }
   if (within(named, root) || within(root, named)) refuse('project-home', 'the project folder is the Claude home folder named for this install, holds it, or is inside it');
 
   const claudeDir = join(root, '.claude');
@@ -127,6 +146,8 @@ function inspect(given, home) {
 
   const rulesDir = join(claudeDir, 'rules');
   if (!plainFolder(rulesDir, "the project's .claude/rules folder")) return { root, rulesDir, rulesExists: false, state: 'STATE new' };
+  const rulesId = folderId(rulesDir);
+  if (rulesId === null) refuse('project-folder', "the project's .claude/rules folder could not be read");
   const rules = readContained(rulesDir, RULES_NAME, RULES_MAX);
   const recordBuf = readContained(rulesDir, RECORD_NAME, RECORD_MAX);
   let record = null;
@@ -141,15 +162,18 @@ function inspect(given, home) {
       refuse('project-record', `the project record is not one the pact wrote: it must name only ${RULES_NAME} and its hash`);
     }
   }
-  if (!rules) return { root, rulesDir, rulesExists: true, state: 'STATE new' };
+  if (!rules) return { root, rulesDir, rulesId, rulesExists: true, state: 'STATE new' };
   const hash = sha256(rules.buf);
-  if (!record || record.sha256 !== hash) refuse('project-unrecorded', `an existing .claude/rules/${RULES_NAME} that the pact has no record of writing; the install never replaces a file it did not write`);
-  return { root, rulesDir, rulesExists: true, state: `STATE update ${hash}` };
+  if (!record) refuse('project-unrecorded', `an existing .claude/rules/${RULES_NAME} with no record beside it; the install never replaces a file it has no record of writing`);
+  if (record.sha256 !== hash) {
+    refuse('project-unrecorded', `the existing .claude/rules/${RULES_NAME} is not the file its record names: it was edited, or an earlier write stopped partway. If the pact wrote it, delete it and ${RECORD_NAME}, then install again`);
+  }
+  return { root, rulesDir, rulesId, rulesExists: true, state: `STATE update ${hash}` };
 }
 
 function write(args, report) {
-  const [given, home, renderedFile, want, commit, digest] = args;
-  if (!HEX64.test(want) || !/^[0-9a-f]{40}$/.test(commit) || !/^[0-9a-f]{12}$/.test(digest)) refuse('usage', 'the hash, commit or digest is not in its form');
+  const [given, home, renderedFile, want] = args;
+  if (!HEX64.test(want)) refuse('usage', 'the hash is not in its form');
   const at = inspect(given, home);
   if (at.root !== given) refuse('project-folder', 'the project folder no longer resolves to the real path the check found');
   let bytes;
@@ -161,6 +185,7 @@ function write(args, report) {
     refuse('project-input', 'the rendered project rules file could not be read');
   }
   if (bytes.length > RULES_MAX || sha256(bytes) !== want) refuse('project-input', "the rendered project rules file's hash is not the one the install checked");
+  let rulesId = at.rulesId ?? null;
   if (!at.rulesExists) {
     try {
       mkdirSync(at.rulesDir);
@@ -168,10 +193,12 @@ function write(args, report) {
       refuse('project-folder', "the project's .claude/rules folder could not be made");
     }
     if (!plainFolder(at.rulesDir, "the project's .claude/rules folder")) refuse('project-folder', "the project's .claude/rules folder could not be made");
+    rulesId = folderId(at.rulesDir);
+    if (rulesId === null) refuse('project-folder', "the project's .claude/rules folder could not be made");
   }
-  const record = Buffer.from(`${JSON.stringify({ file: RULES_NAME, sha256: want, commit, digest }, null, 2)}\n`, 'utf8');
-  writeContained(at.rulesDir, randomTempName(), RULES_NAME, bytes);
-  writeContained(at.rulesDir, randomTempName(), RECORD_NAME, record);
+  const record = Buffer.from(`${JSON.stringify({ file: RULES_NAME, sha256: want }, null, 2)}\n`, 'utf8');
+  writeContained(at.rulesDir, randomTempName(), RULES_NAME, bytes, rulesId);
+  writeContained(at.rulesDir, randomTempName(), RECORD_NAME, record, rulesId);
   // The verify: the same lstat and open checks as any read here, then the hash.
   const wroteRules = readContained(at.rulesDir, RULES_NAME, RULES_MAX);
   const wroteRecord = readContained(at.rulesDir, RECORD_NAME, RECORD_MAX);
@@ -182,13 +209,13 @@ function write(args, report) {
 }
 
 function run(argv, report) {
-  const usage = 'usage: node project.mjs check <project folder> <Claude home folder>, or node project.mjs write <project folder> <Claude home folder> <rendered file> <sha256> <commit> <digest>';
+  const usage = 'usage: node project.mjs check <project folder> <Claude home folder>, or node project.mjs write <project folder> <Claude home folder> <rendered file> <sha256>';
   if (argv.some(a => a === '' || a.startsWith('-'))) return report.fail('usage', null, null, usage);
   try {
     if (argv[0] === 'check' && argv.length === 3) {
       const at = inspect(argv[1], argv[2]);
       report.lines.push(`ROOT ${at.root}`, at.state);
-    } else if (argv[0] === 'write' && argv.length === 7) write(argv.slice(1), report);
+    } else if (argv[0] === 'write' && argv.length === 5) write(argv.slice(1), report);
     else report.fail('usage', null, null, usage);
   } catch (e) {
     if (!(e instanceof Refused)) throw e;

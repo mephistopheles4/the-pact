@@ -903,14 +903,14 @@ if ($projectGiven) {
 
   $rulesLine = switch ($projectState.kind) {
     'new' { 'would be written (new)' }
-    default { if ($projectState.sha256 -ceq $projectHash) { 'unchanged' } else { "would replace the copy the pact recorded (sha256 $($projectState.sha256))" } }
+    default { if ($projectState.sha256 -ceq $projectHash) { 'unchanged' } else { "would replace the existing file its record names (sha256 $($projectState.sha256)); the record is a file in the project, not proof the pact wrote it" } }
   }
   Write-Host 'Project:'
   Write-Host "  project configuration ${projectConfigRel}: sha256 $projectFileHash"
   if ($projectUser) { Write-Host "  user configuration ${configRel}: sha256 $projectUser (its values bound the project's)" }
   else { Write-Host "  user configuration ${configRel}: none (the defaults bound the project's values)" }
   Write-Host "  rules file ${projectRulesRel}: $rulesLine"
-  Write-Host "  record ${projectRecordRel}: names only the rules file"
+  Write-Host "  record ${projectRecordRel}: holds only the rules file's name and hash"
   Write-Host "  configuration digest: $projectDigest"
   Write-Host "  rendered project rules file: sha256 $projectHash"
   foreach ($k in $projectValues.Keys) { Write-Host "  WARN: the project configuration sets $k to $($projectValues[$k]); the rules file reads it as the lower of that and the user's value." }
@@ -935,7 +935,7 @@ if ($projectGiven) {
   Test-ProjectAttributes
   Write-Host 'Applying.'
   Show-Gate
-  $pw = Invoke-Node $node @($projectMod, 'write', $projectRoot, $claudeHomeFull, $projectFile, $projectHash, $commit, $projectDigest) $checkTimeoutMs
+  $pw = Invoke-Node $node @($projectMod, 'write', $projectRoot, $claudeHomeFull, $projectFile, $projectHash) $checkTimeoutMs
   $pwLines = @($pw.Stdout -split "`n" | Where-Object { $_ -ne '' })
   Show-ProgramLines $pwLines 'project'
   if ($pw.StderrChars) { Write-Host 'The project module wrote to stderr; it is not shown.' }
