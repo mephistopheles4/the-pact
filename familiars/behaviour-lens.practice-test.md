@@ -96,7 +96,7 @@ quiet.
   everything in it but the sign-in, so a later run cannot read an earlier one's
   transcript, prompt history, edit backups, todos or shell snapshots:
   `docker run --rm -v pact-sandbox-home:/h -v "$HOME\scratch\out-${n}:/out" pact-sandbox:47 cp -r /h/projects /out/`,
-  then `docker run --rm -v pact-sandbox-home:/h pact-sandbox:47 find /h -mindepth 1 -maxdepth 1 ! -name .credentials.json -exec rm -rf {} +`. If Claude Code asks to sign in again on the next run (some
+  then `docker run --rm -v pact-sandbox-home:/h pact-sandbox:47 find /h -mindepth 1 -maxdepth 1 ! -name .credentials.json -exec rm -rf '{}' '+'` (PowerShell needs `{}` and `+` quoted, or `find` fails with "missing argument to -exec"). A single-file mount leaves an empty, root-owned stub in the volume that this cannot remove; add `-u root` to the same command to clear it. Check that the run's own container has exited first (`docker ps`), or its session can still write into the cleared volume. If Claude Code asks to sign in again on the next run (some
   account state lives outside the volume), sign in again.
 - **Score:** with `score()` from `gate/tests/practice-score.mjs`, on the
   report and the record. Post every run, pass or fail, on the issue, with the
