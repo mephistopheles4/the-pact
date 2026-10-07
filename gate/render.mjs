@@ -816,17 +816,17 @@ function runProject(out, home, projectFolder, report) {
   }
   const values = checkProject(proj.buf, effective, report);
   if (values === null) return;
-  const rendered = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v))).join('\n'), 'utf8');
+  const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v))).join('\n'), 'utf8');
   // The output holds only constant text and checked numbers; the scanner runs
   // on it anyway, before its hash is reported, so a template change that
   // brings in a refused character can never be installed.
-  if (scanText(rendered, PROJECT_OUTPUT_NAME, report) === null) return;
+  if (scanText(output, PROJECT_OUTPUT_NAME, report) === null) return;
   const userHash = user === NONE ? null : sha256(user.buf);
   const projHash = sha256(proj.buf);
   const digest = sha256(`${userHash ? `user ${userHash}\n` : ''}project ${projHash}\n`).slice(0, 12);
-  writeFileSync(join(out, PROJECT_OUTPUT_NAME), rendered, { flag: 'wx' });
+  writeFileSync(join(out, PROJECT_OUTPUT_NAME), output, { flag: 'wx' });
   report.lines.push(
-    `RENDERED ${sha256(rendered)}`,
+    `RENDERED ${sha256(output)}`,
     userHash ? `CONFIG user ${userHash}` : 'CONFIG none',
     `PROJECT ${projHash}`,
     `DIGEST ${digest}`,

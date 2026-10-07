@@ -60,6 +60,17 @@ how every session in every repo behaves. So:
   no-configuration render) there. The folder must be new or empty, and outside
   the Claude home folder and any `.claude` folder. Without the switch, a dry
   run changes nothing on disk.
+- **Project install.** To make the pact stricter in one repo, add
+  `-ProjectFolder <full path>`. It reads the project's
+  `.claude/pact-config.json`, which may only set values strictly tighter than
+  your own, and writes one rules file, `.claude/rules/pact-project.md`, with a
+  record beside it. It installs nothing in the Claude home folder and no
+  agents into the project. It refuses a project with no configuration file, a
+  project that is or holds your home folder, or is, holds or sits inside a
+  Claude folder, any link on its write path, and an existing rules file it has
+  no record of writing. Like a home install it is a dry run first, and
+  `-Apply` needs the project rules file's full rendered hash, given as
+  `-RenderedHash <hash>`.
 
 ## Where work lives
 
