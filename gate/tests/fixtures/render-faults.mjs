@@ -15,12 +15,19 @@
 //   lstat-config-eacces lstat of the configuration file fails with EACCES
 //   realpath-home-eacces realpath of the Claude home folder fails with EACCES
 //   count              no fault: log each open and read of the configuration file
+//   lstat-blocks-eacces lstat of the blocks folder fails with EACCES
+//
+// PACT_FAULT_FILE=block points the file faults (swap, hard link, link,
+// realpath, count) at block files under pact/blocks/ instead of the
+// configuration file (#94).
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 
 const fault = process.env.PACT_FAULT ?? '';
 const log = process.env.PACT_FAULT_LOG;
-const isConfig = p => typeof p === 'string' && /[\\/]pact[\\/]config\.json$/.test(p);
+const target = process.env.PACT_FAULT_FILE === 'block' ? /[\\/]pact[\\/]blocks[\\/].+\.md$/ : /[\\/]pact[\\/]config\.json$/;
+const isConfig = p => typeof p === 'string' && target.test(p);
+const isBlocks = p => typeof p === 'string' && /[\\/]pact[\\/]blocks$/.test(p);
 const isPact = p => typeof p === 'string' && /[\\/]pact$/.test(p);
 const note = line => log && fs.appendFileSync(log, `${line}\n`);
 
@@ -60,7 +67,7 @@ fs.readFileSync = function (p, ...rest) {
 };
 
 fs.lstatSync = function (p, ...rest) {
-  if ((fault === 'lstat-eacces' && isPact(p)) || (fault === 'lstat-config-eacces' && isConfig(p))) {
+  if ((fault === 'lstat-eacces' && isPact(p)) || (fault === 'lstat-config-eacces' && isConfig(p)) || (fault === 'lstat-blocks-eacces' && isBlocks(p))) {
     const e = new Error('EACCES: planted');
     e.code = 'EACCES';
     throw e;
