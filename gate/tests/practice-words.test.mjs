@@ -135,15 +135,28 @@ test("data-lens tells the lens to write `not approved` in a code span, in both p
 function clearForUnencrypted(text) {
   const flat = text.replace(/\s+/g, ' ');
   const ban = 'write "unencrypted", never "in clear", "in the clear" or "cleartext".';
-  return (flat.split(ban).join('').match(/\bin (?:the )?clear\b|\bcleartext\b/gi) ?? []);
+  // "clear text" and "clear-text" are the same trap spelled apart (integrity-lens on the fix, F1).
+  return (flat.split(ban).join('').match(/\bin (?:the )?clear\b|\bclear[\s-]?text\b/gi) ?? []);
+}
+
+/** The headline rule of a lens text: from its `headline` bullet to the next top-level bullet. */
+function headlineRule(text) {
+  const flat = text.replace(/\s+/g, ' ');
+  const start = flat.indexOf('- `headline`:');
+  return start < 0 ? '' : flat.slice(start, flat.indexOf('- `', start + 3));
 }
 
 test('data-lens says "unencrypted", never "in the clear", and its headline rule names the trap', () => {
   const text = read(join(REPO, 'claude', 'agents', 'data-lens.md'));
-  assert.ok(text.replace(/\s+/g, ' ').includes('write "unencrypted", never "in clear", "in the clear" or "cleartext".'));
+  // The ban sits in the headline rule itself, with "in every sense" (integrity-lens on the fix, F2).
+  const rule = headlineRule(text);
+  for (const words of ['These words are banned in every sense', 'write "unencrypted", never "in clear", "in the clear" or "cleartext".']) assert.ok(rule.includes(words), words);
   for (const lens of LENSES) assert.deepEqual(clearForUnencrypted(read(join(REPO, 'claude', 'agents', `${lens}.md`))), [], lens);
-  // Seen to fail: the step 3 wording that run 62's lens read.
+  // Seen to fail: the step 3 wording that run 62's lens read, the spellings apart, and the ban moved out of the rule.
   assert.deepEqual(clearForUnencrypted('A secret or personal item stored or sent in the clear is a finding.'), ['in the clear']);
+  assert.deepEqual(clearForUnencrypted('sent as clear text, or clear-text, or cleartext'), ['clear text', 'clear-text', 'cleartext']);
+  const moved = text.replace(/ These words are banned in every sense:[^.]*\./, '');
+  assert.ok(!headlineRule(moved).includes('These words are banned in every sense'), 'the plant did not move the ban');
 });
 
 test('no lens file, contract or practice test holds a line that starts mid-sentence after a blank line', () => {
