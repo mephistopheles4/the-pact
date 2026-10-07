@@ -436,7 +436,9 @@ test('bad case: a review module that reports other hashes than this run rendered
   const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
   refused(r);
   assert.match(r.stdout, /^review\| RESULT: pass\r?$/m, r.out);
-  assert.match(r.stdout, /^REFUSED: the review output was not written, or not as this run rendered it\./m, r.out);
+  // The module wrote its files and exited with a pass, so the message must not say nothing changed.
+  assert.match(r.stdout, /^REFUSED: the review output was not written, or not as this run rendered it\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
+  assert.deepEqual(readdirSync(folder).sort(), ['config.diff', 'rendered-rules.txt']);
 });
 
 test('bad case: a staged rules file changed after the check refuses the review output before it is written', t => {
@@ -460,10 +462,41 @@ test('bad case: a review module that changes the stage on -Apply refuses before 
     ),
   );
   const h = home(t);
-  const r = install(repo, h, { apply: true, extra: ['-ReviewFolder', join(tempDir(t), 'review')] });
+  const folder = join(tempDir(t), 'review');
+  const r = install(repo, h, { apply: true, extra: ['-ReviewFolder', folder] });
   refused(r);
   assert.match(r.stdout, /^review\| RESULT: pass\r?$/m, r.out);
-  assert.match(r.stdout, /^REFUSED: the staged copy of agents\/[^ ]+ changed after the check\./m, r.out);
+  assert.match(r.stdout, /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
+  assert.deepEqual(readdirSync(folder).sort(), ['config.diff', 'rendered-rules.txt']);
   assert.doesNotMatch(r.stdout, /^Applying\./m, r.out);
   assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f.startsWith('agents')), listTree(h).join('\n'));
+});
+test('bad case: a review module that changes the stage on a dry run refuses, saying the review folder may hold its output', t => {
+  const repo = makeRepo(t, root =>
+    writeFileSync(
+      join(root, 'gate', 'review.mjs'),
+      `${readFileSync(join(root, 'gate', 'review.mjs'), 'utf8')}\nimport('node:fs').then(fs => fs.writeFileSync('planted.txt', 'x\\n'));\n`,
+    ),
+  );
+  const folder = join(tempDir(t), 'review');
+  const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
+  assert.doesNotMatch(r.stdout, /^Dry run only/m, r.out);
+});
+
+test('-Apply with -ReviewFolder writes the review only after the last re-hash of the stage', t => {
+  // A seam A that changes a staged agent as it exits: the re-hash refuses, and
+  // no review is written, because the review comes after it.
+  const repo = makeRepo(t, root =>
+    writeFileSync(
+      join(root, 'gate', 'seam-a.mjs'),
+      `${readFileSync(join(root, 'gate', 'seam-a.mjs'), 'utf8')}\nimport('node:fs').then(fs => { const d = process.argv[2] + '/claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n'); });\n`,
+    ),
+  );
+  const folder = join(tempDir(t), 'review');
+  const r = install(repo, home(t), { apply: true, extra: ['-ReviewFolder', folder] });
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the staged copy of agents\/[^ ]+ changed after the check\. Nothing was changed\.\r?$/m, r.out);
+  assert.ok(!existsSync(folder), 'the review was written before the last re-hash');
 });

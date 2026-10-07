@@ -40,7 +40,8 @@ const { readdirSync } = fs;
 let readdirs = 0;
 fs.readdirSync = function (p, ...rest) {
   readdirs += 1;
-  if (fault === 'review-extra' && readdirs === 2) writeFileSync(`${p}/extra.txt`, 'x\n');
+  // Only into a test's own temp folder, whatever calls come first.
+  if (fault === 'review-extra' && readdirs === 2 && typeof p === 'string' && /[\\/]pact-test-[^\\/]+$/.test(p)) writeFileSync(`${p}/extra.txt`, 'x\n');
   return readdirSync(p, ...rest);
 };
 

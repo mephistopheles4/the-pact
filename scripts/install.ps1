@@ -451,9 +451,11 @@ function Show-Gate {
   if ($gateLines) { foreach ($l in $gateLines) { Write-Host $l } }
 }
 
-function Stop-Refused([string]$why) {
+# $outcome says what is on disk. It is "Nothing was changed." everywhere but
+# after the review module has run, which may have written its two files.
+function Stop-Refused([string]$why, [string]$outcome = 'Nothing was changed.') {
   Show-Gate
-  Write-Host "REFUSED: $why Nothing was changed."
+  Write-Host "REFUSED: $why $outcome"
   foreach ($d in @($stage, $renderOut)) {
     if ($d -and (Test-Path -LiteralPath $d)) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
   }
@@ -857,20 +859,28 @@ if ($hashGiven -and $RenderedHash -cne $rulesHash) {
 
 # The review output, written only once every check for this run has passed:
 # called at the end of the dry run, and on -Apply after its own refusals and
-# before the last re-hash of the stage and the first write. The review module checks the folder's final path and
-# creates both files exclusively; its hashes must match what this run read.
+# the last re-hash of the stage, just before the first write. The review module
+# checks the folder's final path and creates both files exclusively; its hashes
+# must match what this run read. The whole stage is hashed before and after it
+# runs, as around the renderer, so any change it makes there refuses before
+# anything is installed. A refusal once it has run says the folder may hold
+# what it wrote.
 function Write-Review {
   if (-not $reviewGiven) { return }
   $reviewer = Join-Path $stage 'gate/review.mjs'
   if (-not (Test-Path -LiteralPath $reviewer -PathType Leaf)) { Stop-Refused 'the review module (gate/review.mjs) is missing.' }
   if ((Get-Sha256 $rulesStaged) -cne $rulesHash) { Stop-Refused 'the staged rules file changed after the check.' }
+  try { $before = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read before the review module ran.' }
   $rev = Invoke-Node $node @($reviewer, ([IO.Path]::GetFullPath($ReviewFolder)), $claudeHomeFull, $rulesStaged, $diffFile) $checkTimeoutMs
+  $after = 'The review folder may hold what the review module wrote; nothing was installed.'
   $revLines = @($rev.Stdout -split "`n" | Where-Object { $_ -ne '' })
   Show-ProgramLines $revLines 'review'
   if ($rev.StderrChars) { Write-Host 'The review module wrote to stderr; it is not shown.' }
+  $stageNow = try { Get-TreeState $stage } catch { $null }
+  if ($stageNow -cne $before) { Stop-Refused 'the review module changed the stage.' $after }
   if ($rev.TimedOut -or $rev.ExitCode -ne 0 -or $revLines.Count -ne 2 -or $revLines[-1] -cne 'RESULT: pass' -or
     $revLines[0] -cne "REVIEW $rulesHash $diffHash") {
-    Stop-Refused 'the review output was not written, or not as this run rendered it.'
+    Stop-Refused 'the review output was not written, or not as this run rendered it.' $after
   }
   Write-Host 'Review output: rendered-rules.txt and config.diff written to the review folder.'
 }
@@ -890,14 +900,14 @@ if ($dirty.Count) { Stop-Refused 'the working tree is not clean.' }
 if ($null -eq $live) { Stop-Refused "settings.json is not a strict JSON object, so the pact's guard cannot be merged into it; fix the file first." }
 
 # --- apply ---------------------------------------------------------------------
-# The review output first, so the re-hash below also covers anything the
-# review module did to the stage while it ran.
-Write-Review
 # Every staged byte is re-hashed before the first write.
 foreach ($rel in $repoFiles.Keys) {
   $src = Join-Path $stage ($sourceOf[$rel] -replace '/', [IO.Path]::DirectorySeparatorChar)
   if ((Get-Sha256 $src) -ne $repoFiles[$rel]) { Stop-Refused "the staged copy of $rel changed after the check." }
 }
+# The review output last of all, after every check; its own stage hash covers
+# anything it did to the stage while it ran.
+Write-Review
 Write-Host 'Applying.'
 Show-Gate
 New-Item -ItemType Directory -Force -Path $ClaudeHome | Out-Null

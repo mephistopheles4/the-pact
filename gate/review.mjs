@@ -24,6 +24,16 @@
 // regular, one-link file, and written. Afterwards the folder must hold exactly
 // those two plain files, and still resolve to the same final path.
 //
+// Known limits, taken on the record at #94's move 4 (the files are inert names
+// Claude Code never loads, so neither reaches a session's rules):
+//   - The undo removes its files by name. A process running as the same user
+//     that swaps a folder on the path between the write and the undo could
+//     make it remove a file of the same name elsewhere.
+//   - A network share or a user-space mount whose root is a Claude folder, or
+//     a folder in one, aliases it past these checks: its final path shows no
+//     .claude segment and no Claude home prefix. Making such a share on
+//     Windows needs an administrator.
+//
 // It prints "REVIEW <sha256 of the rules written> <sha256 of the diff
 // written>" and "RESULT: pass", or FAIL lines and "RESULT: fail" with exit 1.
 // Like seam A, it never echoes a path from the command line or a file's
