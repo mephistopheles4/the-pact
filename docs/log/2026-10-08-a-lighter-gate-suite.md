@@ -23,7 +23,7 @@ Node 24.14.1, 32 logical processors, one test file set per run. Peaks are machin
 | branch, cap 2 | 729 s | 42 |
 | branch, cap 4, two copies at once | 719 s and 712 s | 66 |
 
-Test names and statuses were identical to main in every run (1,442 cases, 7 skips, no failures).
+Main has 1,442 cases. The runs before the new test had the same 1,442 names and statuses (7 skips, no failures). The branch with the new test has 1,443: the same names plus the new one.
 
 ## What was found
 
