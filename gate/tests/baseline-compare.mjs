@@ -120,7 +120,7 @@ function listRows(text) {
 const PUNCT_REGEX_AFTER = new Set([...'(,=:[!&|?{};+-*%<>~^']);
 const WORDS_REGEX_AFTER = new Set(['return', 'typeof', 'case', 'of', 'in', 'void', 'delete', 'throw', 'yield', 'await']);
 
-/** A module's source as tokens: { t: 'str', v } for a string literal (a template only when it has no ${}), { t: 'word', v }, { t: 'p', v }. Comments and regex literals are dropped. */
+/** A module's source as tokens: { t: 'str', v } for a string literal (a template only when it has no ${}), { t: 'tpl' } for one that has, { t: 're' } for a regex literal, { t: 'word', v }, { t: 'p', v }. Comments are dropped. */
 export function tokens(src) {
   const out = [];
   const n = src.length;
@@ -171,6 +171,7 @@ export function tokens(src) {
       i += 1;
       out.push(plain ? { t: 'str', v: s } : { t: 'tpl' });
     } else if (c === '/' && (!prev() || (prev().t === 'p' && PUNCT_REGEX_AFTER.has(prev().v)) || (prev().t === 'word' && WORDS_REGEX_AFTER.has(prev().v)))) {
+      // A regex literal: skipped, and kept as one token that is no bracket.
       i += 1;
       let inClass = false;
       while (i < n && src[i] !== '\n') {
@@ -182,7 +183,7 @@ export function tokens(src) {
       }
       i += 1;
       while (i < n && /[a-z]/.test(src[i])) i += 1;
-      out.push({ t: 'p', v: ')' });
+      out.push({ t: 're' });
     } else if (/\s/.test(c)) i += 1;
     else if (/[A-Za-z0-9_$]/.test(c)) {
       let w = '';

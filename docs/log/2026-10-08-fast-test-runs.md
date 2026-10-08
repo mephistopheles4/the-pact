@@ -46,6 +46,23 @@
   - **Plants:** seven new plants each broke one fix and failed its test, and no other.
 - **The final full suite (T2),** quiet, on aaaeb92: exit 0 in 381.8 s, 1,720 cases. Against the baseline: 0 gone, 0 changed, 2 moved (T1's) and 69 new.
 
+## T5 (#154): tables, and the proof that no case is lost
+
+Spec revision 10 on #140 redesigned the test architecture: cores, tables, one layer per file and a helper split, as tickets T5 to T10. T5 comes first, because every later ticket moves cases and needs the proof that none is lost. See [ADR 0031](../adr/0031-gate-bad-cases-are-table-rows-and-no-case-is-lost.md).
+
+- **The baseline is committed.** `gate/tests/fixtures/baseline-140/baseline.tsv` is T1's canonical case list, sha256 `14af7916…`. The comment that posted it shows one name differently, the `cross-checks` NUL case, as `\^@` for `\u0000`. The file follows the test's real name, and its hash matches.
+- **The lists beside it.**
+  - **`moves.tsv`:** seeded with T1's two smoke moves, and T5's 51 table rows.
+  - **`reporter-names.tsv`:** empty, not the 38 lines the ticket expected. Read the way T1 made the baseline, with each nested case's suite chain, every reported name matches.
+  - **`env-cases.tsv`:** 17 cases: 8 that must pass on Linux and skip on Windows, and 9 the other way round.
+- **The compare,** `gate/tests/baseline-compare.mjs <record>`, applies S4's rules to a record-mode junit run. It was first run on the branch tip before anything moved, under a quiet hold, and passed.
+- **The table module,** `gate/tests/tables.mjs`, makes the base, row and base-after-rows tests, refuses a malformed table at load, and checks each row's rule ids against the module and the gate files it imports.
+- **The first user.** `render-edits`' `EDIT_BAD` and `PATH_BAD` loops became the tables "render edit list" (20 rows) and "render block path" (31 rows). Each row's `why` is the old case's label, word for word. Every row trips exactly its one rule, which the old loops never checked: they asked only that the rule appear.
+- **AGENTS.md** gains "Writing a gate test", and the probe floor names the table module, the compare, the baseline and its two lists.
+- **The Linux container** now writes a junit record to a mounted `/out` folder, for the compare; the owner approved the change and the image rebuild. On Node 20, the four `node:sqlite` practice cases fail, so the Linux compare fails on them. The owner chose "B, everything should be on LTS": no exception for them, and the Linux compare waits on #149.
+- **Found while building.** Three `cross-checks` case names appear twice in the baseline, so the compare counts cases per name rather than treating names as unique. And the first version of the row reader counted a regex literal as a closing bracket, so it lost track after three rows with `says` patterns; a test now covers that.
+- **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
+
 ## What was measured
 
 - **The baseline.** Main at 76c46c1, quiet, junit reporter: 1,651 cases (1,643 pass, 8 skip, 0 fail) in 33 files, in 714 s at cap 4 on Node 24.14.1.

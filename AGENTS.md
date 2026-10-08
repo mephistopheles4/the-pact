@@ -162,6 +162,33 @@ how every session in every repo behaves. So:
   lines name your changed and untracked files. If one of them shouldn't be
   shared, post a `fast` or `full` record instead.
 
+## Writing a gate test
+
+- **A bad case for a gate module is a row in its table.** A table, from
+  [`gate/tests/tables.mjs`](gate/tests/tables.mjs), has a base input that
+  passes and rows; a row is one plant on the base and the exact rule ids it
+  must fail with. Write the table's name and each row's id as string literals
+  in the `table(...)` call. The first tables are `render-edits`' edit list and
+  block paths. A file already in `fast` converts its loops when a session
+  next changes its cases for another reason.
+- **How a row runs the module.** Today a table's `run` starts the module as a
+  child, as the install does. Keep a case a child run when it varies the
+  environment, plants a copy of the module, or runs under a test preload.
+- **A case runs the install** only when the install script itself decides it,
+  or for a happy path.
+- **Each test file holds one layer:** install cases, or cases that never
+  install.
+- **Import helpers by what they touch.** Take only what the test uses.
+- **Moving or renaming a case.** Every case in the T1 baseline,
+  [`gate/tests/fixtures/baseline-140/`](gate/tests/fixtures/baseline-140/), keeps
+  a home. A case that changes file, or becomes a table row in its own file,
+  gets a line in `moves.tsv` beside the baseline. Move 4's full run, in record
+  mode with the junit reporter, goes through the no-loss compare, which must
+  exit 0 with its `RESULT: compare pass` line last:
+  `$env:NODE_OPTIONS = $null; node gate/tests/baseline-compare.mjs <record>` in
+  PowerShell, or `env -u NODE_OPTIONS node gate/tests/baseline-compare.mjs <record>`
+  in a POSIX shell.
+
 ## Where work lives
 
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
@@ -261,6 +288,15 @@ Where two bullets apply, the stricter one holds.
   are picked, the exit handling, how the runner starts node (the binary, its
   flags and its environment) and record mode, so "the full suite" can't be
   narrowed by an ordinary test edit.
+- **The table module and the no-loss compare are on this floor too:**
+  `gate/tests/tables.mjs` and `gate/tests/baseline-compare.mjs`, the baseline
+  `gate/tests/fixtures/baseline-140/baseline.tsv` and its two lists beside it,
+  `env-cases.tsv` and `reporter-names.tsv`, with the tests that hold their bad
+  cases, `gate/tests/tables.test.mjs` and `gate/tests/baseline-compare.test.mjs`.
+  The same rules hold as for the runner. Weakening the table module could let
+  a row pass for the wrong reason, and weakening the compare or its lists
+  could hide a lost case. The map of moves, `moves.tsv`, is not on the floor:
+  its lines change with every move, and the compare bounds what a line can do.
 - **Everything else is proved by use.** That means the repo's tests and gates
   pass, a reviewer reads the change at move 4, and the standing measures are
   recorded where they apply. Any other edit to this section is also proved by

@@ -26,6 +26,10 @@ const BASE = REAL.baseline
     const [status, file, name] = l.split('\t');
     return { status, file, name };
   });
+/** How many cases the real map moves, and the line a line appended to it lands on. */
+const MOVE_LINES = REAL.moves.toString('utf8').split('\n').slice(0, -1);
+const MOVED = MOVE_LINES.filter(l => l && !l.startsWith('#')).length;
+const NEXT_LINE = MOVE_LINES.length + 1;
 const tsv = rows => rows.map(r => `${r.join('\t')}\n`).join('');
 const esc = s => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -54,7 +58,16 @@ function homeRun() {
   return BASE.map(c => ({ ...c, ...(moves.get(`${c.file}\t${c.name}`) ?? {}) }));
 }
 
-const run = (over = {}, { cases = homeRun(), sep = '\\', names = [USER], source = () => null, record } = {}) => compare({ lists: { ...REAL, ...over }, record: record ?? recordOf(cases, { sep }), names, source });
+/** A test file's source from the repo, as the command line reads it. */
+const repoSource = f => {
+  try {
+    return readFileSync(join(REPO, f), 'utf8');
+  } catch {
+    return null;
+  }
+};
+
+const run = (over = {}, { cases = homeRun(), sep = '\\', names = [USER], source = repoSource, record } = {}) => compare({ lists: { ...REAL, ...over }, record: record ?? recordOf(cases, { sep }), names, source });
 
 function fails(r, pattern) {
   assert.equal(r.ok, false, r.lines.join('\n'));
@@ -83,7 +96,7 @@ const TABLE_SRC = "import { table } from './tables.mjs';\ntable('render edit lis
 test('control: the real lists and a run that lost nothing pass, with the counts printed', () => {
   const r = run();
   assert.equal(r.ok, true, r.lines.join('\n'));
-  assert.equal(r.lines.at(-1), `RESULT: compare pass, unchanged ${BASE.length - 2}, moved 2, new 0`);
+  assert.equal(r.lines.at(-1), `RESULT: compare pass, unchanged ${BASE.length - MOVED}, moved ${MOVED}, new 0`);
 });
 
 test('control: the baseline file is the T1 list, by its hash', () => {
@@ -151,17 +164,17 @@ test('bad case: a move line that renames a case to a plain test whose name looks
   const to = 'render edit list: unknown-mark';
   const cases = homeRun().map(c => (c.file === A.file && c.name === A.name ? { ...c, name: to } : c));
   const plain = `import { test } from 'node:test';\ntest('render edit list: unknown-mark', () => {});\n`;
-  fails(run({ moves: plusMove([A.file, A.name, A.file, to]) }, { cases, source: f => (f === A.file ? plain : null) }), /the new name is not a row its file registers/);
+  fails(run({ moves: plusMove([A.file, A.name, A.file, to]) }, { cases, source: f => (f === A.file ? plain : repoSource(f)) }), /the new name is not a row its file registers/);
   // control: the same line passes when the file registers the row.
-  const ok = run({ moves: plusMove([A.file, A.name, A.file, to]) }, { cases, source: f => (f === A.file ? TABLE_SRC : null) });
+  const ok = run({ moves: plusMove([A.file, A.name, A.file, to]) }, { cases, source: f => (f === A.file ? TABLE_SRC : repoSource(f)) });
   assert.equal(ok.ok, true, ok.lines.join('\n'));
 });
 
 test('bad case: a move line that maps a case onto a real row in a different file fails', () => {
   const to = 'render edit list: unknown-mark';
-  const other = 'gate/tests/render-edits.test.mjs';
+  const other = 'gate/tests/other.test.mjs';
   const cases = [...homeRun().filter(c => !(c.file === A.file && c.name === A.name)), { status: 'pass', file: other, name: to }];
-  fails(run({ moves: plusMove([A.file, A.name, other, to]) }, { cases, source: () => TABLE_SRC }), /changes a name and a file at once/);
+  fails(run({ moves: plusMove([A.file, A.name, other, to]) }, { cases, source: f => (f === other ? TABLE_SRC : repoSource(f)) }), /changes a name and a file at once/);
 });
 
 test('bad case: a rename to anything but "<table>: <row id>" fails', () => {
@@ -178,14 +191,14 @@ test('bad case: a move line that moves no baseline case fails', () => {
 test('bad case: a move line holding a drive-letter path fails, by line number, and the output holds no leak', () => {
   const line = [A.file, A.name, 'C:\\work\\gate\\tests\\x.test.mjs', A.name];
   const r = run({ moves: plusMove(line) });
-  fails(r, /^leak: gate\/tests\/fixtures\/baseline-140\/moves\.tsv line 9 holds a local path or name$/);
+  fails(r, new RegExp(`^leak: gate/tests/fixtures/baseline-140/moves\\.tsv line ${NEXT_LINE} holds a local path or name$`));
   noLeak(r, ['C:\\work']);
 });
 
 test('bad case: a move line holding the user name as a whole word fails; with the names left out of the call it passes', () => {
   const moves = Buffer.concat([REAL.moves, Buffer.from(`# moved by ${USER} on their machine\n`)]);
   const r = run({ moves });
-  fails(r, /^leak: gate\/tests\/fixtures\/baseline-140\/moves\.tsv line 9 /);
+  fails(r, new RegExp(`^leak: gate/tests/fixtures/baseline-140/moves\\.tsv line ${NEXT_LINE} `));
   noLeak(r, [`moved by ${USER}`]);
   const blind = run({ moves }, { names: [] });
   assert.equal(blind.ok, true, blind.lines.join('\n'));
@@ -290,6 +303,24 @@ test('registeredRows finds a table and its rows by string literals, under an imp
   assert.deepEqual([...registeredRows(alias).get('t')].sort(), ['a-b', 'c']);
 });
 
+test('registeredRows reads past regex literals: a row after several says patterns is still found', () => {
+  const rows = Array.from({ length: 6 }, (_, i) => `{ id: 'r${i}', fails: ['x'], says: /a (b) [c] {d}/, why: 'w' }`).join(',\n');
+  const src = `import { table } from './tables.mjs';\ntable('t', { rows: [\n${rows}\n] });\n`;
+  assert.deepEqual([...registeredRows(src).get('t')], ['r0', 'r1', 'r2', 'r3', 'r4', 'r5']);
+});
+
+test('the render-edits file registers every row its moves name', () => {
+  const src = readFileSync(join(HERE, 'render-edits.test.mjs'), 'utf8');
+  const rows = registeredRows(src);
+  for (const l of REAL.moves.toString('utf8').split('\n')) {
+    if (!l || l.startsWith('#')) continue;
+    const [of, , nf, nn] = l.split('\t');
+    if (of !== nf) continue;
+    const cut = nn.lastIndexOf(': ');
+    assert.ok(rows.get(nn.slice(0, cut))?.has(nn.slice(cut + 2)), nn);
+  }
+});
+
 test('bad case: registeredRows finds no row in a comment, a string, a variable, or a file that does not import the table module', () => {
   const noImport = "table('t', { rows: [{ id: 'a' }] });\n";
   assert.equal(registeredRows(noImport).size, 0);
@@ -319,7 +350,7 @@ function cli(t, record) {
 test('the command line passes a run that lost nothing, with exit 0 and the RESULT line last', t => {
   const r = cli(t, recordOf(homeRun()));
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout.trimEnd().split('\n').at(-1), /^RESULT: compare pass, unchanged 1649, moved 2, new 0$/);
+  assert.equal(r.stdout.trimEnd().split('\n').at(-1), `RESULT: compare pass, unchanged ${BASE.length - MOVED}, moved ${MOVED}, new 0`);
 });
 
 test('bad case: the command line fails a dropped case with exit 1', t => {

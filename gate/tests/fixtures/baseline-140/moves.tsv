@@ -6,3 +6,55 @@
 # T1 (#144): the install's happy path moved to the smoke file.
 gate/tests/install.test.mjs	dry run on a clean tree passes and shows Node, the pin, the check and the gate	gate/tests/install-smoke.test.mjs	dry run on a clean tree passes and shows Node, the pin, the check and the gate
 gate/tests/install.test.mjs	-Apply installs today's agents byte for byte, records the gate, and the next dry run sees no gate change	gate/tests/install-smoke.test.mjs	-Apply installs today's agents byte for byte, records the gate, and the next dry run sees no gate change
+# T5 (#154): render-edits' EDIT_BAD and PATH_BAD loops became the tables "render edit list" and "render block path".
+gate/tests/render-edits.test.mjs	bad case: an unknown mark refuses	gate/tests/render-edits.test.mjs	render edit list: unknown-mark
+gate/tests/render-edits.test.mjs	bad case: a mark in another case refuses	gate/tests/render-edits.test.mjs	render edit list: mark-in-another-case
+gate/tests/render-edits.test.mjs	bad case: a gated mark in another case refuses	gate/tests/render-edits.test.mjs	render edit list: gated-mark-in-another-case
+gate/tests/render-edits.test.mjs	bad case: a mark that is not text refuses	gate/tests/render-edits.test.mjs	render edit list: mark-not-text
+gate/tests/render-edits.test.mjs	bad case: no mark refuses	gate/tests/render-edits.test.mjs	render edit list: no-mark
+gate/tests/render-edits.test.mjs	bad case: an unknown operation refuses	gate/tests/render-edits.test.mjs	render edit list: unknown-op
+gate/tests/render-edits.test.mjs	bad case: an operation in another case refuses	gate/tests/render-edits.test.mjs	render edit list: op-in-another-case
+gate/tests/render-edits.test.mjs	bad case: no operation refuses	gate/tests/render-edits.test.mjs	render edit list: no-op
+gate/tests/render-edits.test.mjs	bad case: an operation that is not text refuses	gate/tests/render-edits.test.mjs	render edit list: op-not-text
+gate/tests/render-edits.test.mjs	bad case: the same mark twice refuses	gate/tests/render-edits.test.mjs	render edit list: same-mark-twice
+gate/tests/render-edits.test.mjs	bad case: an edit that is not an object refuses	gate/tests/render-edits.test.mjs	render edit list: edit-not-object
+gate/tests/render-edits.test.mjs	bad case: an edit that is null refuses	gate/tests/render-edits.test.mjs	render edit list: edit-null
+gate/tests/render-edits.test.mjs	bad case: an unknown key in an edit refuses	gate/tests/render-edits.test.mjs	render edit list: unknown-key
+gate/tests/render-edits.test.mjs	bad case: a __proto__ key in an edit refuses	gate/tests/render-edits.test.mjs	render edit list: proto-key
+gate/tests/render-edits.test.mjs	bad case: remove with a file refuses	gate/tests/render-edits.test.mjs	render edit list: remove-with-file
+gate/tests/render-edits.test.mjs	bad case: replace with no file refuses	gate/tests/render-edits.test.mjs	render edit list: replace-without-file
+gate/tests/render-edits.test.mjs	bad case: add-after with no file refuses	gate/tests/render-edits.test.mjs	render edit list: add-after-without-file
+gate/tests/render-edits.test.mjs	bad case: over 16 edits refuses	gate/tests/render-edits.test.mjs	render edit list: over-16-edits
+gate/tests/render-edits.test.mjs	bad case: edits as an object refuses	gate/tests/render-edits.test.mjs	render edit list: edits-as-object
+gate/tests/render-edits.test.mjs	bad case: edits as a string refuses	gate/tests/render-edits.test.mjs	render edit list: edits-as-string
+gate/tests/render-edits.test.mjs	bad case: a block path with an empty path refuses on its text	gate/tests/render-edits.test.mjs	render block path: empty
+gate/tests/render-edits.test.mjs	bad case: a block path with a path that is not text refuses on its text	gate/tests/render-edits.test.mjs	render block path: not-text
+gate/tests/render-edits.test.mjs	bad case: a block path with an absolute path refuses on its text	gate/tests/render-edits.test.mjs	render block path: absolute
+gate/tests/render-edits.test.mjs	bad case: a block path with a network share refuses on its text	gate/tests/render-edits.test.mjs	render block path: network-share
+gate/tests/render-edits.test.mjs	bad case: a block path with a network share with forward slashes refuses on its text	gate/tests/render-edits.test.mjs	render block path: network-share-forward-slashes
+gate/tests/render-edits.test.mjs	bad case: a block path with a device path refuses on its text	gate/tests/render-edits.test.mjs	render block path: device-path
+gate/tests/render-edits.test.mjs	bad case: a block path with a device namespace path refuses on its text	gate/tests/render-edits.test.mjs	render block path: device-namespace
+gate/tests/render-edits.test.mjs	bad case: a block path with a drive path refuses on its text	gate/tests/render-edits.test.mjs	render block path: drive
+gate/tests/render-edits.test.mjs	bad case: a block path with a drive-relative path refuses on its text	gate/tests/render-edits.test.mjs	render block path: drive-relative
+gate/tests/render-edits.test.mjs	bad case: a block path with a backslash separator refuses on its text	gate/tests/render-edits.test.mjs	render block path: backslash
+gate/tests/render-edits.test.mjs	bad case: a block path with stream syntax refuses on its text	gate/tests/render-edits.test.mjs	render block path: stream
+gate/tests/render-edits.test.mjs	bad case: a block path with a stream type refuses on its text	gate/tests/render-edits.test.mjs	render block path: stream-type
+gate/tests/render-edits.test.mjs	bad case: a block path with a .. segment refuses on its text	gate/tests/render-edits.test.mjs	render block path: dot-dot
+gate/tests/render-edits.test.mjs	bad case: a block path with a .. segment inside refuses on its text	gate/tests/render-edits.test.mjs	render block path: dot-dot-inside
+gate/tests/render-edits.test.mjs	bad case: a block path with a . segment refuses on its text	gate/tests/render-edits.test.mjs	render block path: dot
+gate/tests/render-edits.test.mjs	bad case: a block path with an empty segment refuses on its text	gate/tests/render-edits.test.mjs	render block path: empty-segment
+gate/tests/render-edits.test.mjs	bad case: a block path with a trailing slash refuses on its text	gate/tests/render-edits.test.mjs	render block path: trailing-slash
+gate/tests/render-edits.test.mjs	bad case: a block path with a segment ending in a dot refuses on its text	gate/tests/render-edits.test.mjs	render block path: segment-ends-in-dot
+gate/tests/render-edits.test.mjs	bad case: a block path with a folder ending in a dot refuses on its text	gate/tests/render-edits.test.mjs	render block path: folder-ends-in-dot
+gate/tests/render-edits.test.mjs	bad case: a block path with a segment ending in a space refuses on its text	gate/tests/render-edits.test.mjs	render block path: segment-ends-in-space
+gate/tests/render-edits.test.mjs	bad case: a block path with a reserved device name refuses on its text	gate/tests/render-edits.test.mjs	render block path: reserved-name
+gate/tests/render-edits.test.mjs	bad case: a block path with a reserved device name with an extension refuses on its text	gate/tests/render-edits.test.mjs	render block path: reserved-name-with-extension
+gate/tests/render-edits.test.mjs	bad case: a block path with a reserved COM name refuses on its text	gate/tests/render-edits.test.mjs	render block path: reserved-com
+gate/tests/render-edits.test.mjs	bad case: a block path with a reserved LPT name in a folder refuses on its text	gate/tests/render-edits.test.mjs	render block path: reserved-lpt-in-folder
+gate/tests/render-edits.test.mjs	bad case: a block path with a reserved NUL name refuses on its text	gate/tests/render-edits.test.mjs	render block path: reserved-nul
+gate/tests/render-edits.test.mjs	bad case: a block path with a space inside a name refuses on its text	gate/tests/render-edits.test.mjs	render block path: space-in-name
+gate/tests/render-edits.test.mjs	bad case: a block path with a non-ASCII letter refuses on its text	gate/tests/render-edits.test.mjs	render block path: non-ascii
+gate/tests/render-edits.test.mjs	bad case: a block path with a tilde refuses on its text	gate/tests/render-edits.test.mjs	render block path: tilde
+gate/tests/render-edits.test.mjs	bad case: a block path with an environment reference refuses on its text	gate/tests/render-edits.test.mjs	render block path: environment-reference
+gate/tests/render-edits.test.mjs	bad case: a block path with a path over 200 characters refuses on its text	gate/tests/render-edits.test.mjs	render block path: over-200-characters
+gate/tests/render-edits.test.mjs	bad case: a block path with more than 8 segments refuses on its text	gate/tests/render-edits.test.mjs	render block path: over-8-segments
