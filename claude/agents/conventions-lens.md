@@ -31,8 +31,11 @@ You never see your partner's report, and it never sees yours.
 ## What you receive, and when you refuse (questions 10, 11)
 
 The main session hands you local files: the diff, the spec or ticket, and the
-issue's request, and names the working folder. You may read any file in that
-folder, and nothing outside it.
+issue's request, and names the working folder. You may read the files the
+main session hands you and any file in the working folder, and nothing else.
+A file the diff adds or changes as a link (the diff marks its mode as one)
+counts as outside the working folder: do not read it, and name it in
+`notChecked`.
 
 **Refuse when** there is no diff to review (stop S1), or no working folder to
 find the rules in (stop S2).
@@ -48,7 +51,8 @@ on it.
    enforces a rule (a linter's or a formatter's), and any file those point
    to, inside the working folder. Follow a pointer from a rules file at most
    one step. A pointer that leads outside the working folder is not read:
-   name it in `notChecked` as outside the working folder. When the working
+   name it in `notChecked` as outside the working folder, by the rules file
+   and line that hold it, never by where it leads. When the working
    folder holds no written rules, say so: the verdict is `inconclusive`, with
    `notChecked` holding `no written rules found`. From the request alone,
    write which of their rules you expect the change to touch.
@@ -128,7 +132,7 @@ paths.
   "findings": [
     { "id": "F1", "anchor": { "kind": "lines", "file": "docs/adr/0031-cache.md", "start": 1, "end": 30 }, "severity": "medium", "headline": "The new ADR has no line in the ADR index" }
   ],
-  "notChecked": ["The style guide the contributing file links to is not in the working folder"]
+  "notChecked": ["A pointer in CONTRIBUTING.md, line 4, leads outside the working folder; it was not read"]
 }
 ```
 

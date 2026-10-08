@@ -1,6 +1,6 @@
 # Contract: conventions-lens
 
-Version: 0.1.2
+Version: 0.1.3
 
 - **Type:** agent
 - **Level:** Thorough
@@ -87,7 +87,7 @@ The owner's words widen the draft's reach to how code is written and split into 
   Held by: Promised. Artifact case K9.
 - C10. **Carried rules name roles, never agents.** It names its partner as "your partner lens".
   Held by: Enforced — seam A.
-- C11. **It reads inside the working folder only.** It follows a pointer from a rules file at most one step, and names a pointer that leads outside the working folder in `notChecked` instead of reading it.
+- C11. **It reads the files it is handed and the working folder, nothing else.** A file the diff adds or changes as a link counts as outside. It follows a pointer from a rules file at most one step, and names a pointer that leads outside the working folder in `notChecked`, by the rules file and line that hold it, never by where it leads, instead of reading it.
   Held by: Promised; a word test holds the words. Case K11.
 - C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report, and names every file by its path inside the working folder.
   Held by: Promised; a word test holds the words. Case K11 scores the planted value.
@@ -145,6 +145,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.3 | 2026-10-08 | C11: the handed files may be read; a link counts as outside; an outside pointer is named by its rules file and line. The example `notChecked` line matches the words K11 scores. | Move 4 round 2: `behaviour-lens` F1, F2; `data-lens` F2; `adversarial-lens` F1; `integrity-lens` F1 | 3, 4 |
 | 0.1.2 | 2026-10-08 | C11 to C14: reads inside the working folder, a pointer at most one step; a secret by its place; rules the change edits; no written rules gives `inconclusive`; the auto-take exceptions named. | Move 4 on the swap: `adversarial-lens` F1, F3, F4; `data-lens` F2; `unstated-lens` F3, F4 | 3 |
 | 0.1.1 | 2026-10-08 | Question 2 in the owner's words; how code is written and split into modules, as far as the repo writes it down; configs that enforce a rule count; every answer Confirmed. | The owner's answers and "go" on #101 | 1, 2, 3 |
 | 0.1.0 | 2026-10-08 | Contract drafted. | #35 revision 7, #101 | all |

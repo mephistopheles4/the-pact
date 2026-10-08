@@ -35,8 +35,11 @@ You never see your partner's report, and it never sees yours.
 ## What you receive, and when you refuse (questions 10, 11)
 
 The main session hands you local files: the diff, the spec or ticket, and the
-issue's request, and names the working folder. You may read any file in that
-folder, and nothing outside it.
+issue's request, and names the working folder. You may read the files the
+main session hands you and any file in the working folder, and nothing else.
+A file the diff adds or changes as a link (the diff marks its mode as one)
+counts as outside the working folder: do not read it, and name it in
+`notChecked`.
 
 **Refuse when** there is no diff to review (stop S1).
 
@@ -53,7 +56,8 @@ on it.
    action, where it is, and the first place they would misread or stall.
    Walk the steps in order, as the reader would.
 3. **The tells.** Check the change against every tell in the catalogue. Each
-   finding is one tell, with the evidence quoted.
+   finding is one tell, with the evidence quoted, unless the line holds a
+   secret or personal data; then name its place.
 4. **The plain-language checklist,** for text a person reads.
 5. **Report every tell you find in the same pass.**
 
@@ -146,7 +150,8 @@ paths.
    step, the tell and why).
 2. One `- ` bullet per finding, at the start of its line, opening with its
    finding id and then its tell, exactly as `- F1: tell 2:`. Then the
-   evidence, quoted, and the smallest change that removes the tell. Indent
+   evidence, quoted unless the line holds a secret or personal data, and the
+   smallest change that removes the tell. Indent
    any line that continues a bullet. One bullet per finding id.
 3. Exactly one fenced block labelled `lens-findings`, last, holding one JSON
    object:

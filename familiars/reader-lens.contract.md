@@ -1,6 +1,6 @@
 # Contract: reader-lens
 
-Version: 0.1.2
+Version: 0.1.3
 
 - **Type:** agent
 - **Level:** Thorough
@@ -93,7 +93,7 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
   Held by: Promised. Artifact case R10.
 - C11. **Carried rules name roles, never agents.** It names its partner as "your partner lens".
   Held by: Enforced — seam A.
-- C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report; evidence on a line that holds one is named by its place. It reads inside the working folder only, and names every file by its path there.
+- C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report; evidence on a line that holds one is named by its place, as both places that ask for quoted evidence say. It reads the files it is handed and the working folder, nothing else; a file the diff adds or changes as a link counts as outside. It names every file by its path inside the working folder.
   Held by: Promised; a word test holds the words. Case R12 scores the planted value.
 - C13. **The catalogue holds ten tells, in order.**
   Held by: Enforced — a word test counts them.
@@ -144,6 +144,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.3 | 2026-10-08 | C12: the handed files may be read; a link counts as outside; the secret exception written where evidence is quoted. | Move 4 round 2: `behaviour-lens` F2; `data-lens` F1; `adversarial-lens` F2 | 3 |
 | 0.1.2 | 2026-10-08 | C12: a secret by its place, inside the working folder; C13: the catalogue counted; the tell scored on every case with a finding; the auto-take exceptions named. | Move 4 on the swap: `data-lens` F1, `adversarial-lens` F2, `integrity-lens` F1 to F3, `unstated-lens` F4 | 3 |
 | 0.1.1 | 2026-10-08 | Question 2 in the owner's words; code in scope; the lens reframed around cohesion and understanding, with a carried catalogue of ten tells and no finding without one; severity by what a tell costs the reader; every answer Confirmed. | The owner's answers, challenge and "confirmed" on #101 | 1, 2, 3, 4 |
 | 0.1.0 | 2026-10-08 | Contract drafted. | #35 revision 7, #101 | all |
