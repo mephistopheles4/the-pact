@@ -19,6 +19,7 @@
 
 - **The baseline.** Main at 76c46c1, quiet, junit reporter: 1,651 cases (1,643 pass, 8 skip, 0 fail) in 33 files, in 714 s at cap 4 on Node 24.14.1.
 - **Move 4's full suite.** On commit 2a62ce0, quiet: exit 0 in 646 s, against the baseline's 714 s. 1,680 cases: the baseline's 1,651 with 0 gone and 0 status changes, the 2 smoke cases moved, and 29 new runner cases. The speed-up here is small and comes from no change to the install tests; #146 and #147 are where the full suite gets cheaper.
+- **The final full suite,** after move 4's fixes, on a65b10b, quiet: exit 0 in 393 s, 1,693 cases. That is the baseline with 0 gone, 0 changed, 2 moved and 42 new. The swing from 646 s to 393 s is machine load, not the change.
 - **The plants.** Thirteen plants each broke one rule in the runner, in four batches. Each made the test that guards the rule fail, and no other test, except one side effect the plant explains. See the Record.
 
 - **The Linux container.** The rebuilt image ran `full` on Node 20.20.2 with no network. The runner's own cases all passed there, including the control-character file-name case that Windows can't plant. Four practice payload cases failed, because the practice scorer's payload rule needs `node:sqlite`, which Node 20 lacks. Main fails the same four in the same image, so they predate this work.
@@ -56,3 +57,4 @@ Issue comments on mephistopheles4/the-pact#144:
 - `6066456063`, `6066440658`, `6066441035` — move 4's lens reports, through the cross script: the QA pair, `unstated-lens` and the security pair.
 - `6066560954`, `6066611913` — the plants for move 4's fixes: expected results and results.
 - `6066636782` — move 4's Lens dispositions.
+- `6066872845` — the final full suite against the baseline.
