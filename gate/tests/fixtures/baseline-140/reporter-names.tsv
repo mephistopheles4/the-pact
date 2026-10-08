@@ -1,0 +1,5 @@
+# Cases the junit report names differently from the baseline (#140), one line each.
+# <file>	<baseline name>	<reported name>, tab-separated, repo-relative.
+# Each line names one case; gate/tests/baseline-compare.mjs never matches by pattern.
+# None today: the compare reads names as T1 made the baseline (one unescape, a
+# nested case as its suite chain joined by " > "), so every case matches by name.

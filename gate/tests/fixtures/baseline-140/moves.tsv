@@ -1,0 +1,8 @@
+# The map of moves (#140): one line per baseline case that changed file or name.
+# <old file>	<old name>	<new file>	<new name>, tab-separated, repo-relative.
+# A move changes the file only, or turns a case into "<table>: <row id>" in its
+# own file, where that file registers the row. gate/tests/baseline-compare.mjs
+# checks every line. Each ticket's move 4 lists the lines it added.
+# T1 (#144): the install's happy path moved to the smoke file.
+gate/tests/install.test.mjs	dry run on a clean tree passes and shows Node, the pin, the check and the gate	gate/tests/install-smoke.test.mjs	dry run on a clean tree passes and shows Node, the pin, the check and the gate
+gate/tests/install.test.mjs	-Apply installs today's agents byte for byte, records the gate, and the next dry run sees no gate change	gate/tests/install-smoke.test.mjs	-Apply installs today's agents byte for byte, records the gate, and the next dry run sees no gate change

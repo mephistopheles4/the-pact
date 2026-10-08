@@ -160,7 +160,7 @@ test('the while-building check catches the rule deleted, or naming another tier'
 test('the Linux container script starts the runner with NODE_OPTIONS cleared', () => {
   const sh = readFileSync(join(HERE, 'fixtures', 'linux', 'run.sh'), 'utf8');
   const lines = sh.split('\n').filter(l => /\bnode\b.*run\.mjs/.test(l) && !l.trim().startsWith('#'));
-  assert.deepEqual(lines, ['env -u NODE_OPTIONS node gate/tests/run.mjs full --reporter tap']);
+  assert.deepEqual(lines, ['env -u NODE_OPTIONS node gate/tests/run.mjs full --reporter junit --record /out/record.txt']);
 });
 
 function which(cmd) {
