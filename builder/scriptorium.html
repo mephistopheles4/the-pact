@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-YJaIJ7hD58DXMxuhKArw6RbNAtn9NOVn5OtwAaFiETI='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-N6o+yfDEj13H4Knm7zofNtm44y/ZMIou/hBMzUjWPdA='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -567,14 +567,6 @@ const PACT = /* pact-data:begin */ {
    "text": "After the checks, list each public interface the change touched, and say\nwhether its docs were updated.",
    "standsIn": false,
    "why": "Catch public interfaces whose docs fell behind the change."
-  },
-  {
-   "id": "move-4-own-agent",
-   "title": "Own agent",
-   "mark": "move-4-extra",
-   "text": "Then run `my-reviewer`, an agent of your own from your agents folder, on the\ndiff, and post its report beside the QA pair's.",
-   "standsIn": false,
-   "why": "Run a reviewer of your own beside the QA pair."
   }
  ],
  "workflows": [

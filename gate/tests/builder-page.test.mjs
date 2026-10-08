@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
@@ -16,6 +16,7 @@ import { RENDER, REPO, lastLine, tempDir } from './helpers.mjs';
 import { WIN, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');
+const PAGE_NAME = basename(PAGE_REL);
 const sha256b64 = s => createHash('sha256').update(s, 'utf8').digest('base64');
 
 // ------------------------------------------------------------ the page's checks
@@ -386,6 +387,9 @@ test('a security-set lens off its default counts as an override on Agents and Re
   const s = L.initialState();
   s.agents['integrity-lens'].effort = 'low';
   assert.deepEqual(L.overrides(s), []);
+  s.agents['behaviour-lens'].effort = 'low';
+  assert.deepEqual(L.overrides(s), ['behaviour-lens'], 'an effort change alone is an override');
+  s.agents['behaviour-lens'].effort = L.PACT.agents.find(a => a.name === 'behaviour-lens').effort;
   s.agents['data-lens'].model = 'sonnet';
   assert.deepEqual(L.overrides(s), ['data-lens']);
   const by = Object.fromEntries(L.stepSummary(s).map(r => [r.id, r]));
@@ -485,6 +489,50 @@ test('stub page: an override shows on the Agents step and on Review, and a step 
   P.button(P.ids.spine, 'Add your own text').click();
   assert.equal(P.ids.here.hidden, false);
   assert.match(P.ids.here.text, /Fix · move-2 · card 1 is empty/);
+  // A second problem on move 3: each step lists only its own.
+  steps()[3].click();
+  P.button(P.ids.spine, 'Add your own text').click();
+  assert.match(P.ids.here.text, /move-3 · card 1 is empty/);
+  assert.doesNotMatch(P.ids.here.text, /move-2/);
+  steps()[2].click();
+  assert.doesNotMatch(P.ids.here.text, /move-3/);
+});
+
+test('stub page: the Agents step\'s own-agent card opens Move 4 on its Yours tab, and does not drag', () => {
+  const P = bootPage();
+  P.find(P.ids.stepper, n => n.tag === 'button')[5].click();
+  const tile = P.find(P.ids.agents, n => n.className === 'tile tile--yours')[0];
+  assert.ok(tile, 'no own-agent tile');
+  assert.ok(tile.attrs.draggable === undefined && !tile.listeners.dragstart, 'the own-agent tile still drags');
+  P.button(tile, "Open Move 4's Yours tab").click();
+  assert.deepEqual(P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id), ['move-4']);
+  assert.deepEqual(P.find(P.ids.sidebar, n => n.attrs.role === 'tab' && n.attrs['aria-selected'] === 'true').map(n => n.text), ['Yours']);
+  // The workflows text fits the wizard.
+  assert.match(P.ids.workflows.text, /Tweak each move on its own step after/);
+});
+test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
+  assert.equal(PAGE_REL, 'builder/scriptorium.html');
+  for (const f of ['README.md', 'AGENTS.md', join('.claude', 'skills', 'scriptorium', 'SKILL.md'), join('builder', 'build.mjs')]) {
+    const text = readFileSync(join(REPO, f), 'utf8');
+    assert.match(text, /scriptorium\.html/, `${f} does not name the page`);
+    assert.doesNotMatch(text, /pact-config\.html|pact-builder/, `${f} still names the old page or skill`);
+  }
+  assert.match(readFileSync(join(REPO, '.claude', 'skills', 'scriptorium', 'SKILL.md'), 'utf8'), /^name: scriptorium$/m);
+});
+
+test('the example builder offers the "Matt Pocock\'s skills" workflow from #127\'s three blocks, and no retired or fixed-name preset', () => {
+  const w = L.PACT.workflows.find(x => x.id === 'matt-pocock-skills');
+  assert.ok(w, 'no Matt Pocock workflow');
+  assert.deepEqual(w.presets, ['move-1-matt-pocock', 'move-2-matt-pocock', 'move-3-matt-pocock']);
+  for (const id of w.presets) {
+    const p = L.PACT.presets.find(x => x.id === id);
+    assert.equal(`${p.text}\n`, readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', `${id}.md`), 'utf8'));
+  }
+  assert.deepEqual(L.PACT.workflows.map(x => x.id), ['pact-default', 'close-the-loop', 'matt-pocock-skills']);
+  const ids = L.PACT.presets.map(x => x.id);
+  assert.ok(!ids.includes('move-1-no-wayfinder'), 'the retired No wayfinder preset is back');
+  // A preset may not name an agent the page cannot rename: the "Your agent" card asks for the name.
+  assert.ok(!L.PACT.presets.some(x => /`my-reviewer`/.test(x.text)), 'a preset names a fixed own agent');
 });
 test('findings never refuse: a preset with no why, and one naming a skill the file does not list', t => {
   const r = checkBuilder(REPO, builderFile(t, { ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Use the `ghost-skill` skill.' }], workflows: [] }));
@@ -509,7 +557,7 @@ test('the command line writes a page from a builder file, and refuses to write o
   assert.equal(over.status, 1, over.stdout);
   assert.match(over.stdout, /must be outside this clone/);
   // Any spelling of a path inside the clone, or of the builder file, is refused.
-  for (const spelt of [join(REPO, 'builder', 'PACT-CONFIG.html'), join(REPO, 'builder', 'mine.html'), WIN ? REPO.charAt(0).toLowerCase() + REPO.slice(1) + '\\builder\\mine.html' : join(REPO, 'builder', 'mine.html')]) {
+  for (const spelt of [join(REPO, 'builder', PAGE_NAME.toUpperCase()), join(REPO, 'builder', 'mine.html'), WIN ? REPO.charAt(0).toLowerCase() + REPO.slice(1) + '\\builder\\mine.html' : join(REPO, 'builder', 'mine.html')]) {
     const r = cli(['--builder', f, '--out', spelt]);
     assert.equal(r.status, 1, `${spelt}: ${r.stdout}`);
     assert.match(r.stdout, /must be outside this clone/);
@@ -598,7 +646,7 @@ test('a slot\'s edit follows from two things: whether its default is replaced, a
 test('two cards in one slot become one block file, joined with no blank line; remove carries no file', () => {
   const s = L.initialState();
   L.addPreset(s, 'move-4-extra', 'move-4-docs-check');
-  L.addPreset(s, 'move-4-extra', 'move-4-own-agent');
+  s.slots['move-4-extra'].cards.push({ kind: 'custom', text: 'Say which tests you ran.' });
   s.slots['move-1'].replaced = true;
   const files = JSON.parse(JSON.stringify(L.buildFiles(s)));
   assert.deepEqual(JSON.parse(files[0].text).edits, [
@@ -606,7 +654,7 @@ test('two cards in one slot become one block file, joined with no blank line; re
     { mark: 'move-4-extra', op: 'add-after', file: 'move-4-extra.md' },
   ]);
   const block = files.find(f => f.path === 'blocks/move-4-extra.md').text;
-  const want = ['move-4-docs-check', 'move-4-own-agent'].map(id => readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', `${id}.md`), 'utf8')).join('');
+  const want = `${readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'move-4-docs-check.md'), 'utf8')}Say which tests you ran.\n`;
   assert.equal(block, want);
 });
 
@@ -829,7 +877,7 @@ function installSaved(t, state) {
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.match(rules, /^\*\*Configuration in effect\.\*\*/m);
   // The page is never installed.
-  assert.ok(!listTree(h).some(p => /pact-config\.html$/i.test(p)));
+  assert.ok(!listTree(h).some(p => p.toLowerCase().endsWith(PAGE_NAME.toLowerCase())), 'the page was installed');
   return { rules, files, h };
 }
 

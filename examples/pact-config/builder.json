@@ -36,13 +36,6 @@
       "slot": "move-4-extra",
       "file": "blocks/move-4-docs-check.md",
       "why": "Catch public interfaces whose docs fell behind the change."
-    },
-    {
-      "id": "move-4-own-agent",
-      "title": "Own agent",
-      "slot": "move-4-extra",
-      "file": "blocks/move-4-own-agent.md",
-      "why": "Run a reviewer of your own beside the QA pair."
     }
   ],
   "workflows": [

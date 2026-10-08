@@ -42,15 +42,16 @@ The owner raised #53 on 2026-10-04. The ask was a file where a person brings the
 
 - **Each slice ended with move 4.** The QA pair read every slice. The security reviewer read the first four, and the security pair read the last three. Every finding was fixed or taken before the owner decided.
 - **Picks.** Where the owner gave a pick, it was "none". It mismatched on #94 (C13), on #95 (C6, walked through in chat), and on #97 three times: C12, the spec change's S2 to S4, and C4 and C7. Each mismatch on #97 was resolved before owner review.
-- **The cross script** refused two security-pair reports on rule `symbol`, a symbol holding a hyphen: on #95 and on #97's first move 4. Both reports were posted folded, and no lens was rerun.
-- **The suite grew** from 636 tests at #91 to 1,609 at #97's last move 4, with 0 failing.
+- **The cross script** refused two security-pair reports on rule `symbol`, a symbol holding a hyphen: on #95 and on #97's first move 4. Both reports were posted folded, and no lens was rerun. On the wizard's move 4 it refused one `integrity-lens` report on rule `anchor`, because the session had renumbered the claims after dispatching it. That lens was rerun fresh.
+- **The suite grew** from 636 tests at #91 to 1,647 on #97's last merge of main, with 0 failing.
 - **The live install's dry run** on #97, before merge: Drift 0, Delete 0. Installing is the owner's call after merge.
 
 ## What is still open
 
 - **#135:** the cross script should add the override mark to a marked lens's section itself, so the mark no longer depends on a session following the notice.
 - **#121:** move 4's "Worth a look" line and the thinking mirror, blocked on grimoire#151.
-- **#123:** rewriting the moves without named skills, from the owner's research.
+- **#143:** a workflow builder, the pact drawn as a graph. The owner asked for it after trying the wizard, which stays as v1 until it lands.
+- **#123:** rewriting the moves without named skills, from the owner's research. Its first tickets have landed (#126, #127), and PR #120 carries #128's build: the "Matt Pocock's skills" workflow, with the "No wayfinder" preset gone (comment 6060928182 on #128).
 - **#90:** the soft reviewer, parked during #53's spec review.
 
 ## Record
@@ -86,4 +87,6 @@ The owner raised #53 on 2026-10-04. The ask was a file where a person brings the
   - the builder file and skill: 6046716507;
   - move 4 on 6981a02: 6046760266, 6046760739, 6046761069, with dispositions 6046917721;
   - the unlock spec: 6051819812, its reviews 6051880927, 6051881177 and 6051881381, dispositions 6051960683, and revision 1, 6051960947;
-  - move 4 on 7564a9c..0ba7b6f: 6059432857, 6059433252, 6059433636, the state 6059434105, and dispositions 6059455022.
+  - move 4 on 7564a9c..0ba7b6f: 6059432857, 6059433252, 6059433636, the state 6059434105, and dispositions 6059455022;
+  - move 4 on the wizard (09c28ac): 6061135110 and 6061135541, with dispositions 6061136094;
+  - the last move 4, on the page rename, this log, the wizard's fixes and the merges of main: its cross sections and dispositions follow those on #97.

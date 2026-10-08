@@ -29,6 +29,7 @@ Main has 1,442 cases. The runs before the new test had the same 1,442 names and 
 
 - **The flag fails on Node 20.0.** It starts at 20.10. The owner answered by asking to be on the Node LTS with Volta.
 - **Move 4, integrity lens:** dropping the test folder removed the only test of the install script's skip. Fixed with the new test above.
+- **Renumbered on merge.** PR #120 already held ADRs 0025 to 0027, so this work's ADR is 0029. #133's comments and PR #141 cite it as 0025, which names another decision once #120 merges.
 
 ## Record
 

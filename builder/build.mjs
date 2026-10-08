@@ -368,8 +368,8 @@ export function presetsThroughRenderer(root, presets) {
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   for (const p of presets) {
-    const home = mkdtempSync(join(tmpdir(), 'pact-builder-check-'));
-    const dest = mkdtempSync(join(tmpdir(), 'pact-builder-out-'));
+    const home = mkdtempSync(join(tmpdir(), 'scriptorium-check-'));
+    const dest = mkdtempSync(join(tmpdir(), 'scriptorium-out-'));
     try {
       mkdirSync(join(home, 'pact', 'blocks'), { recursive: true });
       writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: p.mark, op: 'add-after', file: 'b.md' }] })}\n`);
@@ -396,8 +396,8 @@ function agentClassesThroughRenderer(root, agents) {
   if (!agents.length) return {};
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const home = mkdtempSync(join(tmpdir(), 'pact-builder-agents-'));
-  const dest = mkdtempSync(join(tmpdir(), 'pact-builder-out-'));
+  const home = mkdtempSync(join(tmpdir(), 'scriptorium-agents-'));
+  const dest = mkdtempSync(join(tmpdir(), 'scriptorium-out-'));
   try {
     mkdirSync(join(home, 'pact'), { recursive: true });
     const set = Object.fromEntries(agents.map(a => [a.name, { model: a.model === 'opus' ? 'sonnet' : 'opus' }]));

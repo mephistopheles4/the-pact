@@ -48,7 +48,11 @@ The builder file's shape is in the header of `builder/build.mjs`.
    `why` in the person's terms. Set `standsIn` only for text written to
    replace the slot's default. A workflow bundles the presets they use
    together. Drop a preset only when the person says so or its skill is gone,
-   and say which you dropped. Ask the person which moves feel heavy or thin
+   and say which you dropped. One exception: a preset with `standsIn` whose
+   text names skills replaces a move's text with wording from before the
+   moves named practices (ADR 0028). Flag it to the person and offer to drop
+   it, or to rewrite it as an add-after preset. The retired
+   `move-1-no-wayfinder` is one. Ask the person which moves feel heavy or thin
    before you add presets of your own. Write preset text in your own words,
    from their answers or from what a skill plainly does. Done when each
    preset traces to something in step 2 or to an answer they gave.
