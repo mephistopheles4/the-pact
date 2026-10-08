@@ -8,7 +8,21 @@ param(
   # The full rendered hash the dry run showed. -Apply needs it whenever a
   # configuration applies, and a hash given is always compared. (Its name must
   # not start with A or C, so -A and -C stay unambiguous.)
-  [string]$RenderedHash
+  [string]$RenderedHash,
+  # Never given by name. A plain script binds every parameter by position too,
+  # so a stray word after the named options would bind to the next one; this
+  # one comes first and takes it, and any word here refuses below.
+  [string]$UnreadWord,
+  # A folder for the review output: once every check passes, the rendered rules
+  # file and the diff from the no-configuration render are written there. (Its
+  # name must not start with A or C either.)
+  [string]$ReviewFolder,
+  # A project folder, for a project install: it writes one rules file and its
+  # record in the project's .claude/rules folder, from the project's
+  # configuration file, and nothing in the Claude home folder. (Declared after
+  # -UnreadWord, so a stray word can never bind here and turn a home install
+  # into a project install.)
+  [string]$ProjectFolder
 )
 $ErrorActionPreference = 'Stop'
 # Installs the pact from this clone's committed HEAD into -ClaudeHome (default
@@ -33,16 +47,44 @@ $ErrorActionPreference = 'Stop'
 # render, so a configuration that changed, appeared or was deleted after the
 # dry run refuses. It proves the files did not change between the two runs; it
 # does not prove the owner read the dry run.
+#
+# The review output: with -ReviewFolder, once every check for the run has
+# passed (the dry run's, and on -Apply its own refusals too), gate/review.mjs
+# writes rendered-rules.txt and config.diff into that folder, which must be new
+# or empty and outside the Claude home folder and any .claude folder. Without
+# the switch, a dry run changes nothing on disk.
+#
+# The project install: with -ProjectFolder, the install stages and gates HEAD
+# as a home install does, and runs the renderer twice, the whole stage hashed
+# around each run: first with no configuration, to give the stage its no-file
+# render for seam A; then, after seam A passes, with the user file and the
+# project's configuration file (.claude/pact-config.json in the project), to
+# give the project rules file. That file holds only fixed-template lines for
+# values strictly tighter than the user's. gate/project.mjs checks the project
+# folder against the home folders and checks every path it writes, and on
+# -Apply writes the rules file and its record in the project's .claude/rules
+# folder, each through one contained write. Git and Node never run with the
+# project folder as their working folder, and git is never pointed at it.
+# Nothing is installed in the Claude home folder, and no agents go into the
+# project. Like a home install it is a dry run unless -Apply is given, and
+# -Apply needs the project rules file's full rendered hash. That hash binds
+# the bytes installed, not the configuration files behind them: a user or
+# project file changed after the dry run still installs when it renders the
+# same bytes (the owner's call on #95). Nothing looser can get in that way,
+# since the bytes are the ones the dry run showed; the record and the final
+# line then name this run's digest.
 
 $repo = Split-Path $PSScriptRoot -Parent
 # A plain script puts any option name it does not know, and the value after
 # it, into $args without a word. So a misspelled -RenderedHash would never be
 # compared, and a misspelled -ClaudeHome would fall back to the default. Any
-# such word refuses. Option names are shown, cleaned; values never are.
-if ($args.Count) {
-  $names = @($args | Where-Object { $_ -is [string] -and $_ -match '^-' } | ForEach-Object { $n = $_ -replace '[^A-Za-z0-9-]', '?'; if ($n.Length -gt 40) { $n.Substring(0, 40) + '...' } else { $n } })
+# such word refuses, and so does a word bound to -UnreadWord by position.
+# Option names are shown, cleaned; values never are.
+$unread = @(@(if ($PSBoundParameters.ContainsKey('UnreadWord')) { $UnreadWord }) + @($args))
+if ($unread.Count) {
+  $names = @($unread | Where-Object { $_ -is [string] -and $_ -match '^-' } | ForEach-Object { $n = $_ -replace '[^A-Za-z0-9-]', '?'; if ($n.Length -gt 40) { $n.Substring(0, 40) + '...' } else { $n } })
   $named = if ($names) { " ($($names -join ', '))" } else { '' }
-  $words = if ($args.Count -eq 1) { '1 word' } else { "$($args.Count) words" }
+  $words = if ($unread.Count -eq 1) { '1 word' } else { "$($unread.Count) words" }
   Write-Host "REFUSED: the command line holds $words the script does not read$named. Check each option's spelling. Nothing was changed."
   exit 1
 }
@@ -56,6 +98,28 @@ if (-not [IO.Path]::IsPathFullyQualified($ClaudeHome)) {
   Write-Host 'REFUSED: -ClaudeHome must be a full path, such as the default (your home folder''s .claude). A hash goes after -RenderedHash. Nothing was changed.'
   exit 1
 }
+# The review folder likewise: the review module runs in the stage, where a
+# relative path would name a third folder.
+$reviewGiven = $PSBoundParameters.ContainsKey('ReviewFolder')
+if ($reviewGiven -and -not [IO.Path]::IsPathFullyQualified($ReviewFolder)) {
+  Write-Host 'REFUSED: -ReviewFolder must be a full path. Nothing was changed.'
+  exit 1
+}
+# The project folder likewise, for the same reason.
+$projectGiven = $PSBoundParameters.ContainsKey('ProjectFolder')
+if ($projectGiven -and -not [IO.Path]::IsPathFullyQualified($ProjectFolder)) {
+  Write-Host 'REFUSED: -ProjectFolder must be a full path. Nothing was changed.'
+  exit 1
+}
+if ($projectGiven -and $reviewGiven) {
+  Write-Host 'REFUSED: -ReviewFolder is for a home install; a project install writes no review output. Nothing was changed.'
+  exit 1
+}
+# The fixed names a project install reads and writes, under the project folder.
+$projectConfigRel = '.claude/pact-config.json'
+$projectRulesRel = '.claude/rules/pact-project.md'
+$projectRecordRel = '.claude/rules/pact-project.record.json'
+$projectAttrRels = @('.claude', '.claude/rules', $projectRulesRel, $projectConfigRel, $projectRecordRel)
 $claudeHomeFull = [IO.Path]::GetFullPath($ClaudeHome)
 $ClaudeHome = $claudeHomeFull
 $configRel = 'pact/config.json'
@@ -120,6 +184,25 @@ function Test-ThroughLink($rel) {
     if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $true }
   }
   $false
+}
+
+# The reparse-attribute test for a project install, rooted at the project
+# folder's real path: each path in $rels, and every folder on the way to it.
+# $null when none is a link or other reparse point; otherwise the first
+# offending path. One that does not exist is fine (the walk stops there); one
+# that cannot be read refuses, so an unreadable entry never passes as plain.
+function Get-ReparseUnder([string]$root, [string[]]$rels) {
+  foreach ($rel in $rels) {
+    $p = $root
+    foreach ($seg in $rel.Split('/')) {
+      $p = Join-Path $p $seg
+      try { $attr = [IO.File]::GetAttributes($p) }
+      catch [IO.FileNotFoundException], [IO.DirectoryNotFoundException] { break }
+      catch { return "$rel (unreadable)" }
+      if ($attr -band [IO.FileAttributes]::ReparsePoint) { return $rel }
+    }
+  }
+  $null
 }
 
 # $null when the entry is safe to act on; otherwise the reason to skip it.
@@ -428,10 +511,12 @@ function Show-Gate {
   if ($gateLines) { foreach ($l in $gateLines) { Write-Host $l } }
 }
 
-function Stop-Refused([string]$why) {
+# $outcome says what is on disk. It is "Nothing was changed." everywhere but
+# after the review module has run, which may have written its two files.
+function Stop-Refused([string]$why, [string]$outcome = 'Nothing was changed.') {
   Show-Gate
-  Write-Host "REFUSED: $why Nothing was changed."
-  foreach ($d in @($stage, $renderOut)) {
+  Write-Host "REFUSED: $why $outcome"
+  foreach ($d in @($stage, $renderOut, $noHome, $projectOut)) {
     if ($d -and (Test-Path -LiteralPath $d)) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
   }
   exit 1
@@ -440,6 +525,8 @@ function Stop-Refused([string]$why) {
 # --- stage HEAD ----------------------------------------------------------------
 $stage = $null
 $renderOut = $null
+$noHome = $null
+$projectOut = $null
 try {
 $commit = (Invoke-Git rev-parse HEAD).Trim()
 $dirty = @(Invoke-Git status --porcelain)
@@ -451,14 +538,24 @@ if (Test-Path -LiteralPath $manifestFile) {
   if (-not ($manifest.commit -and $manifest.files)) { throw "$manifestFile is not a pact manifest (needs commit and files); fix or remove it" }
 }
 
-# The record's configuration: kind -> sha256 of each configuration file the
-# last install read. A record from before configurations holds none.
+# The record's configuration: "user", or "block <path>" -> sha256 of each
+# configuration file the last install read. A record from before
+# configurations holds none. Its keys are only compared, never printed.
 $lastConfig = New-OrderedMap
 if ($manifest -and $manifest.config) {
-  foreach ($c in @($manifest.config)) { if ($c.kind -is [string] -and $c.sha256 -is [string]) { $lastConfig[$c.kind] = $c.sha256 } }
+  foreach ($c in @($manifest.config)) {
+    if ($c.kind -isnot [string] -or $c.sha256 -isnot [string]) { continue }
+    if ($c.kind -ceq 'user') { $lastConfig['user'] = $c.sha256 }
+    elseif ($c.kind -ceq 'block' -and $c.path -is [string]) { $lastConfig["block $($c.path)"] = $c.sha256 }
+  }
 }
-Write-Host "Install from commit $commit into $ClaudeHome"
-if ($manifest) {
+if ($projectGiven) {
+  Write-Host "Project install from commit $commit into the project folder $(Format-Plain $ProjectFolder)"
+  Write-Host "It reads the user configuration under $ClaudeHome and writes nothing there."
+}
+else { Write-Host "Install from commit $commit into $ClaudeHome" }
+if ($projectGiven) { }
+elseif ($manifest) {
   $lastDigest = if ($manifest.digest -is [string] -and $manifest.digest -cmatch '\A[0-9a-f]{12}\z') { "configuration $($manifest.digest)" } else { 'no configuration' }
   Write-Host "Last install: $(Format-Plain $manifest.commit) with $lastDigest"
 }
@@ -548,6 +645,36 @@ Write-Host "Git: $git"
 Write-Host "Node: $node ($nodeVersion)"
 Write-Host "Pinned check: grimoire $pinCommit, sha256 verified"
 
+# --- project: the folder's checks ------------------------------------------------
+# A project install checks the project folder before anything reads from it:
+# gate/project.mjs (from the stage, run in the stage) checks the home-folder
+# relations and the paths a project install reads and writes, and prints the
+# folder's real path. That line is parsed, never shown. Then this script's own
+# reparse-attribute test runs on the same paths, rooted at that real path, as
+# the first layer, since Node's lstat reads some reparse points as plain files.
+$projectRoot = $null; $projectState = $null
+function Test-ProjectAttributes {
+  $hit = Get-ReparseUnder $projectRoot $projectAttrRels
+  if ($hit) { Stop-Refused "a project path is a link or other reparse point, or could not be read: $hit." }
+}
+if ($projectGiven) {
+  $projectMod = Join-Path $stage 'gate/project.mjs'
+  if (-not (Test-Path -LiteralPath $projectMod -PathType Leaf)) { Stop-Refused 'the project module (gate/project.mjs) is missing.' }
+  $pc = Invoke-Node $node @($projectMod, 'check', [IO.Path]::GetFullPath($ProjectFolder), $claudeHomeFull) $checkTimeoutMs
+  $pcLines = @($pc.Stdout -split "`n" | Where-Object { $_ -ne '' })
+  Show-ProgramLines @($pcLines | Where-Object { $_ -cnotlike 'ROOT *' }) 'project'
+  if ($pc.StderrChars) { Write-Host 'The project module wrote to stderr; it is not shown.' }
+  if ($pc.TimedOut) { Stop-Refused "the project check did not finish within $($checkTimeoutMs / 1000) s." }
+  if ($pc.ExitCode -ne 0 -or -not $pcLines -or $pcLines[-1] -cne 'RESULT: pass') { Stop-Refused 'the project folder failed its checks.' }
+  if ($pcLines.Count -ne 3 -or $pcLines[0] -cnotmatch '\AROOT (.+)\z') { Stop-Refused 'the project check did not report exactly the folder and its state.' }
+  $projectRoot = $Matches[1]
+  if (-not [IO.Path]::IsPathFullyQualified($projectRoot)) { Stop-Refused 'the project check reported a folder that is not a full path.' }
+  if ($pcLines[1] -ceq 'STATE new') { $projectState = @{ kind = 'new' } }
+  elseif ($pcLines[1] -cmatch '\ASTATE update ([0-9a-f]{64})\z') { $projectState = @{ kind = 'update'; sha256 = $Matches[1] } }
+  else { Stop-Refused 'the project check did not report the state of the rules file.' }
+  Test-ProjectAttributes
+}
+
 # --- render --------------------------------------------------------------------
 # The renderer runs from the stage, before seam A, through the same Node runner.
 # The whole stage is hashed before it runs and again after it exits, so any
@@ -579,7 +706,15 @@ if (-not (Test-Path -LiteralPath $renderer -PathType Leaf)) { Stop-Refused 'the 
 if (-not $staged.Contains($rulesRel)) { Stop-Refused "the commit holds no $rulesRel." }
 try { $stageBefore = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read before the renderer ran.' }
 $renderOut = [IO.Directory]::CreateTempSubdirectory('pact-render-').FullName
-$render = Invoke-Node $node @($renderer, $rulesStaged, $renderOut, $claudeHomeFull) $checkTimeoutMs
+# A project install gives the stage its no-file render: the renderer runs
+# against a new, empty folder in place of the Claude home folder, so no
+# configuration applies to the stage. The user file is read in the second run.
+$renderHome = $claudeHomeFull
+if ($projectGiven) {
+  $noHome = [IO.Directory]::CreateTempSubdirectory('pact-nohome-').FullName
+  $renderHome = $noHome
+}
+$render = Invoke-Node $node @($renderer, $rulesStaged, $renderOut, $renderHome) $checkTimeoutMs
 $renderLines = @($render.Stdout -split "`n" | Where-Object { $_ -ne '' })
 Show-ProgramLines $renderLines 'render'
 if ($render.StderrChars) { Write-Host 'The renderer wrote to stderr; it is not shown.' }
@@ -587,15 +722,33 @@ if ($render.TimedOut) { Stop-Refused "the renderer did not finish within $($chec
 if ($render.ExitCode -ne 0) { Stop-Refused "the renderer exited with code $($render.ExitCode)." }
 if (-not $renderLines -or $renderLines[-1] -cne 'RESULT: pass') { Stop-Refused 'the renderer did not end with "RESULT: pass".' }
 # Every line before RESULT matches one exact pattern, in these counts: one
-# RENDERED; one CONFIG, either "none" or "user <hash>"; with "user", one
-# DIGEST, which must be the digest of the reported hash, and at most one VALUE
-# per known setting; with "none", neither.
-$renderHash = $null; $configs = @(); $configDigest = $null
+# RENDERED and one DIFF; one CONFIG, either "none" or "user <hash>"; with
+# "user", one DIGEST, which must be the digest of the reported hashes, at most
+# one VALUE per known setting and at most one EDIT per open part; with "none",
+# none of those. An EDIT with a block names its hash and its path, which can
+# hold only the characters the renderer's path check allows.
+$renderHash = $null; $diffHash = $null; $configs = @(); $configDigest = $null
 $configValues = New-OrderedMap   # setting -> value, in the renderer's order
+$configEdits = New-OrderedMap    # open part -> @{ op; sha256; path }, in edit order
+$blockHashes = New-OrderedMap    # block path -> sha256
 foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) {
   if ($l -cmatch '\ARENDERED ([0-9a-f]{64})\z') {
     if ($renderHash) { Stop-Refused 'the renderer reported two output hashes.' }
     $renderHash = $Matches[1]
+  } elseif ($l -cmatch '\ADIFF ([0-9a-f]{64})\z') {
+    if ($diffHash) { Stop-Refused 'the renderer reported two diff hashes.' }
+    $diffHash = $Matches[1]
+  } elseif ($l -cmatch '\AEDIT (move-1|move-2|move-3|move-4-extra) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+){0,7}))\z') {
+    $mark = $Matches[1]
+    if ($configEdits.Contains($mark)) { Stop-Refused 'the renderer reported one open part edited twice.' }
+    if ($Matches[2]) { $configEdits[$mark] = @{ op = 'remove'; sha256 = $null; path = $null } }
+    else {
+      $bp = $Matches[5]
+      if ($bp.Length -gt 200 -or @($bp.Split('/') | Where-Object { $_ -eq '.' -or $_ -eq '..' -or $_.EndsWith('.') }).Count) { Stop-Refused 'the renderer reported a block path the install does not read.' }
+      if ($blockHashes.Contains($bp) -and $blockHashes[$bp] -cne $Matches[4]) { Stop-Refused 'the renderer reported two hashes for one block file: it changed while it was read.' }
+      $blockHashes[$bp] = $Matches[4]
+      $configEdits[$mark] = @{ op = $Matches[3]; sha256 = $Matches[4]; path = $bp }
+    }
   } elseif ($l -ceq 'CONFIG none') { $configs += , @{ kind = 'none' } }
   elseif ($l -cmatch '\ACONFIG user ([0-9a-f]{64})\z') { $configs += , @{ kind = 'user'; sha256 = $Matches[1] } }
   elseif ($l -cmatch '\ADIGEST ([0-9a-f]{12})\z') {
@@ -606,29 +759,37 @@ foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) 
     $configValues[$Matches[1]] = $Matches[2]
   } else { Stop-Refused 'the renderer printed a line the install does not read.' }
 }
-if (-not $renderHash -or $configs.Count -ne 1) { Stop-Refused 'the renderer did not report exactly one output hash and one configuration line.' }
+if (-not $renderHash -or -not $diffHash -or $configs.Count -ne 1) { Stop-Refused 'the renderer did not report exactly one output hash, one diff hash and one configuration line.' }
 $config = $configs[0]
+if ($projectGiven -and $config.kind -cne 'none') { Stop-Refused "the stage's render on a project install read a configuration." }
 if ($config.kind -ceq 'none') {
-  if ($configDigest -or $configValues.Count) { Stop-Refused 'the renderer reported a digest or a value with no configuration.' }
+  if ($configDigest -or $configValues.Count -or $configEdits.Count) { Stop-Refused 'the renderer reported a digest, a value or an edit with no configuration.' }
 } else {
-  $wantDigest = (Get-BytesSha256 ([Text.Encoding]::ASCII.GetBytes("user $($config.sha256)`n"))).Substring(0, 12)
-  if ($configDigest -cne $wantDigest) { Stop-Refused "the renderer's configuration digest is missing or does not match the configuration hash it reported." }
+  # The digest, from the user file's hash and each edit's block, in edit order.
+  $digestText = "user $($config.sha256)`n"
+  foreach ($e in $configEdits.Values) { if ($e.path) { $digestText += "block $($e.path) $($e.sha256)`n" } }
+  $wantDigest = (Get-BytesSha256 ([Text.Encoding]::ASCII.GetBytes($digestText))).Substring(0, 12)
+  if ($configDigest -cne $wantDigest) { Stop-Refused "the renderer's configuration digest is missing or does not match the configuration hashes it reported." }
 }
 try { $stageAfter = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read after the renderer ran.' }
 if ($stageAfter -cne $stageBefore) { Stop-Refused 'the renderer changed the stage.' }
-$outEntries = @([IO.DirectoryInfo]::new($renderOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }))
-if ($outEntries.Count -ne 1 -or $outEntries[0].Name -cne 'CLAUDE.md' -or $outEntries[0] -isnot [IO.FileInfo] -or
-  ($outEntries[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -or $outEntries[0].Length -gt 1MB) {
-  Stop-Refused 'the renderer did not leave exactly one plain rules file of at most 1 MiB.'
+# Exactly the rules file and the diff, both plain files within their caps.
+$outEntries = @([IO.DirectoryInfo]::new($renderOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }) | Sort-Object Name)
+$outOk = $outEntries.Count -eq 2 -and $outEntries[0].Name -ceq 'CLAUDE.md' -and $outEntries[1].Name -ceq 'config.diff'
+foreach ($e in $outEntries) { if ($e -isnot [IO.FileInfo] -or ($e.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $e.Length -gt 4MB) { $outOk = $false } }
+if (-not $outOk -or $outEntries[0].Length -gt 1MB) {
+  Stop-Refused 'the renderer did not leave exactly its rules file of at most 1 MiB and its diff.'
 }
 $renderedBytes = [IO.File]::ReadAllBytes($outEntries[0].FullName)
 # Not $renderedHash: PowerShell names ignore case, so that would be -RenderedHash.
 $rulesHash = Get-BytesSha256 $renderedBytes
 if ($renderedBytes.Length -gt 1MB -or $rulesHash -cne $renderHash) { Stop-Refused "the rendered rules file's hash does not match the one the renderer reported." }
+# The diff is kept outside the stage, for the review output only; it is never installed.
+$diffFile = $outEntries[1].FullName
+if ((Get-BytesSha256 ([IO.File]::ReadAllBytes($diffFile))) -cne $diffHash) { Stop-Refused "the diff's hash does not match the one the renderer reported." }
 [IO.File]::WriteAllBytes($rulesStaged, $renderedBytes)
 $staged[$rulesRel] = $rulesHash
-Remove-Item -LiteralPath $renderOut -Recurse -Force
-$renderOut = $null
+Remove-Item -LiteralPath $outEntries[0].FullName -Force
 
 $seamA = Join-Path $stage 'gate/seam-a.mjs'
 if (-not (Test-Path -LiteralPath $seamA -PathType Leaf)) { Stop-Refused 'the check (gate/seam-a.mjs) is missing.' }
@@ -684,7 +845,125 @@ $overlay = Read-JsonObject ($utf8.GetString($overlayBytes))
 if ($null -eq $overlay) { Stop-Refused 'the settings overlay is not a JSON object.' }
 $pactAsk = [string[]]@($overlay['permissions']['ask'])
 Write-Host "Check: passed on commit $commit"
-Write-Host "Partly checked: the rendered CLAUDE.md's marked clauses are checked word for word, and its open text for form, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file."
+Write-Host "Partly checked: the rendered CLAUDE.md's marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file."
+
+# --- project: render, plan, apply ------------------------------------------------
+# A project install ends here, never reaching the home copy, delete, settings
+# merge or record. After seam A has passed the commit, the renderer runs a
+# second time, the whole stage hashed around it as around the first run: with
+# the user file and the project file, in project mode, to give the project
+# rules file. Its lines are parsed here alone against exact patterns: one
+# RENDERED, one CONFIG, one PROJECT, one DIGEST (which must be the digest of
+# the reported hashes) and at least one VALUE per known setting, at most once
+# each.
+if ($projectGiven) {
+  # The user tree's attribute test ran above, before the first render.
+  Test-ProjectAttributes
+  try { $stageBefore = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read before the project render.' }
+  $projectOut = [IO.Directory]::CreateTempSubdirectory('pact-project-').FullName
+  $pr = Invoke-Node $node @($renderer, 'project', $projectOut, $claudeHomeFull, $projectRoot) $checkTimeoutMs
+  $prLines = @($pr.Stdout -split "`n" | Where-Object { $_ -ne '' })
+  Show-ProgramLines $prLines 'render'
+  if ($pr.StderrChars) { Write-Host 'The renderer wrote to stderr; it is not shown.' }
+  if ($pr.TimedOut) { Stop-Refused "the project render did not finish within $($checkTimeoutMs / 1000) s." }
+  if ($pr.ExitCode -ne 0) { Stop-Refused "the project render exited with code $($pr.ExitCode)." }
+  if (-not $prLines -or $prLines[-1] -cne 'RESULT: pass') { Stop-Refused 'the project render did not end with "RESULT: pass".' }
+  $projectHash = $null; $projectFileHash = $null; $projectDigest = $null; $projectUser = $null; $projectUserSeen = $false
+  $projectValues = New-OrderedMap
+  foreach ($l in @($prLines | Select-Object -First ($prLines.Count - 1))) {
+    if ($l -cmatch '\ARENDERED ([0-9a-f]{64})\z') {
+      if ($projectHash) { Stop-Refused 'the project render reported two output hashes.' }
+      $projectHash = $Matches[1]
+    } elseif ($l -cmatch '\ACONFIG (?:none|user ([0-9a-f]{64}))\z') {
+      if ($projectUserSeen) { Stop-Refused 'the project render reported two user configuration lines.' }
+      $projectUserSeen = $true
+      $projectUser = $Matches[1]
+    } elseif ($l -cmatch '\APROJECT ([0-9a-f]{64})\z') {
+      if ($projectFileHash) { Stop-Refused 'the project render reported two project file hashes.' }
+      $projectFileHash = $Matches[1]
+    } elseif ($l -cmatch '\ADIGEST ([0-9a-f]{12})\z') {
+      if ($projectDigest) { Stop-Refused 'the project render reported two configuration digests.' }
+      $projectDigest = $Matches[1]
+    } elseif ($l -cmatch '\AVALUE (usage-pause) (0|[1-9][0-9]?|100)\z') {
+      if ($projectValues.Contains($Matches[1])) { Stop-Refused 'the project render reported one setting twice.' }
+      $projectValues[$Matches[1]] = $Matches[2]
+    } else { Stop-Refused 'the project render printed a line the install does not read.' }
+  }
+  if (-not $projectHash -or -not $projectUserSeen -or -not $projectFileHash -or -not $projectValues.Count) {
+    Stop-Refused 'the project render did not report exactly one output hash, one user configuration line, one project file hash and a value.'
+  }
+  $digestText = $(if ($projectUser) { "user $projectUser`n" } else { '' }) + "project $projectFileHash`n"
+  if ($projectDigest -cne (Get-BytesSha256 ([Text.Encoding]::ASCII.GetBytes($digestText))).Substring(0, 12)) {
+    Stop-Refused "the project render's configuration digest is missing or does not match the hashes it reported."
+  }
+  try { $stageAfter = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read after the project render.' }
+  if ($stageAfter -cne $stageBefore) { Stop-Refused 'the renderer changed the stage.' }
+  # Exactly the project rules file, a plain file of at most 64 KiB.
+  $pOut = @([IO.DirectoryInfo]::new($projectOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }))
+  if ($pOut.Count -ne 1 -or $pOut[0].Name -cne 'pact-project.md' -or $pOut[0] -isnot [IO.FileInfo] -or ($pOut[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -or $pOut[0].Length -gt 64KB) {
+    Stop-Refused 'the project render did not leave exactly its rules file of at most 64 KiB.'
+  }
+  $projectFile = $pOut[0].FullName
+  if ((Get-BytesSha256 ([IO.File]::ReadAllBytes($projectFile))) -cne $projectHash) { Stop-Refused "the project rules file's hash does not match the one the renderer reported." }
+
+  $rulesLine = switch ($projectState.kind) {
+    'new' { 'would be written (new)' }
+    default { if ($projectState.sha256 -ceq $projectHash) { 'unchanged' } else { "would replace the existing file its record names (sha256 $($projectState.sha256)); the record is a file in the project, not proof the pact wrote it" } }
+  }
+  Write-Host 'Project:'
+  Write-Host "  project configuration ${projectConfigRel}: sha256 $projectFileHash"
+  if ($projectUser) { Write-Host "  user configuration ${configRel}: sha256 $projectUser (its values bound the project's)" }
+  else { Write-Host "  user configuration ${configRel}: none (the defaults bound the project's values)" }
+  Write-Host "  rules file ${projectRulesRel}: $rulesLine"
+  Write-Host "  record ${projectRecordRel}: holds only the rules file's name and hash"
+  Write-Host "  configuration digest: $projectDigest"
+  Write-Host "  rendered project rules file: sha256 $projectHash"
+  foreach ($k in $projectValues.Keys) { Write-Host "  WARN: the project configuration sets $k to $($projectValues[$k]); the rules file reads it as the lower of that and the user's value." }
+  Write-Host '  Nothing is installed in the Claude home folder, and no agents go into the project.'
+  if ($dirty.Count) { Write-Host "Working tree: DIRTY ($($dirty.Count) path(s)); the check ran on commit $commit, and uncommitted edits are not checked. -Apply will refuse." }
+  else { Write-Host 'Working tree: clean' }
+  Show-Gate
+
+  # A hash given is always compared, dry run or -Apply. It binds the project
+  # rules file's bytes only, not the configuration files (see the header).
+  $hashGiven = $PSBoundParameters.ContainsKey('RenderedHash')
+  if ($hashGiven -and $RenderedHash -cne $projectHash) {
+    Stop-Refused 'the hash given with -RenderedHash is not the full hash of the project rules file this run rendered: a configuration or the commit changed since the dry run, or the hash was cut short or mistyped.'
+  }
+  if (-not $Apply) {
+    Write-Host "Dry run only. After the owner's go-ahead, pass -Apply -RenderedHash $projectHash"
+    exit 0
+  }
+  # A project configuration always applies on a project install.
+  if (-not $hashGiven) { Stop-Refused 'a project configuration applies, so -Apply needs the full rendered hash the dry run showed, given with -RenderedHash.' }
+  if ($selfDiffers) { Stop-Refused 'this install script differs from the committed copy.' }
+  if ($dirty.Count) { Stop-Refused 'the working tree is not clean.' }
+  Test-ProjectAttributes
+  Write-Host 'Applying.'
+  Show-Gate
+  $pw = Invoke-Node $node @($projectMod, 'write', $projectRoot, $claudeHomeFull, $projectFile, $projectHash) $checkTimeoutMs
+  $pwLines = @($pw.Stdout -split "`n" | Where-Object { $_ -ne '' })
+  Show-ProgramLines $pwLines 'project'
+  if ($pw.StderrChars) { Write-Host 'The project module wrote to stderr; it is not shown.' }
+  $left = "The project's .claude/rules folder may hold what the write left; nothing was installed in the Claude home folder."
+  if ($pw.TimedOut -or $pw.ExitCode -ne 0 -or $pwLines.Count -ne 2 -or $pwLines[-1] -cne 'RESULT: pass' -or $pwLines[0] -cnotmatch "\AWROTE $projectHash ([0-9a-f]{64})\z") {
+    Stop-Refused 'the project write failed its checks.' $left
+  }
+  $recordHash = $Matches[1]
+  # --- verify: each written file is plain, then its hash ---
+  $bad = 0
+  foreach ($pair in @(@($projectRulesRel, $projectHash), @($projectRecordRel, $recordHash))) {
+    $p = Join-Path $projectRoot ($pair[0] -replace '/', [IO.Path]::DirectorySeparatorChar)
+    $plain = $false
+    try { $plain = -not ([IO.File]::GetAttributes($p) -band [IO.FileAttributes]::ReparsePoint) } catch { }
+    if ($plain -and (Get-Sha256 $p) -ceq $pair[1]) { Write-Host "OK       $($pair[0])" }
+    else { Write-Host "MISMATCH $($pair[0])"; $bad++ }
+  }
+  if (Get-ReparseUnder $projectRoot $projectAttrRels) { Write-Host 'MISMATCH a project path is now a link or other reparse point'; $bad++ }
+  if ($bad) { Write-Host "$bad mismatch(es)."; exit 1 }
+  Write-Host "Installed commit $commit with configuration $projectDigest into the project folder; all files verified."
+  exit 0
+}
 
 $repoFiles = New-OrderedMap   # live rel path -> sha256 of the staged copy
 $sourceOf = New-OrderedMap   # live rel path -> staged rel path
@@ -745,7 +1024,19 @@ $gateStale = $gateLines[0] -cne 'Gate: unchanged since the last install'
 # or removed since the last install, even if the render came out the same.
 $userHash = if ($config.kind -ceq 'user') { $config.sha256 } else { $null }
 $lastUser = if ($lastConfig.Contains('user')) { $lastConfig['user'] } else { $null }
-$configStale = $userHash -cne $lastUser
+# This run's configuration files, keyed as the record's are.
+$nowConfig = New-OrderedMap
+if ($userHash) { $nowConfig['user'] = $userHash }
+foreach ($bp in $blockHashes.Keys) { $nowConfig["block $bp"] = $blockHashes[$bp] }
+$configStale = $nowConfig.Count -ne $lastConfig.Count
+foreach ($k in $nowConfig.Keys) { if (-not $lastConfig.Contains($k) -or $lastConfig[$k] -cne $nowConfig[$k]) { $configStale = $true } }
+# "Since the last install" for one configuration file, by its record key.
+function Get-Since([string]$key) {
+  if (-not $manifest) { 'no install recorded' }
+  elseif (-not $lastConfig.Contains($key)) { 'new since the last install' }
+  elseif ($lastConfig[$key] -ceq $nowConfig[$key]) { 'unchanged since the last install' }
+  else { 'CHANGED since the last install' }
+}
 $nothing = -not ($overwrite -or $add -or $delete -or $settings -like 'would*' -or $manifestStale -or $gateStale -or $configStale -or -not $manifest)
 
 # The Configuration block, built from the renderer's parsed lines alone.
@@ -754,13 +1045,15 @@ if ($config.kind -ceq 'none') {
   $configBlock += '  no configuration'
   if ($lastConfig.Count) { $configBlock += '  the last install had a configuration; this install removes it from the rules file' }
 } else {
-  $since = if (-not $manifest) { 'no install recorded' } elseif (-not $lastUser) { 'new since the last install' }
-  elseif ($lastUser -ceq $userHash) { 'unchanged since the last install' } else { 'CHANGED since the last install' }
-  $configBlock += "  user file ${configRel}: sha256 $userHash, $since"
+  $configBlock += "  user file ${configRel}: sha256 $userHash, $(Get-Since 'user')"
+  foreach ($bp in $blockHashes.Keys) { $configBlock += "  block file $blocksRel/${bp}: sha256 $($blockHashes[$bp]), $(Get-Since "block $bp")" }
+  $removedBlocks = @($lastConfig.Keys | Where-Object { $_ -clike 'block *' -and -not $nowConfig.Contains($_) }).Count
+  if ($removedBlocks) { $configBlock += "  $removedBlocks block file(s) the last install read are no longer used" }
   $configBlock += "  configuration digest: $configDigest"
   $configBlock += "  rendered rules file: sha256 $rulesHash"
   foreach ($k in $configValues.Keys) { $configBlock += "  WARN: the user configuration sets $k to $($configValues[$k])." }
-  $configBlock += '  Open text is checked for form, routing and the roster, not for meaning.'
+  foreach ($k in $configEdits.Keys) { $configBlock += "  WARN: the user configuration edits $k ($($configEdits[$k].op))." }
+  $configBlock += '  Open text is checked for form, imports, routing and the roster, not for meaning.'
 }
 
 Show-List 'Drift' $drift
@@ -787,7 +1080,37 @@ $hashGiven = $PSBoundParameters.ContainsKey('RenderedHash')
 if ($hashGiven -and $RenderedHash -cne $rulesHash) {
   Stop-Refused 'the hash given with -RenderedHash is not the full hash of the rules file this run rendered: the configuration or the commit changed since the dry run, or the hash was cut short or mistyped.'
 }
+
+# The review output, written only once every check for this run has passed:
+# called at the end of the dry run, and on -Apply after its own refusals and
+# the last re-hash of the stage, just before the first write. The review module
+# checks the folder's final path and creates both files exclusively; its hashes
+# must match what this run read. The whole stage is hashed before and after it
+# runs, as around the renderer, so any change it makes there refuses before
+# anything is installed. A refusal once it has run says the folder may hold
+# what it wrote.
+function Write-Review {
+  if (-not $reviewGiven) { return }
+  $reviewer = Join-Path $stage 'gate/review.mjs'
+  if (-not (Test-Path -LiteralPath $reviewer -PathType Leaf)) { Stop-Refused 'the review module (gate/review.mjs) is missing.' }
+  if ((Get-Sha256 $rulesStaged) -cne $rulesHash) { Stop-Refused 'the staged rules file changed after the check.' }
+  try { $before = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read before the review module ran.' }
+  $rev = Invoke-Node $node @($reviewer, ([IO.Path]::GetFullPath($ReviewFolder)), $claudeHomeFull, $rulesStaged, $diffFile) $checkTimeoutMs
+  $after = 'The review folder may hold what the review module wrote; nothing was installed.'
+  $revLines = @($rev.Stdout -split "`n" | Where-Object { $_ -ne '' })
+  Show-ProgramLines $revLines 'review'
+  if ($rev.StderrChars) { Write-Host 'The review module wrote to stderr; it is not shown.' }
+  $stageNow = try { Get-TreeState $stage } catch { $null }
+  if ($stageNow -cne $before) { Stop-Refused 'the review module changed the stage.' $after }
+  if ($rev.TimedOut -or $rev.ExitCode -ne 0 -or $revLines.Count -ne 2 -or $revLines[-1] -cne 'RESULT: pass' -or
+    $revLines[0] -cne "REVIEW $rulesHash $diffHash") {
+    Stop-Refused 'the review output was not written, or not as this run rendered it.' $after
+  }
+  Write-Host 'Review output: rendered-rules.txt and config.diff written to the review folder.'
+}
+
 if (-not $Apply) {
+  Write-Review
   if ($config.kind -cne 'none') { Write-Host "Dry run only. After the owner's go-ahead, pass -Apply -RenderedHash $rulesHash" }
   else { Write-Host 'Dry run only. Pass -Apply after the owner''s go-ahead.' }
   exit 0
@@ -806,6 +1129,9 @@ foreach ($rel in $repoFiles.Keys) {
   $src = Join-Path $stage ($sourceOf[$rel] -replace '/', [IO.Path]::DirectorySeparatorChar)
   if ((Get-Sha256 $src) -ne $repoFiles[$rel]) { Stop-Refused "the staged copy of $rel changed after the check." }
 }
+# The review output last of all, after every check; its own stage hash covers
+# anything it did to the stage while it ran.
+Write-Review
 Write-Host 'Applying.'
 Show-Gate
 New-Item -ItemType Directory -Force -Path $ClaudeHome | Out-Null
@@ -829,7 +1155,10 @@ elseif ($settings -like 'would*') {
 $doc = [ordered]@{
   commit = $commit
   digest = $configDigest
-  config = @(if ($userHash) { [ordered]@{ kind = 'user'; sha256 = $userHash } })
+  config = @(
+    if ($userHash) { [ordered]@{ kind = 'user'; sha256 = $userHash } }
+    foreach ($bp in $blockHashes.Keys) { [ordered]@{ kind = 'block'; path = $bp; sha256 = $blockHashes[$bp] } }
+  )
   files  = @($repoFiles.Keys | ForEach-Object { [ordered]@{ path = $_; sha256 = $repoFiles[$_] } })
   gate   = @($gateNow.Keys | ForEach-Object { [ordered]@{ path = $_; sha256 = $gateNow[$_] } })
 }
@@ -860,7 +1189,7 @@ $withConfig = if ($configDigest) { "configuration $configDigest" } else { 'no co
 Write-Host "Installed commit $commit with $withConfig; all files verified."
 exit 0
 } finally {
-  foreach ($d in @($stage, $renderOut)) {
+  foreach ($d in @($stage, $renderOut, $noHome, $projectOut)) {
     if ($d -and (Test-Path -LiteralPath $d)) { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue }
   }
 }

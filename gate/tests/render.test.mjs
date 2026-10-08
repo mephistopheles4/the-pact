@@ -74,8 +74,10 @@ test('with no configuration, the output is the source with its open-mark lines r
   const want = withoutOpenMarks(src);
   assert.notEqual(want, src);
   assert.equal(r.bytes.toString('utf8'), want);
-  assert.deepEqual(r.stdout.split('\n'), [`RENDERED ${sha256(r.bytes)}`, 'CONFIG none', 'RESULT: pass', '']);
-  assert.deepEqual(readdirSync(r.dir), ['CLAUDE.md']);
+  // Since slice 4 the renderer also writes the diff from the no-configuration render, empty here.
+  assert.deepEqual(r.stdout.split('\n'), [`RENDERED ${sha256(r.bytes)}`, `DIFF ${sha256(Buffer.alloc(0))}`, 'CONFIG none', 'RESULT: pass', '']);
+  assert.deepEqual(readdirSync(r.dir).sort(), ['CLAUDE.md', 'config.diff']);
+  assert.equal(readFileSync(join(r.dir, 'config.diff')).length, 0);
 });
 
 test('the pact source renders, and its output is what the tests expect', t => {
@@ -176,7 +178,7 @@ test('a normal render leaves the stage unchanged, and writes only into its outpu
   const r = render(t, join(root, 'claude', 'CLAUDE.md'));
   assert.equal(r.code, 0, r.out);
   assert.equal(treeState(root), before);
-  assert.deepEqual(readdirSync(r.dir), ['CLAUDE.md']);
+  assert.deepEqual(readdirSync(r.dir).sort(), ['CLAUDE.md', 'config.diff']);
 });
 
 // ------------------------------------------------------------ refusals

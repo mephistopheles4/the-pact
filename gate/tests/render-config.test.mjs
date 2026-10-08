@@ -34,10 +34,12 @@ function render(t, home, src = SOURCE) {
   delete env.NODE_OPTIONS;
   const r = spawnSync(process.execPath, [RENDER, src, dir, home], { encoding: 'utf8', env });
   let bytes = null;
+  let diff = null;
   try {
     bytes = readFileSync(join(dir, 'CLAUDE.md'));
+    diff = readFileSync(join(dir, 'config.diff'));
   } catch {}
-  return { code: r.status, stdout: r.stdout, out: r.stdout + r.stderr, dir, bytes };
+  return { code: r.status, stdout: r.stdout, out: r.stdout + r.stderr, dir, bytes, diff };
 }
 
 function sourceFile(t, content) {
@@ -80,6 +82,7 @@ test('the shipped example sets the usage pause to 90: the rules read 90%, with t
   assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digest, 90));
   assert.deepEqual(r.stdout.split('\n'), [
     `RENDERED ${sha256(r.bytes)}`,
+    `DIFF ${sha256(r.diff)}`,
     `CONFIG user ${sha256(bytes)}`,
     `DIGEST ${digest}`,
     'VALUE usage-pause 90',
@@ -115,7 +118,7 @@ test('a configuration with no values still applies: the notice names it, and the
   const r = render(t, homeWith(t, bytes));
   assert.equal(r.code, 0, r.out);
   assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), digestOf(bytes)));
-  assert.deepEqual(r.stdout.split('\n').slice(1, 3), [`CONFIG user ${sha256(bytes)}`, `DIGEST ${digestOf(bytes)}`]);
+  assert.deepEqual(r.stdout.split('\n').slice(2, 4), [`CONFIG user ${sha256(bytes)}`, `DIGEST ${digestOf(bytes)}`]);
   assert.doesNotMatch(r.stdout, /^VALUE /m);
 });
 
@@ -140,7 +143,7 @@ test('no pact folder, an empty pact folder and a missing Claude home folder all 
   for (const h of [noPact, emptyPact, missing]) {
     const r = render(t, h);
     assert.equal(r.code, 0, r.out);
-    assert.deepEqual(r.stdout.split('\n'), [`RENDERED ${sha256(r.bytes)}`, 'CONFIG none', 'RESULT: pass', '']);
+    assert.deepEqual(r.stdout.split('\n'), [`RENDERED ${sha256(r.bytes)}`, `DIFF ${sha256(Buffer.alloc(0))}`, 'CONFIG none', 'RESULT: pass', '']);
     assert.equal(r.bytes.toString('utf8'), withoutOpenMarks(read(SOURCE)));
   }
 });
@@ -292,8 +295,7 @@ const BAD = [
   ['a value over the range', '{"schema": 1, "settings": {"usage-pause": 101}}', 'config-value', /from 0 to 100/],
   ['a value under the range', '{"schema": 1, "settings": {"usage-pause": -1}}', 'config-value', /from 0 to 100/],
   ['a value that overflows', '{"schema": 1, "settings": {"usage-pause": 1e400}}', 'config-value', /from 0 to 100/],
-  ['an edit', '{"schema": 1, "edits": [{"mark": "move-2", "op": "remove"}]}', 'config-edits', /edits must be an empty list/],
-  ['edits as an object', '{"schema": 1, "edits": {}}', 'config-edits', /edits must be an empty list/],
+  ['edits as an object', '{"schema": 1, "edits": {}}', 'config-edits', /edits must be a list/],
   ['a byte-order mark', '﻿{"schema": 1}', 'bom', /a byte-order mark/],
   ['a carriage return', '{"schema": 1}\r\n', 'characters', /a carriage return/],
   ['a control character', '{"schema": 1, "x\u0007": 1}', 'characters', /a control or line-separator character/],
@@ -449,7 +451,7 @@ test('a configured render leaves its inputs unchanged, and writes only into its 
   const r = render(t, h, join(root, 'claude', 'CLAUDE.md'));
   assert.equal(r.code, 0, r.out);
   assert.deepEqual([snap(root), snap(h)], before);
-  assert.deepEqual(readdirSync(r.dir), ['CLAUDE.md']);
+  assert.deepEqual(readdirSync(r.dir).sort(), ['CLAUDE.md', 'config.diff']);
 });
 
 

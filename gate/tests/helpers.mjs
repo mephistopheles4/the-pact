@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 // Shared fixtures for the gate's tests. Everything is built in a fresh temp
 // folder per test; nothing here touches the repo tree or ~/.claude.
 import { spawnSync } from 'node:child_process';
@@ -217,4 +218,57 @@ export function lastLine(stdout) {
 
 export function read(p) {
   return readFileSync(p, 'utf8');
+}
+
+// ------------------------------------------------------------ edits to open parts (#94), built independently of the renderer
+
+/** `src` with the lines between `mark`'s two mark lines replaced by fn(lines, indent). */
+export function editPart(src, mark, fn) {
+  const re = new RegExp(`^( *)<!-- pact:begin ${mark} -->\\n((?:.*\\n)*?)\\1<!-- pact:end ${mark} -->\\n`, 'm');
+  const m = re.exec(src);
+  assert.ok(m, `no ${mark} part in the source`);
+  const [, indent, body] = m;
+  const now = body === '' ? [] : body.slice(0, -1).split('\n');
+  const next = fn(now, indent);
+  const part = `${indent}<!-- pact:begin ${mark} -->\n${next.map(l => `${l}\n`).join('')}${indent}<!-- pact:end ${mark} -->\n`;
+  return src.slice(0, m.index) + part + src.slice(m.index + m[0].length);
+}
+
+/** Apply a unified diff to `text`, checking each hunk's counts and context. Throws on any mismatch. */
+export function applyDiff(text, diff) {
+  const src = text.split('\n');
+  const lines = diff.split('\n');
+  assert.equal(lines[0], '--- default/CLAUDE.md');
+  assert.equal(lines[1], '+++ configured/CLAUDE.md');
+  assert.equal(lines[lines.length - 1], '', 'the diff ends with a line feed');
+  const out = [];
+  let at = 0;
+  let i = 2;
+  while (i < lines.length - 1) {
+    const h = /^@@ -(\d+),(\d+) \+(\d+),(\d+) @@$/.exec(lines[i]);
+    assert.ok(h, `not a hunk header: ${lines[i]}`);
+    const [oldStart, oldLen, , newLen] = h.slice(1).map(Number);
+    const from = oldLen ? oldStart - 1 : oldStart;
+    assert.ok(from >= at, 'hunks out of order');
+    out.push(...src.slice(at, from));
+    at = from;
+    let o = 0;
+    let n = 0;
+    for (i += 1; i < lines.length - 1 && !lines[i].startsWith('@@'); i += 1) {
+      const [sign, rest] = [lines[i][0], lines[i].slice(1)];
+      if (sign === ' ' || sign === '-') {
+        assert.equal(src[at], rest, `context or removed line ${at + 1} does not match`);
+        at += 1;
+        o += 1;
+      }
+      if (sign === ' ' || sign === '+') {
+        out.push(rest);
+        n += 1;
+      }
+      assert.ok(' -+'.includes(sign), `a diff line with no sign: ${lines[i]}`);
+    }
+    assert.deepEqual([o, n], [oldLen, newLen], 'a hunk count does not match its lines');
+  }
+  out.push(...src.slice(at));
+  return out.join('\n');
 }
