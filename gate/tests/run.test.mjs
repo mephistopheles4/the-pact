@@ -8,13 +8,13 @@
 // those plants live in fixtures/run/ and in strings built at run time.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { homedir, hostname, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { tempDir } from './helpers.mjs';
-import { CAP, PLAIN_NAME, leakedLines, makeScrub, namesInstallScript, parseArgs, pick, relativeImports, stringLiterals } from './run.mjs';
+import { CAP, PLAIN_NAME, leakedLines, makeScrub, namesInstallScript, parseArgs, pick, relativeImports, stringLiterals, verdict } from './run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIX = join(HERE, 'fixtures', 'run');
@@ -112,6 +112,17 @@ test('pick: names outside the plain set, option-shaped names and entries that ar
   assert.ok(PLAIN_NAME.test('install-smoke.test.mjs'));
 });
 
+test('pick: a helper name with odd characters is printed with them replaced', () => {
+  const odd = 'hé$.mjs';
+  const sources = new Map([
+    ['a.test.mjs', imp(`./${odd}`)],
+    [odd, imp(`./${HARNESS}`)],
+    [HARNESS, ''],
+  ]);
+  const [f] = pick({ tier: 'full', entries: entries(['a.test.mjs']), sources }).files;
+  assert.equal(f.reason, `install tier: imports h??.mjs -> ${HARNESS}`);
+});
+
 test('pick: an unknown tier throws', () => {
   assert.throws(() => pick({ tier: 'changed', entries: [], sources: new Map() }), /unknown tier/);
 });
@@ -171,6 +182,26 @@ test('the scrub on a POSIX tree, and the leak check on what survives', () => {
   assert.deepEqual(leakedLines(out), []);
   assert.equal(out, '<repo>/x <tmp>/y <home>/.z file://<repo>/q');
   assert.deepEqual(leakedLines('ok\nD:\\other\\x\nhttps://a.b/c\n/home/eve/x\n/Users/eve/y\nfile:///E:/z'), [2, 4, 5, 6]);
+});
+
+test('the scrub replaces the host name, whole words only, in any case', () => {
+  const scrub = makeScrub({ repo: '/r/x', home: '/h/x', tmp: '/t/x', user: 'bob', host: 'Build-Box7', win: false });
+  assert.equal(scrub('<testsuites hostname="BUILD-BOX7"> build-box7 build-box77'), '<testsuites hostname="<host>"> <host> build-box77');
+});
+
+test('the leak check: Git Bash, WSL and network-share paths, and a named word, are leaks', () => {
+  const text = ['at /c/Users/eve/x', 'at /mnt/d/work/x', "at '\\\\fileserver\\share\\x'", 'host BUILD-BOX7 here', 'fine <repo>\\\\gate\\\\tests and /r/x', 'not build-box77'].join('\n');
+  assert.deepEqual(leakedLines(text, ['build-box7']), [1, 2, 3, 4]);
+  assert.deepEqual(leakedLines('BUILD-BOX7'), [], 'with no words named, a bare name is not a path');
+});
+
+test('verdict: only a clean exit 0 with no error or signal is a pass', () => {
+  assert.deepEqual(verdict({ code: 0, signal: null }), { result: 'pass', code: 0 });
+  assert.deepEqual(verdict({ error: 'ENOENT' }), { result: 'fail (node did not start: ENOENT)', code: 1 });
+  assert.deepEqual(verdict({ code: null, signal: 'SIGKILL' }), { result: 'fail (node killed by SIGKILL)', code: 1 });
+  assert.deepEqual(verdict({ code: null, signal: null }), { result: 'fail (exit null)', code: 1 });
+  assert.deepEqual(verdict({ code: 3, signal: null }), { result: 'fail (exit 3)', code: 1 });
+  assert.deepEqual(verdict({ error: 'EACCES', code: 0, signal: null }).code, 1, 'an error wins over a zero code');
 });
 
 // ------------------------------------------------------------ the shell, end to end
@@ -352,7 +383,7 @@ if (process.execArgv.includes('--test') || /\\.test\\.mjs$/.test(process.argv[1]
 test('shell: --record writes a scrubbed copy with only placeholders, outside the repo', t => {
   const p = plant(t, {
     'r.test.mjs': `import { test } from 'node:test';
-import { homedir, tmpdir } from 'node:os';
+import { homedir, hostname, tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 test('planted paths', () => { throw new Error(['REPO=' + process.cwd(), 'HOME=' + homedir(), 'TMP=' + tmpdir(), 'URL=' + pathToFileURL(homedir()).href].join(' | ')); });
 `,
@@ -387,4 +418,50 @@ test('shell: --list prints the pick and runs nothing', t => {
   assert.equal(r.code, 0);
   assert.equal(r.stdout, 'gate/tests/a.test.mjs\tfast tier\n');
   assert.equal(r.last, 'RESULT: full tier, 1 files, listed, not run');
+});
+
+test('shell: a junit reporter reaches node, so stdout is junit XML', t => {
+  const p = plant(t, { 'a.test.mjs': PASSING });
+  const r = runIn(p, ['full', '--reporter', 'junit']);
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stdout, /^<\?xml /);
+  assert.match(r.stdout, /<testsuites>/);
+  assert.match(r.stdout, /<testcase name="planted pass"/);
+  assert.doesNotMatch(r.stdout, /^TAP version/m);
+});
+
+/** A link to `target` at `at`: a junction on Windows, which needs no admin rights, a symlink elsewhere. */
+function link(target, at) {
+  symlinkSync(target, at, WIN ? 'junction' : 'dir');
+}
+
+test('shell: started through a linked folder, the runner still runs and prints its last line', t => {
+  const p = plant(t, { 'a.test.mjs': PASSING });
+  const via = join(tempDir(t, 'pact-link-'), 'linked');
+  link(p.root, via);
+  const r = spawnSync(process.execPath, [join(via, 'gate', 'tests', 'run.mjs'), 'full'], { cwd: tmpdir(), env: shellEnv(), encoding: 'utf8', timeout: 120_000 });
+  const lines = r.stderr.split(/\r?\n/).filter(Boolean);
+  assert.equal(lines[lines.length - 1], 'RESULT: full tier, 1 files, pass');
+  assert.equal(r.status, 0);
+});
+
+test('shell: a record path into the repo through a link is refused with exit 2', t => {
+  const p = plant(t, { 'a.test.mjs': PASSING });
+  const via = join(tempDir(t, 'pact-link-'), 'linked');
+  link(p.root, via);
+  const r = runIn(p, ['full', '--record', join(via, 'rec.txt')]);
+  assert.equal(r.code, 2);
+  assert.match(r.last, /^RESULT: refused, --record must name a file outside the repo$/);
+  assert.ok(!existsSync(join(p.root, 'rec.txt')), 'no record is written inside the repo');
+});
+
+test('shell: --record replaces the host name', t => {
+  const p = plant(t, { 'h.test.mjs': "import { describe, test } from 'node:test';\nimport { hostname } from 'node:os';\ndescribe('suite', () => { test('host', () => { throw new Error('HOST=' + hostname()); }); });\n" });
+  const rec = join(tempDir(t, 'pact-rec-'), 'record.txt');
+  const r = runIn(p, ['full', '--reporter', 'junit', '--record', rec]);
+  assert.equal(r.code, 1, r.last);
+  const text = readFileSync(rec, 'utf8');
+  assert.match(text, /HOST=<host>/);
+  assert.match(text, /hostname="<host>"/);
+  assert.ok(!new RegExp(`(?<![A-Za-z0-9])${hostname().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, 'i').test(text), 'the host name survived the scrub');
 });

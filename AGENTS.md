@@ -97,28 +97,35 @@ how every session in every repo behaves. So:
 ## Running the gate's tests
 
 - **One runner, two tiers.** Run the gate's tests through
-  [`gate/tests/run.mjs`](gate/tests/run.mjs), from the repo root:
-  - `node gate/tests/run.mjs full` runs every top-level test file. This is
-    "the full suite".
-  - `node gate/tests/run.mjs fast` runs every test file that doesn't run the
-    install script. The runner finds the install tier from each file's imports
-    and text on every run.
+  [`gate/tests/run.mjs`](gate/tests/run.mjs), from the repo root, with
+  `NODE_OPTIONS` cleared in the shell first, as for the cross script. In
+  PowerShell:
+  `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs <tier>`
+  In a POSIX shell:
+  `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>`
+  - **`full`** runs every top-level test file. This is "the full suite".
+  - **`fast`** runs every test file that doesn't run the install script. The
+    runner finds the install tier from each file's imports and text on every
+    run.
 
   Both cap the run at four test files at once, which keeps it from starving
   other sessions (ADR 0029). Never run the suite without the cap.
 - **It fails closed.** It hands the Node running it an explicit file list, so
-  it needs no glob and works the same on Node 20 and later and in any shell.
-  An empty pick, an odd test-file name or a usage error exits 2 and runs
-  nothing. A failed, killed or unstarted node exits 1. Its last line, on
-  stderr, names the tier, the file count and the result. `--reporter` takes
-  `spec`, `tap`, `dot` or `junit`, and `--list` prints the pick and runs
-  nothing.
+  it needs no glob and works the same in any shell, on Node 20.10 or later (the
+  cap flag needs 20.10). An empty pick, an odd test-file name or a usage error
+  exits 2 and runs nothing. A failed, killed or unstarted node exits 1. Its
+  last line, on stderr, names the tier, the file count and the result.
+  `--reporter` takes `spec`, `tap`, `dot` or `junit`, and `--list` prints the
+  pick and runs nothing.
+- **A run passes only when it exits 0 and its last line is the runner's
+  result line ending in `pass`.** An exit 0 with no result line is not a pass.
 - **Run the tests on the current Node LTS** (Node 24, "Krypton", as of
   2026-10-08); `volta install node@24` gets it. The install itself still
   accepts any Node 20 or later. The Linux run in a container (#96) is in
   [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/) and runs `full`
   on Node 20.
-- **While building,** run only the test files for what you touched, capped:
+- **While building,** until the `changed` tier lands (#145), run only the test
+  files for what you touched, capped, with `NODE_OPTIONS` cleared as above:
   `node --test --test-concurrency=4 <files>`. Run `fast` when a change could
   reach further.
 - **The full suite runs** once at move 4; before an install; after a rebase or
@@ -128,9 +135,9 @@ how every session in every repo behaves. So:
   `full`.
 - **Test output is posted only from record mode.** `--record <file>` writes a
   copy of everything printed to a file outside the repo, with the repo, home
-  and temp folders and the user name replaced by placeholders. If a local path
-  survives, it writes nothing and exits 3. Keep raw reporter output, such as a
-  junit file, outside the repo.
+  and temp folders, the user name and the host name replaced by placeholders.
+  If a local path or either name survives, it writes nothing and exits 3. Keep
+  raw reporter output, such as a junit file, outside the repo.
 
 ## Where work lives
 
@@ -222,9 +229,12 @@ Where two bullets apply, the stricter one holds.
   it. Another is the renderer's list of agents a configuration may set:
   adding an agent to it is a spec change, and on this floor.
 - **The test runner and the copy list are on this floor too,** though they sit
-  in the gate's tests: `gate/tests/run.mjs` and `gate/tests/copy-list.mjs`.
-  A change to either takes the security route and needs a bad case in the
-  gate's tests that it is seen to catch. That covers the tiers and how they
+  in the gate's tests: `gate/tests/run.mjs` and `gate/tests/copy-list.mjs`,
+  with the tests that hold their bad cases, `gate/tests/run.test.mjs` and
+  `gate/tests/run-guards.test.mjs`. A change to any of them takes the
+  security route and needs a bad case in the gate's tests that it is seen to
+  catch; weakening or deleting a bad case counts as a change to what it
+  guards. That covers the tiers and how they
   are picked, the exit handling, how the runner starts node (the binary, its
   flags and its environment) and record mode, so "the full suite" can't be
   narrowed by an ordinary test edit.

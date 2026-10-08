@@ -13,13 +13,15 @@
 // lines go to stderr, so node's reporter output on stdout stays clean; the
 // last line names the tier, the file count and the result. --record writes a
 // scrubbed copy of everything printed to a file outside the repo, and exits 3
-// if a local path survives the scrub. --list prints the pick and runs nothing.
+// if a local path, the user name or the host name survives the scrub. --list
+// prints the pick and runs nothing. Start it with NODE_OPTIONS cleared, as
+// AGENTS.md shows: clearing it for the child can't reach this process.
 // It reads no git. The install skips this folder before any check, so this
 // file is never staged or installed. On the probe floor by name (AGENTS.md).
 import { spawn } from 'node:child_process';
 import { readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir, userInfo } from 'node:os';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { homedir, hostname, tmpdir, userInfo } from 'node:os';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { posix } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -34,6 +36,8 @@ export const PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*\.test\.mjs$/;
 export const HARNESS = 'install-harness.mjs';
 export const INSTALL_SCRIPT = 'install.ps1';
 const MODULE_RE = /\.(?:mjs|cjs|js)$/;
+/** A path as the runner prints it: any character outside a plain set replaced. */
+export const SHOWN = s => s.replace(/[^A-Za-z0-9._/ -]/g, '?');
 
 // ------------------------------------------------------------ pick: pure
 
@@ -197,7 +201,7 @@ export function pick({ tier, entries, sources, copyList }) {
   const files = [];
   for (const name of tests) {
     const chain = harnessChain(name, sources);
-    const install = chain ? `install tier: imports ${chain.slice(1).join(' -> ')}` : namesInstallScript(sources.get(name) ?? '') ? `install tier: names ${INSTALL_SCRIPT}` : null;
+    const install = chain ? `install tier: imports ${chain.slice(1).map(SHOWN).join(' -> ')}` : namesInstallScript(sources.get(name) ?? '') ? `install tier: names ${INSTALL_SCRIPT}` : null;
     if (tier === 'full') files.push({ file: name, reason: install ?? 'fast tier' });
     else if (!install) files.push({ file: name, reason: 'fast tier: does not run the install' });
   }
@@ -258,8 +262,13 @@ export function pathForms(p, aliases = [], win = process.platform === 'win32') {
   return [...forms].filter(f => f.length >= 3);
 }
 
-/** A scrub function for { repo, home, tmp, user } with their placeholders, longest form first. */
-export function makeScrub({ repo, home, tmp, user, aliases = [], win = process.platform === 'win32' }) {
+/** A whole-word, case-folded match for a name such as the user or host name, or null for one too short to match safely. */
+function wordRe(word, flags) {
+  return word && word.length >= 2 ? new RegExp(`(?<![A-Za-z0-9])${escapeRe(word)}(?![A-Za-z0-9])`, flags) : null;
+}
+
+/** A scrub function for { repo, home, tmp, user, host } with their placeholders, longest form first. */
+export function makeScrub({ repo, home, tmp, user, host, aliases = [], win = process.platform === 'win32' }) {
   const pairs = [];
   for (const [p, ph] of [
     [repo, '<repo>'],
@@ -271,31 +280,56 @@ export function makeScrub({ repo, home, tmp, user, aliases = [], win = process.p
   pairs.sort((a, b) => b[0].length - a[0].length);
   const flags = win ? 'gi' : 'g';
   const res = pairs.map(([f, ph]) => [new RegExp(escapeRe(f), flags), ph]);
-  const userRe = user && user.length >= 2 ? new RegExp(`(?<![A-Za-z0-9])${escapeRe(user)}(?![A-Za-z0-9])`, flags) : null;
+  const names = [
+    [wordRe(host, 'gi'), '<host>'],
+    [wordRe(user, flags), '<user>'],
+  ].filter(([re]) => re);
   return text => {
     let out = text;
     for (const [re, ph] of res) out = out.replace(re, ph);
-    if (userRe) out = out.replace(userRe, '<user>');
+    for (const [re, ph] of names) out = out.replace(re, ph);
     return out;
   };
 }
 
-const LEAK_RES = [/(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]/, /(?<![A-Za-z0-9.-])\/(?:home|Users)\/[^/\s<]/, /\\Users\\[^\\\s<]/i];
+const LEAK_RES = [
+  // A drive-letter path, not the scheme of a URL.
+  /(?<![A-Za-z0-9+.-])[A-Za-z]:[\\/]/,
+  // A home-prefix path.
+  /(?<![A-Za-z0-9.-])\/(?:home|Users)\/[^/\s<]/,
+  /\\Users\\[^\\\s<]/i,
+  // A drive as a leading folder (Git Bash, MSYS), or under /mnt (WSL).
+  /(?<![A-Za-z0-9.-])\/[A-Za-z]\/(?:Users|home)\//i,
+  /(?<![A-Za-z0-9.-])\/mnt\/[A-Za-z]\//,
+  // A network share: \\host\share.
+  /(?:^|[\s'"=(\[])\\\\[A-Za-z0-9._$-]+\\[A-Za-z0-9._$-]+/,
+];
 
-/** The 1-based numbers of the lines that still hold a drive-letter or home-prefix path. */
-export function leakedLines(text) {
+/**
+ * The 1-based numbers of the lines that still hold a local path, or one of
+ * `words` (such as the host or user name) as a whole word, case-folded.
+ */
+export function leakedLines(text, words = []) {
+  const wordRes = words.map(w => wordRe(w, 'i')).filter(Boolean);
   const out = [];
   text.split('\n').forEach((l, i) => {
-    if (LEAK_RES.some(re => re.test(l))) out.push(i + 1);
+    if (LEAK_RES.some(re => re.test(l)) || wordRes.some(re => re.test(l))) out.push(i + 1);
   });
   return out;
+}
+
+/** What node's ending means: { result, code }. Only a clean exit 0 with no error or signal is a pass. */
+export function verdict({ error, code, signal }) {
+  if (error) return { result: `fail (node did not start: ${SHOWN(String(error))})`, code: 1 };
+  if (signal) return { result: `fail (node killed by ${SHOWN(String(signal))})`, code: 1 };
+  if (code !== 0) return { result: `fail (exit ${code})`, code: 1 };
+  return { result: 'pass', code: 0 };
 }
 
 // ------------------------------------------------------------ the shell
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
-const SHOWN = s => s.replace(/[^A-Za-z0-9._/ -]/g, '?');
 
 function usage(say, why) {
   say(`run: ${SHOWN(why)}`);
@@ -335,8 +369,25 @@ function readSources(dir, rel = '') {
   return out;
 }
 
+/** `p` with links, junctions and short (8.3) names resolved, through its nearest existing ancestor. */
+function realish(p) {
+  const rest = [];
+  let at = resolve(p);
+  for (;;) {
+    try {
+      return join(realpathSync.native(at), ...rest);
+    } catch {
+      const up = dirname(at);
+      if (up === at) return resolve(p);
+      rest.unshift(basename(at));
+      at = up;
+    }
+  }
+}
+
+/** Whether `child` is `parent` or under it, compared as real paths. */
 function inside(parent, child) {
-  const rel = relative(parent, child);
+  const rel = relative(realish(parent), realish(child));
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
@@ -344,6 +395,17 @@ function cleanEnv() {
   const env = {};
   for (const [k, v] of Object.entries(process.env)) if (!/^(?:NODE_OPTIONS|NODE_TEST_CONTEXT)$/i.test(k)) env[k] = v;
   return env;
+}
+
+/** The names a record must never hold as whole words: the host and user names. */
+function localNames() {
+  let user = null;
+  try {
+    user = userInfo().username;
+  } catch {
+    user = process.env.USERNAME ?? process.env.USER ?? null;
+  }
+  return { user, host: hostname() };
 }
 
 function localScrub() {
@@ -355,12 +417,7 @@ function localScrub() {
   } catch {
     // no alias from an unreadable temp folder
   }
-  let user = null;
-  try {
-    user = userInfo().username;
-  } catch {
-    user = process.env.USERNAME ?? process.env.USER ?? null;
-  }
+  const { user, host } = localNames();
   const real = p => {
     try {
       return realpathSync.native(p);
@@ -368,7 +425,7 @@ function localScrub() {
       return p;
     }
   };
-  const scrubs = [makeScrub({ repo: REPO, home: homedir(), tmp: t, user, aliases }), makeScrub({ repo: real(REPO), home: real(homedir()), tmp: real(t), user: null, aliases })];
+  const scrubs = [makeScrub({ repo: REPO, home: homedir(), tmp: t, user, host, aliases }), makeScrub({ repo: real(REPO), home: real(homedir()), tmp: real(t), user: null, aliases })];
   return text => scrubs.reduce((s, f) => f(s), text);
 }
 
@@ -397,13 +454,13 @@ export async function main(argv) {
     say(`RESULT: ${tier} tier, ${files.length} files, refused (${refused.length} test-file names refused)`);
     return 2;
   }
-  for (const f of files) say(`pick: gate/tests/${f.file} (${f.reason})`);
+  for (const f of files) say(`pick: gate/tests/${f.file} (${SHOWN(f.reason)})`);
   if (files.length === 0) {
     say(`RESULT: ${tier} tier, 0 files, refused (an empty pick runs nothing)`);
     return 2;
   }
   if (list) {
-    for (const f of files) process.stdout.write(`gate/tests/${f.file}\t${f.reason}\n`);
+    for (const f of files) process.stdout.write(`gate/tests/${f.file}\t${SHOWN(f.reason)}\n`);
     say(`RESULT: ${tier} tier, ${files.length} files, listed, not run`);
     return 0;
   }
@@ -437,20 +494,16 @@ export async function main(argv) {
     child.on('close', (code, signal) => finish({ code, signal }));
   });
 
-  let result;
-  let code;
-  if (outcome.error) (result = `fail (node did not start: ${SHOWN(String(outcome.error))})`), (code = 1);
-  else if (outcome.signal) (result = `fail (node killed by ${outcome.signal})`), (code = 1);
-  else if (outcome.code !== 0) (result = `fail (exit ${outcome.code})`), (code = 1);
-  else (result = 'pass'), (code = 0);
+  const { result, code } = verdict(outcome);
   const last = `RESULT: ${tier} tier, ${files.length} files, ${result}`;
 
   if (recordPath) {
     record.push(`${last}\n`);
     const text = localScrub()(record.join(''));
-    const leaks = leakedLines(text);
+    const { user, host } = localNames();
+    const leaks = leakedLines(text, [host, user]);
     if (leaks.length) {
-      say(`record: not written, ${leaks.length} lines still held a local path (lines ${leaks.slice(0, 20).join(', ')}${leaks.length > 20 ? ', ...' : ''})`);
+      say(`record: not written, ${leaks.length} lines still held a local path or name (lines ${leaks.slice(0, 20).join(', ')}${leaks.length > 20 ? ', ...' : ''})`);
       say(`${last}; record refused`);
       return 3;
     }
@@ -466,8 +519,12 @@ export async function main(argv) {
   return code;
 }
 
-const self = fileURLToPath(import.meta.url);
-const invoked = process.argv[1] ? resolve(process.argv[1]) : '';
+// Run main when started as a script. Both sides are compared as real paths:
+// node gives argv[1] as typed but import.meta.url with links resolved, so a
+// plain compare would skip main, and exit 0 having run nothing, when the
+// runner is started through a link, a junction or a short name.
+const self = realish(fileURLToPath(import.meta.url));
+const invoked = process.argv[1] ? realish(process.argv[1]) : '';
 if (process.platform === 'win32' ? invoked.toLowerCase() === self.toLowerCase() : invoked === self) {
   main(process.argv.slice(2)).then(
     c => {
