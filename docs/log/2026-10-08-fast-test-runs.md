@@ -37,6 +37,24 @@
 - **A lens report quoted local paths.** `behaviour-lens` named its scratch and working folders. The first post of the QA pair's section carried them. It was deleted within minutes and reposted with placeholders, following #140's rule that posted records carry repo-relative paths only.
 - **A test file can put itself in the install tier.** The runner's own tests plant files that name the install script, so those plants live in fixture text files, and the runner applies its literal rule to a test file's own source only. A guard checks that the runner's test files stay in `fast`.
 
+## T3 (#146): shared throwaway repos
+
+- **One repo per file.** The install harness gains `sharedRepo()`. A test file calls it once, and its builder makes one throwaway repo before the file's first test. A test that only reads the repo uses it, with its own throwaway home. A test that changes the repo, or needs a planted one, still builds its own with `makeRepo`.
+- **Which tests share.** 113 install-tier tests share, and 57 keep their own. The list is on #140. The eight install-tier files and the smoke file each have one shared repo. The new test file, `shared-repo.test.mjs`, holds the shared repo's own cases and is a tenth install-tier file.
+- **No index rewrites.** Every install the harness runs against a shared repo has `GIT_OPTIONAL_LOCKS=0` added to its environment, so git's status call never writes the index back. Two tests that start pwsh themselves add the same setting by hand.
+- **The after-check.** After each test, the harness hashes the whole shared repo, its git folder and ignored files included, without running git. It records each entry by kind, records links without following them, and never reads special files. If anything changed since the build, the test fails, naming the changed paths. The next test then gets a freshly built repo, so one test's leftovers can't pass or fail another.
+- **No gate code changed.** Only files in `gate/tests/` and this log entry changed.
+
+### What was measured
+
+- **The ten install-tier files,** run capped at four files and not timed: 483 cases, 480 pass, 3 skip, 0 fail. No test tripped the after-check.
+- **A throwaway repo costs about half a second to build.** This was measured under load, five builds in a row, so it is a rough figure. An install run costs about 8 s, so sharing saves a few percent of the install tier's time. That is less than the spec's "the full suite gets faster" suggested.
+
+### What was found
+
+- **Two dry runs in a row left the hash unchanged even without the lock setting,** 3 runs out of 3. A plain repo seldom gives git a reason to write its index. So a case was added that moves a tracked file's timestamp before a dry run. That makes git's status rehash the file and write the index back. Without `GIT_OPTIONAL_LOCKS=0` the case fails on `.git/index`, and with it the case passes.
+- **The after-check is seen to fail end to end.** Planted test files run as their own `node --test` child. One writes a tracked file, one an ignored file, and one the repo's git configuration. Each fails, and the run exits non-zero. With the after-check planted off, all three bad cases fail.
+
 ## Record
 
 Issue comments on mephistopheles4/the-pact#140:
@@ -47,6 +65,7 @@ Issue comments on mephistopheles4/the-pact#140:
 - `6064685906`, `6064686449`, `6064686799` — the T1 baseline case list.
 - `6065051673` — the T1 Linux container run.
 - `6066623650` — rollback and close-out with one PR.
+- `6067635329` — T3's list of the tests that share a repo.
 
 Issue comments on mephistopheles4/the-pact#144:
 
@@ -59,3 +78,7 @@ Issue comments on mephistopheles4/the-pact#144:
 - `6066636782` — move 4's Lens dispositions.
 - `6066872845` — the final full suite against the baseline.
 - `6067327558` — the owner's pick, the walk-through and the owner's done.
+
+Issue comments on mephistopheles4/the-pact#146:
+
+- `6067638837` — T3's plants: the after-check and the lock setting, each seen to fail.

@@ -13,7 +13,10 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
 import { RENDER, REPO, lastLine, tempDir } from './helpers.mjs';
-import { WIN, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { WIN, home, install, listTree, refused, sharedRepo } from './install-harness.mjs';
+
+// The tests that only read their throwaway repo share this one (#146).
+const shared = sharedRepo();
 
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');
 const PAGE_NAME = basename(PAGE_REL);
@@ -864,7 +867,7 @@ function dryRunHash(r) {
 
 /** Install `state`'s files through the dry run and -Apply with the hash handed back; returns the installed rules text. */
 function installSaved(t, state) {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const files = saveInto(h, state);
   assert.deepEqual(L.problems(state).filter(p => p.level === 'error'), []);
@@ -912,7 +915,7 @@ test('a configuration the page saves with your own text and a removal installs t
 });
 
 test('bad case: text the page flags is refused by the install too, since the page is not a trust boundary', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const s = L.initialState();
   s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: 'Also read @secrets.md first.' }] };

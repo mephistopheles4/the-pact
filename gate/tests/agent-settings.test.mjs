@@ -10,8 +10,11 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { GATE, RENDER, REPO, lastLine, tempDir } from './helpers.mjs';
-import { home, install, listTree, makeRepo, refused, WIN } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, refused, WIN, sharedRepo } from './install-harness.mjs';
 import { OLD_REVIEWERS } from '../pact-text.mjs';
+
+// The tests that only read their throwaway repo share this one (#146).
+const shared = sharedRepo();
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const AGENT = readFileSync(join(REPO, 'claude', 'agents', 'integrity-lens.md'), 'utf8');
@@ -319,7 +322,7 @@ function dryRunHash(r) {
 }
 
 test('a configured install writes the rendered integrity-lens, records its hash, and removing the setting puts the committed file back', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   configure(h, { schema: 1, agents: { 'integrity-lens': { model: 'sonnet', effort: 'low' } } });
   const dry = install(repo, h);
@@ -347,7 +350,7 @@ test('a configured install writes the rendered integrity-lens, records its hash,
 });
 
 test('a configured install sets a security-set lens and a shell lens: each WARN names the override, the shell lens names its egress risk, and both files install', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   configure(h, { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' }, 'data-lens': { effort: 'medium' }, 'integrity-lens': { effort: 'high' } } });
   const dry = install(repo, h);
@@ -375,7 +378,7 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
 });
 
 test('bad case: an agent setting changed between the dry run and -Apply refuses by the rendered hash', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   configure(h, { schema: 1, agents: { 'integrity-lens': { model: 'sonnet' } } });
   const hash = dryRunHash(install(repo, h));

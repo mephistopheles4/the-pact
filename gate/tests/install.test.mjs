@@ -6,8 +6,11 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { before, test } from 'node:test';
-import { BASE_PATH, WIN, commitAll, git, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { BASE_PATH, WIN, commitAll, git, home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
 import { READ_ONLY, agent, plainAgent, sealedFamiliar, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
+
+// The tests that only read their throwaway repo share this one (#146).
+const shared = sharedRepo();
 
 // The throwaway-repo builder, install runner and the small helpers are the harness's.
 
@@ -71,7 +74,7 @@ test('a file under gate/tests is not staged, checked or recorded as part of the 
   assert.deepEqual(inGate, []);
 });
 test('the owner\'s own live agent is never deleted, and an old manifest deletes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeTree(h, { 'agents/my-own.md': plainAgent('my-own') });
   assert.equal(install(repo, h, { apply: true }).code, 0);
@@ -165,7 +168,7 @@ test('bad case: a missing pinned script refuses', t => {
 // Node is caught there; the planted seam A cases further down cover the
 // check's own runner.
 test('bad case: a fake Node with no RESULT line refuses, and -Apply changes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const bin = fakeNode(t, 'noresult');
   const r = install(repo, h, { apply: true, path: [bin, ...BASE_PATH] });
@@ -176,19 +179,19 @@ test('bad case: a fake Node with no RESULT line refuses, and -Apply changes noth
 });
 
 test('bad case: Node older than 20 refuses', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'old'), ...BASE_PATH] });
+  const r = install(shared.root, home(t), { path: [fakeNode(t, 'old'), ...BASE_PATH] });
   refused(r);
   assert.match(r.stdout, /older than 20/);
 });
 
 test('bad case: a non-zero exit refuses even with a RESULT: pass line', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'exit1'), ...BASE_PATH] });
+  const r = install(shared.root, home(t), { path: [fakeNode(t, 'exit1'), ...BASE_PATH] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the renderer exited with code 1/m, r.out);
 });
 
 test('bad case: a crash refuses, and its stderr is never echoed', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'crash'), ...BASE_PATH] });
+  const r = install(shared.root, home(t), { path: [fakeNode(t, 'crash'), ...BASE_PATH] });
   refused(r);
   assert.match(r.stdout, /^The renderer wrote to stderr; it is not shown\.$/m, r.out);
   assert.doesNotMatch(r.out, /CANARYcrash/);
@@ -198,7 +201,7 @@ test('bad case: a missing Node refuses', t => {
   for (const d of BASE_PATH) {
     assert.ok(!existsSync(join(d, WIN ? 'node.exe' : 'node')), `node found in ${d}; the test would pass for the wrong reason`);
   }
-  const r = install(makeRepo(t), home(t), { path: BASE_PATH });
+  const r = install(shared.root, home(t), { path: BASE_PATH });
   refused(r);
   assert.match(r.stdout, /no Node/);
 });
@@ -206,7 +209,7 @@ test('bad case: a missing Node refuses', t => {
 test('bad case: a node.cmd shim is not accepted as Node', { skip: !WIN && 'a .cmd shim runs only on Windows (not run)' }, t => {
   const d = tempDir(t, 'pact-shim-');
   writeFileSync(join(d, 'node.cmd'), `@"${process.execPath}" %*\r\n`);
-  const r = install(makeRepo(t), home(t), { path: [d, ...BASE_PATH] });
+  const r = install(shared.root, home(t), { path: [d, ...BASE_PATH] });
   refused(r);
 });
 
@@ -214,7 +217,7 @@ test('NODE_OPTIONS is cleared for the renderer and the check', t => {
   const d = tempDir(t, 'pact-nodeopt-');
   const hostile = join(d, 'hostile.cjs');
   writeFileSync(hostile, "process.stdout.write('RESULT: fail\\n'); process.exit(1);\n");
-  const r = install(makeRepo(t), home(t), { env: { NODE_OPTIONS: `--require=${hostile}` } });
+  const r = install(shared.root, home(t), { env: { NODE_OPTIONS: `--require=${hostile}` } });
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
   assert.match(r.stdout, /^seam-a\| RESULT: pass$/m, r.out);
@@ -264,7 +267,7 @@ test('bad case: a git planted in the folder the install runs from is never run',
 });
 
 test('lines built from the install record are cleaned', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   assert.equal(install(repo, h, { apply: true }).code, 0);
   const mf = join(h, '.pact-install.json');
@@ -277,7 +280,7 @@ test('lines built from the install record are cleaned', t => {
   assert.ok(!r.stdout.includes('\x1b'), JSON.stringify(r.stdout));
 });
 test('bad case: a live agents folder that is a link refuses', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const elsewhere = tempDir(t, 'pact-elsewhere-');
   try {
@@ -464,7 +467,7 @@ function rulesOf(repo) {
 }
 
 test('-Apply installs the no-file render as the rules file, and the record holds its hash', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { source, rendered } = rulesOf(repo);
   const h = home(t);
   const r = install(repo, h, { apply: true });
@@ -484,7 +487,7 @@ test('-Apply installs the no-file render as the rules file, and the record holds
 });
 
 test('the dry run shows a Configuration block that says there is no configuration, before the gate block', t => {
-  const r = install(makeRepo(t), home(t));
+  const r = install(shared.root, home(t));
   assert.equal(r.code, 0, r.out);
   const lines = r.stdout.replaceAll('\r\n', '\n').split('\n');
   const c = lines.indexOf('Configuration:');
@@ -515,7 +518,7 @@ test('bad case: the rules file changed in the stage after the check refuses -App
 });
 
 test('bad case: a record whose rules-file hash is not the rendered bytes\' hash is drift, and -Apply refuses', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { source, rendered } = rulesOf(repo);
   const h = home(t);
   assert.equal(install(repo, h, { apply: true }).code, 0);

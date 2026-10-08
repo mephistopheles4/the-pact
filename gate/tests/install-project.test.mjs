@@ -10,8 +10,11 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
-import { WIN, git, install, makeRepo, refused } from './install-harness.mjs';
+import { WIN, git, install, makeRepo, refused, sharedRepo } from './install-harness.mjs';
 import { REPO, tempDir } from './helpers.mjs';
+
+// The tests that only read their throwaway repo share this one (#146).
+const shared = sharedRepo();
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const RULES = ['.claude', 'rules', 'pact-project.md'];
@@ -101,7 +104,7 @@ function fileLink(t, target, at) {
 // ------------------------------------------------------------ projects that install
 
 test('a project nested under the throwaway home installs: only its rules file and record, the home untouched', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { homeDir, ch } = layout(t);
   userFile(ch, 90);
   const proj = projectAt(join(homeDir, 'proj'), 80);
@@ -146,7 +149,7 @@ test('a project nested under the throwaway home installs: only its rules file an
 });
 
 test('siblings whose names share a prefix with the Claude folder install', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { root, homeDir, ch } = layout(t);
   const dotClaude2 = projectAt(join(homeDir, '.claude2'));
   const r = projInstall(repo, ch, dotClaude2, { apply: true, extra: ['-RenderedHash', projectHash(projInstall(repo, ch, dotClaude2))] });
@@ -163,7 +166,7 @@ test('siblings whose names share a prefix with the Claude folder install', t => 
 // ------------------------------------------------------------ refusals with nothing written
 
 test('bad case: a project install with no project file refuses, saying there is no project configuration', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { homeDir, ch } = layout(t);
   const proj = join(homeDir, 'proj');
   mkdirSync(join(proj, '.claude'), { recursive: true });
@@ -174,7 +177,7 @@ test('bad case: a project install with no project file refuses, saying there is 
 });
 
 test('bad case: -Apply on a project install with no hash, a wrong hash or a cut-short hash refuses, with nothing written', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const hash = projectHash(projInstall(repo, ch, proj));
@@ -188,7 +191,7 @@ test('bad case: -Apply on a project install with no hash, a wrong hash or a cut-
 });
 
 test('bad case: a project configuration changed after the dry run refuses, with nothing written', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'), 60);
   const hash = projectHash(projInstall(repo, ch, proj));
@@ -199,7 +202,7 @@ test('bad case: a project configuration changed after the dry run refuses, with 
 });
 
 test('layering: a project value looser than the user\'s but tighter than the default refuses, and so does a project edit', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { homeDir, ch } = layout(t);
   userFile(ch, 50);
   const proj = projectAt(join(homeDir, 'proj'), 60);
@@ -213,7 +216,7 @@ test('layering: a project value looser than the user\'s but tighter than the def
 });
 
 test('bad case: -ProjectFolder with -ReviewFolder, or a relative -ProjectFolder, refuses before anything runs', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const r = projInstall(repo, ch, proj, { extra: ['-ReviewFolder', join(tempDir(t), 'review')] });
@@ -228,7 +231,7 @@ test('bad case: -ProjectFolder with -ReviewFolder, or a relative -ProjectFolder,
 
 /** Run a containment case: plant, then -Apply; refused, the project and the outside folder unchanged. */
 function containment(t, plant, why) {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { root, homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const outside = join(root, 'outside');
@@ -311,7 +314,7 @@ for (const [which, why] of [
 }
 
 test('a forged record never makes the dry run say the pact wrote the file', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   mkdirSync(join(proj, '.claude', 'rules'));
@@ -347,21 +350,21 @@ function relation(t, repo, ch, proj, watch, why) {
 const CLAUDE_REL = /FAIL project-home: the project folder is the Claude home folder named for this install, holds it, or is inside it/;
 
 test('bad case: a project equal to the Claude folder refuses', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { root, ch } = layout(t);
   projectAt(ch);
   relation(t, repo, ch, ch, root, CLAUDE_REL);
 });
 
 test('bad case: a project holding the Claude folder refuses', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { root, homeDir, ch } = layout(t);
   projectAt(homeDir);
   relation(t, repo, ch, homeDir, root, CLAUDE_REL);
 });
 
 test('bad case: a project inside the Claude folder refuses', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { root, ch } = layout(t);
   const proj = projectAt(join(ch, 'proj'));
   relation(t, repo, ch, proj, root, CLAUDE_REL);
@@ -386,7 +389,7 @@ test('bad case: a project holding the Claude folder but not the home folder, wit
     t.skip('no folder outside the home folder can be made here (not run)');
     return;
   }
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const homeDir = join(root, 'home');
   const ch = join(homeDir, '.claude');
   mkdirSync(ch, { recursive: true });
@@ -397,7 +400,7 @@ test('bad case: a project holding the Claude folder but not the home folder, wit
 
 /** A dry run on a real-home project: refused by the home-folder rule, and nothing written there. Never -Apply. */
 function realHomeCase(t, proj, why) {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { ch } = layout(t);
   const configAt = join(proj, '.claude', 'pact-config.json');
   const rulesAt = join(proj, ...RULES);
@@ -454,7 +457,7 @@ test('bad case: HOME or USERPROFILE pointed elsewhere does not move the real hom
 // ------------------------------------------------------------ git and Node stay out of the project
 
 test('git is never pointed at the project folder', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const { root, homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));
   const marker = join(root, 'fsmonitor-ran');

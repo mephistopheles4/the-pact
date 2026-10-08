@@ -7,8 +7,11 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
 import { REPO, applyDiff, editPart, tempDir, withoutOpenMarks } from './helpers.mjs';
+
+// The tests that only read their throwaway repo share this one (#146).
+const shared = sharedRepo();
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
@@ -86,7 +89,7 @@ function configBlock(r) {
 // ------------------------------------------------------------ a configuration with edits installs
 
 test('a configuration that replaces move-2, removes move-1 and adds to move-4-extra installs: each edit is a warning in the dry run and named in the notice', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
@@ -130,7 +133,7 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
 });
 
 test('a block changed since the last install shows as changed, with the user file unchanged, and is not "nothing to do"', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
@@ -145,7 +148,7 @@ test('a block changed since the last install shows as changed, with the user fil
 });
 
 test('bad case: a block changed between the dry run and -Apply refuses, by the rendered hash', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
@@ -158,7 +161,7 @@ test('bad case: a block changed between the dry run and -Apply refuses, by the r
 });
 
 test('bad case: an edit to a gated clause refuses through the install, naming the clause, and -Apply writes nothing', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "security-route", "op": "remove"}]}\n');
   const r = install(repo, h, { apply: true, extra: ['-RenderedHash', 'a'.repeat(64)] });
@@ -168,7 +171,7 @@ test('bad case: an edit to a gated clause refuses through the install, naming th
 });
 
 test('bad case: a move-2 replace that drops its routed agents renders, then seam A refuses the install', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   assert.ok(move2Agents(repo).length > 0);
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea, then write the spec.\n' });
@@ -181,7 +184,7 @@ test('bad case: a move-2 replace that drops its routed agents renders, then seam
 // ------------------------------------------------------------ the review output
 
 test('-ReviewFolder on a configured dry run writes the rendered rules and the diff, and changes nothing else', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
@@ -200,7 +203,7 @@ test('-ReviewFolder on a configured dry run writes the rendered rules and the di
 });
 
 test('-ReviewFolder with no configuration writes the rules and an empty diff', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { extra: ['-ReviewFolder', folder] });
@@ -210,7 +213,7 @@ test('-ReviewFolder with no configuration writes the rules and an empty diff', t
 });
 
 test('-ReviewFolder with -Apply writes the review, then installs', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
@@ -227,7 +230,7 @@ for (const [label, at, skip] of [
   ['a .claude folder spelled with a trailing dot', (h, t) => join(tempDir(t), '.claude.', 'review'), process.platform !== 'win32' && 'only Windows drops a trailing dot (not run)'],
 ]) {
   test(`bad case: -ReviewFolder ${label} refuses, and nothing is written there`, { skip: skip ?? false }, t => {
-    const repo = makeRepo(t);
+    const repo = shared.root;
     const h = home(t);
     const folder = at(h, t);
     // The .claude parent exists (spelled without the dot); the review folder does not.
@@ -241,7 +244,7 @@ for (const [label, at, skip] of [
 }
 
 test('bad case: -ReviewFolder naming a folder that is not empty refuses', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const folder = tempDir(t);
   writeFileSync(join(folder, 'mine.txt'), 'x\n');
   const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
@@ -251,7 +254,7 @@ test('bad case: -ReviewFolder naming a folder that is not empty refuses', t => {
 });
 
 test('bad case: a relative -ReviewFolder refuses before anything runs', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const r = install(repo, home(t), { extra: ['-ReviewFolder', 'review'] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: -ReviewFolder must be a full path/m, r.out);
@@ -260,7 +263,7 @@ test('bad case: a relative -ReviewFolder refuses before anything runs', t => {
 });
 
 test('the review output is written only after every check passes: a refused configuration writes none', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "b.md"}]}\n', { 'b.md': 'See @notes.md.\n' });
   const folder = join(tempDir(t), 'review');
@@ -271,7 +274,7 @@ test('the review output is written only after every check passes: a refused conf
 });
 
 test('the review output is written only after every check passes: seam A refusing writes none', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea.\n' });
   const folder = join(tempDir(t), 'review');
@@ -280,7 +283,7 @@ test('the review output is written only after every check passes: seam A refusin
 });
 
 test('the review output is written only after every check passes: a wrong hash on -Apply writes none', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
@@ -290,7 +293,7 @@ test('the review output is written only after every check passes: a wrong hash o
 });
 
 test('the review output is written only after every check passes: -Apply with no hash for a configuration writes none', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
@@ -358,7 +361,7 @@ for (const [label, withConfig, from, to, why] of [
 // ------------------------------------------------------------ a stray word never becomes the review folder
 
 test('bad case: a stray full path after the named options refuses, and is never taken as the review folder', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const stray = join(tempDir(t), 'stray');
   const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
@@ -371,7 +374,7 @@ test('bad case: a stray full path after the named options refuses, and is never 
 });
 
 test('bad case: the sink parameter given by name refuses too', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const r = install(repo, home(t), { extra: ['-UnreadWord', join(tempDir(t), 'x')] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the command line holds 1 word the script does not read\./m, r.out);
@@ -379,7 +382,7 @@ test('bad case: the sink parameter given by name refuses too', t => {
 // ------------------------------------------------------------ after the move-4 review (#94)
 
 test('a block naming the user\'s own agent installs: the shipped example passes the roster and routing checks', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const block = readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'move-4-own-agent.md'));
   configure(h, '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "move-4-own-agent.md"}]}\n', { 'move-4-own-agent.md': block });
@@ -393,7 +396,7 @@ test('a block naming the user\'s own agent installs: the shipped example passes 
 });
 
 test('an upgrade from a slice-3 record, which holds the user file only: each block file is "new since the last install"', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   configure(h, '{"schema": 1, "settings": {"usage-pause": 90}}\n');
   assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
@@ -409,7 +412,7 @@ test('an upgrade from a slice-3 record, which holds the user file only: each blo
 });
 
 test('a block file the last install read and this one no longer uses is counted in the dry run', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);

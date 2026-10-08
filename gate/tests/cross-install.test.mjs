@@ -7,7 +7,10 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { REPO, failRules, lastLine, read, runSeamA, stage } from './helpers.mjs';
-import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
+
+// The tests that only read their throwaway repo share this one (#146).
+const shared = sharedRepo();
 
 const SRC = 'cross/cross.mjs';
 const DEST = 'pact/cross.mjs';
@@ -107,7 +110,7 @@ test("the cross script's own imports, and import.meta, pass the import rule", t 
 // ------------------------------------------------------------ the install
 
 test('-Apply installs the cross script byte for byte, the manifest records its hash, and render-check never installs', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
@@ -125,7 +128,7 @@ test('-Apply installs the cross script byte for byte, the manifest records its h
 });
 
 test('bad case: a tampered installed cross script is drift, and -Apply refuses', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   assert.equal(install(repo, h, { apply: true }).code, 0);
   const live = join(h, 'pact', 'cross.mjs');
@@ -139,7 +142,7 @@ test('bad case: a tampered installed cross script is drift, and -Apply refuses',
 });
 
 test('bad case: a deleted installed cross script is drift, and -Apply refuses', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   assert.equal(install(repo, h, { apply: true }).code, 0);
   rmSync(join(h, 'pact', 'cross.mjs'));

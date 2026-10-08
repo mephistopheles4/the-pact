@@ -1,15 +1,18 @@
-// The install's smoke set (#140): its happy path, end to end, against a
-// throwaway git repo built from this tree and a throwaway -ClaudeHome. These
+// The install's smoke set (#140): its happy path, end to end, against this
+// file's shared throwaway git repo and a throwaway -ClaudeHome. These
 // cases moved here, unchanged, from install.test.mjs, so a payload change can
 // run them without the whole install tier. Never touches ~/.claude.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo } from './install-harness.mjs';
+import { home, install, listTree, sharedRepo } from './install-harness.mjs';
+
+// The tests that only read their throwaway repo share this one (#146).
+const shared = sharedRepo();
 
 test('dry run on a clean tree passes and shows Node, the pin, the check and the gate', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const r = install(repo, home(t));
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Node: .+ \(v\d+\.\d+\.\d+\)$/m);
@@ -25,7 +28,7 @@ test('dry run on a clean tree passes and shows Node, the pin, the check and the 
 });
 
 test('-Apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const r = install(repo, h, { apply: true });
   assert.equal(r.code, 0, r.out);

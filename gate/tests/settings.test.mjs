@@ -8,7 +8,10 @@ import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { GATE, failRules, lastLine, realOverlay, runSeamA, stage, tempDir } from './helpers.mjs';
-import { PWSH, commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { PWSH, commitAll, home, install, listTree, makeRepo, refused, sharedRepo } from './install-harness.mjs';
+
+// The tests that only read their throwaway repo share this one (#146).
+const shared = sharedRepo();
 
 const OVERLAY = 'claude/settings.overlay.json';
 
@@ -433,7 +436,7 @@ function readLive(h) {
 }
 
 test("-Apply installs the pact's ask rules and auto mode, verifies them, and the next dry run is quiet", t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
@@ -456,7 +459,7 @@ function addedAsk(stdout) {
 }
 
 test('the dry run lists every pact rule as an added ask line, each dash printed as an escape', t => {
-  const r = install(makeRepo(t), home(t));
+  const r = install(shared.root, home(t));
   assert.equal(r.code, 0, r.out);
   const added = addedAsk(r.stdout);
   for (const rule of PACT_ASK) assert.ok(added.includes(`  + permissions.ask: ${shown(rule)}`), `${shown(rule)} not listed:\n${r.out}`);
@@ -495,7 +498,7 @@ test('bad case: a rule holding a backslash and "u2013" as plain text prints apar
 });
 
 test("an owner's own ask rule survives the merge", t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, { permissions: { ask: ['Bash(rm *)'], defaultMode: 'auto' } });
   const r = install(repo, h, { apply: true });
@@ -506,7 +509,7 @@ test("an owner's own ask rule survives the merge", t => {
 });
 
 test("the merge keeps the owner's numbers exact, beyond 64-bit integers too", t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, '{"big": 12345678901234567890, "small": 7, "frac": 0.1, "permissions": {"defaultMode": "auto"}}\n');
   const r = install(repo, h, { apply: true });
@@ -518,7 +521,7 @@ test("the merge keeps the owner's numbers exact, beyond 64-bit integers too", t 
 });
 
 test("live settings missing the pact's ask rules draw a warning", t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, { permissions: { defaultMode: 'auto' } });
   const r = install(repo, h);
@@ -527,7 +530,7 @@ test("live settings missing the pact's ask rules draw a warning", t => {
 });
 
 test('a live hooks key draws a warning, even beside keys that differ only in case', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, '{"hooks": {"PreToolUse": []}, "theme": "dark", "Theme": "light"}\n');
   const r = install(repo, h);
@@ -536,7 +539,7 @@ test('a live hooks key draws a warning, even beside keys that differ only in cas
 });
 
 test('live plugin keys, which the merge keeps from the live file, are named but not warned about', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, { enabledPlugins: { 'x@y': true }, extraKnownMarketplaces: {}, permissions: { ask: PACT_ASK, defaultMode: 'auto' } });
   const r = install(repo, h);
@@ -546,7 +549,7 @@ test('live plugin keys, which the merge keeps from the live file, are named but 
 });
 
 test('a live defaultMode other than auto draws a warning', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, { permissions: { defaultMode: 'bypassPermissions', ask: PACT_ASK } });
   const r = install(repo, h);
@@ -554,7 +557,7 @@ test('a live defaultMode other than auto draws a warning', t => {
 });
 
 test('a live Permissions key (wrong case) is warned about, and -Apply still writes the lowercase guard', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, { Permissions: { ask: PACT_ASK, defaultMode: 'auto' } });
   const dry = install(repo, h);
@@ -567,7 +570,7 @@ test('a live Permissions key (wrong case) is warned about, and -Apply still writ
 });
 
 test('a live file the merge cannot read draws a plain warning, and -Apply refuses before writing anything', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, '[1]\n');
   const dry = install(repo, h);
@@ -580,7 +583,7 @@ test('a live file the merge cannot read draws a plain warning, and -Apply refuse
 });
 
 test('live keys the pact does not set are named on one line; live env names are only counted', t => {
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, { theme: 'dark', voiceEnabled: true, env: { MY_SECRET_NAME: 'x' } });
   const r = install(repo, h);
@@ -591,7 +594,7 @@ test('live keys the pact does not set are named on one line; live env names are 
 
 test('canary: the install never prints a live value, a live permission entry or a live key value', t => {
   const C = 'CANARYlive';
-  const repo = makeRepo(t);
+  const repo = shared.root;
   const h = home(t);
   writeLive(h, {
     env: { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: `${C}env`, OTHER: `${C}other` },
@@ -664,7 +667,7 @@ test('bad case: an -Apply whose written settings lack the guard reports a mismat
 });
 
 test('the dry run no longer says the overlay is unchecked', t => {
-  const r = install(makeRepo(t), home(t));
+  const r = install(shared.root, home(t));
   assert.equal(r.code, 0, r.out);
   assert.doesNotMatch(r.stdout, /not checked until #34/);
 });
