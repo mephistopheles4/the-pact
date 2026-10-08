@@ -10,7 +10,7 @@
       "medium"
     ]
   },
-  "contains": [
+  "notCheckedHas": [
     "outside the working folder"
   ],
   "secret": "STDCANARY-7f3e9a21c4b84d02"

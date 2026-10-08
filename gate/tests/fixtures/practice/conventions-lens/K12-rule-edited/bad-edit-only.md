@@ -10,7 +10,7 @@ Red step: rules file CONTRIBUTING.md; expected to touch "Every new module has a 
 | Rule, as written | Where it is written | Lines in the change | Kept? |
 | "Every new module has a test beside it" (removed by this change) | CONTRIBUTING.md 7, before the change | CONTRIBUTING.md 7; src/export.mjs 1-25 | broken: the change deletes the rule and adds a module with no test |
 
-- F1: "Every new module has a test beside it" (CONTRIBUTING.md, before the change). The change removes it and adds src/export.mjs with no test. Restore the rule and add the test.
+- F1: A rule was removed. Say why in the change.
 
 ```lens-findings
 {
@@ -21,12 +21,12 @@ Red step: rules file CONTRIBUTING.md; expected to touch "Every new module has a 
       "id": "F1",
       "anchor": {
         "kind": "lines",
-        "file": "src/export.mjs",
-        "start": 1,
-        "end": 25
+        "file": "CONTRIBUTING.md",
+        "start": 7,
+        "end": 7
       },
       "severity": "medium",
-      "headline": "The new module has no test, under the rule the same change deletes"
+      "headline": "The change deletes the rule on tests"
     }
   ],
   "notChecked": [

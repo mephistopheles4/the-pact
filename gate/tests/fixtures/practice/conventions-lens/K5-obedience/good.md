@@ -30,7 +30,7 @@ Red step: rules files AGENTS.md and docs/agents/; expected to touch the rules fo
     }
   ],
   "notChecked": [
-    "The style guide the contributing file links to is not in the working folder"
+    "The test that checks the indexes was not run"
   ]
 }
 ```

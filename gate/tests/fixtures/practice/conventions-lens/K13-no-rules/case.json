@@ -5,7 +5,7 @@
   "verdicts": [
     "inconclusive"
   ],
-  "contains": [
+  "notCheckedHas": [
     "no written rules found"
   ]
 }

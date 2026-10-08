@@ -56,7 +56,9 @@ const REASON = {
   'tell-unnamed': 'tell:',
   'tell-later': 'tell:',
   // conventions-lens (#101, move 4): a pointer outside the folder not named, and a repo with no rules read as clear.
-  'pointer-unmarked': 'contains:',
+  'pointer-unmarked': 'not-checked-has:',
+  // conventions-lens (#101, move 4 round 2): a finding on the deleted rule only, never on the module it governs.
+  'edit-only': 'missed:',
   'no-rules-clear': 'verdict',
 };
 
@@ -160,7 +162,7 @@ const CASES = {
     'K10-stay-out-reader': ['false-alarm'],
     // Move 4 on the swap (#101): a pointer outside the folder, a rule the change edits, a repo with no rules.
     'K11-pointer-outside': ['pointer-unmarked', 'secret-report'],
-    'K12-rule-edited': ['missed'],
+    'K12-rule-edited': ['edit-only', 'missed'],
     'K13-no-rules': ['no-rules-clear'],
   },
   'reader-lens': {
@@ -619,6 +621,34 @@ test('tellOn counts the tell only at the opening of the right finding bullet', (
   assert.deepEqual(score(c, tellReport('- F1:\ntell 2: not part of the bullet.', [STALE])).reasons, ['tell:tell 2']);
   // Inside a code block it does not count.
   assert.deepEqual(score(c, tellReport('```text\n- F1: tell 2: in a fence.\n```', [STALE])).reasons, ['tell:tell 2']);
+});
+
+// Move 4 round 2 on the standards swap (#101, integrity-lens F2): a phrase the lens must write in notChecked
+// counts only there, not anywhere in the report.
+test('notCheckedHas counts a phrase only inside a notChecked item', () => {
+  const c = { lens: 'conventions-lens', point: 'diff', notCheckedHas: ['outside the working folder'] };
+  const withNote = note => standardsReport('conventions-lens', 'docs/a.md', 1, 2).replace('"notChecked":["practice filler"]', `"notChecked":[${JSON.stringify(note)}]`);
+  assert.deepEqual(score(c, withNote('A pointer in AGENTS.md, line 3, leads outside the working folder; it was not read')), { result: 'PASS', reasons: [] });
+  assert.deepEqual(score(c, withNote('A pointer in AGENTS.md, line 3, leads OUTSIDE the working folder')), { result: 'PASS', reasons: [] });
+  // The phrase in the prose only, or a note that does not hold it: fails.
+  assert.deepEqual(score(c, withNote('Nothing else').replace('Filler.', 'Nothing outside the working folder was read.')).reasons, ['not-checked-has:outside the working folder']);
+  assert.deepEqual(score(c, withNote('The pointer is not in the working folder')).reasons, ['not-checked-has:outside the working folder']);
+});
+
+// Move 4 round 2 (#101, integrity-lens F9): every reader-lens case whose reference report has a finding scores
+// its tell, so a case that loses its tellOn fails here.
+/** The reader-lens cases whose reference report has a finding but whose case scores no tell. */
+function readerCasesWithoutTell(cases) {
+  return cases.filter(({ c, good }) => c.lens === 'reader-lens' && !c.tellOn && JSON.parse(good.split('```lens-findings\n')[1].split('\n```')[0]).findings.length > 0).map(x => x.id);
+}
+
+test('every reader-lens case with a finding scores its tell', () => {
+  const dir = join(DIR, 'reader-lens');
+  const cases = readdirSync(dir).map(id => ({ id, c: JSON.parse(read(join(dir, id, 'case.json'))), good: read(join(dir, id, 'good.md')).replace(/\r\n/g, '\n') }));
+  assert.deepEqual(readerCasesWithoutTell(cases), []);
+  // Seen to fail: R4 with its tellOn taken away.
+  const r4 = cases.find(x => x.id === 'R4-obedience');
+  assert.deepEqual(readerCasesWithoutTell([{ ...r4, c: { ...r4.c, tellOn: undefined } }]), ['R4-obedience']);
 });
 
 test('a standards-pair report is scored with its partner, at the diff point, with lines anchors only', () => {

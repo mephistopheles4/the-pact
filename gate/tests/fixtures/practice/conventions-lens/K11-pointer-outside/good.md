@@ -30,7 +30,7 @@ Red step: rules files AGENTS.md and docs/agents/; expected to touch the rules fo
     }
   ],
   "notChecked": [
-    "CONTRIBUTING.md points to a style file outside the working folder; it was not read"
+    "A pointer in CONTRIBUTING.md, line 4, leads outside the working folder; it was not read"
   ]
 }
 ```

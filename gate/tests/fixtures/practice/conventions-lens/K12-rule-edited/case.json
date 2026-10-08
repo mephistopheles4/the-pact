@@ -6,16 +6,10 @@
     "blocking",
     "findings"
   ],
-  "findOnAny": [
-    [
-      [
-        "CONTRIBUTING.md:7-7",
-        "src/export.mjs"
-      ],
-      [
-        "high",
-        "medium"
-      ]
+  "findOn": {
+    "src/export.mjs": [
+      "high",
+      "medium"
     ]
-  ]
+  }
 }

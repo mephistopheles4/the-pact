@@ -10,13 +10,37 @@ import { LENSES } from './practice-score.mjs';
 
 const DIR = join(REPO, 'gate', 'tests', 'fixtures', 'practice');
 const read = p => readFileSync(p, 'utf8');
+
+/**
+ * The phrases a case scores word for word. A tell is held with its colon, as the scorer reads it, so `"tell 1`"
+ * is not found inside `"tell 10:`" (#101, move 4).
+ */
+export function scoredPhrases(c) {
+  return [
+    ...(c.contains ?? []),
+    ...(c.notCheckedHas ?? []),
+    ...Object.values(c.headlineOn ?? {}),
+    ...(c.heading ? [c.heading] : []),
+    ...(c.bulletOn ?? []).map(b => b[2]),
+    ...(c.tellOn ?? []).map(b => `${b[2]}:`),
+  ];
+}
+
+test('a tell is held with its colon, so tell 1 is not found inside tell 10', () => {
+  const [phrase] = scoredPhrases({ tellOn: [[['a.md:1-2'], ['high'], 'tell 1']] });
+  assert.equal(phrase, 'tell 1:');
+  // Seen to fail: a text holding only `"tell 10:`" holds the bare words but not the phrase.
+  assert.ok('- `tell 10:` **buried.**'.includes('tell 1'));
+  assert.ok(!'- `tell 10:` **buried.**'.includes(phrase));
+});
+
 test('every contains and headlineOn phrase, and the artifact heading, is written in its lens file in exact words', () => {
   for (const lens of LENSES) {
     const text = read(join(REPO, 'claude', 'agents', `${lens}.md`)).toLowerCase().replace(/\s+/g, ' ');
     for (const id of readdirSync(join(DIR, lens))) {
       const c = JSON.parse(read(join(DIR, lens, id, 'case.json')));
       // A tell is held with its colon, as the scorer reads it, so "tell 1" is not found inside "tell 10:" (#101, move 4).
-      for (const s of [...(c.contains ?? []), ...Object.values(c.headlineOn ?? {}), ...(c.heading ? [c.heading] : []), ...(c.bulletOn ?? []).map(b => b[2]), ...(c.tellOn ?? []).map(b => `${b[2]}:`)]) {
+      for (const s of scoredPhrases(c)) {
         assert.ok(text.includes(s.toLowerCase()), `${lens} ${id}: "${s}" is not in the lens file`);
       }
     }
@@ -220,12 +244,15 @@ test("reader-lens's catalogue holds the ten tells, in order", () => {
 test('the standards pair names a secret by its place, and conventions-lens reads inside the working folder', () => {
   for (const lens of ['conventions-lens', 'reader-lens']) {
     const flat = read(join(REPO, 'claude', 'agents', `${lens}.md`)).replace(/\s+/g, ' ');
-    for (const words of ["Never write a secret's value or a person's personal data anywhere in your report.", 'Name where a secret is, never what it is', 'You may read any file in that folder, and nothing outside it.']) {
+    for (const words of ["Never write a secret's value or a person's personal data anywhere in your report.", 'Name where a secret is, never what it is: by its path in the repo and its line.', 'Name every file by its path inside the working folder.', 'You may read the files the main session hands you and any file in the working folder, and nothing else.', 'A file the diff adds or changes as a link (the diff marks its mode as one) counts as outside the working folder: do not read it, and name it in `notChecked`.']) {
       assert.ok(flat.includes(words), `${lens}: "${words}"`);
     }
   }
   const flat = read(join(REPO, 'claude', 'agents', 'conventions-lens.md')).replace(/\s+/g, ' ');
-  for (const words of ['Follow a pointer from a rules file at most one step.', 'A pointer that leads outside the working folder is not read', 'check the rest of the change against the rule as it stood before the change']) {
+  for (const words of ['Follow a pointer from a rules file at most one step.', 'A pointer that leads outside the working folder is not read: name it in `notChecked` as outside the working folder, by the rules file and line that hold it, never by where it leads.', 'the verdict is `inconclusive`, with `notChecked` holding `no written rules found`', 'list that edit as its own row, and check the rest of the change against the rule as it stood before the change']) {
     assert.ok(flat.includes(words), `conventions-lens: "${words}"`);
   }
+  // reader-lens names a secret's place inline where it asks for quoted evidence (#101, move 4 round 2, data-lens F1).
+  const reader = read(join(REPO, 'claude', 'agents', 'reader-lens.md')).replace(/\s+/g, ' ');
+  for (const words of ['with the evidence quoted, unless the line holds a secret or personal data; then name its place.', 'the evidence, quoted unless the line holds a secret or personal data,']) assert.ok(reader.includes(words), `reader-lens: "${words}"`);
 });
