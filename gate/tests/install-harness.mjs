@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
+import { COPY_DIRS, COPY_FILES, COPY_SKIP } from './copy-list.mjs';
 import { REPO, routeTree, tempDir } from './helpers.mjs';
 
 export const WIN = process.platform === 'win32';
@@ -43,14 +44,15 @@ export function commitAll(root, msg = 'test') {
 export function makeRepo(t, mutate) {
   const root = tempDir(t, 'pact-repo-');
   // The install drops gate/tests before any check, so the copy leaves it out.
-  const tests = join(REPO, 'gate', 'tests');
-  for (const d of ['claude', 'cross', 'gate', 'familiars']) {
-    cpSync(join(REPO, d), join(root, d), { recursive: true, filter: src => src !== tests });
+  const skip = new Set(COPY_SKIP.map(rel => join(REPO, ...rel.split('/'))));
+  for (const d of COPY_DIRS) {
+    cpSync(join(REPO, d), join(root, d), { recursive: true, filter: src => !skip.has(src) });
   }
-  mkdirSync(join(root, 'scripts'));
-  cpSync(join(REPO, 'scripts', 'install.ps1'), join(root, 'scripts', 'install.ps1'));
-  cpSync(join(REPO, '.gitattributes'), join(root, '.gitattributes'));
-  cpSync(join(REPO, 'AGENTS.md'), join(root, 'AGENTS.md'));
+  for (const f of COPY_FILES) {
+    const to = join(root, ...f.split('/'));
+    mkdirSync(dirname(to), { recursive: true });
+    cpSync(join(REPO, ...f.split('/')), to);
+  }
   writeFileSync(join(root, '.gitignore'), 'settings.json\n');
   if (mutate) mutate(root);
   routeTree(root);
