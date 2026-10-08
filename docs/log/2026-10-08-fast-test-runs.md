@@ -18,6 +18,7 @@
 ## What was measured
 
 - **The baseline.** Main at 76c46c1, quiet, junit reporter: 1,651 cases (1,643 pass, 8 skip, 0 fail) in 33 files, in 714 s at cap 4 on Node 24.14.1.
+- **Move 4's full suite.** On commit 2a62ce0, quiet: exit 0 in 646 s, against the baseline's 714 s. 1,680 cases: the baseline's 1,651 with 0 gone and 0 status changes, the 2 smoke cases moved, and 29 new runner cases. The speed-up here is small and comes from no change to the install tests; #146 and #147 are where the full suite gets cheaper.
 - **The plants.** Thirteen plants each broke one rule in the runner, in four batches. Each made the test that guards the rule fail, and no other test, except one side effect the plant explains. See the Record.
 
 - **The Linux container.** The rebuilt image ran `full` on Node 20.20.2 with no network. The runner's own cases all passed there, including the control-character file-name case that Windows can't plant. Four practice payload cases failed, because the practice scorer's payload rule needs `node:sqlite`, which Node 20 lacks. Main fails the same four in the same image, so they predate this work.
@@ -25,6 +26,14 @@
 ## What was found
 
 - **Node 20 refuses a test-name filter in `NODE_OPTIONS`.** The first container run failed the inherited-filter case with exit 9 before the runner started. That case now skips on such a Node. A preload planted in `NODE_OPTIONS` covers inherited options on every Node, and it fails with the clearing removed.
+- **Move 4's lenses found 14 things, and 12 changed the runner or its docs.** The fixes:
+  - **Paths and names:** printed helper names are replaced, a record path is checked as a real path, and the host name is scrubbed. Git Bash, WSL and network-share paths count as leaks.
+  - **A pass the runner didn't earn:** the entry check compares real paths, so a start through a link no longer exits 0 having run nothing.
+  - **The runner's own process:** AGENTS.md gives its command in two forms that clear `NODE_OPTIONS`, since clearing it only for the child left the runner open to a preload.
+  - **The floor and the docs:** the floor names the runner's two test files, and AGENTS.md says a pass needs the result line.
+  - **New tests and plants:** each fix has a bad case, and eight plants were each seen to fail.
+  - **The other two:** the re-time and the everyday timings already sit in #145, and the one-PR rollback note went on #140.
+- **A lens report quoted local paths.** `behaviour-lens` named its scratch and working folders. The first post of the QA pair's section carried them. It was deleted within minutes and reposted with placeholders, following #140's rule that posted records carry repo-relative paths only.
 - **A test file can put itself in the install tier.** The runner's own tests plant files that name the install script, so those plants live in fixture text files, and the runner applies its literal rule to a test file's own source only. A guard checks that the runner's test files stay in `fast`.
 
 ## Record
@@ -36,9 +45,14 @@ Issue comments on mephistopheles4/the-pact#140:
 - `6064677579` — the one-PR plan.
 - `6064685906`, `6064686449`, `6064686799` — the T1 baseline case list.
 - `6065051673` — the T1 Linux container run.
+- `6066623650` — rollback and close-out with one PR.
 
 Issue comments on mephistopheles4/the-pact#144:
 
 - `6064783590` — the plants' method and expected results, posted before any run.
 - `6064874466` — the plant results.
 - `6064976269`, `6064998338` — plant batch E, for the preload case: expected result and result.
+- `6065301262` — move 4's full suite against the baseline.
+- `6066456063`, `6066440658`, `6066441035` — move 4's lens reports, through the cross script: the QA pair, `unstated-lens` and the security pair.
+- `6066560954`, `6066611913` — the plants for move 4's fixes: expected results and results.
+- `6066636782` — move 4's Lens dispositions.
