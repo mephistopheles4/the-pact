@@ -15,12 +15,33 @@
 - **The Linux container** runs `run.mjs full --reporter tap`. See [ADR 0030](../adr/0030-the-gate-suite-runs-through-one-runner-in-named-tiers.md), linked from [ADR 0029](../adr/0029-the-gate-suite-runs-capped-on-the-current-node-lts.md).
 - **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
 
+## T2 (#145): the everyday changed tier
+
+- **The shape.** Re-timed quiet on the shared branch, `fast` took 50.1 s, under the spec's 60-second line. So `changed` is `fast` plus the tests the change can reach. It isn't the picks alone.
+- **The changed set.** It's what differs from the merge-base of HEAD and `--base` (default `main`), staged or not, plus untracked files git doesn't ignore. A deletion or a rename counts by both paths.
+  - **The base:** it's resolved to a commit before any other git call. A dash-led base exits 2.
+  - **git's environment:** it runs without inherited `GIT_` variables, so a stray `GIT_DIR` can't point it at another repo.
+- **The picks,** by the spec's rules:
+  - **Tests and helpers:** a changed test runs itself, and a changed helper runs every test that reaches it through imports.
+  - **Gate code** runs `full`.
+  - **A payload path** runs the smoke file and every test that names the path.
+  - **Any other path** runs the tests that name it.
+  - **A path no rule maps** runs `fast` and is printed as unmapped.
+  - **What "names" means:** a test names a path when its source, or a helper it imports, holds the path's file name or any run of two or more of its segments, written out or as string literals in a row.
+- **The reasons print plainly.** T1's runner passed whole reasons through the odd-character filter, which turned `:` into `?`. Now only the names inside a reason are filtered.
+- **AGENTS.md** says "while building, run `changed`", with the command in both shell forms. It replaces the interim rule's hand-picked file list.
+
 ## What was measured
 
 - **The baseline.** Main at 76c46c1, quiet, junit reporter: 1,651 cases (1,643 pass, 8 skip, 0 fail) in 33 files, in 714 s at cap 4 on Node 24.14.1.
 - **Move 4's full suite.** On commit 2a62ce0, quiet: exit 0 in 646 s, against the baseline's 714 s. 1,680 cases: the baseline's 1,651 with 0 gone and 0 status changes, the 2 smoke cases moved, and 29 new runner cases. The speed-up here is small and comes from no change to the install tests; #146 and #147 are where the full suite gets cheaper.
 - **The final full suite,** after move 4's fixes, on a65b10b, quiet: exit 0 in 393 s, 1,693 cases. That is the baseline with 0 gone, 0 changed, 2 moved and 42 new. The swing from 646 s to 393 s is machine load, not the change.
 - **The plants.** Thirteen plants each broke one rule in the runner, in four batches. Each made the test that guards the rule fail, and no other test, except one side effect the plant explains. See the Record.
+
+- **The everyday timings (T2),** quiet, on 969e788, with `--base HEAD` so the sample was the only change:
+  - **A test-only change:** 27 files in 48.1 s (49.5 s on the first run). That's under a minute.
+  - **A one-agent-file change:** 36 files in 412.4 s, far over it.
+- **The T2 plants.** Seventeen plants each broke one of the changed tier's rules, in five batches and a sixth for a corrected plant. Each made the test that guards the rule fail. The few extra failures each have a stated cause in the record.
 
 - **The Linux container.** The rebuilt image ran `full` on Node 20.20.2 with no network. The runner's own cases all passed there, including the control-character file-name case that Windows can't plant. Four practice payload cases failed, because the practice scorer's payload rule needs `node:sqlite`, which Node 20 lacks. Main fails the same four in the same image, so they predate this work.
 
@@ -35,6 +56,7 @@
   - **New tests and plants:** each fix has a bad case, and eight plants were each seen to fail.
   - **The other two:** the re-time and the everyday timings already sit in #145, and the one-PR rollback note went on #140.
 - **A lens report quoted local paths.** `behaviour-lens` named its scratch and working folders. The first post of the QA pair's section carried them. It was deleted within minutes and reposted with placeholders, following #140's rule that posted records carry repo-relative paths only.
+- **A payload change through a shared helper picks nearly everything.** `helpers.mjs` reads every agent file to build its stages, and almost every test imports it. So a one-agent-file change names itself in 35 of the 36 test files, and costs about a full suite. The rule is right about those tests: they do read the file. The spec expected "the smoke set and a few", and the planted cases do show that. The owner chose to design the test architecture first, in a revision on #140, so the finer split waits for that.
 - **A test file can put itself in the install tier.** The runner's own tests plant files that name the install script, so those plants live in fixture text files, and the runner applies its literal rule to a test file's own source only. A guard checks that the runner's test files stay in `fast`.
 
 ## Record
@@ -59,3 +81,10 @@ Issue comments on mephistopheles4/the-pact#144:
 - `6066636782` — move 4's Lens dispositions.
 - `6066872845` — the final full suite against the baseline.
 - `6067327558` — the owner's pick, the walk-through and the owner's done.
+
+Issue comments on mephistopheles4/the-pact#145:
+
+- `6067466126` — the S6 re-time of `fast`.
+- `6067514386` — the finding on a one-agent-file change's picks.
+- `6067597237`, `6067693012` — the plants' method and expected results, and their results.
+- `6067865517` — the everyday timings.
