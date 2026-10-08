@@ -232,7 +232,7 @@ they live here to outlive it. No periodic review may cut or weaken:
   of the security pair at any tier but thorough.
 - **The security set's contents, and its rerun after a model change.** The
   rerun binds the pact's shipped defaults: a change to a shipped agent file's
-  model reruns that lens's set. A person's configuration override is never
+  model or effort reruns that lens's set. A person's configuration override is never
   run there, so it carries the mark "override, not security-tested" (ADR 0027).
 - **The per-lens tool allow-list:** no lens gains a tool.
 - **The security lenses' carried rules:** a secret named by location, never

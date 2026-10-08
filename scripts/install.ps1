@@ -845,6 +845,12 @@ foreach ($agentName in @($agentSets.Keys)) {
   }
   if (-not $agentOk -or $modelLines -ne 1 -or $effortLines -ne 1) { Stop-Refused 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values.' }
   if ($changed -ne $agentSet.override) { Stop-Refused "the renderer's override word for $agentName does not match whether its file changed." }
+  # The egress word, from the committed file's one frontmatter tools line:
+  # anything but the read tools reaches out, and such a lens is security-set.
+  $toolsOld = @($oldLines[1..($close - 1)] | Where-Object { $_ -cmatch '\Atools:' })
+  if ($toolsOld.Count -ne 1) { Stop-Refused "the committed $agentRel does not hold exactly one tools line." }
+  if (($toolsOld[0] -cne 'tools: [Read, Glob, Grep]') -ne $agentSet.egress) { Stop-Refused "the renderer's egress word for $agentName does not match its committed tools line." }
+  if ($agentSet.egress -and -not $agentSet.security) { Stop-Refused "the renderer called $agentName egress but not security-set." }
   [IO.File]::WriteAllBytes($agentStaged, $agentBytes)
   $staged[$agentRel] = $agentHash
   [IO.File]::Delete($agentOut.FullName)

@@ -11,6 +11,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { GATE, RENDER, REPO, lastLine, tempDir } from './helpers.mjs';
 import { home, install, listTree, makeRepo, refused, WIN } from './install-harness.mjs';
+import { OLD_REVIEWERS } from '../pact-text.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const AGENT = readFileSync(join(REPO, 'claude', 'agents', 'integrity-lens.md'), 'utf8');
@@ -60,11 +61,17 @@ function refusedWith(r, rule, reason) {
 
 const cfg = agents => ({ schema: 1, agents });
 
-/** The rendered notice: its paragraph, up to the next blank line. */
+/** The rendered notice: its lines from "Configuration in effect" up to the next empty line. */
 function notice(rules) {
-  const m = /^\*\*Configuration in effect\.\*\*[\s\S]*?(?=\n\n|$)/m.exec(rules);
-  assert.ok(m, 'no configuration notice');
-  return m[0];
+  const lines = rules.split('\n');
+  const i = lines.findIndex(l => l.startsWith('**Configuration in effect.**'));
+  assert.ok(i >= 0, 'no configuration notice');
+  let j = i;
+  while (j < lines.length && lines[j] !== '') j += 1;
+  const n = lines.slice(i, j).join('\n');
+  // The helper must reach the agents line, or a doesNotMatch on it proves nothing.
+  assert.match(n, /^Agents set: /m, 'the notice read stops before its agents line');
+  return n;
 }
 
 // ------------------------------------------------------------ the renderer: what renders
@@ -106,6 +113,8 @@ test('with no agents key, no agent file is read: a stage with none renders, and 
 const BAD_CONFIGS = [
   ['an unknown agent', cfg({ 'my-reviewer': { model: 'sonnet' } }), /cannot set/],
   ['the sealed agent scout', cfg({ scout: { model: 'opus' } }), /scout is locked: it is sealed/],
+  // Every retired reviewer, from the roster's own list: an old configuration fails loudly.
+  ...OLD_REVIEWERS.map(a => [`the retired reviewer ${a}`, cfg({ [a]: { model: 'sonnet' } }), /cannot set/]),
   ['an entry that is a string', cfg({ 'integrity-lens': 'sonnet' }), /must be an object/],
   ['an entry that is a list', cfg({ 'integrity-lens': [] }), /must be an object/],
   ['an entry that is null', cfg({ 'integrity-lens': null }), /must be an object/],
@@ -255,6 +264,20 @@ test('bad case: each sign alone marks integrity-lens security-set; with none it 
   assert.equal(classify(t, 'integrity-lens', { renderer: p }).words, 'security-set override local');
 });
 
+test('bad case: a renderer whose output would change another line refuses by its own self-check', t => {
+  const gate = tempDir(t, 'pact-agents-gate-');
+  for (const f of ['render.mjs', 'shared.mjs', 'tool-allowlist.json']) cpSync(join(GATE, f), join(gate, f));
+  const p = join(gate, 'render.mjs');
+  const s = readFileSync(p, 'utf8');
+  const from = '  out[effortAt[0]] = `effort: ${effort}`;';
+  assert.equal(s.split(from).length, 2);
+  writeFileSync(p, s.replace(from, `${from}\n  out[toolsAt[0]] = 'tools: [Read, Glob, Grep, Bash]';`));
+  const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { renderer: p });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.stdout, /would differ from the source beyond its model and effort lines/);
+  assert.deepEqual(r.outFiles, []);
+});
+
 test('bad case: a source with no security-route clause refuses a setting', t => {
   const src = SOURCE.toString('utf8').replace('<!-- pact:begin security-route -->', '<!-- pact:begin security-rout -->');
   const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { source: src });
@@ -389,6 +412,10 @@ for (const [label, config, from, to, why] of [
   ['the AGENT line twice', SET, R_AGENT_PUSH, `${R_AGENT_PUSH}\n${R_AGENT_PUSH}`, 'the renderer reported one agent setting twice'],
   ['an agent file hash other than its own', SET, R_AGENT_PUSH, `  report.lines.push('AGENT integrity-lens sonnet low ${A64} plain override local');`, "the rendered agent file's hash does not match the one the renderer reported"],
   ['default for a changed file', SET, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain default local`);", "the renderer's override word for integrity-lens does not match whether its file changed"],
+  ['override for a file at its own values', { schema: 1, agents: { 'integrity-lens': { model: 'opus' } } }, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain override local`);", "the renderer's override word for integrity-lens does not match whether its file changed"],
+  ['local and plain for the shell lens', { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' } } }, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain override local`);", "the renderer's egress word for behaviour-lens does not match its committed tools line"],
+  ['egress for a lens with only the read tools', SET, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} security-set override egress`);", "the renderer's egress word for integrity-lens does not match its committed tools line"],
+  ['egress but plain for the shell lens', { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' } } }, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain override egress`);", 'the renderer called behaviour-lens egress but not security-set'],
   ['an AGENT line for another lens than the file it left', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT behaviour-lens sonnet low ${sha256(agents[0].buf)} security-set override egress`);", 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],  ['an AGENT line with no agent file', SET, R_AGENT_WRITE, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
   ['an agent file with no AGENT line', SET, R_AGENT_PUSH, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
   ['a third file under another name', null, R_DIFF_WRITE, `${R_DIFF_WRITE}\n  writeFileSync(join(out, 'agent-behaviour-lens.md'), 'x');`, 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],

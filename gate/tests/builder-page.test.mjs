@@ -330,7 +330,9 @@ test('reset puts the usage value, every slot and every agent back to the plain p
   L.applyWorkflow(s, 'close-the-loop');
   s.usage = 90;
   s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Mine.' }] };
-  s.agents['integrity-lens'].model = 'sonnet';
+  // Every lens off its default, so a reset that misses one fails.
+  for (const a of Object.keys(s.agents)) s.agents[a].model = s.agents[a].model === 'opus' ? 'sonnet' : 'opus';
+  assert.equal(Object.keys(s.agents).length, 7);
   assert.equal(L.atDefaults(s), false);
   const changed = JSON.stringify(s);
   const before = L.resetAll(s);
