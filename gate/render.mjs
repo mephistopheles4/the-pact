@@ -4,6 +4,9 @@
 // so seam A checks the bytes that get installed.
 //
 //   node render.mjs <source rules file> <output folder> <Claude home folder>
+//   node render.mjs project <output folder> <Claude home folder> <project folder>
+//
+// The second form is the project mode, described at the end of this header.
 //
 // The source carries two kinds of mark. Gated marks are seam A's seven clauses
 // (gate/pact-text.mjs); the renderer passes them through untouched. Open marks
@@ -91,6 +94,34 @@
 // after the CONFIG lines. The notice gains an "Agents set:" line. Adding an
 // agent to CONFIGURABLE_AGENTS is on AGENTS.md's probe floor.
 //
+// The project mode (#53, slice 5) renders the project rules file for a
+// project install. It reads the user file, for the user's effective values and
+// to refuse a bad one (its edits are checked for shape, but their blocks are
+// not read, since no edit reaches a project), and the project file at
+// PROJECT_REL in the project folder, under the same reading rules, rooted at
+// the project folder. With no project file it refuses, saying there is no
+// project configuration. The project file's shape is the user file's minus
+// "edits": { "schema": 1, "settings": { <setting>: <value> } }. An edit list,
+// even an empty one, and any other key refuse. It must set at least one value,
+// and each must declare a tightening direction and be strictly tighter than
+// the user's effective value (the user file's value, or the default). The
+// output holds only fixed-template lines filled with the checked numbers, each
+// reading as the lower of the project's value and the user's, so it stays
+// tighter if the user later changes theirs. The shared text scanner runs on
+// the output before its hash is reported. It writes PROJECT_OUTPUT_NAME alone
+// into the output folder and prints:
+//
+//   RENDERED <sha256 of the output file>
+//   CONFIG none                       or   CONFIG user <sha256 of the user file>
+//   PROJECT <sha256 of the project file>
+//   DIGEST <12 hex>
+//   VALUE <setting> <number>          (one per project value)
+//   RESULT: pass
+//
+// Its digest is the first 12 hex characters of the sha256 of "user <sha256 of
+// the user file>\n" (when there is one), then "project <sha256 of the project
+// file>\n". Nothing in this mode reads the source rules file or the stage.
+//
 // No switch turns a check off. Node 20 or later, ESM.
 
 import { createHash } from 'node:crypto';
@@ -132,7 +163,7 @@ const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents']);
 // Agent settings: who may be set, to what. Matched exactly; only these
 // constants are ever printed or written.
 const CONFIGURABLE_AGENTS = Object.freeze(['integrity-lens']);
-const LOCKED_AGENTS = Object.freeze(['behaviour-lens', 'executability-lens', 'good-enough-lens', 'security-reviewer', 'unstated-lens', 'scout']);
+const LOCKED_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'unstated-lens', 'scout']);
 const AGENT_MODELS = Object.freeze(['opus', 'sonnet']);
 const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high']);
 const AGENT_FIELDS = Object.freeze(['model', 'effort']);
@@ -152,7 +183,30 @@ const USAGE_TEMPLATE = n => [
   `the weekly limit is above ${n}%, wait for my go-ahead. Never cut or stop work`,
   'because of usage on your own; that call is mine.',
 ];
-const SETTINGS = new Map([['usage-pause', Object.freeze({ mark: 'usage-pause', min: 0, max: 100, def: 75, template: USAGE_TEMPLATE })]]);
+// A setting's project line, for the project rules file: it reads as the lower
+// of the project's value and the user's. `tighter` is the direction a project
+// may move it: 'lower' means a smaller number is stricter.
+const USAGE_PROJECT_LINE = n =>
+  `- **Usage pause.** In this project, wait for my go-ahead when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+const SETTINGS = new Map([
+  ['usage-pause', Object.freeze({ mark: 'usage-pause', min: 0, max: 100, def: 75, template: USAGE_TEMPLATE, tighter: 'lower', projectLine: USAGE_PROJECT_LINE })],
+]);
+
+// The project file, in the project folder, and the project rules file this
+// mode writes. The install script names the same constants.
+const PROJECT_REL = Object.freeze(['.claude', 'pact-config.json']);
+const PROJECT_SHOWN = '.claude/pact-config.json';
+const PROJECT_NAMES = Object.freeze(["the project's .claude folder", 'the project configuration file']);
+const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings']);
+const PROJECT_OUTPUT_NAME = 'pact-project.md';
+const PROJECT_TEMPLATE = lines => [
+  '# Pact settings for this project',
+  '',
+  "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
+  '',
+  ...lines,
+  '',
+];
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.
 const NOTICE_MARK = 'config-notice';
@@ -298,7 +352,7 @@ const MISSING = Object.freeze({ kind: 'missing' });
  * home folder or a segment does not exist, { buf } when it was read, or null
  * after recording the refusal (rule `rule`, or `size.rule` for the cap).
  */
-function readUnder(home, segs, names, { cap, shownFile, rule, size }, report) {
+function readUnder(home, segs, names, { cap, shownFile, rule, size, rootLabel = 'the Claude home folder' }, report) {
   const refuse = reason => {
     report.fail(rule, shownFile, null, reason);
     return null;
@@ -308,7 +362,7 @@ function readUnder(home, segs, names, { cap, shownFile, rule, size }, report) {
   try {
     root = realpathSync.native(home);
   } catch (e) {
-    return missing(e) ? MISSING : refuse('the Claude home folder could not be read');
+    return missing(e) ? MISSING : refuse(`${rootLabel} could not be read`);
   }
   let dir = root;
   for (let i = 0; i < segs.length - 1; i += 1) {
@@ -845,9 +899,127 @@ function emptyFolder(path) {
   }
 }
 
+/**
+ * The project file, checked against the user's effective values: [[setting,
+ * value], ...] in SETTINGS order, or null after recording every refusal.
+ */
+function checkProject(buf, effective, report) {
+  const fail = (rule, reason) => report.fail(rule, PROJECT_SHOWN, null, reason);
+  if (scanText(buf, PROJECT_SHOWN, report) === null) return null;
+  let doc;
+  try {
+    doc = readStrictJson(buf);
+  } catch (e) {
+    if (!(e instanceof Refused)) throw e;
+    fail('project-json', e.reason);
+    return null;
+  }
+  if (!isObject(doc)) {
+    fail('project-json', 'not a JSON object');
+    return null;
+  }
+  let ok = true;
+  if (Object.hasOwn(doc, 'edits')) {
+    fail('project-edit', 'a project file may not edit open parts; it may only set values tighter than the user\'s');
+    ok = false;
+  }
+  if (Object.keys(doc).some(k => k !== 'edits' && !PROJECT_TOP_KEYS.includes(k))) {
+    fail('project-key', 'a key that is not schema or settings');
+    ok = false;
+  }
+  if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
+    fail('project-schema', `schema must be ${SCHEMA}`);
+    ok = false;
+  }
+  const values = [];
+  const settings = Object.hasOwn(doc, 'settings') ? doc.settings : {};
+  if (!isObject(settings)) {
+    fail('project-settings', 'settings must be an object');
+    return null;
+  }
+  if (Object.keys(settings).some(k => !SETTINGS.has(k))) {
+    fail('project-settings', 'settings holds a name that is not a setting');
+    ok = false;
+  }
+  for (const [name, spec] of SETTINGS) {
+    if (!Object.hasOwn(settings, name)) continue;
+    const v = settings[name];
+    if (!wholeIn(v, spec.min, spec.max)) {
+      fail('project-value', `${name} must be a whole number from ${spec.min} to ${spec.max}`);
+      ok = false;
+    } else if (spec.tighter !== 'lower') {
+      fail('project-direction', `${name} has no tightening direction, so a project may not set it`);
+      ok = false;
+    } else if (!(v < effective.get(name))) {
+      fail('project-looser', `${name} ${v} is not tighter than the user's effective value, ${effective.get(name)}`);
+      ok = false;
+    } else values.push([name, v]);
+  }
+  if (ok && !values.length) {
+    fail('project-empty', 'the project configuration sets no value, so there is nothing to install');
+    ok = false;
+  }
+  return ok ? values : null;
+}
+
+/** The project mode: see the header. */
+function runProject(out, home, projectFolder, report) {
+  const user = readUserConfig(home, report);
+  if (user === null) return;
+  const effective = new Map([...SETTINGS].map(([k, spec]) => [k, spec.def]));
+  if (user !== NONE) {
+    const checked = checkConfig(user.buf, report);
+    if (checked === null) return;
+    for (const [k, v] of checked.values) effective.set(k, v);
+  }
+  const proj = readUnder(projectFolder, PROJECT_REL, PROJECT_NAMES, {
+    cap: CONFIG_MAX,
+    shownFile: PROJECT_SHOWN,
+    rule: 'project-file',
+    size: { rule: 'project-size', reason: 'larger than 64 KiB' },
+    rootLabel: 'the project folder',
+  }, report);
+  if (proj === null) return;
+  if (proj === MISSING) {
+    report.fail('project-none', PROJECT_SHOWN, null, 'there is no project configuration in the project folder, so there is nothing to install');
+    return;
+  }
+  const values = checkProject(proj.buf, effective, report);
+  if (values === null) return;
+  const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v))).join('\n'), 'utf8');
+  // The output holds only constant text and checked numbers; the scanner runs
+  // on it anyway, before its hash is reported, so a template change that
+  // brings in a refused character can never be installed.
+  if (scanText(output, PROJECT_OUTPUT_NAME, report) === null) return;
+  const userHash = user === NONE ? null : sha256(user.buf);
+  const projHash = sha256(proj.buf);
+  const digest = sha256(`${userHash ? `user ${userHash}\n` : ''}project ${projHash}\n`).slice(0, 12);
+  writeFileSync(join(out, PROJECT_OUTPUT_NAME), output, { flag: 'wx' });
+  report.lines.push(
+    `RENDERED ${sha256(output)}`,
+    userHash ? `CONFIG user ${userHash}` : 'CONFIG none',
+    `PROJECT ${projHash}`,
+    `DIGEST ${digest}`,
+    ...values.map(([k, v]) => `VALUE ${k} ${v}`),
+  );
+}
+
 function run(argv, report) {
-  if (argv.length !== 3 || argv.some(a => a === '' || a.startsWith('-'))) {
-    report.fail('usage', null, null, 'usage: node render.mjs <source rules file> <output folder> <Claude home folder>');
+  const usage = 'usage: node render.mjs <source rules file> <output folder> <Claude home folder>, or node render.mjs project <output folder> <Claude home folder> <project folder>';
+  if (argv.some(a => a === '' || a.startsWith('-'))) {
+    report.fail('usage', null, null, usage);
+    return;
+  }
+  if (argv.length === 4 && argv[0] === 'project') {
+    if (!emptyFolder(argv[1])) {
+      report.fail('output', null, null, 'the output folder must be an empty folder that is not a link');
+      return;
+    }
+    runProject(argv[1], argv[2], argv[3], report);
+    return;
+  }
+  if (argv.length !== 3) {
+    report.fail('usage', null, null, usage);
     return;
   }
   const [source, out, home] = argv;

@@ -15,7 +15,7 @@
 //     read as text, never run as a module) and the pact's agents
 //     (claude/agents/). A builder file cannot change any of it.
 //   - A builder file (schema below): the person's presets, workflows and their
-//     own skills, commands and agents. The pact-builder skill writes one from
+//     own skills, commands and agents. The scriptorium skill writes one from
 //     the person's own workflow and revises it over time;
 //     examples/pact-config/builder.json is the shipped one.
 //

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dWpTZ/NNmcNUQ11xFP50VpZPmhTQnQpDpmcA8D46TvQ='; style-src 'sha256-18B67GsfB/alu8Iy2IFzlKdNjTLEx4KPxWgRi8S1FuU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-P7gQ7nTs4yxtiDCjkGfsULiZlAsvMPF+M1h0VNt36xM='; style-src 'sha256-18B67GsfB/alu8Iy2IFzlKdNjTLEx4KPxWgRi8S1FuU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -297,7 +297,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "gated",
      "mark": "security-route",
-     "text": "Anything touching auth, secrets, crypto or input validation\ntakes the security route, however small: `security-reviewer` on the\nspec, then the build in a main session, then `security-reviewer` on the\ndiff in move 4."
+     "text": "Anything touching auth, secrets, crypto or input validation\ntakes the security route, however small: the security pair,\n`adversarial-lens` and `data-lens`, on the spec, then the build in a\nmain session, then the security pair on the diff in move 4."
     },
     {
      "kind": "gated",
@@ -313,7 +313,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "gated",
      "mark": "move-4",
-     "text": "I verify the work at the end of its build session. You run the checks for\nme and bring me the verdict with a recommendation. Run the tests and any\ngates the repo has; they decide pass or fail. Then run the QA pair,\n`behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens` at\nthe standard and thorough tiers; and for security work\n`security-reviewer` on the diff. Never resume a reviewer, a lens or a\nchecker; fresh context is the point of them. They advise: post their\nreports and help me decide (below). I decide whether it's done. Close the\nticket only after I have."
+     "text": "I verify the work at the end of its build session. You run the checks for\nme and bring me the verdict with a recommendation. Run the tests and any\ngates the repo has; they decide pass or fail. Then run the QA pair,\n`behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens` at\nthe standard and thorough tiers; and for security work the security\npair, `adversarial-lens` and `data-lens`, on the diff. Never resume a\nreviewer, a lens or a checker; fresh context is the point of them. They\nadvise: post their reports and help me decide (below). I decide whether\nit's done. Close the ticket only after I have."
     },
     {
      "kind": "open",
@@ -353,6 +353,24 @@ const PACT = /* pact-data:begin */ {
  },
  "agents": [
   {
+   "name": "adversarial-lens",
+   "model": "opus",
+   "effort": "high",
+   "runs": [
+    {
+     "move": 3,
+     "mark": "security-route",
+     "kind": "gated"
+    },
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    }
+   ],
+   "configurable": false
+  },
+  {
    "name": "behaviour-lens",
    "model": "opus",
    "effort": "medium",
@@ -365,6 +383,24 @@ const PACT = /* pact-data:begin */ {
     {
      "move": null,
      "mark": "no-skill-overrides",
+     "kind": "gated"
+    }
+   ],
+   "configurable": false
+  },
+  {
+   "name": "data-lens",
+   "model": "opus",
+   "effort": "high",
+   "runs": [
+    {
+     "move": 3,
+     "mark": "security-route",
+     "kind": "gated"
+    },
+    {
+     "move": 4,
+     "mark": "move-4",
      "kind": "gated"
     }
    ],
@@ -413,24 +449,6 @@ const PACT = /* pact-data:begin */ {
     }
    ],
    "configurable": true
-  },
-  {
-   "name": "security-reviewer",
-   "model": "opus",
-   "effort": "high",
-   "runs": [
-    {
-     "move": 3,
-     "mark": "security-route",
-     "kind": "gated"
-    },
-    {
-     "move": 4,
-     "mark": "move-4",
-     "kind": "gated"
-    }
-   ],
-   "configurable": false
   },
   {
    "name": "unstated-lens",
@@ -1073,7 +1091,7 @@ function boot() {
     const total = y.skills.length + y.commands.length + y.agents.length;
     const newAgent = listRow('agent:new', 'A new agent of yours', 'Name it and pick what it reads once it is in a slot.', 'agent:new', () => [addTo(mark => newAgentCard(mark), 'a new agent')]);
     if (!total) {
-      return [el('p', { class: 'av-annot', text: 'This builder lists none of your own skills, commands or agents. Ask your agent to regenerate it with the pact-builder skill.' }), el('div', { class: 'list' }, newAgent)];
+      return [el('p', { class: 'av-annot', text: 'This builder lists none of your own skills, commands or agents. Ask your agent to regenerate it with the scriptorium skill.' }), el('div', { class: 'list' }, newAgent)];
     }
     const search = el('input', { type: 'text', 'aria-label': 'Filter by name or description', placeholder: 'Filter', spellcheck: 'false' });
     search.value = filter;

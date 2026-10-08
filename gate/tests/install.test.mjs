@@ -161,9 +161,12 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
     'gate/clauses/risk-floor.md',
     'gate/clauses/security-route.md',
     'gate/clauses/stop-and-escalate.md',
+    'gate/contained.mjs',
     'gate/grimoire/check.mjs',
     'gate/grimoire/check.mjs.pin',
     'gate/pact-text.mjs',
+    'gate/paths.mjs',
+    'gate/project.mjs',
     'gate/render.mjs',
     'gate/review.mjs',
     'gate/seam-a.mjs',
@@ -312,7 +315,7 @@ test('bad case: a missing Node refuses', t => {
   assert.match(r.stdout, /no Node/);
 });
 
-test('bad case: a node.cmd shim is not accepted as Node', { skip: !WIN }, t => {
+test('bad case: a node.cmd shim is not accepted as Node', { skip: !WIN && 'a .cmd shim runs only on Windows (not run)' }, t => {
   const d = tempDir(t, 'pact-shim-');
   writeFileSync(join(d, 'node.cmd'), `@"${process.execPath}" %*\r\n`);
   const r = install(makeRepo(t), home(t), { path: [d, ...BASE_PATH] });
@@ -363,7 +366,7 @@ test('bad case: two paths in the commit that differ only in case refuse', t => {
   assert.match(r.stdout, /differ only in case/);
 });
 
-test('bad case: a git planted in the folder the install runs from is never run', { skip: !WIN }, t => {
+test('bad case: a git planted in the folder the install runs from is never run', { skip: !WIN && 'only Windows searches the current folder for a command (not run)' }, t => {
   const repo = makeRepo(t);
   // The stand-in logs to args.log beside itself whenever it runs.
   cpSync(join(FAKE_SRC_DIR, 'node.exe'), join(repo, 'git.exe'));

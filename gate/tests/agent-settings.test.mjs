@@ -93,7 +93,7 @@ test('with no agents key, no agent file is read: a stage with none renders, and 
 
 const BAD_CONFIGS = [
   ['an unknown agent', cfg({ 'my-reviewer': { model: 'sonnet' } }), /cannot set/],
-  ...['behaviour-lens', 'executability-lens', 'good-enough-lens', 'security-reviewer', 'unstated-lens', 'scout'].map(a => [`the locked agent ${a}`, cfg({ [a]: { model: 'sonnet' } }), new RegExp(`${a} is locked`)]),
+  ...['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'unstated-lens', 'scout'].map(a => [`the locked agent ${a}`, cfg({ [a]: { model: 'sonnet' } }), new RegExp(`${a} is locked`)]),
   ['an entry that is a string', cfg({ 'integrity-lens': 'sonnet' }), /must be an object/],
   ['an entry that is a list', cfg({ 'integrity-lens': [] }), /must be an object/],
   ['an entry that is null', cfg({ 'integrity-lens': null }), /must be an object/],
@@ -201,8 +201,8 @@ test('bad case: a renderer whose locked list loses an agent still cannot set it:
   for (const f of ['render.mjs', 'shared.mjs', 'tool-allowlist.json']) cpSync(join(GATE, f), join(gate, f));
   const p = join(gate, 'render.mjs');
   const s = readFileSync(p, 'utf8');
-  writeFileSync(p, s.replace("'security-reviewer', ", ''));
-  const r = render(t, cfg({ 'security-reviewer': { model: 'sonnet' } }), { renderer: p });
+  writeFileSync(p, s.replace("'data-lens', ", ''));
+  const r = render(t, cfg({ 'data-lens': { model: 'sonnet' } }), { renderer: p });
   refusedWith(r, 'config-agents', /cannot set/);
 });
 

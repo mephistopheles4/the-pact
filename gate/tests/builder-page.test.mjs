@@ -263,7 +263,7 @@ const BAD_BUILDERS = [
   ['a duplicate preset id', () => ({ ...GOOD, presets: [GOOD.presets[0], GOOD.presets[0]], workflows: [] }), /used twice/],
   ['a workflow naming a missing preset', () => ({ ...GOOD, workflows: [{ id: 'w', title: 'W', about: 'A', presets: ['nope'] }] }), /does not define/],
   ['a bad skill name', () => ({ ...GOOD, yours: { skills: [{ name: 'bad name!' }] } }), /needs a name/],
-  ['a pact agent listed as yours', () => ({ ...GOOD, yours: { agents: [{ name: 'security-reviewer' }] } }), /pact's own agents/],
+  ['a pact agent listed as yours', () => ({ ...GOOD, yours: { agents: [{ name: 'data-lens' }] } }), /pact's own agents/],
   ['a two-line why', () => ({ ...GOOD, presets: [{ ...GOOD.presets[0], why: 'a\nb' }], workflows: [] }), /why must be one line/],
   ['a preset the renderer refuses (an import)', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Read @notes.md first.' }], workflows: [] }), /renderer refuses its text \(FAIL block-text/],
   ['a preset the renderer refuses (a heading)', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: '# Heading' }], workflows: [] }), /renderer refuses its text/],
@@ -506,7 +506,7 @@ test('a "Your agent" card writes one plain line naming the agent, and refuses a 
   assert.match(L.agentProblems({ ...ok, name: '' })[0], /lowercase letters/);
   assert.match(L.agentProblems({ ...ok, name: 'My Reviewer' })[0], /lowercase letters/);
   assert.match(L.agentProblems({ ...ok, name: '@x' })[0], /lowercase letters/);
-  assert.match(L.agentProblems({ ...ok, name: 'security-reviewer' })[0], /pact's own agents/);
+  assert.match(L.agentProblems({ ...ok, name: 'data-lens' })[0], /pact's own agents/);
   assert.match(L.agentProblems({ ...ok, reads: 'everything' })[0], /something to read/);
   const s = L.initialState();
   s.slots['move-4-extra'] = { replaced: false, cards: [ok] };
@@ -535,7 +535,7 @@ test('the page shows each pact agent with its model and effort, as its file sets
     assert.match(head, new RegExp(`^model: ${a.model}$`, 'm'));
     assert.match(head, new RegExp(`^effort: ${a.effort}$`, 'm'));
   }
-  const sr = L.PACT.agents.find(a => a.name === 'security-reviewer');
+  const sr = L.PACT.agents.find(a => a.name === 'data-lens');
   assert.deepEqual(sr.runs.map(r => r.mark), ['security-route', 'move-4']);
 });
 

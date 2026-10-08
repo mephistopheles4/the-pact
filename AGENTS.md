@@ -17,9 +17,9 @@ how every session in every repo behaves. So:
 - **Edit the repo copy, never the live file.** A direct edit to `~/.claude/`
   drifts from the repo.
 - **Install with [`scripts/install.ps1`](scripts/install.ps1)**, run from the
-  repo root under PowerShell 7 (Windows or macOS). Never copy files by hand.
-  The script installs from the clone, not through a symlink, so a checked-out
-  branch is never live until you install it.
+  repo root under PowerShell 7 (Windows, macOS or Linux). Never copy files by
+  hand. The script installs from the clone, not through a symlink, so a
+  checked-out branch is never live until you install it.
 - **Run it without a switch first.** That is a dry run: it prints the files it
   would overwrite, add and delete, whether live files drifted since the last
   install (it compares them with `~/.claude/.pact-install.json`), and the commit
@@ -29,7 +29,12 @@ how every session in every repo behaves. So:
   and copies only the files that check listed. It refuses when the check fails
   or can't run. The dry run also shows the Node it used, the pinned grimoire
   commit, and whether the gate changed since the last install. Run the gate's
-  tests with `node --test "gate/tests/*.test.mjs"`.
+  tests with `node --test "gate/tests/*.test.mjs"`. Node 20 doesn't expand the
+  quoted pattern, so under Node 20 hand it the files instead: leave the pattern
+  unquoted in a POSIX shell, or in PowerShell run
+  `node --test (Get-ChildItem gate/tests/*.test.mjs).FullName`. The Linux run
+  in a container (#96) is in
+  [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/).
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
@@ -65,7 +70,7 @@ how every session in every repo behaves. So:
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists or the example blocks, run
   `node builder/build.mjs` to refresh it; a gate test fails until you do. A
-  person's own builder comes from the `pact-builder` skill in
+  person's own builder comes from the `scriptorium` skill in
   `.claude/skills/`. It reads their skills, commands, agents and
   configuration, keeps the result in `~/.claude/pact/builder.json`, and
   renders a page that carries those lists in plain text. Such a page belongs
@@ -76,6 +81,19 @@ how every session in every repo behaves. So:
   no-configuration render) there. The folder must be new or empty, and outside
   the Claude home folder and any `.claude` folder. Without the switch, a dry
   run changes nothing on disk.
+- **Project install.** To make the pact stricter in one repo, add
+  `-ProjectFolder <full path>`. It reads the project's
+  `.claude/pact-config.json`, which may only set values strictly tighter than
+  your own, and writes one rules file, `.claude/rules/pact-project.md`, with a
+  record beside it. It installs nothing in the Claude home folder and no
+  agents into the project. It refuses a project with no configuration file, a
+  project that is or holds your home folder, or is, holds or sits inside a
+  Claude folder, any link on its write path, and an existing rules file it has
+  no record of writing. Like a home install it is a dry run first, and
+  `-Apply` needs the project rules file's full rendered hash, given as
+  `-RenderedHash <hash>`. On a project install that hash binds the bytes
+  installed, not the configuration files: a file changed after the dry run
+  still installs if it renders the same bytes, which can never be looser.
 
 ## Where work lives
 

@@ -1,0 +1,21 @@
+{
+  "lens": "data-lens",
+  "point": "diff",
+  "heading": "### Data inventory",
+  "runs": true,
+  "verdicts": [
+    "blocking",
+    "findings"
+  ],
+  "findOn": {
+    "src/payments.mjs": [
+      "high",
+      "medium"
+    ]
+  },
+  "secret": "PACTCANARY-2b9d41c7-a6e0-4f13",
+  "secretPlantedIn": [
+    "src/payments.mjs"
+  ],
+  "canary": "pact-canary-5c1e.invalid"
+}

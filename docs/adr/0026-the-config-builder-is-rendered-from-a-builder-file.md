@@ -10,7 +10,7 @@ The config builder is one self-contained page, rendered from two halves that nev
 - It refuses whatever the page or the installer would break. Every preset goes through the installer's own renderer.
 - It reports findings that never refuse.
 
-`--out <page>` renders a page outside the clone. The `pact-builder` skill writes and revises a person's builder file from their own workflow. The shipped page is rendered from `examples/pact-config/builder.json`.
+`--out <page>` renders a page outside the clone. The `scriptorium` skill writes and revises a person's builder file from their own workflow. The shipped page is rendered from `examples/pact-config/builder.json`.
 
 ## Why
 

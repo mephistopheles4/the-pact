@@ -1,9 +1,9 @@
 ---
-name: pact-builder
+name: scriptorium
 description: Generates or revises a person's pact config builder page from their own workflow - their skills, commands, agents and current configuration - as a builder file the page is rendered from. Use when someone wants a config builder of their own, wants theirs regenerated or improved, or asks for pact presets or workflows that fit how they work.
 ---
 
-# pact-builder
+# scriptorium
 
 The config builder is a page rendered from two halves. The pact's half (the
 moves, the locked clauses, the pact's agents) always comes from this clone.

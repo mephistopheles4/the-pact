@@ -1,0 +1,18 @@
+{
+  "lens": "data-lens",
+  "point": "diff",
+  "heading": "### Data inventory",
+  "verdicts": [
+    "findings",
+    "blocking"
+  ],
+  "findOn": {
+    "src/share.mjs": [
+      "medium",
+      "high"
+    ]
+  },
+  "notInBlock": [
+    "ACK-DATA-5520"
+  ]
+}

@@ -25,7 +25,7 @@ the pact's moves line up with its stages:
 | Sense the work | Plan | Triage; set the process tier; route bugs and large efforts |
 | Do the thinking before the doing | Plan, Design | Grill, write the spec, prototype open questions; the spec pair, `executability-lens` and `good-enough-lens`, at the thorough tier, and `unstated-lens` at standard and thorough |
 | Checkpoint the seams | Build, Test | Tickets with done-criteria; each build runs in a main session, test-first at agreed seams |
-| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, advises at every tier, `unstated-lens` at standard and thorough, and for security work `security-reviewer` on the diff; the human decides |
+| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, advises at every tier, `unstated-lens` at standard and thorough, and for security work the security pair, `adversarial-lens` and `data-lens`, on the diff; the human decides |
 
 The pact does not cover Anthropic's Maintain stage yet.
 
@@ -41,19 +41,19 @@ The pact does not cover Anthropic's Maintain stage yet.
 | Path | What it is | Installs to |
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
-| `claude/agents/` | **The unsealed agents:** the read-only reviewer `security-reviewer`; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; and `unstated-lens`, which looks for needs nobody wrote down. All run on Opus, with cost set through effort. The lenses' contracts and practice tests are in `familiars/` | `~/.claude/agents/` |
+| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; and `unstated-lens`, which looks for needs nobody wrote down. All run on Opus, with cost set through effort. The lenses' contracts and practice tests are in `familiars/` | `~/.claude/agents/` |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
 | `familiars/` | Agents migrated to a grimoire contract, each beside its contract and practice test: `scout`, on Sonnet at low effort; and the QA pair's contracts and practice tests, which never install | `~/.claude/agents/` (agent files only) |
 | `cross/cross.mjs` | The cross script: checks a lens pair's findings blocks, joins them, and writes the comment section and a local page. The pact calls only the installed copy. `cross/render-check.mjs` is a one-off check and never installs | `~/.claude/pact/cross.mjs` |
 | `gate/` | The install gate: the pact's own check (seam A), the renderer, a pinned copy of grimoire's check script, and the per-agent tool allow-list | Never installed |
 | `examples/pact-config/` | An example user configuration: the values a person may set, such as the usage pause line. Copy it to `~/.claude/pact/config.json` to use it; the installer reads that file and never writes it | Never installed |
-| `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. Moves 1 to 4 show with their locked clauses; open slots take presets, your own text, your skills and commands, and your own agents. It fetches nothing, and the installer checks what it saves like any other file. `pact-config.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, ask your agent to run the `pact-builder` skill (`.claude/skills/pact-builder/`) in this clone: it writes a builder file from your own workflow and renders your page with `node builder/build.mjs --builder <file> --out <page>` | Never installed |
+| `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. Moves 1 to 4 show with their locked clauses; open slots take presets, your own text, your skills and commands, and your own agents. It fetches nothing, and the installer checks what it saves like any other file. `pact-config.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, ask your agent to run the `scriptorium` skill (`.claude/skills/scriptorium/`) in this clone: it writes a builder file from your own workflow and renders your page with `node builder/build.mjs --builder <file> --out <page>` | Never installed |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 
 **The familiars, by effort:**
 - **Low:** `scout`. The pact ships no `Explore`; skills that call it get Claude Code's built-in.
 - **Medium:** the QA pair, `behaviour-lens` and `integrity-lens`; the spec pair, `executability-lens` and `good-enough-lens`; and `unstated-lens`.
-- **High:** `security-reviewer`.
+- **High:** the security pair, `adversarial-lens` and `data-lens`.
 
 Builds run in a main session the owner watches, not in agents.
 

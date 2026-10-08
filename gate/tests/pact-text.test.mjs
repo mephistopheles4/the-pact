@@ -133,7 +133,9 @@ test('the pact before #33 fails routing for exactly the lenses, scout and Explor
   assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
   assert.deepEqual(failFiles(r.stdout, 'routing').sort(), [
     'claude/agents/Explore.md',
+    'claude/agents/adversarial-lens.md',
     'claude/agents/behaviour-lens.md',
+    'claude/agents/data-lens.md',
     'claude/agents/executability-lens.md',
     'claude/agents/good-enough-lens.md',
     'claude/agents/integrity-lens.md',
@@ -195,7 +197,7 @@ test('bad case: a name only in a paragraph that is not a listed role line does n
   const r = expectFail(t, 'routing', {
     route: false,
     files: { [PROBE]: plainAgent('probe') },
-    prep: root => edit(root, MD, s => s.replace('**Reading agents.** `security-reviewer` and', '**Reading agents.** `probe`, `security-reviewer` and')),
+    prep: root => edit(root, MD, s => s.replace('**Reading agents.** The lenses read;', '**Reading agents.** `probe` and the lenses read;')),
   });
   assert.deepEqual(failFiles(r.stdout, 'routing'), [PROBE]);
 });
