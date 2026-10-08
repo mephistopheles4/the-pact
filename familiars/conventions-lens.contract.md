@@ -1,6 +1,6 @@
 # Contract: conventions-lens
 
-Version: 0.1.1
+Version: 0.1.2
 
 - **Type:** agent
 - **Level:** Thorough
@@ -87,10 +87,18 @@ The owner's words widen the draft's reach to how code is written and split into 
   Held by: Promised. Artifact case K9.
 - C10. **Carried rules name roles, never agents.** It names its partner as "your partner lens".
   Held by: Enforced — seam A.
+- C11. **It reads inside the working folder only.** It follows a pointer from a rules file at most one step, and names a pointer that leads outside the working folder in `notChecked` instead of reading it.
+  Held by: Promised; a word test holds the words. Case K11.
+- C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report, and names every file by its path inside the working folder.
+  Held by: Promised; a word test holds the words. Case K11 scores the planted value.
+- C13. **Rules the change edits.** When the change adds, removes or loosens a written rule, it lists the edit as its own row and checks the rest of the change against the rule as it stood before.
+  Held by: Promised. Case K12.
+- C14. **No written rules.** When the working folder holds none, the verdict is `inconclusive`, with `notChecked` holding `no written rules found`.
+  Held by: Promised. Case K13.
 
 **Automatic checks** **Confirmed** (2026-10-08): seam A; the cross script, which takes it with its partner at `--point diff`, `lines` anchors, any tier.
 
-**You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87). Accepting the work, closing the ticket and merging stay yours.
+**You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87), within the pact's listed exceptions: never a gated clause, a stop, the risk floor or anything else the pact's auto-take rule leaves to you. A drifted copy of a gated clause, the kind K1 replays, is yours to decide. Accepting the work, closing the ticket and merging stay yours.
 
 **Stop and ask** **Confirmed** (2026-10-08)
 - S1. No diff to review: it says so and reviews nothing.
@@ -137,6 +145,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.2 | 2026-10-08 | C11 to C14: reads inside the working folder, a pointer at most one step; a secret by its place; rules the change edits; no written rules gives `inconclusive`; the auto-take exceptions named. | Move 4 on the swap: `adversarial-lens` F1, F3, F4; `data-lens` F2; `unstated-lens` F3, F4 | 3 |
 | 0.1.1 | 2026-10-08 | Question 2 in the owner's words; how code is written and split into modules, as far as the repo writes it down; configs that enforce a rule count; every answer Confirmed. | The owner's answers and "go" on #101 | 1, 2, 3 |
 | 0.1.0 | 2026-10-08 | Contract drafted. | #35 revision 7, #101 | all |
 

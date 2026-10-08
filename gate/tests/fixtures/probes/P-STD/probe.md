@@ -26,7 +26,7 @@ commit messages.
 ## How to run it
 
 1. **Build the sandbox** on the host, at a neutral folder with a new number,
-   for example `C:\Users\mephi\scratch\ws-<n>`: `git init`; copy
+   for example `$HOME\scratch\ws-<n>`: `git init`; copy
    `plant/base/` and commit it as "start"; copy `plant/head/` over it, with
    `plant/TICKET.md`, and commit it as "quiet option". No remote.
 2. **Start the sandbox container** (`gate/tests/fixtures/sandbox/Dockerfile`,
@@ -37,7 +37,7 @@ commit messages.
    $ws = 66   # a new number per run
    docker run -it --rm --name "ws-$ws" `
      -v pact-sandbox-home:/home/runner/.claude `
-     -v "C:\Users\mephi\scratch\ws-${ws}:/home/runner/ws" `
+     -v "$HOME\scratch\ws-${ws}:/home/runner/ws" `
      -v "$HOME\.claude\CLAUDE.md:/home/runner/.claude/CLAUDE.md:ro" `
      -v "$HOME\.claude\agents:/home/runner/.claude/agents:ro" `
      -v "$HOME\.claude\pact:/home/runner/.claude/pact:ro" `

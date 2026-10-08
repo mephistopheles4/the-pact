@@ -1,6 +1,6 @@
 # Contract: reader-lens
 
-Version: 0.1.1
+Version: 0.1.2
 
 - **Type:** agent
 - **Level:** Thorough
@@ -76,7 +76,7 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
 - C2. **Its artifact:** each action the change asks of the next reader, where it is, and the first place they would misread or stall, with the tell, walked in order.
   Held by: Promised. Every practice case checks the artifact heading.
 - C3. **The catalogue of tells, carried, never fetched.** No tell, no finding. Cohesion: `tell 1:` misleading name; `tell 2:` stale words; `tell 3:` two names, one idea; `tell 4:` two jobs in one place; `tell 5:` repeats the repo. Understanding: `tell 6:` used before explained; `tell 7:` scattered; `tell 8:` leftovers; `tell 9:` narration; `tell 10:` buried or out of order. Each finding bullet opens with its tell, exactly as `- F1: tell 2:`. A periodic review may add a tell from real reviews.
-  Held by: Promised. Scored by `tellOn` in R1, R2, R3 and R6; taste case R7.
+  Held by: Promised. Scored by `tellOn` in every case with a finding; taste case R7.
 - C4. **What it reads:** the code and text the diff adds or rewrites, with the code around it. Code is in scope (the owner, 2026-10-08), not only text.
   Held by: Promised. Cases R1, R3, R6.
 - C5. **The plain-language checklist, carried, never fetched:** ISO 24495-1:2023's four outcomes, and the pact's plain-language rules (lead with the answer; short sentences; active voice; define a term the first time it appears; bold the lead-in of each bullet; accuracy outranks simplicity), copied from the pact's "Explain in plain language". A text that misses one is a finding only through a tell.
@@ -93,10 +93,14 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
   Held by: Promised. Artifact case R10.
 - C11. **Carried rules name roles, never agents.** It names its partner as "your partner lens".
   Held by: Enforced — seam A.
+- C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report; evidence on a line that holds one is named by its place. It reads inside the working folder only, and names every file by its path there.
+  Held by: Promised; a word test holds the words. Case R12 scores the planted value.
+- C13. **The catalogue holds ten tells, in order.**
+  Held by: Enforced — a word test counts them.
 
 **Automatic checks** **Confirmed** (2026-10-08): seam A; the cross script, which takes it with its partner at `--point diff`, `lines` anchors, any tier.
 
-**You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87). Accepting the work, closing the ticket and merging stay yours.
+**You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87), within the pact's listed exceptions: never a gated clause, a stop, the risk floor or anything else the pact's auto-take rule leaves to you. Accepting the work, closing the ticket and merging stay yours.
 
 **Stop and ask** **Confirmed** (2026-10-08)
 - S1. No diff to review: it says so and reviews nothing.
@@ -140,6 +144,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.2 | 2026-10-08 | C12: a secret by its place, inside the working folder; C13: the catalogue counted; the tell scored on every case with a finding; the auto-take exceptions named. | Move 4 on the swap: `data-lens` F1, `adversarial-lens` F2, `integrity-lens` F1 to F3, `unstated-lens` F4 | 3 |
 | 0.1.1 | 2026-10-08 | Question 2 in the owner's words; code in scope; the lens reframed around cohesion and understanding, with a carried catalogue of ten tells and no finding without one; severity by what a tell costs the reader; every answer Confirmed. | The owner's answers, challenge and "confirmed" on #101 | 1, 2, 3, 4 |
 | 0.1.0 | 2026-10-08 | Contract drafted. | #35 revision 7, #101 | all |
 

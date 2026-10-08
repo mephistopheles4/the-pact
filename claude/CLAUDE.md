@@ -367,7 +367,8 @@ ticket, the issue's request and the absolute working folder. Run the cross
 script as above with `--point diff`, the issue's tier with `--tier`, and no
 `--anchors`: each lens names the file and lines of its own findings. Where
 both lenses report overlapping lines, a break of the repo's written rules
-also loses the reader: that crossing shows first.
+also loses the reader: that crossing shows first. The standards pair takes
+no pick.
 
 **Lookups and searches.** For a lookup or a broad search that needs no judgement,
 use `scout`.
