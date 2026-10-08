@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fEKhrSlJLwu855Pu58uI/Lyc3ZeN4Eq7CoNhx4OenEA='; style-src 'sha256-18B67GsfB/alu8Iy2IFzlKdNjTLEx4KPxWgRi8S1FuU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dWpTZ/NNmcNUQ11xFP50VpZPmhTQnQpDpmcA8D46TvQ='; style-src 'sha256-18B67GsfB/alu8Iy2IFzlKdNjTLEx4KPxWgRi8S1FuU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -759,6 +759,25 @@ function restoreSlots(state, snap) {
   state.slots = JSON.parse(snap);
 }
 
+/** Whether every value, slot and agent setting is at its default. */
+function atDefaults(state) {
+  return JSON.stringify(state) === JSON.stringify(initialState());
+}
+
+/**
+ * Put everything back to the plain pact: the usage value, every slot and every
+ * agent setting. Returns what was there, to put back with restoreAll.
+ */
+function resetAll(state) {
+  const before = JSON.stringify(state);
+  Object.assign(state, initialState());
+  return before;
+}
+
+function restoreAll(state, snap) {
+  Object.assign(state, JSON.parse(snap));
+}
+
 /**
  * The pact's text laid out for reading: its hard line breaks joined back into
  * paragraphs, with list items and blank-line breaks kept. Display only; the
@@ -826,15 +845,43 @@ function boot() {
     const apply = () => {
       if (dark) root.setAttribute('data-aviation-scheme', 'dark');
       else root.removeAttribute('data-aviation-scheme');
-      $('actions').replaceChildren(chip('Dark', dark, () => {
+      $('actions').replaceChildren(el('span', { id: 'reset', class: 'chips' }), chip('Dark', dark, () => {
         dark = !dark;
         try {
           window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
         } catch {}
         apply();
       }, '', true));
+      renderReset();
     };
     apply();
+  }
+
+  let resetBefore = null; // everything as it was before the last reset, for undo
+
+  /** Put the whole page back on screen after its state changed underneath it. */
+  function renderAll() {
+    renderValues();
+    renderWorkflows();
+    renderAgents();
+    renderSpine();
+  }
+
+  function renderReset() {
+    const reset = chip('Reset all to defaults', false, () => {
+      resetBefore = resetAll(state);
+      applied = null;
+      renderAll();
+    }, 'av-tool-chip--ghost');
+    reset.title = 'The usage value, every slot and every agent back to the plain pact';
+    if (atDefaults(state)) reset.disabled = true;
+    const undo = resetBefore ? chip('Undo reset', false, () => {
+      restoreAll(state, resetBefore);
+      resetBefore = null;
+      renderAll();
+    }, 'av-tool-chip--ghost') : null;
+    const slot = $('reset');
+    if (slot) slot.replaceChildren(...(undo ? [reset, undo] : [reset]));
   }
 
   function renderSummary() {
@@ -1275,6 +1322,7 @@ function boot() {
 
   function renderOutput() {
     renderSummary();
+    renderReset();
     const found = problems(state);
     const errors = found.filter(f => f.level === 'error');
     const files = buildFiles(state);

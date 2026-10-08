@@ -323,6 +323,25 @@ test('undo puts back the slots exactly as they were before a workflow', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(s.slots)), JSON.parse(snap));
 });
 
+test('reset puts the usage value, every slot and every agent back to the plain pact, and undo puts it all back', () => {
+  const s = L.initialState();
+  assert.equal(L.atDefaults(s), true);
+  assert.equal(L.buildFiles(s).length, 1);
+  L.applyWorkflow(s, 'close-the-loop');
+  s.usage = 90;
+  s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Mine.' }] };
+  s.agents['integrity-lens'].model = 'sonnet';
+  assert.equal(L.atDefaults(s), false);
+  const changed = JSON.stringify(s);
+  const before = L.resetAll(s);
+  assert.equal(before, changed);
+  assert.equal(L.atDefaults(s), true);
+  assert.deepEqual(JSON.parse(JSON.stringify(s)), L.initialState());
+  // A reset page saves the plain configuration: no settings, no edits, no agents.
+  assert.deepEqual(L.buildFiles(s), [{ path: 'config.json', text: '{\n  "schema": 1\n}\n' }]);
+  L.restoreAll(s, before);
+  assert.equal(JSON.stringify(s), changed);
+});
 test('findings never refuse: a preset with no why, and one naming a skill the file does not list', t => {
   const r = checkBuilder(REPO, builderFile(t, { ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Use the `ghost-skill` skill.' }], workflows: [] }));
   assert.deepEqual(r.refusals, []);
@@ -375,7 +394,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
