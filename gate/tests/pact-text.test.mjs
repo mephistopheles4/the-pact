@@ -20,6 +20,8 @@ import {
   sealedFamiliar,
   stage,
   tempDir,
+  withoutOpenMarks,
+  OPEN_MARKS,
   writeTree,
 } from './helpers.mjs';
 
@@ -545,22 +547,84 @@ test('canary: no drifted text, unknown block name or comment text is echoed', t 
   assert.ok(!r.out.toLowerCase().includes(C), r.out);
 });
 
-// ------------------------------------------------------------ the user-only-skill check
+// ------------------------------------------------------------ the skill-flag check (#126)
 
-test('the user-only-skill check still passes on the marked pact', t => {
+function skillFlagCheck(t, rules, skills) {
   const which = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['pwsh'], { encoding: 'utf8' });
   const pwsh = which.stdout.split(/\r?\n/)[0].trim();
-  const skills = tempDir(t, 'pact-skills-');
+  const root = tempDir(t, 'pact-skills-');
   const flagged = '---\nname: x\ndisable-model-invocation: true\n---\n';
-  for (const s of ['triage', 'to-spec', 'to-tickets', 'wayfinder', 'implement']) writeTree(skills, { [`${s}/SKILL.md`]: flagged });
-  writeTree(skills, { 'tdd/SKILL.md': '---\nname: tdd\n---\n' });
-  const r = spawnSync(
+  const plain = '---\nname: x\n---\n';
+  mkdirSync(join(root, 'skills'), { recursive: true });
+  for (const [name, isFlagged] of Object.entries(skills)) writeTree(root, { [`skills/${name}/SKILL.md`]: isFlagged ? flagged : plain });
+  writeTree(root, { 'rules.md': rules });
+  return spawnSync(
     pwsh,
-    ['-NoProfile', '-NonInteractive', '-File', join(REPO, 'scripts', 'check-skill-flags.ps1'), '-SkillsDir', skills, '-ClaudeMd', join(REPO, 'claude', 'CLAUDE.md')],
+    ['-NoProfile', '-NonInteractive', '-File', join(REPO, 'scripts', 'check-skill-flags.ps1'), '-SkillsDir', join(root, 'skills'), '-RulesFile', join(root, 'rules.md')],
     { encoding: 'utf8' },
   );
+}
+
+const SECTION = body => `# Rules\n\n## Implementing a change\n\n${body}\n\n## Watching usage\n\nUse \`flagged-elsewhere\`.\n`;
+
+test('the skill-flag check reports zero named skills on the default render', t => {
+  // Every one of today's skill names is installed, so a name left in the text would show.
+  const all = {};
+  for (const n of ['triage', 'to-spec', 'to-tickets', 'wayfinder', 'implement']) all[n] = true;
+  for (const n of ['grilling', 'domain-modeling', 'codebase-design', 'prototype', 'tdd', 'diagnosing-bugs', 'diataxis']) all[n] = false;
+  const r = skillFlagCheck(t, withoutOpenMarks(read(join(REPO, 'claude', 'CLAUDE.md'))), all);
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /^named skills: 6; user-only: 5; OK\s*$/m, r.stdout + r.stderr);
+  assert.match(r.stdout, /^named skills: 0; commands: 0; OK\s*$/m, r.stdout + r.stderr);
+});
+
+test('the skill-flag check passes a flagged skill written as a command and an unflagged one as a code span', t => {
+  const r = skillFlagCheck(t, SECTION('Type `/owner-only 12` or `/owner-only`, and use `agent-ok`. Bare /agent-ok is prose; `/<skill>` is a placeholder.'), { 'owner-only': true, 'agent-ok': false });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^named skills: 2; commands: 1; OK\s*$/m, r.stdout + r.stderr);
+});
+
+test('bad case: a command for a skill without the flag warns', t => {
+  const r = skillFlagCheck(t, SECTION('Type `/open-skill` to start.'), { 'open-skill': false });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^WARN: open-skill is written as a command .* lacks disable-model-invocation: true$/m, r.stdout);
+  assert.doesNotMatch(r.stdout, /OK/, r.stdout);
+});
+
+test('bad case: a code span for a flagged skill warns', t => {
+  const r = skillFlagCheck(t, SECTION('Use `closed-skill` for this.'), { 'closed-skill': true });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^WARN: closed-skill is written as a code span .* has disable-model-invocation: true$/m, r.stdout);
+  assert.doesNotMatch(r.stdout, /OK/, r.stdout);
+});
+
+test('a skill that appears only with an argument is not a command', t => {
+  const r = skillFlagCheck(t, SECTION('Type `/open-skill 12` to start.'), { 'open-skill': false });
+  assert.match(r.stdout, /^named skills: 0; commands: 0; OK\s*$/m, r.stdout + r.stderr);
+});
+
+test('bad case: a flagged skill written as a command and as a code span warns for the code span', t => {
+  const r = skillFlagCheck(t, SECTION('Type `/closed-skill` to start; the agent uses `closed-skill` too.'), { 'closed-skill': true });
+  assert.match(r.stdout, /^WARN: closed-skill is written as a code span /m, r.stdout);
+  assert.doesNotMatch(r.stdout, /OK/, r.stdout);
+});
+
+test('bad case: an open part in an unrendered file is read, not skipped', t => {
+  const rules = SECTION('<!-- pact:begin move-2 -->\nUse `closed-skill` here.\n<!-- pact:end move-2 -->');
+  const r = skillFlagCheck(t, rules, { 'closed-skill': true });
+  assert.match(r.stdout, /^WARN: closed-skill is written as a code span /m, r.stdout);
+});
+
+test('the check keeps the same open parts as the shared helper', () => {
+  const m = read(join(REPO, 'scripts', 'check-skill-flags.ps1')).match(/\$openParts = @\(([^)]*)\)/);
+  assert.ok(m, 'the script no longer lists its open parts');
+  const listed = [...m[1].matchAll(/'([a-z0-9-]+)'/g)].map(x => x[1]);
+  assert.deepEqual([...listed].sort(), [...OPEN_MARKS].sort());
+});
+
+test('the skill-flag check skips gated blocks and other sections', t => {
+  const rules = SECTION('<!-- pact:begin stop-and-escalate -->\nUse `gated-skill`.\n<!-- pact:end stop-and-escalate -->');
+  const r = skillFlagCheck(t, rules, { 'gated-skill': true, 'flagged-elsewhere': true });
+  assert.match(r.stdout, /^named skills: 0; commands: 0; OK\s*$/m, r.stdout + r.stderr);
 });
 
 // ------------------------------------------------------------ Markdown structure (diff review N1)

@@ -34,7 +34,7 @@ Applies to explanations, summaries, and answers in chat. Code, commit messages, 
 - **Use active voice.** "Run the migration", not "the migration should be run".
 - **Define a term the first time it appears**, including acronyms and internal names.
 - **Bold the lead-in of each bullet** so a list scans.
-- **Writing documentation files?** Use the `diataxis` skill — it classifies a doc as tutorial, how-to, reference, or explanation, and keeps those types unmixed.
+- **Writing documentation files?** Classify each doc as a tutorial, a how-to, a reference or an explanation (the Diátaxis classification), and keep those types unmixed.
 - **Accuracy outranks simplicity.** When plain phrasing would make something wrong or vague, stay precise and explain the term instead.
 
 ## When a skill and these rules disagree
@@ -72,8 +72,8 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 | Tier | Moves |
 | --- | --- |
 | **Quick** | In chat or on an issue: build, then move 4, in one session. Small changes that need no plan. |
-| **Standard** | On an issue: a short `to-spec` posted on the issue and read by `unstated-lens`, then one build session that ends with move 4. |
-| **Thorough** | On an issue: `to-spec`, the spec pair and `unstated-lens`, `to-tickets`, then one build session per ticket, each ending with move 4. |
+| **Standard** | On an issue: a short spec posted on the issue and read by `unstated-lens`, then one build session that ends with move 4. |
+| **Thorough** | On an issue: the spec, read by the spec pair and `unstated-lens`; the spec cut into tickets; then one build session per ticket, each ending with move 4. |
 
 **Risk floor.**
 <!-- pact:begin risk-floor -->
@@ -96,7 +96,7 @@ open decision under a lower tier than you would pick, name the decisions once
   partial evidence, such as an approved ticket or a missing spec. The first
   reply is the fit check and a proposed tier, shown as a next-move choice
   (below), and nothing else. Then stop. I answer with a tier word, and you apply the label and
-  start that tier's first move; or I type `/triage` for a full triage. The
+  start that tier's first move; or I ask for a full triage. The
   proposal stands in for move 1 only when I confirm it.
 - **Whoever files or triages an issue** writes the suggested tier as a label,
   and one line per phase for the model and effort setting, next to it. Copy
@@ -159,7 +159,8 @@ own. At a stop, one more option is to rerun the stuck step once at xhigh: I
 raise it with `/effort` and set it back afterwards, which keeps the cache. Use
 it when the reasoning is the bottleneck, and `fable` when reviewers disagree
 about direction. At a phase boundary, post the result, the state and any open questions
-to the issue, then end with one line that starts the next session. This
+to the issue, then end with the phase-boundary line (see "Hand me the
+trigger") that starts the next session. This
 comment is always posted, even when every artifact is already on the tracker:
 it gives the result, the state, any open questions and the next-session
 line. Don't compact first: the issue carries the context.
@@ -189,39 +190,46 @@ names. With no notice, leave it out.
 
 Help me run the moves of my engineering playbook that your tier names. The
 moves are mine; you help me carry them out and protect me while I do. Each move
-names the skills that carry it out, most of them from
-[mattpocock/skills](https://github.com/mattpocock/skills). Some named skills
-are mine to start, not yours: `triage`, `to-spec`, `to-tickets`, `wayfinder`
-and `implement` carry `disable-model-invocation`, so only I can run them, by
-typing the command. When a move reaches one, stop and hand it to me (below).
-Use the other named skills yourself. If a named skill is in neither
-group, because it isn't installed, do the step by hand and say in one line
-which skill was missing. Never read a user-only skill's `SKILL.md` and follow
-it in its place; the flag is its author's choice. A missing *agent* still
-stops you; see move 3.
+describes a practice: what I do, what you do, and why. The moves name no
+skills. A person binds their own skills to a move through a block in its open
+part, and these rules apply to a bound skill:
+
+- **Your skills.** A skill a block names as a code span (`name`) is yours to
+  use for that step.
+- **My commands.** A skill a block names as a command (`/name`) is mine to
+  start, by typing it. When the move reaches it, stop and hand it to me
+  (below).
+- **A missing skill.** If a bound skill isn't installed, do the step as the
+  move describes it and say in one line which skill was missing.
+- **Never stand in.** Never read a skill only I can start and follow it in its
+  place; the flag is its author's choice.
+- **A missing *agent* still stops you;** see move 3.
 
 The issue tracker is the record throughout: triage, the spec, the tickets and
 their state live there, as the repo's docs say (`docs/agents/issue-tracker.md`
-for a repo set up for those skills). A repo without a tracker says where plans
+for a repo that documents its tracker). A repo without a tracker says where plans
 live instead; follow it. If it says neither, ask me once, before the spec.
 
 1. **I sense the work before I process it.**
    <!-- pact:begin move-1 -->
-   I triage it (`triage`): what
-   kind of work it is, its tier, and whether it's ready. You propose the
-   triage and the tier, and never skip past it. A bug goes through
-   `diagnosing-bugs` before any fix. Work too big for one session is
-   charted with `wayfinder`.
+   I triage it: what kind of work it is, its tier, and whether it's ready. A
+   target I can know is planned; an unknown one gets an experiment first; size
+   sets the rigour, which is the tier. You propose the triage and the tier, and
+   never skip past it. Your own confidence never picks the tier: agents
+   misjudge their own success far more often than they doubt it. A bug is
+   reproduced and traced to where it starts before any fix. Work too big for
+   one session is charted on the tracker as a sequence of sessions, so the
+   chain survives a fresh session.
    <!-- pact:end move-1 -->
 2. **I do the thinking before the doing.**
    <!-- pact:begin move-2 -->
-   I grill the idea until it's clear
-   (`grilling`; `domain-modeling` when terms need pinning down). You help
-   with both, then write the spec (`to-spec`): the intent, the unhappy paths, the constraints, the
-   design — modules, interfaces and seams (`codebase-design`) — each
-   decision with its why, and a **Needs a human** section (below). When a
-   question in it needs running code to answer, have a throwaway built
-   (`prototype`) and fold what it shows back into the spec. A throwaway is
+   You question me until the idea is clear, and help me pin down terms when
+   they're unclear: questions a model asks draw out better specifications than
+   prompts people write themselves. Then you write the spec: the intent, the
+   unhappy paths, the constraints, the design — modules, interfaces and seams
+   — each decision with its why, and a **Needs a human** section (below). When
+   a question in it needs running code to answer, have a throwaway prototype
+   built and fold what it shows back into the spec. A throwaway is
    built like any other step: in a main session, and through the security
    route in move 3 if it touches auth, secrets, crypto or input validation.
    On the standard and thorough tiers, `unstated-lens` reads the spec. On
@@ -233,12 +241,11 @@ live instead; follow it. If it says neither, ask me once, before the spec.
 3. **I checkpoint the seams.**
    <!-- pact:begin move-3 -->
    On the thorough tier, I cut the approved spec
-   into tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and
+   into tickets: thin end-to-end slices, each with its blocking edges and
    checkable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,
    is built in its own main session, which I start and watch. Opened on an approved spec or ticket, the
-   session starts building directly, test-first at the agreed seams (`tdd`,
-   `codebase-design`). It doesn't hand me `/implement` first; I may still
-   type it.
+   session starts building directly, test-first at the agreed seams. It
+   doesn't wait for me to start the build.
    <!-- pact:end move-3 -->
    <!-- pact:begin security-route -->
    Anything touching auth, secrets, crypto or input validation
@@ -431,18 +438,28 @@ auto-take. It shows whether the defaults steer the wrong way. Copy no repo names
 numbers, titles, headlines, anchors, paths or quotes from another project, and
 no per-project breakdown.
 
-**Hand me the trigger.** When the next move is a skill only I can start, end
-your turn with this line and nothing after it:
+**Hand me the trigger.** When the next step is mine to start, end your turn
+with one line and nothing after it. A step is mine to start in two cases:
 
-`▶ Your move: type /<skill> <argument>`
+- **A bound command.** A bound block marks the step as mine, by writing it as
+  a command. The line is:
+
+  `▶ Your move: type /<skill> <argument>`
+
+- **A phase boundary.** The line is:
+
+  `▶ Your move: start a fresh session with: <start line>`
+
+  The start line names the issue, ticket or plan file, as the hand-off rule
+  below requires.
 
 The argument is the issue, ticket or plan file the step works on, so the line
 runs as typed. Above it, say in one sentence what the step produces. Don't
 start the step, draft its output, or ask a question in the same turn.
 
-If it is also a good point for a fresh session (below), say so above the
-line. The `▶` line is then the one to start the new session with, and it
-stays last.
+If a bound command is also a good point for a fresh session (below), say so
+above the line. The `▶` line is then the one to start the new session with,
+and it stays last.
 
 **If I hand the step back to you** ("you do it", "just run it"), respond
 once:
@@ -453,8 +470,8 @@ once:
 - **Say what I'd be handing over,** in one sentence, as a fact about the
   step, not advice about me. No praise, no blame, no "you should".
 - **Then my choice stands.** If I still want you to do it, do the step by
-  hand, following the move as written here, and say which skill's procedure
-  you did not use.
+  hand, following the move as written here, and say which bound skill, if
+  any, you did not use. A phase boundary still ends the session.
 
 Say this once per session. Don't repeat it at the next move, and don't raise
 it mid-step.
@@ -472,7 +489,7 @@ this session created, note that this session is finished with it, so the next
 session can take it without waiting on the presumed-live rule. Then tell me
 it's a good point for a fresh session, and give me one line to start it with,
 naming the issue, ticket or plan file. For work too big for one session,
-suggest `wayfinder` at move 1, so the map carries the chain across sessions.
+suggest charting the work at move 1, so the chain carries across sessions.
 A mid-phase proposal is a suggestion, not a stop: if I say keep going, keep
 going, and don't raise it again for this phase.
 
@@ -506,14 +523,13 @@ the weekly limit is above 75%, wait for my go-ahead. Never cut or stop work
 because of usage on your own; that call is mine.
 <!-- pact:end usage-pause -->
 
-## When working a wayfinder map
+## When parallel sessions work one chain
 
-Applies to `/wayfinder` in its **work through the map** mode, and to any session
-resolving a ticket on a `wayfinder:map`. Charting a fresh map is unaffected.
+Applies to any session that resolves a ticket in a chain of tickets several
+sessions work in parallel. Charting a fresh chain is unaffected.
 
-**Name the ticket when you launch each parallel session.** Wayfinder honours it
-— *"If the user named one, use it"* — so nothing self-selects and contention
-cannot arise. This is the primary protection; the rules below catch what it
+**Name the ticket when you launch each parallel session.** A session honours a
+ticket named at launch, so nothing self-selects and contention cannot arise. This is the primary protection; the rules below catch what it
 misses.
 
 **Assignee is not a claim here.** Every parallel session authenticates as the
@@ -524,7 +540,7 @@ exist because the tracker alone cannot answer the question.
 **Check for a live session before claiming.** Call
 `mcp__ccd_session_mgmt__list_sessions` and match candidates **on worktree name**.
 Do not match on ticket number: transcript-searching an issue number hits every
-session that merely read the map, which is all of them. A worktree match means
+session that merely read the chain, which is all of them. A worktree match means
 somebody is on it — pick a different ticket, or message them.
 
 **Treat a ticket created in the last hour as presumed-live.** Get the window
@@ -537,9 +553,9 @@ and silence does not clear it — no answer means still live.
 `mcp__ccd_session_mgmt__send_message` to ask the other session whether it is
 done, rather than inferring from a stale transcript or an idle-looking process.
 This is the cross-session case, which is the one that matters: parallel
-wayfinder tickets run as separate sessions, so `SendMessage` — which reaches
+tickets run as separate sessions, so `SendMessage` — which reaches
 teammates inside one session — does not reach them.
 
-**Write shared files last, against a re-fetched tip.** The map body changes
+**Write shared files last, against a re-fetched tip.** The chain's tracking issue changes
 under you while you work. Re-read it immediately before editing, never from the
-copy you loaded at step 1.
+copy you loaded when you started.

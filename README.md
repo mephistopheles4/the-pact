@@ -30,9 +30,10 @@ the pact's moves line up with its stages:
 The pact does not cover Anthropic's Maintain stage yet.
 
 **Built on:**
-- **[Matt Pocock's skills](https://github.com/mattpocock/skills)** for the
-  design work: triage, grilling, specs, prototypes, tickets, test-driven
-  development and deep modules. The pact names them rather than copying them.
+- **[Matt Pocock's skills](https://github.com/mattpocock/skills)** are one set
+  you can bind to the moves: triage, grilling, specs, prototypes, tickets,
+  test-driven development and deep modules. The pact describes practices, not
+  skills, and a person binds their own tools to them through configuration.
 - **John Ousterhout's *A Philosophy of Software Design*,** the source of the
   deep-module idea those skills apply.
 
