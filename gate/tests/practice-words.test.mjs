@@ -194,16 +194,16 @@ test('no lens file, contract or practice test holds a line that starts mid-sente
 });
 // reader-lens carries the pact's plain-language rules, never fetches them (#101). A carried copy can drift
 // from its source, which is conventions-lens's own replay case, so each bullet of the pact's "Explain in plain
-// language" that a reader can be held to is held to the lens file word for word. The skill pointer is a rule
-// for the session writing docs, not for the reader, so it is left out.
-/** The bullets of the pact's "Explain in plain language", whitespace flattened, minus the skill pointer. */
+// language" that a reader can be held to is held to the lens file word for word. The documentation bullet is a
+// rule for the session writing docs, not for the reader, so it is left out by its lead-in (main reworded it in #126).
+/** The bullets of the pact's "Explain in plain language", whitespace flattened, minus the documentation bullet. */
 export function plainLanguageRules(pact) {
   const section = pact.split('## Explain in plain language')[1].split('\n## ')[0];
   return section
     .split(/\n(?=- )/)
     .filter(b => b.startsWith('- '))
     .map(b => b.replace(/\s+/g, ' ').trim())
-    .filter(b => !b.includes('diataxis'));
+    .filter(b => !b.startsWith('- **Writing documentation files?**'));
 }
 
 /** The pact's rules missing from a lens text. */
