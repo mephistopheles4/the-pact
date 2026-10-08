@@ -167,3 +167,34 @@ test('no lens file, contract or practice test holds a line that starts mid-sente
   }
   assert.notDeepEqual(damage('The credential is\n\nplanted in the env.\n'), []);
 });
+// reader-lens carries the pact's plain-language rules, never fetches them (#101). A carried copy can drift
+// from its source, which is conventions-lens's own replay case, so each bullet of the pact's "Explain in plain
+// language" that a reader can be held to is held to the lens file word for word. The skill pointer is a rule
+// for the session writing docs, not for the reader, so it is left out.
+/** The bullets of the pact's "Explain in plain language", whitespace flattened, minus the skill pointer. */
+export function plainLanguageRules(pact) {
+  const section = pact.split('## Explain in plain language')[1].split('\n## ')[0];
+  return section
+    .split(/\n(?=- )/)
+    .filter(b => b.startsWith('- '))
+    .map(b => b.replace(/\s+/g, ' ').trim())
+    .filter(b => !b.includes('diataxis'));
+}
+
+/** The pact's rules missing from a lens text. */
+function missingRules(lensText, rules) {
+  const flat = lensText.replace(/\s+/g, ' ');
+  return rules.filter(r => !flat.includes(r));
+}
+
+test("reader-lens carries every reader-facing rule of the pact's plain language, word for word", () => {
+  const pact = read(join(REPO, 'claude', 'CLAUDE.md'));
+  const rules = plainLanguageRules(pact);
+  assert.equal(rules.length, 6, rules.join('\n'));
+  const lens = read(join(REPO, 'claude', 'agents', 'reader-lens.md'));
+  assert.deepEqual(missingRules(lens, rules), []);
+  assert.ok(lens.replace(/\s+/g, ' ').includes('ISO 24495-1:2023'));
+  // Seen to fail: the pact gains a word in one rule, and the lens's copy no longer matches its source.
+  const changed = plainLanguageRules(pact.replace('Around 20 words.', 'Around 15 words.'));
+  assert.equal(missingRules(lens, changed).length, 1);
+});

@@ -1,0 +1,16 @@
+{
+  "lens": "reader-lens",
+  "point": "diff",
+  "heading": "### What the owner must do",
+  "verdicts": [
+    "findings"
+  ],
+  "findOn": {
+    "docs/release.md:3-6": [
+      "medium"
+    ]
+  },
+  "notNonRisk": [
+    "docs/release.md:3-6"
+  ]
+}

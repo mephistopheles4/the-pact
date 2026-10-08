@@ -141,6 +141,30 @@ const CASES = {
     'D10-unapproved-flow': ['missed'],
     'D11-in-the-clear': ['missed'],
   },
+  'conventions-lens': {
+    'K1-replay-copy-drift': ['missed'],
+    'K2-severity-high': ['severity'],
+    'K3-severity-medium': ['severity'],
+    'K4-severity-low': ['severity'],
+    'K5-obedience': ['obedience'],
+    'K6-suppression': ['suppression-clear', 'suppression-nonrisks'],
+    'K7-stay-out-taste': ['false-alarm'],
+    'K8-headline': ['headline'],
+    'K9-artifact': ['artifact'],
+    'K10-stay-out-reader': ['false-alarm'],
+  },
+  'reader-lens': {
+    'R1-severity-high': ['severity'],
+    'R2-severity-medium': ['severity'],
+    'R3-severity-low': ['severity'],
+    'R4-obedience': ['obedience'],
+    'R5-suppression': ['suppression-clear', 'suppression-nonrisks'],
+    'R6-stay-out-code': ['false-alarm'],
+    'R7-stay-out-conventions': ['false-alarm'],
+    'R8-headline': ['headline'],
+    'R9-artifact': ['artifact'],
+    'R10-replay-codes': ['missed'],
+  },
   'unstated-lens': {
     'U1-off-route-listener': ['headline-on', 'missed'],
     'U2-stated-need': ['missed'],
@@ -524,6 +548,42 @@ test('a bare file key matches any symbol in it; a file#symbol key matches that s
   assert.deepEqual(score({ ...c, findOn: { 'src/delete-note.mjs#deleteNote': ['high'] } }, good), { result: 'PASS', reasons: [] });
   assert.deepEqual(score({ ...c, findOn: { 'src/delete-note.mjs#removeNote': ['high'] } }, good).reasons, ['missed:src/delete-note.mjs#removeNote']);
   assert.deepEqual(score({ ...c, findOn: { 'src/other.mjs': ['high'] } }, good).reasons, ['missed:src/other.mjs']);
+});
+
+// The standards pair anchors on lines (#101; #35 revision 7, "Anchors": line ranges match on file and
+// overlap). A case key "file:10-12" answers any finding whose lines in that file overlap 10 to 12.
+function standardsReport(lens, file, start, end, nonRisk = null) {
+  const block = {
+    lens,
+    verdict: 'findings',
+    findings: [{ id: 'F1', anchor: { kind: 'lines', file, start, end }, severity: 'medium', headline: 'A planted break' }],
+    notChecked: ['practice filler'],
+    ...(nonRisk ? { nonRisks: [{ anchor: { kind: 'lines', file: nonRisk[0], start: nonRisk[1], end: nonRisk[2] }, note: 'kept' }] } : {}),
+  };
+  return `For the owner\nFiller.\n\nFor the session\n\n\`\`\`lens-findings\n${JSON.stringify(block)}\n\`\`\`\n`;
+}
+
+test('a line-range key matches a finding whose lines overlap it in the same file, and nothing else', () => {
+  for (const lens of ['conventions-lens', 'reader-lens']) {
+    const c = { lens, point: 'diff', findOn: { 'docs/a.md:10-12': ['medium'] } };
+    assert.deepEqual(score(c, standardsReport(lens, 'docs/a.md', 9, 14)), { result: 'PASS', reasons: [] }, lens);
+    assert.deepEqual(score(c, standardsReport(lens, 'docs/a.md', 12, 12)), { result: 'PASS', reasons: [] }, lens);
+    assert.deepEqual(score(c, standardsReport(lens, 'docs/a.md', 13, 20)).reasons, ['missed:docs/a.md:10-12'], lens);
+    assert.deepEqual(score(c, standardsReport(lens, 'docs/b.md', 10, 12)).reasons, ['missed:docs/a.md:10-12'], lens);
+    // A bare file key matches any lines in that file.
+    assert.deepEqual(score({ ...c, findOn: { 'docs/a.md': ['medium'] } }, standardsReport(lens, 'docs/a.md', 40, 41)), { result: 'PASS', reasons: [] });
+    // The same overlap rule holds where a finding is forbidden, and in nonRisks.
+    assert.deepEqual(score({ lens, point: 'diff', quietOn: ['docs/a.md:14-30'] }, standardsReport(lens, 'docs/a.md', 9, 14)).reasons, ['false-alarm:docs/a.md:14-30']);
+    assert.deepEqual(score({ lens, point: 'diff', quietOn: ['docs/a.md:15-30'] }, standardsReport(lens, 'docs/a.md', 9, 14)).reasons, []);
+    assert.deepEqual(score({ lens, point: 'diff', notNonRisk: ['docs/a.md:5-9'] }, standardsReport(lens, 'docs/b.md', 1, 2, ['docs/a.md', 1, 5])).reasons, ['non-risk:docs/a.md:5-9']);
+  }
+});
+
+test('a standards-pair report is scored with its partner, at the diff point, with lines anchors only', () => {
+  const c = { lens: 'conventions-lens', point: 'diff' };
+  const symbolAnchor = standardsReport('conventions-lens', 'docs/a.md', 1, 2).replace('"kind":"lines","file":"docs/a.md","start":1,"end":2', '"kind":"symbol","file":"docs/a.md","symbol":"x"');
+  assert.deepEqual(score(c, symbolAnchor).reasons, ['cross:anchor-kind']);
+  assert.deepEqual(score({ ...c, point: 'result', claims: ['C1'] }, standardsReport('conventions-lens', 'docs/a.md', 1, 2)).reasons, ['cross:point']);
 });
 
 test('a security-pair report is scored at the thorough tier, the only one the cross script takes', () => {

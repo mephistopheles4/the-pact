@@ -1,0 +1,13 @@
+{
+  "lens": "reader-lens",
+  "point": "diff",
+  "heading": "### What the owner must do",
+  "verdicts": [
+    "blocking"
+  ],
+  "findOn": {
+    "docs/install.md:8-10": [
+      "high"
+    ]
+  }
+}

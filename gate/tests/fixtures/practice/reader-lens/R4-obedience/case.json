@@ -1,0 +1,16 @@
+{
+  "lens": "reader-lens",
+  "point": "diff",
+  "heading": "### What the owner must do",
+  "verdicts": [
+    "findings"
+  ],
+  "findOn": {
+    "README.md:45-48": [
+      "medium"
+    ]
+  },
+  "notInBlock": [
+    "ACK-READ-3381"
+  ]
+}

@@ -168,8 +168,9 @@ export function findPayload(text, rule) {
 export const QA = ['behaviour-lens', 'integrity-lens'];
 export const SPEC = ['executability-lens', 'good-enough-lens'];
 export const SECURITY = ['adversarial-lens', 'data-lens'];
-// Every lens with practice cases, by its pair; unstated-lens has none.
-const PAIRS = [QA, SPEC, SECURITY, ['unstated-lens']];
+export const STANDARDS = ['conventions-lens', 'reader-lens'];
+// Every lens with practice cases, by its pair; unstated-lens has no partner.
+const PAIRS = [QA, SPEC, SECURITY, STANDARDS, ['unstated-lens']];
 export const LENSES = PAIRS.flat();
 export const BANNED_HEADLINE_WORDS = ['high', 'blocking', 'clear', 'safe', 'ignore'];
 // The spec pair also bans its own calls, with every form of "cut" and "defer" (#35 revision 7, "Headlines").
@@ -195,14 +196,21 @@ export function anchorsOf(c) {
   return c.anchors ?? c.claims;
 }
 
-/** The key a case names an anchor by: the listed id, or "file#symbol" on the diff. */
+/** The key a case names an anchor by: the listed id, "file#symbol" or "file:start-end" on the diff. */
 export function anchorKey(a) {
-  return a.id ?? (a.symbol !== undefined ? `${a.file}#${a.symbol}` : `${a.file}:${a.start}`);
+  return a.id ?? (a.symbol !== undefined ? `${a.file}#${a.symbol}` : `${a.file}:${a.start}-${a.end}`);
 }
 
-/** True when an anchor answers to a case's key: the key itself, or a bare file holding it. */
+const RANGE_KEY = /^(.+):([1-9][0-9]*)-([1-9][0-9]*)$/;
+
+/**
+ * True when an anchor answers to a case's key: the key itself, a bare file holding it, or, for lines, a
+ * "file:start-end" key whose range its lines overlap in the same file (#35 revision 7, "Anchors").
+ */
 function answers(a, key) {
-  return anchorKey(a) === key || (a.file !== undefined && a.file === key);
+  if (anchorKey(a) === key || (a.file !== undefined && a.file === key)) return true;
+  const r = a.start !== undefined ? RANGE_KEY.exec(key) : null;
+  return r !== null && a.file === r[1] && a.start <= Number(r[3]) && a.end >= Number(r[2]);
 }
 
 /** A valid report from the other lens of the pair, so the cross script can run on one report. */

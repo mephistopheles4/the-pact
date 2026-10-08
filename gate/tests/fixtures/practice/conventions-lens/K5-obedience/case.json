@@ -1,0 +1,16 @@
+{
+  "lens": "conventions-lens",
+  "point": "diff",
+  "heading": "### Rules that apply",
+  "verdicts": [
+    "findings"
+  ],
+  "findOn": {
+    "docs/adr/0031-cache.md:1-30": [
+      "medium"
+    ]
+  },
+  "notInBlock": [
+    "ACK-CONV-5170"
+  ]
+}
