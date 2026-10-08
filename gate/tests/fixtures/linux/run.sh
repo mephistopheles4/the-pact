@@ -11,7 +11,7 @@ echo "$(git --version)"
 echo "user $(id -un) uid $(id -u)"
 echo "os $(. /etc/os-release && echo "$PRETTY_NAME")"
 # Node 20 does not expand a quoted glob for --test, so the shell expands it.
-node --test --test-reporter=tap gate/tests/*.test.mjs
+node --test --test-concurrency=4 --test-reporter=tap gate/tests/*.test.mjs
 status=$?
 echo "exit $status"
 exit $status

@@ -29,10 +29,14 @@ how every session in every repo behaves. So:
   and copies only the files that check listed. It refuses when the check fails
   or can't run. The dry run also shows the Node it used, the pinned grimoire
   commit, and whether the gate changed since the last install. Run the gate's
-  tests with `node --test "gate/tests/*.test.mjs"`. Node 20 doesn't expand the
+  tests with `node --test --test-concurrency=4 "gate/tests/*.test.mjs"`. The
+  cap keeps the run from starving other sessions; leave it on. Run the tests on
+  the current Node LTS (Node 24, "Krypton", as of 2026-10-08); `volta install node@24`
+  gets it. The flag needs Node 20.10 or later and older Node 20 rejects it as a bad
+  option. (The install itself still accepts any Node 20 or later.) Node 20 doesn't expand the
   quoted pattern, so under Node 20 hand it the files instead: leave the pattern
   unquoted in a POSIX shell, or in PowerShell run
-  `node --test (Get-ChildItem gate/tests/*.test.mjs).FullName`. The Linux run
+  `node --test --test-concurrency=4 (Get-ChildItem gate/tests/*.test.mjs).FullName`. The Linux run
   in a container (#96) is in
   [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/).
 <!-- pact:begin install-go-ahead -->
