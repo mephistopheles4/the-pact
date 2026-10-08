@@ -10,6 +10,17 @@
       "medium"
     ]
   },
+  "tellOn": [
+    [
+      [
+        "docs/release.md:3-6"
+      ],
+      [
+        "medium"
+      ],
+      "tell 6"
+    ]
+  ],
   "notNonRisk": [
     "docs/release.md:3-6"
   ]

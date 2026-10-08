@@ -15,7 +15,8 @@ test('every contains and headlineOn phrase, and the artifact heading, is written
     const text = read(join(REPO, 'claude', 'agents', `${lens}.md`)).toLowerCase().replace(/\s+/g, ' ');
     for (const id of readdirSync(join(DIR, lens))) {
       const c = JSON.parse(read(join(DIR, lens, id, 'case.json')));
-      for (const s of [...(c.contains ?? []), ...Object.values(c.headlineOn ?? {}), ...(c.heading ? [c.heading] : []), ...(c.bulletOn ?? []).map(b => b[2]), ...(c.tellOn ?? []).map(b => b[2])]) {
+      // A tell is held with its colon, as the scorer reads it, so "tell 1" is not found inside "tell 10:" (#101, move 4).
+      for (const s of [...(c.contains ?? []), ...Object.values(c.headlineOn ?? {}), ...(c.heading ? [c.heading] : []), ...(c.bulletOn ?? []).map(b => b[2]), ...(c.tellOn ?? []).map(b => `${b[2]}:`)]) {
         assert.ok(text.includes(s.toLowerCase()), `${lens} ${id}: "${s}" is not in the lens file`);
       }
     }
@@ -197,4 +198,34 @@ test("reader-lens carries every reader-facing rule of the pact's plain language,
   // Seen to fail: the pact gains a word in one rule, and the lens's copy no longer matches its source.
   const changed = plainLanguageRules(pact.replace('Around 20 words.', 'Around 15 words.'));
   assert.equal(missingRules(lens, changed).length, 1);
+});
+
+// reader-lens's catalogue holds exactly ten tells, each once, numbered 1 to 10 in order (#101, move 4,
+// integrity-lens F3): a catalogue of nine or eleven fails.
+/** The tell numbers a lens text's catalogue opens bullets with, in order. */
+export function catalogue(text) {
+  return [...text.matchAll(/^- `tell (\d+):` \*\*/gm)].map(m => Number(m[1]));
+}
+
+test("reader-lens's catalogue holds the ten tells, in order", () => {
+  const text = read(join(REPO, 'claude', 'agents', 'reader-lens.md')).replace(/\r\n/g, '\n');
+  assert.deepEqual(catalogue(text), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  // Seen to fail: a tell dropped, or one added.
+  assert.deepEqual(catalogue(text.replace(/^- `tell 1:` .*\n(?: {2}.*\n)*/m, '')), [2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.equal(catalogue(`${text}\n- \`tell 11:\` **Extra.** One more.\n`).length, 11);
+});
+
+// Both standards lenses carry the security lenses' secret rule (#101, move 4: data-lens F1 and F2,
+// adversarial-lens F1 and F2), and conventions-lens stays inside the working folder.
+test('the standards pair names a secret by its place, and conventions-lens reads inside the working folder', () => {
+  for (const lens of ['conventions-lens', 'reader-lens']) {
+    const flat = read(join(REPO, 'claude', 'agents', `${lens}.md`)).replace(/\s+/g, ' ');
+    for (const words of ["Never write a secret's value or a person's personal data anywhere in your report.", 'Name where a secret is, never what it is', 'You may read any file in that folder, and nothing outside it.']) {
+      assert.ok(flat.includes(words), `${lens}: "${words}"`);
+    }
+  }
+  const flat = read(join(REPO, 'claude', 'agents', 'conventions-lens.md')).replace(/\s+/g, ' ');
+  for (const words of ['Follow a pointer from a rules file at most one step.', 'A pointer that leads outside the working folder is not read', 'check the rest of the change against the rule as it stood before the change']) {
+    assert.ok(flat.includes(words), `conventions-lens: "${words}"`);
+  }
 });

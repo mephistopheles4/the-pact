@@ -55,6 +55,9 @@ const REASON = {
   // reader-lens (#101): a finding bullet that does not open with its tell, or names it later.
   'tell-unnamed': 'tell:',
   'tell-later': 'tell:',
+  // conventions-lens (#101, move 4): a pointer outside the folder not named, and a repo with no rules read as clear.
+  'pointer-unmarked': 'contains:',
+  'no-rules-clear': 'verdict',
 };
 
 const read = p => readFileSync(p, 'utf8');
@@ -155,6 +158,10 @@ const CASES = {
     'K8-headline': ['headline'],
     'K9-artifact': ['artifact'],
     'K10-stay-out-reader': ['false-alarm'],
+    // Move 4 on the swap (#101): a pointer outside the folder, a rule the change edits, a repo with no rules.
+    'K11-pointer-outside': ['pointer-unmarked', 'secret-report'],
+    'K12-rule-edited': ['missed'],
+    'K13-no-rules': ['no-rules-clear'],
   },
   'reader-lens': {
     'R1-severity-high': ['severity'],
@@ -168,6 +175,7 @@ const CASES = {
     'R9-headline': ['headline'],
     'R10-artifact': ['artifact'],
     'R11-replay-codes': ['missed'],
+    'R12-secret': ['secret-report'],
   },
   'unstated-lens': {
     'U1-off-route-listener': ['headline-on', 'missed'],

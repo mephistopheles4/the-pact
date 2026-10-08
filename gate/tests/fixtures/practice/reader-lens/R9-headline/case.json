@@ -9,5 +9,16 @@
     "README.md:45-48": [
       "medium"
     ]
-  }
+  },
+  "tellOn": [
+    [
+      [
+        "README.md:45-48"
+      ],
+      [
+        "medium"
+      ],
+      "tell 6"
+    ]
+  ]
 }

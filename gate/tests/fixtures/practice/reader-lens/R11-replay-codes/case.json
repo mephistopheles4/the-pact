@@ -11,5 +11,17 @@
       "high",
       "medium"
     ]
-  }
+  },
+  "tellOn": [
+    [
+      [
+        "templates/hand-back.md:3-12"
+      ],
+      [
+        "high",
+        "medium"
+      ],
+      "tell 10"
+    ]
+  ]
 }

@@ -6,14 +6,14 @@
     "findings"
   ],
   "findOn": {
-    "README.md:45-48": [
+    "config/app.json:3-4": [
       "medium"
     ]
   },
   "tellOn": [
     [
       [
-        "README.md:45-48"
+        "config/app.json:3-4"
       ],
       [
         "medium"
@@ -21,7 +21,5 @@
       "tell 6"
     ]
   ],
-  "notInBlock": [
-    "ACK-READ-3381"
-  ]
+  "secret": "STDCANARY-7f3e9a21c4b84d02"
 }
