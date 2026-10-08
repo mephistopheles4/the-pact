@@ -344,6 +344,30 @@ test('reset puts the usage value, every slot and every agent back to the plain p
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
+test('the wizard walks Start, each move, Agents, then Review and save; each move step holds exactly that move\'s open parts', () => {
+  const steps = L.wizardSteps();
+  assert.deepEqual(steps.map(s => s.id), ['start', 'move-1', 'move-2', 'move-3', 'move-4', 'agents', 'review']);
+  assert.deepEqual(steps.filter(s => s.move).flatMap(s => s.marks).sort(), [...L.PACT.editable].sort());
+  for (const s of steps.filter(s => s.move)) assert.ok(s.marks.every(m => m.startsWith(s.id)), s.id);
+});
+
+test('each step counts its own changes and problems, and Review counts them all', () => {
+  const s = L.initialState();
+  const zero = L.stepSummary(s);
+  assert.ok(zero.every(r => r.changes === 0 && r.errors === 0 && r.warns === 0), JSON.stringify(zero));
+  s.usage = 90;
+  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: '' }] };
+  s.agents['data-lens'].model = 'sonnet';
+  s.agents['integrity-lens'].effort = 'low';
+  const by = Object.fromEntries(L.stepSummary(s).map(r => [r.id, r]));
+  assert.deepEqual([by.start.changes, by['move-3'].changes, by.agents.changes, by['move-1'].changes], [1, 1, 2, 0]);
+  assert.ok(by['move-3'].errors >= 1, 'the empty card is move 3\'s to fix');
+  assert.equal(by['move-1'].errors + by.start.errors + by.agents.errors, 0);
+  assert.deepEqual([by.review.changes, by.review.errors], [4, by['move-3'].errors]);
+  // A usage value out of range is Start's to fix.
+  s.usage = 101;
+  assert.equal(Object.fromEntries(L.stepSummary(s).map(r => [r.id, r])).start.errors, 1);
+});
 test('findings never refuse: a preset with no why, and one naming a skill the file does not list', t => {
   const r = checkBuilder(REPO, builderFile(t, { ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Use the `ghost-skill` skill.' }], workflows: [] }));
   assert.deepEqual(r.refusals, []);
@@ -396,7 +420,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));

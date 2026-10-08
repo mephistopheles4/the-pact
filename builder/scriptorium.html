@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-thH//mY3ZlYH9ZJ2nnZIIKVLZcYHAHJOnsjQfKjPPBg='; style-src 'sha256-18B67GsfB/alu8Iy2IFzlKdNjTLEx4KPxWgRi8S1FuU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-WRXO2zQiYg7C+0lRHFhxIDtDKo/myd/2+t+FfRmzjxE='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -120,9 +120,26 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-tool-chip:disabled:hover { color: var(--av-ink-30); border-color: var(--av-ink-12); }
 .av-tool-chip:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--av-s1); }
+[hidden] { display: none !important; }
 
-/* WORKSPACE: a pinned sidebar of tabs (each move's presets, and yours)
-   beside the spine, so the library never scrolls away from the slots. */
+/* STEPPER: the page is a wizard. One step shows at a time: Start, each move,
+   Agents, then Review and save. Every step stays one click away. */
+.stepper { display: flex; flex-wrap: wrap; padding: 0 var(--av-s4); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+.step { font: inherit; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: var(--av-s2) var(--av-s3); border: 0; border-bottom: var(--av-rule-bold) solid transparent; background: transparent; color: var(--av-ink-70); cursor: pointer; text-align: left; }
+.step:hover { color: var(--av-ink); }
+.step--on { color: var(--av-ink); border-bottom-color: var(--av-ink); }
+.step-n { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); }
+.step-title { font-size: var(--av-t-annot); font-weight: 600; }
+.step-note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
+.step-note--fix { color: var(--av-caution); font-weight: 600; }
+.step-nav { display: flex; justify-content: space-between; gap: var(--av-s2); padding: var(--av-s3) var(--av-s4); border-top: var(--av-rule-hair) solid var(--av-ink-30); }
+.overview { display: flex; flex-direction: column; }
+.overview-row { display: flex; align-items: center; gap: var(--av-s2); padding: var(--av-s1) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.overview-row > :first-child { min-width: 9rem; font-weight: 600; font-size: var(--av-t-annot); }
+.overview-row > :last-child { margin-left: auto; }
+
+/* WORKSPACE: on a move's step, a pinned sidebar (that move's presets, and
+   yours) beside that move, so the library never scrolls away from its slots. */
 .workspace { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: start; }
 .av-tool-detail { min-width: 0; padding: var(--av-s3) var(--av-s4); }
 #sidebar { position: sticky; top: 0; max-height: 100vh; overflow-y: auto; padding: var(--av-s3) var(--av-s2) var(--av-s3) var(--av-s3); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s2); }
@@ -144,6 +161,8 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 @media (max-width: 900px) {
   .workspace { grid-template-columns: minmax(0, 1fr); }
   #sidebar { position: static; max-height: 22rem; border-right: 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+  .stepper, .step-nav { padding-left: var(--av-s2); padding-right: var(--av-s2); }
+  .step { padding: var(--av-s1) var(--av-s2); }
   .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); }
 }
 /* TYPE */
@@ -239,17 +258,19 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
       <div class="av-tool-actions" id="actions"></div>
     </header>
     <div class="av-tool-bar" id="summary"></div>
+    <nav class="stepper" id="stepper" aria-label="Steps"></nav>
     <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="workflows"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="agents"></section>
-    <div class="workspace">
+    <div class="workspace" id="workspace">
       <aside id="sidebar" aria-label="Presets and your own skills, commands and agents"></aside>
       <div class="av-tool-detail">
         <section id="spine"></section>
-        <section id="always"></section>
       </div>
     </div>
     <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
+    <section class="av-tool-detail" id="always"></section>
+    <nav class="step-nav" id="step-nav" aria-label="Back and next"></nav>
   </div>
 </div>
 <script>
@@ -823,6 +844,38 @@ function restoreAll(state, snap) {
   Object.assign(state, JSON.parse(snap));
 }
 
+/** The wizard's steps, in order: Start, each move with its open parts, Agents, Review and save. */
+function wizardSteps() {
+  return [
+    { id: 'start', title: 'Start', marks: [PACT.setting.name] },
+    ...PACT.moves.map(m => ({ id: `move-${m.n}`, title: `Move ${m.n}`, move: m.n, marks: m.parts.filter(p => p.kind === 'open').map(p => p.mark) })),
+    { id: 'agents', title: 'Agents', marks: [] },
+    { id: 'review', title: 'Review and save', marks: null },
+  ];
+}
+
+/**
+ * Per step: { id, title, changes, errors, warns }. A move step counts its
+ * edited slots, Start the usage value, Agents the lenses off their default;
+ * Review counts everything.
+ */
+function stepSummary(state) {
+  const found = problems(state);
+  const count = (list, level) => list.filter(f => f.level === level).length;
+  const agentsOff = PACT.agents.filter(a => a.configurable && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).length;
+  const rows = wizardSteps().map(s => {
+    if (s.marks === null) return { id: s.id, title: s.title, changes: 0, errors: count(found, 'error'), warns: count(found, 'warn') };
+    const here = found.filter(f => s.marks.includes(f.where));
+    const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0)
+      : s.id === 'agents' ? agentsOff
+      : s.marks.filter(m => slotOp(state.slots[m]) !== 'keep').length;
+    return { id: s.id, title: s.title, changes, errors: count(here, 'error'), warns: count(here, 'warn') };
+  });
+  const review = rows[rows.length - 1];
+  review.changes = rows.slice(0, -1).reduce((n, r) => n + r.changes, 0);
+  return rows;
+}
+
 /**
  * The pact's text laid out for reading: its hard line breaks joined back into
  * paragraphs, with list items and blank-line breaks kept. Display only; the
@@ -876,6 +929,8 @@ function boot() {
   const $ = id => document.getElementById(id);
   const root = document.documentElement;
   let status = { text: '', level: '' };
+  let step = 'start'; // the wizard's step shown: an id from wizardSteps()
+  const stepMove = () => PACT.moves.find(m => `move-${m.n}` === step) || null;
 
   function setStatus(text, level) {
     status = { text, level: level || '' };
@@ -1052,19 +1107,19 @@ function boot() {
       'div',
       { class: 'tile tile--yours', draggable: 'true' },
       el('span', { class: 'card-tab', text: 'Your agent' }),
-      el('p', { class: 'av-annot', text: 'Drag onto any open slot, then name the agent and what it reads. It runs after the slot\'s text.' }),
+      el('p', { class: 'av-annot', text: 'On a move\'s step, open the Yours tab and add "A new agent of yours", then name it and what it reads. It runs after the slot\'s text.' }),
     );
     yours.addEventListener('dragstart', e => {
       e.dataTransfer.setData('text/plain', 'agent:new');
       e.dataTransfer.effectAllowed = 'copy';
     });
     $('agents').replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Each lens takes your model and effort, and starts at its file\'s own, its default. A security-set lens set off its default is an override, not security-tested. Add your own agent at any open slot.' })),
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Each lens takes your model and effort, and starts at its file\'s own, its default. A security-set lens set off its default is an override, not security-tested. Add your own agent on a move\'s step, from its Yours tab.' })),
       el('div', { class: 'tiles' }, yours, ...tiles),
     );
   }
 
-  let tab = 'move-1'; // the sidebar's tab: move-1 to move-4, or yours
+  let tab = 'move'; // the sidebar's tab: this step's move presets, or yours
   let openKey = null; // the row opened for its details
   let filter = '';
 
@@ -1094,7 +1149,7 @@ function boot() {
   /** A slot picker and an Add button, for a card that fits any open slot. */
   function addTo(make, label) {
     const slot = el('select', { 'aria-label': `Slot for ${label}` }, ...PACT.editable.map(m => el('option', { value: m, text: m })));
-    slot.value = tab.startsWith('move-') ? PACT.editable.find(m => m.startsWith(tab)) || PACT.editable[0] : PACT.editable[0];
+    slot.value = (stepMove() && PACT.editable.find(m => m.startsWith(step))) || PACT.editable[0];
     return el('div', { class: 'card-foot' }, slot, chip('Add', false, () => {
       state.slots[slot.value].cards.push(make(slot.value));
       setStatus('', '');
@@ -1151,13 +1206,15 @@ function boot() {
   }
 
   function renderSidebar() {
-    const tabs = [...PACT.moves.map(m => [`move-${m.n}`, `Move ${m.n}`]), ['yours', 'Yours']];
+    const m = stepMove();
+    if (!m) return $('sidebar').replaceChildren();
+    const tabs = [['move', `Move ${m.n} presets`], ['yours', 'Yours']];
     const bar = el('div', { class: 'tabs', role: 'tablist' }, ...tabs.map(([k, label]) => el('button', { type: 'button', role: 'tab', class: `tab${tab === k ? ' tab--on' : ''}`, 'aria-selected': tab === k ? 'true' : 'false', onclick: () => {
       tab = k;
       openKey = null;
       renderSidebar();
     } }, label)));
-    const body = tab === 'yours' ? yoursList() : presetList(PACT.moves.find(m => `move-${m.n}` === tab));
+    const body = tab === 'yours' ? yoursList() : presetList(m);
     $('sidebar').replaceChildren(bar, ...body);
   }
   function drop(mark, id) {
@@ -1309,7 +1366,7 @@ function boot() {
   /** Redraw the spine. A structural change clears the last status message unless the caller just set it. */
   function renderSpine(clearStatus = true) {
     if (clearStatus) status = { text: '', level: '' };
-    const moves = PACT.moves.map(m =>
+    const moves = PACT.moves.filter(m => `move-${m.n}` === step).map(m =>
       el(
         'article',
         { class: 'move', id: `move-${m.n}` },
@@ -1367,9 +1424,45 @@ function boot() {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
+  /** Show one step: its sections, its move and its sidebar, and the stepper and Back/Next for it. */
+  function showStep(id) {
+    step = id;
+    openKey = null;
+    $('values').hidden = $('workflows').hidden = id !== 'start';
+    $('agents').hidden = id !== 'agents';
+    $('workspace').hidden = !stepMove();
+    $('output').hidden = $('always').hidden = id !== 'review';
+    renderSidebar();
+    renderSpine();
+    renderStepNav();
+    if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
+  }
+
+  const stepNote = s => [s.changes ? `${s.changes} ${s.id === 'agents' ? 'set' : 'edited'}` : '', s.errors ? `${s.errors} to fix` : s.warns ? `${s.warns} to check` : ''].filter(Boolean).join(' · ');
+
+  function renderStepper() {
+    const rows = stepSummary(state);
+    $('stepper').replaceChildren(...rows.map((s, i) => el(
+      'button',
+      { type: 'button', class: `step${s.id === step ? ' step--on' : ''}`, 'aria-current': s.id === step ? 'step' : 'false', onclick: () => showStep(s.id) },
+      el('span', { class: 'step-n', text: `Step ${i + 1}` }),
+      el('span', { class: 'step-title', text: s.title }),
+      el('span', { class: `step-note${s.errors ? ' step-note--fix' : ''}`, text: stepNote(s) || (s.id === 'review' ? 'nothing changed yet' : 'default') }),
+    )));
+  }
+
+  function renderStepNav() {
+    const steps = wizardSteps();
+    const i = steps.findIndex(s => s.id === step);
+    const back = i > 0 ? chip(`Back: ${steps[i - 1].title}`, false, () => showStep(steps[i - 1].id), 'av-tool-chip--ghost') : el('span');
+    const next = i < steps.length - 1 ? chip(`Next: ${steps[i + 1].title}`, false, () => showStep(steps[i + 1].id)) : el('span');
+    $('step-nav').replaceChildren(back, next);
+  }
+
   function renderOutput() {
     renderSummary();
     renderReset();
+    renderStepper();
     const found = problems(state);
     const errors = found.filter(f => f.level === 'error');
     const files = buildFiles(state);
@@ -1388,7 +1481,16 @@ function boot() {
       return el('div', {}, el('div', { class: 'file-head' }, el('span', { class: 'section-title', text: f.path }), el('span', { class: 'av-annot', text: `goes in ${into}` }), btn), el('pre', { class: 'av-tool-code', text: f.text }));
     });
 
+    const overview = el('div', { class: 'overview' }, ...stepSummary(state).filter(s => s.id !== 'review').map(s => el(
+      'div',
+      { class: 'overview-row' },
+      el('span', { text: s.title }),
+      el('span', { class: `step-note${s.errors ? ' step-note--fix' : ''}`, text: stepNote(s) || 'default' }),
+      chip('Open', false, () => showStep(s.id), 'av-tool-chip--ghost'),
+    )));
     $('output').replaceChildren(
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Review' }), el('span', { class: 'av-annot', text: 'Each step, what you changed there, and what to fix.' })),
+      overview,
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
       el('p', { class: 'av-annot', text: canPick
         ? 'Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there. Then run the install script\'s dry run and read its Configuration block.'
@@ -1403,9 +1505,8 @@ function boot() {
   renderValues();
   renderWorkflows();
   renderAgents();
-  renderSidebar();
   renderAlways();
-  renderSpine();
+  showStep('start');
 }
 
 if (typeof document !== 'undefined') boot();
