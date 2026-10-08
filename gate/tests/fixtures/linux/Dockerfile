@@ -14,7 +14,9 @@
 #   docker run --rm --network none -v <tmp>:/in:ro pact-linux:96
 #
 # Pinned by digest as first built on 2026-10-08: Node v20.20.2, PowerShell
-# 7.5.0 on Ubuntu 24.04.1. apt's git was 2.43.0 then.
+# 7.5.0 on Ubuntu 24.04.1. apt's git was 2.43.0 then. git is not pinned, since
+# Ubuntu drops old package versions, so a rebuild may get a newer git; the run
+# prints the version it used.
 FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS node
 
 FROM mcr.microsoft.com/powershell:7.5-ubuntu-24.04@sha256:042240d57ec9e47e511033b92625a8d95875ee5860af3015992c248b58a8be81

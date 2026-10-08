@@ -30,8 +30,10 @@ how every session in every repo behaves. So:
   or can't run. The dry run also shows the Node it used, the pinned grimoire
   commit, and whether the gate changed since the last install. Run the gate's
   tests with `node --test "gate/tests/*.test.mjs"`. Node 20 doesn't expand the
-  quoted pattern, so under Node 20 leave it unquoted in a POSIX shell, which
-  expands it. The Linux run in a container (#96) is in
+  quoted pattern, so under Node 20 hand it the files instead: leave the pattern
+  unquoted in a POSIX shell, or in PowerShell run
+  `node --test (Get-ChildItem gate/tests/*.test.mjs).FullName`. The Linux run
+  in a container (#96) is in
   [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/).
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
