@@ -122,6 +122,8 @@ how every session in every repo behaves. So:
       or `cross/` is read by the shared test helper, so nearly every test
       names it. A fixture edit, or a deleted or renamed test file, is named by
       the copy list's entry for the tests folder, so every install test runs.
+      So is an edit to `gate/tests/run.mjs`, which a comment in the copy list
+      names.
       #151 tracks a finer split. For such a change, check the pick with
       `--list` first, and run it once rather than after every edit.
 
