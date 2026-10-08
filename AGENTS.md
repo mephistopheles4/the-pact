@@ -70,7 +70,9 @@ how every session in every repo behaves. So:
   Claude folder, any link on its write path, and an existing rules file it has
   no record of writing. Like a home install it is a dry run first, and
   `-Apply` needs the project rules file's full rendered hash, given as
-  `-RenderedHash <hash>`.
+  `-RenderedHash <hash>`. On a project install that hash binds the bytes
+  installed, not the configuration files: a file changed after the dry run
+  still installs if it renders the same bytes, which can never be looser.
 
 ## Where work lives
 

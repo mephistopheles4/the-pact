@@ -67,7 +67,12 @@ $ErrorActionPreference = 'Stop'
 # project folder as their working folder, and git is never pointed at it.
 # Nothing is installed in the Claude home folder, and no agents go into the
 # project. Like a home install it is a dry run unless -Apply is given, and
-# -Apply needs the project rules file's full rendered hash.
+# -Apply needs the project rules file's full rendered hash. That hash binds
+# the bytes installed, not the configuration files behind them: a user or
+# project file changed after the dry run still installs when it renders the
+# same bytes (the owner's call on #95). Nothing looser can get in that way,
+# since the bytes are the ones the dry run showed; the record and the final
+# line then name this run's digest.
 
 $repo = Split-Path $PSScriptRoot -Parent
 # A plain script puts any option name it does not know, and the value after
@@ -919,7 +924,8 @@ if ($projectGiven) {
   else { Write-Host 'Working tree: clean' }
   Show-Gate
 
-  # A hash given is always compared, dry run or -Apply.
+  # A hash given is always compared, dry run or -Apply. It binds the project
+  # rules file's bytes only, not the configuration files (see the header).
   $hashGiven = $PSBoundParameters.ContainsKey('RenderedHash')
   if ($hashGiven -and $RenderedHash -cne $projectHash) {
     Stop-Refused 'the hash given with -RenderedHash is not the full hash of the project rules file this run rendered: a configuration or the commit changed since the dry run, or the hash was cut short or mistyped.'
