@@ -28,17 +28,8 @@ how every session in every repo behaves. So:
   runs the pact's own check, `gate/seam-a.mjs`, on them under Node 20 or later,
   and copies only the files that check listed. It refuses when the check fails
   or can't run. The dry run also shows the Node it used, the pinned grimoire
-  commit, and whether the gate changed since the last install. Run the gate's
-  tests with `node --test --test-concurrency=4 "gate/tests/*.test.mjs"`. The
-  cap keeps the run from starving other sessions; leave it on. Run the tests on
-  the current Node LTS (Node 24, "Krypton", as of 2026-10-08); `volta install node@24`
-  gets it. The flag needs Node 20.10 or later and older Node 20 rejects it as a bad
-  option. (The install itself still accepts any Node 20 or later.) Node 20 doesn't expand the
-  quoted pattern, so under Node 20 hand it the files instead: leave the pattern
-  unquoted in a POSIX shell, or in PowerShell run
-  `node --test --test-concurrency=4 (Get-ChildItem gate/tests/*.test.mjs).FullName`. The Linux run
-  in a container (#96) is in
-  [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/).
+  commit, and whether the gate changed since the last install. The gate's
+  tests run through one runner; see "Running the gate's tests" below.
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
@@ -102,6 +93,44 @@ how every session in every repo behaves. So:
   `-RenderedHash <hash>`. On a project install that hash binds the bytes
   installed, not the configuration files: a file changed after the dry run
   still installs if it renders the same bytes, which can never be looser.
+
+## Running the gate's tests
+
+- **One runner, two tiers.** Run the gate's tests through
+  [`gate/tests/run.mjs`](gate/tests/run.mjs), from the repo root:
+  - `node gate/tests/run.mjs full` runs every top-level test file. This is
+    "the full suite".
+  - `node gate/tests/run.mjs fast` runs every test file that doesn't run the
+    install script. The runner finds the install tier from each file's imports
+    and text on every run.
+
+  Both cap the run at four test files at once, which keeps it from starving
+  other sessions (ADR 0029). Never run the suite without the cap.
+- **It fails closed.** It hands the Node running it an explicit file list, so
+  it needs no glob and works the same on Node 20 and later and in any shell.
+  An empty pick, an odd test-file name or a usage error exits 2 and runs
+  nothing. A failed, killed or unstarted node exits 1. Its last line, on
+  stderr, names the tier, the file count and the result. `--reporter` takes
+  `spec`, `tap`, `dot` or `junit`, and `--list` prints the pick and runs
+  nothing.
+- **Run the tests on the current Node LTS** (Node 24, "Krypton", as of
+  2026-10-08); `volta install node@24` gets it. The install itself still
+  accepts any Node 20 or later. The Linux run in a container (#96) is in
+  [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/) and runs `full`
+  on Node 20.
+- **While building,** run only the test files for what you touched, capped:
+  `node --test --test-concurrency=4 <files>`. Run `fast` when a change could
+  reach further.
+- **The full suite runs** once at move 4; before an install; after a rebase or
+  merge that brought in other work; and after a final change set. It doesn't
+  run before and after each change.
+- **A changed-files run is never move-4 evidence.** Move 4's verdict rests on
+  `full`.
+- **Test output is posted only from record mode.** `--record <file>` writes a
+  copy of everything printed to a file outside the repo, with the repo, home
+  and temp folders and the user name replaced by placeholders. If a local path
+  survives, it writes nothing and exits 3. Keep raw reporter output, such as a
+  junit file, outside the repo.
 
 ## Where work lives
 
@@ -192,6 +221,13 @@ Where two bullets apply, the stricter one holds.
   One example is the tools an agent gets when the allow-list has no entry for
   it. Another is the renderer's list of agents a configuration may set:
   adding an agent to it is a spec change, and on this floor.
+- **The test runner and the copy list are on this floor too,** though they sit
+  in the gate's tests: `gate/tests/run.mjs` and `gate/tests/copy-list.mjs`.
+  A change to either takes the security route and needs a bad case in the
+  gate's tests that it is seen to catch. That covers the tiers and how they
+  are picked, the exit handling, how the runner starts node (the binary, its
+  flags and its environment) and record mode, so "the full suite" can't be
+  narrowed by an ordinary test edit.
 - **Everything else is proved by use.** That means the repo's tests and gates
   pass, a reviewer reads the change at move 4, and the standing measures are
   recorded where they apply. Any other edit to this section is also proved by

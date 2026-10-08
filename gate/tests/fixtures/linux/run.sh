@@ -10,8 +10,9 @@ echo "pwsh $(pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()')"
 echo "$(git --version)"
 echo "user $(id -un) uid $(id -u)"
 echo "os $(. /etc/os-release && echo "$PRETTY_NAME")"
-# Node 20 does not expand a quoted glob for --test, so the shell expands it.
-node --test --test-concurrency=4 --test-reporter=tap gate/tests/*.test.mjs
+# The full tier through the runner (#140): the same command as on any other
+# machine, with an explicit file list, so no glob is needed on Node 20.
+node gate/tests/run.mjs full --reporter tap
 status=$?
 echo "exit $status"
 exit $status
