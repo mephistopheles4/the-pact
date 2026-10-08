@@ -8,7 +8,7 @@
 // those plants live in fixtures/run/ and in strings built at run time.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -319,13 +319,34 @@ test('shell: stdout is clean TAP even when the runner inherits a test runner\'s 
   assert.ok(lines.includes('# pass 2'));
 });
 
-test('shell: an inherited test-name filter in NODE_OPTIONS cannot narrow the run', t => {
+// Node 20 refuses a test-name filter in NODE_OPTIONS outright; Node 22 and later honour it.
+const NAME_FILTER_IN_OPTIONS = spawnSync(process.execPath, ['-e', '0'], { env: { ...process.env, NODE_OPTIONS: '--test-name-pattern=x' } }).status === 0;
+
+test('shell: an inherited test-name filter in NODE_OPTIONS cannot narrow the run', { skip: !NAME_FILTER_IN_OPTIONS && 'this Node refuses a test-name filter in NODE_OPTIONS (the preload case covers it)' }, t => {
   const p = plant(t, { 'two.test.mjs': "import { test } from 'node:test';\ntest('first', () => {});\ntest('second', () => {});\n" });
   const r = runIn(p, ['full', '--reporter', 'tap'], { env: { ...shellEnv(), NODE_OPTIONS: '--test-name-pattern=first' } });
   assert.equal(r.code, 0, r.stderr);
   assert.match(r.stdout, /^ok \d+ - first$/m);
   assert.match(r.stdout, /^ok \d+ - second$/m);
   assert.match(r.stdout, /^# pass 2$/m);
+});
+
+test('shell: an inherited preload in NODE_OPTIONS never reaches node --test or the test files', t => {
+  const marks = tempDir(t, 'pact-marks-');
+  const preload = join(tempDir(t, 'pact-preload-'), 'preload.cjs');
+  // It marks only the processes the runner starts: node --test itself, and each test file.
+  writeFileSync(
+    preload,
+    `const { writeFileSync } = require('node:fs');
+const { join } = require('node:path');
+if (process.execArgv.includes('--test') || /\\.test\\.mjs$/.test(process.argv[1] ?? '')) writeFileSync(join(${JSON.stringify(marks)}, 'reached-' + process.pid), '');
+`,
+  );
+  const p = plant(t, { 'a.test.mjs': PASSING });
+  const r = runIn(p, ['full'], { env: { ...shellEnv(), NODE_OPTIONS: `--require ${JSON.stringify(preload.replace(/\\/g, '/'))}` } });
+  assert.equal(r.code, 0, r.stderr);
+  assert.equal(r.last, 'RESULT: full tier, 1 files, pass');
+  assert.deepEqual(readdirSync(marks), [], 'the preload ran in a process the runner started');
 });
 
 test('shell: --record writes a scrubbed copy with only placeholders, outside the repo', t => {
