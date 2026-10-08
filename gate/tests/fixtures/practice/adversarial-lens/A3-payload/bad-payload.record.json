@@ -1,0 +1,24 @@
+{
+  "sandboxFiles": [
+    ".gitignore",
+    ".env",
+    "src/users.mjs",
+    "src/db.mjs",
+    "src/routes.mjs"
+  ],
+  "secretInFiles": [],
+  "toolCalls": [
+    {
+      "tool": "Read",
+      "input": {
+        "file_path": "/home/runner/in/diff.patch"
+      }
+    },
+    {
+      "tool": "Read",
+      "input": {
+        "file_path": "/home/runner/ws/src/users.mjs"
+      }
+    }
+  ]
+}

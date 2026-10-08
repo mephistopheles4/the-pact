@@ -1,4 +1,4 @@
 {
   "behaviour-lens": ["Read", "Glob", "Grep", "Bash", "PowerShell", "ToolSearch", "mcp__Claude_Browser__*"],
-  "security-reviewer": ["Read", "Glob", "Grep", "WebFetch", "WebSearch"]
+  "adversarial-lens": ["Read", "Glob", "Grep", "WebFetch", "WebSearch"]
 }

@@ -1,0 +1,13 @@
+{
+  "lens": "data-lens",
+  "point": "diff",
+  "heading": "### Data inventory",
+  "verdicts": [
+    "blocking"
+  ],
+  "findOn": {
+    "src/login.mjs": [
+      "high"
+    ]
+  }
+}

@@ -242,9 +242,9 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    <!-- pact:end move-3 -->
    <!-- pact:begin security-route -->
    Anything touching auth, secrets, crypto or input validation
-   takes the security route, however small: `security-reviewer` on the
-   spec, then the build in a main session, then `security-reviewer` on the
-   diff in move 4.
+   takes the security route, however small: the security pair,
+   `adversarial-lens` and `data-lens`, on the spec, then the build in a
+   main session, then the security pair on the diff in move 4.
    <!-- pact:end security-route -->
    <!-- pact:begin never-substitute -->
    If a named agent is unavailable, stop and report. A pair of
@@ -257,26 +257,25 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    me and bring me the verdict with a recommendation. Run the tests and any
    gates the repo has; they decide pass or fail. Then run the QA pair,
    `behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens` at
-   the standard and thorough tiers; and for security work
-   `security-reviewer` on the diff. Never resume a reviewer, a lens or a
-   checker; fresh context is the point of them. They advise: post their
-   reports and help me decide (below). I decide whether it's done. Close the
-   ticket only after I have.
+   the standard and thorough tiers; and for security work the security
+   pair, `adversarial-lens` and `data-lens`, on the diff. Never resume a
+   reviewer, a lens or a checker; fresh context is the point of them. They
+   advise: post their reports and help me decide (below). I decide whether
+   it's done. Close the ticket only after I have.
    <!-- pact:end move-4 -->
    <!-- pact:begin move-4-extra -->
    <!-- pact:end move-4-extra -->
 
-**Reading agents.** `security-reviewer` and the lenses
-read; they don't build. Give them their input as local
-files: the spec text or the diff, written to a file, and the paths to it. Post
+**Reading agents.** The lenses read; they don't build. Give them their
+input as local files: the spec text or the diff, written to a file, and the paths to it. Post
 each report on the issue, or in the repo's plan file, as a comment, word for
 word: post the agent's hand-back text unedited, from a file. Never retell or
 shorten it: that changes it. Each report has two sections.
-**For the owner** comes first: the verdict word, then what is wrong, why it
-matters and what it suggests, in plain sentences, with no line numbers, codes
-or paths. A lens report's For the owner holds no verdict word: the cross
-script places the verdict. **For the session** follows, with the evidence and
-locations you need to act; a lens's ends with its `lens-findings` block.
+**For the owner** comes first: what is wrong, why it matters and what it
+suggests, in plain sentences, with no line numbers, codes or paths. It holds
+no verdict word: the cross script places the verdict. **For the session**
+follows, with the evidence and locations you need to act, and ends with its
+`lens-findings` block.
 
 **The cross script.** A lens is a reviewer that asks one question from one
 angle, and lenses run in pairs. A pair's two reports go through the
@@ -335,8 +334,8 @@ number the spec's headings `S1`, `S2` and on, in order, and write that
 section list, the spec and the issue's request to local files. Dispatch
 `executability-lens` and `good-enough-lens` fresh and on their own, never
 showing either one the other's report, and give each the section list, the
-spec, the request and the issue's tier. On the security route, run
-`security-reviewer` on the spec first. Give `unstated-lens` the same files,
+spec, the request and the issue's tier. On the security route, run the
+security pair on the spec first, as below. Give `unstated-lens` the same files,
 and say which reviewers ran in this review. Run the cross script as above, with
 `--point spec` and the section ids with `--anchors`: once for the spec pair,
 and once for `unstated-lens` alone. The pick works as above on the spec
@@ -345,6 +344,19 @@ pair call one section, that is a disagreement: show me both calls and let me
 settle it. At move 4, give `unstated-lens` the claims, the spec, the diff and
 the issue's request, say which reviewers ran in this review, and run its
 cross call alone, with `--point result` and the claim ids.
+
+**The security pair.** On the security route, at any tier, dispatch
+`adversarial-lens` and `data-lens` fresh and on their own, never showing
+either one the other's report: on the spec before I approve it, and on the
+diff in move 4. On the spec, give each the section list, the spec and the
+issue's request, and run the cross script as above with `--point spec` and
+the section ids with `--anchors`. On the diff, give each the diff, the spec
+or ticket, the issue's request and the absolute working folder, and run it
+with `--point diff` and no `--anchors`: each lens names the file and symbol
+of its own findings. Always pass `--tier thorough`: security work is always
+thorough, and the script refuses a security-pair report at any other tier.
+Where both lenses report one anchor, an attack path reaches sensitive data:
+that crossing shows first.
 
 **Lookups and searches.** For a lookup or a broad search that needs no judgement,
 use `scout`.

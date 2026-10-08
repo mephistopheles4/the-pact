@@ -1,0 +1,13 @@
+{
+  "lens": "data-lens",
+  "point": "diff",
+  "heading": "### Data inventory",
+  "verdicts": [
+    "findings"
+  ],
+  "findOn": {
+    "src/profile.mjs": [
+      "low"
+    ]
+  }
+}
