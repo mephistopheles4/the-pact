@@ -63,12 +63,39 @@ test('each block is added after the default text, in its own move', t => {
   assert.ok(m3 > b2 && b3 > m3, 'move 3 block follows the move 3 text');
 });
 
-test('each skill appears in its intended form', t => {
+// Which skills each block binds. Checked against the block's own text, because a
+// gated clause already holds `prototype`, so a whole-render search would pass without it.
+const PER_BLOCK = {
+  'move-1-matt-pocock.md': { commands: ['triage', 'wayfinder'], spans: ['diagnosing-bugs'] },
+  'move-2-matt-pocock.md': { commands: ['to-spec'], spans: ['grilling', 'domain-modeling', 'codebase-design', 'prototype'] },
+  'move-3-matt-pocock.md': { commands: ['to-tickets', 'implement'], spans: ['tdd', 'codebase-design'] },
+};
+
+test('each skill appears in its intended form, in its own move\'s block', () => {
+  const all = { commands: new Set(), spans: new Set() };
+  for (const [file, want] of Object.entries(PER_BLOCK)) {
+    const text = readFileSync(join(BLOCKS, file), 'utf8');
+    for (const n of want.commands) {
+      assert.ok(text.includes(`\`/${n}\``), `${file}: ${n} is not written as a command`);
+      assert.ok(!text.includes(`\`${n}\``), `${file}: ${n} is also written as a code span`);
+      all.commands.add(n);
+    }
+    for (const n of want.spans) {
+      assert.ok(text.includes(`\`${n}\``), `${file}: ${n} is not written as a code span`);
+      assert.ok(!text.includes(`\`/${n}\``), `${file}: ${n} is also written as a command`);
+      all.spans.add(n);
+    }
+  }
+  assert.deepEqual([...all.commands].sort(), [...COMMANDS].sort());
+  assert.deepEqual([...all.spans].sort(), [...SPANS].sort());
+});
+
+test('the render carries each block\'s text', t => {
   const { md } = renderedWith(t, homeWithSet(t));
-  for (const n of COMMANDS) assert.ok(md.includes(`\`/${n}\``), `${n} is not written as a command`);
-  for (const n of SPANS) assert.ok(md.includes(`\`${n}\``), `${n} is not written as a code span`);
-  for (const n of COMMANDS) assert.ok(!md.includes(`\`${n}\``), `${n} is also written as a code span`);
-  for (const n of SPANS) assert.ok(!md.includes(`\`/${n}\``), `${n} is also written as a command`);
+  for (const file of Object.keys(PER_BLOCK)) {
+    const first = readFileSync(join(BLOCKS, file), 'utf8').split('\n')[0];
+    assert.ok(md.includes(first), `${file} is not in the render`);
+  }
 });
 
 /** Run the skill-flag check on `md` with the 11 skills installed, the owner's five flagged. */
