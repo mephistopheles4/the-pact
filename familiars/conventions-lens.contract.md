@@ -1,17 +1,17 @@
 # Contract: conventions-lens
 
-Version: 0.1.0
+Version: 0.1.1
 
 - **Type:** agent
 - **Level:** Thorough
 - **Date:** 2026-10-08
-- **Go to build:** *Proposed* — waits on the owner's "go".
+- **Go to build:** the owner, 2026-10-08: "go" on questions 3 to 6 (Sample A, Opus at medium), then "confirmed" on the cleaned question 2 and on written rules only, in the build session.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** new; no reviewer leaves (pact issue #101; spec: #35, revision 7, "The roster", "What each lens does before it judges", "Anchors"). There is no outgoing file, so there is no "Rules of the file it replaces" table.
 - **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): `claude/agents/conventions-lens.md`, unsealed; this contract and the practice test in `familiars/`.
 
 Target: claude
-*Proposed* (the lens installs as a Claude Code agent)
+**Confirmed** (2026-10-08) (the lens installs as a Claude Code agent)
 
 ## Before question 1: show me good
 
@@ -44,15 +44,15 @@ Red step: rules files AGENTS.md and docs/agents/; expected to touch the ADR rule
 
 Each sample ends with its `lens-findings` block.
 
-**Target:** *Proposed* — Sample A, recommended. Listing every rule that applies shows what was checked, not only what failed, so a missing rule is visible as a missing row. It is a compliance matrix narrowed to one change.
+**Target:** **Confirmed** (2026-10-08, the owner's "go") — Sample A. Listing every rule that applies shows what was checked, not only what failed, so a missing rule is visible as a missing row. It is a compliance matrix narrowed to one change.
 
 ## Quick questions (1–7)
 
 ### 1. What is it for?
 
-**Name:** `conventions-lens`. *Proposed* (the working name from #35; the cross script and the gate's roster list already hold it).
+**Name:** `conventions-lens`. **Confirmed** (2026-10-08) (the working name from #35; the cross script and the gate's roster list already hold it).
 
-*Proposed*: At move 4, at the standard and thorough tiers, it checks the diff against the repo's written rules. It is one lens of the standards pair, a joining pair; its partner asks whether the owner can act on the text. Where a line breaks a written rule and also loses the reader, the two meet on the same lines: a crossing, which shows first.
+**Confirmed** (2026-10-08): At move 4, at the standard and thorough tiers, it checks the diff against the repo's written rules. It is one lens of the standards pair, a joining pair; its partner asks whether the owner can act on the text. Where a line breaks a written rule and also loses the reader, the two meet on the same lines: a crossing, which shows first.
 
 - **Steps in:** every diff at the standard and thorough tiers, dispatched with its partner.
 - **Stays out:** whether the text is clear to its reader (the partner); whether the change works or its tests can fail (the QA pair); security (the security pair); what was never asked for (`unstated-lens`).
@@ -60,11 +60,13 @@ Each sample ends with its `lens-findings` block.
 
 ### 2. What does it notice that nothing else does?
 
-*Waiting on the owner's words.*
+**Decided** (2026-10-08, the owner's words, by speech to text, cleaned up with the owner's leave and confirmed): "Making sure that things were done the same way the team usually expects to do things, by upholding the written rules in the code and the way the code is written and broken down into modules."
+
+The owner's words widen the draft's reach to how code is written and split into modules, as far as the repo writes it down. Unwritten habits stay out, by the owner's "confirmed" on written rules only (2026-10-08): a habit worth enforcing should be written down, and a reader problem with no rule behind it points at the missing rule (the pair's crossing, #35, 2026-10-01).
 
 ### 3. Who does what?
 
-**The familiar** *Proposed*
+**The familiar** **Confirmed** (2026-10-08)
 - C1. **The red step comes first.** Before it reads the diff, it finds the repo's rules files in the working folder and writes, from the request alone, which rules it expects the change to touch.
   Held by: Promised.
 - C2. **Its artifact:** every written rule that applies to the change, quoted as written, with where it is written, the lines it applies to, and whether the change keeps it.
@@ -86,46 +88,46 @@ Each sample ends with its `lens-findings` block.
 - C10. **Carried rules name roles, never agents.** It names its partner as "your partner lens".
   Held by: Enforced — seam A.
 
-**Automatic checks** *Proposed*: seam A; the cross script, which takes it with its partner at `--point diff`, `lines` anchors, any tier.
+**Automatic checks** **Confirmed** (2026-10-08): seam A; the cross script, which takes it with its partner at `--point diff`, `lines` anchors, any tier.
 
-**You (the owner)** *Proposed*: the main session acts on its own recommendation for each finding and marks it `auto` (#87). Accepting the work, closing the ticket and merging stay yours.
+**You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87). Accepting the work, closing the ticket and merging stay yours.
 
-**Stop and ask** *Proposed*
+**Stop and ask** **Confirmed** (2026-10-08)
 - S1. No diff to review: it says so and reviews nothing.
 - S2. No working folder named: it says what it needs and reviews nothing, because the rules live there.
 - S3. A job that needs running code, a write or a network call: it says so and stops. Enforced by the tools list.
 
-**What makes it fire** *Proposed*: the pact's move 4, which names the standards pair at the standard and thorough tiers.
+**What makes it fire** **Confirmed** (2026-10-08): the pact's move 4, which names the standards pair at the standard and thorough tiers.
 
-**When it is unsure** *Proposed*: Decides, and shows you; a rule that may apply is `low`, with why it cannot tell.
+**When it is unsure** **Confirmed** (2026-10-08): Decides, and shows you; a rule that may apply is `low`, with why it cannot tell.
 
-**Checklist** *Proposed*: the repo's written rules that apply to the change (#35 revision 7: "Those rules").
+**Checklist** **Confirmed** (2026-10-08): the repo's written rules that apply to the change (#35 revision 7: "Those rules").
 
-**Which rules files** *Proposed* (a default the session takes unless the owner objects): the repo's own, found from the working folder: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, a `docs/agents/` folder, a style guide, and any file those point to. The owner's global pact is its partner's checklist, not this lens's.
+**Which rules files** **Confirmed** (2026-10-08): the repo's own, found from the working folder: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, a `docs/agents/` folder, a style guide, a config that enforces a rule (a linter's or a formatter's), and any file those point to. Written rules only: a habit the existing code merely shows is not a rule. The owner's global pact is its partner's checklist, not this lens's.
 
 ### 4. What does it hand back?
 
-*Proposed*: one report in two sections, posted word for word.
+**Confirmed** (2026-10-08): one report in two sections, posted word for word.
 
 - **For the owner:** which written rule the change breaks, why it matters here, and what it suggests. No verdict word, codes or paths.
 - **For the session:** `### Rules that apply` (the red step, then one row per rule: Rule, as written; Where it is written; Lines in the change; Kept?); one bullet per finding; one `lens-findings` block with `lines` anchors.
 
-**Severity mapping** *Proposed* (one practice case per value):
+**Severity mapping** **Confirmed** (2026-10-08) (one practice case per value):
 - `high`: a break of a rule the repo writes as a must or a never, where the break changes what the repo does or means, such as two copies of one rule that now say different things.
 - `medium`: a break of any other written rule that applies.
 - `low`: a rule that may apply but the lens cannot tell, or a break no reader would notice.
 
-**Banned headline words** *Proposed*: "high", "blocking", "clear", "safe", "ignore", as every lens.
+**Banned headline words** **Confirmed** (2026-10-08): "high", "blocking", "clear", "safe", "ignore", as every lens.
 
 ### 5. What tools does it need?
 
-*Proposed*: reads and searches files only.
+**Confirmed** (2026-10-08): reads and searches files only.
 
 Extra keys: tools, model, effort
 
 - `tools`: `[Read, Glob, Grep]` — **Decided** (2026-10-04, #35 revision 7).
-- `model`: `opus` — *Proposed*.
-- `effort`: `medium` — *Proposed*, as the other read-only lenses.
+- `model`: `opus` — **Confirmed** (2026-10-08).
+- `effort`: `medium` — **Confirmed** (2026-10-08), as the other read-only lenses.
 
 ### 6. Does it do anything beyond reading?
 
@@ -135,13 +137,14 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.1 | 2026-10-08 | Question 2 in the owner's words; how code is written and split into modules, as far as the repo writes it down; configs that enforce a rule count; every answer Confirmed. | The owner's answers and "go" on #101 | 1, 2, 3 |
 | 0.1.0 | 2026-10-08 | Contract drafted. | #35 revision 7, #101 | all |
 
 ## Standard questions (8–15)
 
 ### 8. How alike should its answers be?
 
-*Proposed*: same shape each run.
+**Confirmed** (2026-10-08): same shape each run.
 
 ### 9. A real example of it at its best
 
@@ -149,23 +152,23 @@ None yet.
 
 ### 10. What does it need to start?
 
-*Proposed*: the diff; the spec or ticket; the issue's request; the absolute working folder.
+**Confirmed** (2026-10-08): the diff; the spec or ticket; the issue's request; the absolute working folder.
 
 ### 11. Where does a person decide?
 
-*Proposed*: the owner's decision at move 4; the main session auto-takes its recommendation per finding.
+**Confirmed** (2026-10-08): the owner's decision at move 4; the main session auto-takes its recommendation per finding.
 
 ### 12. Prove it works: a practice test
 
-*Proposed*: in `familiars/conventions-lens.practice-test.md`. It holds no shell or network tools and guards neither the security route nor the risk floor, so it has no security set: every case is scored on its bad report, and use proves it.
+**Confirmed** (2026-10-08): in `familiars/conventions-lens.practice-test.md`. It holds no shell or network tools and guards neither the security route nor the risk floor, so it has no security set: every case is scored on its bad report, and use proves it.
 
 ### 13. When would you retire it?
 
-*Proposed*: cries wolf (most of its last 10 reports' findings dismissed); two or more confirmed escapes it should have raised; its reviews rarely change the owner's decision.
+**Confirmed** (2026-10-08): cries wolf (most of its last 10 reports' findings dismissed); two or more confirmed escapes it should have raised; its reviews rarely change the owner's decision.
 
 ### 14. How hard should it think?
 
-Opus at medium effort. *Proposed*.
+Opus at medium effort. **Confirmed** (2026-10-08).
 
 ### 15. How does it write?
 
