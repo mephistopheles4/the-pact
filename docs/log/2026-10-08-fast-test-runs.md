@@ -44,6 +44,7 @@
     - **A guard** checks AGENTS.md's while-building rule.
   - **The docs:** AGENTS.md and ADR 0030 say which changes still cost about a full suite, and point at #151. AGENTS.md says to read a `changed` record before posting it, since it names untracked files.
   - **Plants:** seven new plants each broke one fix and failed its test, and no other.
+- **The final full suite (T2),** quiet, on aaaeb92: exit 0 in 381.8 s, 1,720 cases. Against the baseline: 0 gone, 0 changed, 2 moved (T1's) and 69 new.
 
 ## What was measured
 
@@ -106,3 +107,4 @@ Issue comments on mephistopheles4/the-pact#145:
 - `6068158139`, `6068158459`, `6068362424` — move 4's lens reports, through the cross script: the security pair, `unstated-lens` and the QA pair.
 - `6068432584`, `6068477630` — the plants for move 4's fixes: expected results and results.
 - `6068490816` — move 4's Lens dispositions.
+- `6068606936` — the final full suite against the baseline.
