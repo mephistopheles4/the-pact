@@ -34,7 +34,7 @@ A step is also the owner's to start at a phase boundary, with no skill bound. Th
 
 ## Status
 
-Decided 2026-10-08 in mephistopheles4/the-pact#123 (spec revision 2, "fix, then proceed"). The rules text landed in #126. This ADR updates the status of [ADR 0009](0009-hand-over-user-only-skills.md): the trigger rule stands, and the fixed list gives way to the binding convention above. The way back, if the new text makes sessions skip steps: bind the "Matt Pocock's skills" preset set, or empty the live edit list and reinstall the previous commit.
+Decided 2026-10-08 in mephistopheles4/the-pact#123 (spec revision 2, "fix, then proceed"). The rules text landed in #126. This ADR updates the status of [ADR 0009](0009-hand-over-user-only-skills.md): the trigger rule stands, and the fixed list gives way to the binding convention above. The way back, if the new text makes sessions skip steps: bind the "Matt Pocock's skills" preset set (once #127 lands it; install waits for that), or empty the live edit list and reinstall the previous commit.
 
 ## How this was decided
 
