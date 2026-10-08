@@ -30,6 +30,20 @@
   - **What "names" means:** a test names a path when its source, or a helper it imports, holds the path's file name or any run of two or more of its segments, written out or as string literals in a row.
 - **The reasons print plainly.** T1's runner passed whole reasons through the odd-character filter, which turned `:` into `?`. Now only the names inside a reason are filtered.
 - **AGENTS.md** says "while building, run `changed`", with the command in both shell forms. It replaces the interim rule's hand-picked file list.
+- **Move 4's lenses found 17 things. 13 were fixed, 2 were documented, 1 was dismissed, and 1 went to the owner.** The fixes:
+  - **The base and the repo:**
+    - **The default base** is the branch `refs/heads/main`, so a tag named `main` can't stand in for it.
+    - **The runner refuses with exit 2** unless it sits at the top of its own repo.
+    - **A staged change counts** even when the working copy undoes it.
+  - **The picks:**
+    - **A tests-folder module** counts as named by a form holding its file name, so a test that starts it by path is picked.
+    - **More than 2,000 changed paths** select every test.
+  - **The tests:**
+    - **The changed-set test** now moves `main` after branching, so it tells the merge-base from the base.
+    - **The `unmapped:` filter** has a case that runs on Windows.
+    - **A guard** checks AGENTS.md's while-building rule.
+  - **The docs:** AGENTS.md and ADR 0030 say which changes still cost about a full suite, and point at #151. AGENTS.md says to read a `changed` record before posting it, since it names untracked files.
+  - **Plants:** seven new plants each broke one fix and failed its test, and no other.
 
 ## What was measured
 
@@ -56,7 +70,7 @@
   - **New tests and plants:** each fix has a bad case, and eight plants were each seen to fail.
   - **The other two:** the re-time and the everyday timings already sit in #145, and the one-PR rollback note went on #140.
 - **A lens report quoted local paths.** `behaviour-lens` named its scratch and working folders. The first post of the QA pair's section carried them. It was deleted within minutes and reposted with placeholders, following #140's rule that posted records carry repo-relative paths only.
-- **A payload change through a shared helper picks nearly everything.** `helpers.mjs` reads every agent file to build its stages, and almost every test imports it. So a one-agent-file change names itself in 35 of the 36 test files, and costs about a full suite. The rule is right about those tests: they do read the file. The spec expected "the smoke set and a few", and the planted cases do show that. The owner chose to design the test architecture first, in a revision on #140, so the finer split waits for that.
+- **A payload change through a shared helper picks nearly everything.** `helpers.mjs` reads every agent file to build its stages, and almost every test imports it. So a one-agent-file change names itself in 35 of the 36 test files, and costs about a full suite. Move 4 found the same for a `cross/` file. It also found that a fixture edit, or a deleted or renamed test, picks every install test, because `copy-list.mjs` names the tests folder. The rule is right about those tests: they do read the file. The spec expected "the smoke set and a few", and the planted cases do show that. The owner chose to design the test architecture first, in a revision on #140, so the finer split waits for that. #151 tracks it.
 - **A test file can put itself in the install tier.** The runner's own tests plant files that name the install script, so those plants live in fixture text files, and the runner applies its literal rule to a test file's own source only. A guard checks that the runner's test files stay in `fast`.
 
 ## Record
@@ -88,3 +102,7 @@ Issue comments on mephistopheles4/the-pact#145:
 - `6067514386` — the finding on a one-agent-file change's picks.
 - `6067597237`, `6067693012` — the plants' method and expected results, and their results.
 - `6067865517` — the everyday timings.
+- `6068002568` — move 4's full suite against the baseline.
+- `6068158139`, `6068158459`, `6068362424` — move 4's lens reports, through the cross script: the security pair, `unstated-lens` and the QA pair.
+- `6068432584`, `6068477630` — the plants for move 4's fixes: expected results and results.
+- `6068490816` — move 4's Lens dispositions.
