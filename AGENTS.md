@@ -96,7 +96,7 @@ how every session in every repo behaves. So:
 
 ## Running the gate's tests
 
-- **One runner, two tiers.** Run the gate's tests through
+- **One runner, three tiers.** Run the gate's tests through
   [`gate/tests/run.mjs`](gate/tests/run.mjs), from the repo root, with
   `NODE_OPTIONS` cleared in the shell first, as for the cross script. In
   PowerShell:
@@ -107,9 +107,19 @@ how every session in every repo behaves. So:
   - **`fast`** runs every test file that doesn't run the install script. The
     runner finds the install tier from each file's imports and text on every
     run.
+  - **`changed`** runs `fast` plus the tests your change can reach, and
+    prints why it picked each file. It's the only tier that reads git.
+    - **The changed paths:** what differs from where your branch left
+      `--base` (default `main`), committed or not, plus untracked files git
+      doesn't ignore.
+    - **What they pick:** a changed test runs itself, and a changed helper
+      runs every test that imports it. A test that names a changed path runs
+      too. A payload path also runs the install smoke file. Any change to the
+      gate's code runs `full`.
+    - **A path no rule maps** is printed as unmapped. `fast` covers it.
 
-  Both cap the run at four test files at once, which keeps it from starving
-  other sessions (ADR 0029). Never run the suite without the cap.
+  All three cap the run at four test files at once, which keeps it from
+  starving other sessions (ADR 0029). Never run the suite without the cap.
 - **It fails closed.** It hands the Node running it an explicit file list, so
   it needs no glob and works the same in any shell, on Node 20.10 or later (the
   cap flag needs 20.10). An empty pick, an odd test-file name or a usage error
@@ -124,10 +134,11 @@ how every session in every repo behaves. So:
   accepts any Node 20 or later. The Linux run in a container (#96) is in
   [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/) and runs `full`
   on Node 20.
-- **While building,** until the `changed` tier lands (#145), run only the test
-  files for what you touched, capped, with `NODE_OPTIONS` cleared as above:
-  `node --test --test-concurrency=4 <files>`. Run `fast` when a change could
-  reach further.
+- **While building, run `changed`:**
+  `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
+  `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell. Add
+  `--base <ref>` when your branch starts from somewhere other than `main`. A
+  base that starts with a dash, or one that isn't a commit, exits 2.
 - **The full suite runs** once at move 4; before an install; after a rebase or
   merge that brought in other work; and after a final change set. It doesn't
   run before and after each change.

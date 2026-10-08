@@ -1,11 +1,16 @@
 # The gate suite runs through one runner, in named tiers
 
-"The full suite" is one command everywhere: `node gate/tests/run.mjs full`. A runner in the gate's tests folder picks each tier's files, always runs them at the cap of four files at once, and never reports a pass it didn't earn.
+"The full suite" is one command everywhere: `node gate/tests/run.mjs full`. The everyday run while building is `node gate/tests/run.mjs changed`. A runner in the gate's tests folder picks each tier's files, always runs them at the cap of four files at once, and never reports a pass it didn't earn.
 
 - **The tiers.** Only top-level test files in `gate/tests/` count; nothing under `fixtures/` is a test file.
   - **full:** every top-level test file.
   - **install tier:** every test file whose imports reach `install-harness.mjs`, directly or through any helper, or whose own text names the install script, written out or in pieces. It's computed from the sources on every run, never kept as a list.
   - **fast:** full minus the install tier.
+  - **changed:** the everyday run while building (#145). It is `fast` plus the tests the changed paths can reach, with the reason for each file.
+    - **The changed paths:** what differs from the merge-base of HEAD and `--base` (default `main`), staged or not, plus untracked files git doesn't ignore. A deletion or a rename counts by both paths. The base is resolved to a commit before any other git call, and git runs without inherited `GIT_` variables.
+    - **The picks:** a changed test file runs itself. A changed module in the tests folder runs every test that imports it, through any chain. A change to the gate's code or the install script runs `full`. A payload path runs the smoke file plus every test that names it. Any other path runs the tests that name it. A test names a path when its source, or a helper it imports, holds the path's file name or any run of two or more of its segments, written out or as string literals in a row.
+    - **Unmapped paths:** a path no rule maps runs `fast`, plus the smoke file under the copy list, and is printed as unmapped.
+    - **Why fast is in it:** the spec's rule was to include `fast` if it ran in 60 s or less on a quiet machine, and picks only otherwise. It took 50.1 s (#145).
   - **The smoke file:** `install-smoke.test.mjs` holds the install's happy path: the clean dry run, `-Apply` byte for byte, and a quiet next dry run. It's in the install tier, so a later tier for payload changes can run it alone.
 - **How it starts node.** The runner starts the Node running it (`process.execPath`) with `--test`, `--test-concurrency=4`, the reporter if one is given, and an explicit list of files, each with its folder in front. It uses no shell and no glob, so it works the same on Node 20.10 and later (the cap flag needs 20.10) and in any shell. `NODE_OPTIONS` and `NODE_TEST_CONTEXT` are cleared for that Node, so an inherited filter, shard, preload or test-runner context can't narrow the tests' run or rewrite its output. Clearing them for the child can't reach the runner's own process, so AGENTS.md gives the runner's command in a PowerShell and a POSIX form that clear `NODE_OPTIONS` first, as the pact does for the cross script, and a guard checks both forms.
 - **It fails closed.**
@@ -15,7 +20,8 @@
   - **A pass** is exit 0 together with the runner's last line ending in `pass`. An exit 0 with no result line is not one. The runner compares its own path and the one it was started by as real paths, so a start through a link, a junction or a short name still runs.
   - **The last line on stderr** names the tier, the file count and the result. The runner's own lines go to stderr, so node's reporter output on stdout stays clean TAP or junit.
 - **Record mode.** `--record <file>` writes a copy of everything printed to a file outside the repo. The repo, home and temp folders, in their usual forms, the user name and the host name are replaced by placeholders. If a drive-letter, home-prefix, Git Bash, WSL or network-share path survives, or the user or host name as a word, the runner writes nothing and exits 3. A record path is checked against the repo as a real path. Test output posted on an issue comes only from record mode.
-- **No git.** `fast` and `full` read the file system alone.
+- **Only changed reads git.** `fast` and `full` read the file system alone, and run in a folder with no git repo.
+- **While building:** run `changed`.
 - **When the full suite runs:** once at move 4; before an install; after a rebase or merge that brought in other work; and after a final change set. It doesn't run before and after each change. A run of fewer files is never move-4 evidence.
 - **On the probe floor.** `gate/tests/run.mjs` and `gate/tests/copy-list.mjs` are named on AGENTS.md's probe floor, with the two test files that hold their bad cases, `run.test.mjs` and `run-guards.test.mjs`. A change to the tiers, the exit handling, how node is started or record mode takes the security route and needs a bad case seen to fail.
 
@@ -29,5 +35,6 @@
 
 ## How this was decided
 
-- **2026-10-08** in mephistopheles4/the-pact#140 (spec revision 4, signed off by the owner), built in #144. The everyday `changed` tier is #145's. Cheaper install tests are #146 and #147.
+- **2026-10-08** in mephistopheles4/the-pact#140 (spec revision 4, signed off by the owner), built in #144. The everyday `changed` tier was built in #145, which re-timed `fast` and chose its shape by the spec's 60-second rule. Cheaper install tests are #146 and #147.
+- **A known limit.** A path that a shared helper names picks every test that imports the helper. `helpers.mjs` reads every agent file, so a one-agent-file change picks nearly the full tier. The rule is right about those tests, which do read the file. A finer split is for the test-architecture revision on #140.
 - **Still holds:** [ADR 0029](0029-the-gate-suite-runs-capped-on-the-current-node-lts.md), on the cap of four and the current Node LTS. The runner now carries the cap for every documented run.
