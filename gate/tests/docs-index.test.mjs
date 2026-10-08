@@ -2,7 +2,7 @@
 // the folder is linked from its README, and every link points at a file.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,3 +23,21 @@ for (const folder of ["docs/adr", "docs/log"]) {
     assert.deepEqual(indexGaps(join(root, folder)), { unlisted: [], missing: [] });
   });
 }
+
+test('every ADR number is used once', () => {
+  const nums = readdirSync(join(root, 'docs/adr')).filter((f) => /^\d{4}-/.test(f)).map((f) => f.slice(0, 4));
+  assert.deepEqual(nums.filter((n, i) => nums.indexOf(n) !== i), []);
+});
+
+test('every relative link to an ADR or a log entry, inside the ADRs and log entries, points at a real file', () => {
+  const broken = [];
+  for (const folder of ['docs/adr', 'docs/log']) {
+    for (const f of readdirSync(join(root, folder)).filter((x) => x.endsWith('.md'))) {
+      const text = readFileSync(join(root, folder, f), 'utf8');
+      for (const m of text.matchAll(/\]\(((?:\.\.\/(?:adr|log)\/)?\d{4}-[^)#\s]+\.md)(?:#[^)\s]*)?\)/g)) {
+        if (!existsSync(join(root, folder, m[1]))) broken.push(`${folder}/${f} -> ${m[1]}`);
+      }
+    }
+  }
+  assert.deepEqual(broken, []);
+});

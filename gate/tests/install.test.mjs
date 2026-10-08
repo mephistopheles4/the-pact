@@ -4,82 +4,12 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { delimiter, dirname, join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { before, test } from 'node:test';
-import { REPO, READ_ONLY, agent, plainAgent, routeTree, sealedFamiliar, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
+import { BASE_PATH, WIN, commitAll, git, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { READ_ONLY, agent, plainAgent, sealedFamiliar, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
 
-const WIN = process.platform === 'win32';
-
-function which(cmd) {
-  const r = spawnSync(WIN ? 'where.exe' : 'which', [cmd], { encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`${cmd} not found on PATH`);
-  return r.stdout.split(/\r?\n/)[0].trim();
-}
-
-const PWSH = which('pwsh');
-const GIT_DIR = dirname(which('git'));
-const NODE_DIR = dirname(process.execPath);
-const SYS_DIRS = WIN ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')] : ['/usr/bin', '/bin'];
-const BASE_PATH = [GIT_DIR, dirname(PWSH), ...SYS_DIRS];
-
-function envWith(pathDirs, extra = {}) {
-  const env = {};
-  for (const [k, v] of Object.entries(process.env)) {
-    if (/^path$/i.test(k) || k === 'NODE_OPTIONS') continue;
-    env[k] = v;
-  }
-  env.PATH = pathDirs.join(delimiter);
-  return { ...env, ...extra };
-}
-
-function git(cwd, ...args) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8' });
-}
-
-/** A git repo holding the files the install reads, committed; `mutate` runs before the commit. */
-function makeRepo(t, mutate) {
-  const root = tempDir(t, 'pact-repo-');
-  for (const d of ['claude', 'cross', 'gate', 'familiars']) cpSync(join(REPO, d), join(root, d), { recursive: true });
-  mkdirSync(join(root, 'scripts'));
-  cpSync(join(REPO, 'scripts', 'install.ps1'), join(root, 'scripts', 'install.ps1'));
-  cpSync(join(REPO, '.gitattributes'), join(root, '.gitattributes'));
-  cpSync(join(REPO, 'AGENTS.md'), join(root, 'AGENTS.md'));
-  writeFileSync(join(root, '.gitignore'), 'settings.json\n');
-  if (mutate) mutate(root);
-  routeTree(root);
-  git(root, 'init', '-q', '-b', 'main');
-  git(root, 'config', 'user.email', 'test@example.invalid');
-  git(root, 'config', 'user.name', 'gate test');
-  git(root, 'config', 'commit.gpgsign', 'false');
-  commitAll(root);
-  return root;
-}
-
-function commitAll(root, msg = 'test') {
-  git(root, 'add', '-A');
-  git(root, 'commit', '-q', '--allow-empty', '-m', msg);
-}
-
-function install(repo, home, { apply = false, path = [NODE_DIR, ...BASE_PATH], env = {} } = {}) {
-  const args = ['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-ClaudeHome', home];
-  if (apply) args.push('-Apply');
-  const r = spawnSync(PWSH, args, { cwd: repo, encoding: 'utf8', env: envWith(path, env), timeout: 180_000 });
-  return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
-}
-
-function refused(r) {
-  assert.notEqual(r.code, 0, r.out);
-  assert.match(r.stdout, /^REFUSED: /m, r.out);
-}
-
-function home(t) {
-  return tempDir(t, 'pact-home-');
-}
-
-function listTree(dir) {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir, { recursive: true }).map(String).sort();
-}
+// The throwaway-repo builder, install runner and the small helpers are the harness's.
 
 // A stand-in Node: an .exe on Windows (compiled once with the .NET Framework
 // compiler), a shell script elsewhere. Its behaviour comes from mode.txt
@@ -182,6 +112,19 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
   assert.match(again.stdout, /^Nothing to do\.$/m);
 });
 
+test('a file under gate/tests is not staged, checked or recorded as part of the gate', t => {
+  // The harness leaves gate/tests out of every throwaway repo, so plant one here.
+  const repo = makeRepo(t, root => {
+    mkdirSync(join(root, 'gate', 'tests'), { recursive: true });
+    writeFileSync(join(root, 'gate', 'tests', 'planted.test.mjs'), "throw new Error('the install must not read this');\n");
+  });
+  const h = home(t);
+  const r = install(repo, h, { apply: true });
+  assert.equal(r.code, 0, r.out);
+  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const inGate = manifest.gate.map(g => g.path).filter(p => p.startsWith('gate/tests/'));
+  assert.deepEqual(inGate, []);
+});
 test('the owner\'s own live agent is never deleted, and an old manifest deletes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -689,7 +632,7 @@ test('bad case: a renderer that leaves a second file in its output folder refuse
   );
   const r = install(repo, home(t));
   refused(r);
-  assert.match(r.stdout, /^REFUSED: the renderer did not leave exactly its rules file of at most 1 MiB and its diff\./m, r.out);
+  assert.match(r.stdout, /^REFUSED: the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported\./m, r.out);
 });
 
 test('bad case: a renderer hash line with anything after the hash refuses', t => {
@@ -759,3 +702,4 @@ test('seam A checks the rendered bytes: a rendered file that weakens a clause re
   assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
   assert.match(r.stdout, /^seam-a\| FAIL required-clause: claude\/CLAUDE\.md: security-route /m, r.out);
 });
+

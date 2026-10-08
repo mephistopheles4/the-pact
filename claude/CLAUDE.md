@@ -406,7 +406,9 @@ under the heading "Lens dispositions" on the issue, one row per finding, with
 the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
 real? (for each crossing, my yes or no), changed my decision? (once per
 review, my yes or no), time (from the posted comment to my decision), model
-(the model the lenses ran on, not yours), configuration (the digest the
+and effort (the model and effort each lens ran on, not yours, with
+"override, not security-tested" where the configuration notice marks the
+lens), configuration (the digest the
 configuration notice names, or none), and cross result (passed, refused with the rule
 that fired, or oversize, and whether a lens was rerun to get a valid report).
 At the thorough tier, add my pick, the comparison and the walk-through's
@@ -435,15 +437,16 @@ only the lens, the link to the review and a placeholder until its fix ships.
 **When a lens may not pay.** Propose a review of a lens when, in its last ten
 reports, I dismissed most of its findings; when two or more confirmed escapes
 fall to it; or when its reviews rarely changed my decision. Count only answers
-I have confirmed, never pre-filled ones. Never cut a lens
+I have confirmed, never pre-filled ones. Count a lens's reports marked
+"override, not security-tested" apart from its own record. Never cut a lens
 yourself. For a security lens, any lens that holds a shell or network tools or
 guards the security route or the risk floor, the "rarely changed my decision"
 signal alone never fires: security reads are clean most of the time.
 
 **Totals only.** The records stay on each project's tracker. At a periodic
 review, collect into the-pact's issue for it only totals summed across the
-projects I name: lens names, disposition counts, times, models, crossing
-counts, and escape and gap counts. Add the rudder check: the total of
+projects I name: lens names, disposition counts, times, models and efforts,
+crossing counts, and escape and gap counts, with override runs counted apart. Add the rudder check: the total of
 auto-takes, the total I reversed, and the confirmed escapes after an
 auto-take. It shows whether the defaults steer the wrong way. Copy no repo names, cross-repo links, issue
 numbers, titles, headlines, anchors, paths or quotes from another project, and

@@ -327,7 +327,7 @@ function plantRenderer(root, from, to) {
 }
 
 for (const [label, withConfig, from, to, why] of [
-  ['an edit with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'EDIT move-1 remove');", 'the renderer reported a digest, a value or an edit with no configuration'],
+  ['an edit with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'EDIT move-1 remove');", 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
   ['one open part edited twice', true, R_USER, `${R_USER}, 'EDIT move-1 remove'`, 'the renderer reported one open part edited twice'],
   ['two hashes for one block file', true, R_USER, `${R_USER}, 'EDIT move-3 replace ${A64} m2.md'`, 'the renderer reported two hashes for one block file: it changed while it was read'],
   ['a block path with a .. segment', true, R_USER, `${R_USER}, 'EDIT move-3 replace ${A64} team/../m2.md'`, 'the renderer reported a block path the install does not read'],
@@ -339,7 +339,7 @@ for (const [label, withConfig, from, to, why] of [
   ['two diff hashes', false, R_PUSH, R_PUSH.replace('`DIFF ${sha256(diff)}`', '`DIFF ${sha256(diff)}`, `DIFF ${sha256(diff)}`'), 'the renderer reported two diff hashes'],
   ['no diff hash', false, R_PUSH, R_PUSH.replace('`DIFF ${sha256(diff)}`, ', ''), 'the renderer did not report exactly one output hash, one diff hash and one configuration line'],
   ['a diff hash that is not its diff\'s', false, R_PUSH, R_PUSH.replace('`DIFF ${sha256(diff)}`', `\`DIFF ${'0'.repeat(64)}\``), "the diff's hash does not match the one the renderer reported"],
-  ['no diff file', false, R_DIFF_WRITE, '', 'the renderer did not leave exactly its rules file of at most 1 MiB and its diff'],
+  ['no diff file', false, R_DIFF_WRITE, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
 ]) {
   test(`bad case: a renderer that reports ${label} refuses`, t => {
     const repo = makeRepo(t, root => plantRenderer(root, from, to));

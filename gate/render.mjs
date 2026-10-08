@@ -58,7 +58,7 @@
 // carriage return, invalid UTF-8) reaches seam A unchanged, and seam A refuses
 // it as before. Seam A's line numbers then count the rendered file.
 //
-// It writes two files into the output folder, which must be an empty folder
+// It writes two files into the output folder (a third per agent setting, see below), which must be an empty folder
 // that is not a link: OUTPUT_NAME, the rendered rules file, and DIFF_NAME, a
 // unified diff from the no-configuration render to this render (empty when no
 // configuration applies). The diff is built from the parts the render changed,
@@ -78,6 +78,29 @@
 // fixed text, constant names, edit positions, and a block path only once it
 // has passed the path-text check, so it holds only letters, digits, '.', '_',
 // '-' and '/'.
+//
+// Agent settings (#97). A user file may set the model and effort of every lens
+// in CONFIGURABLE_AGENTS; each file's own values are its default. A sealed
+// agent (scout) is refused by name. Only when a setting is given, the renderer
+// reads that agent's file from the staged claude/agents/ folder beside the
+// source rules file, under the source's read rules. It refuses an agent that
+// carries a metadata (seal) key. It rewrites only the frontmatter's column-0
+// model and effort lines, from the allow-list constants; an unset field keeps
+// the file's value, which must be on the allow-list too; and it refuses if the
+// result would differ from the file anywhere else, so no setting adds a tool.
+// It classifies the agent as security-set when any sign holds: its tools line
+// is not DEFAULT_AGENT_TOOLS, the tool allow-list has an entry for it, the
+// source's security-route clause names it, its own file carries a risk-floor
+// block, or it is on SECURITY_DOUBT. The signs are read on every run, so a lens
+// that later gains one is marked without anyone editing a list. It writes the
+// result as AGENT_OUTPUT_PREFIX + <name>.md and prints
+//   AGENT <name> <model> <effort> <sha256 of the agent file> <plain|security-set> <default|override> <local|egress>
+// after the CONFIG lines: override when the result differs from the file's
+// own values, egress when the tools line holds more than the read tools. The
+// notice gains an "Agents set:" line, and a security-set override carries
+// OVERRIDE_MARK there, with a sentence telling the session to put it beside
+// every report from that lens. Adding an agent to CONFIGURABLE_AGENTS is on
+// AGENTS.md's probe floor.
 //
 // The project mode (#53, slice 5) renders the project rules file for a
 // project install. It reads the user file, for the user's effective values and
@@ -111,7 +134,8 @@
 
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ANY_FENCE_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, Refused, Report, SEGMENT_RE, SETEXT_RE, readStrictJson, scanText } from './shared.mjs';
 
 // The open marks this version knows. Hard-coded, so no file can add one.
@@ -142,7 +166,30 @@ const BLOCK_MAX = 16 * 1024;
 const BLOCK_PATH_MAX = 200;
 const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
-const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits']);
+const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents']);
+
+// Agent settings: who may be set, to what. Matched exactly; only these
+// constants are ever printed or written.
+const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'unstated-lens']);
+// scout is a sealed familiar: its digest covers its own file.
+const LOCKED_AGENTS = Object.freeze(['scout']);
+const AGENT_MODELS = Object.freeze(['opus', 'sonnet']);
+const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high']);
+const AGENT_FIELDS = Object.freeze(['model', 'effort']);
+const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
+const AGENT_OUTPUT_PREFIX = 'agent-';
+// The signs of a security-set agent that are read from text: the gated
+// clause that names it, and the block its own file carries.
+const ROUTE_CLAUSE = 'security-route';
+const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
+// Lenses on the probe floor by doubt (AGENTS.md: when in doubt, a change is on
+// the floor), each with its reason. No sign in their files says so.
+const SECURITY_DOUBT = Object.freeze({
+  'good-enough-lens': 'it never defers a risk-floor item',
+  'unstated-lens': 'it reports work that should have taken the security route',
+});
+const OVERRIDE_MARK = 'override, not security-tested';
+const TOOL_ALLOWLIST = join(dirname(fileURLToPath(import.meta.url)), 'tool-allowlist.json');
 
 // Each setting: the open part it fills, its whole-number range, its default
 // and its fixed template. The template at the default must equal the source's
@@ -181,10 +228,14 @@ const PROJECT_TEMPLATE = lines => [
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.
 const NOTICE_MARK = 'config-notice';
-const NOTICE_TEMPLATE = (digest, values, edits) => [
+const NOTICE_TEMPLATE = (digest, values, edits, agents = []) => [
   '',
   `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`,
   `Values set: ${values.length ? values.map(([k, v]) => `${k} ${v}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
+  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${a.model}, ${a.effort} effort${a.security && a.override ? `; ${OVERRIDE_MARK}` : ''})`).join(', ')}.`] : []),
+  ...(agents.some(a => a.security && a.override)
+    ? [`Put "${OVERRIDE_MARK}" beside every report you post from these lenses, and in their rows of the Lens dispositions table: ${agents.filter(a => a.security && a.override).map(a => a.name).join(', ')}.`]
+    : []),
 ];
 
 const LF = 0x0a;
@@ -496,7 +547,7 @@ function checkConfig(buf, report) {
   let ok = true;
   const keys = Object.keys(doc);
   if (keys.some(k => !TOP_KEYS.includes(k))) {
-    fail('config-key', 'a key that is not schema, settings or edits');
+    fail('config-key', 'a key that is not schema, settings, edits or agents');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -507,6 +558,11 @@ function checkConfig(buf, report) {
   if (Object.hasOwn(doc, 'edits')) {
     edits = checkEdits(doc.edits, fail);
     if (edits === null) ok = false;
+  }
+  let agents = [];
+  if (Object.hasOwn(doc, 'agents')) {
+    agents = checkAgentSettings(doc.agents, fail);
+    if (agents === null) ok = false;
   }
   const values = [];
   if (Object.hasOwn(doc, 'settings')) {
@@ -529,7 +585,147 @@ function checkConfig(buf, report) {
       }
     }
   }
-  return ok ? { values, edits } : null;
+  return ok ? { values, edits, agents } : null;
+}
+
+/**
+ * The agent settings, checked: [{ name, model, effort }] with each field a
+ * constant from its allow-list or null when unset, or null after recording
+ * every refusal. Names, fields and values are matched exactly.
+ */
+function checkAgentSettings(v, fail) {
+  if (!isObject(v) || !Object.keys(v).length) {
+    fail('config-agents', 'agents must be an object naming at least one agent');
+    return null;
+  }
+  let ok = true;
+  const out = [];
+  for (const k of Object.keys(v)) {
+    const name = CONFIGURABLE_AGENTS.find(a => a === k);
+    if (!name) {
+      const locked = LOCKED_AGENTS.find(a => a === k);
+      fail('config-agents', locked ? `${locked} is locked: it is sealed, so its model and effort are not configurable` : `agents names an agent this configuration cannot set; only ${CONFIGURABLE_AGENTS.join(', ')} can be set`);
+      ok = false;
+      continue;
+    }
+    const e = v[k];
+    if (!isObject(e) || !Object.keys(e).length || Object.keys(e).some(f => !AGENT_FIELDS.includes(f))) {
+      fail('config-agents', `${name} must be an object holding model, effort or both, and nothing else`);
+      ok = false;
+      continue;
+    }
+    const model = Object.hasOwn(e, 'model') ? AGENT_MODELS.find(m => m === e.model) : null;
+    const effort = Object.hasOwn(e, 'effort') ? AGENT_EFFORTS.find(m => m === e.effort) : null;
+    if (model === undefined) {
+      fail('config-agents', `${name}: model must be one of ${AGENT_MODELS.join(', ')}`);
+      ok = false;
+    }
+    if (effort === undefined) {
+      fail('config-agents', `${name}: effort must be one of ${AGENT_EFFORTS.join(', ')}`);
+      ok = false;
+    }
+    if (model !== undefined && effort !== undefined) out.push({ name, model, effort });
+  }
+  return ok ? out : null;
+}
+
+/** A regular file that is not a link, read once with a cap; null after recording `reason`s under `rule`. */
+function readCapped(path, cap, rule, shown, report) {
+  const refuse = reason => {
+    report.fail(rule, shown, null, reason);
+    return null;
+  };
+  let st;
+  try {
+    st = lstatSync(path, { bigint: true });
+  } catch {
+    return refuse('the file is missing');
+  }
+  if (st.isSymbolicLink() || !st.isFile()) return refuse('not a regular file');
+  let fd;
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  } catch {
+    return refuse('could not be opened');
+  }
+  try {
+    const fst = fstatSync(fd, { bigint: true });
+    if (!fst.isFile() || fst.dev !== st.dev || fst.ino !== st.ino) return refuse('changed while it was opened');
+    const buf = Buffer.alloc(cap + 1);
+    let n = 0;
+    for (;;) {
+      const got = readSync(fd, buf, n, buf.length - n, null);
+      if (got === 0) break;
+      n += got;
+      if (n > cap) return refuse('larger than its cap');
+    }
+    return buf.subarray(0, n);
+  } catch {
+    return refuse('could not be read');
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
+ * One configured agent's file, read from the staged claude/agents/ folder
+ * beside the source rules file and rewritten: { name, model, effort, buf },
+ * or null after recording the refusal. Only the frontmatter's column-0 model
+ * and effort lines change, to allow-list constants.
+ */
+function renderAgent(source, a, report, srcText = '') {
+  const shown = `claude/agents/${a.name}.md`;
+  const fail = reason => {
+    report.fail('agent-file', shown, null, reason);
+    return null;
+  };
+  const buf = readCapped(join(dirname(source), 'agents', `${a.name}.md`), MAX_BYTES, 'agent-file', shown, report);
+  if (buf === null) return null;
+  const text = scanText(buf, shown, report);
+  if (text === null) return null;
+  const lines = text.split('\n');
+  if (lines[0] !== '---') return fail('no frontmatter: the first line is not ---');
+  const close = lines.indexOf('---', 1);
+  if (close < 0) return fail('the frontmatter never closes');
+  const at = re => lines.slice(1, close).map((l, i) => (re.test(l) ? i + 1 : -1)).filter(i => i > 0);
+  const modelAt = at(/^model:/);
+  const effortAt = at(/^effort:/);
+  const toolsAt = at(/^tools:/);
+  if (modelAt.length !== 1) return fail('the frontmatter must hold exactly one model line');
+  if (effortAt.length !== 1) return fail('the frontmatter must hold exactly one effort line');
+  if (at(/^metadata:/).length) return fail('the agent carries a metadata (seal) key; a sealed agent cannot be configured');
+  if (toolsAt.length !== 1) return fail('the frontmatter must hold exactly one tools line');
+  const route = new RegExp(`<!-- pact:begin ${ROUTE_CLAUSE} -->\\n([\\s\\S]*?)<!-- pact:end ${ROUTE_CLAUSE} -->`).exec(srcText);
+  if (!route) return fail(`the source has no ${ROUTE_CLAUSE} clause to check the agent against`);
+  const allow = readCapped(TOOL_ALLOWLIST, 64 * 1024, 'agent-file', 'gate/tool-allowlist.json', report);
+  if (allow === null) return null;
+  let allowDoc;
+  try {
+    allowDoc = readStrictJson(allow);
+  } catch {
+    return fail('the tool allow-list could not be read');
+  }
+  if (!isObject(allowDoc)) return fail('the tool allow-list could not be read');
+  // The pact's definition of a security-set lens, read from the evidence on
+  // every run (see the header).
+  const egress = lines[toolsAt[0]] !== DEFAULT_AGENT_TOOLS;
+  const security = egress
+    || Object.hasOwn(allowDoc, a.name)
+    || route[1].includes(`\`${a.name}\``)
+    || lines.includes(RISK_FLOOR_BLOCK)
+    || Object.hasOwn(SECURITY_DOUBT, a.name);
+  const nowModel = AGENT_MODELS.find(m => lines[modelAt[0]] === `model: ${m}`);
+  const nowEffort = AGENT_EFFORTS.find(e => lines[effortAt[0]] === `effort: ${e}`);
+  if (!nowModel) return fail(`the file's model line is not one of ${AGENT_MODELS.join(', ')}`);
+  if (!nowEffort) return fail(`the file's effort line is not one of ${AGENT_EFFORTS.join(', ')}`);
+  const model = a.model ?? nowModel;
+  const effort = a.effort ?? nowEffort;
+  const out = [...lines];
+  out[modelAt[0]] = `model: ${model}`;
+  out[effortAt[0]] = `effort: ${effort}`;
+  if (out.length !== lines.length || out.some((l, i) => i !== modelAt[0] && i !== effortAt[0] && l !== lines[i])) return fail('the rendered file would differ from the source beyond its model and effort lines');
+  const override = model !== nowModel || effort !== nowEffort;
+  return { name: a.name, model, effort, security, override, egress, buf: Buffer.from(out.join('\n'), 'utf8') };
 }
 
 /**
@@ -616,7 +812,7 @@ const toLines = texts => texts.map(s => Buffer.from(s, 'utf8'));
  * lines strictly between an open part's two mark lines; or null after
  * recording a refusal.
  */
-function swapsFor(lines, pairs, values, edits, digest, report) {
+function swapsFor(lines, pairs, values, edits, digest, report, agents = []) {
   const fail = (name, reason) => {
     report.fail('render', 'claude/CLAUDE.md', null, `${name}: ${reason}`);
     return null;
@@ -644,7 +840,7 @@ function swapsFor(lines, pairs, values, edits, digest, report) {
   const n = pairs.get(NOTICE_MARK);
   if (!n) return fail(NOTICE_MARK, 'the slot is not in the source');
   if (n.end !== n.begin + 1) return fail(NOTICE_MARK, 'the slot is not empty in the source');
-  swaps.push({ ...n, with: toLines(NOTICE_TEMPLATE(digest, values, edits)) });
+  swaps.push({ ...n, with: toLines(NOTICE_TEMPLATE(digest, values, edits, agents)) });
   return swaps;
 }
 
@@ -867,6 +1063,7 @@ function run(argv, report) {
   if (config === null) return;
   const head = [];
   let swaps = [];
+  let agents = [];
   if (config === NONE) head.push('CONFIG none');
   else {
     const checked = checkConfig(config.buf, report);
@@ -874,9 +1071,12 @@ function run(argv, report) {
     const { values } = checked;
     const edits = readBlocks(home, checked.edits, report);
     if (edits === null) return;
+    // An agent file is read only when a setting names its agent.
+    agents = checked.agents.map(a => renderAgent(source, a, report, buf.toString('utf8')));
+    if (agents.some(a => a === null)) return;
     const hash = sha256(config.buf);
     const digest = sha256(`user ${hash}\n${edits.filter(e => e.path).map(e => `block ${e.path} ${e.hash}\n`).join('')}`).slice(0, 12);
-    swaps = swapsFor(lines, pairs, values, edits, digest, report);
+    swaps = swapsFor(lines, pairs, values, edits, digest, report, agents);
     if (swaps === null) return;
     const editLines = edits.map(e => (e.path ? `EDIT ${e.mark} ${e.op} ${e.hash} ${e.path}` : `EDIT ${e.mark} ${e.op}`));
     head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines);
@@ -889,7 +1089,9 @@ function run(argv, report) {
   }
   writeFileSync(join(out, OUTPUT_NAME), rendered, { flag: 'wx' });
   writeFileSync(join(out, DIFF_NAME), diff, { flag: 'wx' });
+  for (const a of agents) writeFileSync(join(out, `${AGENT_OUTPUT_PREFIX}${a.name}.md`), a.buf, { flag: 'wx' });
   report.lines.push(`RENDERED ${sha256(rendered)}`, `DIFF ${sha256(diff)}`, ...head);
+  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} ${a.security ? 'security-set' : 'plain'} ${a.override ? 'override' : 'default'} ${a.egress ? 'egress' : 'local'}`);
 }
 
 function main(argv) {
