@@ -5,7 +5,7 @@
 - **A user file,** `~/.claude/pact/config.json`. It sets values (today the usage pause line), edits the four open parts of moves 1 to 4 from block files, and sets any pact lens's model and effort.
 - **A project file,** `.claude/pact-config.json`. It can only make the pact stricter in that project.
 - **The install renders the rules file** from the clone and the configuration. It shows every change in the dry run, and needs the full rendered hash handed back with `-Apply`.
-- **The builder page,** `builder/scriptorium.html`. It builds a configuration without writing JSON. A person's own page comes from the `scriptorium` skill.
+- **The builder page,** `builder/scriptorium.html`. It builds a configuration without writing JSON, one step at a time. A person's own page comes from the `scriptorium` skill.
 - **What stays locked:**
   - the gated clauses;
   - the risk floor and the security route;
@@ -32,7 +32,7 @@ The owner raised #53 on 2026-10-04. The ask was a file where a person brings the
   6. #96, a pinned Linux run of the whole gate suite (PR #132).
   7. #97, the builder page (PR #120).
 - **#97 grew in session, at the owner's word:** "Keep it all in #97, kinda wanna close this".
-  - The page moved to a builder file plus a skill, in place of a folder picker ([ADR 0026](../adr/0026-the-config-builder-is-rendered-from-a-builder-file.md)). Presets live in a tabbed sidebar, and workflows apply with undo.
+  - The page moved to a builder file plus a skill, in place of a folder picker ([ADR 0026](../adr/0026-the-config-builder-is-rendered-from-a-builder-file.md)). Workflows apply with undo. At the owner's ask the page became a wizard: Start, then one move per step with that move's presets and the person's own skills beside it, then Agents, then Review and save.
   - Agent settings came first for `integrity-lens` alone ([ADR 0025](../adr/0025-a-configuration-sets-only-non-security-lenses.md)).
   - The owner then asked to "unlock all ... with opinionated defaults". A spec change went to the spec pair, `unstated-lens` and the security pair. Every pact lens is now configurable. The renderer classifies security-set lenses from their signs on every run, and an override of one is marked "override, not security-tested" ([ADR 0027](../adr/0027-every-pact-lens-is-configurable-with-opinionated-defaults.md)).
   - A "Reset all to defaults" button arrived, the skill was renamed `scriptorium`, and the page took the same name.

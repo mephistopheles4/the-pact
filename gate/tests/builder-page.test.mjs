@@ -368,6 +368,124 @@ test('each step counts its own changes and problems, and Review counts them all'
   s.usage = 101;
   assert.equal(Object.fromEntries(L.stepSummary(s).map(r => [r.id, r])).start.errors, 1);
 });
+test('warnings count on their own step, a removed default left empty counts as an edit, and Review counts every problem', () => {
+  const s = L.initialState();
+  const part = L.PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && /`[a-z]+-lens`/.test(p.text));
+  assert.ok(part, 'no open part names a lens, so no edit can raise the dropped-agent warning');
+  s.slots[part.mark] = { replaced: true, cards: [] };
+  const step = `move-${part.mark.match(/^move-(\d)/)[1]}`;
+  const by = Object.fromEntries(L.stepSummary(s).map(r => [r.id, r]));
+  assert.deepEqual([by[step].changes, by[step].warns], [1, 1]);
+  const found = L.problems(s);
+  assert.equal(by.review.warns, found.filter(f => f.level === 'warn').length);
+  assert.equal(by.review.errors, found.filter(f => f.level === 'error').length);
+  assert.ok(Object.values(by).filter(r => r.id !== step && r.id !== 'review').every(r => r.warns === 0));
+});
+
+test('a security-set lens off its default counts as an override on Agents and Review; a plain one does not', () => {
+  const s = L.initialState();
+  s.agents['integrity-lens'].effort = 'low';
+  assert.deepEqual(L.overrides(s), []);
+  s.agents['data-lens'].model = 'sonnet';
+  assert.deepEqual(L.overrides(s), ['data-lens']);
+  const by = Object.fromEntries(L.stepSummary(s).map(r => [r.id, r]));
+  assert.deepEqual([by.agents.overrides, by.review.overrides, by['move-1'].overrides], [1, 1, 0]);
+});
+
+// ------------------------------------------------------------ the wizard on a stub page
+
+/** Boot the page's script against a small stand-in for the DOM; returns the elements by id and helpers. */
+function bootPage() {
+  const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
+  class N {
+    constructor(tag) { Object.assign(this, { tag, children: [], attrs: {}, hidden: false, textContent: '', listeners: {}, style: {}, dataset: {}, value: '' }); this.classList = { add() {}, remove() {}, toggle() {} }; }
+    append(...c) { this.children.push(...c.map(x => (typeof x === 'string' ? Object.assign(new N('#text'), { textContent: x }) : x))); }
+    replaceChildren(...c) { this.children = []; this.append(...c); }
+    setAttribute(k, v) { this.attrs[k] = v; }
+    getAttribute(k) { return this.attrs[k]; }
+    removeAttribute(k) { delete this.attrs[k]; }
+    addEventListener(e, f) { (this.listeners[e] ||= []).push(f); }
+    remove() {}
+    focus() {}
+    click() { (this.listeners.click || []).forEach(f => f({})); if (this.onclick) this.onclick({}); }
+    get text() { return [this.textContent, ...this.children.map(c => c.text)].join(' ').replace(/\s+/g, ' ').trim(); }
+  }
+  const ids = {};
+  const document = { createElement: t => new N(t), createTextNode: t => Object.assign(new N('#text'), { textContent: t }), getElementById: id => (ids[id] ||= new N('div')), documentElement: new N('html'), body: new N('body') };
+  const window = { localStorage: { getItem: () => null, setItem() {} }, scrollTo() {}, isSecureContext: false };
+  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout }));
+  const find = (n, pred, out = []) => { if (pred(n)) out.push(n); n.children.forEach(c => find(c, pred, out)); return out; };
+  const button = (root, label) => find(root, n => n.tag === 'button' && n.text.startsWith(label))[0];
+  return { ids, find, button };
+}
+
+test('stub page: each step shows only its own sections; a move step shows only its move, two sidebar tabs, and Back and Next', () => {
+  const P = bootPage();
+  const view = () => ({
+    start: !P.ids.values.hidden && !P.ids.workflows.hidden,
+    agents: !P.ids.agents.hidden,
+    workspace: !P.ids.workspace.hidden,
+    review: !P.ids.output.hidden && !P.ids.always.hidden,
+    moves: P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id),
+    tabs: P.find(P.ids.sidebar, n => n.attrs.role === 'tab').map(t => t.text),
+    nav: P.find(P.ids['step-nav'], n => n.tag === 'button').map(b => b.text),
+  });
+  const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
+  assert.equal(steps().length, 7);
+  assert.deepEqual(view(), { start: true, agents: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Next: Move 1'] });
+  const want = { 1: ['Back: Start', 'Next: Move 2'], 2: ['Back: Move 1', 'Next: Move 3'], 3: ['Back: Move 2', 'Next: Move 4'], 4: ['Back: Move 3', 'Next: Agents'] };
+  for (const n of [1, 2, 3, 4]) {
+    P.button(P.ids['step-nav'], 'Next').click();
+    assert.deepEqual(view(), { start: false, agents: false, workspace: true, review: false, moves: [`move-${n}`], tabs: [`Move ${n} presets`, 'Yours'], nav: want[n] }, `move ${n}`);
+  }
+  P.button(P.ids['step-nav'], 'Next').click();
+  assert.deepEqual(view(), { start: false, agents: true, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Move 4', 'Next: Review and save'] });
+  steps()[6].click();
+  assert.deepEqual(view(), { start: false, agents: false, workspace: false, review: true, moves: [], tabs: [], nav: ['Back: Agents'] });
+});
+
+test('stub page: on each move, Add from Yours defaults to that move\'s slot', () => {
+  const P = bootPage();
+  const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
+  for (const n of [1, 2, 3, 4]) {
+    steps()[n].click();
+    P.find(P.ids.sidebar, t => t.attrs.role === 'tab' && t.text === 'Yours')[0].click();
+    P.button(P.ids.sidebar, 'A new agent of yours').click();
+    const pick = P.find(P.ids.sidebar, x => x.tag === 'select')[0];
+    assert.ok(pick.value.startsWith(`move-${n}`), `move ${n}: ${pick.value}`);
+  }
+});
+
+test('stub page: reset from a move keeps that step, and undo puts the edits back', () => {
+  const P = bootPage();
+  const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
+  steps()[3].click();
+  P.button(P.ids.spine, 'Add your own text').click();
+  assert.match(steps()[3].text, /1 edited/);
+  P.button(P.ids.reset, 'Reset all').click();
+  assert.deepEqual(P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id), ['move-3']);
+  assert.match(steps()[3].text, /default/);
+  P.button(P.ids.reset, 'Undo reset').click();
+  assert.match(steps()[3].text, /1 edited/);
+});
+
+test('stub page: an override shows on the Agents step and on Review, and a step lists its own problems', () => {
+  const P = bootPage();
+  const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
+  steps()[5].click();
+  const pick = P.find(P.ids.agents, n => n.tag === 'select' && n.attrs['aria-label'] === 'data-lens model')[0];
+  pick.value = 'sonnet';
+  pick.listeners.change.forEach(f => f({}));
+  assert.match(steps()[5].text, /1 override, not security-tested/);
+  assert.match(P.ids.here.text, /data-lens · override, not security-tested/);
+  steps()[6].click();
+  assert.match(P.ids.output.text, /data-lens · override, not security-tested/);
+  // An empty card on move 2: its problem shows on move 2's own step.
+  steps()[2].click();
+  P.button(P.ids.spine, 'Add your own text').click();
+  assert.equal(P.ids.here.hidden, false);
+  assert.match(P.ids.here.text, /Fix · move-2 · card 1 is empty/);
+});
 test('findings never refuse: a preset with no why, and one naming a skill the file does not list', t => {
   const r = checkBuilder(REPO, builderFile(t, { ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Use the `ghost-skill` skill.' }], workflows: [] }));
   assert.deepEqual(r.refusals, []);
@@ -420,7 +538,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));

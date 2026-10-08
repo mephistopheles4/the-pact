@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-WRXO2zQiYg7C+0lRHFhxIDtDKo/myd/2+t+FfRmzjxE='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QuTvnL6ODXidNMOxF/kEwQn9LCUntUh0csEaKC708+w='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -270,6 +270,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
     </div>
     <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
     <section class="av-tool-detail" id="always"></section>
+    <section class="av-tool-bar av-tool-bar--stack" id="here" hidden></section>
     <nav class="step-nav" id="step-nav" aria-label="Back and next"></nav>
   </div>
 </div>
@@ -844,6 +845,11 @@ function restoreAll(state, snap) {
   Object.assign(state, JSON.parse(snap));
 }
 
+/** The security-set lenses set off their file's model or effort: each one is an override, not security-tested. */
+function overrides(state) {
+  return PACT.agents.filter(a => a.configurable && a.security && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).map(a => a.name);
+}
+
 /** The wizard's steps, in order: Start, each move with its open parts, Agents, Review and save. */
 function wizardSteps() {
   return [
@@ -863,13 +869,14 @@ function stepSummary(state) {
   const found = problems(state);
   const count = (list, level) => list.filter(f => f.level === level).length;
   const agentsOff = PACT.agents.filter(a => a.configurable && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).length;
+  const over = overrides(state).length;
   const rows = wizardSteps().map(s => {
-    if (s.marks === null) return { id: s.id, title: s.title, changes: 0, errors: count(found, 'error'), warns: count(found, 'warn') };
+    if (s.marks === null) return { id: s.id, title: s.title, changes: 0, errors: count(found, 'error'), warns: count(found, 'warn'), overrides: over };
     const here = found.filter(f => s.marks.includes(f.where));
     const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0)
       : s.id === 'agents' ? agentsOff
       : s.marks.filter(m => slotOp(state.slots[m]) !== 'keep').length;
-    return { id: s.id, title: s.title, changes, errors: count(here, 'error'), warns: count(here, 'warn') };
+    return { id: s.id, title: s.title, changes, errors: count(here, 'error'), warns: count(here, 'warn'), overrides: s.id === 'agents' ? over : 0 };
   });
   const review = rows[rows.length - 1];
   review.changes = rows.slice(0, -1).reduce((n, r) => n + r.changes, 0);
@@ -1062,7 +1069,7 @@ function boot() {
       renderSpine();
     }, 'av-tool-chip--ghost') : null;
     $('workflows').replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Workflows' }), el('div', { class: 'chips' }, el('span', { class: 'av-annot', text: 'One click sets every slot. Tweak the moves below after.' }), undo)),
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Workflows' }), el('div', { class: 'chips' }, el('span', { class: 'av-annot', text: 'One click sets every move\'s slots. Tweak each move on its own step after.' }), undo)),
       el('div', { class: 'tiles' }, ...tiles),
     );
   }
@@ -1103,16 +1110,17 @@ function boot() {
         runs(a),
       );
     });
+    // On this step there is no slot to drop on, so the tile opens a move's Yours tab instead.
     const yours = el(
       'div',
-      { class: 'tile tile--yours', draggable: 'true' },
+      { class: 'tile tile--yours' },
       el('span', { class: 'card-tab', text: 'Your agent' }),
-      el('p', { class: 'av-annot', text: 'On a move\'s step, open the Yours tab and add "A new agent of yours", then name it and what it reads. It runs after the slot\'s text.' }),
+      el('p', { class: 'av-annot', text: 'An agent of your own runs in a move\'s slot, after its text. Add one from a move\'s Yours tab, then name it and what it reads.' }),
+      el('div', { class: 'card-foot' }, chip('Open Move 4\'s Yours tab', false, () => {
+        tab = 'yours';
+        showStep('move-4');
+      }, 'av-tool-chip--ghost')),
     );
-    yours.addEventListener('dragstart', e => {
-      e.dataTransfer.setData('text/plain', 'agent:new');
-      e.dataTransfer.effectAllowed = 'copy';
-    });
     $('agents').replaceChildren(
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Each lens takes your model and effort, and starts at its file\'s own, its default. A security-set lens set off its default is an override, not security-tested. Add your own agent on a move\'s step, from its Yours tab.' })),
       el('div', { class: 'tiles' }, yours, ...tiles),
@@ -1438,7 +1446,7 @@ function boot() {
     if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
   }
 
-  const stepNote = s => [s.changes ? `${s.changes} ${s.id === 'agents' ? 'set' : 'edited'}` : '', s.errors ? `${s.errors} to fix` : s.warns ? `${s.warns} to check` : ''].filter(Boolean).join(' · ');
+  const stepNote = s => [s.changes ? `${s.changes} ${s.id === 'agents' ? 'set' : 'edited'}` : '', s.overrides ? `${s.overrides} ${OVERRIDE_MARK}` : '', s.errors ? `${s.errors} to fix` : s.warns ? `${s.warns} to check` : ''].filter(Boolean).join(' · ');
 
   function renderStepper() {
     const rows = stepSummary(state);
@@ -1459,10 +1467,24 @@ function boot() {
     $('step-nav').replaceChildren(back, next);
   }
 
+  /** This step's own problems, shown on the step where they are fixed. Review shows them all. */
+  function renderHere() {
+    const s = wizardSteps().find(x => x.id === step);
+    const found = s && s.marks ? problems(state).filter(f => s.marks.includes(f.where)) : [];
+    const over = step === 'agents' ? overrides(state) : [];
+    const notes = [
+      ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
+      ...over.map(n => el('li', { class: 'av-callout av-callout--caution', text: `${n} · ${OVERRIDE_MARK}` })),
+    ];
+    $('here').hidden = !notes.length;
+    $('here').replaceChildren(el('h2', { class: 'section-title', text: 'On this step' }), el('ul', { class: 'callouts' }, ...notes));
+  }
+
   function renderOutput() {
     renderSummary();
     renderReset();
     renderStepper();
+    renderHere();
     const found = problems(state);
     const errors = found.filter(f => f.level === 'error');
     const files = buildFiles(state);
@@ -1470,7 +1492,10 @@ function boot() {
     const save = chip('Save to a folder', !errors.length && canPick, () => saveToFolder(files));
     if (errors.length || !canPick) save.disabled = true;
 
-    const notes = found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` }));
+    const notes = [
+      ...overrides(state).map(n => el('li', { class: 'av-callout av-callout--caution', text: `Agents · ${n} · ${OVERRIDE_MARK}: its security set ran only on its default.` })),
+      ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
+    ];
     if (status.text) notes.push(el('li', { class: `av-callout${status.level === 'error' ? ' av-callout--caution' : status.level === 'ok' ? ' av-callout--normal' : ''}`, text: status.text }));
     if (!notes.length) notes.push(el('li', { class: 'av-callout av-callout--normal', text: 'Nothing to fix here. The installer still checks everything.' }));
 
