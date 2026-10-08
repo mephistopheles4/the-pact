@@ -108,7 +108,7 @@ test('bad case: a dangling link planted at the temp name refuses, and nothing is
   assert.ok(!existsSync(join(dir, 'pact-project.md')));
 });
 
-test('known limit (Windows): a dangling link at the temp name refuses before any byte is written, though its target is created empty', { skip: !WIN && 'Windows only' }, t => {
+test('known limit (Windows): a dangling link at the temp name refuses before any byte is written, though its target is created empty', { skip: !WIN && 'Windows only; elsewhere the no-follow create refuses it, as the case above shows (not run)' }, t => {
   const { dir, outside } = folders(t);
   const target = join(outside, 'made.txt');
   if (!fileLink(t, target, join(dir, TEMP))) return;
