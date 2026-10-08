@@ -271,10 +271,25 @@ test('bad case: text inside the junit report that is not a tag fails', () => {
   fails(run({}, { record: r }), /^record: the junit report holds text that is not a tag$/);
 });
 
+test('bad case: a record that names no file for its cases fails, as Node 20\'s junit reporter writes', () => {
+  const bare = recordOf(homeRun()).replace(/ file="[^"]*"/g, '');
+  fails(run({}, { record: bare }), /^record: the junit report names no test file for its cases/);
+});
+
 test('bad case: a record whose file paths mix both separators fails', () => {
   const cases = homeRun();
   const mixed = recordOf(cases).replace('&lt;repo&gt;\\gate\\tests\\', '&lt;repo&gt;/gate/tests/');
   fails(run({}, { record: mixed }), /the platform of the record cannot be read/);
+});
+
+test('bad case: cases reported under a module that is not a test file fail, as when a helper calls test()', () => {
+  const cases = [...homeRun(), { status: 'pass', file: 'gate/tests/tables.mjs', name: 'render edit list: unknown-mark' }];
+  fails(run({}, { cases }), /^record: cases are reported under gate\/tests\/tables\.mjs, which is not a top-level test file$/);
+});
+
+test('a failure\'s text may hold record mode\'s placeholders, and still parses', () => {
+  const failed = recordOf(withStatus(homeRun(), A, 'fail')).replace('\nboom\n', '\n    at TestContext.&lt;anonymous> (file://<repo>/gate/tests/render.test.mjs:1:1)\n    at node:internal/test_<user>:1:1\n');
+  fails(run({}, { record: failed }), /^record: a case failed in gate\/tests\/render\.test\.mjs: /);
 });
 
 test('a nested case is named by its suite chain, as the baseline names it', () => {

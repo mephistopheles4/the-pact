@@ -384,7 +384,7 @@ function refusedOnly(r) {
 
 // ------------------------------------------------------------ the must-refuse table: the edit list
 
-table('render edit list', {
+for (const c of table('render edit list', {
   module: 'gate/render.mjs',
   base: editHome,
   run: renderTree,
@@ -411,7 +411,7 @@ table('render edit list', {
     { id: 'edits-as-object', plant: withEdits({}), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as an object' },
     { id: 'edits-as-string', plant: withEdits('move-2'), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as a string' },
   ],
-});
+})) test(c.name, c.fn);
 
 test('16 edits are not refused by the count: the same list refuses only for a mark edited twice', t => {
   const r = render(t, homeWith(t, cfg(Array.from({ length: 16 }, () => ({ mark: 'move-1', op: 'remove' })))));
@@ -427,7 +427,7 @@ test('a refusal reports every bad edit, each by its position', t => {
 
 // ------------------------------------------------------------ the must-refuse table: block paths, on their text
 
-table('render block path', {
+for (const c of table('render block path', {
   module: 'gate/render.mjs',
   base: editHome,
   run: renderTree,
@@ -465,7 +465,7 @@ table('render block path', {
     { id: 'over-200-characters', plant: withPath(`${'a'.repeat(198)}.md`), fails: ['block-path'], says: /longer than 200 characters/, why: 'a path over 200 characters' },
     { id: 'over-8-segments', plant: withPath('a/b/c/d/e/f/g/h/i.md'), fails: ['block-path'], says: /more than 8 path segments/, why: 'more than 8 segments' },
   ],
-});
+})) test(c.name, c.fn);
 
 test('a path refused on its text is refused before any file is opened, even when the file it names is there and good', t => {
   const h = homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: '../outside.md' }]));

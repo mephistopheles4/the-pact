@@ -3,6 +3,7 @@
 A bad case for a gate module is a row in that module's table: one plant on a base input that passes, and the exact rule ids it must fail with. The T1 baseline of every case is committed, and a compare script proves at each move 4 that every baseline case still has a home.
 
 - **A table** (`gate/tests/tables.mjs`) has a name, the gate module whose rule ids it names, a `base()` that builds the passing input as a tree of files, a `run(input, t)` that returns the exit code, the `FAIL` rule ids, the last line and the output, and rows `{ id, plant, fails, says?, why }`. An optional `everyRow` adds the same assertions to every row, such as "a refusal writes no file".
+- **The test file registers them.** `table()` returns its tests as `{ name, fn }`, and the file registers each: `for (const c of table('<name>', { ... })) test(c.name, c.fn);`. node's reporters name the file that called `test()`, so tests registered from inside `tables.mjs` were reported under it, and no case could find its home. A guard checks every test file that uses a table for that loop, and the compare fails any case reported under a file that is not a top-level test file.
 - **The tests it makes.** `<table>: base passes` asserts exit 0, `RESULT: pass` and no `FAIL` line. `<table>: <row id>` applies the plant to a fresh base and asserts exit 1, `RESULT: fail`, and that the set of `FAIL` rule ids equals `fails`; equals, not includes. When `says` is given, the output must match it. `<table>: base passes after the rows` catches a row that leaked state into the process.
 - **A malformed table fails its file's load:** no rows; a duplicate row id, or one outside lower-case words joined by dashes; a row with empty `fails` or no `why`; a plant that leaves the input's bytes unchanged; or a rule id that no string literal holds in the module and the gate files it imports. A `grimoire/` id is checked against the pinned check.
 - **The first tables** are `render-edits`' edit list and block paths, 51 rows that replaced two loops. Their old cases map to their rows in the map of moves. New bad cases go in tables. A file already in `fast` converts when a session next changes its cases for another reason.
@@ -20,7 +21,7 @@ A bad case for a gate module is a row in that module's table: one plant on a bas
   - the baseline's hash differs;
   - a hand-kept line holds a local path, or the user or host name. It is reported by file and line number only, never by its text.
 - **Repeated names count.** Three `cross-checks` names appear twice in the baseline, so the compare counts the cases of each name, and every count must match.
-- **The record's platform** comes from the separator in its case paths. A record that mixes both fails.
+- **The record's platform** comes from the separator in its case paths. A record that mixes both fails, and so does one that names no file: Node 20's junit reporter writes none, so a Node 20 record can't be compared.
 - **On the probe floor.** The table module, the compare, the baseline and its two lists `env-cases.tsv` and `reporter-names.tsv` are on AGENTS.md's probe floor, with `tables.test.mjs` and `baseline-compare.test.mjs`. `moves.tsv` is not: its lines change with every move, and the compare bounds what a line can do.
 
 ## Why
@@ -34,5 +35,5 @@ A bad case for a gate module is a row in that module's table: one plant on a bas
 ## How this was decided
 
 - **2026-10-08** in mephistopheles4/the-pact#140, spec revision 10, signed off by the owner, built in #154 (T5). The owner chose "render-edits first" for the first tables (D5), and "when touched" for converting other files (D3).
-- **The Linux compare waits on #149.** On Node 20 the four `node:sqlite` practice cases fail. The owner chose "B, everything should be on LTS": they get no exception in `env-cases.tsv`, and the Linux compare passes once #149 is fixed.
+- **The Linux compare waits on #149.** On Node 20 the four `node:sqlite` practice cases fail, and Node 20's junit reporter names no file for any case. The owner chose "B, everything should be on LTS": the four get no exception in `env-cases.tsv`, and the Linux compare runs once the container is on the LTS (#149).
 - **Still holds:** [ADR 0030](0030-the-gate-suite-runs-through-one-runner-in-named-tiers.md), on the runner, its tiers and record mode. The compare reads the runner's record and imports its leak patterns.

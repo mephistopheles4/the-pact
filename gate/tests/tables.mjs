@@ -3,16 +3,19 @@
 // the base and the exact rule ids it must fail with. A new bad case is a new
 // row, with no setup of its own.
 //
-//   table('render edit list', {
+//   for (const c of table('render edit list', {
 //     module: 'gate/render.mjs',     // whose rule ids the rows name
 //     base: () => tree,               // the passing input: { 'rel/path': text or bytes }
 //     run: (tree, t) => result,       // { code, fails, last, out }; see moduleResult
 //     everyRow: (result, t) => {},    // optional: more assertions on every row's result
 //     rows: [{ id: 'unknown-mark', plant: tree => tree, fails: ['edit-mark'], says: /edit 1/, why: 'a mark the source lacks' }],
-//   });
+//   })) test(c.name, c.fn);
 //
-// It registers "<table>: base passes", "<table>: <row id>" for each row, and
-// "<table>: base passes after the rows" under node:test. A row's test applies
+// It returns "<table>: base passes", "<table>: <row id>" for each row, and
+// "<table>: base passes after the rows" as { name, fn }, and the test file
+// registers each with node:test itself, in that loop. node's reporters name
+// the file that called test(), so a test registered from here would be
+// reported under this module, not under its own file. A row's test applies
 // its plant to a fresh base and asserts exit 1, "RESULT: fail", and that the
 // set of FAIL rule ids equals `fails` (equals, not includes), and that the
 // output matches `says` when given. The base passing, and each row differing
@@ -24,14 +27,13 @@
 // the gate files it imports holds (a grimoire/ id: the pinned check's).
 // The table name and each row id must be string literals in the call, so the
 // no-loss compare can find a row by reading the file (baseline-compare.mjs).
-// Importing this file touches nothing; registering a table reads the module's
+// Importing this file touches nothing; calling table() reads the module's
 // sources once. On the probe floor by name (AGENTS.md).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, posix, resolve } from 'node:path';
-import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { ROW_ID } from './baseline-compare.mjs';
+import { ROW_ID, tokens } from './baseline-compare.mjs';
 import { relativeImports, stringLiterals } from './run.mjs';
 
 export { ROW_ID };
@@ -153,7 +155,7 @@ export function problems(name, spec, read) {
 
 const sorted = a => [...new Set(a)].sort();
 
-/** Register a table's tests under node:test. Throws, failing the file, when the table is malformed. */
+/** A table's tests, as [{ name, fn }] for the test file to register in order. Throws, failing the file, when the table is malformed. */
 export function table(name, spec) {
   const bad = problems(name, spec);
   if (bad.length) throw new Error(`table ${JSON.stringify(name)} is malformed: ${bad.join('; ')}`);
@@ -162,17 +164,53 @@ export function table(name, spec) {
     assert.equal(r.last, 'RESULT: pass', r.out);
     assert.deepEqual(r.fails, [], r.out);
   };
-  test(`${name}: base passes`, async t => passes(await spec.run(spec.base(), t)));
+  const tests = [{ name: `${name}: base passes`, fn: async t => passes(await spec.run(spec.base(), t)) }];
   for (const row of spec.rows) {
-    test(`${name}: ${row.id}`, async t => {
-      const r = await spec.run(row.plant(cloneTree(spec.base())), t);
-      assert.equal(r.code, 1, r.out);
-      assert.equal(r.last, 'RESULT: fail', r.out);
-      assert.deepEqual(sorted(r.fails), sorted(row.fails), r.out);
-      if (row.says) assert.match(r.out, row.says, r.out);
-      if (spec.everyRow) await spec.everyRow(r, t);
+    tests.push({
+      name: `${name}: ${row.id}`,
+      fn: async t => {
+        const r = await spec.run(row.plant(cloneTree(spec.base())), t);
+        assert.equal(r.code, 1, r.out);
+        assert.equal(r.last, 'RESULT: fail', r.out);
+        assert.deepEqual(sorted(r.fails), sorted(row.fails), r.out);
+        if (row.says) assert.match(r.out, row.says, r.out);
+        if (spec.everyRow) await spec.everyRow(r, t);
+      },
     });
   }
   // A row that leaks state into the process shows here: the base no longer passes.
-  test(`${name}: base passes after the rows`, async t => passes(await spec.run(spec.base(), t)));
+  tests.push({ name: `${name}: base passes after the rows`, fn: async t => passes(await spec.run(spec.base(), t)) });
+  return tests;
+}
+
+/**
+ * Each `table(...)` call in a test file's source that is not registered as
+ * `for (const c of table(...)) test(c.name, c.fn);`, by its table name, or
+ * `(unnamed)`. A table whose tests are never registered would run nothing.
+ */
+export function unregisteredTables(src) {
+  const toks = tokens(src);
+  const out = [];
+  // An alias would hide the calls from this check and from the compare's row reader alike.
+  for (let i = 0; i < toks.length; i += 1) if (toks[i].v === 'table' && toks[i + 1]?.v === 'as') out.push('(table imported under another name)');
+  for (let i = 0; i < toks.length; i += 1) {
+    const tk = toks[i];
+    if (tk.t !== 'word' || tk.v !== 'table' || toks[i + 1]?.v !== '(' || toks[i - 1]?.v === '.' || toks[i - 1]?.v === 'function') continue;
+    if (toks[i - 1]?.v === 'import' || toks[i - 1]?.v === '{' || toks[i - 1]?.v === ',') continue;
+    const name = toks[i + 2]?.t === 'str' ? toks[i + 2].v : '(unnamed)';
+    // for ( const c of table ( ... ) ) test ( c . name , c . fn )
+    const v = toks[i - 2];
+    const head = toks[i - 5]?.v === 'for' && toks[i - 4]?.v === '(' && toks[i - 3]?.v === 'const' && v?.t === 'word' && toks[i - 1]?.v === 'of';
+    let j = i + 1;
+    let depth = 0;
+    for (; j < toks.length; j += 1) {
+      if (toks[j].t !== 'p') continue;
+      if ('([{'.includes(toks[j].v)) depth += 1;
+      else if (')]}'.includes(toks[j].v) && --depth === 0) break;
+    }
+    const after = toks.slice(j + 1, j + 13).map(x => x.v ?? `<${x.t}>`);
+    const want = [')', 'test', '(', v?.v, '.', 'name', ',', v?.v, '.', 'fn', ')'];
+    if (!head || want.some((w, k) => after[k] !== w)) out.push(name);
+  }
+  return out;
 }

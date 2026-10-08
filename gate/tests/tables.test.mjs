@@ -5,18 +5,19 @@
 // module, and its FAIL lines name real rule ids of gate/render.mjs.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { moduleLiterals, moduleResult, problems, treeBytes } from './tables.mjs';
+import { moduleLiterals, moduleResult, problems, treeBytes, unregisteredTables } from './tables.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TABLES = pathToFileURL(join(HERE, 'tables.mjs')).href;
 
 /** The planted file's head: a stand-in runner, and plants that trip the rules they name. */
-const HEAD = `import { table, moduleResult } from ${JSON.stringify(TABLES)};
+const HEAD = `import { test } from 'node:test';
+import { table, moduleResult } from ${JSON.stringify(TABLES)};
 const fake = tree => {
   const s = tree['in.txt'];
   if (s === 'base') return moduleResult(0, 'RESULT: pass\\n');
@@ -33,7 +34,8 @@ function planted(t, body) {
   const dir = mkdtempSync(join(tmpdir(), 'pact-tables-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = join(dir, 'plant.test.mjs');
-  writeFileSync(file, HEAD + body);
+  // Each table registers its tests from the planted file, as a real test file does.
+  writeFileSync(file, HEAD + body.replace(/\btable\('/g, "for (const c of table('").replace(/\}\);\n/g, '})) test(c.name, c.fn);\n'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   delete env.NODE_TEST_CONTEXT;
@@ -111,6 +113,31 @@ test('control: the same table with a good row loads, and a grimoire id the pinne
   const r = planted(t, `table('malformed', { module: 'gate/render.mjs', base, run: fake, rows: [${GOOD_ROW}, { id: 'pinned', plant: trip('grimoire/keys'), fails: ['grimoire/keys'], why: 'w' }] });\n`);
   assert.equal(r.status, 0, r.out);
   expect(r, { 'malformed: one': 'ok', 'malformed: pinned': 'ok' });
+});
+
+// ------------------------------------------------------------ registration: each test file registers its tables' tests itself
+
+test('every test file that uses a table registers its tests in the file, so the report names that file', () => {
+  const users = readdirSync(HERE).filter(f => f.endsWith('.test.mjs') && f !== 'tables.test.mjs');
+  let seen = 0;
+  for (const f of users) {
+    const src = readFileSync(join(HERE, f), 'utf8');
+    if (!src.includes("'./tables.mjs'")) continue;
+    seen += 1;
+    assert.deepEqual(unregisteredTables(src), [], f);
+  }
+  assert.ok(seen >= 1, 'render-edits uses a table');
+});
+
+test('bad case: a table whose tests are not registered in the file is caught', () => {
+  const imp = "import { test } from 'node:test';\nimport { table } from './tables.mjs';\n";
+  const good = `${imp}for (const c of table('t', { rows: [] })) test(c.name, c.fn);\n`;
+  assert.deepEqual(unregisteredTables(good), []);
+  assert.deepEqual(unregisteredTables(`${imp}table('t', { rows: [] });\n`), ['t'], 'a bare call registers nothing');
+  assert.deepEqual(unregisteredTables(`${imp}const tests = table('t', { rows: [] });\n`), ['t'], 'tests kept but never registered');
+  assert.deepEqual(unregisteredTables(`${imp}for (const c of table('t', { rows: [] })) other(c.name, c.fn);\n`), ['t'], 'a loop that registers through another function');
+  assert.deepEqual(unregisteredTables(`${imp}for (const c of table('t', { rows: [] })) test(c.name, () => {});\n`), ['t'], 'a loop that drops the test body');
+  assert.deepEqual(unregisteredTables("import { table as tb } from './tables.mjs';\nfor (const c of tb('t', {})) test(c.name, c.fn);\n"), ['(table imported under another name)']);
 });
 
 // ------------------------------------------------------------ the pure parts

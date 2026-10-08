@@ -168,8 +168,10 @@ how every session in every repo behaves. So:
   [`gate/tests/tables.mjs`](gate/tests/tables.mjs), has a base input that
   passes and rows; a row is one plant on the base and the exact rule ids it
   must fail with. Write the table's name and each row's id as string literals
-  in the `table(...)` call. The first tables are `render-edits`' edit list and
-  block paths. A file already in `fast` converts its loops when a session
+  in the `table(...)` call, and register its tests in the test file itself:
+  `for (const c of table('<name>', { ... })) test(c.name, c.fn);`. node's
+  reports name the file that calls `test()`, and a guard checks the loop. The
+  first tables are `render-edits`' edit list and block paths. A file already in `fast` converts its loops when a session
   next changes its cases for another reason.
 - **How a row runs the module.** Today a table's `run` starts the module as a
   child, as the install does. Keep a case a child run when it varies the

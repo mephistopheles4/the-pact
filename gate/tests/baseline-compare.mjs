@@ -32,6 +32,8 @@ export const STATUSES = Object.freeze(['pass', 'skip', 'fail']);
 /** The module a table row is registered through, and its function, as a test file imports them. */
 export const TABLES_MODULE = './tables.mjs';
 export const TABLE_FN = 'table';
+/** A case's home: a top-level test file in the tests folder. */
+export const TEST_FILE = /^gate\/tests\/[A-Za-z0-9][A-Za-z0-9._-]*\.test\.mjs$/;
 /** A table row's id: lower-case words joined by single dashes. */
 export const ROW_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -67,8 +69,9 @@ export function parseRecord(text) {
   const closes = [...text.matchAll(/<\/testsuites>/g)];
   if (opens.length !== 1 || closes.length !== 1 || closes[0].index < opens[0].index) return { error: 'the record holds no single junit report' };
   const xml = text.slice(opens[0].index, closes[0].index + '</testsuites>'.length);
-  // A failure, error or skip element holds the reporter's text (a stack, a reason); text anywhere else is not the report's.
-  if (xml.replace(/<(failure|error|skipped)\b(?:\s+[\w:-]+="[^"]*")*\s*>[^<]*<\/\1>/g, '').replace(ANY_TAG_RE, '').trim() !== '') return { error: 'the junit report holds text that is not a tag' };
+  // A failure, error or skip element holds the reporter's text (a stack, a reason), and record mode's placeholders
+  // (<repo>, <user>) can sit in it; text anywhere else is not the report's.
+  if (xml.replace(/<(failure|error|skipped)\b(?:\s+[\w:-]+="[^"]*")*\s*>[\s\S]*?<\/\1>/g, '').replace(ANY_TAG_RE, '').trim() !== '') return { error: 'the junit report holds text that is not a tag' };
   const suites = [];
   const cases = [];
   const seps = new Set();
@@ -98,6 +101,7 @@ export function parseRecord(text) {
   if (open) bad = 'a testcase that never closes';
   if (bad) return { error: `the junit report is malformed: ${bad}` };
   if (cases.length === 0) return { error: 'the junit report holds no case' };
+  if (seps.size === 0) return { error: 'the junit report names no test file for its cases (Node 20\'s junit reporter writes none)' };
   if (seps.size !== 1) return { error: 'the platform of the record cannot be read from its file paths' };
   return { cases, platform: seps.has('\\') ? 'windows' : 'linux' };
 }
@@ -398,6 +402,10 @@ export function compare({ lists, record, names = [], source = () => null }) {
     if (!got.has(k)) got.set(k, []);
     got.get(k).push(c.status);
   }
+  // node's junit reporter names the file that called test(). A case reported under a module that is not a test
+  // file was registered from there, so the file it belongs to is unknown, and it can't be any case's home.
+  const testFiles = new Set();
+  for (const c of run.cases) if (!TEST_FILE.test(c.file) && !testFiles.has(c.file)) testFiles.add(c.file), say(`record: cases are reported under ${c.file.replace(/[^A-Za-z0-9._/ -]/g, '?')}, which is not a top-level test file`);
   // A failed case fails the compare, baseline case or new. Its name is shown only when the lists hold it.
   for (const c of run.cases) if (c.status === 'fail') say(`record: a case failed in ${c.file}${asReported.has(key(c.file, c.name)) || targets.has(key(c.file, c.name)) ? `: ${c.name}` : ''}`);
 

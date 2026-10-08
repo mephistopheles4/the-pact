@@ -59,8 +59,13 @@ Spec revision 10 on #140 redesigned the test architecture: cores, tables, one la
 - **The table module,** `gate/tests/tables.mjs`, makes the base, row and base-after-rows tests, refuses a malformed table at load, and checks each row's rule ids against the module and the gate files it imports.
 - **The first user.** `render-edits`' `EDIT_BAD` and `PATH_BAD` loops became the tables "render edit list" (20 rows) and "render block path" (31 rows). Each row's `why` is the old case's label, word for word. Every row trips exactly its one rule, which the old loops never checked: they asked only that the rule appear.
 - **AGENTS.md** gains "Writing a gate test", and the probe floor names the table module, the compare, the baseline and its two lists.
-- **The Linux container** now writes a junit record to a mounted `/out` folder, for the compare; the owner approved the change and the image rebuild. On Node 20, the four `node:sqlite` practice cases fail, so the Linux compare fails on them. The owner chose "B, everything should be on LTS": no exception for them, and the Linux compare waits on #149.
-- **Found while building.** Three `cross-checks` case names appear twice in the baseline, so the compare counts cases per name rather than treating names as unique. And the first version of the row reader counted a regex literal as a closing bracket, so it lost track after three rows with `says` patterns; a test now covers that.
+- **The Linux container** now writes a junit record to a mounted `/out` folder, for the compare; the owner approved the change and the image rebuild. On Node 20, the four `node:sqlite` practice cases fail, and the junit report names no file. The owner chose "B, everything should be on LTS": no exception for the four, and the Linux compare waits on #149.
+- **Found while building.**
+  - **Repeated names.** Three `cross-checks` case names appear twice in the baseline, so the compare counts cases per name rather than treating names as unique.
+  - **The row reader** first counted a regex literal as a closing bracket, so it lost track after three rows with `says` patterns. A test now covers that.
+  - **The compare caught a real fault at move 4.** The first move-4 full run passed, but the compare failed all 51 rows: node's junit reporter names the file that called `test()`, and `table()` called it from inside `tables.mjs`. Now `table()` returns its tests and the test file registers them in a loop, a guard checks the loop, and the compare fails any case reported outside a top-level test file.
+  - **Record mode's placeholders sit in failure text.** The Linux record's failure stacks hold `<repo>` and `<user>`, so the parser now skips a failure's body whole.
+  - **Node 20's junit reporter names no file** for any case, so a Node 20 record can't be compared at all. That joins the four `node:sqlite` failures in waiting on #149.
 - **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
 
 ## What was measured
