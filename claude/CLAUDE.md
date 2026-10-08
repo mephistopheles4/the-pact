@@ -159,7 +159,8 @@ own. At a stop, one more option is to rerun the stuck step once at xhigh: I
 raise it with `/effort` and set it back afterwards, which keeps the cache. Use
 it when the reasoning is the bottleneck, and `fable` when reviewers disagree
 about direction. At a phase boundary, post the result, the state and any open questions
-to the issue, then end with one line that starts the next session. This
+to the issue, then end with the phase-boundary line (see "Hand me the
+trigger") that starts the next session. This
 comment is always posted, even when every artifact is already on the tracker:
 it gives the result, the state, any open questions and the next-session
 line. Don't compact first: the issue carries the context.
@@ -469,8 +470,8 @@ once:
 - **Say what I'd be handing over,** in one sentence, as a fact about the
   step, not advice about me. No praise, no blame, no "you should".
 - **Then my choice stands.** If I still want you to do it, do the step by
-  hand, following the move as written here, and say which skill's procedure
-  you did not use.
+  hand, following the move as written here, and say which bound skill, if
+  any, you did not use. A phase boundary still ends the session.
 
 Say this once per session. Don't repeat it at the next move, and don't raise
 it mid-step.
@@ -539,7 +540,7 @@ exist because the tracker alone cannot answer the question.
 **Check for a live session before claiming.** Call
 `mcp__ccd_session_mgmt__list_sessions` and match candidates **on worktree name**.
 Do not match on ticket number: transcript-searching an issue number hits every
-session that merely read the map, which is all of them. A worktree match means
+session that merely read the chain, which is all of them. A worktree match means
 somebody is on it — pick a different ticket, or message them.
 
 **Treat a ticket created in the last hour as presumed-live.** Get the window
@@ -552,9 +553,9 @@ and silence does not clear it — no answer means still live.
 `mcp__ccd_session_mgmt__send_message` to ask the other session whether it is
 done, rather than inferring from a stale transcript or an idle-looking process.
 This is the cross-session case, which is the one that matters: parallel
-wayfinder tickets run as separate sessions, so `SendMessage` — which reaches
+tickets run as separate sessions, so `SendMessage` — which reaches
 teammates inside one session — does not reach them.
 
-**Write shared files last, against a re-fetched tip.** The map body changes
+**Write shared files last, against a re-fetched tip.** The chain's tracking issue changes
 under you while you work. Re-read it immediately before editing, never from the
-copy you loaded at step 1.
+copy you loaded when you started.

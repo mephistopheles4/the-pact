@@ -14,7 +14,11 @@ $ErrorActionPreference = 'Stop'
 # placeholder such as `/<skill>`, and a span holding more than the command
 # (an argument) are not commands. gate/tests/no-skill-names.test.mjs uses the
 # same definition. Gated blocks are skipped: they are held word for word by the
-# gate. Prints a WARN: line per mismatch, then a summary line when there is
+# gate. A skill written both ways is checked in both forms. Until the pact's
+# new text is installed, the default file (the installed one) holds the old
+# text and will warn; pass -RulesFile with a rendered copy of the repo's file.
+# $openParts below must equal OPEN_MARKS in gate/tests/helpers.mjs (a test
+# checks it). Prints a WARN: line per mismatch, then a summary line when there is
 # none. Exits 0 either way.
 
 $utf8 = New-Object Text.UTF8Encoding($false)
@@ -44,7 +48,7 @@ foreach ($span in [regex]::Matches($section, '`([^`\r\n]+)`')) {
 # 2. Keep the names that are folders under -SkillsDir.
 function Test-Installed([string]$n) { Test-Path -LiteralPath (Join-Path $SkillsDir $n) -PathType Container }
 $commands = @($commands | Select-Object -Unique | Where-Object { Test-Installed $_ })
-$agentSkills = @($agentSkills | Select-Object -Unique | Where-Object { (Test-Installed $_) -and ($commands -notcontains $_) })
+$agentSkills = @($agentSkills | Select-Object -Unique | Where-Object { Test-Installed $_ })
 
 # 3. Compare each skill's frontmatter flag with the form the text uses.
 function Test-Flagged([string]$n) {
@@ -70,5 +74,6 @@ foreach ($name in $agentSkills) {
 }
 
 # 4. Summary.
-if ($warnings -eq 0) { "named skills: $(@($commands).Count + @($agentSkills).Count); commands: $(@($commands).Count); OK" }
+$named = @($commands + $agentSkills | Select-Object -Unique).Count
+if ($warnings -eq 0) { "named skills: $named; commands: $(@($commands).Count); OK" }
 exit 0

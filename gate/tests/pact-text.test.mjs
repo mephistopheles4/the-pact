@@ -21,6 +21,7 @@ import {
   stage,
   tempDir,
   withoutOpenMarks,
+  OPEN_MARKS,
   writeTree,
 } from './helpers.mjs';
 
@@ -594,6 +595,30 @@ test('bad case: a code span for a flagged skill warns', t => {
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.match(r.stdout, /^WARN: closed-skill is written as a code span .* has disable-model-invocation: true$/m, r.stdout);
   assert.doesNotMatch(r.stdout, /OK/, r.stdout);
+});
+
+test('a skill that appears only with an argument is not a command', t => {
+  const r = skillFlagCheck(t, SECTION('Type `/open-skill 12` to start.'), { 'open-skill': false });
+  assert.match(r.stdout, /^named skills: 0; commands: 0; OK\s*$/m, r.stdout + r.stderr);
+});
+
+test('bad case: a flagged skill written as a command and as a code span warns for the code span', t => {
+  const r = skillFlagCheck(t, SECTION('Type `/closed-skill` to start; the agent uses `closed-skill` too.'), { 'closed-skill': true });
+  assert.match(r.stdout, /^WARN: closed-skill is written as a code span /m, r.stdout);
+  assert.doesNotMatch(r.stdout, /OK/, r.stdout);
+});
+
+test('bad case: an open part in an unrendered file is read, not skipped', t => {
+  const rules = SECTION('<!-- pact:begin move-2 -->\nUse `closed-skill` here.\n<!-- pact:end move-2 -->');
+  const r = skillFlagCheck(t, rules, { 'closed-skill': true });
+  assert.match(r.stdout, /^WARN: closed-skill is written as a code span /m, r.stdout);
+});
+
+test('the check keeps the same open parts as the shared helper', () => {
+  const m = read(join(REPO, 'scripts', 'check-skill-flags.ps1')).match(/\$openParts = @\(([^)]*)\)/);
+  assert.ok(m, 'the script no longer lists its open parts');
+  const listed = [...m[1].matchAll(/'([a-z0-9-]+)'/g)].map(x => x[1]);
+  assert.deepEqual([...listed].sort(), [...OPEN_MARKS].sort());
 });
 
 test('the skill-flag check skips gated blocks and other sections', t => {
