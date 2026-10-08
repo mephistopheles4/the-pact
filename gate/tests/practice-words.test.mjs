@@ -15,7 +15,7 @@ test('every contains and headlineOn phrase, and the artifact heading, is written
     const text = read(join(REPO, 'claude', 'agents', `${lens}.md`)).toLowerCase().replace(/\s+/g, ' ');
     for (const id of readdirSync(join(DIR, lens))) {
       const c = JSON.parse(read(join(DIR, lens, id, 'case.json')));
-      for (const s of [...(c.contains ?? []), ...Object.values(c.headlineOn ?? {}), ...(c.heading ? [c.heading] : []), ...(c.bulletOn ?? []).map(b => b[2])]) {
+      for (const s of [...(c.contains ?? []), ...Object.values(c.headlineOn ?? {}), ...(c.heading ? [c.heading] : []), ...(c.bulletOn ?? []).map(b => b[2]), ...(c.tellOn ?? []).map(b => b[2])]) {
         assert.ok(text.includes(s.toLowerCase()), `${lens} ${id}: "${s}" is not in the lens file`);
       }
     }

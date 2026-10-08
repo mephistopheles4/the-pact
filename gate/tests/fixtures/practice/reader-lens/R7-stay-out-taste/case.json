@@ -6,6 +6,6 @@
     "clear"
   ],
   "quietOn": [
-    "src/parse.mjs"
+    "src/sum.mjs"
   ]
 }

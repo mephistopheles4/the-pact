@@ -1,16 +1,16 @@
 **For the owner**
 
-One sentence in the new guide is long and passive, but you can still find and take the step. I suggest splitting it.
+The new counter's comments repeat what each line does and never say why it counts. You can still follow it; the comments only cost time. I suggest one comment on why.
 
 **For the session**
 
 ### What the owner must do
 
-Red step: the owner reads the guide to rotate the log; they need to run one command.
-| Action the text asks of you | Where it says so | Where you would fail |
-| Rotate the log | docs/guide.md 5 | nowhere, though the sentence is 45 words and passive |
+Red step: a teammate changes the counter later; they need to know what it counts and why.
+| Action the change asks of you | Where it is | Where you would fail |
+| Change what the counter counts | src/count.mjs 4-8 | nowhere, though tell 9: the comments narrate the code |
 
-- F1: Rotate the log. Keep sentences short; use active voice. Split it: "Run the rotate command. It keeps the last seven files."
+- F1: tell 9: "// add one to count" above `count += 1`. Replace the three comments with one on why the counter exists.
 
 ```lens-findings
 {
@@ -21,16 +21,16 @@ Red step: the owner reads the guide to rotate the log; they need to run one comm
       "id": "F1",
       "anchor": {
         "kind": "lines",
-        "file": "docs/guide.md",
-        "start": 5,
-        "end": 5
+        "file": "src/count.mjs",
+        "start": 4,
+        "end": 8
       },
       "severity": "medium",
-      "headline": "The rotate step sits in one long passive sentence"
+      "headline": "The counter comments repeat each line instead of saying why"
     }
   ],
   "notChecked": [
-    "The rotate command's own output"
+    "Callers outside the diff"
   ]
 }
 ```

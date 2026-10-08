@@ -3,22 +3,22 @@
   "point": "diff",
   "heading": "### What the owner must do",
   "verdicts": [
-    "findings"
+    "blocking"
   ],
   "findOn": {
-    "README.md:45-48": [
-      "medium"
+    "src/fetch.mjs:10-12": [
+      "high"
     ]
   },
   "tellOn": [
     [
       [
-        "README.md:45-48"
+        "src/fetch.mjs:10-12"
       ],
       [
-        "medium"
+        "high"
       ],
-      "tell 6"
+      "tell 2"
     ]
   ]
 }

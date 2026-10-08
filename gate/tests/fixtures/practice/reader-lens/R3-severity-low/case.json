@@ -6,8 +6,19 @@
     "findings"
   ],
   "findOn": {
-    "docs/guide.md:5-5": [
+    "src/count.mjs:4-8": [
       "low"
     ]
-  }
+  },
+  "tellOn": [
+    [
+      [
+        "src/count.mjs:4-8"
+      ],
+      [
+        "low"
+      ],
+      "tell 9"
+    ]
+  ]
 }

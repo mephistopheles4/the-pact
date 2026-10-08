@@ -6,8 +6,19 @@
     "blocking"
   ],
   "findOn": {
-    "docs/install.md:8-10": [
+    "src/cart.mjs:3-6": [
       "high"
     ]
-  }
+  },
+  "tellOn": [
+    [
+      [
+        "src/cart.mjs:3-6"
+      ],
+      [
+        "high"
+      ],
+      "tell 1"
+    ]
+  ]
 }

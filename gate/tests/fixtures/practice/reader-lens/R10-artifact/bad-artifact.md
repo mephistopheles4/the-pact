@@ -1,13 +1,13 @@
 **For the owner**
 
-You can act on every text in the change.
+You can follow every part of the change.
 
 **For the session**
 
-### What the owner must do
+### Plain-language check
 
 Red step: the owner reads the README to install; they need to run the dry run, then the apply step.
-| Action the text asks of you | Where it says so | Where you would fail |
+| Action the change asks of you | Where it is | Where you would fail |
 | Run the dry run | README.md 40-44 | nowhere |
 | Pass the hash from the dry run's last line | README.md 45-48 | nowhere |
 

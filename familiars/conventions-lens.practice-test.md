@@ -1,6 +1,6 @@
 # Practice test: conventions-lens
 
-For `claude/agents/conventions-lens.md`, contract 0.1.0. Every expected result, reference report and bad report below was written and committed on 2026-10-08, before any run.
+For `claude/agents/conventions-lens.md`, contract 0.1.1. Every expected result, reference report and bad report below was written and committed on 2026-10-08, before any run.
 
 **Status: no case runs for real; every case is scored on its bad reports.**
 This lens holds no shell or network tools, and guards neither the security

@@ -19,6 +19,9 @@
 //   bulletOn   [[["S3", "S6"], ["high"], "sign 3"]]: a finding bullet ("- S3 (F1): ...") of a finding on one of
 //              the anchors, at one of the severities, must open with the words and a colon ("sign 3:");
 //              nowhere else in the report counts, and a finding id with two bullets fails
+//   tellOn     [[["src/a.mjs:3-6"], ["high"], "tell 1"]]: on the diff, a finding bullet ("- F1: ...") of a finding on
+//              one of the anchors, at one of the severities, must open with the words and a colon ("tell 1:");
+//              as bulletOn, nowhere else counts, and a finding id with two bullets fails (#101)
 //   quietOn    ["C3"]: no finding may sit on these claims (a false alarm fails the run)
 //   notNonRisk ["C2"]: these claims may not appear in nonRisks
 //   notChecked ["C1"]: each must be named in some notChecked item
@@ -303,6 +306,37 @@ export function bullets(text) {
   return out;
 }
 
+/**
+ * The finding bullets of a diff report, which has no listed anchor: lines "- F1: ..." (or "- **F1:**",
+ * "- **F1**:") outside code blocks, each with its indented continuation lines, as bullets() reads them.
+ */
+export function findingBullets(text) {
+  const out = [];
+  let fence = false;
+  let cur = null;
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    if (/^\s*(`{3,}|~{3,})/.test(line)) {
+      fence = !fence;
+      cur = null;
+      continue;
+    }
+    if (fence) continue;
+    const m = /^[-*] +(?:\*\*)?(F[0-9]{1,3})(?::\*\*|\*\*:|:)\s*(.*)$/.exec(line);
+    if (m) {
+      cur = { id: m[1], text: m[2] };
+      out.push(cur);
+    } else if (cur && /^\s+\S/.test(line) && !/^\s*([-*+] |\d+\. |#)/.test(line)) cur.text += ` ${line.trim()}`;
+    else cur = null;
+  }
+  return out;
+}
+
+/** True when a bullet's text opens with the words and a colon, the words maybe in backticks or bold. */
+function opensWith(text, words) {
+  const opening = text.replace(/^[`*\s]+/, '').toLowerCase();
+  return opening.replace(/^([^:`*]*)[`*]+:/, '$1:').startsWith(`${words.toLowerCase()}:`);
+}
+
 function block(text) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const open = lines.indexOf('```lens-findings');
@@ -378,6 +412,22 @@ export function score(c, text, record = null) {
         return f && f.anchor.id === b.anchor && ids.includes(b.anchor) && sevs.includes(f.severity) && opening.replace(/^([^:`*]*)[`*]+:/, '$1:').startsWith(`${words.toLowerCase()}:`);
       });
       if (!hit) reasons.push(`bullet:${words}`);
+    }
+  }
+  if (c.tellOn) {
+    // A tell counts only at the opening of its own finding's bullet (#101), as a sign does under bulletOn.
+    const bs = findingBullets(text);
+    const seen = new Set();
+    for (const b of bs) {
+      if (seen.has(b.id)) reasons.push(`bullet-duplicate:${b.id}`);
+      seen.add(b.id);
+    }
+    for (const [keys, sevs, words] of c.tellOn) {
+      const hit = bs.some(b => {
+        const f = doc.findings.find(x => x.id === b.id);
+        return f && keys.some(k => answers(f.anchor, k)) && sevs.includes(f.severity) && opensWith(b.text, words);
+      });
+      if (!hit) reasons.push(`tell:${words}`);
     }
   }
   for (const sev of c.neverSeverity ?? []) if (doc.findings.some(f => f.severity === sev)) reasons.push(`never-severity:${sev}`);

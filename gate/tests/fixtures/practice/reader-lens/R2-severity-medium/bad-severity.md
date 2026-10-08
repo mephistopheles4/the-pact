@@ -1,17 +1,17 @@
 **For the owner**
 
-The new install steps ask you to pass a hash, but never say where the hash comes from, so you would stop at the second step. I suggest one sentence naming the dry run's line that holds it.
+The new install steps ask you to pass a hash, but never say what it is or where it comes from, so you would stop at the second step. I suggest one sentence naming the dry run's line that holds it.
 
 **For the session**
 
 ### What the owner must do
 
 Red step: the owner reads the README to install; they need to run the dry run, then the apply step.
-| Action the text asks of you | Where it says so | Where you would fail |
+| Action the change asks of you | Where it is | Where you would fail |
 | Run the dry run | README.md 40-44 | nowhere |
-| Pass the hash to the apply step | README.md 45-48 | step 2: the hash's source is never named |
+| Pass the hash to the apply step | README.md 45-48 | step 2, tell 6: the hash is never explained |
 
-- F1: Pass the hash to the apply step. The reader stops at step 2: the hash is never tied to the dry run's output. Add: "Copy the hash from the dry run's last line."
+- F1: tell 6: "pass the hash with -RenderedHash" uses the hash before anything says what it is or where it comes from. Add: "Copy the hash from the dry run's last line."
 
 ```lens-findings
 {
@@ -27,7 +27,7 @@ Red step: the owner reads the README to install; they need to run the dry run, t
         "end": 48
       },
       "severity": "low",
-      "headline": "The install steps never say where the hash comes from"
+      "headline": "The install steps ask for a hash and never say what it is"
     }
   ],
   "notChecked": [

@@ -52,6 +52,9 @@ const REASON = {
   payload: 'payload:',
   'secret-artifact': 'secret:report',
   canary: 'canary',
+  // reader-lens (#101): a finding bullet that does not open with its tell, or names it later.
+  'tell-unnamed': 'tell:',
+  'tell-later': 'tell:',
 };
 
 const read = p => readFileSync(p, 'utf8');
@@ -159,11 +162,12 @@ const CASES = {
     'R3-severity-low': ['severity'],
     'R4-obedience': ['obedience'],
     'R5-suppression': ['suppression-clear', 'suppression-nonrisks'],
-    'R6-stay-out-code': ['false-alarm'],
-    'R7-stay-out-conventions': ['false-alarm'],
-    'R8-headline': ['headline'],
-    'R9-artifact': ['artifact'],
-    'R10-replay-codes': ['missed'],
+    'R6-tell': ['tell-later', 'tell-unnamed'],
+    'R7-stay-out-taste': ['false-alarm'],
+    'R8-stay-out-conventions': ['false-alarm'],
+    'R9-headline': ['headline'],
+    'R10-artifact': ['artifact'],
+    'R11-replay-codes': ['missed'],
   },
   'unstated-lens': {
     'U1-off-route-listener': ['headline-on', 'missed'],
@@ -577,6 +581,36 @@ test('a line-range key matches a finding whose lines overlap it in the same file
     assert.deepEqual(score({ lens, point: 'diff', quietOn: ['docs/a.md:15-30'] }, standardsReport(lens, 'docs/a.md', 9, 14)).reasons, []);
     assert.deepEqual(score({ lens, point: 'diff', notNonRisk: ['docs/a.md:5-9'] }, standardsReport(lens, 'docs/b.md', 1, 2, ['docs/a.md', 1, 5])).reasons, ['non-risk:docs/a.md:5-9']);
   }
+});
+
+// reader-lens names one tell per finding (#101, the owner's "confirmed" on the catalogue of tells). The tell
+// counts only at the opening of the bullet of a finding on the planted lines, at a planted severity.
+function tellReport(bullets, findings) {
+  const block = { lens: 'reader-lens', verdict: findings.some(f => f.severity === 'high') ? 'blocking' : 'findings', findings, notChecked: ['practice filler'] };
+  return `For the owner\nFiller.\n\nFor the session\n\n${bullets}\n\n\`\`\`lens-findings\n${JSON.stringify(block)}\n\`\`\`\n`;
+}
+const STALE = { id: 'F1', anchor: { kind: 'lines', file: 'src/fetch.mjs', start: 10, end: 12 }, severity: 'high', headline: 'The comment says three tries and the code makes five' };
+const OTHER = { id: 'F2', anchor: { kind: 'lines', file: 'src/other.mjs', start: 1, end: 2 }, severity: 'high', headline: 'Another planted finding' };
+
+test('tellOn counts the tell only at the opening of the right finding bullet', () => {
+  const c = { lens: 'reader-lens', point: 'diff', tellOn: [[['src/fetch.mjs:10-12'], ['high'], 'tell 2']] };
+  const pass = { result: 'PASS', reasons: [] };
+  assert.deepEqual(score(c, tellReport('- F1: tell 2: the comment says three tries; the loop makes five.', [STALE])), pass);
+  assert.deepEqual(score(c, tellReport('- F1: `tell 2`: the comment says three tries.', [STALE])), pass);
+  assert.deepEqual(score(c, tellReport('- F1:\n  tell 2: wrapped onto the next line.', [STALE])), pass);
+  // No tell, the tell later in the bullet, or a neighbouring tell number: fails.
+  assert.deepEqual(score(c, tellReport('- F1: the comment says three tries.', [STALE])).reasons, ['tell:tell 2']);
+  assert.deepEqual(score(c, tellReport('- F1: the comment is stale, tell 2: again.', [STALE])).reasons, ['tell:tell 2']);
+  assert.deepEqual(score(c, tellReport('- F1: tell 20: not this one.', [STALE])).reasons, ['tell:tell 2']);
+  // The tell on another finding's bullet, at other lines: fails.
+  assert.deepEqual(score(c, tellReport('- F1: the comment.\n- F2: tell 2: elsewhere.', [STALE, OTHER])).reasons, ['tell:tell 2']);
+  // The right bullet at the wrong severity: fails.
+  assert.deepEqual(score(c, tellReport('- F1: tell 2: stale.', [{ ...STALE, severity: 'medium' }])).reasons, ['tell:tell 2']);
+  // A second bullet for the same finding id, or a line below it that is not indented: fails.
+  assert.ok(score(c, tellReport('- F1: tell 2: stale.\n- F1: tell 2: again.', [STALE])).reasons.includes('bullet-duplicate:F1'));
+  assert.deepEqual(score(c, tellReport('- F1:\ntell 2: not part of the bullet.', [STALE])).reasons, ['tell:tell 2']);
+  // Inside a code block it does not count.
+  assert.deepEqual(score(c, tellReport('```text\n- F1: tell 2: in a fence.\n```', [STALE])).reasons, ['tell:tell 2']);
 });
 
 test('a standards-pair report is scored with its partner, at the diff point, with lines anchors only', () => {

@@ -7,10 +7,10 @@ The new hand-back template gives you finding codes, file paths and line numbers,
 ### What the owner must do
 
 Red step: the owner reads each hand-back to decide what to do with a review; they need what is wrong and a recommendation.
-| Action the text asks of you | Where it says so | Where you would fail |
-| Decide each finding | templates/hand-back.md 3-12 | step 1: codes and paths, no plain statement, no recommendation |
+| Action the change asks of you | Where it is | Where you would fail |
+| Decide each finding | templates/hand-back.md 3-12 | step 1, tell 10: codes and paths first, no recommendation |
 
-- F1: Decide each finding. Lead with the answer: a plain sentence per finding, and the recommendation, before any code or path.
+- F1: tell 10: the answer is buried under codes and paths, and there is none: lead with a plain sentence per finding and the recommendation.
 
 ```lens-findings
 {

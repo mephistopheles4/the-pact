@@ -1,16 +1,16 @@
 **For the owner**
 
-The install guide tells you to pass the apply flag to preview the change. The change makes preview the default and the apply flag writes, so following the guide would install when you meant to look. I suggest swapping the two sentences.
+A new function is called "has room", but it answers yes when the cart is full. Anyone who calls it would add items to a full cart. I suggest renaming it, or flipping what it returns.
 
 **For the session**
 
 ### What the owner must do
 
-Red step: the owner reads the install guide; they need to preview, then install.
-| Action the text asks of you | Where it says so | Where you would fail |
-| Preview the install | docs/install.md 8-10 | step 1: the flag named writes instead of previewing |
+Red step: a teammate calls the new cart check before adding an item; they need to know what yes means.
+| Action the change asks of you | Where it is | Where you would fail |
+| Check the cart before adding an item | src/cart.mjs 3-6 | step 1, tell 1: the name says the opposite of what it returns |
 
-- F1: Preview the install. The text names the apply flag for the preview; the change makes it write. Say: "Run it with no flag to preview."
+- F1: tell 1: `hasRoom` returns `items.length >= limit`. Rename it `isFull`, or return `items.length < limit`.
 
 ```lens-findings
 {
@@ -21,16 +21,16 @@ Red step: the owner reads the install guide; they need to preview, then install.
       "id": "F1",
       "anchor": {
         "kind": "lines",
-        "file": "docs/install.md",
-        "start": 8,
-        "end": 10
+        "file": "src/cart.mjs",
+        "start": 3,
+        "end": 6
       },
       "severity": "medium",
-      "headline": "The guide sends you to the flag that installs when you meant to preview"
+      "headline": "The cart check called has room answers yes when the cart is full"
     }
   ],
   "notChecked": [
-    "Other guides that mention the flag outside the diff"
+    "Callers outside the diff"
   ]
 }
 ```
