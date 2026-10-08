@@ -1,4 +1,4 @@
-// The builder page (#53, slice 7): builder/pact-config.html. The page is never
+// The builder page (#53, slice 7): builder/scriptorium.html. The page is never
 // installed and is not gate code; the installer is the authority on what it
 // saves. These tests read the page as text and hold it to its content policy,
 // check its carried pact text against the repo, and run its own save logic

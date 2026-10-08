@@ -70,7 +70,7 @@ how every session in every repo behaves. So:
   refuses a file that has an `agents` key, and one from before #97's unlock
   refuses a setting for any lens but `integrity-lens`, so to install such a
   commit, remove the key first.
-- **The builder page.** [`builder/pact-config.html`](builder/pact-config.html)
+- **The builder page.** [`builder/scriptorium.html`](builder/scriptorium.html)
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists or the example blocks, run
   `node builder/build.mjs` to refresh it; a gate test fails until you do. A

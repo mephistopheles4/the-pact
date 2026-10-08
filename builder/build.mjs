@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds the config builder page (#53, slice 7) from the pact and a builder file.
 //
-//   node builder/build.mjs                                 rebuild builder/pact-config.html from the example builder file
+//   node builder/build.mjs                                 rebuild builder/scriptorium.html from the example builder file
 //   node builder/build.mjs --check                         check the example builder file, and that the page is up to date
 //   node builder/build.mjs --builder <file> --check        check a builder file: refusals and findings
 //   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it
@@ -42,7 +42,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readStrictJson, Refused, Report, scanText, SEGMENT_RE } from '../gate/shared.mjs';
 
-export const PAGE_REL = 'builder/pact-config.html';
+export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
 
 const MARK_RE = /^( *)<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;

@@ -73,7 +73,7 @@ The builder file's shape is in the header of `builder/build.mjs`.
    never goes in this clone, which the command refuses:
 
    ```
-   node builder/build.mjs --builder <file> --out <scratch>/pact-config.html
+   node builder/build.mjs --builder <file> --out <scratch>/scriptorium.html
    ```
 
    Open the page and say where it is.
