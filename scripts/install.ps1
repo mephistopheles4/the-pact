@@ -737,7 +737,7 @@ $blockHashes = New-OrderedMap    # block path -> sha256
 # to the renderer's CONFIGURABLE_AGENTS (a gate test pins the two). Each name is
 # matched case-sensitively and taken from this list, so the staged path and the
 # output name are built from a constant, never from the line.
-$agentNames = @('adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'unstated-lens')
+$agentNames = @('adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens')
 $agentSets = New-OrderedMap      # name -> @{ model; effort; sha256; security; override; egress }
 foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) {
   if ($l -cmatch '\ARENDERED ([0-9a-f]{64})\z') {

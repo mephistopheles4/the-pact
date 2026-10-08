@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-N6o+yfDEj13H4Knm7zofNtm44y/ZMIou/hBMzUjWPdA='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Z25PZNhNPcnDbodTTQOga7Wl8f2NrG9UOIv6n5An3TI='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -335,7 +335,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "gated",
      "mark": "move-4",
-     "text": "I verify the work at the end of its build session. You run the checks for\nme and bring me the verdict with a recommendation. Run the tests and any\ngates the repo has; they decide pass or fail. Then run the QA pair,\n`behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens` at\nthe standard and thorough tiers; and for security work the security\npair, `adversarial-lens` and `data-lens`, on the diff. Never resume a\nreviewer, a lens or a checker; fresh context is the point of them. They\nadvise: post their reports and help me decide (below). I decide whether\nit's done. Close the ticket only after I have."
+     "text": "I verify the work at the end of its build session. You run the checks for\nme and bring me the verdict with a recommendation. Run the tests and any\ngates the repo has; they decide pass or fail. Then run the QA pair,\n`behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens`,\nand the standards pair, `conventions-lens` and `reader-lens`, on the\ndiff, at the standard and thorough tiers; and for security work the\nsecurity pair, `adversarial-lens` and `data-lens`, on the diff. Never resume a\nreviewer, a lens or a checker; fresh context is the point of them. They\nadvise: post their reports and help me decide (below). I decide whether\nit's done. Close the ticket only after I have."
     },
     {
      "kind": "open",
@@ -415,6 +415,21 @@ const PACT = /* pact-data:begin */ {
    "egress": true
   },
   {
+   "name": "conventions-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    }
+   ],
+   "configurable": true,
+   "security": false,
+   "egress": false
+  },
+  {
    "name": "data-lens",
    "model": "opus",
    "effort": "high",
@@ -477,6 +492,21 @@ const PACT = /* pact-data:begin */ {
     {
      "move": null,
      "mark": "no-skill-overrides",
+     "kind": "gated"
+    }
+   ],
+   "configurable": true,
+   "security": false,
+   "egress": false
+  },
+  {
+   "name": "reader-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 4,
+     "mark": "move-4",
      "kind": "gated"
     }
    ],

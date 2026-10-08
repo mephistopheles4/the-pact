@@ -170,7 +170,7 @@ const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents']);
 
 // Agent settings: who may be set, to what. Matched exactly; only these
 // constants are ever printed or written.
-const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'unstated-lens']);
+const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
 // scout is a sealed familiar: its digest covers its own file.
 const LOCKED_AGENTS = Object.freeze(['scout']);
 const AGENT_MODELS = Object.freeze(['opus', 'sonnet']);
