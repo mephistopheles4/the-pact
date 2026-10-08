@@ -17,9 +17,9 @@ how every session in every repo behaves. So:
 - **Edit the repo copy, never the live file.** A direct edit to `~/.claude/`
   drifts from the repo.
 - **Install with [`scripts/install.ps1`](scripts/install.ps1)**, run from the
-  repo root under PowerShell 7 (Windows or macOS). Never copy files by hand.
-  The script installs from the clone, not through a symlink, so a checked-out
-  branch is never live until you install it.
+  repo root under PowerShell 7 (Windows, macOS or Linux). Never copy files by
+  hand. The script installs from the clone, not through a symlink, so a
+  checked-out branch is never live until you install it.
 - **Run it without a switch first.** That is a dry run: it prints the files it
   would overwrite, add and delete, whether live files drifted since the last
   install (it compares them with `~/.claude/.pact-install.json`), and the commit
