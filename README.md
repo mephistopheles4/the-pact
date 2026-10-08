@@ -34,6 +34,9 @@ The pact does not cover Anthropic's Maintain stage yet.
   you can bind to the moves: triage, grilling, specs, prototypes, tickets,
   test-driven development and deep modules. The pact describes practices, not
   skills, and a person binds their own tools to them through configuration.
+  The set ships as a preset: three blocks in `examples/pact-config/blocks/`
+  (`move-N-matt-pocock.md`) and `examples/pact-config/config-matt-pocock-skills.json`
+  to bind them.
 - **John Ousterhout's *A Philosophy of Software Design*,** the source of the
   deep-module idea those skills apply.
 

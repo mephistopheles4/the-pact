@@ -4,7 +4,7 @@
     "usage-pause": 90
   },
   "edits": [
-    { "mark": "move-1", "op": "replace", "file": "move-1-no-wayfinder.md" },
+    { "mark": "move-1", "op": "add-after", "file": "move-1-matt-pocock.md" },
     { "mark": "move-3", "op": "add-after", "file": "move-3-done-criteria.md" },
     { "mark": "move-4-extra", "op": "add-after", "file": "move-4-docs-check.md" }
   ]
