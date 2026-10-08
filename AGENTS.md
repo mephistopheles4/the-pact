@@ -63,6 +63,26 @@ how every session in every repo behaves. So:
   handed back as `-RenderedHash <hash>`, and refuses if it does not match this
   run's render. A pact from before edits (#94) refuses a file that has any, so
   to install such a commit, empty the edit list first.
+- **Agent settings.** The file's `agents` key may set any pact lens's
+  `model` (`opus` or `sonnet`) and `effort` (`low`, `medium` or `high`); each
+  lens's own file holds its default. `scout` is sealed and refused by name.
+  The installer renders and installs each set agent's file with those two
+  lines changed, and warns about each setting in the dry run. A security-set
+  lens set off its default is marked "override, not security-tested" in the
+  dry run, the installed notice, every report posted from it and its Lens
+  dispositions row (ADR 0027). A pact from before agent settings (#97)
+  refuses a file that has an `agents` key, and one from before #97's unlock
+  refuses a setting for any lens but `integrity-lens`, so to install such a
+  commit, remove the key first.
+- **The builder page.** [`builder/scriptorium.html`](builder/scriptorium.html)
+  builds a configuration without writing JSON. After a change to the pact
+  text, the renderer's lists or the example blocks, run
+  `node builder/build.mjs` to refresh it; a gate test fails until you do. A
+  person's own builder comes from the `scriptorium` skill in
+  `.claude/skills/`. It reads their skills, commands, agents and
+  configuration, keeps the result in `~/.claude/pact/builder.json`, and
+  renders a page that carries those lists in plain text. Such a page belongs
+  outside any repo; `build.mjs` refuses to write one inside this clone.
 - **Review output.** To read what a configuration does before installing it,
   add `-ReviewFolder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
@@ -170,7 +190,8 @@ Where two bullets apply, the stricter one holds.
   is seen to catch. Deleting or loosening a check, or changing a built-in
   default that bounds anything above, counts as a change to what it bounds.
   One example is the tools an agent gets when the allow-list has no entry for
-  it.
+  it. Another is the renderer's list of agents a configuration may set:
+  adding an agent to it is a spec change, and on this floor.
 - **Everything else is proved by use.** That means the repo's tests and gates
   pass, a reviewer reads the change at move 4, and the standing measures are
   recorded where they apply. Any other edit to this section is also proved by
@@ -213,7 +234,10 @@ they live here to outlive it. No periodic review may cut or weaken:
   not-checked lists and the fail-closed checks.** Under the thorough-only
   rule, the script that checks lens reports refuses a report from either lens
   of the security pair at any tier but thorough.
-- **The security set's contents, and its rerun after a model change.**
+- **The security set's contents, and its rerun after a model change.** The
+  rerun binds the pact's shipped defaults: a change to a shipped agent file's
+  model or effort reruns that lens's set. A person's configuration override is never
+  run there, so it carries the mark "override, not security-tested" (ADR 0027).
 - **The per-lens tool allow-list:** no lens gains a tool.
 - **The security lenses' carried rules:** a secret named by location, never
   by value; no working exploit or payload; checklists carried in the lens,

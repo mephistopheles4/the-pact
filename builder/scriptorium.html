@@ -1,0 +1,1558 @@
+<!doctype html>
+<html lang="en" data-aviation-theme="deck">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-N6o+yfDEj13H4Knm7zofNtm44y/ZMIou/hBMzUjWPdA='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pact config builder</title>
+<style>
+/* Aviation design system, deck theme, tool chrome: the tokens and classes this
+   page uses, carried inline because the page loads nothing. Light is the
+   default; dark is opt-in through the toggle, as the system asks. The fonts
+   are not carried: IBM Plex Mono is used when installed, else the platform
+   monospace. */
+:root {
+  --av-rule-hair: 1px;
+  --av-rule-thin: 1.5px;
+  --av-rule-bold: 2px;
+  --av-s1: 6px;
+  --av-s2: 12px;
+  --av-s3: 24px;
+  --av-s4: 36px;
+  --av-s5: 48px;
+  --av-t-micro: 0.6875rem;
+  --av-t-annot: 0.8125rem;
+  --av-t-body: 0.9375rem;
+  --av-t-lead: 1.125rem;
+  --av-t-h3: 1.375rem;
+  --av-track-label: 0.16em;
+  --av-track-title: 0.12em;
+  --av-grid-size: 24px;
+  --av-grid-major-every: 5;
+
+  --av-paper: #fafaf7;
+  --av-ink: #22262b;
+  --av-caution: #b45309;
+  --av-normal: #15803d;
+  --av-ink-80: rgb(34 38 43 / 0.8);
+  --av-ink-70: rgb(34 38 43 / 0.7);
+  --av-ink-55: rgb(34 38 43 / 0.55);
+  --av-ink-30: rgb(34 38 43 / 0.3);
+  --av-ink-12: rgb(34 38 43 / 0.12);
+  --av-grid-minor: rgb(34 38 43 / 0.035);
+  --av-grid-major: rgb(34 38 43 / 0.085);
+  --av-surface: rgb(250 250 247 / 0.72);
+  --av-ground: #efefe9;
+  --av-paper-tech: #eaf0f6;
+  --av-font: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media screen {
+  [data-aviation-scheme="dark"] {
+    --av-paper: #1a1614;
+    --av-ink: #ece5df;
+    --av-caution: #d98a3c;
+    --av-normal: #4fae6d;
+    --av-ink-80: rgb(236 229 223 / 0.80);
+    --av-ink-70: rgb(236 229 223 / 0.70);
+    --av-ink-55: rgb(236 229 223 / 0.55);
+    --av-ink-30: rgb(236 229 223 / 0.28);
+    --av-ink-12: rgb(236 229 223 / 0.11);
+    --av-grid-minor: rgb(236 229 223 / 0.032);
+    --av-grid-major: rgb(236 229 223 / 0.075);
+    --av-surface: rgb(32 27 24 / 0.72);
+    --av-ground: #100e0d;
+    --av-paper-tech: #141a20;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background-color: var(--av-ground); color: var(--av-ink); }
+
+/* PAGE: the ground, with the two-tier drafting grid. */
+.av-tool {
+  min-height: 100vh;
+  padding: var(--av-s3);
+  background-color: var(--av-ground);
+  color: var(--av-ink);
+  font-family: var(--av-font);
+  font-size: var(--av-t-body);
+  line-height: 1.6;
+  display: flex;
+  background-image:
+    linear-gradient(to right, var(--av-grid-major) var(--av-rule-hair), transparent var(--av-rule-hair)),
+    linear-gradient(to bottom, var(--av-grid-major) var(--av-rule-hair), transparent var(--av-rule-hair)),
+    linear-gradient(to right, var(--av-grid-minor) var(--av-rule-hair), transparent var(--av-rule-hair)),
+    linear-gradient(to bottom, var(--av-grid-minor) var(--av-rule-hair), transparent var(--av-rule-hair));
+  background-size:
+    calc(var(--av-grid-size) * var(--av-grid-major-every)) calc(var(--av-grid-size) * var(--av-grid-major-every)),
+    calc(var(--av-grid-size) * var(--av-grid-major-every)) calc(var(--av-grid-size) * var(--av-grid-major-every)),
+    var(--av-grid-size) var(--av-grid-size),
+    var(--av-grid-size) var(--av-grid-size);
+}
+@media (max-width: 640px) { .av-tool { padding: 0; } }
+
+/* SHEET: the bordered document, one per page. */
+.av-tool-sheet { flex: 1; display: flex; flex-direction: column; min-width: 0; max-width: 1400px; margin: 0 auto; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-surface); }
+
+/* HEAD */
+.av-tool-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s3) var(--av-s4) var(--av-s2); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+.av-tool-head-text { display: flex; flex-direction: column; min-width: 0; }
+.av-tool-title { font-size: var(--av-t-lead); font-weight: 600; line-height: 1.3; margin: 0; }
+.av-tool-blurb { font-size: var(--av-t-annot); color: var(--av-ink-70); margin: 2px 0 0; max-width: 110ch; }
+.av-tool-actions { display: flex; gap: var(--av-s1); align-items: center; flex-wrap: wrap; }
+
+/* BAR: a full-width strip under the head. */
+.av-tool-bar { display: flex; justify-content: space-between; align-items: center; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s2) var(--av-s4); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.av-tool-bar--stack { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: var(--av-s2); }
+.av-tool-stamp { font-size: var(--av-t-annot); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; white-space: nowrap; }
+.av-tool-stamp--caution { color: var(--av-caution); }
+.av-tool-stamp--normal { color: var(--av-normal); }
+
+/* CHIP: a mode, not a tag. Ink border off, ink fill on. */
+.av-tool-chip { font-family: inherit; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; padding: 5px var(--av-s2); border: var(--av-rule-hair) solid var(--av-ink); color: var(--av-ink); background: transparent; cursor: pointer; white-space: nowrap; }
+.av-tool-chip:hover { color: var(--av-caution); border-color: var(--av-caution); }
+.av-tool-chip--on { background: var(--av-ink); color: var(--av-paper); border-color: var(--av-ink); }
+.av-tool-chip--on:hover { color: var(--av-paper); border-color: var(--av-ink); }
+.av-tool-chip--ghost { border-color: var(--av-ink-30); color: var(--av-ink-80); }
+.av-tool-chip:disabled { border-color: var(--av-ink-12); color: var(--av-ink-30); cursor: not-allowed; }
+.av-tool-chip:disabled:hover { color: var(--av-ink-30); border-color: var(--av-ink-12); }
+.av-tool-chip:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--av-s1); }
+[hidden] { display: none !important; }
+
+/* STEPPER: the page is a wizard. One step shows at a time: Start, each move,
+   Agents, then Review and save. Every step stays one click away. */
+.stepper { display: flex; flex-wrap: wrap; padding: 0 var(--av-s4); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+.step { font: inherit; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: var(--av-s2) var(--av-s3); border: 0; border-bottom: var(--av-rule-bold) solid transparent; background: transparent; color: var(--av-ink-70); cursor: pointer; text-align: left; }
+.step:hover { color: var(--av-ink); }
+.step--on { color: var(--av-ink); border-bottom-color: var(--av-ink); }
+.step-n { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); }
+.step-title { font-size: var(--av-t-annot); font-weight: 600; }
+.step-note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
+.step-note--fix { color: var(--av-caution); font-weight: 600; }
+.step-nav { display: flex; justify-content: space-between; gap: var(--av-s2); padding: var(--av-s3) var(--av-s4); border-top: var(--av-rule-hair) solid var(--av-ink-30); }
+.overview { display: flex; flex-direction: column; }
+.overview-row { display: flex; align-items: center; gap: var(--av-s2); padding: var(--av-s1) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.overview-row > :first-child { min-width: 9rem; font-weight: 600; font-size: var(--av-t-annot); }
+.overview-row > :last-child { margin-left: auto; }
+
+/* WORKSPACE: on a move's step, a pinned sidebar (that move's presets, and
+   yours) beside that move, so the library never scrolls away from its slots. */
+.workspace { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: start; }
+.av-tool-detail { min-width: 0; padding: var(--av-s3) var(--av-s4); }
+#sidebar { position: sticky; top: 0; max-height: 100vh; overflow-y: auto; padding: var(--av-s3) var(--av-s2) var(--av-s3) var(--av-s3); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s2); }
+.tabs { display: flex; flex-wrap: wrap; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+.tab { font: inherit; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); padding: var(--av-s1) var(--av-s2); border: 0; border-bottom: var(--av-rule-bold) solid transparent; background: transparent; color: var(--av-ink-70); cursor: pointer; }
+.tab:hover { color: var(--av-ink); }
+.tab--on { color: var(--av-ink); border-bottom-color: var(--av-ink); font-weight: 600; }
+.list { display: flex; flex-direction: column; }
+.list-row { border-bottom: var(--av-rule-hair) solid var(--av-ink-12); cursor: grab; }
+.list-row:hover { background: var(--av-ink-12); }
+.list-row--open { background: var(--av-surface); box-shadow: inset 3px 0 0 var(--av-ink); }
+.list-head { display: flex; flex-direction: column; width: 100%; min-width: 0; text-align: left; background: transparent; border: 0; padding: var(--av-s1) var(--av-s1) var(--av-s1) var(--av-s2); color: inherit; font: inherit; cursor: pointer; }
+.list-title, .list-line { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-title { font-size: var(--av-t-annot); font-weight: 600; }
+.list-line { font-size: var(--av-t-micro); color: var(--av-ink-70); }
+.list-details { padding: 0 var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
+#spine .move { padding: var(--av-s3) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+#spine .move:first-child { padding-top: 0; }
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  #sidebar { position: static; max-height: 22rem; border-right: 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+  .stepper, .step-nav { padding-left: var(--av-s2); padding-right: var(--av-s2); }
+  .step { padding: var(--av-s1) var(--av-s2); }
+  .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); }
+}
+/* TYPE */
+.av-label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; color: var(--av-ink-70); }
+.av-annot { font-size: var(--av-t-annot); line-height: 1.5; color: var(--av-ink-70); margin: 0; }
+.av-h3 { font-size: var(--av-t-lead); font-weight: 600; line-height: 1.3; margin: 0; }
+.av-num { font-variant-numeric: tabular-nums; }
+.prose { font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-line; overflow-wrap: anywhere; margin: 0; }
+.prose code { white-space: nowrap; font-family: inherit; color: var(--av-ink); background: var(--av-ink-12); padding: 0 3px; }
+.prose strong { color: var(--av-ink); font-weight: 600; }
+.prose--struck { color: var(--av-ink-70); text-decoration: line-through; text-decoration-color: var(--av-ink-55); }
+
+/* TITLE BLOCK: the ruled cells in the corner of a drawing sheet. */
+.av-titleblock { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border: var(--av-rule-bold) solid var(--av-ink); }
+.av-titleblock-cell { padding: var(--av-s2) var(--av-s3); border-right: var(--av-rule-hair) solid var(--av-ink-12); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.av-titleblock-cell:last-child { border-right: 0; }
+.av-titleblock-key { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
+.av-titleblock-val { font-size: var(--av-t-body); font-variant-numeric: tabular-nums; overflow-wrap: break-word; }
+
+/* VALUES */
+#values .prose { max-width: 110ch; }
+.value-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
+input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
+input[type="text"], select { font: inherit; font-size: var(--av-t-annot); color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
+input[type="text"] { min-width: 14em; flex: 1 1 14em; }
+.field-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
+.field-row label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--av-s3) var(--av-s2); padding-top: var(--av-s1); }
+.tile { position: relative; border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-surface); padding: var(--av-s3) var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
+.tile--on { border: var(--av-rule-bold) solid var(--av-ink); }
+.tile--locked { background: var(--av-paper-tech); border-left: var(--av-rule-bold) solid var(--av-ink); }
+.tile--yours { border: var(--av-rule-thin) dashed var(--av-ink); cursor: grab; }
+.tile--drag { cursor: grab; }
+.tile .av-annot { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.group-title { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); margin: var(--av-s2) 0 var(--av-s1); }
+.runs { list-style: none; margin: 0; padding: 0; font-size: var(--av-t-annot); color: var(--av-ink-80); }
+input[type="number"] { width: 5.5em; font: inherit; font-variant-numeric: tabular-nums; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
+
+/* MOVES */
+.move { min-width: 0; display: flex; flex-direction: column; gap: var(--av-s2); }
+#always .move { padding-top: var(--av-s3); }
+.move-head { display: flex; flex-direction: column; gap: 2px; }
+
+/* LOCKED: a gated clause, drawn as a solid-ruled sheet with its tag on the border. */
+.part { position: relative; padding: var(--av-s3) var(--av-s3) var(--av-s2); }
+.part-tag { position: absolute; top: 0; left: var(--av-s2); transform: translateY(-50%); background: var(--av-paper); padding: 0 var(--av-s1); font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); display: flex; gap: var(--av-s1); }
+.part-tag b { color: var(--av-ink); font-weight: 600; }
+.part--locked { border: var(--av-rule-hair) solid var(--av-ink-30); border-left: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper-tech); }
+.part--locked .part-tag { background: var(--av-paper-tech); }
+
+/* OPEN: a slot drawn as a dashed cutaway, opened up for inspection. */
+.part--open { border: var(--av-rule-thin) dashed var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s2); }
+.part--open.part--edited { border: var(--av-rule-bold) solid var(--av-ink); }
+.part--open.part--over { border: var(--av-rule-bold) dashed var(--av-ink); background: var(--av-ink-12); }
+.slot-bar { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; justify-content: space-between; }
+
+/* CARDS: a labelled specimen, its tab on the border. */
+.card { position: relative; border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-surface); padding: var(--av-s3) var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
+.card-tab { position: absolute; top: 0; left: var(--av-s2); transform: translateY(-50%); background: var(--av-paper); padding: 0 var(--av-s1); font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink); font-weight: 600; }
+.card-foot { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; justify-content: space-between; }
+.preset { cursor: grab; }
+.preset:active { cursor: grabbing; }
+textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font-size: var(--av-t-annot); line-height: 1.6; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: var(--av-s1) var(--av-s2); }
+
+/* CALLOUT: a note on a leader line. Amber only where something needs attention. */
+.callouts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--av-s1); }
+.av-callout { position: relative; padding-left: var(--av-s4); font-size: var(--av-t-annot); line-height: 1.45; color: var(--av-ink-80); }
+.av-callout::before { content: ''; position: absolute; left: 0; top: 0.62em; width: calc(var(--av-s4) - var(--av-s2)); height: 0; border-top: var(--av-rule-thin) solid var(--av-ink-30); }
+.av-callout::after { content: ''; position: absolute; left: 0; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--av-ink); transform: translate(-2px, -2.5px); }
+.av-callout--caution { color: var(--av-ink); }
+.av-callout--caution::before { border-top-color: var(--av-caution); }
+.av-callout--caution::after { background: var(--av-caution); }
+.av-callout--normal::before { border-top-color: var(--av-normal); }
+.av-callout--normal::after { background: var(--av-normal); }
+
+/* OUTPUT: each file to save, as a value to copy. */
+.files { display: flex; flex-direction: column; gap: var(--av-s3); }
+.file-head { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: baseline; }
+.file-head > button { margin-left: auto; }
+.av-tool-code { margin: var(--av-s1) 0 0; padding: var(--av-s2); background: var(--av-paper-tech); border: var(--av-rule-hair) solid var(--av-ink-12); border-left: var(--av-rule-bold) solid var(--av-ink-30); font-family: var(--av-font); font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-wrap; overflow-wrap: anywhere; }
+.section-title { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; color: var(--av-ink); margin: 0; }
+</style>
+</head>
+<body>
+<div class="av-tool">
+  <div class="av-tool-sheet">
+    <header class="av-tool-head">
+      <div class="av-tool-head-text">
+        <span class="av-label" id="builder-title">The pact · configuration · schema 1</span>
+        <h1 class="av-tool-title">Config builder</h1>
+        <p class="av-tool-blurb">Moves 1 to 4 are a fixed spine. Gated clauses are locked. Open slots take presets from the library, or your own text. Nothing leaves this page until you save, and the installer checks what you save exactly as it checks a file written by hand.</p>
+      </div>
+      <div class="av-tool-actions" id="actions"></div>
+    </header>
+    <div class="av-tool-bar" id="summary"></div>
+    <nav class="stepper" id="stepper" aria-label="Steps"></nav>
+    <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
+    <section class="av-tool-bar av-tool-bar--stack" id="workflows"></section>
+    <section class="av-tool-bar av-tool-bar--stack" id="agents"></section>
+    <div class="workspace" id="workspace">
+      <aside id="sidebar" aria-label="Presets and your own skills, commands and agents"></aside>
+      <div class="av-tool-detail">
+        <section id="spine"></section>
+      </div>
+    </div>
+    <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
+    <section class="av-tool-detail" id="always"></section>
+    <section class="av-tool-bar av-tool-bar--stack" id="here" hidden></section>
+    <nav class="step-nav" id="step-nav" aria-label="Back and next"></nav>
+  </div>
+</div>
+<script>
+'use strict';
+const PACT = /* pact-data:begin */ {
+ "moves": [
+  {
+   "n": 1,
+   "lead": "I sense the work before I process it.",
+   "parts": [
+    {
+     "kind": "open",
+     "mark": "move-1",
+     "text": "I triage it: what kind of work it is, its tier, and whether it's ready. A\ntarget I can know is planned; an unknown one gets an experiment first; size\nsets the rigour, which is the tier. You propose the triage and the tier, and\nnever skip past it. Your own confidence never picks the tier: agents\nmisjudge their own success far more often than they doubt it. A bug is\nreproduced and traced to where it starts before any fix. Work too big for\none session is charted on the tracker as a sequence of sessions, so the\nchain survives a fresh session.",
+     "agents": []
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "lead": "I do the thinking before the doing.",
+   "parts": [
+    {
+     "kind": "open",
+     "mark": "move-2",
+     "text": "You question me until the idea is clear, and help me pin down terms when\nthey're unclear: questions a model asks draw out better specifications than\nprompts people write themselves. Then you write the spec: the intent, the\nunhappy paths, the constraints, the design — modules, interfaces and seams\n— each decision with its why, and a **Needs a human** section (below). When\na question in it needs running code to answer, have a throwaway prototype\nbuilt and fold what it shows back into the spec. A throwaway is\nbuilt like any other step: in a main session, and through the security\nroute in move 3 if it touches auth, secrets, crypto or input validation.\nOn the standard and thorough tiers, `unstated-lens` reads the spec. On\nthe thorough tier, the spec pair, `executability-lens` and\n`good-enough-lens`, reads it too. Post their reports and help me decide\n(below). I decide proceed, fix or kill. Never start building on a clear\nverdict alone.",
+     "agents": [
+      "unstated-lens",
+      "executability-lens",
+      "good-enough-lens"
+     ]
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "lead": "I checkpoint the seams.",
+   "parts": [
+    {
+     "kind": "open",
+     "mark": "move-3",
+     "text": "On the thorough tier, I cut the approved spec\ninto tickets: thin end-to-end slices, each with its blocking edges and\ncheckable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,\nis built in its own main session, which I start and watch. Opened on an approved spec or ticket, the\nsession starts building directly, test-first at the agreed seams. It\ndoesn't wait for me to start the build.",
+     "agents": []
+    },
+    {
+     "kind": "gated",
+     "mark": "security-route",
+     "text": "Anything touching auth, secrets, crypto or input validation\ntakes the security route, however small: the security pair,\n`adversarial-lens` and `data-lens`, on the spec, then the build in a\nmain session, then the security pair on the diff in move 4."
+    },
+    {
+     "kind": "gated",
+     "mark": "never-substitute",
+     "text": "If a named agent is unavailable, stop and report. A pair of\nlenses with either lens missing is unavailable as a whole. Never\nsubstitute another agent, especially for security work."
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "lead": "I stay the owner.",
+   "parts": [
+    {
+     "kind": "gated",
+     "mark": "move-4",
+     "text": "I verify the work at the end of its build session. You run the checks for\nme and bring me the verdict with a recommendation. Run the tests and any\ngates the repo has; they decide pass or fail. Then run the QA pair,\n`behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens` at\nthe standard and thorough tiers; and for security work the security\npair, `adversarial-lens` and `data-lens`, on the diff. Never resume a\nreviewer, a lens or a checker; fresh context is the point of them. They\nadvise: post their reports and help me decide (below). I decide whether\nit's done. Close the ticket only after I have."
+    },
+    {
+     "kind": "open",
+     "mark": "move-4-extra",
+     "text": "",
+     "agents": []
+    }
+   ]
+  }
+ ],
+ "always": [
+  {
+   "mark": "no-skill-overrides",
+   "text": "**What no skill overrides, invoked or not.** The Shell rule above — PowerShell,\nnot Bash, because Bash fails silently here. Any judgement about what is\ndestructive, irreversible, or unsafe to run. The stop-and-escalate signals in\n\"Implementing a change\": a skill may change how a step is done, never its\nstops, the risk floor (auth, secrets, crypto, input validation, data migrations\nand anything published are always thorough), the security route in move 3, or\nthe QA pair, `behaviour-lens` and `integrity-lens`, in move 4.\nNor the hand-off: a skill may not start a user-only skill for me, or follow\none's `SKILL.md` in its place. And the claiming and coordination rules\nbelow: a skill that tells you to claim a ticket is describing its own happy\npath, not the case where another session is already on it."
+  },
+  {
+   "mark": "risk-floor",
+   "text": "Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name."
+  },
+  {
+   "mark": "stop-and-escalate",
+   "text": "**When to stop or escalate is my call.** Tell me, and wait, when:\n\n- the build or review has gone round twice without converging;\n- the work has left the approved plan;\n- the change is hard to reverse: auth, secrets, data migrations, or anything\n  published;\n- you can no longer explain why the result is right.\n\nName the options — keep going, get a second opinion from a different model\n(`fable`), have a throwaway built and use it (`prototype`, built as in move\n2) when a review has gone round twice, or stop — with your recommendation.\nDon't pick one yourself."
+  }
+ ],
+ "editable": [
+  "move-1",
+  "move-2",
+  "move-3",
+  "move-4-extra"
+ ],
+ "setting": {
+  "name": "usage-pause",
+  "min": 0,
+  "max": 100,
+  "def": 75,
+  "text": "Before starting anything expensive — several subagents, a workflow, an eval —\ncheck my plan usage if a usage tool is available (the desktop app has one).\nTell me the weekly figure and a rough cost for what you're about to start. If\nthe weekly limit is above 75%, wait for my go-ahead. Never cut or stop work\nbecause of usage on your own; that call is mine."
+ },
+ "agents": [
+  {
+   "name": "adversarial-lens",
+   "model": "opus",
+   "effort": "high",
+   "runs": [
+    {
+     "move": 3,
+     "mark": "security-route",
+     "kind": "gated"
+    },
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    }
+   ],
+   "configurable": true,
+   "security": true,
+   "egress": true
+  },
+  {
+   "name": "behaviour-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    },
+    {
+     "move": null,
+     "mark": "no-skill-overrides",
+     "kind": "gated"
+    }
+   ],
+   "configurable": true,
+   "security": true,
+   "egress": true
+  },
+  {
+   "name": "data-lens",
+   "model": "opus",
+   "effort": "high",
+   "runs": [
+    {
+     "move": 3,
+     "mark": "security-route",
+     "kind": "gated"
+    },
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    }
+   ],
+   "configurable": true,
+   "security": true,
+   "egress": false
+  },
+  {
+   "name": "executability-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 2,
+     "mark": "move-2",
+     "kind": "open"
+    }
+   ],
+   "configurable": true,
+   "security": true,
+   "egress": false
+  },
+  {
+   "name": "good-enough-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 2,
+     "mark": "move-2",
+     "kind": "open"
+    }
+   ],
+   "configurable": true,
+   "security": true,
+   "egress": false
+  },
+  {
+   "name": "integrity-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    },
+    {
+     "move": null,
+     "mark": "no-skill-overrides",
+     "kind": "gated"
+    }
+   ],
+   "configurable": true,
+   "security": false,
+   "egress": false
+  },
+  {
+   "name": "unstated-lens",
+   "model": "opus",
+   "effort": "medium",
+   "runs": [
+    {
+     "move": 2,
+     "mark": "move-2",
+     "kind": "open"
+    },
+    {
+     "move": 4,
+     "mark": "move-4",
+     "kind": "gated"
+    }
+   ],
+   "configurable": true,
+   "security": true,
+   "egress": false
+  },
+  {
+   "name": "scout",
+   "model": "sonnet",
+   "effort": "low",
+   "runs": [],
+   "configurable": false,
+   "security": null,
+   "egress": null,
+   "locked": "sealed: its digest covers its own file"
+  }
+ ],
+ "agentChoices": {
+  "models": [
+   "opus",
+   "sonnet"
+  ],
+  "efforts": [
+   "low",
+   "medium",
+   "high"
+  ]
+ },
+ "title": "Example builder",
+ "presets": [
+  {
+   "id": "move-1-matt-pocock",
+   "title": "Matt Pocock's skills: triage",
+   "mark": "move-1",
+   "text": "Skills I bind to this move. Triage is mine to start: when you reach the\ntriage step, hand me `/triage` and stop. For a bug, use\n`diagnosing-bugs` at the step where it is reproduced and traced, before any\nfix. Work too big for one session is charted with `/wayfinder`, which is mine\nto start: when you reach the charting step, hand it to me.",
+   "standsIn": false,
+   "why": "Binds triage, diagnosing-bugs and wayfinder from mattpocock/skills to move 1's steps."
+  },
+  {
+   "id": "move-2-matt-pocock",
+   "title": "Matt Pocock's skills: think first",
+   "mark": "move-2",
+   "text": "Skills I bind to this move. Questioning: use `grilling` at the step where you\nquestion me until the idea is clear, and `domain-modeling` when terms need\npinning down. The spec is written with `/to-spec`, which is mine to\nstart: when the questioning is done, hand it to me and stop. Use\n`codebase-design` at the step where you set the design, modules, interfaces\nand seams. Use `prototype` at the step where a question needs running code.",
+   "standsIn": false,
+   "why": "Binds grilling, domain-modeling, to-spec, codebase-design and prototype to move 2."
+  },
+  {
+   "id": "move-3-matt-pocock",
+   "title": "Matt Pocock's skills: build",
+   "mark": "move-3",
+   "text": "Skills I bind to this move. Cutting the approved spec into tickets is\n`/to-tickets`, which is mine to start: when the spec is approved and\nthe tier is thorough, hand it to me and stop. Use `tdd` and `codebase-design`\nat the step where a session builds test-first at the agreed seams. A session\nopened on an approved spec or ticket starts building directly; it doesn't\nhand me `/implement` first, though I may still type it.",
+   "standsIn": false,
+   "why": "Binds to-tickets, tdd and codebase-design to move 3."
+  },
+  {
+   "id": "move-3-done-criteria",
+   "title": "Done criteria",
+   "mark": "move-3",
+   "text": "Before the build starts, read me each ticket's done-criteria back in one\nline each, so we agree on what done means.",
+   "standsIn": false,
+   "why": "Agree on what done means before the build starts."
+  },
+  {
+   "id": "move-4-docs-check",
+   "title": "Docs check",
+   "mark": "move-4-extra",
+   "text": "After the checks, list each public interface the change touched, and say\nwhether its docs were updated.",
+   "standsIn": false,
+   "why": "Catch public interfaces whose docs fell behind the change."
+  }
+ ],
+ "workflows": [
+  {
+   "id": "pact-default",
+   "title": "Pact default",
+   "about": "The pact as it ships: nothing added to any move.",
+   "presets": []
+  },
+  {
+   "id": "close-the-loop",
+   "title": "Close the loop",
+   "about": "Agree on done before the build, and say which docs the change touched after it.",
+   "presets": [
+    "move-3-done-criteria",
+    "move-4-docs-check"
+   ]
+  },
+  {
+   "id": "matt-pocock-skills",
+   "title": "Matt Pocock's skills",
+   "about": "Chains the mattpocock/skills set onto moves 1 to 3, after each move's default text. Matches examples/pact-config/config-matt-pocock-skills.json.",
+   "presets": [
+    "move-1-matt-pocock",
+    "move-2-matt-pocock",
+    "move-3-matt-pocock"
+   ]
+  }
+ ],
+ "yours": {
+  "skills": [],
+  "commands": [],
+  "agents": []
+ }
+} /* pact-data:end */;
+
+// The block-text rules, mirrored from gate/render.mjs for usability only.
+// The renderer at install is the authority; a block that passes here can
+// still be refused there.
+const IMPORT_RE = /@[^ \n]/;
+const FENCE_RE = /^\s*(?:`{3,}|~{3,})/;
+const HEADING_RE = /^\s*#{1,6}(?:\s|$)/;
+const SETEXT_RE = /^ {0,3}(?:=+|-+)\s*$/;
+const THEMATIC_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+const NUMBERED_RE = /^[0-9]{1,9}[.)](?:[ \t]|$)/;
+const IGNORABLE_RE = /^\p{Default_Ignorable_Code_Point}$/u;
+const BLOCK_MAX = 16 * 1024;
+// Split, so the page's script never holds a comment opener.
+const COMMENT_OPEN = '<' + '!--';
+
+
+/** A character the gate's text scanner refuses: control, line-separator or invisible. */
+function refusedChar(cp) {
+  if ((cp < 0x20 && cp !== 9) || (cp >= 0x7f && cp <= 0x9f)) return true;
+  if (cp === 0x2028 || cp === 0x2029 || cp === 0xfffe || cp === 0xffff) return true;
+  if (cp < 0xad) return false;
+  return (
+    (cp >= 0xe0000 && cp <= 0xe007f) ||
+    (cp >= 0x202a && cp <= 0x202e) ||
+    (cp >= 0x2066 && cp <= 0x2069) ||
+    (cp >= 0x200b && cp <= 0x200f) ||
+    cp === 0x061c ||
+    cp === 0x2060 ||
+    cp === 0xfeff ||
+    IGNORABLE_RE.test(String.fromCodePoint(cp))
+  );
+}
+
+function utf8Length(text) {
+  let n = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    n += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+  }
+  return n;
+}
+
+/** Card text with Windows line endings made plain and trailing line breaks dropped. */
+function normalize(text) {
+  return String(text).replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+}
+
+/** What the page finds wrong in a block file's text, as plain sentences. */
+function blockProblems(text) {
+  const out = [];
+  if (utf8Length(text) > BLOCK_MAX) out.push('the block is larger than 16 KiB');
+  if (text.includes('\r')) out.push('a carriage return');
+  const body = text.endsWith('\n') ? text.slice(0, -1) : text;
+  if (body.trim() === '') return ['the block is empty'];
+  body.split('\n').forEach((line, i) => {
+    const at = `line ${i + 1}: `;
+    for (const ch of line) {
+      if (refusedChar(ch.codePointAt(0))) {
+        out.push(`${at}a control or invisible character`);
+        break;
+      }
+    }
+    if (line.includes(COMMENT_OPEN)) out.push(`${at}an HTML comment opener (${COMMENT_OPEN})`);
+    if (IMPORT_RE.test(line)) out.push(`${at}an @ followed by text, which Claude Code may read as an import`);
+    if (line.trim() === '') out.push(`${at}a blank line`);
+    else if (/^[ \t]/.test(line)) out.push(`${at}a leading space or tab`);
+    else if (FENCE_RE.test(line)) out.push(`${at}a code fence`);
+    else if (HEADING_RE.test(line)) out.push(`${at}a heading`);
+    else if (SETEXT_RE.test(line)) out.push(`${at}a heading underline`);
+    else if (THEMATIC_RE.test(line)) out.push(`${at}a thematic break`);
+    else if (NUMBERED_RE.test(line)) out.push(`${at}a numbered list line`);
+  });
+  return out;
+}
+
+const presetById = id => PACT.presets.find(p => p.id === id);
+const openPart = mark => PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === mark);
+// The mark a security-set lens carries off its default: the renderer's words.
+const OVERRIDE_MARK = 'override, not security-tested';
+
+// What a "Your agent" card can hand its agent.
+const READS = ['the diff', 'the spec', 'the ticket'];
+const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const agentCardText = c => `Then run \`${c.name}\`, an agent from your own agents folder, on ${c.reads}, and post its report on the issue.`;
+// Cards from the person's own Claude folder: a skill to use, or a command to hand back.
+const SKILL_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
+const skillCardText = c => `Use the \`${c.name}\` skill${c.when ? ` when ${c.when}` : ''}.`;
+const commandCardText = c => `At this step, hand me the trigger: type \`/${c.name}\`.`;
+const cardText = card =>
+  card.kind === 'preset' ? presetById(card.id).text
+    : card.kind === 'agent' ? agentCardText(card)
+    : card.kind === 'skill' ? skillCardText(card)
+    : card.kind === 'command' ? commandCardText(card)
+    : card.text;
+
+/** What the page finds wrong in a skill or command card. */
+function skillProblems(c) {
+  if (!SKILL_NAME_RE.test(c.name)) return [`the ${c.kind} name must be letters, digits, '.', '_', '-' or ':'`];
+  if (c.kind === 'skill' && /[\r\n]/.test(c.when || '')) return ['the "when" text must be one line'];
+  return [];
+}
+
+/** What the page finds wrong in a "Your agent" card. */
+function agentProblems(c) {
+  if (!AGENT_NAME_RE.test(c.name)) return ['the agent name must be lowercase letters, digits and hyphens, like my-reviewer'];
+  if (PACT.agents.some(a => a.name === c.name)) return [`${c.name} is one of the pact's own agents; it already runs where the pact names it`];
+  if (!READS.includes(c.reads)) return ['the agent needs something to read: the diff, the spec or the ticket'];
+  return [];
+}
+
+/**
+ * Each slot holds two things: whether its default text is replaced, and the
+ * cards added to it. Cards always come after whatever stays; the edit the
+ * renderer sees follows from the pair (see slotOp).
+ */
+function initialState() {
+  const slots = {};
+  for (const mark of PACT.editable) slots[mark] = { replaced: false, cards: [] };
+  // Each configurable agent starts at its file's own model and effort.
+  const agents = {};
+  for (const a of PACT.agents) if (a.configurable) agents[a.name] = { model: a.model, effort: a.effort };
+  return { usage: PACT.setting.def, slots, agents };
+}
+
+/**
+ * The renderer's operation for a slot: keep (no edit), add-after (cards after
+ * the default), replace (cards instead of the default) or remove (the default
+ * replaced with nothing).
+ */
+function slotOp(slot) {
+  if (slot.replaced) return slot.cards.length ? 'replace' : 'remove';
+  return slot.cards.length ? 'add-after' : 'keep';
+}
+
+/** A slot's block file text: its cards joined, ending in one line feed. */
+function slotText(slot) {
+  return `${slot.cards.map(c => normalize(cardText(c))).join('\n')}\n`;
+}
+
+/** Everything the page finds: [{ where, level: 'error' | 'warn', text }]. Errors stop a save. */
+function problems(state) {
+  const out = [];
+  const s = PACT.setting;
+  if (!Number.isInteger(state.usage) || state.usage < s.min || state.usage > s.max) {
+    out.push({ where: s.name, level: 'error', text: `must be a whole number from ${s.min} to ${s.max}` });
+  }
+  for (const mark of PACT.editable) {
+    const slot = state.slots[mark];
+    const op = slotOp(slot);
+    if (op === 'keep') continue;
+    if (op !== 'remove') {
+      slot.cards.forEach((c, i) => {
+        if (c.kind === 'agent') for (const t of agentProblems(c)) out.push({ where: mark, level: 'error', text: `card ${i + 1}: ${t}` });
+        else if (c.kind === 'skill' || c.kind === 'command') for (const t of skillProblems(c)) out.push({ where: mark, level: 'error', text: `card ${i + 1}: ${t}` });
+        else if (normalize(cardText(c)).trim() === '') out.push({ where: mark, level: 'error', text: `card ${i + 1} is empty` });
+      });
+      for (const p of blockProblems(slotText(slot))) out.push({ where: mark, level: 'error', text: p });
+    }
+    if (op === 'replace' || op === 'remove') {
+      const named = op === 'remove' ? [] : slotText(slot).match(/`[^`\n]+`/g) || [];
+      const lost = openPart(mark).agents.filter(a => !named.includes(`\`${a}\``));
+      if (lost.length) {
+        out.push({
+          where: mark,
+          level: 'warn',
+          text: `the default text names ${lost.map(a => `\`${a}\``).join(', ')}, and this edit drops ${lost.length === 1 ? 'it' : 'them'}. The install refuses a pact that leaves an installed agent unnamed where it is routed.`,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+/** The files a save writes: [{ path, text }], the configuration first, paths relative to the pact folder. */
+function buildFiles(state) {
+  const config = { schema: 1 };
+  if (state.usage !== PACT.setting.def) config.settings = { [PACT.setting.name]: state.usage };
+  // Only the fields that differ from the agent file's own are written.
+  const agents = {};
+  for (const a of PACT.agents) {
+    const want = a.configurable && state.agents && state.agents[a.name];
+    if (!want) continue;
+    const set = {};
+    if (want.model !== a.model) set.model = want.model;
+    if (want.effort !== a.effort) set.effort = want.effort;
+    if (Object.keys(set).length) agents[a.name] = set;
+  }
+  if (Object.keys(agents).length) config.agents = agents;
+  const edits = [];
+  const blocks = [];
+  for (const mark of PACT.editable) {
+    const slot = state.slots[mark];
+    const op = slotOp(slot);
+    if (op === 'keep') continue;
+    if (op === 'remove') {
+      edits.push({ mark, op });
+      continue;
+    }
+    const file = `${mark}.md`;
+    edits.push({ mark, op, file });
+    blocks.push({ path: `blocks/${file}`, text: slotText(slot) });
+  }
+  if (edits.length) config.edits = edits;
+  return [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks];
+}
+
+/** Add a preset after its slot's text. Returns a message when it doesn't belong there. */
+function addPreset(state, mark, id) {
+  const p = presetById(id);
+  if (!p) return 'That card is not in the library.';
+  if (p.mark !== mark) return `"${p.title}" belongs in the ${p.mark} slot.`;
+  state.slots[mark].cards.push({ kind: 'preset', id });
+  return null;
+}
+
+/**
+ * Apply a workflow: every slot back to its default, then the workflow's
+ * presets added. A preset written to stand in for its slot's text turns that
+ * slot's Replace on, as the workflow's author meant. The usage value and the
+ * agent settings are kept.
+ */
+function applyWorkflow(state, id) {
+  const w = PACT.workflows.find(x => x.id === id);
+  if (!w) return 'That workflow is not on this page.';
+  for (const mark of PACT.editable) state.slots[mark] = { replaced: false, cards: [] };
+  for (const pid of w.presets) {
+    const p = presetById(pid);
+    addPreset(state, p.mark, pid);
+    if (p.standsIn) state.slots[p.mark].replaced = true;
+  }
+  return null;
+}
+
+/** The slots as they are now, to put back with restoreSlots. */
+function snapshotSlots(state) {
+  return JSON.stringify(state.slots);
+}
+
+function restoreSlots(state, snap) {
+  state.slots = JSON.parse(snap);
+}
+
+/** Whether every value, slot and agent setting is at its default. */
+function atDefaults(state) {
+  return JSON.stringify(state) === JSON.stringify(initialState());
+}
+
+/**
+ * Put everything back to the plain pact: the usage value, every slot and every
+ * agent setting. Returns what was there, to put back with restoreAll.
+ */
+function resetAll(state) {
+  const before = JSON.stringify(state);
+  Object.assign(state, initialState());
+  return before;
+}
+
+function restoreAll(state, snap) {
+  Object.assign(state, JSON.parse(snap));
+}
+
+/** The security-set lenses set off their file's model or effort: each one is an override, not security-tested. */
+function overrides(state) {
+  return PACT.agents.filter(a => a.configurable && a.security && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).map(a => a.name);
+}
+
+/** The wizard's steps, in order: Start, each move with its open parts, Agents, Review and save. */
+function wizardSteps() {
+  return [
+    { id: 'start', title: 'Start', marks: [PACT.setting.name] },
+    ...PACT.moves.map(m => ({ id: `move-${m.n}`, title: `Move ${m.n}`, move: m.n, marks: m.parts.filter(p => p.kind === 'open').map(p => p.mark) })),
+    { id: 'agents', title: 'Agents', marks: [] },
+    { id: 'review', title: 'Review and save', marks: null },
+  ];
+}
+
+/**
+ * Per step: { id, title, changes, errors, warns }. A move step counts its
+ * edited slots, Start the usage value, Agents the lenses off their default;
+ * Review counts everything.
+ */
+function stepSummary(state) {
+  const found = problems(state);
+  const count = (list, level) => list.filter(f => f.level === level).length;
+  const agentsOff = PACT.agents.filter(a => a.configurable && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).length;
+  const over = overrides(state).length;
+  const rows = wizardSteps().map(s => {
+    if (s.marks === null) return { id: s.id, title: s.title, changes: 0, errors: count(found, 'error'), warns: count(found, 'warn'), overrides: over };
+    const here = found.filter(f => s.marks.includes(f.where));
+    const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0)
+      : s.id === 'agents' ? agentsOff
+      : s.marks.filter(m => slotOp(state.slots[m]) !== 'keep').length;
+    return { id: s.id, title: s.title, changes, errors: count(here, 'error'), warns: count(here, 'warn'), overrides: s.id === 'agents' ? over : 0 };
+  });
+  const review = rows[rows.length - 1];
+  review.changes = rows.slice(0, -1).reduce((n, r) => n + r.changes, 0);
+  return rows;
+}
+
+/**
+ * The pact's text laid out for reading: its hard line breaks joined back into
+ * paragraphs, with list items and blank-line breaks kept. Display only; the
+ * saved files keep the text exactly as written.
+ */
+function reflow(text) {
+  return String(text)
+    .split(/\n{2,}/)
+    .map(para => para.split('\n').reduce((acc, line) => {
+      if (!acc) return line;
+      return /^\s*(?:[-*] |\d+\. )/.test(line) ? `${acc}\n${line}` : `${acc} ${line.trim()}`;
+    }, ''))
+    .join('\n\n');
+}
+
+// ------------------------------------------------------------ the page
+
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids) if (c !== null && c !== undefined && c !== false) e.append(c);
+  return e;
+}
+
+/** Reflowed text as nodes: `code` spans and **bold** become elements, everything else stays text. */
+function prose(text, cls) {
+  const p = el('p', { class: cls || 'prose' });
+  for (const piece of reflow(text).split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/)) {
+    if (!piece) continue;
+    if (piece.startsWith('`') && piece.endsWith('`') && piece.length > 2) p.append(el('code', { text: piece.slice(1, -1) }));
+    else if (piece.startsWith('**') && piece.endsWith('**') && piece.length > 4) p.append(el('strong', { text: piece.slice(2, -2) }));
+    else p.append(piece);
+  }
+  return p;
+}
+
+/** A chip button. A toggle (a mode, the scheme) says whether it is pressed; an action doesn't. */
+function chip(label, on, onclick, extra, toggle) {
+  const b = el('button', { type: 'button', class: `av-tool-chip${on ? ' av-tool-chip--on' : ''}${extra ? ` ${extra}` : ''}`, onclick }, label);
+  if (toggle) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  return b;
+}
+
+function boot() {
+  const state = initialState();
+  const $ = id => document.getElementById(id);
+  const root = document.documentElement;
+  let status = { text: '', level: '' };
+  let step = 'start'; // the wizard's step shown: an id from wizardSteps()
+  const stepMove = () => PACT.moves.find(m => `move-${m.n}` === step) || null;
+
+  function setStatus(text, level) {
+    status = { text, level: level || '' };
+    renderOutput();
+  }
+
+  function renderActions() {
+    let dark = false;
+    try {
+      dark = window.localStorage.getItem('pact-config-scheme') === 'dark';
+    } catch {}
+    const apply = () => {
+      if (dark) root.setAttribute('data-aviation-scheme', 'dark');
+      else root.removeAttribute('data-aviation-scheme');
+      $('actions').replaceChildren(el('span', { id: 'reset', class: 'chips' }), chip('Dark', dark, () => {
+        dark = !dark;
+        try {
+          window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
+        } catch {}
+        apply();
+      }, '', true));
+      renderReset();
+    };
+    apply();
+  }
+
+  let resetBefore = null; // everything as it was before the last reset, for undo
+
+  /** Put the whole page back on screen after its state changed underneath it. */
+  function renderAll() {
+    renderValues();
+    renderWorkflows();
+    renderAgents();
+    renderSpine();
+  }
+
+  function renderReset() {
+    const reset = chip('Reset all to defaults', false, () => {
+      resetBefore = resetAll(state);
+      applied = null;
+      renderAll();
+    }, 'av-tool-chip--ghost');
+    reset.title = 'The usage value, every slot and every agent back to the plain pact';
+    if (atDefaults(state)) reset.disabled = true;
+    const undo = resetBefore ? chip('Undo reset', false, () => {
+      restoreAll(state, resetBefore);
+      resetBefore = null;
+      renderAll();
+    }, 'av-tool-chip--ghost') : null;
+    const slot = $('reset');
+    if (slot) slot.replaceChildren(...(undo ? [reset, undo] : [reset]));
+  }
+
+  function renderSummary() {
+    const found = problems(state);
+    const edits = PACT.editable.filter(m => slotOp(state.slots[m]) !== 'keep').length;
+    const errors = found.filter(f => f.level === 'error').length;
+    const warns = found.length - errors;
+    const stateText = errors ? `${errors} to fix` : warns ? `${warns} to check` : 'Ready';
+    const stamp = el('span', { class: `av-tool-stamp ${found.length ? 'av-tool-stamp--caution' : 'av-tool-stamp--normal'}`, text: stateText });
+    const cell = (k, v) => el('div', { class: 'av-titleblock-cell' }, el('span', { class: 'av-titleblock-key', text: k }), v instanceof Node ? v : el('span', { class: 'av-titleblock-val', text: v }));
+    $('summary').replaceChildren(
+      el(
+        'div',
+        { class: 'av-titleblock', role: 'group', 'aria-label': 'Configuration summary' },
+        cell('Usage pause', Number.isInteger(state.usage) ? `${state.usage}%` : '—'),
+        cell('Parts edited', `${edits} of ${PACT.editable.length}`),
+        cell('Files to save', String(buildFiles(state).length)),
+        cell('State', stamp),
+      ),
+    );
+  }
+
+  function renderValues() {
+    const s = PACT.setting;
+    const para = el('div');
+    const range = el('input', { type: 'range', min: String(s.min), max: String(s.max), step: '1', 'aria-label': 'Usage pause line, percent' });
+    const num = el('input', { type: 'number', min: String(s.min), max: String(s.max), step: '1', 'aria-label': 'Usage pause line, percent' });
+    const show = () => {
+      range.value = String(state.usage);
+      num.value = String(state.usage);
+      para.replaceChildren(prose(s.text.replace(`above ${s.def}%`, `above ${state.usage}%`)));
+    };
+    const take = v => {
+      state.usage = v === '' ? NaN : Number(v);
+      if (Number.isInteger(state.usage)) show();
+      renderOutput();
+    };
+    range.addEventListener('input', () => take(range.value));
+    num.addEventListener('input', () => take(num.value));
+    $('values').replaceChildren(
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Value · usage pause line' }), el('span', { class: 'av-annot', text: `Default ${s.def}% · allowed ${s.min} to ${s.max}` })),
+      el('div', { class: 'value-row' }, range, num, el('span', { class: 'av-num', text: '%' }), chip(`Reset to ${s.def}%`, false, () => take(String(s.def)), 'av-tool-chip--ghost')),
+      para,
+    );
+    show();
+  }
+
+  /** A new "Your agent" card: a move-2 slot hands it the spec, every other slot the diff. */
+  function newAgentCard(mark) {
+    return { kind: 'agent', name: '', reads: mark === 'move-2' ? 'the spec' : 'the diff' };
+  }
+
+  let applied = null; // { id, before }: the last workflow applied, and the slots before it, for undo
+
+  function renderWorkflows() {
+    const tiles = PACT.workflows.map(w => {
+      const on = applied && applied.id === w.id;
+      const names = w.presets.map(id => `${presetById(id).title} (${presetById(id).mark})`);
+      return el(
+        'div',
+        { class: `tile${on ? ' tile--on' : ''}` },
+        el('span', { class: 'card-tab', text: w.title }),
+        el('p', { class: 'av-annot', text: w.about }),
+        el('p', { class: 'av-label', text: names.length ? names.join(' · ') : 'No presets' }),
+        el('div', { class: 'card-foot' }, chip(on ? 'Applied' : 'Apply', on, () => {
+          const before = snapshotSlots(state);
+          applyWorkflow(state, w.id);
+          applied = { id: w.id, before };
+          renderWorkflows();
+          renderSpine();
+        })),
+      );
+    });
+    const undo = applied ? chip('Undo', false, () => {
+      restoreSlots(state, applied.before);
+      applied = null;
+      renderWorkflows();
+      renderSpine();
+    }, 'av-tool-chip--ghost') : null;
+    $('workflows').replaceChildren(
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Workflows' }), el('div', { class: 'chips' }, el('span', { class: 'av-annot', text: 'One click sets every move\'s slots. Tweak each move on its own step after.' }), undo)),
+      el('div', { class: 'tiles' }, ...tiles),
+    );
+  }
+
+  function renderAgents() {
+    const where = r => (r.move ? `Move ${r.move} · ${r.mark}` : `Always on · ${r.mark}`);
+    const runs = a => el('ul', { class: 'runs' }, ...(a.runs.length ? a.runs.map(r => el('li', { text: where(r) })) : [el('li', { text: 'Not named in moves 1 to 4' })]));
+    const pick = (label, list, value, set) => {
+      const s = el('select', { 'aria-label': label }, ...list.map(v => el('option', { value: v, text: v })));
+      s.value = value;
+      s.addEventListener('change', () => {
+        set(s.value);
+        renderAgents();
+        renderOutput();
+      });
+      return s;
+    };
+    const tiles = PACT.agents.map(a => {
+      if (!a.configurable) {
+        return el(
+          'div',
+          { class: 'tile tile--locked' },
+          el('span', { class: 'card-tab', text: a.name }),
+          el('span', { class: 'av-label', text: `${a.model || '?'} · ${a.effort || '?'} effort · locked` }),
+          ...(a.locked ? [el('p', { class: 'av-annot', text: `Not configurable: ${a.locked}.` })] : []),
+          runs(a),
+        );
+      }
+      const now = state.agents[a.name];
+      const changed = now.model !== a.model || now.effort !== a.effort;
+      return el(
+        'div',
+        { class: `tile${changed ? ' tile--on' : ''}` },
+        el('span', { class: 'card-tab', text: a.name }),
+        el('div', { class: 'field-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, PACT.agentChoices.models, now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
+        el('span', { class: 'av-label', text: changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not a security lens'}` }),
+        ...(changed && a.security ? [el('p', { class: 'av-callout av-callout--caution', text: `${OVERRIDE_MARK}. Its security set ran only on its default.${a.egress ? ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.' : ''}` })] : []),
+        runs(a),
+      );
+    });
+    // On this step there is no slot to drop on, so the tile opens a move's Yours tab instead.
+    const yours = el(
+      'div',
+      { class: 'tile tile--yours' },
+      el('span', { class: 'card-tab', text: 'Your agent' }),
+      el('p', { class: 'av-annot', text: 'An agent of your own runs in a move\'s slot, after its text. Add one from a move\'s Yours tab, then name it and what it reads.' }),
+      el('div', { class: 'card-foot' }, chip('Open Move 4\'s Yours tab', false, () => {
+        tab = 'yours';
+        showStep('move-4');
+      }, 'av-tool-chip--ghost')),
+    );
+    $('agents').replaceChildren(
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Each lens takes your model and effort, and starts at its file\'s own, its default. A security-set lens set off its default is an override, not security-tested. Add your own agent on a move\'s step, from its Yours tab.' })),
+      el('div', { class: 'tiles' }, yours, ...tiles),
+    );
+  }
+
+  let tab = 'move'; // the sidebar's tab: this step's move presets, or yours
+  let openKey = null; // the row opened for its details
+  let filter = '';
+
+  const firstLine = text => reflow(text).split('\n')[0];
+
+  /** One compact row: a title and a one-line summary, cut with an ellipsis. A click opens its details in place; it drags onto a slot. */
+  function listRow(key, title, line, dragData, details) {
+    const open = openKey === key;
+    const row = el('div', { class: `list-row${open ? ' list-row--open' : ''}`, draggable: 'true' });
+    row.append(el(
+      'button',
+      { type: 'button', class: 'list-head', 'aria-expanded': open ? 'true' : 'false', title: line || title, onclick: () => {
+        openKey = open ? null : key;
+        renderSidebar();
+      } },
+      el('span', { class: 'list-title', text: title }),
+      el('span', { class: 'list-line', text: line || 'No description.' }),
+    ));
+    if (open) row.append(el('div', { class: 'list-details' }, ...details()));
+    row.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', dragData);
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    return row;
+  }
+
+  /** A slot picker and an Add button, for a card that fits any open slot. */
+  function addTo(make, label) {
+    const slot = el('select', { 'aria-label': `Slot for ${label}` }, ...PACT.editable.map(m => el('option', { value: m, text: m })));
+    slot.value = (stepMove() && PACT.editable.find(m => m.startsWith(step))) || PACT.editable[0];
+    return el('div', { class: 'card-foot' }, slot, chip('Add', false, () => {
+      state.slots[slot.value].cards.push(make(slot.value));
+      setStatus('', '');
+      renderSpine();
+    }));
+  }
+
+  function presetList(m) {
+    const marks = m.parts.filter(p => p.kind === 'open').map(p => p.mark);
+    const items = PACT.presets.filter(p => marks.includes(p.mark));
+    return [
+      el('p', { class: 'av-annot', text: items.length ? `Presets for move ${m.n}. Drag one onto its slot, or open it to add it. It goes after the slot's text.` : `No presets for move ${m.n} in this builder. Use "Add your own text" in its slot.` }),
+      el('div', { class: 'list' }, ...items.map(p => listRow(`preset:${p.id}`, p.title, p.why || firstLine(p.text), `preset:${p.id}`, () => [
+        el('span', { class: 'av-label', text: p.standsIn ? `${p.mark} · written to stand in for the default` : p.mark }),
+        prose(p.text),
+        el('div', { class: 'card-foot' }, chip(`Add to ${p.mark}`, false, () => drop(p.mark, p.id))),
+      ]))),
+    ];
+  }
+
+  function yoursList() {
+    const y = PACT.yours;
+    const total = y.skills.length + y.commands.length + y.agents.length;
+    const newAgent = listRow('agent:new', 'A new agent of yours', 'Name it and pick what it reads once it is in a slot.', 'agent:new', () => [addTo(mark => newAgentCard(mark), 'a new agent')]);
+    if (!total) {
+      return [el('p', { class: 'av-annot', text: 'This builder lists none of your own skills, commands or agents. Ask your agent to regenerate it with the scriptorium skill.' }), el('div', { class: 'list' }, newAgent)];
+    }
+    const search = el('input', { type: 'text', 'aria-label': 'Filter by name or description', placeholder: 'Filter', spellcheck: 'false' });
+    search.value = filter;
+    const groups = el('div');
+    const draw = () => {
+      const f = filter.toLowerCase();
+      const pick = list => list.filter(x => !f || x.name.toLowerCase().includes(f) || x.description.toLowerCase().includes(f));
+      const make = (kind, name) => mark => (kind === 'agent' ? { ...newAgentCard(mark), name } : kind === 'skill' ? { kind, name, when: '' } : { kind, name });
+      const group = (title, kind, list) => {
+        if (!list.length) return [];
+        const shown = pick(list);
+        return [
+          el('h3', { class: 'group-title', text: `${title} · ${shown.length} of ${list.length}` }),
+          el('div', { class: 'list' }, ...shown.slice(0, 200).map(x => listRow(`${kind}:${x.name}`, kind === 'command' ? `/${x.name}` : x.name, x.description, `${kind}:${x.name}`, () => [
+            el('p', { class: 'av-annot', text: x.description || 'No description.' }),
+            addTo(make(kind, x.name), x.name),
+          ]))),
+        ];
+      };
+      groups.replaceChildren(...group('Skills', 'skill', y.skills), ...group('Commands', 'command', y.commands), ...group('Agents', 'agent', y.agents), el('div', { class: 'list' }, newAgent));
+    };
+    search.addEventListener('input', () => {
+      filter = search.value;
+      draw();
+    });
+    draw();
+    return [el('div', { class: 'field-row' }, el('label', { text: 'Filter' }), search), groups];
+  }
+
+  function renderSidebar() {
+    const m = stepMove();
+    if (!m) return $('sidebar').replaceChildren();
+    const tabs = [['move', `Move ${m.n} presets`], ['yours', 'Yours']];
+    const bar = el('div', { class: 'tabs', role: 'tablist' }, ...tabs.map(([k, label]) => el('button', { type: 'button', role: 'tab', class: `tab${tab === k ? ' tab--on' : ''}`, 'aria-selected': tab === k ? 'true' : 'false', onclick: () => {
+      tab = k;
+      openKey = null;
+      renderSidebar();
+    } }, label)));
+    const body = tab === 'yours' ? yoursList() : presetList(m);
+    $('sidebar').replaceChildren(bar, ...body);
+  }
+  function drop(mark, id) {
+    const msg = addPreset(state, mark, id);
+    status = { text: msg || '', level: msg ? 'error' : '' };
+    renderSpine(false);
+  }
+
+  function lockedPart(p) {
+    return el(
+      'div',
+      { class: 'part part--locked' },
+      el('span', { class: 'part-tag' }, el('b', { text: 'Locked' }), el('span', { text: p.mark })),
+      prose(p.text),
+    );
+  }
+
+  function openSlot(p) {
+    const slot = state.slots[p.mark];
+    const empty = p.text.trim() === '';
+    const op = slotOp(slot);
+    // An empty slot has no default to replace.
+    const replace = empty
+      ? null
+      : chip('Replace default text', slot.replaced, () => {
+          slot.replaced = !slot.replaced;
+          renderSpine();
+        }, '', true);
+
+    const cards = slot.cards.map((c, i) => {
+      const remove = chip('Remove card', false, () => {
+        slot.cards.splice(i, 1);
+        renderSpine();
+      }, 'av-tool-chip--ghost');
+      if (c.kind === 'preset') {
+        const pre = presetById(c.id);
+        return el('div', { class: 'card' }, el('span', { class: 'card-tab', text: `Preset · ${pre.title}` }), prose(pre.text), el('div', { class: 'card-foot' }, el('span'), remove));
+      }
+      if (c.kind === 'skill' || c.kind === 'command') {
+        const preview = el('div');
+        const show = () => preview.replaceChildren(prose(cardText(c)));
+        const rows = [];
+        if (c.kind === 'skill') {
+          const when = el('input', { type: 'text', 'aria-label': `When to use ${c.name}`, placeholder: 'optional: the work touches the database', spellcheck: 'true' });
+          when.value = c.when || '';
+          when.addEventListener('input', () => {
+            c.when = when.value.replace(/[\r\n]+/g, ' ').trim().replace(/\.$/, '');
+            show();
+            renderOutput();
+          });
+          rows.push(el('div', { class: 'field-row' }, el('label', { text: 'When' }), when));
+        }
+        show();
+        return el(
+          'div',
+          { class: 'card' },
+          el('span', { class: 'card-tab', text: c.kind === 'skill' ? `Your skill · ${c.name}` : `Your command · /${c.name}` }),
+          ...rows,
+          preview,
+          el('div', { class: 'card-foot' }, el('span'), remove),
+        );
+      }
+      if (c.kind === 'agent') {
+        const name = el('input', { type: 'text', 'aria-label': `Your agent's name for ${p.mark}`, placeholder: 'my-reviewer', spellcheck: 'false', autocomplete: 'off' });
+        name.value = c.name;
+        const reads = el('select', { 'aria-label': `What your agent reads in ${p.mark}` }, ...READS.map(r => el('option', { value: r, text: r })));
+        reads.value = c.reads;
+        const preview = el('div');
+        const show = () => preview.replaceChildren(prose(agentCardText(c)));
+        name.addEventListener('input', () => {
+          c.name = name.value.trim();
+          show();
+          renderOutput();
+        });
+        reads.addEventListener('change', () => {
+          c.reads = reads.value;
+          show();
+          renderOutput();
+        });
+        show();
+        return el(
+          'div',
+          { class: 'card' },
+          el('span', { class: 'card-tab', text: 'Your agent' }),
+          el('div', { class: 'field-row' }, el('label', { text: 'Agent' }), name, el('label', { text: 'Reads' }), reads),
+          preview,
+          el('div', { class: 'card-foot' }, el('span', { class: 'av-annot', text: 'Install the agent in your own agents folder; the pact never installs it.' }), remove),
+        );
+      }
+      const area = el('textarea', { 'aria-label': `Your text for ${p.mark}`, spellcheck: 'true', placeholder: 'Plain lines. No blank lines, headings, lists or leading spaces.' });
+      area.value = c.text;
+      area.addEventListener('input', () => {
+        c.text = area.value;
+        renderOutput();
+      });
+      return el('div', { class: 'card' }, el('span', { class: 'card-tab', text: 'Your text' }), area, el('div', { class: 'card-foot' }, el('span'), remove));
+    });
+
+    const addOwn = chip('Add your own text', false, () => {
+      slot.cards.push({ kind: 'custom', text: '' });
+      renderSpine();
+    }, 'av-tool-chip--ghost');
+
+    const addAgent = chip('Add your agent', false, () => {
+      slot.cards.push(newAgentCard(p.mark));
+      renderSpine();
+    }, 'av-tool-chip--ghost');
+
+    const SAYS = {
+      keep: empty ? 'Empty' : 'Default',
+      'add-after': empty ? 'Text added' : 'Default + added',
+      replace: 'Replaced',
+      remove: 'Removed',
+    };
+    const edited = op !== 'keep';
+    const box = el(
+      'div',
+      { class: `part part--open${edited ? ' part--edited' : ''}`, 'data-mark': p.mark },
+      el('span', { class: 'part-tag' }, el('b', { text: 'Open' }), el('span', { text: p.mark })),
+      el('div', { class: 'slot-bar' }, replace || el('span'), el('span', { class: 'av-label', text: SAYS[op] })),
+      empty ? el('p', { class: 'av-annot', text: 'Empty by default: a place for extra steps.' }) : prose(p.text, slot.replaced ? 'prose prose--struck' : 'prose'),
+      op === 'remove' ? el('p', { class: 'av-annot', text: 'The default text is removed and nothing takes its place. Add a card to put text here instead.' }) : null,
+      ...cards,
+      el('div', { class: 'card-foot' }, el('div', { class: 'chips' }, addOwn, addAgent), el('span', { class: 'av-annot', text: 'or drop a preset or your agent here' })),
+    );
+    box.addEventListener('dragover', e => {
+      e.preventDefault();
+      box.classList.add('part--over');
+    });
+    box.addEventListener('dragleave', () => box.classList.remove('part--over'));
+    box.addEventListener('drop', e => {
+      e.preventDefault();
+      box.classList.remove('part--over');
+      const data = e.dataTransfer.getData('text/plain');
+      if (data.startsWith('preset:')) drop(p.mark, data.slice('preset:'.length));
+      else if (data === 'agent:new') {
+        slot.cards.push(newAgentCard(p.mark));
+        renderSpine();
+      } else if (/^(skill|command|agent):/.test(data)) {
+        const kind = data.slice(0, data.indexOf(':'));
+        const name = data.slice(kind.length + 1);
+        slot.cards.push(kind === 'agent' ? { ...newAgentCard(p.mark), name } : kind === 'skill' ? { kind, name, when: '' } : { kind, name });
+        renderSpine();
+      }
+    });
+    return box;
+  }
+
+  /** Redraw the spine. A structural change clears the last status message unless the caller just set it. */
+  function renderSpine(clearStatus = true) {
+    if (clearStatus) status = { text: '', level: '' };
+    const moves = PACT.moves.filter(m => `move-${m.n}` === step).map(m =>
+      el(
+        'article',
+        { class: 'move', id: `move-${m.n}` },
+        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: `Move ${String(m.n).padStart(2, '0')}` }), el('h2', { class: 'av-h3', text: m.lead })),
+        ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p))),
+      ),
+    );
+    $('spine').replaceChildren(...moves);
+    renderOutput();
+  }
+
+  function renderAlways() {
+    $('always').replaceChildren(
+      el(
+        'article',
+        { class: 'move' },
+        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: 'Always on' }), el('h2', { class: 'av-h3', text: 'Gated clauses outside the four moves' })),
+        ...PACT.always.map(lockedPart),
+      ),
+    );
+  }
+
+  async function saveToFolder(files) {
+    let dir;
+    try {
+      dir = await window.showDirectoryPicker({ id: 'pact-config', mode: 'readwrite' });
+    } catch (e) {
+      if (e && e.name === 'AbortError') return setStatus('Save cancelled. Nothing was written.', '');
+      return setStatus('The folder could not be opened. Use the download buttons instead.', 'error');
+    }
+    try {
+      for (const f of files) {
+        const segs = f.path.split('/');
+        let d = dir;
+        for (const s of segs.slice(0, -1)) d = await d.getDirectoryHandle(s, { create: true });
+        const handle = await d.getFileHandle(segs[segs.length - 1], { create: true });
+        const w = await handle.createWritable();
+        await w.write(f.text);
+        await w.close();
+      }
+    } catch {
+      return setStatus('Saving failed part way. Check the folder before you install.', 'error');
+    }
+    const where = dir.name === 'pact' ? '' : ` The installer reads the folder named pact in your Claude folder; this one is "${dir.name}", so move the files there.`;
+    setStatus(`Saved ${files.length} file${files.length === 1 ? '' : 's'}.${where} Next, run the install's dry run.`, 'ok');
+  }
+
+  function download(f) {
+    const url = URL.createObjectURL(new Blob([f.text], { type: 'application/octet-stream' }));
+    const a = el('a', { download: f.path.split('/').pop() });
+    a.href = url;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  /** Show one step: its sections, its move and its sidebar, and the stepper and Back/Next for it. */
+  function showStep(id) {
+    step = id;
+    openKey = null;
+    $('values').hidden = $('workflows').hidden = id !== 'start';
+    $('agents').hidden = id !== 'agents';
+    $('workspace').hidden = !stepMove();
+    $('output').hidden = $('always').hidden = id !== 'review';
+    renderSidebar();
+    renderSpine();
+    renderStepNav();
+    if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
+  }
+
+  const stepNote = s => [s.changes ? `${s.changes} ${s.id === 'agents' ? 'set' : 'edited'}` : '', s.overrides ? `${s.overrides} ${OVERRIDE_MARK}` : '', s.errors ? `${s.errors} to fix` : s.warns ? `${s.warns} to check` : ''].filter(Boolean).join(' · ');
+
+  function renderStepper() {
+    const rows = stepSummary(state);
+    $('stepper').replaceChildren(...rows.map((s, i) => el(
+      'button',
+      { type: 'button', class: `step${s.id === step ? ' step--on' : ''}`, 'aria-current': s.id === step ? 'step' : 'false', onclick: () => showStep(s.id) },
+      el('span', { class: 'step-n', text: `Step ${i + 1}` }),
+      el('span', { class: 'step-title', text: s.title }),
+      el('span', { class: `step-note${s.errors ? ' step-note--fix' : ''}`, text: stepNote(s) || (s.id === 'review' ? 'nothing changed yet' : 'default') }),
+    )));
+  }
+
+  function renderStepNav() {
+    const steps = wizardSteps();
+    const i = steps.findIndex(s => s.id === step);
+    const back = i > 0 ? chip(`Back: ${steps[i - 1].title}`, false, () => showStep(steps[i - 1].id), 'av-tool-chip--ghost') : el('span');
+    const next = i < steps.length - 1 ? chip(`Next: ${steps[i + 1].title}`, false, () => showStep(steps[i + 1].id)) : el('span');
+    $('step-nav').replaceChildren(back, next);
+  }
+
+  /** This step's own problems, shown on the step where they are fixed. Review shows them all. */
+  function renderHere() {
+    const s = wizardSteps().find(x => x.id === step);
+    const found = s && s.marks ? problems(state).filter(f => s.marks.includes(f.where)) : [];
+    const over = step === 'agents' ? overrides(state) : [];
+    const notes = [
+      ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
+      ...over.map(n => el('li', { class: 'av-callout av-callout--caution', text: `${n} · ${OVERRIDE_MARK}` })),
+    ];
+    $('here').hidden = !notes.length;
+    $('here').replaceChildren(el('h2', { class: 'section-title', text: 'On this step' }), el('ul', { class: 'callouts' }, ...notes));
+  }
+
+  function renderOutput() {
+    renderSummary();
+    renderReset();
+    renderStepper();
+    renderHere();
+    const found = problems(state);
+    const errors = found.filter(f => f.level === 'error');
+    const files = buildFiles(state);
+    const canPick = typeof window.showDirectoryPicker === 'function' && window.isSecureContext;
+    const save = chip('Save to a folder', !errors.length && canPick, () => saveToFolder(files));
+    if (errors.length || !canPick) save.disabled = true;
+
+    const notes = [
+      ...overrides(state).map(n => el('li', { class: 'av-callout av-callout--caution', text: `Agents · ${n} · ${OVERRIDE_MARK}: its security set ran only on its default.` })),
+      ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
+    ];
+    if (status.text) notes.push(el('li', { class: `av-callout${status.level === 'error' ? ' av-callout--caution' : status.level === 'ok' ? ' av-callout--normal' : ''}`, text: status.text }));
+    if (!notes.length) notes.push(el('li', { class: 'av-callout av-callout--normal', text: 'Nothing to fix here. The installer still checks everything.' }));
+
+    const fileViews = files.map(f => {
+      const into = f.path.startsWith('blocks/') ? '~/.claude/pact/blocks/' : '~/.claude/pact/';
+      const btn = chip(`Download ${f.path.split('/').pop()}`, false, () => download(f), 'av-tool-chip--ghost');
+      if (errors.length) btn.disabled = true;
+      return el('div', {}, el('div', { class: 'file-head' }, el('span', { class: 'section-title', text: f.path }), el('span', { class: 'av-annot', text: `goes in ${into}` }), btn), el('pre', { class: 'av-tool-code', text: f.text }));
+    });
+
+    const overview = el('div', { class: 'overview' }, ...stepSummary(state).filter(s => s.id !== 'review').map(s => el(
+      'div',
+      { class: 'overview-row' },
+      el('span', { text: s.title }),
+      el('span', { class: `step-note${s.errors ? ' step-note--fix' : ''}`, text: stepNote(s) || 'default' }),
+      chip('Open', false, () => showStep(s.id), 'av-tool-chip--ghost'),
+    )));
+    $('output').replaceChildren(
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Review' }), el('span', { class: 'av-annot', text: 'Each step, what you changed there, and what to fix.' })),
+      overview,
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
+      el('p', { class: 'av-annot', text: canPick
+        ? 'Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there. Then run the install script\'s dry run and read its Configuration block.'
+        : 'This browser has no folder picker, so save each file with its download button and put it where it says. Then run the install script\'s dry run and read its Configuration block.' }),
+      el('ul', { class: 'callouts' }, ...notes),
+      el('div', { class: 'files' }, ...fileViews),
+    );
+  }
+
+  if (PACT.title) $('builder-title').textContent = `The pact · configuration · ${PACT.title}`;
+  renderActions();
+  renderValues();
+  renderWorkflows();
+  renderAgents();
+  renderAlways();
+  showStep('start');
+}
+
+if (typeof document !== 'undefined') boot();
+</script>
+</body>
+</html>

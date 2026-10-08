@@ -3,7 +3,7 @@
 **2026-10-08** — The gate suite no longer builds a 579-file repo for every install test, and its documented commands cap it at four test files at once (mephistopheles4/the-pact#133).
 
 - **Throwaway repos:** the install tests' repo builder leaves out `gate/tests`, which the install script skips before any check. A repo went from 579 files to 52. `install.test.mjs` now uses the shared harness's builder and helpers instead of its own copies.
-- **The cap:** `--test-concurrency=4` in AGENTS.md and the Linux container script. See [ADR 0025](../adr/0025-the-gate-suite-runs-capped-on-the-current-node-lts.md).
+- **The cap:** `--test-concurrency=4` in AGENTS.md and the Linux container script. See [ADR 0029](../adr/0029-the-gate-suite-runs-capped-on-the-current-node-lts.md).
 - **A new test:** a file planted under `gate/tests` in a throwaway repo must not enter the recorded gate. Before this change the test folder's presence guarded that skip implicitly; leaving the folder out would have lost the guard. The test passes on the real script and fails with the skip line deleted.
 - **No gate code changed.** The security route stayed off, by the owner's word at sign-off.
 
@@ -29,6 +29,7 @@ Main has 1,442 cases. The runs before the new test had the same 1,442 names and 
 
 - **The flag fails on Node 20.0.** It starts at 20.10. The owner answered by asking to be on the Node LTS with Volta.
 - **Move 4, integrity lens:** dropping the test folder removed the only test of the install script's skip. Fixed with the new test above.
+- **Renumbered on merge.** PR #120 already held ADRs 0025 to 0027, so this work's ADR is 0029. #133's comments and PR #141 cite it as 0025, which names another decision once #120 merges.
 
 ## Record
 

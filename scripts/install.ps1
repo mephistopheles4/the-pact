@@ -562,7 +562,9 @@ elseif ($manifest) {
 else { Write-Host 'No manifest found: first-install mode. Live files are compared with the repo; only the retired agents (builder, spec-builder, security-builder) can be deleted.' }
 
 # The set is HEAD's tree, never a directory listing or the working tree: an
-# ignored file is never staged, and "installed commit X" is true of every byte.
+# ignored file is never staged, and "installed commit X with configuration Y"
+# is true of every byte: the rules file and a configured agent are rendered
+# from the commit and that configuration, and every other file is the commit's.
 # AGENTS.md is staged for the check only (it holds the install go-ahead
 # clause); it is never installed. Of cross/, only the cross script is staged,
 # by its exact path; it installs to pact/cross.mjs, where the pact calls it.
@@ -731,6 +733,12 @@ $renderHash = $null; $diffHash = $null; $configs = @(); $configDigest = $null
 $configValues = New-OrderedMap   # setting -> value, in the renderer's order
 $configEdits = New-OrderedMap    # open part -> @{ op; sha256; path }, in edit order
 $blockHashes = New-OrderedMap    # block path -> sha256
+# Agent settings (#97): at most one AGENT line per lens this list names, equal
+# to the renderer's CONFIGURABLE_AGENTS (a gate test pins the two). Each name is
+# matched case-sensitively and taken from this list, so the staged path and the
+# output name are built from a constant, never from the line.
+$agentNames = @('adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'unstated-lens')
+$agentSets = New-OrderedMap      # name -> @{ model; effort; sha256; security; override; egress }
 foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) {
   if ($l -cmatch '\ARENDERED ([0-9a-f]{64})\z') {
     if ($renderHash) { Stop-Refused 'the renderer reported two output hashes.' }
@@ -754,6 +762,11 @@ foreach ($l in @($renderLines | Select-Object -First ($renderLines.Count - 1))) 
   elseif ($l -cmatch '\ADIGEST ([0-9a-f]{12})\z') {
     if ($configDigest) { Stop-Refused 'the renderer reported two configuration digests.' }
     $configDigest = $Matches[1]
+  } elseif ($l -cmatch '\AAGENT ([a-z-]+) (opus|sonnet) (low|medium|high) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)\z') {
+    $agentHit = @($agentNames | Where-Object { $_ -ceq $Matches[1] })
+    if ($agentHit.Count -ne 1) { Stop-Refused 'the renderer printed a line the install does not read.' }
+    if ($agentSets.Contains($agentHit[0])) { Stop-Refused 'the renderer reported one agent setting twice.' }
+    $agentSets[$agentHit[0]] = @{ model = $Matches[2]; effort = $Matches[3]; sha256 = $Matches[4]; security = $Matches[5] -ceq 'security-set'; override = $Matches[6] -ceq 'override'; egress = $Matches[7] -ceq 'egress' }
   } elseif ($l -cmatch '\AVALUE (usage-pause) (0|[1-9][0-9]?|100)\z') {
     if ($configValues.Contains($Matches[1])) { Stop-Refused 'the renderer reported one setting twice.' }
     $configValues[$Matches[1]] = $Matches[2]
@@ -763,7 +776,7 @@ if (-not $renderHash -or -not $diffHash -or $configs.Count -ne 1) { Stop-Refused
 $config = $configs[0]
 if ($projectGiven -and $config.kind -cne 'none') { Stop-Refused "the stage's render on a project install read a configuration." }
 if ($config.kind -ceq 'none') {
-  if ($configDigest -or $configValues.Count -or $configEdits.Count) { Stop-Refused 'the renderer reported a digest, a value or an edit with no configuration.' }
+  if ($configDigest -or $configValues.Count -or $configEdits.Count -or $agentSets.Count) { Stop-Refused 'the renderer reported a digest, a value, an edit or an agent setting with no configuration.' }
 } else {
   # The digest, from the user file's hash and each edit's block, in edit order.
   $digestText = "user $($config.sha256)`n"
@@ -773,24 +786,78 @@ if ($config.kind -ceq 'none') {
 }
 try { $stageAfter = Get-TreeState $stage } catch { Stop-Refused 'the stage could not be read after the renderer ran.' }
 if ($stageAfter -cne $stageBefore) { Stop-Refused 'the renderer changed the stage.' }
-# Exactly the rules file and the diff, both plain files within their caps.
-$outEntries = @([IO.DirectoryInfo]::new($renderOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }) | Sort-Object Name)
-$outOk = $outEntries.Count -eq 2 -and $outEntries[0].Name -ceq 'CLAUDE.md' -and $outEntries[1].Name -ceq 'config.diff'
+# Exactly the rules file and the diff, plus one agent file per AGENT line:
+# each found by its exact name, each a plain file within its cap.
+$outEntries = @([IO.DirectoryInfo]::new($renderOut).GetFileSystemInfos('*', [IO.EnumerationOptions]@{ AttributesToSkip = 0; IgnoreInaccessible = $false }))
+$wantNames = @('CLAUDE.md', 'config.diff') + @(foreach ($n in $agentSets.Keys) { "agent-$n.md" })
+$outOk = $outEntries.Count -eq $wantNames.Count
+foreach ($n in $wantNames) { if ($outOk) { $outOk = @($outEntries | Where-Object { $_.Name -ceq $n }).Count -eq 1 } }
 foreach ($e in $outEntries) { if ($e -isnot [IO.FileInfo] -or ($e.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $e.Length -gt 4MB) { $outOk = $false } }
-if (-not $outOk -or $outEntries[0].Length -gt 1MB) {
-  Stop-Refused 'the renderer did not leave exactly its rules file of at most 1 MiB and its diff.'
+$rulesOut = @($outEntries | Where-Object { $_.Name -ceq 'CLAUDE.md' })
+if (-not $outOk -or $rulesOut[0].Length -gt 1MB) {
+  Stop-Refused 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported.'
 }
-$renderedBytes = [IO.File]::ReadAllBytes($outEntries[0].FullName)
+$renderedBytes = [IO.File]::ReadAllBytes($rulesOut[0].FullName)
 # Not $renderedHash: PowerShell names ignore case, so that would be -RenderedHash.
 $rulesHash = Get-BytesSha256 $renderedBytes
 if ($renderedBytes.Length -gt 1MB -or $rulesHash -cne $renderHash) { Stop-Refused "the rendered rules file's hash does not match the one the renderer reported." }
 # The diff is kept outside the stage, for the review output only; it is never installed.
-$diffFile = $outEntries[1].FullName
+$diffFile = @($outEntries | Where-Object { $_.Name -ceq 'config.diff' })[0].FullName
 if ((Get-BytesSha256 ([IO.File]::ReadAllBytes($diffFile))) -cne $diffHash) { Stop-Refused "the diff's hash does not match the one the renderer reported." }
+# Each agent file: read once, matched to the reported hash, and allowed to
+# differ from the committed copy only in its model and effort lines, which
+# must hold the reported values. Whether those values differ from the
+# committed ones must match the line's override word. That buffer is written
+# into the stage at the constant path, after the stage hash, as the rules file is.
+$utf8Strict = [Text.UTF8Encoding]::new($false, $true)
+foreach ($agentName in @($agentSets.Keys)) {
+  $agentSet = $agentSets[$agentName]
+  $agentRel = "claude/agents/$agentName.md"
+  if (-not $staged.Contains($agentRel)) { Stop-Refused "the configuration sets $agentName, but the commit holds no $agentRel." }
+  $agentOut = @($outEntries | Where-Object { $_.Name -ceq "agent-$agentName.md" })[0]
+  if ($agentOut.Length -gt 1MB) { Stop-Refused 'the rendered agent file is larger than 1 MiB.' }
+  $agentBytes = [IO.File]::ReadAllBytes($agentOut.FullName)
+  $agentHash = Get-BytesSha256 $agentBytes
+  if ($agentHash -cne $agentSet.sha256) { Stop-Refused "the rendered agent file's hash does not match the one the renderer reported." }
+  $agentStaged = Join-Path $stage ($agentRel -replace '/', [IO.Path]::DirectorySeparatorChar)
+  try {
+    $newLines = $utf8Strict.GetString($agentBytes).Split("`n")
+    $oldLines = $utf8Strict.GetString([IO.File]::ReadAllBytes($agentStaged)).Split("`n")
+  } catch { Stop-Refused 'the rendered or the committed agent file is not UTF-8.' }
+  # Every changed line sits in the frontmatter (line 1 is ---, closed by the
+  # next ---) and is its model or effort line; and the frontmatter holds
+  # exactly one column-0 model line and one effort line, equal to the AGENT
+  # values whether or not they changed.
+  $agentOk = $newLines.Count -eq $oldLines.Count -and $newLines.Count -gt 2 -and $newLines[0] -ceq '---'
+  $close = -1
+  for ($i = 1; $agentOk -and $i -lt $newLines.Count; $i++) { if ($newLines[$i] -ceq '---') { $close = $i; break } }
+  if ($close -lt 0) { $agentOk = $false }
+  $modelLines = 0; $effortLines = 0; $changed = $false
+  for ($i = 0; $agentOk -and $i -lt $newLines.Count; $i++) {
+    if ($i -gt 0 -and $i -lt $close) {
+      if ($newLines[$i] -cmatch '\Amodel:') { $modelLines++; if ($newLines[$i] -cne "model: $($agentSet.model)") { $agentOk = $false } }
+      if ($newLines[$i] -cmatch '\Aeffort:') { $effortLines++; if ($newLines[$i] -cne "effort: $($agentSet.effort)") { $agentOk = $false } }
+    }
+    if ($newLines[$i] -ceq $oldLines[$i]) { continue }
+    $changed = $true
+    if ($i -le 0 -or $i -ge $close) { $agentOk = $false }
+    elseif (-not (($oldLines[$i] -cmatch '\Amodel:' -and $newLines[$i] -cmatch '\Amodel:') -or ($oldLines[$i] -cmatch '\Aeffort:' -and $newLines[$i] -cmatch '\Aeffort:'))) { $agentOk = $false }
+  }
+  if (-not $agentOk -or $modelLines -ne 1 -or $effortLines -ne 1) { Stop-Refused 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values.' }
+  if ($changed -ne $agentSet.override) { Stop-Refused "the renderer's override word for $agentName does not match whether its file changed." }
+  # The egress word, from the committed file's one frontmatter tools line:
+  # anything but the read tools reaches out, and such a lens is security-set.
+  $toolsOld = @($oldLines[1..($close - 1)] | Where-Object { $_ -cmatch '\Atools:' })
+  if ($toolsOld.Count -ne 1) { Stop-Refused "the committed $agentRel does not hold exactly one tools line." }
+  if (($toolsOld[0] -cne 'tools: [Read, Glob, Grep]') -ne $agentSet.egress) { Stop-Refused "the renderer's egress word for $agentName does not match its committed tools line." }
+  if ($agentSet.egress -and -not $agentSet.security) { Stop-Refused "the renderer called $agentName egress but not security-set." }
+  [IO.File]::WriteAllBytes($agentStaged, $agentBytes)
+  $staged[$agentRel] = $agentHash
+  [IO.File]::Delete($agentOut.FullName)
+}
 [IO.File]::WriteAllBytes($rulesStaged, $renderedBytes)
 $staged[$rulesRel] = $rulesHash
-Remove-Item -LiteralPath $outEntries[0].FullName -Force
-
+[IO.File]::Delete($rulesOut[0].FullName)
 $seamA = Join-Path $stage 'gate/seam-a.mjs'
 if (-not (Test-Path -LiteralPath $seamA -PathType Leaf)) { Stop-Refused 'the check (gate/seam-a.mjs) is missing.' }
 $run = Invoke-Node $node @($seamA, $stage) $checkTimeoutMs
@@ -1053,6 +1120,15 @@ if ($config.kind -ceq 'none') {
   $configBlock += "  rendered rules file: sha256 $rulesHash"
   foreach ($k in $configValues.Keys) { $configBlock += "  WARN: the user configuration sets $k to $($configValues[$k])." }
   foreach ($k in $configEdits.Keys) { $configBlock += "  WARN: the user configuration edits $k ($($configEdits[$k].op))." }
+foreach ($agentName in @($agentSets.Keys)) {
+  $agentWarn = $agentSets[$agentName]
+  $warn = "  WARN: the user configuration sets $agentName to $($agentWarn.model), $($agentWarn.effort) effort."
+  if ($agentWarn.security -and $agentWarn.override) {
+    $warn += " $agentName is a security-set lens, so this is an override, not security-tested: its security set ran only on its default."
+    if ($agentWarn.egress) { $warn += ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.' }
+  }
+  $configBlock += $warn
+}
   $configBlock += '  Open text is checked for form, imports, routing and the roster, not for meaning.'
 }
 

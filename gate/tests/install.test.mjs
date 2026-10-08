@@ -632,7 +632,7 @@ test('bad case: a renderer that leaves a second file in its output folder refuse
   );
   const r = install(repo, home(t));
   refused(r);
-  assert.match(r.stdout, /^REFUSED: the renderer did not leave exactly its rules file of at most 1 MiB and its diff\./m, r.out);
+  assert.match(r.stdout, /^REFUSED: the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported\./m, r.out);
 });
 
 test('bad case: a renderer hash line with anything after the hash refuses', t => {
