@@ -3,12 +3,25 @@
   "title": "Example builder",
   "presets": [
     {
-      "id": "move-1-no-wayfinder",
-      "title": "No wayfinder",
+      "id": "move-1-matt-pocock",
+      "title": "Matt Pocock's skills: triage",
       "slot": "move-1",
-      "file": "blocks/move-1-no-wayfinder.md",
-      "standsIn": true,
-      "why": "For a team that never charts big work across sessions: move 1 without the wayfinder step."
+      "file": "blocks/move-1-matt-pocock.md",
+      "why": "Binds triage, diagnosing-bugs and wayfinder from mattpocock/skills to move 1's steps."
+    },
+    {
+      "id": "move-2-matt-pocock",
+      "title": "Matt Pocock's skills: think first",
+      "slot": "move-2",
+      "file": "blocks/move-2-matt-pocock.md",
+      "why": "Binds grilling, domain-modeling, to-spec, codebase-design and prototype to move 2."
+    },
+    {
+      "id": "move-3-matt-pocock",
+      "title": "Matt Pocock's skills: build",
+      "slot": "move-3",
+      "file": "blocks/move-3-matt-pocock.md",
+      "why": "Binds to-tickets, tdd and codebase-design to move 3."
     },
     {
       "id": "move-3-done-criteria",
@@ -43,7 +56,20 @@
       "id": "close-the-loop",
       "title": "Close the loop",
       "about": "Agree on done before the build, and say which docs the change touched after it.",
-      "presets": ["move-3-done-criteria", "move-4-docs-check"]
+      "presets": [
+        "move-3-done-criteria",
+        "move-4-docs-check"
+      ]
+    },
+    {
+      "id": "matt-pocock-skills",
+      "title": "Matt Pocock's skills",
+      "about": "Chains the mattpocock/skills set onto moves 1 to 3, after each move's default text. Matches examples/pact-config/config-matt-pocock-skills.json.",
+      "presets": [
+        "move-1-matt-pocock",
+        "move-2-matt-pocock",
+        "move-3-matt-pocock"
+      ]
     }
   ]
 }

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QuTvnL6ODXidNMOxF/kEwQn9LCUntUh0csEaKC708+w='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-YJaIJ7hD58DXMxuhKArw6RbNAtn9NOVn5OtwAaFiETI='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -285,7 +285,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "open",
      "mark": "move-1",
-     "text": "I triage it (`triage`): what\nkind of work it is, its tier, and whether it's ready. You propose the\ntriage and the tier, and never skip past it. A bug goes through\n`diagnosing-bugs` before any fix. Work too big for one session is\ncharted with `wayfinder`.",
+     "text": "I triage it: what kind of work it is, its tier, and whether it's ready. A\ntarget I can know is planned; an unknown one gets an experiment first; size\nsets the rigour, which is the tier. You propose the triage and the tier, and\nnever skip past it. Your own confidence never picks the tier: agents\nmisjudge their own success far more often than they doubt it. A bug is\nreproduced and traced to where it starts before any fix. Work too big for\none session is charted on the tracker as a sequence of sessions, so the\nchain survives a fresh session.",
      "agents": []
     }
    ]
@@ -297,7 +297,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "open",
      "mark": "move-2",
-     "text": "I grill the idea until it's clear\n(`grilling`; `domain-modeling` when terms need pinning down). You help\nwith both, then write the spec (`to-spec`): the intent, the unhappy paths, the constraints, the\ndesign — modules, interfaces and seams (`codebase-design`) — each\ndecision with its why, and a **Needs a human** section (below). When a\nquestion in it needs running code to answer, have a throwaway built\n(`prototype`) and fold what it shows back into the spec. A throwaway is\nbuilt like any other step: in a main session, and through the security\nroute in move 3 if it touches auth, secrets, crypto or input validation.\nOn the standard and thorough tiers, `unstated-lens` reads the spec. On\nthe thorough tier, the spec pair, `executability-lens` and\n`good-enough-lens`, reads it too. Post their reports and help me decide\n(below). I decide proceed, fix or kill. Never start building on a clear\nverdict alone.",
+     "text": "You question me until the idea is clear, and help me pin down terms when\nthey're unclear: questions a model asks draw out better specifications than\nprompts people write themselves. Then you write the spec: the intent, the\nunhappy paths, the constraints, the design — modules, interfaces and seams\n— each decision with its why, and a **Needs a human** section (below). When\na question in it needs running code to answer, have a throwaway prototype\nbuilt and fold what it shows back into the spec. A throwaway is\nbuilt like any other step: in a main session, and through the security\nroute in move 3 if it touches auth, secrets, crypto or input validation.\nOn the standard and thorough tiers, `unstated-lens` reads the spec. On\nthe thorough tier, the spec pair, `executability-lens` and\n`good-enough-lens`, reads it too. Post their reports and help me decide\n(below). I decide proceed, fix or kill. Never start building on a clear\nverdict alone.",
      "agents": [
       "unstated-lens",
       "executability-lens",
@@ -313,7 +313,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "open",
      "mark": "move-3",
-     "text": "On the thorough tier, I cut the approved spec\ninto tickets (`to-tickets`): thin end-to-end slices, each with its blocking edges and\ncheckable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,\nis built in its own main session, which I start and watch. Opened on an approved spec or ticket, the\nsession starts building directly, test-first at the agreed seams (`tdd`,\n`codebase-design`). It doesn't hand me `/implement` first; I may still\ntype it.",
+     "text": "On the thorough tier, I cut the approved spec\ninto tickets: thin end-to-end slices, each with its blocking edges and\ncheckable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,\nis built in its own main session, which I start and watch. Opened on an approved spec or ticket, the\nsession starts building directly, test-first at the agreed seams. It\ndoesn't wait for me to start the build.",
      "agents": []
     },
     {
@@ -529,12 +529,28 @@ const PACT = /* pact-data:begin */ {
  "title": "Example builder",
  "presets": [
   {
-   "id": "move-1-no-wayfinder",
-   "title": "No wayfinder",
+   "id": "move-1-matt-pocock",
+   "title": "Matt Pocock's skills: triage",
    "mark": "move-1",
-   "text": "I triage it (`triage`): what kind of work it is, its tier, and whether it's\nready. You propose the triage and the tier, and never skip past it. A bug\ngoes through `diagnosing-bugs` before any fix.",
-   "standsIn": true,
-   "why": "For a team that never charts big work across sessions: move 1 without the wayfinder step."
+   "text": "Skills I bind to this move. Triage is mine to start: when you reach the\ntriage step, hand me `/triage` and stop. For a bug, use\n`diagnosing-bugs` at the step where it is reproduced and traced, before any\nfix. Work too big for one session is charted with `/wayfinder`, which is mine\nto start: when you reach the charting step, hand it to me.",
+   "standsIn": false,
+   "why": "Binds triage, diagnosing-bugs and wayfinder from mattpocock/skills to move 1's steps."
+  },
+  {
+   "id": "move-2-matt-pocock",
+   "title": "Matt Pocock's skills: think first",
+   "mark": "move-2",
+   "text": "Skills I bind to this move. Questioning: use `grilling` at the step where you\nquestion me until the idea is clear, and `domain-modeling` when terms need\npinning down. The spec is written with `/to-spec`, which is mine to\nstart: when the questioning is done, hand it to me and stop. Use\n`codebase-design` at the step where you set the design, modules, interfaces\nand seams. Use `prototype` at the step where a question needs running code.",
+   "standsIn": false,
+   "why": "Binds grilling, domain-modeling, to-spec, codebase-design and prototype to move 2."
+  },
+  {
+   "id": "move-3-matt-pocock",
+   "title": "Matt Pocock's skills: build",
+   "mark": "move-3",
+   "text": "Skills I bind to this move. Cutting the approved spec into tickets is\n`/to-tickets`, which is mine to start: when the spec is approved and\nthe tier is thorough, hand it to me and stop. Use `tdd` and `codebase-design`\nat the step where a session builds test-first at the agreed seams. A session\nopened on an approved spec or ticket starts building directly; it doesn't\nhand me `/implement` first, though I may still type it.",
+   "standsIn": false,
+   "why": "Binds to-tickets, tdd and codebase-design to move 3."
   },
   {
    "id": "move-3-done-criteria",
@@ -575,6 +591,16 @@ const PACT = /* pact-data:begin */ {
    "presets": [
     "move-3-done-criteria",
     "move-4-docs-check"
+   ]
+  },
+  {
+   "id": "matt-pocock-skills",
+   "title": "Matt Pocock's skills",
+   "about": "Chains the mattpocock/skills set onto moves 1 to 3, after each move's default text. Matches examples/pact-config/config-matt-pocock-skills.json.",
+   "presets": [
+    "move-1-matt-pocock",
+    "move-2-matt-pocock",
+    "move-3-matt-pocock"
    ]
   }
  ],
