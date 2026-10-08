@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "edits": [
+    { "mark": "move-1", "op": "add-after", "file": "move-1-matt-pocock.md" },
+    { "mark": "move-2", "op": "add-after", "file": "move-2-matt-pocock.md" },
+    { "mark": "move-3", "op": "add-after", "file": "move-3-matt-pocock.md" }
+  ]
+}

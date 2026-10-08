@@ -124,6 +124,8 @@ test('the shipped example edits install-ready: each block re-indented into its p
   const doc = JSON.parse(config);
   const edits = doc.edits.map(e => ({ ...e, path: e.file, bytes: e.file ? blocks[e.file] : null }));
   assert.ok(edits.length >= 3 && edits.every(e => e.bytes), 'every example edit names a shipped block');
+  // #127: move 1 takes the preset set's block, added after the default text (the expected render below is built from the file, so pin it here).
+  assert.deepEqual(doc.edits.find(e => e.mark === 'move-1'), { mark: 'move-1', op: 'add-after', file: 'move-1-matt-pocock.md' });
   const r = render(t, homeWith(t, config, blocks));
   assert.equal(r.code, 0, r.out);
   const digest = digestOf(config, edits);

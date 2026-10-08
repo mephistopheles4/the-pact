@@ -17,9 +17,9 @@ how every session in every repo behaves. So:
 - **Edit the repo copy, never the live file.** A direct edit to `~/.claude/`
   drifts from the repo.
 - **Install with [`scripts/install.ps1`](scripts/install.ps1)**, run from the
-  repo root under PowerShell 7 (Windows or macOS). Never copy files by hand.
-  The script installs from the clone, not through a symlink, so a checked-out
-  branch is never live until you install it.
+  repo root under PowerShell 7 (Windows, macOS or Linux). Never copy files by
+  hand. The script installs from the clone, not through a symlink, so a
+  checked-out branch is never live until you install it.
 - **Run it without a switch first.** That is a dry run: it prints the files it
   would overwrite, add and delete, whether live files drifted since the last
   install (it compares them with `~/.claude/.pact-install.json`), and the commit
@@ -29,7 +29,12 @@ how every session in every repo behaves. So:
   and copies only the files that check listed. It refuses when the check fails
   or can't run. The dry run also shows the Node it used, the pinned grimoire
   commit, and whether the gate changed since the last install. Run the gate's
-  tests with `node --test "gate/tests/*.test.mjs"`.
+  tests with `node --test "gate/tests/*.test.mjs"`. Node 20 doesn't expand the
+  quoted pattern, so under Node 20 hand it the files instead: leave the pattern
+  unquoted in a POSIX shell, or in PowerShell run
+  `node --test (Get-ChildItem gate/tests/*.test.mjs).FullName`. The Linux run
+  in a container (#96) is in
+  [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/).
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a

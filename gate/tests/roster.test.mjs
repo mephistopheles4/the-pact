@@ -83,7 +83,7 @@ const PLACES = {
   'move 4': 'Then run the QA pair,',
   'the security route': 'however small: the security pair,',
   'what no skill overrides': '`integrity-lens`, in move 4.',
-  'the tier table': '| **Thorough** | On an issue: `to-spec`, the spec pair and `unstated-lens`,',
+  'the tier table': '| **Thorough** | On an issue: the spec, read by the spec pair and `unstated-lens`;',
   'the reading-agents paragraph': '**Reading agents.** The lenses read;',
 };
 
