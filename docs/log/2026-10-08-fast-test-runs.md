@@ -40,7 +40,7 @@
 ## T3 (#146): shared throwaway repos
 
 - **One repo per file.** The install harness gains `sharedRepo()`. A test file calls it once, and its builder makes one throwaway repo before the file's first test. A test that only reads the repo uses it, with its own throwaway home. A test that changes the repo, or needs a planted one, still builds its own with `makeRepo`.
-- **Which tests share.** 113 install-tier tests share, and 57 keep their own. The list is on #140. The eight install-tier files and the smoke file each have one shared repo. The new test file, `shared-repo.test.mjs`, holds the shared repo's own cases and is a tenth install-tier file.
+- **Which tests share.** 113 install-tier tests share, and 57 keep their own, counting a test written in a loop once. The list is on #140. The eight install-tier files and the smoke file each have one shared repo. The new test file, `shared-repo.test.mjs`, holds the shared repo's own cases and is a tenth install-tier file.
 - **No index rewrites.** Every install the harness runs against a shared repo has `GIT_OPTIONAL_LOCKS=0` added to its environment, so git's status call never writes the index back. Two tests that start pwsh themselves add the same setting by hand.
 - **The after-check.** After each test, the harness hashes the whole shared repo, its git folder and ignored files included, without running git. It records each entry by kind, records links without following them, and never reads special files. If anything changed since the build, the test fails, naming the changed paths. The next test then gets a freshly built repo, so one test's leftovers can't pass or fail another.
 - **No gate code changed.** Only files in `gate/tests/` and this log entry changed.
@@ -49,6 +49,7 @@
 
 - **The ten install-tier files,** run capped at four files and not timed: 483 cases, 480 pass, 3 skip, 0 fail. No test tripped the after-check.
 - **A throwaway repo costs about half a second to build.** This was measured under load, five builds in a row, so it is a rough figure. An install run costs about 8 s, so sharing saves a few percent of the install tier's time. That is less than the spec's "the full suite gets faster" suggested.
+- **The after-check costs about 16 ms a pass,** over the 215 entries of a built repo, also measured under load. It runs after every test in the ten files, about 480 cases, so it adds about 8 s of work. The builds it saves come to about 58 s.
 
 ### What was found
 
