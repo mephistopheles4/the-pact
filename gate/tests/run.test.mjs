@@ -14,7 +14,8 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { tempDir } from './helpers.mjs';
-import { CAP, PLAIN_NAME, leakedLines, makeScrub, namesInstallScript, parseArgs, pick, relativeImports, stringLiterals, verdict } from './run.mjs';
+import { COPY_DIRS, COPY_FILES } from './copy-list.mjs';
+import { CAP, PLAIN_NAME, leakedLines, makeScrub, namesInstallScript, parseArgs, pathNames, pick, relativeImports, stringLiterals, verdict } from './run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIX = join(HERE, 'fixtures', 'run');
@@ -124,7 +125,164 @@ test('pick: a helper name with odd characters is printed with them replaced', ()
 });
 
 test('pick: an unknown tier throws', () => {
-  assert.throws(() => pick({ tier: 'changed', entries: [], sources: new Map() }), /unknown tier/);
+  assert.throws(() => pick({ tier: 'nope', entries: [], sources: new Map() }), /unknown tier/);
+});
+
+// ------------------------------------------------------------ pick: the changed tier (S5)
+
+// The real copy list; its install-script entry is never written out here, which would put this file in the install tier.
+const COPY = { dirs: COPY_DIRS, files: COPY_FILES };
+const INSTALL_SCRIPT_PATH = COPY_FILES.find(f => f.startsWith('scripts/'));
+const PASS_SRC = "import { test } from 'node:test';\n";
+
+/** A planted tree for the changed tier: a fast file, two install files, the smoke file and the harness. */
+function changedTree(extra = {}) {
+  return new Map([
+    ['plain.test.mjs', PASS_SRC],
+    ['agent.test.mjs', `${imp(`./${HARNESS}`)}const f = join(REPO, 'claude', 'agents', 'scout.md');\n`],
+    ['other-install.test.mjs', `${imp(`./${HARNESS}`)}const f = 'familiars/x.md';\n`],
+    [SMOKE_NAME, imp(`./${HARNESS}`)],
+    [HARNESS, ''],
+    ...Object.entries(extra),
+  ]);
+}
+const SMOKE_NAME = 'install-smoke.test.mjs';
+
+/** The changed tier's picks alone (picks only), as { files: Map(file -> reason), unmapped }. */
+function changedPicks(sources, changed, opts = {}) {
+  const names = [...sources.keys()].filter(k => !k.includes('/') && k.endsWith('.test.mjs'));
+  const r = pick({ tier: 'changed', entries: entries(names), sources, copyList: COPY, changed, withFast: false, ...opts });
+  return { files: new Map(r.files.map(f => [f.file, f.reason])), unmapped: r.unmapped, refused: r.refused };
+}
+
+test('changed: a changed test file runs itself, and only itself when nothing else maps', () => {
+  const r = changedPicks(changedTree(), ['gate/tests/plain.test.mjs']);
+  assert.deepEqual([...r.files.keys()], ['plain.test.mjs']);
+  assert.equal(r.files.get('plain.test.mjs'), 'changed');
+  assert.deepEqual(r.unmapped, []);
+});
+
+test('changed: gate code, and the install script, select the full tier', () => {
+  assert.ok(INSTALL_SCRIPT_PATH, 'the copy list holds the install script');
+  for (const p of ['gate/seam-a.mjs', 'gate/grimoire/check.mjs', INSTALL_SCRIPT_PATH]) {
+    const r = changedPicks(changedTree(), [p]);
+    assert.deepEqual([...r.files.keys()].sort(), ['agent.test.mjs', 'install-smoke.test.mjs', 'other-install.test.mjs', 'plain.test.mjs'], p);
+    assert.match(r.files.get('plain.test.mjs'), /^gate code changed: /, p);
+  }
+});
+
+test('changed: a payload path picks finely: the smoke set and the files that name it, not an install file that does not', () => {
+  const r = changedPicks(changedTree(), ['claude/agents/scout.md']);
+  assert.deepEqual([...r.files.keys()].sort(), ['agent.test.mjs', 'install-smoke.test.mjs']);
+  assert.equal(r.files.get('agent.test.mjs'), 'names claude/agents/scout.md');
+  assert.equal(r.files.get(SMOKE_NAME), 'install smoke set: payload claude/agents/scout.md');
+  assert.deepEqual(r.unmapped, []);
+});
+
+test('changed: the example configuration picks the files that name it, here config-install and install-edits', () => {
+  const sources = changedTree({
+    'config-install.test.mjs': `${imp(`./${HARNESS}`)}const EXAMPLE = readFileSync(join(REPO, 'examples', 'pact-config', 'config.json'));\n`,
+    'install-edits.test.mjs': `${imp(`./${HARNESS}`)}const block = readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'x.md'));\n`,
+  });
+  const r = changedPicks(sources, ['examples/pact-config/config.json']);
+  assert.deepEqual([...r.files.keys()].sort(), ['config-install.test.mjs', 'install-edits.test.mjs']);
+  assert.equal(r.files.get('install-edits.test.mjs'), 'names examples/pact-config/config.json');
+});
+
+test('changed: a helper two imports deep picks every test that reaches it, and no other', () => {
+  const sources = changedTree({
+    'deep.test.mjs': imp('./h1.mjs'),
+    'mid.test.mjs': imp('./sub/h2.mjs'),
+    'h1.mjs': imp('./sub/h2.mjs'),
+    'sub/h2.mjs': '',
+  });
+  const r = changedPicks(sources, ['gate/tests/sub/h2.mjs']);
+  assert.deepEqual([...r.files.keys()].sort(), ['deep.test.mjs', 'mid.test.mjs']);
+  assert.equal(r.files.get('deep.test.mjs'), 'imports changed gate/tests/sub/h2.mjs');
+});
+
+test('changed: a path only a test\'s text names, written out, in pieces or through a helper, picks that test', () => {
+  const sources = changedTree({
+    'out.test.mjs': "const p = 'notes/plans/today.md';\n",
+    'pieces.test.mjs': "const p = join(root, 'notes', 'plans');\n",
+    'via.test.mjs': imp('./names.mjs'),
+    'names.mjs': "export const P = ['notes', 'plans', 'today.md'];\n",
+    'file.test.mjs': "const p = `${dir}/today.md`;\n",
+    'none.test.mjs': "const p = 'notes/other.md';\n",
+  });
+  const r = changedPicks(sources, ['notes/plans/today.md']);
+  assert.deepEqual([...r.files.keys()].sort(), ['file.test.mjs', 'out.test.mjs', 'pieces.test.mjs', 'via.test.mjs']);
+  assert.equal(r.files.get('via.test.mjs'), 'names notes/plans/today.md in names.mjs');
+  assert.deepEqual(r.unmapped, []);
+});
+
+test('changed: a new ADR picks docs-index, by the real docs-index source', () => {
+  const sources = changedTree({ 'docs-index.test.mjs': readFileSync(join(HERE, 'docs-index.test.mjs'), 'utf8') });
+  const r = changedPicks(sources, ['docs/adr/0099-a-new-decision.md']);
+  assert.deepEqual([...r.files.keys()], ['docs-index.test.mjs']);
+});
+
+test('changed: an unmapped path runs the fast tier, plus the smoke set under the copy list, and is listed', () => {
+  const root = changedPicks(changedTree(), ['CONTEXT.md']);
+  assert.deepEqual([...root.files.keys()], ['plain.test.mjs']);
+  assert.equal(root.files.get('plain.test.mjs'), 'fast tier: a changed path is unmapped');
+  assert.deepEqual(root.unmapped, ['CONTEXT.md']);
+  const payload = changedPicks(changedTree(), ['cross/unnamed.mjs']);
+  assert.deepEqual([...payload.files.keys()].sort(), ['install-smoke.test.mjs', 'plain.test.mjs']);
+  assert.deepEqual(payload.unmapped, ['cross/unnamed.mjs']);
+});
+
+test('changed: a test file or module in the tests folder maps by imports alone, not by a test naming its folder', () => {
+  const sources = changedTree({ 'lister.test.mjs': "const d = join(REPO, 'gate', 'tests');\n", 'h.mjs': '' });
+  const own = changedPicks(sources, ['gate/tests/plain.test.mjs']);
+  assert.deepEqual([...own.files.keys()], ['plain.test.mjs']);
+  assert.deepEqual(own.unmapped, []);
+  const orphan = changedPicks(sources, ['gate/tests/h.mjs']);
+  assert.deepEqual(orphan.unmapped, ['gate/tests/h.mjs'], 'a module nothing imports is unmapped, so fast runs');
+  assert.equal(orphan.files.get('lister.test.mjs'), 'fast tier: a changed path is unmapped');
+  const fixture = changedPicks(sources, ['gate/tests/fixtures/x.txt']);
+  assert.deepEqual([...fixture.files.keys()], ['lister.test.mjs'], 'a fixture is named by its folder');
+});
+
+test('changed: deleted and renamed paths count as changed paths like any other', () => {
+  // The git side lists a deletion and both sides of a rename; pick maps each path it is given.
+  const sources = changedTree({ 'old.test.mjs': "const p = 'notes/old.md';\n", 'new.test.mjs': "const p = 'notes/new.md';\n" });
+  const r = changedPicks(sources, ['notes/old.md', 'notes/new.md', 'gate/tests/gone.test.mjs']);
+  assert.deepEqual([...r.files.keys()].sort(), ['new.test.mjs', 'old.test.mjs', 'plain.test.mjs']);
+  assert.deepEqual(r.unmapped, ['gate/tests/gone.test.mjs'], 'a deleted test file runs nothing itself, so fast runs');
+});
+
+test('changed: with the fast tier on, fast is added and never an install file that no rule picked', () => {
+  const sources = changedTree();
+  const names = [...sources.keys()].filter(k => !k.includes('/') && k.endsWith('.test.mjs'));
+  const r = pick({ tier: 'changed', entries: entries(names), sources, copyList: COPY, changed: ['docs/nothing.md'], withFast: true });
+  assert.deepEqual(
+    r.files.map(f => f.file),
+    ['plain.test.mjs'],
+  );
+  const none = pick({ tier: 'changed', entries: entries(names), sources, copyList: COPY, changed: [], withFast: true });
+  assert.deepEqual(
+    none.files.map(f => [f.file, f.reason]),
+    [['plain.test.mjs', 'fast tier']],
+  );
+  assert.deepEqual(pick({ tier: 'changed', entries: entries(names), sources, copyList: COPY, changed: [], withFast: false }).files, []);
+});
+
+test('changed: a payload change with no smoke file throws rather than run without it', () => {
+  const sources = changedTree();
+  sources.delete(SMOKE_NAME);
+  assert.throws(() => changedPicks(sources, ['claude/CLAUDE.md']), /smoke set/);
+});
+
+test('changed: a path with a control character is printed with it replaced', () => {
+  const r = changedPicks(changedTree({ 'n.test.mjs': "const p = 'notes/a\u0001b';\n" }), ['notes/a\u0001b', 'odd\u0007name']);
+  assert.match(r.files.get('n.test.mjs'), /^names notes\/a\?b;/);
+  assert.deepEqual(r.unmapped, ['odd\u0007name'], 'pick returns the raw path; the shell prints it replaced');
+});
+
+test('pathNames: the file name and every run of two or more segments', () => {
+  assert.deepEqual(pathNames('Docs/ADR/x.md').sort(), ['adr/x.md', 'docs/adr', 'docs/adr/x.md', 'x.md'].sort());
+  assert.deepEqual(pathNames('AGENTS.md'), ['agents.md']);
 });
 
 test('the literal reader: comments are skipped, template pieces kept, a regex holding a quote is not a string', () => {
@@ -135,9 +293,12 @@ test('the literal reader: comments are skipped, template pieces kept, a regex ho
 });
 
 test('parseArgs: unknown tiers, reporters and options, and a missing value, are usage errors', () => {
-  assert.deepEqual(parseArgs(['full', '--reporter', 'tap']).opts, { tier: 'full', reporter: 'tap', record: null, list: false });
+  assert.deepEqual(parseArgs(['full', '--reporter', 'tap']).opts, { tier: 'full', reporter: 'tap', record: null, base: null, list: false });
   assert.equal(parseArgs(['fast', '--reporter=junit']).opts.reporter, 'junit');
-  for (const bad of [[], ['nope'], ['changed'], ['full', 'fast'], ['full', '--reporter', 'xml'], ['full', '--reporter'], ['full', '--record'], ['full', '--bogus'], ['full', '--base', '-x']]) {
+  assert.equal(parseArgs(['changed']).opts.base, 'main', 'the base defaults to main');
+  assert.equal(parseArgs(['changed', '--base', 'origin/main']).opts.base, 'origin/main');
+  assert.equal(parseArgs(['changed', '--base=v1']).opts.base, 'v1');
+  for (const bad of [[], ['nope'], ['full', 'fast'], ['full', '--reporter', 'xml'], ['full', '--reporter'], ['full', '--record'], ['full', '--bogus'], ['full', '--base', '-x'], ['full', '--base', 'main'], ['fast', '--base', 'main'], ['changed', '--base', '-x'], ['changed', '--base=-x'], ['changed', '--base'], ['changed', '--base=']]) {
     assert.ok(parseArgs(bad).error, bad.join(' '));
   }
 });
@@ -298,7 +459,7 @@ test('shell: an empty pick exits 2 and never starts node', t => {
 
 test('shell: an unknown tier, an unknown reporter, an unknown option, a base and a record inside the repo exit 2', t => {
   const p = plant(t, { 'a.test.mjs': PASSING });
-  for (const args of [['nope'], ['changed'], ['full', '--reporter', 'xml'], ['full', '--base', '-x'], ['full', '--base', 'main'], ['full', '--record', join(p.root, 'rec.txt')], []]) {
+  for (const args of [['nope'], ['changed', '--base', '-x'], ['full', '--reporter', 'xml'], ['full', '--base', '-x'], ['full', '--base', 'main'], ['full', '--record', join(p.root, 'rec.txt')], []]) {
     const r = runIn(p, args);
     assert.equal(r.code, 2, args.join(' '));
     assert.equal(r.stdout, '', args.join(' '));
@@ -464,4 +625,115 @@ test('shell: --record replaces the host name', t => {
   assert.match(text, /HOST=<host>/);
   assert.match(text, /hostname="<host>"/);
   assert.ok(!new RegExp(`(?<![A-Za-z0-9])${hostname().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, 'i').test(text), 'the host name survived the scrub');
+});
+// ------------------------------------------------------------ the shell: the changed tier, on a planted git repo
+
+/** git in `cwd`, with no inherited GIT_ variables; throws on failure. */
+function g(cwd, ...args) {
+  const env = {};
+  for (const [k, v] of Object.entries(process.env)) if (!/^GIT_/i.test(k)) env[k] = v;
+  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd, env, encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+  return r.stdout;
+}
+
+/** A planted repo committed on main, with `files` beside the runner; returns the plant. */
+function gitPlant(t, files = {}, root = {}) {
+  const p = plant(t, files);
+  for (const [rel, text] of Object.entries(root)) {
+    const at = join(p.root, ...rel.split('/'));
+    mkdirSync(dirname(at), { recursive: true });
+    writeFileSync(at, text);
+  }
+  g(p.root, 'init', '-q', '-b', 'main');
+  g(p.root, 'config', 'user.email', 'test@example.invalid');
+  g(p.root, 'config', 'user.name', 'gate test');
+  g(p.root, 'config', 'commit.gpgsign', 'false');
+  g(p.root, 'add', '-A');
+  g(p.root, 'commit', '-q', '-m', 'base');
+  return p;
+}
+
+const unmappedLines = stderr => stderr.split(/\r?\n/).filter(l => l.startsWith('unmapped: ')).map(l => l.slice('unmapped: '.length).replace(/ \(no rule maps it, so the fast tier runs\)$/, ''));
+
+test('shell: changed reads the merge-base diff, staged, unstaged, deleted, renamed and untracked paths, and skips ignored ones', t => {
+  const p = gitPlant(t, { 'a.test.mjs': PASSING }, { 'notes/edit.md': 'a\n', 'notes/staged.md': 'a\n', 'notes/gone.md': 'a\n', 'notes/old-name.md': 'a\n', 'notes/committed.md': 'a\n', '.gitignore': 'ignored.md\n' });
+  g(p.root, 'checkout', '-q', '-b', 'work');
+  writeFileSync(join(p.root, 'notes', 'committed.md'), 'b\n');
+  g(p.root, 'commit', '-q', '-am', 'on the branch');
+  writeFileSync(join(p.root, 'notes', 'edit.md'), 'b\n');
+  writeFileSync(join(p.root, 'notes', 'staged.md'), 'b\n');
+  g(p.root, 'add', 'notes/staged.md');
+  g(p.root, 'rm', '-q', 'notes/gone.md');
+  g(p.root, 'mv', 'notes/old-name.md', 'notes/new-name.md');
+  writeFileSync(join(p.root, 'notes', 'fresh.md'), 'new\n');
+  writeFileSync(join(p.root, 'ignored.md'), 'x\n');
+  const r = runIn(p, ['changed', '--list'], { cwd: p.root });
+  assert.equal(r.code, 0, r.stderr);
+  assert.deepEqual(unmappedLines(r.stderr), ['notes/committed.md', 'notes/edit.md', 'notes/fresh.md', 'notes/gone.md', 'notes/new-name.md', 'notes/old-name.md', 'notes/staged.md']);
+  assert.match(r.stderr, /^run: tier changed, base main \([0-9a-f]{7}\), merge-base [0-9a-f]{7}, 7 changed paths, /m);
+  assert.equal(r.stdout, 'gate/tests/a.test.mjs\tfast tier: a changed path is unmapped; fast tier\n');
+});
+
+test('shell: changed runs the picks, and a payload path brings in the smoke set', t => {
+  const p = gitPlant(t, {
+    'a.test.mjs': PASSING,
+    'install-smoke.test.mjs': imp(`./${HARNESS}`) + PASSING,
+    'names.test.mjs': imp(`./${HARNESS}`) + "const f = ['claude', 'agents', 'scout.md'];\n" + PASSING,
+    'other.test.mjs': imp(`./${HARNESS}`) + PASSING,
+    [HARNESS]: '',
+  }, { 'claude/agents/scout.md': 'a\n' });
+  writeFileSync(join(p.root, 'claude', 'agents', 'scout.md'), 'b\n');
+  const r = runIn(p, ['changed', '--reporter', 'tap']);
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stderr, /^pick: gate\/tests\/names\.test\.mjs \(names claude\/agents\/scout\.md\)$/m);
+  assert.match(r.stderr, /^pick: gate\/tests\/install-smoke\.test\.mjs \(install smoke set: payload claude\/agents\/scout\.md\)$/m);
+  assert.match(r.stderr, /^pick: gate\/tests\/a\.test\.mjs \(fast tier\)$/m);
+  assert.doesNotMatch(r.stderr, /other\.test\.mjs/);
+  assert.equal(r.last, 'RESULT: changed tier, 3 files, pass');
+  assert.match(r.stdout, /^# pass 3$/m);
+});
+
+test('shell: changed resolves the base before any other git call, and refuses one that is not a commit', t => {
+  const p = gitPlant(t, { 'a.test.mjs': PASSING });
+  const trace = join(tempDir(t, 'pact-trace-'), 'trace.txt');
+  const r = runIn(p, ['changed', '--list'], { env: { ...shellEnv(), GIT_TRACE: trace } });
+  assert.equal(r.code, 0, r.stderr);
+  const cmds = [...readFileSync(trace, 'utf8').matchAll(/built-in: git (?:-c \S+ )*(\S+)/g)].map(m => m[1]);
+  assert.equal(cmds[0], 'rev-parse', cmds.join(' '));
+  assert.ok(cmds.includes('merge-base') && cmds.includes('diff') && cmds.includes('ls-files'), cmds.join(' '));
+  for (const base of ['no-such-ref', 'HEAD:a', '--output=x']) {
+    const bad = runIn(p, ['changed', `--base=${base}`]);
+    assert.equal(bad.code, 2, base);
+    assert.equal(bad.stdout, '', base);
+    assert.match(bad.last, /^RESULT: refused, /, base);
+  }
+  assert.ok(!existsSync(join(p.root, 'x')), 'no option-shaped base reached git');
+});
+
+test('shell: an inherited GIT_DIR cannot point changed at another repo', t => {
+  const p = gitPlant(t, { 'a.test.mjs': PASSING });
+  const other = gitPlant(t, { 'b.test.mjs': PASSING }, { 'elsewhere.md': 'a\n' });
+  writeFileSync(join(other.root, 'elsewhere.md'), 'b\n');
+  const r = runIn(p, ['changed', '--list'], { env: { ...shellEnv(), GIT_DIR: join(other.root, '.git'), GIT_WORK_TREE: other.root } });
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stderr, /, 0 changed paths, /);
+  assert.deepEqual(unmappedLines(r.stderr), []);
+});
+
+test('shell: changed outside a git repo exits 2 and starts no node', t => {
+  const p = plant(t, { 'a.test.mjs': PASSING });
+  const r = runIn(p, ['changed']);
+  assert.equal(r.code, 2);
+  assert.equal(r.stdout, '');
+  assert.match(r.last, /^RESULT: refused, the base main does not resolve to a commit$/);
+});
+
+test('shell: an untracked file with a control character in its name prints with it replaced', { skip: WIN && 'Windows file names cannot hold control characters (the Linux run covers it)' }, t => {
+  const p = gitPlant(t, { 'a.test.mjs': PASSING });
+  writeFileSync(join(p.root, 'odd\u0001name.md'), 'x\n');
+  const r = runIn(p, ['changed', '--list']);
+  assert.equal(r.code, 0, r.stderr);
+  assert.deepEqual(unmappedLines(r.stderr), ['odd?name.md']);
+  assert.doesNotMatch(r.stderr, /\u0001/);
 });

@@ -1,10 +1,14 @@
 // The gate's test runner (#140): one fail-closed command per tier.
 //
-//   node gate/tests/run.mjs <fast|full> [--reporter <spec|tap|dot|junit>] [--record <file>] [--list]
+//   node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--list]
 //
 // full is every top-level test file in this folder. The install tier is every
 // test file that reaches install-harness.mjs through its imports, or names the
 // install script in a string literal; fast is full minus the install tier.
+// changed is the everyday run (#145): the tests the changed paths can reach,
+// by the mapping rules in pick, with the reason for each file. Its changed set
+// is what differs from the merge-base of HEAD and --base (default main), plus
+// untracked files git doesn't ignore.
 // The runner starts this same Node (process.execPath) with --test, the cap of
 // four files at once, and an explicit file list, with NODE_OPTIONS and
 // NODE_TEST_CONTEXT cleared. It never reports a pass it didn't earn: an empty
@@ -16,9 +20,11 @@
 // if a local path, the user name or the host name survives the scrub. --list
 // prints the pick and runs nothing. Start it with NODE_OPTIONS cleared, as
 // AGENTS.md shows: clearing it for the child can't reach this process.
-// It reads no git. The install skips this folder before any check, so this
-// file is never staged or installed. On the probe floor by name (AGENTS.md).
-import { spawn } from 'node:child_process';
+// Only changed reads git: fast and full read the file system alone. The base
+// is resolved to a commit before any other git call. The install skips this
+// folder before any check, so this file is never staged or installed. On the
+// probe floor by name (AGENTS.md).
+import { spawn, spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { homedir, hostname, tmpdir, userInfo } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -27,7 +33,7 @@ import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { COPY_DIRS, COPY_FILES } from './copy-list.mjs';
 
-export const TIERS = Object.freeze(['fast', 'full']);
+export const TIERS = Object.freeze(['changed', 'fast', 'full']);
 export const REPORTERS = Object.freeze(['spec', 'tap', 'dot', 'junit']);
 export const CAP = 4;
 export const TEST_SUFFIX = '.test.mjs';
@@ -35,6 +41,17 @@ export const TEST_SUFFIX = '.test.mjs';
 export const PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*\.test\.mjs$/;
 export const HARNESS = 'install-harness.mjs';
 export const INSTALL_SCRIPT = 'install.ps1';
+/** The install smoke set: the install's happy path, run for every payload change. */
+export const SMOKE = 'install-smoke.test.mjs';
+export const DEFAULT_BASE = 'main';
+/** The gate's code is this folder outside the tests folder, and the install script. */
+const GATE_DIR = 'gate';
+const TESTS_DIR = 'gate/tests';
+/**
+ * S6's rule (#145): the fast tier was re-timed quiet at 50.1 s, within 60 s,
+ * so changed runs the fast tier beside its picks.
+ */
+export const CHANGED_WITH_FAST = true;
 const MODULE_RE = /\.(?:mjs|cjs|js)$/;
 /** A path as the runner prints it: any character outside a plain set replaced. */
 export const SHOWN = s => s.replace(/[^A-Za-z0-9._/ -]/g, '?');
@@ -180,17 +197,59 @@ function harnessChain(from, sources) {
   return null;
 }
 
+/** Every module `from` reaches through relative imports inside the tests folder, itself excluded. */
+function reach(from, sources) {
+  const seen = new Set([from]);
+  const queue = [from];
+  while (queue.length) {
+    const at = queue.shift();
+    for (const spec of relativeImports(sources.get(at) ?? '')) {
+      const to = posix.normalize(posix.join(posix.dirname(at), spec));
+      if (to.startsWith('../') || seen.has(to) || !sources.has(to)) continue;
+      seen.add(to);
+      queue.push(to);
+    }
+  }
+  seen.delete(from);
+  return seen;
+}
+
+/**
+ * The text a module can name a path in, folded to lower case with forward
+ * slashes: its source as written, and its string literals run together, with
+ * and without a slash between them (a superset is the safe side).
+ */
+function namingText(src) {
+  const lits = stringLiterals(src);
+  return [src, lits.join('/'), lits.join('')].map(s => s.replace(/\\+/g, '/').replace(/\/{2,}/g, '/').toLowerCase()).join('\n');
+}
+
+/**
+ * The forms in which a test can name a repo path: its file name, and every run
+ * of two or more consecutive segments, which covers the path written out from
+ * any folder and each parent folder of at least two segments.
+ */
+export function pathNames(path) {
+  const segs = path.toLowerCase().split('/').filter(Boolean);
+  const out = new Set(segs.length ? [segs[segs.length - 1]] : []);
+  for (let i = 0; i < segs.length; i += 1) for (let j = i + 2; j <= segs.length; j += 1) out.add(segs.slice(i, j).join('/'));
+  return [...out];
+}
+
+const under = (path, dir) => path === dir || path.startsWith(`${dir}/`);
+
 /**
  * The files a tier runs, each with its reason. `entries` are the top-level
  * entries whose names end in the test suffix, as { name, file } (file: a
  * regular file). `sources` maps each module under the tests folder, by its
- * posix path relative to that folder, to its text. `copyList` is the
- * install's copy list, kept for the tiers that map changed paths.
- * Returns { files: [{ file, reason }], refused: [{ name, why }] }.
+ * posix path relative to that folder, to its text. For changed, `copyList` is
+ * the install's copy list as { dirs, files }, `changed` the changed paths,
+ * repo-relative with forward slashes, and `withFast` whether the fast tier
+ * runs beside the picks (S6).
+ * Returns { files: [{ file, reason }], refused: [{ name, why }], unmapped: [path] }.
  */
-export function pick({ tier, entries, sources, copyList }) {
+export function pick({ tier, entries, sources, copyList, changed = [], withFast = CHANGED_WITH_FAST }) {
   if (!TIERS.includes(tier)) throw new Error(`unknown tier: ${tier}`);
-  void copyList;
   const refused = [];
   const tests = [];
   for (const e of [...entries].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
@@ -198,14 +257,83 @@ export function pick({ tier, entries, sources, copyList }) {
     else if (!e.file) refused.push({ name: e.name, why: 'not a regular file' });
     else tests.push(e.name);
   }
-  const files = [];
+  const install = new Map();
   for (const name of tests) {
     const chain = harnessChain(name, sources);
-    const install = chain ? `install tier: imports ${chain.slice(1).map(SHOWN).join(' -> ')}` : namesInstallScript(sources.get(name) ?? '') ? `install tier: names ${INSTALL_SCRIPT}` : null;
-    if (tier === 'full') files.push({ file: name, reason: install ?? 'fast tier' });
-    else if (!install) files.push({ file: name, reason: 'fast tier: does not run the install' });
+    install.set(name, chain ? `install tier: imports ${chain.slice(1).map(SHOWN).join(' -> ')}` : namesInstallScript(sources.get(name) ?? '') ? `install tier: names ${INSTALL_SCRIPT}` : null);
   }
-  return { files, refused };
+  if (tier !== 'changed') {
+    const files = [];
+    for (const name of tests) {
+      if (tier === 'full') files.push({ file: name, reason: install.get(name) ?? 'fast tier' });
+      else if (!install.get(name)) files.push({ file: name, reason: 'fast tier: does not run the install' });
+    }
+    return { files, refused, unmapped: [] };
+  }
+
+  if (!copyList) throw new Error('changed needs the copy list');
+  const installScript = copyList.files.find(f => posix.basename(f) === INSTALL_SCRIPT);
+  const payloadDirs = copyList.dirs.filter(d => d !== GATE_DIR);
+  const payloadFiles = copyList.files.filter(f => f !== installScript);
+  const isPayload = p => payloadDirs.some(d => under(p, d)) || payloadFiles.includes(p);
+  const reached = new Map(tests.map(t => [t, reach(t, sources)]));
+  const texts = new Map([...sources].map(([k, v]) => [k, namingText(v)]));
+
+  const why = new Map();
+  const add = (file, reason) => {
+    if (!why.has(file)) why.set(file, []);
+    if (!why.get(file).includes(reason)) why.get(file).push(reason);
+  };
+  const all = reason => tests.forEach(t => add(t, reason));
+  const unmapped = [];
+  for (const path of [...new Set(changed)].sort()) {
+    const shown = SHOWN(path);
+    // Rule 3: gate code selects the full tier.
+    if ((under(path, GATE_DIR) && !under(path, TESTS_DIR)) || path === installScript) {
+      all(`gate code changed: ${shown}`);
+      continue;
+    }
+    let mapped = false;
+    const rel = under(path, TESTS_DIR) ? path.slice(TESTS_DIR.length + 1) : null;
+    // Rule 1: a changed test file runs itself.
+    if (rel !== null && tests.includes(rel)) {
+      add(rel, 'changed');
+      mapped = true;
+    }
+    // Rule 2: a changed module in the tests folder runs every test that imports it, through any chain.
+    if (rel !== null && sources.has(rel)) {
+      for (const t of tests) {
+        if (t !== rel && reached.get(t).has(rel)) {
+          add(t, `imports changed ${shown}`);
+          mapped = true;
+        }
+      }
+    }
+    // Rules 4 and 5: every test that names the path, in its own text or a
+    // helper's. A test file or module that is in the tests folder now is
+    // mapped by rules 1 and 2 alone.
+    const names = rel !== null && (tests.includes(rel) || sources.has(rel)) ? [] : pathNames(path);
+    for (const t of names.length ? tests : []) {
+      const via = [t, ...[...reached.get(t)].sort()].find(m => names.some(n => texts.get(m)?.includes(n)));
+      if (via !== undefined) {
+        add(t, via === t ? `names ${shown}` : `names ${shown} in ${SHOWN(via)}`);
+        mapped = true;
+      }
+    }
+    // Rule 4: a payload path also runs the install smoke set.
+    if (isPayload(path)) {
+      if (!tests.includes(SMOKE)) throw new Error(`the install smoke set, ${SMOKE}, is missing`);
+      add(SMOKE, `install smoke set: payload ${shown}`);
+    }
+    // Rule 6: a path no rule maps runs the fast tier (the smoke set is already in for a payload path).
+    if (!mapped) {
+      unmapped.push(path);
+      for (const t of tests) if (!install.get(t)) add(t, 'fast tier: a changed path is unmapped');
+    }
+  }
+  if (withFast) for (const t of tests) if (!install.get(t)) add(t, 'fast tier');
+  const files = tests.filter(t => why.has(t)).map(t => ({ file: t, reason: why.get(t).join('; ') }));
+  return { files, refused, unmapped };
 }
 
 // ------------------------------------------------------------ record-mode scrub: pure
@@ -333,18 +461,18 @@ const REPO = resolve(HERE, '..', '..');
 
 function usage(say, why) {
   say(`run: ${SHOWN(why)}`);
-  say('usage: node gate/tests/run.mjs <fast|full> [--reporter <spec|tap|dot|junit>] [--record <file>] [--list]');
+  say('usage: node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--list]');
   say(`RESULT: refused, ${SHOWN(why)}`);
   return 2;
 }
 
 export function parseArgs(argv) {
-  const opts = { tier: null, reporter: null, record: null, list: false };
+  const opts = { tier: null, reporter: null, record: null, base: null, list: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     const eq = a.indexOf('=');
     const [flag, inline] = a.startsWith('--') && eq > 0 ? [a.slice(0, eq), a.slice(eq + 1)] : [a, null];
-    if (flag === '--reporter' || flag === '--record') {
+    if (flag === '--reporter' || flag === '--record' || flag === '--base') {
       const v = inline ?? argv[(i += 1)];
       if (v === undefined || v === '') return { error: `${flag} needs a value` };
       opts[flag.slice(2)] = v;
@@ -356,6 +484,9 @@ export function parseArgs(argv) {
   if (opts.tier === null) return { error: 'no tier' };
   if (!TIERS.includes(opts.tier)) return { error: `unknown tier ${opts.tier}` };
   if (opts.reporter !== null && !REPORTERS.includes(opts.reporter)) return { error: `unknown reporter ${opts.reporter}` };
+  if (opts.base !== null && opts.tier !== 'changed') return { error: `--base is for the changed tier only` };
+  if (opts.base !== null && opts.base.startsWith('-')) return { error: `a base that starts with a dash` };
+  if (opts.tier === 'changed' && opts.base === null) opts.base = DEFAULT_BASE;
   return { opts };
 }
 
@@ -395,6 +526,50 @@ function cleanEnv() {
   const env = {};
   for (const [k, v] of Object.entries(process.env)) if (!/^(?:NODE_OPTIONS|NODE_TEST_CONTEXT)$/i.test(k)) env[k] = v;
   return env;
+}
+
+/**
+ * git's environment: the runner's own, minus every GIT_ variable but tracing,
+ * so an inherited GIT_DIR, work tree, index or config can't point the changed
+ * set at another repo or rewrite how git reads this one.
+ */
+function gitEnv() {
+  const env = {};
+  for (const [k, v] of Object.entries(process.env)) if (!/^GIT_/i.test(k) || /^GIT_TRACE$/i.test(k)) env[k] = v;
+  return env;
+}
+
+/** Run git in the repo with no shell; { out } on exit 0, else { error }. */
+function gitRun(args) {
+  const r = spawnSync('git', ['-c', 'core.fsmonitor=false', '-c', 'core.quotePath=false', ...args], { cwd: REPO, env: gitEnv(), encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
+  if (r.error) return { error: `git did not start (${SHOWN(String(r.error.code ?? 'spawn failed'))})` };
+  if (r.status !== 0) return { error: `git ${args[0]} exited ${r.status}` };
+  return { out: r.stdout };
+}
+
+const nulList = s => s.split('\0').filter(p => p !== '');
+
+/**
+ * The changed set (S5): paths that differ between the merge-base of HEAD and
+ * `base` and the working tree, staged or not, deleted and renamed files by
+ * both paths, plus untracked files git doesn't ignore. The base is resolved to
+ * a commit before any other git call. Returns { base, mergeBase, paths } or { error }.
+ */
+export function changedSet(base) {
+  if (base.startsWith('-')) return { error: 'a base that starts with a dash' };
+  const sha = gitRun(['rev-parse', '--verify', '--quiet', '--end-of-options', `${base}^{commit}`]);
+  if (sha.error) return { error: `the base ${base} does not resolve to a commit` };
+  const commit = sha.out.trim();
+  if (!/^[0-9a-f]{40,64}$/.test(commit)) return { error: `the base ${base} does not resolve to a commit` };
+  const mb = gitRun(['merge-base', commit, 'HEAD']);
+  if (mb.error) return { error: `no merge-base of ${base} and HEAD (${mb.error})` };
+  const mergeBase = mb.out.trim();
+  // --no-renames lists a rename as its deletion and its addition, so both paths count.
+  const diff = gitRun(['diff', '--no-renames', '--no-ext-diff', '--name-only', '-z', mergeBase, '--']);
+  if (diff.error) return { error: diff.error };
+  const others = gitRun(['ls-files', '--others', '--exclude-standard', '--full-name', '-z']);
+  if (others.error) return { error: others.error };
+  return { base: commit, mergeBase, paths: [...new Set([...nulList(diff.out), ...nulList(others.out)])].sort() };
 }
 
 /** The names a record must never hold as whole words: the host and user names. */
@@ -444,23 +619,34 @@ export async function main(argv) {
     if (inside(REPO, recordPath)) return usage(say, '--record must name a file outside the repo');
   }
 
+  let changed = [];
+  let base = null;
+  if (tier === 'changed') {
+    const set = changedSet(parsed.opts.base);
+    if (set.error) return usage(say, set.error);
+    changed = set.paths;
+    base = `, base ${SHOWN(parsed.opts.base)} (${set.base.slice(0, 7)}), merge-base ${set.mergeBase.slice(0, 7)}, ${changed.length} changed paths`;
+  }
+
   const entries = readdirSync(HERE, { withFileTypes: true })
     .filter(e => e.name.endsWith(TEST_SUFFIX))
     .map(e => ({ name: e.name, file: e.isFile() }));
-  const { files, refused } = pick({ tier, entries, sources: readSources(HERE), copyList: { dirs: COPY_DIRS, files: COPY_FILES } });
-  say(`run: tier ${tier}, cap ${CAP}${reporter ? `, reporter ${reporter}` : ''}${list ? ', list only' : ''}`);
+  const { files, refused, unmapped } = pick({ tier, entries, sources: readSources(HERE), copyList: { dirs: COPY_DIRS, files: COPY_FILES }, changed });
+  say(`run: tier ${tier}${base ?? ''}, cap ${CAP}${reporter ? `, reporter ${reporter}` : ''}${list ? ', list only' : ''}`);
   if (refused.length) {
     for (const r of refused) say(`refused: gate/tests/${SHOWN(r.name)} (${r.why})`);
     say(`RESULT: ${tier} tier, ${files.length} files, refused (${refused.length} test-file names refused)`);
     return 2;
   }
-  for (const f of files) say(`pick: gate/tests/${f.file} (${SHOWN(f.reason)})`);
+  for (const p of unmapped) say(`unmapped: ${SHOWN(p)} (no rule maps it, so the fast tier runs)`);
+  // A reason is built from fixed text and names already passed through SHOWN.
+  for (const f of files) say(`pick: gate/tests/${f.file} (${f.reason})`);
   if (files.length === 0) {
     say(`RESULT: ${tier} tier, 0 files, refused (an empty pick runs nothing)`);
     return 2;
   }
   if (list) {
-    for (const f of files) process.stdout.write(`gate/tests/${f.file}\t${SHOWN(f.reason)}\n`);
+    for (const f of files) process.stdout.write(`gate/tests/${f.file}\t${f.reason}\n`);
     say(`RESULT: ${tier} tier, ${files.length} files, listed, not run`);
     return 0;
   }
