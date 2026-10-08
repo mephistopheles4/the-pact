@@ -11,11 +11,17 @@ import { test } from 'node:test';
 import { REPO, SEAM_A, lastLine, renderStage, routeTree, stage, tempDir } from './helpers.mjs';
 
 const BLOCKS = join(REPO, 'examples', 'pact-config', 'blocks');
-const SET = [
-  { mark: 'move-1', file: 'move-1-matt-pocock.md' },
-  { mark: 'move-2', file: 'move-2-matt-pocock.md' },
-  { mark: 'move-3', file: 'move-3-matt-pocock.md' },
-];
+// The shipped configuration that binds the set: the file a person copies.
+const CONFIG = join(REPO, 'examples', 'pact-config', 'config-matt-pocock-skills.json');
+const SET = JSON.parse(readFileSync(CONFIG, 'utf8')).edits;
+
+test('the shipped set configuration binds exactly the three blocks, each add-after, to its own move', () => {
+  assert.deepEqual(SET, [
+    { mark: 'move-1', op: 'add-after', file: 'move-1-matt-pocock.md' },
+    { mark: 'move-2', op: 'add-after', file: 'move-2-matt-pocock.md' },
+    { mark: 'move-3', op: 'add-after', file: 'move-3-matt-pocock.md' },
+  ]);
+});
 const COMMANDS = ['triage', 'to-spec', 'to-tickets', 'wayfinder', 'implement'];
 const SPANS = ['diagnosing-bugs', 'grilling', 'domain-modeling', 'codebase-design', 'prototype', 'tdd'];
 
@@ -23,8 +29,7 @@ const SPANS = ['diagnosing-bugs', 'grilling', 'domain-modeling', 'codebase-desig
 function homeWithSet(t, set = SET) {
   const h = tempDir(t, 'pact-preset-home-');
   mkdirSync(join(h, 'pact', 'blocks'), { recursive: true });
-  const edits = set.map(e => ({ mark: e.mark, op: 'add-after', file: e.file }));
-  writeFileSync(join(h, 'pact', 'config.json'), JSON.stringify({ schema: 1, edits }));
+  writeFileSync(join(h, 'pact', 'config.json'), readFileSync(CONFIG));
   for (const e of set) writeFileSync(join(h, 'pact', 'blocks', e.file), readFileSync(join(BLOCKS, e.file)));
   return h;
 }
