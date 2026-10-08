@@ -58,3 +58,4 @@ Issue comments on mephistopheles4/the-pact#144:
 - `6066560954`, `6066611913` — the plants for move 4's fixes: expected results and results.
 - `6066636782` — move 4's Lens dispositions.
 - `6066872845` — the final full suite against the baseline.
+- `6067327558` — the owner's pick, the walk-through and the owner's done.
