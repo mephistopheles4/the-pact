@@ -151,7 +151,7 @@ test('the scrub: repo, temp and home folders, in every form, and the user name b
     'see https://example.com/a',
   ].join('\n');
   const out = scrub(text);
-  assert.deepEqual(leakedLines(out), [], out);
+  assert.deepEqual(leakedLines(out), []);
   assert.equal(
     out,
     [
@@ -167,7 +167,9 @@ test('the scrub: repo, temp and home folders, in every form, and the user name b
 
 test('the scrub on a POSIX tree, and the leak check on what survives', () => {
   const scrub = makeScrub({ repo: '/home/bob/pact', home: '/home/bob', tmp: '/tmp', user: 'bob', win: false });
-  assert.equal(scrub('/home/bob/pact/x /tmp/y /home/bob/.z file:///home/bob/pact/q'), '<repo>/x <tmp>/y <home>/.z file://<repo>/q');
+  const out = scrub('/home/bob/pact/x /tmp/y /home/bob/.z file:///home/bob/pact/q');
+  assert.deepEqual(leakedLines(out), []);
+  assert.equal(out, '<repo>/x <tmp>/y <home>/.z file://<repo>/q');
   assert.deepEqual(leakedLines('ok\nD:\\other\\x\nhttps://a.b/c\n/home/eve/x\n/Users/eve/y\nfile:///E:/z'), [2, 4, 5, 6]);
 });
 
@@ -187,7 +189,14 @@ function plant(t, files = {}) {
   return { root, tests };
 }
 
-function runIn(p, args, { env = process.env, cwd = tmpdir() } = {}) {
+/** The env a session's shell gives the runner: this process's, without the test runner's own context. */
+function shellEnv() {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
+}
+
+function runIn(p, args, { env = shellEnv(), cwd = tmpdir() } = {}) {
   const r = spawnSync(process.execPath, [join(p.tests, 'run.mjs'), ...args], { cwd, env, encoding: 'utf8', timeout: 120_000 });
   const lines = r.stderr.split(/\r?\n/).filter(Boolean);
   return { code: r.status, signal: r.signal, stdout: r.stdout, stderr: r.stderr, last: lines[lines.length - 1] };
@@ -222,7 +231,8 @@ test('held ${name}', async () => {
   for (const n of names) assert.match(r.stdout, new RegExp(`^ok \\d+ - held ${n}$`, 'm'));
   for (const n of names) assert.match(r.stderr, new RegExp(`^pick: gate/tests/${n}\\.test\\.mjs \\(fast tier\\)$`, 'm'));
   const max = Math.max(...names.map(n => Number(readFileSync(join(p.root, `seen-${n}`), 'utf8'))));
-  assert.equal(max, CAP, `at most ${CAP} files run at once, and ${CAP} did`);
+  assert.equal(CAP, 4);
+  assert.equal(max, 4, 'at most four files run at once, and four did');
   assert.equal(r.last, 'RESULT: full tier, 6 files, pass');
 });
 
@@ -287,7 +297,7 @@ test('shell: fast and full run with no git on PATH and no git repo', t => {
   const p = plant(t, { 'a.test.mjs': PASSING });
   const empty = tempDir(t, 'pact-nopath-');
   const env = {};
-  for (const [k, v] of Object.entries(process.env)) if (!/^path$/i.test(k)) env[k] = v;
+  for (const [k, v] of Object.entries(shellEnv())) if (!/^path$/i.test(k)) env[k] = v;
   env.PATH = empty;
   assert.ok(!existsSync(join(p.root, '.git')));
   for (const tier of ['fast', 'full']) {
@@ -299,7 +309,7 @@ test('shell: fast and full run with no git on PATH and no git repo', t => {
 
 test('shell: stdout is clean TAP even when the runner inherits a test runner\'s context', t => {
   const p = plant(t, { 'a.test.mjs': PASSING, 'b.test.mjs': PASSING });
-  const r = runIn(p, ['full', '--reporter', 'tap'], { env: { ...process.env, NODE_TEST_CONTEXT: 'child-v8' } });
+  const r = runIn(p, ['full', '--reporter', 'tap'], { env: { ...shellEnv(), NODE_TEST_CONTEXT: 'child-v8' } });
   assert.equal(r.code, 0, r.stderr);
   const lines = r.stdout.split('\n').filter(Boolean);
   assert.equal(lines[0], 'TAP version 13');
@@ -311,7 +321,7 @@ test('shell: stdout is clean TAP even when the runner inherits a test runner\'s 
 
 test('shell: an inherited test-name filter in NODE_OPTIONS cannot narrow the run', t => {
   const p = plant(t, { 'two.test.mjs': "import { test } from 'node:test';\ntest('first', () => {});\ntest('second', () => {});\n" });
-  const r = runIn(p, ['full', '--reporter', 'tap'], { env: { ...process.env, NODE_OPTIONS: '--test-name-pattern=first' } });
+  const r = runIn(p, ['full', '--reporter', 'tap'], { env: { ...shellEnv(), NODE_OPTIONS: '--test-name-pattern=first' } });
   assert.equal(r.code, 0, r.stderr);
   assert.match(r.stdout, /^ok \d+ - first$/m);
   assert.match(r.stdout, /^ok \d+ - second$/m);
