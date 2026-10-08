@@ -8,7 +8,8 @@
 // changed is the everyday run (#145): the tests the changed paths can reach,
 // by the mapping rules in pick, with the reason for each file. Its changed set
 // is what differs from the merge-base of HEAD and --base (default main), plus
-// untracked files git doesn't ignore.
+// untracked files git doesn't ignore. With no --base, the base is the branch
+// refs/heads/main, never a tag or other ref of that name.
 // The runner starts this same Node (process.execPath) with --test, the cap of
 // four files at once, and an explicit file list, with NODE_OPTIONS and
 // NODE_TEST_CONTEXT cleared. It never reports a pass it didn't earn: an empty
@@ -52,6 +53,8 @@ const TESTS_DIR = 'gate/tests';
  * so changed runs the fast tier beside its picks.
  */
 export const CHANGED_WITH_FAST = true;
+/** More changed paths than this select every test, with no per-path mapping. */
+export const MAX_CHANGED = 2000;
 const MODULE_RE = /\.(?:mjs|cjs|js)$/;
 /** A path as the runner prints it: any character outside a plain set replaced. */
 export const SHOWN = s => s.replace(/[^A-Za-z0-9._/ -]/g, '?');
@@ -286,7 +289,10 @@ export function pick({ tier, entries, sources, copyList, changed = [], withFast 
   };
   const all = reason => tests.forEach(t => add(t, reason));
   const unmapped = [];
-  for (const path of [...new Set(changed)].sort()) {
+  const paths = [...new Set(changed)].sort();
+  // Past the bound, mapping each path costs more than it saves: run everything.
+  if (paths.length > MAX_CHANGED) all(`over ${MAX_CHANGED} changed paths (${paths.length})`);
+  for (const path of paths.length > MAX_CHANGED ? [] : paths) {
     const shown = SHOWN(path);
     // Rule 3: gate code selects the full tier.
     if ((under(path, GATE_DIR) && !under(path, TESTS_DIR)) || path === installScript) {
@@ -310,10 +316,14 @@ export function pick({ tier, entries, sources, copyList, changed = [], withFast 
       }
     }
     // Rules 4 and 5: every test that names the path, in its own text or a
-    // helper's. A test file or module that is in the tests folder now is
-    // mapped by rules 1 and 2 alone.
-    const names = rel !== null && (tests.includes(rel) || sources.has(rel)) ? [] : pathNames(path);
-    for (const t of names.length ? tests : []) {
+    // helper's. A test file or module that is in the tests folder now counts
+    // as named only by a form that holds its file name, so a test that loads
+    // it by path is picked, and one that names only the tests folder is not.
+    const file = posix.basename(path).toLowerCase();
+    const names = rel !== null && (tests.includes(rel) || sources.has(rel)) ? pathNames(path).filter(n => n === file || n.endsWith(`/${file}`)) : pathNames(path);
+    for (const t of tests) {
+      // A test that imports the path is already picked by rule 2.
+      if (t === rel || reached.get(t).has(rel)) continue;
       const via = [t, ...[...reached.get(t)].sort()].find(m => names.some(n => texts.get(m)?.includes(n)));
       if (via !== undefined) {
         add(t, via === t ? `names ${shown}` : `names ${shown} in ${SHOWN(via)}`);
@@ -486,7 +496,6 @@ export function parseArgs(argv) {
   if (opts.reporter !== null && !REPORTERS.includes(opts.reporter)) return { error: `unknown reporter ${opts.reporter}` };
   if (opts.base !== null && opts.tier !== 'changed') return { error: `--base is for the changed tier only` };
   if (opts.base !== null && opts.base.startsWith('-')) return { error: `a base that starts with a dash` };
-  if (opts.tier === 'changed' && opts.base === null) opts.base = DEFAULT_BASE;
   return { opts };
 }
 
@@ -555,21 +564,30 @@ const nulList = s => s.split('\0').filter(p => p !== '');
  * both paths, plus untracked files git doesn't ignore. The base is resolved to
  * a commit before any other git call. Returns { base, mergeBase, paths } or { error }.
  */
-export function changedSet(base) {
+export function changedSet(base, shown = base) {
   if (base.startsWith('-')) return { error: 'a base that starts with a dash' };
   const sha = gitRun(['rev-parse', '--verify', '--quiet', '--end-of-options', `${base}^{commit}`]);
-  if (sha.error) return { error: `the base ${base} does not resolve to a commit` };
+  if (sha.error) return { error: `the base ${shown} does not resolve to a commit` };
   const commit = sha.out.trim();
-  if (!/^[0-9a-f]{40,64}$/.test(commit)) return { error: `the base ${base} does not resolve to a commit` };
+  if (!/^[0-9a-f]{40,64}$/.test(commit)) return { error: `the base ${shown} does not resolve to a commit` };
+  // Paths are read relative to the repo's top, so the runner must sit at it:
+  // in a tree nested inside another repo, every path would carry a prefix and
+  // gate code would no longer select the full tier.
+  const prefix = gitRun(['rev-parse', '--show-prefix']);
+  if (prefix.error || prefix.out.trim() !== '') return { error: 'the runner is not at the top of its own git repository' };
   const mb = gitRun(['merge-base', commit, 'HEAD']);
-  if (mb.error) return { error: `no merge-base of ${base} and HEAD (${mb.error})` };
+  if (mb.error) return { error: `no merge-base of ${shown} and HEAD (${mb.error})` };
   const mergeBase = mb.out.trim();
-  // --no-renames lists a rename as its deletion and its addition, so both paths count.
+  // --no-renames lists a rename as its deletion and its addition, so both
+  // paths count. The working tree and the index are read separately, so a
+  // staged change that the working copy undoes still counts.
   const diff = gitRun(['diff', '--no-renames', '--no-ext-diff', '--name-only', '-z', mergeBase, '--']);
   if (diff.error) return { error: diff.error };
+  const staged = gitRun(['diff', '--cached', '--no-renames', '--no-ext-diff', '--name-only', '-z', mergeBase, '--']);
+  if (staged.error) return { error: staged.error };
   const others = gitRun(['ls-files', '--others', '--exclude-standard', '--full-name', '-z']);
   if (others.error) return { error: others.error };
-  return { base: commit, mergeBase, paths: [...new Set([...nulList(diff.out), ...nulList(others.out)])].sort() };
+  return { base: commit, mergeBase, paths: [...new Set([...nulList(diff.out), ...nulList(staged.out), ...nulList(others.out)])].sort() };
 }
 
 /** The names a record must never hold as whole words: the host and user names. */
@@ -622,10 +640,13 @@ export async function main(argv) {
   let changed = [];
   let base = null;
   if (tier === 'changed') {
-    const set = changedSet(parsed.opts.base);
+    // The default base is the branch itself, by its full name, so a tag or
+    // another ref called main can't stand in for it.
+    const given = parsed.opts.base;
+    const set = given === null ? changedSet(`refs/heads/${DEFAULT_BASE}`, DEFAULT_BASE) : changedSet(given);
     if (set.error) return usage(say, set.error);
     changed = set.paths;
-    base = `, base ${SHOWN(parsed.opts.base)} (${set.base.slice(0, 7)}), merge-base ${set.mergeBase.slice(0, 7)}, ${changed.length} changed paths`;
+    base = `, base ${SHOWN(given ?? DEFAULT_BASE)} (${set.base.slice(0, 7)}), merge-base ${set.mergeBase.slice(0, 7)}, ${changed.length} changed paths`;
   }
 
   const entries = readdirSync(HERE, { withFileTypes: true })

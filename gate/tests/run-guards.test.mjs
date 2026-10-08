@@ -133,6 +133,30 @@ test('the command check catches a runner command that keeps NODE_OPTIONS', () =>
   assert.deepEqual(commandProblems(planted), ['a runner command that keeps NODE_OPTIONS: node gate/tests/run.mjs full']);
 });
 
+/** What is wrong with the section's while-building rule: [] when it gives `changed` in both shell forms. */
+export function whileBuildingProblems(text) {
+  const bullet = text.split('\n- ').find(b => b.startsWith('**While building'));
+  if (!bullet) return ['no "While building" rule'];
+  const cmds = runnerCommands(bullet);
+  const out = [];
+  if (!cmds.includes(`${PS_FORM}changed`)) out.push('no PowerShell changed command');
+  if (!cmds.includes(`${POSIX_FORM}changed`)) out.push('no POSIX changed command');
+  return out;
+}
+
+test('AGENTS.md says to run changed while building, in both shell forms', () => {
+  assert.deepEqual(whileBuildingProblems(section()), []);
+});
+
+test('the while-building check catches the rule deleted, or naming another tier', () => {
+  const text = section();
+  const start = text.indexOf('\n- **While building');
+  assert.ok(start >= 0, 'the plant found the rule');
+  const end = text.indexOf('\n- ', start + 1);
+  assert.deepEqual(whileBuildingProblems(text.slice(0, start) + text.slice(end)), ['no "While building" rule']);
+  assert.deepEqual(whileBuildingProblems(text.replace(/run\.mjs changed`/g, 'run.mjs fast`')), ['no PowerShell changed command', 'no POSIX changed command']);
+});
+
 test('the Linux container script starts the runner with NODE_OPTIONS cleared', () => {
   const sh = readFileSync(join(HERE, 'fixtures', 'linux', 'run.sh'), 'utf8');
   const lines = sh.split('\n').filter(l => /\bnode\b.*run\.mjs/.test(l) && !l.trim().startsWith('#'));

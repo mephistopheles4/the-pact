@@ -110,13 +110,20 @@ how every session in every repo behaves. So:
   - **`changed`** runs `fast` plus the tests your change can reach, and
     prints why it picked each file. It's the only tier that reads git.
     - **The changed paths:** what differs from where your branch left
-      `--base` (default `main`), committed or not, plus untracked files git
-      doesn't ignore.
+      `--base` (default: the branch `main`), committed, staged or not, plus
+      untracked files git doesn't ignore.
     - **What they pick:** a changed test runs itself, and a changed helper
       runs every test that imports it. A test that names a changed path runs
       too. A payload path also runs the install smoke file. Any change to the
-      gate's code runs `full`.
-    - **A path no rule maps** is printed as unmapped. `fast` covers it.
+      gate's code runs `full`, and so do more than 2,000 changed paths.
+    - **A path no rule maps** is printed as unmapped. `fast` covers it, plus
+      the install smoke file for a payload path.
+    - **Some changes still cost about a full suite.** A file under `claude/`
+      or `cross/` is read by the shared test helper, so nearly every test
+      names it. A fixture edit, or a deleted or renamed test file, is named by
+      the copy list's entry for the tests folder, so every install test runs.
+      #151 tracks a finer split. For such a change, check the pick with
+      `--list` first, and run it once rather than after every edit.
 
   All three cap the run at four test files at once, which keeps it from
   starving other sessions (ADR 0029). Never run the suite without the cap.
@@ -149,6 +156,9 @@ how every session in every repo behaves. So:
   and temp folders, the user name and the host name replaced by placeholders.
   If a local path or either name survives, it writes nothing and exits 3. Keep
   raw reporter output, such as a junit file, outside the repo.
+- **Read a `changed` record before you post it.** Its `pick:` and `unmapped:`
+  lines name your changed and untracked files. If one of them shouldn't be
+  shared, post a `fast` or `full` record instead.
 
 ## Where work lives
 
