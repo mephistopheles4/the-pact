@@ -59,13 +59,17 @@ how every session in every repo behaves. So:
   handed back as `-RenderedHash <hash>`, and refuses if it does not match this
   run's render. A pact from before edits (#94) refuses a file that has any, so
   to install such a commit, empty the edit list first.
-- **Agent settings.** The file's `agents` key may set `integrity-lens`'s
-  `model` (`opus` or `sonnet`) and `effort` (`low`, `medium` or `high`). The
-  installer renders and installs that agent's file with those two lines
-  changed, and warns about the setting in the dry run. Every other agent is
-  locked, and the setting is refused by name. A pact from before agent
-  settings (#97) refuses a file that has an `agents` key, so to install such
-  a commit, remove it first.
+- **Agent settings.** The file's `agents` key may set any pact lens's
+  `model` (`opus` or `sonnet`) and `effort` (`low`, `medium` or `high`); each
+  lens's own file holds its default. `scout` is sealed and refused by name.
+  The installer renders and installs each set agent's file with those two
+  lines changed, and warns about each setting in the dry run. A security-set
+  lens set off its default is marked "override, not security-tested" in the
+  dry run, the installed notice, every report posted from it and its Lens
+  dispositions row (ADR 0027). A pact from before agent settings (#97)
+  refuses a file that has an `agents` key, and one from before #97's unlock
+  refuses a setting for any lens but `integrity-lens`, so to install such a
+  commit, remove the key first.
 - **The builder page.** [`builder/pact-config.html`](builder/pact-config.html)
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists or the example blocks, run
@@ -226,7 +230,10 @@ they live here to outlive it. No periodic review may cut or weaken:
   not-checked lists and the fail-closed checks.** Under the thorough-only
   rule, the script that checks lens reports refuses a report from either lens
   of the security pair at any tier but thorough.
-- **The security set's contents, and its rerun after a model change.**
+- **The security set's contents, and its rerun after a model change.** The
+  rerun binds the pact's shipped defaults: a change to a shipped agent file's
+  model reruns that lens's set. A person's configuration override is never
+  run there, so it carries the mark "override, not security-tested" (ADR 0027).
 - **The per-lens tool allow-list:** no lens gains a tool.
 - **The security lenses' carried rules:** a secret named by location, never
   by value; no working exploit or payload; checklists carried in the lens,

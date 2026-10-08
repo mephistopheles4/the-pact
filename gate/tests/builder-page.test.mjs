@@ -173,9 +173,9 @@ test('the page carries what builder/build.mjs builds from the repo now: the move
 /** A throwaway root holding the files builder/build.mjs reads, with `mutate` applied. */
 function buildRoot(t, mutate) {
   const root = tempDir(t, 'pact-builder-root-');
-  for (const d of ['claude', 'examples']) cpSync(join(REPO, d), join(root, d), { recursive: true });
-  mkdirSync(join(root, 'gate'));
-  cpSync(join(REPO, 'gate', 'render.mjs'), join(root, 'gate', 'render.mjs'));
+  for (const d of ['claude', 'examples', 'familiars']) cpSync(join(REPO, d), join(root, d), { recursive: true });
+  // The renderer and what it reads: build.mjs runs it for the agents' classes.
+  cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: s => !s.includes(`${join('gate', 'tests')}`) });
   mutate(root);
   return root;
 }
@@ -516,29 +516,45 @@ test('a "Your agent" card writes one plain line naming the agent, and refuses a 
   assert.ok(L.problems(s).some(p => p.level === 'error' && /card 1: the agent name/.test(p.text)));
 });
 
-test('only the renderer\'s configurable agents take a model and effort, and only a change from the file is written', () => {
-  assert.deepEqual(L.PACT.agents.filter(a => a.configurable).map(a => a.name), ['integrity-lens']);
+test('every pact lens takes a model and effort, scout is locked as sealed, and only a change from the file is written', () => {
+  assert.deepEqual(L.PACT.agents.filter(a => a.configurable).map(a => a.name), ['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'unstated-lens']);
+  assert.deepEqual(L.PACT.agents.filter(a => !a.configurable).map(a => [a.name, a.locked]), [['scout', 'sealed: its digest covers its own file']]);
   const s = L.initialState();
+  assert.deepEqual(Object.keys(s.agents).sort(), L.PACT.agents.filter(a => a.configurable).map(a => a.name));
   assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text), { schema: 1 });
   s.agents['integrity-lens'].effort = 'low';
   assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents, { 'integrity-lens': { effort: 'low' } });
   s.agents['integrity-lens'].model = 'sonnet';
-  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents, { 'integrity-lens': { model: 'sonnet', effort: 'low' } });
+  s.agents['data-lens'].model = 'sonnet';
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents, { 'data-lens': { model: 'sonnet' }, 'integrity-lens': { model: 'sonnet', effort: 'low' } });
   assert.deepEqual(L.PACT.agentChoices, { models: ['opus', 'sonnet'], efforts: ['low', 'medium', 'high'] });
+});
+
+test('the page takes each lens\'s class from the renderer: six security-set, two of them egress, integrity-lens plain', () => {
+  const cls = Object.fromEntries(L.PACT.agents.filter(a => a.configurable).map(a => [a.name, `${a.security ? 'security-set' : 'plain'} ${a.egress ? 'egress' : 'local'}`]));
+  assert.deepEqual(cls, {
+    'adversarial-lens': 'security-set egress',
+    'behaviour-lens': 'security-set egress',
+    'data-lens': 'security-set local',
+    'executability-lens': 'security-set local',
+    'good-enough-lens': 'security-set local',
+    'integrity-lens': 'plain local',
+    'unstated-lens': 'security-set local',
+  });
 });
 
 test('the page shows each pact agent with its model and effort, as its file sets them, and where the pact names it', () => {
   const names = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
-  assert.deepEqual(L.PACT.agents.map(a => a.name), names);
+  assert.deepEqual(L.PACT.agents.map(a => a.name), [...names, 'scout']);
   for (const a of L.PACT.agents) {
-    const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(join(REPO, 'claude', 'agents', `${a.name}.md`), 'utf8'))[1];
+    const file = a.name === 'scout' ? join(REPO, 'familiars', 'scout.md') : join(REPO, 'claude', 'agents', `${a.name}.md`);
+    const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(file, 'utf8'))[1];
     assert.match(head, new RegExp(`^model: ${a.model}$`, 'm'));
     assert.match(head, new RegExp(`^effort: ${a.effort}$`, 'm'));
   }
   const sr = L.PACT.agents.find(a => a.name === 'data-lens');
   assert.deepEqual(sr.runs.map(r => r.mark), ['security-route', 'move-4']);
 });
-
 // ------------------------------------------------------------ the page's checks against the renderer's
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');

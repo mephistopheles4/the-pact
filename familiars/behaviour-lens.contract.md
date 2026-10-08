@@ -195,7 +195,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 14. How hard should it think?
 
-**Confirmed** (2026-10-05): Opus at medium effort, the same model as its partner by default; its partner, integrity-lens, may run on another model when a user configuration sets one (#97). A second opinion from another model is the owner's call. A model change makes its security-set results stale; the owner reruns the set before the lens is trusted again.
+**Confirmed** (2026-10-05): Opus at medium effort, the same model as its partner by default; either lens may run on another model or effort when a user configuration sets one (#97, ADR 0027), and a run of this lens on such a setting is marked "override, not security-tested". A second opinion from another model is the owner's call. A model change makes its security-set results stale; the owner reruns the set before the lens is trusted again.
 
 ### 15. How does it write?
 

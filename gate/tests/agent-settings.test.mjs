@@ -1,4 +1,4 @@
-// Agent settings (#97): a user file sets integrity-lens's model and effort.
+// Agent settings (#97): a user file sets any pact lens's model and effort.
 // The renderer is driven through its command line, as the install script runs
 // it; the install script end to end, against a throwaway repo and -ClaudeHome.
 // Never touches ~/.claude. Expected agent bytes are built here from the
@@ -19,18 +19,23 @@ const SOURCE = readFileSync(join(REPO, 'claude', 'CLAUDE.md'));
 /** The repo's integrity-lens file with its model and effort lines set. */
 const withAgent = (model, effort) => AGENT.replace(/^model: .*$/m, `model: ${model}`).replace(/^effort: .*$/m, `effort: ${effort}`);
 
+const AGENTS_DIR = join(REPO, 'claude', 'agents');
+const PACT_AGENTS = readdirSync(AGENTS_DIR).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
+
 /**
- * Run the renderer on a staged-like source folder: claude/CLAUDE.md, and
- * claude/agents/integrity-lens.md holding `agent` (or none when null), with a
- * user file holding `config`. `renderer` defaults to the repo's.
+ * Run the renderer on a staged-like source folder: claude/CLAUDE.md, every
+ * repo agent file, and claude/agents/<name>.md (integrity-lens by default)
+ * holding `agent` (or none when null), with a user file holding `config`.
+ * `renderer` defaults to the repo's.
  */
-function render(t, config, { agent = AGENT, renderer = RENDER, noConfig = false, source = SOURCE } = {}) {
+function render(t, config, { agent = AGENT, name = 'integrity-lens', renderer = RENDER, noConfig = false, source = SOURCE } = {}) {
   const stage = tempDir(t, 'pact-agents-stage-');
   mkdirSync(join(stage, 'claude', 'agents'), { recursive: true });
   writeFileSync(join(stage, 'claude', 'CLAUDE.md'), source);
+  for (const a of PACT_AGENTS) if (a !== name) cpSync(join(AGENTS_DIR, `${a}.md`), join(stage, 'claude', 'agents', `${a}.md`));
   if (agent !== null) {
-    if (typeof agent === 'function') agent(join(stage, 'claude', 'agents', 'integrity-lens.md'));
-    else writeFileSync(join(stage, 'claude', 'agents', 'integrity-lens.md'), agent);
+    if (typeof agent === 'function') agent(join(stage, 'claude', 'agents', `${name}.md`));
+    else writeFileSync(join(stage, 'claude', 'agents', `${name}.md`), agent);
   }
   const h = tempDir(t, 'pact-agents-home-');
   if (!noConfig) {
@@ -42,7 +47,7 @@ function render(t, config, { agent = AGENT, renderer = RENDER, noConfig = false,
   delete env.NODE_OPTIONS;
   const r = spawnSync(process.execPath, [renderer, join(stage, 'claude', 'CLAUDE.md'), out, h], { encoding: 'utf8', env });
   const outFiles = readdirSync(out).sort();
-  const agentOut = join(out, 'agent-integrity-lens.md');
+  const agentOut = join(out, `agent-${name}.md`);
   return { code: r.status, stdout: r.stdout, out: r.stdout + r.stderr, outFiles, agentBytes: existsSync(agentOut) ? readFileSync(agentOut) : null, rules: existsSync(join(out, 'CLAUDE.md')) ? readFileSync(join(out, 'CLAUDE.md'), 'utf8') : null };
 }
 
@@ -55,6 +60,13 @@ function refusedWith(r, rule, reason) {
 
 const cfg = agents => ({ schema: 1, agents });
 
+/** The rendered notice: its paragraph, up to the next blank line. */
+function notice(rules) {
+  const m = /^\*\*Configuration in effect\.\*\*[\s\S]*?(?=\n\n|$)/m.exec(rules);
+  assert.ok(m, 'no configuration notice');
+  return m[0];
+}
+
 // ------------------------------------------------------------ the renderer: what renders
 
 test('integrity-lens set to sonnet and low renders: only its model and effort lines change, the AGENT line names its hash, and the notice says so', t => {
@@ -63,7 +75,7 @@ test('integrity-lens set to sonnet and low renders: only its model and effort li
   assert.deepEqual(r.outFiles, ['CLAUDE.md', 'agent-integrity-lens.md', 'config.diff']);
   const want = Buffer.from(withAgent('sonnet', 'low'));
   assert.deepEqual(r.agentBytes, want);
-  assert.match(r.stdout, new RegExp(`^AGENT integrity-lens sonnet low ${sha256(want)}$`, 'm'));
+  assert.match(r.stdout, new RegExp(`^AGENT integrity-lens sonnet low ${sha256(want)} plain override local$`, 'm'));
   assert.match(r.rules, /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
   // Every byte outside the two lines is the committed file's.
   const a = AGENT.split('\n');
@@ -75,7 +87,7 @@ test('integrity-lens set to sonnet and low renders: only its model and effort li
 test('an unset field keeps the file\'s value, printed as its allow-list constant', t => {
   const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }));
   assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^AGENT integrity-lens sonnet medium [0-9a-f]{64}$/m);
+  assert.match(r.stdout, /^AGENT integrity-lens sonnet medium [0-9a-f]{64} plain override local$/m);
   assert.deepEqual(r.agentBytes, Buffer.from(withAgent('sonnet', 'medium')));
 });
 
@@ -93,7 +105,7 @@ test('with no agents key, no agent file is read: a stage with none renders, and 
 
 const BAD_CONFIGS = [
   ['an unknown agent', cfg({ 'my-reviewer': { model: 'sonnet' } }), /cannot set/],
-  ...['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'unstated-lens', 'scout'].map(a => [`the locked agent ${a}`, cfg({ [a]: { model: 'sonnet' } }), new RegExp(`${a} is locked`)]),
+  ['the sealed agent scout', cfg({ scout: { model: 'opus' } }), /scout is locked: it is sealed/],
   ['an entry that is a string', cfg({ 'integrity-lens': 'sonnet' }), /must be an object/],
   ['an entry that is a list', cfg({ 'integrity-lens': [] }), /must be an object/],
   ['an entry that is null', cfg({ 'integrity-lens': null }), /must be an object/],
@@ -142,7 +154,7 @@ const BAD_AGENT_FILES = [
   ['a model line only in the body', AGENT.replace(/^model: .*\n/m, '').replace('# integrity-lens', 'model: opus\n\n# integrity-lens'), /exactly one model line/],
   ['a model line only as an indented child', AGENT.replace(/^model: .*$/m, 'notes:\n  model: opus'), /exactly one model line/],
   ['a metadata (seal) key', AGENT.replace(/^effort: .*$/m, '$&\nmetadata:\n  contract-version: 1'), /sealed agent cannot be configured/],
-  ['a tool gained', AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]'), /default read tools/],
+
   ['the file\'s own effort off the list', AGENT.replace(/^effort: .*$/m, 'effort: max'), /effort line is not one of/],
   ['CRLF line endings', AGENT.replace(/\n/g, '\r\n'), /carriage return/],
   ['a folder in place of the file', p => mkdirSync(p), /not a regular file/],
@@ -150,7 +162,8 @@ const BAD_AGENT_FILES = [
   ['two model lines', AGENT.replace(/^model: .*$/m, 'model: opus\nmodel: opus'), /exactly one model line/],
   ['no effort line', AGENT.replace(/^effort: .*\n/m, ''), /exactly one effort line/],
   ['the file\'s own model off the list', AGENT.replace(/^model: .*$/m, 'model: haiku'), /model line is not one of/],
-  ['a second tools line after the default one', AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep]\ntools: [Bash]'), /default read tools/],
+  ['a second tools line after the default one', AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep]\ntools: [Bash]'), /exactly one tools line/],
+  ['no tools line', AGENT.replace(/^tools: .*\n/m, ''), /exactly one tools line/],
 ];
 
 for (const [name, agent, reason] of BAD_AGENT_FILES) {
@@ -170,42 +183,105 @@ test('bad case: an agent file that is a link is refused', { skip: WIN && 'not ru
   assert.match(r.stdout, /not a regular file/);
 });
 
-test('bad case: an agent the security route or the risk floor names is security-set, and refused; today\'s source renders', t => {
+// ------------------------------------------------------------ the renderer: security-set lenses
+
+/** The AGENT line's three words for `name` set to sonnet, or the refusal. */
+function classify(t, name, opts = {}) {
+  const file = opts.agent ?? readFileSync(join(AGENTS_DIR, `${name}.md`), 'utf8');
+  const r = render(t, cfg({ [name]: { model: 'sonnet', effort: 'low' } }), { ...opts, name, agent: file });
+  assert.equal(r.code, 0, r.out);
+  const m = new RegExp(`^AGENT ${name} sonnet low [0-9a-f]{64} (\\S+) (\\S+) (\\S+)$`, 'm').exec(r.stdout);
+  assert.ok(m, r.out);
+  return { words: m.slice(1).join(' '), r };
+}
+
+test('every pact lens can be set, and the security-set ones are exactly the six the spec names; only the shell and web lenses are egress', t => {
+  assert.deepEqual(PACT_AGENTS, ['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'unstated-lens']);
+  const got = Object.fromEntries(PACT_AGENTS.map(a => [a, classify(t, a).words]));
+  assert.deepEqual(got, {
+    'adversarial-lens': 'security-set override egress',
+    'behaviour-lens': 'security-set override egress',
+    'data-lens': 'security-set override local',
+    'executability-lens': 'security-set override local',
+    'good-enough-lens': 'security-set override local',
+    'integrity-lens': 'plain override local',
+    'unstated-lens': 'security-set override local',
+  });
+});
+
+test('a lens set to its own values is not an override: no mark, and the AGENT line says default', t => {
+  const r = render(t, cfg({ 'data-lens': { model: 'opus', effort: 'high' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^AGENT data-lens opus high [0-9a-f]{64} security-set default local$/m);
+  assert.match(r.rules, /^Agents set: data-lens \(opus, high effort\)\.$/m);
+  assert.doesNotMatch(notice(r.rules), /override, not security-tested/);
+});
+
+test('a security-set override carries its own mark in the notice, and the sentence that carries it to every posted report; a plain one does not', t => {
+  const r = render(t, cfg({ 'data-lens': { model: 'sonnet' }, 'integrity-lens': { effort: 'low' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.rules, /^Agents set: data-lens \(sonnet, high effort; override, not security-tested\), integrity-lens \(opus, low effort\)\.$/m);
+  assert.match(r.rules, /^Put "override, not security-tested" beside every report you post from these lenses, and in their rows of the Lens dispositions table: data-lens\.$/m);
+  // The cross script's "not verified" keeps its one meaning.
+  assert.doesNotMatch(notice(r.rules), /not verified/);
+});
+
+test('bad case: each sign alone marks integrity-lens security-set; with none it stays plain', t => {
+  assert.equal(classify(t, 'integrity-lens').words, 'plain override local');
+  // A tool beyond the read tools: security-set, and egress.
+  assert.equal(classify(t, 'integrity-lens', { agent: AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]') }).words, 'security-set override egress');
+  // The security-route clause names it.
   const src = SOURCE.toString('utf8');
   const route = src.replace(/(<!-- pact:begin security-route -->\n)/, '$1   The QA pair includes `integrity-lens` here.\n');
   assert.notEqual(route, src);
-  const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { source: route });
-  assert.equal(r.code, 1, r.out);
-  assert.match(r.stdout, /the security-route clause names the agent/);
-  const floor = src.replace(/(<!-- pact:begin risk-floor -->\n)/, '$1`integrity-lens` too. ');
-  assert.notEqual(floor, src);
-  assert.match(render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { source: floor }).stdout, /the risk-floor clause names the agent/);
-  assert.equal(render(t, cfg({ 'integrity-lens': { model: 'sonnet' } })).code, 0);
-});
-
-test('bad case: an agent with an entry in the tool allow-list is refused', t => {
+  assert.equal(classify(t, 'integrity-lens', { source: route }).words, 'security-set override local');
+  // Its own file carries a risk-floor block.
+  const floor = AGENT.replace('# integrity-lens', '<!-- pact:begin risk-floor -->\nThe risk floor.\n<!-- pact:end risk-floor -->\n\n# integrity-lens');
+  assert.notEqual(floor, AGENT);
+  assert.equal(classify(t, 'integrity-lens', { agent: floor }).words, 'security-set override local');
+  // An entry in the tool allow-list.
   const gate = tempDir(t, 'pact-agents-gate-');
   for (const f of ['render.mjs', 'shared.mjs']) cpSync(join(GATE, f), join(gate, f));
   const allow = JSON.parse(readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'));
   writeFileSync(join(gate, 'tool-allowlist.json'), `${JSON.stringify({ ...allow, 'integrity-lens': ['Read', 'Glob', 'Grep'] })}\n`);
-  const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { renderer: join(gate, 'render.mjs') });
-  assert.equal(r.code, 1, r.out);
-  assert.match(r.stdout, /entry in the tool allow-list/);
-  // Control: the same copied renderer with the real allow-list renders.
+  assert.equal(classify(t, 'integrity-lens', { renderer: join(gate, 'render.mjs') }).words, 'security-set override local');
+  // On the doubt list.
   writeFileSync(join(gate, 'tool-allowlist.json'), `${JSON.stringify(allow)}\n`);
-  assert.equal(render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { renderer: join(gate, 'render.mjs') }).code, 0);
+  const p = join(gate, 'render.mjs');
+  const s = readFileSync(p, 'utf8');
+  const doubt = "  'unstated-lens': 'it reports work that should have taken the security route',";
+  assert.equal(s.split(doubt).length, 2);
+  writeFileSync(p, s.replace(doubt, `${doubt}\n  'integrity-lens': 'planted',`));
+  assert.equal(classify(t, 'integrity-lens', { renderer: p }).words, 'security-set override local');
 });
 
-test('bad case: a renderer whose locked list loses an agent still cannot set it: the agent stays outside the configurable list', t => {
+test('bad case: a source with no security-route clause refuses a setting', t => {
+  const src = SOURCE.toString('utf8').replace('<!-- pact:begin security-route -->', '<!-- pact:begin security-rout -->');
+  const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { source: src });
+  assert.equal(r.code, 1, r.out);
+  assert.deepEqual(r.outFiles, []);
+});
+
+test('bad case: a renderer whose locked list loses scout still cannot set it: scout stays outside the configurable list', t => {
   const gate = tempDir(t, 'pact-agents-gate-');
   for (const f of ['render.mjs', 'shared.mjs', 'tool-allowlist.json']) cpSync(join(GATE, f), join(gate, f));
   const p = join(gate, 'render.mjs');
   const s = readFileSync(p, 'utf8');
-  writeFileSync(p, s.replace("'data-lens', ", ''));
-  const r = render(t, cfg({ 'data-lens': { model: 'sonnet' } }), { renderer: p });
+  const from = "const LOCKED_AGENTS = Object.freeze(['scout']);";
+  assert.equal(s.split(from).length, 2);
+  writeFileSync(p, s.replace(from, 'const LOCKED_AGENTS = Object.freeze([]);'));
+  const r = render(t, cfg({ scout: { model: 'opus' } }), { renderer: p });
   refusedWith(r, 'config-agents', /cannot set/);
 });
 
+test('the install script\'s list of agents equals the renderer\'s configurable list', () => {
+  const r = /const CONFIGURABLE_AGENTS = Object\.freeze\(\[([^\]]*)\]\);/.exec(readFileSync(RENDER, 'utf8'));
+  const i = /^\$agentNames = @\(([^)]*)\)$/m.exec(readFileSync(join(REPO, 'scripts', 'install.ps1'), 'utf8'));
+  assert.ok(r && i);
+  const names = s => s.split(',').map(x => x.trim().replace(/^'|'$/g, ''));
+  assert.deepEqual(names(i[1]), names(r[1]));
+  assert.deepEqual(names(r[1]), PACT_AGENTS);
+});
 // ------------------------------------------------------------ the install script, end to end
 
 function configure(h, config) {
@@ -247,6 +323,34 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), readFileSync(join(repo, 'claude', 'agents', 'integrity-lens.md')));
 });
 
+test('a configured install sets a security-set lens and a shell lens: each WARN names the override, the shell lens names its egress risk, and both files install', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  configure(h, { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' }, 'data-lens': { effort: 'medium' }, 'integrity-lens': { effort: 'high' } } });
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  const over = name => `${name} is a security-set lens, so this is an override, not security-tested: its security set ran only on its default\\.`;
+  const egress = ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query\\.';
+  assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets behaviour-lens to sonnet, medium effort\\. ${over('behaviour-lens')}${egress}\\r?$`, 'm'), dry.out);
+  assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets data-lens to opus, medium effort\\. ${over('data-lens')}\\r?$`, 'm'), dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to opus, high effort\.\r?$/m, dry.out);
+  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  assert.equal(r.code, 0, r.out);
+  const set = (name, model, effort) => Buffer.from(readFileSync(join(repo, 'claude', 'agents', `${name}.md`), 'utf8').replace(/^model: .*$/m, `model: ${model}`).replace(/^effort: .*$/m, `effort: ${effort}`));
+  assert.deepEqual(readFileSync(join(h, 'agents', 'behaviour-lens.md')), set('behaviour-lens', 'sonnet', 'medium'));
+  assert.deepEqual(readFileSync(join(h, 'agents', 'data-lens.md')), set('data-lens', 'opus', 'medium'));
+  const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
+  assert.match(rules, /^Agents set: behaviour-lens \(sonnet, medium effort; override, not security-tested\), data-lens \(opus, medium effort; override, not security-tested\), integrity-lens \(opus, high effort\)\.$/m);
+  assert.match(rules, /^Put "override, not security-tested" beside every report you post from these lenses, and in their rows of the Lens dispositions table: behaviour-lens, data-lens\.$/m);
+  // Rollback: with the agents key gone, the next install puts back the committed files.
+  configure(h, { schema: 1 });
+  const dry2 = install(repo, h);
+  assert.equal(dry2.code, 0, dry2.out);
+  const r2 = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry2)] });
+  assert.equal(r2.code, 0, r2.out);
+  for (const a of ['behaviour-lens', 'data-lens', 'integrity-lens']) assert.deepEqual(readFileSync(join(h, 'agents', `${a}.md`)), readFileSync(join(repo, 'claude', 'agents', `${a}.md`)));
+});
+
 test('bad case: an agent setting changed between the dry run and -Apply refuses by the rendered hash', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -262,7 +366,7 @@ test('bad case: an agent setting changed between the dry run and -Apply refuses 
 // ------------------------------------------------------------ the install script: a renderer that lies
 
 const R_PUSH = '  report.lines.push(`RENDERED ${sha256(rendered)}`, `DIFF ${sha256(diff)}`, ...head);';
-const R_AGENT_PUSH = '  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)}`);';
+const R_AGENT_PUSH = "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} ${a.security ? 'security-set' : 'plain'} ${a.override ? 'override' : 'default'} ${a.egress ? 'egress' : 'local'}`);";
 const R_AGENT_WRITE = "  for (const a of agents) writeFileSync(join(out, `${AGENT_OUTPUT_PREFIX}${a.name}.md`), a.buf, { flag: 'wx' });";
 const R_DIFF_WRITE = "  writeFileSync(join(out, DIFF_NAME), diff, { flag: 'wx' });";
 const A64 = 'a'.repeat(64);
@@ -277,12 +381,15 @@ function plantRenderer(root, from, to) {
 const SET = { schema: 1, agents: { 'integrity-lens': { model: 'sonnet', effort: 'low' } } };
 
 for (const [label, config, from, to, why] of [
-  ['an AGENT line with no configuration', null, R_PUSH, `${R_PUSH}\n  report.lines.push('AGENT integrity-lens sonnet low ${A64}');`, 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
-  ['an AGENT line for another agent', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT behaviour-lens sonnet low ${sha256(agents[0].buf)}`);", 'the renderer printed a line the install does not read'],
-  ['an AGENT line with a value off the pattern', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT integrity-lens haiku low ${sha256(agents[0].buf)}`);", 'the renderer printed a line the install does not read'],
-  ['the AGENT line twice', SET, R_AGENT_PUSH, `${R_AGENT_PUSH}\n${R_AGENT_PUSH}`, 'the renderer reported the agent setting twice'],
-  ['an agent file hash other than its own', SET, R_AGENT_PUSH, `  report.lines.push('AGENT integrity-lens sonnet low ${A64}');`, "the rendered agent file's hash does not match the one the renderer reported"],
-  ['an AGENT line with no agent file', SET, R_AGENT_WRITE, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
+  ['an AGENT line with no configuration', null, R_PUSH, `${R_PUSH}\n  report.lines.push('AGENT integrity-lens sonnet low ${A64} plain override local');`, 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
+  ['an AGENT line for an agent off the list', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT scout sonnet low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
+  ['an AGENT line whose name differs only in case', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT Integrity-lens sonnet low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
+  ['an AGENT line with a value off the pattern', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT integrity-lens haiku low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
+  ['an AGENT line with no classification words', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT integrity-lens sonnet low ${sha256(agents[0].buf)}`);", 'the renderer printed a line the install does not read'],
+  ['the AGENT line twice', SET, R_AGENT_PUSH, `${R_AGENT_PUSH}\n${R_AGENT_PUSH}`, 'the renderer reported one agent setting twice'],
+  ['an agent file hash other than its own', SET, R_AGENT_PUSH, `  report.lines.push('AGENT integrity-lens sonnet low ${A64} plain override local');`, "the rendered agent file's hash does not match the one the renderer reported"],
+  ['default for a changed file', SET, R_AGENT_PUSH, "  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} plain default local`);", "the renderer's override word for integrity-lens does not match whether its file changed"],
+  ['an AGENT line for another lens than the file it left', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT behaviour-lens sonnet low ${sha256(agents[0].buf)} security-set override egress`);", 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],  ['an AGENT line with no agent file', SET, R_AGENT_WRITE, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
   ['an agent file with no AGENT line', SET, R_AGENT_PUSH, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
   ['a third file under another name', null, R_DIFF_WRITE, `${R_DIFF_WRITE}\n  writeFileSync(join(out, 'agent-behaviour-lens.md'), 'x');`, 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
   ['an agent file changed beyond its two lines', SET, R_AGENT_WRITE, "  for (const a of agents) { a.buf = Buffer.from(a.buf.toString('utf8').replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]')); writeFileSync(join(out, `${AGENT_OUTPUT_PREFIX}${a.name}.md`), a.buf, { flag: 'wx' }); }", 'the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values'],

@@ -133,7 +133,7 @@ Outcome values: the verdict, one of `clear`, `findings`, `inconclusive` or `bloc
 Extra keys: tools, model, effort
 
 - `tools`: `[Read, Glob, Grep]` — **Decided** (2026-10-04, #35 revision 7, "Tools"; seam A's default).
-- `model`: `opus` — **Decided** (2026-10-05, the owner's "go" on the stated default: unchanged from the outgoing reviewer; the pair runs on one model). A user configuration may set this lens's model and effort (#97), and the owner accepted that on security-route work too; this default is unchanged.
+- `model`: `opus` — **Decided** (2026-10-05, the owner's "go" on the stated default: unchanged from the outgoing reviewer; the pair runs on one model). A user configuration may set this lens's model and effort, and its partner's (#97, ADR 0027), and the owner accepted that on security-route work too; this default is unchanged.
 - `effort`: `medium` — **Decided** (2026-10-05, the owner's "go" on the stated default: unchanged).
 
 ### 6. Does it do anything beyond reading?

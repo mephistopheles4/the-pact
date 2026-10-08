@@ -79,20 +79,28 @@
 // has passed the path-text check, so it holds only letters, digits, '.', '_',
 // '-' and '/'.
 //
-// Agent settings (#97). A user file may set the model and effort of the agents
-// in CONFIGURABLE_AGENTS, today integrity-lens alone: every other agent is
-// security-set or sealed, and is refused by name. Only when a setting is given,
-// the renderer reads that agent's file from the staged claude/agents/ folder
-// beside the source rules file, under the source's read rules. It refuses
-// unless the agent still holds exactly DEFAULT_AGENT_TOOLS, no metadata (seal)
-// key, and no entry in the tool allow-list, so a lens that later gains a tool
-// or a seal falls out of reach. It rewrites only the frontmatter's column-0
+// Agent settings (#97). A user file may set the model and effort of every lens
+// in CONFIGURABLE_AGENTS; each file's own values are its default. A sealed
+// agent (scout) is refused by name. Only when a setting is given, the renderer
+// reads that agent's file from the staged claude/agents/ folder beside the
+// source rules file, under the source's read rules. It refuses an agent that
+// carries a metadata (seal) key. It rewrites only the frontmatter's column-0
 // model and effort lines, from the allow-list constants; an unset field keeps
-// the file's value, which must be on the allow-list too. It writes the result
-// as AGENT_OUTPUT_PREFIX + <name>.md and prints
-//   AGENT <name> <model> <effort> <sha256 of the agent file>
-// after the CONFIG lines. The notice gains an "Agents set:" line. Adding an
-// agent to CONFIGURABLE_AGENTS is on AGENTS.md's probe floor.
+// the file's value, which must be on the allow-list too; and it refuses if the
+// result would differ from the file anywhere else, so no setting adds a tool.
+// It classifies the agent as security-set when any sign holds: its tools line
+// is not DEFAULT_AGENT_TOOLS, the tool allow-list has an entry for it, the
+// source's security-route clause names it, its own file carries a risk-floor
+// block, or it is on SECURITY_DOUBT. The signs are read on every run, so a lens
+// that later gains one is marked without anyone editing a list. It writes the
+// result as AGENT_OUTPUT_PREFIX + <name>.md and prints
+//   AGENT <name> <model> <effort> <sha256 of the agent file> <plain|security-set> <default|override> <local|egress>
+// after the CONFIG lines: override when the result differs from the file's
+// own values, egress when the tools line holds more than the read tools. The
+// notice gains an "Agents set:" line, and a security-set override carries
+// OVERRIDE_MARK there, with a sentence telling the session to put it beside
+// every report from that lens. Adding an agent to CONFIGURABLE_AGENTS is on
+// AGENTS.md's probe floor.
 //
 // The project mode (#53, slice 5) renders the project rules file for a
 // project install. It reads the user file, for the user's effective values and
@@ -162,15 +170,25 @@ const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents']);
 
 // Agent settings: who may be set, to what. Matched exactly; only these
 // constants are ever printed or written.
-const CONFIGURABLE_AGENTS = Object.freeze(['integrity-lens']);
-const LOCKED_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'unstated-lens', 'scout']);
+const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'unstated-lens']);
+// scout is a sealed familiar: its digest covers its own file.
+const LOCKED_AGENTS = Object.freeze(['scout']);
 const AGENT_MODELS = Object.freeze(['opus', 'sonnet']);
 const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high']);
 const AGENT_FIELDS = Object.freeze(['model', 'effort']);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
-// The gated clauses that make a named agent security-set.
-const GUARD_CLAUSES = Object.freeze(['security-route', 'risk-floor']);
+// The signs of a security-set agent that are read from text: the gated
+// clause that names it, and the block its own file carries.
+const ROUTE_CLAUSE = 'security-route';
+const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
+// Lenses on the probe floor by doubt (AGENTS.md: when in doubt, a change is on
+// the floor), each with its reason. No sign in their files says so.
+const SECURITY_DOUBT = Object.freeze({
+  'good-enough-lens': 'it never defers a risk-floor item',
+  'unstated-lens': 'it reports work that should have taken the security route',
+});
+const OVERRIDE_MARK = 'override, not security-tested';
 const TOOL_ALLOWLIST = join(dirname(fileURLToPath(import.meta.url)), 'tool-allowlist.json');
 
 // Each setting: the open part it fills, its whole-number range, its default
@@ -214,7 +232,10 @@ const NOTICE_TEMPLATE = (digest, values, edits, agents = []) => [
   '',
   `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`,
   `Values set: ${values.length ? values.map(([k, v]) => `${k} ${v}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
-  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${a.model}, ${a.effort} effort)`).join(', ')}.`] : []),
+  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${a.model}, ${a.effort} effort${a.security && a.override ? `; ${OVERRIDE_MARK}` : ''})`).join(', ')}.`] : []),
+  ...(agents.some(a => a.security && a.override)
+    ? [`Put "${OVERRIDE_MARK}" beside every report you post from these lenses, and in their rows of the Lens dispositions table: ${agents.filter(a => a.security && a.override).map(a => a.name).join(', ')}.`]
+    : []),
 ];
 
 const LF = 0x0a;
@@ -583,7 +604,7 @@ function checkAgentSettings(v, fail) {
     const name = CONFIGURABLE_AGENTS.find(a => a === k);
     if (!name) {
       const locked = LOCKED_AGENTS.find(a => a === k);
-      fail('config-agents', locked ? `${locked} is locked: its model and effort are not configurable` : `agents names an agent this configuration cannot set; only ${CONFIGURABLE_AGENTS.join(', ')} can be set`);
+      fail('config-agents', locked ? `${locked} is locked: it is sealed, so its model and effort are not configurable` : `agents names an agent this configuration cannot set; only ${CONFIGURABLE_AGENTS.join(', ')} can be set`);
       ok = false;
       continue;
     }
@@ -673,14 +694,9 @@ function renderAgent(source, a, report, srcText = '') {
   if (modelAt.length !== 1) return fail('the frontmatter must hold exactly one model line');
   if (effortAt.length !== 1) return fail('the frontmatter must hold exactly one effort line');
   if (at(/^metadata:/).length) return fail('the agent carries a metadata (seal) key; a sealed agent cannot be configured');
-  if (toolsAt.length !== 1 || lines[toolsAt[0]] !== DEFAULT_AGENT_TOOLS) return fail('the agent no longer holds exactly the default read tools; it cannot be configured');
-  // A lens the security route or the risk floor names is security-set,
-  // whatever its tools: the pact's own definition, checked on the source.
-  for (const clause of GUARD_CLAUSES) {
-    const m = new RegExp(`<!-- pact:begin ${clause} -->\\n([\\s\\S]*?)<!-- pact:end ${clause} -->`).exec(srcText);
-    if (!m) return fail(`the source has no ${clause} clause to check the agent against`);
-    if (m[1].includes(`\`${a.name}\``)) return fail(`the ${clause} clause names the agent, so it is security-set and cannot be configured`);
-  }
+  if (toolsAt.length !== 1) return fail('the frontmatter must hold exactly one tools line');
+  const route = new RegExp(`<!-- pact:begin ${ROUTE_CLAUSE} -->\\n([\\s\\S]*?)<!-- pact:end ${ROUTE_CLAUSE} -->`).exec(srcText);
+  if (!route) return fail(`the source has no ${ROUTE_CLAUSE} clause to check the agent against`);
   const allow = readCapped(TOOL_ALLOWLIST, 64 * 1024, 'agent-file', 'gate/tool-allowlist.json', report);
   if (allow === null) return null;
   let allowDoc;
@@ -689,7 +705,15 @@ function renderAgent(source, a, report, srcText = '') {
   } catch {
     return fail('the tool allow-list could not be read');
   }
-  if (!isObject(allowDoc) || Object.hasOwn(allowDoc, a.name)) return fail('the agent has an entry in the tool allow-list; it cannot be configured');
+  if (!isObject(allowDoc)) return fail('the tool allow-list could not be read');
+  // The pact's definition of a security-set lens, read from the evidence on
+  // every run (see the header).
+  const egress = lines[toolsAt[0]] !== DEFAULT_AGENT_TOOLS;
+  const security = egress
+    || Object.hasOwn(allowDoc, a.name)
+    || route[1].includes(`\`${a.name}\``)
+    || lines.includes(RISK_FLOOR_BLOCK)
+    || Object.hasOwn(SECURITY_DOUBT, a.name);
   const nowModel = AGENT_MODELS.find(m => lines[modelAt[0]] === `model: ${m}`);
   const nowEffort = AGENT_EFFORTS.find(e => lines[effortAt[0]] === `effort: ${e}`);
   if (!nowModel) return fail(`the file's model line is not one of ${AGENT_MODELS.join(', ')}`);
@@ -699,7 +723,9 @@ function renderAgent(source, a, report, srcText = '') {
   const out = [...lines];
   out[modelAt[0]] = `model: ${model}`;
   out[effortAt[0]] = `effort: ${effort}`;
-  return { name: a.name, model, effort, buf: Buffer.from(out.join('\n'), 'utf8') };
+  if (out.length !== lines.length || out.some((l, i) => i !== modelAt[0] && i !== effortAt[0] && l !== lines[i])) return fail('the rendered file would differ from the source beyond its model and effort lines');
+  const override = model !== nowModel || effort !== nowEffort;
+  return { name: a.name, model, effort, security, override, egress, buf: Buffer.from(out.join('\n'), 'utf8') };
 }
 
 /**
@@ -1065,7 +1091,7 @@ function run(argv, report) {
   writeFileSync(join(out, DIFF_NAME), diff, { flag: 'wx' });
   for (const a of agents) writeFileSync(join(out, `${AGENT_OUTPUT_PREFIX}${a.name}.md`), a.buf, { flag: 'wx' });
   report.lines.push(`RENDERED ${sha256(rendered)}`, `DIFF ${sha256(diff)}`, ...head);
-  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)}`);
+  for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} ${a.security ? 'security-set' : 'plain'} ${a.override ? 'override' : 'default'} ${a.egress ? 'egress' : 'local'}`);
 }
 
 function main(argv) {

@@ -2,6 +2,8 @@
 
 A user configuration's `agents` key may set a lens's `model` and `effort`, but only for a lens in the renderer's configurable list. Today that list holds one lens, `integrity-lens`. Every other agent is locked and refused by name.
 
+Superseded by [ADR 0027](0027-every-pact-lens-is-configurable-with-opinionated-defaults.md) (2026-10-08): every pact lens is now configurable, and a security-set lens's override is marked instead of refused.
+
 - **Values:** models `opus` or `sonnet`; efforts `low`, `medium` or `high`. `xhigh` is never a starting setting.
 - **How it renders:** the renderer rewrites only the agent file's two frontmatter lines, from those constants. The install script checks that nothing else changed before it installs the file.
 - **When the setting is refused at render time:**

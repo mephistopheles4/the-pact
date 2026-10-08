@@ -151,17 +151,23 @@ export function pactData(root) {
   // The agents a configuration may set, and to what: the renderer's own lists.
   const configurable = listFrom(renderSrc, 'CONFIGURABLE_AGENTS');
   const agentChoices = { models: listFrom(renderSrc, 'AGENT_MODELS'), efforts: listFrom(renderSrc, 'AGENT_EFFORTS') };
-  const agentInfo = agentFiles.map(f => {
-    const name = f.slice(0, -3);
-    const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(join(root, 'claude', 'agents', f), 'utf8'));
-    if (!head) fail(`claude/agents/${f} has no frontmatter`);
+  // The locked agents the pact installs from familiars/ (scout: sealed).
+  const locked = listFrom(renderSrc, 'LOCKED_AGENTS').filter(n => SEGMENT_RE.test(n) && readdirSync(join(root, 'familiars')).includes(`${n}.md`));
+  const info = (rel, name) => {
+    const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(join(root, rel), 'utf8'));
+    if (!head) fail(`${rel} has no frontmatter`);
     const field = k => (new RegExp(`^${k}:[ \\t]*([A-Za-z0-9._-]+)[ \\t]*$`, 'm').exec(head[1]) ?? [])[1] ?? null;
     const runs = [
       ...moves.flatMap(m => m.parts.filter(p => named(p.text, name)).map(p => ({ move: m.n, mark: p.mark, kind: p.kind }))),
       ...always.filter(a => named(a.text, name)).map(a => ({ move: null, mark: a.mark, kind: 'gated' })),
     ];
     return { name, model: field('model'), effort: field('effort'), runs, configurable: configurable.includes(name) };
-  });
+  };
+  const classes = agentClassesThroughRenderer(root, agentFiles.map(f => info(join('claude', 'agents', f), f.slice(0, -3))).filter(a => a.configurable));
+  const agentInfo = [
+    ...agentFiles.map(f => ({ ...info(join('claude', 'agents', f), f.slice(0, -3)), ...(classes[f.slice(0, -3)] ?? { security: null, egress: null }) })),
+    ...locked.map(n => ({ ...info(join('familiars', `${n}.md`), n), security: null, egress: null, locked: 'sealed: its digest covers its own file' })),
+  ];
 
   // Skills the pact's own text names, so a preset naming one is not a finding.
   const pactNames = [...new Set([...parts.values()].flatMap(codeSpans))];
@@ -379,6 +385,33 @@ export function presetsThroughRenderer(root, presets) {
     }
   }
   return out;
+}
+
+/**
+ * Each configurable agent's class, as the installer's renderer reports it:
+ * { <name>: { security, egress } }. One render sets every one of them off its
+ * file's model, and reads the AGENT lines' words.
+ */
+function agentClassesThroughRenderer(root, agents) {
+  if (!agents.length) return {};
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const home = mkdtempSync(join(tmpdir(), 'pact-builder-agents-'));
+  const dest = mkdtempSync(join(tmpdir(), 'pact-builder-out-'));
+  try {
+    mkdirSync(join(home, 'pact'), { recursive: true });
+    const set = Object.fromEntries(agents.map(a => [a.name, { model: a.model === 'opus' ? 'sonnet' : 'opus' }]));
+    writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, agents: set })}\n`);
+    const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), join(root, 'claude', 'CLAUDE.md'), dest, home], { encoding: 'utf8', env });
+    if (r.status !== 0) fail(`the installer's renderer refuses to set the configurable agents (${(r.stdout || '').split('\n').filter(l => l.startsWith('FAIL ')).join('; ')})`);
+    const out = {};
+    for (const m of (r.stdout || '').matchAll(/^AGENT ([a-z-]+) \S+ \S+ [0-9a-f]{64} (plain|security-set) override (local|egress)$/gm)) out[m[1]] = { security: m[2] === 'security-set', egress: m[3] === 'egress' };
+    for (const a of agents) if (!out[a.name]) fail(`the installer's renderer did not report ${a.name}'s class`);
+    return out;
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+    rmSync(dest, { recursive: true, force: true });
+  }
 }
 
 /** Check a builder file fully: its own rules, then every preset through the renderer. */

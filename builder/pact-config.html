@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-P7gQ7nTs4yxtiDCjkGfsULiZlAsvMPF+M1h0VNt36xM='; style-src 'sha256-18B67GsfB/alu8Iy2IFzlKdNjTLEx4KPxWgRi8S1FuU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-thH//mY3ZlYH9ZJ2nnZIIKVLZcYHAHJOnsjQfKjPPBg='; style-src 'sha256-18B67GsfB/alu8Iy2IFzlKdNjTLEx4KPxWgRi8S1FuU='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -368,7 +368,9 @@ const PACT = /* pact-data:begin */ {
      "kind": "gated"
     }
    ],
-   "configurable": false
+   "configurable": true,
+   "security": true,
+   "egress": true
   },
   {
    "name": "behaviour-lens",
@@ -386,7 +388,9 @@ const PACT = /* pact-data:begin */ {
      "kind": "gated"
     }
    ],
-   "configurable": false
+   "configurable": true,
+   "security": true,
+   "egress": true
   },
   {
    "name": "data-lens",
@@ -404,7 +408,9 @@ const PACT = /* pact-data:begin */ {
      "kind": "gated"
     }
    ],
-   "configurable": false
+   "configurable": true,
+   "security": true,
+   "egress": false
   },
   {
    "name": "executability-lens",
@@ -417,7 +423,9 @@ const PACT = /* pact-data:begin */ {
      "kind": "open"
     }
    ],
-   "configurable": false
+   "configurable": true,
+   "security": true,
+   "egress": false
   },
   {
    "name": "good-enough-lens",
@@ -430,7 +438,9 @@ const PACT = /* pact-data:begin */ {
      "kind": "open"
     }
    ],
-   "configurable": false
+   "configurable": true,
+   "security": true,
+   "egress": false
   },
   {
    "name": "integrity-lens",
@@ -448,7 +458,9 @@ const PACT = /* pact-data:begin */ {
      "kind": "gated"
     }
    ],
-   "configurable": true
+   "configurable": true,
+   "security": false,
+   "egress": false
   },
   {
    "name": "unstated-lens",
@@ -466,7 +478,19 @@ const PACT = /* pact-data:begin */ {
      "kind": "gated"
     }
    ],
-   "configurable": false
+   "configurable": true,
+   "security": true,
+   "egress": false
+  },
+  {
+   "name": "scout",
+   "model": "sonnet",
+   "effort": "low",
+   "runs": [],
+   "configurable": false,
+   "security": null,
+   "egress": null,
+   "locked": "sealed: its digest covers its own file"
   }
  ],
  "agentChoices": {
@@ -615,6 +639,9 @@ function blockProblems(text) {
 
 const presetById = id => PACT.presets.find(p => p.id === id);
 const openPart = mark => PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === mark);
+// The mark a security-set lens carries off its default: the renderer's words.
+const OVERRIDE_MARK = 'override, not security-tested';
+
 // What a "Your agent" card can hand its agent.
 const READS = ['the diff', 'the spec', 'the ticket'];
 const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -1005,6 +1032,7 @@ function boot() {
           { class: 'tile tile--locked' },
           el('span', { class: 'card-tab', text: a.name }),
           el('span', { class: 'av-label', text: `${a.model || '?'} · ${a.effort || '?'} effort · locked` }),
+          ...(a.locked ? [el('p', { class: 'av-annot', text: `Not configurable: ${a.locked}.` })] : []),
           runs(a),
         );
       }
@@ -1015,7 +1043,8 @@ function boot() {
         { class: `tile${changed ? ' tile--on' : ''}` },
         el('span', { class: 'card-tab', text: a.name }),
         el('div', { class: 'field-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, PACT.agentChoices.models, now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
-        el('span', { class: 'av-label', text: changed ? `set by you · the file says ${a.model}, ${a.effort}` : 'configurable · not a security agent' }),
+        el('span', { class: 'av-label', text: changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not a security lens'}` }),
+        ...(changed && a.security ? [el('p', { class: 'av-callout av-callout--caution', text: `${OVERRIDE_MARK}. Its security set ran only on its default.${a.egress ? ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.' : ''}` })] : []),
         runs(a),
       );
     });
@@ -1030,7 +1059,7 @@ function boot() {
       e.dataTransfer.effectAllowed = 'copy';
     });
     $('agents').replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Security agents stay locked; a configurable one takes your model and effort. Add your own at any open slot.' })),
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Each lens takes your model and effort, and starts at its file\'s own, its default. A security-set lens set off its default is an override, not security-tested. Add your own agent at any open slot.' })),
       el('div', { class: 'tiles' }, yours, ...tiles),
     );
   }

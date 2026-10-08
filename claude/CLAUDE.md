@@ -388,7 +388,9 @@ under the heading "Lens dispositions" on the issue, one row per finding, with
 the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
 real? (for each crossing, my yes or no), changed my decision? (once per
 review, my yes or no), time (from the posted comment to my decision), model
-(the model each lens ran on, not yours), configuration (the digest the
+and effort (the model and effort each lens ran on, not yours, with
+"override, not security-tested" where the configuration notice marks the
+lens), configuration (the digest the
 configuration notice names, or none), and cross result (passed, refused with the rule
 that fired, or oversize, and whether a lens was rerun to get a valid report).
 At the thorough tier, add my pick, the comparison and the walk-through's
