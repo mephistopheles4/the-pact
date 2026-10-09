@@ -1,0 +1,85 @@
+// The Node install's project install end to end (#153, T2's J rows): the
+// bootstrap and the runner against a throwaway repo, a throwaway home folder
+// <tmp>/home with --claude-home <tmp>/home/.claude, and a project beside it.
+// Each refusal the install decides is a table row in install-core.test.mjs;
+// the project module's own refusals are its tests'.
+import assert from 'node:assert/strict';
+import { mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { test } from 'node:test';
+import { makeRepo, nodeInstall, nodePassed, nodeRefused, WIN } from './install-harness.mjs';
+import { tempDir } from './tree.mjs';
+
+function layout(t) {
+  const root = tempDir(t, 'pact-nproj-');
+  const ch = join(root, 'home', '.claude');
+  mkdirSync(ch, { recursive: true });
+  const proj = join(root, 'home', 'proj');
+  mkdirSync(join(proj, '.claude'), { recursive: true });
+  writeFileSync(join(proj, '.claude', 'pact-config.json'), '{"schema": 1, "settings": {"usage-pause": 60}}\n');
+  return { ch, proj };
+}
+const projectHash = r => /^ {2}rendered project rules file: sha256 ([0-9a-f]{64})$/m.exec(r.stdout)?.[1];
+const rulesDir = proj => join(proj, '.claude', 'rules');
+
+test('node project: a dry run shows the Project block and prints an apply line with --project-folder and the hash, and writes nothing', t => {
+  const repo = makeRepo(t);
+  const { ch, proj } = layout(t);
+  const r = nodeInstall(repo, ch, { extra: ['--project-folder', proj] });
+  nodePassed(r);
+  assert.match(r.stdout, /^Project install from commit [0-9a-f]{40} into the project folder /m);
+  assert.match(r.stdout, /^ {2}rules file \.claude\/rules\/pact-project\.md: would be written \(new\)$/m);
+  assert.ok(!/^project\| ROOT /m.test(r.stdout), 'the real path is never shown');
+  const line = r.stdout.split('\n').find(l => l.includes(' --apply --commit '));
+  assert.ok(line.includes(`--project-folder '${proj}'`), r.out);
+  assert.ok(line.endsWith(`--rendered-hash ${projectHash(r)}`), r.out);
+  assert.deepEqual(readdirSync(join(proj, '.claude')), ['pact-config.json']);
+  assert.deepEqual(readdirSync(ch), []);
+});
+
+test('node project: --apply with the hash writes the rules file and its record, verifies both, and the next dry run says unchanged', t => {
+  const repo = makeRepo(t);
+  const { ch, proj } = layout(t);
+  const hash = projectHash(nodeInstall(repo, ch, { extra: ['--project-folder', proj] }));
+  const r = nodeInstall(repo, ch, { apply: true, extra: ['--project-folder', proj, '--rendered-hash', hash] });
+  nodePassed(r);
+  assert.match(r.stdout, /^OK {7}\.claude\/rules\/pact-project\.md$/m);
+  assert.match(r.stdout, /^OK {7}\.claude\/rules\/pact-project\.record\.json$/m);
+  assert.match(readFileSync(join(rulesDir(proj), 'pact-project.md'), 'utf8'), /above 60%/);
+  assert.deepEqual(JSON.parse(readFileSync(join(rulesDir(proj), 'pact-project.record.json'), 'utf8')), { file: 'pact-project.md', sha256: hash });
+  assert.deepEqual(readdirSync(ch), [], 'nothing in the Claude home folder');
+  const again = nodeInstall(repo, ch, { extra: ['--project-folder', proj] });
+  nodePassed(again);
+  assert.match(again.stdout, /^ {2}rules file \.claude\/rules\/pact-project\.md: unchanged$/m);
+});
+
+test('node project: --apply refuses with no hash, with another hash, and on a dirty tree, writing nothing', t => {
+  const repo = makeRepo(t);
+  const { ch, proj } = layout(t);
+  const hash = projectHash(nodeInstall(repo, ch, { extra: ['--project-folder', proj] }));
+  nodeRefused(nodeInstall(repo, ch, { apply: true, extra: ['--project-folder', proj] }), /needs the full rendered hash/);
+  nodeRefused(nodeInstall(repo, ch, { apply: true, extra: ['--project-folder', proj, '--rendered-hash', 'b'.repeat(64)] }), /is not the full hash of the rules file this run rendered/);
+  writeFileSync(join(repo, 'stray'), 'x');
+  nodeRefused(nodeInstall(repo, ch, { apply: true, extra: ['--project-folder', proj, '--rendered-hash', hash] }), /the working tree is not clean/);
+  assert.deepEqual(readdirSync(join(proj, '.claude')), ['pact-config.json']);
+});
+
+test('node project: a rules folder that is a link refuses, and nothing is written through it', t => {
+  const repo = makeRepo(t);
+  const { ch, proj } = layout(t);
+  const elsewhere = tempDir(t, 'pact-nproj-else-');
+  try {
+    symlinkSync(elsewhere, rulesDir(proj), WIN ? 'junction' : 'dir');
+  } catch (e) {
+    if (e.code === 'EPERM') return t.skip('this account may not make a link here');
+    throw e;
+  }
+  nodeRefused(nodeInstall(repo, ch, { extra: ['--project-folder', proj] }));
+  assert.deepEqual(readdirSync(elsewhere), []);
+});
+
+test('node project: --review-folder with --project-folder refuses before anything runs', t => {
+  const repo = makeRepo(t);
+  const { ch, proj } = layout(t);
+  nodeRefused(nodeInstall(repo, ch, { extra: ['--project-folder', proj, '--review-folder', join(tempDir(t), 'rev')] }), /--review-folder is for a home install/);
+});

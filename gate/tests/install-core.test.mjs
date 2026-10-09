@@ -21,7 +21,7 @@ function decided(fn) {
     fn();
     return { code: 0, fails: [], last: 'RESULT: pass', out: '' };
   } catch (e) {
-    if (e instanceof core.Refusal) return { code: 1, fails: [e.rule], last: 'RESULT: fail', out: `REFUSED: ${e.why}` };
+    if (e instanceof core.Refusal) return { code: 1, fails: [e.rule], last: 'RESULT: fail', out: `REFUSED: ${e.why} ${e.outcome}` };
     throw e;
   }
 }
@@ -298,6 +298,83 @@ test('the renderer lines: the parse gives the hashes, the configuration, the edi
   assert.deepEqual(p.agentSets.get('data-lens'), { model: 'sonnet', effort: 'high', sha256: H('f'), security: true, override: true, egress: false });
   assert.deepEqual([...core.configNow(p)], [['user', U], ['block a.md', H('e')]]);
 });
+
+// ------------------------------------------------------------ the project install (J1 to J4)
+
+const projCheckBase = () => ({ in: json({ lines: ['ROOT C:\\work\\proj', 'STATE new', 'RESULT: pass'], failed: false }) });
+for (const c of table('project check', {
+  module: 'gate/install-core.mjs',
+  base: projCheckBase,
+  run: t => decided(() => core.parseProjectCheck(JSON.parse(t.in), 'win32')),
+  rows: [
+    { id: 'failed', plant: rep('"failed":false', '"failed":true'), fails: ['project-check'], why: 'the project module refused the folder' },
+    { id: 'no-pass-line', plant: rep('"RESULT: pass"', '"RESULT: fail"'), fails: ['project-check'], why: 'both parts of the verdict' },
+    { id: 'extra-line', plant: rep('"STATE new",', '"STATE new","NOTE x",'), fails: ['project-check-lines'], why: 'exactly three lines' },
+    { id: 'no-root-line', plant: rep('"ROOT C:\\\\work\\\\proj"', '"PATH C:\\\\work\\\\proj"'), fails: ['project-check-lines'], why: 'the folder first' },
+    { id: 'root-not-full', plant: rep('ROOT C:\\\\work', 'ROOT work'), fails: ['project-check-root'], why: 'a real path is a full path' },
+    { id: 'unknown-state', plant: rep('STATE new', 'STATE old'), fails: ['project-check-state'], why: 'new or update with a hash' },
+    { id: 'update-short-hash', plant: rep('STATE new', `STATE update ${'a'.repeat(63)}`), fails: ['project-check-state'], why: 'a full hash' },
+  ],
+})) test(c.name, c.fn);
+
+test('the project check: the root is parsed, never shown, and the state read', () => {
+  assert.deepEqual(core.parseProjectCheck({ lines: ['ROOT /w/p', `STATE update ${H('a')}`, 'RESULT: pass'], failed: false }, 'linux'), { root: '/w/p', state: { kind: 'update', sha256: H('a') } });
+  assert.equal(decided(() => core.checkProjectLinks(null)).code, 0);
+  assert.deepEqual(decided(() => core.checkProjectLinks('.claude/rules')).fails, ['project-link']);
+});
+
+const PF = H('3');
+const PD = digestOf(`user ${U}\nproject ${PF}\n`);
+const projRenderBase = () => ({ in: [`RENDERED ${H('a')}`, `CONFIG user ${U}`, `PROJECT ${PF}`, `DIGEST ${PD}`, 'VALUE usage-pause 60', 'RESULT: pass'].join('\n') });
+for (const c of table('project render lines', {
+  module: 'gate/install-core.mjs',
+  base: projRenderBase,
+  run: t => decided(() => core.parseProjectRenderLines(t.in.split('\n'), sha256)),
+  rows: [
+    { id: 'two-output-hashes', plant: rep('CONFIG', `RENDERED ${H('b')}\nCONFIG`), fails: ['project-render-two-hashes'], why: 'two output hashes' },
+    { id: 'two-user-lines', plant: rep('PROJECT', 'CONFIG none\nPROJECT'), fails: ['project-render-two-users'], why: 'two user configuration lines' },
+    { id: 'two-project-hashes', plant: rep('DIGEST', `PROJECT ${H('4')}\nDIGEST`), fails: ['project-render-two-files'], why: 'two project file hashes' },
+    { id: 'two-digests', plant: rep('VALUE', `DIGEST ${PD}\nVALUE`), fails: ['project-render-two-digests'], why: 'two digests' },
+    { id: 'value-twice', plant: rep('RESULT', 'VALUE usage-pause 50\nRESULT'), fails: ['project-render-value-twice'], why: 'one setting twice' },
+    { id: 'unknown-line', plant: rep('RESULT', 'DIFF x\nRESULT'), fails: ['project-render-unknown-line'], why: 'a line the install does not read' },
+    { id: 'no-value', plant: rep('VALUE usage-pause 60\n', ''), fails: ['project-render-counts'], why: 'a project configuration sets a value' },
+    { id: 'no-project-hash', plant: rep(`PROJECT ${PF}\n`, ''), fails: ['project-render-counts'], why: 'the project file is named' },
+    { id: 'digest-wrong', plant: rep(`DIGEST ${PD}`, `DIGEST ${digestOf(`project ${PF}\n`)}`), fails: ['project-render-digest'], why: 'the digest leaves the user file out' },
+    { id: 'no-digest', plant: rep(`DIGEST ${PD}\n`, ''), fails: ['project-render-digest'], why: 'a digest is required' },
+  ],
+})) test(c.name, c.fn);
+
+test('the project render with no user file: the digest is the project file\'s alone', () => {
+  const p = core.parseProjectRenderLines([`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, 'VALUE usage-pause 60', 'RESULT: pass'], sha256);
+  assert.equal(p.user, null);
+  const block = core.projectBlock({ kind: 'update', sha256: H('a') }, p);
+  assert.ok(block.includes('  rules file .claude/rules/pact-project.md: unchanged'));
+  assert.ok(block.includes("  user configuration pact/config.json: none (the defaults bound the project's values)"));
+});
+
+for (const c of table('project output', {
+  module: 'gate/install-core.mjs',
+  base: () => ({ in: json([{ name: 'pact-project.md', file: true, link: false, size: 100 }]), hash: H('a') }),
+  run: t => decided(() => core.checkProjectOutput(JSON.parse(t.in), t.hash, H('a'))),
+  rows: [
+    { id: 'second-file', plant: t => ({ ...t, in: json([...JSON.parse(t.in), { name: 'x', file: true, link: false, size: 1 }]) }), fails: ['project-output'], why: 'exactly the rules file' },
+    { id: 'other-name', plant: rep('pact-project.md', 'pact.md'), fails: ['project-output'], why: 'by its exact name' },
+    { id: 'a-link', plant: rep('"link":false', '"link":true'), fails: ['project-output'], why: 'a plain file' },
+    { id: 'over-64kib', plant: rep('"size":100', `"size":${64 * 1024 + 1}`), fails: ['project-output'], why: 'at most 64 KiB' },
+    { id: 'hash-not-reported', plant: set(H('b'), 'hash'), fails: ['project-rules-hash'], why: 'the reported bytes' },
+  ],
+})) test(c.name, c.fn);
+
+for (const c of table('project write', {
+  module: 'gate/install-core.mjs',
+  base: () => ({ in: json({ lines: [`WROTE ${H('a')} ${H('b')}`, 'RESULT: pass'], failed: false }) }),
+  run: t => decided(() => core.parseProjectWrite(JSON.parse(t.in), H('a'))),
+  rows: [
+    { id: 'other-hash', plant: rep(`WROTE ${H('a')}`, `WROTE ${H('c')}`), fails: ['project-write'], why: 'the bytes the dry run showed' },
+    { id: 'extra-line', plant: rep('"RESULT: pass"', '"x","RESULT: pass"'), fails: ['project-write'], why: 'exactly two lines' },
+    { id: 'failed', plant: rep('"failed":false', '"failed":true'), fails: ['project-write'], says: /may hold what the write left/, why: 'both parts of the verdict, and the refusal says what may be left' },
+  ],
+})) test(c.name, c.fn);
 
 // ------------------------------------------------------------ the render output (R9, R10)
 

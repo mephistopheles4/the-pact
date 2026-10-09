@@ -66,8 +66,8 @@ async function main() {
     core.stops.runArgs();
   }
   const opts = core.parseArgs(run.words, process.platform);
-  if (opts.projectFolder !== null) core.stops.moduleMissing('project install (built in part 2 of #166)');
   const home = resolve(opts.claudeHome ?? join(homedir(), '.claude'));
+  const project = opts.projectFolder !== null;
 
   // The stage against the commit's tree, from committed code (G7, G9).
   const tree = core.parseTree(readFileSync(join(work, 'tree')));
@@ -81,9 +81,14 @@ async function main() {
   const recordFile = join(home, '.pact-install.json');
   const recordBytes = io.readOptional(recordFile);
   const record = core.parseRecord(recordBytes === null ? null : recordBytes.toString('utf8'));
-  say(`Install from commit ${commit} into ${home}`);
-  if (record) say(`Last install: ${core.formatPlain(record.commit)} with ${record.digest ? `configuration ${record.digest}` : 'no configuration'}`);
-  else say('No manifest found: first-install mode. Live files are compared with the repo; only the retired agents (builder, spec-builder, security-builder) can be deleted.');
+  if (project) {
+    say(`Project install from commit ${commit} into the project folder ${core.formatPlain(opts.projectFolder)}`);
+    say(`It reads the user configuration under ${home} and writes nothing there.`);
+  } else {
+    say(`Install from commit ${commit} into ${home}`);
+    if (record) say(`Last install: ${core.formatPlain(record.commit)} with ${record.digest ? `configuration ${record.digest}` : 'no configuration'}`);
+    else say('No manifest found: first-install mode. Live files are compared with the repo; only the retired agents (builder, spec-builder, security-builder) can be deleted.');
+  }
 
   // The gate's fingerprints: every staged gate file, the install's own included (G11).
   const gateNow = new Map([...staged].filter(([rel]) => rel.startsWith('gate/')).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
@@ -96,6 +101,19 @@ async function main() {
   const pinCommit = core.parsePin(readFileSync(pinFile, 'utf8'), io.fileSha256(pinned));
   say(`Node: ${process.execPath} (${process.version})`);
   say(`Pinned check: grimoire ${pinCommit}, sha256 verified`);
+
+  // A project install checks the project folder before anything reads from
+  // it (J1): the project module's real path is parsed, never shown, and the
+  // link test runs on the project's paths below it (J2, S7).
+  let pc = null;
+  const projectLinks = () => core.checkProjectLinks(core.PROJECT_ATTR_RELS.find(rel => io.throughLink(pc.root, rel)) ?? null);
+  if (project) {
+    const projectCheck = await loadCore('project-core.mjs');
+    const report = projectCheck(['check', resolve(opts.projectFolder), home]);
+    for (const l of core.showLines(core.outputLines(report.lines).filter(l => !l.startsWith('ROOT ')), 'project')) say(l);
+    pc = core.parseProjectCheck(report, process.platform);
+    projectLinks();
+  }
 
   // The user configuration's link test, before the renderer reads it (R1, S7).
   if (io.throughLink(home, core.CONFIG_REL)) core.stops.configLink();
@@ -117,8 +135,11 @@ async function main() {
   const rulesStaged = live(stage, core.RULES_REL);
   const before = stateOf(stage);
   const renderOut = mkdtempSync(join(work, 'render-'));
-  const { lines: renderLines } = runCheck(render, [rulesStaged, renderOut, home], 'render', 'the renderer');
-  const parsed = core.parseRenderLines(renderLines, { project: false, hash: io.sha256 });
+  // A project install gives the stage its no-file render, against a new empty
+  // folder in place of the Claude home folder; the user file is read later.
+  const renderHome = project ? mkdtempSync(join(work, 'nohome-')) : home;
+  const { lines: renderLines } = runCheck(render, [rulesStaged, renderOut, renderHome], 'render', 'the renderer');
+  const parsed = core.parseRenderLines(renderLines, { project, hash: io.sha256 });
   if (stateOf(stage) !== before) core.stops.renderChangedStage();
   core.checkRenderOutput(io.folderEntries(renderOut), parsed.agentSets.keys());
   const rendered = readFileSync(join(renderOut, 'CLAUDE.md'));
@@ -147,6 +168,62 @@ async function main() {
   const pactAsk = (overlay.get('permissions').get('ask') ?? []).map(String);
   say(`Check: passed on commit ${commit}`);
   say("Partly checked: the rendered CLAUDE.md's marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file.");
+
+  // A project install ends here, never reaching the home copy, delete,
+  // settings merge or record. The renderer runs again in project mode, the
+  // stage hashed around it, to give the project rules file (J3, J4).
+  if (project) {
+    projectLinks();
+    const was = stateOf(stage);
+    const projectOut = mkdtempSync(join(work, 'project-'));
+    const { lines: prLines } = runCheck(render, ['project', projectOut, home, pc.root], 'render', 'the project render');
+    const pr = core.parseProjectRenderLines(prLines, io.sha256);
+    if (stateOf(stage) !== was) core.stops.renderChangedStage();
+    const projectFile = join(projectOut, 'pact-project.md');
+    const entries = io.folderEntries(projectOut);
+    core.checkProjectOutput(entries, entries.length === 1 && entries[0].file ? io.fileSha256(projectFile) : null, pr.projectHash);
+    for (const l of core.projectBlock(pc.state, pr)) say(l);
+    if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
+    else say('Working tree: clean');
+    for (const l of gateLines) say(l);
+    // The hash binds the project rules file's bytes, not the configuration files behind them (#95).
+    core.checkBinding(opts, pr.projectHash, commit);
+    if (!opts.apply) {
+      say("Dry run only. After the owner's go-ahead, run:");
+      say(`  ${core.applyLine(opts.paths, commit, pr.projectHash, process.platform)}`);
+      say('RESULT: pass');
+      return;
+    }
+    core.checkApply({ configApplies: true, hashGiven: opts.renderedHash !== null, selfDiffers: run.selfDiffers, drift: false, dirty: run.dirty > 0, settingsObject: true });
+    projectLinks();
+    const projectWrite = await loadCore('project-core.mjs');
+    say('CHECKS DONE');
+    writing = 'project';
+    say('Applying.');
+    for (const l of gateLines) say(l);
+    const report = projectWrite(['write', pc.root, home, projectFile, pr.projectHash]);
+    for (const l of core.showLines(core.outputLines(report.lines), 'project')) say(l);
+    const recordHash = core.parseProjectWrite(report, pr.projectHash);
+    // Verify: each written file plain, then its hash; then the link test again.
+    let bad = 0;
+    for (const [rel, sha] of [[core.PROJECT_RULES_REL, pr.projectHash], [core.PROJECT_RECORD_REL, recordHash]]) {
+      const ok = !io.throughLink(pc.root, rel) && io.liveState(live(pc.root, rel)).sha256 === sha;
+      say(`${ok ? 'OK      ' : 'MISMATCH'} ${rel}`);
+      if (!ok) bad++;
+    }
+    if (core.PROJECT_ATTR_RELS.some(rel => io.throughLink(pc.root, rel))) {
+      say('MISMATCH a project path is now a link or other reparse point');
+      bad++;
+    }
+    if (bad) {
+      say(`${bad} mismatch(es).`);
+      process.exitCode = 1;
+      return;
+    }
+    say(`Installed commit ${commit} with configuration ${pr.digest} into the project folder; all files verified.`);
+    say('RESULT: pass');
+    return;
+  }
 
   // The plan (L1 to L3).
   const linkIn = rel => io.throughLink(home, rel);
@@ -282,8 +359,9 @@ try {
   await main();
 } catch (e) {
   for (const l of gateLines) say(l);
-  if (e instanceof core.Refusal) say(`REFUSED: ${e.why} ${writing ? 'The Claude home folder may hold part of this install.' : e.outcome}`);
-  else say(`REFUSED: the install failed while it ran. ${writing ? 'The Claude home folder may hold part of this install.' : 'Nothing was changed.'}`);
+  const left = writing === 'project' ? "The project's .claude/rules folder may hold what the write left; nothing was installed in the Claude home folder." : 'The Claude home folder may hold part of this install.';
+  if (e instanceof core.Refusal) say(`REFUSED: ${e.why} ${writing ? left : e.outcome}`);
+  else say(`REFUSED: the install failed while it ran. ${writing ? left : 'Nothing was changed.'}`);
   say('RESULT: refused');
   process.exitCode = 1;
 }

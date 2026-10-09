@@ -1,0 +1,39 @@
+# The commit-time layer (#153, S11): every pull request and every push to
+# main runs the Node install's dry run against an empty home folder, and the
+# gate suite's fast tier, on the current Node LTS. Made a required check on
+# main by the owner's ruleset, with GitHub Actions as its source, so main
+# can't hold a pact that fails its own install.
+#
+# Locked down for a public repo: a read-only token, no secrets, no
+# pull_request_target, each action pinned to a full commit SHA, and the
+# checkout's token not left in the clone for later steps. Nothing is uploaded.
+# A pull request runs this file as the pull request has it, so an edit here is
+# a change to the gate and takes the security route (S11's stated limit).
+name: gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Install dry run against an empty home folder
+        run: |
+          mkdir -p "$RUNNER_TEMP/pact-home"
+          env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"
+      - name: Gate suite, fast tier
+        run: env -u NODE_OPTIONS node gate/tests/run.mjs fast

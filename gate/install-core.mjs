@@ -429,6 +429,106 @@ export function checkAgentFile(name, set, committed, rendered, renderedHash) {
   if (set.egress && !set.security) refuse('agent-egress-security', `the renderer called ${name} egress but not security-set.`);
 }
 
+// ------------------------------------------------------------ the project install (J1 to J4)
+
+const PROJECT_LEFT = "The project's .claude/rules folder may hold what the write left; nothing was installed in the Claude home folder.";
+
+/** A path the platform calls fully qualified: a drive path or a UNC path on Windows, a rooted one elsewhere. */
+const fullyQualified = (p, platform) => (platform === 'win32' ? /^[A-Za-z]:[\\/]|^[\\/]{2}[^\\/]/.test(p) : p.startsWith('/'));
+
+/**
+ * The project check's lines (S6, J1): it passed, and printed exactly three
+ * lines, ROOT with a full path (parsed here, never shown), STATE new or STATE
+ * update <hash>, and RESULT: pass.
+ */
+export function parseProjectCheck(report, platform) {
+  const lines = outputLines(report.lines);
+  if (report.failed || lines[lines.length - 1] !== 'RESULT: pass') refuse('project-check', 'the project folder failed its checks.');
+  const root = lines.length === 3 ? /^ROOT (.+)$/.exec(lines[0]) : null;
+  if (!root) refuse('project-check-lines', 'the project check did not report exactly the folder and its state.');
+  if (!fullyQualified(root[1], platform)) refuse('project-check-root', 'the project check reported a folder that is not a full path.');
+  let state;
+  let m;
+  if (lines[1] === 'STATE new') state = { kind: 'new' };
+  else if ((m = /^STATE update ([0-9a-f]{64})$/.exec(lines[1]))) state = { kind: 'update', sha256: m[1] };
+  else refuse('project-check-state', 'the project check did not report the state of the rules file.');
+  return { root: root[1], state };
+}
+
+/** A project path found to be a link or other redirect, or unreadable (S7, J2): `hit` is the first, or null. */
+export function checkProjectLinks(hit) {
+  if (hit !== null) refuse('project-link', `a project path is a link or other reparse point, or could not be read: ${hit}.`);
+}
+
+/**
+ * The project render's lines (S6, J3): one RENDERED, one CONFIG (none or
+ * user), one PROJECT, one DIGEST that must be the digest of the reported
+ * hashes, and at least one VALUE, each setting at most once.
+ */
+export function parseProjectRenderLines(lines, hash) {
+  let projectHash = null;
+  let fileHash = null;
+  let digest = null;
+  let user = null;
+  let userSeen = false;
+  const values = new Map();
+  for (const l of lines.slice(0, -1)) {
+    let m;
+    if ((m = /^RENDERED ([0-9a-f]{64})$/.exec(l))) {
+      if (projectHash) refuse('project-render-two-hashes', 'the project render reported two output hashes.');
+      projectHash = m[1];
+    } else if ((m = /^CONFIG (?:none|user ([0-9a-f]{64}))$/.exec(l))) {
+      if (userSeen) refuse('project-render-two-users', 'the project render reported two user configuration lines.');
+      userSeen = true;
+      user = m[1] ?? null;
+    } else if ((m = /^PROJECT ([0-9a-f]{64})$/.exec(l))) {
+      if (fileHash) refuse('project-render-two-files', 'the project render reported two project file hashes.');
+      fileHash = m[1];
+    } else if ((m = /^DIGEST ([0-9a-f]{12})$/.exec(l))) {
+      if (digest) refuse('project-render-two-digests', 'the project render reported two configuration digests.');
+      digest = m[1];
+    } else if ((m = VALUE_RE.exec(l))) {
+      if (values.has(m[1])) refuse('project-render-value-twice', 'the project render reported one setting twice.');
+      values.set(m[1], m[2]);
+    } else refuse('project-render-unknown-line', 'the project render printed a line the install does not read.');
+  }
+  if (!projectHash || !userSeen || !fileHash || !values.size) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash and a value.');
+  const text = `${user ? `user ${user}\n` : ''}project ${fileHash}\n`;
+  if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('project-render-digest', "the project render's configuration digest is missing or does not match the hashes it reported.");
+  return { projectHash, fileHash, digest, user, values };
+}
+
+/** The project render's output (J3): exactly its rules file, a plain file of at most 64 KiB, holding the reported hash. */
+export function checkProjectOutput(entries, actualHash, reported) {
+  const e = entries[0];
+  if (entries.length !== 1 || e.name !== 'pact-project.md' || !e.file || e.link || e.size > PROJECT_CAP) refuse('project-output', 'the project render did not leave exactly its rules file of at most 64 KiB.');
+  if (actualHash !== reported) refuse('project-rules-hash', "the project rules file's hash does not match the one the renderer reported.");
+}
+
+/** The Project block of a dry run. */
+export function projectBlock(state, parsed) {
+  const rulesLine = state.kind === 'new' ? 'would be written (new)' : state.sha256 === parsed.projectHash ? 'unchanged' : `would replace the existing file its record names (sha256 ${state.sha256}); the record is a file in the project, not proof the pact wrote it`;
+  return [
+    'Project:',
+    `  project configuration ${PROJECT_CONFIG_REL}: sha256 ${parsed.fileHash}`,
+    parsed.user ? `  user configuration ${CONFIG_REL}: sha256 ${parsed.user} (its values bound the project's)` : `  user configuration ${CONFIG_REL}: none (the defaults bound the project's values)`,
+    `  rules file ${PROJECT_RULES_REL}: ${rulesLine}`,
+    `  record ${PROJECT_RECORD_REL}: holds only the rules file's name and hash`,
+    `  configuration digest: ${parsed.digest}`,
+    `  rendered project rules file: sha256 ${parsed.projectHash}`,
+    ...[...parsed.values].map(([k, v]) => `  WARN: the project configuration sets ${k} to ${v}; the rules file reads it as the lower of that and the user's value.`),
+    '  Nothing is installed in the Claude home folder, and no agents go into the project.',
+  ];
+}
+
+/** The project write's lines (J4): exactly WROTE <rules hash> <record hash>, then RESULT: pass. Returns the record's hash. */
+export function parseProjectWrite(report, projectHash) {
+  const lines = outputLines(report.lines);
+  const m = lines.length === 2 && lines[1] === 'RESULT: pass' && !report.failed ? new RegExp(`^WROTE ${projectHash} ([0-9a-f]{64})$`).exec(lines[0]) : null;
+  if (!m) refuse('project-write', 'the project write failed its checks.', PROJECT_LEFT);
+  return m[1];
+}
+
 // ------------------------------------------------------------ seam A's copy set and overlay
 
 /** Where each staged file installs, by the install's own reading of the stage: null for one that never installs. */
