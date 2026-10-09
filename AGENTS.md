@@ -30,10 +30,10 @@ how every session in every repo behaves. So:
   or can't run. The dry run also shows the Node it used, the pinned grimoire
   commit, and whether the gate changed since the last install. The gate's
   tests run through one runner; see "Running the gate's tests" below.
-<!-- pact:begin install-go-ahead -->
 - **Keep the how-to in step.** [`docs/install.md`](docs/install.md) quotes
   the script's output and lists what the settings merge sets. A change to
   either updates the how-to in the same change.
+<!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
   dirty working tree.
