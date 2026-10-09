@@ -161,7 +161,8 @@ T6 changes tests only. A test file holds install cases or cases that never insta
   - **Records:** the re-time and the guard design are now on #140 too; a claim covers the in-place edits; and the full suite's time is set against the chain's spread (386.3 s to 446.1 s).
   - **Dismissed:** `adversarial-lens` asked whether an install test without `-ClaudeHome` could reach the real Claude folder, if PowerShell ignored the redirected home on Windows. Checked: pwsh's `$HOME` follows it, and the script's default is built from `$HOME`.
   - **For the owner:** `unstated-lens` noted that the two strays widen the ticket from four files to six. That is the owner's call at done.
-- **The pick: skipped on the owner's word.** The lead session relayed the owner's words: "we can skip that for tonight". The owner's done waits for the morning.
+- **The pick: skipped on the owner's word.** The lead session relayed the owner's words: "we can skip that for tonight".
+- **The owner's done.** Relayed by the lead session: "t6 is ok". It accepted the two extra moves, confirmed that the review changed the decision, and closed #157 and #158. The crossing answer stays open: the lead's question summarised it as "no crossings" where the table pre-filled yes.
 - **The final runs (T6),** quiet, at 577d74d: `full` passed in 423.2 s beside 381.8 s, and the compare passed with 1,541 unchanged, 110 moved and 296 new (the fixes added 2). `fast` took 53.1 s. On Linux, Node 20, 1,947 cases ran, the same total; only the four #149 cases failed, all 10 Linux-listed cases passed, and so did all 9 guard cases.
 
 ## What was measured
@@ -279,6 +280,8 @@ Issue comments on mephistopheles4/the-pact#157:
 - `6078339364` — move 4's runs, the split, the moved bodies, the in-place edits and the purity guard.
 - `6078497494`, `6078497732`, `6078497978` — move 4's lens reports, through the cross script: the security pair, `unstated-lens` and the QA pair.
 - `6078715355` — move 4's Lens dispositions, the skipped pick, the scope question for the owner, the fixes' evidence and the final runs.
+- `6078750534` — T6's `moves.tsv` lines, and the compare's refusal of both Linux records.
+- `6078839958` — the owner's done.
 
 Issue comments on mephistopheles4/the-pact#140, for T6:
 
