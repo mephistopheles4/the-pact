@@ -175,9 +175,12 @@ how every session in every repo behaves. So:
   first tables are `render-edits`' edit list and block paths. A file already
   in `fast` converts its loops when a session next changes its cases for
   another reason.
-- **How a row runs the module.** Today a table's `run` starts the module as a
-  child, as the install does. Keep a case a child run when it varies the
-  environment, plants a copy of the module, or runs under a test preload.
+- **How a case runs the module.** In-process, through its core: call
+  `runCore` from [`gate/tests/gate-run.mjs`](gate/tests/gate-run.mjs), or
+  `renderStage` and `runSeamA`, which use it. Keep a case a child run when it
+  varies the environment, plants a copy of the module, or runs under a test
+  preload. A test file never imports a fault fixture, the contained driver or
+  the import trap; hand one to a child as its `--import` or main script.
 - **A case runs the install** only when the install script itself decides it,
   or for a happy path.
 - **Each test file holds one layer:** install cases, or cases that never
@@ -301,6 +304,14 @@ Where two bullets apply, the stricter one holds.
   a row pass for the wrong reason, and weakening the compare or its lists
   could hide a lost case. The map of moves, `moves.tsv`, is not on the floor:
   its lines change with every move, and the compare bounds what a line can do.
+- **The in-process runner and its two guards are on this floor too:** the
+  runner's module `gate/tests/gate-run.mjs`, with its tests
+  `gate/tests/gate-run.test.mjs`; the parity guard,
+  `gate/tests/parity.test.mjs`; and the fault-fixture guard,
+  `gate/tests/fault-fixtures.test.mjs`. The same rules hold as for the
+  runner. Weakening the in-process runner could let every in-process case
+  pass, and weakening a guard could let in-process cases drift from what the
+  install runs.
 - **Everything else is proved by use.** That means the repo's tests and gates
   pass, a reviewer reads the change at move 4, and the standing measures are
   recorded where they apply. Any other edit to this section is also proved by

@@ -6,6 +6,7 @@ import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, re
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { childEnv, runCore } from './gate-run.mjs';
 
 export const GATE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const REPO = resolve(GATE, '..');
@@ -226,10 +227,9 @@ export function renderStage(root, claudeHome) {
   const out = mkdtempSync(join(tmpdir(), 'pact-render-'));
   const empty = claudeHome ? null : mkdtempSync(join(tmpdir(), 'pact-render-home-'));
   try {
-    const env = { ...process.env };
-    delete env.NODE_OPTIONS;
-    const r = spawnSync(process.execPath, [RENDER, md, out, claudeHome ?? empty], { encoding: 'utf8', env });
-    if (r.status !== 0 || lastLine(r.stdout) !== 'RESULT: pass') throw new Error(`the renderer refused the stage:\n${r.stdout}${r.stderr}`);
+    // In-process through the renderer's core (#140, T10); parity.test.mjs proves it prints what the wrapper does.
+    const r = runCore('render', [md, out, claudeHome ?? empty]);
+    if (r.code !== 0 || lastLine(r.stdout) !== 'RESULT: pass') throw new Error(`the renderer refused the stage:\n${r.out}`);
     writeFileSync(md, readFileSync(join(out, 'CLAUDE.md')));
   } finally {
     rmSync(out, { recursive: true, force: true });
@@ -237,13 +237,29 @@ export function renderStage(root, claudeHome) {
   }
 }
 
-/** Seam A on a stage, after routing its test agents (unless `route` was false) and rendering its rules file. */
+/**
+ * Seam A on a stage, after routing its test agents (unless `route` was false)
+ * and rendering its rules file. The real seam A runs in-process through its
+ * core (#140, T10); a `script` other than the real one is a planted copy, so
+ * it runs as a child (childSeamA).
+ */
 export function runSeamA(root, script = SEAM_A) {
+  if (script !== SEAM_A) return childSeamA(root, script);
   if (ROUTED.has(root)) routeTree(root);
   renderStage(root);
-  const env = { ...process.env };
-  delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [script, root], { encoding: 'utf8', env });
+  const { code, stdout, stderr, out } = runCore('seam-a', [root]);
+  return { code, stdout, stderr, out };
+}
+
+/**
+ * Seam A's wrapper `script` on a stage, as a child, routed and rendered as
+ * runSeamA does: for a planted copy, and for the wrapper tests that keep a
+ * child run of the real one (#155).
+ */
+export function childSeamA(root, script = SEAM_A) {
+  if (ROUTED.has(root)) routeTree(root);
+  renderStage(root);
+  const r = spawnSync(process.execPath, [script, root], { encoding: 'utf8', env: childEnv() });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr };
 }
 

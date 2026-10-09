@@ -10,6 +10,7 @@ import {
   PINNED,
   READ_ONLY,
   agent,
+  childSeamA,
   contractText,
   copyGate,
   failRules,
@@ -49,7 +50,8 @@ const A = 'claude/agents/probe.md';
 test('seam A passes on the repo payload, and lists every file it would install', t => {
   const root = tempDir(t);
   realPayload(root);
-  const r = runSeamA(root);
+  // A wrapper test (#155): seam A's pass cell stays a child run of the wrapper.
+  const r = childSeamA(root);
   assert.equal(r.code, 0, r.out);
   assert.equal(lastLine(r.stdout), 'RESULT: pass', r.out);
   const installs = r.stdout.split('\n').filter(l => l.startsWith('INSTALL '));

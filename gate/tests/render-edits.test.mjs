@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { ROSTER } from '../pact-text.mjs';
 import { GATE, REPO, RENDER, applyDiff, editPart, failRules, lastLine, plainAgent, read, renderStage, runSeamA, stage, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
+import { runCore } from './gate-run.mjs';
 import { moduleResult, table } from './tables.mjs';
 
 const WIN = process.platform === 'win32';
@@ -367,11 +368,17 @@ const editHome = () => ({ 'pact/config.json': JSON.stringify(cfg([OK_EDIT])), 'p
 const withEdits = edits => home => ({ ...home, 'pact/config.json': JSON.stringify(cfg(edits)) });
 const withPath = path => withEdits([{ ...OK_EDIT, file: path }]);
 
-/** The renderer on a home built from `tree`, as a child run, as the install runs it. */
+/**
+ * The renderer on a home built from `tree`, in-process through its core
+ * (#140, T10): the tables' runner. parity.test.mjs proves the core prints
+ * what the wrapper the install runs prints. This file's fault cases stay
+ * child runs through render(), since their preload patches the whole process.
+ */
 function renderTree(tree, t) {
   const h = tempDir(t, 'pact-edit-home-');
   writeTree(h, tree);
-  const r = render(t, h);
+  const dir = tempDir(t, 'pact-render-out-');
+  const r = { ...runCore('render', [SOURCE, dir, h]), dir };
   // `says` reads stdout alone, where the renderer prints its FAIL lines, as the loops this replaces did.
   return { ...moduleResult(r.code, r.stdout), stdout: r.stdout, dir: r.dir };
 }
