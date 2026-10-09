@@ -32,6 +32,8 @@ Ten ask rules from the spec's S10 now sit beside the twelve `install.ps1` rules.
 - **Tests.**
   - **Windows:** the full suite passes, and so does the no-loss compare: `RESULT: compare pass, unchanged 1527, moved 124, new 446`.
   - **The Linux container (#96, Node 20):** the only failures are the four `node:sqlite` practice-scorer cases, which `main` fails the same way. #149 tracks them. The owner accepted that as a pass.
+  - **The final commit, after move 4's fixes:** Windows full and the compare pass again, and Linux shows only the same four failures.
+  - **A slip found by the final run.** One fix's new comment named the PowerShell install script by its file name. The runner reads any mention of that name as an install-tier file, so `settings.test.mjs` left the fast tier. Two guard tests caught it. The comment was reworded.
 - **The QA pair, `unstated-lens`, the standards pair and the security pair** ran on the diff. Every cross passed.
   - **Fixed:** comments that named the lists wrongly or said too little. The new rules are now two lists, `NODE_INSTALL_ASK` and `RULESET_ASK`. The test that can't fail for the new rules says so. The how-to states the `gh` rules' false-prompt cost.
   - **Carried to #167, for the apply-guard ADR:** the `gh` rules miss other HTTP clients, other capitals under Bash, and the endpoint word in a separate statement. The record rules miss a wildcard. An installed mod may approve over ask rules (unverified).
