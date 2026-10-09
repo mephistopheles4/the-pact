@@ -98,6 +98,17 @@ how every session in every repo behaves. So:
   `-RenderedHash <hash>`. On a project install that hash binds the bytes
   installed, not the configuration files: a file changed after the dry run
   still installs if it renders the same bytes, which can never be looser.
+- **The cloud copy is generated.** `cloud-sessions/` holds the setup script
+  for Claude Code cloud sessions. `cloud-sessions/gen.mjs` builds it, and
+  `CLAUDE.cloud.md`, from the payload, through the same render and seam A a
+  home install uses. After any change to `claude/`, `familiars/`,
+  `cross/cross.mjs` or the templates, regenerate it with `NODE_OPTIONS`
+  cleared: `$env:NODE_OPTIONS = $null; node cloud-sessions/gen.mjs` in
+  PowerShell, or `env -u NODE_OPTIONS node cloud-sessions/gen.mjs` in a POSIX
+  shell. `gate/tests/cloud-sessions.test.mjs`, in the `fast` tier, fails until
+  you do. **Every change to `cloud-sessions/` and to that test takes the
+  security route:** the script is published, runs as root, and carries the
+  pact's rules and a settings overlay (ADR 0038).
 
 ## Running the gate's tests
 
