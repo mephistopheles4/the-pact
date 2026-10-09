@@ -136,7 +136,7 @@ How to read it:
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, the dry run | Boundary |
 | R18 Totals to this repo | None; a flow by default | "Totals only" names no repo | Rule |
-| R19 Fix work public | Anyone who reads the tracker | None yet | — |
+| R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
 
 ## Strangers on the tracker
 
@@ -369,6 +369,8 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 - **#180:** no setting yet for trusted accounts on a team repo (R7).
 - **#182:** the cloud setup fetches unpinned code (R10).
 - **#184:** no rule for sessions no person started (R16).
+- **#199:** no rule for fixing a reported hole out of public view (R19).
+- **#199:** no rule for fixing a reported hole out of public view (R19).
 - **#107:** the ask rule before an install did not fire once, in a background
   auto-mode session. The cause is unknown.
 - **#110:** in a narrow case, the dry run can miss a tampered permission rule.
@@ -382,8 +384,8 @@ says how to report, what counts as a hole, which version is supported, and
 what to expect.
 
 A private report is a stranger's text, like a comment on the tracker: a
-session reads it as data. GitHub lets the reporter put fix code in a temporary
-private fork; that code is outsiders' code, and never runs.
+session reads it as data. Code in the advisory's temporary private fork is
+outsiders' code, and never runs.
 
 **What is accepted.**
 
@@ -391,4 +393,5 @@ private fork; that code is outsiders' code, and never runs.
   private. But a hole is security work, which always takes the thorough tier,
   and that tier posts its spec and its security reviews on the public tracker
   before the fix ships. So a hole's details can become public while installed
-  copies are still open to it. `SECURITY.md` tells reporters so.
+  copies are still open to it. `SECURITY.md` tells reporters so. A rule for
+  fixing a reported hole out of public view is #199.
