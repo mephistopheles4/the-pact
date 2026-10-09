@@ -165,6 +165,52 @@ T6 changes tests only. A test file holds install cases or cases that never insta
 - **The owner's done.** Relayed by the lead session: "t6 is ok". It accepted the two extra moves, confirmed that the review changed the decision, and closed #157 and #158. Asked again, with the lead's recommendation of yes, the owner answered "I'll take your recommendation": the QA pair's crossing at C3 was real.
 - **The final runs (T6),** quiet, at 577d74d: `full` passed in 423.2 s beside 381.8 s, and the compare passed with 1,541 unchanged, 110 moved and 296 new (the fixes added 2). `fast` took 53.1 s. On Linux, Node 20, 1,947 cases ran, the same total; only the four #149 cases failed, all 10 Linux-listed cases passed, and so did all 9 guard cases.
 
+## T7 (#151): helpers split by what they touch
+
+T7 changes tests only, plus the docs the spec names and two stale references the owner chose to fix. `helpers.mjs` is gone; the test helpers are split by what they touch, so an agent-file change picks only the tests that read agents. See [ADR 0034](../adr/0034-test-helpers-split-by-what-they-touch.md).
+
+- **The split.** `text.mjs` touches nothing, `tree.mjs` the files a test names, `gate-files.mjs` the gate's own files and the install script's text, `payload.mjs` the payload, agents included, and `gate-run.mjs` runs gate modules. `gate-files.mjs` is a sixth module, beyond the spec's table, for the helpers T9 and T6 added after the spec. Each test imports only what it uses. The agent list and the harness's `pwsh` and `git` lookups happen on first use.
+- **The table alone didn't meet the pin.** `changed` runs `fast` beside its picks, so only the install-tier picks change the run. The install harness routed test agents through `routeTree`, which reads the agent list, so with the table as written every install file would still be picked. The session posted the choice with an audit of which test files read agent files, made from each file's source and not from the pick. The owner took the recommendation, relayed word for word by the lead session: "I'll take your recommendation."
+  - **Option A.** `stage()` registers its router with `gate-run.mjs`, so the runner never imports the payload. `makeRepo` no longer routes: the two tests whose `mutate` adds a test agent route it themselves. `install()` fails a routing refusal the test didn't name in `unrouted`, so a route left out can't make a bare "refused" pass for the wrong reason.
+  - **Option B.** The two files outside the tests folder that named `helpers.mjs` were fixed in T7: a comment in `scripts/check-skill-flags.ps1`, and case 2 of `familiars/scout.practice-test.md`.
+- **The security pair came back.** The owner had first dropped it for T7 ("A"), on the reading that T7 changes only tests. But AGENTS.md puts `gate-run.mjs` and the fault-fixture guard on the probe floor, and T7 must change both, so the session kept the pair, since nobody goes below the floor. The lead relayed the owner's agreement.
+- **Picks for a one-agent-file change,** the fast tier left out of the count: 45 of 48 files before, all 9 install files among them; 23 of 50 after, 6 of them install files. `builder-install`, `config-install` and `cross-script-install` are no longer picked. In move 4's junit times they hold 51 cases and 340.5 s of summed time, about 95 s of wall time at the run's ratio of 0.28. That is the saving on the repo's most common edit. The full suite and the install's own run still cover them.
+- **The guards.**
+  - **The import guard** (`helper-imports.test.mjs`) finds every helper on each run and imports it, and each core, under the import trap at a new scope, `io`, which traps the file system and child processes only.
+  - **The pin** (`agent-picks.test.mjs`) checks the picks against the audit.
+- **Seen to fail.**
+  - **The import guard:** an eager agent list in `payload.mjs`, and the harness's `pwsh` lookup at import. At that commit the harness still imported `payload.mjs`, so the first plant also failed the harness and `settings-rules.mjs`. Five planted bad helpers fail it too.
+  - **The routing guard:** the canary with its route removed fails, naming `c1`.
+  - **The pin:** on the tree before the split (23d20b7), the three install files are picked, and `contained` is picked through `helpers.mjs`.
+- **Move 4's first full run failed one case.** The new routing guard caught an `install-edits` case that refuses seam A on purpose, through a move-2 replace that drops the routed agents. It now names that refusal (`unrouted: true`) and asserts it. With the routed agents kept, the case fails, so the exemption can't hide a loss.
+- **Move 4's runs,** quiet, at 5488f1a: `full` passed in 420.7 s beside 381.8 s, and the compare passed with 1,541 unchanged, 110 moved and 326 new. T7 added no `moves.tsv` line. `fast` took 52.4 s beside 50.1 s.
+- **Move 4's lenses: the QA pair and `data-lens` clear; 8 findings from the other two, all auto-taken.**
+  - **`adversarial-lens`:** the router hook takes one router per process and refuses a second, different function. `install()` refuses an `unrouted` value that is neither `true` nor a list. A committed test pins the guard's reader, `routingFails`, against a real routing refusal. Both were seen to fail when broken.
+  - **`unstated-lens`:**
+    - this log part, the times and the path search are recorded here;
+    - ADRs 0030, 0032 and 0033 point at ADR 0034;
+    - the saving is measured above.
+    - **Dismissed:** a Linux run, which the spec doesn't give T7. The next container run covers the lazy lookups and the `io` scope.
+  - **`integrity-lens`** found nothing hollow. The guard's header now names what it can't see: a read through node's loader, network calls, and deferred work.
+- **The pick: removed on the owner's word.** "Yes, remove the thorough picks. And also stop asking for the yes, no columns. Just fill them from my actions." A rule change is filed for it.
+- **Docs searched for local paths** before commit: ADR 0034, the three ADR amendments, AGENTS.md and this part. None found.
+- **The final runs,** quiet, at 1118248: `full` passed in 416.5 s beside 381.8 s, and the compare passed with 1,541 unchanged, 110 moved and 327 new (the fixes added 1).
+- **The owner's done,** relayed by the lead session: "yes done, i want to close this up and publish the pact with my lenses, weve been optimizing tests for a whole day".
+
+## Close-out
+
+#140 finishes with T7.
+
+- **Built, in order:** T1 (#144), T2 (#145), T5 (#154), T9 (#155), T10 (#156), T6 (#157) and T7 (#151), each accepted by the owner.
+- **T8 (#158) closed unbuilt.** `fast` stayed under S6's 60 s line.
+- **#146 and #147 stay paused.** #153's spec takes over shared install trees and the module-decided install cases.
+- **#163 follows #156:** the file-local gate-module runners that still start a child.
+- **One PR, #150, carries the whole chain,** as the owner asked.
+- **The figures, start to finish:**
+  - **The full suite:** from the T1 baseline's 714 s to 416.5 s quiet, with every baseline case accounted for by the compare.
+  - **`fast`:** 52.4 s, under S6's 60 s line.
+  - **A one-agent-file change:** no longer picks three install files, about 95 s of wall time (T7, above).
+
 ## What was measured
 
 - **The baseline.** Main at 76c46c1, quiet, junit reporter: 1,651 cases (1,643 pass, 8 skip, 0 fail) in 33 files, in 714 s at cap 4 on Node 24.14.1.
@@ -293,3 +339,14 @@ Issue comments on mephistopheles4/the-pact#140, for T6:
 Issue comments on mephistopheles4/the-pact#158:
 
 - `6078339997` — `fast` under S6's line after T6.
+
+Issue comments on mephistopheles4/the-pact#151:
+
+- `6078857004` — the owner's first answer on the security pair.
+- `6078881696` — the placement choice and the audit of which test files read agent files.
+- `6078892630` — the two stale references outside the tests folder.
+- `6078919547` — the probe-floor files, and the security pair kept.
+- `6079085966` — the owner's answers, the build and its seen-to-fail records.
+- `6079391341` — move 4's runs and the exemption probe.
+- `6079500791`, `6079501149`, `6079501493` — move 4's lens reports, through the cross script: the security pair, `unstated-lens` and the QA pair.
+- `6079675404` — move 4's Lens dispositions, the final runs and the owner's done.
