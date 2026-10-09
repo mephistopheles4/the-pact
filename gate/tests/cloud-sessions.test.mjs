@@ -28,6 +28,7 @@ import {
   listPayload,
   renderNoConfig,
 } from '../../cloud-sessions/gen.mjs';
+import { OLD_REVIEWERS } from '../pact-text.mjs';
 import { REPO, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -38,7 +39,8 @@ const EDIT_IDS = ['E1', 'E2'];
 const EDITS_DIGEST = 'b0ef1c4aef55795d9852745bf6fd8d8331e42bf8d54e5b9fcd11efdbb5ed2f6f';
 
 const PAYLOAD = ['claude', 'familiars', 'cross/cross.mjs', 'AGENTS.md'];
-const RETIRED = ['result-checker', 'plan-reviewer', 'security-reviewer', 'test-reviewer', 'builder'];
+// The retired agents: the gate's own list of old reviewers, and the old builder.
+const RETIRED = [...OLD_REVIEWERS, 'builder'];
 const RLO = '‮';
 
 const sha256 = s => createHash('sha256').update(s).digest('hex');
