@@ -1,6 +1,6 @@
 // The cross script's install runs (#45): the install copies it to one fixed
 // live path, the manifest fingerprints it, and a changed live copy is drift.
-// Seam A's side, which never installs, is in cross-install.test.mjs.
+// cross/render-check.mjs, beside it, never installs. Seam A's side, which never installs, is in cross-install.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
