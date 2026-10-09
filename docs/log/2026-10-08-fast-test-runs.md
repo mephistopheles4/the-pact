@@ -112,6 +112,24 @@ T9 is the one ticket in #140 that changes gate code, so it took the security rou
 - **The pick.** The owner picked "none" from the claim list alone. Against the QA pair's five findings, that was a mismatch (rule 1). After the walk-through, relayed by the lead session, the owner answered "confirmed and done". That confirmed both pre-filled answers (the review changed the decision; no crossings) and accepted scout's reseal, on the condition that the final run passed.
 - **The final runs (T9),** quiet, at 47854d7: `full` passed in 446.1 s beside 381.8 s, and the compare passed (1,598 unchanged, 53 moved, 189 new, none gone, no map line added). On Linux, only the four #149 cases failed, and all 10 Linux-listed cases passed.
 
+## T10 (#156): gate-module cases in-process
+
+T10 changes tests only. The test helpers' gate-module runners call the T9 cores in the test process, and two guards hold that to what the install runs. See [ADR 0032](../adr/0032-gate-modules-split-into-a-core-and-a-thin-wrapper.md).
+
+- **The runner.** `gate/tests/gate-run.mjs` runs a core's `check` and returns what a child run of its wrapper gives: stdout as the lines with a line feed after each, an empty stderr, and exit 1 when `failed`. A throw reaches the test; it is never turned into an exit code. `renderStage`, `runSeamA` and the render tables' runner call it.
+- **The boundary.** The ticket names three runners, so test files that start a module through their own local runner were left as they are. That is 364 tests, with `render-edits` (93) and `render-config` (80) the largest; they are a follow-up option if `fast` needs more. The boundary was posted on #156 before the build.
+- **379 tests changed how they run,** each with its name and assertions kept. 280 now run seam A in-process. The other 99 reach only the renderer in-process: the two render tables' 55 tests, and 44 that render their stage in-process but run seam A as a child. A temporary trap in the runner, never committed, counted them: every test that failed on it reached a core.
+- **77 tests stay child runs,** each listed on #156 with its reason. A temporary preload outside the repo found them, and said how each child ran: T9's wrapper tests (16), a planted copy of a module (45, five of them also wrapper tests), a changed environment (3, one also a wrapper test), and a test preload (19, `render-edits`' six fault cases among them).
+- **Seam A's wrapper pass cell stays a child run.** "seam A passes on the repo payload" used `runSeamA`, which would have moved it in-process. It now calls `childSeamA`, the helper's child runner, under its unchanged name and assertions.
+- **The parity guard,** `gate/tests/parity.test.mjs`. For each module it runs a pass, two failures on different rules and a usage error, in-process and as the install runs the wrapper: from a staged copy of `gate/`, with the stage as the working folder and `NODE_OPTIONS` removed. Each input is built twice at the same path, so a check that writes meets the same empty target. The stdout must match byte for byte, and the exit code must equal `failed`.
+  - **Seen to fail,** for each module, with a planted runner that drops a line and one that inverts `failed`.
+  - **It refuses as a failure, never a skip,** when `NODE_OPTIONS` is set in any letter case, or the process was started with `--import`, `--require`, `-r`, `--loader` or `--experimental-loader`, in either form. `gate-run.test.mjs` starts it as a child with `NODE_OPTIONS` set, and directly with `--import`: every guarded test fails, and nothing skips. It doesn't refuse every option, as ADR 0032's control 2 does for an installer, because node's test runner hands each test file about thirty options of its own.
+- **The fault-fixture guard,** `gate/tests/fault-fixtures.test.mjs`. No source file under `gate/tests/` outside `fixtures/` imports a fault fixture, the contained driver, or, as T9 suggested, the import trap and its driver. It reads static imports and exports, and the text inside `import( … )` and `require( … )`. A planted test file and a planted helper that import the render fault fixture each fail it, as do six other import forms. Handing a fixture to a child as `--import` passes it. A name built at run time and passed through a variable gets past it; like the core source check, it is a backstop.
+- **The shared-state check.** T5's tables already rerun their base after the last row. A render table run in-process against a staged render core that keeps a count across calls, failing every passing render after the first, fails "base passes after the rows" and nothing else. The unplanted core passes all three tests.
+- **AGENTS.md** says a case runs its module in-process through its core unless one of the four reasons holds, and that a test file never imports a fault fixture. The probe floor names `gate-run.mjs` with `gate-run.test.mjs`, the parity guard and the fault-fixture guard.
+- **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
+- **Move 4's runs,** quiet, at 40550bf: `full` passed in 393.5 s beside 381.8 s. The compare passed with 1,598 unchanged, 53 moved and 257 new (T10's 68 on T9's 189), and no map line added. `fast` was timed alternately, twice each side: 40.9 s and 41.8 s after T10, against 53.0 s and 52.5 s at T9's tip. That is about 11.4 s saved, with T10's three new files included, beside S9's estimate of about 10 s. On Linux, Node 20, the parity guard passed, only the four #149 cases failed, and all 10 Linux-listed cases passed by name.
+
 ## What was measured
 
 - **The baseline.** Main at 76c46c1, quiet, junit reporter: 1,651 cases (1,643 pass, 8 skip, 0 fail) in 33 files, in 714 s at cap 4 on Node 24.14.1.
@@ -208,3 +226,12 @@ Issue comments on mephistopheles4/the-pact#155:
 Issue comments on mephistopheles4/the-pact#153:
 
 - `6072517335` — the install script comments T9 left for the new installer.
+
+Issue comments on mephistopheles4/the-pact#156:
+
+- `6072709521` — the runner boundary, set before the build.
+- `6073099176` — move 4's runs, the count of tests that changed how they run, and the child-run list with reasons.
+
+Issue comments on mephistopheles4/the-pact#140, for T10:
+
+- `6073100439` — the count and the child-run list, pointing to #156.
