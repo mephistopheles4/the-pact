@@ -68,15 +68,19 @@ export function makeRepo(t, mutate) {
 // The purity guard (#140, T6): a file that imports this harness is in the
 // install tier, so each of its tests must run the install script or skip
 // itself. Each file runs in its own process, and its tests run one at a time,
-// so one count serves the file. makeRepo and git are not installs. A test that
-// calls t.skip() stays a skip: node keeps its status over a throw from this
-// hook (seen on Node 20.20 and 24.14), and purity-guard.test.mjs pins that.
+// so one count serves the file. The count is per top-level test: a subtest's
+// installs count toward the test it runs in, and a subtest is not checked on
+// its own, so a subtest that reads its parent's install passes. makeRepo and
+// git are not installs. A test that calls t.skip() stays a skip: node keeps
+// its status over a throw from this hook (seen on Node 20.20 and 24.14), and
+// the guard's own tests pin that (ADR 0033).
 let installs = 0;
+let depth = 0;
 beforeEach(() => {
-  installs = 0;
+  if (depth++ === 0) installs = 0;
 });
 afterEach(t => {
-  if (installs === 0) {
+  if (--depth === 0 && installs === 0) {
     throw new Error(`purity guard: "${t.name}" is in an install-tier file but neither ran the install script nor skipped itself; move it to a file that never installs`);
   }
 });

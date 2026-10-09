@@ -66,6 +66,21 @@ test('purity guard: each test is counted on its own, so an install in one test d
   assert.match(r.out, /purity guard: "planted: then nothing"/, r.out);
 });
 
+test('purity guard: makeRepo and git are not installs: a planted test that calls only them fails', t => {
+  const r = planted(t, `import { git, makeRepo } from ${JSON.stringify(HARNESS_URL)};\ntest('planted: builds a repo only', t => { const repo = makeRepo(t); git(repo, 'status', '--short'); });\n`);
+  assert.equal(r.status, 1, r.out);
+  assert.equal(r.results.get('planted: builds a repo only'), 'not ok', r.out);
+  assert.match(r.out, /purity guard: "planted: builds a repo only"/, r.out);
+});
+
+test('purity guard: a subtest counts toward its top-level test: one that reads its parent\'s install passes, and a parent with none fails', t => {
+  const r = planted(t, `test('planted: installs, then a subtest reads', async t => { ${COUNTED} await t.test('reads only', () => {}); });\ntest('planted: subtests, no install', async t => { await t.test('reads only', () => {}); });\n`);
+  assert.equal(r.results.get('planted: installs, then a subtest reads'), 'ok', r.out);
+  assert.equal(r.results.get('planted: subtests, no install'), 'not ok', r.out);
+  assert.match(r.out, /purity guard: "planted: subtests, no install"/, r.out);
+  assert.doesNotMatch(r.out, /purity guard: "reads only"/, r.out);
+});
+
 test('bad case: spawnInstall refuses a pwsh run that names no install script, so it never counts one', t => {
   const r = planted(t, "test('planted: not an install', () => { spawnInstall(['-NoProfile', '-NonInteractive', '-Command', 'exit 0'], { encoding: 'utf8' }); });\n");
   assert.equal(r.status, 1, r.out);
