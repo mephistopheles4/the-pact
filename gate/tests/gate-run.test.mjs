@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { MODULES, childEnv, preloadRefusal, runCheck, runCore, stageGate } from './gate-run.mjs';
+import { MODULES, childEnv, preloadRefusal, routeBeforeRun, runCheck, runCore, runSeamA, stageGate } from './gate-run.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -218,4 +218,23 @@ test('bad case: the shared-state check catches a core that keeps a counter acros
   assert.notEqual(r.status, 0, r.out);
   assert.deepEqual(Object.fromEntries(r.results), { 'shared state: base passes': 'ok', 'shared state: unknown-mark': 'ok', 'shared state: base passes after the rows': 'not ok' }, r.out);
   assert.match(r.out, /planted state/);
+});
+
+// The router hook (#151): stage() in payload.mjs registers the fixture router,
+// and runSeamA runs it on that stage before the check. Nothing else may run
+// there, so a second, different function refuses.
+test('the router hook runs the registered router before seam A, and refuses a second router', t => {
+  const routed = [];
+  const router = root => routed.push(root);
+  const a = tempDir(t);
+  routeBeforeRun(a, router);
+  routeBeforeRun(a, router);
+  runSeamA(a);
+  assert.deepEqual(routed, [a]);
+  runSeamA(tempDir(t));
+  assert.deepEqual(routed, [a], 'a stage never registered is not routed');
+  assert.throws(() => routeBeforeRun(tempDir(t), () => {}), /a second router/);
+  assert.throws(() => routeBeforeRun(tempDir(t), 'routeTree'), /not a function/);
+  runSeamA(a);
+  assert.deepEqual(routed, [a, a], 'the refused router replaced nothing');
 });

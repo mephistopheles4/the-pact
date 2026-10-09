@@ -36,3 +36,4 @@ The cores are what a Node install script (#153) could call in-process. Run that 
 
 - **2026-10-08** in mephistopheles4/the-pact#140, spec revision 10, signed off by the owner. The owner chose "Cores now" (D2), after the session's estimate that in-process rows save about 10 s of `fast` today and need a security-route change to gate code. Built in #155 (T9), on the security route.
 - **Rollback.** T9 reverts on its own, once T10 is reverted: T10's runners import the cores.
+- **Amended by [ADR 0034](0034-test-helpers-split-by-what-they-touch.md) (#151):** `moduleFiles`, `moduleMatch` and `plantModule` moved from `gate/tests/helpers.mjs`, now deleted, to `gate/tests/gate-files.mjs`.

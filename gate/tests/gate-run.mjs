@@ -150,14 +150,24 @@ export function parityProblems(inProcess, child) {
 
 // ------------------------------------------------------------ the test helpers' runners (#151)
 
-// Stages whose test agents runSeamA routes before each run, with the router
-// to use. payload.mjs's stage() registers its own, so this file never reads
-// the payload, and a test that only runs a module isn't tied to the agents.
-const ROUTERS = new Map();
+// Stages whose test agents runSeamA routes before each run. payload.mjs's
+// stage() registers them with its router, so this file never reads the
+// payload, and a test that only runs a module isn't tied to the agents. The
+// process holds one router: a second, different function throws, so nothing
+// else can change a stage between a test's plant and seam A's check.
+const ROUTED = new Set();
+let router = null;
 
-/** Have runSeamA call `route(root)` before each run on `root`. */
+/** Have runSeamA route `root` with `route` before each run on it. `route` must be the one router this process registered. */
 export function routeBeforeRun(root, route) {
-  ROUTERS.set(root, route);
+  if (typeof route !== 'function') throw new Error('routeBeforeRun: the router is not a function');
+  if (router !== null && router !== route) throw new Error('routeBeforeRun: a second router; only the fixture router (payload.mjs routeTree) may run before seam A');
+  router = route;
+  ROUTED.add(root);
+}
+
+function routeIfStaged(root) {
+  if (ROUTED.has(root)) router(root);
 }
 
 /**
@@ -198,7 +208,7 @@ export function renderStage(root, claudeHome) {
  */
 export function runSeamA(root, script = SEAM_A) {
   if (script !== SEAM_A) return childSeamA(root, script);
-  ROUTERS.get(root)?.(root);
+  routeIfStaged(root);
   renderStage(root);
   const { code, stdout, stderr, out } = runCore('seam-a', [root]);
   return { code, stdout, stderr, out };
@@ -210,7 +220,7 @@ export function runSeamA(root, script = SEAM_A) {
  * child run of the real one (#155).
  */
 export function childSeamA(root, script = SEAM_A) {
-  ROUTERS.get(root)?.(root);
+  routeIfStaged(root);
   renderStage(root);
   const r = spawnSync(process.execPath, [script, root], { encoding: 'utf8', env: childEnv() });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr };

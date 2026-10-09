@@ -111,8 +111,8 @@ export function spawnInstall(args, options) {
   return spawnSync(programs().pwsh, args, options);
 }
 
-/** The files seam A refused for routing, as the install prints them. */
-function routingFails(stdout) {
+/** The files seam A refused for routing, as the install prints them; what install()'s routing guard reads. */
+export function routingFails(stdout) {
   return [...(stdout ?? '').matchAll(/^seam-a\| FAIL routing: ([^:\r\n]+):/gm)].map(m => m[1]);
 }
 
@@ -124,6 +124,7 @@ function routingFails(stdout) {
  * make a test that only asserts a refusal pass for the wrong reason.
  */
 export function install(repo, home, { apply = false, path = [NODE_DIR, ...basePath()], env = {}, extra = [], unrouted = [] } = {}) {
+  if (unrouted !== true && !(Array.isArray(unrouted) && unrouted.every(f => typeof f === 'string'))) throw new Error('install: unrouted is true or a list of file paths');
   const args = ['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-ClaudeHome', home];
   if (apply) args.push('-Apply');
   args.push(...extra);

@@ -6,6 +6,9 @@
 // that isn't a test file, so a new helper is guarded without being listed.
 // Reading the environment at import is allowed here; the core import guard
 // (cores.test.mjs) holds the cores to the stricter scope as well.
+// What it can't see: a read through node's own loader (a JSON import,
+// createRequire), network calls, and work deferred past the driver's short
+// wait. No helper does any of these today.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readdirSync, writeFileSync } from 'node:fs';

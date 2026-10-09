@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { before, test } from 'node:test';
-import { WIN, basePath, commitAll, git, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { WIN, basePath, commitAll, git, home, install, listTree, makeRepo, refused, routingFails } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { sealedFamiliar } from './gate-run.mjs';
 import { routeTree } from './payload.mjs';
@@ -422,6 +422,9 @@ test('bad case: an unrouted agent at HEAD refuses, naming its file', t => {
   const r = install(repo, home(t), { unrouted: ['claude/agents/probe.md'] });
   refused(r);
   assert.match(r.stdout, /^seam-a\| FAIL routing: claude\/agents\/probe\.md: /m, r.out);
+  // The routing guard in install() reads this output: it must find the file, or a missed route would pass unseen.
+  assert.deepEqual(routingFails(r.stdout), ['claude/agents/probe.md'], r.out);
+  assert.throws(() => install(repo, home(t), { unrouted: 'claude/agents/probe.md' }), /unrouted is true or a list/);
 });
 
 // ------------------------------------------------------------ the check's runner, on real Node

@@ -27,3 +27,4 @@ A gate test file holds install cases, or cases that never install, never both. A
 
 - **`spawnInstall` checks a name, not a run.** A pwsh call whose arguments merely mention the script counts as an install. The guard catches a test that forgot to install, not one written to fool it.
 - **A helper can still run the script unseen.** The runner reads only the test file's own text and its imports to the harness, so a helper that started pwsh on the script would leave its importer in `fast`. That gap is the runner's (ADR 0030), not new here; `installScriptText()` hands back text, not a path.
+- **Amended by [ADR 0034](0034-test-helpers-split-by-what-they-touch.md) (#151):** `installScriptText()` moved from `gate/tests/helpers.mjs`, now deleted, to `gate/tests/gate-files.mjs`.
