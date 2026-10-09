@@ -1,5 +1,5 @@
-// The builder page (#53, slice 7): what the page saves installs like a
-// hand-written file. Its own save logic runs in node:vm, with no page, into a
+// The builder page (#53, slice 7): builder/scriptorium.html. What the page
+// saves installs like a hand-written file. Its own save logic runs in node:vm, with no page, into a
 // throwaway -ClaudeHome that the install script then checks exactly as it
 // checks a file written by hand. The page's other cases, which never install,
 // are in builder-page.test.mjs.
