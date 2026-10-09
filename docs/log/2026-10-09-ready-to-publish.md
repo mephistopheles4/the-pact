@@ -17,17 +17,21 @@
 
 - **Secrets: none.** Gitleaks's first run, with no allow list, reported only the 15 fake keys planted on purpose in the practice fixtures. Each was then allowed by its exact fingerprint, and the second run found nothing in git or on the tracker.
 - **Gitleaks misses some planted keys.** At move 4, `behaviour-lens` found six planted sites gitleaks never reported. Five match no default rule, because the generic rule needs a keyword such as "secret" or "token" near the value. The sixth is matched, then waved through by the rule's own built-in allow pattern. Gitleaks's rules for real provider key formats need no keyword, so the gap bears on secrets in a custom format.
-- **Private terms: only the two commits D1 accepts,** and one tracker hit. That hit was a memory note's file name in lower case, which doesn't match when case counts. The owner accepted it as a false positive.
+- **Private terms: only the two commits D1 accepts,** and one tracker hit, which the owner accepted as a false positive.
 - **Third-party mentions: none needs a fix.** Each cites public documentation, names a plugin or skill, or records the code-review bot's review of this repo's own PRs.
 - **Unfixed security findings on the tracker: 44 rows.** The owner accepted all 44 for publication: 3 aren't findings, about 20 are planned fixes not yet built, 7 are known limits already in the tree, 6 are risks the owner accepted, and 5 were dismissed by a session. #122's build decides its `adversarial-lens` F8 again, because its dismissal leaned on the repo being private. There are no open security escapes.
 - **The guard missed forms at first.** All four lenses on #161's diff traced the same gaps: Git Bash and WSL paths, the home folder's own project folder, dotted names, and names outside ASCII. Its failure output also printed the username it caught. The fix widened the forms and masked the name.
 - **The guard runs only with the tests.** The repo has no CI yet (#166), and the install runs the pact's check, not the test suite. So a new home path is caught when a session runs the suite, not on every commit.
-- **A first install replaces the user's own `CLAUDE.md`, with no backup.** The how-to's dry run lists it under `Overwrite`, and the how-to says to copy it first.
+- **A first install replaces the user's own `CLAUDE.md`, with no backup.** The how-to's dry run lists it under `Overwrite`, and the how-to says to copy it and `settings.json` first, and how to undo the install by hand.
+- **`-Apply` loosens `settings.json`'s permissions on Linux.** At #162's move 4, `data-lens` suspected it, and the container confirmed it: a `600` file came out `644`. The how-to tells Linux and macOS readers to reset it; #177 tracks the fix in the installer.
+- **The how-to's security wording was tightened at move 4.** `adversarial-lens` found it called the dry run harmless and the ask rules a boundary. The how-to now says the dry run runs the clone's code, the ask rules don't stop a script, and an update is read before it runs.
+- **A new AGENTS.md line first landed inside a gated clause,** and the install's check refused. Rerunning the how-to's steps as written caught it before the review finished.
 - **The how-to was tried in two places.** Linux: a first install into an empty Claude home in the repo's container (dry run, `-Apply`, eight agents, then a second dry run with nothing to do). Windows: the dry run only. macOS: not tried.
 
 ## What comes next
 
 - **The tracker rule (#160)** blocks the flip: only the owner's account's text counts, and a session checks its own posts for private terms before posting.
+- **The installer's permissions fix (#177),** after which the how-to's `chmod` line goes.
 - **The final rescan** reruns the scans after the last merge, against the ref list and scripts in #161's record comment. The repo is frozen until the flip.
 - **The flip is the owner's,** with GitHub's interaction limit set first. The close-out comment on #10 records it.
 

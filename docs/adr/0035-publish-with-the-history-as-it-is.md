@@ -7,7 +7,8 @@ the-pact is made public with its git history and its tracker as they are. Nothin
 - **The tracker goes public with the repo (D3):** every issue, comment, PR and review, and their edit histories. Personal paths in comments are accepted, as in the history. Copied private content is not: the one draft that held it (#114) was deleted before publishing.
 - **No specific audience (D4).** The README serves any reader. The payload stays written for one owner, with its Windows shell rule and personal references, and the README says so. Names of the owner's other projects stay, because each one the payload names is public.
 - **The current tree is clean, and stays so.** No tracked file holds a home path with a real username. `gate/tests/home-paths.test.mjs` fails on a new one, in any of the forms #161 found.
-- **Everything is scanned before the flip.** A dedicated secret scan (gitleaks), a private-term check and the path check ran over every published git object and the tracker text (#161). They run again in a final rescan after the last merge. Anything found that these decisions don't cover stops the flip.
+- **Everything is scanned before the flip.** A dedicated secret scan (gitleaks), a private-term check and the path check ran over every published git object and the tracker text (#161). They run again in a final rescan after the last merge. Anything found that these decisions don't cover stops the flip. The secret scan has a known limit: its generic rule needs a keyword such as "secret" or "token" near a value, so a key in a custom format with no such keyword can pass it. Its rules for known provider key formats need no keyword.
+- **The tracker is protected at the flip.** The rule that only the owner's account's text counts (#160) lands first, and GitHub's interaction limit is set when the repo goes public.
 
 ## Why
 

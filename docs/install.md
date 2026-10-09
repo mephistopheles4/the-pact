@@ -50,8 +50,11 @@ the clone's last commit, never from files you have changed but not committed.
 pwsh ./scripts/install.ps1
 ```
 
-With no switch, the script changes nothing. It runs the pact's check on the
-committed files and prints what an install would do. Read these parts:
+With no switch, the script writes nothing. It still runs code from your
+clone, with your rights: the install script itself and the pact's check, under
+Node. So run it only on a clone you trust. It checks the committed files and
+prints what an install would do. The output names your home folder, so mask
+your username before you share it. Read these parts:
 
 - **`Check: passed on commit …`.** If the check fails, the script refuses and
   installs nothing.
@@ -70,11 +73,15 @@ committed files and prints what an install would do. Read these parts:
 - **`settings.json:`.** What the merge into `~/.claude/settings.json` would
   change. Your other keys stay. The merge:
   - turns on auto mode (`permissions.defaultMode` set to `auto`) and skips its
-    opt-in prompt (`skipAutoPermissionPrompt`);
-  - adds ask rules, so Claude Code asks before it edits your Claude home
-    folder's rules, agents, settings, skills, plugins, output styles or
-    commands, or `~/.claude.json`, and before it runs this script with
-    `-Apply`;
+    opt-in prompt (`skipAutoPermissionPrompt`). To keep auto mode off, set
+    `defaultMode` back after the install. Every later `-Apply` sets it to
+    `auto` again, and its dry run warns you first;
+  - adds ask rules. They make Claude Code ask before its own edit tools
+    change your Claude home folder's rules, agents, settings, skills,
+    plugins, output styles or commands, or `~/.claude.json`, and before it
+    runs this script with `-Apply` in the spellings they list. They are not
+    a boundary: a script or another command can still write those files, and
+    in auto mode only Claude Code's own checks stand in the way;
   - keeps sessions going when a usage limit is reached
     (`autoContinueAtUsageLimit`) and skips the workflow usage warning
     (`skipWorkflowUsageWarning`);
@@ -118,6 +125,11 @@ It installs these files under `~/.claude`:
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against.
 
+**On Linux or macOS, check `settings.json`'s permissions.** `-Apply` writes
+the merged file anew, so it gets your default permissions (`644` with the
+usual umask), not the ones it had. If it holds API keys in its `env` block
+and you kept it private, run `chmod 600 ~/.claude/settings.json`. (#177 tracks a fix.)
+
 Run the dry run again if you like. It should end with `Nothing to do.`
 
 ## 5. Check in a fresh session
@@ -128,8 +140,12 @@ Start a new Claude Code session and run `/agents`. A pass lists these eight:
 
 ## Updating later
 
-Pull the repo, then repeat steps 3 and 4. The dry run compares your live files
-with the record of the last install, so it shows any you have edited since.
+Pull the repo, and read what changed before you run anything: the dry run
+runs the new code. The dry run's `Last install:` line names the commit you
+have; `git log -p <that commit>..HEAD -- claude cross familiars gate scripts`
+shows what arrived since. Or check out a commit you have reviewed. Then
+repeat steps 3 and 4. The dry run compares your live files with the record of
+the last install, so it shows any you have edited since.
 
 To change the pact's settings, such as the usage pause line or a lens's model,
 see `examples/pact-config/` and the config builder in `builder/`.

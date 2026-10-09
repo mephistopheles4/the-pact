@@ -14,6 +14,13 @@ such as auto mode and the Concise output style. A configuration file can
 change some of it (see `examples/pact-config/`); the rest you would edit in
 your own copy.
 
+**Two parts of the rules reach beyond your machine.** They treat your issue
+tracker as the record: a session reads tiers, approvals and decisions there,
+so on a tracker where others can comment, make sure your copy limits whose
+text counts. And at a periodic review they collect totals into "the-pact's
+issue", which means this repo's tracker; point that paragraph at your own
+tracker in your copy.
+
 To install it, follow [docs/install.md](docs/install.md).
 
 ## Why this exists
