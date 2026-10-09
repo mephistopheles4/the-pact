@@ -90,16 +90,26 @@ export function makeRepo(t, mutate) {
 // so one count serves the file. The count is per top-level test: a subtest's
 // installs count toward the test it runs in, and a subtest is not checked on
 // its own, so a subtest that reads its parent's install passes. makeRepo and
-// git are not installs. A test that calls t.skip() stays a skip: node keeps
-// its status over a throw from this hook (seen on Node 20.20 and 24.14), and
-// the guard's own tests pin that (ADR 0033).
+// git are not installs. A test that calls t.skip() stays a skip: the hook
+// records the call and never throws for it, since node 24.21 reports a skipped
+// test as failed when this hook throws (20.20 and 24.14 kept the skip). The
+// guard's own tests pin that (ADR 0033).
 let installs = 0;
 let depth = 0;
-beforeEach(() => {
-  if (depth++ === 0) installs = 0;
+let skipped = false;
+beforeEach(t => {
+  if (depth++ === 0) {
+    installs = 0;
+    skipped = false;
+  }
+  const skip = t.skip.bind(t);
+  t.skip = (...args) => {
+    skipped = true;
+    return skip(...args);
+  };
 });
 afterEach(t => {
-  if (--depth === 0 && installs === 0) {
+  if (--depth === 0 && installs === 0 && !skipped) {
     throw new Error(`purity guard: "${t.name}" is in an install-tier file but neither ran the install script nor skipped itself; move it to a file that never installs`);
   }
 });
