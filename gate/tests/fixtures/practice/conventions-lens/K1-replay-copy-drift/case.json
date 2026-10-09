@@ -1,0 +1,21 @@
+{
+  "lens": "conventions-lens",
+  "point": "diff",
+  "heading": "### Rules that apply",
+  "verdicts": [
+    "blocking",
+    "findings"
+  ],
+  "findOnAny": [
+    [
+      [
+        "agents/spec-checker.md:14-14",
+        "claude/CLAUDE.md:70-72"
+      ],
+      [
+        "high",
+        "medium"
+      ]
+    ]
+  ]
+}

@@ -10,12 +10,37 @@ import { LENSES } from './practice-score.mjs';
 
 const DIR = join(REPO, 'gate', 'tests', 'fixtures', 'practice');
 const read = p => readFileSync(p, 'utf8');
+
+/**
+ * The phrases a case scores word for word. A tell is held with its colon, as the scorer reads it, so `"tell 1`"
+ * is not found inside `"tell 10:`" (#101, move 4).
+ */
+export function scoredPhrases(c) {
+  return [
+    ...(c.contains ?? []),
+    ...(c.notCheckedHas ?? []),
+    ...Object.values(c.headlineOn ?? {}),
+    ...(c.heading ? [c.heading] : []),
+    ...(c.bulletOn ?? []).map(b => b[2]),
+    ...(c.tellOn ?? []).map(b => `${b[2]}:`),
+  ];
+}
+
+test('a tell is held with its colon, so tell 1 is not found inside tell 10', () => {
+  const [phrase] = scoredPhrases({ tellOn: [[['a.md:1-2'], ['high'], 'tell 1']] });
+  assert.equal(phrase, 'tell 1:');
+  // Seen to fail: a text holding only `"tell 10:`" holds the bare words but not the phrase.
+  assert.ok('- `tell 10:` **buried.**'.includes('tell 1'));
+  assert.ok(!'- `tell 10:` **buried.**'.includes(phrase));
+});
+
 test('every contains and headlineOn phrase, and the artifact heading, is written in its lens file in exact words', () => {
   for (const lens of LENSES) {
     const text = read(join(REPO, 'claude', 'agents', `${lens}.md`)).toLowerCase().replace(/\s+/g, ' ');
     for (const id of readdirSync(join(DIR, lens))) {
       const c = JSON.parse(read(join(DIR, lens, id, 'case.json')));
-      for (const s of [...(c.contains ?? []), ...Object.values(c.headlineOn ?? {}), ...(c.heading ? [c.heading] : []), ...(c.bulletOn ?? []).map(b => b[2])]) {
+      // A tell is held with its colon, as the scorer reads it, so "tell 1" is not found inside "tell 10:" (#101, move 4).
+      for (const s of scoredPhrases(c)) {
         assert.ok(text.includes(s.toLowerCase()), `${lens} ${id}: "${s}" is not in the lens file`);
       }
     }
@@ -166,4 +191,68 @@ test('no lens file, contract or practice test holds a line that starts mid-sente
     assert.deepEqual(damage(read(join(REPO, 'familiars', f)).replace(/^```[\s\S]*?^```/gm, '')), [], f);
   }
   assert.notDeepEqual(damage('The credential is\n\nplanted in the env.\n'), []);
+});
+// reader-lens carries the pact's plain-language rules, never fetches them (#101). A carried copy can drift
+// from its source, which is conventions-lens's own replay case, so each bullet of the pact's "Explain in plain
+// language" that a reader can be held to is held to the lens file word for word. The documentation bullet is a
+// rule for the session writing docs, not for the reader, so it is left out by its lead-in (main reworded it in #126).
+/** The bullets of the pact's "Explain in plain language", whitespace flattened, minus the documentation bullet. */
+export function plainLanguageRules(pact) {
+  const section = pact.split('## Explain in plain language')[1].split('\n## ')[0];
+  return section
+    .split(/\n(?=- )/)
+    .filter(b => b.startsWith('- '))
+    .map(b => b.replace(/\s+/g, ' ').trim())
+    .filter(b => !b.startsWith('- **Writing documentation files?**'));
+}
+
+/** The pact's rules missing from a lens text. */
+function missingRules(lensText, rules) {
+  const flat = lensText.replace(/\s+/g, ' ');
+  return rules.filter(r => !flat.includes(r));
+}
+
+test("reader-lens carries every reader-facing rule of the pact's plain language, word for word", () => {
+  const pact = read(join(REPO, 'claude', 'CLAUDE.md'));
+  const rules = plainLanguageRules(pact);
+  assert.equal(rules.length, 6, rules.join('\n'));
+  const lens = read(join(REPO, 'claude', 'agents', 'reader-lens.md'));
+  assert.deepEqual(missingRules(lens, rules), []);
+  assert.ok(lens.replace(/\s+/g, ' ').includes('ISO 24495-1:2023'));
+  // Seen to fail: the pact gains a word in one rule, and the lens's copy no longer matches its source.
+  const changed = plainLanguageRules(pact.replace('Around 20 words.', 'Around 15 words.'));
+  assert.equal(missingRules(lens, changed).length, 1);
+});
+
+// reader-lens's catalogue holds exactly ten tells, each once, numbered 1 to 10 in order (#101, move 4,
+// integrity-lens F3): a catalogue of nine or eleven fails.
+/** The tell numbers a lens text's catalogue opens bullets with, in order. */
+export function catalogue(text) {
+  return [...text.matchAll(/^- `tell (\d+):` \*\*/gm)].map(m => Number(m[1]));
+}
+
+test("reader-lens's catalogue holds the ten tells, in order", () => {
+  const text = read(join(REPO, 'claude', 'agents', 'reader-lens.md')).replace(/\r\n/g, '\n');
+  assert.deepEqual(catalogue(text), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  // Seen to fail: a tell dropped, or one added.
+  assert.deepEqual(catalogue(text.replace(/^- `tell 1:` .*\n(?: {2}.*\n)*/m, '')), [2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.equal(catalogue(`${text}\n- \`tell 11:\` **Extra.** One more.\n`).length, 11);
+});
+
+// Both standards lenses carry the security lenses' secret rule (#101, move 4: data-lens F1 and F2,
+// adversarial-lens F1 and F2), and conventions-lens stays inside the working folder.
+test('the standards pair names a secret by its place, and conventions-lens reads inside the working folder', () => {
+  for (const lens of ['conventions-lens', 'reader-lens']) {
+    const flat = read(join(REPO, 'claude', 'agents', `${lens}.md`)).replace(/\s+/g, ' ');
+    for (const words of ["Never write a secret's value or a person's personal data anywhere in your report.", 'Name where a secret is, never what it is: by its path in the repo and its line.', 'Name every file by its path inside the working folder.', 'You may read the files the main session hands you and any file in the working folder, and nothing else.', 'A file the diff adds or changes as a link (the diff marks its mode as one) counts as outside the working folder: do not read it, and name it in `notChecked`.']) {
+      assert.ok(flat.includes(words), `${lens}: "${words}"`);
+    }
+  }
+  const flat = read(join(REPO, 'claude', 'agents', 'conventions-lens.md')).replace(/\s+/g, ' ');
+  for (const words of ['Follow a pointer from a rules file at most one step.', 'A pointer that leads outside the working folder is not read: name it in `notChecked` as outside the working folder, by the rules file and line that hold it, never by where it leads.', 'the verdict is `inconclusive`, with `notChecked` holding `no written rules found`', 'list that edit as its own row, and check the rest of the change against the rule as it stood before the change']) {
+    assert.ok(flat.includes(words), `conventions-lens: "${words}"`);
+  }
+  // reader-lens names a secret's place inline where it asks for quoted evidence (#101, move 4 round 2, data-lens F1).
+  const reader = read(join(REPO, 'claude', 'agents', 'reader-lens.md')).replace(/\s+/g, ' ');
+  for (const words of ['with the evidence quoted, unless the line holds a secret or personal data; then name its place.', 'the evidence, quoted unless the line holds a secret or personal data,']) assert.ok(reader.includes(words), `reader-lens: "${words}"`);
 });

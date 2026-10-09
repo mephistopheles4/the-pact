@@ -335,7 +335,7 @@ test('reset puts the usage value, every slot and every agent back to the plain p
   s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Mine.' }] };
   // Every lens off its default, so a reset that misses one fails.
   for (const a of Object.keys(s.agents)) s.agents[a].model = s.agents[a].model === 'opus' ? 'sonnet' : 'opus';
-  assert.equal(Object.keys(s.agents).length, 7);
+  assert.equal(Object.keys(s.agents).length, 9);
   assert.equal(L.atDefaults(s), false);
   const changed = JSON.stringify(s);
   const before = L.resetAll(s);
@@ -711,7 +711,7 @@ test('a "Your agent" card writes one plain line naming the agent, and refuses a 
 });
 
 test('every pact lens takes a model and effort, scout is locked as sealed, and only a change from the file is written', () => {
-  assert.deepEqual(L.PACT.agents.filter(a => a.configurable).map(a => a.name), ['adversarial-lens', 'behaviour-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'unstated-lens']);
+  assert.deepEqual(L.PACT.agents.filter(a => a.configurable).map(a => a.name), ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
   assert.deepEqual(L.PACT.agents.filter(a => !a.configurable).map(a => [a.name, a.locked]), [['scout', 'sealed: its digest covers its own file']]);
   const s = L.initialState();
   assert.deepEqual(Object.keys(s.agents).sort(), L.PACT.agents.filter(a => a.configurable).map(a => a.name));
@@ -729,10 +729,12 @@ test('the page takes each lens\'s class from the renderer: six security-set, two
   assert.deepEqual(cls, {
     'adversarial-lens': 'security-set egress',
     'behaviour-lens': 'security-set egress',
+    'conventions-lens': 'plain local',
     'data-lens': 'security-set local',
     'executability-lens': 'security-set local',
     'good-enough-lens': 'security-set local',
     'integrity-lens': 'plain local',
+    'reader-lens': 'plain local',
     'unstated-lens': 'security-set local',
   });
 });

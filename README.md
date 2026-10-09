@@ -4,6 +4,28 @@
 
 Faust signed a pact with no way out. This one has escape clauses written in: the human decides at every seam, and the agent stops and asks when it should. The skills live in [grimoire](https://github.com/mephistopheles4/grimoire), the spellbook. This repo holds the terms, and the familiars bound by them.
 
+## Who it's for
+
+**It is one person's working configuration, shared as a reference.** Read it,
+borrow from it, or install it, but adopt it with your own judgement. It is
+written for its owner's setup: the rules tell Claude Code to use PowerShell on
+Windows, name the owner's other projects, and set the owner's preferences,
+such as auto mode and the Concise output style. A configuration file can
+change some of it (see `examples/pact-config/`); the rest you would edit in
+your own copy.
+
+**The rules reach beyond your machine in three ways.** They treat your issue
+tracker as the record: a session reads tiers, approvals and decisions there,
+so on a tracker where others can comment, you need the pact's
+`tracker-authors` rule (#160) in your copy. They post every review report
+there word for word, security findings included, so on a public tracker those
+findings are public until fixed. And at a periodic review they collect totals
+into "the-pact's issue", which means this repo's tracker, until you point that
+paragraph at your own. The how-to's
+[Before you install](docs/install.md#before-you-install) covers all three.
+
+To install it, follow [docs/install.md](docs/install.md).
+
 ## Why this exists
 
 The pact is a small, runnable version of my engineering playbook: how humans
@@ -25,7 +47,7 @@ the pact's moves line up with its stages:
 | Sense the work | Plan | Triage; set the process tier; route bugs and large efforts |
 | Do the thinking before the doing | Plan, Design | Grill, write the spec, prototype open questions; the spec pair, `executability-lens` and `good-enough-lens`, at the thorough tier, and `unstated-lens` at standard and thorough |
 | Checkpoint the seams | Build, Test | Tickets with done-criteria; each build runs in a main session, test-first at agreed seams |
-| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, advises at every tier, `unstated-lens` at standard and thorough, and for security work the security pair, `adversarial-lens` and `data-lens`, on the diff; the human decides |
+| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, advises at every tier; `unstated-lens` and the standards pair, `conventions-lens` and `reader-lens`, at standard and thorough; and for security work the security pair, `adversarial-lens` and `data-lens`, on the diff; the human decides |
 
 The pact does not cover Anthropic's Maintain stage yet.
 
@@ -45,7 +67,7 @@ The pact does not cover Anthropic's Maintain stage yet.
 | Path | What it is | Installs to |
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
-| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; and `unstated-lens`, which looks for needs nobody wrote down. Each runs on Opus by default; a configuration may change any lens's model and effort (ADR 0027). The lenses' contracts and practice tests are in `familiars/` | `~/.claude/agents/` |
+| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text; and `unstated-lens`, which looks for needs nobody wrote down. Each runs on Opus by default; a configuration may change any lens's model and effort (ADR 0027). The lenses' contracts and practice tests are in `familiars/` | `~/.claude/agents/` |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
 | `familiars/` | Agents migrated to a grimoire contract, each beside its contract and practice test: `scout`, on Sonnet at low effort; and the QA pair's contracts and practice tests, which never install | `~/.claude/agents/` (agent files only) |
 | `cross/cross.mjs` | The cross script: checks a lens pair's findings blocks, joins them, and writes the comment section and a local page. The pact calls only the installed copy. `cross/render-check.mjs` is a one-off check and never installs | `~/.claude/pact/cross.mjs` |
@@ -56,10 +78,29 @@ The pact does not cover Anthropic's Maintain stage yet.
 
 **The familiars, by effort:**
 - **Low:** `scout`. The pact ships no `Explore`; skills that call it get Claude Code's built-in.
-- **Medium:** the QA pair, `behaviour-lens` and `integrity-lens`; the spec pair, `executability-lens` and `good-enough-lens`; and `unstated-lens`.
+- **Medium:** the QA pair, `behaviour-lens` and `integrity-lens`; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.
 - **High:** the security pair, `adversarial-lens` and `data-lens`.
 
 Builds run in a main session the owner watches, not in agents.
+
+## Depends on
+
+- **Claude Code.** The pact is a rules file, agents and settings for it.
+- **PowerShell 7,** to run the install script, on Windows, macOS or Linux.
+- **Node 20 or later** to install; **Node 24**, the current LTS, to run the
+  gate's tests.
+- **git.** The install reads the clone's committed files through git.
+- **The models the rules name:** Opus and Sonnet, and Fable for a second
+  opinion when reviewers disagree.
+- **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy
+  of its check script ships in `gate/grimoire/`, so the install needs nothing
+  from it. Its skills are optional.
+- **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional.
+  The pact ships them as a preset you can bind to the moves.
+- **Optional for this repo's own work:** the GitHub CLI (`gh`), for its
+  tracker, and Docker, for the practice runs and the Linux test run.
+
+How to install: [docs/install.md](docs/install.md).
 
 ## What never goes in here
 
@@ -69,9 +110,9 @@ Builds run in a main session the owner watches, not in agents.
 
 ## Status
 
-**Bootstrapped on 2026-09-26, and it will be public.** Cloud sessions can then clone it with no token. A privacy pass found no credentials or personal paths. The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill.
+**Bootstrapped on 2026-09-26.** **The git history is kept as it was written:** older commits hold the owner's Windows username in file paths, and two commits name a private folder, without any of its content ([ADR 0035](docs/adr/0035-publish-with-the-history-as-it-is.md)). The current tree holds no personal home paths, and a test guards against new ones. The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill.
 
-**`cloud-sessions/` embeds its own copies, so it goes stale on every change to `claude/`.** Run `cloud-sessions/gen.ps1` after any such change. It rewrites the config section of `cloud-setup.sh` and `cloud-setup-wrapper.sh` in place, from the repo's agents and settings overlay and from `CLAUDE.cloud.md`. `CLAUDE.cloud.md` is hand-kept: it is `claude/CLAUDE.md` without the Windows Shell rule and the install note, with cloud wording for the desktop-only session tools. Last regenerated 2026-09-30. **Next step:** once this repo is public, have the setup clone it and copy `claude/` into place, so it can never go stale again.
+**`cloud-sessions/` embeds its own copies, so it goes stale on every change to `claude/`.** Run `cloud-sessions/gen.ps1` after any such change. It rewrites the config section of `cloud-setup.sh` and `cloud-setup-wrapper.sh` in place, from the repo's agents and settings overlay and from `CLAUDE.cloud.md`. `CLAUDE.cloud.md` is hand-kept: it is `claude/CLAUDE.md` without the Windows Shell rule and the install note, with cloud wording for the desktop-only session tools. Last regenerated 2026-09-30. **Next step (#4):** have the setup clone this repo and copy `claude/` into place, so it can never go stale again.
 
 ## Planned
 
