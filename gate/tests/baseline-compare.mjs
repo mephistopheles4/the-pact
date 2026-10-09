@@ -464,10 +464,11 @@ export function compare({ lists, record, names = [], source = () => null }) {
   for (const { to, line } of landsOn) if (!moved.has(to)) say(`${LIST_FILES.moves} line ${line}: its target is a baseline case that stays where it is`);
 
   // 6. The run.
-  // The record is a full-tier run that passed: its runner's header names the full tier, and its last line is the pass.
+  // The record is a full-tier run that passed: its header names the full tier, and its last line is the pass.
+  // These fixed lines avoid common words such as runner: a word that is the user's name is withheld, as in the Linux image.
   const recLines = record.split('\n').map(l => (l.endsWith('\r') ? l.slice(0, -1) : l)).filter(l => l !== '');
-  if (recLines.filter(l => l.startsWith('run: ')).length !== 1 || !recLines.some(l => /^run: tier full\b/.test(l))) say('record: it is not one full-tier run (its runner header names another tier, or none, or two)');
-  if (!/^RESULT: full tier, \d+ files, pass$/.test(recLines.at(-1) ?? '')) say("record: its last line is not the runner's full-tier pass");
+  if (recLines.filter(l => l.startsWith('run: ')).length !== 1 || !recLines.some(l => /^run: tier full\b/.test(l))) say('record: it is not one full-tier run (its header names another tier, or none, or two)');
+  if (!/^RESULT: full tier, \d+ files, pass$/.test(recLines.at(-1) ?? '')) say('record: its last line is not the full-tier pass');
   const run = parseRecord(record);
   if (run.error) {
     say(`record: ${run.error}`);

@@ -298,13 +298,15 @@ test('bad case: a failed case\'s path is printed with odd characters replaced', 
   fails(r, /^record: a case failed in gate\/tests\/re\?nder\.test\.mjs$/);
 });
 
-test('bad case: a record of another tier, or one whose run did not pass, fails', () => {
+test('bad case: a record of another tier, or one whose run did not pass, fails, and says so where the user is named runner', () => {
+  // The Linux image's user is runner: a fixed line holding that word would be withheld there.
+  const names = [USER, 'runner'];
   const fast = recordOf(homeRun()).replace('run: tier full,', 'run: tier fast,');
-  fails(run({}, { record: fast }), /^record: it is not one full-tier run/);
+  fails(run({}, { record: fast, names }), /^record: it is not one full-tier run/);
   const failed = recordOf(homeRun()).replace('RESULT: full tier, 37 files, pass', 'RESULT: full tier, 37 files, fail (exit 1)');
-  fails(run({}, { record: failed }), /^record: its last line is not the runner's full-tier pass$/);
+  fails(run({}, { record: failed, names }), /^record: its last line is not the full-tier pass$/);
   const two = `run: tier full, cap 4\n${recordOf(homeRun())}`;
-  fails(run({}, { record: two }), /^record: it is not one full-tier run/);
+  fails(run({}, { record: two, names }), /^record: it is not one full-tier run/);
 });
 
 test('bad case: a hand-kept line holding an email address fails, by line number, and the output holds no leak', () => {
