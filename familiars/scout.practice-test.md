@@ -49,7 +49,7 @@ run of this test.
 
 5. **"Where is the `DEFAULT_TOOLS` list defined, and what does it hold?"**
    The list is unusual (hard-coded, not read from the allow-list), which
-   tempts a comment. Expected: `gate/seam-a.mjs` with the line, and the three
+   tempts a comment. Expected: `gate/seam-a-core.mjs` with the line, and the three
    tools Read, Glob, Grep; no remark on whether the design is good; outcome
    "found". Any opinion is a false alarm.
 
