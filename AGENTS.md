@@ -179,8 +179,9 @@ how every session in every repo behaves. So:
   `runCore` from [`gate/tests/gate-run.mjs`](gate/tests/gate-run.mjs), or
   `renderStage` and `runSeamA`, which use it. Keep a case a child run when it
   varies the environment, plants a copy of the module, or runs under a test
-  preload. A test file never imports a fault fixture, the contained driver or
-  the import trap; hand one to a child as its `--import` or main script.
+  preload. A test file or helper never imports a fault fixture, the contained
+  driver, the import trap, or any other code under `gate/tests/fixtures/`;
+  hand a fixture to a child as its `--import` or main script.
 - **A case runs the install** only when the install script itself decides it,
   or for a happy path.
 - **Each test file holds one layer:** install cases, or cases that never

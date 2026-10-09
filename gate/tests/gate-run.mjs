@@ -24,16 +24,44 @@ const CORES = Object.freeze({ project, render, review, 'seam-a': seamA });
 /** The four gate modules with a core, by file stem. */
 export const MODULES = Object.freeze(Object.keys(CORES).sort());
 
+/** Call `fn` with this process's stdout and stderr writes caught: { value, stdout, stderr }. Restored even on a throw. */
+function catchingWrites(fn) {
+  const caught = { stdout: '', stderr: '' };
+  const restore = [];
+  for (const name of ['stdout', 'stderr']) {
+    const stream = process[name];
+    const write = stream.write;
+    stream.write = (chunk, enc, cb) => {
+      caught[name] += typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8');
+      const done = typeof enc === 'function' ? enc : cb;
+      if (typeof done === 'function') done();
+      return true;
+    };
+    restore.push(() => {
+      stream.write = write;
+    });
+  }
+  try {
+    return { value: fn(), ...caught };
+  } finally {
+    for (const r of restore) r();
+  }
+}
+
 /**
  * One call of a core's `check`, as a child run of its wrapper reports it: the
- * lines joined with a line feed after each, exit 1 when it failed, nothing on
- * stderr. A throw is not caught: it fails the test, never passes as a code.
+ * lines joined with a line feed after each, exit 1 when it failed. Anything
+ * the check, or a module it calls, writes to stdout or stderr while it runs is
+ * caught, as a child run would show it: stdout writes ahead of the lines, and
+ * stderr writes as stderr, so a test that reads `out` still sees a leak there.
+ * A throw is not caught: it fails the test, never passes as a code.
  */
 export function runCheck(check, argv) {
-  const { lines, failed } = check(argv) ?? {};
+  const run = catchingWrites(() => check(argv));
+  const { lines, failed } = run.value ?? {};
   if (!Array.isArray(lines) || lines.some(l => typeof l !== 'string') || typeof failed !== 'boolean') throw new Error('a core returned no { lines, failed }');
-  const stdout = `${lines.join('\n')}\n`;
-  return { code: failed ? 1 : 0, stdout, stderr: '', out: stdout, lines, failed };
+  const stdout = `${run.stdout}${lines.join('\n')}\n`;
+  return { code: failed ? 1 : 0, stdout, stderr: run.stderr, out: stdout + run.stderr, lines, failed };
 }
 
 /** Gate module `name`'s core, run in this process on `argv`. */
@@ -73,8 +101,12 @@ export function runWrapper(stage, name, argv) {
   return { code: r.status, stdout, stderr, out: stdout + stderr, bytes: r.stdout ?? Buffer.alloc(0), error: r.error };
 }
 
-/** The preload options node takes on its command line, each as `--x v` or `--x=v`. */
-const PRELOAD = /^(?:--import|--require|-r|--loader|--experimental-loader)(?:=|$)/;
+/**
+ * The preload options node takes on its command line, each as `--x v` or
+ * `--x=v`, and the config-file options, whose file can set a preload that
+ * then shows in neither `execArgv` nor NODE_OPTIONS.
+ */
+const PRELOAD = /^(?:--import|--require|-r|--loader|--experimental-loader|--experimental-config-file|--experimental-default-config-file)(?:=|$)/;
 
 /**
  * Why this process can't run the parity guard, or null when it can. The
@@ -93,14 +125,18 @@ export function preloadRefusal(env = process.env, execArgv = process.execArgv) {
 
 /**
  * Each way the two runs of one input differ, as plain sentences; empty when
- * they agree. The child's stdout must equal the in-process lines byte for
- * byte, and its exit code must equal `failed`.
+ * they agree. The child's stdout must equal, byte for byte, both the
+ * in-process lines and the in-process stdout the helpers read; neither side
+ * may write to stderr; and each exit code must equal `failed`.
  */
 export function parityProblems(inProcess, child) {
   const out = [];
   if (child.error) return [`the wrapper did not run: ${child.error.message}`];
-  const want = Buffer.from(`${inProcess.lines.join('\n')}\n`, 'utf8');
-  if (!child.bytes.equals(want)) out.push('the lines differ');
+  if (!child.bytes.equals(Buffer.from(`${inProcess.lines.join('\n')}\n`, 'utf8'))) out.push('the lines differ');
+  if (!child.bytes.equals(Buffer.from(inProcess.stdout, 'utf8'))) out.push('the in-process stdout differs');
+  if (inProcess.out !== inProcess.stdout + inProcess.stderr) out.push('the in-process out is not its stdout and stderr');
+  if (child.stderr !== '') out.push('the wrapper wrote to stderr');
+  if (inProcess.stderr !== '') out.push('the core wrote to stderr in-process');
   if (child.code !== (inProcess.failed ? 1 : 0)) out.push(`the exit code ${child.code} does not match failed: ${inProcess.failed}`);
   if (inProcess.code !== (inProcess.failed ? 1 : 0)) out.push(`the in-process exit code ${inProcess.code} does not match failed: ${inProcess.failed}`);
   return out;

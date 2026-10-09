@@ -33,6 +33,28 @@ test('bad case: a throw from a core reaches the test; it is never turned into an
   assert.throws(() => runCheck(() => { throw new Error('planted'); }, []), /planted/);
 });
 
+// A child run shows what a check, or a module it calls, writes while it runs;
+// so must the in-process run, or a "never echoes" canary reads half the output.
+test('bad case: runCheck catches what a check writes to stderr or stdout while it runs, as a child run shows it', () => {
+  const r = runCheck(() => {
+    process.stderr.write('CANARY-err\n');
+    console.error('CANARY-console');
+    process.stdout.write(Buffer.from('CANARY-out\n'));
+    return { lines: ['RESULT: pass'], failed: false };
+  }, []);
+  assert.equal(r.stderr, 'CANARY-err\nCANARY-console\n');
+  assert.equal(r.stdout, 'CANARY-out\nRESULT: pass\n');
+  assert.equal(r.out, 'CANARY-out\nRESULT: pass\nCANARY-err\nCANARY-console\n');
+});
+
+test('runCheck gives the streams back after the check, and after a throw', () => {
+  const before = [process.stdout.write, process.stderr.write];
+  runCheck(() => ({ lines: ['RESULT: pass'], failed: false }), []);
+  assert.deepEqual([process.stdout.write, process.stderr.write], before);
+  assert.throws(() => runCheck(() => { throw new Error('planted'); }, []), /planted/);
+  assert.deepEqual([process.stdout.write, process.stderr.write], before);
+});
+
 test('bad case: a core that returns no { lines, failed } throws', () => {
   for (const r of [undefined, {}, { lines: 'RESULT: pass', failed: false }, { lines: ['RESULT: pass'], failed: 0 }, { lines: [1], failed: false }]) {
     assert.throws(() => runCheck(() => r, []), /no \{ lines, failed \}/, JSON.stringify(r));
@@ -79,6 +101,10 @@ for (const [label, env, execArgv] of [
   ['--experimental-loader', {}, ['--experimental-loader', 'x.mjs']],
   ['--experimental-loader=', {}, ['--experimental-loader=x.mjs']],
   ['a preload among the test runner\'s options', {}, ['--test-concurrency=4', '--import=x.mjs', '--test-timeout=0']],
+  // A config file's preload loads but shows in execArgv only as the config option (probed on Node 24, #156).
+  ['--experimental-config-file', {}, ['--experimental-config-file', 'node.config.json']],
+  ['--experimental-config-file=', {}, ['--experimental-config-file=node.config.json']],
+  ['--experimental-default-config-file', {}, ['--experimental-default-config-file']],
 ]) {
   test(`bad case: preloadRefusal refuses ${label}`, () => {
     assert.match(preloadRefusal(env, execArgv) ?? '', /^(NODE_OPTIONS is set|this process was started with a preload option)/);
@@ -99,7 +125,7 @@ function refusedEveryParityRun(r) {
   assert.notEqual(r.status, 0, r.out);
   assert.doesNotMatch(r.out, /# SKIP|# TODO|^# skipped [1-9]/m, 'a refusal is never a skip');
   const guarded = [...r.results.keys()].filter(n => /^parity: .* in-process and the wrapper|^bad case: the parity guard catches/.test(n));
-  assert.equal(guarded.length, MODULES.length * 6, r.out);
+  assert.equal(guarded.length, MODULES.length * 9, r.out);
   for (const n of guarded) assert.match(r.results.get(n), /^\s*not ok /, `${n}\n${r.out}`);
   assert.match(r.out, /the parity guard refuses to run/);
 }
