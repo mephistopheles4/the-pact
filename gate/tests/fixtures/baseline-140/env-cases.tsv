@@ -2,6 +2,10 @@
 # <file>	<name>	<platform where it must pass>	<why>, tab-separated, repo-relative.
 # On its named platform a case must pass; elsewhere pass and skip are both
 # accepted. A fail is never accepted. gate/tests/baseline-compare.mjs checks every line.
+# A must-pass platform is checked on the machines that run move 4: a Windows
+# machine with link rights and its own Claude folder, and the Linux image in
+# gate/tests/fixtures/linux/. On a Windows machine without them, a windows case
+# can skip there and fail the compare: a known limit.
 gate/tests/agent-settings.test.mjs	bad case: an agent file that is a link is refused	linux	planting a symbolic link needs privileges on Windows
 gate/tests/contained.test.mjs	bad case: a dangling link planted at the temp name refuses, and nothing is created outside the folder	linux	Windows's exclusive create follows a dangling file link
 gate/tests/install-project.test.mjs	bad case: a special-file configuration refuses	linux	Windows has no named pipes in the file system to plant
@@ -12,8 +16,8 @@ gate/tests/render-config.test.mjs	bad case: a configuration file swapped for a l
 gate/tests/render-edits.test.mjs	bad case: a block file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW	linux	Windows defines no O_NOFOLLOW
 gate/tests/contained.test.mjs	known limit (Windows): a dangling link at the temp name refuses before any byte is written, though its target is created empty	windows	a Windows-only limit
 gate/tests/install-edits.test.mjs	bad case: -ReviewFolder a .claude folder spelled with a trailing dot refuses, and nothing is written there	windows	only Windows drops a trailing dot
-gate/tests/install-project.test.mjs	bad case: a project equal to the real Claude folder refuses, before any write (dry run only)	windows	needs the machine's own Claude folder, which a container lacks
-gate/tests/install-project.test.mjs	bad case: a project inside the real Claude folder refuses, before any write (dry run only)	windows	needs a plain folder inside the machine's own Claude folder
+gate/tests/install-project.test.mjs	bad case: a project equal to the real Claude folder refuses, before any write (dry run only)	linux	needs a real Claude folder; the Linux image makes one, and a machine without one skips it
+gate/tests/install-project.test.mjs	bad case: a project inside the real Claude folder refuses, before any write (dry run only)	linux	needs a plain folder inside a real Claude folder; the Linux image makes one, and a machine without one skips it
 gate/tests/install.test.mjs	bad case: a node.cmd shim is not accepted as Node	windows	a .cmd shim runs only on Windows
 gate/tests/install.test.mjs	bad case: a git planted in the folder the install runs from is never run	windows	only Windows searches the current folder for a command
 gate/tests/review.test.mjs	bad case: the Claude home folder named in another case refuses	windows	case folds only on Windows and macOS

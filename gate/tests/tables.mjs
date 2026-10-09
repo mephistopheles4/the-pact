@@ -33,7 +33,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ROW_ID, tokens } from './baseline-compare.mjs';
+import { ROW_ID, tableCalls } from './baseline-compare.mjs';
 import { relativeImports, stringLiterals } from './run.mjs';
 
 export { ROW_ID };
@@ -184,33 +184,14 @@ export function table(name, spec) {
 }
 
 /**
- * Each `table(...)` call in a test file's source that is not registered as
- * `for (const c of table(...)) test(c.name, c.fn);`, by its table name, or
- * `(unnamed)`. A table whose tests are never registered would run nothing.
+ * Each `table(...)` call in a test file's source that is not registered as a
+ * top-level `for (const c of table(...)) test(c.name, c.fn);`, by its table
+ * name, or `(unnamed)`; and `(table imported under another name)` for an
+ * aliased import. A table whose tests are never registered runs nothing, and
+ * one inside a function or a branch may never run, so the no-loss compare
+ * counts only top-level registered tables' rows (tableCalls).
  */
 export function unregisteredTables(src) {
-  const toks = tokens(src);
-  const out = [];
-  // An alias would hide the calls from this check and from the compare's row reader alike.
-  for (let i = 0; i < toks.length; i += 1) if (toks[i].v === 'table' && toks[i + 1]?.v === 'as') out.push('(table imported under another name)');
-  for (let i = 0; i < toks.length; i += 1) {
-    const tk = toks[i];
-    if (tk.t !== 'word' || tk.v !== 'table' || toks[i + 1]?.v !== '(' || toks[i - 1]?.v === '.' || toks[i - 1]?.v === 'function') continue;
-    if (toks[i - 1]?.v === 'import' || toks[i - 1]?.v === '{' || toks[i - 1]?.v === ',') continue;
-    const name = toks[i + 2]?.t === 'str' ? toks[i + 2].v : '(unnamed)';
-    // for ( const c of table ( ... ) ) test ( c . name , c . fn )
-    const v = toks[i - 2];
-    const head = toks[i - 5]?.v === 'for' && toks[i - 4]?.v === '(' && toks[i - 3]?.v === 'const' && v?.t === 'word' && toks[i - 1]?.v === 'of';
-    let j = i + 1;
-    let depth = 0;
-    for (; j < toks.length; j += 1) {
-      if (toks[j].t !== 'p') continue;
-      if ('([{'.includes(toks[j].v)) depth += 1;
-      else if (')]}'.includes(toks[j].v) && --depth === 0) break;
-    }
-    const after = toks.slice(j + 1, j + 13).map(x => x.v ?? `<${x.t}>`);
-    const want = [')', 'test', '(', v?.v, '.', 'name', ',', v?.v, '.', 'fn', ')'];
-    if (!head || want.some((w, k) => after[k] !== w)) out.push(name);
-  }
-  return out;
+  const { calls, aliased } = tableCalls(src);
+  return [...(aliased ? ['(table imported under another name)'] : []), ...calls.filter(c => !c.registered).map(c => c.name ?? '(unnamed)')];
 }

@@ -16,10 +16,12 @@ A bad case for a gate module is a row in that module's table: one plant on a bas
   - a baseline case is in neither the run nor the map, or a map target is missing from the run;
   - a status differs from the baseline's, except that a listed machine-dependent case may pass or skip off its named platform; a skip on its named platform fails, and a fail is never accepted;
   - any case in the run failed;
-  - a move line does more than change a file, unless it turns a case into `<table>: <row id>` in its own file, and that file's source registers the row, read from its string literals;
+  - a move line does more than change a file, unless it turns a case into `<table>: <row id>` in its own file, and that file's source registers the row. The row is read from string literals: the table's name in a `table(...)` call that heads a top-level registering loop, and the `id` of an object directly in its `rows` array. An `id` in a base input or a plant, or a table inside a function or a branch, doesn't count;
+  - the record is not one full-tier run that passed: one `run: tier full` header, and the runner's `RESULT: full tier, N files, pass` last;
+  - a case is reported under a path other than `<repo>` then `gate/tests/<file>.test.mjs`, as when a helper calls `test()`, or a module outside the repo has a path that ends like a test file;
   - two lines name one target, or a target is a baseline case that stays where it is;
   - the baseline's hash differs;
-  - a hand-kept line holds a local path, or the user or host name. It is reported by file and line number only, never by its text.
+  - a hand-kept line holds a local path, the user or host name, or an email address. It is reported by file and line number only, never by its text. Every line the compare prints is checked the same way, and withheld on a match.
 - **Repeated names count.** Three `cross-checks` names appear twice in the baseline, so the compare counts the cases of each name, and every count must match.
 - **The record's platform** comes from the separator in its case paths. A record that mixes both fails, and so does one that names no file: Node 20's junit reporter writes none, so a Node 20 record can't be compared.
 - **On the probe floor.** The table module, the compare, the baseline and its two lists `env-cases.tsv` and `reporter-names.tsv` are on AGENTS.md's probe floor, with `tables.test.mjs` and `baseline-compare.test.mjs`. `moves.tsv` is not: its lines change with every move, and the compare bounds what a line can do.
@@ -35,5 +37,6 @@ A bad case for a gate module is a row in that module's table: one plant on a bas
 ## How this was decided
 
 - **2026-10-08** in mephistopheles4/the-pact#140, spec revision 10, signed off by the owner, built in #154 (T5). The owner chose "render-edits first" for the first tables (D5), and "when touched" for converting other files (D3).
-- **The Linux compare waits on #149.** On Node 20 the four `node:sqlite` practice cases fail, and Node 20's junit reporter names no file for any case. The owner chose "B, everything should be on LTS": the four get no exception in `env-cases.tsv`, and the Linux compare runs once the container is on the LTS (#149).
+- **The Linux compare waits on #149.** On Node 20 the four `node:sqlite` practice cases fail, and Node 20's junit reporter names no file for any case. The owner chose "B, everything should be on LTS": the four get no exception in `env-cases.tsv`, and the Linux compare runs once the container is on the LTS (#149). Until then, each Linux run checks the Linux-listed cases by name in its record, and posts how many passed.
+- **Known limits, not closed by the compare.** It matches a moved case by file, name and status, not by its body, so a move that empties a test's body still finds a home; review of the diff covers that, and #157 (T6), which moves hundreds of cases, should check moved bodies. The record carries no commit, so the compare can't tell a record from an earlier commit; binding one needs the runner to write it, a change on the probe floor.
 - **Still holds:** [ADR 0030](0030-the-gate-suite-runs-through-one-runner-in-named-tiers.md), on the runner, its tiers and record mode. The compare reads the runner's record and imports its leak patterns.

@@ -11,8 +11,10 @@
 // a platform where it must pass). The compare fails when a baseline case has
 // no home in the run, when a status differs, when a move does more than move a
 // file (or name a table row its file registers), when the baseline's hash
-// differs from the one held here, and when a hand-kept line holds a local path
-// or the user or host name. A leak is reported by file and line number only.
+// differs from the one held here, when the record is not one full-tier run
+// that passed, with its cases under <repo>/gate/tests/, and when a hand-kept
+// line holds a local path, the user or host name, or an email address. A leak
+// is reported by file and line number only.
 // It reads names from the baseline and the lists alone, and never prints a
 // line of the record. Exit 0 on a pass, 1 on a fail, 2 on a usage error. On
 // the probe floor by name (AGENTS.md).
@@ -38,6 +40,12 @@ export const TEST_FILE = /^gate\/tests\/[A-Za-z0-9][A-Za-z0-9._-]*\.test\.mjs$/;
 export const ROW_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const key = (file, name) => `${file}\t${name}`;
+/** A path as the compare prints it: any character outside a plain set replaced, as the runner does. */
+const shownPath = p => p.replace(/[^A-Za-z0-9._/ ()-]/g, '?');
+/** An email address's shape: a hand-kept line must never hold one. */
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/;
+/** The 1-based lines of `text` that hold a local path or one of `names` as a word (the runner's patterns), or an email address. */
+const leaksIn = (text, names) => [...new Set([...leakedLines(text, names), ...text.split('\n').flatMap((l, i) => (EMAIL.test(l) ? [i + 1] : []))])].sort((a, b) => a - b);
 
 // ------------------------------------------------------------ the record: pure
 
@@ -90,7 +98,8 @@ export function parseRecord(text) {
       } else {
         if (open) bad = 'a testcase inside a testcase';
         const f = attr(rest, 'file');
-        const fm = f === null ? null : /([\\/])gate\1tests\1([^\\/]+(?:\1[^\\/]+)*)$/.exec(f);
+        // Only a path under the repo, as record mode writes it, counts: <repo>, a separator, gate, tests.
+        const fm = f === null ? null : /^<repo>([\\/])gate\1tests\1([^\\/]+(?:\1[^\\/]+)*)$/.exec(f);
         if (fm) seps.add(fm[1]);
         const c = { file: fm ? `gate/tests/${fm[2].split(fm[1]).join('/')}` : '(outside gate/tests)', name: [...suites, attr(rest, 'name')].join(' > '), status: 'pass' };
         if (self) cases.push(c);
@@ -101,7 +110,7 @@ export function parseRecord(text) {
   if (open) bad = 'a testcase that never closes';
   if (bad) return { error: `the junit report is malformed: ${bad}` };
   if (cases.length === 0) return { error: 'the junit report holds no case' };
-  if (seps.size === 0) return { error: 'the junit report names no test file for its cases (Node 20\'s junit reporter writes none)' };
+  if (seps.size === 0) return { error: 'the junit report names no test file under the repo for its cases (Node 20\'s junit reporter writes none)' };
   if (seps.size !== 1) return { error: 'the platform of the record cannot be read from its file paths' };
   return { cases, platform: seps.has('\\') ? 'windows' : 'linux' };
 }
@@ -201,45 +210,109 @@ export function tokens(src) {
   return out;
 }
 
+const OPENS = '([{';
+const CLOSES = ')]}';
+const isOpen = tk => tk?.t === 'p' && OPENS.includes(tk.v);
+
+/** The index of the bracket that closes the one opening at `open`. */
+function closeOf(toks, open) {
+  let depth = 0;
+  for (let j = open; j < toks.length; j += 1) {
+    if (toks[j].t !== 'p') continue;
+    if (OPENS.includes(toks[j].v)) depth += 1;
+    else if (CLOSES.includes(toks[j].v) && --depth === 0) return j;
+  }
+  return toks.length;
+}
+
+/** The indexes of the tokens directly inside the bracket opening at `open`; a nested bracket gives its opening index only. */
+function inside(toks, open) {
+  const out = [];
+  const end = closeOf(toks, open);
+  for (let j = open + 1; j < end; j += 1) {
+    out.push(j);
+    if (isOpen(toks[j])) j = closeOf(toks, j);
+  }
+  return out;
+}
+
+/** Whether the token at `k` is a key of the object it sits directly in: `{ key:` or `, key:`. */
+const isKey = (toks, k, key) => (toks[k].t === 'word' || toks[k].t === 'str') && toks[k].v === key && toks[k + 1]?.v === ':' && (toks[k - 1]?.v === '{' || toks[k - 1]?.v === ',');
+
 /**
- * The rows a test file registers: Map<table name, Set<row id>>. A table counts
- * when the file imports `table` from ./tables.mjs (under any local name) and
- * calls it with the table's name as a string literal; a row counts when that
- * call's arguments hold `id: '<row id>'` with the id as a string literal.
- * A row id held in a variable, or a table built in a loop, is not found.
+ * Every `table(...)` call in a test file's source: [{ name, ids, registered }].
+ * `name` is the table's name when it is a string literal, else null. `ids`
+ * are the row ids written as string literals on the objects that are direct
+ * elements of the `rows` array of the call's spec object, and nowhere else,
+ * so an `id` key in a base input or a plant is not a row. A call is
+ * registered only when it heads a top-level loop that registers each test in
+ * the file: `for (const c of table('<name>', { ... })) test(c.name, c.fn);`.
+ * `imported` is whether the file imports `table` from ./tables.mjs under that
+ * name; `aliased`, whether it imports it under another.
  */
-export function registeredRows(src) {
+export function tableCalls(src) {
   const toks = tokens(src);
-  const locals = new Set();
+  let imported = false;
+  let aliased = false;
   for (let i = 0; i < toks.length; i += 1) {
-    if (toks[i].t !== 'word' || toks[i].v !== 'import' || toks[i + 1]?.v !== '{') continue;
-    let j = i + 2;
-    const names = [];
-    while (j < toks.length && toks[j].v !== '}') names.push(toks[j++]);
-    if (toks[j + 1]?.v !== 'from' || toks[j + 2]?.t !== 'str' || toks[j + 2].v !== TABLES_MODULE) continue;
-    for (let k = 0; k < names.length; k += 1) {
-      if (names[k].t !== 'word' || names[k].v !== TABLE_FN) continue;
-      if (names[k + 1]?.v === 'as' && names[k + 2]?.t === 'word') locals.add(names[k + 2].v);
-      else locals.add(TABLE_FN);
+    if (toks[i].v !== 'import' || toks[i + 1]?.v !== '{') continue;
+    const close = toks.findIndex((tk, j) => j > i && tk.v === '}');
+    if (close < 0 || toks[close + 1]?.v !== 'from' || toks[close + 2]?.t !== 'str' || toks[close + 2].v !== TABLES_MODULE) continue;
+    for (let k = i + 2; k < close; k += 1) {
+      if (toks[k].v !== TABLE_FN) continue;
+      if (toks[k + 1]?.v === 'as') aliased = true;
+      else imported = true;
     }
   }
-  const out = new Map();
+  const calls = [];
+  let depth = 0;
   for (let i = 0; i < toks.length; i += 1) {
     const tk = toks[i];
-    if (tk.t !== 'word' || !locals.has(tk.v) || toks[i + 1]?.v !== '(' || toks[i + 2]?.t !== 'str') continue;
-    if (toks[i - 1]?.v === '.' || toks[i - 1]?.v === 'function') continue;
-    const name = toks[i + 2].v;
-    const ids = out.get(name) ?? new Set();
-    let depth = 0;
-    for (let j = i + 1; j < toks.length; j += 1) {
-      const v = toks[j].t === 'p' ? toks[j].v : null;
-      if (v === '(' || v === '[' || v === '{') depth += 1;
-      else if (v === ')' || v === ']' || v === '}') {
-        depth -= 1;
-        if (depth === 0) break;
-      } else if (toks[j].t === 'word' && toks[j].v === 'id' && toks[j + 1]?.v === ':' && toks[j + 2]?.t === 'str' && toks[j - 1]?.t === 'p' && (toks[j - 1].v === '{' || toks[j - 1].v === ',')) ids.add(toks[j + 2].v);
+    const prev = toks[i - 1]?.v;
+    if (tk.t === 'word' && tk.v === TABLE_FN && toks[i + 1]?.v === '(' && !['.', 'function', 'import', 'as', '{', ','].includes(prev)) {
+      const name = toks[i + 2]?.t === 'str' ? toks[i + 2].v : null;
+      const close = closeOf(toks, i + 1);
+      const v = toks[i - 2];
+      // for ( const c of table ( ... ) ) test ( c . name , c . fn ) ; with the for at the top level
+      const head = depth === 1 && toks[i - 5]?.v === 'for' && toks[i - 4]?.v === '(' && toks[i - 3]?.v === 'const' && v?.t === 'word' && prev === 'of';
+      const after = toks.slice(close + 1, close + 12).map(x => x.v ?? `<${x.t}>`);
+      const want = [')', 'test', '(', v?.v, '.', 'name', ',', v?.v, '.', 'fn', ')'];
+      const registered = head && want.every((w, k) => after[k] === w);
+      const ids = new Set();
+      if (name !== null && toks[i + 3]?.v === ',' && toks[i + 4]?.v === '{') {
+        for (const j of inside(toks, i + 4)) {
+          if (!isKey(toks, j, 'rows') || toks[j + 2]?.v !== '[') continue;
+          for (const k of inside(toks, j + 2)) {
+            if (toks[k].v !== '{') continue;
+            for (const m of inside(toks, k)) if (isKey(toks, m, 'id') && toks[m + 2]?.t === 'str') ids.add(toks[m + 2].v);
+          }
+        }
+      }
+      calls.push({ name, ids, registered });
     }
-    out.set(name, ids);
+    if (tk.t === 'p') {
+      if (OPENS.includes(tk.v)) depth += 1;
+      else if (CLOSES.includes(tk.v)) depth -= 1;
+    }
+  }
+  return { calls, imported, aliased };
+}
+
+/**
+ * The rows a test file registers: Map<table name, Set<row id>>, from the
+ * calls `tableCalls` finds registered, in a file that imports `table` from
+ * ./tables.mjs under that name. A row id held in a variable, a table built
+ * in a loop or a function, or one never registered, is not found.
+ */
+export function registeredRows(src) {
+  const { calls, imported } = tableCalls(src);
+  const out = new Map();
+  if (!imported) return out;
+  for (const c of calls) {
+    if (!c.registered || c.name === null) continue;
+    const ids = out.get(c.name) ?? new Set();
+    for (const id of c.ids) ids.add(id);
+    out.set(c.name, ids);
   }
   return out;
 }
@@ -260,7 +333,7 @@ export function compare({ lists, record, names = [], source = () => null }) {
     const result = problems.length ? `RESULT: compare fail, ${problems.length} problems` : `RESULT: compare pass, unchanged ${counts.unchanged}, moved ${counts.moved}, new ${counts.new}`;
     const lines = [...problems, ...(counts.unchanged === undefined ? [] : [`counts: unchanged ${counts.unchanged}, moved ${counts.moved}, new ${counts.new}`]), result];
     // A backstop: a printed line that would leak is withheld, never shown.
-    const leaks = new Set(leakedLines(lines.join('\n'), names));
+    const leaks = new Set(leaksIn(lines.join('\n'), names));
     return { ok: problems.length === 0, lines: lines.map((l, i) => (leaks.has(i + 1) ? '(a line withheld: it held a local path or name)' : l)), counts };
   };
 
@@ -273,7 +346,7 @@ export function compare({ lists, record, names = [], source = () => null }) {
       continue;
     }
     texts[k] = Buffer.isBuffer(v) ? v.toString('utf8') : v;
-    for (const n of leakedLines(texts[k], names)) say(`leak: ${LISTS_DIR}/${f} line ${n} holds a local path or name`);
+    for (const n of leaksIn(texts[k], names)) say(`leak: ${LISTS_DIR}/${f} line ${n} holds a local path or name`);
   }
   if (problems.length) return done({});
 
@@ -391,6 +464,10 @@ export function compare({ lists, record, names = [], source = () => null }) {
   for (const { to, line } of landsOn) if (!moved.has(to)) say(`${LIST_FILES.moves} line ${line}: its target is a baseline case that stays where it is`);
 
   // 6. The run.
+  // The record is a full-tier run that passed: its runner's header names the full tier, and its last line is the pass.
+  const recLines = record.split('\n').map(l => (l.endsWith('\r') ? l.slice(0, -1) : l)).filter(l => l !== '');
+  if (recLines.filter(l => l.startsWith('run: ')).length !== 1 || !recLines.some(l => /^run: tier full\b/.test(l))) say('record: it is not one full-tier run (its runner header names another tier, or none, or two)');
+  if (!/^RESULT: full tier, \d+ files, pass$/.test(recLines.at(-1) ?? '')) say("record: its last line is not the runner's full-tier pass");
   const run = parseRecord(record);
   if (run.error) {
     say(`record: ${run.error}`);
@@ -405,9 +482,9 @@ export function compare({ lists, record, names = [], source = () => null }) {
   // node's junit reporter names the file that called test(). A case reported under a module that is not a test
   // file was registered from there, so the file it belongs to is unknown, and it can't be any case's home.
   const testFiles = new Set();
-  for (const c of run.cases) if (!TEST_FILE.test(c.file) && !testFiles.has(c.file)) testFiles.add(c.file), say(`record: cases are reported under ${c.file.replace(/[^A-Za-z0-9._/ -]/g, '?')}, which is not a top-level test file`);
+  for (const c of run.cases) if (!TEST_FILE.test(c.file) && !testFiles.has(c.file)) testFiles.add(c.file), say(`record: cases are reported under ${shownPath(c.file)}, which is not a top-level test file`);
   // A failed case fails the compare, baseline case or new. Its name is shown only when the lists hold it.
-  for (const c of run.cases) if (c.status === 'fail') say(`record: a case failed in ${c.file}${asReported.has(key(c.file, c.name)) || targets.has(key(c.file, c.name)) ? `: ${c.name}` : ''}`);
+  for (const c of run.cases) if (c.status === 'fail') say(`record: a case failed in ${shownPath(c.file)}${asReported.has(key(c.file, c.name)) || targets.has(key(c.file, c.name)) ? `: ${c.name}` : ''}`);
 
   let unchanged = 0;
   let moves = 0;

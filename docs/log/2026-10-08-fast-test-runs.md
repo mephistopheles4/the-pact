@@ -66,6 +66,14 @@ Spec revision 10 on #140 redesigned the test architecture: cores, tables, one la
   - **The compare caught a real fault at move 4.** The first move-4 full run passed, but the compare failed all 51 rows: node's junit reporter names the file that called `test()`, and `table()` called it from inside `tables.mjs`. Now `table()` returns its tests and the test file registers them in a loop, a guard checks the loop, and the compare fails any case reported outside a top-level test file.
   - **Record mode's placeholders sit in failure text.** The Linux record's failure stacks hold `<repo>` and `<user>`, so the parser now skips a failure's body whole.
   - **Node 20's junit reporter names no file** for any case, so a Node 20 record can't be compared at all. That joins the four `node:sqlite` failures in waiting on #149.
+- **Move 4's lenses found 19 things across five reports; the fixes:**
+  - **The row reader** now counts only the `id` of an object directly in a table's `rows` array, in a call that heads a top-level registering loop. Before, an `id` in a base input or a plant counted, and so did a table inside a function that never runs.
+  - **The record** must be one full-tier run that passed, with every case under `<repo>/gate/tests/`; a path that only ends like a test file no longer counts. Printed paths are filtered.
+  - **The lists** are also checked for email addresses.
+  - **The table module's tests** gained planted runners for a wrong rule in place of the right one, an `everyRow` check that fails, and exit codes and last lines that disagree.
+  - **Two Claude-folder cases** in `env-cases.tsv` now must pass on Linux, where the image makes the folder; they passed there.
+  - **Left as known limits:** a moved case is matched by name, not body, and the record holds no commit (ADR 0031).
+- **The Linux-listed cases by name.** Until #149, a Linux run checks them by name in its record: all 10 passed at f713f00.
 - **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
 
 ## What was measured
@@ -130,3 +138,18 @@ Issue comments on mephistopheles4/the-pact#145:
 - `6068432584`, `6068477630` — the plants for move 4's fixes: expected results and results.
 - `6068490816` — move 4's Lens dispositions.
 - `6068606936` — the final full suite against the baseline.
+
+Issue comments on mephistopheles4/the-pact#140, for T5:
+
+- `6070317670` — the spec, revision 10.
+- `6070496991` — the sign-off.
+- `6070546842` — the tickets and their order.
+- `6070977881` — render's rule ids no table row names.
+
+Issue comments on mephistopheles4/the-pact#154:
+
+- `6070748326` — the owner's answer on the Linux compare, and two corrections to the ticket.
+- `6070909284` — the first compare run, before anything moved.
+- `6071141424` — move 4's first attempt: the compare caught the table module's fault.
+- `6071246566` — move 4's full suite against the baseline, and the Linux run.
+- `6071389567`, `6071389828`, `6071461843`, `6071462024` — move 4's lens reports, through the cross script: the security pair, `unstated-lens`, the QA pair's refused first input, and the QA pair.

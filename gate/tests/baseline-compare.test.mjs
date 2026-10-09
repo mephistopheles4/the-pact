@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir, userInfo } from 'node:os';
+import { hostname, tmpdir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -89,7 +89,7 @@ const A = BASE.find(c => c.file === 'gate/tests/render.test.mjs' && c.status ===
 const B = BASE.filter(c => c.file === 'gate/tests/render.test.mjs' && c.status === 'pass')[1];
 const LISTED_LINUX = BASE.find(c => c.name === 'bad case: an agent file that is a link is refused');
 const withStatus = (cases, target, status) => cases.map(c => (c.file === target.file && c.name === target.name ? { ...c, status } : c));
-const TABLE_SRC = "import { table } from './tables.mjs';\ntable('render edit list', { rows: [{ id: 'unknown-mark', fails: ['edit-mark'] }] });\n";
+const TABLE_SRC = "import { test } from 'node:test';\nimport { table } from './tables.mjs';\nfor (const c of table('render edit list', { rows: [{ id: 'unknown-mark', fails: ['edit-mark'] }] })) test(c.name, c.fn);\n";
 
 // ------------------------------------------------------------ the control
 
@@ -220,9 +220,16 @@ test('bad case: a leak in the baseline or the reporter names is reported the sam
 
 // ------------------------------------------------------------ the machine-dependent list
 
-test('a listed case that skips off its named platform passes the compare', () => {
-  const r = run({}, { cases: withStatus(homeRun(), LISTED_LINUX, 'skip'), sep: '\\' });
+test('a listed case that skips off its named platform passes the compare; unlisted, the same skip fails', () => {
+  // A Windows-listed case passes in the baseline; on a Linux record it may skip. Linux-listed cases pass there.
+  const LISTED_WINDOWS = BASE.find(c => c.name === 'bad case: a node.cmd shim is not accepted as Node');
+  assert.equal(LISTED_WINDOWS.status, 'pass', 'the case passes in the baseline, so a skip is a change');
+  const linuxRun = homeRun().map(c => (c.status === 'skip' ? { ...c, status: 'pass' } : c));
+  const cases = withStatus(linuxRun, LISTED_WINDOWS, 'skip');
+  const r = run({}, { cases, sep: '/' });
   assert.equal(r.ok, true, r.lines.join('\n'));
+  const unlisted = Buffer.from(REAL.envCases.toString('utf8').split('\n').filter(l => !l.includes(LISTED_WINDOWS.name)).join('\n'));
+  fails(run({ envCases: unlisted }, { cases, sep: '/' }), /^status pass -> skip: gate\/tests\/install\.test\.mjs : bad case: a node\.cmd shim/);
 });
 
 test('bad case: the same listed case skipping on its named platform fails', () => {
@@ -247,6 +254,7 @@ test('bad case: a listed case that fails is never accepted', () => {
 test('bad case: a malformed env-cases line fails: an unknown platform, or a case not in the baseline', () => {
   fails(run({ envCases: Buffer.concat([REAL.envCases, Buffer.from(tsv([[A.file, A.name, 'macos', 'why']]))]) }), /the platform is not one of linux, windows/);
   fails(run({ envCases: Buffer.concat([REAL.envCases, Buffer.from(tsv([[A.file, 'no such case', 'linux', 'why']]))]) }), /names no baseline case/);
+  fails(run({ envCases: Buffer.concat([REAL.envCases, Buffer.from(tsv([[A.file, A.name, 'linux']]))]) }), /: not "<file>\\t<name>\\t<platform>\\t<why>"$/);
 });
 
 // ------------------------------------------------------------ reporter names
@@ -273,7 +281,37 @@ test('bad case: text inside the junit report that is not a tag fails', () => {
 
 test('bad case: a record that names no file for its cases fails, as Node 20\'s junit reporter writes', () => {
   const bare = recordOf(homeRun()).replace(/ file="[^"]*"/g, '');
-  fails(run({}, { record: bare }), /^record: the junit report names no test file for its cases/);
+  fails(run({}, { record: bare }), /^record: the junit report names no test file under the repo for its cases/);
+});
+
+test('bad case: a case whose path only ends in a test file, outside the repo, is not that file\'s case', () => {
+  const cases = homeRun();
+  const decoy = recordOf(cases).replace(`file="&lt;repo&gt;\\gate\\tests\\${A.file.slice('gate/tests/'.length)}"`, `file="&lt;tmp&gt;\\gate\\tests\\${A.file.slice('gate/tests/'.length)}"`);
+  assert.notEqual(decoy, recordOf(cases), 'the plant changed a path');
+  const r = run({}, { record: decoy });
+  fails(r, /^record: cases are reported under \(outside gate\/tests\), which is not a top-level test file$/);
+});
+
+test('bad case: a failed case\'s path is printed with odd characters replaced', () => {
+  const odd = withStatus(homeRun(), A, 'fail').map(c => (c.file === A.file && c.name === A.name ? { ...c, file: 'gate/tests/re`nder.test.mjs' } : c));
+  const r = run({}, { cases: odd });
+  fails(r, /^record: a case failed in gate\/tests\/re\?nder\.test\.mjs$/);
+});
+
+test('bad case: a record of another tier, or one whose run did not pass, fails', () => {
+  const fast = recordOf(homeRun()).replace('run: tier full,', 'run: tier fast,');
+  fails(run({}, { record: fast }), /^record: it is not one full-tier run/);
+  const failed = recordOf(homeRun()).replace('RESULT: full tier, 37 files, pass', 'RESULT: full tier, 37 files, fail (exit 1)');
+  fails(run({}, { record: failed }), /^record: its last line is not the runner's full-tier pass$/);
+  const two = `run: tier full, cap 4\n${recordOf(homeRun())}`;
+  fails(run({}, { record: two }), /^record: it is not one full-tier run/);
+});
+
+test('bad case: a hand-kept line holding an email address fails, by line number, and the output holds no leak', () => {
+  const moves = Buffer.concat([REAL.moves, Buffer.from('# moved by someone@example.org\n')]);
+  const r = run({ moves }, { names: [] });
+  fails(r, new RegExp(`^leak: gate/tests/fixtures/baseline-140/moves\\.tsv line ${NEXT_LINE} holds a local path or name$`));
+  noLeak(r, ['someone@example.org']);
 });
 
 test('bad case: a record whose file paths mix both separators fails', () => {
@@ -312,16 +350,19 @@ test('a name the report escapes twice reads as the baseline holds it', () => {
 
 // ------------------------------------------------------------ a table's rows, read from source
 
-test('registeredRows finds a table and its rows by string literals, under an import alias too', () => {
+/** A test file's source: the table import, then each table registered in a top-level loop. */
+const IMP = "import { test } from 'node:test';\nimport { table } from './tables.mjs';\n";
+const loop = (name, spec) => `for (const c of table('${name}', ${spec})) test(c.name, c.fn);\n`;
+
+test('registeredRows finds a registered table and its rows by string literals', () => {
   assert.deepEqual([...registeredRows(TABLE_SRC).get('render edit list')], ['unknown-mark']);
-  const alias = "import { table as tbl } from './tables.mjs';\ntbl('t', { rows: [{ id: 'a-b', fails: ['x'] }, { why: 'w', id: 'c' }] });\n";
-  assert.deepEqual([...registeredRows(alias).get('t')].sort(), ['a-b', 'c']);
+  const src = IMP + loop('t', "{ rows: [{ id: 'a-b', fails: ['x'] }, { why: 'w', id: 'c' }] }");
+  assert.deepEqual([...registeredRows(src).get('t')].sort(), ['a-b', 'c']);
 });
 
 test('registeredRows reads past regex literals: a row after several says patterns is still found', () => {
   const rows = Array.from({ length: 6 }, (_, i) => `{ id: 'r${i}', fails: ['x'], says: /a (b) [c] {d}/, why: 'w' }`).join(',\n');
-  const src = `import { table } from './tables.mjs';\ntable('t', { rows: [\n${rows}\n] });\n`;
-  assert.deepEqual([...registeredRows(src).get('t')], ['r0', 'r1', 'r2', 'r3', 'r4', 'r5']);
+  assert.deepEqual([...registeredRows(IMP + loop('t', `{ rows: [\n${rows}\n] }`)).get('t')], ['r0', 'r1', 'r2', 'r3', 'r4', 'r5']);
 });
 
 test('the render-edits file registers every row its moves name', () => {
@@ -336,19 +377,58 @@ test('the render-edits file registers every row its moves name', () => {
   }
 });
 
-test('bad case: registeredRows finds no row in a comment, a string, a variable, or a file that does not import the table module', () => {
-  const noImport = "table('t', { rows: [{ id: 'a' }] });\n";
-  assert.equal(registeredRows(noImport).size, 0);
-  const inComment = "import { table } from './tables.mjs';\n// table('t', { rows: [{ id: 'a' }] });\n";
-  assert.equal(registeredRows(inComment).size, 0);
-  const inString = "import { table } from './tables.mjs';\nconst s = \"table('t', { rows: [{ id: 'a' }] })\";\n";
-  assert.equal(registeredRows(inString).size, 0);
-  const inVar = "import { table } from './tables.mjs';\nconst ID = 'a';\ntable('t', { rows: [{ id: ID }] });\n";
-  assert.deepEqual([...registeredRows(inVar).get('t')], []);
-  const otherModule = "import { table } from './other.mjs';\ntable('t', { rows: [{ id: 'a' }] });\n";
-  assert.equal(registeredRows(otherModule).size, 0);
+test("each of T5's map lines pairs an old render-edits case with the row whose why is its old label", () => {
+  // The old loops named a case from its label; each row keeps that label as its why, word for word.
+  const OLD = { 'render edit list': why => `bad case: ${why} refuses`, 'render block path': why => `bad case: a block path with ${why} refuses on its text` };
+  const src = readFileSync(join(HERE, 'render-edits.test.mjs'), 'utf8');
+  const whyOf = new Map();
+  for (const table of Object.keys(OLD)) {
+    const body = src.slice(src.indexOf(`table('${table}'`), src.indexOf('test(c.name, c.fn)', src.indexOf(`table('${table}'`)));
+    for (const m of body.matchAll(/\{ id: '([a-z0-9-]+)', .*?why: '((?:[^'\\]|\\.)*)' \}/g)) whyOf.set(`${table}: ${m[1]}`, m[2].replace(/\\'/g, "'"));
+  }
+  assert.equal(whyOf.size, 51, 'the two tables hold 51 rows');
+  let paired = 0;
+  for (const l of REAL.moves.toString('utf8').split('\n')) {
+    if (!l || l.startsWith('#')) continue;
+    const [of, on, nf, nn] = l.split('\t');
+    if (of !== 'gate/tests/render-edits.test.mjs' || nf !== of) continue;
+    const table = nn.slice(0, nn.lastIndexOf(': '));
+    assert.equal(on, OLD[table](whyOf.get(nn)), `${nn} is paired with another case`);
+    paired += 1;
+  }
+  assert.equal(paired, 51);
 });
 
+test('bad case: registeredRows finds no row in a comment, a string, a variable, an alias, or a file that does not import the table module', () => {
+  assert.equal(registeredRows(loop('t', "{ rows: [{ id: 'a' }] }")).size, 0, 'no import');
+  assert.equal(registeredRows(`${IMP}// ${loop('t', "{ rows: [{ id: 'a' }] }")}`).size, 0, 'a comment');
+  assert.equal(registeredRows(`${IMP}const s = "${loop('t', "{ rows: [{ id: 'a' }] }").trim()}";\n`).size, 0, 'a string');
+  assert.deepEqual([...registeredRows(`${IMP}const ID = 'a';\n${loop('t', '{ rows: [{ id: ID }] }')}`).get('t')], [], 'a variable');
+  assert.equal(registeredRows(`import { table } from './other.mjs';\n${loop('t', "{ rows: [{ id: 'a' }] }")}`).size, 0, 'another module');
+  assert.equal(registeredRows("import { table as tb } from './tables.mjs';\nfor (const c of tb('t', { rows: [{ id: 'a' }] })) test(c.name, c.fn);\n").size, 0, 'an alias');
+});
+
+test('bad case: an id key in a base input or a plant is not a row', () => {
+  const spec = "{ base: () => ({ id: 'b' }), rows: [{ id: 'a', plant: x => ({ ...x, id: 'c' }), fails: ['x'], why: 'w' }] }";
+  assert.deepEqual([...registeredRows(IMP + loop('t', spec)).get('t')], ['a']);
+  // And the compare refuses a rename onto it, with a plain test of that name standing in.
+  const to = 't: b';
+  const cases = homeRun().map(c => (c.file === A.file && c.name === A.name ? { ...c, name: to } : c));
+  const src = `${IMP}${loop('t', spec)}test('t: b', () => {});\n`;
+  fails(run({ moves: plusMove([A.file, A.name, A.file, to]) }, { cases, source: f => (f === A.file ? src : repoSource(f)) }), /the new name is not a row its file registers/);
+});
+
+test('bad case: a table that is never registered, or registered only inside a function or a branch, holds no row', () => {
+  const rows = "{ rows: [{ id: 'r', fails: ['x'], why: 'w' }] }";
+  assert.equal(registeredRows(`${IMP}table('t', ${rows});\n`).size, 0, 'never registered');
+  assert.equal(registeredRows(`${IMP}function never() {\n  ${loop('t', rows)}}\n`).size, 0, 'inside a function');
+  assert.equal(registeredRows(`${IMP}if (process.env.NEVER) {\n  ${loop('t', rows)}}\n`).size, 0, 'inside a branch');
+  // And the compare refuses a rename onto the dead row, with a plain test of that name standing in.
+  const to = 't: r';
+  const cases = homeRun().map(c => (c.file === A.file && c.name === A.name ? { ...c, name: to } : c));
+  const src = `${IMP}function never() {\n  ${loop('t', rows)}}\ntest('t: r', () => {});\n`;
+  fails(run({ moves: plusMove([A.file, A.name, A.file, to]) }, { cases, source: f => (f === A.file ? src : repoSource(f)) }), /the new name is not a row its file registers/);
+});
 // ------------------------------------------------------------ the command line
 
 function cli(t, record) {
@@ -373,6 +453,16 @@ test('bad case: the command line fails a dropped case with exit 1', t => {
   assert.equal(r.status, 1, r.stdout + r.stderr);
   assert.match(r.stdout, /^gone: /m);
   assert.match(r.stdout.trimEnd().split('\n').at(-1), /^RESULT: compare fail, 1 problems$/);
+});
+
+test('bad case: the command line reads the host and user names itself: a printed line holding either is withheld', t => {
+  // Failed cases in files named for the host and the user: their file names are printed, unless the names are known.
+  const host = hostname();
+  const named = [...homeRun(), { status: 'fail', file: `gate/tests/${host}.test.mjs`, name: 'x' }, { status: 'fail', file: `gate/tests/${USER}.test.mjs`, name: 'y' }];
+  const r = cli(t, recordOf(named));
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.deepEqual(leakedLines(r.stdout, [host, USER]), [], 'the output holds the host or user name');
+  assert.equal(r.stdout.split('\n').filter(l => l === '(a line withheld: it held a local path or name)').length, 2, r.stdout);
 });
 
 test('bad case: the command line refuses no record, or an option, with exit 2', t => {

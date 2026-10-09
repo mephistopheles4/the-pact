@@ -79,6 +79,42 @@ test('bad case: a row whose says does not match fails', t => {
   expect(r, { 'says: wrong': 'not ok', 'says: right': 'ok' });
 });
 
+test('bad case: a row that trips one wrong rule in place of its own fails, though the count matches', t => {
+  const r = planted(t, "table('wrong rule', { module: 'gate/render.mjs', base, run: fake, rows: [{ id: 'swapped', plant: trip('edit-op'), fails: ['edit-mark'], why: 'w' }] });\n");
+  expect(r, { 'wrong rule: base passes': 'ok', 'wrong rule: swapped': 'not ok' });
+});
+
+test('bad case: a base that exits 0 with RESULT: pass but prints a FAIL line fails', t => {
+  const r = planted(t, "table('fail on pass', { module: 'gate/render.mjs', base, run: tree => (tree['in.txt'] === 'base' ? moduleResult(0, 'FAIL edit-mark: planted\\nRESULT: pass\\n') : fake(tree)), rows: [{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'], why: 'w' }] });\n");
+  expect(r, { 'fail on pass: base passes': 'not ok', 'fail on pass: one': 'ok' });
+});
+
+test('bad case: a base that exits 1 with RESULT: pass and no FAIL line fails', t => {
+  const r = planted(t, "table('base exit one', { module: 'gate/render.mjs', base, run: tree => (tree['in.txt'] === 'base' ? moduleResult(1, 'RESULT: pass\\n') : fake(tree)), rows: [{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'], why: 'w' }] });\n");
+  expect(r, { 'base exit one: base passes': 'not ok', 'base exit one: one': 'ok' });
+});
+
+test('bad case: a base that exits 0 with no FAIL line but last line RESULT: fail fails', t => {
+  const r = planted(t, "table('base last line', { module: 'gate/render.mjs', base, run: tree => (tree['in.txt'] === 'base' ? moduleResult(0, 'RESULT: fail\\n') : fake(tree)), rows: [{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'], why: 'w' }] });\n");
+  expect(r, { 'base last line: base passes': 'not ok', 'base last line: one': 'ok' });
+});
+
+test('bad case: a row whose exit code is 0, with the right FAIL line and RESULT: fail, fails', t => {
+  const r = planted(t, "table('exit zero', { module: 'gate/render.mjs', base, run: tree => (tree['in.txt'] === 'base' ? fake(tree) : moduleResult(0, 'FAIL edit-mark: planted\\nRESULT: fail\\n')), rows: [{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'], why: 'w' }] });\n");
+  expect(r, { 'exit zero: base passes': 'ok', 'exit zero: one': 'not ok' });
+});
+
+test('bad case: a row that exits 1 with the right FAIL line but last line RESULT: pass fails', t => {
+  const r = planted(t, "table('wrong last line', { module: 'gate/render.mjs', base, run: tree => (tree['in.txt'] === 'base' ? fake(tree) : moduleResult(1, 'FAIL edit-mark: planted\\nRESULT: pass\\n')), rows: [{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'], why: 'w' }] });\n");
+  expect(r, { 'wrong last line: base passes': 'ok', 'wrong last line: one': 'not ok' });
+});
+
+test('bad case: a table\'s everyRow check runs on every row: one that throws fails each row, and one that passes leaves them passing', t => {
+  const r = planted(t, "table('every row', { module: 'gate/render.mjs', base, run: fake, everyRow: () => { throw new Error('planted everyRow'); }, rows: [{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'], why: 'w' }, { id: 'two', plant: trip('edit-op'), fails: ['edit-op'], why: 'w' }] });\ntable('every row ok', { module: 'gate/render.mjs', base, run: fake, everyRow: () => {}, rows: [{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'], why: 'w' }] });\n");
+  expect(r, { 'every row: base passes': 'ok', 'every row: one': 'not ok', 'every row: two': 'not ok', 'every row ok: one': 'ok' });
+  assert.match(r.out, /planted everyRow/);
+});
+
 test('bad case: a runner that keeps state across calls fails the base after the rows', t => {
   const r = planted(t, "let calls = 0;\ntable('shared state', { module: 'gate/render.mjs', base, run: tree => (++calls > 2 ? failing() : fake(tree)), rows: [{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'], why: 'w' }] });\n");
   expect(r, { 'shared state: base passes': 'ok', 'shared state: one': 'ok', 'shared state: base passes after the rows': 'not ok' });
@@ -122,7 +158,7 @@ test('every test file that uses a table registers its tests in the file, so the 
   let seen = 0;
   for (const f of users) {
     const src = readFileSync(join(HERE, f), 'utf8');
-    if (!src.includes("'./tables.mjs'")) continue;
+    if (!/['"`]\.\/tables\.mjs['"`]/.test(src)) continue;
     seen += 1;
     assert.deepEqual(unregisteredTables(src), [], f);
   }
@@ -138,6 +174,8 @@ test('bad case: a table whose tests are not registered in the file is caught', (
   assert.deepEqual(unregisteredTables(`${imp}for (const c of table('t', { rows: [] })) other(c.name, c.fn);\n`), ['t'], 'a loop that registers through another function');
   assert.deepEqual(unregisteredTables(`${imp}for (const c of table('t', { rows: [] })) test(c.name, () => {});\n`), ['t'], 'a loop that drops the test body');
   assert.deepEqual(unregisteredTables("import { table as tb } from './tables.mjs';\nfor (const c of tb('t', {})) test(c.name, c.fn);\n"), ['(table imported under another name)']);
+  assert.deepEqual(unregisteredTables(`${imp}function never() {\n  for (const c of table('t', { rows: [] })) test(c.name, c.fn);\n}\n`), ['t'], 'a loop inside a function that may never run');
+  assert.deepEqual(unregisteredTables(`${imp}if (process.env.NEVER) {\n  for (const c of table('t', { rows: [] })) test(c.name, c.fn);\n}\n`), ['t'], 'a loop inside a branch');
 });
 
 // ------------------------------------------------------------ the pure parts
