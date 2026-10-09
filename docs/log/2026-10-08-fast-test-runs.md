@@ -159,3 +159,4 @@ Issue comments on mephistopheles4/the-pact#154:
 - `6071742506` — the final full suite against the baseline, and the Linux run.
 - `6071768886` — the owner's answers on the pre-filled dispositions and on #149 before T9.
 - `6071784657` — `fast` re-timed.
+- `6071825523` — the owner's done, the walk-through's outcome, and the hand-off to T9.
