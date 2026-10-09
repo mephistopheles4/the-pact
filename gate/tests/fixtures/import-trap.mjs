@@ -6,12 +6,16 @@
 // While armed, each wrapped call throws and is recorded, so a module that
 // catches the throw is still caught. The driver arms the trap around one
 // import and lifts it after: the cores read the home folder inside check().
+// Armed with the scope `io` (#151), only node:fs and node:child_process calls
+// trap: the helper import guard's scope, since a helper may read the
+// environment at import.
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import os from 'node:os';
 
 let armed = false;
+let scope = 'all';
 const hits = [];
 const SELF = import.meta.url;
 const DRIVER = 'import-trap-driver.mjs';
@@ -31,7 +35,9 @@ function fromModuleCode() {
 }
 
 function trap(name) {
-  if (!armed || !fromModuleCode()) return;
+  if (!armed) return;
+  if (scope === 'io' && !name.startsWith('fs.') && !name.startsWith('child_process.')) return;
+  if (!fromModuleCode()) return;
   hits.push(name);
   throw new Error(`import trap: ${name}`);
 }
@@ -70,7 +76,9 @@ Object.defineProperty(process, 'env', {
 syncBuiltinESMExports();
 
 globalThis[Symbol.for('pact.importTrap')] = Object.freeze({
-  arm: () => {
+  arm: (s = 'all') => {
+    if (s !== 'all' && s !== 'io') throw new Error(`import trap: unknown scope ${s}`);
+    scope = s;
     armed = true;
   },
   lift: () => {
