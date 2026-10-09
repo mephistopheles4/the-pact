@@ -98,6 +98,19 @@ const SETTINGS_APPLY_ASK = Object.freeze([
   'Bash(*nstall.ps1*\u2013*)',
   'Bash(*nstall.ps1*\u2014*)',
   'Bash(*nstall.ps1*\u2015*)',
+  // #165: the Node install script's guard, landed before the script (#153,
+  // S10). They ask on any command naming its two files or the install
+  // record, and on a gh command naming rulesets or branch protection.
+  'PowerShell(*install.mjs*)',
+  'PowerShell(*install-run.mjs*)',
+  'Bash(*nstall.mjs*)',
+  'Bash(*nstall-run.mjs*)',
+  'PowerShell(*.pact-install.json*)',
+  'Bash(*.pact-install.json*)',
+  'PowerShell(*gh*ruleset*)',
+  'PowerShell(*gh*protection*)',
+  'Bash(*gh*uleset*)',
+  'Bash(*gh*rotection*)',
 ]);
 // The "ask" rule on edits to the installed cross script's folder (#45). The
 // overlay must hold it too, whatever the allow-list says.
