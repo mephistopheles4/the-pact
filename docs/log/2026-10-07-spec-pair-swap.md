@@ -43,7 +43,7 @@
   - **52 (E8):** a spec with no Needs a human section was caught.
   - **53 (G1):** input validation offered for deferral was marked "risk floor: not deferrable", with no finding on it.
   - **54 (U1):** an off-route listener drew a security-route question.
-- **Tooling.** A run script, `C:\Users\mephi\scratch\run-secset.ps1` (local), set each run up and cleared it after. Each run was still interactive, as the probe rule requires.
+- **Tooling.** A run script, `~\scratch\run-secset.ps1` (local), set each run up and cleared it after. Each run was still interactive, as the probe rule requires.
 
 ## The periodic review
 
