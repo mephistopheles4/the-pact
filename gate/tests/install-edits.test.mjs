@@ -277,7 +277,10 @@ test('the review output is written only after every check passes: seam A refusin
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea.\n' });
   const folder = join(tempDir(t), 'review');
-  refused(install(repo, h, { extra: ['-ReviewFolder', folder] }));
+  // The replace drops move 2's routed agents, so seam A refuses them for routing.
+  const r = install(repo, h, { extra: ['-ReviewFolder', folder], unrouted: true });
+  refused(r);
+  assert.match(r.stdout, /^seam-a\| FAIL routing: /m, r.out);
   assert.ok(!existsSync(folder));
 });
 
