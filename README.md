@@ -24,6 +24,10 @@ into "the-pact's issue", which means this repo's tracker, until you point that
 paragraph at your own. The how-to's
 [Before you install](docs/install.md#before-you-install) covers all three.
 
+**How it could break is in [the threat model](docs/threat-model.md):** who
+could attack a setup like this, what the pact does about each, what it
+accepts as risk, and what each change you make to it costs.
+
 To install it, follow [docs/install.md](docs/install.md).
 
 ## Why this exists

@@ -40,6 +40,9 @@ holds them:
   which means this repo's tracker. Edit the "Totals only" paragraph of
   `claude/CLAUDE.md` to name your own tracker (step 2).
 
+[The threat model](threat-model.md) explains how the pact could break, the
+risks it accepts, and what each tweak costs. Read it before you decide.
+
 Where the dry run asks for "the owner's go-ahead", the owner is you.
 
 ## 1. Check the prerequisites
