@@ -239,9 +239,13 @@ test('bad case: a banned key in the committed overlay refuses, and -Apply change
 });
 
 test('bad case: an -Apply whose written settings lack the guard reports a mismatch and exits non-zero', t => {
+  // The merge writes what settingsText returns (#153, S8); planted to write an empty object.
   const repo = makeRepo(t, root => {
-    const p = join(root, 'scripts', 'install.ps1');
-    writeFileSync(p, readFileSync(p, 'utf8').replace('((ConvertTo-Json $merged -Depth 100) + "`n")', "'{}'"));
+    const p = join(root, 'gate', 'install-core.mjs');
+    const s = readFileSync(p, 'utf8');
+    const from = 'export const settingsText = m => `${JSON.stringify(toJsonValue(m), null, 2)}\\n`;';
+    assert.equal(s.split(from).length, 2);
+    writeFileSync(p, s.replace(from, () => "export const settingsText = () => '{}\\n';"));
   });
   const h = home(t);
   writeLive(h, { theme: 'dark' });

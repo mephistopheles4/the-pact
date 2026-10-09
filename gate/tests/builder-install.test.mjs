@@ -1,6 +1,6 @@
 // The builder page (#53, slice 7): builder/scriptorium.html. What the page
 // saves installs like a hand-written file. Its own save logic runs in node:vm, with no page, into a
-// throwaway -ClaudeHome that the install script then checks exactly as it
+// throwaway --claude-home that the install script then checks exactly as it
 // checks a file written by hand. The page's other cases, which never install,
 // are in builder-page.test.mjs.
 import assert from 'node:assert/strict';
@@ -63,7 +63,7 @@ function installSaved(t, state) {
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Installed commit [0-9a-f]{40} with configuration [0-9a-f]{12}; all files verified\.\r?$/m, r.out);
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
@@ -113,7 +113,7 @@ test('bad case: text the page flags is refused by the install too, since the pag
   const dry = install(repo, h);
   refused(dry);
   assert.match(dry.stdout, /FAIL block-text: /, dry.out);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', sha256('x')] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256('x')] });
   refused(r);
   assert.ok(!existsSync(join(h, 'CLAUDE.md')), 'the refused configuration installed a rules file');
 });

@@ -1,5 +1,5 @@
 // Agent settings (#97): the install script end to end, against a throwaway
-// repo and -ClaudeHome. Never touches ~/.claude. Expected agent bytes are built
+// repo and --claude-home. Never touches ~/.claude. Expected agent bytes are built
 // here from the repo's copy, never taken from the renderer. The renderer's own
 // cases, which never install, are in agent-settings.test.mjs.
 import assert from 'node:assert/strict';
@@ -38,7 +38,7 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to sonnet, low effort\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   const want = Buffer.from(withAgent('sonnet', 'low'));
   assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), want);
@@ -53,7 +53,7 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   const dry2 = install(repo, h);
   assert.equal(dry2.code, 0, dry2.out);
   assert.match(dry2.stdout, /^Drift: 0\r?$/m, dry2.out);
-  const r2 = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry2)] });
+  const r2 = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry2)] });
   assert.equal(r2.code, 0, r2.out);
   assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), readFileSync(join(repo, 'claude', 'agents', 'integrity-lens.md')));
 });
@@ -69,7 +69,7 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
   assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets behaviour-lens to sonnet, medium effort\\. ${over('behaviour-lens')}${egress}\\r?$`, 'm'), dry.out);
   assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets data-lens to opus, medium effort\\. ${over('data-lens')}\\r?$`, 'm'), dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to opus, high effort\.\r?$/m, dry.out);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   const set = (name, model, effort) => Buffer.from(readFileSync(join(repo, 'claude', 'agents', `${name}.md`), 'utf8').replace(/^model: .*$/m, `model: ${model}`).replace(/^effort: .*$/m, `effort: ${effort}`));
   assert.deepEqual(readFileSync(join(h, 'agents', 'behaviour-lens.md')), set('behaviour-lens', 'sonnet', 'medium'));
@@ -81,7 +81,7 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
   configure(h, { schema: 1 });
   const dry2 = install(repo, h);
   assert.equal(dry2.code, 0, dry2.out);
-  const r2 = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry2)] });
+  const r2 = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry2)] });
   assert.equal(r2.code, 0, r2.out);
   for (const a of ['behaviour-lens', 'data-lens', 'integrity-lens']) assert.deepEqual(readFileSync(join(h, 'agents', `${a}.md`)), readFileSync(join(repo, 'claude', 'agents', `${a}.md`)));
 });
@@ -92,9 +92,9 @@ test('bad case: an agent setting changed between the dry run and -Apply refuses 
   configure(h, { schema: 1, agents: { 'integrity-lens': { model: 'sonnet' } } });
   const hash = dryRunHash(install(repo, h));
   configure(h, { schema: 1, agents: { 'integrity-lens': { model: 'opus', effort: 'low' } } });
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', hash] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
-  assert.match(r.stdout, /^REFUSED: the hash given with -RenderedHash is not the full hash/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the hash given with --rendered-hash is not the full hash/m, r.out);
   assert.ok(!existsSync(join(h, 'agents')), 'the refused install wrote agents');
 });
 
@@ -139,7 +139,7 @@ for (const [label, config, from, to, why] of [
     const repo = makeRepo(t, root => plantRenderer(root, from, to));
     const h = home(t);
     if (config) configure(h, config);
-    const r = install(repo, h, { apply: true, extra: config ? ['-RenderedHash', A64] : [] });
+    const r = install(repo, h, { apply: true, extra: config ? ['--rendered-hash', A64] : [] });
     refused(r);
     assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'm'), r.out);
@@ -157,7 +157,7 @@ test('bad case: a renderer that rewrites a model line in the body, not the front
   });
   const h = home(t);
   configure(h, SET);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', A64] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', A64] });
   refused(r);
   assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
   assert.match(r.stdout, /^REFUSED: the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values\./m, r.out);
@@ -171,7 +171,7 @@ test('bad case: a configuration setting integrity-lens on a commit with no integ
   });
   const h = home(t);
   configure(h, SET);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', A64] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', A64] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the configuration sets integrity-lens, but the commit holds no claude\/agents\/integrity-lens\.md\./m, r.out);
 });

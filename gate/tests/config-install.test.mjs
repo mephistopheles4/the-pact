@@ -1,5 +1,5 @@
 // The user configuration file through the install script (#53, slice 3), end
-// to end against a throwaway repo and a throwaway -ClaudeHome. Never touches
+// to end against a throwaway repo and a throwaway --claude-home. Never touches
 // ~/.claude.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { WIN, home, install, listTree, makeRepo, refused, spawnInstall } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, nodeEnv, refused, spawnNodeInstall, WIN } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { REPO, withoutOpenMarks } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -84,8 +84,11 @@ test('bad case: an unreadable configuration file refuses, and -Apply writes noth
   } finally {
     undo();
   }
-  refused(r);
-  assert.match(r.stdout, /^render\| FAIL config-file: pact\/config\.json: /m, r.out);
+  // The link test reads each path below the home folder first, and fails
+  // closed on any error but not-found (S7), so it refuses an unreadable file
+  // before the renderer would.
+  refused(r, /^REFUSED: the user configuration file, or the pact folder that holds it, is a link or other reparse point\./m);
+  assert.doesNotMatch(r.stdout, /^render\| /m, r.out);
   assert.ok(!listTree(h).includes('CLAUDE.md'), listTree(h).join('\n'));
 });
 
@@ -138,9 +141,9 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
     'Working tree: clean',
   ]);
   assert.ok(c < lines.findIndex(l => /^Gate: /.test(l)), dry.out);
-  assert.match(dry.stdout, new RegExp(`^Dry run only\\. After the owner's go-ahead, pass -Apply -RenderedHash ${sha256(want)}\\r?$`, 'm'), dry.out);
+  assert.match(dry.stdout, new RegExp(`^Dry run only\\. After the owner's go-ahead, run:\n {2}.* --apply --commit [0-9a-f]{40} --rendered-hash ${sha256(want)}$`, 'm'), dry.out);
 
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
   const text = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
@@ -177,7 +180,7 @@ test('with no configuration, a matching hash is accepted: a hash given is compar
   const repo = makeRepo(t);
   const h = home(t);
   const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', sha256(rendered)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256(rendered)] });
   assert.equal(r.code, 0, r.out);
 });
 
@@ -185,7 +188,7 @@ test('a configuration changed since the last install is shown as changed, and th
   const repo = makeRepo(t);
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
-  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   const next = Buffer.from('{"schema": 1, "settings": {"usage-pause": 80}}\n');
   writeFileSync(configPath(h), next);
   const r = install(repo, h);
@@ -201,7 +204,7 @@ test('a record that names another configuration hash is stale: the dry run says 
   const repo = makeRepo(t);
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
-  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   // Only the record changes: the render, and so every installed file, stays the same.
   const mf = join(h, '.pact-install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
@@ -228,7 +231,7 @@ test('a configuration removed since the last install is named in the dry run', t
   const repo = makeRepo(t);
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
-  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   rmSync(configPath(h));
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
@@ -237,14 +240,14 @@ test('a configuration removed since the last install is named in the dry run', t
 });
 
 // The -Apply binding's bad cases. Each refuses with nothing of the install written.
-const BINDING = 'the hash given with -RenderedHash is not the full hash of the rules file this run rendered';
-const NEEDS_HASH = 'a configuration applies, so -Apply needs the full rendered hash the dry run showed';
+const BINDING = 'the hash given with --rendered-hash is not the full hash of the rules file this run rendered';
+const NEEDS_HASH = 'a configuration applies, so --apply needs the full rendered hash the dry run showed';
 
 test('bad case: -Apply with a wrong hash refuses', t => {
   const repo = makeRepo(t);
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', 'a'.repeat(64)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
   assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
   nothingWritten(h);
@@ -261,7 +264,7 @@ for (const [label, cut] of [
     const h = home(t);
     writeFileSync(configPath(h), EXAMPLE);
     const good = dryRunHash(install(repo, h));
-    const r = install(repo, h, { apply: true, extra: ['-RenderedHash', cut(good)] });
+    const r = install(repo, h, { apply: true, extra: ['--rendered-hash', cut(good)] });
     refused(r);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
     nothingWritten(h);
@@ -281,7 +284,7 @@ test('bad case: -Apply with no hash refuses when a configuration applies', t => 
 test('bad case: -Apply with an empty hash refuses: a hash given is compared even when empty', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', ''] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', ''] });
   refused(r);
   assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
   nothingWritten(h);
@@ -306,7 +309,7 @@ test('bad case: a configuration deleted after a configured dry run refuses -Appl
   writeFileSync(configPath(h), EXAMPLE);
   const hash = dryRunHash(install(repo, h));
   rmSync(configPath(h));
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', hash] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
   assert.match(r.stdout, /^render\| CONFIG none\r?$/m, r.out);
   assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
@@ -319,7 +322,7 @@ test('bad case: a configuration changed between the dry run and -Apply refuses',
   writeFileSync(configPath(h), EXAMPLE);
   const hash = dryRunHash(install(repo, h));
   writeFileSync(configPath(h), '{"schema": 1, "settings": {"usage-pause": 100}}\n');
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', hash] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
   assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
   nothingWritten(h);
@@ -329,7 +332,7 @@ test('bad case: a wrong hash refuses a dry run too', t => {
   const repo = makeRepo(t);
   const h = home(t);
   writeFileSync(configPath(h), EXAMPLE);
-  const r = install(repo, h, { extra: ['-RenderedHash', '0'.repeat(64)] });
+  const r = install(repo, h, { extra: ['--rendered-hash', '0'.repeat(64)] });
   refused(r);
   assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
 });
@@ -338,10 +341,10 @@ test('bad case: a refused configuration changes nothing on disk under -Apply, an
   const repo = makeRepo(t);
   const h = home(t);
   writeFileSync(configPath(h), '{"schema": 1, "settings": {"usage-pause": 101}}\n');
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', 'a'.repeat(64)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
   assert.match(r.stdout, /^render\| FAIL config-value: pact\/config\.json: usage-pause must be a whole number from 0 to 100\r?$/m, r.out);
-  assert.match(r.stdout, /^REFUSED: the renderer exited with code 1\./m, r.out);
+  assert.match(r.stdout, /^REFUSED: the renderer failed\./m, r.out);
   nothingWritten(h);
 });
 
@@ -401,7 +404,7 @@ test('the user file and its blocks folder are never deleted, whatever the record
   writeFileSync(configPath(h), EXAMPLE);
   mkdirSync(join(h, 'pact', 'blocks'));
   writeFileSync(join(h, 'pact', 'blocks', 'a.md'), 'Text.\n');
-  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   const mf = join(h, '.pact-install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
   const planted = ['pact/config.json', 'PACT/Config.JSON', 'pact/config.json.', 'pact/blocks/a.md', 'Pact/Blocks/a.md', 'pact/blocks'];
@@ -412,7 +415,7 @@ test('the user file and its blocks folder are never deleted, whatever the record
   for (const path of planted) assert.ok(dry.stdout.includes(`WARN: protected path in the install record, skipped: ${path}`), `${path}\n${dry.out}`);
   assert.match(dry.stdout, /^Delete: 0\r?$/m, dry.out);
   assert.match(dry.stdout, /^Drift: 0\r?$/m, dry.out);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(configPath(h)), EXAMPLE);
   assert.ok(existsSync(join(h, 'pact', 'blocks', 'a.md')));
@@ -446,7 +449,7 @@ for (const [label, withConfig, from, to, why] of [
     const repo = makeRepo(t, root => plantRenderer(root, from, to));
     const h = home(t);
     if (withConfig) writeFileSync(configPath(h), EXAMPLE);
-    const r = install(repo, h, { apply: true, extra: withConfig ? ['-RenderedHash', 'a'.repeat(64)] : [] });
+    const r = install(repo, h, { apply: true, extra: withConfig ? ['--rendered-hash', 'a'.repeat(64)] : [] });
     refused(r);
     assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'm'), r.out);
@@ -458,43 +461,28 @@ for (const [label, withConfig, from, to, why] of [
 
 test('bad case: a hash typed after -Apply without its parameter name, and no -ClaudeHome, refuses and installs nowhere', t => {
   const repo = makeRepo(t);
-  // A throwaway home folder, so the default -ClaudeHome can never be the real one.
+  // A throwaway home folder, so the default home folder can never be the real one.
   const fakeHome = tempDir(t, 'pact-fakehome-');
   const hash = 'a'.repeat(64);
-  const env = { ...process.env, HOME: fakeHome, USERPROFILE: fakeHome };
-  delete env.NODE_OPTIONS;
-  // As typed: install.ps1 -Apply <hash>. Bound by position, the hash would
-  // become -ClaudeHome, a new folder named after it.
-  const r = spawnInstall(['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-Apply', hash], { cwd: repo, encoding: 'utf8', env, timeout: 180_000 });
+  // As typed: node gate/install.mjs --apply <hash>. A word with no option of its own is never read as one.
+  const r = spawnNodeInstall([join(repo, 'gate', 'install.mjs'), '--apply', hash], { cwd: repo, encoding: 'utf8', env: nodeEnv({ HOME: fakeHome, USERPROFILE: fakeHome }), timeout: 180_000 });
   const out = `${r.stdout}${r.stderr}`;
-  assert.notEqual(r.status, 0, out);
+  refused({ code: r.status, stdout: r.stdout, out }, /^REFUSED: the command line holds 1 word the script does not read\./m);
   assert.ok(!existsSync(join(repo, hash)), `a folder named after the hash was created:\n${out}`);
-  // The script's body never ran, whichever home folder PowerShell took.
   assert.doesNotMatch(r.stdout, /Install from commit/, out);
-  assert.match(r.stdout, /^REFUSED: -ClaudeHome must be a full path/m, out);
-  // PowerShell keeps its own startup data under the home folder; no pact file may appear there.
+  assert.ok(!r.stdout.includes(hash), out);
   assert.ok(!existsSync(join(fakeHome, '.claude')), out);
 });
 test('bad case: a relative -ClaudeHome refuses before anything runs, even after a change of location', t => {
-  // The process starts in one folder and PowerShell moves to another before
-  // running the script, so a relative path could name two different places.
+  // A relative path names a different folder for each reader, so it is
+  // refused outright, wherever the process starts (S4).
   const repo = makeRepo(t);
-  const psAt = tempDir(t, 'pact-psloc-');
   const procAt = tempDir(t, 'pact-proccwd-');
-  mkdirSync(join(psAt, 'h', 'pact', 'blocks', 'sub'), { recursive: true });
-  symlinkSync(tempDir(t), join(psAt, 'h', 'pact', 'blocks', 'sub', 'link'), 'junction');
   mkdirSync(join(procAt, 'h', 'pact', 'blocks', 'sub'), { recursive: true });
-  const q = s => `'${s.replaceAll("'", "''")}'`;
-  const cmd = `Set-Location -LiteralPath ${q(psAt)}; & ${q(join(repo, 'scripts', 'install.ps1'))} -ClaudeHome h; exit $LASTEXITCODE`;
-  const env = { ...process.env };
-  delete env.NODE_OPTIONS;
-  const r = spawnInstall(['-NoProfile', '-NonInteractive', '-Command', cmd], { cwd: procAt, encoding: 'utf8', env, timeout: 180_000 });
-  const out = `${r.stdout}${r.stderr}`;
-  assert.notEqual(r.status, 0, out);
-  // It once named two folders: PowerShell's location for the attribute test,
-  // the process's working folder for .NET. Now it is refused outright.
-  assert.match(r.stdout, /^REFUSED: -ClaudeHome must be a full path/m, out);
-  assert.doesNotMatch(r.stdout, /Install from commit/, out);
+  symlinkSync(tempDir(t), join(procAt, 'h', 'pact', 'blocks', 'sub', 'link'), 'junction');
+  const r = install(repo, 'h', { cwd: procAt });
+  refused(r, /^REFUSED: --claude-home must be a full path/m);
+  assert.doesNotMatch(r.stdout, /Install from commit/, r.out);
 });
 
 // ------------------------------------------------------------ an upgrade from a slice-2 record, and the user file's edit guard
@@ -518,7 +506,7 @@ test('a record from before configurations (no config, no digest) reads as no con
   assert.match(r.stdout, /^Last install: [0-9a-f]{40} with no configuration\r?$/m, r.out);
   assert.match(r.stdout, /, new since the last install\r?$/m, r.out);
   assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
-  const a = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(r)] });
+  const a = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(r)] });
   assert.equal(a.code, 0, a.out);
 });
 
@@ -548,7 +536,7 @@ test('bad case: a stray word after the named options refuses, and is not printed
   const repo = makeRepo(t);
   const h = home(t);
   const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', sha256(rendered), 'CANARYstray'] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256(rendered), 'CANARYstray'] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the command line holds 1 word the script does not read\./m, r.out);
   assert.ok(!r.out.includes('CANARYstray'), r.out);
