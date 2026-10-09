@@ -26,7 +26,7 @@
 - **`-Apply` loosens `settings.json`'s permissions on Linux.** At #162's move 4, `data-lens` suspected it, and the container confirmed it: a `600` file came out `644`. The how-to tells Linux and macOS readers to reset it; #177 tracks the fix in the installer.
 - **The how-to's security wording was tightened at move 4.** `adversarial-lens` found it called the dry run harmless and the ask rules a boundary. The how-to now says the dry run runs the clone's code, the ask rules don't stop a script, and an update is read before it runs.
 - **A new AGENTS.md line first landed inside a gated clause,** and the install's check refused. Rerunning the how-to's steps as written caught it before the review finished.
-- **The how-to was tried in two places.** Linux: a first install into an empty Claude home in the repo's container (dry run, `-Apply`, eight agents, then a second dry run with nothing to do). Windows: the dry run only. macOS: not tried.
+- **The how-to was tried in two places.** Linux: a first install into an empty Claude home in the repo's container (dry run, `-Apply`, all ten agents, then a second dry run with nothing to do). Windows: the dry run only. macOS: not tried.
 
 ## What comes next
 

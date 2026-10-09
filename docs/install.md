@@ -120,7 +120,7 @@ Installed commit <commit> with no configuration; all files verified.
 It installs these files under `~/.claude`:
 
 - `CLAUDE.md`, the rules;
-- `agents/`, eight agents: the seven lenses and `scout`;
+- `agents/`, ten agents: the nine lenses and `scout`;
 - `pact/cross.mjs`, the cross script;
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against.
@@ -134,9 +134,10 @@ Run the dry run again if you like. It should end with `Nothing to do.`
 
 ## 5. Check in a fresh session
 
-Start a new Claude Code session and run `/agents`. A pass lists these eight:
-`adversarial-lens`, `behaviour-lens`, `data-lens`, `executability-lens`,
-`good-enough-lens`, `integrity-lens`, `unstated-lens` and `scout`.
+Start a new Claude Code session and run `/agents`. A pass lists these ten:
+`adversarial-lens`, `behaviour-lens`, `conventions-lens`, `data-lens`,
+`executability-lens`, `good-enough-lens`, `integrity-lens`, `reader-lens`,
+`unstated-lens` and `scout`.
 
 ## Updating later
 
@@ -159,7 +160,7 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    the dry run listed under `settings.json:`, or set them back. Above all,
    set `permissions.defaultMode` back to what you use, so you are not left
    in auto mode.
-2. **Delete the pact's files:** the eight agents listed in step 5 from
+2. **Delete the pact's files:** the ten agents listed in step 5 from
    `agents/`, `pact/cross.mjs`, and `.pact-install.json`.
 
 Start a new session to load the change.
