@@ -5,6 +5,7 @@ The documented commands that run the gate suite carry `--test-concurrency=4`, an
 - **The cap.** Four test files at once, in the quoted-glob form, the Node 20 PowerShell form and the Linux container script. The default on the owner's PC was about 31 files at once.
 - **The limit.** The cap reaches documented runs only. A bare `node --test` still runs at the default. Revisit if a move 4 or a lens run is seen running the suite uncapped.
 - **The Node floor.** The flag needs Node 20.10 or later; older Node 20 rejects it. The install script's own Node check is gate code and still accepts any Node 20 or later.
+- **Since #140:** the documented commands go through one runner, `gate/tests/run.mjs`, which always passes the cap. The glob forms are gone. See [ADR 0030](0030-the-gate-suite-runs-through-one-runner-in-named-tiers.md). This decision still holds.
 
 ## Why
 

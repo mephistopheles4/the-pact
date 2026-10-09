@@ -7,7 +7,7 @@ effort: low
 metadata:
   contract-version: 0.1.1
   familiar-digest: "sha256:5ab93f19b319277fc4182131a7df1ca97a9c10b5bf6a96c0723c52a10efaf28b"
-  contract-digest: "sha256:7da2786e41da862ced2b751172ffe84f17c36a596e28eff8224f673dedf0c3d8"
+  contract-digest: "sha256:95abe6da2eb432d296ade69bb42961a9b09dd32d7b3dd9bf744219b3bebfd9c8"
 ---
 
 # scout

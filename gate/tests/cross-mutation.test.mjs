@@ -16,7 +16,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
-import { tempDir, REPO } from './helpers.mjs';
+import { REPO } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const run = promisify(execFile);
 const SOURCE = readFileSync(join(REPO, 'cross', 'cross.mjs'), 'utf8');

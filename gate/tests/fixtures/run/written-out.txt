@@ -1,0 +1,4 @@
+// A planted test file that starts the install by its path, written out, without the harness.
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
+spawnSync('pwsh', ['-File', join('scripts', 'install.ps1')]);

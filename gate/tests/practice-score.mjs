@@ -60,7 +60,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { REPO } from './helpers.mjs';
+import { REPO } from './text.mjs';
 
 const CROSS = join(REPO, 'cross', 'cross.mjs');
 // Node's built-in SQLite (22.5 and later), for the payload rule; without it that rule fails closed.

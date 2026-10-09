@@ -6,8 +6,12 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { before, test } from 'node:test';
-import { BASE_PATH, WIN, commitAll, git, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { READ_ONLY, agent, plainAgent, sealedFamiliar, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
+import { WIN, basePath, commitAll, git, home, install, listTree, makeRepo, refused, routingFails } from './install-harness.mjs';
+import { plantModule } from './gate-files.mjs';
+import { sealedFamiliar } from './gate-run.mjs';
+import { routeTree } from './payload.mjs';
+import { READ_ONLY, agent, plainAgent, withoutOpenMarks } from './text.mjs';
+import { tempDir, writeTree } from './tree.mjs';
 
 // The throwaway-repo builder, install runner and the small helpers are the harness's.
 
@@ -57,61 +61,6 @@ function fakeNode(t, mode) {
 
 // ------------------------------------------------------------ happy path
 
-test('dry run on a clean tree passes and shows Node, the pin, the check and the gate', t => {
-  const repo = makeRepo(t);
-  const r = install(repo, home(t));
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^Node: .+ \(v\d+\.\d+\.\d+\)$/m);
-  assert.match(r.stdout, /^Pinned check: grimoire f4a255c4e3df2abda11e7e738ab98abd27f4e0c7, sha256 verified$/m);
-  assert.match(r.stdout, /^seam-a\| RESULT: pass$/m);
-  assert.match(r.stdout, /^Check: passed on commit [0-9a-f]{40}$/m);
-  assert.match(r.stdout, /^Gate: no gate recorded at the last install$/m);
-  assert.doesNotMatch(r.stdout, /not content-checked until #33/);
-  assert.match(
-    r.stdout,
-    /^Partly checked: the rendered CLAUDE\.md's marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file\.$/m,
-  );
-});
-
-test('-Apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  const r = install(repo, h, { apply: true });
-  assert.equal(r.code, 0, r.out);
-  for (const f of readdirSync(join(repo, 'claude', 'agents'))) {
-    assert.deepEqual(readFileSync(join(h, 'agents', f)), readFileSync(join(repo, 'claude', 'agents', f)), f);
-  }
-  const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
-  const gatePaths = manifest.gate.map(g => g.path).sort();
-  assert.deepEqual(gatePaths, [
-    'gate/clauses/install-go-ahead.md',
-    'gate/clauses/move-4.md',
-    'gate/clauses/never-substitute.md',
-    'gate/clauses/no-skill-overrides.md',
-    'gate/clauses/risk-floor.md',
-    'gate/clauses/security-route.md',
-    'gate/clauses/stop-and-escalate.md',
-    'gate/contained.mjs',
-    'gate/grimoire/check.mjs',
-    'gate/grimoire/check.mjs.pin',
-    'gate/pact-text.mjs',
-    'gate/paths.mjs',
-    'gate/project.mjs',
-    'gate/render.mjs',
-    'gate/review.mjs',
-    'gate/seam-a.mjs',
-    'gate/settings-allowlist.json',
-    'gate/shared.mjs',
-    'gate/tool-allowlist.json',
-    'scripts/install.ps1',
-  ]);
-  assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
-  const again = install(repo, h);
-  assert.equal(again.code, 0, again.out);
-  assert.match(again.stdout, /^Gate: unchanged since the last install$/m);
-  assert.match(again.stdout, /^Nothing to do\.$/m);
-});
-
 test('a file under gate/tests is not staged, checked or recorded as part of the gate', t => {
   // The harness leaves gate/tests out of every throwaway repo, so plant one here.
   const repo = makeRepo(t, root => {
@@ -146,7 +95,10 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
 });
 
 test('a sealed familiar installs to agents/<stem>.md; its contract never installs', t => {
-  const repo = makeRepo(t, root => sealedFamiliar(root, 'probe-agent'));
+  const repo = makeRepo(t, root => {
+    sealedFamiliar(root, 'probe-agent');
+    routeTree(root);
+  });
   const h = home(t);
   const r = install(repo, h, { apply: true });
   assert.equal(r.code, 0, r.out);
@@ -223,7 +175,7 @@ test('bad case: a fake Node with no RESULT line refuses, and -Apply changes noth
   const repo = makeRepo(t);
   const h = home(t);
   const bin = fakeNode(t, 'noresult');
-  const r = install(repo, h, { apply: true, path: [bin, ...BASE_PATH] });
+  const r = install(repo, h, { apply: true, path: [bin, ...basePath()] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the renderer did not end with "RESULT: pass"/m, r.out);
   assert.deepEqual(listTree(h), []);
@@ -231,29 +183,29 @@ test('bad case: a fake Node with no RESULT line refuses, and -Apply changes noth
 });
 
 test('bad case: Node older than 20 refuses', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'old'), ...BASE_PATH] });
+  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'old'), ...basePath()] });
   refused(r);
   assert.match(r.stdout, /older than 20/);
 });
 
 test('bad case: a non-zero exit refuses even with a RESULT: pass line', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'exit1'), ...BASE_PATH] });
+  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'exit1'), ...basePath()] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the renderer exited with code 1/m, r.out);
 });
 
 test('bad case: a crash refuses, and its stderr is never echoed', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'crash'), ...BASE_PATH] });
+  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'crash'), ...basePath()] });
   refused(r);
   assert.match(r.stdout, /^The renderer wrote to stderr; it is not shown\.$/m, r.out);
   assert.doesNotMatch(r.out, /CANARYcrash/);
 });
 
 test('bad case: a missing Node refuses', t => {
-  for (const d of BASE_PATH) {
+  for (const d of basePath()) {
     assert.ok(!existsSync(join(d, WIN ? 'node.exe' : 'node')), `node found in ${d}; the test would pass for the wrong reason`);
   }
-  const r = install(makeRepo(t), home(t), { path: BASE_PATH });
+  const r = install(makeRepo(t), home(t), { path: basePath() });
   refused(r);
   assert.match(r.stdout, /no Node/);
 });
@@ -261,7 +213,7 @@ test('bad case: a missing Node refuses', t => {
 test('bad case: a node.cmd shim is not accepted as Node', { skip: !WIN && 'a .cmd shim runs only on Windows (not run)' }, t => {
   const d = tempDir(t, 'pact-shim-');
   writeFileSync(join(d, 'node.cmd'), `@"${process.execPath}" %*\r\n`);
-  const r = install(makeRepo(t), home(t), { path: [d, ...BASE_PATH] });
+  const r = install(makeRepo(t), home(t), { path: [d, ...basePath()] });
   refused(r);
 });
 
@@ -358,14 +310,20 @@ test('the check runs on the commit, not on uncommitted edits, and says so', t =>
 
 // ------------------------------------------------------------ the check's own output
 
+/** Edit seam A's own file, the one node runs, as a whole. */
 function plantSeamA(root, transform) {
   const p = join(root, 'gate', 'seam-a.mjs');
   writeFileSync(p, transform(readFileSync(p, 'utf8')));
 }
 
+/** Replace the one `from` in seam A's files with `to`. */
+function plantSeamAOnce(root, from, to) {
+  plantModule(join(root, 'gate'), 'seam-a', from, to);
+}
+
 test('bad case: a seam A that leaves a file off its install list refuses', t => {
   const repo = makeRepo(t, root =>
-    plantSeamA(root, s => s.replace('// @@TEST-INSTALL-HOOK@@', "if (dest === 'agents/scout.md') continue;")),
+    plantSeamAOnce(root, '// @@TEST-INSTALL-HOOK@@', "if (dest === 'agents/scout.md') continue;"),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -390,13 +348,15 @@ test('bad case: seam A output cannot carry control codes or hide the gate block'
 
 test('canary: the install never echoes agent file content', t => {
   const C = 'CANARYzq';
-  const repo = makeRepo(t, root =>
+  const repo = makeRepo(t, root => {
     writeTree(root, {
       'claude/agents/c1.md': plainAgent('c1', [`model: ${C}: x`, `${C}key: y`]),
       'claude/agents/c2.md': agent([`name: ${C}`, 'description: x', READ_ONLY]),
-    }),
-  );
-  const r = install(repo, home(t));
+    });
+    routeTree(root);
+  });
+  // c2's name differs from its stem, so seam A refuses it for routing as well.
+  const r = install(repo, home(t), { unrouted: ['claude/agents/c2.md'] });
   refused(r);
   assert.ok(!r.out.includes(C), r.out);
 });
@@ -456,18 +416,21 @@ test('an edited canonical text, with its clause, shows in the dry run as a gate 
 
 test('bad case: an unrouted agent at HEAD refuses, naming its file', t => {
   const repo = makeRepo(t);
-  // Planted after makeRepo, so the fixture router never sees it.
+  // Planted after makeRepo and never routed, so seam A refuses it.
   writeTree(repo, { 'claude/agents/probe.md': plainAgent('probe') });
   commitAll(repo);
-  const r = install(repo, home(t));
+  const r = install(repo, home(t), { unrouted: ['claude/agents/probe.md'] });
   refused(r);
   assert.match(r.stdout, /^seam-a\| FAIL routing: claude\/agents\/probe\.md: /m, r.out);
+  // The routing guard in install() reads this output: it must find the file, or a missed route would pass unseen.
+  assert.deepEqual(routingFails(r.stdout), ['claude/agents/probe.md'], r.out);
+  assert.throws(() => install(repo, home(t), { unrouted: 'claude/agents/probe.md' }), /unrouted is true or a list/);
 });
 
 // ------------------------------------------------------------ the check's runner, on real Node
 
 test('bad case: a seam A that exits non-zero refuses even with a RESULT: pass line', t => {
-  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, 'process.exitCode = report.failed ? 1 : 0;', 'process.exitCode = 1;')));
+  const repo = makeRepo(t, root => plantSeamAOnce(root, 'process.exitCode = report.failed ? 1 : 0;', 'process.exitCode = 1;'));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^seam-a\| RESULT: pass$/m, r.out);
@@ -475,14 +438,14 @@ test('bad case: a seam A that exits non-zero refuses even with a RESULT: pass li
 });
 
 test('bad case: a seam A with no RESULT line refuses', t => {
-  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, "report.lines.push(`RESULT: ${report.failed ? 'fail' : 'pass'}`);", '')));
+  const repo = makeRepo(t, root => plantSeamAOnce(root, "report.lines.push(`RESULT: ${report.failed ? 'fail' : 'pass'}`);", ''));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^REFUSED: the check did not end with "RESULT: pass"\./m, r.out);
 });
 
 test('bad case: a seam A crash refuses, and its stderr is never echoed', t => {
-  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, '// @@TEST-CRASH-HOOK@@', "process.stderr.write('CANARYseam\\n'); process.exit(134);")));
+  const repo = makeRepo(t, root => plantSeamAOnce(root, '// @@TEST-CRASH-HOOK@@', "process.stderr.write('CANARYseam\\n'); process.exit(134);"));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^The check wrote to stderr; it is not shown\.$/m, r.out);
@@ -494,20 +457,15 @@ test('bad case: a seam A crash refuses, and its stderr is never echoed', t => {
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
-function replaceOnce(s, from, to) {
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
-  return s.replace(from, () => to);
-}
-
 // The renderer's lines the planted cases hook onto.
 const R_HASH = '`RENDERED ${sha256(rendered)}`';
 const R_PUSH = '  report.lines.push(`RENDERED ${sha256(rendered)}`, `DIFF ${sha256(diff)}`, ...head);';
 const R_RENDER = '  const { rendered, diff } = apply(lines, swaps);';
 const R_NONE = "  if (config === NONE) head.push('CONFIG none');";
 
-function plantRenderer(root, transform) {
-  const p = join(root, 'gate', 'render.mjs');
-  writeFileSync(p, transform(readFileSync(p, 'utf8')));
+/** Replace the one `from` in the renderer's files with `to`. */
+function plantRenderer(root, from, to) {
+  plantModule(join(root, 'gate'), 'render', from, to);
 }
 
 /** The repo's committed rules file: its source bytes, and the no-file render the tests expect. */
@@ -553,13 +511,8 @@ test('bad case: the rules file changed in the stage after the check refuses -App
   const repo = makeRepo(t, root => {
     source = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
     // After seam A has hashed the rendered file, it puts the unrendered source back.
-    plantSeamA(root, s =>
-      replaceOnce(
-        replaceOnce(s, "import { lstatSync, readFileSync, readdirSync } from 'node:fs';", "import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';"),
-        '// @@TEST-SETTINGS-HOOK@@',
-        `writeFileSync(join(root, 'claude', 'CLAUDE.md'), ${JSON.stringify(source)});`,
-      ),
-    );
+    plantSeamAOnce(root, "import { lstatSync, readFileSync, readdirSync } from 'node:fs';", "import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';");
+    plantSeamAOnce(root, '// @@TEST-SETTINGS-HOOK@@', `writeFileSync(join(root, 'claude', 'CLAUDE.md'), ${JSON.stringify(source)});`);
   });
   rulesOf(repo);
   const h = home(t);
@@ -590,7 +543,7 @@ test('bad case: a record whose rules-file hash is not the rendered bytes\' hash 
 });
 
 test('bad case: a renderer that reports a hash other than its output\'s refuses', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_HASH, "`RENDERED ${'0'.repeat(64)}`")));
+  const repo = makeRepo(t, root => plantRenderer(root, R_HASH, "`RENDERED ${'0'.repeat(64)}`"));
   const h = home(t);
   const r = install(repo, h, { apply: true });
   refused(r);
@@ -599,7 +552,7 @@ test('bad case: a renderer that reports a hash other than its output\'s refuses'
 });
 
 test('bad case: a renderer that adds a file to the stage refuses, with nothing written', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_RENDER, `  writeFileSync('planted.md', 'x\\n');\n${R_RENDER}`)));
+  const repo = makeRepo(t, root => plantRenderer(root, R_RENDER, `  writeFileSync('planted.md', 'x\\n');\n${R_RENDER}`));
   const h = home(t);
   const r = install(repo, h, { apply: true });
   refused(r);
@@ -609,7 +562,7 @@ test('bad case: a renderer that adds a file to the stage refuses, with nothing w
 
 test('bad case: a renderer that changes a staged file refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, R_RENDER, `  writeFileSync('gate/clauses/move-4.md', 'x\\n', { flag: 'a' });\n${R_RENDER}`)),
+    plantRenderer(root, R_RENDER, `  writeFileSync('gate/clauses/move-4.md', 'x\\n', { flag: 'a' });\n${R_RENDER}`),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -618,7 +571,7 @@ test('bad case: a renderer that changes a staged file refuses', t => {
 
 test('bad case: a renderer line the install does not read refuses, and cannot feed the INSTALL parse', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, R_PUSH, `${R_PUSH}\n  report.lines.push(\`INSTALL \${'0'.repeat(64)} claude/CLAUDE.md CLAUDE.md\`);`)),
+    plantRenderer(root, R_PUSH, `${R_PUSH}\n  report.lines.push(\`INSTALL \${'0'.repeat(64)} claude/CLAUDE.md CLAUDE.md\`);`),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -628,7 +581,7 @@ test('bad case: a renderer line the install does not read refuses, and cannot fe
 
 test('bad case: a renderer that leaves a second file in its output folder refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, R_PUSH, `${R_PUSH}\n  writeFileSync(join(out, 'extra.md'), 'x\\n');`)),
+    plantRenderer(root, R_PUSH, `${R_PUSH}\n  writeFileSync(join(out, 'extra.md'), 'x\\n');`),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -636,7 +589,7 @@ test('bad case: a renderer that leaves a second file in its output folder refuse
 });
 
 test('bad case: a renderer hash line with anything after the hash refuses', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_HASH, R_HASH.replace('}`', '} extra`'))));
+  const repo = makeRepo(t, root => plantRenderer(root, R_HASH, R_HASH.replace('}`', '} extra`')));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^render\| RENDERED [0-9a-f]{64} extra$/m, r.out);
@@ -649,7 +602,7 @@ for (const [label, from, to, why] of [
   ['two hash lines', R_PUSH, `${R_PUSH}\n  report.lines.push(report.lines[0]);`, 'the renderer reported two output hashes'],
 ]) {
   test(`bad case: a renderer that prints ${label} refuses`, t => {
-    const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, from, to)));
+    const repo = makeRepo(t, root => plantRenderer(root, from, to));
     const r = install(repo, home(t));
     refused(r);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why}\\.`, 'm'), r.out);
@@ -670,15 +623,10 @@ test('the renderer and the rules file come from the commit: working-tree-only ed
 });
 
 test('bad case: a renderer that adds a hidden file to the stage refuses', t => {
-  const repo = makeRepo(t, root =>
-    plantRenderer(root, s =>
-      replaceOnce(
-        replaceOnce(s, "import { createHash } from 'node:crypto';", "import { createHash } from 'node:crypto';\nimport { spawnSync } from 'node:child_process';"),
-        R_RENDER,
-        `  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n${R_RENDER}`,
-      ),
-    ),
-  );
+  const repo = makeRepo(t, root => {
+    plantRenderer(root, "import { createHash } from 'node:crypto';", "import { createHash } from 'node:crypto';\nimport { spawnSync } from 'node:child_process';");
+    plantRenderer(root, R_RENDER, `  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n${R_RENDER}`);
+  });
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
@@ -691,11 +639,20 @@ test('bad case: a commit with no renderer refuses', t => {
   assert.match(r.stdout, /^REFUSED: the renderer \(gate\/render\.mjs\) is missing\./m, r.out);
 });
 
+// Fail closed (#155): the wrapper can't load its core, node exits non-zero with
+// no RESULT line, and the install refuses on the exit code, which it checks
+// before the last line.
+test("bad case: a commit with seam A's core deleted refuses on the check's exit code", t => {
+  const repo = makeRepo(t, root => rmSync(join(root, 'gate', 'seam-a-core.mjs')));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the check exited with code [1-9][0-9]*\./m, r.out);
+  assert.doesNotMatch(r.stdout, /^seam-a\| RESULT: pass/m, r.out);
+});
+
 test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s =>
-      replaceOnce(s, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('however small:', 'when large:'));"),
-    ),
+    plantRenderer(root, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('however small:', 'when large:'));"),
   );
   const r = install(repo, home(t));
   refused(r);

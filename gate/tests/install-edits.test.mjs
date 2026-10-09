@@ -8,7 +8,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { REPO, applyDiff, editPart, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { plantModule } from './gate-files.mjs';
+import { REPO, applyDiff, editPart, withoutOpenMarks } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
@@ -172,7 +174,7 @@ test('bad case: a move-2 replace that drops its routed agents renders, then seam
   assert.ok(move2Agents(repo).length > 0);
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea, then write the spec.\n' });
-  const r = install(repo, h);
+  const r = install(repo, h, { unrouted: true });
   refused(r);
   assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
   assert.match(r.stdout, /^seam-a\| FAIL routing: /m, r.out);
@@ -275,7 +277,10 @@ test('the review output is written only after every check passes: seam A refusin
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea.\n' });
   const folder = join(tempDir(t), 'review');
-  refused(install(repo, h, { extra: ['-ReviewFolder', folder] }));
+  // The replace drops move 2's routed agents, so seam A refuses them for routing.
+  const r = install(repo, h, { extra: ['-ReviewFolder', folder], unrouted: true });
+  refused(r);
+  assert.match(r.stdout, /^seam-a\| FAIL routing: /m, r.out);
   assert.ok(!existsSync(folder));
 });
 
@@ -320,10 +325,7 @@ const R_DIFF_WRITE = "  writeFileSync(join(out, DIFF_NAME), diff, { flag: 'wx' }
 const A64 = 'a'.repeat(64);
 
 function plantRenderer(root, from, to) {
-  const p = join(root, 'gate', 'render.mjs');
-  const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
-  writeFileSync(p, s.replace(from, () => to));
+  plantModule(join(root, 'gate'), 'render', from, to);
 }
 
 for (const [label, withConfig, from, to, why] of [
@@ -423,15 +425,8 @@ test('a block file the last install read and this one no longer uses is counted 
 
 const REVIEW_PUSH = '  report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);';
 
-function plantFile(root, rel, from, to) {
-  const p = join(root, ...rel.split('/'));
-  const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)} in ${rel}`);
-  writeFileSync(p, s.replace(from, () => to));
-}
-
 test('bad case: a review module that reports other hashes than this run rendered refuses', t => {
-  const repo = makeRepo(t, root => plantFile(root, 'gate/review.mjs', REVIEW_PUSH, `  report.lines.push(\`REVIEW ${'0'.repeat(64)} \${sha256(diff)}\`);`));
+  const repo = makeRepo(t, root => plantModule(join(root, 'gate'), 'review', REVIEW_PUSH, `  report.lines.push(\`REVIEW ${'0'.repeat(64)} \${sha256(diff)}\`);`));
   const folder = join(tempDir(t), 'review');
   const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
   refused(r);

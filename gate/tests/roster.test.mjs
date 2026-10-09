@@ -8,7 +8,10 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { LENSES, OLD_REVIEWERS, ROSTER } from '../pact-text.mjs';
-import { REPO, failRules, lastLine, plainAgent, read, runSeamA, sealedFamiliar, stage, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
+import { runSeamA, sealedFamiliar } from './gate-run.mjs';
+import { stage } from './payload.mjs';
+import { REPO, failRules, lastLine, plainAgent, withoutOpenMarks } from './text.mjs';
+import { read, tempDir, writeTree } from './tree.mjs';
 
 const MD = 'claude/CLAUDE.md';
 // A lens that the state after the security swap does not install (#47, #99, #100).

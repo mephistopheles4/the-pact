@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import * as shared from '../shared.mjs';
-import { GATE } from './helpers.mjs';
+import { moduleFiles } from './gate-files.mjs';
+import { GATE } from './text.mjs';
 
 const SHARED = join(GATE, 'shared.mjs');
 const USERS = ['seam-a.mjs', 'pact-text.mjs', 'render.mjs'];
@@ -59,13 +60,17 @@ test('the shared module declares every moved piece itself', () => {
   assert.deepEqual(ownCopies(readFileSync(SHARED, 'utf8')), MOVED);
 });
 
+// A user's own files: the module, and its core once it has one (#155).
+const own = file => moduleFiles(GATE, file.slice(0, -'.mjs'.length));
+
 for (const file of USERS) {
   test(`${file} holds no copy of a moved piece`, () => {
-    assert.deepEqual(ownCopies(readFileSync(join(GATE, file), 'utf8')), []);
+    for (const p of own(file)) assert.deepEqual(ownCopies(readFileSync(p, 'utf8')), [], p);
   });
 
   test(`${file} imports the shared module`, () => {
-    assert.match(readFileSync(join(GATE, file), 'utf8'), /^import \{[^}]+\} from '\.\/shared\.mjs';$/m);
+    const importing = own(file).filter(p => /^import \{[^}]+\} from '\.\/shared\.mjs';$/m.test(readFileSync(p, 'utf8')));
+    assert.equal(importing.length, 1, `expected exactly one of ${file}'s files to import the shared module: ${importing.join(', ')}`);
   });
 }
 

@@ -11,7 +11,9 @@
 #   docker build -t pact-linux:96 gate/tests/fixtures/linux
 # Run, from the repo root, with the commit to test:
 #   git bundle create <tmp>/pact.bundle HEAD
-#   docker run --rm --network none -v <tmp>:/in:ro pact-linux:96
+#   docker run --rm --network none -v <tmp>:/in:ro -v <out>:/out pact-linux:96
+# <out> is an empty folder outside the repo; the run writes its record there
+# (record.txt, scrubbed by the runner), for the no-loss compare (#140, T5).
 #
 # Pinned by digest as first built on 2026-10-08: Node v20.20.2, PowerShell
 # 7.5.0 on Ubuntu 24.04.1. apt's git was 2.43.0 then. git is not pinned, since

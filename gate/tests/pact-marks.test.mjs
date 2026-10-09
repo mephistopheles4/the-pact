@@ -5,7 +5,10 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { OPEN_MARKS, RENDER, REPO, SEAM_A, lastLine, read, runSeamA, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { runSeamA } from './gate-run.mjs';
+import { stage } from './payload.mjs';
+import { OPEN_MARKS, RENDER, REPO, SEAM_A, lastLine, withoutOpenMarks } from './text.mjs';
+import { read, tempDir } from './tree.mjs';
 
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const LINES = read(SOURCE).split('\n');

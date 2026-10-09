@@ -8,7 +8,8 @@ import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { cross, qaPair, report } from './cross-helpers.mjs';
-import { REPO, read, tempDir } from './helpers.mjs';
+import { REPO } from './text.mjs';
+import { read, tempDir } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
 const LEAD = '**The cross script.**';

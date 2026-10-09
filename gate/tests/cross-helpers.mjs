@@ -5,7 +5,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { REPO, tempDir } from './helpers.mjs';
+import { REPO } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 // The script under test. Only the mutation battery sets PACT_CROSS_UNDER_TEST,
 // to point the tests at a mutated copy in a temp folder.

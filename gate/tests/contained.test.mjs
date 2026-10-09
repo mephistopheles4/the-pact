@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { folderId, readContained, randomTempName, writeContained } from '../contained.mjs';
-import { REPO, tempDir } from './helpers.mjs';
+import { REPO } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
 const FAULTS = pathToFileURL(join(REPO, 'gate', 'tests', 'fixtures', 'contained-faults.mjs')).href;
