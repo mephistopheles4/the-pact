@@ -24,7 +24,7 @@ Seven lenses read draft 1: the security pair and `unstated-lens` on its sections
 - **Terms used before they were defined:** the security route, the stops, a probe and the open parts of the moves. Both standards lenses flagged the same ones.
 - **A check that couldn't fail.** `integrity-lens` found no test guarded the new links. The new test was seen to fail on a misspelt link.
 
-The owner approved draft 3 without another lens round. The chart, the matrix and the risks added after the review were checked against the lenses' own evidence, not reread by them.
+The owner approved draft 3 without another lens round. The chart, the matrix and the risks added after the review were checked against the lenses' own evidence, not reread by them. The owner then accepted the model as written, chart placements included, to be refined from field use.
 
 ## Follow-ups filed
 
@@ -42,6 +42,6 @@ Issue comments on mephistopheles4/the-pact#190:
 - **Lens dispositions:** 6085838360.
 - **Draft 2:** 6085871093.
 - **Draft 3, the chart and matrix:** 6086011909.
-- **Owner decision, from chat:** 6086050191.
+- **Owner decisions, from chat:** 6086050191 (the three answers) and 6086335944 (the model accepted as written).
 
 On #10: the after-the-flip step for private reporting, 6086057708.
