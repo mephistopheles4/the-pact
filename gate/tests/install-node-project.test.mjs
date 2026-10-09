@@ -78,6 +78,19 @@ test('node project: a rules folder that is a link refuses, and nothing is writte
   assert.deepEqual(readdirSync(elsewhere), []);
 });
 
+test('node project: a project render that writes into the stage refuses, with nothing written', t => {
+  const repo = makeRepo(t, root => {
+    const p = join(root, 'gate', 'render-core.mjs');
+    const target = 'export function check(argv) {\n';
+    const text = readFileSync(p, 'utf8');
+    assert.equal(text.split(target).length, 2);
+    writeFileSync(p, `import { appendFileSync as plantAppend } from 'node:fs';\n${text.replace(target, `${target}  if (argv[0] === 'project') plantAppend('planted-by-render', 'x');\n`)}`);
+  });
+  const { ch, proj } = layout(t);
+  nodeRefused(nodeInstall(repo, ch, { extra: ['--project-folder', proj] }), /^REFUSED: the renderer changed the stage\. Nothing was changed\.$/m);
+  assert.deepEqual(readdirSync(join(proj, '.claude')), ['pact-config.json']);
+});
+
 test('node project: --review-folder with --project-folder refuses before anything runs', t => {
   const repo = makeRepo(t);
   const { ch, proj } = layout(t);

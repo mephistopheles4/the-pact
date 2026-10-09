@@ -294,6 +294,84 @@ test('node: a configuration blocks folder that is a link refuses before the rend
   assert.ok(!/^render\| /m.test(r.stdout), 'the renderer never ran');
 });
 
+/** Plants `code` into a committed core's check(), at its start or just before it returns, with appendFileSync in scope as plantAppend. */
+function plantCore(root, name, at, code) {
+  const p = join(root, 'gate', `${name}-core.mjs`);
+  const target = at === 'start' ? 'export function check(argv) {\n' : '  return { lines: report.lines, failed: report.failed };';
+  const text = readFileSync(p, 'utf8');
+  assert.equal(text.split(target).length, 2, `${name}-core.mjs holds the plant's target once`);
+  writeFileSync(p, `import { appendFileSync as plantAppend } from 'node:fs';\n${text.replace(target, at === 'start' ? `${target}  ${code}\n` : `  ${code}\n${target}`)}`);
+}
+const junctionOrSkip = (t, target, path) => {
+  try {
+    symlinkSync(target, path, WIN ? 'junction' : 'dir');
+    return true;
+  } catch (e) {
+    if (e.code !== 'EPERM') throw e;
+    t.skip('this account may not make a link here');
+    return false;
+  }
+};
+
+test('node: a pact folder that is a link refuses before the renderer reads the user configuration', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const elsewhere = tempDir(t, 'pact-else-');
+  writeFileSync(join(elsewhere, 'config.json'), '{"schema": 1, "settings": {"usage-pause": 90}}\n');
+  if (!junctionOrSkip(t, elsewhere, join(h, 'pact'))) return;
+  const r = nodeInstall(repo, h);
+  nodeRefused(r, /^REFUSED: the user configuration file, or the pact folder that holds it, is a link or other reparse point\./m);
+  assert.ok(!/^render\| /m.test(r.stdout), 'the renderer never ran');
+});
+
+test('node: a link inside the configuration blocks folder refuses before the renderer runs', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  mkdirSync(join(h, 'pact', 'blocks', '.hidden'), { recursive: true });
+  if (!junctionOrSkip(t, tempDir(t, 'pact-else-'), join(h, 'pact', 'blocks', '.hidden', 'deep'))) return;
+  nodeRefused(nodeInstall(repo, h), /^REFUSED: the configuration blocks folder holds a link or other reparse point\./m);
+});
+
+test('node: a configuration blocks folder that cannot be read refuses', t => {
+  if (WIN || process.getuid?.() === 0) return t.skip('a folder this account cannot read can only be made on Unix, as a user other than root');
+  const repo = makeRepo(t);
+  const h = home(t);
+  const locked = join(h, 'pact', 'blocks', 'locked');
+  mkdirSync(locked, { recursive: true });
+  chmodSync(locked, 0o000);
+  t.after(() => chmodSync(locked, 0o700));
+  nodeRefused(nodeInstall(repo, h), /^REFUSED: the configuration blocks folder could not be read\./m);
+});
+
+test('node: a renderer that writes into the stage refuses, with nothing written', t => {
+  const repo = makeRepo(t, root => plantCore(root, 'render', 'start', "plantAppend('planted-by-render', 'x');"));
+  const h = home(t);
+  nodeRefused(nodeInstall(repo, h, { apply: true }), /^REFUSED: the renderer changed the stage\. Nothing was changed\.$/m);
+  assert.deepEqual(readdirSync(h), []);
+});
+
+test('node: a review module that writes into the stage refuses, saying the review folder may hold its output', t => {
+  const repo = makeRepo(t, root => plantCore(root, 'review', 'start', "plantAppend('planted-by-review', 'x');"));
+  nodeRefused(nodeInstall(repo, home(t), { extra: ['--review-folder', join(tempDir(t, 'pact-rev-'), 'review')] }), /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.$/m);
+});
+
+// Seam A passes, then changes the staged rules file it checked: the review's re-hash and the apply's re-hash catch it.
+const seamAThenEdit = root => plantCore(root, 'seam-a', 'end', "if (argv.length === 1) plantAppend(argv[0] + '/claude/CLAUDE.md', 'x');");
+
+test('node: a staged rules file changed after the check refuses the review output before it is written', t => {
+  const repo = makeRepo(t, seamAThenEdit);
+  const rev = join(tempDir(t, 'pact-rev-'), 'review');
+  nodeRefused(nodeInstall(repo, home(t), { extra: ['--review-folder', rev] }), /^REFUSED: the staged rules file changed after the check\. Nothing was changed\.$/m);
+  assert.ok(!existsSync(rev));
+});
+
+test('node: a staged file changed after the check refuses --apply before any write', t => {
+  const repo = makeRepo(t, seamAThenEdit);
+  const h = home(t);
+  nodeRefused(nodeInstall(repo, h, { apply: true }), /^REFUSED: the staged copy of CLAUDE\.md changed after the check\. Nothing was changed\.$/m);
+  assert.deepEqual(readdirSync(h), []);
+});
+
 test('node: a commit with no runner refuses', t => {
   const repo = makeRepo(t);
   git(repo, 'rm', '-q', 'gate/install-run.mjs');
