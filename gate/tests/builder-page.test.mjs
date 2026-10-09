@@ -12,7 +12,9 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
-import { RENDER, REPO, installScriptText, lastLine, tempDir } from './helpers.mjs';
+import { installScriptText } from './gate-files.mjs';
+import { RENDER, REPO, lastLine } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');

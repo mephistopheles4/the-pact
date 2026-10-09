@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { REPO, plantModule } from './helpers.mjs';
+import { plantModule } from './gate-files.mjs';
+import { REPO } from './text.mjs';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');

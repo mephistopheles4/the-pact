@@ -10,7 +10,7 @@ import { basename, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { PAGE_REL } from '../../builder/build.mjs';
-import { REPO } from './helpers.mjs';
+import { REPO } from './text.mjs';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');

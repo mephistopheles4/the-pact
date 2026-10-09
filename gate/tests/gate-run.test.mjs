@@ -9,7 +9,8 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MODULES, childEnv, preloadRefusal, runCheck, runCore, stageGate } from './gate-run.mjs';
-import { REPO, tempDir } from './helpers.mjs';
+import { REPO } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PARITY = join(HERE, 'parity.test.mjs');

@@ -6,17 +6,23 @@
 // when it varies the environment, runs a planted copy of a module, or runs
 // under a test preload; runWrapper starts one as the install does.
 //
+// The test helpers' gate-module runners live here too (#151): renderStage,
+// runSeamA and childSeamA, and sealedFamiliar, which runs the pinned check.
+//
 // Importing this file loads the four cores, which do nothing when imported
 // (#155); it touches no file and starts no process. On the probe floor by
 // name (AGENTS.md): weakening it could let every in-process case pass.
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync } from 'node:fs';
+import { cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as project } from '../project-core.mjs';
 import { check as render } from '../render-core.mjs';
 import { check as review } from '../review-core.mjs';
 import { check as seamA } from '../seam-a-core.mjs';
+import { PINNED, READ_ONLY, SEAM_A, agent, contractText, lastLine } from './text.mjs';
+import { writeTree } from './tree.mjs';
 
 const GATE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CORES = Object.freeze({ project, render, review, 'seam-a': seamA });
@@ -140,4 +146,83 @@ export function parityProblems(inProcess, child) {
   if (child.code !== (inProcess.failed ? 1 : 0)) out.push(`the exit code ${child.code} does not match failed: ${inProcess.failed}`);
   if (inProcess.code !== (inProcess.failed ? 1 : 0)) out.push(`the in-process exit code ${inProcess.code} does not match failed: ${inProcess.failed}`);
   return out;
+}
+
+// ------------------------------------------------------------ the test helpers' runners (#151)
+
+// Stages whose test agents runSeamA routes before each run, with the router
+// to use. payload.mjs's stage() registers its own, so this file never reads
+// the payload, and a test that only runs a module isn't tied to the agents.
+const ROUTERS = new Map();
+
+/** Have runSeamA call `route(root)` before each run on `root`. */
+export function routeBeforeRun(root, route) {
+  ROUTERS.set(root, route);
+}
+
+/**
+ * Run the real renderer on the stage's rules file and put its output in its
+ * place, as the install script does before seam A. With no `claudeHome`, it
+ * renders against an empty Claude home folder, so no configuration applies. A
+ * stage with no rules file, or one that is not a regular file, is left as it
+ * is for seam A to judge. Throws when the renderer refuses, since the install
+ * would stop there.
+ */
+export function renderStage(root, claudeHome) {
+  const md = join(root, 'claude', 'CLAUDE.md');
+  let st;
+  try {
+    st = lstatSync(md);
+  } catch {
+    return;
+  }
+  if (!st.isFile()) return;
+  const out = mkdtempSync(join(tmpdir(), 'pact-render-'));
+  const empty = claudeHome ? null : mkdtempSync(join(tmpdir(), 'pact-render-home-'));
+  try {
+    // In-process through the renderer's core (#140, T10); parity.test.mjs proves it prints what the wrapper does.
+    const r = runCore('render', [md, out, claudeHome ?? empty]);
+    if (r.code !== 0 || lastLine(r.stdout) !== 'RESULT: pass') throw new Error(`the renderer refused the stage:\n${r.out}`);
+    writeFileSync(md, readFileSync(join(out, 'CLAUDE.md')));
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+    if (empty) rmSync(empty, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Seam A on a stage, after routing its test agents (when its stage registered
+ * a router) and rendering its rules file. The real seam A runs in-process
+ * through its core (#140, T10); a `script` other than the real one is a
+ * planted copy, so it runs as a child (childSeamA).
+ */
+export function runSeamA(root, script = SEAM_A) {
+  if (script !== SEAM_A) return childSeamA(root, script);
+  ROUTERS.get(root)?.(root);
+  renderStage(root);
+  const { code, stdout, stderr, out } = runCore('seam-a', [root]);
+  return { code, stdout, stderr, out };
+}
+
+/**
+ * Seam A's wrapper `script` on a stage, as a child, routed and rendered as
+ * runSeamA does: for a planted copy, and for the wrapper tests that keep a
+ * child run of the real one (#155).
+ */
+export function childSeamA(root, script = SEAM_A) {
+  ROUTERS.get(root)?.(root);
+  renderStage(root);
+  const r = spawnSync(process.execPath, [script, root], { encoding: 'utf8', env: childEnv() });
+  return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr };
+}
+
+/** Write a familiar and its contract under root/familiars, then seal it with the pinned check (tests only). */
+export function sealedFamiliar(root, name, { lines, contract, body } = {}) {
+  const fm = lines ?? [`name: ${name}`, 'description: A test familiar.', READ_ONLY];
+  writeTree(root, {
+    [`familiars/${name}.md`]: agent(fm, body),
+    [`familiars/${name}.contract.md`]: contract ?? contractText(),
+  });
+  const r = spawnSync(process.execPath, [PINNED, '--seal', join(root, 'familiars', `${name}.md`)], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`sealing ${name} failed:\n${r.stdout}${r.stderr}`);
 }

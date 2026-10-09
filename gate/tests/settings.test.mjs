@@ -7,7 +7,11 @@ import { createHash } from 'node:crypto';
 import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { GATE, REPO, failRules, installScriptText, lastLine, moduleFiles, moduleMatch, realOverlay, runSeamA, stage, tempDir } from './helpers.mjs';
+import { installScriptText, moduleFiles, moduleMatch } from './gate-files.mjs';
+import { runSeamA } from './gate-run.mjs';
+import { realOverlay, stage } from './payload.mjs';
+import { GATE, REPO, failRules, lastLine } from './text.mjs';
+import { tempDir } from './tree.mjs';
 import { APPLY_ASK, CROSS_ASK, DASHES, OVERLAY, PACT_ASK, overlayWith, shown } from './settings-rules.mjs';
 
 // pwsh, for advanced(); a missing one fails the file, as the install harness's lookup does.

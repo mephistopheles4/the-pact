@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { GATE, REPO, lastLine, tempDir } from './helpers.mjs';
+import { GATE, REPO, lastLine } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
 const REVIEW = join(GATE, 'review.mjs');

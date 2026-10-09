@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { plantModule } from './helpers.mjs';
+import { plantModule } from './gate-files.mjs';
 import { commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 import { DASHES, OVERLAY, PACT_ASK, overlayWith, shown } from './settings-rules.mjs';
 

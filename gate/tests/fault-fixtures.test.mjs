@@ -16,7 +16,7 @@ import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { tempDir } from './helpers.mjs';
+import { tempDir } from './tree.mjs';
 
 const TESTS = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = /[A-Za-z0-9._-]*-faults\.mjs|contained-driver\.mjs|import-trap(?:-driver)?\.mjs/;
@@ -187,7 +187,7 @@ test('the fault-fixture guard: no file under gate/tests/ outside fixtures/ impor
 
 test('the fault-fixture guard reads every source file outside fixtures/, test files and helpers alike', () => {
   const seen = sources(TESTS).map(([rel]) => rel);
-  for (const f of ['helpers.mjs', 'gate-run.mjs', 'tables.mjs', 'fault-fixtures.test.mjs', 'render-edits.test.mjs']) assert.ok(seen.includes(f), f);
+  for (const f of ['text.mjs', 'tree.mjs', 'gate-files.mjs', 'payload.mjs', 'install-harness.mjs', 'gate-run.mjs', 'tables.mjs', 'fault-fixtures.test.mjs', 'render-edits.test.mjs']) assert.ok(seen.includes(f), f);
   assert.ok(!seen.some(f => f.startsWith('fixtures/')));
 });
 

@@ -9,7 +9,9 @@ import { mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { RENDER, copyGate, lastLine, plantModule, tempDir } from './helpers.mjs';
+import { copyGate, plantModule } from './gate-files.mjs';
+import { RENDER, lastLine } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const PROJECT_REL = ['.claude', 'pact-config.json'];

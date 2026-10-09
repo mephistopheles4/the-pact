@@ -15,8 +15,10 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { MODULES, parityProblems, preloadRefusal, runCheck, runCore, runWrapper, stageGate } from './gate-run.mjs';
-import { REPO, failRules, read, realAgents, realOverlay, renderStage, tempDir, writeTree } from './helpers.mjs';
+import { MODULES, parityProblems, preloadRefusal, renderStage, runCheck, runCore, runWrapper, stageGate } from './gate-run.mjs';
+import { realAgents, realOverlay } from './payload.mjs';
+import { REPO, failRules } from './text.mjs';
+import { read, tempDir, writeTree } from './tree.mjs';
 
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const dirs = (root, ...names) =>

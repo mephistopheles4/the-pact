@@ -11,7 +11,8 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
 import { WIN, git, install, makeRepo, refused } from './install-harness.mjs';
-import { plantModule, tempDir } from './helpers.mjs';
+import { plantModule } from './gate-files.mjs';
+import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const RULES = ['.claude', 'rules', 'pact-project.md'];

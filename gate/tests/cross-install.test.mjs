@@ -7,7 +7,10 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { REPO, failRules, lastLine, read, runSeamA, stage } from './helpers.mjs';
+import { runSeamA } from './gate-run.mjs';
+import { stage } from './payload.mjs';
+import { REPO, failRules, lastLine } from './text.mjs';
+import { read } from './tree.mjs';
 
 const SRC = 'cross/cross.mjs';
 const DEST = 'pact/cross.mjs';

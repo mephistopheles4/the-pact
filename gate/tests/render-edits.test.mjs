@@ -11,8 +11,10 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { ROSTER } from '../pact-text.mjs';
-import { GATE, REPO, RENDER, applyDiff, editPart, failRules, lastLine, plainAgent, read, renderStage, runSeamA, stage, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
-import { runCore } from './gate-run.mjs';
+import { stage } from './payload.mjs';
+import { GATE, RENDER, REPO, applyDiff, editPart, failRules, lastLine, plainAgent, withoutOpenMarks } from './text.mjs';
+import { read, tempDir, writeTree } from './tree.mjs';
+import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { moduleResult, table } from './tables.mjs';
 
 const WIN = process.platform === 'win32';

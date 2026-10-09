@@ -7,24 +7,11 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { OLD_REVIEWERS } from '../pact-text.mjs';
-import {
-  GATE,
-  READ_ONLY,
-  REPO,
-  copyGate,
-  failRules,
-  lastLine,
-  plainAgent,
-  read,
-  realPayload,
-  runSeamA,
-  sealedFamiliar,
-  stage,
-  tempDir,
-  withoutOpenMarks,
-  OPEN_MARKS,
-  writeTree,
-} from './helpers.mjs';
+import { copyGate } from './gate-files.mjs';
+import { runSeamA, sealedFamiliar } from './gate-run.mjs';
+import { realPayload, stage } from './payload.mjs';
+import { GATE, OPEN_MARKS, READ_ONLY, REPO, failRules, lastLine, plainAgent, withoutOpenMarks } from './text.mjs';
+import { read, tempDir, writeTree } from './tree.mjs';
 
 const MD = 'claude/CLAUDE.md';
 const AG = 'AGENTS.md';

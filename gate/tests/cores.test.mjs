@@ -11,7 +11,9 @@ import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { GATE, REPO, copyGate, failRules, lastLine, plantModule, tempDir } from './helpers.mjs';
+import { copyGate, plantModule } from './gate-files.mjs';
+import { GATE, REPO, failRules, lastLine } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const MODULES = ['project', 'render', 'review', 'seam-a'];
 const TRAP = pathToFileURL(join(GATE, 'tests', 'fixtures', 'import-trap.mjs')).href;

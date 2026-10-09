@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { test } from 'node:test';
-import { REPO } from './helpers.mjs';
+import { REPO } from './text.mjs';
 
 const WIN = process.platform === 'win32';
 const FOLD = WIN || process.platform === 'darwin';

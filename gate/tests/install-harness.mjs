@@ -6,7 +6,9 @@ import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:
 import { delimiter, dirname, join } from 'node:path';
 import { afterEach, beforeEach } from 'node:test';
 import { COPY_DIRS, COPY_FILES, COPY_SKIP } from './copy-list.mjs';
-import { REPO, routeTree, tempDir } from './helpers.mjs';
+import { routeTree } from './payload.mjs';
+import { REPO } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 export const WIN = process.platform === 'win32';
 
@@ -16,11 +18,24 @@ function which(cmd) {
   return r.stdout.split(/\r?\n/)[0].trim();
 }
 
-export const PWSH = which('pwsh');
-const GIT_DIR = dirname(which('git'));
+// pwsh and git are looked up on first use, never at import (#151), so
+// importing the harness starts no process. A missing one still fails the
+// first install, naming it.
+let found = null;
+function programs() {
+  if (!found) {
+    const pwsh = which('pwsh');
+    const sys = WIN ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')] : ['/usr/bin', '/bin'];
+    found = { pwsh, basePath: Object.freeze([dirname(which('git')), dirname(pwsh), ...sys]) };
+  }
+  return found;
+}
 const NODE_DIR = dirname(process.execPath);
-const SYS_DIRS = WIN ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')] : ['/usr/bin', '/bin'];
-export const BASE_PATH = [GIT_DIR, dirname(PWSH), ...SYS_DIRS];
+
+/** The folders an install's PATH holds besides node's: git's, pwsh's and the system's. */
+export function basePath() {
+  return programs().basePath;
+}
 
 function envWith(pathDirs, extra = {}) {
   const env = {};
@@ -89,10 +104,10 @@ afterEach(t => {
 export function spawnInstall(args, options) {
   if (!args.some(a => String(a).toLowerCase().includes('install.ps1'))) throw new Error('spawnInstall: no argument names the install script, so this is not an install');
   installs++;
-  return spawnSync(PWSH, args, options);
+  return spawnSync(programs().pwsh, args, options);
 }
 
-export function install(repo, home, { apply = false, path = [NODE_DIR, ...BASE_PATH], env = {}, extra = [] } = {}) {
+export function install(repo, home, { apply = false, path = [NODE_DIR, ...basePath()], env = {}, extra = [] } = {}) {
   const args = ['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-ClaudeHome', home];
   if (apply) args.push('-Apply');
   args.push(...extra);

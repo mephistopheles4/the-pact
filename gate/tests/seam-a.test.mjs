@@ -5,24 +5,11 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import {
-  GATE,
-  PINNED,
-  READ_ONLY,
-  agent,
-  childSeamA,
-  contractText,
-  copyGate,
-  failRules,
-  lastLine,
-  plainAgent,
-  plantModule,
-  realPayload,
-  runSeamA,
-  sealedFamiliar,
-  stage,
-  tempDir,
-} from './helpers.mjs';
+import { copyGate, plantModule } from './gate-files.mjs';
+import { childSeamA, runSeamA, sealedFamiliar } from './gate-run.mjs';
+import { realPayload, stage } from './payload.mjs';
+import { GATE, PINNED, READ_ONLY, agent, contractText, failRules, lastLine, plainAgent } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 function expectFail(t, files, rule, prep) {
   const root = stage(t, files);

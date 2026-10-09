@@ -13,7 +13,7 @@ import { homedir, hostname, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { tempDir } from './helpers.mjs';
+import { tempDir } from './tree.mjs';
 import { COPY_DIRS, COPY_FILES } from './copy-list.mjs';
 import { CAP, MAX_CHANGED, PLAIN_NAME, leakedLines, makeScrub, namesInstallScript, parseArgs, pathNames, pick, relativeImports, stringLiterals, verdict } from './run.mjs';
 

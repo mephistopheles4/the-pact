@@ -2,7 +2,7 @@
 // and settings-install.test.mjs (the install), so the two can't drift (#140,
 // T6). The lists name the install script, so they live here: a test file that
 // names it is in the install tier, and seam A's checks never install.
-import { realOverlay } from './helpers.mjs';
+import { realOverlay } from './payload.mjs';
 
 export const OVERLAY = 'claude/settings.overlay.json';
 

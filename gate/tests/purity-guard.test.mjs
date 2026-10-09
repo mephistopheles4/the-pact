@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { childEnv } from './gate-run.mjs';
-import { tempDir } from './helpers.mjs';
+import { tempDir } from './tree.mjs';
 import { INSTALL_SCRIPT, TEST_SUFFIX, pick } from './run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));

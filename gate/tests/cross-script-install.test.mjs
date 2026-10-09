@@ -6,7 +6,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { plantModule, read } from './helpers.mjs';
+import { plantModule } from './gate-files.mjs';
+import { read } from './tree.mjs';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const DEST = 'pact/cross.mjs';

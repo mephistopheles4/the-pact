@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import * as shared from '../shared.mjs';
-import { GATE, moduleFiles } from './helpers.mjs';
+import { moduleFiles } from './gate-files.mjs';
+import { GATE } from './text.mjs';
 
 const SHARED = join(GATE, 'shared.mjs');
 const USERS = ['seam-a.mjs', 'pact-text.mjs', 'render.mjs'];

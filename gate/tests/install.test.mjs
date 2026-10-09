@@ -6,8 +6,11 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { before, test } from 'node:test';
-import { BASE_PATH, WIN, commitAll, git, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { READ_ONLY, agent, plainAgent, plantModule, sealedFamiliar, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
+import { WIN, basePath, commitAll, git, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { plantModule } from './gate-files.mjs';
+import { sealedFamiliar } from './gate-run.mjs';
+import { READ_ONLY, agent, plainAgent, withoutOpenMarks } from './text.mjs';
+import { tempDir, writeTree } from './tree.mjs';
 
 // The throwaway-repo builder, install runner and the small helpers are the harness's.
 
@@ -168,7 +171,7 @@ test('bad case: a fake Node with no RESULT line refuses, and -Apply changes noth
   const repo = makeRepo(t);
   const h = home(t);
   const bin = fakeNode(t, 'noresult');
-  const r = install(repo, h, { apply: true, path: [bin, ...BASE_PATH] });
+  const r = install(repo, h, { apply: true, path: [bin, ...basePath()] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the renderer did not end with "RESULT: pass"/m, r.out);
   assert.deepEqual(listTree(h), []);
@@ -176,29 +179,29 @@ test('bad case: a fake Node with no RESULT line refuses, and -Apply changes noth
 });
 
 test('bad case: Node older than 20 refuses', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'old'), ...BASE_PATH] });
+  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'old'), ...basePath()] });
   refused(r);
   assert.match(r.stdout, /older than 20/);
 });
 
 test('bad case: a non-zero exit refuses even with a RESULT: pass line', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'exit1'), ...BASE_PATH] });
+  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'exit1'), ...basePath()] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the renderer exited with code 1/m, r.out);
 });
 
 test('bad case: a crash refuses, and its stderr is never echoed', t => {
-  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'crash'), ...BASE_PATH] });
+  const r = install(makeRepo(t), home(t), { path: [fakeNode(t, 'crash'), ...basePath()] });
   refused(r);
   assert.match(r.stdout, /^The renderer wrote to stderr; it is not shown\.$/m, r.out);
   assert.doesNotMatch(r.out, /CANARYcrash/);
 });
 
 test('bad case: a missing Node refuses', t => {
-  for (const d of BASE_PATH) {
+  for (const d of basePath()) {
     assert.ok(!existsSync(join(d, WIN ? 'node.exe' : 'node')), `node found in ${d}; the test would pass for the wrong reason`);
   }
-  const r = install(makeRepo(t), home(t), { path: BASE_PATH });
+  const r = install(makeRepo(t), home(t), { path: basePath() });
   refused(r);
   assert.match(r.stdout, /no Node/);
 });
@@ -206,7 +209,7 @@ test('bad case: a missing Node refuses', t => {
 test('bad case: a node.cmd shim is not accepted as Node', { skip: !WIN && 'a .cmd shim runs only on Windows (not run)' }, t => {
   const d = tempDir(t, 'pact-shim-');
   writeFileSync(join(d, 'node.cmd'), `@"${process.execPath}" %*\r\n`);
-  const r = install(makeRepo(t), home(t), { path: [d, ...BASE_PATH] });
+  const r = install(makeRepo(t), home(t), { path: [d, ...basePath()] });
   refused(r);
 });
 

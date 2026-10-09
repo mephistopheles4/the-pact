@@ -8,7 +8,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { REPO, SEAM_A, lastLine, renderStage, routeTree, stage, tempDir } from './helpers.mjs';
+import { renderStage } from './gate-run.mjs';
+import { routeTree, stage } from './payload.mjs';
+import { REPO, SEAM_A, lastLine } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const BLOCKS = join(REPO, 'examples', 'pact-config', 'blocks');
 // The shipped configuration that binds the set: the file a person copies.

@@ -8,7 +8,9 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, wr
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { WIN, home, install, listTree, makeRepo, refused, spawnInstall } from './install-harness.mjs';
-import { REPO, plantModule, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { plantModule } from './gate-files.mjs';
+import { REPO, withoutOpenMarks } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const CONFIG_REL = ['pact', 'config.json'];
 const EXAMPLE = readFileSync(join(REPO, 'examples', 'pact-config', 'config.json'));

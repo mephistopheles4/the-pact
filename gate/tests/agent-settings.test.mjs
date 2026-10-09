@@ -9,7 +9,9 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, 
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { GATE, RENDER, REPO, copyGate, installScriptText, lastLine, moduleMatch, plantModule, tempDir } from './helpers.mjs';
+import { copyGate, installScriptText, moduleMatch, plantModule } from './gate-files.mjs';
+import { GATE, RENDER, REPO, lastLine } from './text.mjs';
+import { tempDir } from './tree.mjs';
 import { OLD_REVIEWERS } from '../pact-text.mjs';
 
 const WIN = process.platform === 'win32';

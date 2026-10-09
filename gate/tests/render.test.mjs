@@ -8,7 +8,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFil
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { GATE, OPEN_MARKS, RENDER, REPO, lastLine, read, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { stage } from './payload.mjs';
+import { GATE, OPEN_MARKS, RENDER, REPO, lastLine, withoutOpenMarks } from './text.mjs';
+import { read, tempDir } from './tree.mjs';
 
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const GATED = readdirSync(join(GATE, 'clauses'))

@@ -10,7 +10,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { CROSS, block, cross, finding, report } from './cross-helpers.mjs';
-import { GATE, agent, failRules, realOverlay, runSeamA, stage } from './helpers.mjs';
+import { runSeamA } from './gate-run.mjs';
+import { realOverlay, stage } from './payload.mjs';
+import { GATE, agent, failRules } from './text.mjs';
 
 const sharedSource = readFileSync(join(GATE, 'shared.mjs'), 'utf8').split('\n');
 const crossSource = readFileSync(CROSS, 'utf8').split('\n');

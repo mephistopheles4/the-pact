@@ -8,7 +8,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { REPO, applyDiff, editPart, plantModule, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { plantModule } from './gate-files.mjs';
+import { REPO, applyDiff, editPart, withoutOpenMarks } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 

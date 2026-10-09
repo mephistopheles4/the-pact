@@ -9,7 +9,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFi
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { tempDir } from './helpers.mjs';
+import { tempDir } from './tree.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SMOKE = 'install-smoke.test.mjs';

@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { test } from 'node:test';
 import { FOLD_CASE, isClaudeSegment, within } from '../paths.mjs';
-import { GATE, REPO, moduleMatch } from './helpers.mjs';
+import { moduleMatch } from './gate-files.mjs';
+import { GATE, REPO } from './text.mjs';
 
 const P = (...segs) => (sep === '\\' ? `C:\\${segs.join('\\')}` : `/${segs.join('/')}`);
 
