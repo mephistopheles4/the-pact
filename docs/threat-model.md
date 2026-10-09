@@ -375,4 +375,5 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 
 Report a hole in the pact privately, through the "Report a vulnerability"
 button on this repo's Security tab. Don't open a public issue for it: on this
-tracker, issues and their reviews are public.
+tracker, issues and their reviews are public. [`SECURITY.md`](../SECURITY.md)
+says what counts as a hole, which version is supported, and what to expect.

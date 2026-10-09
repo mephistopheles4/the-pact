@@ -39,6 +39,15 @@ test('the README and the install how-to link to the threat model, and it exists'
   }
 });
 
+// The security policy sends readers to the threat model for scope, and the
+// threat model's reporting section points back at the policy (#198).
+test('SECURITY.md links to the threat model, and the threat model links back', () => {
+  const linksIn = (file) => [...readFileSync(join(root, file), 'utf8').matchAll(/\]\(([^)#\s]+)(?:#[^)\s]*)?\)/g)].map((m) => m[1]);
+  assert.ok(existsSync(join(root, 'SECURITY.md')), 'SECURITY.md is missing');
+  assert.ok(linksIn('SECURITY.md').includes('docs/threat-model.md'), 'SECURITY.md has no link to docs/threat-model.md');
+  assert.ok(linksIn(join('docs', 'threat-model.md')).includes('../SECURITY.md'), 'docs/threat-model.md has no link to ../SECURITY.md');
+});
+
 test('every relative link to an ADR or a log entry, inside the ADRs and log entries, points at a real file', () => {
   const broken = [];
   for (const folder of ['docs/adr', 'docs/log']) {
