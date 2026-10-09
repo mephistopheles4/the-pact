@@ -216,6 +216,9 @@ test("bad case: an ask list missing one of the pact's rules fails", t => {
   expectSettingsFail(t, overlayWith(o => o.permissions.ask.pop()), 'settings-required');
 });
 
+// It guards the PowerShell installer's twelve rules, which both lists write
+// out. #165's rules are the same spread in both lists, so this can't fail for
+// them; the per-rule cases below and the overlay comparison above cover those.
 test("the apply-step rules are all among the pact's rules", () => {
   for (const rule of APPLY_ASK) assert.ok(PACT_ASK.includes(rule), shown(rule));
 });
