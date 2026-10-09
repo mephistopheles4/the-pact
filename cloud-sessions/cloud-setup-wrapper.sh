@@ -3738,6 +3738,16 @@ SETTINGS_OVERLAY='{
       "Bash(*nstall.ps1*\u2013*)",
       "Bash(*nstall.ps1*\u2014*)",
       "Bash(*nstall.ps1*\u2015*)",
+      "PowerShell(*install.mjs*)",
+      "PowerShell(*install-run.mjs*)",
+      "Bash(*nstall.mjs*)",
+      "Bash(*nstall-run.mjs*)",
+      "PowerShell(*.pact-install.json*)",
+      "Bash(*.pact-install.json*)",
+      "PowerShell(*gh*ruleset*)",
+      "PowerShell(*gh*protection*)",
+      "Bash(*gh*uleset*)",
+      "Bash(*gh*rotection*)",
       "Edit(~/.claude/agents/**)",
       "Edit(~/.claude/settings.json)",
       "Edit(~/.claude/CLAUDE.md)",
@@ -3854,7 +3864,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 00863d9e4ddc"
+  echo "pact cloud copy 49c720acd8be"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
