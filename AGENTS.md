@@ -31,8 +31,10 @@ how every session in every repo behaves. So:
   commit, and whether the gate changed since the last install. The gate's
   tests run through one runner; see "Running the gate's tests" below.
 - **Keep the how-to in step.** [`docs/install.md`](docs/install.md) quotes
-  the script's output and lists what the settings merge sets. A change to
-  either updates the how-to in the same change.
+  the script's output, lists what the settings merge sets, and names every
+  agent the install puts in place. A change to any of them updates the how-to
+  in the same change; `gate/tests/install-howto.test.mjs` checks the
+  settings and the agents.
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
