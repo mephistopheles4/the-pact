@@ -224,7 +224,7 @@ export function changedFromHead(root) {
     .filter(Boolean);
 }
 
-// ---------------------------------------------------------------- step 1: render
+// ---------------------------------------------------------------- step 2: render
 
 /**
  * Render the rules file at `source` with no configuration, through the
@@ -273,31 +273,39 @@ function seamA(files) {
       const rules = [...new Set(r.lines.map(l => /^FAIL ([a-z][a-z0-9-]*):/.exec(l)?.[1]).filter(Boolean))];
       refuse('cloud/seam-a', `seam A refused the stage (${rules.join(', ') || 'no rule named'})`);
     }
-    const copy = [];
-    let settings = null;
-    for (const l of r.lines) {
-      let m = /^INSTALL ([0-9a-f]{64}) (\S+) (\S+)$/.exec(l);
-      if (m) {
-        const [, hash, source, dest] = m;
-        const buf = files.get(source);
-        if (!buf || sha256(buf) !== hash) refuse('cloud/seam-a', `${source} does not match its INSTALL hash`);
-        copy.push({ source, dest, buf });
-        continue;
-      }
-      m = /^SETTINGS ([0-9a-f]{64}) (\S+)$/.exec(l);
-      if (m) {
-        if (m[2] !== OVERLAY || settings !== null) refuse('cloud/seam-a', 'an unexpected SETTINGS line');
-        const buf = files.get(OVERLAY);
-        if (!buf || sha256(buf) !== m[1]) refuse('cloud/seam-a', `${OVERLAY} does not match its SETTINGS hash`);
-        settings = buf;
-      }
-    }
-    if (copy.length === 0 || settings === null) refuse('cloud/seam-a', 'seam A printed no copy set');
-    if (copy[0].dest !== 'CLAUDE.md' || copy[0].source !== RULES_SOURCE) refuse('cloud/seam-a', 'the copy set does not start with the rules file');
-    return { copy, overlay: settings };
+    return readCopySet(r.lines, files);
   } finally {
     rmSync(stage, { recursive: true, force: true });
   }
+}
+
+/**
+ * Read seam A's passing output `lines` into the copy set, checking each
+ * INSTALL and SETTINGS hash against the staged bytes in `files` (path -> bytes).
+ */
+export function readCopySet(lines, files) {
+  const copy = [];
+  let settings = null;
+  for (const l of lines) {
+    let m = /^INSTALL ([0-9a-f]{64}) (\S+) (\S+)$/.exec(l);
+    if (m) {
+      const [, hash, source, dest] = m;
+      const buf = files.get(source);
+      if (!buf || sha256(buf) !== hash) refuse('cloud/seam-a', `${source} does not match its INSTALL hash`);
+      copy.push({ source, dest, buf });
+      continue;
+    }
+    m = /^SETTINGS ([0-9a-f]{64}) (\S+)$/.exec(l);
+    if (m) {
+      if (m[2] !== OVERLAY || settings !== null) refuse('cloud/seam-a', 'an unexpected SETTINGS line');
+      const buf = files.get(OVERLAY);
+      if (!buf || sha256(buf) !== m[1]) refuse('cloud/seam-a', `${OVERLAY} does not match its SETTINGS hash`);
+      settings = buf;
+    }
+  }
+  if (copy.length === 0 || settings === null) refuse('cloud/seam-a', 'seam A printed no copy set');
+  if (copy[0].dest !== 'CLAUDE.md' || copy[0].source !== RULES_SOURCE) refuse('cloud/seam-a', 'the copy set does not start with the rules file');
+  return { copy, overlay: settings };
 }
 
 // ---------------------------------------------------------------- step 4: the cloud edits
@@ -359,7 +367,7 @@ export function applyEdits(text, edits = EDITS) {
   return out;
 }
 
-// ---------------------------------------------------------------- step 5: assemble
+// ---------------------------------------------------------------- step 6: assemble
 
 /** Read the four templates from `dir` (default: this folder) as text. */
 export function readTemplates(dir = HERE) {
@@ -541,6 +549,7 @@ function main(argv) {
   }
   for (const [rel, text] of Object.entries(result.files)) writeFileSync(join(REPO, ...rel.split('/')), text);
   for (const rel of stale) say(`wrote ${rel}`);
+  if (stale.includes(OUTPUTS.wrapper)) say(`once this merges, paste ${OUTPUTS.wrapper} into the cloud environment's setup field again`);
   say(`pact cloud copy ${result.marker}`);
   return 0;
 }

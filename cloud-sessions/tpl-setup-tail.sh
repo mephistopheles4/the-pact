@@ -31,6 +31,9 @@ fi
 [ -f "$CLAUDE_HOME/pact/cross.mjs" ] || echo "WARN: ~/.claude/pact/cross.mjs is missing; lens reviews will stop"
 
 # Whether a GitHub token was in the environment during setup. Never its value.
+# Under the cloud's GitHub proxy the token variables hold a stand-in, so
+# "present" doesn't prove a real credential, and "absent" doesn't prove the
+# setup's fetched code had no route to GitHub.
 if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
   echo "github token during setup: present"
 else

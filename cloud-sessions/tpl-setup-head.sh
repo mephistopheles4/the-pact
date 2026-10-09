@@ -10,13 +10,17 @@ export DO_NOT_TRACK=1             # skills CLI telemetry
 SKILLS_DIR="$HOME/.claude/skills"
 mkdir -p "$SKILLS_DIR"
 
-# Opt-in extras (see the notes that came with this script). Off by default,
-# because these normally arrive through claude.ai account sync.
+# Opt-in extras: Anthropic's own skills and the knowledge-work plugins. Off by
+# default, because these normally arrive through claude.ai account sync.
 INSTALL_ANTHROPIC_SKILLS="${INSTALL_ANTHROPIC_SKILLS:-0}"
 INSTALL_KNOWLEDGE_WORK_PLUGINS="${INSTALL_KNOWLEDGE_WORK_PLUGINS:-0}"
 
 # Wrap long-running steps so a hung network call cannot stall session start.
 if command -v timeout >/dev/null 2>&1; then T="timeout 300"; else T=""; fi
+# Past this many seconds of setup, the remaining fetches are skipped, so a slow
+# or hostile upstream cannot hold session start for long.
+SETUP_BUDGET=600
+over_budget() { [ "$SECONDS" -ge "$SETUP_BUDGET" ] && echo "WARN: setup time budget spent; skipping $1"; }
 HAVE_NPX=0; command -v npx >/dev/null 2>&1 && HAVE_NPX=1
 HAVE_GIT=0; command -v git >/dev/null 2>&1 && HAVE_GIT=1
 
@@ -132,6 +136,7 @@ clone_and_copy() {
 echo "== Skills"
 REPOS="$(for e in "${SKILLS[@]}"; do echo "${e%% *}"; done | sort -u)"
 for repo in $REPOS; do
+  over_budget "$repo" && continue
   mapfile -t missing < <(missing_for "$repo")
   if [ "${#missing[@]}" -eq 0 ]; then echo "ok: $repo (all present)"; continue; fi
   echo "-> $repo: ${missing[*]}"
@@ -151,8 +156,9 @@ if command -v claude >/dev/null 2>&1; then
     $T claude plugin marketplace add "$marketplace_repo" </dev/null \
       || echo "  (marketplace $marketplace not added; it may already exist)"
     local installed p
-    installed="$(claude plugin list 2>/dev/null)"
+    installed="$($T claude plugin list 2>/dev/null </dev/null)"
     for p in "$@"; do
+      over_budget "$p@$marketplace" && continue
       if printf '%s\n' "$installed" | grep -q "$p@$marketplace"; then
         echo "ok: $p@$marketplace"
       else

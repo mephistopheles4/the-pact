@@ -106,7 +106,11 @@ how every session in every repo behaves. So:
   cleared: `$env:NODE_OPTIONS = $null; node cloud-sessions/gen.mjs` in
   PowerShell, or `env -u NODE_OPTIONS node cloud-sessions/gen.mjs` in a POSIX
   shell. `gate/tests/cloud-sessions.test.mjs`, in the `fast` tier, fails until
-  you do. **Every change to `cloud-sessions/` and to that test takes the
+  you do. When the wrapper changes, the owner pastes the merged
+  `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup
+  field again and checks the first session's setup log for the generator's
+  `pact cloud copy <marker>` line; the generator prints that reminder.
+  **Every change to `cloud-sessions/` and to that test takes the
   security route:** the script is published, runs as root, and carries the
   pact's rules and a settings overlay (ADR 0038).
 

@@ -4,8 +4,14 @@ The pact's copy for Claude Code cloud sessions is no longer kept by hand. `cloud
 
 - **Same sources as a home install.** The generator renders `claude/CLAUDE.md` with no configuration and stages the payload with the render in its place. It then runs seam A on that stage. The files the setup embeds are exactly seam A's `INSTALL` lines: the rules file, the nine lenses, `scout` and the cross script. The overlay is the one seam A hashed.
 - **Two cloud edits, and nothing else.** E1 and E2 reword two paragraphs of "When parallel sessions work one chain" for a session without the desktop session tools. Each anchor must appear once, inside that section, and outside every gated clause. After the edits, every gated clause must still appear once, word for word and in order. Seam A runs a second time on the edited text, and every embedded file matches an `INSTALL` hash from that run. The test pins the edit list by its ids and a hash.
-- **Every byte comes from reviewed templates.** The four `tpl-*.sh` files and the payload make up both scripts, joined by literal splices. The generator refuses an output whose form is wrong (`cloud/form`): a delimiter line in a body, a carriage return, a single quote in the overlay, or a hidden or direction-changing character. It also refuses links, non-plain index entries and private paths in the payload.
-- **The setup proves itself.** The setup's Result section checks every written file against the sha256 the generator gave it. It prints `pact cloud copy <marker>` only when every file was written and every hash matched. The marker is the first 12 hex characters of the sha256 of the script itself, so the owner can match the cloud log to the merged generator. It also says whether a GitHub token was present during setup, without its value.
+- **Every byte comes from reviewed templates.** The four `tpl-*.sh` files and the payload make up both scripts, joined by literal splices. The generator refuses, each under its own rule id:
+  - a delimiter line in a body (`cloud/delimiter`);
+  - a carriage return, or a body with no trailing newline (`cloud/body`);
+  - a single quote in the overlay, or an overlay that isn't JSON (`cloud/overlay`);
+  - a hidden or direction-changing character in either script (`cloud/chars`);
+  - a wrapper, write list or overlay string of the wrong form (`cloud/form`);
+  - a link, a non-plain index entry or a case clash in the payload (`cloud/not-plain`), and a private path (`cloud/private`).
+- **The setup checks what it wrote.** The setup's Result section checks every written file against the sha256 the generator gave it. It prints `pact cloud copy <marker>` only when every file was written and every hash matched. The marker is the first 12 hex characters of the sha256 of `cloud-setup.sh` with the marker placeholder still unfilled, so the owner can match the cloud log to the merged generator. It also says whether a GitHub token was present during setup, without its value. The marker proves a complete, hash-matched write. It does not prove that nothing tampered with the setup: the third-party installs run as root earlier in the same run.
 - **Kept word for word:** the Windows Shell rule and "Where this config lives". Keeping them keeps the gated `no-skill-overrides` clause byte-identical.
 - **No configuration in the cloud.** The cloud copy takes the shipped defaults, such as the 75% usage line, never the owner's own configuration. The fit-check instruction "end the fit line with `Config: <digest>.`" is in every render and stays; with no configuration notice, a cloud session leaves the digest out.
 - **Changes stay on the security route.** Every change to `cloud-sessions/` and to `gate/tests/cloud-sessions.test.mjs` takes it, as AGENTS.md says.
@@ -19,7 +25,9 @@ The pact's copy for Claude Code cloud sessions is no longer kept by hand. `cloud
 
 ## Accepted limits
 
-- **The setup still runs unpinned third-party installs as root,** at every cloud start, before any pact rule loads. The owner accepted that risk by name on 2026-10-09; #182 pins or drops them.
+- **The setup still runs unpinned third-party installs as root,** at every cloud start, before any pact rule loads. The owner accepted that risk by name on 2026-10-09; #182 pins or drops them. The token line can't measure that exposure: under the cloud's GitHub proxy the token variables hold a stand-in, so "present" doesn't prove a real credential, and "absent" doesn't prove the fetched code had no route to GitHub.
+- **The settings merge keeps what was already there,** command-running keys included, and the cloud setup doesn't check `settings.json` after the merge the way a home install does. #191 adds that check.
+- **The paste is a second copy.** The test keeps the repo copy current, not what is pasted in the setup field. The generator prints a reminder to paste again whenever the wrapper changes; #183, cloning at setup, removes the second copy.
 - **The container run of the setup (C6) was not done.** The owner declined building its test image. Both scripts pass `bash -n` and `sh -n` on the existing `node:22` image with no network. The first real run is the owner's cloud setup log.
 - **Cloud sessions can't read tracker authors yet.** The cloud's GitHub proxy rejects the `gh` commands that use GraphQL, and the pact's author reads use GraphQL. So the tracker rule fails closed there: nothing on the tracker counts, and the session asks the owner. #188 adds reads that work in the cloud.
 
