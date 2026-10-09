@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { test } from 'node:test';
 import { FOLD_CASE, isClaudeSegment, within } from '../paths.mjs';
-import { REPO } from './helpers.mjs';
+import { GATE, REPO, moduleMatch } from './helpers.mjs';
 
 const P = (...segs) => (sep === '\\' ? `C:\\${segs.join('\\')}` : `/${segs.join('/')}`);
 
@@ -32,8 +32,7 @@ test('isClaudeSegment reads .claude however it is cased or padded', () => {
 });
 
 test('the notice and the fit check never mention a project or its files', () => {
-  const render = readFileSync(join(REPO, 'gate', 'render.mjs'), 'utf8');
-  const notice = /const NOTICE_TEMPLATE = [\s\S]*?\n\];\n/.exec(render);
+  const notice = moduleMatch(GATE, 'render', /const NOTICE_TEMPLATE = [\s\S]*?\n\];\n/);
   assert.ok(notice, 'the notice template is in the renderer');
   assert.doesNotMatch(notice[0], /project/i);
   const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');

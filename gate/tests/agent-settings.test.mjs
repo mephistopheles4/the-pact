@@ -9,7 +9,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symli
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { GATE, RENDER, REPO, lastLine, tempDir } from './helpers.mjs';
+import { GATE, RENDER, REPO, copyGate, lastLine, moduleMatch, plantModule, tempDir } from './helpers.mjs';
 import { home, install, listTree, makeRepo, refused, WIN } from './install-harness.mjs';
 import { OLD_REVIEWERS } from '../pact-text.mjs';
 
@@ -249,30 +249,22 @@ test('bad case: each sign alone marks integrity-lens security-set; with none it 
   assert.notEqual(floor, AGENT);
   assert.equal(classify(t, 'integrity-lens', { agent: floor }).words, 'security-set override local');
   // An entry in the tool allow-list.
-  const gate = tempDir(t, 'pact-agents-gate-');
-  for (const f of ['render.mjs', 'shared.mjs']) cpSync(join(GATE, f), join(gate, f));
+  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
   const allow = JSON.parse(readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'));
   writeFileSync(join(gate, 'tool-allowlist.json'), `${JSON.stringify({ ...allow, 'integrity-lens': ['Read', 'Glob', 'Grep'] })}\n`);
   assert.equal(classify(t, 'integrity-lens', { renderer: join(gate, 'render.mjs') }).words, 'security-set override local');
   // On the doubt list.
   writeFileSync(join(gate, 'tool-allowlist.json'), `${JSON.stringify(allow)}\n`);
-  const p = join(gate, 'render.mjs');
-  const s = readFileSync(p, 'utf8');
   const doubt = "  'unstated-lens': 'it reports work that should have taken the security route',";
-  assert.equal(s.split(doubt).length, 2);
-  writeFileSync(p, s.replace(doubt, `${doubt}\n  'integrity-lens': 'planted',`));
-  assert.equal(classify(t, 'integrity-lens', { renderer: p }).words, 'security-set override local');
+  plantModule(gate, 'render', doubt, `${doubt}\n  'integrity-lens': 'planted',`);
+  assert.equal(classify(t, 'integrity-lens', { renderer: join(gate, 'render.mjs') }).words, 'security-set override local');
 });
 
 test('bad case: a renderer whose output would change another line refuses by its own self-check', t => {
-  const gate = tempDir(t, 'pact-agents-gate-');
-  for (const f of ['render.mjs', 'shared.mjs', 'tool-allowlist.json']) cpSync(join(GATE, f), join(gate, f));
-  const p = join(gate, 'render.mjs');
-  const s = readFileSync(p, 'utf8');
+  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
   const from = '  out[effortAt[0]] = `effort: ${effort}`;';
-  assert.equal(s.split(from).length, 2);
-  writeFileSync(p, s.replace(from, `${from}\n  out[toolsAt[0]] = 'tools: [Read, Glob, Grep, Bash]';`));
-  const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { renderer: p });
+  plantModule(gate, 'render', from, `${from}\n  out[toolsAt[0]] = 'tools: [Read, Glob, Grep, Bash]';`);
+  const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { renderer: join(gate, 'render.mjs') });
   assert.equal(r.code, 1, r.out);
   assert.match(r.stdout, /would differ from the source beyond its model and effort lines/);
   assert.deepEqual(r.outFiles, []);
@@ -286,19 +278,14 @@ test('bad case: a source with no security-route clause refuses a setting', t => 
 });
 
 test('bad case: a renderer whose locked list loses scout still cannot set it: scout stays outside the configurable list', t => {
-  const gate = tempDir(t, 'pact-agents-gate-');
-  for (const f of ['render.mjs', 'shared.mjs', 'tool-allowlist.json']) cpSync(join(GATE, f), join(gate, f));
-  const p = join(gate, 'render.mjs');
-  const s = readFileSync(p, 'utf8');
-  const from = "const LOCKED_AGENTS = Object.freeze(['scout']);";
-  assert.equal(s.split(from).length, 2);
-  writeFileSync(p, s.replace(from, 'const LOCKED_AGENTS = Object.freeze([]);'));
-  const r = render(t, cfg({ scout: { model: 'opus' } }), { renderer: p });
+  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
+  plantModule(gate, 'render', "const LOCKED_AGENTS = Object.freeze(['scout']);", 'const LOCKED_AGENTS = Object.freeze([]);');
+  const r = render(t, cfg({ scout: { model: 'opus' } }), { renderer: join(gate, 'render.mjs') });
   refusedWith(r, 'config-agents', /cannot set/);
 });
 
 test('the install script\'s list of agents equals the renderer\'s configurable list', () => {
-  const r = /const CONFIGURABLE_AGENTS = Object\.freeze\(\[([^\]]*)\]\);/.exec(readFileSync(RENDER, 'utf8'));
+  const r = moduleMatch(GATE, 'render', /const CONFIGURABLE_AGENTS = Object\.freeze\(\[([^\]]*)\]\);/);
   const i = /^\$agentNames = @\(([^)]*)\)$/m.exec(readFileSync(join(REPO, 'scripts', 'install.ps1'), 'utf8'));
   assert.ok(r && i);
   const names = s => s.split(',').map(x => x.trim().replace(/^'|'$/g, ''));
@@ -395,10 +382,7 @@ const R_DIFF_WRITE = "  writeFileSync(join(out, DIFF_NAME), diff, { flag: 'wx' }
 const A64 = 'a'.repeat(64);
 
 function plantRenderer(root, from, to) {
-  const p = join(root, 'gate', 'render.mjs');
-  const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
-  writeFileSync(p, s.replace(from, () => to));
+  plantModule(join(root, 'gate'), 'render', from, to);
 }
 
 const SET = { schema: 1, agents: { 'integrity-lens': { model: 'sonnet', effort: 'low' } } };

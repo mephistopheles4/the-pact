@@ -11,7 +11,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
 import { WIN, git, install, makeRepo, refused } from './install-harness.mjs';
-import { REPO, tempDir } from './helpers.mjs';
+import { REPO, plantModule, tempDir } from './helpers.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const RULES = ['.claude', 'rules', 'pact-project.md'];
@@ -495,11 +495,8 @@ test('Node never runs with the project folder as its working folder', t => {
 
 test('bad case: a renderer that changes the stage on its project run refuses', t => {
   const repo = makeRepo(t, r => {
-    const p = join(r, 'gate', 'render.mjs');
-    const s = readFileSync(p, 'utf8');
     const from = 'function runProject(out, home, projectFolder, report) {\n';
-    assert.equal(s.split(from).length, 2);
-    writeFileSync(p, s.replace(from, `${from}  writeFileSync('planted.md', 'x\\n');\n`));
+    plantModule(join(r, 'gate'), 'render', from, `${from}  writeFileSync('planted.md', 'x\\n');\n`);
   });
   const { homeDir, ch } = layout(t);
   const proj = projectAt(join(homeDir, 'proj'));

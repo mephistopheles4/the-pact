@@ -3,7 +3,7 @@
 // asserts the rule it must fail on, on a fixture copy of the pact.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { OLD_REVIEWERS } from '../pact-text.mjs';
@@ -11,6 +11,7 @@ import {
   GATE,
   READ_ONLY,
   REPO,
+  copyGate,
   failRules,
   lastLine,
   plainAgent,
@@ -506,8 +507,7 @@ test('bad case: a carriage return in CLAUDE.md', t => {
 // ------------------------------------------------------------ the canonical texts
 
 function gateCopy(t, editGate) {
-  const g = tempDir(t);
-  for (const f of ['seam-a.mjs', 'pact-text.mjs', 'shared.mjs', 'tool-allowlist.json', 'grimoire', 'clauses']) cpSync(join(GATE, f), join(g, f), { recursive: true });
+  const g = copyGate(tempDir(t));
   editGate(g);
   return join(g, 'seam-a.mjs');
 }

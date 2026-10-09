@@ -7,7 +7,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symli
 import { dirname, join } from 'node:path';
 import { before, test } from 'node:test';
 import { BASE_PATH, WIN, commitAll, git, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { READ_ONLY, agent, plainAgent, sealedFamiliar, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
+import { READ_ONLY, agent, plainAgent, plantModule, sealedFamiliar, tempDir, withoutOpenMarks, writeTree } from './helpers.mjs';
 
 // The throwaway-repo builder, install runner and the small helpers are the harness's.
 
@@ -303,14 +303,20 @@ test('the check runs on the commit, not on uncommitted edits, and says so', t =>
 
 // ------------------------------------------------------------ the check's own output
 
+/** Edit seam A's own file, the one node runs, as a whole. */
 function plantSeamA(root, transform) {
   const p = join(root, 'gate', 'seam-a.mjs');
   writeFileSync(p, transform(readFileSync(p, 'utf8')));
 }
 
+/** Replace the one `from` in seam A's files with `to`. */
+function plantSeamAOnce(root, from, to) {
+  plantModule(join(root, 'gate'), 'seam-a', from, to);
+}
+
 test('bad case: a seam A that leaves a file off its install list refuses', t => {
   const repo = makeRepo(t, root =>
-    plantSeamA(root, s => s.replace('// @@TEST-INSTALL-HOOK@@', "if (dest === 'agents/scout.md') continue;")),
+    plantSeamAOnce(root, '// @@TEST-INSTALL-HOOK@@', "if (dest === 'agents/scout.md') continue;"),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -412,7 +418,7 @@ test('bad case: an unrouted agent at HEAD refuses, naming its file', t => {
 // ------------------------------------------------------------ the check's runner, on real Node
 
 test('bad case: a seam A that exits non-zero refuses even with a RESULT: pass line', t => {
-  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, 'process.exitCode = report.failed ? 1 : 0;', 'process.exitCode = 1;')));
+  const repo = makeRepo(t, root => plantSeamAOnce(root, 'process.exitCode = report.failed ? 1 : 0;', 'process.exitCode = 1;'));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^seam-a\| RESULT: pass$/m, r.out);
@@ -420,14 +426,14 @@ test('bad case: a seam A that exits non-zero refuses even with a RESULT: pass li
 });
 
 test('bad case: a seam A with no RESULT line refuses', t => {
-  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, "report.lines.push(`RESULT: ${report.failed ? 'fail' : 'pass'}`);", '')));
+  const repo = makeRepo(t, root => plantSeamAOnce(root, "report.lines.push(`RESULT: ${report.failed ? 'fail' : 'pass'}`);", ''));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^REFUSED: the check did not end with "RESULT: pass"\./m, r.out);
 });
 
 test('bad case: a seam A crash refuses, and its stderr is never echoed', t => {
-  const repo = makeRepo(t, root => plantSeamA(root, s => replaceOnce(s, '// @@TEST-CRASH-HOOK@@', "process.stderr.write('CANARYseam\\n'); process.exit(134);")));
+  const repo = makeRepo(t, root => plantSeamAOnce(root, '// @@TEST-CRASH-HOOK@@', "process.stderr.write('CANARYseam\\n'); process.exit(134);"));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^The check wrote to stderr; it is not shown\.$/m, r.out);
@@ -439,20 +445,15 @@ test('bad case: a seam A crash refuses, and its stderr is never echoed', t => {
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
-function replaceOnce(s, from, to) {
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
-  return s.replace(from, () => to);
-}
-
 // The renderer's lines the planted cases hook onto.
 const R_HASH = '`RENDERED ${sha256(rendered)}`';
 const R_PUSH = '  report.lines.push(`RENDERED ${sha256(rendered)}`, `DIFF ${sha256(diff)}`, ...head);';
 const R_RENDER = '  const { rendered, diff } = apply(lines, swaps);';
 const R_NONE = "  if (config === NONE) head.push('CONFIG none');";
 
-function plantRenderer(root, transform) {
-  const p = join(root, 'gate', 'render.mjs');
-  writeFileSync(p, transform(readFileSync(p, 'utf8')));
+/** Replace the one `from` in the renderer's files with `to`. */
+function plantRenderer(root, from, to) {
+  plantModule(join(root, 'gate'), 'render', from, to);
 }
 
 /** The repo's committed rules file: its source bytes, and the no-file render the tests expect. */
@@ -498,13 +499,8 @@ test('bad case: the rules file changed in the stage after the check refuses -App
   const repo = makeRepo(t, root => {
     source = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
     // After seam A has hashed the rendered file, it puts the unrendered source back.
-    plantSeamA(root, s =>
-      replaceOnce(
-        replaceOnce(s, "import { lstatSync, readFileSync, readdirSync } from 'node:fs';", "import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';"),
-        '// @@TEST-SETTINGS-HOOK@@',
-        `writeFileSync(join(root, 'claude', 'CLAUDE.md'), ${JSON.stringify(source)});`,
-      ),
-    );
+    plantSeamAOnce(root, "import { lstatSync, readFileSync, readdirSync } from 'node:fs';", "import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';");
+    plantSeamAOnce(root, '// @@TEST-SETTINGS-HOOK@@', `writeFileSync(join(root, 'claude', 'CLAUDE.md'), ${JSON.stringify(source)});`);
   });
   rulesOf(repo);
   const h = home(t);
@@ -535,7 +531,7 @@ test('bad case: a record whose rules-file hash is not the rendered bytes\' hash 
 });
 
 test('bad case: a renderer that reports a hash other than its output\'s refuses', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_HASH, "`RENDERED ${'0'.repeat(64)}`")));
+  const repo = makeRepo(t, root => plantRenderer(root, R_HASH, "`RENDERED ${'0'.repeat(64)}`"));
   const h = home(t);
   const r = install(repo, h, { apply: true });
   refused(r);
@@ -544,7 +540,7 @@ test('bad case: a renderer that reports a hash other than its output\'s refuses'
 });
 
 test('bad case: a renderer that adds a file to the stage refuses, with nothing written', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_RENDER, `  writeFileSync('planted.md', 'x\\n');\n${R_RENDER}`)));
+  const repo = makeRepo(t, root => plantRenderer(root, R_RENDER, `  writeFileSync('planted.md', 'x\\n');\n${R_RENDER}`));
   const h = home(t);
   const r = install(repo, h, { apply: true });
   refused(r);
@@ -554,7 +550,7 @@ test('bad case: a renderer that adds a file to the stage refuses, with nothing w
 
 test('bad case: a renderer that changes a staged file refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, R_RENDER, `  writeFileSync('gate/clauses/move-4.md', 'x\\n', { flag: 'a' });\n${R_RENDER}`)),
+    plantRenderer(root, R_RENDER, `  writeFileSync('gate/clauses/move-4.md', 'x\\n', { flag: 'a' });\n${R_RENDER}`),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -563,7 +559,7 @@ test('bad case: a renderer that changes a staged file refuses', t => {
 
 test('bad case: a renderer line the install does not read refuses, and cannot feed the INSTALL parse', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, R_PUSH, `${R_PUSH}\n  report.lines.push(\`INSTALL \${'0'.repeat(64)} claude/CLAUDE.md CLAUDE.md\`);`)),
+    plantRenderer(root, R_PUSH, `${R_PUSH}\n  report.lines.push(\`INSTALL \${'0'.repeat(64)} claude/CLAUDE.md CLAUDE.md\`);`),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -573,7 +569,7 @@ test('bad case: a renderer line the install does not read refuses, and cannot fe
 
 test('bad case: a renderer that leaves a second file in its output folder refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s => replaceOnce(s, R_PUSH, `${R_PUSH}\n  writeFileSync(join(out, 'extra.md'), 'x\\n');`)),
+    plantRenderer(root, R_PUSH, `${R_PUSH}\n  writeFileSync(join(out, 'extra.md'), 'x\\n');`),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -581,7 +577,7 @@ test('bad case: a renderer that leaves a second file in its output folder refuse
 });
 
 test('bad case: a renderer hash line with anything after the hash refuses', t => {
-  const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, R_HASH, R_HASH.replace('}`', '} extra`'))));
+  const repo = makeRepo(t, root => plantRenderer(root, R_HASH, R_HASH.replace('}`', '} extra`')));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^render\| RENDERED [0-9a-f]{64} extra$/m, r.out);
@@ -594,7 +590,7 @@ for (const [label, from, to, why] of [
   ['two hash lines', R_PUSH, `${R_PUSH}\n  report.lines.push(report.lines[0]);`, 'the renderer reported two output hashes'],
 ]) {
   test(`bad case: a renderer that prints ${label} refuses`, t => {
-    const repo = makeRepo(t, root => plantRenderer(root, s => replaceOnce(s, from, to)));
+    const repo = makeRepo(t, root => plantRenderer(root, from, to));
     const r = install(repo, home(t));
     refused(r);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why}\\.`, 'm'), r.out);
@@ -615,15 +611,10 @@ test('the renderer and the rules file come from the commit: working-tree-only ed
 });
 
 test('bad case: a renderer that adds a hidden file to the stage refuses', t => {
-  const repo = makeRepo(t, root =>
-    plantRenderer(root, s =>
-      replaceOnce(
-        replaceOnce(s, "import { createHash } from 'node:crypto';", "import { createHash } from 'node:crypto';\nimport { spawnSync } from 'node:child_process';"),
-        R_RENDER,
-        `  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n${R_RENDER}`,
-      ),
-    ),
-  );
+  const repo = makeRepo(t, root => {
+    plantRenderer(root, "import { createHash } from 'node:crypto';", "import { createHash } from 'node:crypto';\nimport { spawnSync } from 'node:child_process';");
+    plantRenderer(root, R_RENDER, `  writeFileSync('gate/.planted', 'x\\n');\n  if (process.platform === 'win32') spawnSync('attrib', ['+h', 'gate\\\\.planted']);\n${R_RENDER}`);
+  });
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
@@ -638,9 +629,7 @@ test('bad case: a commit with no renderer refuses', t => {
 
 test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, s =>
-      replaceOnce(s, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('however small:', 'when large:'));"),
-    ),
+    plantRenderer(root, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('however small:', 'when large:'));"),
   );
   const r = install(repo, home(t));
   refused(r);

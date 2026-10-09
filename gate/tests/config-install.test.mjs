@@ -8,7 +8,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, wr
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { PWSH, WIN, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { REPO, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { REPO, plantModule, tempDir, withoutOpenMarks } from './helpers.mjs';
 
 const CONFIG_REL = ['pact', 'config.json'];
 const EXAMPLE = readFileSync(join(REPO, 'examples', 'pact-config', 'config.json'));
@@ -425,10 +425,7 @@ const R_NONE = "  if (config === NONE) head.push('CONFIG none');";
 const R_USER = '`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`)';
 
 function plantRenderer(root, from, to) {
-  const p = join(root, 'gate', 'render.mjs');
-  const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
-  writeFileSync(p, s.replace(from, () => to));
+  plantModule(join(root, 'gate'), 'render', from, to);
 }
 
 for (const [label, withConfig, from, to, why] of [

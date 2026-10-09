@@ -2,7 +2,7 @@
 // must fail on, not just a failure.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -11,15 +11,16 @@ import {
   READ_ONLY,
   agent,
   contractText,
+  copyGate,
   failRules,
   lastLine,
   plainAgent,
+  plantModule,
   realPayload,
   runSeamA,
   sealedFamiliar,
   stage,
   tempDir,
-  writeTree,
 } from './helpers.mjs';
 
 function expectFail(t, files, rule, prep) {
@@ -467,16 +468,7 @@ test('a contract with no agent beside it is not installed and passes', t => {
 // ------------------------------------------------------------ the gate's own files
 
 function gateCopy(t, edit) {
-  const g = tempDir(t);
-  cpSync(join(GATE, 'clauses'), join(g, 'clauses'), { recursive: true });
-  writeTree(g, {
-    'seam-a.mjs': readFileSync(join(GATE, 'seam-a.mjs'), 'utf8'),
-    'pact-text.mjs': readFileSync(join(GATE, 'pact-text.mjs'), 'utf8'),
-    'shared.mjs': readFileSync(join(GATE, 'shared.mjs'), 'utf8'),
-    'tool-allowlist.json': readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'),
-    'grimoire/check.mjs': readFileSync(join(GATE, 'grimoire', 'check.mjs'), 'utf8'),
-    'grimoire/check.mjs.pin': readFileSync(join(GATE, 'grimoire', 'check.mjs.pin'), 'utf8'),
-  });
+  const g = copyGate(tempDir(t));
   edit(g);
   return join(g, 'seam-a.mjs');
 }
@@ -527,10 +519,7 @@ test('gate: no stage root is a usage failure', t => {
 });
 
 test('gate: an internal error prints one fixed line and no detail', t => {
-  const script = gateCopy(t, g => {
-    const p = join(g, 'seam-a.mjs');
-    writeFileSync(p, readFileSync(p, 'utf8').replace('// @@TEST-CRASH-HOOK@@', "throw new Error('CANARY-crash-detail');"));
-  });
+  const script = gateCopy(t, g => plantModule(g, 'seam-a', '// @@TEST-CRASH-HOOK@@', "throw new Error('CANARY-crash-detail');"));
   const r = runSeamA(stage(t, {}), script);
   assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
   assert.ok(failRules(r.stdout).includes('internal'), r.out);

@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { REPO, failRules, lastLine, read, runSeamA, stage } from './helpers.mjs';
+import { REPO, failRules, lastLine, plantModule, read, runSeamA, stage } from './helpers.mjs';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const SRC = 'cross/cross.mjs';
@@ -152,22 +152,14 @@ test('bad case: a deleted installed cross script is drift, and -Apply refuses', 
 });
 
 test('bad case: a seam A that leaves the cross script off its install list refuses', t => {
-  const repo = makeRepo(t, root => {
-    const p = join(root, 'gate', 'seam-a.mjs');
-    writeFileSync(p, read(p).replace('// @@TEST-INSTALL-HOOK@@', `if (dest === '${DEST}') continue;`));
-  });
+  const repo = makeRepo(t, root => plantModule(join(root, 'gate'), 'seam-a', '// @@TEST-INSTALL-HOOK@@', `if (dest === '${DEST}') continue;`));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /copy set/);
 });
 
 test('bad case: a seam A that sends the cross script to another live path refuses', t => {
-  const repo = makeRepo(t, root => {
-    const p = join(root, 'gate', 'seam-a.mjs');
-    const from = "['cross/cross.mjs', 'pact/cross.mjs']";
-    assert.ok(read(p).includes(from), 'seam A no longer holds the mapping this test plants against');
-    writeFileSync(p, read(p).replace(from, "['cross/cross.mjs', 'agents/cross.mjs']"));
-  });
+  const repo = makeRepo(t, root => plantModule(join(root, 'gate'), 'seam-a', "['cross/cross.mjs', 'pact/cross.mjs']", "['cross/cross.mjs', 'agents/cross.mjs']"));
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /copy set/);

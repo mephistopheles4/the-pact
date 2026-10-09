@@ -5,11 +5,11 @@
 // taken from the renderer.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { GATE, RENDER, lastLine, tempDir } from './helpers.mjs';
+import { RENDER, copyGate, lastLine, plantModule, tempDir } from './helpers.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const PROJECT_REL = ['.claude', 'pact-config.json'];
@@ -176,13 +176,9 @@ test('bad case: a project file over 64 KiB refuses', t => {
 
 /** A copy of the gate's renderer and its imports, with `from` replaced by `to` in the renderer. */
 function plantedRenderer(t, from, to) {
-  const g = tempDir(t, 'pact-render-gate-');
-  for (const f of ['render.mjs', 'shared.mjs']) cpSync(join(GATE, f), join(g, f));
-  const p = join(g, 'render.mjs');
-  const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
-  writeFileSync(p, s.replace(from, () => to));
-  return p;
+  const g = copyGate(tempDir(t, 'pact-render-gate-'));
+  plantModule(g, 'render', from, to);
+  return join(g, 'render.mjs');
 }
 
 const LEAD = "'# Pact settings for this project',";

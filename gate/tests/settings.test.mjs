@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { GATE, failRules, lastLine, realOverlay, runSeamA, stage, tempDir } from './helpers.mjs';
+import { GATE, failRules, lastLine, moduleFiles, moduleMatch, plantModule, realOverlay, runSeamA, stage, tempDir } from './helpers.mjs';
 import { PWSH, commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 const OVERLAY = 'claude/settings.overlay.json';
@@ -322,7 +322,8 @@ test('bad case: an ask rule with another dash-like or invisible character is cau
 });
 
 test('each dash is written as an escape: the rule files and their code hold no dash character', () => {
-  const files = ['claude/settings.overlay.json', 'gate/settings-allowlist.json', 'gate/seam-a.mjs', 'gate/tests/settings.test.mjs'];
+  const seam = moduleFiles(GATE, 'seam-a').map(p => `gate/${p.slice(GATE.length + 1)}`);
+  const files = ['claude/settings.overlay.json', 'gate/settings-allowlist.json', ...seam, 'gate/tests/settings.test.mjs'];
   for (const f of files) {
     const text = readFileSync(join(GATE, '..', ...f.split('/')), 'utf8');
     for (const d of DASHES) assert.ok(!text.includes(d), `${f} holds ${shown(d)} as a character`);
@@ -415,7 +416,7 @@ test('canary: seam A never echoes an overlay key or value', t => {
 
 test("the install's banned names are seam A's", () => {
   const names = text => [...text.matchAll(/'([A-Za-z]+)'/g)].map(m => m[1]);
-  const seam = readFileSync(join(GATE, 'seam-a.mjs'), 'utf8').match(/const BANNED_SETTINGS = Object\.freeze\(\[([^\]]*)\]\)/);
+  const seam = moduleMatch(GATE, 'seam-a', /const BANNED_SETTINGS = Object\.freeze\(\[([^\]]*)\]\)/);
   const inst = readFileSync(join(GATE, '..', 'scripts', 'install.ps1'), 'utf8').match(/\$bannedSettings = @\(([^)]*)\)/);
   assert.ok(seam && inst);
   assert.deepEqual(names(inst[1]), names(seam[1]));
@@ -609,13 +610,12 @@ test('canary: the install never prints a live value, a live permission entry or 
 
 // ------------------------------------------------------------ install: binding the checked overlay
 
-function plantSeamA(root, transform) {
-  const p = join(root, 'gate', 'seam-a.mjs');
-  writeFileSync(p, transform(readFileSync(p, 'utf8')));
+function plantSeamA(root, from, to) {
+  plantModule(join(root, 'gate'), 'seam-a', from, to);
 }
 
 test('bad case: a seam A that reports another overlay hash refuses', t => {
-  const repo = makeRepo(t, root => plantSeamA(root, s => s.replace('// @@TEST-SETTINGS-HOOK@@', "settingsHash = '0'.repeat(64);")));
+  const repo = makeRepo(t, root => plantSeamA(root, '// @@TEST-SETTINGS-HOOK@@', "settingsHash = '0'.repeat(64);"));
   const h = home(t);
   const r = install(repo, h, { apply: true });
   refused(r);
@@ -623,12 +623,12 @@ test('bad case: a seam A that reports another overlay hash refuses', t => {
 });
 
 test('bad case: a missing or doubled SETTINGS line refuses', t => {
-  const none = makeRepo(t, root => plantSeamA(root, s => s.replace('// @@TEST-SETTINGS-HOOK@@', 'return;')));
+  const none = makeRepo(t, root => plantSeamA(root, '// @@TEST-SETTINGS-HOOK@@', 'return;'));
   const rn = install(none, home(t));
   refused(rn);
   assert.match(rn.stdout, /^REFUSED: the check did not report exactly one settings overlay hash\./m, rn.out);
   const two = makeRepo(t, root =>
-    plantSeamA(root, s => s.replace('// @@TEST-SETTINGS-HOOK@@', 'report.lines.push(`SETTINGS ${settingsHash} claude/settings.overlay.json`);')),
+    plantSeamA(root, '// @@TEST-SETTINGS-HOOK@@', 'report.lines.push(`SETTINGS ${settingsHash} claude/settings.overlay.json`);'),
   );
   const r2 = install(two, home(t));
   refused(r2);

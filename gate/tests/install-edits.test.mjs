@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { REPO, applyDiff, editPart, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { REPO, applyDiff, editPart, plantModule, tempDir, withoutOpenMarks } from './helpers.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
@@ -320,10 +320,7 @@ const R_DIFF_WRITE = "  writeFileSync(join(out, DIFF_NAME), diff, { flag: 'wx' }
 const A64 = 'a'.repeat(64);
 
 function plantRenderer(root, from, to) {
-  const p = join(root, 'gate', 'render.mjs');
-  const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
-  writeFileSync(p, s.replace(from, () => to));
+  plantModule(join(root, 'gate'), 'render', from, to);
 }
 
 for (const [label, withConfig, from, to, why] of [
@@ -423,15 +420,8 @@ test('a block file the last install read and this one no longer uses is counted 
 
 const REVIEW_PUSH = '  report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);';
 
-function plantFile(root, rel, from, to) {
-  const p = join(root, ...rel.split('/'));
-  const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)} in ${rel}`);
-  writeFileSync(p, s.replace(from, () => to));
-}
-
 test('bad case: a review module that reports other hashes than this run rendered refuses', t => {
-  const repo = makeRepo(t, root => plantFile(root, 'gate/review.mjs', REVIEW_PUSH, `  report.lines.push(\`REVIEW ${'0'.repeat(64)} \${sha256(diff)}\`);`));
+  const repo = makeRepo(t, root => plantModule(join(root, 'gate'), 'review', REVIEW_PUSH, `  report.lines.push(\`REVIEW ${'0'.repeat(64)} \${sha256(diff)}\`);`));
   const folder = join(tempDir(t), 'review');
   const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
   refused(r);
