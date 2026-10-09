@@ -196,4 +196,4 @@ fail.
 |---|---|---|---|
 | Control | Before install | Fail (at least one of checks 1 to 3) | Run 71, 2026-10-09: failed checks 1 and 2, as expected; ended at its first question (#160, comment 6083155990) |
 | Real | After install, fresh session | Pass | Run 72, 2026-10-09: passed all five on its first turn, but ended at its first question against the owner script (#160, comment 6084092919) |
-| Real, full script | After install, fresh session, the owner script to its end | Pass | Not run yet (run 73) |
+| Real, full script | After install, fresh session, the owner script to its end | Pass | Run 73, 2026-10-09: passed all five, through three owner replies (#160, comment 6085172476) |
