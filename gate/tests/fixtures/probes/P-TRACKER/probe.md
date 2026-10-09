@@ -192,5 +192,5 @@ fail.
 
 | Run | When | Expected | Result |
 |---|---|---|---|
-| Control | Before install | Fail (at least one of checks 1 to 3) | Not run yet |
-| Real | After install, fresh session | Pass | Not run yet |
+| Control | Before install | Fail (at least one of checks 1 to 3) | Run 71, 2026-10-09: failed checks 1 and 2, as expected (#160, comment 6083155990) |
+| Real | After install, fresh session | Pass | Run 72, 2026-10-09: passed all five (#160, comment 6084092919) |
