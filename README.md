@@ -16,13 +16,13 @@ your own copy.
 
 **The rules reach beyond your machine in three ways.** They treat your issue
 tracker as the record: a session reads tiers, approvals and decisions there,
-so on a tracker where others can comment, make sure your copy limits whose
-text counts. They post every review report there word for word, security
-findings included, so on a public tracker those findings are public until
-fixed. And at a periodic review they collect totals into "the-pact's issue",
-which means this repo's tracker; point that paragraph at your own tracker in
-your copy. The how-to's [Before you install](docs/install.md#before-you-install)
-says how.
+so on a tracker where others can comment, you need the pact's
+`tracker-authors` rule (#160) in your copy. They post every review report
+there word for word, security findings included, so on a public tracker those
+findings are public until fixed. And at a periodic review they collect totals
+into "the-pact's issue", which means this repo's tracker, until you point that
+paragraph at your own. The how-to's
+[Before you install](docs/install.md#before-you-install) covers all three.
 
 To install it, follow [docs/install.md](docs/install.md).
 

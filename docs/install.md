@@ -29,12 +29,13 @@ install, because the install copies the rules as your clone's last commit
 holds them:
 
 - **They treat your issue tracker as the record.** A session reads tiers,
-  approvals and decisions there. On a tracker where others can comment, make
-  sure your copy of `claude/CLAUDE.md` limits whose text counts to your own
-  account.
+  approvals and decisions there. The pact's `tracker-authors` rule (#160)
+  makes only your own account's text count. Check that your copy of
+  `claude/CLAUDE.md` holds it before you use the rules on a tracker where
+  others can comment; without it, keep that tracker private.
 - **They post every review report on the tracker, word for word,** security
-  findings included. On a public tracker, those findings are public until
-  they are fixed.
+  findings included. So choose: keep the tracker private, or accept that those
+  findings are public until they are fixed.
 - **At a periodic review, they collect totals into "the-pact's issue",**
   which means this repo's tracker. Edit the "Totals only" paragraph of
   `claude/CLAUDE.md` to name your own tracker (step 2).
@@ -67,8 +68,10 @@ before step 4.
 
 ## 3. Back up your own files
 
-Copy your `~/.claude/CLAUDE.md` and `~/.claude/settings.json`, if you have
-them. A first install replaces your rules file with no backup of its own, and
+Copy your `~/.claude/CLAUDE.md`, `~/.claude/settings.json` and
+`~/.claude/agents/` folder, if you have them. A first install replaces your
+rules file with no backup of its own, and does the same to an agent of yours
+that shares a name with a pact agent or an old pact agent (step 4).
 [Undo the install](#undo-the-install) restores from these copies. Your
 settings file can hold API keys, so keep the copies outside the clone and any
 synced or shared folder, readable only by you, and delete them once you are
@@ -196,5 +199,6 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    in auto mode.
 2. **Delete the pact's files:** the ten agents listed in step 6 from
    `agents/`, `pact/cross.mjs`, and `.pact-install.json`.
+3. **Put back your own agents** from your copy of the `agents/` folder.
 
 Start a new session to load the change.

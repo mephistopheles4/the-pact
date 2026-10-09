@@ -22,7 +22,7 @@
 - **Unfixed security findings on the tracker: 44 rows.** The owner accepted all 44 for publication: 3 aren't findings, about 20 are planned fixes not yet built, 7 are known limits already in the tree, 6 are risks the owner accepted, and 5 were dismissed by a session. #122's build decides its `adversarial-lens` F8 again, because its dismissal leaned on the repo being private. There are no open security escapes.
 - **The guard missed forms at first.** All four lenses on #161's diff traced the same gaps: Git Bash and WSL paths, the home folder's own project folder, dotted names, and names outside ASCII. Its failure output also printed the username it caught. The fix widened the forms and masked the name.
 - **The guard runs only with the tests.** The repo has no CI yet (#166), and the install runs the pact's check, not the test suite. So a new home path is caught when a session runs the suite, not on every commit.
-- **A first install replaces the user's own `CLAUDE.md`, with no backup.** The how-to's dry run lists it under `Overwrite`, and the how-to says to copy it and `settings.json` first, and how to undo the install by hand.
+- **A first install replaces the user's own `CLAUDE.md`, with no backup.** The how-to's dry run lists it under `Overwrite`, and so does an agent of the reader's that shares a pact agent's name. At move 4, `behaviour-lens` showed the first backup step lost such agents; the how-to now has the reader copy `CLAUDE.md`, `settings.json` and the `agents/` folder first, and says how to undo the install by hand.
 - **`-Apply` loosens `settings.json`'s permissions on Linux.** At #162's move 4, `data-lens` suspected it, and the container confirmed it: a `600` file came out `644`. The how-to tells Linux and macOS readers to reset it; #177 tracks the fix in the installer.
 - **The how-to's security wording was tightened at move 4.** `adversarial-lens` found it called the dry run harmless and the ask rules a boundary. The how-to now says the dry run runs the clone's code, the ask rules don't stop a script, and an update is read as one net diff before it runs. It also warns, before the install, that the rules read the tracker as the record, post review reports there, and send periodic totals to this repo's tracker until the reader edits that paragraph.
 - **A new AGENTS.md line first landed inside a gated clause,** and the install's check refused. Rerunning the how-to's steps as written caught it before the review finished. A new test, `gate/tests/install-howto.test.mjs`, now fails when the how-to leaves out a setting the overlay sets or an agent the install puts in place.
@@ -54,3 +54,11 @@ Issue comments on mephistopheles4/the-pact#161:
 - `6080262820` — the record for the final rescan: the 84 refs and the scan scripts.
 - `6080269060` — the lens dispositions.
 - `6080639941` — the owner's decisions on the term hit and the 44 rows.
+
+Issue comments on mephistopheles4/the-pact#162:
+
+- `6081438447` — the install trials: the how-to's steps as written on Linux, the Windows dry run, and the existing-home and permissions runs.
+- `6081440477` — the recorded visibility-wording grep, with each hit classified.
+- `6081430541`, `6081430977`, `6081431330`, `6081431645` — move 4: `unstated-lens`, the security pair (round 1, refused by the cross script, and round 2), and the standards pair, round 1.
+- `6083347389`, `6083347873` — move 4: the QA pair, and the standards pair, round 2 (advisory; the owner skipped the pair for this ticket).
+- `6083360077` — the lens dispositions.
