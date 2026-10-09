@@ -4,7 +4,10 @@
 # an export of tracked files only, made with
 #   git archive HEAD claude/agents familiars/scout.md cross/cross.mjs | tar -x -C <scratch>/repo
 # Never mount the working clone or your home folder: the setup runs fetched
-# code as root, with the network on. Nothing is written to the mount.
+# code as root, with the network on. Start the container with that one mount,
+# read-only (-v <scratch>:/s:ro), and nothing else: no Docker socket, no
+# --privileged, no --network host, and no host environment variables or
+# credentials passed in. Nothing is written to the mount.
 set -u
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq >/dev/null && apt-get install -y -qq jq git ca-certificates >/dev/null 2>&1
