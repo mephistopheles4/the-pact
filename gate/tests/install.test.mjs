@@ -627,6 +627,17 @@ test('bad case: a commit with no renderer refuses', t => {
   assert.match(r.stdout, /^REFUSED: the renderer \(gate\/render\.mjs\) is missing\./m, r.out);
 });
 
+// Fail closed (#155): the wrapper can't load its core, node exits non-zero with
+// no RESULT line, and the install refuses on the exit code, which it checks
+// before the last line.
+test("bad case: a commit with seam A's core deleted refuses on the check's exit code", t => {
+  const repo = makeRepo(t, root => rmSync(join(root, 'gate', 'seam-a-core.mjs')));
+  const r = install(repo, home(t));
+  refused(r);
+  assert.match(r.stdout, /^REFUSED: the check exited with code [1-9][0-9]*\./m, r.out);
+  assert.doesNotMatch(r.stdout, /^seam-a\| RESULT: pass/m, r.out);
+});
+
 test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
   const repo = makeRepo(t, root =>
     plantRenderer(root, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('however small:', 'when large:'));"),
