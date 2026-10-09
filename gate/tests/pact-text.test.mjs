@@ -35,7 +35,7 @@ const WEAKEN = {
   'no-skill-overrides': [', the security route in move 3, or', ', or'],
   'security-route': ['however small', 'when it is large'],
   'never-substitute': ['stop and report', 'carry on'],
-  'move-4': ['; `unstated-lens` at\n   the standard and thorough tiers;', ','],
+  'move-4': ['; `unstated-lens`,\n   and the standards pair, `conventions-lens` and `reader-lens`, on the\n   diff, at the standard and thorough tiers;', ','],
   'stop-and-escalate': ['Tell me, and wait, when:', 'Tell me when:'],
   'install-go-ahead': ['only after they say so in chat', 'when ready'],
 };
@@ -125,10 +125,12 @@ test('the pact before #33 fails routing for exactly the lenses, scout and Explor
     'claude/agents/Explore.md',
     'claude/agents/adversarial-lens.md',
     'claude/agents/behaviour-lens.md',
+    'claude/agents/conventions-lens.md',
     'claude/agents/data-lens.md',
     'claude/agents/executability-lens.md',
     'claude/agents/good-enough-lens.md',
     'claude/agents/integrity-lens.md',
+    'claude/agents/reader-lens.md',
     'claude/agents/unstated-lens.md',
     'familiars/scout.md',
   ]);

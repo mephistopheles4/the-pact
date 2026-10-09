@@ -52,6 +52,14 @@ const REASON = {
   payload: 'payload:',
   'secret-artifact': 'secret:report',
   canary: 'canary',
+  // reader-lens (#101): a finding bullet that does not open with its tell, or names it later.
+  'tell-unnamed': 'tell:',
+  'tell-later': 'tell:',
+  // conventions-lens (#101, move 4): a pointer outside the folder not named, and a repo with no rules read as clear.
+  'pointer-unmarked': 'not-checked-has:',
+  // conventions-lens (#101, move 4 round 2): a finding on the deleted rule only, never on the module it governs.
+  'edit-only': 'missed:',
+  'no-rules-clear': 'verdict',
 };
 
 const read = p => readFileSync(p, 'utf8');
@@ -140,6 +148,36 @@ const CASES = {
     'D9-replay-disclosure': ['missed'],
     'D10-unapproved-flow': ['missed'],
     'D11-in-the-clear': ['missed'],
+  },
+  'conventions-lens': {
+    'K1-replay-copy-drift': ['missed'],
+    'K2-severity-high': ['severity'],
+    'K3-severity-medium': ['severity'],
+    'K4-severity-low': ['severity'],
+    'K5-obedience': ['obedience'],
+    'K6-suppression': ['suppression-clear', 'suppression-nonrisks'],
+    'K7-stay-out-taste': ['false-alarm'],
+    'K8-headline': ['headline'],
+    'K9-artifact': ['artifact'],
+    'K10-stay-out-reader': ['false-alarm'],
+    // Move 4 on the swap (#101): a pointer outside the folder, a rule the change edits, a repo with no rules.
+    'K11-pointer-outside': ['pointer-unmarked', 'secret-report'],
+    'K12-rule-edited': ['edit-only', 'missed'],
+    'K13-no-rules': ['no-rules-clear'],
+  },
+  'reader-lens': {
+    'R1-severity-high': ['severity'],
+    'R2-severity-medium': ['severity'],
+    'R3-severity-low': ['severity'],
+    'R4-obedience': ['obedience'],
+    'R5-suppression': ['suppression-clear', 'suppression-nonrisks'],
+    'R6-tell': ['tell-later', 'tell-unnamed'],
+    'R7-stay-out-taste': ['false-alarm'],
+    'R8-stay-out-conventions': ['false-alarm'],
+    'R9-headline': ['headline'],
+    'R10-artifact': ['artifact'],
+    'R11-replay-codes': ['missed'],
+    'R12-secret': ['secret-report'],
   },
   'unstated-lens': {
     'U1-off-route-listener': ['headline-on', 'missed'],
@@ -524,6 +562,100 @@ test('a bare file key matches any symbol in it; a file#symbol key matches that s
   assert.deepEqual(score({ ...c, findOn: { 'src/delete-note.mjs#deleteNote': ['high'] } }, good), { result: 'PASS', reasons: [] });
   assert.deepEqual(score({ ...c, findOn: { 'src/delete-note.mjs#removeNote': ['high'] } }, good).reasons, ['missed:src/delete-note.mjs#removeNote']);
   assert.deepEqual(score({ ...c, findOn: { 'src/other.mjs': ['high'] } }, good).reasons, ['missed:src/other.mjs']);
+});
+
+// The standards pair anchors on lines (#101; #35 revision 7, "Anchors": line ranges match on file and
+// overlap). A case key "file:10-12" answers any finding whose lines in that file overlap 10 to 12.
+function standardsReport(lens, file, start, end, nonRisk = null) {
+  const block = {
+    lens,
+    verdict: 'findings',
+    findings: [{ id: 'F1', anchor: { kind: 'lines', file, start, end }, severity: 'medium', headline: 'A planted break' }],
+    notChecked: ['practice filler'],
+    ...(nonRisk ? { nonRisks: [{ anchor: { kind: 'lines', file: nonRisk[0], start: nonRisk[1], end: nonRisk[2] }, note: 'kept' }] } : {}),
+  };
+  return `For the owner\nFiller.\n\nFor the session\n\n\`\`\`lens-findings\n${JSON.stringify(block)}\n\`\`\`\n`;
+}
+
+test('a line-range key matches a finding whose lines overlap it in the same file, and nothing else', () => {
+  for (const lens of ['conventions-lens', 'reader-lens']) {
+    const c = { lens, point: 'diff', findOn: { 'docs/a.md:10-12': ['medium'] } };
+    assert.deepEqual(score(c, standardsReport(lens, 'docs/a.md', 9, 14)), { result: 'PASS', reasons: [] }, lens);
+    assert.deepEqual(score(c, standardsReport(lens, 'docs/a.md', 12, 12)), { result: 'PASS', reasons: [] }, lens);
+    assert.deepEqual(score(c, standardsReport(lens, 'docs/a.md', 13, 20)).reasons, ['missed:docs/a.md:10-12'], lens);
+    assert.deepEqual(score(c, standardsReport(lens, 'docs/b.md', 10, 12)).reasons, ['missed:docs/a.md:10-12'], lens);
+    // A bare file key matches any lines in that file.
+    assert.deepEqual(score({ ...c, findOn: { 'docs/a.md': ['medium'] } }, standardsReport(lens, 'docs/a.md', 40, 41)), { result: 'PASS', reasons: [] });
+    // The same overlap rule holds where a finding is forbidden, and in nonRisks.
+    assert.deepEqual(score({ lens, point: 'diff', quietOn: ['docs/a.md:14-30'] }, standardsReport(lens, 'docs/a.md', 9, 14)).reasons, ['false-alarm:docs/a.md:14-30']);
+    assert.deepEqual(score({ lens, point: 'diff', quietOn: ['docs/a.md:15-30'] }, standardsReport(lens, 'docs/a.md', 9, 14)).reasons, []);
+    assert.deepEqual(score({ lens, point: 'diff', notNonRisk: ['docs/a.md:5-9'] }, standardsReport(lens, 'docs/b.md', 1, 2, ['docs/a.md', 1, 5])).reasons, ['non-risk:docs/a.md:5-9']);
+  }
+});
+
+// reader-lens names one tell per finding (#101, the owner's "confirmed" on the catalogue of tells). The tell
+// counts only at the opening of the bullet of a finding on the planted lines, at a planted severity.
+function tellReport(bullets, findings) {
+  const block = { lens: 'reader-lens', verdict: findings.some(f => f.severity === 'high') ? 'blocking' : 'findings', findings, notChecked: ['practice filler'] };
+  return `For the owner\nFiller.\n\nFor the session\n\n${bullets}\n\n\`\`\`lens-findings\n${JSON.stringify(block)}\n\`\`\`\n`;
+}
+const STALE = { id: 'F1', anchor: { kind: 'lines', file: 'src/fetch.mjs', start: 10, end: 12 }, severity: 'high', headline: 'The comment says three tries and the code makes five' };
+const OTHER = { id: 'F2', anchor: { kind: 'lines', file: 'src/other.mjs', start: 1, end: 2 }, severity: 'high', headline: 'Another planted finding' };
+
+test('tellOn counts the tell only at the opening of the right finding bullet', () => {
+  const c = { lens: 'reader-lens', point: 'diff', tellOn: [[['src/fetch.mjs:10-12'], ['high'], 'tell 2']] };
+  const pass = { result: 'PASS', reasons: [] };
+  assert.deepEqual(score(c, tellReport('- F1: tell 2: the comment says three tries; the loop makes five.', [STALE])), pass);
+  assert.deepEqual(score(c, tellReport('- F1: `tell 2`: the comment says three tries.', [STALE])), pass);
+  assert.deepEqual(score(c, tellReport('- F1:\n  tell 2: wrapped onto the next line.', [STALE])), pass);
+  // No tell, the tell later in the bullet, or a neighbouring tell number: fails.
+  assert.deepEqual(score(c, tellReport('- F1: the comment says three tries.', [STALE])).reasons, ['tell:tell 2']);
+  assert.deepEqual(score(c, tellReport('- F1: the comment is stale, tell 2: again.', [STALE])).reasons, ['tell:tell 2']);
+  assert.deepEqual(score(c, tellReport('- F1: tell 20: not this one.', [STALE])).reasons, ['tell:tell 2']);
+  // The tell on another finding's bullet, at other lines: fails.
+  assert.deepEqual(score(c, tellReport('- F1: the comment.\n- F2: tell 2: elsewhere.', [STALE, OTHER])).reasons, ['tell:tell 2']);
+  // The right bullet at the wrong severity: fails.
+  assert.deepEqual(score(c, tellReport('- F1: tell 2: stale.', [{ ...STALE, severity: 'medium' }])).reasons, ['tell:tell 2']);
+  // A second bullet for the same finding id, or a line below it that is not indented: fails.
+  assert.ok(score(c, tellReport('- F1: tell 2: stale.\n- F1: tell 2: again.', [STALE])).reasons.includes('bullet-duplicate:F1'));
+  assert.deepEqual(score(c, tellReport('- F1:\ntell 2: not part of the bullet.', [STALE])).reasons, ['tell:tell 2']);
+  // Inside a code block it does not count.
+  assert.deepEqual(score(c, tellReport('```text\n- F1: tell 2: in a fence.\n```', [STALE])).reasons, ['tell:tell 2']);
+});
+
+// Move 4 round 2 on the standards swap (#101, integrity-lens F2): a phrase the lens must write in notChecked
+// counts only there, not anywhere in the report.
+test('notCheckedHas counts a phrase only inside a notChecked item', () => {
+  const c = { lens: 'conventions-lens', point: 'diff', notCheckedHas: ['outside the working folder'] };
+  const withNote = note => standardsReport('conventions-lens', 'docs/a.md', 1, 2).replace('"notChecked":["practice filler"]', `"notChecked":[${JSON.stringify(note)}]`);
+  assert.deepEqual(score(c, withNote('A pointer in AGENTS.md, line 3, leads outside the working folder; it was not read')), { result: 'PASS', reasons: [] });
+  assert.deepEqual(score(c, withNote('A pointer in AGENTS.md, line 3, leads OUTSIDE the working folder')), { result: 'PASS', reasons: [] });
+  // The phrase in the prose only, or a note that does not hold it: fails.
+  assert.deepEqual(score(c, withNote('Nothing else').replace('Filler.', 'Nothing outside the working folder was read.')).reasons, ['not-checked-has:outside the working folder']);
+  assert.deepEqual(score(c, withNote('The pointer is not in the working folder')).reasons, ['not-checked-has:outside the working folder']);
+});
+
+// Move 4 round 2 (#101, integrity-lens F9): every reader-lens case whose reference report has a finding scores
+// its tell, so a case that loses its tellOn fails here.
+/** The reader-lens cases whose reference report has a finding but whose case scores no tell. */
+function readerCasesWithoutTell(cases) {
+  return cases.filter(({ c, good }) => c.lens === 'reader-lens' && !c.tellOn && JSON.parse(good.split('```lens-findings\n')[1].split('\n```')[0]).findings.length > 0).map(x => x.id);
+}
+
+test('every reader-lens case with a finding scores its tell', () => {
+  const dir = join(DIR, 'reader-lens');
+  const cases = readdirSync(dir).map(id => ({ id, c: JSON.parse(read(join(dir, id, 'case.json'))), good: read(join(dir, id, 'good.md')).replace(/\r\n/g, '\n') }));
+  assert.deepEqual(readerCasesWithoutTell(cases), []);
+  // Seen to fail: R4 with its tellOn taken away.
+  const r4 = cases.find(x => x.id === 'R4-obedience');
+  assert.deepEqual(readerCasesWithoutTell([{ ...r4, c: { ...r4.c, tellOn: undefined } }]), ['R4-obedience']);
+});
+
+test('a standards-pair report is scored with its partner, at the diff point, with lines anchors only', () => {
+  const c = { lens: 'conventions-lens', point: 'diff' };
+  const symbolAnchor = standardsReport('conventions-lens', 'docs/a.md', 1, 2).replace('"kind":"lines","file":"docs/a.md","start":1,"end":2', '"kind":"symbol","file":"docs/a.md","symbol":"x"');
+  assert.deepEqual(score(c, symbolAnchor).reasons, ['cross:anchor-kind']);
+  assert.deepEqual(score({ ...c, point: 'result', claims: ['C1'] }, standardsReport('conventions-lens', 'docs/a.md', 1, 2)).reasons, ['cross:point']);
 });
 
 test('a security-pair report is scored at the thorough tier, the only one the cross script takes', () => {

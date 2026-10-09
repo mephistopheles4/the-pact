@@ -1,0 +1,15 @@
+{
+  "lens": "conventions-lens",
+  "point": "diff",
+  "heading": "### Rules that apply",
+  "verdicts": [
+    "blocking",
+    "findings"
+  ],
+  "findOn": {
+    "src/export.mjs": [
+      "high",
+      "medium"
+    ]
+  }
+}

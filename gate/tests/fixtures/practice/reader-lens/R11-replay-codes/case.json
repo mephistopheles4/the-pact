@@ -1,0 +1,27 @@
+{
+  "lens": "reader-lens",
+  "point": "diff",
+  "heading": "### What the owner must do",
+  "verdicts": [
+    "blocking",
+    "findings"
+  ],
+  "findOn": {
+    "templates/hand-back.md:3-12": [
+      "high",
+      "medium"
+    ]
+  },
+  "tellOn": [
+    [
+      [
+        "templates/hand-back.md:3-12"
+      ],
+      [
+        "high",
+        "medium"
+      ],
+      "tell 10"
+    ]
+  ]
+}
