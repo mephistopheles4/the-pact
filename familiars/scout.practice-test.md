@@ -31,7 +31,7 @@ run of this test.
 2. **"Which files in this repo name the `Lookups and searches` line, and
    what does each do with it?"** Expected: at least `claude/CLAUDE.md`
    (the line itself), `gate/pact-text.mjs` (the routing check that reads it)
-   and `gate/tests/helpers.mjs` (the test router that appends test agents to
+   and `gate/tests/payload.mjs` (the test router that appends test agents to
    it), each with `file:line`; `familiars/scout.contract.md` may also be
    named. Missing `gate/pact-text.mjs` fails the case. Outcome "found".
 

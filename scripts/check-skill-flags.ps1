@@ -17,7 +17,7 @@ $ErrorActionPreference = 'Stop'
 # gate. A skill written both ways is checked in both forms. Until the pact's
 # new text is installed, the default file (the installed one) holds the old
 # text and will warn; pass -RulesFile with a rendered copy of the repo's file.
-# $openParts below must equal OPEN_MARKS in gate/tests/helpers.mjs (a test
+# $openParts below must equal OPEN_MARKS in gate/tests/text.mjs (a test
 # checks it). Prints a WARN: line per mismatch, then a summary line when there is
 # none. Exits 0 either way.
 
