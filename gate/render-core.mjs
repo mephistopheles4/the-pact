@@ -153,7 +153,7 @@ const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra']);
 // The gated clauses (gate/clauses/), which no edit may target with any
 // operation. install-go-ahead lives in AGENTS.md, which is never installed,
 // and is refused like the others.
-const GATED = Object.freeze(['risk-floor', 'no-skill-overrides', 'security-route', 'never-substitute', 'move-4', 'stop-and-escalate', 'install-go-ahead']);
+const GATED = Object.freeze(['risk-floor', 'no-skill-overrides', 'security-route', 'never-substitute', 'move-4', 'stop-and-escalate', 'tracker-authors', 'install-go-ahead']);
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);
 const EDIT_KEYS = Object.freeze(['mark', 'op', 'file']);
 const EDITS_MAX = 16;

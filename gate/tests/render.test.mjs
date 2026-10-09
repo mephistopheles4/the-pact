@@ -160,7 +160,7 @@ test('an empty source renders to an empty file', t => {
 });
 
 test('no open-mark name is a gated clause name', () => {
-  assert.equal(GATED.length, 7, GATED.join(', '));
+  assert.equal(GATED.length, 8, GATED.join(', '));
   for (const n of OPEN_MARKS) assert.ok(!GATED.includes(n), n);
 });
 

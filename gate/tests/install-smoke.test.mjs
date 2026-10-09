@@ -43,6 +43,7 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
     'gate/clauses/risk-floor.md',
     'gate/clauses/security-route.md',
     'gate/clauses/stop-and-escalate.md',
+    'gate/clauses/tracker-authors.md',
     'gate/contained.mjs',
     'gate/grimoire/check.mjs',
     'gate/grimoire/check.mjs.pin',
