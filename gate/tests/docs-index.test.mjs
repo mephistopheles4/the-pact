@@ -29,6 +29,16 @@ test('every ADR number is used once', () => {
   assert.deepEqual(nums.filter((n, i) => nums.indexOf(n) !== i), []);
 });
 
+// The threat model is what a reader weighs before installing (#190), so the
+// README and the install how-to both point at it.
+test('the README and the install how-to link to the threat model, and it exists', () => {
+  assert.ok(existsSync(join(root, 'docs', 'threat-model.md')), 'docs/threat-model.md is missing');
+  for (const [file, target] of [['README.md', 'docs/threat-model.md'], [join('docs', 'install.md'), 'threat-model.md']]) {
+    const links = [...readFileSync(join(root, file), 'utf8').matchAll(/\]\(([^)#\s]+)(?:#[^)\s]*)?\)/g)].map((m) => m[1]);
+    assert.ok(links.includes(target), `${file} has no link to ${target}`);
+  }
+});
+
 test('every relative link to an ADR or a log entry, inside the ADRs and log entries, points at a real file', () => {
   const broken = [];
   for (const folder of ['docs/adr', 'docs/log']) {

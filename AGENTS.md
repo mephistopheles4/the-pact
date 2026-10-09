@@ -288,6 +288,9 @@ how every session in every repo behaves. So:
   [`docs/log/README.md`](docs/log/README.md), one line per file. Add a line
   there with every new ADR or log entry; `gate/tests/docs-index.test.mjs`
   fails when one is missing.
+- **Keep the threat model in step.** A change that alters a defence
+  [`docs/threat-model.md`](docs/threat-model.md) names, or closes an issue it
+  lists, updates that page in the same PR.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](docs/agents/domain.md).
 
