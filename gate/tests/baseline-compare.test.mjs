@@ -373,10 +373,26 @@ test('the render-edits file registers every row its moves name', () => {
   for (const l of REAL.moves.toString('utf8').split('\n')) {
     if (!l || l.startsWith('#')) continue;
     const [of, , nf, nn] = l.split('\t');
-    if (of !== nf) continue;
+    if (of !== nf || nf !== 'gate/tests/render-edits.test.mjs') continue;
     const cut = nn.lastIndexOf(': ');
     assert.ok(rows.get(nn.slice(0, cut))?.has(nn.slice(cut + 2)), nn);
   }
+});
+
+// #170 moved pact-text's cases into a table too: every same-file move, in
+// any file, names a row that file registers.
+test('every test file registers every row its moves name', () => {
+  let checked = 0;
+  for (const l of REAL.moves.toString('utf8').split('\n')) {
+    if (!l || l.startsWith('#')) continue;
+    const [of, , nf, nn] = l.split('\t');
+    if (of !== nf) continue;
+    const rows = registeredRows(readFileSync(join(REPO, ...nf.split('/')), 'utf8'));
+    const cut = nn.lastIndexOf(': ');
+    assert.ok(rows.get(nn.slice(0, cut))?.has(nn.slice(cut + 2)), `${nf}: ${nn}`);
+    checked += 1;
+  }
+  assert.ok(checked > 0, 'no same-file move was checked');
 });
 
 test("each of T5's map lines pairs an old render-edits case with the row whose why is its old label", () => {
