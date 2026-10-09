@@ -55,6 +55,7 @@ Issue comments on mephistopheles4/the-pact#181:
 - `6085813574`, `6085813865`, `6085814261` — move 4: the QA pair, `unstated-lens` and the standards pair.
 - `6085814725`, `6085902827` — move 4: the security pair, round 1 (refused by the cross script) and round 2.
 - `6086316497` — the lens dispositions, the timings and the full-suite record.
+- `6086457940`, `6086458242` — move 4: the security pair, round 3, on the fix commits, and its dispositions.
 
 Issue comment on mephistopheles4/the-pact#10:
 
