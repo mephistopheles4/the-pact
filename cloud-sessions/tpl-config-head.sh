@@ -2,6 +2,7 @@ echo "== Config"
 CLAUDE_HOME="$HOME/.claude"
 CONFIG_WRITTEN=0
 mkdir -p "$CLAUDE_HOME/agents" || echo "WARN: cannot create $CLAUDE_HOME/agents"
+mkdir -p "$CLAUDE_HOME/pact" || echo "WARN: cannot create $CLAUDE_HOME/pact"
 
 # write_config <path under ~/.claude>, body on stdin. Script-owned: overwrites.
 write_config() {
