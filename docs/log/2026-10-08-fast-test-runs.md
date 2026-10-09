@@ -75,6 +75,7 @@ Spec revision 10 on #140 redesigned the test architecture: cores, tables, one la
   - **Left as known limits:** a moved case is matched by name, not body, and the record holds no commit (ADR 0031).
 - **The Linux-listed cases by name.** Until #149, a Linux run checks them by name in its record: all 10 passed at f713f00 and at efeab58.
 - **The container's user is named `runner`.** At efeab58 one new compare test failed in the Linux image: the compare's own message "...the runner's full-tier pass" was withheld there, because the leak check treats the user's name as a word to hide. The compare still failed closed. Its fixed messages now avoid the word, and the test runs with `runner` among the names.
+- **The final runs (T5),** quiet, at 749571f and b3abee6: the full suite passed in 386.3 s beside 381.8 s, with the compare passing (1,598 unchanged, 53 moved, 150 new, none gone); `fast` passed in 52.2 s beside 50.1 s.
 - **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
 
 ## What was measured
@@ -156,3 +157,5 @@ Issue comments on mephistopheles4/the-pact#154:
 - `6071389567`, `6071389828`, `6071461843`, `6071462024` — move 4's lens reports, through the cross script: the security pair, `unstated-lens`, the QA pair's refused first input, and the QA pair.
 - `6071502100` — move 4's Lens dispositions, and the owner's pick.
 - `6071742506` — the final full suite against the baseline, and the Linux run.
+- `6071768886` — the owner's answers on the pre-filled dispositions and on #149 before T9.
+- `6071784657` — `fast` re-timed.
