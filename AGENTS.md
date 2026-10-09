@@ -187,6 +187,7 @@ how every session in every repo behaves. So:
 - **Each test file holds one layer:** install cases, or cases that never
   install. The install harness fails a test in an install-tier file that
   neither runs the install script nor calls `t.skip()`, naming it (ADR 0033).
+  A subtest's installs count toward the test it runs in.
   A test that runs the script without `install()` goes through the harness's
   `spawnInstall`, so it counts. A test that only reads the script's text
   belongs in a file that never installs, and reads it with
