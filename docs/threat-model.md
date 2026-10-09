@@ -6,7 +6,7 @@ change it. It describes the pact as published on 2026-10-09. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R18, so other work can point at it.
+Each accepted risk has a label, R1 to R19, so other work can point at it.
 
 ## Who and what this covers
 
@@ -73,7 +73,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R18
+  title Residual risk, R1 to R19
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -98,6 +98,7 @@ quadrantChart
   R16 Unattended session: [0.10, 0.76]
   R17 Gate path only: [0.20, 0.44]
   R18 Totals to this repo: [0.56, 0.20]
+  R19 Fix work public: [0.20, 0.74]
 ```
 
 How to read it:
@@ -107,8 +108,9 @@ How to read it:
   it most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
   tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
-  you install (R8, R9, R10), and prompt injection (R12 to R16) sit here. Their
-  guards are mostly rules, so cutting one moves its risk right.
+  you install (R8, R9, R10), prompt injection (R12 to R16), and a reported
+  hole made public by its own fix work (R19) sit here. Their guards are
+  mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7, R18.** They happen by design, and the harm
   is bounded: public reports, a blocked team, totals on another tracker.
 - **Accept (bottom left): R17.** It needs your own edits, and the dry run
@@ -134,6 +136,7 @@ How to read it:
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, the dry run | Boundary |
 | R18 Totals to this repo | None; a flow by default | "Totals only" names no repo | Rule |
+| R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
 
 ## Strangers on the tracker
 
@@ -326,8 +329,8 @@ safe, and a change made months ago is easy to forget.
 
 Each tweak below is yours to make. The cost is what you give up.
 
-- **Keep your tracker private.** Removes R3 and most of the stranger risk. You
-  lose public plans and reviews.
+- **Keep your tracker private.** Removes R3, R19 and most of the stranger
+  risk. You lose public plans and reviews.
 - **Turn auto mode off** after each install, by setting
   `permissions.defaultMode` in `settings.json` back to the mode you use. This
   is the strongest single guard against R11. You get more prompts. Every later
@@ -366,6 +369,7 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 - **#180:** no setting yet for trusted accounts on a team repo (R7).
 - **#182:** the cloud setup fetches unpinned code (R10).
 - **#184:** no rule for sessions no person started (R16).
+- **#199:** no rule for fixing a reported hole out of public view (R19).
 - **#107:** the ask rule before an install did not fire once, in a background
   auto-mode session. The cause is unknown.
 - **#110:** in a narrow case, the dry run can miss a tampered permission rule.
@@ -373,6 +377,20 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 
 ## Reporting a security hole
 
-Report a hole in the pact privately, through the "Report a vulnerability"
-button on this repo's Security tab. Don't open a public issue for it: on this
-tracker, issues and their reviews are public.
+Report a hole in the pact privately, never in a public issue: on this
+tracker, issues and their reviews are public. [`SECURITY.md`](../SECURITY.md)
+says how to report, what counts as a hole, which version is supported, and
+what to expect.
+
+A private report is a stranger's text, like a comment on the tracker: a
+session reads it as data. Code in the advisory's temporary private fork is
+outsiders' code, and never runs.
+
+**What is accepted.**
+
+- **R19. Fix work for a reported hole is public.** The report itself stays
+  private. But a hole is security work, which always takes the thorough tier,
+  and that tier posts its spec and its security reviews on the public tracker
+  before the fix ships. So a hole's details can become public while installed
+  copies are still open to it. `SECURITY.md` tells reporters so. A rule for
+  fixing a reported hole out of public view is #199.
