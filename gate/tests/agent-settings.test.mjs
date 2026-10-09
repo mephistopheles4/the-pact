@@ -206,7 +206,7 @@ function classify(t, name, opts = {}) {
   return { words: m.slice(1).join(' '), r };
 }
 
-test('every pact lens can be set, and the security-set ones are exactly the six the spec names; the standards pair is plain (#101); only the shell and web lenses are egress', t => {
+test('every pact lens can be set, and the security-set ones are exactly the six the spec names; only the shell and web lenses are egress', t => {
   assert.deepEqual(PACT_AGENTS, ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
   const got = Object.fromEntries(PACT_AGENTS.map(a => [a, classify(t, a).words]));
   assert.deepEqual(got, {

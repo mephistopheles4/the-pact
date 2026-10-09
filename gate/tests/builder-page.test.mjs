@@ -724,7 +724,7 @@ test('every pact lens takes a model and effort, scout is locked as sealed, and o
   assert.deepEqual(L.PACT.agentChoices, { models: ['opus', 'sonnet'], efforts: ['low', 'medium', 'high'] });
 });
 
-test('the page takes each lens\'s class from the renderer: six security-set, two of them egress; integrity-lens and the standards pair plain', () => {
+test('the page takes each lens\'s class from the renderer: six security-set, two of them egress, integrity-lens plain', () => {
   const cls = Object.fromEntries(L.PACT.agents.filter(a => a.configurable).map(a => [a.name, `${a.security ? 'security-set' : 'plain'} ${a.egress ? 'egress' : 'local'}`]));
   assert.deepEqual(cls, {
     'adversarial-lens': 'security-set egress',
