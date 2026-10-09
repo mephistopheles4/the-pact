@@ -6,7 +6,6 @@ import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:
 import { delimiter, dirname, join } from 'node:path';
 import { afterEach, beforeEach } from 'node:test';
 import { COPY_DIRS, COPY_FILES, COPY_SKIP } from './copy-list.mjs';
-import { routeTree } from './payload.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -56,7 +55,13 @@ export function commitAll(root, msg = 'test') {
   git(root, 'commit', '-q', '--allow-empty', '-m', msg);
 }
 
-/** A git repo holding the files the install reads, committed; `mutate` runs before the commit. */
+/**
+ * A git repo holding the files the install reads, committed; `mutate` runs
+ * before the commit. The repo is not routed (#151): a `mutate` that adds a
+ * test agent routes it itself, so the harness never reads the pact's agent
+ * list, and an agent-file change doesn't pick every install test. install()
+ * catches a route left out (below).
+ */
 export function makeRepo(t, mutate) {
   const root = tempDir(t, 'pact-repo-');
   // The install drops gate/tests before any check, so the copy leaves it out.
@@ -71,7 +76,6 @@ export function makeRepo(t, mutate) {
   }
   writeFileSync(join(root, '.gitignore'), 'settings.json\n');
   if (mutate) mutate(root);
-  routeTree(root);
   git(root, 'init', '-q', '-b', 'main');
   git(root, 'config', 'user.email', 'test@example.invalid');
   git(root, 'config', 'user.name', 'gate test');
@@ -107,12 +111,29 @@ export function spawnInstall(args, options) {
   return spawnSync(programs().pwsh, args, options);
 }
 
-export function install(repo, home, { apply = false, path = [NODE_DIR, ...basePath()], env = {}, extra = [] } = {}) {
+/** The files seam A refused for routing, as the install prints them. */
+function routingFails(stdout) {
+  return [...(stdout ?? '').matchAll(/^seam-a\| FAIL routing: ([^:\r\n]+):/gm)].map(m => m[1]);
+}
+
+/**
+ * Runs the install script on `repo` with `home` as its Claude home folder.
+ * A run that seam A refuses for routing fails the test, unless the call
+ * expects it: `unrouted` lists the files the test means to leave unrouted, or
+ * is true for any. makeRepo doesn't route, so a test agent left unrouted would
+ * make a test that only asserts a refusal pass for the wrong reason.
+ */
+export function install(repo, home, { apply = false, path = [NODE_DIR, ...basePath()], env = {}, extra = [], unrouted = [] } = {}) {
   const args = ['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-ClaudeHome', home];
   if (apply) args.push('-Apply');
   args.push(...extra);
   const r = spawnInstall(args, { cwd: repo, encoding: 'utf8', env: envWith(path, env), timeout: 180_000 });
-  return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
+  const out = { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
+  if (unrouted !== true) {
+    const stray = routingFails(out.stdout).filter(f => !unrouted.includes(f));
+    assert.deepEqual(stray, [], `seam A refused an agent the test did not mean to leave unrouted; route it in the test's makeRepo mutate (routeTree), or name it in unrouted:\n${out.out}`);
+  }
+  return out;
 }
 
 export function refused(r) {

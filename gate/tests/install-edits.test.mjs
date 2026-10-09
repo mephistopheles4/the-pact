@@ -174,7 +174,7 @@ test('bad case: a move-2 replace that drops its routed agents renders, then seam
   assert.ok(move2Agents(repo).length > 0);
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea, then write the spec.\n' });
-  const r = install(repo, h);
+  const r = install(repo, h, { unrouted: true });
   refused(r);
   assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
   assert.match(r.stdout, /^seam-a\| FAIL routing: /m, r.out);

@@ -9,6 +9,7 @@ import { before, test } from 'node:test';
 import { WIN, basePath, commitAll, git, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { sealedFamiliar } from './gate-run.mjs';
+import { routeTree } from './payload.mjs';
 import { READ_ONLY, agent, plainAgent, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -94,7 +95,10 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
 });
 
 test('a sealed familiar installs to agents/<stem>.md; its contract never installs', t => {
-  const repo = makeRepo(t, root => sealedFamiliar(root, 'probe-agent'));
+  const repo = makeRepo(t, root => {
+    sealedFamiliar(root, 'probe-agent');
+    routeTree(root);
+  });
   const h = home(t);
   const r = install(repo, h, { apply: true });
   assert.equal(r.code, 0, r.out);
@@ -344,13 +348,15 @@ test('bad case: seam A output cannot carry control codes or hide the gate block'
 
 test('canary: the install never echoes agent file content', t => {
   const C = 'CANARYzq';
-  const repo = makeRepo(t, root =>
+  const repo = makeRepo(t, root => {
     writeTree(root, {
       'claude/agents/c1.md': plainAgent('c1', [`model: ${C}: x`, `${C}key: y`]),
       'claude/agents/c2.md': agent([`name: ${C}`, 'description: x', READ_ONLY]),
-    }),
-  );
-  const r = install(repo, home(t));
+    });
+    routeTree(root);
+  });
+  // c2's name differs from its stem, so seam A refuses it for routing as well.
+  const r = install(repo, home(t), { unrouted: ['claude/agents/c2.md'] });
   refused(r);
   assert.ok(!r.out.includes(C), r.out);
 });
@@ -410,10 +416,10 @@ test('an edited canonical text, with its clause, shows in the dry run as a gate 
 
 test('bad case: an unrouted agent at HEAD refuses, naming its file', t => {
   const repo = makeRepo(t);
-  // Planted after makeRepo, so the fixture router never sees it.
+  // Planted after makeRepo and never routed, so seam A refuses it.
   writeTree(repo, { 'claude/agents/probe.md': plainAgent('probe') });
   commitAll(repo);
-  const r = install(repo, home(t));
+  const r = install(repo, home(t), { unrouted: ['claude/agents/probe.md'] });
   refused(r);
   assert.match(r.stdout, /^seam-a\| FAIL routing: claude\/agents\/probe\.md: /m, r.out);
 });
