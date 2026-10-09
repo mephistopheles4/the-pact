@@ -109,6 +109,8 @@ T9 is the one ticket in #140 that changes gate code, so it took the security rou
   - **check(), called directly.** A test imports each core into the test process and checks the shape T10 will rely on: `lines` with the RESULT line last, `failed` to match, and the same answer on a second call. A core returning `failed: false` fails it.
   - **The smoke test's gate list is written out again,** now with the four cores, so a stray gate file fails it, as a planted one did. The step-0 version read the list from the folder, which a stray file would have grown with it.
   - **Recorded, not changed:** the existing child-run cases for each module's pass, fail, usage and crash cells are named on #155, and the stale install script comments are noted on #153.
+- **The pick.** The owner picked "none" from the claim list alone. Against the QA pair's five findings, that was a mismatch (rule 1). After the walk-through, relayed by the lead session, the owner answered "confirmed and done". That confirmed both pre-filled answers (the review changed the decision; no crossings) and accepted scout's reseal, on the condition that the final run passed.
+- **The final runs (T9),** quiet, at 47854d7: `full` passed in 446.1 s beside 381.8 s, and the compare passed (1,598 unchanged, 53 moved, 189 new, none gone, no map line added). On Linux, only the four #149 cases failed, and all 10 Linux-listed cases passed.
 
 ## What was measured
 
@@ -192,3 +194,17 @@ Issue comments on mephistopheles4/the-pact#154:
 - `6071768886` — the owner's answers on the pre-filled dispositions and on #149 before T9.
 - `6071784657` — `fast` re-timed.
 - `6071825523` — the owner's done, the walk-through's outcome, and the hand-off to T9.
+
+Issue comments on mephistopheles4/the-pact#140, for T9:
+
+- `6072055445` — step 0's list of the tests that read the four modules, and its seen-to-fail probes.
+
+Issue comments on mephistopheles4/the-pact#155:
+
+- `6072380926` — move 4's full suite, `fast` and the compare, and the Linux run.
+- `6072450803`, `6072451001`, `6072504284` — move 4's lens reports, through the cross script: the security pair, `unstated-lens` and the QA pair.
+- `6072625851` — move 4's Lens dispositions, the owner's pick and its walk-through, the owner's done, the final runs, and the existing child-run cases per module.
+
+Issue comments on mephistopheles4/the-pact#153:
+
+- `6072517335` — the install script comments T9 left for the new installer.
