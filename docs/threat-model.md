@@ -63,6 +63,78 @@ An ask rule is a prompt, not a boundary. It covers Claude Code's own edit
 tools and the spellings it lists. A script or another command can still write
 the same files.
 
+## The risks at a glance
+
+The chart places each accepted risk by what is left after today's guards.
+Likelihood asks how easy the path is and how often it comes up. Impact asks
+what an attacker gets: control of your machine scores highest, a blocked
+workflow lowest. The numbers are judgement, not measurement. They rank the
+risks; they don't score them.
+
+```mermaid
+quadrantChart
+  title Residual risk, R1 to R18
+  x-axis Unlikely --> Likely
+  y-axis Minor --> Severe
+  quadrant-1 Act now
+  quadrant-2 Guard closely
+  quadrant-3 Accept
+  quadrant-4 Watch
+  R1 Tracker rule misread: [0.35, 0.72]
+  R2 Session posts as you: [0.25, 0.68]
+  R3 Reports stay public: [0.80, 0.40]
+  R4 Account taken: [0.08, 0.95]
+  R5 Refusal untested: [0.18, 0.80]
+  R6 Container built wrong: [0.08, 0.66]
+  R7 Teams blocked: [0.62, 0.15]
+  R8 Publisher compromised: [0.12, 0.92]
+  R9 Installed code: [0.16, 0.88]
+  R10 Cloud fetches unpinned: [0.22, 0.80]
+  R11 Auto mode on: [0.56, 0.86]
+  R12 Lens steered: [0.30, 0.58]
+  R13 Lens quotes a secret: [0.24, 0.62]
+  R14 Foothold left behind: [0.20, 0.72]
+  R15 Repo files argue: [0.42, 0.60]
+  R16 Unattended session: [0.10, 0.76]
+  R17 Gate path only: [0.20, 0.44]
+  R18 Totals to this repo: [0.56, 0.20]
+```
+
+How to read it:
+
+- **Act now (top right): R11.** Auto mode is on, and a public repo hands every
+  session text from strangers. Turning auto mode off is the tweak that moves
+  it most.
+- **Guard closely (top left): most of the rest.** Rare, but severe. The
+  tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
+  you install (R8, R9, R10), and prompt injection (R12 to R16) sit here. Their
+  guards are mostly rules, so cutting one moves its risk right.
+- **Watch (bottom right): R3, R7, R18.** They happen by design, and the harm
+  is bounded: public reports, a blocked team, totals on another tracker.
+- **Accept (bottom left): R17.** It needs your own edits, and the dry run
+  shows them.
+
+| Risk | Attacker | What stops it today | Kind |
+| --- | --- | --- | --- |
+| R1 Tracker rule misread | Stranger on the tracker | `tracker-authors` | Rule |
+| R2 Session posts as you | Text a session reads | The decision marks | Rule |
+| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value | Rule |
+| R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
+| R5 Refusal untested | Outside pull request | `tracker-authors` | Rule |
+| R6 Container built wrong | Outside pull request | The five conditions, your typed OK | Rule, then a boundary |
+| R7 Teams blocked | None; a cost to you | None yet (#180) | — |
+| R8 Publisher compromised | This repo's publisher | Dry run, the diff you read | Rule |
+| R9 Installed code | Plugin or skill author | None | — |
+| R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
+| R11 Auto mode on | Text a session reads | Claude Code's own checks, ask rules | Outside the pact, prompt |
+| R12 Lens steered | Text a lens reads | Tool allow-list, the override mark | Boundary, rule |
+| R13 Lens quotes a secret | Text a lens reads | "Never post a secret" | Rule |
+| R14 Foothold left behind | Text a session reads | Ask rules, in part | Prompt |
+| R15 Repo files argue | A cloned repo | `no-skill-overrides` | Rule |
+| R16 Unattended session | Whoever triggers it | None yet (#184) | — |
+| R17 Gate path only | You, or a fooled session | The install gate, the dry run | Boundary |
+| R18 Totals to this repo | None; a flow by default | "Totals only" names no repo | Rule |
+
 ## Strangers on the tracker
 
 **How it could break.** The pact treats the tracker as the record. A session
