@@ -4,7 +4,8 @@
 
 Report a hole in the pact privately, through the "Report a vulnerability"
 button on this repo's [Security tab](https://github.com/mephistopheles4/the-pact/security).
-GitHub keeps the report visible only to you and the repo's maintainers.
+GitHub keeps the report visible only to you, the repo's maintainers, and
+anyone they add to the advisory.
 
 Don't open a public issue, comment or pull request for it: on this tracker,
 issues and their reviews are public. Leave keys, tokens and personal details

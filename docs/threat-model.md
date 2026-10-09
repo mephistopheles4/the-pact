@@ -370,7 +370,6 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 - **#182:** the cloud setup fetches unpinned code (R10).
 - **#184:** no rule for sessions no person started (R16).
 - **#199:** no rule for fixing a reported hole out of public view (R19).
-- **#199:** no rule for fixing a reported hole out of public view (R19).
 - **#107:** the ask rule before an install did not fire once, in a background
   auto-mode session. The cause is unknown.
 - **#110:** in a narrow case, the dry run can miss a tampered permission rule.
