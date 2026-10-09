@@ -1,0 +1,24 @@
+{
+  "lens": "reader-lens",
+  "point": "diff",
+  "heading": "### What the owner must do",
+  "verdicts": [
+    "findings"
+  ],
+  "findOn": {
+    "src/count.mjs:4-8": [
+      "low"
+    ]
+  },
+  "tellOn": [
+    [
+      [
+        "src/count.mjs:4-8"
+      ],
+      [
+        "low"
+      ],
+      "tell 9"
+    ]
+  ]
+}

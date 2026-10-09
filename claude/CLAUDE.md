@@ -263,9 +263,10 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    I verify the work at the end of its build session. You run the checks for
    me and bring me the verdict with a recommendation. Run the tests and any
    gates the repo has; they decide pass or fail. Then run the QA pair,
-   `behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens` at
-   the standard and thorough tiers; and for security work the security
-   pair, `adversarial-lens` and `data-lens`, on the diff. Never resume a
+   `behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens`,
+   and the standards pair, `conventions-lens` and `reader-lens`, on the
+   diff, at the standard and thorough tiers; and for security work the
+   security pair, `adversarial-lens` and `data-lens`, on the diff. Never resume a
    reviewer, a lens or a checker; fresh context is the point of them. They
    advise: post their reports and help me decide (below). I decide whether
    it's done. Close the ticket only after I have.
@@ -274,7 +275,8 @@ live instead; follow it. If it says neither, ask me once, before the spec.
    <!-- pact:end move-4-extra -->
 
 **Reading agents.** The lenses read; they don't build. Give them their
-input as local files: the spec text or the diff, written to a file, and the paths to it. Post
+input as local files: the spec text or the diff, written to a file, and the paths to it,
+and the absolute working folder when a lens reads the repo itself. Post
 each report on the issue, or in the repo's plan file, as a comment, word for
 word: post the agent's hand-back text unedited, from a file. Never retell or
 shorten it: that changes it. Each report has two sections.
@@ -364,6 +366,15 @@ of its own findings. Always pass `--tier thorough`: security work is always
 thorough, and the script refuses a security-pair report at any other tier.
 Where both lenses report one anchor, an attack path reaches sensitive data:
 that crossing shows first.
+
+**The standards pair.** At move 4, at the standard and thorough tiers,
+dispatch `conventions-lens` and `reader-lens` fresh and on their own, never
+showing either one the other's report. Give each the diff, the spec or
+ticket, the issue's request and the absolute working folder. Run the cross
+script as above with `--point diff`, the issue's tier with `--tier`, and no
+`--anchors`: each lens names the file and lines of its own findings. Where
+both lenses report overlapping lines, a break of the repo's written rules
+also loses the reader: that crossing shows first.
 
 **Lookups and searches.** For a lookup or a broad search that needs no judgement,
 use `scout`.
