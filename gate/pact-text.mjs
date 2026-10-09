@@ -43,6 +43,7 @@ const CLAUSES = new Map([
   ['never-substitute', { file: PACT, section: IMPLEMENTING, move: 3 }],
   ['move-4', { file: PACT, section: IMPLEMENTING, move: 4 }],
   ['stop-and-escalate', { file: PACT, section: IMPLEMENTING }],
+  ['tracker-authors', { file: PACT, section: IMPLEMENTING }],
   ['install-go-ahead', { file: RULES, section: 'Changes here reach every project' }],
 ]);
 // Shared blocks: block name -> the installed agent that holds a copy of the

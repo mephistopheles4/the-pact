@@ -346,7 +346,7 @@ for (const clause of GATED) {
 }
 
 test('the gated clauses refused are exactly gate/clauses/, install-go-ahead included', () => {
-  assert.equal(GATED.length, 7, GATED.join(', '));
+  assert.equal(GATED.length, 8, GATED.join(', '));
   assert.ok(GATED.includes('install-go-ahead'));
 });
 

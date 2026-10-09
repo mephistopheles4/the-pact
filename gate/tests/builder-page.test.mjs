@@ -606,7 +606,7 @@ test('the page shows moves 1 to 4 as a fixed spine: gated clauses carry their te
     const clause = readFileSync(join(REPO, 'gate', 'clauses', `${g.mark}.md`), 'utf8').trim().split('\n').map(l => l.trim()).join('\n');
     assert.equal(g.text.split('\n').map(l => l.trim()).join('\n'), clause, `${g.mark} differs from gate/clauses/${g.mark}.md`);
   }
-  assert.deepEqual(L.PACT.always.map(a => a.mark).sort(), ['no-skill-overrides', 'risk-floor', 'stop-and-escalate']);
+  assert.deepEqual(L.PACT.always.map(a => a.mark).sort(), ['no-skill-overrides', 'risk-floor', 'stop-and-escalate', 'tracker-authors']);
   assert.deepEqual(parts.filter(p => p.kind === 'open').map(p => p.mark), ['move-1', 'move-2', 'move-3', 'move-4-extra']);
   assert.deepEqual([...L.PACT.editable], ['move-1', 'move-2', 'move-3', 'move-4-extra']);
 });
