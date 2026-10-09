@@ -30,6 +30,11 @@ how every session in every repo behaves. So:
   or can't run. The dry run also shows the Node it used, the pinned grimoire
   commit, and whether the gate changed since the last install. The gate's
   tests run through one runner; see "Running the gate's tests" below.
+- **Keep the how-to in step.** [`docs/install.md`](docs/install.md) quotes
+  the script's output, lists what the settings merge sets, and names every
+  agent the install puts in place. A change to any of them updates the how-to
+  in the same change; `gate/tests/install-howto.test.mjs` checks the
+  settings and the agents.
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
@@ -219,8 +224,8 @@ how every session in every repo behaves. So:
 ## Where work lives
 
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
-  [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). The repo is
-  private; `main` was first pushed on 2026-09-30. Cite a commit by its short
+  [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). `main` was
+  first pushed on 2026-09-30. Cite a commit by its short
   hash; GitHub links it only once the commit is on the remote.
 - **Whose tracker text counts.** Only the owner's account's text counts as a
   decision, an approval, a tier, a claim or an instruction, and only when that
@@ -411,7 +416,7 @@ Configuration for the optional [engineering skills](https://github.com/mattpococ
 
 ### Issue tracker
 
-GitHub issues on `mephistopheles4/the-pact`, via the `gh` CLI; external PRs are not a triage surface. The repo is private; `main` is pushed, and going public waits for a sweep (#9, #10). See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+GitHub issues on `mephistopheles4/the-pact`, via the `gh` CLI; external PRs are not a triage surface. `main` is pushed; the publish sweep was #9 and #10. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
 
 ### Triage labels
 

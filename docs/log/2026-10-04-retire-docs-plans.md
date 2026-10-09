@@ -31,7 +31,7 @@ The probe tests the rule change itself. Expected result: given a scratch issue a
 
 ## What is still open
 
-- **Issue comments and the path sweep.** The reposted comments keep home-directory paths from the old files, because they were posted verbatim. #9's sweep must cover issue comments before the repo goes public.
+- **Issue comments and the path sweep.** The reposted comments keep home-directory paths from the old files, because they were posted verbatim. #9's sweep had to cover issue comments before publishing (it did, in #161).
 - **Close-outs that cite the comments.** #5 and #6 still owe their probes and log entries; #22's Record list will cite the #13 and #18 comments; the settings guard has no close-out issue yet, so its record sits on #34.
 
 ## Record
