@@ -190,7 +190,7 @@ test('node: --apply needs --commit, and a commit other than HEAD refuses', t => 
 });
 
 test('node: a runner that exits 0 with any other last line is refused by the bootstrap', t => {
-  const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "    say('RESULT: pass');\n    return;", "    say('RESULT: pass');\n    say('one more line');\n    return;"));
+  const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "    say('RESULT: pass');\n    return;\n  }\n  core.checkApply({ configApplies,", "    say('RESULT: pass');\n    say('one more line');\n    return;\n  }\n  core.checkApply({ configApplies,"));
   nodeRefused(nodeInstall(repo, home(t)), /^REFUSED: the install runner did not end with a pass\./m);
 });
 

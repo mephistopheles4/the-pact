@@ -11,6 +11,8 @@
 export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
 export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md']);
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
+/** The PowerShell installer the Node install replaces: a record from it lists it among the gate files (S9). */
+export const OLD_INSTALLER = 'scripts/install.ps1';
 export const RULES_REL = 'claude/CLAUDE.md';
 export const OVERLAY_REL = 'claude/settings.overlay.json';
 export const CONFIG_REL = 'pact/config.json';
@@ -256,7 +258,7 @@ export function gateBlock(gateNow, recordGate, selfDiffers) {
     for (const k of gateNow.keys()) order.push(added.includes(k) ? `  added ${k}` : changed.includes(k) ? `  changed ${k}` : null);
     const changes = [...order.filter(Boolean), ...removed.map(k => `  removed ${formatPlain(k)}`)];
     lines = changes.length ? ['Gate: CHANGED since the last install', ...changes] : ['Gate: unchanged since the last install'];
-    const cutover = !changed.length && removed.length === 1 && removed[0] === 'scripts/install.ps1' && added.length === INSTALL_FILES.length && INSTALL_FILES.every(f => added.includes(f));
+    const cutover = !changed.length && removed.length === 1 && removed[0] === OLD_INSTALLER && added.length === INSTALL_FILES.length && INSTALL_FILES.every(f => added.includes(f));
     if (cutover) lines.push('  This is the expected change of the first Node install: scripts/install.ps1 replaced by the four gate/install*.mjs files.');
   }
   if (selfDiffers) lines.push('WARN: this install script differs from the committed copy; --apply will refuse.');

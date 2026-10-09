@@ -32,7 +32,7 @@ const json = v => JSON.stringify(v);
 
 // ------------------------------------------------------------ the command line (S4, A3 to A6)
 
-const winArgs = () => ({ in: json(['--claude-home', 'C:\\Users\\me\\.claude', '--apply', '--commit', ID('a'), '--rendered-hash', H('b'), '--review-folder', 'D:\\review out']) });
+const winArgs = () => ({ in: json(['--claude-home', 'C:\\Users\\user\\.claude', '--apply', '--commit', ID('a'), '--rendered-hash', H('b'), '--review-folder', 'D:\\review out']) });
 for (const c of table('command line on windows', {
   module: 'gate/install-core.mjs',
   base: winArgs,
@@ -48,13 +48,13 @@ for (const c of table('command line on windows', {
     { id: 'en-dash', plant: rep('"--apply"', '"\u2013apply"'), fails: ['args-unread'], why: 'a dash PowerShell would not rewrite for a native command' },
     { id: 'stray-word', plant: t => ({ in: json([...JSON.parse(t.in), H('c')]) }), fails: ['args-unread'], says: /holds 1 word the script does not read\. /, why: 'a hash typed without its option, and its value never shown' },
     { id: 'no-value', plant: t => ({ in: json([...JSON.parse(t.in).filter(w => w !== '--rendered-hash' && w !== H('b')), '--rendered-hash']) }), fails: ['args-no-value'], why: 'an option with nothing after it' },
-    { id: 'relative-home', plant: rep('C:\\\\Users\\\\me\\\\.claude', 'claude-home'), fails: ['path-not-full'], why: 'a relative path names a different folder per reader' },
-    { id: 'drive-relative', plant: rep('C:\\\\Users\\\\me\\\\.claude', 'C:claude'), fails: ['path-not-full'], why: 'C:foo is relative to a drive' },
-    { id: 'root-relative', plant: rep('C:\\\\Users\\\\me\\\\.claude', '\\\\claude'), fails: ['path-not-full'], why: '\\foo is relative to the current drive' },
-    { id: 'unc', plant: rep('C:\\\\Users\\\\me\\\\.claude', '\\\\\\\\server\\\\share'), fails: ['path-network'], why: 'a typed network path' },
-    { id: 'unc-forward', plant: rep('C:\\\\Users\\\\me\\\\.claude', '//server/share'), fails: ['path-network'], why: 'a typed network path with forward slashes' },
-    { id: 'device-question', plant: rep('C:\\\\Users\\\\me\\\\.claude', '\\\\\\\\?\\\\C:\\\\x'), fails: ['path-network'], why: 'a device-namespace path' },
-    { id: 'device-dot', plant: rep('C:\\\\Users\\\\me\\\\.claude', '\\\\\\\\.\\\\C:\\\\x'), fails: ['path-network'], why: 'a device-namespace path' },
+    { id: 'relative-home', plant: rep('C:\\\\Users\\\\user\\\\.claude', 'claude-home'), fails: ['path-not-full'], why: 'a relative path names a different folder per reader' },
+    { id: 'drive-relative', plant: rep('C:\\\\Users\\\\user\\\\.claude', 'C:claude'), fails: ['path-not-full'], why: 'C:foo is relative to a drive' },
+    { id: 'root-relative', plant: rep('C:\\\\Users\\\\user\\\\.claude', '\\\\claude'), fails: ['path-not-full'], why: '\\foo is relative to the current drive' },
+    { id: 'unc', plant: rep('C:\\\\Users\\\\user\\\\.claude', '\\\\\\\\server\\\\share'), fails: ['path-network'], why: 'a typed network path' },
+    { id: 'unc-forward', plant: rep('C:\\\\Users\\\\user\\\\.claude', '//server/share'), fails: ['path-network'], why: 'a typed network path with forward slashes' },
+    { id: 'device-question', plant: rep('C:\\\\Users\\\\user\\\\.claude', '\\\\\\\\?\\\\C:\\\\x'), fails: ['path-network'], why: 'a device-namespace path' },
+    { id: 'device-dot', plant: rep('C:\\\\Users\\\\user\\\\.claude', '\\\\\\\\.\\\\C:\\\\x'), fails: ['path-network'], why: 'a device-namespace path' },
     { id: 'plain-quote', plant: rep('review out', "review'out"), fails: ['path-chars'], why: 'a quote would break the printed apply line' },
     { id: 'double-quote', plant: rep('review out', 'review\\"out'), fails: ['path-chars'], why: 'a double quote' },
     { id: 'left-single-curly', plant: rep('review out', 'review\u2018out'), fails: ['path-chars'], why: 'PowerShell reads a curly quote as a quote' },
@@ -73,18 +73,18 @@ for (const c of table('command line on windows', {
   ],
 })) test(c.name, c.fn);
 
-const unixArgs = () => ({ in: json(['--claude-home', '/home/me/.claude', '--project-folder', '/work/my project']) });
+const unixArgs = () => ({ in: json(['--claude-home', '/home/user/.claude', '--project-folder', '/work/my project']) });
 for (const c of table('command line on unix', {
   module: 'gate/install-core.mjs',
   base: unixArgs,
   run: t => decided(() => core.parseArgs(JSON.parse(t.in), 'linux')),
   rows: [
-    { id: 'relative', plant: rep('/home/me/.claude', 'home/.claude'), fails: ['path-not-full'], why: 'a relative path' },
-    { id: 'windows-drive', plant: rep('/home/me/.claude', 'C:/home'), fails: ['path-not-full'], why: 'a drive path is not full on Unix' },
-    { id: 'backslash-root', plant: rep('/home/me/.claude', '\\\\home'), fails: ['path-not-full'], why: 'the Windows rule holds on every OS' },
-    { id: 'double-slash', plant: rep('/home/me/.claude', '//server/share'), fails: ['path-network'], why: 'a typed network path' },
+    { id: 'relative', plant: rep('/home/user/.claude', 'home/.claude'), fails: ['path-not-full'], why: 'a relative path' },
+    { id: 'windows-drive', plant: rep('/home/user/.claude', 'C:/home'), fails: ['path-not-full'], why: 'a drive path is not full on Unix' },
+    { id: 'backslash-root', plant: rep('/home/user/.claude', '\\\\home'), fails: ['path-not-full'], why: 'the Windows rule holds on every OS' },
+    { id: 'double-slash', plant: rep('/home/user/.claude', '//server/share'), fails: ['path-network'], why: 'a typed network path' },
     { id: 'shell-metacharacter', plant: rep('my project', 'my|project'), fails: ['path-chars'], why: 'a pipe' },
-    { id: 'tilde', plant: rep('/home/me/.claude', '~/.claude'), fails: ['path-not-full'], why: 'a shell expansion is not a full path' },
+    { id: 'tilde', plant: rep('/home/user/.claude', '~/.claude'), fails: ['path-not-full'], why: 'a shell expansion is not a full path' },
   ],
 })) test(c.name, c.fn);
 
@@ -93,7 +93,7 @@ test('the command line: the base parses to its values, and an option given witho
   assert.equal(o.apply, true);
   assert.equal(o.commit, ID('a'));
   assert.equal(o.renderedHash, H('b'));
-  assert.deepEqual(o.paths, [['--claude-home', 'C:\\Users\\me\\.claude'], ['--review-folder', 'D:\\review out']]);
+  assert.deepEqual(o.paths, [['--claude-home', 'C:\\Users\\user\\.claude'], ['--review-folder', 'D:\\review out']]);
   const dry = core.parseArgs(['--rendered-hash', ''], 'win32');
   assert.equal(dry.renderedHash, '', 'an empty hash is given, so it is compared');
   assert.equal(core.parseArgs([], 'linux').apply, false);
@@ -190,12 +190,12 @@ test('the gate block: changed, added and removed lines, compared without regard 
   assert.deepEqual(core.gateBlock(now, [...now], false), ['Gate: unchanged since the last install']);
 });
 
-test('the gate block names the cutover only when the change set is exactly install.ps1 out and the four install files in', () => {
+test('the gate block names the cutover only when the change set is exactly the PowerShell installer out and the four install files in', () => {
   const rest = [['gate/seam-a-core.mjs', H('a')]];
   const now = new Map([...rest, ...core.INSTALL_FILES.map((f, i) => [f, H(String(i))])]);
-  const then = [...rest, ['scripts/install.ps1', H('9')]];
+  const then = [...rest, [core.OLD_INSTALLER, H('9')]];
   assert.match(core.gateBlock(now, then, false).at(-1), /expected change of the first Node install/);
-  const changedToo = core.gateBlock(now, [['gate/seam-a-core.mjs', H('b')], ['scripts/install.ps1', H('9')]], false);
+  const changedToo = core.gateBlock(now, [['gate/seam-a-core.mjs', H('b')], [core.OLD_INSTALLER, H('9')]], false);
   assert.ok(!changedToo.some(l => /expected change/.test(l)), 'a changed core prints as today');
   const fewer = new Map([...now].filter(([k]) => k !== 'gate/install-io.mjs'));
   assert.ok(!core.gateBlock(fewer, then, false).some(l => /expected change/.test(l)), 'three of four is not the cutover');
@@ -494,7 +494,7 @@ for (const c of table('install destinations', {
   ],
 })) test(c.name, c.fn);
 
-test('skip reasons: unsafe, protected, non-canonical and linked paths, as install.ps1 read them', () => {
+test('skip reasons: unsafe, protected, non-canonical and linked paths, as the PowerShell installer read them', () => {
   for (const p of ['', '../x', 'a/../b', '/x', '\\x', 'C:x', null, 5]) assert.equal(core.skipReason(p, noLink), 'unsafe path', String(p));
   for (const p of ['settings.json', 'SETTINGS.JSON', '.pact-install.json', 'pact/config.json', 'pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', 'pact/blocks/b.md']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
   for (const p of ['agents/a b.md', 'agents/.x', 'agents/a.', 'a\\b']) assert.equal(core.skipReason(p, noLink), 'non-canonical path', p);
