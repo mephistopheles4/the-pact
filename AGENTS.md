@@ -185,7 +185,13 @@ how every session in every repo behaves. So:
 - **A case runs the install** only when the install script itself decides it,
   or for a happy path.
 - **Each test file holds one layer:** install cases, or cases that never
-  install.
+  install. The install harness fails a test in an install-tier file that
+  neither runs the install script nor calls `t.skip()`, naming it (ADR 0033).
+  A test that runs the script without `install()` goes through the harness's
+  `spawnInstall`, so it counts. A test that only reads the script's text
+  belongs in a file that never installs, and reads it with
+  `installScriptText()` from the helpers: a test file that names the script is
+  in the install tier.
 - **Import helpers by what they touch.** Take only what the test uses.
 - **Moving or renaming a case.** Every case in the T1 baseline,
   [`gate/tests/fixtures/baseline-140/`](gate/tests/fixtures/baseline-140/), keeps

@@ -1,0 +1,28 @@
+# One layer per test file
+
+A gate test file holds install cases, or cases that never install, never both. A file is in the install tier when it imports the install harness or names the install script (ADR 0030), so a case that never installs, written in such a file, waited on the installs around it and ran outside `fast`. The rule keeps those cases in `fast`, and a guard keeps the install tier pure.
+
+- **The split (#140, T6).** Four files mixed the two layers: `settings`, `builder-page`, `agent-settings` and `cross-install`. Each split in two. The larger part, in each case the part that never installs, kept the file's name, so the fewest cases moved. The 55 install cases went to new files: `settings-install`, `builder-install`, `agent-settings-install` and `cross-script-install`. The guard found two more strays in other install files, a text check of the settings overlay in `config-install` and a project check run with its own environment in `install-project`; they went to `settings` and a new `project-home`. Every move changes the file only, byte for byte, with a line in `moves.tsv` (ADR 0031).
+- **The guard.** When imported, the install harness registers a root-level `beforeEach` that zeroes a count, and an `afterEach` that fails a test whose count is still zero, naming it. Each test file runs in its own process, and its tests run one at a time, so the count is per test. `install()` counts, and so does `spawnInstall(args, options)`, which runs pwsh and refuses unless an argument names the install script. A test that starts the script without `install()` uses it.
+- **A skip is exempt.** Several install cases call `t.skip()` when the machine can't plant them. Node keeps a skipped test's status over a throw from the hook, on Node 20.20 and 24.14 alike, so the guard needs no record of skips of its own. A test pins it, so a Node that changed this would fail the skipped cases, not pass them.
+- **`makeRepo` and `git` are not installs.** A test that builds a repo and never runs the script fails the guard.
+- **Reading the script's text is not running it.** A test that only reads the install script, or holds rule text naming it, belongs in a file that never installs. Since a test file that names the script is in the install tier, such a file reads it through `installScriptText()` in `gate/tests/helpers.mjs`, and the settings guard's rule lists, which name it, live in `gate/tests/settings-rules.mjs`. The runner reads only a test file's own text for the name (`run.test.mjs` pins that a helper naming it as data doesn't move its importers).
+- **Its tests.** `gate/tests/purity-guard.test.mjs` runs planted install-tier files that import the real harness in a child `node --test`: one that neither installs nor skips fails, naming the test; one that skips passes; `install()` and `spawnInstall` count, per test; and `spawnInstall` refuses a pwsh run that names no install script. Each was seen to fail with its rule broken. It also pins the split files to their tiers. It never imports the harness itself, so it runs in `fast`.
+
+## Why
+
+- **The cases that never install belong in `fast`.** From the T1 baseline's per-case times, the four files held about 266 such cases and 74 s of summed time (#140's spec, S1). In `fast`, a session checks them without waiting on installs, and seam A and render cases among them run in-process through the cores (ADR 0032).
+- **The runner sorts whole files, not cases.** It reads imports and text, so a file is one layer or the other. One rule per file keeps the tiers honest without a second classifier.
+- **A guard, not a convention.** Without it, the next case added to an install file beside its installs would quietly put a fast case back in the slow tier.
+
+## Considered and rejected
+
+- **The fallback design: `install()` takes the test context.** The spec's fallback, if a root-level hook couldn't fail a test on either Node. The hook works on both, and the fallback would have changed every install call.
+- **Wrapping `t.skip()` to record skips.** The first build did it. A mutation run showed the wrapper changed nothing, since Node already keeps the skip, so it was a check that could not fail, and it was removed.
+- **An exception list for text-only tests in install files.** The spec allows no exception but a skip; a test that reads the script's text has a home in `fast`.
+- **Teaching the runner that text reads are not installs.** The runner is on the probe floor, and its rule is deliberately wide: any file whose text names the script is install tier. Narrowing it is a loosening.
+
+## Known limits
+
+- **`spawnInstall` checks a name, not a run.** A pwsh call whose arguments merely mention the script counts as an install. The guard catches a test that forgot to install, not one written to fool it.
+- **A helper can still run the script unseen.** The runner reads only the test file's own text and its imports to the harness, so a helper that started pwsh on the script would leave its importer in `fast`. That gap is the runner's (ADR 0030), not new here; `installScriptText()` hands back text, not a path.

@@ -14,6 +14,16 @@ export const SEAM_A = join(GATE, 'seam-a.mjs');
 export const RENDER = join(GATE, 'render.mjs');
 export const PINNED = join(GATE, 'grimoire', 'check.mjs');
 
+/**
+ * The install script's text, for a test that reads it and never runs it
+ * (#140, T6). The runner puts a test file that names the script in the install
+ * tier, so a file that never installs reads it through here. A test that runs
+ * the script goes through the install harness, whose guard counts it.
+ */
+export function installScriptText() {
+  return readFileSync(join(REPO, 'scripts', 'install.ps1'), 'utf8');
+}
+
 // ------------------------------------------------------------ a gate module's own text (#155)
 
 /**

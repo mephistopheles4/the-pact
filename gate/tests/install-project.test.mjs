@@ -11,7 +11,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
 import { WIN, git, install, makeRepo, refused } from './install-harness.mjs';
-import { REPO, plantModule, tempDir } from './helpers.mjs';
+import { plantModule, tempDir } from './helpers.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const RULES = ['.claude', 'rules', 'pact-project.md'];
@@ -430,25 +430,6 @@ const INSIDE_REAL = ['agents', 'pact', 'rules', 'projects'].map(n => join(homedi
 
 test('bad case: a project inside the real Claude folder refuses, before any write (dry run only)', { skip: !INSIDE_REAL && 'the real Claude folder holds no plain folder to name (not run)' }, t => {
   realHomeCase(t, INSIDE_REAL, /FAIL project-home: the project folder is the Claude folder in your home folder, holds it, or is inside it/);
-});
-
-test('bad case: HOME or USERPROFILE pointed elsewhere does not move the real home folder (check only)', t => {
-  // The fake home and the Claude home named for the run both sit outside the
-  // real home folder, so only the real home folder's own relation can refuse.
-  const root = outsideHome(t);
-  if (!root) {
-    t.skip('no folder outside the home folder can be made here (not run)');
-    return;
-  }
-  const fake = join(root, 'fake-home');
-  const ch = join(root, 'claude');
-  mkdirSync(fake);
-  mkdirSync(ch);
-  const env = { ...process.env, HOME: fake, USERPROFILE: fake };
-  delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [join(REPO, 'gate', 'project.mjs'), 'check', homedir(), ch], { encoding: 'utf8', env });
-  assert.equal(r.status, 1, r.stdout);
-  assert.match(r.stdout, /^FAIL project-home: the project folder is your home folder, or holds it$/m, r.stdout);
 });
 
 // ------------------------------------------------------------ git and Node stay out of the project
