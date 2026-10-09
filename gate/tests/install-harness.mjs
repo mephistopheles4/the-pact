@@ -1,7 +1,7 @@
 // Runs the install script end to end, against a throwaway git repo built from
 // this tree and a throwaway -ClaudeHome. Never touches ~/.claude.
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import { afterEach, beforeEach } from 'node:test';
@@ -111,6 +111,51 @@ export function spawnInstall(args, options) {
   return spawnSync(programs().pwsh, args, options);
 }
 
+/** Runs node with `args`, one of which must name the Node install script; counts as an install (#153). */
+export function spawnNodeInstall(args, options) {
+  if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstall: no argument names the Node install script, so this is not an install');
+  installs++;
+  return spawnSync(process.execPath, args, options);
+}
+
+/** spawnNodeInstall's async form, for a test that signals or waits on a running install. */
+export function spawnNodeInstallAsync(args, options) {
+  if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstallAsync: no argument names the Node install script, so this is not an install');
+  installs++;
+  return spawn(process.execPath, args, options);
+}
+
+/** The environment a Node install runs with in a test: this one, minus NODE_OPTIONS, with PATH set. */
+export function nodeEnv(extra = {}, path = [NODE_DIR, ...nodeBasePath()]) {
+  return envWith(path, extra);
+}
+
+/**
+ * Runs the Node install (gate/install.mjs) on `repo` with `home` as its Claude
+ * home folder. `apply` passes --apply with the commit `apply` names (true: the
+ * repo's HEAD). Same routing guard as install().
+ */
+export function nodeInstall(repo, home, { apply = false, path = [NODE_DIR, ...nodeBasePath()], env = {}, extra = [], unrouted = [], script = join(repo, 'gate', 'install.mjs'), cwd = repo } = {}) {
+  if (unrouted !== true && !(Array.isArray(unrouted) && unrouted.every(f => typeof f === 'string'))) throw new Error('nodeInstall: unrouted is true or a list of file paths');
+  const args = [script, '--claude-home', home];
+  if (apply) args.push('--apply', '--commit', apply === true ? git(repo, 'rev-parse', 'HEAD').trim() : apply);
+  args.push(...extra);
+  const r = spawnNodeInstall(args, { cwd, encoding: 'utf8', env: envWith(path, env), timeout: 180_000 });
+  const out = { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
+  if (unrouted !== true) {
+    const stray = routingFails(out.stdout).filter(f => !unrouted.includes(f));
+    assert.deepEqual(stray, [], `seam A refused an agent the test did not mean to leave unrouted; route it in the test's makeRepo mutate (routeTree), or name it in unrouted:\n${out.out}`);
+  }
+  return out;
+}
+
+// git's and the system's folders, for a Node install's PATH: no pwsh lookup.
+let nodeFound = null;
+function nodeBasePath() {
+  if (!nodeFound) nodeFound = Object.freeze([dirname(which('git')), ...(WIN ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')] : ['/usr/bin', '/bin'])]);
+  return nodeFound;
+}
+
 /** The files seam A refused for routing, as the install prints them; what install()'s routing guard reads. */
 export function routingFails(stdout) {
   return [...(stdout ?? '').matchAll(/^seam-a\| FAIL routing: ([^:\r\n]+):/gm)].map(m => m[1]);
@@ -140,6 +185,20 @@ export function install(repo, home, { apply = false, path = [NODE_DIR, ...basePa
 export function refused(r) {
   assert.notEqual(r.code, 0, r.out);
   assert.match(r.stdout, /^REFUSED: /m, r.out);
+}
+
+/** A Node install that refused: exit 1, a REFUSED line, and the bootstrap's RESULT: refused last. */
+export function nodeRefused(r, says) {
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.stdout, /^REFUSED: /m, r.out);
+  assert.equal(r.stdout.trimEnd().split('\n').at(-1), 'RESULT: refused', r.out);
+  if (says) assert.match(r.stdout, says, r.out);
+}
+
+/** A Node install that passed: exit 0 and RESULT: pass last. */
+export function nodePassed(r) {
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.stdout.trimEnd().split('\n').at(-1), 'RESULT: pass', r.out);
 }
 
 export function home(t) {
