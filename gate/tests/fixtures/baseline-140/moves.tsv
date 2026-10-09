@@ -117,3 +117,18 @@ gate/tests/settings.test.mjs	the dry run no longer says the overlay is unchecked
 # T6 (#157): two more cases the purity guard found in install-tier files, moved to files that never install.
 gate/tests/config-install.test.mjs	the settings overlay asks before any edit to the user file or its blocks folder	gate/tests/settings.test.mjs	the settings overlay asks before any edit to the user file or its blocks folder
 gate/tests/install-project.test.mjs	bad case: HOME or USERPROFILE pointed elsewhere does not move the real home folder (check only)	gate/tests/project-home.test.mjs	bad case: HOME or USERPROFILE pointed elsewhere does not move the real home folder (check only)
+# #170: pact-text's required-clause loops became the table "pact text required clause".
+gate/tests/pact-text.test.mjs	bad case: a weakened required clause (risk-floor), on a fixture copy	gate/tests/pact-text.test.mjs	pact text required clause: weakened-risk-floor
+gate/tests/pact-text.test.mjs	bad case: a removed required clause (risk-floor)	gate/tests/pact-text.test.mjs	pact text required clause: removed-risk-floor
+gate/tests/pact-text.test.mjs	bad case: a weakened required clause (no-skill-overrides), on a fixture copy	gate/tests/pact-text.test.mjs	pact text required clause: weakened-no-skill-overrides
+gate/tests/pact-text.test.mjs	bad case: a removed required clause (no-skill-overrides)	gate/tests/pact-text.test.mjs	pact text required clause: removed-no-skill-overrides
+gate/tests/pact-text.test.mjs	bad case: a weakened required clause (security-route), on a fixture copy	gate/tests/pact-text.test.mjs	pact text required clause: weakened-security-route
+gate/tests/pact-text.test.mjs	bad case: a removed required clause (security-route)	gate/tests/pact-text.test.mjs	pact text required clause: removed-security-route
+gate/tests/pact-text.test.mjs	bad case: a weakened required clause (never-substitute), on a fixture copy	gate/tests/pact-text.test.mjs	pact text required clause: weakened-never-substitute
+gate/tests/pact-text.test.mjs	bad case: a removed required clause (never-substitute)	gate/tests/pact-text.test.mjs	pact text required clause: removed-never-substitute
+gate/tests/pact-text.test.mjs	bad case: a weakened required clause (move-4), on a fixture copy	gate/tests/pact-text.test.mjs	pact text required clause: weakened-move-4
+gate/tests/pact-text.test.mjs	bad case: a removed required clause (move-4)	gate/tests/pact-text.test.mjs	pact text required clause: removed-move-4
+gate/tests/pact-text.test.mjs	bad case: a weakened required clause (stop-and-escalate), on a fixture copy	gate/tests/pact-text.test.mjs	pact text required clause: weakened-stop-and-escalate
+gate/tests/pact-text.test.mjs	bad case: a removed required clause (stop-and-escalate)	gate/tests/pact-text.test.mjs	pact text required clause: removed-stop-and-escalate
+gate/tests/pact-text.test.mjs	bad case: a weakened required clause (install-go-ahead), on a fixture copy	gate/tests/pact-text.test.mjs	pact text required clause: weakened-install-go-ahead
+gate/tests/pact-text.test.mjs	bad case: a removed required clause (install-go-ahead)	gate/tests/pact-text.test.mjs	pact text required clause: removed-install-go-ahead
