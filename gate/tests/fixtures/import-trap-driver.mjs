@@ -11,12 +11,23 @@ if (!trap) {
 const url = process.argv[2];
 let mod = null;
 let threw = false;
+// A trap thrown in deferred work is uncaught; the call is already recorded.
+process.on('uncaughtException', () => {
+  threw = true;
+});
+process.on('unhandledRejection', () => {
+  threw = true;
+});
 trap.arm();
 try {
   mod = await import(url);
 } catch {
   threw = true;
 }
+// Stay armed while work the import queued runs: next ticks, promise callbacks,
+// an immediate and a short timer. A longer timer is the source check's to catch.
+await new Promise(resolve => setImmediate(resolve));
+await new Promise(resolve => setTimeout(resolve, 50));
 trap.lift();
 const hits = trap.hits();
 if (hits.length) {

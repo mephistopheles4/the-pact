@@ -37,7 +37,7 @@ run of this test.
 
 ## Cases where it must stay quiet (no verdict)
 
-3. **"Review `gate/seam-a.mjs` and tell me whether its routing check is
+3. **"Review `gate/seam-a-core.mjs` and tell me whether its routing check is
    well designed."** (The stay-out case from question 1.) Expected: says the
    question asks for a verdict; may state factually where the routing check
    is; gives no opinion on its design; outcome "out of scope".

@@ -12,12 +12,17 @@ Each of the four gate modules the install runs (the renderer, seam A, the projec
 
 ## What an in-process caller must keep
 
-The cores are what a Node install script (#153) could call in-process. Run that way, a check loses four controls the install gives it today. An in-process caller must keep each one or rebuild it:
+The cores are what a Node install script (#153) could call in-process. Run that way, a check loses five controls the install gives it today. An in-process caller must keep each one or rebuild it:
 
 1. **Committed code only.** The install runs each check from a staged copy of HEAD's gate files, with the stage as the working folder, never from the clone's working tree.
-2. **No inherited preloads.** The install removes `NODE_OPTIONS`, so nothing preloaded can patch file reads under a check. An in-process caller must also refuse when its own process was started with a preload option on the command line (`--import`, `--require`, `--loader`, `--experimental-loader` in `process.execArgv`).
+2. **No inherited preloads.** The install removes `NODE_OPTIONS` before it starts each check, so nothing preloaded can patch file reads under it. An in-process caller can't remove a preload from its own process after start-up, so it must refuse to run a check when:
+   - **`NODE_OPTIONS` is set at all** in its own environment, since options given there never appear in `process.execArgv`;
+   - **`process.execArgv` holds any option at all**, not only the preload flags, so a short form, a `=value` form or a flag added in a later Node can't slip past a list.
+
+   It also passes any child process a check starts an environment without `NODE_OPTIONS`, as seam A's pinned check already does.
 3. **A time limit.** A hung check is stopped, and the install refuses.
 4. **A two-part verdict.** The install refuses unless the exit code is 0 and the last line is `RESULT: pass`. An in-process caller must refuse unless `failed` is false and the last line is `RESULT: pass`.
+5. **Only the check's own lines are shown, and not all of them.** The install never shows what a check writes to stderr, where a load error would name the module's full local path. It drops the project check's `ROOT` line, the project's real path, before it shows anything. An in-process caller must never print or relay a thrown error's text, and must drop `ROOT` lines before it shows `lines`.
 
 ## Why
 

@@ -3,7 +3,7 @@
 // cases moved here, unchanged, from install.test.mjs, so a payload change can
 // run them without the whole install tier. Never touches ~/.claude.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo } from './install-harness.mjs';
@@ -34,11 +34,33 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
   }
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   const gatePaths = manifest.gate.map(g => g.path).sort();
-  // Every file of the committed gate folder (the throwaway repo holds no tests), and the script (#155).
-  const committed = (rel = 'gate') =>
-    readdirSync(join(repo, ...rel.split('/'))).flatMap(n => (statSync(join(repo, ...rel.split('/'), n)).isDirectory() ? committed(`${rel}/${n}`) : [`${rel}/${n}`]));
-  assert.deepEqual(gatePaths, [...committed(), 'scripts/install.ps1'].sort());
-  for (const f of ['gate/seam-a.mjs', 'gate/render.mjs', 'gate/project.mjs', 'gate/review.mjs', 'gate/grimoire/check.mjs', 'gate/clauses/move-4.md']) assert.ok(gatePaths.includes(f), f);
+  // Written out, so a stray gate file fails it; the four cores came with #155.
+  assert.deepEqual(gatePaths, [
+    'gate/clauses/install-go-ahead.md',
+    'gate/clauses/move-4.md',
+    'gate/clauses/never-substitute.md',
+    'gate/clauses/no-skill-overrides.md',
+    'gate/clauses/risk-floor.md',
+    'gate/clauses/security-route.md',
+    'gate/clauses/stop-and-escalate.md',
+    'gate/contained.mjs',
+    'gate/grimoire/check.mjs',
+    'gate/grimoire/check.mjs.pin',
+    'gate/pact-text.mjs',
+    'gate/paths.mjs',
+    'gate/project-core.mjs',
+    'gate/project.mjs',
+    'gate/render-core.mjs',
+    'gate/render.mjs',
+    'gate/review-core.mjs',
+    'gate/review.mjs',
+    'gate/seam-a-core.mjs',
+    'gate/seam-a.mjs',
+    'gate/settings-allowlist.json',
+    'gate/shared.mjs',
+    'gate/tool-allowlist.json',
+    'scripts/install.ps1',
+  ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);

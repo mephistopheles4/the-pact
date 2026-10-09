@@ -66,6 +66,8 @@ for (const [label, m, plant, trapped] of [
   ['reads a file', 'render', "readdirSync('.');", 'fs.readdirSync'],
   ['reads a file and catches the trap', 'seam-a', "try { readFileSync('AGENTS.md'); } catch {}", 'fs.readFileSync'],
   ['reads a file in a promise callback', 'render', "Promise.resolve().then(() => readdirSync('.'));", 'fs.readdirSync'],
+  ['reads a file on the next tick', 'review', "process.nextTick(() => readdirSync('.'));", 'fs.readdirSync'],
+  ['reads a file in an immediate', 'render', "setImmediate(() => readdirSync('.'));", 'fs.readdirSync'],
   ['starts a process', 'seam-a', "spawnSync(process.execPath, ['-e', '']);", 'child_process.spawnSync'],
   ['reads an environment variable', 'review', 'const planted = process.env.HOME;', 'process.env'],
   ['reads the home folder through os.homedir', 'project', 'homedir();', 'os.homedir'],
@@ -77,6 +79,24 @@ for (const [label, m, plant, trapped] of [
     assert.equal(r.code, 1, r.out);
     assert.match(r.line, /^TRAPPED /, r.out);
     assert.ok(r.line.split(' ').slice(1).includes(trapped), r.out);
+  });
+}
+
+// ------------------------------------------------------------ check(), called directly
+
+// The shape T10's in-process runners rely on: lines with the RESULT line last,
+// `failed` agreeing with it, and the same answer on a second call. A usage
+// error touches nothing, so it is safe to run in this process.
+for (const m of MODULES) {
+  test(`check(): ${m}-core.mjs returns its lines, RESULT last, with failed to match, the same each call`, async () => {
+    const { check } = await import(pathToFileURL(join(GATE, `${m}-core.mjs`)).href);
+    const first = check([]);
+    assert.deepEqual(Object.keys(first).sort(), ['failed', 'lines']);
+    assert.ok(Array.isArray(first.lines) && first.lines.every(l => typeof l === 'string'));
+    assert.equal(first.failed, true);
+    assert.equal(first.lines[first.lines.length - 1], 'RESULT: fail');
+    assert.deepEqual(failRules(`${first.lines.join('\n')}\n`), ['usage']);
+    assert.deepEqual(check([]), first);
   });
 }
 

@@ -91,7 +91,8 @@ T9 is the one ticket in #140 that changes gate code, so it took the security rou
   - **Same output.** On 16 fixed cases, a pass, a fail, a usage error and an internal crash for each module, each wrapper's stdout, exit code and empty stderr matched the old module's byte for byte.
   - **The other readers moved with it.** `builder/build.mjs` reads the renderer's lists from `render-core.mjs`, and the builder page was rebuilt; its data didn't change. The two contracts, and scout's practice case for `DEFAULT_TOOLS`, cite `gate/seam-a-core.mjs`.
   - **scout was resealed.** Editing its contract broke the seal, which the pinned check reads, and seam A would have refused every install. The reseal changed only scout's `contract-digest` line.
-  - **Left as they are:** the install script's comments that name `gate/seam-a.mjs` for `BANNED_SETTINGS` and the renderer for `CONFIGURABLE_AGENTS` (the install script may not change); comments in other gate files that name a module; the usage strings, which name the command, the wrapper.
+  - **Left as they are:** the install script's comments that name `gate/seam-a.mjs` for `BANNED_SETTINGS` and the renderer for `CONFIGURABLE_AGENTS` (the install script may not change; noted on #153); AGENTS.md's install bullet, which names `gate/seam-a.mjs` as the check the install runs, still true of the wrapper; comments in other gate files that name a module; the usage strings, which name the command, the wrapper.
+  - **Changed after move 4:** scout's practice case 3 asks about seam A's routing check in `gate/seam-a-core.mjs`, as case 5 already did for `DEFAULT_TOOLS`. The practice file isn't sealed.
   - **After the split,** a copy of the text scanner planted in the seam A core failed "seam-a.mjs holds no copy of a moved piece", under its unchanged name.
   - **The full suite,** quiet: passed in 416.3 s, with the same compare counts and no map line added.
 - **Step 2, T9's own tests (5740d40).**
@@ -101,6 +102,13 @@ T9 is the one ticket in #140 that changes gate code, so it took the security rou
   - **The wrapper cases.** Today's child-run cases cover seam A's four cells and most of the others; new cases fill the five empty cells: an internal crash in render, project and review, and project's pass and usage. A test holds each wrapper to its four statements.
   - **Fail closed:** an install from a commit with seam A's core deleted refuses on the check's exit code. With the old self-contained `seam-a.mjs` restored and the core still deleted, the install passed and the test failed.
 - **No check changed what it accepts or refuses.**
+- **Move 4's runs,** quiet, at d774b95: `full` passed in 438.6 s beside 381.8 s, and `fast` in 53.6 s beside 50.1 s. The compare passed: 1,598 unchanged, 53 moved, 183 new (T5's 150 and T9's 33), with no map line added. `full` gained an install case, about 10 s. The rest of the rise, from step 0's 386.5 s to step 1's 416.3 s and on, is not separated from machine load. The split adds one module load to each child run, which costs milliseconds. On Linux, Node 20, only the four #149 cases failed, and all 10 Linux-listed cases passed by name, as the owner chose until #149 lands.
+- **Move 4's lenses found 13 things across five reports; the fixes:**
+  - **ADR 0032's in-process controls.** An in-process caller now refuses when `NODE_OPTIONS` is set at all, or when `process.execArgv` holds any option: a preload set through the environment never shows in `execArgv`, and `-r` and `--import=<url>` slip past a list of four names. A fifth control says it never shows a check's stderr or error text, and drops the project check's `ROOT` line, as the install does.
+  - **Deferred work at import.** A file read put off with `process.nextTick` got past the import guard, which lifted its trap as soon as the import finished. The driver now stays armed through an immediate and a 50 ms timer, and records a trap thrown in deferred work. Two more planted cores, a next tick and an immediate, are caught; the next-tick one passed before the fix.
+  - **check(), called directly.** A test imports each core into the test process and checks the shape T10 will rely on: `lines` with the RESULT line last, `failed` to match, and the same answer on a second call. A core returning `failed: false` fails it.
+  - **The smoke test's gate list is written out again,** now with the four cores, so a stray gate file fails it, as a planted one did. The step-0 version read the list from the folder, which a stray file would have grown with it.
+  - **Recorded, not changed:** the existing child-run cases for each module's pass, fail, usage and crash cells are named on #155, and the stale install script comments are noted on #153.
 
 ## What was measured
 
