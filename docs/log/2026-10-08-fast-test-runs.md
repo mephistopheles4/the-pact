@@ -78,6 +78,30 @@ Spec revision 10 on #140 redesigned the test architecture: cores, tables, one la
 - **The final runs (T5),** quiet, at 749571f and b3abee6: the full suite passed in 386.3 s beside 381.8 s, with the compare passing (1,598 unchanged, 53 moved, 150 new, none gone); `fast` passed in 52.2 s beside 50.1 s.
 - **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
 
+## T9 (#155): cores and thin wrappers
+
+T9 is the one ticket in #140 that changes gate code, so it took the security route on its own. Each of the four gate modules the install runs became a core, `gate/<m>-core.mjs`, and a thin wrapper with the old name. See [ADR 0032](../adr/0032-gate-modules-split-into-a-core-and-a-thin-wrapper.md). The work went in three steps, never mixed.
+
+- **Step 0, tests only (aa48666).** Every test that read or planted a module's text by file name now finds its target in the module's own files, `<m>.mjs` and `<m>-core.mjs`, and asserts it occurs exactly once. Gate copies take every file in `gate/` outside its tests, and the smoke test's list of the install's gate fingerprints comes from the committed gate folder.
+  - **The reading.** The ticket said "in whichever `gate/*.mjs` file holds it". The helpers search the module's own two files instead, since some targets, such as the `RESULT:` line push, sit in all four modules.
+  - **Four of the hook tests used a plain `replace`.** It plants nothing when the marker is gone, so after the split they would have passed for the wrong reason. All now assert exactly one.
+  - **Seen to fail:** with every target removed from the four modules, 78 of the 83 changed reader and plant tests failed; the other 5 are absence checks. Temporary core files holding a moved piece, a second shared import and a dash failed those 5. The copy tests failed under the old fixed lists once a module imported a new sibling file. A git-ignored extra gate file failed the smoke list.
+  - **The full suite,** quiet: passed in 386.5 s, and the compare matched T5's counts (1,598 unchanged, 53 moved, 150 new) with no map line added.
+- **Step 1, the split (58d9505).** Each core is its old module byte for byte, apart from a header and `main`, which became `check()` and returns instead of printing. Each wrapper is four statements.
+  - **Same output.** On 16 fixed cases, a pass, a fail, a usage error and an internal crash for each module, each wrapper's stdout, exit code and empty stderr matched the old module's byte for byte.
+  - **The other readers moved with it.** `builder/build.mjs` reads the renderer's lists from `render-core.mjs`, and the builder page was rebuilt; its data didn't change. The two contracts, and scout's practice case for `DEFAULT_TOOLS`, cite `gate/seam-a-core.mjs`.
+  - **scout was resealed.** Editing its contract broke the seal, which the pinned check reads, and seam A would have refused every install. The reseal changed only scout's `contract-digest` line.
+  - **Left as they are:** the install script's comments that name `gate/seam-a.mjs` for `BANNED_SETTINGS` and the renderer for `CONFIGURABLE_AGENTS` (the install script may not change); comments in other gate files that name a module; the usage strings, which name the command, the wrapper.
+  - **After the split,** a copy of the text scanner planted in the seam A core failed "seam-a.mjs holds no copy of a moved piece", under its unchanged name.
+  - **The full suite,** quiet: passed in 416.3 s, with the same compare counts and no map line added.
+- **Step 2, T9's own tests (5740d40).**
+  - **The core import guard,** with eight planted cores, each caught: reading a file, reading one and catching the throw, reading one in a promise callback, starting a process, reading an environment variable, and reading the home folder, the OS user and the host name.
+  - **Found while building:** Node's own module loader reads `process.env` during an import, so the first guard caught every real core. A call now counts only when a frame of module code is on the stack.
+  - **The core source check,** with five planted bad cases: `console.log`, a stdout write, `process.exit`, `process.exitCode` and a timer.
+  - **The wrapper cases.** Today's child-run cases cover seam A's four cells and most of the others; new cases fill the five empty cells: an internal crash in render, project and review, and project's pass and usage. A test holds each wrapper to its four statements.
+  - **Fail closed:** an install from a commit with seam A's core deleted refuses on the check's exit code. With the old self-contained `seam-a.mjs` restored and the core still deleted, the install passed and the test failed.
+- **No check changed what it accepts or refuses.**
+
 ## What was measured
 
 - **The baseline.** Main at 76c46c1, quiet, junit reporter: 1,651 cases (1,643 pass, 8 skip, 0 fail) in 33 files, in 714 s at cap 4 on Node 24.14.1.
