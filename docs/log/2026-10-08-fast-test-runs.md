@@ -154,6 +154,15 @@ T6 changes tests only. A test file holds install cases or cases that never insta
 - **Seen to fail.** `purity-guard.test.mjs` runs planted install-tier files against the real harness in a child: one that neither installs nor skips fails, naming the test; one that skips passes; `install()` and `spawnInstall` count, per test; and `spawnInstall` refuses a run that names no install script. Each of four broken guards failed at least one of them. All seven cases passed on Node 24 (Windows) and Node 20 (Linux).
 - **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
 - **Move 4's runs,** quiet, at 6027f5c: `full` passed in 415.2 s beside 381.8 s, and the compare passed with 1,541 unchanged, 110 moved (T6 added 57) and 294 new (the guard's 7). `fast` took 52.7 s and 50.8 s, about 10 s over T10's tip, for the 254 cases it gained. That is under S6's 60 s line, so T8 (#158) isn't needed; its close is the owner's. On Linux, Node 20, 1,945 cases ran, the same total; only the four #149 cases failed, and all 10 Linux-listed cases passed by name.
+- **Move 4's lenses found 9 things across five reports; `data-lens` found none.** Every one but the scope question was auto-taken. The fixes:
+  - **The guard counts per top-level test.** `behaviour-lens` found that a subtest reset the count, so a parent that installed and then ran a subtest that only read the result failed with it. A subtest's installs now count toward its test, and a subtest isn't checked on its own. No install file uses subtests yet.
+  - **`makeRepo` and `git` are pinned as non-installs.** `integrity-lens` found no test for that rule. A planted test that calls only them now fails. The guard's broken versions grew to eight, and each fails at least one guard case.
+  - **What `changed` picks.** `unstated-lens` asked whether the install halves are still picked for the paths they read. Every tracked path's picks were compared before and after the split. `builder-install` had lost the builder page, which its cases read through `PAGE_REL`, and `cross-script-install` had lost `cross/render-check.mjs`; their headers now name both. Fourteen paths that only the non-install half reads no longer pick the install half. The harness comment had named the guard's test file, which put every install test in that file's pick; it no longer does.
+  - **Records:** the re-time and the guard design are now on #140 too; a claim covers the in-place edits; and the full suite's time is set against the chain's spread (386.3 s to 446.1 s).
+  - **Dismissed:** `adversarial-lens` asked whether an install test without `-ClaudeHome` could reach the real Claude folder, if PowerShell ignored the redirected home on Windows. Checked: pwsh's `$HOME` follows it, and the script's default is built from `$HOME`.
+  - **For the owner:** `unstated-lens` noted that the two strays widen the ticket from four files to six. That is the owner's call at done.
+- **The pick: skipped on the owner's word.** The lead session relayed the owner's words: "we can skip that for tonight". The owner's done waits for the morning.
+- **The final runs (T6),** quiet, at 577d74d: `full` passed in 423.2 s beside 381.8 s, and the compare passed with 1,541 unchanged, 110 moved and 296 new (the fixes added 2). `fast` took 53.1 s. On Linux, Node 20, 1,947 cases ran, the same total; only the four #149 cases failed, all 10 Linux-listed cases passed, and so did all 9 guard cases.
 
 ## What was measured
 
@@ -268,10 +277,13 @@ Issue comments on mephistopheles4/the-pact#140, for T10:
 Issue comments on mephistopheles4/the-pact#157:
 
 - `6078339364` — move 4's runs, the split, the moved bodies, the in-place edits and the purity guard.
+- `6078497494`, `6078497732`, `6078497978` — move 4's lens reports, through the cross script: the security pair, `unstated-lens` and the QA pair.
+- `6078715355` — move 4's Lens dispositions, the skipped pick, the scope question for the owner, the fixes' evidence and the final runs.
 
 Issue comments on mephistopheles4/the-pact#140, for T6:
 
 - `6078339692` — `run.mjs fast --list` after the split.
+- `6078715057` — the `fast` re-time and the guard design used.
 
 Issue comments on mephistopheles4/the-pact#158:
 
