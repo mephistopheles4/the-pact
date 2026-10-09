@@ -154,3 +154,5 @@ Issue comments on mephistopheles4/the-pact#154:
 - `6071141424` — move 4's first attempt: the compare caught the table module's fault.
 - `6071246566` — move 4's full suite against the baseline, and the Linux run.
 - `6071389567`, `6071389828`, `6071461843`, `6071462024` — move 4's lens reports, through the cross script: the security pair, `unstated-lens`, the QA pair's refused first input, and the QA pair.
+- `6071502100` — move 4's Lens dispositions, and the owner's pick.
+- `6071742506` — the final full suite against the baseline, and the Linux run.
