@@ -81,7 +81,9 @@ const SETTINGS_CONTAINERS = new Set(['env', 'permissions']);
 const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permissions.ask']);
 // Paths the overlay must set. A set must hold every allowed entry.
 const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions.ask']);
-// The "ask" rules that make the install's apply step prompt the owner. The
+// The "ask" rules that guard the install: they make its apply step prompt the
+// owner, and since #165 any command naming the Node install script or the
+// install record, and any gh command naming rulesets or branch protection. The
 // overlay must hold them, whatever the allow-list says. #89 adds a splat and
 // each dash PowerShell takes in place of the hyphen: en dash, em dash and
 // horizontal bar, always written as escapes.
@@ -98,6 +100,22 @@ const SETTINGS_APPLY_ASK = Object.freeze([
   'Bash(*nstall.ps1*\u2013*)',
   'Bash(*nstall.ps1*\u2014*)',
   'Bash(*nstall.ps1*\u2015*)',
+  // #165: the Node install script's guard, landed before the script (#153,
+  // S10). They ask on any command naming its two files or the install
+  // record, and on a gh command naming rulesets or branch protection, which
+  // guard the CI ruleset (S11). Under Bash, which matches case exactly, each
+  // file and gh rule drops its first letter, so a capitalised name, such as
+  // a GraphQL ruleset mutation, still matches.
+  'PowerShell(*install.mjs*)',
+  'PowerShell(*install-run.mjs*)',
+  'Bash(*nstall.mjs*)',
+  'Bash(*nstall-run.mjs*)',
+  'PowerShell(*.pact-install.json*)',
+  'Bash(*.pact-install.json*)',
+  'PowerShell(*gh*ruleset*)',
+  'PowerShell(*gh*protection*)',
+  'Bash(*gh*uleset*)',
+  'Bash(*gh*rotection*)',
 ]);
 // The "ask" rule on edits to the installed cross script's folder (#45). The
 // overlay must hold it too, whatever the allow-list says.

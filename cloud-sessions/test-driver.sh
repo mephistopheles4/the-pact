@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Runs inside a throwaway ubuntu:24.04 container. /s = scratchpad (ro),
-# /orig = the real CLAUDE.md and agents/ (ro). Nothing is written to either.
+# Runs inside a throwaway ubuntu:24.04 container. /s = a scratch folder,
+# mounted read-only, holding the generated scripts, CLAUDE.cloud.md and repo/:
+# an export of tracked files only, made with
+#   git archive HEAD claude/agents familiars/scout.md cross/cross.mjs | tar -x -C <scratch>/repo
+# Never mount the working clone or your home folder: the setup runs fetched
+# code as root, with the network on. Start the container with that one mount,
+# read-only (-v <scratch>:/s:ro), and nothing else: no Docker socket, no
+# --privileged, no --network host, and no host environment variables or
+# credentials passed in. Nothing is written to the mount.
 set -u
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq >/dev/null && apt-get install -y -qq jq git ca-certificates >/dev/null 2>&1
@@ -21,8 +28,13 @@ snapshot() {
   echo "### settings.json"; cat /root/.claude/settings.json
   echo "### ~/.claude tree"; (cd /root/.claude && find . -maxdepth 2 -not -path './skills/*' | sort)
   echo "### skills dir entries: $(ls /root/.claude/skills | wc -l)"
-  echo "### diff: written CLAUDE.md vs adapted source (expect empty)"; diff -u /s/CLAUDE.cloud.md /root/.claude/CLAUDE.md && echo "(identical)"
-  echo "### diff: written agents vs originals (expect empty)"; diff -ru /orig/agents /root/.claude/agents && echo "(identical)"
+  echo "### diff: written CLAUDE.md vs CLAUDE.cloud.md (expect empty)"; diff -u /s/CLAUDE.cloud.md /root/.claude/CLAUDE.md && echo "(identical)"
+  echo "### diff: written agents vs repo copies, scout included (expect empty)"
+  for f in /s/repo/claude/agents/*.md /s/repo/familiars/scout.md; do
+    diff -u "$f" "/root/.claude/agents/$(basename "$f")" || echo "DIFFERS: $(basename "$f")"
+  done
+  echo "### agents written: $(ls /root/.claude/agents | wc -l) (expect $(( $(ls /s/repo/claude/agents/*.md | wc -l) + 1 )))"
+  echo "### diff: written pact/cross.mjs vs cross/cross.mjs (expect empty)"; diff -u /s/repo/cross/cross.mjs /root/.claude/pact/cross.mjs && echo "(identical)"
 }
 
 echo "################ PASS 1"; bash /s/cloud-setup.sh; echo "exit: $?"
