@@ -141,6 +141,19 @@ T10 changes tests only. The test helpers' gate-module runners call the T9 cores 
 - **The pick: skipped on the owner's word.** The lead session relayed the owner's words: "we can skip that for tonight". The owner's done waits for the morning.
 - **The final runs (T10),** quiet, at a0e8fc0: `full` passed in 397.8 s beside 381.8 s, and the compare passed with 1,598 unchanged, 53 moved and 287 new (the fixes added 30), no map line added. On Linux, Node 20, 1,938 cases ran, the same total; only the four #149 cases failed, and all 10 Linux-listed cases passed.
 
+## T6 (#157): one layer per test file
+
+T6 changes tests only. A test file holds install cases or cases that never install, and the install harness fails a test that breaks the rule. See [ADR 0033](../adr/0033-one-layer-per-test-file.md).
+
+- **The split came from a run, not from titles.** Before moving anything, the guard ran on the four mixed files and failed exactly the cases that never install. In every file that part was the larger: 254 cases against 55. So `settings`, `builder-page`, `agent-settings` and `cross-install` kept their names and now run in `fast`. The install cases went to `settings-install` (20), `builder-install` (3, not the spec's estimated four), `agent-settings-install` (27) and `cross-script-install` (5). S1 had estimated about 266 cases; the spec's example name `settings-seam` didn't apply.
+- **Two strays beyond the four files.** The guard, run on the other five install files, failed two more: a text check of the settings overlay in `config-install`, moved to `settings`, and a project check run with its own environment in `install-project`, moved to a new `fast` file, `project-home`. Without the moves the guard fails the suite, so the build moved them, as the spec's rule requires, and flagged the wider scope on #157.
+- **Moved byte for byte.** Each move was cut as a line range by a script. Every range appears unchanged in its new file: 36 `test()` calls, registering 57 cases. `moves.tsv` gains 57 lines, each a file-only move with its old file and name taken from `baseline.tsv`.
+- **A file that never installs can't name the install script,** since the runner puts any test file whose text names it in the install tier. So four tests that read its text call `installScriptText()`, a new helper, and the settings rule lists, which name it, moved verbatim to a shared `settings-rules.mjs`. The dash test, which named `settings.test.mjs`, now also reads the two files the escapes moved to.
+- **The guard is a root-level hook.** The harness zeroes a count before each test and fails a test whose count is still zero, naming it. `install()` counts, and so does `spawnInstall`, which refuses unless an argument names the install script; two `config-install` tests that start the script directly use it. A skip is exempt because Node keeps a skipped test's status over the hook's throw, on Node 20.20 and 24.14 alike. A wrapper on `t.skip()` was built first, and a mutation run showed it changed nothing, so it went.
+- **Seen to fail.** `purity-guard.test.mjs` runs planted install-tier files against the real harness in a child: one that neither installs nor skips fails, naming the test; one that skips passes; `install()` and `spawnInstall` count, per test; and `spawnInstall` refuses a run that names no install script. Each of four broken guards failed at least one of them. All seven cases passed on Node 24 (Windows) and Node 20 (Linux).
+- **No gate code changed.** No file in `gate/` outside its tests changed, and neither did the install script.
+- **Move 4's runs,** quiet, at 6027f5c: `full` passed in 415.2 s beside 381.8 s, and the compare passed with 1,541 unchanged, 110 moved (T6 added 57) and 294 new (the guard's 7). `fast` took 52.7 s and 50.8 s, about 10 s over T10's tip, for the 254 cases it gained. That is under S6's 60 s line, so T8 (#158) isn't needed; its close is the owner's. On Linux, Node 20, 1,945 cases ran, the same total; only the four #149 cases failed, and all 10 Linux-listed cases passed by name.
+
 ## What was measured
 
 - **The baseline.** Main at 76c46c1, quiet, junit reporter: 1,651 cases (1,643 pass, 8 skip, 0 fail) in 33 files, in 714 s at cap 4 on Node 24.14.1.
@@ -248,3 +261,15 @@ Issue comments on mephistopheles4/the-pact#156:
 Issue comments on mephistopheles4/the-pact#140, for T10:
 
 - `6073100439` — the count and the child-run list, pointing to #156.
+
+Issue comments on mephistopheles4/the-pact#157:
+
+- `6078339364` — move 4's runs, the split, the moved bodies, the in-place edits and the purity guard.
+
+Issue comments on mephistopheles4/the-pact#140, for T6:
+
+- `6078339692` — `run.mjs fast --list` after the split.
+
+Issue comments on mephistopheles4/the-pact#158:
+
+- `6078339997` — `fast` under S6's line after T6.
