@@ -95,6 +95,8 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
       authorAssociation
       viewerDidAuthor
       editor { login }
+      lastEditedAt
+      userContentEdits(first: 1) { nodes { editedAt editor { login } } }
       body
       isCrossRepository
       headRefName
@@ -108,17 +110,18 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
           authorAssociation
           viewerDidAuthor
           editor { login }
+          lastEditedAt
           state
           body
           comments(first: 100) {
             totalCount
-            nodes { url path author { login } authorAssociation viewerDidAuthor editor { login } isMinimized body }
+            nodes { url path author { login } authorAssociation viewerDidAuthor editor { login } lastEditedAt isMinimized body }
           }
         }
       }
       comments(first: 100, after: $endCursor) {
         pageInfo { hasNextPage endCursor }
-        nodes { url author { login } authorAssociation viewerDidAuthor editor { login } isMinimized body }
+        nodes { url author { login } authorAssociation viewerDidAuthor editor { login } lastEditedAt isMinimized body }
       }
     }
   }
@@ -127,7 +130,7 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
 $out = gh api graphql --paginate --slurp -f owner=<owner> -f name=<repo> -F number=<number> -f "query=$q"
 ```
 
-Only the comments are paged. Reviews and each review's comments stop at 100: when a `totalCount` is larger than the nodes returned, the read is incomplete, so stop and ask the owner.
+The edit rule is the issue read's: an item with a `lastEditedAt` counts only when its editor is the owner's account. Only the comments are paged. Reviews and each review's comments stop at 100: when a `totalCount` is larger than the nodes returned, the read is incomplete, so stop and ask the owner.
 
 ### List issues
 
