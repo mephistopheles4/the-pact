@@ -111,7 +111,10 @@ your username before you share it. Read these parts:
     own edit tools change your Claude home folder's rules, agents, settings,
     skills, plugins, output styles, commands, `pact/` folder or install
     record (`.pact-install.json`), or `~/.claude.json`, and before it runs
-    this script with `-Apply` in the spellings they list. They are not a
+    this script with `-Apply` in the spellings they list. They also ask
+    before any shell command that names the coming Node install script
+    (`install.mjs` or `install-run.mjs`) or the install record, and before
+    a `gh` command that names rulesets or branch protection. They are not a
     boundary: a script or another command can still write those files, and in
     auto mode only Claude Code's own checks stand in the way;
   - keeps sessions going when a usage limit is reached

@@ -10,6 +10,24 @@ export const OVERLAY = 'claude/settings.overlay.json';
 // dash, em dash and horizontal bar. Always written as escapes, never typed.
 export const DASHES = ['\u2013', '\u2014', '\u2015'];
 
+// The Node install script's ask rules (#165, from #153's S10). They name the
+// script's two files and the install record, so they prompt on any command
+// that names one, whatever the shell does to the words after it. The `gh`
+// rules catch ruleset and branch-protection commands; under Bash, which
+// matches case exactly, each drops its first letter, as the `nstall` rules do.
+export const NODE_GUARD_ASK = [
+  'PowerShell(*install.mjs*)',
+  'PowerShell(*install-run.mjs*)',
+  'Bash(*nstall.mjs*)',
+  'Bash(*nstall-run.mjs*)',
+  'PowerShell(*.pact-install.json*)',
+  'Bash(*.pact-install.json*)',
+  'PowerShell(*gh*ruleset*)',
+  'PowerShell(*gh*protection*)',
+  'Bash(*gh*uleset*)',
+  'Bash(*gh*rotection*)',
+];
+
 // The pact's "ask" rules, as #34 and its pre-build review settled them.
 export const PACT_ASK = [
   'PowerShell(./scripts/install.ps1 -Apply)',
@@ -25,6 +43,10 @@ export const PACT_ASK = [
   'Bash(*nstall.ps1*\u2013*)',
   'Bash(*nstall.ps1*\u2014*)',
   'Bash(*nstall.ps1*\u2015*)',
+  // #165: the Node install script's guard, landed before the script (#153,
+  // S10): any command naming it or the install record, and any `gh` command
+  // naming rulesets or branch protection.
+  ...NODE_GUARD_ASK,
   'Edit(~/.claude/agents/**)',
   'Edit(~/.claude/settings.json)',
   'Edit(~/.claude/CLAUDE.md)',
@@ -38,8 +60,9 @@ export const PACT_ASK = [
   'Edit(~/.claude/pact/**)',
 ];
 
-// The apply-step rules, hard-coded in seam A as the permission mode is. Named
-// one by one, so a rule added to the pact's list can't push one out.
+// The apply-step rules, hard-coded in seam A as the permission mode is, and
+// the Node script's guard beside them (#165). Named one by one, so a rule
+// added to the pact's list can't push one out.
 export const APPLY_ASK = [
   'PowerShell(./scripts/install.ps1 -Apply)',
   'PowerShell(*install.ps1*-A*)',
@@ -53,6 +76,7 @@ export const APPLY_ASK = [
   'Bash(*nstall.ps1*\u2013*)',
   'Bash(*nstall.ps1*\u2014*)',
   'Bash(*nstall.ps1*\u2015*)',
+  ...NODE_GUARD_ASK,
 ];
 // The cross script's rule, hard-coded in seam A beside them.
 export const CROSS_ASK = 'Edit(~/.claude/pact/**)';
