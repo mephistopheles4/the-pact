@@ -11,7 +11,7 @@
 // That object has two sources, and they never mix:
 //
 //   - The pact itself, always from this clone: the moves and their open and
-//     locked parts (claude/CLAUDE.md), the renderer's lists (gate/render.mjs,
+//     locked parts (claude/CLAUDE.md), the renderer's lists (gate/render-core.mjs,
 //     read as text, never run as a module) and the pact's agents
 //     (claude/agents/). A builder file cannot change any of it.
 //   - A builder file (schema below): the person's presets, workflows and their
@@ -56,17 +56,17 @@ const fail = msg => {
   throw new Error(`builder: ${msg}`);
 };
 
-/** A quoted list declared in gate/render.mjs, such as OPEN_MARKS, read from its text. */
+/** A quoted list declared in gate/render-core.mjs, such as OPEN_MARKS, read from its text. */
 function listFrom(renderSrc, name) {
   const m = new RegExp(`const ${name} = Object\\.freeze\\(\\[([^\\]]*)\\]\\)`).exec(renderSrc);
-  if (!m) fail(`gate/render.mjs no longer declares ${name} as a frozen list`);
+  if (!m) fail(`gate/render-core.mjs no longer declares ${name} as a frozen list`);
   return [...m[1].matchAll(/'([^']*)'/g)].map(x => x[1]);
 }
 
-/** The usage-pause setting's range and default, read from gate/render.mjs's text. */
+/** The usage-pause setting's range and default, read from gate/render-core.mjs's text. */
 function settingFrom(renderSrc) {
   const m = /\['usage-pause', Object\.freeze\(\{ mark: 'usage-pause', min: (\d+), max: (\d+), def: (\d+),/.exec(renderSrc);
-  if (!m) fail('gate/render.mjs no longer declares the usage-pause setting in the expected form');
+  if (!m) fail('gate/render-core.mjs no longer declares the usage-pause setting in the expected form');
   return { name: 'usage-pause', min: Number(m[1]), max: Number(m[2]), def: Number(m[3]) };
 }
 
@@ -105,7 +105,7 @@ const codeSpans = text => [...text.matchAll(/`([^`\n]+)`/g)].map(m => m[1]);
 /** The pact's half of the page data, always from the clone at `root`: moves, locked clauses, the usage setting and the pact's agents. */
 export function pactData(root) {
   const src = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
-  const renderSrc = readFileSync(join(root, 'gate', 'render.mjs'), 'utf8');
+  const renderSrc = readFileSync(join(root, 'gate', 'render-core.mjs'), 'utf8');
   const open = listFrom(renderSrc, 'OPEN_MARKS');
   const editable = listFrom(renderSrc, 'EDITABLE');
   const gated = listFrom(renderSrc, 'GATED');

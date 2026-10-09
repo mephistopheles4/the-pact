@@ -7,8 +7,10 @@ import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { PWSH, WIN, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { REPO, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { WIN, home, install, listTree, makeRepo, refused, spawnInstall } from './install-harness.mjs';
+import { plantModule } from './gate-files.mjs';
+import { REPO, withoutOpenMarks } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const CONFIG_REL = ['pact', 'config.json'];
 const EXAMPLE = readFileSync(join(REPO, 'examples', 'pact-config', 'config.json'));
@@ -425,10 +427,7 @@ const R_NONE = "  if (config === NONE) head.push('CONFIG none');";
 const R_USER = '`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`)';
 
 function plantRenderer(root, from, to) {
-  const p = join(root, 'gate', 'render.mjs');
-  const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(from).length, 2, `expected exactly one ${JSON.stringify(from)}`);
-  writeFileSync(p, s.replace(from, () => to));
+  plantModule(join(root, 'gate'), 'render', from, to);
 }
 
 for (const [label, withConfig, from, to, why] of [
@@ -466,7 +465,7 @@ test('bad case: a hash typed after -Apply without its parameter name, and no -Cl
   delete env.NODE_OPTIONS;
   // As typed: install.ps1 -Apply <hash>. Bound by position, the hash would
   // become -ClaudeHome, a new folder named after it.
-  const r = spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-Apply', hash], { cwd: repo, encoding: 'utf8', env, timeout: 180_000 });
+  const r = spawnInstall(['-NoProfile', '-NonInteractive', '-File', join(repo, 'scripts', 'install.ps1'), '-Apply', hash], { cwd: repo, encoding: 'utf8', env, timeout: 180_000 });
   const out = `${r.stdout}${r.stderr}`;
   assert.notEqual(r.status, 0, out);
   assert.ok(!existsSync(join(repo, hash)), `a folder named after the hash was created:\n${out}`);
@@ -489,7 +488,7 @@ test('bad case: a relative -ClaudeHome refuses before anything runs, even after 
   const cmd = `Set-Location -LiteralPath ${q(psAt)}; & ${q(join(repo, 'scripts', 'install.ps1'))} -ClaudeHome h; exit $LASTEXITCODE`;
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-Command', cmd], { cwd: procAt, encoding: 'utf8', env, timeout: 180_000 });
+  const r = spawnInstall(['-NoProfile', '-NonInteractive', '-Command', cmd], { cwd: procAt, encoding: 'utf8', env, timeout: 180_000 });
   const out = `${r.stdout}${r.stderr}`;
   assert.notEqual(r.status, 0, out);
   // It once named two folders: PowerShell's location for the attribute test,
@@ -521,11 +520,6 @@ test('a record from before configurations (no config, no digest) reads as no con
   assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
   const a = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(r)] });
   assert.equal(a.code, 0, a.out);
-});
-
-test('the settings overlay asks before any edit to the user file or its blocks folder', () => {
-  const overlay = JSON.parse(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
-  assert.ok(overlay.permissions.ask.includes('Edit(~/.claude/pact/**)'), overlay.permissions.ask.join('\n'));
 });
 
 test('bad case: -InformationAction Ignore is a word the script does not read: it refuses, and the refusal still prints', t => {

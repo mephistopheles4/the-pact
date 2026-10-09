@@ -9,7 +9,10 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { REPO, RENDER, SEAM_A, lastLine, read, renderStage, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { renderStage } from './gate-run.mjs';
+import { stage } from './payload.mjs';
+import { RENDER, REPO, SEAM_A, lastLine, withoutOpenMarks } from './text.mjs';
+import { read, tempDir } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');

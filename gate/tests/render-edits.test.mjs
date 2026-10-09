@@ -11,7 +11,11 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { ROSTER } from '../pact-text.mjs';
-import { GATE, REPO, RENDER, applyDiff, editPart, failRules, lastLine, plainAgent, read, renderStage, runSeamA, stage, tempDir, withoutOpenMarks } from './helpers.mjs';
+import { stage } from './payload.mjs';
+import { GATE, RENDER, REPO, applyDiff, editPart, failRules, lastLine, plainAgent, withoutOpenMarks } from './text.mjs';
+import { read, tempDir, writeTree } from './tree.mjs';
+import { renderStage, runCore, runSeamA } from './gate-run.mjs';
+import { moduleResult, table } from './tables.mjs';
 
 const WIN = process.platform === 'win32';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
@@ -357,37 +361,66 @@ for (const op of OPS) {
   });
 }
 
+// ------------------------------------------------------------ the must-refuse tables (#140, T5)
+
+// Both tables share a base: a Claude home whose configuration adds one good
+// block after move-4-extra, which renders. A row plants one configuration.
+const OK_EDIT = { mark: 'move-4-extra', op: 'add-after', file: 'ok.md' };
+const editHome = () => ({ 'pact/config.json': JSON.stringify(cfg([OK_EDIT])), 'pact/blocks/ok.md': 'Text.\n' });
+const withEdits = edits => home => ({ ...home, 'pact/config.json': JSON.stringify(cfg(edits)) });
+const withPath = path => withEdits([{ ...OK_EDIT, file: path }]);
+
+/**
+ * The renderer on a home built from `tree`, in-process through its core
+ * (#140, T10): the tables' runner. parity.test.mjs proves the core prints
+ * what the wrapper the install runs prints. This file's fault cases stay
+ * child runs through render(), since their preload patches the whole process.
+ */
+function renderTree(tree, t) {
+  const h = tempDir(t, 'pact-edit-home-');
+  writeTree(h, tree);
+  const dir = tempDir(t, 'pact-render-out-');
+  const r = { ...runCore('render', [SOURCE, dir, h]), dir };
+  // `says` reads stdout alone, where the renderer prints its FAIL lines, as the loops this replaces did.
+  return { ...moduleResult(r.code, r.stdout), stdout: r.stdout, dir: r.dir };
+}
+
+/** What every refusal keeps: no render, digest or diff line is printed, and no file is written. */
+function refusedOnly(r) {
+  assert.doesNotMatch(r.stdout, /^(RENDERED|DIFF|CONFIG|DIGEST|VALUE|EDIT) /m, r.out);
+  assert.deepEqual(readdirSync(r.dir), [], 'a refused render writes no file');
+}
+
 // ------------------------------------------------------------ the must-refuse table: the edit list
 
-const EDIT_BAD = [
-  // [label, edits, rule, reason]
-  ['an unknown mark', [{ mark: 'move-9', op: 'remove' }], 'edit-mark', /edit 1: an unknown mark/],
-  ['a mark in another case', [{ mark: 'Move-2', op: 'remove' }], 'edit-mark', /edit 1: an unknown mark/],
-  ['a gated mark in another case', [{ mark: 'Risk-Floor', op: 'remove' }], 'edit-mark', /edit 1: an unknown mark/],
-  ['a mark that is not text', [{ mark: 2, op: 'remove' }], 'edit-shape', /edit 1: mark must be text/],
-  ['no mark', [{ op: 'remove' }], 'edit-shape', /edit 1: mark must be text/],
-  ['an unknown operation', [{ mark: 'move-2', op: 'append', file: 'ok.md' }], 'edit-op', /edit 1: an unknown operation/],
-  ['an operation in another case', [{ mark: 'move-2', op: 'Replace', file: 'ok.md' }], 'edit-op', /edit 1: an unknown operation/],
-  ['no operation', [{ mark: 'move-2', file: 'ok.md' }], 'edit-op', /edit 1: an unknown operation/],
-  ['an operation that is not text', [{ mark: 'move-2', op: ['replace'], file: 'ok.md' }], 'edit-op', /edit 1: an unknown operation/],
-  ['the same mark twice', [{ mark: 'move-2', op: 'remove' }, { mark: 'move-2', op: 'replace', file: 'ok.md' }], 'edit-twice', /edit 2: move-2 is edited twice/],
-  ['an edit that is not an object', ['move-2'], 'edit-shape', /edit 1: not an object/],
-  ['an edit that is null', [null], 'edit-shape', /edit 1: not an object/],
-  ['an unknown key in an edit', [{ mark: 'move-2', op: 'remove', when: 'always' }], 'edit-shape', /edit 1: a key that is not mark, op or file/],
-  ['a __proto__ key in an edit', JSON.parse('[{"mark": "move-2", "op": "remove", "__proto__": {"file": "x"}}]'), 'edit-shape', /edit 1: a key that is not mark, op or file/],
-  ['remove with a file', [{ mark: 'move-2', op: 'remove', file: 'ok.md' }], 'edit-shape', /edit 1: remove takes no file/],
-  ['replace with no file', [{ mark: 'move-2', op: 'replace' }], 'edit-shape', /edit 1: replace needs a file/],
-  ['add-after with no file', [{ mark: 'move-2', op: 'add-after' }], 'edit-shape', /edit 1: add-after needs a file/],
-  ['over 16 edits', Array.from({ length: 17 }, () => ({ mark: 'move-1', op: 'remove' })), 'edit-count', /more than 16 edits/],
-  ['edits as an object', {}, 'config-edits', /edits must be a list/],
-  ['edits as a string', 'move-2', 'config-edits', /edits must be a list/],
-];
-
-for (const [label, edits, rule, reason] of EDIT_BAD) {
-  test(`bad case: ${label} refuses`, t => {
-    refusedWith(render(t, homeWith(t, cfg(edits), { 'ok.md': 'Text.\n' })), rule, reason);
-  });
-}
+for (const c of table('render edit list', {
+  module: 'gate/render.mjs',
+  base: editHome,
+  run: renderTree,
+  everyRow: refusedOnly,
+  rows: [
+    { id: 'unknown-mark', plant: withEdits([{ mark: 'move-9', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'an unknown mark' },
+    { id: 'mark-in-another-case', plant: withEdits([{ mark: 'Move-2', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a mark in another case' },
+    { id: 'gated-mark-in-another-case', plant: withEdits([{ mark: 'Risk-Floor', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a gated mark in another case' },
+    { id: 'mark-not-text', plant: withEdits([{ mark: 2, op: 'remove' }]), fails: ['edit-shape'], says: /edit 1: mark must be text/, why: 'a mark that is not text' },
+    { id: 'no-mark', plant: withEdits([{ op: 'remove' }]), fails: ['edit-shape'], says: /edit 1: mark must be text/, why: 'no mark' },
+    { id: 'unknown-op', plant: withEdits([{ mark: 'move-2', op: 'append', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an unknown operation' },
+    { id: 'op-in-another-case', plant: withEdits([{ mark: 'move-2', op: 'Replace', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an operation in another case' },
+    { id: 'no-op', plant: withEdits([{ mark: 'move-2', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'no operation' },
+    { id: 'op-not-text', plant: withEdits([{ mark: 'move-2', op: ['replace'], file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an operation that is not text' },
+    { id: 'same-mark-twice', plant: withEdits([{ mark: 'move-2', op: 'remove' }, { mark: 'move-2', op: 'replace', file: 'ok.md' }]), fails: ['edit-twice'], says: /edit 2: move-2 is edited twice/, why: 'the same mark twice' },
+    { id: 'edit-not-object', plant: withEdits(['move-2']), fails: ['edit-shape'], says: /edit 1: not an object/, why: 'an edit that is not an object' },
+    { id: 'edit-null', plant: withEdits([null]), fails: ['edit-shape'], says: /edit 1: not an object/, why: 'an edit that is null' },
+    { id: 'unknown-key', plant: withEdits([{ mark: 'move-2', op: 'remove', when: 'always' }]), fails: ['edit-shape'], says: /edit 1: a key that is not mark, op or file/, why: 'an unknown key in an edit' },
+    { id: 'proto-key', plant: withEdits(JSON.parse('[{"mark": "move-2", "op": "remove", "__proto__": {"file": "x"}}]')), fails: ['edit-shape'], says: /edit 1: a key that is not mark, op or file/, why: 'a __proto__ key in an edit' },
+    { id: 'remove-with-file', plant: withEdits([{ mark: 'move-2', op: 'remove', file: 'ok.md' }]), fails: ['edit-shape'], says: /edit 1: remove takes no file/, why: 'remove with a file' },
+    { id: 'replace-without-file', plant: withEdits([{ mark: 'move-2', op: 'replace' }]), fails: ['edit-shape'], says: /edit 1: replace needs a file/, why: 'replace with no file' },
+    { id: 'add-after-without-file', plant: withEdits([{ mark: 'move-2', op: 'add-after' }]), fails: ['edit-shape'], says: /edit 1: add-after needs a file/, why: 'add-after with no file' },
+    { id: 'over-16-edits', plant: withEdits(Array.from({ length: 17 }, () => ({ mark: 'move-1', op: 'remove' }))), fails: ['edit-count'], says: /more than 16 edits/, why: 'over 16 edits' },
+    { id: 'edits-as-object', plant: withEdits({}), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as an object' },
+    { id: 'edits-as-string', plant: withEdits('move-2'), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as a string' },
+  ],
+})) test(c.name, c.fn);
 
 test('16 edits are not refused by the count: the same list refuses only for a mark edited twice', t => {
   const r = render(t, homeWith(t, cfg(Array.from({ length: 16 }, () => ({ mark: 'move-1', op: 'remove' })))));
@@ -403,46 +436,45 @@ test('a refusal reports every bad edit, each by its position', t => {
 
 // ------------------------------------------------------------ the must-refuse table: block paths, on their text
 
-const PATH_BAD = [
-  // [label, path, reason]
-  ['an empty path', '', /the block path is empty or not text/],
-  ['a path that is not text', 5, /the block path is empty or not text/],
-  ['an absolute path', '/etc/passwd', /an absolute path, a network share or a device path/],
-  ['a network share', '\\\\server\\share\\a.md', /an absolute path, a network share or a device path/],
-  ['a network share with forward slashes', '//server/share/a.md', /an absolute path, a network share or a device path/],
-  ['a device path', '\\\\?\\C:\\a.md', /an absolute path, a network share or a device path/],
-  ['a device namespace path', '\\\\.\\pipe\\x', /an absolute path, a network share or a device path/],
-  ['a drive path', 'C:/Users/a.md', /a drive or drive-relative path/],
-  ['a drive-relative path', 'C:a.md', /a drive or drive-relative path/],
-  ['a backslash separator', 'team\\a.md', /a backslash separator/],
-  ['stream syntax', 'a.md:secret', /stream syntax/],
-  ['a stream type', 'a.md::$DATA', /stream syntax/],
-  ['a .. segment', '../config.json', /a \. or \.\. segment/],
-  ['a .. segment inside', 'team/../a.md', /a \. or \.\. segment/],
-  ['a . segment', './a.md', /a \. or \.\. segment/],
-  ['an empty segment', 'team//a.md', /an empty path segment/],
-  ['a trailing slash', 'team/', /an empty path segment/],
-  ['a segment ending in a dot', 'a.md.', /a segment ending in a dot or a space/],
-  ['a folder ending in a dot', 'team./a.md', /a segment ending in a dot or a space/],
-  ['a segment ending in a space', 'a.md ', /a segment ending in a dot or a space/],
-  ['a reserved device name', 'con', /a reserved device name/],
-  ['a reserved device name with an extension', 'CON.md', /a reserved device name/],
-  ['a reserved COM name', 'com1.txt', /a reserved device name/],
-  ['a reserved LPT name in a folder', 'team/lpt9.md', /a reserved device name/],
-  ['a reserved NUL name', 'Nul.md', /a reserved device name/],
-  ['a space inside a name', 'my block.md', /a character outside letters, digits/],
-  ['a non-ASCII letter', 'blöck.md', /a character outside letters, digits/],
-  ['a tilde', '~/a.md', /a character outside letters, digits/],
-  ['an environment reference', '%USERPROFILE%/a.md', /a character outside letters, digits/],
-  ['a path over 200 characters', `${'a'.repeat(198)}.md`, /longer than 200 characters/],
-  ['more than 8 segments', 'a/b/c/d/e/f/g/h/i.md', /more than 8 path segments/],
-];
-
-for (const [label, path, reason] of PATH_BAD) {
-  test(`bad case: a block path with ${label} refuses on its text`, t => {
-    refusedWith(render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: path }]))), 'block-path', reason);
-  });
-}
+for (const c of table('render block path', {
+  module: 'gate/render.mjs',
+  base: editHome,
+  run: renderTree,
+  everyRow: refusedOnly,
+  rows: [
+    { id: 'empty', plant: withPath(''), fails: ['block-path'], says: /the block path is empty or not text/, why: 'an empty path' },
+    { id: 'not-text', plant: withPath(5), fails: ['block-path'], says: /the block path is empty or not text/, why: 'a path that is not text' },
+    { id: 'absolute', plant: withPath('/etc/passwd'), fails: ['block-path'], says: /an absolute path, a network share or a device path/, why: 'an absolute path' },
+    { id: 'network-share', plant: withPath('\\\\server\\share\\a.md'), fails: ['block-path'], says: /an absolute path, a network share or a device path/, why: 'a network share' },
+    { id: 'network-share-forward-slashes', plant: withPath('//server/share/a.md'), fails: ['block-path'], says: /an absolute path, a network share or a device path/, why: 'a network share with forward slashes' },
+    { id: 'device-path', plant: withPath('\\\\?\\C:\\a.md'), fails: ['block-path'], says: /an absolute path, a network share or a device path/, why: 'a device path' },
+    { id: 'device-namespace', plant: withPath('\\\\.\\pipe\\x'), fails: ['block-path'], says: /an absolute path, a network share or a device path/, why: 'a device namespace path' },
+    { id: 'drive', plant: withPath('C:/Users/a.md'), fails: ['block-path'], says: /a drive or drive-relative path/, why: 'a drive path' },
+    { id: 'drive-relative', plant: withPath('C:a.md'), fails: ['block-path'], says: /a drive or drive-relative path/, why: 'a drive-relative path' },
+    { id: 'backslash', plant: withPath('team\\a.md'), fails: ['block-path'], says: /a backslash separator/, why: 'a backslash separator' },
+    { id: 'stream', plant: withPath('a.md:secret'), fails: ['block-path'], says: /stream syntax/, why: 'stream syntax' },
+    { id: 'stream-type', plant: withPath('a.md::$DATA'), fails: ['block-path'], says: /stream syntax/, why: 'a stream type' },
+    { id: 'dot-dot', plant: withPath('../config.json'), fails: ['block-path'], says: /a \. or \.\. segment/, why: 'a .. segment' },
+    { id: 'dot-dot-inside', plant: withPath('team/../a.md'), fails: ['block-path'], says: /a \. or \.\. segment/, why: 'a .. segment inside' },
+    { id: 'dot', plant: withPath('./a.md'), fails: ['block-path'], says: /a \. or \.\. segment/, why: 'a . segment' },
+    { id: 'empty-segment', plant: withPath('team//a.md'), fails: ['block-path'], says: /an empty path segment/, why: 'an empty segment' },
+    { id: 'trailing-slash', plant: withPath('team/'), fails: ['block-path'], says: /an empty path segment/, why: 'a trailing slash' },
+    { id: 'segment-ends-in-dot', plant: withPath('a.md.'), fails: ['block-path'], says: /a segment ending in a dot or a space/, why: 'a segment ending in a dot' },
+    { id: 'folder-ends-in-dot', plant: withPath('team./a.md'), fails: ['block-path'], says: /a segment ending in a dot or a space/, why: 'a folder ending in a dot' },
+    { id: 'segment-ends-in-space', plant: withPath('a.md '), fails: ['block-path'], says: /a segment ending in a dot or a space/, why: 'a segment ending in a space' },
+    { id: 'reserved-name', plant: withPath('con'), fails: ['block-path'], says: /a reserved device name/, why: 'a reserved device name' },
+    { id: 'reserved-name-with-extension', plant: withPath('CON.md'), fails: ['block-path'], says: /a reserved device name/, why: 'a reserved device name with an extension' },
+    { id: 'reserved-com', plant: withPath('com1.txt'), fails: ['block-path'], says: /a reserved device name/, why: 'a reserved COM name' },
+    { id: 'reserved-lpt-in-folder', plant: withPath('team/lpt9.md'), fails: ['block-path'], says: /a reserved device name/, why: 'a reserved LPT name in a folder' },
+    { id: 'reserved-nul', plant: withPath('Nul.md'), fails: ['block-path'], says: /a reserved device name/, why: 'a reserved NUL name' },
+    { id: 'space-in-name', plant: withPath('my block.md'), fails: ['block-path'], says: /a character outside letters, digits/, why: 'a space inside a name' },
+    { id: 'non-ascii', plant: withPath('blöck.md'), fails: ['block-path'], says: /a character outside letters, digits/, why: 'a non-ASCII letter' },
+    { id: 'tilde', plant: withPath('~/a.md'), fails: ['block-path'], says: /a character outside letters, digits/, why: 'a tilde' },
+    { id: 'environment-reference', plant: withPath('%USERPROFILE%/a.md'), fails: ['block-path'], says: /a character outside letters, digits/, why: 'an environment reference' },
+    { id: 'over-200-characters', plant: withPath(`${'a'.repeat(198)}.md`), fails: ['block-path'], says: /longer than 200 characters/, why: 'a path over 200 characters' },
+    { id: 'over-8-segments', plant: withPath('a/b/c/d/e/f/g/h/i.md'), fails: ['block-path'], says: /more than 8 path segments/, why: 'more than 8 segments' },
+  ],
+})) test(c.name, c.fn);
 
 test('a path refused on its text is refused before any file is opened, even when the file it names is there and good', t => {
   const h = homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: '../outside.md' }]));

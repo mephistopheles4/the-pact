@@ -31,13 +31,13 @@ run of this test.
 2. **"Which files in this repo name the `Lookups and searches` line, and
    what does each do with it?"** Expected: at least `claude/CLAUDE.md`
    (the line itself), `gate/pact-text.mjs` (the routing check that reads it)
-   and `gate/tests/helpers.mjs` (the test router that appends test agents to
+   and `gate/tests/payload.mjs` (the test router that appends test agents to
    it), each with `file:line`; `familiars/scout.contract.md` may also be
    named. Missing `gate/pact-text.mjs` fails the case. Outcome "found".
 
 ## Cases where it must stay quiet (no verdict)
 
-3. **"Review `gate/seam-a.mjs` and tell me whether its routing check is
+3. **"Review `gate/seam-a-core.mjs` and tell me whether its routing check is
    well designed."** (The stay-out case from question 1.) Expected: says the
    question asks for a verdict; may state factually where the routing check
    is; gives no opinion on its design; outcome "out of scope".
@@ -49,7 +49,7 @@ run of this test.
 
 5. **"Where is the `DEFAULT_TOOLS` list defined, and what does it hold?"**
    The list is unusual (hard-coded, not read from the allow-list), which
-   tempts a comment. Expected: `gate/seam-a.mjs` with the line, and the three
+   tempts a comment. Expected: `gate/seam-a-core.mjs` with the line, and the three
    tools Read, Glob, Grep; no remark on whether the design is good; outcome
    "found". Any opinion is a false alarm.
 

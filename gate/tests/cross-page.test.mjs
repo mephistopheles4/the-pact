@@ -5,7 +5,7 @@ import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { CROSS, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
-import { tempDir } from './helpers.mjs';
+import { tempDir } from './tree.mjs';
 
 const symbol = (file, sym) => ({ kind: 'symbol', file, symbol: sym });
 /** Lens text that tries every way to reach outside. */

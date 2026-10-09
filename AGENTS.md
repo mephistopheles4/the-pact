@@ -28,17 +28,8 @@ how every session in every repo behaves. So:
   runs the pact's own check, `gate/seam-a.mjs`, on them under Node 20 or later,
   and copies only the files that check listed. It refuses when the check fails
   or can't run. The dry run also shows the Node it used, the pinned grimoire
-  commit, and whether the gate changed since the last install. Run the gate's
-  tests with `node --test --test-concurrency=4 "gate/tests/*.test.mjs"`. The
-  cap keeps the run from starving other sessions; leave it on. Run the tests on
-  the current Node LTS (Node 24, "Krypton", as of 2026-10-08); `volta install node@24`
-  gets it. The flag needs Node 20.10 or later and older Node 20 rejects it as a bad
-  option. (The install itself still accepts any Node 20 or later.) Node 20 doesn't expand the
-  quoted pattern, so under Node 20 hand it the files instead: leave the pattern
-  unquoted in a POSIX shell, or in PowerShell run
-  `node --test --test-concurrency=4 (Get-ChildItem gate/tests/*.test.mjs).FullName`. The Linux run
-  in a container (#96) is in
-  [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/).
+  commit, and whether the gate changed since the last install. The gate's
+  tests run through one runner; see "Running the gate's tests" below.
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
@@ -102,6 +93,128 @@ how every session in every repo behaves. So:
   `-RenderedHash <hash>`. On a project install that hash binds the bytes
   installed, not the configuration files: a file changed after the dry run
   still installs if it renders the same bytes, which can never be looser.
+
+## Running the gate's tests
+
+- **One runner, three tiers.** Run the gate's tests through
+  [`gate/tests/run.mjs`](gate/tests/run.mjs), from the repo root, with
+  `NODE_OPTIONS` cleared in the shell first, as for the cross script. In
+  PowerShell:
+  `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs <tier>`
+  In a POSIX shell:
+  `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>`
+  - **`full`** runs every top-level test file. This is "the full suite".
+  - **`fast`** runs every test file that doesn't run the install script. The
+    runner finds the install tier from each file's imports and text on every
+    run.
+  - **`changed`** runs `fast` plus the tests your change can reach, and
+    prints why it picked each file. It's the only tier that reads git.
+    - **The changed paths:** what differs from where your branch left
+      `--base` (default: the branch `main`), committed, staged or not, plus
+      untracked files git doesn't ignore.
+    - **What they pick:** a changed test runs itself, and a changed helper
+      runs every test that imports it. A test that names a changed path runs
+      too. A payload path also runs the install smoke file. Any change to the
+      gate's code runs `full`, and so do more than 2,000 changed paths.
+    - **A path no rule maps** is printed as unmapped. `fast` covers it, plus
+      the install smoke file for a payload path.
+    - **What an agent-file change picks.** The test helpers are split by
+      what they touch (ADR 0034), so an agent file picks only the tests that
+      read agents: those that import `payload.mjs` or read them themselves.
+      Of the install files, that's the smoke set and five others, 6 of 9.
+    - **Some changes still cost about a full suite.** The pact's rules file,
+      `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
+      deleted or renamed test file, is named by the copy list's entry for the
+      tests folder, so every install test runs. So is an edit to
+      `gate/tests/run.mjs`, which a comment in the copy list names. For such
+      a change, check the pick with `--list` first, and run it once rather
+      than after every edit.
+
+  All three cap the run at four test files at once, which keeps it from
+  starving other sessions (ADR 0029). Never run the suite without the cap.
+- **It fails closed.** It hands the Node running it an explicit file list, so
+  it needs no glob and works the same in any shell, on Node 20.10 or later (the
+  cap flag needs 20.10). An empty pick, an odd test-file name or a usage error
+  exits 2 and runs nothing. A failed, killed or unstarted node exits 1. Its
+  last line, on stderr, names the tier, the file count and the result.
+  `--reporter` takes `spec`, `tap`, `dot` or `junit`, and `--list` prints the
+  pick and runs nothing.
+- **A run passes only when it exits 0 and its last line is the runner's
+  result line ending in `pass`.** An exit 0 with no result line is not a pass.
+- **Run the tests on the current Node LTS** (Node 24, "Krypton", as of
+  2026-10-08); `volta install node@24` gets it. The install itself still
+  accepts any Node 20 or later. The Linux run in a container (#96) is in
+  [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/) and runs `full`
+  on Node 20.
+- **While building, run `changed`:**
+  `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
+  `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell. Add
+  `--base <ref>` when your branch starts from somewhere other than `main`. A
+  base that starts with a dash, or one that isn't a commit, exits 2.
+- **The full suite runs** once at move 4; before an install; after a rebase or
+  merge that brought in other work; and after a final change set. It doesn't
+  run before and after each change.
+- **A changed-files run is never move-4 evidence.** Move 4's verdict rests on
+  `full`.
+- **Test output is posted only from record mode.** `--record <file>` writes a
+  copy of everything printed to a file outside the repo, with the repo, home
+  and temp folders, the user name and the host name replaced by placeholders.
+  If a local path or either name survives, it writes nothing and exits 3. Keep
+  raw reporter output, such as a junit file, outside the repo.
+- **Read a `changed` record before you post it.** Its `pick:` and `unmapped:`
+  lines name your changed and untracked files. If one of them shouldn't be
+  shared, post a `fast` or `full` record instead.
+
+## Writing a gate test
+
+- **A bad case for a gate module is a row in its table.** A table, from
+  [`gate/tests/tables.mjs`](gate/tests/tables.mjs), has a base input that
+  passes and rows; a row is one plant on the base and the exact rule ids it
+  must fail with. Write the table's name and each row's id as string literals
+  in the `table(...)` call, and register its tests in the test file itself,
+  at its top level:
+  `for (const c of table('<name>', { ... })) test(c.name, c.fn);`. node's
+  reports name the file that calls `test()`, and a guard checks the loop. The
+  first tables are `render-edits`' edit list and block paths. A file already
+  in `fast` converts its loops when a session next changes its cases for
+  another reason.
+- **How a case runs the module.** In-process, through its core: call
+  `runCore` from [`gate/tests/gate-run.mjs`](gate/tests/gate-run.mjs), or
+  `renderStage` and `runSeamA`, which use it. Keep a case a child run when it
+  varies the environment, plants a copy of the module, or runs under a test
+  preload. A test file or helper never imports a fault fixture, the contained
+  driver, the import trap, or any other code under `gate/tests/fixtures/`;
+  hand a fixture to a child as its `--import` or main script.
+- **A case runs the install** only when the install script itself decides it,
+  or for a happy path.
+- **Each test file holds one layer:** install cases, or cases that never
+  install. The install harness fails a test in an install-tier file that
+  neither runs the install script nor calls `t.skip()`, naming it (ADR 0033).
+  A subtest's installs count toward the test it runs in.
+  A test that runs the script without `install()` goes through the harness's
+  `spawnInstall`, so it counts. A test that only reads the script's text
+  belongs in a file that never installs, and reads it with
+  `installScriptText()` from `gate-files.mjs`: a test file that names the
+  script is in the install tier.
+- **Import helpers by what they touch** (ADR 0034), and take only what the
+  test uses. `text.mjs` touches nothing; `tree.mjs` touches the files a test
+  names; `gate-files.mjs` reads the gate's own files; `payload.mjs` reads the
+  payload, agents included; `gate-run.mjs` runs gate modules; and
+  `install-harness.mjs` runs the install. A test that imports `payload.mjs`
+  is picked for every agent-file change, so import it only to read the
+  payload. A helper touches no file and starts no process when imported; the
+  import guard checks every helper. A `makeRepo` mutate that adds a test
+  agent routes it with `routeTree`; `install()` fails a routing refusal the
+  test didn't name in `unrouted`.
+- **Moving or renaming a case.** Every case in the T1 baseline,
+  [`gate/tests/fixtures/baseline-140/`](gate/tests/fixtures/baseline-140/), keeps
+  a home. A case that changes file, or becomes a table row in its own file,
+  gets a line in `moves.tsv` beside the baseline. Move 4's full run, in record
+  mode with the junit reporter, goes through the no-loss compare, which must
+  exit 0 with its `RESULT: compare pass` line last:
+  `$env:NODE_OPTIONS = $null; node gate/tests/baseline-compare.mjs <record>` in
+  PowerShell, or `env -u NODE_OPTIONS node gate/tests/baseline-compare.mjs <record>`
+  in a POSIX shell.
 
 ## Where work lives
 
@@ -192,6 +305,33 @@ Where two bullets apply, the stricter one holds.
   One example is the tools an agent gets when the allow-list has no entry for
   it. Another is the renderer's list of agents a configuration may set:
   adding an agent to it is a spec change, and on this floor.
+- **The test runner and the copy list are on this floor too,** though they sit
+  in the gate's tests: `gate/tests/run.mjs` and `gate/tests/copy-list.mjs`,
+  with the tests that hold their bad cases, `gate/tests/run.test.mjs` and
+  `gate/tests/run-guards.test.mjs`. A change to any of them takes the
+  security route and needs a bad case in the gate's tests that it is seen to
+  catch; weakening or deleting a bad case counts as a change to what it
+  guards. That covers the tiers and how they
+  are picked, the exit handling, how the runner starts node (the binary, its
+  flags and its environment) and record mode, so "the full suite" can't be
+  narrowed by an ordinary test edit.
+- **The table module and the no-loss compare are on this floor too:**
+  `gate/tests/tables.mjs` and `gate/tests/baseline-compare.mjs`, the baseline
+  `gate/tests/fixtures/baseline-140/baseline.tsv` and its two lists beside it,
+  `env-cases.tsv` and `reporter-names.tsv`, with the tests that hold their bad
+  cases, `gate/tests/tables.test.mjs` and `gate/tests/baseline-compare.test.mjs`.
+  The same rules hold as for the runner. Weakening the table module could let
+  a row pass for the wrong reason, and weakening the compare or its lists
+  could hide a lost case. The map of moves, `moves.tsv`, is not on the floor:
+  its lines change with every move, and the compare bounds what a line can do.
+- **The in-process runner and its two guards are on this floor too:** the
+  runner's module `gate/tests/gate-run.mjs`, with its tests
+  `gate/tests/gate-run.test.mjs`; the parity guard,
+  `gate/tests/parity.test.mjs`; and the fault-fixture guard,
+  `gate/tests/fault-fixtures.test.mjs`. The same rules hold as for the
+  runner. Weakening the in-process runner could let every in-process case
+  pass, and weakening a guard could let in-process cases drift from what the
+  install runs.
 - **Everything else is proved by use.** That means the repo's tests and gates
   pass, a reviewer reads the change at move 4, and the standing measures are
   recorded where they apply. Any other edit to this section is also proved by

@@ -6,7 +6,8 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { OPEN_MARKS, REPO, read, withoutOpenMarks } from './helpers.mjs';
+import { OPEN_MARKS, REPO, withoutOpenMarks } from './text.mjs';
+import { read } from './tree.mjs';
 
 // Today's 14 skill names (spec revision 2, "Testing Decisions").
 const SKILLS = [

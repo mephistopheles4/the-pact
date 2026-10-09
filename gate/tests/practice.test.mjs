@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { REPO } from './helpers.mjs';
+import { REPO } from './text.mjs';
 import { LENSES, bannedWords, findPayload, score } from './practice-score.mjs';
 
 const DIR = join(REPO, 'gate', 'tests', 'fixtures', 'practice');

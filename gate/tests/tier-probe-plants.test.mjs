@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { cpSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { GATE, tempDir } from './helpers.mjs';
+import { GATE } from './text.mjs';
+import { tempDir } from './tree.mjs';
 
 const PLANTS = join(GATE, 'tests', 'fixtures', 'tier-probe-plants');
 
