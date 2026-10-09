@@ -118,14 +118,17 @@ how every session in every repo behaves. So:
       gate's code runs `full`, and so do more than 2,000 changed paths.
     - **A path no rule maps** is printed as unmapped. `fast` covers it, plus
       the install smoke file for a payload path.
-    - **Some changes still cost about a full suite.** A file under `claude/`
-      or `cross/` is read by the shared test helper, so nearly every test
-      names it. A fixture edit, or a deleted or renamed test file, is named by
-      the copy list's entry for the tests folder, so every install test runs.
-      So is an edit to `gate/tests/run.mjs`, which a comment in the copy list
-      names.
-      #151 tracks a finer split. For such a change, check the pick with
-      `--list` first, and run it once rather than after every edit.
+    - **What an agent-file change picks.** The test helpers are split by
+      what they touch (ADR 0034), so an agent file picks only the tests that
+      read agents: those that import `payload.mjs` or read them themselves.
+      Of the install files, that's the smoke set and five others, 6 of 9.
+    - **Some changes still cost about a full suite.** The pact's rules file,
+      `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
+      deleted or renamed test file, is named by the copy list's entry for the
+      tests folder, so every install test runs. So is an edit to
+      `gate/tests/run.mjs`, which a comment in the copy list names. For such
+      a change, check the pick with `--list` first, and run it once rather
+      than after every edit.
 
   All three cap the run at four test files at once, which keeps it from
   starving other sessions (ADR 0029). Never run the suite without the cap.
@@ -191,9 +194,18 @@ how every session in every repo behaves. So:
   A test that runs the script without `install()` goes through the harness's
   `spawnInstall`, so it counts. A test that only reads the script's text
   belongs in a file that never installs, and reads it with
-  `installScriptText()` from the helpers: a test file that names the script is
-  in the install tier.
-- **Import helpers by what they touch.** Take only what the test uses.
+  `installScriptText()` from `gate-files.mjs`: a test file that names the
+  script is in the install tier.
+- **Import helpers by what they touch** (ADR 0034), and take only what the
+  test uses. `text.mjs` touches nothing; `tree.mjs` touches the files a test
+  names; `gate-files.mjs` reads the gate's own files; `payload.mjs` reads the
+  payload, agents included; `gate-run.mjs` runs gate modules; and
+  `install-harness.mjs` runs the install. A test that imports `payload.mjs`
+  is picked for every agent-file change, so import it only to read the
+  payload. A helper touches no file and starts no process when imported; the
+  import guard checks every helper. A `makeRepo` mutate that adds a test
+  agent routes it with `routeTree`; `install()` fails a routing refusal the
+  test didn't name in `unrouted`.
 - **Moving or renaming a case.** Every case in the T1 baseline,
   [`gate/tests/fixtures/baseline-140/`](gate/tests/fixtures/baseline-140/), keeps
   a home. A case that changes file, or becomes a table row in its own file,
