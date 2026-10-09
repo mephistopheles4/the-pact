@@ -219,8 +219,8 @@ how every session in every repo behaves. So:
 ## Where work lives
 
 - **Work items:** GitHub issues on `mephistopheles4/the-pact`. See
-  [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). The repo is
-  private; `main` was first pushed on 2026-09-30. Cite a commit by its short
+  [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md). `main` was
+  first pushed on 2026-09-30. Cite a commit by its short
   hash; GitHub links it only once the commit is on the remote.
 - **A session assigns the issue it takes.** When it starts work on an issue,
   it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
@@ -396,7 +396,7 @@ Configuration for the optional [engineering skills](https://github.com/mattpococ
 
 ### Issue tracker
 
-GitHub issues on `mephistopheles4/the-pact`, via the `gh` CLI; external PRs are not a triage surface. The repo is private; `main` is pushed, and going public waits for a sweep (#9, #10). See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+GitHub issues on `mephistopheles4/the-pact`, via the `gh` CLI; external PRs are not a triage surface. `main` is pushed; the publish sweep was #9 and #10. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
 
 ### Triage labels
 

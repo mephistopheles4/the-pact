@@ -4,6 +4,18 @@
 
 Faust signed a pact with no way out. This one has escape clauses written in: the human decides at every seam, and the agent stops and asks when it should. The skills live in [grimoire](https://github.com/mephistopheles4/grimoire), the spellbook. This repo holds the terms, and the familiars bound by them.
 
+## Who it's for
+
+**It is one person's working configuration, shared as a reference.** Read it,
+borrow from it, or install it, but adopt it with your own judgement. It is
+written for its owner's setup: the rules tell Claude Code to use PowerShell on
+Windows, name the owner's other projects, and set the owner's preferences,
+such as auto mode and the Concise output style. A configuration file can
+change some of it (see `examples/pact-config/`); the rest you would edit in
+your own copy.
+
+To install it, follow [docs/install.md](docs/install.md).
+
 ## Why this exists
 
 The pact is a small, runnable version of my engineering playbook: how humans
@@ -61,6 +73,25 @@ The pact does not cover Anthropic's Maintain stage yet.
 
 Builds run in a main session the owner watches, not in agents.
 
+## Depends on
+
+- **Claude Code.** The pact is a rules file, agents and settings for it.
+- **PowerShell 7,** to run the install script, on Windows, macOS or Linux.
+- **Node 20 or later** to install; **Node 24**, the current LTS, to run the
+  gate's tests.
+- **git.** The install reads the clone's committed files through git.
+- **The models the rules name:** Opus and Sonnet, and Fable for a second
+  opinion when reviewers disagree.
+- **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy
+  of its check script ships in `gate/grimoire/`, so the install needs nothing
+  from it. Its skills are optional.
+- **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional.
+  The pact ships them as a preset you can bind to the moves.
+- **Optional for this repo's own work:** the GitHub CLI (`gh`), for its
+  tracker, and Docker, for the practice runs and the Linux test run.
+
+How to install: [docs/install.md](docs/install.md).
+
 ## What never goes in here
 
 - **Credentials of any kind.** `~/.claude/settings.json` holds API keys in its `env` block, so it is never copied. Only the overlay is.
@@ -69,9 +100,9 @@ Builds run in a main session the owner watches, not in agents.
 
 ## Status
 
-**Bootstrapped on 2026-09-26, and it will be public.** Cloud sessions can then clone it with no token. A privacy pass found no credentials or personal paths. The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill.
+**Bootstrapped on 2026-09-26.** **The git history is kept as it was written:** older commits hold the owner's Windows username in file paths, and two commits name a private folder, without any of its content ([ADR 0035](docs/adr/0035-publish-with-the-history-as-it-is.md)). The current tree holds no personal home paths, and a test guards against new ones. The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill.
 
-**`cloud-sessions/` embeds its own copies, so it goes stale on every change to `claude/`.** Run `cloud-sessions/gen.ps1` after any such change. It rewrites the config section of `cloud-setup.sh` and `cloud-setup-wrapper.sh` in place, from the repo's agents and settings overlay and from `CLAUDE.cloud.md`. `CLAUDE.cloud.md` is hand-kept: it is `claude/CLAUDE.md` without the Windows Shell rule and the install note, with cloud wording for the desktop-only session tools. Last regenerated 2026-09-30. **Next step:** once this repo is public, have the setup clone it and copy `claude/` into place, so it can never go stale again.
+**`cloud-sessions/` embeds its own copies, so it goes stale on every change to `claude/`.** Run `cloud-sessions/gen.ps1` after any such change. It rewrites the config section of `cloud-setup.sh` and `cloud-setup-wrapper.sh` in place, from the repo's agents and settings overlay and from `CLAUDE.cloud.md`. `CLAUDE.cloud.md` is hand-kept: it is `claude/CLAUDE.md` without the Windows Shell rule and the install note, with cloud wording for the desktop-only session tools. Last regenerated 2026-09-30. **Next step (#4):** have the setup clone this repo and copy `claude/` into place, so it can never go stale again.
 
 ## Planned
 

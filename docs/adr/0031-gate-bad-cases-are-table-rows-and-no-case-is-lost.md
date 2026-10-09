@@ -31,7 +31,7 @@ A bad case for a gate module is a row in that module's table: one plant on a bas
 - **A new bad case should cost one row, not a new test with its own setup.** The owner's target is thousands of cases that still run fast. A row is a few words, and the table carries the setup.
 - **A row must fail because of its plant.** A loop that checks only that its rule appears among the `FAIL` lines can pass for the wrong reason, when a second rule trips or the runner always fails. The base passing, and the row differing from it only by its plant, closes both: a runner that always passes fails every row, and one that always fails fails the base.
 - **Moving tests can hide a lost one.** #140's tickets move hundreds of cases between files and turn loops into tables. A count that stays the same can still hide a case that was dropped while another was added. Matching every baseline case by name, file and status, with each move written down, makes a loss visible.
-- **The lists are hand-kept, and the repo is due to go public.** A path or a name typed into a list would be published, so the compare checks every line with the runner's leak patterns before reading any. It never echoes a line it flagged.
+- **The lists are hand-kept, and the repo was being readied for publishing.** A path or a name typed into a list would be published, so the compare checks every line with the runner's leak patterns before reading any. It never echoes a line it flagged.
 - **Names are read the baseline's way.** #145's move 4 read each case by its own name alone, and counted 38 cases the report "named differently". Read the way the baseline was made, with the suite chain, all of them match. So `reporter-names.tsv` stays empty, and no pattern matching is needed.
 
 ## How this was decided
