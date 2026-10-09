@@ -1,0 +1,24 @@
+{
+  "lens": "reader-lens",
+  "point": "diff",
+  "heading": "### What the owner must do",
+  "verdicts": [
+    "blocking"
+  ],
+  "findOn": {
+    "src/fetch.mjs:10-12": [
+      "high"
+    ]
+  },
+  "tellOn": [
+    [
+      [
+        "src/fetch.mjs:10-12"
+      ],
+      [
+        "high"
+      ],
+      "tell 2"
+    ]
+  ]
+}

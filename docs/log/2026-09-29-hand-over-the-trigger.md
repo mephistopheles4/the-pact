@@ -25,7 +25,7 @@ Live `~/.claude` matched the last install, `95f67ab`, so nobody had edited it by
 
 ## What the probes showed
 
-The expected results were committed in the plan before any run (`7ad6e53`). The runs used a local sandbox, `C:\Users\mephi\pact-probe-sandbox`, with no remote and no instruction files above it. Session A runs P1 to P4 on an issue; session B runs P5 on an approved ticket.
+The expected results were committed in the plan before any run (`7ad6e53`). The runs used a local sandbox, `~\pact-probe-sandbox`, with no remote and no instruction files above it. Session A runs P1 to P4 on an issue; session B runs P5 on an approved ticket.
 
 **Control runs, before the install, through `claude -p`** (`5d34076`). The owner asked for them to be driven from this session instead of typed by hand. All five failed, so the probes could count. The P1 session told the owner that `triage`, `to-spec` and `to-tickets` "aren't installed", though its own startup event listed them: the very failure the plan set out to fix.
 

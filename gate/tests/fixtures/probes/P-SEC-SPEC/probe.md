@@ -25,7 +25,7 @@ when, Needs a human.
 ## How to run it
 
 1. **Build the sandbox** on the host, at a neutral folder with a new number,
-   for example `C:\Users\mephi\scratch\ws-<n>`: `git init`; copy `plant/`'s
+   for example `~\scratch\ws-<n>`: `git init`; copy `plant/`'s
    two files and commit them as "spec". No remote.
 2. **Start the sandbox container** exactly as P-SEC's step 2 says, mounting
    the sandbox and the installed pact read-only, and never the-pact's
