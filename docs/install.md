@@ -61,7 +61,8 @@ committed files and prints what an install would do. Read these parts:
 - **`Overwrite:`, `Add:` and `Delete:`.** The files `-Apply` would replace,
   create and remove. **On a first install, `Overwrite` lists your own
   `~/.claude/CLAUDE.md` if you have one, and `-Apply` replaces it with no
-  backup.** Copy it somewhere safe first. An agent of yours with the same name
+  backup.** Copy it and your `~/.claude/settings.json` somewhere safe first;
+  [Undo the install](#undo-the-install) restores from them. An agent of yours with the same name
   as a pact agent is replaced the same way. Your other agents are left alone.
   `Delete` lists only files an earlier pact install put there, or, on a first
   install, an agent named `builder`, `spec-builder` or `security-builder`,
@@ -132,3 +133,17 @@ with the record of the last install, so it shows any you have edited since.
 
 To change the pact's settings, such as the usage pause line or a lens's model,
 see `examples/pact-config/` and the config builder in `builder/`.
+
+## Undo the install
+
+The script has no uninstall. To back out by hand, under `~/.claude`:
+
+1. **Put back your rules file and settings** from the copies you made in
+   step 3. With no copy of `settings.json`, edit it instead: remove the keys
+   the dry run listed under `settings.json:`, or set them back. Above all,
+   set `permissions.defaultMode` back to what you use, so you are not left
+   in auto mode.
+2. **Delete the pact's files:** the eight agents listed in step 5 from
+   `agents/`, `pact/cross.mjs`, and `.pact-install.json`.
+
+Start a new session to load the change.
