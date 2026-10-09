@@ -4,7 +4,7 @@
 // cover the bootstrap's own controls and every install-io path.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { commitAll, git, home, makeRepo, nodeEnv, nodeInstall, nodePassed, nodeRefused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
@@ -235,6 +235,63 @@ test('node: other pact-install folders in the temp folder are counted, never rem
   nodePassed(r);
   assert.match(r.stdout, /^NOTE: 1 other pact-install-\* folder\(s\) in the temp folder/m);
   assert.deepEqual(workFolders(tmp), ['pact-install-left']);
+});
+
+const userConfig = (h, n = 90) => {
+  mkdirSync(join(h, 'pact'), { recursive: true });
+  writeFileSync(join(h, 'pact', 'config.json'), `{"schema": 1, "settings": {"usage-pause": ${n}}}\n`);
+};
+const renderedHash = r => /^ {2}rendered rules file: sha256 ([0-9a-f]{64})$/m.exec(r.stdout)?.[1];
+
+test('node: a configuration binds --apply to the rendered hash, and the record names its digest', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  userConfig(h);
+  const dry = nodeInstall(repo, h);
+  nodePassed(dry);
+  const hash = renderedHash(dry);
+  assert.ok(hash, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets usage-pause to 90\.$/m);
+  assert.ok(dry.stdout.split('\n').find(l => l.includes(' --apply ')).endsWith(`--rendered-hash ${hash}`), dry.out);
+  nodeRefused(nodeInstall(repo, h, { apply: true }), /needs the full rendered hash the dry run showed/);
+  userConfig(h, 80);
+  nodeRefused(nodeInstall(repo, h, { apply: true, extra: ['--rendered-hash', hash] }), /is not the full hash of the rules file this run rendered/);
+  userConfig(h, 90);
+  nodePassed(nodeInstall(repo, h, { apply: true, extra: ['--rendered-hash', hash] }));
+  const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  assert.match(record.digest, /^[0-9a-f]{12}$/);
+  assert.equal(record.config[0].kind, 'user');
+  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /90%/);
+});
+
+test('node: --review-folder writes the rendered rules and the diff once every check passes, and installs nothing on a dry run', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  userConfig(h);
+  const rev = join(tempDir(t, 'pact-rev-'), 'review');
+  const r = nodeInstall(repo, h, { extra: ['--review-folder', rev] });
+  nodePassed(r);
+  assert.match(r.stdout, /^Review output: rendered-rules\.txt and config\.diff written to the review folder\.$/m);
+  assert.deepEqual(readdirSync(rev).sort(), ['config.diff', 'rendered-rules.txt']);
+  assert.deepEqual(readdirSync(h), ['pact']);
+  const again = join(tempDir(t, 'pact-rev-'), 'review');
+  nodeRefused(nodeInstall(repo, h, { apply: true, extra: ['--review-folder', again] }), /needs the full rendered hash/);
+  assert.ok(!existsSync(again), 'a refused apply writes no review');
+});
+
+test('node: a configuration blocks folder that is a link refuses before the renderer runs', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  mkdirSync(join(h, 'pact'));
+  try {
+    symlinkSync(tempDir(t, 'pact-blocks-'), join(h, 'pact', 'blocks'), WIN ? 'junction' : 'dir');
+  } catch (e) {
+    if (e.code === 'EPERM') return t.skip('this account may not make a link here');
+    throw e;
+  }
+  const r = nodeInstall(repo, h);
+  nodeRefused(r, /^REFUSED: the configuration blocks folder is a link or other reparse point\./m);
+  assert.ok(!/^render\| /m.test(r.stdout), 'the renderer never ran');
 });
 
 test('node: a commit with no runner refuses', t => {
