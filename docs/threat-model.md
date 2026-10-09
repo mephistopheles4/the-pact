@@ -36,8 +36,7 @@ environment yourself.
 **The data in reach.** A session can read what your account can: your
 `settings.json`, which can hold API keys; your GitHub sign-in; the repos on
 your machine. It writes review reports, decisions it heard from you in chat,
-and timings to the tracker. It keeps lens inputs as files in the Claude home
-folder.
+and timings to the tracker. It keeps lens inputs and reports as local files.
 
 **What this page leaves out.** Claude Code itself, Anthropic's models and
 servers, GitHub, and the safety of your machine and accounts are outside it.
@@ -165,7 +164,7 @@ once you install it.
   starts, its setup script installs plugins, third-party skills and a
   command-line tool at their latest versions. That code can reach the repo
   clone and any token the container holds. One plugin is a code-review
-  service's; using it sends code to that service. The owner accepted this
+  service's; using it may send code to that service. The owner accepted this
   risk by name (#182).
 
 ## A session that reads text as instructions
@@ -285,11 +284,11 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 - **#177:** on Linux and macOS, an install can leave `settings.json`, which
   can hold API keys, readable by other users. The how-to gives the
   workaround.
-- **#179:** the cloud setup script in this repo writes an old copy of the
+- **#179:** older versions of the cloud setup script wrote an old copy of the
   rules, without the tracker rule, the rule on outsiders' code, or the rule
-  against posting a secret. #181 generates a current copy. Until your cloud
-  environment's setup holds that copy, don't point a cloud session at a
-  public tracker.
+  against posting a secret. #181 generates a current copy. A cloud
+  environment keeps whatever setup was pasted into it, so until yours holds
+  the current copy, don't point a cloud session at a public tracker.
 - **#188:** with the current copy, a cloud session can't read authors, so
   nothing on the tracker counts and it asks you. That fails safe.
 - **#180:** no setting yet for trusted accounts on a team repo (R7).
