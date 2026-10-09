@@ -1,0 +1,49 @@
+/* PROTOTYPE v2 additions, on top of page.css. */
+.canvas2 { position: relative; padding: 16px 24px 24px; overflow: auto; background-image: linear-gradient(var(--ink-12) 1px, transparent 1px), linear-gradient(90deg, var(--ink-12) 1px, transparent 1px); background-size: 24px 24px; }
+.band { border: 2px solid var(--lock); background: var(--ground); padding: 8px 10px 10px; position: relative; z-index: 1; }
+.band .bl { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-70); margin-bottom: 8px; }
+.band .mrow { display: flex; gap: 40px; flex-wrap: wrap; }
+.band.moves { margin-bottom: 84px; width: max-content; min-width: 100%; }
+.band.floor { margin-top: 8px; border-style: dashed; }
+.band.floor .mrow { gap: 8px; }
+.mv, .fl { border: 2px solid var(--ink); background: var(--paper); padding: 6px 10px; display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.fl { border-width: 1.5px; border-style: dashed; border-color: var(--lock); font-weight: 400; }
+.mv.sel, .fl.sel, .seam.sel { box-shadow: 0 0 0 3px var(--caution); }
+.dot { display: inline-block; width: 20px; height: 20px; border-radius: 50%; text-align: center; line-height: 20px; font-size: 11px; font-weight: 700; color: var(--paper); background: var(--ink); }
+.dot.sense, .mv.sense .dot { background: #0e7490; }
+.dot.think, .mv.think .dot { background: #7c3aed; }
+.dot.checkpoint, .mv.checkpoint .dot { background: #b45309; }
+.dot.own, .mv.own .dot { background: #15803d; }
+.srow { display: flex; align-items: flex-start; gap: 0; position: relative; z-index: 1; width: max-content; padding-bottom: 4px; }
+.stage { width: 210px; flex: 0 0 auto; border: 2px solid var(--ink); background: var(--paper); padding: 0 8px 8px; }
+.stage.sel { box-shadow: 0 0 0 3px var(--caution); }
+.stage .sh { display: block; width: calc(100% + 16px); margin: 0 -8px 8px; text-align: left; border: 0; border-bottom: 1px solid var(--ink-30); background: var(--tech); padding: 6px 8px; }
+.stage .sh .n { display: block; font-size: 10px; letter-spacing: .14em; color: var(--ink-55); }
+.stage .sh .t { display: block; font-weight: 700; font-size: 15px; }
+.stage .sh .s { display: block; font-size: 12px; color: var(--ink-70); }
+.stage .empty { font-size: 12px; color: var(--ink-55); }
+.seam { flex: 0 0 auto; align-self: center; display: flex; flex-direction: column; gap: 3px; margin: 0 6px; padding: 4px 3px; border: 1.5px solid var(--ink-30); border-radius: 999px; background: var(--paper); }
+.seam .dot { width: 18px; height: 18px; line-height: 18px; font-size: 10px; }
+.addst { flex: 0 0 auto; align-self: center; border: 1.5px dashed var(--ink-30); background: transparent; padding: 20px 10px; }
+.item { display: flex; align-items: flex-start; gap: 6px; border: 1.5px solid var(--ink); background: var(--paper); padding: 5px 6px; margin-bottom: 6px; }
+.item .ib { flex: 1; text-align: left; background: transparent; border: 0; padding: 0; }
+.item .t { display: block; font-weight: 600; font-size: 13px; }
+.item .s { display: block; font-size: 11px; color: var(--ink-70); }
+.item.fixed { border-style: dashed; border-color: var(--lock); background: var(--ground); }
+.item.fixed .t::before { content: "\1F512\FE0E  "; }
+.item.required { border-width: 2.5px; border-color: var(--caution); }
+.item.required .t::before { content: "\25C6  "; color: var(--caution); }
+.item.off { opacity: .45; }
+.item.off .t { text-decoration: line-through; }
+.item.sel { box-shadow: 0 0 0 3px var(--caution); }
+.item .sw { margin-top: 3px; }
+.key .item { display: block; }
+.loopspace { position: relative; }
+svg.arrows .fw { stroke: var(--ink); stroke-width: 1.75; fill: none; }
+svg.arrows .bk { stroke: var(--you); stroke-width: 1.5; stroke-dasharray: 3 3; fill: none; }
+svg.arrows .lp { stroke: var(--lock); stroke-width: 1.5; stroke-dasharray: 6 4; fill: none; }
+svg.arrows .yt { fill: var(--you); font: 11px var(--font); }
+svg.arrows .lt { fill: var(--ink-70); font: 11px var(--font); }
+.loopf { border-left: 2px solid var(--lock); padding-left: 6px; margin-top: 6px; }
+.inspector .danger { border: 1px solid var(--caution); color: var(--caution); background: var(--paper); padding: 2px 8px; margin-top: 4px; }
+.compiled pre { max-height: 28em; }
