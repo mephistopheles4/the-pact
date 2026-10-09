@@ -1,0 +1,12 @@
+# Keeps the gate workflow's pinned actions current (#166). Each update is a
+# pull request that edits .github/workflows/gate.yml, so it is read as a change
+# to the gate before it merges. The cooldown holds a new release back two
+# weeks before it is proposed.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14

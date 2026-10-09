@@ -33,13 +33,21 @@ function importUnderTrap(file) {
 
 // ------------------------------------------------------------ the core import guard
 
-test('the core import guard: the gate holds exactly the four cores', () => {
+test('the core import guard: the gate holds exactly the four cores, and the install\'s decisions (#153)', () => {
   assert.deepEqual(
     readdirSync(GATE)
       .filter(f => f.endsWith('-core.mjs'))
       .sort(),
-    MODULES.map(m => `${m}-core.mjs`),
+    ['install-core.mjs', ...MODULES.map(m => `${m}-core.mjs`)],
   );
+});
+
+// install-core.mjs is not a check: it exports the install's decisions, and no
+// check(). It is held to a core's rules all the same.
+test('the core import guard: install-core.mjs touches no file, process, environment or OS user detail when imported', () => {
+  const r = importUnderTrap(join(GATE, 'install-core.mjs'));
+  assert.equal(r.line, 'LOADED undefined', r.out);
+  assert.equal(r.code, 0, r.out);
 });
 
 for (const m of MODULES) {
@@ -123,7 +131,7 @@ const BANNED = Object.freeze([
 /** The banned names a core's source holds. */
 const bannedIn = text => BANNED.filter(b => text.includes(b));
 
-for (const m of MODULES) {
+for (const m of [...MODULES, 'install']) {
   test(`the core source check: ${m}-core.mjs never prints, exits or schedules work`, () => {
     assert.deepEqual(bannedIn(readFileSync(join(GATE, `${m}-core.mjs`), 'utf8')), []);
   });

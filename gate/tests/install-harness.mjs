@@ -1,7 +1,7 @@
 // Runs the install script end to end, against a throwaway git repo built from
 // this tree and a throwaway -ClaudeHome. Never touches ~/.claude.
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import { afterEach, beforeEach } from 'node:test';
@@ -90,16 +90,26 @@ export function makeRepo(t, mutate) {
 // so one count serves the file. The count is per top-level test: a subtest's
 // installs count toward the test it runs in, and a subtest is not checked on
 // its own, so a subtest that reads its parent's install passes. makeRepo and
-// git are not installs. A test that calls t.skip() stays a skip: node keeps
-// its status over a throw from this hook (seen on Node 20.20 and 24.14), and
-// the guard's own tests pin that (ADR 0033).
+// git are not installs. A test that calls t.skip() stays a skip: the hook
+// records the call and never throws for it, since node 24.21 reports a skipped
+// test as failed when this hook throws (20.20 and 24.14 kept the skip). The
+// guard's own tests pin that (ADR 0033).
 let installs = 0;
 let depth = 0;
-beforeEach(() => {
-  if (depth++ === 0) installs = 0;
+let skipped = false;
+beforeEach(t => {
+  if (depth++ === 0) {
+    installs = 0;
+    skipped = false;
+  }
+  const skip = t.skip.bind(t);
+  t.skip = (...args) => {
+    skipped = true;
+    return skip(...args);
+  };
 });
 afterEach(t => {
-  if (--depth === 0 && installs === 0) {
+  if (--depth === 0 && installs === 0 && !skipped) {
     throw new Error(`purity guard: "${t.name}" is in an install-tier file but neither ran the install script nor skipped itself; move it to a file that never installs`);
   }
 });
@@ -109,6 +119,51 @@ export function spawnInstall(args, options) {
   if (!args.some(a => String(a).toLowerCase().includes('install.ps1'))) throw new Error('spawnInstall: no argument names the install script, so this is not an install');
   installs++;
   return spawnSync(programs().pwsh, args, options);
+}
+
+/** Runs node with `args`, one of which must name the Node install script; counts as an install (#153). */
+export function spawnNodeInstall(args, options) {
+  if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstall: no argument names the Node install script, so this is not an install');
+  installs++;
+  return spawnSync(process.execPath, args, options);
+}
+
+/** spawnNodeInstall's async form, for a test that signals or waits on a running install. */
+export function spawnNodeInstallAsync(args, options) {
+  if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstallAsync: no argument names the Node install script, so this is not an install');
+  installs++;
+  return spawn(process.execPath, args, options);
+}
+
+/** The environment a Node install runs with in a test: this one, minus NODE_OPTIONS, with PATH set. */
+export function nodeEnv(extra = {}, path = [NODE_DIR, ...nodeBasePath()]) {
+  return envWith(path, extra);
+}
+
+/**
+ * Runs the Node install (gate/install.mjs) on `repo` with `home` as its Claude
+ * home folder. `apply` passes --apply with the commit `apply` names (true: the
+ * repo's HEAD). Same routing guard as install().
+ */
+export function nodeInstall(repo, home, { apply = false, path = [NODE_DIR, ...nodeBasePath()], env = {}, extra = [], unrouted = [], script = join(repo, 'gate', 'install.mjs'), cwd = repo } = {}) {
+  if (unrouted !== true && !(Array.isArray(unrouted) && unrouted.every(f => typeof f === 'string'))) throw new Error('nodeInstall: unrouted is true or a list of file paths');
+  const args = [script, '--claude-home', home];
+  if (apply) args.push('--apply', '--commit', apply === true ? git(repo, 'rev-parse', 'HEAD').trim() : apply);
+  args.push(...extra);
+  const r = spawnNodeInstall(args, { cwd, encoding: 'utf8', env: envWith(path, env), timeout: 180_000 });
+  const out = { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
+  if (unrouted !== true) {
+    const stray = routingFails(out.stdout).filter(f => !unrouted.includes(f));
+    assert.deepEqual(stray, [], `seam A refused an agent the test did not mean to leave unrouted; route it in the test's makeRepo mutate (routeTree), or name it in unrouted:\n${out.out}`);
+  }
+  return out;
+}
+
+// git's and the system's folders, for a Node install's PATH: no pwsh lookup.
+let nodeFound = null;
+function nodeBasePath() {
+  if (!nodeFound) nodeFound = Object.freeze([dirname(which('git')), ...(WIN ? [join(process.env.SystemRoot ?? 'C:\\Windows', 'System32')] : ['/usr/bin', '/bin'])]);
+  return nodeFound;
 }
 
 /** The files seam A refused for routing, as the install prints them; what install()'s routing guard reads. */
@@ -140,6 +195,20 @@ export function install(repo, home, { apply = false, path = [NODE_DIR, ...basePa
 export function refused(r) {
   assert.notEqual(r.code, 0, r.out);
   assert.match(r.stdout, /^REFUSED: /m, r.out);
+}
+
+/** A Node install that refused: exit 1, a REFUSED line, and the bootstrap's RESULT: refused last. */
+export function nodeRefused(r, says) {
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.stdout, /^REFUSED: /m, r.out);
+  assert.equal(r.stdout.trimEnd().split('\n').at(-1), 'RESULT: refused', r.out);
+  if (says) assert.match(r.stdout, says, r.out);
+}
+
+/** A Node install that passed: exit 0 and RESULT: pass last. */
+export function nodePassed(r) {
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.stdout.trimEnd().split('\n').at(-1), 'RESULT: pass', r.out);
 }
 
 export function home(t) {

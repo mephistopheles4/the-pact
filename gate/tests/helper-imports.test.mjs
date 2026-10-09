@@ -35,10 +35,10 @@ function helpers(dir = TESTS, top = true) {
   return out.sort();
 }
 
-/** The four gate cores, found in the gate folder. */
+/** The four gate cores, found in the gate folder: every -core.mjs but the install's decisions, which export no check (#153). */
 function cores() {
   return readdirSync(GATE)
-    .filter(f => f.endsWith('-core.mjs'))
+    .filter(f => f.endsWith('-core.mjs') && f !== 'install-core.mjs')
     .sort();
 }
 
@@ -75,6 +75,16 @@ for (const f of cores()) {
   test(`the helper import guard: gate/${f} touches no file and starts no process when imported`, () => {
     const r = importUnderTrap(join(GATE, f));
     assert.equal(r.line, 'LOADED function', r.out);
+    assert.equal(r.code, 0, r.out);
+  });
+}
+
+// The Node install's modules that the runner imports (#153): its decisions and
+// its file system module touch nothing until called.
+for (const f of ['install-core.mjs', 'install-io.mjs']) {
+  test(`the helper import guard: gate/${f} touches no file and starts no process when imported`, () => {
+    const r = importUnderTrap(join(GATE, f));
+    assert.equal(r.line, 'LOADED undefined', r.out);
     assert.equal(r.code, 0, r.out);
   });
 }

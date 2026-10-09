@@ -20,6 +20,7 @@ const AGENT = 'claude/agents/scout.md';
 const INSTALL_PICKS = Object.freeze([
   'agent-settings-install.test.mjs', // reads integrity-lens.md from the repo and the copy
   'install-edits.test.mjs', // lists the copy's agents for move 2
+  'install-node.test.mjs', // compares the Node install's agents with the copy's, and names scout's paths (#166)
   'install-project.test.mjs', // names the live folder's agents in its own text
   'install-smoke.test.mjs', // the smoke set; compares every installed agent
   'install.test.mjs', // plants and routes agents, and lists the copy's
@@ -27,7 +28,7 @@ const INSTALL_PICKS = Object.freeze([
 ]);
 
 /** The install-tier files that reach the agents only through makeRepo's copy, which the smoke set covers (S5 rule 4). */
-const INSTALL_NOT_PICKED = Object.freeze(['builder-install.test.mjs', 'config-install.test.mjs', 'cross-script-install.test.mjs']);
+const INSTALL_NOT_PICKED = Object.freeze(['builder-install.test.mjs', 'config-install.test.mjs', 'cross-script-install.test.mjs', 'install-node-project.test.mjs']);
 
 /** The fast-tier files that read no agent file (#151's audit). */
 const FAST_NOT_PICKED = Object.freeze([
