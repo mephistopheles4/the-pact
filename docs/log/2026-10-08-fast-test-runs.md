@@ -139,7 +139,7 @@ T10 changes tests only. The test helpers' gate-module runners call the T9 cores 
   - **The 364 tests left on their own runners** have a home: #163, at triage. Both `behaviour-lens` and `unstated-lens` asked for the boundary to be confirmed; it stays as the ticket's wording sets it, for the owner to confirm at done.
   - **T10 is on the shared branch.** `unstated-lens` saw only local refs; draft PR #150 shows T10's commits.
 - **The pick: skipped on the owner's word.** The lead session relayed the owner's words: "we can skip that for tonight".
-- **The owner's done.** In the morning the owner answered "done", relayed word for word by the lead session. With it, the owner accepted the runner boundary, with #163 as the follow-up, and the Linux by-name stand-in until #149. The pre-filled disposition answers stay unconfirmed.
+- **The owner's done.** In the morning the owner answered "done", relayed word for word by the lead session. With it, the owner accepted the runner boundary, with #163 as the follow-up, and the Linux by-name stand-in until #149. The owner then confirmed the pre-filled disposition answers ("t10 too"): no crossings, and the review changed the decision.
 - **The final runs (T10),** quiet, at a0e8fc0: `full` passed in 397.8 s beside 381.8 s, and the compare passed with 1,598 unchanged, 53 moved and 287 new (the fixes added 30), no map line added. On Linux, Node 20, 1,938 cases ran, the same total; only the four #149 cases failed, and all 10 Linux-listed cases passed.
 
 ## T6 (#157): one layer per test file
@@ -270,6 +270,7 @@ Issue comments on mephistopheles4/the-pact#156:
 - `6073354640` — move 4's Lens dispositions, the skipped pick, and the final runs.
 - `6073372004` — a correction to the dispositions' counts and to the boundary row, and the hand-off.
 - `6078522102` — the owner's done, the decisions recorded with it, and the Time column.
+- `6078837113` — the owner's confirmation of the pre-filled disposition answers.
 
 Issue comments on mephistopheles4/the-pact#140, for T10:
 
