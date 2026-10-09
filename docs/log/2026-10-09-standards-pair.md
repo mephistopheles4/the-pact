@@ -4,7 +4,7 @@
 
 - **`conventions-lens`:** it lists the repo's written rules that apply to the change, quoted with where each is written, and reports each place the change breaks one.
 - **`reader-lens`:** it walks each action the next reader must take from the text, and reports where a tell from its catalogue of ten would make them misread or stall.
-- **Both read the diff** with `Read`, `Glob` and `Grep` only, on Opus at medium. Where both report overlapping lines, a convention break that also loses the reader shows first. See [ADR 0035](../adr/0035-the-standards-pair-judges-written-rules-and-named-tells.md).
+- **Both read the diff** with `Read`, `Glob` and `Grep` only, on Opus at medium. Where both report overlapping lines, a convention break that also loses the reader shows first. See [ADR 0036](../adr/0036-the-standards-pair-judges-written-rules-and-named-tells.md).
 - **Live since the install** of `b7007c5`. The rule probe's real run and the closing periodic review are still to come.
 
 ## What it set out to do
