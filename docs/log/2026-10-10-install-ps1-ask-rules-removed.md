@@ -15,7 +15,7 @@ Seven lenses read the result: the QA pair, `unstated-lens`, the standards pair a
 
 - **A comma the step would leave.** `behaviour-lens` ran the cleanup in memory with the installer's own writer. The ask list is written sorted, so `PowerShell(./scripts/install.ps1 -Apply)` is likely its last entry, and deleting its line leaves a trailing comma that breaks the file. The how-to now says to delete that comma.
 - **The step in the wrong place.** `reader-lens` found the cleanup in the dry-run step, before the install it must follow, and "three" look-alike dash rules where there are six. The section moved after the install step, and the count is fixed.
-- **Loops in a fast-tier file.** `conventions-lens` held the file to the rule that a file whose cases change converts its loops. The new seam A controls became a table; the 42-rule loop stays, as the spec planned.
+- **Loops in a fast-tier file.** `conventions-lens` held the file to the rule that a file whose cases change converts its loops. The new seam A controls and the banned-name loop became tables; the 42-rule loop stays, as the spec planned.
 - **The accepted risk, read twice.** Both security lenses named the unprompted rollback, which the owner accepted at sign-off; neither found another way in.
 - **Deleted tests, dismissed.** `integrity-lens` flagged the tests deleted with the old rules, as its rules require; the spec directs each deletion.
 - **Two gaps with no home.** `unstated-lens` asked who fills this Record list, and for the R22 row to name the rollback case. Both are done.
@@ -31,5 +31,5 @@ Issue comments on mephistopheles4/the-pact#218:
 
 - **Brief:** 6101015322.
 - **Build evidence:** 6101377482.
-- **Move 4:** security pair 6101448825, `unstated-lens` 6101448956, standards pair 6101472360, QA pair 6101754931, Lens dispositions 6101767022.
+- **Move 4:** security pair 6101448825, `unstated-lens` 6101448956, standards pair 6101472360, QA pair 6101754931, Lens dispositions 6101767022 and its correction 6101906879; the refused first runs of the standards pair 6101904288 and the QA pair 6101904439.
 - **The owner's cleanup report (C5b):** posted on #217 after the merge; the session that posts it adds its id here.

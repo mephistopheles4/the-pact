@@ -96,12 +96,40 @@ test('a passing check prints exactly one SETTINGS line, with the hash of the ove
 
 // ------------------------------------------------------------ seam A: banned names
 
-for (const k of BANNED) {
-  test(`bad case: an overlay with ${k} fails, by name`, t => {
-    const r = expectSettingsFail(t, overlayWith(o => (o[k] = k === 'hooks' ? { PreToolUse: [] } : 'x')), 'settings-banned');
-    assert.match(r.stdout, new RegExp(`\\(${k}\\)`), r.out);
-  });
-}
+/** A plant setting the banned top-level key `k` in the overlay. */
+const banned = k => tree => {
+  const o = JSON.parse(tree[OVERLAY]);
+  o[k] = k === 'hooks' ? { PreToolUse: [] } : 'x';
+  return { [OVERLAY]: `${JSON.stringify(o, null, 2)}\n` };
+};
+for (const c of table('banned settings in the overlay', {
+  module: 'gate/seam-a.mjs',
+  base: () => ({ [OVERLAY]: realOverlay() }),
+  run: (tree, t) => {
+    const r = runSeamA(stage(t, { [OVERLAY]: tree[OVERLAY] }));
+    return moduleResult(r.code, r.stdout);
+  },
+  everyRow: r => assert.doesNotMatch(r.out, /^SETTINGS /m, r.out),
+  rows: [
+    { id: 'hooks', plant: banned('hooks'), fails: ['settings-banned'], says: /\(hooks\)/, why: 'hooks run commands' },
+    { id: 'mcp-servers', plant: banned('mcpServers'), fails: ['settings-banned'], says: /\(mcpServers\)/, why: 'an MCP server runs a command' },
+    { id: 'status-line', plant: banned('statusLine'), fails: ['settings-banned'], says: /\(statusLine\)/, why: 'a status line runs a command' },
+    { id: 'file-suggestion', plant: banned('fileSuggestion'), fails: ['settings-banned'], says: /\(fileSuggestion\)/, why: 'file suggestion runs a command' },
+    { id: 'api-key-helper', plant: banned('apiKeyHelper'), fails: ['settings-banned'], says: /\(apiKeyHelper\)/, why: 'a key helper runs a command' },
+    { id: 'aws-auth-refresh', plant: banned('awsAuthRefresh'), fails: ['settings-banned'], says: /\(awsAuthRefresh\)/, why: 'an auth refresh runs a command' },
+    { id: 'aws-credential-export', plant: banned('awsCredentialExport'), fails: ['settings-banned'], says: /\(awsCredentialExport\)/, why: 'a credential export runs a command' },
+    { id: 'otel-headers-helper', plant: banned('otelHeadersHelper'), fails: ['settings-banned'], says: /\(otelHeadersHelper\)/, why: 'a headers helper runs a command' },
+    { id: 'enabled-plugins', plant: banned('enabledPlugins'), fails: ['settings-banned'], says: /\(enabledPlugins\)/, why: 'a plugin can carry hooks' },
+    { id: 'extra-known-marketplaces', plant: banned('extraKnownMarketplaces'), fails: ['settings-banned'], says: /\(extraKnownMarketplaces\)/, why: 'a marketplace supplies plugins' },
+    { id: 'enable-all-project-mcp-servers', plant: banned('enableAllProjectMcpServers'), fails: ['settings-banned'], says: /\(enableAllProjectMcpServers\)/, why: "a project's MCP servers run commands" },
+    { id: 'enabled-mcpjson-servers', plant: banned('enabledMcpjsonServers'), fails: ['settings-banned'], says: /\(enabledMcpjsonServers\)/, why: "an .mcp.json server runs a command" },
+  ],
+})) test(c.name, c.fn);
+
+test('the banned-settings table has a row for each banned name', () => {
+  const src = readFileSync(join(GATE, 'tests', 'settings.test.mjs'), 'utf8');
+  for (const k of BANNED) assert.ok(src.includes(`banned('${k}')`), k);
+});
 
 test('bad case: a banned name nested inside an allowed key fails', t => {
   expectSettingsFail(t, overlayWith(o => (o.permissions.hooks = {})), 'settings-banned');
