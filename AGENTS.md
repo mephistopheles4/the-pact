@@ -4,7 +4,8 @@ The rules for working **on** this repo. They are not the pact itself: the pact
 is [`claude/CLAUDE.md`](claude/CLAUDE.md) and the agents in
 [`claude/agents/`](claude/agents/), which install into `~/.claude/` and govern
 every project. This file governs only changes to this repo. See
-[`README.md`](README.md) for what is here and what never goes in.
+[`docs/reference.md`](docs/reference.md) for what is here and what never goes
+in.
 
 Every rule for this repo lives here, whichever agent reads it.
 [`CLAUDE.md`](CLAUDE.md) only imports this file, for Claude Code.
@@ -291,6 +292,14 @@ how every session in every repo behaves. So:
 - **Keep the threat model in step.** A change that alters a defence
   [`docs/threat-model.md`](docs/threat-model.md) names, or closes an issue it
   lists, updates that page in the same PR.
+- **Keep the README in step with the rules.** A change to the tiers, the
+  lenses, the models or the risk floor in `claude/CLAUDE.md`, or to the
+  roster in `claude/agents/`, updates in the same PR: the figure sources in
+  `docs/img/src/` and their alt text and "Text of FIG." blocks in the README
+  (then rerun `node docs/img/build.mjs`), the README's prose, and the tables
+  in [`docs/reference.md`](docs/reference.md). Reviewers reading such a diff
+  check those too. `gate/tests/readme-figures.test.mjs` fails only while an
+  SVG is stale; no test checks the figures' words.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](docs/agents/domain.md).
 
