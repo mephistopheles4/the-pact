@@ -6,7 +6,7 @@ change it. It describes the pact as published on 2026-10-10. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R23, so other work can point at it. A
+Each accepted risk has a label, R1 to R24, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -74,7 +74,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R23
+  title Residual risk, R1 to R24
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -103,6 +103,7 @@ quadrantChart
   R21 Test code ordinary: [0.30, 0.36]
   R22 Apply asks only: [0.34, 0.62]
   R23 Publish below the floor: [0.30, 0.56]
+  R24 A lead moves work: [0.40, 0.70]
 ```
 
 How to read it:
@@ -114,8 +115,8 @@ How to read it:
   tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
-  apply spelled past the ask rules (R22), and publishing work below the
-  thorough tier (R23) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  apply spelled past the ask rules (R22), publishing work below the
+  thorough tier (R23), and a lead moving work (R24) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
 - **Accept (bottom left): R17, R21.** R17 needs your own edits, and the dry
@@ -147,6 +148,7 @@ How to read it:
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail" | Rule |
+| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on the settings folders and on branch-protection commands; branch protection where set | Outside the pact, prompt |
 
 ## Strangers on the tracker
 
@@ -172,9 +174,12 @@ months.
 - **R1. It is a rule, not a boundary.** A model can still misread. The test
   covers the cases it planted, not every wording a stranger could try.
 - **R2. Every session posts as you.** A session marks a comment as your
-  decision only when it heard you in chat, or got your answer through a
-  checked relay from another session. That mark is plain text. A session
-  fooled by what it read could write it, and later sessions would count it.
+  decision only when it heard you in chat. Only that session writes the
+  mark, and a decision in the prompt that started a session is not from
+  chat, whoever wrote it. That mark is plain text. A session fooled by what
+  it read could write it, and later sessions would count it. Older comments
+  marked "by checked relay" are history and no longer count, so an open item
+  that rests on one needs your word again, in chat (#220).
 - **R3. Review reports are public, and stay public.** Sessions post every
   lens report on the tracker word for word, security findings included. A
   comment stays readable after the fix. Security reports name where a secret
@@ -388,6 +393,42 @@ session can act before you see it.
   injection could target, and Claude Code's own auto-mode checks, which
   aren't documented to stop this. The owner accepted this by name (#217,
   ADR 0052).
+- **R24. A lead moves work.** A lead is a session that starts other sessions
+  and sends them messages. Since #220 the pact says nothing about messages
+  between sessions: Claude Code and the lead skill you run govern them. A
+  steered, confused or forged lead can approve a spec, cut tickets or accept
+  work through the sessions it leads. Every session posts as you, so the
+  record doesn't show which approvals a lead made. Through a session, a lead
+  reaches what that session can: the keys in `settings.json`, your GitHub
+  sign-in, and posts in public. What bounds it:
+  - **Sent-in messages are covered.** Claude Code treats a message from
+    another session as a teammate's request, never your consent, and auto
+    mode blocks the dangerous actions without your explicit ask.
+  - **Start prompts are not.** A lead writes the prompt that starts a
+    session, and auto mode reads that prompt as your own ask. A prompt that
+    names a specific action can clear auto mode's soft blocks, such as
+    merging an unreviewed pull request or changing settings. The deleted
+    relay rule said merges, deletions and settings changes never travel by
+    relay; nothing replaces that sentence.
+  - **The desktop session tool is unknown.** The pact's parallel-sessions
+    rules name a desktop tool that sends a message to another session.
+    Anthropic's docs don't describe how it delivers one, so whether its
+    messages get the "not your consent" handling is unknown.
+  - **The merge stops a lead only where the branch requires review.** Auto
+    mode allows a push to a default branch by default. On this repo `main`
+    requires a pull request and the `gate` check, and blocks force-pushes
+    and deletion, but requires no approving review: every session posts as
+    you, and GitHub doesn't let an author approve their own pull request. So
+    the merge is not a human checkpoint here.
+  - **The ask rules still ask** before an edit to the settings folders and
+    before a `gh` command naming branch protection.
+  - **With auto mode off, or its lists edited,** Claude Code's own prompts
+    govern.
+
+  The pact still refuses a decision mark for a lead's word or a start
+  prompt's decision (R2), and an OK to run outsiders' code that arrives in a
+  start prompt or another session's text. The owner accepted the rest by
+  name (#220, ADR 0055).
 
 ## Your own configuration loosening a rule
 
@@ -447,6 +488,11 @@ Each tweak below is yours to make. The cost is what you give up.
   did.
 - **Set GitHub's interaction limit** on a public repo. It narrows who can
   comment for up to six months.
+- **Require an approving review** on your default branch, in its branch
+  protection. The merge then stops a lead that moved work by message or
+  start prompt (R24). Every session posts as you, and GitHub doesn't let an
+  author approve their own pull request, so it needs a second account as
+  the reviewer. A bypass for your own account lets every session through.
 
 You cannot loosen a gated clause through configuration. That is deliberate.
 
