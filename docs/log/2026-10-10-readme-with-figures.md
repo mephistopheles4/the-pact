@@ -26,8 +26,27 @@ The hero is the owner's own AI-generated pencil illustration of an emptied offic
 
 Its metadata was read before the first commit. The file holds a JFIF header and the standard sRGB colour profile, and no EXIF, XMP, IPTC or content credentials. Nothing personal was found, so nothing was removed, and the file was committed byte for byte: 1500 × 1500 px, 494 KiB.
 
+## What the reviews found
+
+Five lenses read the result: the QA pair, `unstated-lens` and the standards pair. All three cross calls passed.
+
+- **Main had moved.** `behaviour-lens` found that main had switched to the Node install (#204) since the branch began, so the README told readers to run a script that no longer exists. The branch merged main, and Install and Depends on now follow its how-to. No test reads the README's install text, so only a reviewer could have caught this.
+- **Three test gaps.** `integrity-lens` found that nothing checked the figures' words stay text in the font stack, that the 15% slack could drop to 5% unnoticed, and that a dark file was found anywhere rather than as its picture's dark source. Each gap got a check, and each check was seen to fail on a planted mutant.
+- **Words a stranger can't follow.** `reader-lens` found "seam" used for two ideas and never defined, "familiars" as an undefined second name for the agents, and models not named as models. Seam is now defined once, and the lenses figure reads "Review lenses".
+- **A lost fact.** `unstated-lens` found that the history line had dropped that two old commits name a private folder; the clause is back.
+- **One dismissal.** `conventions-lens` asked whether an Install section with a command mixes a how-to into an explanation. The spec asks for it, so it stays at one command and a pointer.
+
+Still open at the time of writing: whether the hero is the original download, whether the README says it is AI-generated, and whether 494 KiB meets "under 500 KB". All three are the owner's. The owner's look at the rendered README, in light and dark on desktop and phone, comes before the merge.
+
 ## Record
 
 Issue comments on mephistopheles4/the-pact#202:
 
-RECORD_LIST
+- **Triage and design decisions:** 6089869833, 6091611823.
+- **Spec:** draft 1 6092581711; revision 2 6092675102.
+- **Spec review:** spec pair 6092651214, `unstated-lens` 6092651325, Lens dispositions 6092675250.
+- **Owner decisions, from chat:** proceed 6093423454; one ticket 6093440703; the hero's terms and its metadata record 6093884463.
+- **Build evidence and publish sweep:** 6093898492; the full humanizer list 6094059443.
+- **Move 4:** standards pair 6093951302, `unstated-lens` 6093951456, QA pair 6094002609, Lens dispositions 6094107419.
+
+Follow-up filed: #207, the vendor-neutral split that the README's "Planned" section held.
