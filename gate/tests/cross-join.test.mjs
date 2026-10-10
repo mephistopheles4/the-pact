@@ -3,7 +3,7 @@
 // would see.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PROMPT, abovePrompt, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
+import { REVEAL, aboveReveal, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
 
 // ------------------------------------------------------------ a valid pair
 
@@ -21,7 +21,7 @@ test('a valid QA pair exits 0 and writes the comment and the page', t => {
 
 test('an exact anchor join finds the crossing, and an unmatched finding stays in its column', t => {
   const r = cross(t, { reports: qaPair() });
-  const [above] = abovePrompt(r.comments);
+  const [above] = aboveReveal(r.comments);
   // The crossing card comes first and carries the mark; C3 is one lens only.
   const crossing = above.indexOf('- \u271a `C2`');
   const single = above.indexOf('- `C3`');
@@ -44,8 +44,8 @@ test('nothing is dropped or capped: 100 findings per lens all show, once each, a
     anchors: ids.join(','),
   });
   assert.equal(r.code, 0, r.stdout);
-  const above = abovePrompt(r.comments).join('');
-  const below = r.all.slice(r.all.indexOf(PROMPT));
+  const above = aboveReveal(r.comments).join('');
+  const below = r.all.slice(r.all.indexOf(REVEAL));
   for (const lens of ['behaviour', 'integrity']) {
     for (let i = 1; i <= 100; i += 1) {
       const h = `\` ${lens} finding number ${i} on its own claim \``;
@@ -63,7 +63,7 @@ test('two different problems, one per lens question, at one anchor give a crossi
     },
   });
   assert.equal(r.code, 0, r.stdout);
-  assert.match(abovePrompt(r.comments)[0], /- \u271a `C1`/);
+  assert.match(aboveReveal(r.comments)[0], /- \u271a `C1`/);
 });
 
 test('one problem placed on different anchors by the two lenses gives no crossing', t => {
@@ -74,7 +74,7 @@ test('one problem placed on different anchors by the two lenses gives no crossin
     },
   });
   assert.equal(r.code, 0, r.stdout);
-  const [above] = abovePrompt(r.comments);
+  const [above] = aboveReveal(r.comments);
   assert.ok(!above.includes('\u271a `'), 'no crossing card');
   assert.ok(!/\u271a \|$/m.test(above), 'no crossing row');
 });
@@ -89,13 +89,13 @@ test('on the spec pair, both calls at one anchor give a disagreement, not a cros
     anchors: 'S1,S2,S3',
   });
   assert.equal(r.code, 0, r.stdout);
-  const [above] = abovePrompt(r.comments);
+  const [above] = aboveReveal(r.comments);
   assert.match(above, /\*\*Disagreements: both lenses called this; you settle it\*\*/);
   assert.match(above, /^- `S2`$/m);
-  assert.ok(!above.includes('\u271a'), 'no crossing mark anywhere above the prompt');
+  assert.ok(!above.includes('\u271a'), 'no crossing mark anywhere above the reveal');
   assert.match(above, /"settle S2"/);
   // The two calls show side by side only in the fold.
-  const below = r.all.slice(r.all.indexOf(PROMPT));
+  const below = r.all.slice(r.all.indexOf(REVEAL));
   assert.match(below, /^\| `S2` \| F1 `high` \| F1 `low` \|$/m);
   assert.ok(!above.includes('`high`') && !above.includes('`low`'));
 });

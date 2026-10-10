@@ -26,8 +26,8 @@ const TESTS = ['cross-join', 'cross-checks', 'cross-views', 'cross-page', 'cross
 // [name, the source text it replaces, its replacement, a phrase in the name of a test that must catch it]
 const MUTATIONS = [
   ['agreement: inconclusive with high allowed', 'inconclusive: !high,', 'inconclusive: true,', 'inconclusive with a high finding is refused'],
-  ['severity on cards above the prompt', '...cards(m, false)', '...cards(m, true)', 'on the spec pair, both calls at one anchor give a disagreement'],
-  ['area icon above the prompt', 'heading(m, false)', 'heading(m, true)', 'no mark but the crossing mark'],
+  ['severity on cards above the reveal', '...cards(m, false)', '...cards(m, true)', 'on the spec pair, both calls at one anchor give a disagreement'],
+  ['area icon above the reveal', 'heading(m, false)', 'heading(m, true)', 'no mark but the crossing mark'],
   ['tab allowed', "if (isRefused(cp) || cp === 9) return 'characters';", "if (isRefused(cp)) return 'characters';", 'by the characters rule'],
   ['pictographs allowed', "if (PICTOGRAPH_RE.test(String.fromCodePoint(cp))) return 'pictograph';", '', 'by the pictograph rule'],
   ['crossing mark allowed', "if (cp >= 0x2719 && cp <= 0x2720) return 'mark';", '', 'by the mark rule'],
@@ -40,7 +40,6 @@ const MUTATIONS = [
   ['non-risks outside the fold', 'nonRiskUnits(m, setup, FOLD_VERDICT)', 'nonRiskUnits(m, setup, null)', 'a distinctive non-risk note'],
   ['verbatim fence too short', "const fence = '`'.repeat(Math.max(3, longestRun(text, '`') + 1));", "const fence = '````';", 'fence is longer than its longest backtick run'],
   ['hidden count per report, not per code point', 'if (cp !== 10 && (isRefused(cp) || isInvisible(cp))) n += 1;', 'if (cp !== 10 && (isRefused(cp) || isInvisible(cp))) n = 1;', 'three hidden characters on one line'],
-  ['pick rule 3 removed', "else if (pick !== 'none' && targets.length > 0 && !picked.some(id => targets.includes(id))) rule = 3;", '', 'pick: mismatch rule 3'],
   ['security tier check removed', "(area.thoroughOnly && tier !== 'thorough')", 'false', 'security-pair report with any tier below thorough'],
   ['likelihood check removed', "if (LIKELIHOOD_LENSES.has(lens) ? !SEVERITIES.has(f.likelihood) : Object.hasOwn(f, 'likelihood')) refuse('likelihood');", '', 'likelihood on integrity-lens'],
   ['line ranges never join', 'if (last && s <= last.end)', 'if (last && s < last.start)', 'line anchors join on file and overlap'],
@@ -54,7 +53,7 @@ const MUTATIONS = [
   ['reveal is not a details block', '<details><summary>Verdict, severities and non-risks</summary>', '<div><summary>Verdict, severities and non-risks</summary>', 'the reveal is a <details> block'],
   ['non-risks 21 allowed', 'doc.nonRisks.length > NON_RISKS_MAX', 'doc.nonRisks.length > NON_RISKS_MAX + 1', 'non-risks: 21 items refused'],
   ['path length 201 allowed', 'p.length > TEXT_MAX', 'p.length > TEXT_MAX + 1', 'a path of 201 characters'],
-  ['unstated takes a pick', "if (a.mode === 'pick' && !area.pair) return { rule: 'pick', area };", '', 'unstated-lens alone is refused'],
+  ['a second mode allowed', "if (a.mode !== 'cross') a.usage = true;", '', 'the pick mode is gone'],
   ['part 1 names a total once the section splits', "  parts.push(cur + closing());\n  return parts;", "  parts.push(cur + closing());\n  if (parts.length > 1) parts[0] = `Part 1 of ${parts.length}\\n\\n${parts[0]}`;\n  return parts;", 'invariance: severities, verdicts and non-risks'],
   ['the calls table in the non-risks fold at standard', '...matrix(m), ...callsTable(m, null));', '...matrix(m), ...callsTable(m, FOLD_NON_RISKS));', 'calls show side by side in the open'],
   ['a card cannot split between its lines', "units.push({ table: card, text: `  - ${code(m.area.lenses[li])}", "units.push({ text: (f === fs[0] && li === 0 ? card.open : '') + `  - ${code(m.area.lenses[li])}", 'one card over the limit splits between its finding lines'],

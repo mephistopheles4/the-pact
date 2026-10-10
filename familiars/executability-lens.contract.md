@@ -107,7 +107,7 @@ Each sample ends with its `lens-findings` block.
 - The cross script checks the findings block, joins it with its partner's as a tension pair, and writes the owner's view.
 
 **You (the owner)** **Confirmed** (2026-10-07)
-- The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87). Your "proceed, fix or kill" on the spec stays yours, as do your thorough pick, a disagreement the pair leaves for you to settle, and your "done".
+- The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87). Your "proceed, fix or kill" on the spec stays yours, as do a disagreement the pair leaves for you to settle and your "done".
 
 **Stop and ask** **Confirmed** (2026-10-07)
 The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and `notChecked` starting "stopped and waiting:".
@@ -192,8 +192,7 @@ Against its neighbours: it asks "can this be built as written, with the owner's 
 **Confirmed** (2026-10-07):
 - **Cries wolf:** the owner dismissed 6 or more of its findings across its last 10 reports.
 - **Escapes:** 2 or more confirmed escapes fall to it, such as a spec it passed that stalled the build.
-- **Rarely changes the decision:** never fires alone for this lens. It guards the risk floor, so it is a security-set lens, and its reads are often clean.
-- **Record and review:** the "Lens dispositions" table on each project's tracker; the periodic review reads the totals. The main session proposes; the owner decides.
+- **Record and review:** the "Lens dispositions" table and the escape rows on each project's tracker, which the owner reads when they choose (#189). No session proposes a review on a signal; the owner decides, and a roster change comes back as a spec change.
 
 ### 14. How hard should it think?
 

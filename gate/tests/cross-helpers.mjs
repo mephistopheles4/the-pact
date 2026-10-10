@@ -11,7 +11,10 @@ import { tempDir } from './tree.mjs';
 // The script under test. Only the mutation battery sets PACT_CROSS_UNDER_TEST,
 // to point the tests at a mutated copy in a temp folder.
 export const CROSS = process.env.PACT_CROSS_UNDER_TEST || join(REPO, 'cross', 'cross.mjs');
-export const PROMPT = '**Where do you expect the problem?**';
+// The thorough tier's reveal: the fold that holds the verdict, the severities and the non-risks.
+export const REVEAL = '<summary>Verdict, severities and non-risks</summary>';
+// The thorough pick's prompt, which #189 removed with the pick (#164). No section or page may hold it.
+export const PICK_PROMPT = 'expect the problem';
 export const LIMIT = 65536;
 
 /** A finding. `anchor` is a claim or section id ('C2', 'S1') or a full anchor object. */
@@ -35,7 +38,7 @@ export function report(b, { before = '', after = '' } = {}) {
  * Run the cross script on reports given as { lens: text } (or [[lens, text, fileName]]).
  * Returns the exit code, stdout, the FAIL rules, and the written files.
  */
-export function cross(t, { reports, point = 'result', tier = 'thorough', anchors = 'C1,C2,C3,C4', mode = 'cross', pick, args, out = true, env } = {}) {
+export function cross(t, { reports, point = 'result', tier = 'thorough', anchors = 'C1,C2,C3,C4', mode = 'cross', args, out = true, env } = {}) {
   const dir = tempDir(t, 'pact-cross-');
   const list = Array.isArray(reports) ? reports : Object.entries(reports);
   const argv = [CROSS, mode];
@@ -44,8 +47,7 @@ export function cross(t, { reports, point = 'result', tier = 'thorough', anchors
     if (point !== null) argv.push('--point', point);
     if (tier !== null) argv.push('--tier', tier);
     if (anchors !== null) argv.push('--anchors', anchors);
-    if (pick !== undefined) argv.push('--pick', pick);
-    if (mode === 'cross' && out) argv.push('--out', join(dir, 'out'));
+    if (out) argv.push('--out', join(dir, 'out'));
   }
   for (const [lens, text, name] of list) {
     const file = join(dir, name ?? `${lens}.md`);
@@ -75,12 +77,12 @@ export function cross(t, { reports, point = 'result', tier = 'thorough', anchors
   };
 }
 
-/** The bytes above the prediction prompt in each part, in order: '' once the prompt has passed. */
-export function abovePrompt(comments) {
+/** The bytes above the thorough tier's reveal in each part, in order: '' once the reveal has passed. */
+export function aboveReveal(comments) {
   let passed = false;
   return comments.map(c => {
     if (passed) return '';
-    const i = c.indexOf(PROMPT);
+    const i = c.indexOf(REVEAL);
     if (i < 0) return c;
     passed = true;
     return c.slice(0, i);

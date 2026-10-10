@@ -93,7 +93,7 @@ C11 carries the likelihood and impact comparison.
 - The cross script checks the findings block and joins it with its partner's as a tension pair.
 
 **You (the owner)** **Confirmed** (2026-10-07)
-- The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87). Your "proceed, fix or kill" on the spec, a disagreement for you to settle, your thorough pick and your "done" stay yours.
+- The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87). Your "proceed, fix or kill" on the spec, a disagreement for you to settle and your "done" stay yours.
 
 **Stop and ask** **Confirmed** (2026-10-07)
 Each stop ends the run with the reason, the verdict `inconclusive`, and `notChecked` starting "stopped and waiting:".
@@ -168,9 +168,9 @@ Extra keys: tools, model, effort
 ### 13. When would you retire it?
 
 **Confirmed** (2026-10-07):
-- **Yield:** the cuts the owner accepted that only this lens raised, read from the "Lens" column. If it adds little, the session proposes folding its question into its partner as a second pass. That is a roster change, so it comes back as a spec change.
+- **Yield:** the cuts the owner accepted that only this lens raised, read from the "Lens" column. If it adds little, the owner may fold its question into its partner as a second pass. That is a roster change, so it comes back as a spec change.
 - **Cries wolf:** the owner dismissed 6 or more of its findings across its last 10 reports.
-- **Rarely changes the decision:** never fires alone, because it guards the risk floor.
+- **Record and review:** the "Lens dispositions" table on each project's tracker, which the owner reads when they choose (#189). No session proposes a review on a signal; the owner decides.
 
 ### 14. How hard should it think?
 

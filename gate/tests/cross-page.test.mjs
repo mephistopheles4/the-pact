@@ -1,10 +1,10 @@
-// The locked page, the pick mode and determinism (#44).
+// The locked page, the pick mode's removal (#189) and determinism (#44).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { CROSS, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
+import { CROSS, PICK_PROMPT, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
 import { tempDir } from './tree.mjs';
 
 const symbol = (file, sym) => ({ kind: 'symbol', file, symbol: sym });
@@ -80,62 +80,37 @@ test('the page escapes every lens string and gives no attribute lens text', t =>
 
 // ------------------------------------------------------------ the pick
 
-const pick = (t, p, reports = qaPair(), opts = {}) => cross(t, { reports, mode: 'pick', pick: p, ...opts });
-const lines = r => r.stdout.split('\n').filter(l => /^(PICK|RULE|MISSED|EMPTY) /.test(l));
+// #189 removed the thorough pick (#164): the script has one mode, and nothing it writes asks for a pick.
 
-test('pick: a match, when a picked anchor holds a high finding', t => {
-  const r = pick(t, 'C2,C4');
-  assert.equal(r.code, 0, r.stdout);
-  assert.deepEqual(lines(r), ['PICK match', 'MISSED none', 'EMPTY C4']);
-  assert.deepEqual(readdirSync(r.dir).sort(), ['behaviour-lens.md', 'integrity-lens.md'], 'the pick mode writes nothing beside its inputs');
-});
-
-test('pick: mismatch rule 1, "none" when the pair verdict is not clear', t => {
-  assert.deepEqual(lines(pick(t, 'none')), ['PICK mismatch', 'RULE 1', 'MISSED C2', 'EMPTY none']);
-  // inconclusive with no findings is not clear either.
-  const inc = { 'behaviour-lens': report(block('behaviour-lens', 'clear')), 'integrity-lens': report(block('integrity-lens', 'inconclusive')) };
-  assert.deepEqual(lines(pick(t, 'none', inc)), ['PICK mismatch', 'RULE 1', 'MISSED none', 'EMPTY none']);
-});
-
-test('pick: mismatch rule 2, anchors named when the pair verdict is clear', t => {
-  const clear = qaPair({ aVerdict: 'clear', bVerdict: 'clear' });
-  assert.deepEqual(lines(pick(t, 'C1', clear)), ['PICK mismatch', 'RULE 2', 'MISSED none', 'EMPTY C1']);
-  assert.deepEqual(lines(pick(t, 'none', clear)), ['PICK match', 'MISSED none', 'EMPTY none']);
-});
-
-test('pick: mismatch rule 3, anchors named and none of them holds a high finding', t => {
-  assert.deepEqual(lines(pick(t, 'C3')), ['PICK mismatch', 'RULE 3', 'MISSED C2', 'EMPTY none']);
-});
-
-test('pick: a crossing picked with no high finding is a match, which the rule cannot see', t => {
-  const r = pick(t, 'C2', qaPair({ aVerdict: 'findings', bVerdict: 'findings', bSev: 'medium' }));
-  assert.deepEqual(lines(r), ['PICK match', 'MISSED none', 'EMPTY none']);
-});
-
-test('pick: code anchors are picked by their K id', t => {
-  const r = pick(t, 'K1', securityPair(), { point: 'diff', anchors: null });
-  assert.deepEqual(lines(r), ['PICK match', 'MISSED none', 'EMPTY none']);
-});
-
-test('pick: an anchor not shown, a repeat, or unstated-lens alone is refused', t => {
-  for (const p of ['C9', 'C2,C2', 'K1', 'C2,none', '']) {
-    const r = pick(t, p);
-    assert.equal(r.code, 1, `${p}: ${r.stdout}`);
-    assert.deepEqual(r.rules, ['pick'], p);
+test('the pick mode is gone: `pick` is a usage error, with or without the cross flags, and nothing is written', t => {
+  for (const args of [
+    ['--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', '--pick', 'C2'],
+    ['--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', '--out', 'out'],
+  ]) {
+    const r = cross(t, { reports: qaPair(), mode: 'pick', args: args.map(a => (a === 'out' ? join(tempDir(t, 'pact-cross-out-'), 'out') : a)) });
+    assert.equal(r.code, 1, r.stdout);
+    assert.deepEqual(r.rules, ['usage'], r.stdout);
+    assert.ok(!/^(PICK|RULE|MISSED|EMPTY) /m.test(r.stdout), 'no pick result');
+    assert.deepEqual(readdirSync(r.dir).sort(), ['behaviour-lens.md', 'integrity-lens.md'], 'nothing written beside the inputs');
   }
-  const unstated = { 'unstated-lens': report(block('unstated-lens', 'clear')) };
-  const r = pick(t, 'none', unstated);
-  assert.equal(r.code, 1);
-  assert.deepEqual(r.rules, ['pick']);
+  // `--pick` in the one mode left is not a flag it takes.
+  const r = cross(t, { reports: qaPair(), args: ['--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', '--pick', 'none', '--out', join(tempDir(t, 'pact-cross-out-'), 'out')] });
+  assert.deepEqual(r.rules, ['usage'], r.stdout);
 });
 
-test('pick: a report that fails a check fails the pick mode too, and nothing is written', t => {
-  const reports = qaPair();
-  reports['integrity-lens'] = report(block('integrity-lens', 'clear', [finding('F1', 'C1', 'low', 'A finding under clear')]));
-  const r = pick(t, 'C1', reports);
-  assert.equal(r.code, 1);
-  assert.deepEqual(r.rules, ['agreement']);
-  assert.deepEqual(readdirSync(r.dir).sort(), ['behaviour-lens.md', 'integrity-lens.md'], 'nothing written beside the inputs');
+test('no section or page asks the owner where they expect the problem, at any tier or area', t => {
+  for (const opts of [
+    { reports: qaPair() },
+    { reports: qaPair(), tier: 'standard' },
+    { reports: qaPair(), tier: 'quick' },
+    { reports: securityPair(), point: 'diff', anchors: null },
+    { reports: { 'unstated-lens': report(block('unstated-lens', 'clear')) }, point: 'spec', anchors: 'S1,S2' },
+  ]) {
+    const r = cross(t, opts);
+    assert.equal(r.code, 0, r.stdout);
+    assert.ok(!r.all.includes(PICK_PROMPT), `section: ${opts.tier ?? 'thorough'}`);
+    assert.ok(!r.page.includes(PICK_PROMPT), `page: ${opts.tier ?? 'thorough'}`);
+  }
 });
 
 // ------------------------------------------------------------ determinism

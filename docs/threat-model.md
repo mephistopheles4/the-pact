@@ -6,7 +6,8 @@ change it. It describes the pact as published on 2026-10-10. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R22, so other work can point at it.
+Each accepted risk has a label, R1 to R22, so other work can point at it. A
+retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
 
@@ -35,8 +36,8 @@ environment yourself.
 
 **The data in reach.** A session can read what your account can: your
 `settings.json`, which can hold API keys; your GitHub sign-in; the repos on
-your machine. It writes review reports, decisions it heard from you in chat,
-and timings to the tracker. It keeps lens inputs and reports as local files.
+your machine. It writes review reports, their disposition tables and
+decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files.
 
 **What this page leaves out.** Claude Code itself, Anthropic's models and
 servers, GitHub, and the safety of your machine and accounts are outside it.
@@ -97,7 +98,6 @@ quadrantChart
   R15 Repo files argue: [0.42, 0.60]
   R16 Unattended session: [0.10, 0.76]
   R17 Gate path only: [0.20, 0.44]
-  R18 Totals to this repo: [0.56, 0.20]
   R19 Fix work public: [0.20, 0.74]
   R20 Lens untested: [0.38, 0.54]
   R21 Test code ordinary: [0.30, 0.36]
@@ -114,8 +114,8 @@ How to read it:
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), and an
   apply spelled past the ask rules (R22) sit here. Their guards are mostly rules, so cutting one moves its risk right.
-- **Watch (bottom right): R3, R7, R18.** They happen by design, and the harm
-  is bounded: public reports, a blocked team, totals on another tracker.
+- **Watch (bottom right): R3, R7.** They happen by design, and the harm
+  is bounded: public reports, a blocked team.
 - **Accept (bottom left): R17, R21.** R17 needs your own edits, and the dry
   run shows them. R21 needs an edit to this repo's tests that its review
   misses.
@@ -139,7 +139,7 @@ How to read it:
 | R15 Repo files argue | A cloned repo | `no-skill-overrides` | Rule |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, the dry run | Boundary |
-| R18 Totals to this repo | None; a flow by default | "Totals only" names no repo | Rule |
+| R18 Totals to this repo | Retired by #189 | — | — |
 | R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
 | R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
@@ -221,8 +221,10 @@ once you install it.
 - **For skills, a rule.** A gated clause, `no-skill-overrides`, says no skill
   may override certain rules. Among them: the shell rule (use PowerShell, not
   Bash, on Windows), the stops, and the risk floor. The risk floor is the list
-  of work, such as auth and secrets, that always gets the most careful
-  process. The clause also covers the security route, the QA pair
+  of work that always gets the most careful process: auth, secrets, crypto,
+  input validation and data migrations. Since #189 publishing is not on it;
+  it stays a stop, where a session asks you before it goes on. The clause
+  also covers the security route, the QA pair
   (`behaviour-lens` and `integrity-lens`) at the end of each build, and the
   tracker rule.
 - **For its own install, a dry run and a gate.** The install shows what it
@@ -388,10 +390,9 @@ safe, and a change made months ago is easy to forget.
   text can contradict a gated clause in meaning, since the gate checks only
   where text sits. A rules file copied by hand, or shipped in a repo, skips
   the gate.
-- **R18. Your review totals go to this repo's tracker.** At a periodic
-  review, the rules have sessions post totals (lens names, counts, times and
-  models) to an issue on this repo, under your account, until you point that
-  paragraph at your own tracker.
+- **R18. Retired by #189.** The rules no longer have sessions collect review
+  totals into an issue on this repo. A session that reads several projects'
+  records copies nothing from one project into another.
 
 ## What you may tweak, and what it costs
 
@@ -410,7 +411,6 @@ Each tweak below is yours to make. The cost is what you give up.
   those blocks say (R17).
 - **Set the usage pause** anywhere from 0 to 100 percent. At 100, sessions
   never wait for you before expensive work.
-- **Point "Totals only" at your own tracker.** Removes R18.
 - **Edit any other text in your clone** and commit it. The install takes it,
   unless it touches a gated clause. You own its review (R17).
 - **Drop or pin plugins and skills.** Lowers R9 and R10. You lose what they
