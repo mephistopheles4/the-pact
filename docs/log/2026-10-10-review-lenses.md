@@ -51,7 +51,7 @@ No lens was added, merged, retuned or cut. Every cross refusal across the three 
 
 ## What is still open
 
-- **The install** of the two changed QA lens files: a dry run, the owner's go-ahead in chat, and a hash check that exits zero. Until then every project runs the old lens text.
+- **The install** of the two changed QA lens files, from main at the merge commit: a dry run, the owner's go-ahead in chat, and a hash check that exits zero. Until then every project runs the old lens text.
 - **The cloud wrapper:** after the merge, the owner pastes `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again, and checks the first session's setup log for the line `pact cloud copy` with the new marker.
 - **Closing:** #102, #35 and the rollout map #58 close on the owner's word once the finishing PR merges.
 - **#69:** sealing `behaviour-lens`, which waits on grimoire#166.
@@ -88,4 +88,6 @@ Issue comments on mephistopheles4/the-pact#102:
 - `6102271163` — the lead's brief for this build, after #189.
 - `6102457009` — the owner's decisions from chat: add the QA pair's limits, and keep #101's close-out; what main already held.
 - `6102497867`, `6102498028`, `6102498163` — move 4: the security pair and the standards pair on the diff, and `unstated-lens` on the result.
-- The claim list, the Lens dispositions, the full suite and the install record follow on #102.
+- `6102513797`, `6102514004` — move 4's claim list, and the Lens dispositions for round 1.
+- `6102550583` — round 2: the security pair on the fixes, both `clear`.
+- The full suite's record follows on #102; the install record follows the merge.
