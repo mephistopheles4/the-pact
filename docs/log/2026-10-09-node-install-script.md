@@ -79,6 +79,33 @@ Two sessions built it: `build-166`, which wrote the install (PR #201), and `buil
 
 The expected result went on #166 before the run. A new required-clause row puts the old `-Apply` text back into AGENTS.md, and seam A refuses it with `install-go-ahead differs from its canonical text`. The table's base, holding the new text, passes. Seam A's required list was also seen to fail with `PowerShell(*install.ps1*)` taken out, and the copy list's new bad case failed against the old list.
 
+### What was not done, on the owner's word or by choice
+
+- **The live-prompt probe was skipped again,** on the owner's word: "Skip it please". Only `PowerShell(*install.mjs*)` has been seen to prompt live, at the first apply. That leaves the other ask rules unseen live: the Bash ones, the record's, the `gh` ones and the two lasting `install.ps1` rules. This falls short of S15 and AGENTS.md's probe floor for the settings guard, as #165's skip did. The rollback stand-in, a live prompt check, went with it. What a rollback needs besides the prompt was checked: an `install.ps1` dry run from a4e6546 read the Node record with no drift.
+- **The scout contract's worked example still cites `install.ps1`.** Its samples are a dated record of the owner's 2026-10-05 pick, marked "drafted, not real". Editing the contract changes the digest its familiar's seal pins. Its practice case moved to the Node install.
+- **S13's split was not done,** so the install tier is 945 s summed, past both of S13's deferral triggers. #189 has the numbers, and the intent of #146 and #147.
+- **#110** is closed by construction: rules compare exactly. A bad case shows a rule that differs by an invisible character counts as missing.
+- **#28's Linux run** is the container in `gate/tests/fixtures/linux/`, now on Node 24, where the whole suite passes.
+
+### Move 4
+
+One run of seven lenses covered #201's merged diff and #204's together, a4e6546..993c8d9, on the lead's go. Every cross call passed. The fixes are in 173f8e3, and each new check was seen to fail with its code taken out:
+
+- **Security pair.**
+  - The bootstrap now refuses unless it is `gate/install.mjs` itself.
+  - An apply refuses before any write when a `.pact-tmp` file is left over.
+  - Every workflow file keeps the CI lockdown.
+  - A settings file an older install widened draws a warning; the docs had called #177 fixed outright.
+- **QA pair.**
+  - The purity guard lost count after a skipped subtest, because node runs no afterEach for one, so later tests in the file went unchecked. It now keys on each test's full name.
+  - New bad cases cover the runner's own project link test, the lockdown's and the bootstrap checker's untested parts, and environment variables that try to turn on `--apply`.
+  - A `--name=value` refusal no longer shows the value.
+- **Standards pair and `unstated-lens`.**
+  - The ADR's rule count is corrected.
+  - The README lists PowerShell 7 for part of the tests.
+  - The install prompt says to back up first.
+  - The Record list below is filled in.
+
 ## Record
 
 Issue comments on mephistopheles4/the-pact#153:
@@ -101,6 +128,21 @@ Issue comments on mephistopheles4/the-pact#165:
 - `6085521008`: verbatim, the security pair's cross section.
 - `6085567523`: verbatim, the QA pair's cross section.
 
+Issue comments on mephistopheles4/the-pact#166:
+
+- `6088979990` and `6089050313`: the owner's decisions to fold the cutover in, and to apply twice.
+- `6089436240`: `build-166`'s hand-off, with parts 1, 2 and 4 and their evidence.
+- `6090304847`: the test move, with the owner's decision to move it in place.
+- `6091616772`: the first Node apply, handed to the session by the owner.
+- `6091641998`: the clause probe's expected result, posted before the run; `6092194828`: its record; `6093235617`: a correction.
+- `6093328959`: the S15 CI probe's expected results.
+- `6093408674`: move 4's scope note; verbatim cross sections: the standards pair `6093408777`, `unstated-lens` `6093408898`, the security pair `6093429379`, and the QA pair `6093608252`.
+- `6093728441`: the Lens dispositions, with the owner's decision to skip the live-prompt probe.
+
+Issue comments elsewhere, for #166:
+
+- #152 `6072154307`: the plugin question's result.
+- #189 `6090306125` and `6093729310`: the timing, the deferral triggers, and #146's and #147's intent.
 Issue comments elsewhere:
 
 - #167 `6085608739`: findings carried to the cutover's ADR.

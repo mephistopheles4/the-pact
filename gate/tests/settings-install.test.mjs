@@ -12,8 +12,9 @@ import { DASHES, OVERLAY, PACT_ASK, overlayWith, shown } from './settings-rules.
 
 // ------------------------------------------------------------ install: the merge
 
+/** The live settings file, owner-only as Claude Code writes it, so the dry run's warning about a widened file stays out of these cases. */
 function writeLive(h, doc) {
-  writeFileSync(join(h, 'settings.json'), typeof doc === 'string' ? doc : JSON.stringify(doc, null, 2));
+  writeFileSync(join(h, 'settings.json'), typeof doc === 'string' ? doc : JSON.stringify(doc, null, 2), { mode: 0o600 });
 }
 
 function readLive(h) {
