@@ -412,6 +412,11 @@ session can act before you see it.
     permission changes, settings changes, and starting or stopping a
     session. Nothing replaces that sentence. For the last of them, starting
     or stopping a session, nothing in the pact bounds a lead at all.
+  - **The owner phrases name their source.** Since #203, "make it so" and
+    "archive this session" count only as your whole message typed in the
+    session's own chat, never from a start prompt, another session's message
+    or the tracker. That bounds the phrases, not a start prompt that spells
+    out the action itself.
   - **A start prompt can reach a rollback.** No ask rule guards a rollback
     to the old PowerShell installer (R22), and the install's go-ahead clause
     doesn't say a start prompt isn't chat. So a lead's start prompt could

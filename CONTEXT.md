@@ -25,6 +25,7 @@ real work selects it.
 - **Escape:** a defect found after a lens review passed the work on, that falls within the question of a lens that ran at that review.
 - **Roster gap:** a defect found later that no lens's question covers.
 - **Auto-take:** a choice a session makes by acting on its own recommendation on a report finding, without waiting for the owner. It never covers a stop, a gated clause, a tier decision or the owner's "done". Each one gets an `auto` row.
+- **Owner phrase:** a short phrase the owner types as a whole message in a session's own chat, defined in "Implementing a change": "make it so" (proceed as recommended) and "archive this session" (wrap up, then archive). Unlike auto-take, it is the owner's word. It never counts from a start prompt, another session's message or the tracker.
 - **Lens dispositions:** the table posted at every lens review, one row per finding: the finding, the lens, the disposition with its `auto` mark, the cross result, and the override mark when a lens ran off its default. #189 cut its other columns.
 - **Periodic review:** the owner reading the Lens dispositions tables, when they choose, which can add, merge, cut or retune lenses. Since #189 no session collects totals or proposes a lens review on a signal.
 
