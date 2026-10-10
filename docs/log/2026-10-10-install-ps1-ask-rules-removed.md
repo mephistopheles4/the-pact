@@ -32,4 +32,5 @@ Issue comments on mephistopheles4/the-pact#218:
 - **Brief:** 6101015322.
 - **Build evidence:** 6101377482.
 - **Move 4:** security pair 6101448825, `unstated-lens` 6101448956, standards pair 6101472360, QA pair 6101754931, Lens dispositions 6101767022 and its correction 6101906879; the refused first runs of the standards pair 6101904288 and the QA pair 6101904439.
-- **The owner's cleanup report (C5b):** posted on #217 after the merge; the session that posts it adds its id here.
+- **Owner decision, from chat:** merge and proceed, 6102026587.
+- **The owner's cleanup report (C5b):** 6102397897, on #217, after the merge and the install of e5fbfa0. The owner had removed the rules by hand before the install.
