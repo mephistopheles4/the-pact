@@ -36,7 +36,7 @@ Five lenses read the result: the QA pair, `unstated-lens` and the standards pair
 - **A lost fact.** `unstated-lens` found that the history line had dropped that two old commits name a private folder. The clause went back in, and then the owner removed the whole line: ADR 0035 holds the history note.
 - **One dismissal.** `conventions-lens` asked whether an Install section with a command mixes a how-to into an explanation. The spec asks for it, so it stays at one command and a pointer.
 
-Still open at the time of writing: whether the hero is the original download, whether the README says it is AI-generated, and whether 494 KiB meets "under 500 KB". All three are the owner's. The owner's look at the rendered README, in light and dark on desktop and phone, comes before the merge.
+The owner then settled the hero: it is the original download, the alt text doesn't say it is AI-generated, and its 494 KiB stands as it is. The owner's look at the rendered README, in light and dark on desktop and phone, comes before the merge.
 
 ## Record
 
