@@ -14,7 +14,7 @@ The places that carry the floor changed with it, in one change so seam A passes:
 
 - **Nothing defined "published".** On a public repo, where every push and every comment is published, the phrase read as every change, so the floor sent all work to the thorough tier or was quietly ignored.
 - **No recorded value.** No review or escape on record turned on publishing being on the floor (#189, S2).
-- **A leak through a publish keeps three guards:** "secrets" on the floor, for keys and tokens; the gated `tracker-authors` line "Never post a secret or a personal detail"; and the publish stop. Personal data rests on the last two. The owner chose deletion over narrowing the phrase, so personal data is not added to the floor.
+- **A leak through a publish keeps three guards:** "secrets" on the floor, for keys and tokens; the gated `tracker-authors` line "Never post a secret or a personal detail"; and the publish stop. Personal data rests on the last two. The owner chose deletion over narrowing the phrase, so personal data is not added to the floor. The threat model accepts this as R23: work that publishes can now run below the thorough tier, guarded by rules alone.
 
 ## Supersedes
 

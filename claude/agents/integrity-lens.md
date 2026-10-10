@@ -146,7 +146,7 @@ word; the cross script places the verdict. No line numbers, codes or paths.
     surviving mutant outside the claims.
 - `headline`: plain text, at most 120 characters, with no severity or
   verdict word ("high", "blocking", "clear", "safe", "ignore"): a headline
-  shows before the owner's prediction.
+  shows before the owner reads the verdict.
 - `notChecked`: one to 20 items, each at most 200 characters.
 - `nonRisks` (optional): up to 20 items of `{ "anchor": …, "note": … }`, what
   you checked and found sound, with the assumption that keeps it sound.

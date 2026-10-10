@@ -6,7 +6,7 @@ change it. It describes the pact as published on 2026-10-10. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R22, so other work can point at it. A
+Each accepted risk has a label, R1 to R23, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -74,7 +74,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R22
+  title Residual risk, R1 to R23
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -102,6 +102,7 @@ quadrantChart
   R20 Lens untested: [0.38, 0.54]
   R21 Test code ordinary: [0.30, 0.36]
   R22 Apply asks only: [0.34, 0.62]
+  R23 Publish below the floor: [0.30, 0.56]
 ```
 
 How to read it:
@@ -112,8 +113,9 @@ How to read it:
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
   tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
-  made public by its own fix work (R19), lenses no test runs (R20), and an
-  apply spelled past the ask rules (R22) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  made public by its own fix work (R19), lenses no test runs (R20), an
+  apply spelled past the ask rules (R22), and publishing work below the
+  thorough tier (R23) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
 - **Accept (bottom left): R17, R21.** R17 needs your own edits, and the dry
@@ -144,6 +146,7 @@ How to read it:
 | R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling, the go-ahead clause | Prompt, rule |
+| R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail" | Rule |
 
 ## Strangers on the tracker
 
@@ -222,9 +225,9 @@ once you install it.
   may override certain rules. Among them: the shell rule (use PowerShell, not
   Bash, on Windows), the stops, and the risk floor. The risk floor is the list
   of work that always gets the most careful process: auth, secrets, crypto,
-  input validation and data migrations. Since #189 publishing is not on it;
-  it stays a stop, where a session asks you before it goes on. The clause
-  also covers the security route, the QA pair
+  input validation and data migrations. Since #189 publishing is not on it:
+  work that publishes can run at a lower tier, guarded by rules alone (R23).
+  The clause also covers the security route, the QA pair
   (`behaviour-lens` and `integrity-lens`) at the end of each build, and the
   tracker rule.
 - **For its own install, a dry run and a gate.** The install shows what it
@@ -263,6 +266,17 @@ once you install it.
   clone and any token the container holds. One plugin is a code-review
   service's; using it may send code to that service. The owner accepted this
   risk by name (#182).
+- **R23. Work that publishes can run below the thorough tier.** Since #189
+  the risk floor no longer names publishing, so a change to what gets
+  published, such as a package's contents, a release step or a personal
+  detail in a committed file, can be built at the quick tier with no spec
+  read. Three rules are left: the gated stop, which has a session ask you
+  before something hard to reverse is published; "secrets" on the floor, for
+  keys and tokens; and the tracker rule "Never post a secret or a personal
+  detail". Text that frames such a change as quick work can steer past the
+  reviews, and your answer at the stop is then the only check. Signing off a
+  spec answers the stop for its pushes. The owner chose this over narrowing
+  the phrase (#189, ADR 0050).
 
 ## A session that reads text as instructions
 
@@ -389,7 +403,10 @@ safe, and a change made months ago is easy to forget.
   installs too; the dry run shows only that the gate changed. An open part's
   text can contradict a gated clause in meaning, since the gate checks only
   where text sits. A rules file copied by hand, or shipped in a repo, skips
-  the gate.
+  the gate. So does a direct edit to an installed lens file, such as a weaker
+  model line: it carries no override mark, and since #189 the Lens
+  dispositions table no longer records the model a lens ran on, so only the
+  next dry run's drift check shows it.
 - **R18. Retired by #189.** The rules no longer have sessions collect review
   totals into an issue on this repo. A session that reads several projects'
   records copies nothing from one project into another.

@@ -1,7 +1,7 @@
 // The locked page, the pick mode's removal (#189) and determinism (#44).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { CROSS, PICK_PROMPT, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
@@ -83,15 +83,16 @@ test('the page escapes every lens string and gives no attribute lens text', t =>
 // #189 removed the thorough pick (#164): the script has one mode, and nothing it writes asks for a pick.
 
 test('the pick mode is gone: `pick` is a usage error, with or without the cross flags, and nothing is written', t => {
-  for (const args of [
-    ['--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', '--pick', 'C2'],
-    ['--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', '--out', 'out'],
-  ]) {
-    const r = cross(t, { reports: qaPair(), mode: 'pick', args: args.map(a => (a === 'out' ? join(tempDir(t, 'pact-cross-out-'), 'out') : a)) });
+  for (const withOut of [false, true]) {
+    // The out folder sits in its own temp folder, so a write there shows: it must not exist afterwards.
+    const out = join(tempDir(t, 'pact-cross-out-'), 'out');
+    const args = ['--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', ...(withOut ? ['--out', out] : ['--pick', 'C2'])];
+    const r = cross(t, { reports: qaPair(), mode: 'pick', args });
     assert.equal(r.code, 1, r.stdout);
     assert.deepEqual(r.rules, ['usage'], r.stdout);
     assert.ok(!/^(PICK|RULE|MISSED|EMPTY) /m.test(r.stdout), 'no pick result');
     assert.deepEqual(readdirSync(r.dir).sort(), ['behaviour-lens.md', 'integrity-lens.md'], 'nothing written beside the inputs');
+    assert.ok(!existsSync(out), 'no out folder made');
   }
   // `--pick` in the one mode left is not a flag it takes.
   const r = cross(t, { reports: qaPair(), args: ['--point', 'result', '--tier', 'thorough', '--anchors', 'C1,C2,C3,C4', '--pick', 'none', '--out', join(tempDir(t, 'pact-cross-out-'), 'out')] });

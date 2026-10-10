@@ -734,8 +734,8 @@ function sectionUnits(m, setup, leftOut) {
   } else if (thorough) {
     units.push({ text: heading(m, false) }, { text: mapBlock(m) });
     for (const t of unverifiedLines(m)) units.push({ text: t });
-    // The verdict stays folded, unstated-lens's too, so the cards and the map
-    // are read before it, and unstated-lens cannot hint at a pair's answer.
+    // At thorough the verdict stays folded, unstated-lens's too, so the owner
+    // reads the evidence, the map and the cards, before any verdict.
     units.push({ text: NOTE }, ...cards(m, false), ...matrix(m));
     units.push({ fold: FOLD_VERDICT, text: verdictText(m) }, ...findingsTable(m, FOLD_VERDICT), ...callsTable(m, FOLD_VERDICT), ...nonRiskUnits(m, setup, FOLD_VERDICT));
   } else {

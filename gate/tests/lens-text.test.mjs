@@ -58,6 +58,51 @@ test("good-enough-lens's risk-floor list and unstated-lens's security-route list
   assert.deepEqual(missingFrom(UNSTATED_LIST(), SECURITY_ROUTE), []);
 });
 
+// #211's move 4 (integrity-lens F1 to F5): the presence check above passes a copy that keeps an item the
+// floor dropped. Each restated copy of the floor must hold exactly its items, and the publish stop keeps
+// "anything published", which #189 took off the floor only.
+/** The list between `before` and `after` in a repo file, whitespace flattened; each marker must occur once. */
+function between(rel, before, after) {
+  const flat = read(join(REPO, rel)).replace(/\s+/g, ' ');
+  assert.equal(flat.split(before).length, 2, `${rel}: "${before}" must occur once`);
+  const rest = flat.split(before)[1];
+  assert.ok(rest.includes(after), `${rel}: "${after}" must follow "${before}"`);
+  return rest.split(after)[0];
+}
+
+const FLOOR_COPIES = () => ({
+  'good-enough-lens.md': GOOD_ENOUGH_LIST(),
+  'no-skill-overrides.md': between('gate/clauses/no-skill-overrides.md', 'the risk floor (', ' are always thorough)'),
+  // The sentence after the tier table: the text between the table's last cell and the marker.
+  'triage-labels.md': between('docs/agents/triage-labels.md', '| `tier:thorough` |', ' are always `tier:thorough`').split(' | ').pop().trim(),
+  'good-enough-lens.contract.md': between('familiars/good-enough-lens.contract.md', '**It cannot defer a risk-floor item.** ', ' tolerate no deferral'),
+});
+
+/** The items of the stop's serial list, "a, b, c, or d": its last item keeps its "or" after the comma. */
+const stopItems = list => listItems(list).map(i => i.replace(/^(?:and|or) /, ''));
+
+/** The items of `list` the canonical `items` lack, and the items it lacks: both empty for an exact copy. */
+function exactGaps(list, items) {
+  const have = listItems(list);
+  return { extra: have.filter(i => !items.includes(i)), missing: items.filter(i => !have.includes(i)) };
+}
+
+test('every restated copy of the risk floor holds exactly its items, no more', () => {
+  for (const [name, list] of Object.entries(FLOOR_COPIES())) assert.deepEqual(exactGaps(list, RISK_FLOOR), { extra: [], missing: [] }, name);
+});
+
+test('the publish stop keeps "anything published", which left only the floor', () => {
+  assert.deepEqual(stopItems(between('gate/clauses/stop-and-escalate.md', 'the change is hard to reverse: ', ';')), ['auth', 'secrets', 'data migrations', 'anything published']);
+});
+
+test('bad case: a copy that keeps an item the floor dropped is caught', () => {
+  assert.deepEqual(exactGaps('Auth, secrets, crypto, input validation, data migrations and anything published', RISK_FLOOR), { extra: ['anything published'], missing: [] });
+  assert.deepEqual(exactGaps('auth, secrets, crypto, input validation and data migrations', RISK_FLOOR), { extra: [], missing: [] });
+  // The stop's parse sees the phrase go: a stop that loses it no longer equals its expected list.
+  assert.deepEqual(stopItems('auth, secrets, data migrations, or anything published'), ['auth', 'secrets', 'data migrations', 'anything published']);
+  assert.deepEqual(stopItems('auth, secrets or data migrations'), ['auth', 'secrets', 'data migrations']);
+});
+
 test('bad case: a restated list that drops an item is caught, however short the item', () => {
   assert.deepEqual(missingFrom(GOOD_ENOUGH_LIST().replace('data migrations', 'migrations'), RISK_FLOOR), ['data migrations']);
   // "auth" dropped from the list is caught even though "authority" or "author" appear elsewhere.

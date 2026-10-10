@@ -185,7 +185,7 @@ test('at quick, one line and the not-checked lists show, and nothing else above 
   assert.ok(!r.page.includes('<h2>Cards</h2>'), 'the page has no cards at quick either');
 });
 
-test('unstated-lens alone at thorough: no pick prompt, and no severity or verdict before its fold, so it cannot hint at the pair\'s answer', t => {
+test('unstated-lens alone at thorough: no pick prompt, and no severity or verdict before its fold, so its cards are read before any verdict', t => {
   const run = (sev, verdict) => cross(t, { reports: { 'unstated-lens': report(block('unstated-lens', verdict, [finding('F1', 'S2', sev, 'The issue asks for a phone view that no section covers')])) }, point: 'spec', anchors: 'S1,S2' });
   const a = run('medium', 'findings');
   const b = run('high', 'blocking');

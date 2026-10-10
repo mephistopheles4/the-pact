@@ -23,8 +23,8 @@ check_hash() {
 __EXPECTED_HASHES__
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
-  node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)' \
-    || echo "WARN: node is older than 20; the cross script needs 20 or later"
+  node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
+    || echo "WARN: node is older than 24, the pact's Node floor"
 else
   echo "WARN: node not found; the cross script cannot run"
 fi

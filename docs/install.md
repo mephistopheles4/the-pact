@@ -59,7 +59,9 @@ cd the-pact
 
 Run every later step from this folder, the repo root. The install copies from
 the clone's last commit, never from files you have changed but not committed.
-So commit any edit you make to the rules before step 4.
+So commit any edit you make to the rules before step 4. If you edited the
+"Totals only" paragraph in an earlier clone, drop that edit: the paragraph is
+gone, and no session collects totals now (#189).
 
 ## 3. Back up your own files
 
@@ -149,10 +151,6 @@ parts:
   your temp folder. It may hold your configuration text. Delete those
   `pact-install-*` folders by hand; the script never deletes them, because
   one could belong to an install still running.
-- **`WARN: settings.json can be read by other accounts`.** On Linux or macOS,
-  an older install may have widened your settings file, which can hold API
-  keys. The install keeps a file's mode, so restrict it yourself:
-  `chmod 600 ~/.claude/settings.json`.
 
 The dry run names your home folder and your Node's path, which hold your
 user name, and the names of your own settings. Post its verdict and counts on
@@ -284,9 +282,7 @@ pwsh ./scripts/install.ps1
 Both installers read and write the same install record, so either can follow
 the other. In a Claude Code session, a command that runs `install.ps1` with
 its `-Apply` switch, a prefix of it, a dash for the hyphen, a splat or a
-variable asks you first; its dry run doesn't. On Linux and macOS the old installer writes `settings.json`
-readable by other accounts (#177): run `chmod 600 ~/.claude/settings.json`
-after it.
+variable asks you first; its dry run doesn't.
 
 ## Known limits
 

@@ -1,6 +1,6 @@
 # Recommendations are auto-taken, with an audit trail
 
-Superseded in part by [ADR 0051](0051-review-bookkeeping-keeps-only-what-feeds-a-decision.md) (2026-10-10): the rudder check and the thorough-pick exception are gone, and the Lens dispositions table keeps five columns. The `auto` mark, the reversal mark and the other exceptions still hold.
+Superseded in part by [ADR 0051](0051-review-bookkeeping-keeps-only-what-feeds-a-decision.md) (2026-10-10): the rudder check and the thorough-pick exception are gone, and the Lens dispositions table keeps five things: four columns and the override mark. The `auto` mark, the reversal mark and the other exceptions still hold.
 
 After a report or review, a session acts on its own recommendation for each finding and carries on. Every such choice gets an `auto` row, and a rudder check at the periodic review counts how the defaults steer.
 

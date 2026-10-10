@@ -158,7 +158,7 @@ script places the verdict. No line numbers, codes, paths or commands.
   - `low`: an advisory, or a risk you could not reproduce.
 - `headline`: plain text, at most 120 characters, with no severity or
   verdict word ("high", "blocking", "clear", "safe", "ignore"): a headline
-  shows before the owner's prediction.
+  shows before the owner reads the verdict.
 - `notChecked`: one to 20 items, each at most 200 characters: every claim you
   did not run, and every need no claim covers.
 - `nonRisks` (optional): up to 20 items of `{ "anchor": …, "note": … }`, what

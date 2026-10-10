@@ -214,7 +214,7 @@ cross script places the verdict. No line numbers, codes or paths.
   item, never its value.
 - `headline`: plain text, 1 to 120 characters, with no severity or verdict
   word: not "high", "blocking", "clear", "safe" or "ignore". A headline shows
-  before the owner's prediction. These words are banned in every sense: for
+  before the owner reads the verdict. These words are banned in every sense: for
   data that is not encrypted, write "unencrypted", never "in clear", "in the
   clear" or "cleartext".
 - `findings`: a list of at most 100.

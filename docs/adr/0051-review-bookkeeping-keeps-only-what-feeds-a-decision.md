@@ -13,6 +13,7 @@ The pact's review bookkeeping is cut to what the owner's decisions used:
 ## Why
 
 - **The pick was skipped or answered "none" each time,** and fed no decision on record (#164).
+- **The fold stays without the pick.** It keeps the owner reading the evidence, the map and the cards, before any verdict, which a bare verdict would short-cut. Dropping it would be a separate change.
 - **The columns cost a round at every review.** Only the dispositions and the `auto` marks fed a decision.
 - **The signals never fired.** One periodic review was run (#35, 12 reviews). It kept every lens, no "may not pay" signal fired, and none of 73 auto-takes was reversed.
 - **Totals to this repo were a flow out of every project** that used the pact, R18, with nothing on record that needed it.

@@ -170,8 +170,8 @@ how every session in every repo behaves. So:
   All three cap the run at four test files at once, which keeps it from
   starving other sessions (ADR 0029). Never run the suite without the cap.
 - **It fails closed.** It hands the Node running it an explicit file list, so
-  it needs no glob and works the same in any shell, on Node 20.10 or later (the
-  cap flag needs 20.10). An empty pick, an odd test-file name or a usage error
+  it needs no glob and works the same in any shell, on Node 24 or later, the
+  floor below. An empty pick, an odd test-file name or a usage error
   exits 2 and runs nothing. A failed, killed or unstarted node exits 1. Its
   last line, on stderr, names the tier, the file count and the result.
   `--reporter` takes `spec`, `tap`, `dot` or `junit`, and `--list` prints the
