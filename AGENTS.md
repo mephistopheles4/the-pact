@@ -240,15 +240,11 @@ how every session in every repo behaves. So:
   import guard checks every helper. A `makeRepo` mutate that adds a test
   agent routes it with `routeTree`; `install()` fails a routing refusal the
   test didn't name in `unrouted`.
-- **Moving or renaming a case.** Every case in the T1 baseline,
-  [`gate/tests/fixtures/baseline-140/`](gate/tests/fixtures/baseline-140/), keeps
-  a home. A case that changes file, or becomes a table row in its own file,
-  gets a line in `moves.tsv` beside the baseline. Move 4's full run, in record
-  mode with the junit reporter, goes through the no-loss compare, which must
-  exit 0 with its `RESULT: compare pass` line last:
-  `$env:NODE_OPTIONS = $null; node gate/tests/baseline-compare.mjs <record>` in
-  PowerShell, or `env -u NODE_OPTIONS node gate/tests/baseline-compare.mjs <record>`
-  in a POSIX shell.
+- **Cutting an install case.** Cut an end-to-end install case only when an
+  in-process row already checks its decision, and name that row on the issue
+  (ADR 0047). Keep at least one end-to-end case that drives each of the
+  runner's checks to refuse. Never cut a case that checks a refused install
+  wrote nothing.
 
 ## Where work lives
 

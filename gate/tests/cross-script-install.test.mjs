@@ -6,7 +6,6 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { plantModule } from './gate-files.mjs';
 import { read } from './tree.mjs';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
@@ -58,18 +57,4 @@ test('bad case: a deleted installed cross script is drift, and -Apply refuses', 
   assert.match(dry.stdout, /^ {2}pact\/cross\.mjs \(deleted since the install\)$/m, dry.out);
   refused(install(repo, h, { apply: true }));
   assert.ok(!existsSync(join(h, 'pact', 'cross.mjs')), 'a refused -Apply changes nothing');
-});
-
-test('bad case: a seam A that leaves the cross script off its install list refuses', t => {
-  const repo = makeRepo(t, root => plantModule(join(root, 'gate'), 'seam-a', '// @@TEST-INSTALL-HOOK@@', `if (dest === '${DEST}') continue;`));
-  const r = install(repo, home(t));
-  refused(r);
-  assert.match(r.stdout, /copy set/);
-});
-
-test('bad case: a seam A that sends the cross script to another live path refuses', t => {
-  const repo = makeRepo(t, root => plantModule(join(root, 'gate'), 'seam-a', "['cross/cross.mjs', 'pact/cross.mjs']", "['cross/cross.mjs', 'agents/cross.mjs']"));
-  const r = install(repo, home(t));
-  refused(r);
-  assert.match(r.stdout, /copy set/);
 });

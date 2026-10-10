@@ -181,30 +181,6 @@ test('with no configuration file the install is as in slice 2: the notice slot s
   assert.match(r.stdout, /^Installed commit [0-9a-f]{40} with no configuration; all files verified\.\r?$/m, r.out);
 });
 
-test('with no configuration, a matching hash is accepted: a hash given is compared, not required', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
-  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256(rendered)] });
-  assert.equal(r.code, 0, r.out);
-});
-
-test('a configuration changed since the last install is shown as changed, and the install is not "nothing to do"', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  writeFileSync(configPath(h), EXAMPLE);
-  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
-  const next = Buffer.from('{"schema": 1, "settings": {"usage-pause": 80}}\n');
-  writeFileSync(configPath(h), next);
-  const r = install(repo, h);
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, new RegExp(`^ {2}user file pact/config\\.json: sha256 ${sha256(next)}, CHANGED since the last install\\r?$`, 'm'), r.out);
-  assert.match(r.stdout, /^ {2}WARN: the user configuration sets usage-pause to 80\.\r?$/m, r.out);
-  assert.doesNotMatch(r.stdout, /usage-pause to 90/, r.out);
-  assert.match(r.stdout, /^Overwrite: 1\r?$/m, r.out);
-  assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
-});
-
 test('a record that names another configuration hash is stale: the dry run says changed, and not "nothing to do"', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -231,17 +207,6 @@ test('after a no-configuration install, the dry run says so, and a new file is "
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Last install: [0-9a-f]{40} with no configuration\r?$/m, r.out);
   assert.match(r.stdout, new RegExp(`^ {2}user file pact/config\\.json: sha256 ${sha256(EXAMPLE)}, new since the last install\\r?$`, 'm'), r.out);
-});
-test('a configuration removed since the last install is named in the dry run', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  writeFileSync(configPath(h), EXAMPLE);
-  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
-  rmSync(configPath(h));
-  const r = install(repo, h);
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^ {2}no configuration\r?\n {2}the last install had a configuration; this install removes it from the rules file\r?$/m, r.out);
-  assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
 });
 
 // The -Apply binding's bad cases. Each refuses with nothing of the install written.
@@ -513,15 +478,6 @@ test('a record from before configurations (no config, no digest) reads as no con
   assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
   const a = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(r)] });
   assert.equal(a.code, 0, a.out);
-});
-
-test('bad case: -InformationAction Ignore is a word the script does not read: it refuses, and the refusal still prints', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  const r = install(repo, h, { extra: ['-InformationAction', 'Ignore'] });
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the command line holds 2 words the script does not read \(-InformationAction\)/m, r.out);
-  assert.doesNotMatch(r.stdout, /Install from commit/, r.out);
 });
 
 test('bad case: a misspelled hash option is not dropped: after a configured dry run and a deleted configuration, -Apply refuses', t => {

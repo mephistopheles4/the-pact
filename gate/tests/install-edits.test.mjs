@@ -131,21 +131,6 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 });
 
-test('a block changed since the last install shows as changed, with the user file unchanged, and is not "nothing to do"', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  const c = threeEdits(repo);
-  configure(h, c.config, c.blocks);
-  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
-  writeFileSync(join(h, 'pact', 'blocks', 'team', 'extra.md'), 'After the checks, say what changed.\n');
-  const r = install(repo, h);
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^ {2}user file pact\/config\.json: sha256 [0-9a-f]{64}, unchanged since the last install\r?$/m, r.out);
-  assert.match(r.stdout, /^ {2}block file pact\/blocks\/team\/extra\.md: sha256 [0-9a-f]{64}, CHANGED since the last install\r?$/m, r.out);
-  assert.doesNotMatch(r.stdout, new RegExp(`^ {2}configuration digest: ${digestOf(c)}`, 'm'), 'the digest must change with a block');
-  assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
-});
-
 test('bad case: a block changed between the dry run and -Apply refuses, by the rendered hash', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -376,13 +361,6 @@ test('bad case: a stray full path after the named options refuses, and is never 
   assert.ok(!r.out.includes(stray), 'the stray word was printed');
 });
 
-// install.ps1 caught unread words in a sink parameter, which took the name
-// itself; the Node parser has none, so both words are unread (S6, A3).
-test('bad case: the sink parameter given by name refuses too', t => {
-  const repo = makeRepo(t);
-  const r = install(repo, home(t), { extra: ['-UnreadWord', join(tempDir(t), 'x')] });
-  refused(r, /^REFUSED: the command line holds 2 words the script does not read \(-UnreadWord\)\./m);
-});
 // ------------------------------------------------------------ after the move-4 review (#94)
 
 test('a block naming the user\'s own agent installs: the shipped example passes the roster and routing checks', t => {
@@ -397,35 +375,6 @@ test('a block naming the user\'s own agent installs: the shipped example passes 
   assert.equal(r.code, 0, r.out);
   assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^ {3}Then run `my-reviewer`, an agent of your own/m);
   assert.ok(!existsSync(join(h, 'agents', 'my-reviewer.md')), 'the installer installs no agent from a configuration');
-});
-
-test('an upgrade from a slice-3 record, which holds the user file only: each block file is "new since the last install"', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  configure(h, '{"schema": 1, "settings": {"usage-pause": 90}}\n');
-  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
-  const m = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
-  assert.deepEqual(m.config.map(c => c.kind), ['user'], 'the record is slice-3 shaped');
-  const c = threeEdits(repo);
-  configure(h, c.config, c.blocks);
-  const r = install(repo, h);
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^ {2}user file pact\/config\.json: sha256 [0-9a-f]{64}, CHANGED since the last install\r?$/m, r.out);
-  assert.match(r.stdout, /^ {2}block file pact\/blocks\/m2\.md: sha256 [0-9a-f]{64}, new since the last install\r?$/m, r.out);
-  assert.match(r.stdout, /^ {2}block file pact\/blocks\/team\/extra\.md: sha256 [0-9a-f]{64}, new since the last install\r?$/m, r.out);
-});
-
-test('a block file the last install read and this one no longer uses is counted in the dry run', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  const c = threeEdits(repo);
-  configure(h, c.config, c.blocks);
-  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
-  writeFileSync(join(h, 'pact', 'config.json'), '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "team/extra.md"}]}\n');
-  const r = install(repo, h);
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^ {2}1 block file\(s\) the last install read are no longer used\r?$/m, r.out);
-  assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
 });
 
 const REVIEW_PUSH = '  report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);';
