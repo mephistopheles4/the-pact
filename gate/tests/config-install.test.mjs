@@ -84,11 +84,16 @@ test('bad case: an unreadable configuration file refuses, and -Apply writes noth
   } finally {
     undo();
   }
-  // The link test reads each path below the home folder first, and fails
-  // closed on any error but not-found (S7), so it refuses an unreadable file
-  // before the renderer would.
-  refused(r, /^REFUSED: the user configuration file, or the pact folder that holds it, is a link or other reparse point\./m);
-  assert.doesNotMatch(r.stdout, /^render\| /m, r.out);
+  // On Windows the link test can't resolve a file it may not open, and fails
+  // closed on any error but not-found (S7), so it refuses before the renderer
+  // would. Elsewhere the link test passes, and the renderer refuses the file.
+  if (WIN) {
+    refused(r, /^REFUSED: the user configuration file, or the pact folder that holds it, is a link or other reparse point\./m);
+    assert.doesNotMatch(r.stdout, /^render\| /m, r.out);
+  } else {
+    refused(r);
+    assert.match(r.stdout, /^render\| FAIL config-file: pact\/config\.json: /m, r.out);
+  }
   assert.ok(!listTree(h).includes('CLAUDE.md'), listTree(h).join('\n'));
 });
 

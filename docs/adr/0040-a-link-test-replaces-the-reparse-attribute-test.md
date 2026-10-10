@@ -7,7 +7,7 @@ The install refuses a path that redirects a read or a write. On Windows, the old
   - the segment's real path must equal the root joined with the relative path, compared without regard to case on Windows.
 - **Below the root only.** The root's own ancestors are never tested, as the old script never tested them. So a moved `C:\Users` behind a junction, an 8.3 short name, or a `subst` or mapped drive still installs.
 - **Fail closed.** Any error but not-found refuses. A not-found segment ends the walk.
-  - So an unreadable configuration file refuses at the link test, before the renderer would.
+  - So on Windows, where a file that can't be opened can't be resolved, an unreadable configuration file refuses at the link test, before the renderer would. On Linux the renderer refuses it.
   - The refusal names it a link or other reparse point, which is accurate only in the redirect case.
 - **Where it runs:** the user configuration file and its blocks folder before the renderer, each live destination, and the project's paths at each step of a project install, including after the write.
 

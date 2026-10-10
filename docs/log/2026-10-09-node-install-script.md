@@ -58,7 +58,7 @@ Two sessions built it: `build-166`, which wrote the install (PR #201), and `buil
 - **The test move** (S13). On the owner's word, every old install-tier case runs the Node script in place, keeping its file and name; the prune (#189) decides which stay.
   - The harness's `install()` is the Node install. `wrapCheck` plants a fault in a core's `check()`, which the runner calls in-process.
   - Cases built on the old script's Node lookup, wrapper processes or PowerShell parsing check what S6 put in their place, each with a comment: no Node lookup (P2), `NODE_OPTIONS` refused (A7), a check's verdict in-process (R4, S-1), the strict parser (A3).
-  - Two refusals now come from an earlier check. An unreadable configuration file refuses at the link test, which fails closed (S7). A review folder spelled `.claude.` refuses because its parent isn't found: Node's file calls keep the trailing dot that PowerShell dropped.
+  - Two refusals now come from another check. On Windows, an unreadable configuration file refuses at the link test, which fails closed (S7); on Linux the renderer still refuses it. A review folder spelled `.claude.` refuses because its parent isn't found: Node's file calls keep the trailing dot that PowerShell dropped.
   - The install tier went from about 2,183 s summed under PowerShell to 945 s, on 256 cases. S13 had targeted 20 to 30 end-to-end cases plus in-process rows; that split was not done.
 - **The cutover** (#167's list, S9 and S10).
   - The gated clause `install-go-ahead` spells the flag `--apply`.

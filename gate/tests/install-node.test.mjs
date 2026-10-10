@@ -316,8 +316,14 @@ test('node: a configuration blocks folder that cannot be read refuses', t => {
   const locked = join(h, 'pact', 'blocks', 'locked');
   mkdirSync(locked, { recursive: true });
   chmodSync(locked, 0o000);
-  t.after(() => chmodSync(locked, 0o700));
-  refused(install(repo, h), /^REFUSED: the configuration blocks folder could not be read\./m);
+  // Put back before the home folder's own cleanup, which runs first among the after hooks.
+  let r;
+  try {
+    r = install(repo, h);
+  } finally {
+    chmodSync(locked, 0o700);
+  }
+  refused(r, /^REFUSED: the configuration blocks folder could not be read\./m);
 });
 
 test('node: a renderer that writes into the stage refuses, with nothing written', t => {
