@@ -1,21 +1,10 @@
 // Test helpers that read the gate's own files (#151): a gate module's text,
-// a plant into it, a copy of the gate, and the install script's text. They
-// read the gate and the install script, never the payload. Importing this
-// file touches nothing.
+// a plant into it, and a copy of the gate. They read the gate, never the
+// payload. Importing this file touches nothing.
 import assert from 'node:assert/strict';
 import { cpSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { GATE, REPO } from './text.mjs';
-
-/**
- * The install script's text, for a test that reads it and never runs it
- * (#140, T6). The runner puts a test file that names the script in the install
- * tier, so a file that never installs reads it through here. A test that runs
- * the script goes through the install harness, whose guard counts it.
- */
-export function installScriptText() {
-  return readFileSync(join(REPO, 'scripts', 'install.ps1'), 'utf8');
-}
+import { GATE } from './text.mjs';
 
 // ------------------------------------------------------------ a gate module's own text (#155)
 

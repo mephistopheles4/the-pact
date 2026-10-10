@@ -4,8 +4,8 @@
 // process, environment or OS user read until check() is called, and check()
 // never prints or exits.
 //
-// Seam A: the pact's own static check, run by scripts/install.ps1 on a staged
-// copy of what it is about to install. Zero dependencies.
+// Seam A: the pact's own static check, run by the install (gate/install-run.mjs)
+// on a staged copy of what it is about to install. Zero dependencies.
 //
 //   node seam-a.mjs <stage root>
 //
@@ -81,31 +81,21 @@ const SETTINGS_CONTAINERS = new Set(['env', 'permissions']);
 const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permissions.ask']);
 // Paths the overlay must set. A set must hold every allowed entry.
 const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions.ask']);
-// The "ask" rules that guard the install: they make its apply step prompt the
-// owner, and since #165 any command naming the Node install script or the
-// install record, and any gh command naming rulesets or branch protection. The
-// overlay must hold them, whatever the allow-list says. #89 adds a splat and
-// each dash PowerShell takes in place of the hyphen: en dash, em dash and
-// horizontal bar, always written as escapes.
+// The "ask" rules that guard the install: any command naming the Node install
+// script or the install record, and any gh command naming rulesets or branch
+// protection (#165). The overlay must hold them, whatever the allow-list says.
+// The first two keep the PowerShell installer behind a prompt for good, since a
+// rollback runs an older commit's install.ps1 (#153, S10); they replaced the
+// twelve spelling-by-spelling rules of #34 and #89.
 const SETTINGS_APPLY_ASK = Object.freeze([
-  'PowerShell(./scripts/install.ps1 -Apply)',
-  'PowerShell(*install.ps1*-A*)',
-  'Bash(*nstall.ps1*-A*)',
-  'Bash(*nstall.ps1*-a*)',
-  'PowerShell(*install.ps1* @*)',
-  'PowerShell(*install.ps1*\u2013*)',
-  'PowerShell(*install.ps1*\u2014*)',
-  'PowerShell(*install.ps1*\u2015*)',
-  'Bash(*nstall.ps1* @*)',
-  'Bash(*nstall.ps1*\u2013*)',
-  'Bash(*nstall.ps1*\u2014*)',
-  'Bash(*nstall.ps1*\u2015*)',
+  'PowerShell(*install.ps1*)',
+  'Bash(*nstall.ps1*)',
   // #165: the Node install script's guard, landed before the script (#153,
   // S10). They ask on any command naming its two files or the install
   // record, and on a gh command naming rulesets or branch protection, which
   // guard the CI ruleset (S11). Under Bash, which matches case exactly, each
-  // file and gh rule drops its first letter, so a capitalised name, such as
-  // a GraphQL ruleset mutation, still matches.
+  // rule drops its first letter, so a capitalised name, such as a GraphQL
+  // ruleset mutation, still matches.
   'PowerShell(*install.mjs*)',
   'PowerShell(*install-run.mjs*)',
   'Bash(*nstall.mjs*)',

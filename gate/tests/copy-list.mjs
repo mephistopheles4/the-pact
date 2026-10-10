@@ -7,7 +7,7 @@
 export const COPY_DIRS = Object.freeze(['claude', 'cross', 'gate', 'familiars']);
 
 /** Single files copied, repo-relative. */
-export const COPY_FILES = Object.freeze(['scripts/install.ps1', '.gitattributes', 'AGENTS.md']);
+export const COPY_FILES = Object.freeze(['.gitattributes', 'AGENTS.md']);
 
 /** Left out of the copied folders: the install drops it before any check. */
 export const COPY_SKIP = Object.freeze(['gate/tests']);

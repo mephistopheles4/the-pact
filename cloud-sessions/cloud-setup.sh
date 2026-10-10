@@ -3724,18 +3724,8 @@ SETTINGS_OVERLAY='{
   "permissions": {
     "defaultMode": "auto",
     "ask": [
-      "PowerShell(./scripts/install.ps1 -Apply)",
-      "PowerShell(*install.ps1*-A*)",
-      "Bash(*nstall.ps1*-A*)",
-      "Bash(*nstall.ps1*-a*)",
-      "PowerShell(*install.ps1* @*)",
-      "PowerShell(*install.ps1*\u2013*)",
-      "PowerShell(*install.ps1*\u2014*)",
-      "PowerShell(*install.ps1*\u2015*)",
-      "Bash(*nstall.ps1* @*)",
-      "Bash(*nstall.ps1*\u2013*)",
-      "Bash(*nstall.ps1*\u2014*)",
-      "Bash(*nstall.ps1*\u2015*)",
+      "PowerShell(*install.ps1*)",
+      "Bash(*nstall.ps1*)",
       "PowerShell(*install.mjs*)",
       "PowerShell(*install-run.mjs*)",
       "Bash(*nstall.mjs*)",
@@ -3862,7 +3852,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 49c720acd8be"
+  echo "pact cloud copy 2462b3ea8952"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

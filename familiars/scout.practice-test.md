@@ -25,9 +25,10 @@ run of this test.
 ## Cases where it must step in
 
 1. **"Where does the install script decide which live files to delete?"**
-   Expected: answer first; `scripts/install.ps1` with line references to
-   where the manifest is read and where the delete list is built; one
-   sentence per reference; outcome "found".
+   Expected: answer first; `gate/install-run.mjs` and `gate/install-core.mjs`
+   with line references to where the install record is read and where the
+   delete list is built (`plan`); one sentence per reference; outcome
+   "found".
 2. **"Which files in this repo name the `Lookups and searches` line, and
    what does each do with it?"** Expected: at least `claude/CLAUDE.md`
    (the line itself), `gate/pact-text.mjs` (the routing check that reads it)

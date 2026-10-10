@@ -41,6 +41,9 @@ export const TEST_SUFFIX = '.test.mjs';
 /** A top-level test-file name the runner accepts; anything else refuses the run. */
 export const PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*\.test\.mjs$/;
 export const HARNESS = 'install-harness.mjs';
+// The PowerShell installer's file name. The installer left at the cutover (#166),
+// but a test that names it, such as one of a rollback to an older commit, is
+// still put in the install tier. The Node install runs through the harness.
 export const INSTALL_SCRIPT = 'install.ps1';
 /** The install smoke set: the install's happy path, run for every payload change. */
 export const SMOKE = 'install-smoke.test.mjs';

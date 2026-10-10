@@ -10,7 +10,7 @@ Your words are the source code. An agent ships exactly what you said.
 
 <p align="center"><b>He meant the repo.</b></p>
 
-Faust signed a pact with no way out. This one has escape clauses written in: the human decides at every seam, and the agent stops and asks when it should. The skills live in [grimoire](https://github.com/mephistopheles4/grimoire), the spellbook. This repo holds the terms, and the familiars bound by them.
+Faust signed a pact with no way out. This one has escape clauses written in: the human decides at every seam, and the agent stops and asks when it should. The skills live in [grimoire](https://github.com/mephistopheles4/grimoire), the spellbook. This repo holds the terms, and the familiars, its agents, bound by them.
 
 ## Words are code
 
@@ -20,7 +20,7 @@ When you build something that matters, what you say to an agent deserves the car
 
 ## Four moves
 
-The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it.
+The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. A seam is a joint in the work: between one move and the next, or between the parts a spec names. At each one, you check before the work goes on.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-01-moves-dark.svg">
@@ -41,7 +41,7 @@ You decide at every seam.
 
 </details>
 
-The moves name no skills. You bind your own tools to them through a configuration file, and [Matt Pocock's skills](https://github.com/mattpocock/skills) ship as a ready-made preset.
+The moves name no skills. You bind your own tools to them through a configuration file (there is an example in [`examples/pact-config/`](examples/pact-config/)), and [Matt Pocock's skills](https://github.com/mattpocock/skills) ship as a ready-made preset.
 
 ## Process tiers
 
@@ -97,7 +97,7 @@ Their reports go on the issue word for word. The agent sorts the findings and ac
 
 **It reaches beyond your machine.** It treats your issue tracker as the record, and posts review reports there word for word, security findings included. Read [Before you install](docs/install.md#before-you-install) and [the threat model](docs/threat-model.md) first.
 
-**The git history is kept as it was written.** Older commits hold the owner's Windows username in file paths ([ADR 0035](docs/adr/0035-publish-with-the-history-as-it-is.md)).
+**The git history is kept as it was written.** Older commits hold the owner's Windows username in file paths, and two name a private folder, without any of its content ([ADR 0035](docs/adr/0035-publish-with-the-history-as-it-is.md)).
 
 ## What's here
 
@@ -115,21 +115,21 @@ The full table, with every agent and where each file installs, is in [docs/refer
 
 ## Install
 
-Run the install script from the repo root under PowerShell 7. With no switch it is a dry run: it shows what it would change, and installs nothing until you pass `-Apply`.
+Run the install script from the repo root with Node 24 or later. With no switch it is a dry run: it shows what it would change, and installs nothing until you pass `--apply`.
 
-```powershell
-./scripts/install.ps1
+```sh
+node gate/install.mjs
 ```
 
-The full how-to is in [docs/install.md](docs/install.md).
+The full how-to, with the command for each shell, is in [docs/install.md](docs/install.md).
 
 ## Depends on
 
 - **Claude Code.** The pact is a rules file, agents and settings for it.
-- **PowerShell 7** to run the install, on Windows, macOS or Linux.
-- **Node 20 or later** to install; Node 24 to run the gate's tests.
+- **Node 24 or later,** the current LTS, to install and to run the gate's tests, on Windows, macOS or Linux.
+- **PowerShell 7,** for part of the gate's tests only. The install doesn't need it.
 - **git.** The install reads the clone's committed files.
-- **Opus and Sonnet,** and Fable for a second opinion.
+- **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
 - **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy of its check script ships here; its skills are optional.
 - **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: a preset you can bind to the moves.
 - **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the practice runs and the Linux test run.

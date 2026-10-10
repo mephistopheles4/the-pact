@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { childEnv } from './gate-run.mjs';
 import { tempDir } from './tree.mjs';
-import { INSTALL_SCRIPT, TEST_SUFFIX, pick } from './run.mjs';
+import { TEST_SUFFIX, pick } from './run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const HARNESS_URL = pathToFileURL(join(HERE, 'install-harness.mjs')).href;
@@ -20,16 +20,16 @@ const HARNESS_URL = pathToFileURL(join(HERE, 'install-harness.mjs')).href;
 function planted(t, body) {
   const dir = tempDir(t, 'pact-purity-');
   const file = join(dir, 'plant.test.mjs');
-  writeFileSync(file, `import { test } from 'node:test';\nimport { spawnInstall } from ${JSON.stringify(HARNESS_URL)};\n${body}`);
+  writeFileSync(file, `import { test } from 'node:test';\nimport { spawnNodeInstall } from ${JSON.stringify(HARNESS_URL)};\n${body}`);
   const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', file], { cwd: dir, encoding: 'utf8', env: childEnv() });
   const results = new Map();
   for (const m of r.stdout.matchAll(/^(ok|not ok) \d+ - (.*?)(?: # SKIP.*)?$/gm)) results.set(m[2], m[1]);
   return { status: r.status, out: r.stdout + r.stderr, results };
 }
 
-// A pwsh run whose command names the install script in a comment: counted as an
-// install, at the cost of starting pwsh, never the script.
-const COUNTED = `spawnInstall(['-NoProfile', '-NonInteractive', '-Command', ${JSON.stringify(`exit 0 # ${INSTALL_SCRIPT}`)}], { encoding: 'utf8' });`;
+// A node run that names the install script as an argument it never reads:
+// counted as an install, at the cost of starting node, never the script.
+const COUNTED = `spawnNodeInstall(['-e', '0', 'gate/install.mjs'], { encoding: 'utf8' });`;
 
 test('purity guard: a planted install-tier test that neither installs nor skips fails, naming the test', t => {
   const r = planted(t, "test('planted: does nothing', () => {});\n");
@@ -53,7 +53,7 @@ test('purity guard: control: a planted test that runs the install script through
 });
 
 test('purity guard: install() counts: a planted test that calls it passes, though the script it names is not there', t => {
-  // A repo folder with no install script: pwsh exits at once, and the call still counts.
+  // A repo folder with no install script: node exits at once, and the call still counts.
   const r = planted(t, `import { install } from ${JSON.stringify(HARNESS_URL)};\ntest('planted: calls install()', t => { const d = process.cwd(); install(d, d); });\n`);
   assert.equal(r.status, 0, r.out);
   assert.equal(r.results.get('planted: calls install()'), 'ok', r.out);
@@ -64,6 +64,15 @@ test('purity guard: each test is counted on its own, so an install in one test d
   assert.equal(r.results.get('planted: installs twice'), 'ok', r.out);
   assert.equal(r.results.get('planted: then nothing'), 'not ok', r.out);
   assert.match(r.out, /purity guard: "planted: then nothing"/, r.out);
+});
+
+test('purity guard: a subtest that skips does not excuse a parent test that never installs', t => {
+  // node runs no afterEach for a skipped subtest, so the guard must not lose count after one: the next test is checked too.
+  const r = planted(t, "test('planted: a subtest skips, no install', async t => { await t.test('skips', t => { t.skip('not here'); }); });\ntest('planted: then nothing', () => {});\n");
+  assert.equal(r.status, 1, r.out);
+  assert.equal(r.results.get('planted: a subtest skips, no install'), 'not ok', r.out);
+  assert.match(r.out, /purity guard: "planted: a subtest skips, no install"/, r.out);
+  assert.equal(r.results.get('planted: then nothing'), 'not ok', r.out);
 });
 
 test('purity guard: makeRepo and git are not installs: a planted test that calls only them fails', t => {
@@ -81,11 +90,11 @@ test('purity guard: a subtest counts toward its top-level test: one that reads i
   assert.doesNotMatch(r.out, /purity guard: "reads only"/, r.out);
 });
 
-test('bad case: spawnInstall refuses a pwsh run that names no install script, so it never counts one', t => {
-  const r = planted(t, "test('planted: not an install', () => { spawnInstall(['-NoProfile', '-NonInteractive', '-Command', 'exit 0'], { encoding: 'utf8' }); });\n");
+test('bad case: spawnNodeInstall refuses a node run that names no install script, so it never counts one', t => {
+  const r = planted(t, "test('planted: not an install', () => { spawnNodeInstall(['-e', '0'], { encoding: 'utf8' }); });\n");
   assert.equal(r.status, 1, r.out);
   assert.equal(r.results.get('planted: not an install'), 'not ok', r.out);
-  assert.match(r.out, /spawnInstall: no argument names the install script/, r.out);
+  assert.match(r.out, /spawnNodeInstall: no argument names the Node install script/, r.out);
 });
 
 // ------------------------------------------------------------ the files T6 split, in their tiers

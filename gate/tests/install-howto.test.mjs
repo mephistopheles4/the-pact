@@ -25,6 +25,23 @@ export function missingFromHowto(howto, names) {
   return names.filter((n) => !howto.includes(`\`${n}\``));
 }
 
+/** The clone address the install prompt must name (#153, S12); it changes only when the repo moves. */
+export const CLONE_ADDRESS = 'https://github.com/mephistopheles4/the-pact';
+
+/** The install prompt's quoted text: the blockquote under the how-to's "Install by prompt" heading, or null. */
+export function installPrompt(howto) {
+  const at = howto.indexOf('\n## Install by prompt\n');
+  if (at < 0) return null;
+  const next = howto.indexOf('\n## ', at + 1);
+  const quote = howto.slice(at, next < 0 ? undefined : next).split('\n').filter((l) => l.startsWith('> ')).map((l) => l.slice(2)).join('\n');
+  return quote || null;
+}
+
+/** Whether a prompt names exactly the clone address, as the one address, and leaves the apply to the person. */
+export function promptNamesAddress(prompt) {
+  return prompt !== null && prompt.includes(`\`${CLONE_ADDRESS}\`, and no other address`) && prompt.includes('`node gate/install.mjs`') && prompt.includes("I'll run it myself");
+}
+
 function installedAgentStems() {
   const fromClaude = Object.keys(realAgents()).map((p) => p.slice('claude/agents/'.length, -'.md'.length));
   const familiars = readdirSync(join(REPO, 'familiars'))
@@ -48,4 +65,25 @@ test('bad case: a new overlay key, env name or agent the how-to does not name is
 
 test('control: a name only in plain text, not in backticks, does not count', () => {
   assert.deepEqual(missingFromHowto('the outputStyle key', ['outputStyle']), ['outputStyle']);
+});
+
+test("docs/install.md's install prompt names the exact clone address, runs the install script, and leaves the apply to the person", () => {
+  const howto = readFileSync(join(REPO, 'docs', 'install.md'), 'utf8');
+  assert.ok(promptNamesAddress(installPrompt(howto)), installPrompt(howto) ?? 'no "Install by prompt" section with a quoted prompt');
+});
+
+test('bad case: a prompt naming a look-alike address, or a fork, or no prompt at all, is caught', () => {
+  const tail = ', and no other address. Run `node gate/install.mjs`. I\'ll run it myself.';
+  const at = (address) => `# x\n\n## Install by prompt\n\n> Clone from \`${address}\`${tail}\n`;
+  assert.ok(promptNamesAddress(installPrompt(at(CLONE_ADDRESS))), 'control: the real address passes');
+  for (const address of [`${CLONE_ADDRESS}-fork`, CLONE_ADDRESS.replace('mephistopheles4', 'mephistophe1es4'), CLONE_ADDRESS.replace('https', 'http')]) {
+    assert.ok(!promptNamesAddress(installPrompt(at(address))), address);
+  }
+  assert.ok(!promptNamesAddress(installPrompt('# x\n\n## Install\n\nnothing\n')));
+});
+// The apply guard's misses, as #153's S10 names them, stay named in the ADR that holds the guard.
+test("ADR 0042 names the apply guard's four misses and supersedes ADR 0020", () => {
+  const adr = readFileSync(join(REPO, 'docs', 'adr', '0042-the-apply-guard-asks-on-any-command-naming-the-install.md'), 'utf8');
+  for (const miss of ['- (a) a string built at run time', '- (b) the script named without its file name', '- (c) a session that imports the cores', '- (d) the file name in another letter case']) assert.ok(adr.includes(miss), miss);
+  assert.match(adr, /^## Supersedes\n\n\[ADR 0020\]/m);
 });

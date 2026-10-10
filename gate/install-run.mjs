@@ -19,6 +19,12 @@ import { FOLD_CASE } from './paths.mjs';
 const say = s => process.stdout.write(`${s}\n`);
 const live = (root, rel) => join(root, ...rel.split('/'));
 let gateLines = [];
+
+/** The count of other work folders a hard stop left, which may hold configuration text (S3, step 6). */
+function leftoverNote(tmp, own) {
+  const left = io.leftoverWorkFolders(tmp, own);
+  if (left) say(`NOTE: ${left} other pact-install-* folder(s) in the temp folder; an install stopped hard left them, and they may hold configuration text. docs/install.md says how to delete them.`);
+}
 let writing = false;
 
 /** A gate module's core, loaded from the stage; a missing or broken one refuses. */
@@ -185,6 +191,7 @@ async function main() {
     for (const l of core.projectBlock(pc.state, pr)) say(l);
     if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
     else say('Working tree: clean');
+    leftoverNote(tmpdir(), basename(work));
     for (const l of gateLines) say(l);
     // The hash binds the project rules file's bytes, not the configuration files behind them (#95).
     core.checkBinding(opts, pr.projectHash, commit);
@@ -264,13 +271,15 @@ async function main() {
   say(`settings.json: ${settings}`);
   if (settingsWill) for (const l of changes) say(l);
   for (const l of notes) say(l);
+  for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) {
+    if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
+  }
   say('Configuration:');
   for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
   if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
   else say('Working tree: clean');
   if (nothing) say('Nothing to do.');
-  const left = io.leftoverWorkFolders(tmpdir(), basename(work));
-  if (left) say(`NOTE: ${left} other pact-install-* folder(s) in the temp folder; an install stopped hard left them, and they may hold configuration text. docs/install.md says how to delete them.`);
+  leftoverNote(tmpdir(), basename(work));
   // The gate block comes last, after the checks' own output, so nothing they print can stand in for it.
   for (const l of gateLines) say(l);
 
@@ -305,6 +314,9 @@ async function main() {
 
   // Apply (X2 to X5): every staged byte re-hashed, the review last, then the writes.
   for (const [rel, sha] of repoFiles) if (io.fileSha256(live(stage, sourceOf.get(rel))) !== sha) core.stops.stageChanged(rel);
+  // A temp file a hard stop left would stop the writes midway, so refuse before any (X5).
+  for (const rel of [...p.overwrite, ...p.add]) if (io.exists(io.tempName(live(home, rel)))) core.stops.tempLeft(rel);
+  for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) if (io.exists(io.tempName(file))) core.stops.tempLeft(rel);
   await writeReview();
   say('CHECKS DONE');
   writing = true;
@@ -359,7 +371,7 @@ try {
   await main();
 } catch (e) {
   for (const l of gateLines) say(l);
-  const left = writing === 'project' ? "The project's .claude/rules folder may hold what the write left; nothing was installed in the Claude home folder." : 'The Claude home folder may hold part of this install.';
+  const left = writing === 'project' ? core.PROJECT_LEFT : 'The Claude home folder may hold part of this install.';
   if (e instanceof core.Refusal) say(`REFUSED: ${e.why} ${writing ? left : e.outcome}`);
   else say(`REFUSED: the install failed while it ran. ${writing ? left : 'Nothing was changed.'}`);
   say('RESULT: refused');

@@ -17,20 +17,25 @@ how every session in every repo behaves. So:
 
 - **Edit the repo copy, never the live file.** A direct edit to `~/.claude/`
   drifts from the repo.
-- **Install with [`scripts/install.ps1`](scripts/install.ps1)**, run from the
-  repo root under PowerShell 7 (Windows, macOS or Linux). Never copy files by
-  hand. The script installs from the clone, not through a symlink, so a
-  checked-out branch is never live until you install it.
-- **Run it without a switch first.** That is a dry run: it prints the files it
-  would overwrite, add and delete, whether live files drifted since the last
-  install (it compares them with `~/.claude/.pact-install.json`), and the commit
-  it would install. If there is drift, stop and ask rather than overwrite.
-- **The install is gated.** It stages HEAD's files (never the working tree),
-  runs the pact's own check, `gate/seam-a.mjs`, on them under Node 20 or later,
-  and copies only the files that check listed. It refuses when the check fails
-  or can't run. The dry run also shows the Node it used, the pinned grimoire
-  commit, and whether the gate changed since the last install. The gate's
-  tests run through one runner; see "Running the gate's tests" below.
+- **Install with [`gate/install.mjs`](gate/install.mjs)**, run from the repo
+  root under Node 24 or later (Windows, macOS or Linux), with `NODE_OPTIONS`
+  cleared: `$env:NODE_OPTIONS = $null; node gate/install.mjs` in PowerShell,
+  or `env -u NODE_OPTIONS node gate/install.mjs` in a POSIX shell. Never copy
+  files by hand. The script installs from the clone, not through a symlink,
+  so a checked-out branch is never live until you install it.
+- **Run it without an option first.** That is a dry run: it prints the files
+  it would overwrite, add and delete, whether live files drifted since the
+  last install (it compares them with `~/.claude/.pact-install.json`), the
+  commit it would install, and the apply command to run next. If there is
+  drift, stop and ask rather than overwrite.
+- **The install is gated.** A small bootstrap stages HEAD's files (never the
+  working tree) in a temp folder and starts the runner from there, so every
+  check runs committed code. The runner runs the pact's own check, seam A, on
+  the staged files, and copies only the files that check listed. It refuses
+  when the check fails or can't run. The dry run also shows the Node it used,
+  the pinned grimoire commit, and whether the gate changed since the last
+  install. The gate's tests run through one runner; see "Running the gate's
+  tests" below.
 - **Keep the how-to in step.** [`docs/install.md`](docs/install.md) quotes
   the script's output, lists what the settings merge sets, and names every
   agent the install puts in place. A change to any of them updates the how-to
@@ -38,10 +43,13 @@ how every session in every repo behaves. So:
   settings and the agents.
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
-  pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
-  dirty working tree.
+  pass `--apply` only after they say so in chat. `--apply` refuses on drift or
+  a dirty working tree.
 <!-- pact:end install-go-ahead -->
-- **The script confirms the hashes.** After `-Apply` it re-hashes every live
+- **`--apply` needs `--commit`,** the full commit id the dry run printed, and
+  refuses if HEAD names another commit. The dry run prints the whole apply
+  command; run it as printed.
+- **The script confirms the hashes.** After `--apply` it re-hashes every live
   file against the bytes it checked and installed: the rendered bytes for the
   rules file, and the repo copy for every other file. It exits non-zero on a
   mismatch. Check that it exited zero.
@@ -56,8 +64,8 @@ how every session in every repo behaves. So:
   them into the rules file. The dry run's Configuration block shows each
   file's hash and whether it changed since the last install, the configuration
   digest, the full rendered hash, and one warning per value set and per part
-  edited. When a configuration applies, `-Apply` needs that full rendered hash
-  handed back as `-RenderedHash <hash>`, and refuses if it does not match this
+  edited. When a configuration applies, `--apply` needs that full rendered hash
+  handed back as `--rendered-hash <hash>`, and refuses if it does not match this
   run's render. A pact from before edits (#94) refuses a file that has any, so
   to install such a commit, empty the edit list first.
 - **Agent settings.** The file's `agents` key may set any pact lens's
@@ -81,13 +89,13 @@ how every session in every repo behaves. So:
   renders a page that carries those lists in plain text. Such a page belongs
   outside any repo; `build.mjs` refuses to write one inside this clone.
 - **Review output.** To read what a configuration does before installing it,
-  add `-ReviewFolder <full path>`. Once every check for the run has passed, the
+  add `--review-folder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
   no-configuration render) there. The folder must be new or empty, and outside
-  the Claude home folder and any `.claude` folder. Without the switch, a dry
+  the Claude home folder and any `.claude` folder. Without the option, a dry
   run changes nothing on disk.
 - **Project install.** To make the pact stricter in one repo, add
-  `-ProjectFolder <full path>`. It reads the project's
+  `--project-folder <full path>`. It reads the project's
   `.claude/pact-config.json`, which may only set values strictly tighter than
   your own, and writes one rules file, `.claude/rules/pact-project.md`, with a
   record beside it. It installs nothing in the Claude home folder and no
@@ -95,10 +103,15 @@ how every session in every repo behaves. So:
   project that is or holds your home folder, or is, holds or sits inside a
   Claude folder, any link on its write path, and an existing rules file it has
   no record of writing. Like a home install it is a dry run first, and
-  `-Apply` needs the project rules file's full rendered hash, given as
-  `-RenderedHash <hash>`. On a project install that hash binds the bytes
+  `--apply` needs the project rules file's full rendered hash, given as
+  `--rendered-hash <hash>`. On a project install that hash binds the bytes
   installed, not the configuration files: a file changed after the dry run
   still installs if it renders the same bytes, which can never be looser.
+- **Rolling back.** An older pact installs with that commit's own installer:
+  check the commit out and run its install. A commit from before the Node
+  install (#166) holds only `scripts/install.ps1`, which needs PowerShell 7.
+  Both installers read and write the same record, so either can follow the
+  other. Two ask rules keep `install.ps1` behind a prompt for good.
 - **The cloud copy is generated.** `cloud-sessions/` holds the setup script
   for Claude Code cloud sessions. `cloud-sessions/gen.mjs` builds it, and
   `CLAUDE.cloud.md`, from the payload, through the same render and seam A a
@@ -142,7 +155,7 @@ how every session in every repo behaves. So:
     - **What an agent-file change picks.** The test helpers are split by
       what they touch (ADR 0034), so an agent file picks only the tests that
       read agents: those that import `payload.mjs` or read them themselves.
-      Of the install files, that's the smoke set and five others, 6 of 9.
+      Of the install files, that's the smoke set and six others, 7 of 11.
     - **Some changes still cost about a full suite.** The pact's rules file,
       `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
       deleted or renamed test file, is named by the copy list's entry for the
@@ -163,10 +176,10 @@ how every session in every repo behaves. So:
 - **A run passes only when it exits 0 and its last line is the runner's
   result line ending in `pass`.** An exit 0 with no result line is not a pass.
 - **Run the tests on the current Node LTS** (Node 24, "Krypton", as of
-  2026-10-08); `volta install node@24` gets it. The install itself still
-  accepts any Node 20 or later. The Linux run in a container (#96) is in
+  2026-10-08); `volta install node@24` gets it. The install needs it too.
+  The Linux run in a container (#96) is in
   [`gate/tests/fixtures/linux/`](gate/tests/fixtures/linux/) and runs `full`
-  on Node 20.
+  on Node 24.
 - **While building, run `changed`:**
   `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell. Add
@@ -213,10 +226,10 @@ how every session in every repo behaves. So:
   neither runs the install script nor calls `t.skip()`, naming it (ADR 0033).
   A subtest's installs count toward the test it runs in.
   A test that runs the script without `install()` goes through the harness's
-  `spawnInstall`, so it counts. A test that only reads the script's text
-  belongs in a file that never installs, and reads it with
-  `installScriptText()` from `gate-files.mjs`: a test file that names the
-  script is in the install tier.
+  `spawnNodeInstall`, so it counts. A test that only reads the script's code
+  belongs in a file that never installs, and imports `install-core.mjs` or
+  reads the file. A test file that names `install.ps1` is still put in the
+  install tier, so a test of a rollback to it is counted as an install.
 - **Import helpers by what they touch** (ADR 0034), and take only what the
   test uses. `text.mjs` touches nothing; `tree.mjs` touches the files a test
   names; `gate-files.mjs` reads the gate's own files; `payload.mjs` reads the
@@ -344,8 +357,9 @@ Where two bullets apply, the stricter one holds.
   settings guard, `gate/settings-allowlist.json` and
   `claude/settings.overlay.json`.
 - **The gate's code also needs its own tests, on top of any probe above.** The
-  gate's code is every file in `gate/` but its tests, and
-  `scripts/install.ps1`. Every change to it takes the security route. Each
+  gate's code is every file in `gate/` but its tests, every file in
+  `.github/workflows/`, and `.github/dependabot.yml`. Every change to it takes
+  the security route. Each
   check a change adds or tightens needs a bad case in the gate's tests that it
   is seen to catch. Deleting or loosening a check, or changing a built-in
   default that bounds anything above, counts as a change to what it bounds.

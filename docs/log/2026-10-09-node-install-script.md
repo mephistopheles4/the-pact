@@ -1,6 +1,10 @@
 # A Node install script, started by an install prompt
 
-**2026-10-09** — The PowerShell installer is being replaced by a Node install script (mephistopheles4/the-pact#153). The work is cut into three tickets: T1 (#165), T2 (#166) and T3, the cutover (#167). Each ticket adds its part here. The ADRs, including the apply guard's ADR that supersedes [ADR 0020](../adr/0020-the-apply-guard-catches-what-text-can.md), are written at the cutover.
+**2026-10-09** — A Node install script, `gate/install.mjs`, replaced the PowerShell installer (mephistopheles4/the-pact#153). The work was cut into three tickets: T1 (#165), T2 (#166) and T3, the cutover (#167). On the owner's word, the cutover was folded into T2. Four ADRs record the result: [0039](../adr/0039-the-install-is-a-node-bootstrap-and-a-staged-runner.md), the bootstrap and the runner; [0040](../adr/0040-a-link-test-replaces-the-reparse-attribute-test.md), the link test; [0041](../adr/0041-a-required-ci-check-guards-main.md), the CI check; and [0042](../adr/0042-the-apply-guard-asks-on-any-command-naming-the-install.md), the apply guard, which supersedes [ADR 0020](../adr/0020-the-apply-guard-catches-what-text-can.md).
+
+## Before the spec: could a plugin replace the installer? (#152)
+
+#152 asked whether a Claude Code plugin could carry the agents and skills, so the installer could shrink. It can't help. A plugin can't supply a rules file or general settings: a `CLAUDE.md` in a plugin isn't loaded, and a plugin's settings keep only two keys. A hook's added context is capped at 10,000 characters, against about 33,000 for the rules file. And a plugin's agents load renamed as `<plugin>:<name>`, which would break three gated clauses that name the lenses bare. So the Node script keeps the rules file, the agents, the settings overlay, the records and project installs (#153, S1). #152 has no log of its own; its result is #152's comment 6072154307.
 
 ## T1: the apply guard lands first (#165)
 
@@ -42,6 +46,77 @@ Ten ask rules from the spec's S10 now sit beside the twelve `install.ps1` rules.
     - the cloud copies, on the owner's decision;
     - converting the settings test's loops to tables, because the cases grew through the shared list and the test file's cases weren't edited.
 
+## T2: the Node install, with the cutover folded in (#166, #167)
+
+Two sessions built it: `build-166`, which wrote the install (PR #201), and `build-166b`, which moved the tests and cut over (PR #204).
+
+### What was built
+
+- **The home install** (S3 to S8): the bootstrap `gate/install.mjs` (244 of its 250 lines), the runner `gate/install-run.mjs`, the decisions in `gate/install-core.mjs`, and `gate/install-io.mjs`. ADR 0039 has the shape and its known limits; ADR 0040, the link test that replaced the reparse test.
+- **The project install** (J1 to J4). A project dry run's apply line carries `--project-folder`.
+- **The CI workflow** (S11) and Dependabot, locked down as ADR 0041 says. The lead turned on the required `gate` check at the owner's word.
+- **The test move** (S13). On the owner's word, every old install-tier case runs the Node script in place, keeping its file and name; the prune (#189) decides which stay.
+  - The harness's `install()` is the Node install. `wrapCheck` plants a fault in a core's `check()`, which the runner calls in-process.
+  - Cases built on the old script's Node lookup, wrapper processes or PowerShell parsing check what S6 put in their place, each with a comment: no Node lookup (P2), `NODE_OPTIONS` refused (A7), a check's verdict in-process (R4, S-1), the strict parser (A3).
+  - Two refusals now come from another check. On Windows, an unreadable configuration file refuses at the link test, which fails closed (S7); on Linux the renderer still refuses it. A review folder spelled `.claude.` refuses because its parent isn't found: Node's file calls keep the trailing dot that PowerShell dropped.
+  - The install tier went from about 2,183 s summed under PowerShell to 945 s, on 256 cases. S13 had targeted 20 to 30 end-to-end cases plus in-process rows; that split was not done.
+- **The cutover** (#167's list, S9 and S10).
+  - The gated clause `install-go-ahead` spells the flag `--apply`.
+  - The twelve `install.ps1` ask rules gave way to `PowerShell(*install.ps1*)` and `Bash(*nstall.ps1*)`, in the overlay, the allow-list, seam A's list and the cloud copy. ADR 0042 records the guard and its misses, and supersedes ADR 0020.
+  - `scripts/install.ps1` is deleted, with the copy list's entry and the harness's PowerShell path. The tests that read it now read the install core's constants.
+  - The PowerShell-only baseline cases became table rows in their own files, through `moves.tsv`: the table "retired install rules" (20 rows, one per old rule case: each old spelling, put in place of the broad rule, fails as missing), and "apply only as typed" (2 rows, for the parameter-block cases).
+  - AGENTS.md, the README, `docs/install.md` (the install prompt, the rollback and the limits), the threat model and the scout practice case moved to the Node install. A test finds the exact clone address in the prompt.
+  - The Linux container moved to Node 24.
+
+### The owner's decisions
+
+- **Fold the cutover in** (option B): one PR adds the Node install and deletes `install.ps1`, so `main` never holds both.
+- **Two applies before the merge,** from the branch: the first while `install.ps1` was still the fallback, the second from the final head.
+- **The test move in place,** to leave the cutting to the prune.
+- **The first apply was handed to the session** ("you can install"). It ran through the PowerShell tool after the ask rule prompted. It exited 0 with every file verified; only the record changed. A fresh dry run then showed "Nothing to do."
+
+### The clause probe
+
+The expected result went on #166 before the run. A new required-clause row puts the old `-Apply` text back into AGENTS.md, and seam A refuses it with `install-go-ahead differs from its canonical text`. The table's base, holding the new text, passes. Seam A's required list was also seen to fail with `PowerShell(*install.ps1*)` taken out, and the copy list's new bad case failed against the old list.
+
+### The second apply, the CI probe and macOS
+
+- **The second apply,** on the owner's "you can install", ran from 7188d94 and exited 0 with every file verified. The merge added the two lasting `install.ps1` rules; the old twelve stay in the live file.
+- **The S15 CI probe** went as expected:
+  - a red check, and a merge state of `BLOCKED`;
+  - a `gate` status posted through the API that still left it `BLOCKED`, though the real check had failed too;
+  - a pull request that edits `gate.yml` to pass, which read `CLEAN`.
+
+  The owner's record of that last one: "it shows that an agent can use my identity to do a lot of damage. this is an accepted risk of AI". The throwaway pull requests, #205 and #206, were closed unmerged and their branches deleted.
+- **macOS is untested,** on the owner's word.
+
+### What was not done, on the owner's word or by choice
+
+- **The live-prompt probe was skipped again,** on the owner's word: "Skip it please". Only `PowerShell(*install.mjs*)` has been seen to prompt live, at the first apply. That leaves the other ask rules unseen live: the Bash ones, the record's, the `gh` ones and the two lasting `install.ps1` rules. This falls short of S15 and AGENTS.md's probe floor for the settings guard, as #165's skip did. The rollback stand-in, a live prompt check, went with it. What a rollback needs besides the prompt was checked: an `install.ps1` dry run from a4e6546 read the Node record with no drift.
+- **The scout contract's worked example still cites `install.ps1`.** Its samples are a dated record of the owner's 2026-10-05 pick, marked "drafted, not real". Editing the contract changes the digest its familiar's seal pins. Its practice case moved to the Node install.
+- **S13's split was not done,** so the install tier is 945 s summed, past both of S13's deferral triggers. #189 has the numbers, and the intent of #146 and #147.
+- **#110** is closed by construction: rules compare exactly. A bad case shows a rule that differs by an invisible character counts as missing.
+- **#28's Linux run** is the container in `gate/tests/fixtures/linux/`, now on Node 24, where the whole suite passes.
+
+### Move 4
+
+One run of seven lenses covered #201's merged diff and #204's together, a4e6546..993c8d9, on the lead's go. Every cross call passed. The fixes are in 173f8e3, and each new check was seen to fail with its code taken out:
+
+- **Security pair.**
+  - The bootstrap now refuses unless it is `gate/install.mjs` itself.
+  - An apply refuses before any write when a `.pact-tmp` file is left over.
+  - Every workflow file keeps the CI lockdown.
+  - A settings file an older install widened draws a warning; the docs had called #177 fixed outright.
+- **QA pair.**
+  - The purity guard lost count after a skipped subtest, because node runs no afterEach for one, so later tests in the file went unchecked. It now keys on each test's full name.
+  - New bad cases cover the runner's own project link test, the lockdown's and the bootstrap checker's untested parts, and environment variables that try to turn on `--apply`.
+  - A `--name=value` refusal no longer shows the value.
+- **Standards pair and `unstated-lens`.**
+  - The ADR's rule count is corrected.
+  - The README lists PowerShell 7 for part of the tests.
+  - The install prompt says to back up first.
+  - The Record list below is filled in.
+
 ## Record
 
 Issue comments on mephistopheles4/the-pact#153:
@@ -64,6 +139,22 @@ Issue comments on mephistopheles4/the-pact#165:
 - `6085521008`: verbatim, the security pair's cross section.
 - `6085567523`: verbatim, the QA pair's cross section.
 
+Issue comments on mephistopheles4/the-pact#166:
+
+- `6088979990` and `6089050313`: the owner's decisions to fold the cutover in, and to apply twice.
+- `6089436240`: `build-166`'s hand-off, with parts 1, 2 and 4 and their evidence.
+- `6090304847`: the test move, with the owner's decision to move it in place.
+- `6091616772`: the first Node apply, handed to the session by the owner.
+- `6091641998`: the clause probe's expected result, posted before the run; `6092194828`: its record; `6093235617`: a correction.
+- `6093328959`: the S15 CI probe's expected results.
+- `6093408674`: move 4's scope note; verbatim cross sections: the standards pair `6093408777`, `unstated-lens` `6093408898`, the security pair `6093429379`, and the QA pair `6093608252`.
+- `6093728441`: the Lens dispositions, with the owner's decision to skip the live-prompt probe.
+- `6093860567`: the second Node apply; `6093863530`: the S15 CI probe's record, with the owner's word on it.
+
+Issue comments elsewhere, for #166:
+
+- #152 `6072154307`: the plugin question's result.
+- #189 `6090306125` and `6093729310`: the timing, the deferral triggers, and #146's and #147's intent.
 Issue comments elsewhere:
 
 - #167 `6085608739`: findings carried to the cutover's ADR.

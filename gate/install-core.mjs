@@ -103,7 +103,8 @@ export function parseArgs(argv, platform) {
   }
   if (unread.length) {
     const names = unread.filter(w => w.startsWith('-')).map(w => {
-      const n = w.replace(/[^A-Za-z0-9-]/g, '?');
+      // Only the part before an = is a name; a value typed after one is never shown (S4).
+      const n = w.split('=')[0].replace(/[^A-Za-z0-9-]/g, '?');
       return n.length > 40 ? `${n.slice(0, 40)}...` : n;
     });
     const words = unread.length === 1 ? '1 word' : `${unread.length} words`;
@@ -433,7 +434,7 @@ export function checkAgentFile(name, set, committed, rendered, renderedHash) {
 
 // ------------------------------------------------------------ the project install (J1 to J4)
 
-const PROJECT_LEFT = "The project's .claude/rules folder may hold what the write left; nothing was installed in the Claude home folder.";
+export const PROJECT_LEFT = "The project's .claude/rules folder may hold what the write left; nothing was installed in the Claude home folder.";
 
 /** A path the platform calls fully qualified: a drive path or a UNC path on Windows, a rooted one elsewhere. */
 const fullyQualified = (p, platform) => (platform === 'win32' ? /^[A-Za-z]:[\\/]|^[\\/]{2}[^\\/]/.test(p) : p.startsWith('/'));
@@ -938,6 +939,7 @@ export const stops = Object.freeze({
   reviewRulesChanged: () => refuse('review-rules-changed', 'the staged rules file changed after the check.'),
   reviewChangedStage: () => refuse('review-changed-stage', 'the review module changed the stage.', REVIEW_LEFT),
   reviewFailed: () => refuse('review-failed', 'the review output was not written, or not as this run rendered it.', REVIEW_LEFT),
+  tempLeft: rel => refuse('temp-left', `a temp file the install writes through is already there: ${formatPlain(rel)}.pact-tmp. An earlier install stopped mid-write, and the file may hold a copy of your settings; check it, delete it, and run the install again.`),
 });
 
 /** The review module's lines (S6, V1): exactly the hashes this run rendered, then RESULT: pass. */

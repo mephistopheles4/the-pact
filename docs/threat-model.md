@@ -220,8 +220,15 @@ once you install it.
   tracker rule.
 - **For its own install, a dry run and a gate.** The install shows what it
   would change before it changes anything. It installs only committed files,
-  and only those its checks passed. Every change to the install gate's code
-  takes the security route.
+  and only those its checks passed: a small bootstrap stages them, and every
+  check runs from that staged copy. An apply is bound to the commit its dry
+  run showed. Every change to the install gate's code takes the security
+  route.
+- **Ask rules on the install itself.** Any shell command that names the
+  install script, the old PowerShell installer or the install record asks
+  you first, so a session can't apply without your approval. A dry run asks
+  too, so an apply's prompt can look routine; the pact accepts that habit
+  risk. A command that builds the script's name at run time gets past them.
 - **Ask rules** on the skills, plugins, agents and settings folders, for
   Claude Code's own edit tools.
 
@@ -356,9 +363,6 @@ You cannot loosen a gated clause through configuration. That is deliberate.
 
 These were open on 2026-10-09. Each is tracked on this repo's tracker.
 
-- **#177:** on Linux and macOS, an install can leave `settings.json`, which
-  can hold API keys, readable by other users. The how-to gives the
-  workaround.
 - **#179:** older versions of the cloud setup script wrote an old copy of the
   rules, without the tracker rule, the rule on outsiders' code, or the rule
   against posting a secret. #181 generates a current copy. A cloud
@@ -372,8 +376,15 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 - **#199:** no rule for fixing a reported hole out of public view (R19).
 - **#107:** the ask rule before an install did not fire once, in a background
   auto-mode session. The cause is unknown.
-- **#110:** in a narrow case, the dry run can miss a tampered permission rule.
-  The install still writes the right one.
+
+The Node install (#166) closes two that were listed here, in part:
+
+- **#177:** an install on Linux or macOS no longer widens `settings.json`,
+  which can hold API keys. It keeps the file's mode, so a file an older
+  install widened stays readable by other users until you restrict it; the
+  dry run warns when it is. A rollback to the old installer widens it again.
+- **#110:** the dry run compares permission rules exactly, so it no longer
+  misses a tampered rule.
 
 ## Reporting a security hole
 

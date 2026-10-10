@@ -130,9 +130,8 @@ test('pick: an unknown tier throws', () => {
 
 // ------------------------------------------------------------ pick: the changed tier (S5)
 
-// The real copy list; its install-script entry is never written out here, which would put this file in the install tier.
+// The real copy list.
 const COPY = { dirs: COPY_DIRS, files: COPY_FILES };
-const INSTALL_SCRIPT_PATH = COPY_FILES.find(f => f.startsWith('scripts/'));
 const PASS_SRC = "import { test } from 'node:test';\n";
 
 /** A planted tree for the changed tier: a fast file, two install files, the smoke file and the harness. */
@@ -163,12 +162,18 @@ test('changed: a changed test file runs itself, and only itself when nothing els
 });
 
 test('changed: gate code, and the install script, select the full tier', () => {
-  assert.ok(INSTALL_SCRIPT_PATH, 'the copy list holds the install script');
-  for (const p of ['gate/seam-a.mjs', 'gate/grimoire/check.mjs', INSTALL_SCRIPT_PATH]) {
+  // The Node install script lives in the gate folder (#153, S3).
+  for (const p of ['gate/seam-a.mjs', 'gate/grimoire/check.mjs', 'gate/install.mjs']) {
     const r = changedPicks(changedTree(), [p]);
     assert.deepEqual([...r.files.keys()].sort(), ['agent.test.mjs', 'install-smoke.test.mjs', 'other-install.test.mjs', 'plain.test.mjs'], p);
     assert.match(r.files.get('plain.test.mjs'), /^gate code changed: /, p);
   }
+});
+
+// The PowerShell installer left at the cutover (#153, S9), so no throwaway repo the harness builds holds it,
+// and no test can run it by mistake.
+test('bad case: the copy list holds no PowerShell script', () => {
+  assert.deepEqual(COPY_FILES.filter(f => f.endsWith('.ps1')), []);
 });
 
 test('changed: a payload path picks finely: the smoke set and the files that name it, not an install file that does not', () => {
