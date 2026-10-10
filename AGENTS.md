@@ -343,9 +343,8 @@ Where two bullets apply, the stricter one holds.
   - [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md), which the
     gated `tracker-authors` clause tells every session to read live from
     GitHub;
-  - this section itself: a change that removes or narrows an item on this
-    list, narrows the definition of a security-set lens, or loosens the
-    doubt rule or the rule that the stricter bullet holds.
+  - this section itself: any edit to it that does more than tighten or
+    clarify it.
 - **The gate's code also needs its own tests.** The gate's code is every file
   in `gate/` but its tests, every file in `.github/workflows/`, and
   `.github/dependabot.yml`. Every change to it takes the security route. Each

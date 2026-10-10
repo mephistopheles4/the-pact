@@ -3,7 +3,7 @@
 A change to an agent or a rule never needs a planted probe or a security-set rerun. AGENTS.md's "Testing a change to an agent or a rule" now says:
 
 - **The old probe floor takes the security route instead.** The security pair reads the spec and the diff of a change to the risk floor, the security route, a gated clause, the protected set, a security-set lens, a non-lens agent with a shell or network tools or that guards the route or the floor, the tool allow-list or the settings guard.
-- **Three more items join that list:** the cross script, `cross/cross.mjs`, which refuses a malformed or out-of-tier lens report; `docs/agents/issue-tracker.md`, which the gated `tracker-authors` clause tells every session to read live from GitHub; and the section itself. A change that removes or narrows an item, narrows the definition of a security-set lens, or loosens the doubt rule or the stricter-bullet rule takes the route. An edit that only tightens or clarifies the section is proved by use.
+- **Three more items join that list:** the cross script, `cross/cross.mjs`, which refuses a malformed or out-of-tier lens report; `docs/agents/issue-tracker.md`, which the gated `tracker-authors` clause tells every session to read live from GitHub; and the section itself: any edit to it that does more than tighten or clarify it takes the route. An edit that only tightens or clarifies the section is proved by use.
 - **The gate's code is unchanged.** It keeps the security route, and each check it adds or tightens still needs a bad case it is seen to catch.
 - **Everything else is proved by use,** as before.
 - **Depth stays the owner's dial.** The owner may ask for a planted probe by name. Such a probe posts its expected result first, runs in a fresh interactive session, counts a pass only once it has been seen to fail, and is recorded verbatim.
@@ -19,7 +19,7 @@ What stays on purpose:
 
 - **`scout`'s contract.** `familiars/scout.md` pins its contract's digest, so the sealed contract is unchanged and still cites its deleted practice test. Its evidence is in git history at 9be4f87, and the line changes at scout's next reseal.
 - **The gate's skip of `familiars/*.practice-test.md`,** in the install's copy set and in seam A. Such a file never installs. The spec kept the gate's code unchanged apart from the warning text.
-- **The practice sandbox's Docker volume,** which kept a Claude sign-in between practice runs. It lives on the owner's machine, outside the repo; removing it is the owner's step.
+- **The practice sandbox's Docker volume,** which kept a Claude sign-in between practice runs. It lives on the owner's machine, outside the repo. The owner chose to keep it (2026-10-10, in chat).
 
 The floor bullets for the test runner, the copy list, the table module, the in-process runner and its two guards went too. They are ordinary test code now, an accepted risk the threat model records as R21. ADRs 0030 and 0031 change in part to match; #189's second ticket records the rest.
 

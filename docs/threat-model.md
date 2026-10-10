@@ -141,7 +141,7 @@ How to read it:
 | R18 Totals to this repo | None; a flow by default | "Totals only" names no repo | Rule |
 | R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
 | R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
-| R21 Test code ordinary | A careless or fooled edit | Review at move 4, the required CI check | Rule |
+| R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
 
 ## Strangers on the tracker
 
@@ -323,8 +323,9 @@ session can act before you see it.
   run. Since #189 a change to them is proved by use, not by the security
   route. An ordinary edit, or one a fooled session makes, could narrow what
   the CI check runs, or weaken record mode's scrub, which keeps local paths
-  and names out of posted test output. The review at move 4 is what catches
-  it. The owner accepted this risk by name (#189).
+  and names out of posted test output. The required CI check can't catch
+  that, because it runs the runner the edit narrowed. Only the review at move
+  4 does. The owner accepted this risk by name (#189).
 
 ## Your own configuration loosening a rule
 
