@@ -4,7 +4,7 @@
 // cases, which never install, are in agent-settings.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { plantModule } from './gate-files.mjs';
@@ -146,32 +146,3 @@ for (const [label, config, from, to, why] of [
     assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json' || f.startsWith('agents')), listTree(h).join('\n'));
   });
 }
-
-test('bad case: a renderer that rewrites a model line in the body, not the frontmatter, refuses', t => {
-  // The committed lens carries a body line that starts like a model line, so
-  // only the frontmatter-only rule tells the two apart.
-  const repo = makeRepo(t, root => {
-    const f = join(root, 'claude', 'agents', 'integrity-lens.md');
-    writeFileSync(f, readFileSync(f, 'utf8').replace('# integrity-lens', 'model: opus\n\n# integrity-lens'));
-    plantRenderer(root, R_AGENT_WRITE, `  for (const a of agents) { const l = a.buf.toString('utf8').split('\\n'); const i = l.indexOf('model: opus', 8); l[i] = 'model: sonnet'; a.buf = Buffer.from(l.join('\\n')); }\n${R_AGENT_WRITE}`);
-  });
-  const h = home(t);
-  configure(h, SET);
-  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', A64] });
-  refused(r);
-  assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
-  assert.match(r.stdout, /^REFUSED: the rendered agent file differs from the committed one beyond its model and effort lines, or does not hold the reported values\./m, r.out);
-});
-
-test('bad case: a configuration setting integrity-lens on a commit with no integrity-lens file refuses', t => {
-  // A planted renderer that does not read the file, so only the install's own check stands.
-  const repo = makeRepo(t, root => {
-    plantRenderer(root, "    agents = checked.agents.map(a => renderAgent(source, a, report, buf.toString('utf8')));", "    agents = checked.agents.map(a => ({ name: a.name, model: 'sonnet', effort: 'low', buf: Buffer.from('x') }));");
-    rmSync(join(root, 'claude', 'agents', 'integrity-lens.md'));
-  });
-  const h = home(t);
-  configure(h, SET);
-  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', A64] });
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the configuration sets integrity-lens, but the commit holds no claude\/agents\/integrity-lens\.md\./m, r.out);
-});

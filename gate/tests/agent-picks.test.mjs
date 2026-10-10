@@ -32,7 +32,6 @@ const INSTALL_NOT_PICKED = Object.freeze(['builder-install.test.mjs', 'config-in
 
 /** The fast-tier files that read no agent file (#151's audit). */
 const FAST_NOT_PICKED = Object.freeze([
-  'baseline-compare.test.mjs',
   'contained.test.mjs',
   'cores.test.mjs',
   'cross-checks.test.mjs',

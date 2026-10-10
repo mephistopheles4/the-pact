@@ -85,6 +85,7 @@ for (const c of table('command line on unix', {
     { id: 'double-slash', plant: rep('/home/user/.claude', '//server/share'), fails: ['path-network'], why: 'a typed network path' },
     { id: 'shell-metacharacter', plant: rep('my project', 'my|project'), fails: ['path-chars'], why: 'a pipe' },
     { id: 'tilde', plant: rep('/home/user/.claude', '~/.claude'), fails: ['path-not-full'], why: 'a shell expansion is not a full path' },
+    { id: 'relative-project', plant: rep('/work/my project', 'work/my project'), fails: ['path-not-full'], why: 'the project folder is held to the same rule as the home folder' },
   ],
 })) test(c.name, c.fn);
 
@@ -287,6 +288,8 @@ for (const c of table('renderer lines with no configuration', {
     { id: 'value', plant: rep('RESULT', 'VALUE usage-pause 90\nRESULT'), fails: ['render-none-extras'], why: 'a value with no configuration' },
     { id: 'edit', plant: rep('RESULT', 'EDIT move-1 remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
     { id: 'agent', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-none-extras'], why: 'an agent setting with no configuration' },
+    { id: 'no-config-line', plant: rep('CONFIG none\n', ''), fails: ['render-counts'], why: 'no configuration line at all' },
+    { id: 'two-none-lines', plant: rep('CONFIG none', 'CONFIG none\nCONFIG none'), fails: ['render-counts'], why: 'two configuration lines, both none' },
   ],
 })) test(c.name, c.fn);
 
@@ -357,6 +360,10 @@ test('the project render with no user file: the digest is the project file\'s al
   const block = core.projectBlock({ kind: 'update', sha256: H('a') }, p);
   assert.ok(block.includes('  rules file .claude/rules/pact-project.md: unchanged'));
   assert.ok(block.includes("  user configuration pact/config.json: none (the defaults bound the project's values)"));
+  // A record names a file by its hash, which anyone can write: a hash that differs is never called the pact's.
+  const other = core.projectBlock({ kind: 'update', sha256: H('b') }, p);
+  assert.ok(other.includes(`  rules file .claude/rules/pact-project.md: would replace the existing file its record names (sha256 ${H('b')}); the record is a file in the project, not proof the pact wrote it`));
+  assert.ok(!other.join('\n').includes('the pact recorded'));
 });
 
 for (const c of table('project output', {
@@ -714,6 +721,9 @@ test('the configuration block: a removed configuration, changed and new files, w
   assert.equal(b[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, new since the last install`);
   assert.equal(b[2], '  1 block file(s) the last install read are no longer used');
   assert.match(b.find(l => l.includes('data-lens')), /data-lens is a security-set lens, so this is an override, not security-tested: the pact reviews only its default\.$/);
+  const blockChanged = core.configBlock(p, H('a'), core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] })));
+  assert.equal(blockChanged[0], `  user file pact/config.json: sha256 ${U}, unchanged since the last install`);
+  assert.equal(blockChanged[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, CHANGED since the last install`);
   assert.ok(core.configStale(core.configNow(p), record.config));
   assert.ok(!core.configStale(new Map([['user', H('0')]]), new Map([['user', H('0')]])));
 });

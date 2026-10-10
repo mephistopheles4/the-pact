@@ -25,18 +25,20 @@
 // no rows, a duplicate or odd row id, empty `fails`, a plant that leaves the
 // input's bytes unchanged, or a rule id no string literal in the module or
 // the gate files it imports holds (a grimoire/ id: the pinned check's).
-// The table name and each row id must be string literals in the call, so the
-// no-loss compare can find a row by reading the file (baseline-compare.mjs).
+// The table name and each row id must be string literals in the call, so a
+// reader can find a row by searching the file for its name.
 // Importing this file touches nothing; calling table() reads the module's
 // sources once. Ordinary test code since #189.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ROW_ID, tableCalls } from './baseline-compare.mjs';
 import { relativeImports, stringLiterals } from './run.mjs';
 
-export { ROW_ID };
+/** A row's id: lower-case words joined by dashes. */
+export const ROW_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const TABLES_MODULE = './tables.mjs';
+const TABLE_FN = 'table';
 /** A table's name: lower-case words, single spaces. */
 export const TABLE_NAME = /^[a-z0-9]+(?: [a-z0-9]+)*$/;
 const ROW_KEYS = new Set(['id', 'plant', 'fails', 'says', 'why']);
@@ -183,13 +185,149 @@ export function table(name, spec) {
   return tests;
 }
 
+// ------------------------------------------------------------ the registering loop, read from a test file's source: pure
+
+const PUNCT_REGEX_AFTER = new Set([...'(,=:[!&|?{};+-*%<>~^']);
+const WORDS_REGEX_AFTER = new Set(['return', 'typeof', 'case', 'of', 'in', 'void', 'delete', 'throw', 'yield', 'await']);
+
+/** A module's source as tokens: { t: 'str', v } for a string literal (a template only when it has no ${}), { t: 'tpl' } for one that has, { t: 're' } for a regex literal, { t: 'word', v }, { t: 'p', v }. Comments are dropped. */
+function tokens(src) {
+  const out = [];
+  const n = src.length;
+  let i = 0;
+  const prev = () => out[out.length - 1];
+  while (i < n) {
+    const c = src[i];
+    if (c === '/' && src[i + 1] === '/') {
+      const j = src.indexOf('\n', i);
+      i = j < 0 ? n : j;
+    } else if (c === '/' && src[i + 1] === '*') {
+      const j = src.indexOf('*/', i + 2);
+      i = j < 0 ? n : j + 2;
+    } else if (c === '"' || c === "'") {
+      let s = '';
+      i += 1;
+      while (i < n && src[i] !== c && src[i] !== '\n') {
+        if (src[i] === '\\') {
+          s += src[i + 1] ?? '';
+          i += 2;
+        } else s += src[i++];
+      }
+      i += 1;
+      out.push({ t: 'str', v: s });
+    } else if (c === '`') {
+      let s = '';
+      let plain = true;
+      i += 1;
+      while (i < n && src[i] !== '`') {
+        if (src[i] === '\\') {
+          s += src[i + 1] ?? '';
+          i += 2;
+        } else if (src[i] === '$' && src[i + 1] === '{') {
+          plain = false;
+          let depth = 1;
+          i += 2;
+          while (i < n && depth > 0) {
+            const d = src[i];
+            if (d === '"' || d === "'" || d === '`') {
+              i += 1;
+              while (i < n && src[i] !== d) i += src[i] === '\\' ? 2 : 1;
+            } else if (d === '{') depth += 1;
+            else if (d === '}') depth -= 1;
+            i += 1;
+          }
+        } else s += src[i++];
+      }
+      i += 1;
+      out.push(plain ? { t: 'str', v: s } : { t: 'tpl' });
+    } else if (c === '/' && (!prev() || (prev().t === 'p' && PUNCT_REGEX_AFTER.has(prev().v)) || (prev().t === 'word' && WORDS_REGEX_AFTER.has(prev().v)))) {
+      // A regex literal: skipped, and kept as one token that is no bracket.
+      i += 1;
+      let inClass = false;
+      while (i < n && src[i] !== '\n') {
+        if (src[i] === '\\') i += 2;
+        else if (src[i] === '[') (inClass = true), (i += 1);
+        else if (src[i] === ']') (inClass = false), (i += 1);
+        else if (src[i] === '/' && !inClass) break;
+        else i += 1;
+      }
+      i += 1;
+      while (i < n && /[a-z]/.test(src[i])) i += 1;
+      out.push({ t: 're' });
+    } else if (/\s/.test(c)) i += 1;
+    else if (/[A-Za-z0-9_$]/.test(c)) {
+      let w = '';
+      while (i < n && /[A-Za-z0-9_$]/.test(src[i])) w += src[i++];
+      out.push({ t: 'word', v: w });
+    } else {
+      out.push({ t: 'p', v: c });
+      i += 1;
+    }
+  }
+  return out;
+}
+
+const OPENS = '([{';
+const CLOSES = ')]}';
+
+/** The index of the bracket that closes the one opening at `open`. */
+function closeOf(toks, open) {
+  let depth = 0;
+  for (let j = open; j < toks.length; j += 1) {
+    if (toks[j].t !== 'p') continue;
+    if (OPENS.includes(toks[j].v)) depth += 1;
+    else if (CLOSES.includes(toks[j].v) && --depth === 0) return j;
+  }
+  return toks.length;
+}
+
+/**
+ * Every `table(...)` call in a test file's source, as { calls: [{ name,
+ * registered }], aliased }. `name` is the table's name when it is a string
+ * literal, else null. A call is registered only when it heads a top-level
+ * loop that registers each test in the file:
+ * `for (const c of table('<name>', { ... })) test(c.name, c.fn);`.
+ * `aliased` is whether the file imports `table` from ./tables.mjs under
+ * another name.
+ */
+function tableCalls(src) {
+  const toks = tokens(src);
+  let aliased = false;
+  for (let i = 0; i < toks.length; i += 1) {
+    if (toks[i].v !== 'import' || toks[i + 1]?.v !== '{') continue;
+    const close = toks.findIndex((tk, j) => j > i && tk.v === '}');
+    if (close < 0 || toks[close + 1]?.v !== 'from' || toks[close + 2]?.t !== 'str' || toks[close + 2].v !== TABLES_MODULE) continue;
+    for (let k = i + 2; k < close; k += 1) if (toks[k].v === TABLE_FN && toks[k + 1]?.v === 'as') aliased = true;
+  }
+  const calls = [];
+  let depth = 0;
+  for (let i = 0; i < toks.length; i += 1) {
+    const tk = toks[i];
+    const prev = toks[i - 1]?.v;
+    if (tk.t === 'word' && tk.v === TABLE_FN && toks[i + 1]?.v === '(' && !['.', 'function', 'import', 'as', '{', ','].includes(prev)) {
+      const name = toks[i + 2]?.t === 'str' ? toks[i + 2].v : null;
+      const close = closeOf(toks, i + 1);
+      const v = toks[i - 2];
+      // for ( const c of table ( ... ) ) test ( c . name , c . fn ) ; with the for at the top level
+      const head = depth === 1 && toks[i - 5]?.v === 'for' && toks[i - 4]?.v === '(' && toks[i - 3]?.v === 'const' && v?.t === 'word' && prev === 'of';
+      const after = toks.slice(close + 1, close + 12).map(x => x.v ?? `<${x.t}>`);
+      const want = [')', 'test', '(', v?.v, '.', 'name', ',', v?.v, '.', 'fn', ')'];
+      calls.push({ name, registered: head && want.every((w, k) => after[k] === w) });
+    }
+    if (tk.t === 'p') {
+      if (OPENS.includes(tk.v)) depth += 1;
+      else if (CLOSES.includes(tk.v)) depth -= 1;
+    }
+  }
+  return { calls, aliased };
+}
+
 /**
  * Each `table(...)` call in a test file's source that is not registered as a
  * top-level `for (const c of table(...)) test(c.name, c.fn);`, by its table
  * name, or `(unnamed)`; and `(table imported under another name)` for an
  * aliased import. A table whose tests are never registered runs nothing, and
- * one inside a function or a branch may never run, so the no-loss compare
- * counts only top-level registered tables' rows (tableCalls).
+ * one inside a function or a branch may never run.
  */
 export function unregisteredTables(src) {
   const { calls, aliased } = tableCalls(src);

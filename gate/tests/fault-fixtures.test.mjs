@@ -260,7 +260,7 @@ test('control: an import written inside a string, a template\'s text or a commen
 
 test('control: a data file under fixtures/, read by path, passes the guard', t => {
   const dir = tempDir(t, 'pact-fault-guard-');
-  writeFileSync(join(dir, 'reads.test.mjs'), `const rows = readFileSync(join(HERE, '${FIX}', 'baseline-140', 'moves.tsv'), 'utf8');\nconst list = await import('./${FIX}/list.json', { with: { type: 'json' } });\n`);
+  writeFileSync(join(dir, 'reads.test.mjs'), `const rows = readFileSync(join(HERE, '${FIX}', 'run', 'written-out.txt'), 'utf8');\nconst list = await import('./${FIX}/list.json', { with: { type: 'json' } });\n`);
   assert.deepEqual(fixtureImporters(dir), []);
 });
 

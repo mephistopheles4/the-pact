@@ -51,7 +51,7 @@ test('pick: a file that names the install script, written out or in pieces, is i
   const sources = new Map([
     ['out.test.mjs', readFileSync(join(FIX, 'written-out.txt'), 'utf8')],
     ['pieces.test.mjs', readFileSync(join(FIX, 'in-pieces.txt'), 'utf8')],
-    ['plain.test.mjs', "spawnSync('pwsh', ['-File', 'scripts/check-skill-flags.ps1']);\n"],
+    ['plain.test.mjs', "readFileSync('scripts/other.ps1');\n"],
   ]);
   const ents = entries(['out.test.mjs', 'pieces.test.mjs', 'plain.test.mjs']);
   assert.deepEqual(

@@ -3,7 +3,7 @@
 // cases moved here, unchanged, from install.test.mjs, so a payload change can
 // run them without the whole install tier. Never touches ~/.claude.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo } from './install-harness.mjs';
@@ -24,7 +24,7 @@ test('dry run on a clean tree passes and shows Node, the pin, the check and the 
   );
 });
 
-test('-Apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
+test('--apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const r = install(repo, h, { apply: true });
@@ -67,6 +67,10 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
     'gate/tool-allowlist.json',
   ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
+  // A sealed familiar installs as agents/<stem>.md; its contract never reaches the home folder (#210, move 4).
+  assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'familiars', 'scout.md')));
+  assert.ok(existsSync(join(repo, 'familiars', 'scout.contract.md')), 'the control: the repo holds a contract that could have installed');
+  assert.ok(!listTree(h).some(f => /contract/i.test(f)), listTree(h).join('\n'));
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^Gate: unchanged since the last install$/m);

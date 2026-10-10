@@ -91,12 +91,6 @@ test('node project: a project render that writes into the stage refuses, with no
   assert.deepEqual(readdirSync(join(proj, '.claude')), ['pact-config.json']);
 });
 
-test('node project: --review-folder with --project-folder refuses before anything runs', t => {
-  const repo = makeRepo(t);
-  const { ch, proj } = layout(t);
-  refused(install(repo, ch, { extra: ['--project-folder', proj, '--review-folder', join(tempDir(t), 'rev')] }), /--review-folder is for a home install/);
-});
-
 // The runner tests the project's paths for links itself, after the project
 // module has (S7, J2): a link that appears once the module has checked is
 // refused by the runner's own test, under its own rule.

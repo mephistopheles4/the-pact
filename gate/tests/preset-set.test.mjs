@@ -103,8 +103,6 @@ test('the render carries each block\'s text', t => {
 
 /** Run the skill-flag check on `md` with the 11 skills installed, the owner's five flagged. */
 function skillFlags(t, md, flagged = COMMANDS) {
-  const which = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['pwsh'], { encoding: 'utf8' });
-  const pwsh = which.stdout.split(/\r?\n/)[0].trim();
   const root = tempDir(t, 'pact-preset-skills-');
   for (const n of [...COMMANDS, ...SPANS]) {
     mkdirSync(join(root, 'skills', n), { recursive: true });
@@ -113,9 +111,9 @@ function skillFlags(t, md, flagged = COMMANDS) {
   }
   writeFileSync(join(root, 'rules.md'), md);
   return spawnSync(
-    pwsh,
-    ['-NoProfile', '-NonInteractive', '-File', join(REPO, 'scripts', 'check-skill-flags.ps1'), '-SkillsDir', join(root, 'skills'), '-RulesFile', join(root, 'rules.md')],
-    { encoding: 'utf8' },
+    process.execPath,
+    [join(REPO, 'scripts', 'check-skill-flags.mjs'), '--skills-dir', join(root, 'skills'), '--rules-file', join(root, 'rules.md')],
+    { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } },
   );
 }
 

@@ -128,6 +128,23 @@ test('AGENTS.md gives the runner in one PowerShell and one POSIX form, each clea
   assert.deepEqual(commandProblems(section()), []);
 });
 
+// The PowerShell forms are never run here (ADR 0048), so each runner command
+// is held word for word: a command chained after one would pass the prefix
+// check above (#210).
+const EXACT_RUNNER = [`${PS_FORM}<tier>`, `${POSIX_FORM}<tier>`, `${PS_FORM}changed`, `${POSIX_FORM}changed`];
+
+test('every runner command in the section is one of the four documented forms', () => {
+  const cmds = runnerCommands(section());
+  assert.deepEqual(cmds.filter(c => !EXACT_RUNNER.includes(c)), []);
+  for (const c of EXACT_RUNNER) assert.ok(cmds.includes(c), c);
+});
+
+test('bad case: a command chained after a runner command fails the exact check, though it keeps the prefix', () => {
+  const planted = `${section()}\n- Or run \`${PS_FORM}full; node ./x.mjs\`.\n`;
+  assert.deepEqual(commandProblems(planted), [], 'the prefix check alone passes it');
+  assert.ok(runnerCommands(planted).some(c => !EXACT_RUNNER.includes(c)));
+});
+
 test('the command check catches a runner command that keeps NODE_OPTIONS', () => {
   const planted = `${section()}\n- Or just run \`node gate/tests/run.mjs full\`.\n`;
   assert.deepEqual(commandProblems(planted), ['a runner command that keeps NODE_OPTIONS: node gate/tests/run.mjs full']);
@@ -168,12 +185,18 @@ function which(cmd) {
   return r.status === 0 ? r.stdout.split(/\r?\n/)[0].trim() : null;
 }
 
+// A POSIX shell: Git's own on Windows, the system's elsewhere. The suite never
+// starts PowerShell (#210, the owner's decision), so the documented POSIX form
+// is the one run on every OS, and the PowerShell form is checked as text above.
+const GIT = WIN ? which('git') : null;
+const SH = WIN ? (GIT ? [join(dirname(GIT), '..', 'bin', 'sh.exe'), join(dirname(GIT), '..', 'usr', 'bin', 'sh.exe')].find(existsSync) : undefined) : '/bin/sh';
+
 /**
- * Run a documented command, with `<tier>` as full, in a planted repo whose
- * inherited NODE_OPTIONS preloads a script that marks the runner's own
- * process. Returns { status, last, marked }.
+ * Run a documented command, with `<tier>` as full, through a POSIX shell in a
+ * planted repo whose inherited NODE_OPTIONS preloads a script that marks the
+ * runner's own process. Returns { status, last, marked }.
  */
-function runDocumented(t, cmd, pwsh = WIN) {
+function runDocumented(t, cmd) {
   const root = join(tempDir(t, 'pact-doc-'), 'repo');
   const tests = join(root, 'gate', 'tests');
   mkdirSync(tests, { recursive: true });
@@ -185,18 +208,15 @@ function runDocumented(t, cmd, pwsh = WIN) {
   const env = { ...process.env, NODE_OPTIONS: `--require ${JSON.stringify(preload.replace(/\\/g, '/'))}` };
   delete env.NODE_TEST_CONTEXT;
   const line = cmd.replace('<tier>', 'full');
-  const r = pwsh
-    ? spawnSync(which('pwsh'), ['-NoProfile', '-NonInteractive', '-Command', line], { cwd: root, env, encoding: 'utf8', timeout: 120_000 })
-    : spawnSync('/bin/sh', ['-c', line], { cwd: root, env, encoding: 'utf8', timeout: 120_000 });
+  const r = spawnSync(SH, ['-c', line], { cwd: root, env, encoding: 'utf8', timeout: 120_000 });
   const lines = (r.stderr ?? '').split(/\r?\n/).filter(Boolean);
   return { status: r.status, last: lines[lines.length - 1], marked: readdirSync(marks).length > 0 };
 }
 
-test('the documented command for this shell keeps an inherited preload out of the runner itself', t => {
-  const form = WIN ? PS_FORM : POSIX_FORM;
-  assert.ok(!WIN || which('pwsh'), 'no pwsh found; this case must not go unrun');
-  const cmd = runnerCommands(section()).find(c => c.startsWith(form));
-  assert.ok(cmd, `no documented ${WIN ? 'PowerShell' : 'POSIX'} form`);
+test('the documented POSIX command keeps an inherited preload out of the runner itself', t => {
+  assert.ok(SH, 'no POSIX shell found; this case must not go unrun');
+  const cmd = runnerCommands(section()).find(c => c.startsWith(POSIX_FORM));
+  assert.ok(cmd, 'no documented POSIX form');
   const r = runDocumented(t, cmd);
   assert.equal(r.last, 'RESULT: full tier, 1 files, pass');
   assert.equal(r.status, 0);

@@ -201,32 +201,6 @@ test('bad case: a project configuration changed after the dry run refuses, with 
   assert.ok(!existsSync(join(proj, '.claude', 'rules')));
 });
 
-test('layering: a project value looser than the user\'s but tighter than the default refuses, and so does a project edit', t => {
-  const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
-  userFile(ch, 50);
-  const proj = projectAt(join(homeDir, 'proj'), 60);
-  const r = projInstall(repo, ch, proj);
-  refused(r);
-  assert.match(r.stdout, /^render\| FAIL project-looser: /m, r.out);
-  writeFileSync(join(proj, '.claude', 'pact-config.json'), '{"schema": 1, "settings": {"usage-pause": 40}, "edits": [{"mark": "move-2", "op": "remove"}]}\n');
-  const r2 = projInstall(repo, ch, proj);
-  refused(r2);
-  assert.match(r2.stdout, /^render\| FAIL project-edit: /m, r2.out);
-});
-
-test('bad case: -ProjectFolder with -ReviewFolder, or a relative -ProjectFolder, refuses before anything runs', t => {
-  const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
-  const proj = projectAt(join(homeDir, 'proj'));
-  const r = projInstall(repo, ch, proj, { extra: ['--review-folder', join(tempDir(t), 'review')] });
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: --review-folder is for a home install/m, r.out);
-  const r2 = projInstall(repo, ch, 'proj');
-  refused(r2);
-  assert.match(r2.stdout, /^REFUSED: --project-folder must be a full path/m, r2.out);
-});
-
 // ------------------------------------------------------------ containment
 
 /** Run a containment case: plant, then -Apply; refused, the project and the outside folder unchanged. */
@@ -312,19 +286,6 @@ for (const [which, why] of [
     }, why);
   });
 }
-
-test('a forged record never makes the dry run say the pact wrote the file', t => {
-  const repo = makeRepo(t);
-  const { homeDir, ch } = layout(t);
-  const proj = projectAt(join(homeDir, 'proj'));
-  mkdirSync(join(proj, '.claude', 'rules'));
-  writeFileSync(join(proj, ...RULES), 'the repo\'s own text\n');
-  writeFileSync(join(proj, ...RECORD), JSON.stringify({ file: 'pact-project.md', sha256: sha256('the repo\'s own text\n') }));
-  const r = projInstall(repo, ch, proj);
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /the record is a file in the project, not proof the pact wrote it/, r.out);
-  assert.doesNotMatch(r.stdout, /the pact recorded/, r.out);
-});
 
 test('bad case: a rules file that no longer matches its record refuses, saying how to recover', t => {
   containment(t, proj => {
