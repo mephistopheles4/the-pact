@@ -84,8 +84,10 @@ test('bad case: a pinned script that does not match its pin refuses', t => {
     writeFileSync(p, `${readFileSync(p, 'utf8')}// edited\n`);
   });
   const r = install(repo, home(t));
-  refused(r);
-  assert.match(r.stdout, /pinned check script does not match its pin/);
+  // The runner's own refusal, before seam A runs: seam A checks the pin too,
+  // and its line alone would let a runner that skipped the check pass (#210).
+  refused(r, /^REFUSED: the pinned check script does not match its pin\./m);
+  assert.doesNotMatch(r.stdout, /^seam-a\| /m, r.out);
 });
 
 test('bad case: a missing pinned script refuses', t => {

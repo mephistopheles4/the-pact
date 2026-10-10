@@ -288,6 +288,7 @@ for (const c of table('renderer lines with no configuration', {
     { id: 'value', plant: rep('RESULT', 'VALUE usage-pause 90\nRESULT'), fails: ['render-none-extras'], why: 'a value with no configuration' },
     { id: 'edit', plant: rep('RESULT', 'EDIT move-1 remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
     { id: 'agent', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-none-extras'], why: 'an agent setting with no configuration' },
+    { id: 'no-config-line', plant: rep('CONFIG none\n', ''), fails: ['render-counts'], why: 'no configuration line at all' },
     { id: 'two-none-lines', plant: rep('CONFIG none', 'CONFIG none\nCONFIG none'), fails: ['render-counts'], why: 'two configuration lines, both none' },
   ],
 })) test(c.name, c.fn);
@@ -720,6 +721,9 @@ test('the configuration block: a removed configuration, changed and new files, w
   assert.equal(b[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, new since the last install`);
   assert.equal(b[2], '  1 block file(s) the last install read are no longer used');
   assert.match(b.find(l => l.includes('data-lens')), /data-lens is a security-set lens, so this is an override, not security-tested: the pact reviews only its default\.$/);
+  const blockChanged = core.configBlock(p, H('a'), core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] })));
+  assert.equal(blockChanged[0], `  user file pact/config.json: sha256 ${U}, unchanged since the last install`);
+  assert.equal(blockChanged[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, CHANGED since the last install`);
   assert.ok(core.configStale(core.configNow(p), record.config));
   assert.ok(!core.configStale(new Map([['user', H('0')]]), new Map([['user', H('0')]])));
 });

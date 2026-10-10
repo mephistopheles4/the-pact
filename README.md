@@ -125,7 +125,6 @@ The full how-to, with the command for each shell, is in [docs/install.md](docs/i
 
 - **Claude Code.** The pact is a rules file, agents and settings for it.
 - **Node 24 or later,** the current LTS, to install and to run the gate's tests, on Windows, macOS or Linux.
-- **PowerShell 7,** for part of the gate's tests only. The install doesn't need it.
 - **git.** The install reads the clone's committed files.
 - **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
 - **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy of its check script ships here; its skills are optional.
