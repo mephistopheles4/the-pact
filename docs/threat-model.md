@@ -2,11 +2,11 @@
 
 This page explains how the pact could break, what it does about each way, and
 which risks it accepts. Read it before you install the pact, and before you
-change it. It describes the pact as published on 2026-10-09. A change that
+change it. It describes the pact as published on 2026-10-10. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R21, so other work can point at it.
+Each accepted risk has a label, R1 to R22, so other work can point at it.
 
 ## Who and what this covers
 
@@ -73,7 +73,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R21
+  title Residual risk, R1 to R22
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -101,6 +101,7 @@ quadrantChart
   R19 Fix work public: [0.20, 0.74]
   R20 Lens untested: [0.38, 0.54]
   R21 Test code ordinary: [0.30, 0.36]
+  R22 Apply asks only: [0.34, 0.62]
 ```
 
 How to read it:
@@ -111,8 +112,8 @@ How to read it:
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
   tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
-  made public by its own fix work (R19), and lenses no test runs (R20) sit
-  here. Their guards are mostly rules, so cutting one moves its risk right.
+  made public by its own fix work (R19), lenses no test runs (R20), and an
+  apply spelled past the ask rules (R22) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7, R18.** They happen by design, and the harm
   is bounded: public reports, a blocked team, totals on another tracker.
 - **Accept (bottom left): R17, R21.** R17 needs your own edits, and the dry
@@ -142,6 +143,7 @@ How to read it:
 | R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
 | R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
+| R22 Apply asks only | A fooled session | Ask rules on an apply's spelling, the go-ahead clause | Prompt, rule |
 
 ## Strangers on the tracker
 
@@ -229,11 +231,14 @@ once you install it.
   check runs from that staged copy. An apply is bound to the commit its dry
   run showed. Every change to the install gate's code takes the security
   route.
-- **Ask rules on the install itself.** Any shell command that names the
-  install script, the old PowerShell installer or the install record asks
-  you first, so a session can't apply without your approval. A dry run asks
-  too, so an apply's prompt can look routine; the pact accepts that habit
-  risk. A command that builds the script's name at run time gets past them.
+- **Ask rules on the install itself.** A shell command that applies asks you
+  first, so a session can't apply without your approval: any command holding
+  `--apply`, the install script named with a word the rule can't read after
+  it, and the old PowerShell installer named with its apply switch, a dash, a
+  splat or a variable. A command that names the install record, or a `gh`
+  command naming rulesets or branch protection, asks too. A mention, a read,
+  a diff or a dry run of the installer runs without asking (ADR 0049), so an
+  apply's prompt no longer looks routine. What still gets past them is R22.
 - **Ask rules** on the skills, plugins, agents and settings folders, for
   Claude Code's own edit tools.
 
@@ -326,6 +331,19 @@ session can act before you see it.
   and names out of posted test output. The required CI check can't catch
   that, because it runs the runner the edit narrowed. Only the review at move
   4 does. The owner accepted this risk by name (#189).
+- **R22. The ask rules ask on an apply, not a mention.** Since #210 the
+  rules look for an apply's spelling, not the installer's name, so some
+  applies that asked before now don't: the old installer named in one
+  statement and run with its switch from a variable in the next; a Node flag
+  split by an escape no rule lists, such as a caret through `cmd` or quotes
+  before its `a`; a wrapped apply line, if Claude Code's matcher splits it
+  before the flag; and a name built at run time with the flag also hidden. A
+  dry run of installer code under edit also runs unprompted against your real
+  Claude home. The pact's tests check the rules against a model of Claude
+  Code's documented matching, which can't show what the live matcher does
+  with escapes or wrapped lines. An apply still needs your go-ahead in chat
+  and the commit your dry run printed. The owner accepted this to stop the
+  prompts on every mention (#210).
 
 ## Your own configuration loosening a rule
 

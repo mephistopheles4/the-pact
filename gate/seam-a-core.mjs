@@ -81,25 +81,61 @@ const SETTINGS_CONTAINERS = new Set(['env', 'permissions']);
 const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permissions.ask']);
 // Paths the overlay must set. A set must hold every allowed entry.
 const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions.ask']);
-// The "ask" rules that guard the install: any command naming the Node install
-// script or the install record, and any gh command naming rulesets or branch
-// protection (#165). The overlay must hold them, whatever the allow-list says.
-// The first two keep the PowerShell installer behind a prompt for good, since a
-// rollback runs an older commit's install.ps1 (#153, S10); they replaced the
-// twelve spelling-by-spelling rules of #34 and #89.
+// The three characters PowerShell reads as a parameter's hyphen (#89), built
+// from their codes so this file holds none.
+const DASHES = [0x2013, 0x2014, 0x2015].map(c => String.fromCharCode(c));
+// The "ask" rules that guard the install (ADR 0049, #210): they ask on an
+// apply, not on a mention. The overlay must hold them, whatever the allow-list
+// says. Under Bash, whose case matching the docs leave open, each name drops
+// its first letter, so a capitalised name still matches.
 const SETTINGS_APPLY_ASK = Object.freeze([
-  'PowerShell(*install.ps1*)',
-  'Bash(*nstall.ps1*)',
-  // #165: the Node install script's guard, landed before the script (#153,
-  // S10). They ask on any command naming its two files or the install
-  // record, and on a gh command naming rulesets or branch protection, which
-  // guard the CI ruleset (S11). Under Bash, which matches case exactly, each
-  // rule drops its first letter, so a capitalised name, such as a GraphQL
-  // ruleset mutation, still matches.
-  'PowerShell(*install.mjs*)',
-  'PowerShell(*install-run.mjs*)',
-  'Bash(*nstall.mjs*)',
-  'Bash(*nstall-run.mjs*)',
+  // The old PowerShell installer, which a rollback runs (#153, S10): each
+  // spelling of its apply switch, a splat, each dash PowerShell reads as a
+  // hyphen, and a word the rule can't read (a variable, a subexpression, a
+  // parenthesised expression, the stop-parsing token, a backtick).
+  'PowerShell(./scripts/install.ps1 -Apply)',
+  'PowerShell(*install.ps1*-A*)',
+  'PowerShell(*install.ps1*@*)',
+  ...DASHES.map(d => `PowerShell(*install.ps1*${d}*)`),
+  'PowerShell(*install.ps1*$*)',
+  'PowerShell(*install.ps1*(*)',
+  'PowerShell(*install.ps1*%*)',
+  'PowerShell(*install.ps1*`*)',
+  'Bash(*nstall.ps1*-A*)',
+  'Bash(*nstall.ps1*-a*)',
+  'Bash(*nstall.ps1*@*)',
+  ...DASHES.map(d => `Bash(*nstall.ps1*${d}*)`),
+  'Bash(*nstall.ps1*$*)',
+  'Bash(*nstall.ps1*`*)',
+  // The Node installer: its one apply flag, wherever the script is named, and
+  // after each of its two names a word the rule can't read.
+  'PowerShell(*--apply*)',
+  'Bash(*--apply*)',
+  'PowerShell(*install.mjs*--a*)',
+  'PowerShell(*install.mjs*$*)',
+  'PowerShell(*install.mjs*@*)',
+  'PowerShell(*install.mjs*(*)',
+  'PowerShell(*install.mjs*%*)',
+  'PowerShell(*install.mjs*`*)',
+  'PowerShell(*install-run.mjs*--a*)',
+  'PowerShell(*install-run.mjs*$*)',
+  'PowerShell(*install-run.mjs*@*)',
+  'PowerShell(*install-run.mjs*(*)',
+  'PowerShell(*install-run.mjs*%*)',
+  'PowerShell(*install-run.mjs*`*)',
+  'Bash(*nstall.mjs*--a*)',
+  'Bash(*nstall.mjs*$*)',
+  'Bash(*nstall.mjs*`*)',
+  'Bash(*nstall.mjs*\\*)',
+  'Bash(*nstall-run.mjs*--a*)',
+  'Bash(*nstall-run.mjs*$*)',
+  'Bash(*nstall-run.mjs*`*)',
+  'Bash(*nstall-run.mjs*\\*)',
+  // A dry run that writes the owner's rendered rules to a review folder.
+  'PowerShell(*install.mjs*--rev*)',
+  'Bash(*nstall.mjs*--rev*)',
+  // The install record, the drift baseline, and the CI ruleset (S11): kept
+  // broad, since a write to either has no closed set of spellings (#165, #210).
   'PowerShell(*.pact-install.json*)',
   'Bash(*.pact-install.json*)',
   'PowerShell(*gh*ruleset*)',

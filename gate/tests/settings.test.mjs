@@ -12,7 +12,7 @@ import { runSeamA } from './gate-run.mjs';
 import { realOverlay, stage } from './payload.mjs';
 import { GATE, REPO, failRules, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
-import { APPLY_ASK, CROSS_ASK, DASHES, OLD_INSTALL_ASK, OVERLAY, PACT_ASK, RETIRED_ASK, overlayWith, shown } from './settings-rules.mjs';
+import { APPLY_ASK, APPLY_COMMANDS, BROAD_INSTALL_ASK, CROSS_ASK, DASHES, MENTION_COMMANDS, OLD_INSTALL_ASK, OVERLAY, PACT_ASK, asks, overlayWith, shown } from './settings-rules.mjs';
 import { moduleResult, table } from './tables.mjs';
 
 const ALLOWLIST = 'gate/settings-allowlist.json';
@@ -199,26 +199,28 @@ for (const rule of APPLY_ASK) {
   });
 }
 
-// The twelve rules the cutover retired (#153, S10), each put in place of the
-// broad rule that replaced it, in both the allow-list and the overlay: seam A
-// still fails it as missing, so no narrower spelling stands in for the broad
-// rule. The rows keep the cases of #34 and #89: each apply-step spelling, each
-// dash swapped for a hyphen, and each splat without its space. With the broad
-// rule gone any spelling fails, so the hyphen and splat rows show only that the
-// old spellings don't stand in; seam A's exact compare of the lasting rules is
-// the per-rule cases' job (#166, move 4).
-const broadFor = rule => OLD_INSTALL_ASK[rule.startsWith('PowerShell') ? 0 : 1];
+// Near misses of the required rules (#34, #89, #210): each put in place of the
+// rule it resembles, in both the allow-list and the overlay, and seam A still
+// fails it as missing, so no near miss stands in for a required rule. A hyphen
+// for a dash rule's dash; a splat with a space for the no-space splat (a space
+// is the narrower rule); and a retired broad rule, which seam A no longer asks
+// for, in place of the rule that replaced it.
+const dashRule = (tool, i) => OLD_INSTALL_ASK.find(r => r.startsWith(`${tool}(`) && r.includes(DASHES[i]));
+const splatRule = tool => OLD_INSTALL_ASK.find(r => r.startsWith(`${tool}(`) && r.endsWith('@*)'));
 const hyphened = rule => [...rule].map(c => (DASHES.includes(c) ? '-' : c)).join('');
-/** A plant putting `to` in place of the broad rule for `rule`'s shell, in both files. */
-const swapIn = (rule, to = rule) => tree => {
-  const from = JSON.stringify(broadFor(rule));
+/** A plant putting `to` in place of the required rule `from`, in both files. */
+const swapIn = (from, to) => tree => {
   const put = text => {
-    assert.equal(text.split(from).length, 2, from);
-    return text.replace(from, () => JSON.stringify(to));
+    const doc = JSON.parse(text);
+    const list = doc.permissions?.ask ?? doc['permissions.ask'];
+    const i = list.indexOf(from);
+    assert.ok(i >= 0, shown(from));
+    list[i] = to;
+    return `${JSON.stringify(doc, null, 2)}\n`;
   };
   return { [OVERLAY]: put(tree[OVERLAY]), [ALLOWLIST]: put(tree[ALLOWLIST]) };
 };
-for (const c of table('retired install rules', {
+for (const c of table('near misses of the required rules', {
   module: 'gate/seam-a.mjs',
   base: () => ({ [OVERLAY]: realOverlay(), [ALLOWLIST]: readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8') }),
   run: (tree, t) => {
@@ -227,28 +229,49 @@ for (const c of table('retired install rules', {
     return moduleResult(r.code, r.stdout);
   },
   rows: [
-    { id: 'apply-step-powershell-path', plant: swapIn(RETIRED_ASK[0]), fails: ['settings-required'], why: 'the apply step by its path' },
-    { id: 'apply-step-powershell-dash-a', plant: swapIn(RETIRED_ASK[1]), fails: ['settings-required'], why: 'the apply step by its switch' },
-    { id: 'apply-step-powershell-splat', plant: swapIn(RETIRED_ASK[4]), fails: ['settings-required'], why: 'the apply step through a splat' },
-    { id: 'apply-step-powershell-en-dash', plant: swapIn(RETIRED_ASK[5]), fails: ['settings-required'], why: 'the apply step with an en dash' },
-    { id: 'apply-step-powershell-em-dash', plant: swapIn(RETIRED_ASK[6]), fails: ['settings-required'], why: 'the apply step with an em dash' },
-    { id: 'apply-step-powershell-horizontal-bar', plant: swapIn(RETIRED_ASK[7]), fails: ['settings-required'], why: 'the apply step with a horizontal bar' },
-    { id: 'apply-step-bash-splat', plant: swapIn(RETIRED_ASK[8]), fails: ['settings-required'], why: 'the apply step through a splat, under Bash' },
-    { id: 'apply-step-bash-dash-a', plant: swapIn(RETIRED_ASK[2]), fails: ['settings-required'], why: 'the apply step by its switch, under Bash' },
-    { id: 'apply-step-bash-dash-lower-a', plant: swapIn(RETIRED_ASK[3]), fails: ['settings-required'], why: 'the apply step by its switch in lower case, under Bash' },
-    { id: 'apply-step-bash-en-dash', plant: swapIn(RETIRED_ASK[9]), fails: ['settings-required'], why: 'the apply step with an en dash, under Bash' },
-    { id: 'apply-step-bash-em-dash', plant: swapIn(RETIRED_ASK[10]), fails: ['settings-required'], why: 'the apply step with an em dash, under Bash' },
-    { id: 'apply-step-bash-horizontal-bar', plant: swapIn(RETIRED_ASK[11]), fails: ['settings-required'], why: 'the apply step with a horizontal bar, under Bash' },
-    { id: 'hyphen-for-powershell-en-dash', plant: swapIn(RETIRED_ASK[5], hyphened(RETIRED_ASK[5])), fails: ['settings-required'], why: 'a hyphen in place of the en dash' },
-    { id: 'hyphen-for-powershell-em-dash', plant: swapIn(RETIRED_ASK[6], hyphened(RETIRED_ASK[6])), fails: ['settings-required'], why: 'a hyphen in place of the em dash' },
-    { id: 'hyphen-for-powershell-horizontal-bar', plant: swapIn(RETIRED_ASK[7], hyphened(RETIRED_ASK[7])), fails: ['settings-required'], why: 'a hyphen in place of the horizontal bar' },
-    { id: 'hyphen-for-bash-en-dash', plant: swapIn(RETIRED_ASK[9], hyphened(RETIRED_ASK[9])), fails: ['settings-required'], why: 'a hyphen in place of the en dash, under Bash' },
-    { id: 'hyphen-for-bash-em-dash', plant: swapIn(RETIRED_ASK[10], hyphened(RETIRED_ASK[10])), fails: ['settings-required'], why: 'a hyphen in place of the em dash, under Bash' },
-    { id: 'hyphen-for-bash-horizontal-bar', plant: swapIn(RETIRED_ASK[11], hyphened(RETIRED_ASK[11])), fails: ['settings-required'], why: 'a hyphen in place of the horizontal bar, under Bash' },
-    { id: 'splat-without-space-powershell', plant: swapIn(RETIRED_ASK[4], RETIRED_ASK[4].replace(' @', '@')), fails: ['settings-required'], why: 'a splat with no space before it' },
-    { id: 'splat-without-space-bash', plant: swapIn(RETIRED_ASK[8], RETIRED_ASK[8].replace(' @', '@')), fails: ['settings-required'], why: 'a splat with no space before it, under Bash' },
+    { id: 'hyphen-for-powershell-en-dash', plant: swapIn(dashRule('PowerShell', 0), hyphened(dashRule('PowerShell', 0))), fails: ['settings-required'], why: 'a hyphen in place of the en dash' },
+    { id: 'hyphen-for-powershell-em-dash', plant: swapIn(dashRule('PowerShell', 1), hyphened(dashRule('PowerShell', 1))), fails: ['settings-required'], why: 'a hyphen in place of the em dash' },
+    { id: 'hyphen-for-powershell-horizontal-bar', plant: swapIn(dashRule('PowerShell', 2), hyphened(dashRule('PowerShell', 2))), fails: ['settings-required'], why: 'a hyphen in place of the horizontal bar' },
+    { id: 'hyphen-for-bash-en-dash', plant: swapIn(dashRule('Bash', 0), hyphened(dashRule('Bash', 0))), fails: ['settings-required'], why: 'a hyphen in place of the en dash, under Bash' },
+    { id: 'hyphen-for-bash-em-dash', plant: swapIn(dashRule('Bash', 1), hyphened(dashRule('Bash', 1))), fails: ['settings-required'], why: 'a hyphen in place of the em dash, under Bash' },
+    { id: 'hyphen-for-bash-horizontal-bar', plant: swapIn(dashRule('Bash', 2), hyphened(dashRule('Bash', 2))), fails: ['settings-required'], why: 'a hyphen in place of the horizontal bar, under Bash' },
+    { id: 'splat-with-space-powershell', plant: swapIn(splatRule('PowerShell'), splatRule('PowerShell').replace('*@', '* @')), fails: ['settings-required'], why: 'a splat that needs a space before it misses one after another separator (ADR 0020, miss d)' },
+    { id: 'splat-with-space-bash', plant: swapIn(splatRule('Bash'), splatRule('Bash').replace('*@', '* @')), fails: ['settings-required'], why: 'the same, under Bash' },
+    { id: 'broad-for-name-free-flag', plant: swapIn('PowerShell(*--apply*)', BROAD_INSTALL_ASK[2]), fails: ['settings-required'], why: 'a retired broad rule does not stand in for the name-free flag rule' },
   ],
 })) test(c.name, c.fn);
+
+// ------------------------------------------------------------ the rules against a model of the matcher (#210, S6)
+
+// The model reads Claude Code's documented matching (settings-rules.mjs); it
+// can't show what the live matcher does with escapes or wrapped lines.
+test('every apply form in the fixtures asks under the overlay\'s rules', () => {
+  const rules = JSON.parse(realOverlay()).permissions.ask;
+  assert.deepEqual(APPLY_COMMANDS.filter(([tool, cmd]) => !asks(rules, tool, cmd)).map(([, , why]) => why), []);
+});
+
+test('every mention, read, search and dry run in the fixtures runs under the overlay\'s rules', () => {
+  const rules = JSON.parse(realOverlay()).permissions.ask;
+  assert.deepEqual(MENTION_COMMANDS.filter(([tool, cmd]) => asks(rules, tool, cmd)).map(([, , why]) => why), []);
+});
+
+test('control: the retired broad rules ask on every mention, so the mention rows can fail', () => {
+  assert.deepEqual(MENTION_COMMANDS.filter(([tool, cmd]) => !asks(BROAD_INSTALL_ASK, tool, cmd)).map(([, , why]) => why), []);
+});
+
+test('control: an apply split across two statements runs under the per-name rules alone, so the name-free rule is what catches it', () => {
+  const split = APPLY_COMMANDS.find(([, , why]) => why === 'the name in one statement and the flag in another');
+  const perName = APPLY_ASK.filter(r => !r.endsWith('(*--apply*)'));
+  assert.equal(asks(perName, split[0], split[1]), false);
+  assert.equal(asks(APPLY_ASK, split[0], split[1]), true);
+});
+
+test('the model splits on each documented separator, and matches PowerShell without regard to case and Bash exactly', () => {
+  for (const sep of ['&&', '||', ';', '|', '&', '\n']) assert.ok(asks(['PowerShell(echo x)'], 'PowerShell', `cd a ${sep} echo x`), JSON.stringify(sep));
+  assert.ok(asks(['PowerShell(*abc*)'], 'PowerShell', 'echo ABC'));
+  assert.ok(!asks(['Bash(*abc*)'], 'Bash', 'echo ABC'));
+  assert.ok(!asks(['Bash(*abc*)'], 'PowerShell', 'echo abc'), 'a rule matches only its own tool');
+});
 
 test('every pact ask rule is printable ASCII, but for the three dashes', () => {
   const allow = JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8'))['permissions.ask'];

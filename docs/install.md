@@ -121,16 +121,20 @@ parts:
   - adds ask rules (`permissions.ask`). They make Claude Code ask before its
     own edit tools change your Claude home folder's rules, agents, settings,
     skills, plugins, output styles, commands, `pact/` folder or install
-    record (`.pact-install.json`), or `~/.claude.json`. They also ask before
-    any shell command that names the install script (`install.mjs` or
-    `install-run.mjs`), the old PowerShell installer (`install.ps1`) or the
-    install record, and before a `gh` command that names rulesets or branch
-    protection. Those last rules match the letters `gh` anywhere before the
-    word, so an ordinary command such as a commit message that says
-    "through" and then "protection" asks too. So does a dry run, since it
-    names the script. They are not a boundary: a script or another command
-    can still write those files, and in auto mode only Claude Code's own
-    checks stand in the way;
+    record (`.pact-install.json`), or `~/.claude.json`. In the shell, they
+    ask before an apply, not before a mention: any command holding
+    `--apply`; the install script (`install.mjs` or `install-run.mjs`) named
+    with a word the rule can't read after it, such as a variable, a splat or
+    a backtick; a dry run that writes to a review folder; and the old
+    PowerShell installer (`install.ps1`) named with its apply switch, a
+    dash, a splat or a variable. A dry run, a read, a search or a diff of
+    those files runs without asking (ADR 0049). They also ask before any
+    command that names the install record, and before a `gh` command that
+    names rulesets or branch protection. Those last rules match the letters
+    `gh` anywhere before the word, so an ordinary command such as a commit
+    message that says "through" and then "protection" asks too. The rules
+    are not a boundary: a script or another command can still write those
+    files, and in auto mode only Claude Code's own checks stand in the way;
   - keeps sessions going when a usage limit is reached
     (`autoContinueAtUsageLimit`) and skips the workflow usage warning
     (`skipWorkflowUsageWarning`);
@@ -154,9 +158,33 @@ parts:
   `chmod 600 ~/.claude/settings.json`.
 
 The dry run names your home folder and your Node's path, which hold your
-user name. Remove them before you post its output anywhere.
+user name, and the names of your own settings. Post its verdict and counts on
+a tracker, never its raw output.
+
+A dry run no longer asks first, so on a branch that changes the installer,
+run it with `--claude-home` pointing at a throwaway folder: the code under
+edit then can't touch your real Claude home.
 
 The last lines print the apply command to run next.
+
+**Removing rules an older pact added.** The merge only ever adds rules, so a
+rule a later pact retires stays in your `settings.json` until you remove it.
+After installing the pact that narrowed the ask rules (ADR 0049), open
+`~/.claude/settings.json` in an editor yourself, and delete these six lines
+from `permissions.ask`, if they are there:
+
+```text
+PowerShell(*install.ps1*)
+Bash(*nstall.ps1*)
+PowerShell(*install.mjs*)
+PowerShell(*install-run.mjs*)
+Bash(*nstall.mjs*)
+Bash(*nstall-run.mjs*)
+```
+
+Until you do, every mention of those files still asks. Don't ask a session to
+do it: the file can hold API keys, and a session that reads it holds them in
+its context.
 
 ## 5. Install with `--apply`
 
@@ -251,8 +279,9 @@ pwsh ./scripts/install.ps1
 ```
 
 Both installers read and write the same install record, so either can follow
-the other. In a Claude Code session, any command that names `install.ps1`
-asks you first. On Linux and macOS the old installer writes `settings.json`
+the other. In a Claude Code session, a command that runs `install.ps1` with
+its `-Apply` switch, a prefix of it, a dash for the hyphen, a splat or a
+variable asks you first; its dry run doesn't. On Linux and macOS the old installer writes `settings.json`
 readable by other accounts (#177): run `chmod 600 ~/.claude/settings.json`
 after it.
 

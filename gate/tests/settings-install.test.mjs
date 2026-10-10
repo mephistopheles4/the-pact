@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { plantModule } from './gate-files.mjs';
 import { commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { OVERLAY, PACT_ASK, overlayWith } from './settings-rules.mjs';
+import { BROAD_INSTALL_ASK, OVERLAY, PACT_ASK, overlayWith } from './settings-rules.mjs';
 
 // ------------------------------------------------------------ install: the merge
 
@@ -21,16 +21,19 @@ function readLive(h) {
   return JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
 }
 
-test("-Apply installs the pact's ask rules and auto mode, verifies them, and the next dry run is quiet", t => {
+test("--apply installs the pact's ask rules and auto mode, verifies them, keeps a retired rule the owner still has, and the next dry run is quiet", t => {
   const repo = makeRepo(t);
   const h = home(t);
+  // A rule ADR 0049 retired, left in the live file: the merge only adds, so it stays until the owner removes it (#210, S8).
+  writeLive(h, { permissions: { ask: [BROAD_INSTALL_ASK[2]] } });
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^ {2}\+ permissions\.ask: PowerShell\(\*install\.ps1\*\)$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}\+ permissions\.ask: PowerShell\(\*--apply\*\)$/m, dry.out);
   const r = install(repo, h, { apply: true });
   assert.equal(r.code, 0, r.out);
   const live = readLive(h);
   for (const rule of PACT_ASK) assert.ok(live.permissions.ask.includes(rule), rule);
+  assert.ok(live.permissions.ask.includes(BROAD_INSTALL_ASK[2]), 'the retired rule left in the live file was removed');
   assert.equal(live.permissions.defaultMode, 'auto');
   assert.match(r.stdout, /^OK {7}settings\.json/m, r.out);
   const again = install(repo, h);
