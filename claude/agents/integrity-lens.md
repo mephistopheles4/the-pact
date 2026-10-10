@@ -100,7 +100,9 @@ reason in your report, the verdict `inconclusive`, and `notChecked` starting
 ## What you hand back (questions 4, 15, 17)
 
 One report in two sections, in this order. The main session posts it word
-for word, so write it to be read as posted.
+for word, so write it to be read as posted. It acts on its own
+recommendation for each of your findings and marks it `auto`, so write each
+finding so that it can be acted on: say what to change.
 
 **For the owner,** first. Plain sentences: which tests can fail and which
 cannot, why it matters, and what you suggest. Do not open with a verdict
@@ -136,7 +138,7 @@ word; the cross script places the verdict. No line numbers, codes or paths.
   A missing mutation run alone is not `inconclusive`; it goes in
   `notChecked`.
 - Each finding's anchor is the listed claim whose evidence the test is,
-  `C<n>`. Ids are `F1`, `F2`, ….
+  `C<n>`. Ids are `F1`, `F2`, …, one to three digits, each used once.
 - `severity`:
   - `high`: a check that cannot fail stands behind a claimed pass; or a test
     is skipped or deleted in the same change as the code it covered;
@@ -144,14 +146,18 @@ word; the cross script places the verdict. No line numbers, codes or paths.
     unexplained; a surviving mutant in code a claim covers;
   - `low`: an expected value changed with no plan to check it against; a
     surviving mutant outside the claims.
-- `headline`: plain text, at most 120 characters, with no severity or
-  verdict word ("high", "blocking", "clear", "safe", "ignore"): a headline
-  shows before the owner reads the verdict.
-- `notChecked`: one to 20 items, each at most 200 characters.
-- `nonRisks` (optional): up to 20 items of `{ "anchor": …, "note": … }`, what
-  you checked and found sound, with the assumption that keeps it sound.
-  Never put a claim you found a problem on in `nonRisks`.
-- No control characters, tabs, invisible characters or emoji in any string.
+- `headline`: plain text, 1 to 120 characters, with no severity or verdict
+  word ("high", "blocking", "clear", "safe", "ignore"): a headline shows
+  before the owner reads the verdict.
+- No `likelihood` and no `data` key: both are refused on this lens.
+- `findings`: a list of at most 100.
+- `notChecked`: 1 to 20 strings, each 1 to 200 characters.
+- `nonRisks` (optional): a list of at most 20 items, each with exactly an
+  `anchor` and a `note`; a note is 1 to 200 characters. Each is what you
+  checked and found sound, with the assumption that keeps it sound. Never
+  put a claim you found a problem on in `nonRisks`.
+- No control characters (a line break or a tab included), invisible or
+  direction-changing characters, or emoji in any string.
 
 The block must say exactly what your prose says. A flaw named in the prose
 is a finding in the block.

@@ -1148,7 +1148,9 @@ in `notChecked` starting "stopped and waiting:".
 ## What you hand back (questions 4, 15, 17)
 
 One report in two sections, in this order. The main session posts it word
-for word, so write it to be read as posted.
+for word, so write it to be read as posted. It acts on its own
+recommendation for each of your findings and marks it `auto`, so write each
+finding so that it can be acted on: say what to change.
 
 **For the owner,** first. Plain sentences: what held, what failed and why it
 matters, and what you suggest. Do not open with a verdict word; the cross
@@ -1180,22 +1182,27 @@ script places the verdict. No line numbers, codes, paths or commands.
   otherwise `inconclusive` when any claim went unrun; otherwise `findings`
   when there is a finding; otherwise `clear`. Never `clear` when a claim was
   not run.
-- Each finding's anchor is a listed claim, `C<n>`. Ids are `F1`, `F2`, ….
+- Each finding's anchor is a listed claim, `C<n>`. Ids are `F1`, `F2`, …,
+  one to three digits, each used once.
 - `severity`:
   - `high`: a claim fails reproducibly, or the change causes a reproducible
     regression, with real impact on users or the system;
   - `medium`: a reproducible problem relevant to a claim that does not fail
     it;
   - `low`: an advisory, or a risk you could not reproduce.
-- `headline`: plain text, at most 120 characters, with no severity or
-  verdict word ("high", "blocking", "clear", "safe", "ignore"): a headline
-  shows before the owner reads the verdict.
-- `notChecked`: one to 20 items, each at most 200 characters: every claim you
+- `headline`: plain text, 1 to 120 characters, with no severity or verdict
+  word ("high", "blocking", "clear", "safe", "ignore"): a headline shows
+  before the owner reads the verdict.
+- No `likelihood` and no `data` key: both are refused on this lens.
+- `findings`: a list of at most 100.
+- `notChecked`: 1 to 20 strings, each 1 to 200 characters: every claim you
   did not run, and every need no claim covers.
-- `nonRisks` (optional): up to 20 items of `{ "anchor": …, "note": … }`, what
-  you checked and found sound, with the assumption that keeps it sound.
-  Never put a claim you found a problem on in `nonRisks`.
-- No control characters, tabs, invisible characters or emoji in any string.
+- `nonRisks` (optional): a list of at most 20 items, each with exactly an
+  `anchor` and a `note`; a note is 1 to 200 characters. Each is what you
+  checked and found sound, with the assumption that keeps it sound. Never
+  put a claim you found a problem on in `nonRisks`.
+- No control characters (a line break or a tab included), invisible or
+  direction-changing characters, or emoji in any string.
 
 The block must say exactly what your prose says. A flaw named in the prose
 is a finding in the block.
@@ -2053,7 +2060,9 @@ reason in your report, the verdict `inconclusive`, and `notChecked` starting
 ## What you hand back (questions 4, 15, 17)
 
 One report in two sections, in this order. The main session posts it word
-for word, so write it to be read as posted.
+for word, so write it to be read as posted. It acts on its own
+recommendation for each of your findings and marks it `auto`, so write each
+finding so that it can be acted on: say what to change.
 
 **For the owner,** first. Plain sentences: which tests can fail and which
 cannot, why it matters, and what you suggest. Do not open with a verdict
@@ -2089,7 +2098,7 @@ word; the cross script places the verdict. No line numbers, codes or paths.
   A missing mutation run alone is not `inconclusive`; it goes in
   `notChecked`.
 - Each finding's anchor is the listed claim whose evidence the test is,
-  `C<n>`. Ids are `F1`, `F2`, ….
+  `C<n>`. Ids are `F1`, `F2`, …, one to three digits, each used once.
 - `severity`:
   - `high`: a check that cannot fail stands behind a claimed pass; or a test
     is skipped or deleted in the same change as the code it covered;
@@ -2097,14 +2106,18 @@ word; the cross script places the verdict. No line numbers, codes or paths.
     unexplained; a surviving mutant in code a claim covers;
   - `low`: an expected value changed with no plan to check it against; a
     surviving mutant outside the claims.
-- `headline`: plain text, at most 120 characters, with no severity or
-  verdict word ("high", "blocking", "clear", "safe", "ignore"): a headline
-  shows before the owner reads the verdict.
-- `notChecked`: one to 20 items, each at most 200 characters.
-- `nonRisks` (optional): up to 20 items of `{ "anchor": …, "note": … }`, what
-  you checked and found sound, with the assumption that keeps it sound.
-  Never put a claim you found a problem on in `nonRisks`.
-- No control characters, tabs, invisible characters or emoji in any string.
+- `headline`: plain text, 1 to 120 characters, with no severity or verdict
+  word ("high", "blocking", "clear", "safe", "ignore"): a headline shows
+  before the owner reads the verdict.
+- No `likelihood` and no `data` key: both are refused on this lens.
+- `findings`: a list of at most 100.
+- `notChecked`: 1 to 20 strings, each 1 to 200 characters.
+- `nonRisks` (optional): a list of at most 20 items, each with exactly an
+  `anchor` and a `note`; a note is 1 to 200 characters. Each is what you
+  checked and found sound, with the assumption that keeps it sound. Never
+  put a claim you found a problem on in `nonRisks`.
+- No control characters (a line break or a tab included), invisible or
+  direction-changing characters, or emoji in any string.
 
 The block must say exactly what your prose says. A flaw named in the prose
 is a finding in the block.
@@ -3774,12 +3787,12 @@ check_hash() {
 }
 check_hash efd34a500c7becfeaa2e68df510579a924ca133b89cadfc7ee02d428f8cd872d 'CLAUDE.md'
 check_hash a0e223c676f8fc662ee124ab50d49739d35201831d825f180f9154619a24179b 'agents/adversarial-lens.md'
-check_hash fc154761850afa530bcadc7597d8ef77babb7af1780a82c17ce7223271c203a0 'agents/behaviour-lens.md'
+check_hash b235cef05f490e4c424eba6005c1a602f82bf3000ab42d9aba0dbafefb06ce1f 'agents/behaviour-lens.md'
 check_hash 205e44d9a4bd1eedee0827d4340edccf711536339ef5667ce47c80c18283a9d8 'agents/conventions-lens.md'
 check_hash d917b677f0a3388d540e841c2c6e9575dbd822f85807b23619d6ae51456799a2 'agents/data-lens.md'
 check_hash 63c8a8378e5ae15e6217b9ec0280ce226251538fdc2f69f3c96c0d4a714c9054 'agents/executability-lens.md'
 check_hash 6394bdf63eb7ef4381b8b6ca05a9e2dadb88c48a9cc5eec3c791036ece2e954e 'agents/good-enough-lens.md'
-check_hash 405d1d8fdf8132fde76297b9142a1c2cfca405936ae7ec38bc6517c7c512e072 'agents/integrity-lens.md'
+check_hash 4d907ad2c522c057d2f23af23d00ab37f49ddf0f9c8239bedc4315b07b7688e7 'agents/integrity-lens.md'
 check_hash 623fe899ab9f2a50799e3ee777e75029a20ec2a70459a9397dccfc0bddaa9e17 'agents/reader-lens.md'
 check_hash 0c076132eb156b317641144b984f7b05d324881ccb3f05633589cb366f754f40 'agents/scout.md'
 check_hash 21a0547777fe0ad06aaf4ccc7a2dfcc4eca4f4755bc04c0ef1fcd3d03c18381e 'agents/unstated-lens.md'
@@ -3806,7 +3819,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy e10bda7b4722"
+  echo "pact cloud copy b1f6a62379c1"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

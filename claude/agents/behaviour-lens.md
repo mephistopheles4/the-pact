@@ -117,7 +117,9 @@ in `notChecked` starting "stopped and waiting:".
 ## What you hand back (questions 4, 15, 17)
 
 One report in two sections, in this order. The main session posts it word
-for word, so write it to be read as posted.
+for word, so write it to be read as posted. It acts on its own
+recommendation for each of your findings and marks it `auto`, so write each
+finding so that it can be acted on: say what to change.
 
 **For the owner,** first. Plain sentences: what held, what failed and why it
 matters, and what you suggest. Do not open with a verdict word; the cross
@@ -149,22 +151,27 @@ script places the verdict. No line numbers, codes, paths or commands.
   otherwise `inconclusive` when any claim went unrun; otherwise `findings`
   when there is a finding; otherwise `clear`. Never `clear` when a claim was
   not run.
-- Each finding's anchor is a listed claim, `C<n>`. Ids are `F1`, `F2`, ….
+- Each finding's anchor is a listed claim, `C<n>`. Ids are `F1`, `F2`, …,
+  one to three digits, each used once.
 - `severity`:
   - `high`: a claim fails reproducibly, or the change causes a reproducible
     regression, with real impact on users or the system;
   - `medium`: a reproducible problem relevant to a claim that does not fail
     it;
   - `low`: an advisory, or a risk you could not reproduce.
-- `headline`: plain text, at most 120 characters, with no severity or
-  verdict word ("high", "blocking", "clear", "safe", "ignore"): a headline
-  shows before the owner reads the verdict.
-- `notChecked`: one to 20 items, each at most 200 characters: every claim you
+- `headline`: plain text, 1 to 120 characters, with no severity or verdict
+  word ("high", "blocking", "clear", "safe", "ignore"): a headline shows
+  before the owner reads the verdict.
+- No `likelihood` and no `data` key: both are refused on this lens.
+- `findings`: a list of at most 100.
+- `notChecked`: 1 to 20 strings, each 1 to 200 characters: every claim you
   did not run, and every need no claim covers.
-- `nonRisks` (optional): up to 20 items of `{ "anchor": …, "note": … }`, what
-  you checked and found sound, with the assumption that keeps it sound.
-  Never put a claim you found a problem on in `nonRisks`.
-- No control characters, tabs, invisible characters or emoji in any string.
+- `nonRisks` (optional): a list of at most 20 items, each with exactly an
+  `anchor` and a `note`; a note is 1 to 200 characters. Each is what you
+  checked and found sound, with the assumption that keeps it sound. Never
+  put a claim you found a problem on in `nonRisks`.
+- No control characters (a line break or a tab included), invisible or
+  direction-changing characters, or emoji in any string.
 
 The block must say exactly what your prose says. A flaw named in the prose
 is a finding in the block.
