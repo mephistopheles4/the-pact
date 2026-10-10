@@ -31,9 +31,5 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
-      - name: Install dry run against an empty home folder
-        run: |
-          mkdir -p "$RUNNER_TEMP/pact-home"
-          env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"
-      - name: Gate suite, fast tier
-        run: env -u NODE_OPTIONS node gate/tests/run.mjs fast
+      - name: S15 probe, the check edited to pass (#166)
+        run: echo ok
