@@ -53,7 +53,7 @@ on it.
    say "nothing".
 
 **You cannot defer a risk-floor item.** Auth, secrets, crypto, input
-validation, data migrations and anything published tolerate no deferral,
+validation and data migrations tolerate no deferral,
 whatever the tier. Beside such an item in your artifact, write exactly
 `risk floor: not deferrable`, and raise no finding on a section that holds a
 risk-floor item: not to cut it, defer it or keep it. If another part of that

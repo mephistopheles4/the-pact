@@ -69,7 +69,7 @@ C11 carries the likelihood and impact comparison.
   Held by: Promised.
 - C2. **It applies #29's stop test.** A spec is good enough when every open question is answered, deferred with a named trigger, or cheap to reverse if it turns out wrong. The tier sets the bar: quick tolerates more deferrals, thorough fewer.
   Held by: Promised.
-- C3. **It cannot defer a risk-floor item.** Auth, secrets, crypto, input validation, data migrations and anything published tolerate no deferral. Beside such an item in its artifact it writes `risk floor: not deferrable`, and it raises no finding on a section that holds a risk-floor item. Another part of that section that could wait goes in the artifact's row, not in a finding. That keeps the case mechanical: any finding on such a section fails it. The cost: a cut inside a mixed section shows only in the artifact.
+- C3. **It cannot defer a risk-floor item.** Auth, secrets, crypto, input validation and data migrations tolerate no deferral. Beside such an item in its artifact it writes `risk floor: not deferrable`, and it raises no finding on a section that holds a risk-floor item. Another part of that section that could wait goes in the artifact's row, not in a finding. That keeps the case mechanical: any finding on such a section fails it. The cost: a cut inside a mixed section shows only in the artifact.
   Held by: review at move 4; the security set was retired by #189.
 - C4. **It never reports `high`, and never argues another lens's call down.** It reports only `medium` (cut now) or `low` (can wait). On a section its partner calls `high`, the pair's verdict is still `blocking`, because the stricter verdict wins.
   Held by: Promised. The pair's verdict rule is Enforced by the cross script.

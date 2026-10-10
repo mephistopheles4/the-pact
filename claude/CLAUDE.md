@@ -53,8 +53,8 @@ same as you choosing it.
 not Bash, because Bash fails silently here. Any judgement about what is
 destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
 "Implementing a change": a skill may change how a step is done, never its
-stops, the risk floor (auth, secrets, crypto, input validation, data migrations
-and anything published are always thorough), the security route in move 3, or
+stops, the risk floor (auth, secrets, crypto, input validation and data
+migrations are always thorough), the security route in move 3, or
 the QA pair, `behaviour-lens` and `integrity-lens`, in move 4.
 Nor the hand-off: a skill may not start a user-only skill for me, or follow
 one's `SKILL.md` in its place. And the claiming and coordination rules
@@ -80,7 +80,7 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 
 **Risk floor.**
 <!-- pact:begin risk-floor -->
-Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
+Auth, secrets, crypto, input validation and data migrations are always thorough, whatever tier I name.
 <!-- pact:end risk-floor -->
 Don't ask me to confirm this or nag: go thorough and carry on. For any other
 open decision under a lower tier than you would pick, name the decisions once

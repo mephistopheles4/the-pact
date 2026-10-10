@@ -48,7 +48,8 @@ const GOOD_ENOUGH_LIST = () => restated('good-enough-lens', '**You cannot defer 
 const UNSTATED_LIST = () => restated('unstated-lens', 'did not read this work, and it touches ', ', or opens a way in');
 
 test('the canonical lists parse into their items', () => {
-  assert.deepEqual(RISK_FLOOR, ['auth', 'secrets', 'crypto', 'input validation', 'data migrations', 'anything published']);
+  // #189 (S5) took "anything published" off the floor; publishing stays a stop in stop-and-escalate.
+  assert.deepEqual(RISK_FLOOR, ['auth', 'secrets', 'crypto', 'input validation', 'data migrations']);
   assert.deepEqual(SECURITY_ROUTE, ['auth', 'secrets', 'crypto', 'input validation']);
 });
 

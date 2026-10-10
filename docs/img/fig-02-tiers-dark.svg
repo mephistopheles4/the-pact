@@ -57,8 +57,8 @@
 <rect x="44" y="410" width="712" height="144" fill="#1a1614" stroke="#d98a3c" stroke-width="2"/>
 <rect x="54" y="407" width="273.8" height="6" fill="#1a1614"/>
 <text x="60" y="414" font-size="11" font-weight="600" letter-spacing="1.76" fill="#d98a3c">RISK FLOOR · ALWAYS THOROUGH</text>
-<text x="60" y="447.4" font-size="14" fill="#ece5df">Auth, secrets, crypto, input validation, data migrations and anything</text>
-<text x="60" y="468.4" font-size="14" fill="#ece5df">published are thorough, whatever tier is named.</text>
+<text x="60" y="447.4" font-size="14" fill="#ece5df">Auth, secrets, crypto, input validation and data migrations are</text>
+<text x="60" y="468.4" font-size="14" fill="#ece5df">thorough, whatever tier is named.</text>
 <text x="60" y="494.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Auth, secrets, crypto and input validation also take the security route:</text>
 <text x="60" y="514.55" font-size="13" fill="#ece5df" fill-opacity="0.8">the security pair reads the spec before you approve it, and the diff after</text>
 <text x="60" y="534.55" font-size="13" fill="#ece5df" fill-opacity="0.8">the build.</text>

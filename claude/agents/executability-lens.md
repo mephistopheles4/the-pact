@@ -40,7 +40,7 @@ on it.
 ## The risk floor, in the pact's words ("I" is the owner)
 
 <!-- pact:begin risk-floor -->
-Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
+Auth, secrets, crypto, input validation and data migrations are always thorough, whatever tier I name.
 <!-- pact:end risk-floor -->
 
 ## How you work (questions 3, 16, 18)
