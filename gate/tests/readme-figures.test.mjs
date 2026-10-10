@@ -48,6 +48,17 @@ test('each figure is a self-contained SVG: no style sheet, script, foreign objec
   }
 });
 
+test('each figure keeps its words as text, in the monospace stack, with no font of its own', () => {
+  const STACK = 'font-family="&#39;IBM Plex Mono&#39;, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"';
+  const PLAIN = `font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"`;
+  for (const [name, svg] of Object.entries(render())) {
+    const head = svg.slice(0, svg.indexOf('>'));
+    assert.ok(head.includes(PLAIN) || head.includes(STACK), `${name} doesn't set the monospace stack on its root`);
+    assert.ok((svg.match(/<text /g) ?? []).length >= 20, `${name} holds too few <text> elements: are its words drawn as shapes?`);
+    assert.doesNotMatch(svg, /@font-face|<font|font-family="(?!'IBM Plex Mono')/, `${name} brings a font of its own`);
+  }
+});
+
 test('each light figure paints its own paper, and each dark one its own dark paper', () => {
   for (const [name, svg] of Object.entries(render())) {
     const paper = name.endsWith('-dark.svg') ? '#1a1614' : '#fafaf7';
@@ -66,6 +77,12 @@ test('a text line too wide for its box fails the render, naming the figure and t
   assert.throws(() => renderFigure(tracked, 'light'), /too wide/, 'letter spacing is not counted');
   const fits = { ...fig, elements: [{ kind: 'text', x: 0, y: 20, size: 12, lines: ['ten chars!'], max: 100 }] };
   assert.doesNotThrow(() => renderFigure(fits, 'light'));
+  // The slack is 15%, no less and no more: ten characters at 10 px take 69 px
+  // at 0.6 em plus 15%. A box of 68.5 px (what 14% would need) must fail, and
+  // a box of 69.05 px (under what 16% would need) must fit.
+  const at = max => ({ ...fig, elements: [{ kind: 'text', x: 0, y: 20, size: 10, lines: ['0123456789'], max }] });
+  assert.throws(() => renderFigure(at(68.5), 'light'), /too wide/, 'the slack is under 15%');
+  assert.doesNotThrow(() => renderFigure(at(69.05), 'light'), 'the slack is over 15%');
 });
 
 test('every image the README shows exists, and each figure has its dark source', () => {
@@ -76,9 +93,13 @@ test('every image the README shows exists, and each figure has its dark source',
     assert.doesNotMatch(ref, /^[a-z]+:|^\//i, `${ref} is not a path in the repo`);
     assert.ok(existsSync(join(REPO, ...ref.split('/'))), `the README shows ${ref}, which doesn't exist`);
   }
+  // Each figure is one <picture>: its dark file as the dark-scheme source, its light file as the image.
+  const pictures = [...readme.matchAll(/<picture>([\s\S]*?)<\/picture>/g)].map(m => m[1]);
   for (const name of SIX.filter(n => !n.endsWith('-dark.svg'))) {
     const dark = name.replace('.svg', '-dark.svg');
-    assert.ok(refs.includes(`docs/img/${name}`), `the README doesn't show docs/img/${name}`);
-    assert.ok(refs.includes(`docs/img/${dark}`), `the README has no dark source for docs/img/${name}`);
+    const pic = pictures.find(p => p.includes(`src="docs/img/${name}"`));
+    assert.ok(pic, `the README doesn't show docs/img/${name} inside a <picture>`);
+    assert.match(pic, new RegExp(`<source media="\\(prefers-color-scheme: dark\\)" srcset="docs/img/${dark}">`), `docs/img/${name}'s <picture> has no dark-scheme source for docs/img/${dark}`);
+    assert.match(pic, new RegExp(`<img src="docs/img/${name}" alt="[^"]+"`), `docs/img/${name} has no alt text`);
   }
 });

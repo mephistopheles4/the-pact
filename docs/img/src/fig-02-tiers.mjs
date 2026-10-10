@@ -32,7 +32,7 @@ const MODELS = [
   ['Security work', 'Opus, high effort'],
 ];
 
-const W = RIGHT - LEFT;
+const CONTENT_W = RIGHT - LEFT;
 const colX = i => LEFT + COLS.slice(0, i).reduce((a, b) => a + b, 0);
 const els = [];
 let y = 80;
@@ -41,7 +41,7 @@ let y = 80;
 const headH = 10 + 2 * 17 + 10;
 const rowH = ROWS.map(r => 12 + Math.max(1, ...r.slice(1).map(c => c.length)) * 18 + 12);
 const tableH = headH + rowH.reduce((a, b) => a + b, 0);
-els.push({ kind: 'rect', x: LEFT, y, w: W, h: tableH, fill: 'paper', stroke: 'ink', sw: 2 });
+els.push({ kind: 'rect', x: LEFT, y, w: CONTENT_W, h: tableH, fill: 'paper', stroke: 'ink', sw: 2 });
 HEAD.forEach((lines, i) => {
   els.push(label({ top: y + 10, x: colX(i) + 8, lines, max: COLS[i] - 16, weight: undefined }).el);
 });
@@ -64,14 +64,14 @@ y += tableH + 24;
 
 // The risk floor.
 const floorH = 22 + FLOOR.length * 21 + 6 + ROUTE.length * 20 + 14;
-els.push(...notched({ x: LEFT, y, w: W, h: floorH, text: 'Risk floor · always thorough', stroke: 'caution', sw: 2, color: 'caution' }));
-const f = block({ top: y + 22, x: LEFT + 16, size: 14, lh: 21, lines: FLOOR, max: W - 32 });
+els.push(...notched({ x: LEFT, y, w: CONTENT_W, h: floorH, text: 'Risk floor · always thorough', stroke: 'caution', sw: 2, color: 'caution' }));
+const f = block({ top: y + 22, x: LEFT + 16, size: 14, lh: 21, lines: FLOOR, max: CONTENT_W - 32 });
 els.push(f.el);
-els.push(block({ top: y + 22 + f.height + 6, x: LEFT + 16, size: 13, lh: 20, color: 'ink80', lines: ROUTE, max: W - 32 }).el);
+els.push(block({ top: y + 22 + f.height + 6, x: LEFT + 16, size: 13, lh: 20, color: 'ink80', lines: ROUTE, max: CONTENT_W - 32 }).el);
 y += floorH + 22;
 
 // The models.
-const third = W / 3;
+const third = CONTENT_W / 3;
 els.push({ kind: 'line', x1: LEFT, y1: y, x2: RIGHT, y2: y, stroke: 'ink30', sw: 1 });
 MODELS.forEach(([name, value], i) => {
   const x = LEFT + i * third;

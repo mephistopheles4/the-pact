@@ -311,8 +311,9 @@ how every session in every repo behaves. So:
   `docs/img/src/` and their alt text and "Text of FIG." blocks in the README
   (then rerun `node docs/img/build.mjs`), the README's prose, and the tables
   in [`docs/reference.md`](docs/reference.md). Reviewers reading such a diff
-  check those too. `gate/tests/readme-figures.test.mjs` fails only while an
-  SVG is stale; no test checks the figures' words.
+  check those too. `gate/tests/readme-figures.test.mjs` fails while an SVG is
+  stale, when the README shows an image that isn't there, and when a line
+  overflows its box; no test checks the figures' words.
 - **Vocabulary:** [`CONTEXT.md`](CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](docs/agents/domain.md).
 

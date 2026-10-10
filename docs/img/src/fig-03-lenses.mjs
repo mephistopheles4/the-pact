@@ -94,6 +94,6 @@ els.push(label({ top: at + 10, x: fx + 12, lines: ['You decide'], max: FMAX, col
 els.push(block({ top: at + 27, x: fx + 12, size: 12, lh: 18, color: 'paper', lines: ['Done, fix, or stop.'], max: FMAX }).el);
 
 const height = Math.max(leftBottom, fy) + 22 + PAD + 2;
-const frame = sheet({ height, title: 'FIG. 03 — Lenses advise. You decide.', aside: 'The familiars' });
+const frame = sheet({ height, title: 'FIG. 03 — Lenses advise. You decide.', aside: 'Review lenses' });
 
 export default { file: 'fig-03-lenses', height, elements: [...frame.els, ...els] };

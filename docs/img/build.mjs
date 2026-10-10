@@ -11,8 +11,9 @@
 // committed SVG differs from render()'s output.
 //
 // Text stays text, in one monospace stack, with no font embedded. A line is
-// measured at 0.6 em a character plus 15% slack, for the widest face in the
-// stack, plus its letter spacing; a line wider than its box fails the render.
+// measured by measure() in src/draw.mjs: 0.6 em a character plus 15% slack,
+// for the widest face in the stack, plus its letter spacing. A line wider than
+// its box fails the render.
 //
 // Node 20 or later, ESM, node: built-ins only.
 import { writeFileSync } from 'node:fs';
@@ -22,23 +23,16 @@ import lenses from './src/fig-03-lenses.mjs';
 import moves from './src/fig-01-moves.mjs';
 import tiers from './src/fig-02-tiers.mjs';
 import { TOKENS } from './src/tokens.mjs';
-import { W } from './src/draw.mjs';
+import { W, lh, measure } from './src/draw.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIGURES = [moves, tiers, lenses];
 const FONT = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-const EM = 0.6 * 1.15;
 
 export const FILES = Object.freeze(FIGURES.flatMap(f => [`${f.file}.svg`, `${f.file}-dark.svg`]));
 
 const num = v => String(Math.round(v * 100) / 100);
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-/** The widest a line of text can set: `size` px, tracked by `track` em. */
-export function measure(line, size, track = 0) {
-  const n = [...line].length;
-  return n * size * (EM + track);
-}
 
 function paint(attr, name, t) {
   if (!name) return attr === 'fill' ? ' fill="none"' : '';
@@ -79,7 +73,7 @@ function element(e, t, file) {
       ];
     case 'text': {
       const out = [];
-      const step = e.lh ?? Math.round(e.size * 1.5);
+      const step = e.lh ?? lh(e.size);
       e.lines.forEach((line, i) => {
         const width = measure(line, e.size, e.track ?? 0);
         if (!(width <= e.max)) throw new Error(`${file}: "${line}" is ${num(width)} px at its widest, too wide for its ${num(e.max)} px box`);

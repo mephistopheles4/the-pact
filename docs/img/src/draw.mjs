@@ -20,6 +20,15 @@ export const LEFT = 44; // the content's left edge, inside the sheet
 export const RIGHT = W - 44;
 export const CAPS = 0.16; // caps tracking, in em
 
+// A character's widest advance, in em: 0.6 em, the advance of the monospace
+// faces in the stack, plus 15% slack for the widest of them.
+export const EM = 0.6 * 1.15;
+
+/** The widest a line of text can set: `size` px, tracked by `track` em. */
+export function measure(line, size, track = 0) {
+  return [...line].length * size * (EM + track);
+}
+
 /** The height of one line of text at `size`. */
 export const lh = size => Math.round(size * 1.5);
 
@@ -31,7 +40,7 @@ export function block(o) {
   return { el: { kind: 'text', ...rest, y, lh: step }, height: o.lines.length * step };
 }
 
-/** A small caps label: 11 px, tracked, in `color` (ink70 by default). */
+/** A small caps label: 11 px, tracked, bold (600) unless `weight` is set, in `color` (ink70 by default). Pass `weight: undefined` for regular. */
 export function label(o) {
   return block({ size: 11, weight: 600, track: CAPS, color: 'ink70', ...o, lines: o.lines.map(l => l.toUpperCase()) });
 }
@@ -53,8 +62,7 @@ export function sheet({ height, title, aside }) {
 /** A card with a caps label notched into its top border. */
 export function notched({ x, y, w, h, text, stroke = 'ink30', sw = 1, dash, color = 'ink' }) {
   const t = text.toUpperCase();
-  const chars = [...t].length;
-  const gap = chars * 11 * (0.6 * 1.15 + CAPS) + 12; // the notch: the label's widest width (see build.mjs), plus 6 px a side
+  const gap = measure(t, 11, CAPS) + 12; // the notch: the label's widest width, plus 6 px a side
   return [
     { kind: 'rect', x, y, w, h, fill: 'paper', stroke, sw, dash },
     { kind: 'rect', x: x + 10, y: y - 3, w: gap, h: 6, fill: 'paper' },

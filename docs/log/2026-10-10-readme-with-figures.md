@@ -1,6 +1,6 @@
 # A README with figures
 
-**2026-10-10**: the README is rebuilt around four figures (mephistopheles4/the-pact#202). Short prose sits between a hero illustration and three explanation figures: the four moves, the process tiers with the risk floor, and the review lenses. Each figure ships light and dark. See [ADR 0043](../adr/0043-the-readme-figures-are-generated-svg-kept-true-by-a-rule.md).
+**2026-10-10**: the README is rebuilt around a hero illustration and three figures (mephistopheles4/the-pact#202). Short prose sits between a hero illustration and three explanation figures: the four moves, the process tiers with the risk floor, and the review lenses. Each figure ships light and dark. See [ADR 0043](../adr/0043-the-readme-figures-are-generated-svg-kept-true-by-a-rule.md).
 
 - **The figures are generated.** `docs/img/build.mjs` renders each source in `docs/img/src/` as a light and a dark SVG, with only Node's standard library. Text stays text. A line too wide for its box, measured for the widest face in the font stack, fails the render.
 - **A fast test keeps them current.** `gate/tests/readme-figures.test.mjs` fails while a committed SVG differs from its source, naming the file and the command that fixes it. It also checks that every image the README shows exists. A hand-edited SVG was seen to fail it, and a rebuild to pass it.
