@@ -79,6 +79,17 @@ Two sessions built it: `build-166`, which wrote the install (PR #201), and `buil
 
 The expected result went on #166 before the run. A new required-clause row puts the old `-Apply` text back into AGENTS.md, and seam A refuses it with `install-go-ahead differs from its canonical text`. The table's base, holding the new text, passes. Seam A's required list was also seen to fail with `PowerShell(*install.ps1*)` taken out, and the copy list's new bad case failed against the old list.
 
+### The second apply, the CI probe and macOS
+
+- **The second apply,** on the owner's "you can install", ran from 7188d94 and exited 0 with every file verified. The merge added the two lasting `install.ps1` rules; the old twelve stay in the live file.
+- **The S15 CI probe** went as expected:
+  - a red check, and a merge state of `BLOCKED`;
+  - a `gate` status posted through the API that still left it `BLOCKED`, though the real check had failed too;
+  - a pull request that edits `gate.yml` to pass, which read `CLEAN`.
+
+  The owner's record of that last one: "it shows that an agent can use my identity to do a lot of damage. this is an accepted risk of AI". The throwaway pull requests, #205 and #206, were closed unmerged and their branches deleted.
+- **macOS is untested,** on the owner's word.
+
 ### What was not done, on the owner's word or by choice
 
 - **The live-prompt probe was skipped again,** on the owner's word: "Skip it please". Only `PowerShell(*install.mjs*)` has been seen to prompt live, at the first apply. That leaves the other ask rules unseen live: the Bash ones, the record's, the `gh` ones and the two lasting `install.ps1` rules. This falls short of S15 and AGENTS.md's probe floor for the settings guard, as #165's skip did. The rollback stand-in, a live prompt check, went with it. What a rollback needs besides the prompt was checked: an `install.ps1` dry run from a4e6546 read the Node record with no drift.
@@ -138,6 +149,7 @@ Issue comments on mephistopheles4/the-pact#166:
 - `6093328959`: the S15 CI probe's expected results.
 - `6093408674`: move 4's scope note; verbatim cross sections: the standards pair `6093408777`, `unstated-lens` `6093408898`, the security pair `6093429379`, and the QA pair `6093608252`.
 - `6093728441`: the Lens dispositions, with the owner's decision to skip the live-prompt probe.
+- `6093860567`: the second Node apply; `6093863530`: the S15 CI probe's record, with the owner's word on it.
 
 Issue comments elsewhere, for #166:
 

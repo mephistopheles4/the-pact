@@ -44,7 +44,7 @@
 - **A hard stop mid-write** can leave a `.pact-tmp` file beside the file it was replacing, holding the new bytes. The next apply refuses before any write, naming it.
 - **A mapped drive, or a link to a share,** passes the path checks. Only a path typed as a network or device path refuses.
 - **A preload already inside the bootstrap's own process,** for example a Node built with one, could fake what it sees. That is the same class as a deliberately altered install script.
-- **macOS:** not yet run. The owner runs the suite and one dry run on the work Mac, or marks it untested.
+- **macOS is untested,** on the owner's word (2026-10-10). The install was run on Windows 11 and Linux only.
 
 ## How this was decided
 
