@@ -12,8 +12,9 @@ import { DASHES, OVERLAY, PACT_ASK, overlayWith, shown } from './settings-rules.
 
 // ------------------------------------------------------------ install: the merge
 
+/** The live settings file, owner-only as Claude Code writes it, so the dry run's warning about a widened file stays out of these cases. */
 function writeLive(h, doc) {
-  writeFileSync(join(h, 'settings.json'), typeof doc === 'string' ? doc : JSON.stringify(doc, null, 2));
+  writeFileSync(join(h, 'settings.json'), typeof doc === 'string' ? doc : JSON.stringify(doc, null, 2), { mode: 0o600 });
 }
 
 function readLive(h) {
@@ -25,7 +26,7 @@ test("-Apply installs the pact's ask rules and auto mode, verifies them, and the
   const h = home(t);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^ {2}\+ permissions\.ask: PowerShell\(\.\/scripts\/install\.ps1 -Apply\)$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}\+ permissions\.ask: PowerShell\(\*install\.ps1\*\)$/m, dry.out);
   const r = install(repo, h, { apply: true });
   assert.equal(r.code, 0, r.out);
   const live = readLive(h);
@@ -44,7 +45,8 @@ function addedAsk(stdout) {
 }
 
 test('the dry run lists every pact rule as an added ask line, each dash printed as an escape', t => {
-  const r = install(makeRepo(t), home(t));
+  // No lasting pact rule holds a dash since the cutover (#153, S10), so three extra rules carry one each.
+  const r = install(repoWithRule(t, DASHES.map(d => `Bash(*dash-probe*${d}*)`)), home(t));
   assert.equal(r.code, 0, r.out);
   const added = addedAsk(r.stdout);
   for (const rule of PACT_ASK) assert.ok(added.includes(`  + permissions.ask: ${shown(rule)}`), `${shown(rule)} not listed:\n${r.out}`);
@@ -52,16 +54,16 @@ test('the dry run lists every pact rule as an added ask line, each dash printed 
   for (const l of added) assert.match(l, /^[\x20-\x7e]*$/, shown(l));
 });
 
-/** A test repo whose allow-list and overlay both hold `rule` as an extra ask rule. */
+/** A test repo whose allow-list and overlay both hold `rule` (one rule, or a list) as an extra ask rule. */
 function repoWithRule(t, rule) {
   return makeRepo(t, root => {
     const a = join(root, 'gate', 'settings-allowlist.json');
     const doc = JSON.parse(readFileSync(a, 'utf8'));
-    doc['permissions.ask'].push(rule);
+    doc['permissions.ask'].push(...[rule].flat());
     writeFileSync(a, JSON.stringify(doc, null, 2));
     const o = join(root, ...OVERLAY.split('/'));
     const ov = JSON.parse(readFileSync(o, 'utf8'));
-    ov.permissions.ask.push(rule);
+    ov.permissions.ask.push(...[rule].flat());
     writeFileSync(o, JSON.stringify(ov, null, 2));
   });
 }
@@ -239,9 +241,13 @@ test('bad case: a banned key in the committed overlay refuses, and -Apply change
 });
 
 test('bad case: an -Apply whose written settings lack the guard reports a mismatch and exits non-zero', t => {
+  // The merge writes what settingsText returns (#153, S8); planted to write an empty object.
   const repo = makeRepo(t, root => {
-    const p = join(root, 'scripts', 'install.ps1');
-    writeFileSync(p, readFileSync(p, 'utf8').replace('((ConvertTo-Json $merged -Depth 100) + "`n")', "'{}'"));
+    const p = join(root, 'gate', 'install-core.mjs');
+    const s = readFileSync(p, 'utf8');
+    const from = 'export const settingsText = m => `${JSON.stringify(toJsonValue(m), null, 2)}\\n`;';
+    assert.equal(s.split(from).length, 2);
+    writeFileSync(p, s.replace(from, () => "export const settingsText = () => '{}\\n';"));
   });
   const h = home(t);
   writeLive(h, { theme: 'dark' });

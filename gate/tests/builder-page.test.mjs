@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
-import { installScriptText } from './gate-files.mjs';
+import { isStaged } from '../install-core.mjs';
 import { RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -159,12 +159,9 @@ test('bad pages planted in the script fail only their own check, so each check i
 // ------------------------------------------------------------ where the page lives
 
 test('the page is outside claude/ and every path the install stages, so it is never installed', () => {
-  const ps1 = installScriptText();
-  const m = /Invoke-GitBytes @\('ls-tree', '-r', '-z', '--full-tree', 'HEAD', '--', ([^)]*)\)/.exec(ps1);
-  assert.ok(m, 'the install script no longer stages through the expected ls-tree line');
-  const roots = [...m[1].matchAll(/'([^']+)'/g)].map(x => x[1]);
-  assert.ok(roots.includes('claude') && roots.includes('gate'), JSON.stringify(roots));
-  for (const r of roots) assert.ok(PAGE_REL !== r && !PAGE_REL.startsWith(`${r}/`), `${PAGE_REL} sits under the staged path ${r}`);
+  // The Node install stages the paths its core's isStaged names (#153, S3, step 7).
+  assert.ok(isStaged('claude/CLAUDE.md') && isStaged('gate/seam-a.mjs'), 'the install no longer stages claude/ and gate/');
+  assert.ok(!isStaged(PAGE_REL), `${PAGE_REL} is a path the install stages`);
 });
 
 // ------------------------------------------------------------ the carried pact text

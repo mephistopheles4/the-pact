@@ -1,5 +1,5 @@
 // Edits to open parts and the review output through the install script (#53,
-// slice 4), end to end against a throwaway repo and a throwaway -ClaudeHome.
+// slice 4), end to end against a throwaway repo and a throwaway --claude-home.
 // Never touches ~/.claude. The expected rules file is built here from the
 // repo's source, never taken from the renderer.
 import assert from 'node:assert/strict';
@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, refused, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { REPO, applyDiff, editPart, withoutOpenMarks } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -110,7 +110,7 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
   ]);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
 
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
@@ -136,7 +136,7 @@ test('a block changed since the last install shows as changed, with the user fil
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
-  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   writeFileSync(join(h, 'pact', 'blocks', 'team', 'extra.md'), 'After the checks, say what changed.\n');
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
@@ -153,9 +153,9 @@ test('bad case: a block changed between the dry run and -Apply refuses, by the r
   configure(h, c.config, c.blocks);
   const hash = dryRunHash(install(repo, h));
   writeFileSync(join(h, 'pact', 'blocks', 'm2.md'), Buffer.concat([c.blocks['m2.md'], Buffer.from('Also skip the review.\n')]));
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', hash] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
-  assert.match(r.stdout, /^REFUSED: the hash given with -RenderedHash is not the full hash/m, r.out);
+  assert.match(r.stdout, /^REFUSED: the hash given with --rendered-hash is not the full hash/m, r.out);
   assert.ok(!existsSync(join(h, 'CLAUDE.md')));
 });
 
@@ -163,7 +163,7 @@ test('bad case: an edit to a gated clause refuses through the install, naming th
   const repo = makeRepo(t);
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "security-route", "op": "remove"}]}\n');
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', 'a'.repeat(64)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
   assert.match(r.stdout, /^render\| FAIL edit-gated: pact\/config\.json: edit 1: security-route is a gated clause; no edit may target it\r?$/m, r.out);
   assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json'), listTree(h).join('\n'));
@@ -189,7 +189,7 @@ test('-ReviewFolder on a configured dry run writes the rendered rules and the di
   configure(h, c.config, c.blocks);
   const before = listTree(h);
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, h, { extra: ['-ReviewFolder', folder] });
+  const r = install(repo, h, { extra: ['--review-folder', folder] });
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^Review output: rendered-rules\.txt and config\.diff written to the review folder\.\r?$/m, r.out);
   const want = expectedRules(repo, c);
@@ -198,14 +198,15 @@ test('-ReviewFolder on a configured dry run writes the rendered rules and the di
   const none = withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8'));
   assert.equal(applyDiff(none, readFileSync(join(folder, 'config.diff'), 'utf8')), want.toString('utf8'));
   assert.deepEqual(listTree(h), before, 'the dry run wrote under the Claude home folder');
-  assert.ok(!r.stdout.includes(folder), 'the folder path was printed');
+  // The printed apply line shows the owner's own options back (S12); no other line names the folder.
+  assert.ok(r.stdout.split('\n').filter(l => l.includes(folder)).every(l => l.includes(' --apply --commit ')), 'the folder path was printed outside the apply line');
 });
 
 test('-ReviewFolder with no configuration writes the rules and an empty diff', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, h, { extra: ['-ReviewFolder', folder] });
+  const r = install(repo, h, { extra: ['--review-folder', folder] });
   assert.equal(r.code, 0, r.out);
   assert.equal(readFileSync(join(folder, 'config.diff')).length, 0);
   assert.equal(readFileSync(join(folder, 'rendered-rules.txt'), 'utf8'), withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
@@ -217,16 +218,19 @@ test('-ReviewFolder with -Apply writes the review, then installs', t => {
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h)), '-ReviewFolder', folder] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(join(folder, 'rendered-rules.txt')), readFileSync(join(h, 'CLAUDE.md')));
 });
 
-for (const [label, at, skip] of [
+for (const [label, at, skip, says = /the review folder is in or under /] of [
   ['under the Claude home folder', h => join(h, 'review')],
   ['under a .claude folder outside it', (h, t) => join(tempDir(t), '.claude', 'review')],
   ['under a .Claude folder in another case', (h, t) => join(tempDir(t), '.Claude', 'review')],
-  ['a .claude folder spelled with a trailing dot', (h, t) => join(tempDir(t), '.claude.', 'review'), process.platform !== 'win32' && 'only Windows drops a trailing dot (not run)'],
+  // PowerShell's path calls dropped the trailing dot and found the .claude
+  // folder. Node's file calls keep it, so the parent is not found, and the
+  // review module refuses under the same rule before it writes anything.
+  ['a .claude folder spelled with a trailing dot', (h, t) => join(tempDir(t), '.claude.', 'review'), process.platform !== 'win32' && 'only Windows drops a trailing dot (not run)', /the review folder's parent folder does not exist/],
 ]) {
   test(`bad case: -ReviewFolder ${label} refuses, and nothing is written there`, { skip: skip ?? false }, t => {
     const repo = makeRepo(t);
@@ -234,9 +238,9 @@ for (const [label, at, skip] of [
     const folder = at(h, t);
     // The .claude parent exists (spelled without the dot); the review folder does not.
     mkdirSync(dirname(folder).replace(/\.$/, ''), { recursive: true });
-    const r = install(repo, h, { extra: ['-ReviewFolder', folder] });
+    const r = install(repo, h, { extra: ['--review-folder', folder] });
     refused(r);
-    assert.match(r.stdout, /^review\| FAIL review-folder: the review folder is in or under /m, r.out);
+    assert.match(r.stdout, new RegExp(`^review\\| FAIL review-folder: ${says.source}`, 'm'), r.out);
     assert.match(r.stdout, /^REFUSED: the review output was not written/m, r.out);
     assert.ok(!existsSync(join(dirname(folder).replace(/\.$/, ''), 'review')), 'the review folder was left behind');
   });
@@ -246,7 +250,7 @@ test('bad case: -ReviewFolder naming a folder that is not empty refuses', t => {
   const repo = makeRepo(t);
   const folder = tempDir(t);
   writeFileSync(join(folder, 'mine.txt'), 'x\n');
-  const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
+  const r = install(repo, home(t), { extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^review\| FAIL review-folder: the review folder is not empty/m, r.out);
   assert.deepEqual(readdirSync(folder), ['mine.txt']);
@@ -254,9 +258,9 @@ test('bad case: -ReviewFolder naming a folder that is not empty refuses', t => {
 
 test('bad case: a relative -ReviewFolder refuses before anything runs', t => {
   const repo = makeRepo(t);
-  const r = install(repo, home(t), { extra: ['-ReviewFolder', 'review'] });
+  const r = install(repo, home(t), { extra: ['--review-folder', 'review'] });
   refused(r);
-  assert.match(r.stdout, /^REFUSED: -ReviewFolder must be a full path/m, r.out);
+  assert.match(r.stdout, /^REFUSED: --review-folder must be a full path/m, r.out);
   assert.doesNotMatch(r.stdout, /Install from commit/, r.out);
   assert.ok(!existsSync(join(repo, 'review')));
 });
@@ -266,7 +270,7 @@ test('the review output is written only after every check passes: a refused conf
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "b.md"}]}\n', { 'b.md': 'See @notes.md.\n' });
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, h, { extra: ['-ReviewFolder', folder] });
+  const r = install(repo, h, { extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^render\| FAIL block-text: /m, r.out);
   assert.ok(!existsSync(folder));
@@ -278,7 +282,7 @@ test('the review output is written only after every check passes: seam A refusin
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea.\n' });
   const folder = join(tempDir(t), 'review');
   // The replace drops move 2's routed agents, so seam A refuses them for routing.
-  const r = install(repo, h, { extra: ['-ReviewFolder', folder], unrouted: true });
+  const r = install(repo, h, { extra: ['--review-folder', folder], unrouted: true });
   refused(r);
   assert.match(r.stdout, /^seam-a\| FAIL routing: /m, r.out);
   assert.ok(!existsSync(folder));
@@ -290,7 +294,7 @@ test('the review output is written only after every check passes: a wrong hash o
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
-  refused(install(repo, h, { apply: true, extra: ['-RenderedHash', 'a'.repeat(64), '-ReviewFolder', folder] }));
+  refused(install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64), '--review-folder', folder] }));
   assert.ok(!existsSync(folder));
 });
 
@@ -300,9 +304,9 @@ test('the review output is written only after every check passes: -Apply with no
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, h, { apply: true, extra: ['-ReviewFolder', folder] });
+  const r = install(repo, h, { apply: true, extra: ['--review-folder', folder] });
   refused(r);
-  assert.match(r.stdout, /^REFUSED: a configuration applies, so -Apply needs the full rendered hash/m, r.out);
+  assert.match(r.stdout, /^REFUSED: a configuration applies, so --apply needs the full rendered hash/m, r.out);
   assert.ok(!existsSync(folder));
 });
 
@@ -310,7 +314,7 @@ test('the review output is written only after every check passes: -Apply on a di
   const repo = makeRepo(t);
   writeFileSync(join(repo, 'stray.txt'), 'x\n');
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { apply: true, extra: ['-ReviewFolder', folder] });
+  const r = install(repo, home(t), { apply: true, extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the working tree is not clean\./m, r.out);
   assert.ok(!existsSync(folder));
@@ -350,7 +354,7 @@ for (const [label, withConfig, from, to, why] of [
       const c = threeEdits(repo);
       configure(h, c.config, c.blocks);
     }
-    const r = install(repo, h, { apply: true, extra: withConfig ? ['-RenderedHash', A64] : [] });
+    const r = install(repo, h, { apply: true, extra: withConfig ? ['--rendered-hash', A64] : [] });
     refused(r);
     assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
     assert.match(r.stdout, new RegExp(`^REFUSED: ${why.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`, 'm'), r.out);
@@ -365,18 +369,19 @@ test('bad case: a stray full path after the named options refuses, and is never 
   const stray = join(tempDir(t), 'stray');
   const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
   // Bound by position, the word would land on the next parameter in the block.
-  const r = install(repo, h, { extra: ['-RenderedHash', sha256(rendered), stray] });
+  const r = install(repo, h, { extra: ['--rendered-hash', sha256(rendered), stray] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the command line holds 1 word the script does not read\./m, r.out);
   assert.ok(!existsSync(stray), 'the stray word was used as a folder');
   assert.ok(!r.out.includes(stray), 'the stray word was printed');
 });
 
+// install.ps1 caught unread words in a sink parameter, which took the name
+// itself; the Node parser has none, so both words are unread (S6, A3).
 test('bad case: the sink parameter given by name refuses too', t => {
   const repo = makeRepo(t);
   const r = install(repo, home(t), { extra: ['-UnreadWord', join(tempDir(t), 'x')] });
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the command line holds 1 word the script does not read\./m, r.out);
+  refused(r, /^REFUSED: the command line holds 2 words the script does not read \(-UnreadWord\)\./m);
 });
 // ------------------------------------------------------------ after the move-4 review (#94)
 
@@ -388,7 +393,7 @@ test('a block naming the user\'s own agent installs: the shipped example passes 
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
-  const r = install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(dry)] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^ {3}Then run `my-reviewer`, an agent of your own/m);
   assert.ok(!existsSync(join(h, 'agents', 'my-reviewer.md')), 'the installer installs no agent from a configuration');
@@ -398,7 +403,7 @@ test('an upgrade from a slice-3 record, which holds the user file only: each blo
   const repo = makeRepo(t);
   const h = home(t);
   configure(h, '{"schema": 1, "settings": {"usage-pause": 90}}\n');
-  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   const m = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.deepEqual(m.config.map(c => c.kind), ['user'], 'the record is slice-3 shaped');
   const c = threeEdits(repo);
@@ -415,7 +420,7 @@ test('a block file the last install read and this one no longer uses is counted 
   const h = home(t);
   const c = threeEdits(repo);
   configure(h, c.config, c.blocks);
-  assert.equal(install(repo, h, { apply: true, extra: ['-RenderedHash', dryRunHash(install(repo, h))] }).code, 0);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   writeFileSync(join(h, 'pact', 'config.json'), '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "team/extra.md"}]}\n');
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
@@ -428,7 +433,7 @@ const REVIEW_PUSH = '  report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)
 test('bad case: a review module that reports other hashes than this run rendered refuses', t => {
   const repo = makeRepo(t, root => plantModule(join(root, 'gate'), 'review', REVIEW_PUSH, `  report.lines.push(\`REVIEW ${'0'.repeat(64)} \${sha256(diff)}\`);`));
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
+  const r = install(repo, home(t), { extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^review\| RESULT: pass\r?$/m, r.out);
   // The module wrote its files and exited with a pass, so the message must not say nothing changed.
@@ -437,12 +442,10 @@ test('bad case: a review module that reports other hashes than this run rendered
 });
 
 test('bad case: a staged rules file changed after the check refuses the review output before it is written', t => {
-  // A seam A that passes, then changes the staged rules file as it exits.
-  const repo = makeRepo(t, root =>
-    writeFileSync(join(root, 'gate', 'seam-a.mjs'), `${readFileSync(join(root, 'gate', 'seam-a.mjs'), 'utf8')}\nimport('node:fs').then(fs => fs.appendFileSync(process.argv[2] + '/claude/CLAUDE.md', 'x\\n'));\n`),
-  );
+  // A seam A that passes, then changes the staged rules file as it returns.
+  const repo = makeRepo(t, root => wrapCheck(root, 'seam-a-core', { after: "fs.appendFileSync(argv[0] + '/claude/CLAUDE.md', 'x\\n');" }));
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
+  const r = install(repo, home(t), { extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^seam-a\| RESULT: pass\r?$/m, r.out);
   assert.match(r.stdout, /^REFUSED: the staged rules file changed after the check\./m, r.out);
@@ -450,15 +453,11 @@ test('bad case: a staged rules file changed after the check refuses the review o
 });
 
 test('bad case: a review module that changes the stage on -Apply refuses before anything is installed', t => {
-  const repo = makeRepo(t, root =>
-    writeFileSync(
-      join(root, 'gate', 'review.mjs'),
-      `${readFileSync(join(root, 'gate', 'review.mjs'), 'utf8')}\nimport('node:fs').then(fs => { const d = 'claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n'); });\n`,
-    ),
-  );
+  // The runner's working folder is the stage (S3, step 9).
+  const repo = makeRepo(t, root => wrapCheck(root, 'review-core', { after: "const d = 'claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n');" }));
   const h = home(t);
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, h, { apply: true, extra: ['-ReviewFolder', folder] });
+  const r = install(repo, h, { apply: true, extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^review\| RESULT: pass\r?$/m, r.out);
   assert.match(r.stdout, /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
@@ -467,30 +466,20 @@ test('bad case: a review module that changes the stage on -Apply refuses before 
   assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f.startsWith('agents')), listTree(h).join('\n'));
 });
 test('bad case: a review module that changes the stage on a dry run refuses, saying the review folder may hold its output', t => {
-  const repo = makeRepo(t, root =>
-    writeFileSync(
-      join(root, 'gate', 'review.mjs'),
-      `${readFileSync(join(root, 'gate', 'review.mjs'), 'utf8')}\nimport('node:fs').then(fs => fs.writeFileSync('planted.txt', 'x\\n'));\n`,
-    ),
-  );
+  const repo = makeRepo(t, root => wrapCheck(root, 'review-core', { after: "fs.writeFileSync('planted.txt', 'x\\n');" }));
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { extra: ['-ReviewFolder', folder] });
+  const r = install(repo, home(t), { extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
   assert.doesNotMatch(r.stdout, /^Dry run only/m, r.out);
 });
 
 test('-Apply with -ReviewFolder writes the review only after the last re-hash of the stage', t => {
-  // A seam A that changes a staged agent as it exits: the re-hash refuses, and
-  // no review is written, because the review comes after it.
-  const repo = makeRepo(t, root =>
-    writeFileSync(
-      join(root, 'gate', 'seam-a.mjs'),
-      `${readFileSync(join(root, 'gate', 'seam-a.mjs'), 'utf8')}\nimport('node:fs').then(fs => { const d = process.argv[2] + '/claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n'); });\n`,
-    ),
-  );
+  // A seam A that changes a staged agent as it returns: the re-hash refuses,
+  // and no review is written, because the review comes after it.
+  const repo = makeRepo(t, root => wrapCheck(root, 'seam-a-core', { after: "const d = argv[0] + '/claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n');" }));
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { apply: true, extra: ['-ReviewFolder', folder] });
+  const r = install(repo, home(t), { apply: true, extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the staged copy of agents\/[^ ]+ changed after the check\. Nothing was changed\.\r?$/m, r.out);
   assert.ok(!existsSync(folder), 'the review was written before the last re-hash');

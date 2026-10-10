@@ -104,7 +104,8 @@ function main() {
       return refuse('the repository folder could not be read.');
     }
   };
-  if (!same(real(git(['rev-parse', '--show-toplevel']).stdout.toString('utf8').trim()), real(repo))) refuse('this script is not at gate/install.mjs in the root of its git repository.');
+  const top = real(git(['rev-parse', '--show-toplevel']).stdout.toString('utf8').trim());
+  if (!same(top, real(repo)) || !same(real(self), join(top, 'gate', 'install.mjs'))) refuse('this script is not at gate/install.mjs in the root of its git repository.');
 
   // Never the network: a partial clone refuses, read from two config keys
   // alone, so no remote address is ever read.

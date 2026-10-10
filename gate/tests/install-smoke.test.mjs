@@ -1,5 +1,5 @@
 // The install's smoke set (#140): its happy path, end to end, against a
-// throwaway git repo built from this tree and a throwaway -ClaudeHome. These
+// throwaway git repo built from this tree and a throwaway --claude-home. These
 // cases moved here, unchanged, from install.test.mjs, so a payload change can
 // run them without the whole install tier. Never touches ~/.claude.
 import assert from 'node:assert/strict';
@@ -35,6 +35,7 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   const gatePaths = manifest.gate.map(g => g.path).sort();
   // Written out, so a stray gate file fails it; the four cores came with #155.
+  // The Node install's gate is the gate folder alone (#153, S9).
   assert.deepEqual(gatePaths, [
     'gate/clauses/install-go-ahead.md',
     'gate/clauses/move-4.md',
@@ -64,7 +65,6 @@ test('-Apply installs today\'s agents byte for byte, records the gate, and the n
     'gate/settings-allowlist.json',
     'gate/shared.mjs',
     'gate/tool-allowlist.json',
-    'scripts/install.ps1',
   ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
   const again = install(repo, h);

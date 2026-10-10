@@ -1,5 +1,7 @@
 # The apply guard catches what text matching can, and names the rest
 
+Superseded by [ADR 0042](0042-the-apply-guard-asks-on-any-command-naming-the-install.md) (2026-10-09): the rules now ask on any command that names the install, and the twelve spelling rules are retired.
+
 The "ask" rules that stop a session before the install's `-Apply` are a speed bump on the usual route, not a boundary. They catch every spelling whose command text holds the script's name followed by a parameter dash or a splat. Every other spelling is a named, accepted miss.
 
 ## What it covers

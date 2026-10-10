@@ -2,22 +2,20 @@
 // allow-list. The install's side, the merge and its warnings, is in
 // settings-install.test.mjs; the rule lists both use are in settings-rules.mjs.
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { installScriptText, moduleFiles, moduleMatch } from './gate-files.mjs';
+import * as core from '../install-core.mjs';
+import { moduleFiles, moduleMatch } from './gate-files.mjs';
 import { runSeamA } from './gate-run.mjs';
 import { realOverlay, stage } from './payload.mjs';
 import { GATE, REPO, failRules, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
-import { APPLY_ASK, CROSS_ASK, DASHES, OVERLAY, PACT_ASK, overlayWith, shown } from './settings-rules.mjs';
+import { APPLY_ASK, CROSS_ASK, DASHES, OLD_INSTALL_ASK, OVERLAY, PACT_ASK, RETIRED_ASK, overlayWith, shown } from './settings-rules.mjs';
+import { moduleResult, table } from './tables.mjs';
 
-// pwsh, for advanced(); a missing one fails the file, as the install harness's lookup does.
-const where = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['pwsh'], { encoding: 'utf8' });
-if (where.status !== 0) throw new Error('pwsh not found on PATH');
-const PWSH = where.stdout.split(/\r?\n/)[0].trim();
+const ALLOWLIST = 'gate/settings-allowlist.json';
 
 // Command-running settings, refused by name in seam A's own code.
 const BANNED = [
@@ -54,36 +52,6 @@ function expectSettingsFail(t, text, rule, script) {
 /** The rules among `rules` holding a character outside printable ASCII, other than the three dashes. */
 function nonAsciiRules(rules) {
   return rules.filter(r => [...r].some(c => (c < ' ' || c > '~') && !DASHES.includes(c)));
-}
-
-/**
- * Whether PowerShell itself reads each script text as an advanced script. Each
- * text becomes a function's body, which defines it without running it, and
- * the function's CmdletBinding flag is the answer. Asking the engine catches
- * every spelling it accepts, namespace-qualified attributes included.
- */
-function advanced(t, texts) {
-  const dir = tempDir(t);
-  const files = texts.map((text, i) => {
-    const f = join(dir, `s${i}.ps1`);
-    writeFileSync(f, text);
-    return f;
-  });
-  // The paths go in through the environment: anything after -Command would be
-  // joined into the command and run.
-  const script =
-    "foreach ($f in $env:PACT_ADV_FILES -split \"`n\") { Set-Item function:pact_adv ([scriptblock]::Create([IO.File]::ReadAllText($f))); " +
-    '[string](Get-Command pact_adv).CmdletBinding }';
-  const env = { ...process.env, PACT_ADV_FILES: files.join('\n') };
-  delete env.NODE_OPTIONS;
-  const r = spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', env });
-  assert.equal(r.status, 0, r.stderr);
-  const out = r.stdout.trim().split(/\r?\n/);
-  assert.equal(out.length, texts.length, r.stdout);
-  return out.map(l => {
-    assert.match(l, /^(True|False)$/, r.stdout);
-    return l === 'True';
-  });
 }
 
 function sha256(text) {
@@ -216,9 +184,9 @@ test("bad case: an ask list missing one of the pact's rules fails", t => {
   expectSettingsFail(t, overlayWith(o => o.permissions.ask.pop()), 'settings-required');
 });
 
-// It guards the PowerShell installer's twelve rules, which both lists write
-// out. #165's rules are the same spread in both lists, so this can't fail for
-// them; the per-rule cases below and the overlay comparison above cover those.
+// The install's rules are the same spreads in both lists, so this guards the
+// lists' shape; the per-rule cases below and the overlay comparison above
+// cover each rule.
 test("the apply-step rules are all among the pact's rules", () => {
   for (const rule of APPLY_ASK) assert.ok(PACT_ASK.includes(rule), shown(rule));
 });
@@ -231,28 +199,56 @@ for (const rule of APPLY_ASK) {
   });
 }
 
-// A hyphen in place of one dash, in both files: seam A must compare the exact
-// character, so the dash rule counts as missing. One dash at a time, since two
-// swapped rules could collide and fail as a repeat instead.
-for (const rule of APPLY_ASK.filter(r => DASHES.some(d => r.includes(d)))) {
-  test(`bad case: ${shown(rule)} with a hyphen for its dash, in both files, fails as missing`, t => {
-    const swap = r => (r === rule ? [...r].map(c => (DASHES.includes(c) ? '-' : c)).join('') : r);
-    const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].map(swap))));
-    const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.map(swap))), 'settings-required', script);
-    assert.deepEqual([...new Set(failRules(r.stdout))], ['settings-required'], r.out);
-  });
-}
-
-// The splat rule without its space, in both files: seam A must compare the
-// space exactly, so the splat rule counts as missing.
-for (const rule of APPLY_ASK.filter(r => r.includes(' @'))) {
-  test(`bad case: ${rule} without the space before its @, in both files, fails as missing`, t => {
-    const swap = r => (r === rule ? r.replace(' @', '@') : r);
-    const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].map(swap))));
-    const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.map(swap))), 'settings-required', script);
-    assert.deepEqual([...new Set(failRules(r.stdout))], ['settings-required'], r.out);
-  });
-}
+// The twelve rules the cutover retired (#153, S10), each put in place of the
+// broad rule that replaced it, in both the allow-list and the overlay: seam A
+// still fails it as missing, so no narrower spelling stands in for the broad
+// rule. The rows keep the cases of #34 and #89: each apply-step spelling, each
+// dash swapped for a hyphen, and each splat without its space. With the broad
+// rule gone any spelling fails, so the hyphen and splat rows show only that the
+// old spellings don't stand in; seam A's exact compare of the lasting rules is
+// the per-rule cases' job (#166, move 4).
+const broadFor = rule => OLD_INSTALL_ASK[rule.startsWith('PowerShell') ? 0 : 1];
+const hyphened = rule => [...rule].map(c => (DASHES.includes(c) ? '-' : c)).join('');
+/** A plant putting `to` in place of the broad rule for `rule`'s shell, in both files. */
+const swapIn = (rule, to = rule) => tree => {
+  const from = JSON.stringify(broadFor(rule));
+  const put = text => {
+    assert.equal(text.split(from).length, 2, from);
+    return text.replace(from, () => JSON.stringify(to));
+  };
+  return { [OVERLAY]: put(tree[OVERLAY]), [ALLOWLIST]: put(tree[ALLOWLIST]) };
+};
+for (const c of table('retired install rules', {
+  module: 'gate/seam-a.mjs',
+  base: () => ({ [OVERLAY]: realOverlay(), [ALLOWLIST]: readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8') }),
+  run: (tree, t) => {
+    const script = gateCopy(t, g => writeFileSync(join(g, 'settings-allowlist.json'), tree[ALLOWLIST]));
+    const r = runSeamA(stage(t, { [OVERLAY]: tree[OVERLAY] }), script);
+    return moduleResult(r.code, r.stdout);
+  },
+  rows: [
+    { id: 'apply-step-powershell-path', plant: swapIn(RETIRED_ASK[0]), fails: ['settings-required'], why: 'the apply step by its path' },
+    { id: 'apply-step-powershell-dash-a', plant: swapIn(RETIRED_ASK[1]), fails: ['settings-required'], why: 'the apply step by its switch' },
+    { id: 'apply-step-powershell-splat', plant: swapIn(RETIRED_ASK[4]), fails: ['settings-required'], why: 'the apply step through a splat' },
+    { id: 'apply-step-powershell-en-dash', plant: swapIn(RETIRED_ASK[5]), fails: ['settings-required'], why: 'the apply step with an en dash' },
+    { id: 'apply-step-powershell-em-dash', plant: swapIn(RETIRED_ASK[6]), fails: ['settings-required'], why: 'the apply step with an em dash' },
+    { id: 'apply-step-powershell-horizontal-bar', plant: swapIn(RETIRED_ASK[7]), fails: ['settings-required'], why: 'the apply step with a horizontal bar' },
+    { id: 'apply-step-bash-splat', plant: swapIn(RETIRED_ASK[8]), fails: ['settings-required'], why: 'the apply step through a splat, under Bash' },
+    { id: 'apply-step-bash-dash-a', plant: swapIn(RETIRED_ASK[2]), fails: ['settings-required'], why: 'the apply step by its switch, under Bash' },
+    { id: 'apply-step-bash-dash-lower-a', plant: swapIn(RETIRED_ASK[3]), fails: ['settings-required'], why: 'the apply step by its switch in lower case, under Bash' },
+    { id: 'apply-step-bash-en-dash', plant: swapIn(RETIRED_ASK[9]), fails: ['settings-required'], why: 'the apply step with an en dash, under Bash' },
+    { id: 'apply-step-bash-em-dash', plant: swapIn(RETIRED_ASK[10]), fails: ['settings-required'], why: 'the apply step with an em dash, under Bash' },
+    { id: 'apply-step-bash-horizontal-bar', plant: swapIn(RETIRED_ASK[11]), fails: ['settings-required'], why: 'the apply step with a horizontal bar, under Bash' },
+    { id: 'hyphen-for-powershell-en-dash', plant: swapIn(RETIRED_ASK[5], hyphened(RETIRED_ASK[5])), fails: ['settings-required'], why: 'a hyphen in place of the en dash' },
+    { id: 'hyphen-for-powershell-em-dash', plant: swapIn(RETIRED_ASK[6], hyphened(RETIRED_ASK[6])), fails: ['settings-required'], why: 'a hyphen in place of the em dash' },
+    { id: 'hyphen-for-powershell-horizontal-bar', plant: swapIn(RETIRED_ASK[7], hyphened(RETIRED_ASK[7])), fails: ['settings-required'], why: 'a hyphen in place of the horizontal bar' },
+    { id: 'hyphen-for-bash-en-dash', plant: swapIn(RETIRED_ASK[9], hyphened(RETIRED_ASK[9])), fails: ['settings-required'], why: 'a hyphen in place of the en dash, under Bash' },
+    { id: 'hyphen-for-bash-em-dash', plant: swapIn(RETIRED_ASK[10], hyphened(RETIRED_ASK[10])), fails: ['settings-required'], why: 'a hyphen in place of the em dash, under Bash' },
+    { id: 'hyphen-for-bash-horizontal-bar', plant: swapIn(RETIRED_ASK[11], hyphened(RETIRED_ASK[11])), fails: ['settings-required'], why: 'a hyphen in place of the horizontal bar, under Bash' },
+    { id: 'splat-without-space-powershell', plant: swapIn(RETIRED_ASK[4], RETIRED_ASK[4].replace(' @', '@')), fails: ['settings-required'], why: 'a splat with no space before it' },
+    { id: 'splat-without-space-bash', plant: swapIn(RETIRED_ASK[8], RETIRED_ASK[8].replace(' @', '@')), fails: ['settings-required'], why: 'a splat with no space before it, under Bash' },
+  ],
+})) test(c.name, c.fn);
 
 test('every pact ask rule is printable ASCII, but for the three dashes', () => {
   const allow = JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8'))['permissions.ask'];
@@ -279,28 +275,28 @@ test('each dash is written as an escape: the rule files and their code hold no d
   assert.ok(/^[\x00-\x7f]*$/.test(rules), 'a rule file holds a byte outside ASCII');
 });
 
-test("the install script's parameters stay non-advanced: no CmdletBinding, no Parameter attribute", t => {
-  const text = installScriptText();
-  assert.match(text, /^\s*\[switch\]\$Apply,$/m);
-  assert.deepEqual(advanced(t, [text]), [false]);
-});
-
-test('bad case: a parameter block made advanced is caught, in every spelling PowerShell accepts', t => {
-  const body = attr => `${attr}\nparam(\n  [switch]$Apply\n)\n'x'\n`;
-  const param = attr => `param(\n  ${attr}[switch]$Apply\n)\n'x'\n`;
-  const plain = [body(''), body('[CmdletBindingAttribute()]'), param('[ParameterAttribute()]')];
-  const made = [
-    body('[CmdletBinding()]'),
-    body('[cmdletbinding( )]'),
-    body('[System.Management.Automation.CmdletBinding()]'),
-    body('[Management.Automation.CmdletBinding()]'),
-    body('[System.Management.Automation.CmdletBindingAttribute()]'),
-    param('[Parameter(Mandatory)]'),
-    param('[ parameter ()]'),
-    param('[System.Management.Automation.Parameter()]'),
-  ];
-  assert.deepEqual(advanced(t, [...plain, ...made]), [...plain.map(() => false), ...made.map(() => true)]);
-});
+// The PowerShell installer had no [CmdletBinding()], so
+// $PSDefaultParameterValues could not turn on -Apply (ADR 0020). The Node
+// install has no such mechanism: its parser reads the typed words alone, so
+// only --apply, spelled exactly, turns it on (#153, S6 rows A2 and A3).
+const decided = fn => {
+  try {
+    fn();
+    return { code: 0, fails: [], last: 'RESULT: pass', out: '' };
+  } catch (e) {
+    if (e instanceof core.Refusal) return { code: 1, fails: [e.rule], last: 'RESULT: fail', out: e.why };
+    throw e;
+  }
+};
+for (const c of table('apply only as typed', {
+  module: 'gate/install-core.mjs',
+  base: () => ({ in: JSON.stringify(['--claude-home', 'C:\\h']) }),
+  run: t => decided(() => core.parseArgs(JSON.parse(t.in), 'win32')),
+  rows: [
+    { id: 'powershell-apply-switch', plant: t => ({ in: JSON.stringify([...JSON.parse(t.in), '-Apply']) }), fails: ['args-unread'], why: "the PowerShell installer's switch is a word the script does not read" },
+    { id: 'apply-with-a-value', plant: t => ({ in: JSON.stringify([...JSON.parse(t.in), '--apply=true']) }), fails: ['args-unread'], why: 'nothing but the bare word turns on --apply' },
+  ],
+})) test(c.name, c.fn);
 
 test("bad case: the cross script's ask rule stays required when both the allow-list and the overlay drop it", t => {
   const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== CROSS_ASK))));
@@ -364,9 +360,8 @@ test('canary: seam A never echoes an overlay key or value', t => {
 test("the install's banned names are seam A's", () => {
   const names = text => [...text.matchAll(/'([A-Za-z]+)'/g)].map(m => m[1]);
   const seam = moduleMatch(GATE, 'seam-a', /const BANNED_SETTINGS = Object\.freeze\(\[([^\]]*)\]\)/);
-  const inst = installScriptText().match(/\$bannedSettings = @\(([^)]*)\)/);
-  assert.ok(seam && inst);
-  assert.deepEqual(names(inst[1]), names(seam[1]));
+  assert.ok(seam);
+  assert.deepEqual([...core.BANNED_SETTINGS], names(seam[1]));
   assert.deepEqual(names(seam[1]), BANNED);
 });
 

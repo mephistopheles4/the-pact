@@ -62,6 +62,12 @@ for (const [label, plant, says] of [
   ['drops core.fsmonitor=false', src => src.replace("'-c', 'core.fsmonitor=false', ", ''), 'runs git without --no-replace-objects and core.fsmonitor=false'],
   ['widens the allow-list', src => src.replace("'TMPDIR'];", "'TMPDIR', 'NODE_PATH'];"), 'changes the environment allow-list'],
   ['reads the runner\'s stderr', src => src.replace('child.stderr.resume();', "child.stderr.on('data', d => say(String(d)));"), "reads the runner's stderr"],
+  ['changes git\'s fixed variables', src => src.replace("GIT_OPTIONAL_LOCKS: '0'", "GIT_OPTIONAL_LOCKS: '1'"), "changes git's fixed variables"],
+  ['uses a class static block', src => src.replace('let work = null;', 'let work = null;\nclass Z { static { } }'), 'holds a class static block'],
+  ['uses a private name', src => src.replace('let work = null;', 'let work = null;\nclass Y { #p = 1; }'), 'holds a private name'],
+  ['uses a regular expression v flag', src => src.replace('let work = null;', 'let work = null;\nconst R = /a/v;'), 'holds a regular expression v flag'],
+  ['uses top-level await', src => `${src}\nawait null;\n`, 'holds top-level await'],
+  ['uses Object.hasOwn', src => src.replace('let work = null;', "let work = null;\nObject.hasOwn({}, 'x');"), 'holds Object.hasOwn'],
 ]) {
   test(`bad case: the bootstrap source check catches a bootstrap that ${label}`, () => {
     const planted = plant(text(BOOT));

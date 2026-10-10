@@ -106,6 +106,13 @@ test('the command line: a refusal never shows a value, only cleaned option names
   assert.match(r.out, /\(--x\?y\)/);
 });
 
+test('the command line: a value typed after = in an option word is never shown, only the name before it', () => {
+  const r = decided(() => core.parseArgs(['--claude-home=C:\\SECRETMARK\\x'], 'win32'));
+  assert.deepEqual(r.fails, ['args-unread']);
+  assert.ok(!r.out.includes('SECRETMARK'), r.out);
+  assert.match(r.out, /\(--claude-home\)/);
+});
+
 test('the apply line quotes each path and carries --project-folder, the commit and the hash (S12)', () => {
   const o = core.parseArgs(['--project-folder', 'C:\\work\\my project', '--claude-home', 'C:\\h'], 'win32');
   assert.equal(core.applyLine(o.paths, ID('a'), H('b'), 'win32'), `$env:NODE_OPTIONS = $null; node gate/install.mjs --claude-home 'C:\\h' --project-folder 'C:\\work\\my project' --apply --commit ${ID('a')} --rendered-hash ${H('b')}`);
@@ -576,6 +583,17 @@ test('the live warnings: banned keys at any depth, missing ask rules, a mode not
   assert.equal(lines[2], 'WARN: settings.json: permissions.defaultMode is not auto; --apply sets it.');
   assert.match(lines[3], /^NOTE: live keys the pact does not set \(yours, not checked\): deep, enabledPlugins, k00, .* and 4 more$/);
   assert.equal(lines[4], 'NOTE: live env names the pact does not set: 2');
+});
+
+test('bad case: a live rule that differs from a pact rule only by an invisible character is missing, not matched (#110)', () => {
+  const rule = 'Bash(*nstall.mjs*)';
+  for (const c of ['\u00ad', '\u200b', '\u2060']) {
+    const near = rule.replace('nstall', `ns${c}tall`);
+    const live = core.readSettings(json({ permissions: { ask: [near], defaultMode: 'auto' } }));
+    const overlay = core.readSettings(json({ permissions: { ask: [rule] } }));
+    assert.equal(core.liveSettingsLines(live, overlay, [rule])[0], "WARN: settings.json lacks 1 of the pact's ask rules; --apply adds them back.", JSON.stringify(c));
+    assert.equal(core.guardHolds(live, [rule]), false, JSON.stringify(c));
+  }
 });
 
 test('the guard after an apply: every pact ask rule exactly, and auto mode', () => {
