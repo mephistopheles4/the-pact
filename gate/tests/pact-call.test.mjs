@@ -52,6 +52,20 @@ test('the paragraph gives one PowerShell and one POSIX command, each through $HO
   assert.ok(ps.startsWith('$env:NODE_OPTIONS = $null; node '), ps);
 });
 
+// The PowerShell form is never run here (ADR 0048), so it is held word for
+// word: a command chained before the call would pass a prefix check (#210).
+const EXACT = ['$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" <arguments>', 'env -u NODE_OPTIONS node "$HOME/.claude/pact/cross.mjs" <arguments>'];
+
+test('the two commands are exactly the documented forms, and nothing else', () => {
+  assert.deepEqual([...commands()].sort(), [...EXACT].sort());
+});
+
+test('bad case: a command chained before the PowerShell call fails the exact check, though it keeps the prefix and the path', () => {
+  const planted = EXACT[0].replace('node "$HOME', 'node ./x.mjs; node "$HOME');
+  assert.ok(planted.startsWith('$env:NODE_OPTIONS = $null; node ') && planted.includes(`node ${LIVE}`), 'the plant keeps what the looser checks look for');
+  assert.ok(!EXACT.includes(planted));
+});
+
 test('the paragraph names both failure exit codes and what each means', () => {
   const p = paragraph();
   assert.match(p, /Exit 1: a report failed a check/);

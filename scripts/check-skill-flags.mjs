@@ -14,7 +14,8 @@
 // text and will warn; pass --rules-file with a rendered copy of the repo's file.
 // OPEN_PARTS below must equal OPEN_MARKS in gate/tests/text.mjs (a test checks
 // it). Prints a WARN: line per mismatch, then a summary line when there is
-// none. Exits 0 either way, and 1 when it cannot read its input.
+// none, and exits 0 either way. It exits 1 on a usage error, a rules file it
+// cannot read, or a rules file with no "Implementing a change" section.
 //
 //   node scripts/check-skill-flags.mjs [--skills-dir <folder>] [--rules-file <file>]
 //
@@ -32,7 +33,7 @@ const COMMAND_RE = new RegExp(`^/(${NAME})$`);
 const NAME_RE = new RegExp(`^${NAME}$`);
 const FLAG_RE = /^\s*disable-model-invocation\s*:\s*true\s*$/i;
 
-const readText = p => readFileSync(p, 'utf8').replace(/^﻿/, '');
+const readText = p => readFileSync(p, 'utf8').replace(/^\uFEFF/, '');
 const isFolder = p => existsSync(p) && statSync(p).isDirectory();
 const isFile = p => existsSync(p) && statSync(p).isFile();
 

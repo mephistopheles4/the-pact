@@ -10,7 +10,7 @@ An end-to-end install case is cut only when an in-process row already checks the
   - it is a happy path;
   - it is the last case that drives one of the runner's checks to refuse. A row proves the decision, not that `install-run.mjs` still calls it, so each call site keeps one case that shows the call is there.
 - **No compare.** `baseline-compare.mjs`, its test and `gate/tests/fixtures/baseline-140/` are deleted, and AGENTS.md's "Moving or renaming a case" with them. A case may now be renamed or moved with no line in a list. The table guard's reader of `table(...)` calls, which lived in the compare, moved into `tables.mjs`.
-- **The first cut, #210:** 45 of 262 install cases went, against #153's aim of 20 to 30 cases left. 128 cases are containment, and most of the rest are only the script's to decide, so 217 stay. The aim was the owner's, set as an aim and not a done-criterion; the count is reported, not forced.
+- **The first cut, #210:** 43 of 262 install cases went, against #153's aim of 20 to 30 cases left. 128 cases are containment, and most of the rest are only the script's to decide, so 219 stay. Move 4's review put back two of the 45 first cut: the bootstrap's own case check, which no row reaches, and the one case that shows the dry run's "Gate: CHANGED" line. The aim was the owner's, set as an aim and not a done-criterion; the count is reported, not forced.
 
 ## Why
 

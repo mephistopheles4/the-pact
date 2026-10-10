@@ -128,6 +128,23 @@ test('AGENTS.md gives the runner in one PowerShell and one POSIX form, each clea
   assert.deepEqual(commandProblems(section()), []);
 });
 
+// The PowerShell forms are never run here (ADR 0048), so each runner command
+// is held word for word: a command chained after one would pass the prefix
+// check above (#210).
+const EXACT_RUNNER = [`${PS_FORM}<tier>`, `${POSIX_FORM}<tier>`, `${PS_FORM}changed`, `${POSIX_FORM}changed`];
+
+test('every runner command in the section is one of the four documented forms', () => {
+  const cmds = runnerCommands(section());
+  assert.deepEqual(cmds.filter(c => !EXACT_RUNNER.includes(c)), []);
+  for (const c of EXACT_RUNNER) assert.ok(cmds.includes(c), c);
+});
+
+test('bad case: a command chained after a runner command fails the exact check, though it keeps the prefix', () => {
+  const planted = `${section()}\n- Or run \`${PS_FORM}full; node ./x.mjs\`.\n`;
+  assert.deepEqual(commandProblems(planted), [], 'the prefix check alone passes it');
+  assert.ok(runnerCommands(planted).some(c => !EXACT_RUNNER.includes(c)));
+});
+
 test('the command check catches a runner command that keeps NODE_OPTIONS', () => {
   const planted = `${section()}\n- Or just run \`node gate/tests/run.mjs full\`.\n`;
   assert.deepEqual(commandProblems(planted), ['a runner command that keeps NODE_OPTIONS: node gate/tests/run.mjs full']);

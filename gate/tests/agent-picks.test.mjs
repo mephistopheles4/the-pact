@@ -43,6 +43,7 @@ const FAST_NOT_PICKED = Object.freeze([
   'fault-fixtures.test.mjs',
   'gate-run.test.mjs',
   'helper-imports.test.mjs',
+  'no-powershell.test.mjs',
   'no-skill-names.test.mjs',
   'pact-call.test.mjs',
   'paths.test.mjs',

@@ -63,7 +63,23 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
 
 // ------------------------------------------------------------ gate fingerprints
 
-test('bad case: an uncommitted edit to the install script refuses -Apply', t => {
+// The one end-to-end case for the runner's gate block (#210, move 4): the
+// in-process rows check the block's lines, this one that the runner hands it
+// the last install's record and today's gate.
+test('bad case: an edited install script is flagged in the dry run', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true }).code, 0);
+  const p = join(repo, 'gate', 'install-run.mjs');
+  writeFileSync(p, `${readFileSync(p, 'utf8')}// edited\n`);
+  commitAll(repo);
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^Gate: CHANGED since the last install$/m, r.out);
+  assert.match(r.stdout, /^ {2}changed gate\/install-run\.mjs$/m, r.out);
+});
+
+test('bad case: an uncommitted edit to the install script refuses --apply', t => {
   const repo = makeRepo(t);
   const p = join(repo, 'gate', 'install.mjs');
   writeFileSync(p, `${readFileSync(p, 'utf8')}// edited\n`);
@@ -155,6 +171,23 @@ test('bad case: NODE_OPTIONS set refuses before any check runs', t => {
   const r = install(makeRepo(t), home(t), { env: { NODE_OPTIONS: '--max-old-space-size=200' } });
   refused(r, /^REFUSED: NODE_OPTIONS is set/m);
   assert.doesNotMatch(r.stdout, /^(render|seam-a)\| /m, r.out);
+});
+
+// The bootstrap's own case check, before anything is staged; the runner's
+// copy in parseTree is a row in install-core.test.mjs (#210, move 4).
+test('bad case: two paths in the commit that differ only in case refuse', t => {
+  // Built in the index, since a folding disk cannot hold both files.
+  const repo = makeRepo(t);
+  const tmp = join(repo, 'Executability-lens.tmp');
+  writeFileSync(tmp, plainAgent('Executability-lens'));
+  const id = git(repo, 'hash-object', '-w', tmp).trim();
+  rmSync(tmp);
+  git(repo, 'update-index', '--add', '--cacheinfo', `100644,${id},claude/agents/Executability-lens.md`);
+  git(repo, 'commit', '-q', '-m', 'case collision');
+  assert.match(git(repo, 'ls-tree', '-r', '--name-only', 'HEAD', '--', 'claude/agents'), /Executability-lens\.md[\s\S]*executability-lens\.md|executability-lens\.md[\s\S]*Executability-lens\.md/);
+  const r = install(repo, home(t));
+  refused(r, /^REFUSED: the commit holds two paths that differ only in case: /m);
+  assert.doesNotMatch(r.stdout, /^Pinned check: /m, 'the runner started, so the bootstrap did not refuse');
 });
 
 // The bootstrap walks PATH itself and skips relative entries (S6, G2), so on
@@ -283,7 +316,8 @@ test('bad case: an unrouted agent at HEAD refuses, naming its file', t => {
   writeTree(repo, { 'claude/agents/probe.md': plainAgent('probe') });
   commitAll(repo);
   const r = install(repo, home(t), { unrouted: ['claude/agents/probe.md'] });
-  refused(r);
+  // Seam A's own verdict refuses, before the copy-set check could (#210, move 4).
+  refused(r, /^REFUSED: the check failed\./m);
   assert.match(r.stdout, /^seam-a\| FAIL routing: claude\/agents\/probe\.md: /m, r.out);
   // The routing guard in install() reads this output: it must find the file, or a missed route would pass unseen.
   assert.deepEqual(routingFails(r.stdout), ['claude/agents/probe.md'], r.out);
@@ -321,7 +355,7 @@ function rulesOf(repo) {
   return { source, rendered };
 }
 
-test('-Apply installs the no-file render as the rules file, and the record holds its hash', t => {
+test('--apply installs the no-file render as the rules file, and the record holds its hash', t => {
   const repo = makeRepo(t);
   const { source, rendered } = rulesOf(repo);
   const h = home(t);
@@ -351,7 +385,7 @@ test('the dry run shows a Configuration block that says there is no configuratio
   assert.ok(c < lines.findIndex(l => /^Gate: /.test(l)), r.out);
 });
 
-test('bad case: the rules file changed in the stage after the check refuses -Apply, with nothing written', t => {
+test('bad case: the rules file changed in the stage after the check refuses --apply, with nothing written', t => {
   let source;
   const repo = makeRepo(t, root => {
     source = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
@@ -367,7 +401,7 @@ test('bad case: the rules file changed in the stage after the check refuses -App
   assert.deepEqual(listTree(h), []);
 });
 
-test('bad case: a record whose rules-file hash is not the rendered bytes\' hash is drift, and -Apply refuses', t => {
+test('bad case: a record whose rules-file hash is not the rendered bytes\' hash is drift, and --apply refuses', t => {
   const repo = makeRepo(t);
   const { source, rendered } = rulesOf(repo);
   const h = home(t);

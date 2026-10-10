@@ -61,12 +61,13 @@ test('a live file the merge cannot read draws a plain warning, and -Apply refuse
   assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), '[1]\n');
 });
 
-test('canary: the install never prints a live value, a live permission entry or a live key value', t => {
+test('canary: the install never prints a live value, a live env name, a live permission entry or a live key value', t => {
   const C = 'CANARYlive';
   const repo = makeRepo(t);
   const h = home(t);
   writeLive(h, {
-    env: { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: `${C}env`, OTHER: `${C}other` },
+    // A live env name is counted, never printed (#210, move 4): one name carries the canary too.
+    env: { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: `${C}env`, OTHER: `${C}other`, [`${C}NAME`]: 'x' },
     permissions: { allow: [`Bash(echo ${C}allow)`, 'Bash(a *)'], deny: [`Bash(${C}deny)`], ask: [`Bash(${C}ask)`] },
     outputStyle: `${C}style`,
     theme: `${C}theme`,
