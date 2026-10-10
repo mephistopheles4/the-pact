@@ -45,7 +45,7 @@ export function promptNamesAddress(prompt) {
 function installedAgentStems() {
   const fromClaude = Object.keys(realAgents()).map((p) => p.slice('claude/agents/'.length, -'.md'.length));
   const familiars = readdirSync(join(REPO, 'familiars'))
-    .filter((f) => f.endsWith('.md') && !f.endsWith('.contract.md') && !f.endsWith('.practice-test.md'))
+    .filter((f) => f.endsWith('.md') && !f.endsWith('.contract.md'))
     .map((f) => f.slice(0, -'.md'.length));
   return [...fromClaude, ...familiars];
 }

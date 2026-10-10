@@ -104,8 +104,8 @@
 // own values, egress when the tools line holds more than the read tools. The
 // notice gains an "Agents set:" line, and a security-set override carries
 // OVERRIDE_MARK there, with a sentence telling the session to put it beside
-// every report from that lens. Adding an agent to CONFIGURABLE_AGENTS is on
-// AGENTS.md's probe floor.
+// every report from that lens. Adding an agent to CONFIGURABLE_AGENTS takes
+// the security route (AGENTS.md).
 //
 // The project mode (#53, slice 5) renders the project rules file for a
 // project install. It reads the user file, for the user's effective values and
@@ -187,8 +187,8 @@ const AGENT_OUTPUT_PREFIX = 'agent-';
 // clause that names it, and the block its own file carries.
 const ROUTE_CLAUSE = 'security-route';
 const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
-// Lenses on the probe floor by doubt (AGENTS.md: when in doubt, a change is on
-// the floor), each with its reason. No sign in their files says so.
+// Security-set lenses by doubt (AGENTS.md: when in doubt, a change takes the
+// security route), each with its reason. No sign in their files says so.
 const SECURITY_DOUBT = Object.freeze({
   'good-enough-lens': 'it never defers a risk-floor item',
   'unstated-lens': 'it reports work that should have taken the security route',

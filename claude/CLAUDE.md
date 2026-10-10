@@ -490,7 +490,7 @@ pair leaves for me to settle, a scope decision or a time that a spec review
 brings to me, the thorough pick, a
 user-only skill's trigger, an install, cutting a lens, confirming an escape or
 gap row, the claiming and coordination rules, or my "done": accepting the
-work, closing a ticket and merging are mine.
+work, closing a ticket and merging are mine. Never cut a lens yourself.
 Mark each auto-taken choice `auto` (see Lens dispositions).
 
 **Lens dispositions.** At every lens review, in every project, post a table
@@ -530,8 +530,7 @@ only the lens, the link to the review and a placeholder until its fix ships.
 reports, I dismissed most of its findings; when two or more confirmed escapes
 fall to it; or when its reviews rarely changed my decision. Count only answers
 I have confirmed, never pre-filled ones. Count a lens's reports marked
-"override, not security-tested" apart from its own record. Never cut a lens
-yourself. For a security lens, any lens that holds a shell or network tools or
+"override, not security-tested" apart from its own record. For a security lens, any lens that holds a shell or network tools or
 guards the security route or the risk floor, the "rarely changed my decision"
 signal alone never fires: security reads are clean most of the time.
 

@@ -9,7 +9,7 @@
 // under a preload the child side lacks. Its seen-to-fail runs under a preload
 // are in gate-run.test.mjs, which starts this file as a child. The state
 // check below runs each module's inputs in one process and requires the
-// second pass to equal the first. On the probe floor by name (AGENTS.md).
+// second pass to equal the first. Ordinary test code since #189.
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

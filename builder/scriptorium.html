@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-lMlGwgjA67SnmMyU8LkNIeKtEEJXezkBqiuRsXeObtw='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iylDAebojeIMSao+Clctel9JkxWdYEQi6efz7gwW/1I='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -1158,7 +1158,7 @@ function boot() {
         el('span', { class: 'card-tab', text: a.name }),
         el('div', { class: 'field-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, PACT.agentChoices.models, now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
         el('span', { class: 'av-label', text: changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not a security lens'}` }),
-        ...(changed && a.security ? [el('p', { class: 'av-callout av-callout--caution', text: `${OVERRIDE_MARK}. Its security set ran only on its default.${a.egress ? ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.' : ''}` })] : []),
+        ...(changed && a.security ? [el('p', { class: 'av-callout av-callout--caution', text: `${OVERRIDE_MARK}. The pact reviews only its default.${a.egress ? ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.' : ''}` })] : []),
         runs(a),
       );
     });
@@ -1545,7 +1545,7 @@ function boot() {
     if (errors.length || !canPick) save.disabled = true;
 
     const notes = [
-      ...overrides(state).map(n => el('li', { class: 'av-callout av-callout--caution', text: `Agents · ${n} · ${OVERRIDE_MARK}: its security set ran only on its default.` })),
+      ...overrides(state).map(n => el('li', { class: 'av-callout av-callout--caution', text: `Agents · ${n} · ${OVERRIDE_MARK}: the pact reviews only its default.` })),
       ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
     ];
     if (status.text) notes.push(el('li', { class: `av-callout${status.level === 'error' ? ' av-callout--caution' : status.level === 'ok' ? ' av-callout--normal' : ''}`, text: status.text }));

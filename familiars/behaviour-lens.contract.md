@@ -91,9 +91,9 @@ Each sample ends with its `lens-findings` block.
 - C11. Ends its report with exactly one `lens-findings` block in the shape the cross script reads.
   Held by: Enforced — the cross script refuses any other shape (exit 1). Mechanism read in `cross/cross.mjs` by the build session, 2026-10-05; not yet confirmed by the owner.
 - C12. No severity or verdict word ("high", "blocking", "clear", "safe", "ignore") in a headline.
-  Held by: Promised. Headline case, scored on its bad report.
+  Held by: review at move 4; the practice cases were retired by #189.
 - C13. Its artifact sits under the fixed heading `### Claims run`.
-  Held by: Promised. Every practice case checks it.
+  Held by: review at move 4; the practice cases were retired by #189.
 
 **Automatic checks** **Confirmed** (2026-10-05)
 - The repo's tests and gates decide pass or fail. The lens advises.
@@ -128,7 +128,7 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 
 Outcome values: the verdict, one of `clear`, `findings`, `inconclusive` or `blocking`. A stop gives `inconclusive`, with "stopped and waiting:" in `notChecked`.
 
-**Severity mapping** **Confirmed** (2026-10-05) (one practice case per value):
+**Severity mapping** **Confirmed** (2026-10-05):
 - `high`: a claim fails reproducibly, or the change causes a reproducible regression, with real impact on users or the system (the old blocking priorities P0 to P2).
 - `medium`: a reproducible problem relevant to a claim that does not fail it (the old P3).
 - `low`: an advisory, or a risk it could not reproduce (the old P4).
@@ -183,7 +183,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 12. Prove it works: a practice test
 
-**Confirmed** (2026-10-05): in `familiars/behaviour-lens.practice-test.md`. Its security-set cases run once each, after install, interactively, in a fresh session, in the probe sandbox, recording the model and the date. Every other case is scored on its bad report only. Both depart from the template's three runs, by the owner's decision on #35 revision 7 (2026-10-04): use proves a lens outside the security set, and the security set runs once per install or model change. Every expected result and bad report is committed before any run. **Any false alarm fails a run.**
+**Retired** by #189: the practice test and its cases were deleted. Review at move 4 and use prove the lens.
 
 ### 13. When would you retire it?
 
@@ -281,7 +281,7 @@ Every rule of the outgoing move-4 checker, marked **Confirmed** (2026-10-05).
 | Rule there | Mark | Where it goes, and why |
 |---|---|---|
 | A leaf agent: does the whole task itself and never delegates; a task that seems to need sub-agents is mis-routed, so stop and report | Kept | C9, S1. Delegation would hand the run to an agent with other tools. |
-| A missing tool stops the run; never reproduce it through the shell | Kept | C7. A rule the security set runs. |
+| A missing tool stops the run; never reproduce it through the shell | Kept | C7. |
 | Fresh-context checker of the exact claim and its acceptance | Kept, reshaped | Q10: the claim list `C1`…`Cn` is the input and the anchor set. |
 | Attempt the primary flow first; then the smallest claim-relevant edge set, even when the primary flow is blocked; record missing evidence without hiding an independent blocker | Kept | C2. |
 | Only reproducible, claim-relevant issues; proximity is not relevance; regressions the change causes count | Kept | C3. |

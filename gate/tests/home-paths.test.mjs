@@ -36,16 +36,6 @@ const FORMS = [
   { re: new RegExp(String.raw`(?<![\p{L}\p{N}-])-(?:${DIR})-${DASHED}(?=[-\\/\r\n]|$)`, 'giud'), dashed: true },
 ];
 
-// One route in one security-set plant reads as a home path and is an HTTP path.
-// The plant is not edited (it is a practice case), so the exemption names the
-// file and the exact text, and nothing else.
-const ROUTE = ['', 'users', 'search'].join('/');
-const PLANT = 'gate/tests/fixtures/practice/plants/A3-payload/';
-const EXEMPT = [
-  { file: `${PLANT}spec.md`, text: ROUTE },
-  { file: `${PLANT}head/src/routes.mjs`, text: ROUTE },
-];
-
 function allowed(name, dashed) {
   const n = name.toLowerCase();
   if (ALLOWED.has(n)) return true;
@@ -55,12 +45,11 @@ function allowed(name, dashed) {
 }
 
 /** Each home path with a real username in `text`, as { line, match } with the name masked. */
-function homePaths(text, file = '') {
+function homePaths(text) {
   const hits = [];
   for (const { re, dashed } of FORMS) {
     for (const m of text.matchAll(re)) {
       if (allowed(m[1], dashed)) continue;
-      if (EXEMPT.some(e => e.file === file && m[0] === e.text)) continue;
       const [s, e] = m.indices[1].map(i => i - m.index);
       hits.push({ line: text.slice(0, m.index).split('\n').length, match: `${m[0].slice(0, s)}<a real name>${m[0].slice(e)}` });
     }
@@ -82,7 +71,7 @@ function scan(root, files) {
   for (const rel of files) {
     const p = join(root, ...rel.split('/'));
     if (!existsSync(p)) continue;
-    for (const h of homePaths(textOf(p), rel)) out.push(`${rel}:${h.line}: ${h.match}`);
+    for (const h of homePaths(textOf(p))) out.push(`${rel}:${h.line}: ${h.match}`);
   }
   return out;
 }
@@ -164,11 +153,8 @@ test('not a home path: a URL, a $HOME path, a dot folder and a name that only st
   ]) assert.deepEqual(homePaths(text), [], text);
 });
 
-test('the route exemption holds only for its own file and text', t => {
+test('an HTTP route that reads as a home path is caught: no file is exempt', t => {
   const dir = tempDir(t, 'pact-home-paths-');
-  const line = `GET ${ROUTE}?name=x`;
-  writeTree(dir, { [`${PLANT}spec.md`]: line, 'elsewhere.md': line, [`${PLANT}other.md`]: `GET ${['', 'users', FAKE].join('/')}` });
-  assert.deepEqual(scan(dir, [`${PLANT}spec.md`]), []);
-  assert.equal(scan(dir, ['elsewhere.md']).length, 1);
-  assert.equal(scan(dir, [`${PLANT}other.md`]).length, 1);
+  writeTree(dir, { 'route.md': `GET ${['', 'users', 'search'].join('/')}?name=x` });
+  assert.equal(scan(dir, ['route.md']).length, 1);
 });

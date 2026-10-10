@@ -137,7 +137,7 @@ Against its neighbours: it reports facts; the pact's reviewers and lenses give v
 
 ### 12. Prove it works: a practice test
 
-**Confirmed** (2026-10-05) In `familiars/scout.practice-test.md`: 2 step-in cases, 2 stay-quiet cases (one is the "review this design" case from question 1), one decoy, and one case for each Promised stop and for C2. Two runs. Any false alarm fails the run.
+**Retired** by #189: the practice test and its cases were deleted. Review at move 4 and use prove the lens.
 Not run: this change is proved by use under AGENTS.md's probe rule (ADR 0014), a two-way door the owner agreed on #59. Recorded as "not run, by the owner's decision".
 
 ### 13. When would you retire it?

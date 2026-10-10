@@ -892,7 +892,7 @@ export function configBlock(parsed, rulesHash, record) {
   for (const [name, a] of parsed.agentSets) {
     let warn = `  WARN: the user configuration sets ${name} to ${a.model}, ${a.effort} effort.`;
     if (a.security && a.override) {
-      warn += ` ${name} is a security-set lens, so this is an override, not security-tested: its security set ran only on its default.`;
+      warn += ` ${name} is a security-set lens, so this is an override, not security-tested: the pact reviews only its default.`;
       if (a.egress) warn += ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.';
     }
     out.push(warn);

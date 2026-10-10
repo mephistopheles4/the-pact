@@ -6,7 +6,7 @@ change it. It describes the pact as published on 2026-10-09. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R19, so other work can point at it.
+Each accepted risk has a label, R1 to R21, so other work can point at it.
 
 ## Who and what this covers
 
@@ -73,7 +73,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R19
+  title Residual risk, R1 to R21
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -99,6 +99,8 @@ quadrantChart
   R17 Gate path only: [0.20, 0.44]
   R18 Totals to this repo: [0.56, 0.20]
   R19 Fix work public: [0.20, 0.74]
+  R20 Lens untested: [0.38, 0.54]
+  R21 Test code ordinary: [0.30, 0.36]
 ```
 
 How to read it:
@@ -108,13 +110,14 @@ How to read it:
   it most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
   tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
-  you install (R8, R9, R10), prompt injection (R12 to R16), and a reported
-  hole made public by its own fix work (R19) sit here. Their guards are
-  mostly rules, so cutting one moves its risk right.
+  you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
+  made public by its own fix work (R19), and lenses no test runs (R20) sit
+  here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7, R18.** They happen by design, and the harm
   is bounded: public reports, a blocked team, totals on another tracker.
-- **Accept (bottom left): R17.** It needs your own edits, and the dry run
-  shows them.
+- **Accept (bottom left): R17, R21.** R17 needs your own edits, and the dry
+  run shows them. R21 needs an edit to this repo's tests that its review
+  misses.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -125,11 +128,11 @@ How to read it:
 | R5 Refusal untested | Outside pull request | `tracker-authors` | Rule |
 | R6 Container built wrong | Outside pull request | The five conditions, your typed OK | Rule, then a boundary |
 | R7 Teams blocked | None; a cost to you | None yet (#180) | — |
-| R8 Publisher compromised | This repo's publisher | Dry run, the diff you read | Rule |
+| R8 Publisher compromised | This repo's publisher | Dry run, the diff you read, the security route for the tracker reads | Rule |
 | R9 Installed code | Plugin or skill author | None | — |
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks, ask rules | Outside the pact, prompt |
-| R12 Lens steered | Text a lens reads | Tool allow-list, the override mark | Boundary, rule |
+| R12 Lens steered | Text a lens reads | Tool allow-list, the override mark for a setting off the reviewed default | Boundary, rule |
 | R13 Lens quotes a secret | Text a lens reads | "Never post a secret" | Rule |
 | R14 Foothold left behind | Text a session reads | Ask rules, in part | Prompt |
 | R15 Repo files argue | A cloned repo | `no-skill-overrides` | Rule |
@@ -137,6 +140,8 @@ How to read it:
 | R17 Gate path only | You, or a fooled session | The install gate, the dry run | Boundary |
 | R18 Totals to this repo | None; a flow by default | "Totals only" names no repo | Rule |
 | R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
+| R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
+| R21 Test code ordinary | A careless or fooled edit | Review at move 4, the required CI check | Rule |
 
 ## Strangers on the tracker
 
@@ -238,7 +243,9 @@ once you install it.
   commit's install script and checks, and a session opened in the clone loads
   the clone's own project files. So read the diff before either. The
   installed rules also tell sessions to use the tracker reads in a file in
-  this repo on GitHub, which is live, not pinned.
+  this repo on GitHub, `docs/agents/issue-tracker.md`, which is live, not
+  pinned. A change to that file takes the security route here, so the
+  security pair reads it before it merges.
 - **R9. No rule can stop code you installed.** A plugin's hooks or servers run
   whatever they hold. The pact cannot see or limit them. Trust what you
   install, and pin versions where you can.
@@ -248,6 +255,14 @@ once you install it.
   clone and any token the container holds. One plugin is a code-review
   service's; using it may send code to that service. The owner accepted this
   risk by name (#182).
+- **R21. The test runner and its helpers are ordinary test code.** The
+  runner, its copy list, the table module, the in-process runner and the
+  guards beside it decide what "the full suite" and the required CI check
+  run. Since #189 a change to them is proved by use, not by the security
+  route. An ordinary edit could narrow what the CI check runs, or weaken
+  record mode's scrub, which keeps local paths and names out of posted test
+  output. The review at move 4 is what catches it. The owner accepted this
+  risk by name (#189).
 
 ## A session that reads text as instructions
 
@@ -265,10 +280,11 @@ session can act before you see it.
   and a browser, because it runs the change. `adversarial-lens` can search and
   fetch the web.
 - **A weaker model is flagged.** If you move a security lens off its default
-  model or effort, its reports say "override, not security-tested". For the
-  two lenses with a shell or web tools, the install warns that a weaker
-  setting may follow instructions planted in the code it reviews, or send a
-  secret out.
+  model or effort, its reports say "override, not security-tested". The mark
+  means the lens runs off the default the pact ships and reviews; since #189
+  no test runs a lens on any setting (R20). For the two lenses with a shell or
+  web tools, the install warns that a weaker setting may follow instructions
+  planted in the code it reviews, or send a secret out.
 - **Security work gets a second read.** The security route is a gated clause.
   Any change touching auth, secrets, crypto or input validation goes through
   the security pair, `adversarial-lens` and `data-lens`. They read the plan,
@@ -282,11 +298,14 @@ session can act before you see it.
 - **R12. A lens can be steered.** A lens that runs code or fetches pages can
   be steered by what it reads, like any session. The main session then acts
   on a lens's recommendations without waiting for you, except at the stops,
-  installs and gated clauses.
+  installs and gated clauses. The override mark tells you a lens runs off
+  its reviewed default; it does not show the default resists steering (R20).
 - **R13. A lens can quote a secret.** A read-only lens can still read any file
   your account can, and its report goes on the tracker word for word. The
   rule "never post a secret" applies, but four lenses don't carry it in their
-  own files.
+  own files. A word test checks that the security pair's files hold the
+  carried rules, but since #189 no test has checked that a lens keeps them
+  after a model change.
 - **R14. A fooled session can leave something behind.** It can write files
   that later sessions or installs load: memory files, a repo's own Claude
   settings or rules, its server list, or your configuration blocks. Ask rules
@@ -298,6 +317,13 @@ session can act before you see it.
 - **R16. Sessions no person started** have no rule yet. A routine or an event
   trigger can open with an outsider's text where your chat would be (#184).
   Don't point one at a pact setup with a public tracker.
+- **R20. A lens's behaviour is reviewed, not tested.** Until #189, planted
+  practice cases ran the security lenses for real after each model change.
+  They found defects only in their own cases and wording, so the owner
+  retired them. Now a change to a lens takes the security route, and the
+  pair reads its text, but nothing runs the lens to show it still follows
+  its carried rules or resists planted text. A lens that reads well and
+  behaves badly shows up only in use.
 
 ## Your own configuration loosening a rule
 

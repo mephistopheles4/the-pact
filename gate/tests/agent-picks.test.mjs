@@ -47,7 +47,6 @@ const FAST_NOT_PICKED = Object.freeze([
   'no-skill-names.test.mjs',
   'pact-call.test.mjs',
   'paths.test.mjs',
-  'practice.test.mjs',
   'project-home.test.mjs',
   'purity-guard.test.mjs',
   'render-project.test.mjs',
@@ -55,7 +54,6 @@ const FAST_NOT_PICKED = Object.freeze([
   'run-guards.test.mjs',
   'shared.test.mjs',
   'tables.test.mjs',
-  'tier-probe-plants.test.mjs',
 ]);
 
 /** The helpers that read the payload, so a test that reaches one reads the agents. */

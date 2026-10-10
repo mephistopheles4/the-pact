@@ -1,53 +1,22 @@
-// The lesson of #81 (#99): every phrase a practice case scores word for word
-// is written in its lens's own text in exact words, so a lens that follows
-// its text can pass.
+// The lens files' carried text, checked word for word: the gated lists two
+// lenses restate, the security pair's checklists and carried rules, and the
+// standards pair's carried rules. These checks came from
+// practice-words.test.mjs, which #189 deleted with the practice cases; they
+// read only the lens files, the contracts and the pact.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { REPO } from './text.mjs';
-import { LENSES } from './practice-score.mjs';
 
-const DIR = join(REPO, 'gate', 'tests', 'fixtures', 'practice');
 const read = p => readFileSync(p, 'utf8');
 
-/**
- * The phrases a case scores word for word. A tell is held with its colon, as the scorer reads it, so `"tell 1`"
- * is not found inside `"tell 10:`" (#101, move 4).
- */
-export function scoredPhrases(c) {
-  return [
-    ...(c.contains ?? []),
-    ...(c.notCheckedHas ?? []),
-    ...Object.values(c.headlineOn ?? {}),
-    ...(c.heading ? [c.heading] : []),
-    ...(c.bulletOn ?? []).map(b => b[2]),
-    ...(c.tellOn ?? []).map(b => `${b[2]}:`),
-  ];
-}
+/** Every lens, read from the lens files in claude/agents/. */
+const LENSES = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWith('-lens.md')).map(f => f.slice(0, -3)).sort();
 
-test('a tell is held with its colon, so tell 1 is not found inside tell 10', () => {
-  const [phrase] = scoredPhrases({ tellOn: [[['a.md:1-2'], ['high'], 'tell 1']] });
-  assert.equal(phrase, 'tell 1:');
-  // Seen to fail: a text holding only `"tell 10:`" holds the bare words but not the phrase.
-  assert.ok('- `tell 10:` **buried.**'.includes('tell 1'));
-  assert.ok(!'- `tell 10:` **buried.**'.includes(phrase));
+test('the lens list is read from claude/agents/', () => {
+  assert.deepEqual(LENSES, ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
 });
-
-test('every contains and headlineOn phrase, and the artifact heading, is written in its lens file in exact words', () => {
-  for (const lens of LENSES) {
-    const text = read(join(REPO, 'claude', 'agents', `${lens}.md`)).toLowerCase().replace(/\s+/g, ' ');
-    for (const id of readdirSync(join(DIR, lens))) {
-      const c = JSON.parse(read(join(DIR, lens, id, 'case.json')));
-      // A tell is held with its colon, as the scorer reads it, so "tell 1" is not found inside "tell 10:" (#101, move 4).
-      for (const s of scoredPhrases(c)) {
-        assert.ok(text.includes(s.toLowerCase()), `${lens} ${id}: "${s}" is not in the lens file`);
-      }
-    }
-  }
-});
-
-
 // The security reviewer's F2 on #99's swap: two lenses restate a gated list in their own text, outside the
 // one shared block. Each restatement must hold every item of its canonical clause, so a risk floor that
 // gains an item fails here until the lens's copy gains it too.

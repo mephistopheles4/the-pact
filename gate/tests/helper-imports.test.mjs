@@ -56,7 +56,7 @@ function importUnderTrap(file) {
 
 test('the helper import guard finds every helper and core it must guard', () => {
   const found = helpers();
-  for (const f of ['text.mjs', 'tree.mjs', 'gate-files.mjs', 'payload.mjs', 'gate-run.mjs', 'install-harness.mjs', 'copy-list.mjs', 'cross-helpers.mjs', 'practice-score.mjs', 'settings-rules.mjs', 'tables.mjs']) {
+  for (const f of ['text.mjs', 'tree.mjs', 'gate-files.mjs', 'payload.mjs', 'gate-run.mjs', 'install-harness.mjs', 'copy-list.mjs', 'cross-helpers.mjs', 'settings-rules.mjs', 'tables.mjs']) {
     assert.ok(found.includes(f), f);
   }
   assert.ok(!found.some(f => f.startsWith('fixtures/')), found.join('\n'));

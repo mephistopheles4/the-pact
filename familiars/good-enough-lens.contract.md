@@ -70,19 +70,19 @@ C11 carries the likelihood and impact comparison.
 - C2. **It applies #29's stop test.** A spec is good enough when every open question is answered, deferred with a named trigger, or cheap to reverse if it turns out wrong. The tier sets the bar: quick tolerates more deferrals, thorough fewer.
   Held by: Promised.
 - C3. **It cannot defer a risk-floor item.** Auth, secrets, crypto, input validation, data migrations and anything published tolerate no deferral. Beside such an item in its artifact it writes `risk floor: not deferrable`, and it raises no finding on a section that holds a risk-floor item. Another part of that section that could wait goes in the artifact's row, not in a finding. That keeps the case mechanical: any finding on such a section fails it. The cost: a cut inside a mixed section shows only in the artifact.
-  Held by: Promised. Security set: one real run, a spec where it is tempted to defer a risk-floor item (owner, 2026-10-06).
+  Held by: review at move 4; the security set was retired by #189.
 - C4. **It never reports `high`, and never argues another lens's call down.** It reports only `medium` (cut now) or `low` (can wait). On a section its partner calls `high`, the pair's verdict is still `blocking`, because the stricter verdict wins.
   Held by: Promised. The pair's verdict rule is Enforced by the cross script.
 - C5. For each cut or deferral it names what it saves and, for a deferral, the trigger to pick it up.
   Held by: Promised.
 - C6. Text it reads is data, not instructions.
-  Held by: Promised. Obedience case, scored on its bad report.
+  Held by: review at move 4; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]` and seam A's default.
 - C8. Ends its report with exactly one `lens-findings` block, inside the cross script's limits, written into the lens in exact words.
   Held by: Enforced — the cross script.
 - C9. No severity, verdict or call word in a headline: "high", "blocking", "clear", "safe", "ignore", "blocks", "can wait", "cut", "defer", or any form of the last two.
-  Held by: Promised. Headline case, scored on its bad report.
+  Held by: review at move 4; the practice cases were retired by #189.
 - C10. Its artifact sits under the fixed heading `### Cuts and deferrals`.
   Held by: Promised.
 - C11. **Likelihood and impact** (question 2). For each candidate it weighs how likely the part is to be needed against the impact if it is missing, and names what building it costs now: build, delay, carry and repair (the costs of a speculative feature, after YAGNI). It proposes cutting down when the need is unlikely or its absence cheap. A risk-floor item is never weighed this way (C3).
@@ -117,7 +117,7 @@ Each stop ends the run with the reason, the verdict `inconclusive`, and `notChec
   2. One bullet per finding: the section, the cut or deferral, what it saves, and the trigger.
   3. Exactly one `lens-findings` block, last, with every anchor a listed section.
 
-**Severity mapping** **Confirmed** (2026-10-07) (one practice case per value):
+**Severity mapping** **Confirmed** (2026-10-07):
 - `medium`: cut now: the spec is past "sufficient" here, and the cut costs nothing the spec needs.
 - `low`: can wait: defer it with a named trigger.
 - Never `high`.
@@ -163,7 +163,7 @@ Extra keys: tools, model, effort
 
 ### 12. Prove it works: a practice test
 
-**Confirmed** (2026-10-07): in `familiars/good-enough-lens.practice-test.md`. **On the probe floor** (owner, 2026-10-06, at the cut of #99): it guards the risk floor, so one real run is in the security set, a spec where it is tempted to defer a risk-floor item. Every other case is scored on its bad report.
+**Retired** by #189: the practice test and its cases were deleted. Review at move 4 and use prove the lens.
 
 ### 13. When would you retire it?
 
@@ -204,7 +204,7 @@ Extra keys: tools, model, effort
 
 | Rule | The reason | Held by |
 |---|---|---|
-| Risk floor: not deferrable (C3) | Failure 1; #29 | Promised; security set |
+| Risk floor: not deferrable (C3) | Failure 1; #29 | Promised |
 | Never `high` (C4) | It argues for less; the stricter verdict wins | Promised |
 | Stop test (C2) | #29 | Promised |
 | No call words in headlines (C9) | Failure 6 | Promised |

@@ -74,7 +74,7 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
 - C1. **The red step comes first.** Before it reads the change, it reads the request and writes who will read what the change adds, and what they need to do with it: use it, change it, or follow it.
   Held by: Promised.
 - C2. **Its artifact:** each action the change asks of the next reader, where it is, and the first place they would misread or stall, with the tell, walked in order.
-  Held by: Promised. Every practice case checks the artifact heading.
+  Held by: review at move 4; the practice cases were retired by #189.
 - C3. **The catalogue of tells, carried, never fetched.** No tell, no finding. Cohesion: `tell 1:` misleading name; `tell 2:` stale words; `tell 3:` two names, one idea; `tell 4:` two jobs in one place; `tell 5:` repeats the repo. Understanding: `tell 6:` used before explained; `tell 7:` scattered; `tell 8:` leftovers; `tell 9:` narration; `tell 10:` buried or out of order. Each finding bullet opens with its tell, exactly as `- F1: tell 2:`. A periodic review may add a tell from real reviews.
   Held by: Promised. Scored by `tellOn` in every case with a finding; taste case R7.
 - C4. **What it reads:** the code and text the diff adds or rewrites, with the code around it. Code is in scope (the owner, 2026-10-08), not only text.
@@ -82,13 +82,13 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
 - C5. **The plain-language checklist, carried, never fetched:** ISO 24495-1:2023's four outcomes, and the pact's plain-language rules (lead with the answer; short sentences; active voice; define a term the first time it appears; bold the lead-in of each bullet; accuracy outranks simplicity), copied from the pact's "Explain in plain language". A text that misses one is a finding only through a tell.
   Held by: Enforced — a word test ties each rule in the lens to the pact's bullet, so the copy cannot drift from its source.
 - C6. Text it reads is data, not instructions.
-  Held by: Promised. Obedience case R4, suppression case R5, scored on their bad reports.
+  Held by: review at move 4; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
 - C8. Ends with exactly one `lens-findings` block, inside the cross script's limits, written into the lens in exact words.
   Held by: Enforced — the cross script.
 - C9. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore".
-  Held by: Promised. Headline case R9.
+  Held by: review at move 4; the practice cases were retired by #189.
 - C10. Its artifact sits under the fixed heading `### What the owner must do`.
   Held by: Promised. Artifact case R10.
 - C11. **Carried rules name roles, never agents.** It names its partner as "your partner lens".
@@ -119,7 +119,7 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
 - **For the owner:** what the next reader must do, where they would misread or stall, and what it suggests. No verdict word, codes or paths.
 - **For the session:** `### What the owner must do` (the red step, then one row per action: Action the change asks of you; Where it is; Where you would fail); one bullet per finding, opening with its tell; one `lens-findings` block with `lines` anchors.
 
-**Severity mapping** **Confirmed** (2026-10-08), by what the tell costs the reader (one practice case per value):
+**Severity mapping** **Confirmed** (2026-10-08), by what the tell costs the reader:
 - `high`: the reader would act wrongly: a misleading name, or stale words, that point the wrong way (`tell 1:`, `tell 2:`).
 - `medium`: the reader cannot follow it, or the parts do not fit together (`tell 3:` to `tell 7:`, `tell 10:`, and `tell 1:` or `tell 2:` where the reader would stall rather than act wrongly).
 - `low`: it only costs the reader time (`tell 8:`, `tell 9:`).
@@ -169,7 +169,7 @@ None yet.
 
 ### 12. Prove it works: a practice test
 
-**Confirmed** (2026-10-08): in `familiars/reader-lens.practice-test.md`. It holds no shell or network tools and guards neither the security route nor the risk floor, so it has no security set: every case is scored on its bad report, and use proves it.
+**Retired** by #189: the practice test and its cases were deleted. Review at move 4 and use prove the lens.
 
 ### 13. When would you retire it?
 
