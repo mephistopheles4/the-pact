@@ -5,7 +5,7 @@
 - **The figures are generated.** `docs/img/build.mjs` renders each source in `docs/img/src/` as a light and a dark SVG, with only Node's standard library. Text stays text. A line too wide for its box, measured for the widest face in the font stack, fails the render.
 - **A fast test keeps them current.** `gate/tests/readme-figures.test.mjs` fails while a committed SVG differs from its source, naming the file and the command that fixes it. It also checks that every image the README shows exists. A hand-edited SVG was seen to fail it, and a rebuild to pass it.
 - **A rule keeps them true.** `AGENTS.md` gains "Keep the README in step with the rules": a change to the tiers, the lenses, the models, the risk floor or the roster updates the figure sources, their alt text, the README prose and `docs/reference.md` in the same PR.
-- **The detail moved to a reference doc.** `docs/reference.md` takes the full "What's here" table with every agent, the familiars by effort, the map to Anthropic's playbook, and "What never goes in here". `AGENTS.md` points there. The Status section's history note became one line in "Who it's for"; its cloud-sessions paragraph was already in `AGENTS.md`. "Planned" became an issue.
+- **The detail moved to a reference doc.** `docs/reference.md` takes the full "What's here" table with every agent, the familiars by effort, the map to Anthropic's playbook, and "What never goes in here". `AGENTS.md` points there. The Status section's history note became one line in "Who it's for"; its cloud-sessions paragraph was already in `AGENTS.md`. "Planned" became #207.
 - **Every figure reads without images.** Each has alt text with its point and a collapsed "Text of FIG." block with all of its words.
 
 ## What it set out to do
