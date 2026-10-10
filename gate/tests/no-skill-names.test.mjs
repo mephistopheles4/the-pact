@@ -2,7 +2,7 @@
 // when it appears as a code span (`name`) or as a command (`/name`). Plain
 // words that are also skill names ("triage", "prototype") are allowed. The
 // gated blocks are out of scope: they are held word for word elsewhere.
-// The command definition here is the one scripts/check-skill-flags.ps1 uses.
+// The command definition here is the one scripts/check-skill-flags.mjs uses.
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';

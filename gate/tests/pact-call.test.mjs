@@ -1,7 +1,9 @@
 // How the pact calls the cross script (#45): by its full installed path
 // through $HOME, never `~` and never relative, with NODE_OPTIONS cleared, and
 // naming both failure exit codes. The commands under test are read from the
-// pact's own text, never copied here.
+// pact's own text, never copied here. Only the POSIX form is run: the suite
+// never starts PowerShell (#210, the owner's decision), so the PowerShell form
+// is checked as text.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -35,7 +37,6 @@ function which(cmd) {
   return r.status === 0 ? r.stdout.split(/\r?\n/)[0].trim() : null;
 }
 
-const PWSH = which('pwsh');
 // A POSIX shell: Git's own on Windows, the system's elsewhere.
 const SH = WIN ? [join(dirname(which('git')), '..', 'bin', 'sh.exe'), join(dirname(which('git')), '..', 'usr', 'bin', 'sh.exe')].find(existsSync) : '/bin/sh';
 
@@ -85,22 +86,17 @@ test("the script's own output always ends with a RESULT line: a usage failure, a
   assert.equal(lastOut(oversize), 'RESULT: oversize');
 });
 
-for (const [form, has, pick, run] of [
-  ['PowerShell', () => PWSH, c => c.includes('$env:NODE_OPTIONS'), runPwsh],
-  ['POSIX', () => SH, c => c.startsWith('env -u NODE_OPTIONS '), runSh],
-]) {
-  test(`with the live script missing, the ${form} command exits 1 with no RESULT line: the "unavailable" case is real`, t => {
-    assert.ok(has(), `no ${form} shell found; this case must not go unrun`);
-    const { cwd, home } = setUp(t);
-    const missing = join(home, 'elsewhere');
-    mkdirSync(missing);
-    const r = run(cwd, missing, bare(commands().find(pick)));
-    const out = `${r.stdout}${r.stderr}`;
-    assert.equal(r.status, 1, out);
-    assert.doesNotMatch(r.stdout, /^RESULT: /m, out);
-    assert.ok(!out.includes('PLANTED') && !out.includes('PRELOAD'), out);
-  });
-}
+test('with the live script missing, the POSIX command exits 1 with no RESULT line: the "unavailable" case is real', t => {
+  assert.ok(SH, 'no POSIX shell found; this case must not go unrun');
+  const { cwd, home } = setUp(t);
+  const missing = join(home, 'elsewhere');
+  mkdirSync(missing);
+  const r = runSh(cwd, missing, bare(commands().find(c => c.startsWith('env -u NODE_OPTIONS '))));
+  const out = `${r.stdout}${r.stderr}`;
+  assert.equal(r.status, 1, out);
+  assert.doesNotMatch(r.stdout, /^RESULT: /m, out);
+  assert.ok(!out.includes('PLANTED') && !out.includes('PRELOAD'), out);
+});
 
 /**
  * A working folder holding planted copies a wrong call could reach, a
@@ -130,11 +126,6 @@ function env(extra) {
   return e;
 }
 
-function runPwsh(cwd, home, cmd) {
-  const script = `Set-Variable -Name HOME -Value '${home.replaceAll("'", "''")}' -Force -Scope Global; ${cmd}`;
-  return spawnSync(PWSH, ['-NoProfile', '-NonInteractive', '-Command', script], { cwd, encoding: 'utf8', env: env({}), timeout: 60_000 });
-}
-
 function runSh(cwd, home, cmd) {
   return spawnSync(SH, ['-c', cmd], { cwd, encoding: 'utf8', env: env({ HOME: home }), timeout: 60_000 });
 }
@@ -150,12 +141,6 @@ function reachedInstalled(r) {
 
 const bare = c => c.replace(/\s*<arguments>/, '');
 
-test("the pact's PowerShell command reaches the installed script, not a planted one", { skip: !PWSH }, t => {
-  const { cwd, home } = setUp(t);
-  const ps = commands().find(c => c.includes('$env:NODE_OPTIONS'));
-  reachedInstalled(runPwsh(cwd, home, bare(ps)));
-});
-
 test("the pact's POSIX command reaches the installed script, not a planted one", t => {
   assert.ok(SH, 'no POSIX shell found; the POSIX form must not go untested');
   const { cwd, home } = setUp(t);
@@ -168,13 +153,6 @@ function caught(r, marker) {
   assert.throws(() => reachedInstalled(r));
   assert.ok(`${r.stdout}${r.stderr}`.includes(marker), `${marker} expected:\n${r.stdout}${r.stderr}`);
 }
-
-test('control (PowerShell): a call through ~, a single-quoted $HOME, or without clearing NODE_OPTIONS is caught', { skip: !PWSH }, t => {
-  const { cwd, home } = setUp(t);
-  caught(runPwsh(cwd, home, '$env:NODE_OPTIONS = $null; node "~/.claude/pact/cross.mjs"'), 'PLANTED');
-  caught(runPwsh(cwd, home, "$env:NODE_OPTIONS = $null; node '$HOME/.claude/pact/cross.mjs'"), 'PLANTED');
-  caught(runPwsh(cwd, home, 'node "$HOME/.claude/pact/cross.mjs"'), 'PRELOAD');
-});
 
 test('control (POSIX): a call through ~, a single-quoted $HOME, or without clearing NODE_OPTIONS is caught', t => {
   assert.ok(SH, 'no POSIX shell found; the POSIX control must not go unrun');

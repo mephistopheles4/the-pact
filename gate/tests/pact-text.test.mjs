@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { OLD_REVIEWERS } from '../pact-text.mjs';
 import { copyGate } from './gate-files.mjs';
 import { runSeamA, sealedFamiliar } from './gate-run.mjs';
@@ -591,8 +592,6 @@ test('canary: no drifted text, unknown block name or comment text is echoed', t 
 // ------------------------------------------------------------ the skill-flag check (#126)
 
 function skillFlagCheck(t, rules, skills) {
-  const which = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['pwsh'], { encoding: 'utf8' });
-  const pwsh = which.stdout.split(/\r?\n/)[0].trim();
   const root = tempDir(t, 'pact-skills-');
   const flagged = '---\nname: x\ndisable-model-invocation: true\n---\n';
   const plain = '---\nname: x\n---\n';
@@ -600,9 +599,9 @@ function skillFlagCheck(t, rules, skills) {
   for (const [name, isFlagged] of Object.entries(skills)) writeTree(root, { [`skills/${name}/SKILL.md`]: isFlagged ? flagged : plain });
   writeTree(root, { 'rules.md': rules });
   return spawnSync(
-    pwsh,
-    ['-NoProfile', '-NonInteractive', '-File', join(REPO, 'scripts', 'check-skill-flags.ps1'), '-SkillsDir', join(root, 'skills'), '-RulesFile', join(root, 'rules.md')],
-    { encoding: 'utf8' },
+    process.execPath,
+    [join(REPO, 'scripts', 'check-skill-flags.mjs'), '--skills-dir', join(root, 'skills'), '--rules-file', join(root, 'rules.md')],
+    { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } },
   );
 }
 
@@ -655,11 +654,23 @@ test('bad case: an open part in an unrendered file is read, not skipped', t => {
   assert.match(r.stdout, /^WARN: closed-skill is written as a code span /m, r.stdout);
 });
 
-test('the check keeps the same open parts as the shared helper', () => {
-  const m = read(join(REPO, 'scripts', 'check-skill-flags.ps1')).match(/\$openParts = @\(([^)]*)\)/);
-  assert.ok(m, 'the script no longer lists its open parts');
-  const listed = [...m[1].matchAll(/'([a-z0-9-]+)'/g)].map(x => x[1]);
-  assert.deepEqual([...listed].sort(), [...OPEN_MARKS].sort());
+test('the check keeps the same open parts as the shared helper', async () => {
+  const { OPEN_PARTS } = await import(pathToFileURL(join(REPO, 'scripts', 'check-skill-flags.mjs')).href);
+  assert.deepEqual([...OPEN_PARTS].sort(), [...OPEN_MARKS].sort());
+});
+
+test('bad case: the skill-flag check refuses a rules file with no "Implementing a change" section, exiting 1', t => {
+  const r = skillFlagCheck(t, '# Rules\n\n## Watching usage\n\nUse `a`.\n', { a: false });
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /no 'Implementing a change' section/);
+  assert.equal(r.stdout, '');
+});
+
+test('the skill-flag check reads the flag line without regard to case, as the PowerShell script it replaced did', t => {
+  const root = tempDir(t, 'pact-skills-');
+  writeTree(root, { 'skills/a/SKILL.md': '---\nDisable-Model-Invocation : TRUE \n---\n', 'rules.md': SECTION('Use `a` here.') });
+  const r = spawnSync(process.execPath, [join(REPO, 'scripts', 'check-skill-flags.mjs'), '--skills-dir', join(root, 'skills'), '--rules-file', join(root, 'rules.md')], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } });
+  assert.match(r.stdout, /^WARN: a is written as a code span /m, r.stdout + r.stderr);
 });
 
 test('the skill-flag check skips gated blocks and other sections', t => {

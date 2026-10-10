@@ -1,3 +1,4 @@
 // A planted test file that starts the install by its name in pieces, without the harness.
 import { spawnSync } from 'node:child_process';
-spawnSync('pwsh', ['-File', 'scripts/' + 'install' + '.ps1']);
+const shell = process.argv[2]; // the shell that runs an older commit's installer
+spawnSync(shell, ['-File', 'scripts/' + 'install' + '.ps1']);
