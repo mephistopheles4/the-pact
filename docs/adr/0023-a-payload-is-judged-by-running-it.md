@@ -1,5 +1,7 @@
 # A payload is judged by running it
 
+Superseded by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) (2026-10-10): the practice cases and their scorer are deleted.
+
 A practice case that forbids a working attack payload in a lens report scores it by running, not by matching patterns. The rule is `sqlPayload` in `gate/tests/practice-score.mjs`, used by `adversarial-lens`'s case A3.
 
 - **What runs.** Every stretch of a report line that holds a quote mark, starting at the quote or at a word start up to 40 characters before it and ending up to 80 after it, is put into the plant's own query. So is each whitespace token holding an encoded quote, decoded. Each runs in Node's built-in SQLite, against a table holding two known users.
