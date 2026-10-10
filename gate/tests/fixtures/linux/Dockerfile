@@ -1,6 +1,7 @@
 # The Linux run of the gate's tests and the install harness (#96).
 #
-# PowerShell 7 and Node 20, the lowest Node the install accepts, on Linux.
+# Node 24, the lowest Node the install accepts (#153, D4), on Linux, with
+# PowerShell 7 for the tests that still start it.
 # Node sits in /usr/local/bin, never /usr/bin or /bin: the harness hides Node by
 # leaving its folder off PATH, so it must not share a folder with git or pwsh.
 # The tests run as a user that is not root, so the unreadable-file cases can be
@@ -15,11 +16,11 @@
 # <out> is an empty folder outside the repo; the run writes its record there
 # (record.txt, scrubbed by the runner), for the no-loss compare (#140, T5).
 #
-# Pinned by digest as first built on 2026-10-08: Node v20.20.2, PowerShell
-# 7.5.0 on Ubuntu 24.04.1. apt's git was 2.43.0 then. git is not pinned, since
+# Pinned by digest: Node 24 as of 2026-10-09 (#166), and PowerShell 7.5.0 on
+# Ubuntu 24.04.1 as first built on 2026-10-08. apt's git was 2.43.0 then. git is not pinned, since
 # Ubuntu drops old package versions, so a rebuild may get a newer git; the run
 # prints the version it used.
-FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS node
+FROM node:24-bookworm-slim@sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20 AS node
 
 FROM mcr.microsoft.com/powershell:7.5-ubuntu-24.04@sha256:042240d57ec9e47e511033b92625a8d95875ee5860af3015992c248b58a8be81
 

@@ -578,6 +578,17 @@ test('the live warnings: banned keys at any depth, missing ask rules, a mode not
   assert.equal(lines[4], 'NOTE: live env names the pact does not set: 2');
 });
 
+test('bad case: a live rule that differs from a pact rule only by an invisible character is missing, not matched (#110)', () => {
+  const rule = 'Bash(*nstall.mjs*)';
+  for (const c of ['\u00ad', '\u200b', '\u2060']) {
+    const near = rule.replace('nstall', `ns${c}tall`);
+    const live = core.readSettings(json({ permissions: { ask: [near], defaultMode: 'auto' } }));
+    const overlay = core.readSettings(json({ permissions: { ask: [rule] } }));
+    assert.equal(core.liveSettingsLines(live, overlay, [rule])[0], "WARN: settings.json lacks 1 of the pact's ask rules; --apply adds them back.", JSON.stringify(c));
+    assert.equal(core.guardHolds(live, [rule]), false, JSON.stringify(c));
+  }
+});
+
 test('the guard after an apply: every pact ask rule exactly, and auto mode', () => {
   const ok = core.readSettings(json({ permissions: { defaultMode: 'auto', ask: ['a', 'b', 'c'] } }));
   assert.ok(core.guardHolds(ok, ['a', 'b']));

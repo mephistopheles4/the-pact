@@ -13,7 +13,7 @@ echo "$(git --version)"
 echo "user $(id -un) uid $(id -u)"
 echo "os $(. /etc/os-release && echo "$PRETTY_NAME")"
 # The full tier through the runner (#140): the same command as on any other
-# machine, with an explicit file list, so no glob is needed on Node 20.
+# machine, with an explicit file list, so no glob is needed.
 env -u NODE_OPTIONS node gate/tests/run.mjs full --reporter junit --record /out/record.txt
 status=$?
 echo "exit $status"

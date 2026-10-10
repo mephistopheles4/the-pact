@@ -10,17 +10,13 @@ Claude Code session on your machine behaves.
 
 **Where these steps were tried:**
 
-- **Linux:** a first install into an empty Claude home, dry run and `-Apply`,
-  in the repo's Linux container (`gate/tests/fixtures/linux/`: Ubuntu 24.04,
-  PowerShell 7.5, Node 20). The clone came from a git bundle of the commit,
-  because the container runs with no network. A second run, into a home that
-  already held its own rules file, settings and agent, showed what a first
-  install replaces (step 4).
-- **Windows:** the dry run only, on a machine where the pact was already
-  installed (Windows 11, PowerShell 7.6, Node 24).
+- **Windows:** a real install over an earlier one, dry run and `--apply`
+  (Windows 11, Node 24).
+- **Linux:** the dry run in CI on every pull request (Ubuntu, Node 24), and
+  the gate's tests, which install into throwaway folders, in the repo's Linux
+  container (`gate/tests/fixtures/linux/`).
 - **macOS:** not tried.
-- **`/agents` (step 6):** not run in the container, which has no Claude Code.
-  The agent files were counted there instead.
+- **`/agents` (step 6):** checked on Windows only.
 
 ## Before you install
 
@@ -50,8 +46,8 @@ Where the dry run asks for "the owner's go-ahead", the owner is you.
 You need:
 
 - **Claude Code.**
-- **PowerShell 7** (`pwsh`), on Windows, macOS or Linux.
-- **Node 20 or later.** The install runs the pact's check under Node.
+- **Node 24 or later.** The install script is a Node script, and refuses an
+  older Node.
 - **git.** The install reads the clone's committed files through git.
 
 See the README's [Depends on](../README.md#depends-on) for what the rules
@@ -82,22 +78,34 @@ sure of the install.
 
 ## 4. Run the dry run and read it
 
-```sh
-pwsh ./scripts/install.ps1
+In PowerShell:
+
+```powershell
+$env:NODE_OPTIONS = $null; node gate/install.mjs
 ```
 
-With no switch, the script writes nothing. It still runs code from your
-clone, with your rights: the install script itself and the pact's check, under
-Node. So run it only on a clone you trust. It checks the committed files and
-prints what an install would do. The output names your home folder, so mask
-your username before you share it. Read these parts:
+In a POSIX shell:
 
+```sh
+env -u NODE_OPTIONS node gate/install.mjs
+```
+
+With no option, the script writes nothing in your Claude home folder. It
+still runs code from your clone, with your rights: the install script and the
+pact's check. So run it only on a clone you trust. It refuses if
+`NODE_OPTIONS` is set, because a preload could change what the checks see.
+It checks the committed files and prints what an install would do. The output
+names your home folder, so mask your username before you share it. Read these
+parts:
+
+- **`Install from commit …`.** The commit it would install. Compare it with
+  the commit the repository page shows.
 - **`Check: passed on commit …`.** If the check fails, the script refuses and
   installs nothing.
 - **`Drift:`.** On a later install, the number of installed files you have
-  edited since the last one. If it isn't 0, stop: `-Apply` refuses, and you
+  edited since the last one. If it isn't 0, stop: `--apply` refuses, and you
   would lose those edits. On a first install it is 0.
-- **`Overwrite:`, `Add:` and `Delete:`.** The files `-Apply` would replace,
+- **`Overwrite:`, `Add:` and `Delete:`.** The files `--apply` would replace,
   create and remove. On a first install, `Overwrite` lists your own
   `~/.claude/CLAUDE.md` if you have one. An agent of yours with the same name
   as a pact agent is replaced the same way. Your other agents are left alone.
@@ -108,21 +116,21 @@ your username before you share it. Read these parts:
   change. Your other keys stay. The merge:
   - turns on auto mode (`permissions.defaultMode` set to `auto`) and skips its
     opt-in prompt (`skipAutoPermissionPrompt`). To keep auto mode off, set
-    `defaultMode` back after the install. Every later `-Apply` sets it to
+    `defaultMode` back after the install. Every later `--apply` sets it to
     `auto` again, and its dry run warns you first;
   - adds ask rules (`permissions.ask`). They make Claude Code ask before its
     own edit tools change your Claude home folder's rules, agents, settings,
     skills, plugins, output styles, commands, `pact/` folder or install
-    record (`.pact-install.json`), or `~/.claude.json`, and before it runs
-    this script with `-Apply` in the spellings they list. They also ask
-    before any shell command that names the coming Node install script
-    (`install.mjs` or `install-run.mjs`) or the install record, and before
-    a `gh` command that names rulesets or branch protection. Those last
-    rules match the letters `gh` anywhere before the word, so an ordinary
-    command such as a commit message that says "through" and then
-    "protection" asks too. They are not a
-    boundary: a script or another command can still write those files, and in
-    auto mode only Claude Code's own checks stand in the way;
+    record (`.pact-install.json`), or `~/.claude.json`. They also ask before
+    any shell command that names the install script (`install.mjs` or
+    `install-run.mjs`), the old PowerShell installer (`install.ps1`) or the
+    install record, and before a `gh` command that names rulesets or branch
+    protection. Those last rules match the letters `gh` anywhere before the
+    word, so an ordinary command such as a commit message that says
+    "through" and then "protection" asks too. So does a dry run, since it
+    names the script. They are not a boundary: a script or another command
+    can still write those files, and in auto mode only Claude Code's own
+    checks stand in the way;
   - keeps sessions going when a usage limit is reached
     (`autoContinueAtUsageLimit`) and skips the workflow usage warning
     (`skipWorkflowUsageWarning`);
@@ -134,30 +142,33 @@ your username before you share it. Read these parts:
     (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`).
 - **`Configuration:`.** `no configuration`, unless you have a
   `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
-  the last line names a hash for step 5.
+  a rendered hash the apply command carries.
+- **`NOTE: … other pact-install-* folder(s) in the temp folder`.** An install
+  stopped hard, by a power cut or a killed process, leaves its work folder in
+  your temp folder. It may hold your configuration text. Delete those
+  `pact-install-*` folders by hand; the script never deletes them, because
+  one could belong to an install still running.
 
-The last line says which command to run next.
+The last lines print the apply command to run next.
 
-## 5. Install with `-Apply`
+## 5. Install with `--apply`
 
-When the dry run reads right, run the command its last line names. With no
-configuration, that is:
+When the dry run reads right, run the apply command it printed, as printed.
+With no configuration, it looks like this in PowerShell:
 
-```sh
-pwsh ./scripts/install.ps1 -Apply
+```powershell
+$env:NODE_OPTIONS = $null; node gate/install.mjs --apply --commit <commit>
 ```
 
-With a configuration, the last line gives the hash to add:
-
-```sh
-pwsh ./scripts/install.ps1 -Apply -RenderedHash <hash>
-```
-
-`-Apply` refuses on drift or a working tree with uncommitted changes. After it
-copies the files, it checks each one's hash again. A good install ends with:
+With a configuration, it ends with `--rendered-hash <hash>`. The `--commit`
+is the commit the dry run checked: if your clone moved on since, the apply
+refuses, so run the dry run again. `--apply` also refuses on drift or a
+working tree with uncommitted changes. After it copies the files, it checks
+each one's hash again. A good install ends with:
 
 ```text
 Installed commit <commit> with no configuration; all files verified.
+RESULT: pass
 ```
 
 It installs these files under `~/.claude`:
@@ -168,11 +179,12 @@ It installs these files under `~/.claude`:
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against.
 
-**On Linux or macOS, check `settings.json`'s permissions.** `-Apply` writes
-the merged file anew, so it gets your default permissions (`644` with the
-usual umask), not the ones it had. If it holds API keys in its `env` block
-and you kept it private, run `chmod 600 ~/.claude/settings.json`. (#177 tracks
-a fix.)
+**How it writes `settings.json`.** It writes the merged file to a new file in
+the same folder, then renames it over the old one. The file stays plain JSON,
+unencrypted, which is the form Claude Code reads. On Linux and macOS it keeps
+the file's mode, and a new file is readable only by you (`600`). On Windows
+the new file takes its folder's access list, so a stricter list set on the
+file alone is lost: restrict the `~/.claude` folder, not the file.
 
 Run the dry run again if you like. It should print `Nothing to do.`
 
@@ -184,6 +196,16 @@ only your installed files, and run `/agents`. A pass lists these ten:
 `executability-lens`, `good-enough-lens`, `integrity-lens`, `reader-lens`,
 `unstated-lens` and `scout`.
 
+## Install by prompt
+
+You can hand the first install to a Claude Code session with this prompt. It
+names the one address to clone from, and leaves the apply to you, because on
+a first install no pact ask rule exists yet to stop the session:
+
+> Clone the-pact from `https://github.com/mephistopheles4/the-pact`, and no other address, into a new, empty folder. Don't reuse or pull an existing clone. From the new clone's root, with `NODE_OPTIONS` unset, run `node gate/install.mjs` and show me the whole dry run, including its "Install from commit" line. Don't change anything else. Then show me the apply command the dry run printed, and stop. I'll run it myself.
+
+Read the dry run as step 4 says, then run the apply command yourself.
+
 ## Updating later
 
 Pull the repo, and read what changed before you run anything: the dry run
@@ -194,8 +216,39 @@ included. Or check out a commit you have reviewed. Then repeat steps 3 to 5.
 The dry run compares your live files with the record of the last install, so
 it shows any you have edited since.
 
+If the dry run shows drift, live files changed since the last install, and
+`--apply` refuses. Whether to keep or replace those edits is your decision.
+Copy each file you want to keep somewhere safe. Then move
+`~/.claude/.pact-install.json` out of the folder: the next dry run reads as a
+first install, with no drift, and lists the files `--apply` will overwrite.
+After the apply, bring your edits back by hand, or carry them as a
+configuration (see below).
+
 To change the pact's settings, such as the usage pause line or a lens's model,
 see `examples/pact-config/` and the config builder in `builder/`.
+
+## Roll back to an older version
+
+Check out the older commit and run that commit's own installer, dry run first.
+Commits from before the Node install (#166) hold `scripts/install.ps1`
+instead, which needs PowerShell 7:
+
+```powershell
+pwsh ./scripts/install.ps1
+```
+
+Both installers read and write the same install record, so either can follow
+the other. In a Claude Code session, any command that names `install.ps1`
+asks you first.
+
+## Known limits
+
+- **Two installs at once** are not guarded. Run one at a time.
+- **A mapped drive or a link to a network share** passes the path checks:
+  only a path typed as a network or device path (`\\server\share`, `\\?\`)
+  refuses.
+- **The leftover work folders** of a hard stop stay until you delete them
+  (step 4).
 
 ## Undo the install
 

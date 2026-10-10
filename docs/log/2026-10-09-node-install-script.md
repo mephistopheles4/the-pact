@@ -1,6 +1,10 @@
 # A Node install script, started by an install prompt
 
-**2026-10-09** — The PowerShell installer is being replaced by a Node install script (mephistopheles4/the-pact#153). The work is cut into three tickets: T1 (#165), T2 (#166) and T3, the cutover (#167). Each ticket adds its part here. The ADRs, including the apply guard's ADR that supersedes [ADR 0020](../adr/0020-the-apply-guard-catches-what-text-can.md), are written at the cutover.
+**2026-10-09** — A Node install script, `gate/install.mjs`, replaced the PowerShell installer (mephistopheles4/the-pact#153). The work was cut into three tickets: T1 (#165), T2 (#166) and T3, the cutover (#167). On the owner's word, the cutover was folded into T2. Four ADRs record the result: [0039](../adr/0039-the-install-is-a-node-bootstrap-and-a-staged-runner.md), the bootstrap and the runner; [0040](../adr/0040-a-link-test-replaces-the-reparse-attribute-test.md), the link test; [0041](../adr/0041-a-required-ci-check-guards-main.md), the CI check; and [0042](../adr/0042-the-apply-guard-asks-on-any-command-naming-the-install.md), the apply guard, which supersedes [ADR 0020](../adr/0020-the-apply-guard-catches-what-text-can.md).
+
+## Before the spec: could a plugin replace the installer? (#152)
+
+#152 asked whether a Claude Code plugin could carry the agents and skills, so the installer could shrink. It can't help. A plugin can't supply a rules file or general settings: a `CLAUDE.md` in a plugin isn't loaded, and a plugin's settings keep only two keys. A hook's added context is capped at 10,000 characters, against about 33,000 for the rules file. And a plugin's agents load renamed as `<plugin>:<name>`, which would break three gated clauses that name the lenses bare. So the Node script keeps the rules file, the agents, the settings overlay, the records and project installs (#153, S1). #152 has no log of its own; its result is #152's comment 6072154307.
 
 ## T1: the apply guard lands first (#165)
 
@@ -41,6 +45,39 @@ Ten ask rules from the spec's S10 now sit beside the twelve `install.ps1` rules.
   - **Dismissed:**
     - the cloud copies, on the owner's decision;
     - converting the settings test's loops to tables, because the cases grew through the shared list and the test file's cases weren't edited.
+
+## T2: the Node install, with the cutover folded in (#166, #167)
+
+Two sessions built it: `build-166`, which wrote the install (PR #201), and `build-166b`, which moved the tests and cut over (PR #204).
+
+### What was built
+
+- **The home install** (S3 to S8): the bootstrap `gate/install.mjs` (244 of its 250 lines), the runner `gate/install-run.mjs`, the decisions in `gate/install-core.mjs`, and `gate/install-io.mjs`. ADR 0039 has the shape and its known limits; ADR 0040, the link test that replaced the reparse test.
+- **The project install** (J1 to J4). A project dry run's apply line carries `--project-folder`.
+- **The CI workflow** (S11) and Dependabot, locked down as ADR 0041 says. The lead turned on the required `gate` check at the owner's word.
+- **The test move** (S13). On the owner's word, every old install-tier case runs the Node script in place, keeping its file and name; the prune (#189) decides which stay.
+  - The harness's `install()` is the Node install. `wrapCheck` plants a fault in a core's `check()`, which the runner calls in-process.
+  - Cases built on the old script's Node lookup, wrapper processes or PowerShell parsing check what S6 put in their place, each with a comment: no Node lookup (P2), `NODE_OPTIONS` refused (A7), a check's verdict in-process (R4, S-1), the strict parser (A3).
+  - Two refusals now come from an earlier check. An unreadable configuration file refuses at the link test, which fails closed (S7). A review folder spelled `.claude.` refuses because its parent isn't found: Node's file calls keep the trailing dot that PowerShell dropped.
+  - The install tier went from about 2,183 s summed under PowerShell to 945 s, on 256 cases. S13 had targeted 20 to 30 end-to-end cases plus in-process rows; that split was not done.
+- **The cutover** (#167's list, S9 and S10).
+  - The gated clause `install-go-ahead` spells the flag `--apply`.
+  - The twelve `install.ps1` ask rules gave way to `PowerShell(*install.ps1*)` and `Bash(*nstall.ps1*)`, in the overlay, the allow-list, seam A's list and the cloud copy. ADR 0042 records the guard and its misses, and supersedes ADR 0020.
+  - `scripts/install.ps1` is deleted, with the copy list's entry and the harness's PowerShell path. The tests that read it now read the install core's constants.
+  - The PowerShell-only baseline cases became table rows in their own files, through `moves.tsv`: the table "retired install rules" (20 rows, one per old rule case: each old spelling, put in place of the broad rule, fails as missing), and "apply only as typed" (2 rows, for the parameter-block cases).
+  - AGENTS.md, the README, `docs/install.md` (the install prompt, the rollback and the limits), the threat model and the scout practice case moved to the Node install. A test finds the exact clone address in the prompt.
+  - The Linux container moved to Node 24.
+
+### The owner's decisions
+
+- **Fold the cutover in** (option B): one PR adds the Node install and deletes `install.ps1`, so `main` never holds both.
+- **Two applies before the merge,** from the branch: the first while `install.ps1` was still the fallback, the second from the final head.
+- **The test move in place,** to leave the cutting to the prune.
+- **The first apply was handed to the session** ("you can install"). It ran through the PowerShell tool after the ask rule prompted. It exited 0 with every file verified; only the record changed. A fresh dry run then showed "Nothing to do."
+
+### The clause probe
+
+The expected result went on #166 before the run. A new required-clause row puts the old `-Apply` text back into AGENTS.md, and seam A refuses it with `install-go-ahead differs from its canonical text`. The table's base, holding the new text, passes. Seam A's required list was also seen to fail with `PowerShell(*install.ps1*)` taken out, and the copy list's new bad case failed against the old list.
 
 ## Record
 

@@ -90,9 +90,8 @@ Builds run in a main session the owner watches, not in agents.
 ## Depends on
 
 - **Claude Code.** The pact is a rules file, agents and settings for it.
-- **PowerShell 7,** to run the install script, on Windows, macOS or Linux.
-- **Node 20 or later** to install; **Node 24**, the current LTS, to run the
-  gate's tests.
+- **Node 24 or later,** the current LTS, to install and to run the gate's
+  tests, on Windows, macOS or Linux.
 - **git.** The install reads the clone's committed files through git.
 - **The models the rules name:** Opus and Sonnet, and Fable for a second
   opinion when reviewers disagree.
