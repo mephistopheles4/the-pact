@@ -51,8 +51,8 @@ same as you choosing it.
 not Bash, because Bash fails silently here. Any judgement about what is
 destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
 "Implementing a change": a skill may change how a step is done, never its
-stops, the risk floor (auth, secrets, crypto, input validation, data migrations
-and anything published are always thorough), the security route in move 3, or
+stops, the risk floor (auth, secrets, crypto, input validation and data
+migrations are always thorough), the security route in move 3, or
 the QA pair, `behaviour-lens` and `integrity-lens`, in move 4.
 Nor the hand-off: a skill may not start a user-only skill for me, or follow
 one's `SKILL.md` in its place. And the claiming and coordination rules
@@ -78,7 +78,7 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 
 **Risk floor.**
 <!-- pact:begin risk-floor -->
-Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
+Auth, secrets, crypto, input validation and data migrations are always thorough, whatever tier I name.
 <!-- pact:end risk-floor -->
 Don't ask me to confirm this or nag: go thorough and carry on. For any other
 open decision under a lower tier than you would pick, name the decisions once
@@ -402,23 +402,11 @@ tree before and after, untracked files included, and check the two are the
 same. A tool config that comes with the diff runs code, the same trust as
 running the diff's tests. With no tool, say so; the lens judges by reading.
 
-**The cross call and the pick.** Run the cross script with `cross`,
+**The cross call.** Run the cross script with `cross`,
 `--point result`, the issue's tier with `--tier`, the claim ids with
 `--anchors`, a new folder with `--out`, and each report as
 `<lens>=<file>`. Post the comment section it writes on the issue, or in the
-repo's plan file; with neither, show it to me in chat. At the thorough tier,
-then ask me where I expect the problem, and say nothing about the result
-until I answer. The pick is my prior, not a review: I answer from the claim
-list alone, without reading the diff. Show each claim with its id and a
-one-line, plain-language "how this could go wrong" gloss, for me only; the
-lenses get the claims without it. I name claims or "none", and "none" means "I
-expect it's fine". Run the script's `pick` mode with my pick, and record its
-result. On a mismatch, walk through the gap with me before I decide, unless
-every finding behind the mismatch has disposition `fixed`, and the fix landed
-before the cross section was posted to me. Then record "resolved before owner
-review" in place of the walk-through. A finding that was taken or dismissed
-does not count as fixed. At the standard tier a pick is mine to give or skip;
-at the quick tier there is none.
+repo's plan file; with neither, show it to me in chat.
 
 **The spec pair and `unstated-lens` at move 2.** Before you dispatch them,
 number the spec's headings `S1`, `S2` and on, in order, and write that
@@ -429,8 +417,7 @@ spec, the request and the issue's tier. On the security route, run the
 security pair on the spec first, as below. Give `unstated-lens` the same files,
 and say which reviewers ran in this review. Run the cross script as above, with
 `--point spec` and the section ids with `--anchors`: once for the spec pair,
-and once for `unstated-lens` alone. The pick works as above on the spec
-pair's sections; `unstated-lens` takes none. Where both lenses of the spec
+and once for `unstated-lens` alone. Where both lenses of the spec
 pair call one section, that is a disagreement: show me both calls and let me
 settle it. At move 4, give `unstated-lens` the claims, the spec, the diff and
 the issue's request, say which reviewers ran in this review, and run its
@@ -477,7 +464,7 @@ pact requires still come to me. It never covers any stop in "When to stop or
 escalate", any gated clause, a tier decision, "Quick work stops at an open
 decision", my "proceed, fix or kill" on a spec review, a disagreement the spec
 pair leaves for me to settle, a scope decision or a time that a spec review
-brings to me, the thorough pick, a
+brings to me, a
 user-only skill's trigger, an install, cutting a lens, confirming an escape or
 gap row, the claiming and coordination rules, or my "done": accepting the
 work, closing a ticket and merging are mine. Never cut a lens yourself.
@@ -485,26 +472,16 @@ Mark each auto-taken choice `auto` (see Lens dispositions).
 
 **Lens dispositions.** At every lens review, in every project, post a table
 under the heading "Lens dispositions" on the issue, one row per finding, with
-the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
-real? (for each crossing, my yes or no), changed my decision? (once per
-review, my yes or no), time (from the posted comment to my decision), model
-and effort (the model and effort each lens ran on, not yours, with
-"override, not security-tested" where the configuration notice marks the
-lens), configuration (the digest the
-configuration notice names, or none), and cross result (passed, refused with the rule
-that fired, or oversize, and whether a lens was rerun to get a valid report).
-At the thorough tier, add my pick, the comparison and the walk-through's
-outcome. Pre-fill both yes-or-no answers from the evidence, each with a
-one-line reason and marked "pre-filled", for example "yes (pre-filled: both
-lenses hit C3)". In the message that records my decision, ask me to confirm or
-correct them. Until I do, the marker stays and the answer doesn't count.
+the columns: finding, lens, disposition (fixed, taken or dismissed), and cross
+result (passed, refused with the rule that fired, or oversize, and whether a
+lens was rerun to get a valid report). Where the configuration notice marks a
+lens, put "override, not security-tested" in each of its rows.
 
 Mark an auto-taken finding `auto` beside its disposition, for example "fixed
 (auto: chose X because Y)", so a fix the session chose still counts as fixed.
 With no lens review, keep these rows in an "Auto-takes" list on the issue
 instead. If I reverse one, change its mark to `auto, reversed` and keep the
-original line. "When a lens may not pay" reads my own judgements, so it
-leaves out dismissals marked `auto`.
+original line.
 
 **Escapes.** When you find a defect after a lens review passed the work on,
 and it falls within the question of a lens that ran there, propose an escape
@@ -516,22 +493,10 @@ defect no lens's question covers is a roster gap, logged the same way, with
 its ISO 25010 kind where one fits. On a public repo, a security escape carries
 only the lens, the link to the review and a placeholder until its fix ships.
 
-**When a lens may not pay.** Propose a review of a lens when, in its last ten
-reports, I dismissed most of its findings; when two or more confirmed escapes
-fall to it; or when its reviews rarely changed my decision. Count only answers
-I have confirmed, never pre-filled ones. Count a lens's reports marked
-"override, not security-tested" apart from its own record. For a security lens, any lens that holds a shell or network tools or
-guards the security route or the risk floor, the "rarely changed my decision"
-signal alone never fires: security reads are clean most of the time.
-
-**Totals only.** The records stay on each project's tracker. At a periodic
-review, collect into the-pact's issue for it only totals summed across the
-projects I name: lens names, disposition counts, times, models and efforts,
-crossing counts, and escape and gap counts, with override runs counted apart. Add the rudder check: the total of
-auto-takes, the total I reversed, and the confirmed escapes after an
-auto-take. It shows whether the defaults steer the wrong way. Copy no repo names, cross-repo links, issue
-numbers, titles, headlines, anchors, paths or quotes from another project, and
-no per-project breakdown.
+**Across projects.** The records stay on each project's tracker. When a
+review reads several projects, copy no repo names, cross-repo links, issue
+numbers, titles, headlines, anchors, paths or quotes from one project into
+another, and no per-project breakdown.
 
 **Hand me the trigger.** When the next step is mine to start, end your turn
 with one line and nothing after it. A step is mine to start in two cases:

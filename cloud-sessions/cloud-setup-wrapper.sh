@@ -243,8 +243,8 @@ same as you choosing it.
 not Bash, because Bash fails silently here. Any judgement about what is
 destructive, irreversible, or unsafe to run. The stop-and-escalate signals in
 "Implementing a change": a skill may change how a step is done, never its
-stops, the risk floor (auth, secrets, crypto, input validation, data migrations
-and anything published are always thorough), the security route in move 3, or
+stops, the risk floor (auth, secrets, crypto, input validation and data
+migrations are always thorough), the security route in move 3, or
 the QA pair, `behaviour-lens` and `integrity-lens`, in move 4.
 Nor the hand-off: a skill may not start a user-only skill for me, or follow
 one's `SKILL.md` in its place. And the claiming and coordination rules
@@ -270,7 +270,7 @@ setting. Triage (move 1) sets it. On an issue the tier is a label:
 
 **Risk floor.**
 <!-- pact:begin risk-floor -->
-Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
+Auth, secrets, crypto, input validation and data migrations are always thorough, whatever tier I name.
 <!-- pact:end risk-floor -->
 Don't ask me to confirm this or nag: go thorough and carry on. For any other
 open decision under a lower tier than you would pick, name the decisions once
@@ -594,23 +594,11 @@ tree before and after, untracked files included, and check the two are the
 same. A tool config that comes with the diff runs code, the same trust as
 running the diff's tests. With no tool, say so; the lens judges by reading.
 
-**The cross call and the pick.** Run the cross script with `cross`,
+**The cross call.** Run the cross script with `cross`,
 `--point result`, the issue's tier with `--tier`, the claim ids with
 `--anchors`, a new folder with `--out`, and each report as
 `<lens>=<file>`. Post the comment section it writes on the issue, or in the
-repo's plan file; with neither, show it to me in chat. At the thorough tier,
-then ask me where I expect the problem, and say nothing about the result
-until I answer. The pick is my prior, not a review: I answer from the claim
-list alone, without reading the diff. Show each claim with its id and a
-one-line, plain-language "how this could go wrong" gloss, for me only; the
-lenses get the claims without it. I name claims or "none", and "none" means "I
-expect it's fine". Run the script's `pick` mode with my pick, and record its
-result. On a mismatch, walk through the gap with me before I decide, unless
-every finding behind the mismatch has disposition `fixed`, and the fix landed
-before the cross section was posted to me. Then record "resolved before owner
-review" in place of the walk-through. A finding that was taken or dismissed
-does not count as fixed. At the standard tier a pick is mine to give or skip;
-at the quick tier there is none.
+repo's plan file; with neither, show it to me in chat.
 
 **The spec pair and `unstated-lens` at move 2.** Before you dispatch them,
 number the spec's headings `S1`, `S2` and on, in order, and write that
@@ -621,8 +609,7 @@ spec, the request and the issue's tier. On the security route, run the
 security pair on the spec first, as below. Give `unstated-lens` the same files,
 and say which reviewers ran in this review. Run the cross script as above, with
 `--point spec` and the section ids with `--anchors`: once for the spec pair,
-and once for `unstated-lens` alone. The pick works as above on the spec
-pair's sections; `unstated-lens` takes none. Where both lenses of the spec
+and once for `unstated-lens` alone. Where both lenses of the spec
 pair call one section, that is a disagreement: show me both calls and let me
 settle it. At move 4, give `unstated-lens` the claims, the spec, the diff and
 the issue's request, say which reviewers ran in this review, and run its
@@ -669,7 +656,7 @@ pact requires still come to me. It never covers any stop in "When to stop or
 escalate", any gated clause, a tier decision, "Quick work stops at an open
 decision", my "proceed, fix or kill" on a spec review, a disagreement the spec
 pair leaves for me to settle, a scope decision or a time that a spec review
-brings to me, the thorough pick, a
+brings to me, a
 user-only skill's trigger, an install, cutting a lens, confirming an escape or
 gap row, the claiming and coordination rules, or my "done": accepting the
 work, closing a ticket and merging are mine. Never cut a lens yourself.
@@ -677,26 +664,16 @@ Mark each auto-taken choice `auto` (see Lens dispositions).
 
 **Lens dispositions.** At every lens review, in every project, post a table
 under the heading "Lens dispositions" on the issue, one row per finding, with
-the columns: finding, lens, disposition (fixed, taken or dismissed), crossing
-real? (for each crossing, my yes or no), changed my decision? (once per
-review, my yes or no), time (from the posted comment to my decision), model
-and effort (the model and effort each lens ran on, not yours, with
-"override, not security-tested" where the configuration notice marks the
-lens), configuration (the digest the
-configuration notice names, or none), and cross result (passed, refused with the rule
-that fired, or oversize, and whether a lens was rerun to get a valid report).
-At the thorough tier, add my pick, the comparison and the walk-through's
-outcome. Pre-fill both yes-or-no answers from the evidence, each with a
-one-line reason and marked "pre-filled", for example "yes (pre-filled: both
-lenses hit C3)". In the message that records my decision, ask me to confirm or
-correct them. Until I do, the marker stays and the answer doesn't count.
+the columns: finding, lens, disposition (fixed, taken or dismissed), and cross
+result (passed, refused with the rule that fired, or oversize, and whether a
+lens was rerun to get a valid report). Where the configuration notice marks a
+lens, put "override, not security-tested" in each of its rows.
 
 Mark an auto-taken finding `auto` beside its disposition, for example "fixed
 (auto: chose X because Y)", so a fix the session chose still counts as fixed.
 With no lens review, keep these rows in an "Auto-takes" list on the issue
 instead. If I reverse one, change its mark to `auto, reversed` and keep the
-original line. "When a lens may not pay" reads my own judgements, so it
-leaves out dismissals marked `auto`.
+original line.
 
 **Escapes.** When you find a defect after a lens review passed the work on,
 and it falls within the question of a lens that ran there, propose an escape
@@ -708,22 +685,10 @@ defect no lens's question covers is a roster gap, logged the same way, with
 its ISO 25010 kind where one fits. On a public repo, a security escape carries
 only the lens, the link to the review and a placeholder until its fix ships.
 
-**When a lens may not pay.** Propose a review of a lens when, in its last ten
-reports, I dismissed most of its findings; when two or more confirmed escapes
-fall to it; or when its reviews rarely changed my decision. Count only answers
-I have confirmed, never pre-filled ones. Count a lens's reports marked
-"override, not security-tested" apart from its own record. For a security lens, any lens that holds a shell or network tools or
-guards the security route or the risk floor, the "rarely changed my decision"
-signal alone never fires: security reads are clean most of the time.
-
-**Totals only.** The records stay on each project's tracker. At a periodic
-review, collect into the-pact's issue for it only totals summed across the
-projects I name: lens names, disposition counts, times, models and efforts,
-crossing counts, and escape and gap counts, with override runs counted apart. Add the rudder check: the total of
-auto-takes, the total I reversed, and the confirmed escapes after an
-auto-take. It shows whether the defaults steer the wrong way. Copy no repo names, cross-repo links, issue
-numbers, titles, headlines, anchors, paths or quotes from another project, and
-no per-project breakdown.
+**Across projects.** The records stay on each project's tracker. When a
+review reads several projects, copy no repo names, cross-repo links, issue
+numbers, titles, headlines, anchors, paths or quotes from one project into
+another, and no per-project breakdown.
 
 **Hand me the trigger.** When the next step is mine to start, end your turn
 with one line and nothing after it. A step is mine to start in two cases:
@@ -1688,7 +1653,7 @@ on it.
 ## The risk floor, in the pact's words ("I" is the owner)
 
 <!-- pact:begin risk-floor -->
-Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
+Auth, secrets, crypto, input validation and data migrations are always thorough, whatever tier I name.
 <!-- pact:end risk-floor -->
 
 ## How you work (questions 3, 16, 18)
@@ -1890,7 +1855,7 @@ on it.
    say "nothing".
 
 **You cannot defer a risk-floor item.** Auth, secrets, crypto, input
-validation, data migrations and anything published tolerate no deferral,
+validation and data migrations tolerate no deferral,
 whatever the tier. Beside such an item in your artifact, write exactly
 `risk floor: not deferrable`, and raise no finding on a section that holds a
 risk-floor item: not to cut it, defer it or keep it. If another part of that
@@ -2577,18 +2542,17 @@ write_config 'pact/cross.mjs' <<'__CLAUDE_CONFIG_EOF__'
 #!/usr/bin/env node
 // The cross script (#35, built in #44). It checks the findings block of each
 // lens report from one pair, joins the pair on its anchors, and writes the
-// comment section and a locked local page. A second mode compares the owner's
-// pick with the result.
+// comment section and a locked local page. Its second mode, which compared the
+// owner's pick with the result, went with the thorough pick (#189, #164).
 //
 //   node cross.mjs cross --point <spec|result|diff> --tier <quick|standard|thorough>
 //       [--anchors C1,C2,...] --out <new folder> <lens>=<report file> [<lens>=<report file>]
-//   node cross.mjs pick --point ... --tier ... [--anchors ...] --pick <ids|none> <lens>=<report file> ...
 //
-// Exit 0: every check passed. `cross` wrote its comments and the page; `pick`
-// printed its result. Exit 1: a check failed. No section is written, but each
-// report that could be read is written in its fence and fold, counted. Exit 2
-// (`cross` only): every check passed, but a verbatim report alone is over the
-// comment limit. The section is written, and the report is listed as left out.
+// Exit 0: every check passed, and it wrote its comments and the page. Exit 1:
+// a check failed. No section is written, but each report that could be read is
+// written in its fence and fold, counted. Exit 2: every check passed, but a
+// verbatim report alone is over the comment limit. The section is written, and
+// the report is listed as left out.
 //
 // Every input is data: the script runs nothing it reads. Its output names
 // files, rules and fixed text only, never a byte of a report. The area comes
@@ -2755,14 +2719,12 @@ const MARK = { blocking: '\u26d4', inconclusive: '\u26a0\ufe0f', findings: '\u{1
 const CROSSING = '\u271a';
 const NOT_VERIFIED = '\u26a0\ufe0f';
 const DASH = '\u2014';
-const PROMPT = '**Where do you expect the problem?**';
 
 const LISTED_ID_RE = { claim: /^C[1-9][0-9]{0,2}$/, section: /^S[1-9][0-9]{0,2}$/ };
 const FINDING_ID_RE = /^F[0-9]{1,3}$/;
 const PATH_RE = /^[A-Za-z0-9._/-]+$/;
 const SYMBOL_RE = /^[A-Za-z0-9_.$:]{1,100}$/;
 const LENS_ARG_RE = /^[a-z]+(?:-[a-z]+)*$/;
-const PICK_ID_RE = /^[CSK][1-9][0-9]{0,3}$/;
 const PICTOGRAPH_RE = /^\p{Extended_Pictographic}$/u;
 // A label in the map: letters, digits, hyphens and spaces, plus the two marks.
 const MAP_LABEL_RE = /^(?:[A-Za-z0-9 -]|\u271a|\u26a0\ufe0f)+$/u;
@@ -2782,7 +2744,6 @@ const RULE_TEXT = {
   point: 'this area does not review at this review point',
   tier: 'the tier is not quick, standard or thorough, or a security-pair report came with a tier below thorough',
   anchors: 'the anchor list is missing, not needed, or holds an id of the wrong form or twice',
-  pick: 'the pick must be "none" or anchors shown in this review, each once; unstated-lens takes no pick',
   'block-count': 'a report must hold exactly one lens-findings block',
   block: 'the lens-findings block must open with exactly three backticks and its label, and close with three backticks',
   json: 'the lens-findings block is not valid JSON, or is nested too deeply',
@@ -2974,8 +2935,8 @@ function checkReport(text, lens, kind, listed) {
 
 function parseArgs(argv) {
   const a = { mode: argv[0], flags: {}, reports: [], usage: false };
-  if (a.mode !== 'cross' && a.mode !== 'pick') a.usage = true;
-  const known = a.mode === 'pick' ? ['--point', '--tier', '--anchors', '--pick'] : ['--point', '--tier', '--anchors', '--out'];
+  if (a.mode !== 'cross') a.usage = true;
+  const known = ['--point', '--tier', '--anchors', '--out'];
   for (let i = 1; i < argv.length; i += 1) {
     const t = argv[i];
     if (t.startsWith('--')) {
@@ -2996,7 +2957,7 @@ function parseArgs(argv) {
     a.reports.push({ lens: t.slice(0, eq), file: t.slice(eq + 1) });
   }
   if (a.reports.length < 1 || a.reports.length > 2) a.usage = true;
-  for (const f of a.mode === 'pick' ? ['--point', '--tier', '--pick'] : ['--point', '--tier', '--out']) if (!Object.hasOwn(a.flags, f)) a.usage = true;
+  for (const f of ['--point', '--tier', '--out']) if (!Object.hasOwn(a.flags, f)) a.usage = true;
   return a;
 }
 
@@ -3042,7 +3003,6 @@ function checkInputs(a) {
     list = raw.split(',');
     if (list.length > ANCHORS_MAX || new Set(list).size !== list.length || !list.every(id => LISTED_ID_RE[kind].test(id))) return { rule: 'anchors', area };
   } else if (raw !== undefined) return { rule: 'anchors', area };
-  if (a.mode === 'pick' && !area.pair) return { rule: 'pick', area };
   return { area, point, tier, kind, list };
 }
 
@@ -3110,21 +3070,6 @@ function joinPair(setup, docs) {
   } else for (const r of out) r.label = r.key;
   const verdict = docs.map(d => d.verdict).reduce((x, y) => (STRICTNESS[y] > STRICTNESS[x] ? y : x));
   return { rows: out, verdict };
-}
-
-/** The owner's pick against the result, by the rule fixed in the spec. */
-function comparePick(joined, pick) {
-  const targets = joined.rows.filter(r => r.high).map(r => r.label);
-  const picked = pick === 'none' ? [] : pick.split(',');
-  const shown = new Set(joined.rows.map(r => r.label));
-  if (pick !== 'none' && (new Set(picked).size !== picked.length || !picked.every(id => PICK_ID_RE.test(id) && shown.has(id)))) refuse('pick');
-  let rule = 0;
-  if (pick === 'none' && joined.verdict !== 'clear') rule = 1;
-  else if (pick !== 'none' && joined.verdict === 'clear') rule = 2;
-  else if (pick !== 'none' && targets.length > 0 && !picked.some(id => targets.includes(id))) rule = 3;
-  const missed = targets.filter(id => !picked.includes(id));
-  const empty = picked.filter(id => joined.rows.find(r => r.label === id).count === 0);
-  return { rule, missed, empty };
 }
 
 // ---------------------------------------------------------------- markdown
@@ -3330,15 +3275,12 @@ function sectionUnits(m, setup, leftOut) {
   } else if (thorough) {
     units.push({ text: heading(m, false) }, { text: mapBlock(m) });
     for (const t of unverifiedLines(m)) units.push({ text: t });
+    // The verdict stays folded, unstated-lens's too, so the cards and the map
+    // are read before it, and unstated-lens cannot hint at a pair's answer.
     units.push({ text: NOTE }, ...cards(m, false), ...matrix(m));
-    // unstated-lens takes no pick, but its verdict still stays folded, so it
-    // cannot hint at a pair's answer on the same anchors.
-    if (m.area.pair) units.push({ text: `${PROMPT} Name one or more anchors above, or none, in chat. Then open the fold below.\n\n` });
     units.push({ fold: FOLD_VERDICT, text: verdictText(m) }, ...findingsTable(m, FOLD_VERDICT), ...callsTable(m, FOLD_VERDICT), ...nonRiskUnits(m, setup, FOLD_VERDICT));
   } else {
-    units.push({ text: heading(m, true) });
-    if (m.area.pair) units.push({ text: '_Optional: name where you expect the problem, in chat, before you read on._\n\n' });
-    units.push({ text: mapBlock(m) });
+    units.push({ text: heading(m, true) }, { text: mapBlock(m) });
     for (const t of unverifiedLines(m)) units.push({ text: t });
     units.push({ text: verdictText(m) }, { text: NOTE }, ...cards(m, true), ...matrix(m), ...callsTable(m, null));
     units.push(...nonRiskUnits(m, setup, FOLD_NON_RISKS));
@@ -3352,7 +3294,7 @@ function sectionUnits(m, setup, leftOut) {
  * Units into comment parts of at most LIMIT. A part ends at a unit boundary;
  * an open table repeats its header in the next part, and an open fold closes
  * and reopens. Later parts carry a header with no total, so the number of
- * parts says nothing above the prompt.
+ * parts says nothing above the reveal.
  */
 function pack(units) {
   const parts = [];
@@ -3557,7 +3499,6 @@ function page(m, setup, reports) {
     body.push(`<p><b>${MARK[v]} ${html(v)}</b>${m.unverified.map(l => ` \u00b7 ${NOT_VERIFIED} <code>${html(l)}</code> not verified`).join('')}</p>`, notChecked);
   } else if (m.tier === 'thorough') {
     body.push(crossCutSvg(m), warn, '<h2>Cards</h2>', pageCards(m, false), '<h2>Matrix</h2>', pageMatrix(m));
-    if (m.area.pair) body.push('<h2>Where do you expect the problem?</h2>', '<p>Name one or more anchors, or none, in chat. Then open the verdict.</p>');
     body.push(`<details><summary>Verdict, severities and non-risks</summary>\n${pageVerdict(m, setup)}\n</details>`, notChecked);
   } else {
     body.push(crossCutSvg(m), warn, pageVerdict(m, setup), '<h2>Cards</h2>', pageCards(m, true), '<h2>Matrix</h2>', pageMatrix(m), notChecked);
@@ -3591,7 +3532,6 @@ function writeOut(dir, files) {
 function refusal(lines, outDir, reports, setupRule, failed) {
   if (setupRule) lines.push(`FAIL ${setupRule}: ${RULE_TEXT[setupRule]}`);
   for (const [r, rule] of failed) lines.push(`FAIL ${rule}: ${shownName(r.file)}: ${RULE_TEXT[rule]}`);
-  if (outDir === null) return 1;
   const head =
     setupRule === 'internal'
       ? ['**The cross script could not build the section.** Every check passed, so no report is at fault. No section was written. The reports follow, each in its fence and fold.\n\n', `- rule ${code('internal')}\n`]
@@ -3623,19 +3563,17 @@ function run(argv, lines) {
     lines.push(`FAIL usage: ${RULE_TEXT.usage}`);
     return 1;
   }
-  const outDir = a.mode === 'cross' ? a.flags['--out'] : null;
-  if (outDir !== null) {
-    let ok = true;
-    try {
-      if (existsSync(outDir) && readdirSync(outDir).length > 0) ok = false;
-      else mkdirSync(outDir, { recursive: true });
-    } catch {
-      ok = false;
-    }
-    if (!ok) {
-      lines.push(`FAIL out: ${RULE_TEXT.out}`);
-      return 1;
-    }
+  const outDir = a.flags['--out'];
+  let ok = true;
+  try {
+    if (existsSync(outDir) && readdirSync(outDir).length > 0) ok = false;
+    else mkdirSync(outDir, { recursive: true });
+  } catch {
+    ok = false;
+  }
+  if (!ok) {
+    lines.push(`FAIL out: ${RULE_TEXT.out}`);
+    return 1;
   }
   const reports = ordered(a.reports);
   readReports(reports);
@@ -3659,21 +3597,6 @@ function run(argv, lines) {
   if (setup.rule || failed.length > 0) return refusal(lines, outDir, reports, setup.rule, failed);
 
   const joined = joinPair(setup, docs);
-  if (a.mode === 'pick') {
-    let result;
-    try {
-      result = comparePick(joined, a.flags['--pick']);
-    } catch (e) {
-      if (!(e instanceof Refused)) throw e;
-      lines.push(`FAIL pick: ${RULE_TEXT.pick}`);
-      return 1;
-    }
-    lines.push(`PICK ${result.rule === 0 ? 'match' : 'mismatch'}`);
-    if (result.rule) lines.push(`RULE ${result.rule}`);
-    lines.push(`MISSED ${result.missed.join(',') || 'none'}`, `EMPTY ${result.empty.join(',') || 'none'}`);
-    return 0;
-  }
-
   const m = model(setup, docs, joined);
   const verbatims = [];
   const leftOut = [];
@@ -3867,18 +3790,18 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 7faae5141542c3e8113ac578c9a1473e883bd35f21eb758912545f60a8df8d18 'CLAUDE.md'
+check_hash efd34a500c7becfeaa2e68df510579a924ca133b89cadfc7ee02d428f8cd872d 'CLAUDE.md'
 check_hash 504fc132aa3d889a361043f0358bc1a86ba12a985dbd1fb53a22738a951c30dd 'agents/adversarial-lens.md'
 check_hash 5e360df51b66e5787e804a4ebc1ad64d6cefff5efd9adf1fe4e9a6e582d70f83 'agents/behaviour-lens.md'
 check_hash 205e44d9a4bd1eedee0827d4340edccf711536339ef5667ce47c80c18283a9d8 'agents/conventions-lens.md'
 check_hash 1755b589ea8d246f15b3b6e04279e6119e2fdd2aec6944b52e7ab053966ce9d4 'agents/data-lens.md'
-check_hash 5836e1e1117d957f6b53256ed28349f6204c441790b8db2bb62a11600ca4fce1 'agents/executability-lens.md'
-check_hash 8fe10e241cc031819165c74991de214e44db5a60f4cd03b4b6d2e9f6cdb8d44e 'agents/good-enough-lens.md'
+check_hash 58ce8ce29d212a43f96184a5a561a03043153964ce47fe34c359d92122e439f9 'agents/executability-lens.md'
+check_hash 189db3972ffdb3f318e9ab782efbf8c0a8b189b40e9f5a864e5cc289f2a8f3d2 'agents/good-enough-lens.md'
 check_hash 69b90b5c23cfabfc7906ac7b8a1aed47b973247fb9c6f3cb0e32cb8984528088 'agents/integrity-lens.md'
 check_hash 623fe899ab9f2a50799e3ee777e75029a20ec2a70459a9397dccfc0bddaa9e17 'agents/reader-lens.md'
 check_hash 0c076132eb156b317641144b984f7b05d324881ccb3f05633589cb366f754f40 'agents/scout.md'
 check_hash 21a0547777fe0ad06aaf4ccc7a2dfcc4eca4f4755bc04c0ef1fcd3d03c18381e 'agents/unstated-lens.md'
-check_hash e9938539eb0fd2ac66f7f253c0c082ecb96f0e5f9203e26adb30a147b6d7e6b3 'pact/cross.mjs'
+check_hash 87cfedf02bff1434dcb623335daf8b24c602f6f0f0d857ae45413fba747cf859 'pact/cross.mjs'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)' \
@@ -3901,7 +3824,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy c5f2992da932"
+  echo "pact cloud copy 2a27189a76d0"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
