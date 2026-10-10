@@ -1,5 +1,7 @@
 # Reading agents write for two readers, and the session helps the owner decide
 
+Superseded in part by [ADR 0054](0054-the-cross-script-places-the-verdict.md) (2026-10-10): a lens report's **For the owner** no longer opens with the verdict word, because the cross script places the verdict, and the four reviewers named below were replaced by the lenses of [ADR 0053](0053-review-is-nine-lenses-in-pairs-joined-by-the-cross-script.md). The two sections, the verbatim posting and the way the session helps the owner decide still hold.
+
 `plan-reviewer`, `result-checker`, `test-reviewer` and `security-reviewer` return a report in two sections. **For the owner** comes first: the verdict word, then what is wrong, why it matters and what it suggests, in plain sentences with no line numbers, codes or paths. **For the session** follows, with the evidence and locations the session needs to act. `plan-reviewer`'s bare `READY` form is replaced, and its advisories get a place in the second section. The pact says how these agents get their input: local files for the spec or the diff, with the report posted on the issue word for word and never retold.
 
 After a report, the main session helps the owner decide. It fixes mechanical findings itself, groups findings that are really one question, and brings each real choice with a recommendation and its reason. It asks only for what only the owner knows or must approve. This replaces "show me a table of its findings … I decide" in moves 2 and 4.

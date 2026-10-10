@@ -1,6 +1,6 @@
 # Contract: behaviour-lens
 
-Version: 0.1.2
+Version: 0.1.3
 
 - **Type:** agent
 - **Level:** Thorough
@@ -100,8 +100,8 @@ Each sample ends with its `lens-findings` block.
 - Seam A checks the file's frontmatter, its tools against the allow-list, and that it names no reviewer but itself.
 - The cross script checks the findings block, joins it with its partner's, and writes the owner's view.
 
-**You (the owner)** **Confirmed** (2026-10-05)
-- Decide each finding: fixed, taken or dismissed. Decide whether the work is done.
+**You (the owner)** **Decided** (2026-10-06, the auto-take rule the owner approved on #87; written in by #102)
+- The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87), within the pact's listed exceptions. Your "done" stays yours: accepting the work, closing the ticket and merging.
 
 **Stop and ask** **Confirmed** (2026-10-05)
 The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and each unchecked claim in `notChecked` starting "stopped and waiting:".
@@ -151,6 +151,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.3 | 2026-10-10 | The owner's part and question 11 follow the auto-take rule: the main session acts on its recommendation per finding and marks it `auto`; the owner's "done" is unchanged. Question 14 drops the security-set rerun #189 retired. | #102, which bundles #87's wording into the QA pair's contracts; #189 (ADR 0045) | 3, 11, 14 |
 | 0.1.2 | 2026-10-05 | C8 covers the whole report, not only the abuse-case description; question 19 records that the browser entry matches nothing in a terminal session. | Move 4 round 2 on #47: the security read found a payload could still land in What I ran, Evidence or Recheck; the owner kept the browser entry as is (2026-10-05, "go with your recommendations") | 3, 19 |
 | 0.1.1 | 2026-10-05 | C8 gains "never a working exploit or payload"; C10 names `run_in_background` again; the checklist is labelled. | Move 4 before install on #47: the security read found the protected carried rule missing and the parameter name dropped; the result check found the checklist unlabelled | 3, 18 |
 | 0.1.0 | 2026-10-05 | Contract written, drafted from the outgoing move-4 checker. Adds the red step, the claim-list anchors, the findings block and the fixed artifact heading. | #35 revision 7 (the QA pair), #47; the red step by the owner's choice, relayed 2026-10-05 | all |
@@ -179,7 +180,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 11. Where does a person decide?
 
-**Confirmed** (2026-10-05): its report feeds the owner's move-4 decision, recorded on the issue in the "Lens dispositions" table. When the main session hands back a choice or a captured output, the lens repeats it in words before it acts. On a recheck after a fix, it reproduces the original failure and a bounded check for regressions; it does not reopen nearby hardening or turn the recheck into a full audit.
+**Confirmed** (2026-10-05; the auto-take written in by #102): its report feeds the owner's move-4 decision, through the main session's auto-take on each finding, recorded on the issue in the "Lens dispositions" table. When the main session hands back a choice or a captured output, the lens repeats it in words before it acts. On a recheck after a fix, it reproduces the original failure and a bounded check for regressions; it does not reopen nearby hardening or turn the recheck into a full audit.
 
 ### 12. Prove it works: a practice test
 
@@ -194,7 +195,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 14. How hard should it think?
 
-**Confirmed** (2026-10-05): Opus at medium effort, the same model as its partner by default; either lens may run on another model or effort when a user configuration sets one (#97, ADR 0027), and a run of this lens on such a setting is marked "override, not security-tested". A second opinion from another model is the owner's call. A model change makes its security-set results stale; the owner reruns the set before the lens is trusted again.
+**Confirmed** (2026-10-05): Opus at medium effort, the same model as its partner by default; either lens may run on another model or effort when a user configuration sets one (#97, ADR 0027), and a run of this lens on such a setting is marked "override, not security-tested". A second opinion from another model is the owner's call. A change to its model or effort default takes the security route, since it is a security-set lens (#189 retired the security set it once reran).
 
 ### 15. How does it write?
 

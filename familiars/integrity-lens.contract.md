@@ -1,6 +1,6 @@
 # Contract: integrity-lens
 
-Version: 0.1.1
+Version: 0.1.2
 
 - **Type:** agent
 - **Level:** Thorough
@@ -94,8 +94,8 @@ Each sample ends with its `lens-findings` block.
 - The cross script checks the findings block, joins it with its partner's, and writes the owner's view.
 - A mutation tool, where the repo has one installed, produces the mutation results; the main session runs it (see "The mutation step" below).
 
-**You (the owner)** **Confirmed** (2026-10-05)
-- Decide each finding: fixed, taken or dismissed. Decide whether the work is done.
+**You (the owner)** **Decided** (2026-10-06, the auto-take rule the owner approved on #87; written in by #102)
+- The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87), within the pact's listed exceptions. Your "done" stays yours: accepting the work, closing the ticket and merging.
 
 **Stop and ask** **Confirmed** (2026-10-05)
 The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and `notChecked` starting "stopped and waiting:".
@@ -144,6 +144,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.2 | 2026-10-10 | The owner's part and question 11 follow the auto-take rule: the main session acts on its recommendation per finding and marks it `auto`; the owner's "done" is unchanged. | #102, which bundles #87's wording into the QA pair's contracts | 3, 11 |
 | 0.1.1 | 2026-10-05 | The red step shows in the artifact, one line per claim; the spec is an input; the checklist is labelled. | Move 4 before install on #47: the result check found the red step invisible, the spec named but not handed over, and the checklist unlabelled | 3, 4, 10 |
 | 0.1.0 | 2026-10-05 | Contract written, drafted from the outgoing test and check reviewer. Adds the red step, the per-test probe, mutation evidence, the claim-list anchors, the findings block and the fixed artifact heading. | #35 revision 7 (the QA pair), #47; the red step by the owner's choice, relayed 2026-10-05 | all |
 
@@ -179,7 +180,7 @@ Against its neighbours: it asks "can these checks fail?". Its partner asks "does
 
 ### 11. Where does a person decide?
 
-**Confirmed** (2026-10-05): its report feeds the owner's move-4 decision, recorded in the "Lens dispositions" table on the issue. When the main session hands back a choice, the lens repeats it in words before it acts.
+**Confirmed** (2026-10-05; the auto-take written in by #102): its report feeds the owner's move-4 decision, through the main session's auto-take on each finding, recorded in the "Lens dispositions" table on the issue. When the main session hands back a choice, the lens repeats it in words before it acts.
 
 ### 12. Prove it works: a practice test
 
