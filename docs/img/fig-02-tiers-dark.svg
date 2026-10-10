@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="663" viewBox="0 0 800 663" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img">
+<rect width="800" height="663" fill="#1a1614"/>
+<defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#ece5df" stroke-opacity="0.045" stroke-width="1"/></pattern></defs>
+<rect width="800" height="663" fill="url(#grid)"/>
+<rect x="17" y="17" width="766" height="629" fill="#201b18" fill-opacity="0.72" stroke="#ece5df" stroke-width="2"/>
+<text x="44" y="39.2" font-size="12" font-weight="600" letter-spacing="1.92" fill="#ece5df">FIG. 02 — RIGOUR FOLLOWS RISK</text>
+<text x="756" y="39.2" font-size="12" letter-spacing="1.92" text-anchor="end" fill="#ece5df" fill-opacity="0.7">PROCESS TIERS</text>
+<line x1="18" y1="58" x2="782" y2="58" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<rect x="44" y="80" width="712" height="306" fill="#1a1614" stroke="#ece5df" stroke-width="2"/>
+<text x="52" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">TIER</text>
+<text x="152" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">TRIAGE</text>
+<text x="264" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">SPEC</text>
+<text x="344" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">SPEC</text>
+<text x="344" y="119.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">READ BY</text>
+<text x="468" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">TICKETS</text>
+<text x="592" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">BUILD, THEN</text>
+<text x="592" y="119.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">VERIFY</text>
+<line x1="44" y1="134" x2="756" y2="134" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="52" y="160.25" font-size="15" font-weight="600" fill="#ece5df">Quick</text>
+<text x="152" y="159.2" font-size="12" fill="#ece5df">In chat or</text>
+<text x="152" y="177.2" font-size="12" fill="#ece5df">on an issue</text>
+<text x="264" y="159.2" font-size="12" fill="#ece5df" fill-opacity="0.7">—</text>
+<text x="344" y="159.2" font-size="12" fill="#ece5df" fill-opacity="0.7">—</text>
+<text x="468" y="159.2" font-size="12" fill="#ece5df" fill-opacity="0.7">—</text>
+<text x="592" y="159.2" font-size="12" fill="#ece5df">One session ·</text>
+<text x="592" y="177.2" font-size="12" fill="#ece5df">QA pair</text>
+<line x1="44" y1="194" x2="756" y2="194" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="52" y="220.25" font-size="15" font-weight="600" fill="#ece5df">Standard</text>
+<text x="152" y="219.2" font-size="12" fill="#ece5df">On an issue</text>
+<text x="264" y="219.2" font-size="12" fill="#ece5df">Short</text>
+<text x="264" y="237.2" font-size="12" fill="#ece5df">spec</text>
+<text x="344" y="219.2" font-size="12" fill="#ece5df">unstated-lens</text>
+<text x="468" y="219.2" font-size="12" fill="#ece5df" fill-opacity="0.7">—</text>
+<text x="592" y="219.2" font-size="12" fill="#ece5df">One session ·</text>
+<text x="592" y="237.2" font-size="12" fill="#ece5df">QA and standards</text>
+<text x="592" y="255.2" font-size="12" fill="#ece5df">pairs and</text>
+<text x="592" y="273.2" font-size="12" fill="#ece5df">unstated-lens</text>
+<line x1="44" y1="290" x2="756" y2="290" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="52" y="316.25" font-size="15" font-weight="600" fill="#ece5df">Thorough</text>
+<text x="152" y="315.2" font-size="12" fill="#ece5df">On an issue</text>
+<text x="264" y="315.2" font-size="12" fill="#ece5df">Full</text>
+<text x="264" y="333.2" font-size="12" fill="#ece5df">spec</text>
+<text x="344" y="315.2" font-size="12" fill="#ece5df">Spec pair and</text>
+<text x="344" y="333.2" font-size="12" fill="#ece5df">unstated-lens</text>
+<text x="468" y="315.2" font-size="12" fill="#ece5df">Thin slices</text>
+<text x="468" y="333.2" font-size="12" fill="#ece5df">with</text>
+<text x="468" y="351.2" font-size="12" fill="#ece5df">done-criteria</text>
+<text x="592" y="315.2" font-size="12" fill="#ece5df">One session per</text>
+<text x="592" y="333.2" font-size="12" fill="#ece5df">ticket · QA and</text>
+<text x="592" y="351.2" font-size="12" fill="#ece5df">standards pairs</text>
+<text x="592" y="369.2" font-size="12" fill="#ece5df">and unstated-lens</text>
+<line x1="144" y1="81" x2="144" y2="385" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<line x1="256" y1="81" x2="256" y2="385" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<line x1="336" y1="81" x2="336" y2="385" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<line x1="460" y1="81" x2="460" y2="385" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<line x1="584" y1="81" x2="584" y2="385" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<rect x="44" y="410" width="712" height="144" fill="#1a1614" stroke="#d98a3c" stroke-width="2"/>
+<rect x="54" y="407" width="273.8" height="6" fill="#1a1614"/>
+<text x="60" y="414" font-size="11" font-weight="600" letter-spacing="1.76" fill="#d98a3c">RISK FLOOR · ALWAYS THOROUGH</text>
+<text x="60" y="447.4" font-size="14" fill="#ece5df">Auth, secrets, crypto, input validation, data migrations and anything</text>
+<text x="60" y="468.4" font-size="14" fill="#ece5df">published are thorough, whatever tier is named.</text>
+<text x="60" y="494.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Auth, secrets, crypto and input validation also take the security route:</text>
+<text x="60" y="514.55" font-size="13" fill="#ece5df" fill-opacity="0.8">the security pair reads the spec before you approve it, and the diff after</text>
+<text x="60" y="534.55" font-size="13" fill="#ece5df" fill-opacity="0.8">the build.</text>
+<line x1="44" y1="576" x2="756" y2="576" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="44" y="598.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">PLANS</text>
+<text x="44" y="617.55" font-size="13" font-weight="500" fill="#ece5df">Opus</text>
+<line x1="281.33" y1="576" x2="281.33" y2="623" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="293.33" y="598.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">BUILDS</text>
+<text x="293.33" y="617.55" font-size="13" font-weight="500" fill="#ece5df">Sonnet · Opus for quick</text>
+<line x1="518.67" y1="576" x2="518.67" y2="623" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="530.67" y="598.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">SECURITY WORK</text>
+<text x="530.67" y="617.55" font-size="13" font-weight="500" fill="#ece5df">Opus, high effort</text>
+</svg>

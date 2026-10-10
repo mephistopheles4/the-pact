@@ -2,124 +2,132 @@
 
 *The terms I work with AI agents under.*
 
-Faust signed a pact with no way out. This one has escape clauses written in: the human decides at every seam, and the agent stops and asks when it should. The skills live in [grimoire](https://github.com/mephistopheles4/grimoire), the spellbook. This repo holds the terms, and the familiars bound by them.
+Your words are the source code. An agent ships exactly what you said.
+
+<p align="center">
+  <img src="docs/img/hero.jpg" alt="Pencil illustration of an emptied software office. A developer with a coffee stands frozen in the doorway beside his own sticky note: 'pls clean up the repo before standup'. A smiling robot carries the last potted plant toward a dumpster labelled 'ARCHIVED'. A wall screen reads 'CLEANUP COMPLETE: 4,312 FILES, 9 DESKS, 1 INTERN (ARCHIVED, RECOVERABLE)'." width="800">
+</p>
+
+<p align="center"><b>He meant the repo.</b></p>
+
+Faust signed a pact with no way out. This one has escape clauses written in: the human decides at every seam, and the agent stops and asks when it should. The skills live in [grimoire](https://github.com/mephistopheles4/grimoire), the spellbook. This repo holds the terms, and the familiars, its agents, bound by them.
+
+## Words are code
+
+An agent acts on what your words say. If "clean up the repo" can also be read as "clean up everything", sooner or later an agent will read it that way, and it will build, test and merge the result.
+
+When you build something that matters, what you say to an agent deserves the care you give a commit. So the pact writes the terms down: whose words count as a decision, when the agent must stop and ask, and what gets checked before anything counts as done.
+
+## Four moves
+
+The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. A seam is a joint in the work: between one move and the next, or between the parts a spec names. At each one, you check before the work goes on.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-01-moves-dark.svg">
+  <img src="docs/img/fig-01-moves.svg" alt="FIG. 01, four moves, one owner. At each move you decide and the agent carries it out: you sense the work, think before doing, checkpoint the seams and stay the owner." width="800">
+</picture>
+
+<details>
+<summary>Text of FIG. 01</summary>
+
+| Move | You, the architect of intent | The agent, the executor |
+|---|---|---|
+| 1. Sense the work | Triage it: what kind, which tier, is it ready. | Proposes the tier. Never skips triage. |
+| 2. Think before doing | Settle the intent. Proceed, fix or kill. | Grills you, then writes the spec. |
+| 3. Checkpoint the seams | Cut the tickets. Start and watch each build. | Builds test-first at the agreed seams. |
+| 4. Stay the owner | Decide whether it is done. | Runs the checks and lenses. Brings a verdict. |
+
+You decide at every seam.
+
+</details>
+
+The moves name no skills. You bind your own tools to them through a configuration file (there is an example in [`examples/pact-config/`](examples/pact-config/)), and [Matt Pocock's skills](https://github.com/mattpocock/skills) ship as a ready-made preset.
+
+## Process tiers
+
+Not every change needs a spec. Each piece of work gets a process tier (quick, standard or thorough), and the tier sets which moves it goes through. Work on the risk floor, such as auth, secrets or anything published, always takes the thorough tier.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-02-tiers-dark.svg">
+  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. Quick, standard and thorough work goes through more moves and more reviews as the tier rises. Auth, secrets, crypto, input validation, data migrations and anything published are always thorough." width="800">
+</picture>
+
+<details>
+<summary>Text of FIG. 02</summary>
+
+| Tier | Triage | Spec | Spec read by | Tickets | Build, then verify |
+|---|---|---|---|---|---|
+| Quick | In chat or on an issue | — | — | — | One session · QA pair |
+| Standard | On an issue | Short spec | unstated-lens | — | One session · QA and standards pairs and unstated-lens |
+| Thorough | On an issue | Full spec | Spec pair and unstated-lens | Thin slices with done-criteria | One session per ticket · QA and standards pairs and unstated-lens |
+
+**Risk floor, always thorough.** Auth, secrets, crypto, input validation, data migrations and anything published are thorough, whatever tier is named. Auth, secrets, crypto and input validation also take the security route: the security pair reads the spec before you approve it, and the diff after the build.
+
+**Models.** Opus plans. Sonnet builds, and Opus builds quick work. Security work runs on Opus at high effort.
+
+</details>
+
+## Review lenses
+
+A lens is a reviewer agent that asks one question from one angle. Lenses run in pairs, each starting fresh and never seeing its partner's report, and `unstated-lens` runs alone. They read and report, and none of them builds anything.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
+  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, you decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question. Their reports are checked, joined and posted on the issue, and you decide." width="800">
+</picture>
+
+<details>
+<summary>Text of FIG. 03</summary>
+
+- **Spec pair, at move 2, at the thorough tier.** `executability-lens`: would the spec, built as written, run end to end? `good-enough-lens`: what could be cut or deferred, and what would it save?
+- **QA pair, at every build.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail?
+- **Standards pair, at move 4, at the standard and thorough tiers.** `conventions-lens`: does the diff keep the repo's written rules? `reader-lens`: can the next reader act on what it says?
+- **Security pair, on the security route.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
+- **Alone, at moves 2 and 4, at the standard and thorough tiers.** `unstated-lens`: what need did nobody write down?
+
+Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The cross script checks and joins the pair; where both lenses hit one spot, it shows first. The reports are posted on the issue word for word. You decide: done, fix, or stop.
+
+</details>
+
+Their reports go on the issue word for word. The agent sorts the findings and acts on its recommendation for each, and you can reverse any of them. Whether the work is done is your call.
 
 ## Who it's for
 
-**It is one person's working configuration, shared as a reference.** Read it,
-borrow from it, or install it, but adopt it with your own judgement. It is
-written for its owner's setup: the rules tell Claude Code to use PowerShell on
-Windows, name the owner's other projects, and set the owner's preferences,
-such as auto mode and the Concise output style. A configuration file can
-change some of it (see `examples/pact-config/`); the rest you would edit in
-your own copy.
+**It is one person's working configuration, shared as a reference.** Read it, borrow from it, or install it, but adopt it with your own judgement. It is written for its owner's setup (PowerShell on Windows, auto mode, the Concise output style), and a configuration file can change some of it.
 
-**The rules reach beyond your machine in three ways.** They treat your issue
-tracker as the record: a session reads tiers, approvals and decisions there,
-so on a tracker where others can comment, you need the pact's
-`tracker-authors` rule (#160) in your copy. They post every review report
-there word for word, security findings included, so on a public tracker those
-findings are public until fixed. And at a periodic review they collect totals
-into "the-pact's issue", which means this repo's tracker, until you point that
-paragraph at your own. The how-to's
-[Before you install](docs/install.md#before-you-install) covers all three.
-
-**How it could break is in [the threat model](docs/threat-model.md):** who
-could attack a setup like this, what the pact does about each, what it
-accepts as risk, and what each change you make to it costs.
-
-To install it, follow [docs/install.md](docs/install.md).
-
-## Why this exists
-
-The pact is a small, runnable version of my engineering playbook: how humans
-and AI agents build software together, with the human as the architect of
-intent and the agent as the executor. The playbook is on
-[my website](https://aymandiab.com/work/engineering-workflow-playbook). Four moves govern it:
-
-1. **Sense the work before you process it.**
-2. **Do the thinking before the doing.**
-3. **Checkpoint the seams.**
-4. **Stay the owner.**
-
-Anthropic published a six-stage playbook of its own, [*The AI-Native SDLC
-playbook*](https://claude.com/blog/the-ai-native-sdlc-playbook). This is how
-the pact's moves line up with its stages:
-
-| Move | Anthropic stage | What the pact does |
-|---|---|---|
-| Sense the work | Plan | Triage; set the process tier; route bugs and large efforts |
-| Do the thinking before the doing | Plan, Design | Grill, write the spec, prototype open questions; the spec pair, `executability-lens` and `good-enough-lens`, at the thorough tier, and `unstated-lens` at standard and thorough |
-| Checkpoint the seams | Build, Test | Tickets with done-criteria; each build runs in a main session, test-first at agreed seams |
-| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, advises at every tier; `unstated-lens` and the standards pair, `conventions-lens` and `reader-lens`, at standard and thorough; and for security work the security pair, `adversarial-lens` and `data-lens`, on the diff; the human decides |
-
-The pact does not cover Anthropic's Maintain stage yet.
-
-**Built on:**
-- **[Matt Pocock's skills](https://github.com/mattpocock/skills)** are one set
-  you can bind to the moves: triage, grilling, specs, prototypes, tickets,
-  test-driven development and deep modules. The pact describes practices, not
-  skills, and a person binds their own tools to them through configuration.
-  The set ships as a preset: three blocks in `examples/pact-config/blocks/`
-  (`move-N-matt-pocock.md`) and `examples/pact-config/config-matt-pocock-skills.json`
-  to bind them.
-- **John Ousterhout's *A Philosophy of Software Design*,** the source of the
-  deep-module idea those skills apply.
+**It reaches beyond your machine.** It treats your issue tracker as the record, and posts review reports there word for word, security findings included. Read [Before you install](docs/install.md#before-you-install) and [the threat model](docs/threat-model.md) first.
 
 ## What's here
 
-| Path | What it is | Installs to |
-|---|---|---|
-| `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
-| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text; and `unstated-lens`, which looks for needs nobody wrote down. Each runs on Opus by default; a configuration may change any lens's model and effort (ADR 0027). The lenses' contracts are in `familiars/` | `~/.claude/agents/` |
-| `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
-| `familiars/` | Agents migrated to a grimoire contract, each beside its contract: `scout`, on Sonnet at low effort; and the lenses' contracts, which never install | `~/.claude/agents/` (agent files only) |
-| `cross/cross.mjs` | The cross script: checks a lens pair's findings blocks, joins them, and writes the comment section and a local page. The pact calls only the installed copy. `cross/render-check.mjs` is a one-off check and never installs | `~/.claude/pact/cross.mjs` |
-| `gate/` | The install gate: the pact's own check (seam A), the renderer, a pinned copy of grimoire's check script, and the per-agent tool allow-list | Never installed |
-| `examples/pact-config/` | An example user configuration: the values a person may set, such as the usage pause line. Copy it to `~/.claude/pact/config.json` to use it; the installer reads that file and never writes it | Never installed |
-| `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. Moves 1 to 4 show with their locked clauses; open slots take presets, your own text, your skills and commands, and your own agents. It fetches nothing, and the installer checks what it saves like any other file. `scriptorium.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, ask your agent to run the `scriptorium` skill (`.claude/skills/scriptorium/`) in this clone: it writes a builder file from your own workflow and renders your page with `node builder/build.mjs --builder <file> --out <page>` | Never installed |
-| `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
+| Path | What it is |
+|---|---|
+| `claude/CLAUDE.md` | The rules: the moves, the tiers, and when to stop |
+| `claude/agents/` | The lenses, in pairs |
+| `familiars/` | `scout`, and the lenses' contracts |
+| `cross/cross.mjs` | Checks and joins a lens pair's findings |
+| `gate/` | The install gate: the pact checks itself before it installs |
+| `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON |
+| `cloud-sessions/` | Setup for Claude Code cloud sessions |
 
-**The familiars, by effort:**
-- **Low:** `scout`. The pact ships no `Explore`; skills that call it get Claude Code's built-in.
-- **Medium:** the QA pair, `behaviour-lens` and `integrity-lens`; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.
-- **High:** the security pair, `adversarial-lens` and `data-lens`.
+The full table, with every agent and where each file installs, is in [docs/reference.md](docs/reference.md).
 
-Builds run in a main session the owner watches, not in agents.
+## Install
+
+Run the install script from the repo root with Node 24 or later. With no switch it is a dry run: it shows what it would change, and installs nothing until you pass `--apply`.
+
+```sh
+node gate/install.mjs
+```
+
+The full how-to, with the command for each shell, is in [docs/install.md](docs/install.md).
 
 ## Depends on
 
 - **Claude Code.** The pact is a rules file, agents and settings for it.
-- **Node 24 or later,** the current LTS, to install and to run the gate's
-  tests, on Windows, macOS or Linux.
-- **PowerShell 7,** for part of the gate's tests only: the skill-flag check and
-  the cases that run the documented PowerShell commands. The install doesn't
-  need it.
-- **git.** The install reads the clone's committed files through git.
-- **The models the rules name:** Opus and Sonnet, and Fable for a second
-  opinion when reviewers disagree.
-- **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy
-  of its check script ships in `gate/grimoire/`, so the install needs nothing
-  from it. Its skills are optional.
-- **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional.
-  The pact ships them as a preset you can bind to the moves.
-- **Optional for this repo's own work:** the GitHub CLI (`gh`), for its
-  tracker, and Docker, for the Linux test run.
-
-How to install: [docs/install.md](docs/install.md).
-
-## What never goes in here
-
-- **Credentials of any kind.** `~/.claude/settings.json` holds API keys in its `env` block, so it is never copied. Only the overlay is.
-- **`~/.claude.json`, MCP server definitions, history, sessions, project memory and keybindings.**
-- **Anything from an employer or a client.**
-
-## Status
-
-**Bootstrapped on 2026-09-26.** **The git history is kept as it was written:** older commits hold the owner's Windows username in file paths, and two commits name a private folder, without any of its content ([ADR 0035](docs/adr/0035-publish-with-the-history-as-it-is.md)). The current tree holds no personal home paths, and a test guards against new ones. The instructions name only public projects: [grimoire](https://github.com/mephistopheles4/grimoire), [stacks](https://github.com/mephistopheles4/stacks) and the wayfinder skill.
-
-**`cloud-sessions/` is generated, and a test keeps it current.** `cloud-sessions/gen.mjs` builds `CLAUDE.cloud.md` and the two setup scripts from the payload, through the same render and seam A a home install uses. Run it after any change to `claude/`, `familiars/`, `cross/cross.mjs` or the templates in `cloud-sessions/`, with `NODE_OPTIONS` cleared: `$env:NODE_OPTIONS = $null; node cloud-sessions/gen.mjs` in PowerShell, or `env -u NODE_OPTIONS node cloud-sessions/gen.mjs` in a POSIX shell. `gate/tests/cloud-sessions.test.mjs` fails while a committed output is stale. Every change to `cloud-sessions/` and to that test takes the security route. After a merge that changes the outputs, paste the new `cloud-setup-wrapper.sh` into the cloud environment's setup field: the first session's setup log prints `pact cloud copy <marker>`, which must equal what the generator printed. The marker proves a complete, hash-matched write, not that nothing tampered with the setup: its third-party installs run as root earlier in the same run ([ADR 0038](docs/adr/0038-the-cloud-copy-is-generated-through-the-render-and-seam-a.md)). **Next step (#183):** have the setup clone this repo once it is public, so nothing is embedded.
-
-## Planned
-
-- **Split the instructions** into a vendor-neutral `AGENTS.md` (plain language, the plan → review → build → verify flow, stop signals, usage) and a thin `CLAUDE.md` adapter that imports it and adds what is specific to Claude Code. Both go in `claude/`, next to the file they replace. The root `AGENTS.md` is a different file: it holds the rules for working on this repo, not the pact.
+- **Node 24 or later,** the current LTS, to install and to run the gate's tests, on Windows, macOS or Linux.
+- **PowerShell 7,** for part of the gate's tests only. The install doesn't need it.
+- **git.** The install reads the clone's committed files.
+- **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
+- **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy of its check script ships here; its skills are optional.
+- **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: a preset you can bind to the moves.
+- **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the Linux test run.
