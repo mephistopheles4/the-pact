@@ -97,8 +97,6 @@ Their reports go on the issue word for word. The agent sorts the findings and ac
 
 **It reaches beyond your machine.** It treats your issue tracker as the record, and posts review reports there word for word, security findings included. Read [Before you install](docs/install.md#before-you-install) and [the threat model](docs/threat-model.md) first.
 
-**The git history is kept as it was written.** Older commits hold the owner's Windows username in file paths, and two name a private folder, without any of its content ([ADR 0035](docs/adr/0035-publish-with-the-history-as-it-is.md)).
-
 ## What's here
 
 | Path | What it is |
