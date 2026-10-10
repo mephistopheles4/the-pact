@@ -155,7 +155,7 @@ test('data-lens says "unencrypted", never "in the clear", and its headline rule 
 
 test('no lens file, contract or practice test holds a line that starts mid-sentence after a blank line', () => {
   for (const lens of LENSES) assert.deepEqual(damage(read(join(REPO, 'claude', 'agents', `${lens}.md`))), [], lens);
-  // Round 2 on the fix (N3): the fix itself split a sentence in a practice test, outside the lens files.
+  // Round 2 on the fix (N3): the fix itself split a sentence in a practice test (since deleted), outside the lens files.
   for (const f of readdirSync(join(REPO, 'familiars')).filter(n => n.endsWith('.md'))) {
     assert.deepEqual(damage(read(join(REPO, 'familiars', f)).replace(/^```[\s\S]*?^```/gm, '')), [], f);
   }

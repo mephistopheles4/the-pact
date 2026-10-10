@@ -8,7 +8,7 @@ Version: 0.1.4
 - **Go to build:** the owner, 2026-10-07: "A" for the target and "go", after the session named what it covers: every Proposed answer becoming Confirmed, Sample A as the target, and Opus at high for both lenses.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's outgoing security reviewer, the agent file this lens and its partner replace in the security swap (pact issue #100; spec: #35, revision 7). Every rule of that file is listed in `familiars/adversarial-lens.contract.md`, "Rules of the file it replaces", marked kept, moved or dropped for both lenses; the rows that land on this lens are repeated below.
-- **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): the agent file lives in `claude/agents/data-lens.md`, unsealed. This contract and the practice test stay in `familiars/`. Without a seal, nothing checks that the file still matches this contract; that is Promised.
+- **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): the agent file lives in `claude/agents/data-lens.md`, unsealed. This contract stays in `familiars/`; #189 deleted its practice test. Without a seal, nothing checks that the file still matches this contract; that is Promised.
 
 Target: claude
 **Decided** (2026-10-07, #100: the lens installs as a Claude Code agent)

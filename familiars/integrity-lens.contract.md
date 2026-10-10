@@ -8,7 +8,7 @@ Version: 0.1.1
 - **Go to build:** the owner, 2026-10-05: "go", after the session named what it covers: the "delivered" reading of question 2, needs with no claim listed under "not checked", Opus at medium for both lenses, and every Proposed answer becoming Confirmed.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's previous test and check reviewer, the agent file this lens replaces in the QA swap (pact issue #47; spec: #35, revision 7). Every rule of that file is listed under "Rules of the file it replaces", marked kept, moved or dropped.
-- **Placement:** **Decided** (2026-10-05, the owner's words: "im not sure we need to save them to familiars/ agents/ is fine, no need to reinvent the wheel"): the agent file lives in `claude/agents/integrity-lens.md`, unsealed. This contract and the practice test stay in `familiars/`. Revision 7 of #35 had planned a sealed familiar. Without a seal, nothing checks that the file still matches this contract; that is Promised.
+- **Placement:** **Decided** (2026-10-05, the owner's words: "im not sure we need to save them to familiars/ agents/ is fine, no need to reinvent the wheel"): the agent file lives in `claude/agents/integrity-lens.md`, unsealed. This contract stays in `familiars/`; #189 deleted its practice test. Revision 7 of #35 had planned a sealed familiar. Without a seal, nothing checks that the file still matches this contract; that is Promised.
 
 Target: claude
 **Decided** (2026-10-05, #47: the lens installs as a Claude Code agent)

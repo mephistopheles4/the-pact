@@ -311,8 +311,8 @@ how every session in every repo behaves. So:
 
 Size the evidence to the cost of being wrong. When a session misbehaves after a
 rule change, the usual cost is one wasted session that the owner restarts. So a
-change to an agent or a rule is proved by review and by use, never by a planted
-probe. The changes listed below, where a miss is expensive or silent, take the
+change to an agent or a rule is proved by review and by use. It needs a
+planted probe only when the owner asks for one by name. The changes listed below, where a miss is expensive or silent, take the
 security route.
 
 A lens is a reviewer agent that asks one question from one angle. A lens review
@@ -343,7 +343,9 @@ Where two bullets apply, the stricter one holds.
   - [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md), which the
     gated `tracker-authors` clause tells every session to read live from
     GitHub;
-  - this list itself: a change that removes an item from it.
+  - this section itself: a change that removes or narrows an item on this
+    list, narrows the definition of a security-set lens, or loosens the
+    doubt rule or the rule that the stricter bullet holds.
 - **The gate's code also needs its own tests.** The gate's code is every file
   in `gate/` but its tests, every file in `.github/workflows/`, and
   `.github/dependabot.yml`. Every change to it takes the security route. Each
@@ -355,8 +357,8 @@ Where two bullets apply, the stricter one holds.
   adding an agent to it is a spec change, and takes the security route.
 - **Everything else is proved by use.** That means the repo's tests and gates
   pass, and a reviewer reads the change at move 4. The gate's tests are
-  ordinary test code, the test runner and its helpers included. Any other
-  edit to this section is also proved by use.
+  ordinary test code, the test runner and its helpers included. An edit to
+  this section that only tightens or clarifies it is also proved by use.
 - **Depth is the owner's dial.** The owner may ask for a planted probe by
   name, or a closer look, on any change, at triage or in chat. Silence means
   the default above. Nobody can take a listed change off the security route.
@@ -375,6 +377,8 @@ work's log entry in [`docs/log/`](docs/log/).
   what the model does: the 2026-09-29 P5 probe failed headless and passed
   interactively. See
   [its log entry](docs/log/2026-09-29-hand-over-the-trigger.md).
+- **A pass counts only once the probe has been seen to fail:** a control run,
+  or a planted bad case that it catches.
 - **Record every run verbatim,** pass or fail, with the agent's report, on the
   issue.
 

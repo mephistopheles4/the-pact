@@ -8,7 +8,7 @@ Version: 0.1.1
 - **Go to build:** the owner, 2026-10-07: "go", after the session named what it covers: the spec-time reading of `executability-lens`'s question 2, the likelihood and impact columns, the three targets from best practice, Opus at medium for all three lenses, and every Proposed answer becoming Confirmed.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** new; no reviewer held this question before. Drafted from #35 revision 7 and #29's stop test (pact issue #99).
-- **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): the agent file lives in `claude/agents/good-enough-lens.md`, unsealed. This contract and the practice test stay in `familiars/`.
+- **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): the agent file lives in `claude/agents/good-enough-lens.md`, unsealed. This contract stays in `familiars/`; #189 deleted its practice test.
 
 Target: claude
 **Decided** (2026-10-06, #99: the lens installs as a Claude Code agent)

@@ -16,8 +16,8 @@
 // line holds a local path, the user or host name, or an email address. A leak
 // is reported by file and line number only.
 // It reads names from the baseline and the lists alone, and never prints a
-// line of the record. Exit 0 on a pass, 1 on a fail, 2 on a usage error. On
-// the probe floor by name (AGENTS.md).
+// line of the record. Exit 0 on a pass, 1 on a fail, 2 on a usage error. Ordinary
+// test code since #189; #189's second ticket deletes it.
 import { createHash } from 'node:crypto';
 import { readFileSync, realpathSync } from 'node:fs';
 import { hostname, userInfo } from 'node:os';

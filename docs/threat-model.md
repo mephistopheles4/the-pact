@@ -128,7 +128,7 @@ How to read it:
 | R5 Refusal untested | Outside pull request | `tracker-authors` | Rule |
 | R6 Container built wrong | Outside pull request | The five conditions, your typed OK | Rule, then a boundary |
 | R7 Teams blocked | None; a cost to you | None yet (#180) | — |
-| R8 Publisher compromised | This repo's publisher | Dry run, the diff you read, the security route for the tracker reads | Rule |
+| R8 Publisher compromised | This repo's publisher | Dry run, the diff you read | Rule |
 | R9 Installed code | Plugin or skill author | None | — |
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks, ask rules | Outside the pact, prompt |
@@ -244,8 +244,9 @@ once you install it.
   the clone's own project files. So read the diff before either. The
   installed rules also tell sessions to use the tracker reads in a file in
   this repo on GitHub, `docs/agents/issue-tracker.md`, which is live, not
-  pinned. A change to that file takes the security route here, so the
-  security pair reads it before it merges.
+  pinned. A change to that file takes the security route here, which guards
+  against a careless edit. It is a rule, so whoever holds the publisher's
+  account can skip it.
 - **R9. No rule can stop code you installed.** A plugin's hooks or servers run
   whatever they hold. The pact cannot see or limit them. Trust what you
   install, and pin versions where you can.
@@ -255,14 +256,6 @@ once you install it.
   clone and any token the container holds. One plugin is a code-review
   service's; using it may send code to that service. The owner accepted this
   risk by name (#182).
-- **R21. The test runner and its helpers are ordinary test code.** The
-  runner, its copy list, the table module, the in-process runner and the
-  guards beside it decide what "the full suite" and the required CI check
-  run. Since #189 a change to them is proved by use, not by the security
-  route. An ordinary edit could narrow what the CI check runs, or weaken
-  record mode's scrub, which keeps local paths and names out of posted test
-  output. The review at move 4 is what catches it. The owner accepted this
-  risk by name (#189).
 
 ## A session that reads text as instructions
 
@@ -324,6 +317,14 @@ session can act before you see it.
   pair reads its text, but nothing runs the lens to show it still follows
   its carried rules or resists planted text. A lens that reads well and
   behaves badly shows up only in use.
+- **R21. The test runner and its helpers are ordinary test code.** The
+  runner, its copy list, the table module, the in-process runner and the
+  guards beside it decide what "the full suite" and the required CI check
+  run. Since #189 a change to them is proved by use, not by the security
+  route. An ordinary edit, or one a fooled session makes, could narrow what
+  the CI check runs, or weaken record mode's scrub, which keeps local paths
+  and names out of posted test output. The review at move 4 is what catches
+  it. The owner accepted this risk by name (#189).
 
 ## Your own configuration loosening a rule
 

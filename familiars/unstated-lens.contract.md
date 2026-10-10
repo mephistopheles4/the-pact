@@ -8,7 +8,7 @@ Version: 0.1.2
 - **Go to build:** the owner, 2026-10-07: "go", after the session named what it covers: the spec-time reading of `executability-lens`'s question 2, the likelihood and impact columns, the three targets from best practice, Opus at medium for all three lenses, and every Proposed answer becoming Confirmed.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's outgoing plan reviewer, which this lens and the spec pair replace (pact issue #99; spec: #35, revision 7). Every rule of that file is listed under "Rules of the file it replaces".
-- **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): `claude/agents/unstated-lens.md`, unsealed; this contract and the practice test in `familiars/`.
+- **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): `claude/agents/unstated-lens.md`, unsealed; this contract in `familiars/` (#189 deleted its practice test).
 
 Target: claude
 **Decided** (2026-10-06, #99)

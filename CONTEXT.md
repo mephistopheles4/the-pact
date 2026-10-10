@@ -22,7 +22,7 @@ real work selects it.
 - **Pick:** the anchors the owner expects the problem on, or "none", said before the verdict is revealed.
 - **Mismatch:** a pick that differs from the result by the rule in the spec's "The pick". It opens a short discussion before the owner decides.
 - **Swap:** the one commit and install that brings a pair in and takes its old reviewer out.
-- **Security-set lens:** either lens of the security pair, or any other lens that holds a shell or network tools, or guards the security route or the risk floor. A change to one takes the security route. The name outlived the security set, the practice cases that #189 retired with the bad reports.
+- **Security-set lens:** either lens of the security pair, the reviewers the security route names, or any other lens that holds a shell or network tools, or guards the security route or the risk floor. A change to one takes the security route. The name outlived the security set, the practice cases that #189 retired with the bad reports.
 - **Standing measures:** the numbers recorded at every lens review on real work, and worked out at each periodic review.
 - **Escape:** a defect found after a lens review passed the work on, that falls within the question of a lens that ran at that review.
 - **Roster gap:** a defect found later that no lens's question covers.
