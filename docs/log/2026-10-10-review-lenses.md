@@ -90,4 +90,5 @@ Issue comments on mephistopheles4/the-pact#102:
 - `6102497867`, `6102498028`, `6102498163` — move 4: the security pair and the standards pair on the diff, and `unstated-lens` on the result.
 - `6102513797`, `6102514004` — move 4's claim list, and the Lens dispositions for round 1.
 - `6102550583` — round 2: the security pair on the fixes, both `clear`.
-- The full suite's record follows on #102; the install record follows the merge.
+- `6102730322` — the full suite, passing on the branch with main merged in.
+- The install record follows the merge, on #102.
