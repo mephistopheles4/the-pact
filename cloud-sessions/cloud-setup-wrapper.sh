@@ -3751,22 +3751,34 @@ SETTINGS_OVERLAY='{
       "PowerShell(*install.mjs*(*)",
       "PowerShell(*install.mjs*%*)",
       "PowerShell(*install.mjs*`*)",
+      "PowerShell(*install.mjs*-\"*)",
+      "PowerShell(*install.mjs*-\u0027*)",
       "PowerShell(*install-run.mjs*--a*)",
       "PowerShell(*install-run.mjs*$*)",
       "PowerShell(*install-run.mjs*@*)",
       "PowerShell(*install-run.mjs*(*)",
       "PowerShell(*install-run.mjs*%*)",
       "PowerShell(*install-run.mjs*`*)",
+      "PowerShell(*install-run.mjs*-\"*)",
+      "PowerShell(*install-run.mjs*-\u0027*)",
       "Bash(*nstall.mjs*--a*)",
       "Bash(*nstall.mjs*$*)",
       "Bash(*nstall.mjs*`*)",
       "Bash(*nstall.mjs*\\*)",
+      "Bash(*nstall.mjs*\\\\*)",
+      "Bash(*nstall.mjs*-\"*)",
+      "Bash(*nstall.mjs*-\u0027*)",
       "Bash(*nstall-run.mjs*--a*)",
       "Bash(*nstall-run.mjs*$*)",
       "Bash(*nstall-run.mjs*`*)",
       "Bash(*nstall-run.mjs*\\*)",
-      "PowerShell(*install.mjs*--rev*)",
-      "Bash(*nstall.mjs*--rev*)",
+      "Bash(*nstall-run.mjs*\\\\*)",
+      "Bash(*nstall-run.mjs*-\"*)",
+      "Bash(*nstall-run.mjs*-\u0027*)",
+      "PowerShell(*--review-folder*)",
+      "Bash(*--review-folder*)",
+      "PowerShell(*install.mjs*--r*)",
+      "Bash(*nstall.mjs*--r*)",
       "PowerShell(*.pact-install.json*)",
       "Bash(*.pact-install.json*)",
       "PowerShell(*gh*ruleset*)",
@@ -3889,7 +3901,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 0dc9cd30807f"
+  echo "pact cloud copy c5f2992da932"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

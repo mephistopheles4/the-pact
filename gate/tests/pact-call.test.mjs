@@ -17,9 +17,11 @@ const WIN = process.platform === 'win32';
 const LEAD = '**The cross script.**';
 const LIVE = '"$HOME/.claude/pact/cross.mjs"';
 
+const PACT_TEXT = () => read(join(REPO, 'claude', 'CLAUDE.md'));
+
 /** The pact's cross-script paragraph: from its bold lead to the next blank line. */
-function paragraph() {
-  const lines = read(join(REPO, 'claude', 'CLAUDE.md')).split('\n');
+function paragraph(text = PACT_TEXT()) {
+  const lines = text.split('\n');
   const i = lines.findIndex(l => l.startsWith(LEAD));
   assert.ok(i >= 0, `the pact has no paragraph led by ${LEAD}`);
   const out = [];
@@ -28,8 +30,8 @@ function paragraph() {
 }
 
 /** The paragraph's code spans that run the script. */
-function commands() {
-  return [...paragraph().matchAll(/`([^`\n]+)`/g)].map(m => m[1]).filter(s => s.includes('cross.mjs'));
+function commands(text) {
+  return [...paragraph(text).matchAll(/`([^`\n]+)`/g)].map(m => m[1]).filter(s => s.includes('cross.mjs'));
 }
 
 function which(cmd) {
@@ -56,14 +58,21 @@ test('the paragraph gives one PowerShell and one POSIX command, each through $HO
 // word: a command chained before the call would pass a prefix check (#210).
 const EXACT = ['$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" <arguments>', 'env -u NODE_OPTIONS node "$HOME/.claude/pact/cross.mjs" <arguments>'];
 
+/** Whether a text's cross-script commands are exactly the documented forms. */
+const exactForms = text => JSON.stringify([...commands(text)].sort()) === JSON.stringify([...EXACT].sort());
+
 test('the two commands are exactly the documented forms, and nothing else', () => {
   assert.deepEqual([...commands()].sort(), [...EXACT].sort());
+  assert.ok(exactForms(PACT_TEXT()));
 });
 
 test('bad case: a command chained before the PowerShell call fails the exact check, though it keeps the prefix and the path', () => {
-  const planted = EXACT[0].replace('node "$HOME', 'node ./x.mjs; node "$HOME');
-  assert.ok(planted.startsWith('$env:NODE_OPTIONS = $null; node ') && planted.includes(`node ${LIVE}`), 'the plant keeps what the looser checks look for');
-  assert.ok(!EXACT.includes(planted));
+  const real = PACT_TEXT();
+  assert.ok(real.includes(EXACT[0]), 'the pact holds the PowerShell form to plant in');
+  const text = real.replace(EXACT[0], () => EXACT[0].replace('node "$HOME', () => 'node ./x.mjs; node "$HOME'));
+  const ps = commands(text).find(c => c.includes('$env:NODE_OPTIONS'));
+  assert.ok(ps.startsWith('$env:NODE_OPTIONS = $null; node ') && ps.includes(`node ${LIVE}`), 'the plant keeps what the looser checks look for');
+  assert.equal(exactForms(text), false);
 });
 
 test('the paragraph names both failure exit codes and what each means', () => {

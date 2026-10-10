@@ -231,13 +231,13 @@ once you install it.
   check runs from that staged copy. An apply is bound to the commit its dry
   run showed. Every change to the install gate's code takes the security
   route.
-- **Ask rules on the install itself.** A shell command that applies asks you
-  first, so a session can't apply without your approval: any command holding
-  `--apply`, the install script named with a word the rule can't read after
-  it, and the old PowerShell installer named with its apply switch, a dash, a
-  splat or a variable. A command that names the install record, or a `gh`
-  command naming rulesets or branch protection, asks too. A mention, a read,
-  a diff or a dry run of the installer runs without asking (ADR 0049), so an
+- **Ask rules on the install itself.** The documented apply and its listed
+  spellings ask you first: any command holding `--apply`, the install script
+  named with a word the rule can't read or a quote after a dash after it, and
+  the old PowerShell installer named with its apply switch, a dash, a splat
+  or a variable. A command that names the install record, or a `gh` command
+  naming rulesets or branch protection, asks too. A plain mention, a read, a
+  diff or a dry run of the installer runs without asking (ADR 0049), so an
   apply's prompt no longer looks routine. What still gets past them is R22.
 - **Ask rules** on the skills, plugins, agents and settings folders, for
   Claude Code's own edit tools.
@@ -335,15 +335,20 @@ session can act before you see it.
   rules look for an apply's spelling, not the installer's name, so some
   applies that asked before now don't: the old installer named in one
   statement and run with its switch from a variable in the next; a Node flag
-  split by an escape no rule lists, such as a caret through `cmd` or quotes
-  before its `a`; a wrapped apply line, if Claude Code's matcher splits it
-  before the flag; and a name built at run time with the flag also hidden. A
-  dry run of installer code under edit also runs unprompted against your real
-  Claude home. The pact's tests check the rules against a model of Claude
-  Code's documented matching, which can't show what the live matcher does
-  with escapes or wrapped lines. An apply still needs your go-ahead in chat
-  and the commit your dry run printed. The owner accepted this to stop the
-  prompts on every mention (#210).
+  split by an escape no rule lists, such as a caret through `cmd` or
+  PowerShell's typographic quotes; a wrapped apply line, if Claude Code's
+  matcher splits it before the flag; a name built at run time with the flag
+  also hidden; and the installer named plainly with its flag or switch built
+  at run time inside an inline program, an evaluated string or a child shell,
+  which no list of rules can close. A dry run of installer code under edit
+  also runs unprompted against your real Claude home; a throwaway home keeps
+  a bug away from it, not hostile code. The pact's tests check the rules
+  against a model of Claude Code's documented matching, which can't show
+  what the live matcher does with escapes or wrapped lines. Some mentions
+  still ask: a `$`, a `(` or a backtick after the installer's name looks the
+  same in a commit message as in an apply. An apply still needs your
+  go-ahead in chat and the commit your dry run printed. The owner accepted
+  this to stop the prompts on every mention (#210).
 
 ## Your own configuration loosening a rule
 

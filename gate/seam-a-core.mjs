@@ -108,7 +108,10 @@ const SETTINGS_APPLY_ASK = Object.freeze([
   'Bash(*nstall.ps1*$*)',
   'Bash(*nstall.ps1*`*)',
   // The Node installer: its one apply flag, wherever the script is named, and
-  // after each of its two names a word the rule can't read.
+  // after each of its two names a word the rule can't read, or a quote right
+  // after a dash, which is where a quote that splits the flag sits. Under
+  // Bash, a doubled backslash backs up the single one, in case the matcher
+  // reads a backslash before a star as an escape.
   'PowerShell(*--apply*)',
   'Bash(*--apply*)',
   'PowerShell(*install.mjs*--a*)',
@@ -117,23 +120,36 @@ const SETTINGS_APPLY_ASK = Object.freeze([
   'PowerShell(*install.mjs*(*)',
   'PowerShell(*install.mjs*%*)',
   'PowerShell(*install.mjs*`*)',
+  'PowerShell(*install.mjs*-"*)',
+  "PowerShell(*install.mjs*-'*)",
   'PowerShell(*install-run.mjs*--a*)',
   'PowerShell(*install-run.mjs*$*)',
   'PowerShell(*install-run.mjs*@*)',
   'PowerShell(*install-run.mjs*(*)',
   'PowerShell(*install-run.mjs*%*)',
   'PowerShell(*install-run.mjs*`*)',
+  'PowerShell(*install-run.mjs*-"*)',
+  "PowerShell(*install-run.mjs*-'*)",
   'Bash(*nstall.mjs*--a*)',
   'Bash(*nstall.mjs*$*)',
   'Bash(*nstall.mjs*`*)',
   'Bash(*nstall.mjs*\\*)',
+  'Bash(*nstall.mjs*\\\\*)',
+  'Bash(*nstall.mjs*-"*)',
+  "Bash(*nstall.mjs*-'*)",
   'Bash(*nstall-run.mjs*--a*)',
   'Bash(*nstall-run.mjs*$*)',
   'Bash(*nstall-run.mjs*`*)',
   'Bash(*nstall-run.mjs*\\*)',
-  // A dry run that writes the owner's rendered rules to a review folder.
-  'PowerShell(*install.mjs*--rev*)',
-  'Bash(*nstall.mjs*--rev*)',
+  'Bash(*nstall-run.mjs*\\\\*)',
+  'Bash(*nstall-run.mjs*-"*)',
+  "Bash(*nstall-run.mjs*-'*)",
+  // A dry run that writes the owner's rendered rules to a review folder: its
+  // option wherever the script is named, and after the name its first letter.
+  'PowerShell(*--review-folder*)',
+  'Bash(*--review-folder*)',
+  'PowerShell(*install.mjs*--r*)',
+  'Bash(*nstall.mjs*--r*)',
   // The install record, the drift baseline, and the CI ruleset (S11): kept
   // broad, since a write to either has no closed set of spellings (#165, #210).
   'PowerShell(*.pact-install.json*)',

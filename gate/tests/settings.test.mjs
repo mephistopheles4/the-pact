@@ -12,7 +12,7 @@ import { runSeamA } from './gate-run.mjs';
 import { realOverlay, stage } from './payload.mjs';
 import { GATE, REPO, failRules, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
-import { APPLY_ASK, APPLY_COMMANDS, BROAD_INSTALL_ASK, CROSS_ASK, DASHES, MENTION_COMMANDS, OLD_INSTALL_ASK, OVERLAY, PACT_ASK, asks, overlayWith, shown } from './settings-rules.mjs';
+import { APPLY_ASK, APPLY_COMMANDS, BACKUP_ASK, BROAD_INSTALL_ASK, CROSS_ASK, DASHES, MENTION_COMMANDS, OLD_INSTALL_ASK, OVERLAY, PACT_ASK, asks, overlayWith, shown } from './settings-rules.mjs';
 import { moduleResult, table } from './tables.mjs';
 
 const ALLOWLIST = 'gate/settings-allowlist.json';
@@ -264,6 +264,22 @@ test('control: an apply split across two statements runs under the per-name rule
   const perName = APPLY_ASK.filter(r => !r.endsWith('(*--apply*)'));
   assert.equal(asks(perName, split[0], split[1]), false);
   assert.equal(asks(APPLY_ASK, split[0], split[1]), true);
+});
+
+// A rule the same in every copy can still match nothing it should: so each
+// rule but the named backups is the one rule some apply row needs (#210,
+// round 2). A rule that matched nothing would leave that row running.
+test('each install rule but the named backups is the only rule that makes some apply row ask', () => {
+  const needed = rule => APPLY_COMMANDS.some(([tool, cmd]) => asks(APPLY_ASK, tool, cmd) && !asks(APPLY_ASK.filter(r => r !== rule), tool, cmd));
+  assert.deepEqual(APPLY_ASK.filter(r => !BACKUP_ASK.includes(r) && !needed(r)).map(shown), []);
+  for (const rule of BACKUP_ASK) assert.ok(APPLY_ASK.includes(rule), shown(rule));
+});
+
+test('control: a rule that matches nothing is caught as needed by no row', () => {
+  const broken = APPLY_ASK.map(r => (r === 'PowerShell(*install-run.mjs*@*)' ? 'PowerShell(*install-run.mjs*@@nothing*)' : r));
+  const needed = rule => APPLY_COMMANDS.some(([tool, cmd]) => asks(broken, tool, cmd) && !asks(broken.filter(r => r !== rule), tool, cmd));
+  assert.equal(needed('PowerShell(*install-run.mjs*@@nothing*)'), false);
+  assert.equal(APPLY_COMMANDS.every(([tool, cmd]) => asks(broken, tool, cmd)), false, 'the splat row then runs');
 });
 
 test('the model splits on each documented separator, and matches PowerShell without regard to case and Bash exactly', () => {

@@ -27,7 +27,9 @@ how every session in every repo behaves. So:
   it would overwrite, add and delete, whether live files drifted since the
   last install (it compares them with `~/.claude/.pact-install.json`), the
   commit it would install, and the apply command to run next. If there is
-  drift, stop and ask rather than overwrite.
+  drift, stop and ask rather than overwrite. Its output names the home
+  folder and the live settings' names, so post only its verdict and counts,
+  never the raw output.
 - **The install is gated.** A small bootstrap stages HEAD's files (never the
   working tree) in a temp folder and starts the runner from there, so every
   check runs committed code. The runner runs the pact's own check, seam A, on

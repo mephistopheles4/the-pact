@@ -125,7 +125,8 @@ parts:
     ask before an apply, not before a mention: any command holding
     `--apply`; the install script (`install.mjs` or `install-run.mjs`) named
     with a word the rule can't read after it, such as a variable, a splat or
-    a backtick; a dry run that writes to a review folder; and the old
+    a backtick, or with a quote right after a dash; a dry run that writes to
+    a review folder; and the old
     PowerShell installer (`install.ps1`) named with its apply switch, a
     dash, a splat or a variable. A dry run, a read, a search or a diff of
     those files runs without asking (ADR 0049). They also ask before any
@@ -161,9 +162,13 @@ The dry run names your home folder and your Node's path, which hold your
 user name, and the names of your own settings. Post its verdict and counts on
 a tracker, never its raw output.
 
-A dry run no longer asks first, so on a branch that changes the installer,
-run it with `--claude-home` pointing at a throwaway folder: the code under
-edit then can't touch your real Claude home.
+A dry run no longer asks first, and it runs `gate/install.mjs` as it stands
+in your working folder, uncommitted edits included. So on a branch that
+changes the installer, run it with `--claude-home` pointing at a throwaway
+folder: a bug in the code under edit then stays away from your real Claude
+home, though hostile code could still ignore the option. Write the folder's
+path out in full: a dry run with a variable, a bracket or a backtick after
+the script's name asks, as an apply does (ADR 0049).
 
 The last lines print the apply command to run next.
 

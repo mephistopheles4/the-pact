@@ -174,10 +174,14 @@ test('bad case: NODE_OPTIONS set refuses before any check runs', t => {
 });
 
 // The bootstrap's own case check, before anything is staged; the runner's
-// copy in parseTree is a row in install-core.test.mjs (#210, move 4).
+// copy in parseTree is a row in install-core.test.mjs (#210, move 4). The
+// runner's copy refuses in the same words, so a marker the planted runner
+// prints first shows which one refused (#210, round 2).
 test('bad case: two paths in the commit that differ only in case refuse', t => {
+  const MARK = 'MARK the runner started';
+  const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  const tree = core.parseTree(readFileSync(join(work, 'tree')));", `  say('${MARK}');\n  const tree = core.parseTree(readFileSync(join(work, 'tree')));`));
+  assert.ok(install(repo, home(t)).stdout.includes(MARK), 'control: the planted runner prints its marker when it starts');
   // Built in the index, since a folding disk cannot hold both files.
-  const repo = makeRepo(t);
   const tmp = join(repo, 'Executability-lens.tmp');
   writeFileSync(tmp, plainAgent('Executability-lens'));
   const id = git(repo, 'hash-object', '-w', tmp).trim();
@@ -187,7 +191,7 @@ test('bad case: two paths in the commit that differ only in case refuse', t => {
   assert.match(git(repo, 'ls-tree', '-r', '--name-only', 'HEAD', '--', 'claude/agents'), /Executability-lens\.md[\s\S]*executability-lens\.md|executability-lens\.md[\s\S]*Executability-lens\.md/);
   const r = install(repo, home(t));
   refused(r, /^REFUSED: the commit holds two paths that differ only in case: /m);
-  assert.doesNotMatch(r.stdout, /^Pinned check: /m, 'the runner started, so the bootstrap did not refuse');
+  assert.ok(!r.stdout.includes(MARK), 'the runner started, so the bootstrap did not refuse');
 });
 
 // The bootstrap walks PATH itself and skips relative entries (S6, G2), so on

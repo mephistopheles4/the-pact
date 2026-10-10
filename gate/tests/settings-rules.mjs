@@ -18,16 +18,30 @@ export const DASHES = [0x2013, 0x2014, 0x2015].map(c => String.fromCharCode(c));
 // The Node installer: the one flag spelling the script reads, anywhere; then,
 // after each of its two names, what hands the script a word the rule can't
 // read. PowerShell passes a dash-like character to a native program as typed,
-// and the script refuses it, so the Node rules need no dash forms.
+// and the script refuses it, so the Node rules need no dash forms. A quote
+// that splits the flag before its "a" sits right after a dash (#210, round 2).
+// Under Bash, a doubled backslash backs up the single one, in case the live
+// matcher reads a backslash before a star as an escape.
 const NODE_NAMES = { PowerShell: ['install.mjs', 'install-run.mjs'], Bash: ['nstall.mjs', 'nstall-run.mjs'] };
-const AFTER = { PowerShell: ['--a', '$', '@', '(', '%', '`'], Bash: ['--a', '$', '`', '\\'] };
+const AFTER = { PowerShell: ['--a', '$', '@', '(', '%', '`', '-"', "-'"], Bash: ['--a', '$', '`', '\\', '\\\\', '-"', "-'"] };
 export const NODE_INSTALL_ASK = [
   'PowerShell(*--apply*)',
   'Bash(*--apply*)',
   ...['PowerShell', 'Bash'].flatMap(tool => NODE_NAMES[tool].flatMap(n => AFTER[tool].map(a => `${tool}(*${n}*${a}*)`))),
-  // A dry run that writes the owner's rendered rules to a folder still asks.
-  'PowerShell(*install.mjs*--rev*)',
-  'Bash(*nstall.mjs*--rev*)',
+  // A dry run that writes the owner's rendered rules to a folder still asks:
+  // its option wherever the script is named, and after the name its first
+  // letter, which no other dry-run option starts with.
+  'PowerShell(*--review-folder*)',
+  'Bash(*--review-folder*)',
+  'PowerShell(*install.mjs*--r*)',
+  'Bash(*nstall.mjs*--r*)',
+];
+// Rules no apply row needs alone, by design: each backs up another rule that
+// catches every form it does under the model.
+export const BACKUP_ASK = [
+  'PowerShell(./scripts/install.ps1 -Apply)',
+  'Bash(*nstall.mjs*\\\\*)',
+  'Bash(*nstall-run.mjs*\\\\*)',
 ];
 
 // The old PowerShell installer, which a rollback runs: ADR 0020's apply-step
@@ -130,25 +144,65 @@ export const APPLY_COMMANDS = [
   ['PowerShell', 'node gate/install.mjs $flag --commit abc', 'the flag in a variable'],
   ['PowerShell', 'node gate/install.mjs $(Get-Flag) --commit abc', 'the flag from a subexpression'],
   ['PowerShell', 'node gate/install.mjs @params', 'a splat'],
-  ['PowerShell', "node gate/install.mjs ('--ap' + 'ply') --commit abc", 'a parenthesised expression'],
+  ['PowerShell', 'node gate/install.mjs (Get-Flag) --commit abc', 'a parenthesised expression'],
+  ['PowerShell', "node gate/install.mjs ('--ap' + 'ply') --commit abc", 'a parenthesised expression of two pieces'],
   ['PowerShell', 'node gate/install.mjs --% %FLAG%', 'an environment variable after the stop-parsing token'],
   ['PowerShell', 'node gate/install.mjs -`-apply --commit abc', 'a backtick escape before the flag'],
   ['PowerShell', 'node gate/install.mjs --claude-home C:\\h `', 'a backtick line wrap after the name'],
+  ['PowerShell', 'node gate/install.mjs --"apply" --commit abc', 'the flag split by double quotes before its a'],
+  ['PowerShell', "node gate/install.mjs --'apply' --commit abc", 'the flag split by single quotes before its a'],
+  ['PowerShell', 'node gate/install.mjs "-"-apply --commit abc', 'the flag split by quotes between its dashes'],
   ['Bash', 'node gate/install.mjs --claude-home /h \\', 'a backslash line wrap after the name'],
+  ['Bash', 'node gate/install.mjs --claude-home /h \\\\', 'two backslashes after the name'],
+  ['Bash', 'node gate/install.mjs --a"pply" --commit abc', 'the flag split by quotes after --a, under Bash'],
   ['Bash', 'node gate/install.mjs "$FLAG" --commit abc', 'the flag in a variable, under Bash'],
-  ['Bash', 'node gate/install.mjs `printf -- --apply`', 'the flag from a command substitution, under Bash'],
+  ['Bash', 'node gate/install.mjs `get-flag` --commit abc', 'the flag from a command substitution, under Bash'],
+  ['Bash', 'node gate/install.mjs `printf -- --apply`', 'the flag spelled out in a command substitution, under Bash'],
+  ['Bash', 'node gate/install.mjs --"apply" --commit abc', 'the flag split by double quotes before its a, under Bash'],
+  ['Bash', "node gate/install.mjs --'apply' --commit abc", 'the flag split by single quotes before its a, under Bash'],
+  ['Bash', 's=gate/install.mjs; node "$s" --apply --commit abc', 'the name in one statement and the flag in another, under Bash'],
   ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- --apply', 'the runner started by hand'],
+  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- --a"pply"', 'the runner, the flag split by quotes after --a'],
+  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- $flag', 'the runner, the flag in a variable'],
+  ['PowerShell', 'node gate/install-run.mjs @params', 'the runner, a splat'],
+  ['PowerShell', 'node gate/install-run.mjs (Get-Args)', 'the runner, a parenthesised expression'],
+  ['PowerShell', 'node gate/install-run.mjs --% %ARGS%', 'the runner, the stop-parsing token'],
+  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- -`-apply', 'the runner, a backtick escape'],
+  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- --"apply"', 'the runner, the flag split by double quotes'],
+  ['PowerShell', "node gate/install-run.mjs C:\\w 0123 3 no -- --'apply'", 'the runner, the flag split by single quotes'],
+  ['Bash', 'node gate/install-run.mjs /w 0123 3 no -- --a"pply"', 'the runner, the flag split by quotes after --a, under Bash'],
+  ['Bash', 'node gate/install-run.mjs /w 0123 3 no -- "$FLAG"', 'the runner, the flag in a variable, under Bash'],
+  ['Bash', 'node gate/install-run.mjs /w 0123 3 no -- `get-flag`', 'the runner, a command substitution, under Bash'],
+  ['Bash', 'node gate/install-run.mjs /w 0123 3 no \\', 'the runner, a backslash line wrap, under Bash'],
+  ['Bash', 'node gate/install-run.mjs /w 0123 3 no -- --"apply"', 'the runner, the flag split by double quotes, under Bash'],
+  ['Bash', "node gate/install-run.mjs /w 0123 3 no -- --'apply'", 'the runner, the flag split by single quotes, under Bash'],
   ['PowerShell', 'node gate/install.mjs --review-folder D:\\review', "a dry run that writes the owner's rendered rules to a folder"],
+  ['PowerShell', '$s = "gate/install.mjs"; node $s --review-folder D:\\review', 'a review-folder dry run with the name in another statement'],
+  ['Bash', 's=gate/install.mjs; node "$s" --review-folder /review', 'a review-folder dry run with the name in another statement, under Bash'],
+  ['PowerShell', 'node gate/install.mjs --r"eview-folder" D:\\review', 'the review-folder option split by quotes after --r'],
+  ['Bash', "node gate/install.mjs --r'eview-folder' /review", 'the review-folder option split by quotes after --r, under Bash'],
   ['PowerShell', './scripts/install.ps1 -Apply', 'the old installer, by its path'],
   ['PowerShell', 'pwsh -File scripts/install.ps1 -ap', 'the old installer, a prefix of its switch'],
   ['PowerShell', 'pwsh scripts/install.ps1@p', 'the old installer, a splat with no space'],
-  ['PowerShell', `pwsh scripts/install.ps1 ${DASHES[0]}Apply`, 'the old installer, an en dash for the hyphen'],
+  ['PowerShell', 'pwsh scripts/install.ps1 @p', 'the old installer, a splat with a space'],
+  ...DASHES.map(d => ['PowerShell', `pwsh scripts/install.ps1 ${d}Apply`, `the old installer, ${shown(d)} for the hyphen`]),
   ['PowerShell', 'pwsh scripts/install.ps1 $sw', 'the old installer, its switch in a variable'],
   ['PowerShell', 'pwsh scripts/install.ps1 $(Get-Sw)', 'the old installer, its switch from a subexpression'],
+  ['PowerShell', 'pwsh scripts/install.ps1 (Get-Sw)', 'the old installer, a parenthesised expression'],
+  ['PowerShell', 'pwsh scripts/install.ps1 --% %SW%', 'the old installer, the stop-parsing token'],
   ['PowerShell', 'pwsh scripts/install.ps1 -`Apply', 'the old installer, a backtick escape'],
   ['Bash', 'pwsh -File scripts/install.ps1 -a', 'the old installer, under Bash'],
+  ['Bash', 'pwsh -File scripts/install.ps1 -Apply', 'the old installer, its switch capitalised, under Bash'],
+  ['Bash', 'pwsh scripts/install.ps1 @p', 'the old installer, a splat, under Bash'],
+  ...DASHES.map(d => ['Bash', `pwsh scripts/install.ps1 ${d}Apply`, `the old installer, ${shown(d)} for the hyphen, under Bash`]),
+  ['Bash', 'pwsh scripts/install.ps1 "$SW"', 'the old installer, its switch in a variable, under Bash'],
+  ['Bash', 'pwsh scripts/install.ps1 `get-sw`', 'the old installer, a command substitution, under Bash'],
   ['PowerShell', 'Set-Content ~/.claude/.pact-install.json "{}"', 'a write to the install record'],
+  ['Bash', 'echo {} > ~/.claude/.pact-install.json', 'a write to the install record, under Bash'],
   ['PowerShell', 'gh api -X DELETE repos/o/r/rulesets/1', 'a ruleset write'],
+  ['PowerShell', 'gh api -X PUT repos/o/r/branches/main/protection', 'a branch-protection write'],
+  ['Bash', 'gh api -X DELETE repos/o/r/rulesets/1', 'a ruleset write, under Bash'],
+  ['Bash', 'gh api -X PUT repos/o/r/branches/main/protection', 'a branch-protection write, under Bash'],
 ];
 
 // Commands that change nothing, each of which must run. [tool, command, why]
@@ -160,6 +214,9 @@ export const MENTION_COMMANDS = [
   ['PowerShell', '$env:NODE_OPTIONS = $null; node gate/install.mjs', 'a dry run'],
   ['Bash', 'env -u NODE_OPTIONS node gate/install.mjs', 'a dry run, under Bash'],
   ['PowerShell', 'node gate/install.mjs --project-folder C:\\proj', 'a project dry run'],
+  ['PowerShell', 'node gate/install.mjs --claude-home "C:\\tmp\\home"', 'a dry run with a double-quoted throwaway home'],
+  ['PowerShell', "node gate/install.mjs --claude-home 'C:\\tmp\\home'", 'a dry run with a single-quoted throwaway home'],
+  ['Bash', 'node gate/install.mjs --claude-home "/tmp/home"', 'a dry run with a quoted throwaway home, under Bash'],
   ['PowerShell', 'git log --oneline -- scripts/install.ps1', "the old installer's history"],
   ['Bash', 'git show 0980943:scripts/install.ps1', 'the old installer read from history'],
 ];
