@@ -10,7 +10,7 @@
 // URL is fine. It reads .js, .mjs and .cjs files, and .ts, .mts and .cts,
 // which Node 24 loads too. A backstop like the core source check: a name built
 // at run time and passed through a variable, or a loader under another name,
-// gets past a text search. On the probe floor by name (AGENTS.md).
+// gets past a text search. Ordinary test code since #189.
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';

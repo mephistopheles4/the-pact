@@ -1,5 +1,7 @@
 # Practice runs happen in a container that never holds the checkout
 
+Superseded by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) (2026-10-10): the practice runs and the sandbox container are retired.
+
 A practice run or a rule probe that runs for real happens inside the sandbox container, built from `gate/tests/fixtures/sandbox/Dockerfile`. The container holds only the run's own folders and the installed pact files the run needs, mounted read-only. The-pact's checkout, with every expected answer, reference report and bad report, is never mounted. Before each run, a check inside the container must find no answer file. A named volume keeps the owner's sign-in, and it is cleared to that sign-in between runs.
 
 ## Why

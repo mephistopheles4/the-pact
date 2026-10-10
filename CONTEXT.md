@@ -22,8 +22,7 @@ real work selects it.
 - **Pick:** the anchors the owner expects the problem on, or "none", said before the verdict is revealed.
 - **Mismatch:** a pick that differs from the result by the rule in the spec's "The pick". It opens a short discussion before the owner decides.
 - **Swap:** the one commit and install that brings a pair in and takes its old reviewer out.
-- **Security set:** the few practice cases that still run for real, because the risk floor requires it. They cover every lens that holds a shell or network tools, or guards the security route or the risk floor.
-- **Bad report:** a ready-made report that gets a practice case wrong. It is scored, not run, and must score FAIL, which shows the scoring can fail.
+- **Security-set lens:** either lens of the security pair, the reviewers the security route names, or any other lens that holds a shell or network tools, or guards the security route or the risk floor. A change to one takes the security route. The name outlived the security set, the practice cases that #189 retired with the bad reports.
 - **Standing measures:** the numbers recorded at every lens review on real work, and worked out at each periodic review.
 - **Escape:** a defect found after a lens review passed the work on, that falls within the question of a lens that ran at that review.
 - **Roster gap:** a defect found later that no lens's question covers.
@@ -35,5 +34,5 @@ real work selects it.
 
 - **Probe record:** the comments on an issue that hold one probe: its **expected result**, then every run, each verbatim. A finished work's log entry cites them in its **Record list**.
 - **Expected result:** what a probe must show for a pass, posted on the issue before the probe runs. It is never edited after a run; a correction is a new comment, so the issue's history shows the prediction came first.
-- **Plant:** the planted input a rule probe runs against, such as a sandbox issue or comment written to read as a real task. It differs from a **practice case**, the planted input for one lens (see `AGENTS.md`). A plant a check can run is kept as a fixture beside that check.
+- **Plant:** the planted input a rule probe runs against, such as a sandbox issue or comment written to read as a real task. A probe runs only when the owner asks for one by name (see `AGENTS.md`). A plant a check can run is kept as a fixture beside that check.
 - **Record list:** the closing list of a log entry. It cites the issue comments that hold the work's verbatim plan, reviews and probe records. Entries for work finished before #52 cite commits instead.

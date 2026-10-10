@@ -1,5 +1,7 @@
 # Gate bad cases are table rows, and no case is lost
 
+Superseded in part by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) (2026-10-10): the table module and the compare are ordinary test code, no longer on a probe floor.
+
 A bad case for a gate module is a row in that module's table: one plant on a base input that passes, and the exact rule ids it must fail with. The T1 baseline of every case is committed, and a compare script proves at each move 4 that every baseline case still has a home.
 
 - **A table** (`gate/tests/tables.mjs`) has a name, the gate module whose rule ids it names, a `base()` that builds the passing input as a tree of files, a `run(input, t)` that returns the exit code, the `FAIL` rule ids, the last line and the output, and rows `{ id, plant, fails, says?, why }`. An optional `everyRow` adds the same assertions to every row, such as "a refusal writes no file".

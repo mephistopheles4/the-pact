@@ -10,8 +10,8 @@
 // runSeamA and childSeamA, and sealedFamiliar, which runs the pinned check.
 //
 // Importing this file loads the four cores, which do nothing when imported
-// (#155); it touches no file and starts no process. On the probe floor by
-// name (AGENTS.md): weakening it could let every in-process case pass.
+// (#155); it touches no file and starts no process. Ordinary test code
+// since #189, proved by use; weakening it could let every in-process case pass.
 import { spawnSync } from 'node:child_process';
 import { cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

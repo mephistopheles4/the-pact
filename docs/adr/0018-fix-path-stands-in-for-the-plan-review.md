@@ -1,5 +1,7 @@
 # The fix path stands in for the plan review on a case fix
 
+Superseded by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) (2026-10-10): the security set and its case fixes are retired.
+
 When a security-set case fails and the cause is in the case, a fix that leaves the case's expected result and its bad reports unchanged goes through #35's fix path. It is not treated as a spec change. The fix path means:
 
 - **Its own commit,** made before the rerun.

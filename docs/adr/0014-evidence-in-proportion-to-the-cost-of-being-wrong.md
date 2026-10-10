@@ -1,5 +1,7 @@
 # Evidence in proportion to the cost of being wrong
 
+Superseded in part by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) (2026-10-10): its floor no longer needs a planted probe; it takes the security route. Its default, its dial and its doubt rule still hold.
+
 AGENTS.md's "Testing a change to an agent or a rule" now has a floor and a default:
 
 - **The floor needs a planted probe, seen to fail.** The floor is the risk floor, the security route, the gated clauses, the protected set, security-set lenses (with their security-set rerun and rescoring), non-lens agents with a shell or network tools or that guard the security route or risk floor, the tool allow-list, the settings guard, and the gate's code (with its own bad-case tests). A change to the section itself is on the floor only if it loosens a floor rule.

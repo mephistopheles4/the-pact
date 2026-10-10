@@ -1,5 +1,7 @@
 # The gate suite runs through one runner, in named tiers
 
+Superseded in part by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) (2026-10-10): the runner and the copy list are ordinary test code, no longer on a probe floor.
+
 "The full suite" is one command everywhere: `node gate/tests/run.mjs full`. The everyday run while building is `node gate/tests/run.mjs changed`. A runner in the gate's tests folder picks each tier's files, always runs them at the cap of four files at once, and never reports a pass it didn't earn.
 
 - **The tiers.** Only top-level test files in `gate/tests/` count; nothing under `fixtures/` is a test file.

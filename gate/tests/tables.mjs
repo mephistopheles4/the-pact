@@ -28,7 +28,7 @@
 // The table name and each row id must be string literals in the call, so the
 // no-loss compare can find a row by reading the file (baseline-compare.mjs).
 // Importing this file touches nothing; calling table() reads the module's
-// sources once. On the probe floor by name (AGENTS.md).
+// sources once. Ordinary test code since #189.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, posix, resolve } from 'node:path';

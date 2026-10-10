@@ -26,7 +26,7 @@ function realAgentSet() {
   realAgentStems ??= new Set(
     [
       ...readdirSync(join(REPO, 'claude', 'agents')),
-      ...readdirSync(join(REPO, 'familiars')).filter(f => !f.endsWith('.contract.md') && !f.endsWith('.practice-test.md')),
+      ...readdirSync(join(REPO, 'familiars')).filter(f => !f.endsWith('.contract.md')),
     ]
       .filter(f => f.endsWith('.md'))
       .map(f => f.slice(0, -3)),
@@ -49,7 +49,7 @@ export function routeTree(root) {
   const famDir = join(root, 'familiars');
   if (existsSync(famDir)) {
     for (const f of readdirSync(famDir)) {
-      if (f.endsWith('.md') && !f.endsWith('.contract.md') && !f.endsWith('.practice-test.md')) stems.push(f.slice(0, -3));
+      if (f.endsWith('.md') && !f.endsWith('.contract.md')) stems.push(f.slice(0, -3));
     }
   }
   const real = realAgentSet();

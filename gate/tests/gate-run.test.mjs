@@ -1,7 +1,7 @@
 // The in-process runner (#140, T10), gate-run.mjs: its result shape, its
 // preload refusal, the parity guard refusing under a preload as a failure and
 // never a skip, and the shared-state check seen to fail with a planted core
-// that keeps a counter across calls. On the probe floor by name (AGENTS.md).
+// that keeps a counter across calls. Ordinary test code since #189.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';

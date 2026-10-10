@@ -1,5 +1,7 @@
 # A sign case scores the sign in its own finding
 
+Superseded by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) (2026-10-10): the practice cases and their scorer are deleted.
+
 A practice case for one of `executability-lens`'s human-in-the-loop signs passes only when a `high` finding on a section where the sign is planted names the sign in its own bullet. Text anywhere else in the report never counts.
 
 - **The bullet form is pinned.** The bullet sits at the start of its line, opens with `- S3 (F1):`, and its text then opens with `sign 3:` (or `no Needs a human section:`). The colon is part of it. Only indented lines continue a bullet. A finding id with two bullets fails.

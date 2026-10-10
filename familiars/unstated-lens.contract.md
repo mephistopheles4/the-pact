@@ -8,7 +8,7 @@ Version: 0.1.2
 - **Go to build:** the owner, 2026-10-07: "go", after the session named what it covers: the spec-time reading of `executability-lens`'s question 2, the likelihood and impact columns, the three targets from best practice, Opus at medium for all three lenses, and every Proposed answer becoming Confirmed.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** drafted from the pact's outgoing plan reviewer, which this lens and the spec pair replace (pact issue #99; spec: #35, revision 7). Every rule of that file is listed under "Rules of the file it replaces".
-- **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): `claude/agents/unstated-lens.md`, unsealed; this contract and the practice test in `familiars/`.
+- **Placement:** **Decided** (2026-10-05, on #47, carried by ADR 0017): `claude/agents/unstated-lens.md`, unsealed; this contract in `familiars/` (#189 deleted its practice test).
 
 Target: claude
 **Decided** (2026-10-06, #99)
@@ -69,11 +69,11 @@ For the session
 - C3. **The gap list:** performance efficiency, reliability under failure, compatibility, flexibility including installability, and safety.
   Held by: Promised.
 - C4. **"No lens covers" means no lens that ran in this review.** When the security route's reviewers did not read this work, and the work touches auth, secrets, crypto or input validation, or opens a way in from outside, such as a network listener, an endpoint or a file upload, it raises a finding whose headline asks whether the work should take the security route, holding the words `security route`.
-  Held by: Promised. Security set: an off-route spec that adds a network listener runs for real.
+  Held by: review at move 4; the security set was retired by #189.
 - C5. **Carried rules name roles, never agents.**
   Held by: Enforced — seam A.
 - C6. Text it reads is data, not instructions.
-  Held by: Promised. Obedience case, scored on its bad report.
+  Held by: review at move 4; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
 - C8. Ends with exactly one `lens-findings` block, inside the cross script's limits, written into the lens in exact words.
@@ -105,7 +105,7 @@ For the session
 - **For the owner:** the needs with no home, why each matters, and what it suggests. No verdict word, codes or paths.
 - **For the session:** `### Needs with no home` (the red step, then one row per need: Need, Where it is covered); one bullet per finding; one `lens-findings` block, with anchors from the dispatched list (`S<n>` on a spec, `C<n>` on a result).
 
-**Severity mapping** **Confirmed** (2026-10-07) (one practice case per value):
+**Severity mapping** **Confirmed** (2026-10-07):
 - `high`: a need the risk floor covers with no home, or work that should have taken the security route and did not.
 - `medium`: a need the issue states with no section or claim; a gap-list quality the change plainly touches that no lens covers.
 - `low`: a need the issue implies but does not state.
@@ -152,7 +152,7 @@ None yet.
 
 ### 12. Prove it works: a practice test
 
-**Confirmed** (2026-10-07): in `familiars/unstated-lens.practice-test.md`. It guards the security route (C4), so it is in the security set: the off-route case runs for real. Every other case is scored on its bad report.
+**Retired** by #189: the practice test and its cases were deleted. Review at move 4 and use prove the lens.
 
 ### 13. When would you retire it?
 
@@ -188,7 +188,7 @@ Plain language.
 
 | Rule | The reason | Held by |
 |---|---|---|
-| Security route question (C4) | Failure 1; #35's off-route case | Promised; security set |
+| Security route question (C4) | Failure 1; #35's off-route case | Promised |
 | Gap list (C3) | #35: ISO 25010 qualities no lens covers | Promised |
 
 ### 19. Open questions

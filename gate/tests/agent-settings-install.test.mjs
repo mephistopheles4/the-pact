@@ -64,7 +64,7 @@ test('a configured install sets a security-set lens and a shell lens: each WARN 
   configure(h, { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' }, 'data-lens': { effort: 'medium' }, 'integrity-lens': { effort: 'high' } } });
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  const over = name => `${name} is a security-set lens, so this is an override, not security-tested: its security set ran only on its default\\.`;
+  const over = name => `${name} is a security-set lens, so this is an override, not security-tested: the pact reviews only its default\\.`;
   const egress = ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query\\.';
   assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets behaviour-lens to sonnet, medium effort\\. ${over('behaviour-lens')}${egress}\\r?$`, 'm'), dry.out);
   assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets data-lens to opus, medium effort\\. ${over('data-lens')}\\r?$`, 'm'), dry.out);

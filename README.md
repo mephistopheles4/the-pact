@@ -103,7 +103,7 @@ Their reports go on the issue word for word. The agent sorts the findings and ac
 |---|---|
 | `claude/CLAUDE.md` | The rules: the moves, the tiers, and when to stop |
 | `claude/agents/` | The lenses, in pairs |
-| `familiars/` | `scout`, and the lenses' contracts and practice tests |
+| `familiars/` | `scout`, and the lenses' contracts |
 | `cross/cross.mjs` | Checks and joins a lens pair's findings |
 | `gate/` | The install gate: the pact checks itself before it installs |
 | `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON |
@@ -130,4 +130,4 @@ The full how-to, with the command for each shell, is in [docs/install.md](docs/i
 - **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
 - **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy of its check script ships here; its skills are optional.
 - **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: a preset you can bind to the moves.
-- **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the practice runs and the Linux test run.
+- **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the Linux test run.

@@ -713,7 +713,7 @@ test('the configuration block: a removed configuration, changed and new files, w
   assert.equal(b[0], `  user file pact/config.json: sha256 ${U}, CHANGED since the last install`);
   assert.equal(b[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, new since the last install`);
   assert.equal(b[2], '  1 block file(s) the last install read are no longer used');
-  assert.match(b.find(l => l.includes('data-lens')), /security-set lens, so this is an override, not security-tested/);
+  assert.match(b.find(l => l.includes('data-lens')), /data-lens is a security-set lens, so this is an override, not security-tested: the pact reviews only its default\.$/);
   assert.ok(core.configStale(core.configNow(p), record.config));
   assert.ok(!core.configStale(new Map([['user', H('0')]]), new Map([['user', H('0')]])));
 });

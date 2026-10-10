@@ -23,8 +23,8 @@
 // AGENTS.md shows: clearing it for the child can't reach this process.
 // Only changed reads git: fast and full read the file system alone. The base
 // is resolved to a commit before any other git call. The install skips this
-// folder before any check, so this file is never staged or installed. On the
-// probe floor by name (AGENTS.md).
+// folder before any check, so this file is never staged or installed. Ordinary test
+// code since #189, proved by use.
 import { spawn, spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { homedir, hostname, tmpdir, userInfo } from 'node:os';
