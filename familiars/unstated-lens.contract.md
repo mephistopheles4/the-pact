@@ -83,7 +83,7 @@ For the session
 - C10. Its artifact sits under the fixed heading `### Needs with no home`.
   Held by: Promised.
 
-**Automatic checks** **Confirmed** (2026-10-07): seam A; the cross script, which takes it alone and gives it no pick.
+**Automatic checks** **Confirmed** (2026-10-07): seam A; the cross script, which takes it alone.
 
 **You (the owner)** **Confirmed** (2026-10-07): the main session acts on its own recommendation for each finding and marks it `auto` (#87). Your "proceed, fix or kill" on a spec, and your "done", stay yours.
 
@@ -156,7 +156,7 @@ None yet.
 
 ### 13. When would you retire it?
 
-**Confirmed** (2026-10-07): cries wolf (6 of its last 10 reports' findings dismissed); escapes or roster gaps it should have raised. "Rarely changes the decision" never fires alone, because it guards the security route.
+**Confirmed** (2026-10-07): cries wolf (6 of its last 10 reports' findings dismissed); escapes or roster gaps it should have raised. The owner reads both in the disposition tables when they choose (#189).
 
 ### 14. How hard should it think?
 

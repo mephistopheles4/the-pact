@@ -95,7 +95,7 @@ Each sample ends with its `lens-findings` block.
 - A mutation tool, where the repo has one installed, produces the mutation results; the main session runs it (see "The mutation step" below).
 
 **You (the owner)** **Confirmed** (2026-10-05)
-- Decide each finding: fixed, taken or dismissed. Name your pick before the reveal at the thorough tier. Answer "Crossing real?" and "Changed my decision?". Decide whether the work is done.
+- Decide each finding: fixed, taken or dismissed. Decide whether the work is done.
 
 **Stop and ask** **Confirmed** (2026-10-05)
 The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and `notChecked` starting "stopped and waiting:".
@@ -190,9 +190,8 @@ Against its neighbours: it asks "can these checks fail?". Its partner asks "does
 **Confirmed** (2026-10-05):
 - **Cries wolf:** the owner dismissed 6 or more of its findings across its last 10 reports.
 - **Escapes:** 2 or more confirmed escapes fall to it, such as a hollow test it passed that a later defect exposed.
-- **Rarely changes the decision:** "Changed my decision?" is no in 9 or more of its last 10 reviews.
-- **Overlap:** its findings are nearly a subset of its partner's, by the pair-overlap measure.
-- **Record and review:** the main session records each review in the "Lens dispositions" table on that project's tracker. The periodic review reads the totals. The main session proposes a review when a signal fires; it never cuts a lens itself. The owner decides. Each change is a row in question 7.
+- **Overlap:** its findings are nearly a subset of its partner's, as the disposition tables show.
+- **Record and review:** the main session records each review in the "Lens dispositions" table on that project's tracker, which the owner reads when they choose (#189). No session proposes a review on a signal, and the main session never cuts a lens itself. The owner decides. Each change is a row in question 7.
 
 ### 14. How hard should it think?
 

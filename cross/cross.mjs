@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 // The cross script (#35, built in #44). It checks the findings block of each
 // lens report from one pair, joins the pair on its anchors, and writes the
-// comment section and a locked local page. A second mode compares the owner's
-// pick with the result.
+// comment section and a locked local page. Its second mode, which compared the
+// owner's pick with the result, went with the thorough pick (#189, #164).
 //
 //   node cross.mjs cross --point <spec|result|diff> --tier <quick|standard|thorough>
 //       [--anchors C1,C2,...] --out <new folder> <lens>=<report file> [<lens>=<report file>]
-//   node cross.mjs pick --point ... --tier ... [--anchors ...] --pick <ids|none> <lens>=<report file> ...
 //
-// Exit 0: every check passed. `cross` wrote its comments and the page; `pick`
-// printed its result. Exit 1: a check failed. No section is written, but each
-// report that could be read is written in its fence and fold, counted. Exit 2
-// (`cross` only): every check passed, but a verbatim report alone is over the
-// comment limit. The section is written, and the report is listed as left out.
+// Exit 0: every check passed, and it wrote its comments and the page. Exit 1:
+// a check failed. No section is written, but each report that could be read is
+// written in its fence and fold, counted. Exit 2: every check passed, but a
+// verbatim report alone is over the comment limit. The section is written, and
+// the report is listed as left out.
 //
 // Every input is data: the script runs nothing it reads. Its output names
 // files, rules and fixed text only, never a byte of a report. The area comes
@@ -179,14 +178,12 @@ const MARK = { blocking: '\u26d4', inconclusive: '\u26a0\ufe0f', findings: '\u{1
 const CROSSING = '\u271a';
 const NOT_VERIFIED = '\u26a0\ufe0f';
 const DASH = '\u2014';
-const PROMPT = '**Where do you expect the problem?**';
 
 const LISTED_ID_RE = { claim: /^C[1-9][0-9]{0,2}$/, section: /^S[1-9][0-9]{0,2}$/ };
 const FINDING_ID_RE = /^F[0-9]{1,3}$/;
 const PATH_RE = /^[A-Za-z0-9._/-]+$/;
 const SYMBOL_RE = /^[A-Za-z0-9_.$:]{1,100}$/;
 const LENS_ARG_RE = /^[a-z]+(?:-[a-z]+)*$/;
-const PICK_ID_RE = /^[CSK][1-9][0-9]{0,3}$/;
 const PICTOGRAPH_RE = /^\p{Extended_Pictographic}$/u;
 // A label in the map: letters, digits, hyphens and spaces, plus the two marks.
 const MAP_LABEL_RE = /^(?:[A-Za-z0-9 -]|\u271a|\u26a0\ufe0f)+$/u;
@@ -206,7 +203,6 @@ const RULE_TEXT = {
   point: 'this area does not review at this review point',
   tier: 'the tier is not quick, standard or thorough, or a security-pair report came with a tier below thorough',
   anchors: 'the anchor list is missing, not needed, or holds an id of the wrong form or twice',
-  pick: 'the pick must be "none" or anchors shown in this review, each once; unstated-lens takes no pick',
   'block-count': 'a report must hold exactly one lens-findings block',
   block: 'the lens-findings block must open with exactly three backticks and its label, and close with three backticks',
   json: 'the lens-findings block is not valid JSON, or is nested too deeply',
@@ -398,8 +394,8 @@ function checkReport(text, lens, kind, listed) {
 
 function parseArgs(argv) {
   const a = { mode: argv[0], flags: {}, reports: [], usage: false };
-  if (a.mode !== 'cross' && a.mode !== 'pick') a.usage = true;
-  const known = a.mode === 'pick' ? ['--point', '--tier', '--anchors', '--pick'] : ['--point', '--tier', '--anchors', '--out'];
+  if (a.mode !== 'cross') a.usage = true;
+  const known = ['--point', '--tier', '--anchors', '--out'];
   for (let i = 1; i < argv.length; i += 1) {
     const t = argv[i];
     if (t.startsWith('--')) {
@@ -420,7 +416,7 @@ function parseArgs(argv) {
     a.reports.push({ lens: t.slice(0, eq), file: t.slice(eq + 1) });
   }
   if (a.reports.length < 1 || a.reports.length > 2) a.usage = true;
-  for (const f of a.mode === 'pick' ? ['--point', '--tier', '--pick'] : ['--point', '--tier', '--out']) if (!Object.hasOwn(a.flags, f)) a.usage = true;
+  for (const f of ['--point', '--tier', '--out']) if (!Object.hasOwn(a.flags, f)) a.usage = true;
   return a;
 }
 
@@ -466,7 +462,6 @@ function checkInputs(a) {
     list = raw.split(',');
     if (list.length > ANCHORS_MAX || new Set(list).size !== list.length || !list.every(id => LISTED_ID_RE[kind].test(id))) return { rule: 'anchors', area };
   } else if (raw !== undefined) return { rule: 'anchors', area };
-  if (a.mode === 'pick' && !area.pair) return { rule: 'pick', area };
   return { area, point, tier, kind, list };
 }
 
@@ -534,21 +529,6 @@ function joinPair(setup, docs) {
   } else for (const r of out) r.label = r.key;
   const verdict = docs.map(d => d.verdict).reduce((x, y) => (STRICTNESS[y] > STRICTNESS[x] ? y : x));
   return { rows: out, verdict };
-}
-
-/** The owner's pick against the result, by the rule fixed in the spec. */
-function comparePick(joined, pick) {
-  const targets = joined.rows.filter(r => r.high).map(r => r.label);
-  const picked = pick === 'none' ? [] : pick.split(',');
-  const shown = new Set(joined.rows.map(r => r.label));
-  if (pick !== 'none' && (new Set(picked).size !== picked.length || !picked.every(id => PICK_ID_RE.test(id) && shown.has(id)))) refuse('pick');
-  let rule = 0;
-  if (pick === 'none' && joined.verdict !== 'clear') rule = 1;
-  else if (pick !== 'none' && joined.verdict === 'clear') rule = 2;
-  else if (pick !== 'none' && targets.length > 0 && !picked.some(id => targets.includes(id))) rule = 3;
-  const missed = targets.filter(id => !picked.includes(id));
-  const empty = picked.filter(id => joined.rows.find(r => r.label === id).count === 0);
-  return { rule, missed, empty };
 }
 
 // ---------------------------------------------------------------- markdown
@@ -754,15 +734,12 @@ function sectionUnits(m, setup, leftOut) {
   } else if (thorough) {
     units.push({ text: heading(m, false) }, { text: mapBlock(m) });
     for (const t of unverifiedLines(m)) units.push({ text: t });
+    // At thorough the verdict stays folded, unstated-lens's too, so the owner
+    // reads the evidence, the map and the cards, before any verdict.
     units.push({ text: NOTE }, ...cards(m, false), ...matrix(m));
-    // unstated-lens takes no pick, but its verdict still stays folded, so it
-    // cannot hint at a pair's answer on the same anchors.
-    if (m.area.pair) units.push({ text: `${PROMPT} Name one or more anchors above, or none, in chat. Then open the fold below.\n\n` });
     units.push({ fold: FOLD_VERDICT, text: verdictText(m) }, ...findingsTable(m, FOLD_VERDICT), ...callsTable(m, FOLD_VERDICT), ...nonRiskUnits(m, setup, FOLD_VERDICT));
   } else {
-    units.push({ text: heading(m, true) });
-    if (m.area.pair) units.push({ text: '_Optional: name where you expect the problem, in chat, before you read on._\n\n' });
-    units.push({ text: mapBlock(m) });
+    units.push({ text: heading(m, true) }, { text: mapBlock(m) });
     for (const t of unverifiedLines(m)) units.push({ text: t });
     units.push({ text: verdictText(m) }, { text: NOTE }, ...cards(m, true), ...matrix(m), ...callsTable(m, null));
     units.push(...nonRiskUnits(m, setup, FOLD_NON_RISKS));
@@ -776,7 +753,7 @@ function sectionUnits(m, setup, leftOut) {
  * Units into comment parts of at most LIMIT. A part ends at a unit boundary;
  * an open table repeats its header in the next part, and an open fold closes
  * and reopens. Later parts carry a header with no total, so the number of
- * parts says nothing above the prompt.
+ * parts says nothing above the reveal.
  */
 function pack(units) {
   const parts = [];
@@ -981,7 +958,6 @@ function page(m, setup, reports) {
     body.push(`<p><b>${MARK[v]} ${html(v)}</b>${m.unverified.map(l => ` \u00b7 ${NOT_VERIFIED} <code>${html(l)}</code> not verified`).join('')}</p>`, notChecked);
   } else if (m.tier === 'thorough') {
     body.push(crossCutSvg(m), warn, '<h2>Cards</h2>', pageCards(m, false), '<h2>Matrix</h2>', pageMatrix(m));
-    if (m.area.pair) body.push('<h2>Where do you expect the problem?</h2>', '<p>Name one or more anchors, or none, in chat. Then open the verdict.</p>');
     body.push(`<details><summary>Verdict, severities and non-risks</summary>\n${pageVerdict(m, setup)}\n</details>`, notChecked);
   } else {
     body.push(crossCutSvg(m), warn, pageVerdict(m, setup), '<h2>Cards</h2>', pageCards(m, true), '<h2>Matrix</h2>', pageMatrix(m), notChecked);
@@ -1015,7 +991,6 @@ function writeOut(dir, files) {
 function refusal(lines, outDir, reports, setupRule, failed) {
   if (setupRule) lines.push(`FAIL ${setupRule}: ${RULE_TEXT[setupRule]}`);
   for (const [r, rule] of failed) lines.push(`FAIL ${rule}: ${shownName(r.file)}: ${RULE_TEXT[rule]}`);
-  if (outDir === null) return 1;
   const head =
     setupRule === 'internal'
       ? ['**The cross script could not build the section.** Every check passed, so no report is at fault. No section was written. The reports follow, each in its fence and fold.\n\n', `- rule ${code('internal')}\n`]
@@ -1047,19 +1022,17 @@ function run(argv, lines) {
     lines.push(`FAIL usage: ${RULE_TEXT.usage}`);
     return 1;
   }
-  const outDir = a.mode === 'cross' ? a.flags['--out'] : null;
-  if (outDir !== null) {
-    let ok = true;
-    try {
-      if (existsSync(outDir) && readdirSync(outDir).length > 0) ok = false;
-      else mkdirSync(outDir, { recursive: true });
-    } catch {
-      ok = false;
-    }
-    if (!ok) {
-      lines.push(`FAIL out: ${RULE_TEXT.out}`);
-      return 1;
-    }
+  const outDir = a.flags['--out'];
+  let ok = true;
+  try {
+    if (existsSync(outDir) && readdirSync(outDir).length > 0) ok = false;
+    else mkdirSync(outDir, { recursive: true });
+  } catch {
+    ok = false;
+  }
+  if (!ok) {
+    lines.push(`FAIL out: ${RULE_TEXT.out}`);
+    return 1;
   }
   const reports = ordered(a.reports);
   readReports(reports);
@@ -1083,21 +1056,6 @@ function run(argv, lines) {
   if (setup.rule || failed.length > 0) return refusal(lines, outDir, reports, setup.rule, failed);
 
   const joined = joinPair(setup, docs);
-  if (a.mode === 'pick') {
-    let result;
-    try {
-      result = comparePick(joined, a.flags['--pick']);
-    } catch (e) {
-      if (!(e instanceof Refused)) throw e;
-      lines.push(`FAIL pick: ${RULE_TEXT.pick}`);
-      return 1;
-    }
-    lines.push(`PICK ${result.rule === 0 ? 'match' : 'mismatch'}`);
-    if (result.rule) lines.push(`RULE ${result.rule}`);
-    lines.push(`MISSED ${result.missed.join(',') || 'none'}`, `EMPTY ${result.empty.join(',') || 'none'}`);
-    return 0;
-  }
-
   const m = model(setup, docs, joined);
   const verbatims = [];
   const leftOut = [];

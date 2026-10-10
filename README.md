@@ -45,11 +45,11 @@ The moves name no skills. You bind your own tools to them through a configuratio
 
 ## Process tiers
 
-Not every change needs a spec. Each piece of work gets a process tier (quick, standard or thorough), and the tier sets which moves it goes through. Work on the risk floor, such as auth, secrets or anything published, always takes the thorough tier.
+Not every change needs a spec. Each piece of work gets a process tier (quick, standard or thorough), and the tier sets which moves it goes through. Work on the risk floor, such as auth, secrets or a data migration, always takes the thorough tier.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-02-tiers-dark.svg">
-  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. Quick, standard and thorough work goes through more moves and more reviews as the tier rises. Auth, secrets, crypto, input validation, data migrations and anything published are always thorough." width="800">
+  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. Quick, standard and thorough work goes through more moves and more reviews as the tier rises. Auth, secrets, crypto, input validation and data migrations are always thorough." width="800">
 </picture>
 
 <details>
@@ -61,7 +61,7 @@ Not every change needs a spec. Each piece of work gets a process tier (quick, st
 | Standard | On an issue | Short spec | unstated-lens | — | One session · QA and standards pairs and unstated-lens |
 | Thorough | On an issue | Full spec | Spec pair and unstated-lens | Thin slices with done-criteria | One session per ticket · QA and standards pairs and unstated-lens |
 
-**Risk floor, always thorough.** Auth, secrets, crypto, input validation, data migrations and anything published are thorough, whatever tier is named. Auth, secrets, crypto and input validation also take the security route: the security pair reads the spec before you approve it, and the diff after the build.
+**Risk floor, always thorough.** Auth, secrets, crypto, input validation and data migrations are thorough, whatever tier is named. Auth, secrets, crypto and input validation also take the security route: the security pair reads the spec before you approve it, and the diff after the build.
 
 **Models.** Opus plans. Sonnet builds, and Opus builds quick work. Security work runs on Opus at high effort.
 

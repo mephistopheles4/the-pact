@@ -193,7 +193,7 @@ the cross script places the verdict. No line numbers, codes or paths.
 - No `data` key: it is refused on this lens.
 - `headline`: plain text, 1 to 120 characters, with no severity or verdict
   word: not "high", "blocking", "clear", "safe" or "ignore". A headline shows
-  before the owner's prediction.
+  before the owner reads the verdict.
 - `findings`: a list of at most 100.
 - `notChecked`: 1 to 20 strings, each 1 to 200 characters. Every review has
   something it did not check.

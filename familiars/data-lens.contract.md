@@ -112,7 +112,7 @@ The owner's words add two checks to the draft: encryption at rest and in transit
 - The cross script checks the findings block, joins it with its partner's as a joining pair, and writes the owner's view.
 
 **You (the owner)** **Confirmed** (2026-10-07)
-- The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87), within the pact's listed exceptions. Your thorough pick, an install, and your "done" stay yours.
+- The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87), within the pact's listed exceptions. An install and your "done" stay yours.
 
 **Stop and ask** **Confirmed** (2026-10-07)
 The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and `notChecked` starting "stopped and waiting:".
@@ -187,7 +187,7 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 
 ### 11. Where does a person decide?
 
-**Confirmed** (2026-10-07): its report feeds the owner's decision on the spec or the build, through the main session's auto-take on each finding, recorded in the "Lens dispositions" table on the issue. Security reports are thorough only, so the owner names a pick before the verdict opens.
+**Confirmed** (2026-10-07): its report feeds the owner's decision on the spec or the build, through the main session's auto-take on each finding, recorded in the "Lens dispositions" table on the issue. Security reports are thorough only, so the verdict stays folded below the cards.
 
 ### 12. Prove it works: a practice test
 
@@ -198,9 +198,7 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 **Confirmed** (2026-10-07):
 - **Cries wolf:** the owner dismissed 6 or more of its findings across its last 10 reports.
 - **Escapes:** 2 or more confirmed escapes fall to it, such as a leak it passed that was later found.
-- **Rarely changes the decision:** never fires alone for this lens. It is a security-set lens, and security reads are clean most of the time.
-- **A low finding rate alone is never a reason to cut it** (AGENTS.md, the protected set).
-- **Record and review:** the "Lens dispositions" table on each project's tracker; the periodic review reads the totals. The main session proposes; the owner decides.
+- **Record and review:** the "Lens dispositions" table and the escape rows on each project's tracker, which the owner reads when they choose (#189). No session proposes a review on a signal; the owner decides, and a roster change comes back as a spec change.
 
 ### 14. How hard should it think?
 

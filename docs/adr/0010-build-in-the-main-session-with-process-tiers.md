@@ -1,5 +1,7 @@
 # Build in the main session, and choose the work's tier up front
 
+Superseded in part by [ADR 0050](0050-the-risk-floor-drops-anything-published.md) (2026-10-10): published work is no longer on the risk floor; publishing stays a stop.
+
 Builds run in a main session the owner watches. `builder`, `spec-builder` and `security-builder` retire, with every rule that existed only because a subagent cannot reach the owner. Agents stay only for independent reading: `plan-reviewer`, `result-checker`, `test-reviewer`, `security-reviewer`, `scout` and `Explore`. Every piece of work has a process tier, quick, standard or thorough, set at triage and held as a `tier:*` label on the issue. The tier is the set of moves the work goes through, not the model's effort setting.
 
 | Tier | Moves |

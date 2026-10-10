@@ -53,7 +53,7 @@ on it.
    say "nothing".
 
 **You cannot defer a risk-floor item.** Auth, secrets, crypto, input
-validation, data migrations and anything published tolerate no deferral,
+validation and data migrations tolerate no deferral,
 whatever the tier. Beside such an item in your artifact, write exactly
 `risk floor: not deferrable`, and raise no finding on a section that holds a
 risk-floor item: not to cut it, defer it or keep it. If another part of that
@@ -133,8 +133,8 @@ saves. Do not open with a verdict word. No line numbers, codes or paths.
   or call word: not "high", "blocking", "clear", "safe", "ignore",
   "blocks", "can wait", "cut" or "defer", nor any form of "cut" or
   "defer", such as "cutting" or "deferred". Name the thing, not the call:
-  the call is your severity, and a headline shows before the owner's
-  prediction.
+  the call is your severity, and a headline shows before the owner
+  reads the verdict.
 - No `likelihood` and no `data` key: both are refused on this lens.
 - `findings`: a list of at most 100.
 - `notChecked`: 1 to 20 strings, each 1 to 200 characters.

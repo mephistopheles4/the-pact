@@ -18,8 +18,8 @@ const ROWS = [
   ],
 ];
 const FLOOR = [
-  'Auth, secrets, crypto, input validation, data migrations and anything',
-  'published are thorough, whatever tier is named.',
+  'Auth, secrets, crypto, input validation and data migrations are',
+  'thorough, whatever tier is named.',
 ];
 const ROUTE = [
   'Auth, secrets, crypto and input validation also take the security route:',

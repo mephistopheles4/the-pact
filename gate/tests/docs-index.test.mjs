@@ -24,6 +24,26 @@ for (const folder of ["docs/adr", "docs/log"]) {
   });
 }
 
+/** The files an index lists as an entry more than once: each entry line opens with its file's link. */
+export function repeatedEntries(readme) {
+  const entries = [...readme.matchAll(/^- \[[^\]]*\]\((?:\.\/)?([^)#\s]+\.md)/gm)].map((m) => m[1]);
+  return entries.filter((f, i) => entries.indexOf(f) !== i);
+}
+
+// #211's move 4: a scripted insert left ADR 0049's line twice, and the gap
+// check above passed, since it asks only that each file is linked.
+for (const folder of ["docs/adr", "docs/log"]) {
+  test(`${folder}/README.md lists each file as one entry`, () => {
+    assert.deepEqual(repeatedEntries(readFileSync(join(root, folder, "README.md"), "utf8")), []);
+  });
+}
+
+test('bad case: an index that lists one file twice is caught', () => {
+  const line = '- [0049](0049-x.md) — **X.** Y.\n';
+  assert.deepEqual(repeatedEntries(`# ADRs\n\n${line}- [0050](0050-y.md) — Z.\n${line}`), ['0049-x.md']);
+  assert.deepEqual(repeatedEntries(`${line}- [0050](0050-y.md) — supersedes [0049](0049-x.md).\n`), []);
+});
+
 test('every ADR number is used once', () => {
   const nums = readdirSync(join(root, 'docs/adr')).filter((f) => /^\d{4}-/.test(f)).map((f) => f.slice(0, 4));
   assert.deepEqual(nums.filter((n, i) => nums.indexOf(n) !== i), []);

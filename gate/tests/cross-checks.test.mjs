@@ -3,7 +3,7 @@
 // and names the rule that fired. Nothing from a failing report is echoed.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { LIMIT, PROMPT, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
+import { LIMIT, REVEAL, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
 
 const CANARY = 'ZQXCANARY';
 
@@ -12,7 +12,7 @@ function refused(r, rules, reports) {
   assert.equal(r.code, 1, r.stdout);
   assert.deepEqual(r.rules, rules, r.stdout);
   assert.match(r.stdout, /^RESULT: fail$/m);
-  assert.ok(!r.all.includes(PROMPT), 'no prompt');
+  assert.ok(!r.all.includes(REVEAL), 'no section');
   assert.ok(!r.all.includes('```mermaid'), 'no map');
   assert.ok(!r.all.includes('| Anchor |'), 'no matrix');
   assert.ok(!r.page, 'no page');
@@ -302,7 +302,7 @@ test('an unreadable report file is named, and the other reports are still writte
   assert.match(r.stdout, /^FAIL read: behaviour-lens\.md: /m);
   assert.match(r.stdout, /^KEPT-LOCAL behaviour-lens\.md$/m);
   assert.ok(r.all.includes(`text\n${integrity}`), 'the readable report is still written');
-  assert.ok(!r.all.includes(PROMPT));
+  assert.ok(!r.all.includes(REVEAL));
 });
 
 test('the output folder must be new or empty', t => {

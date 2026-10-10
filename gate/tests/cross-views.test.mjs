@@ -1,8 +1,8 @@
-// What the owner sees (#44): nothing leaks above the prompt, the tier views,
+// What the owner sees (#44): nothing leaks above the reveal, the tier views,
 // non-risks only in a fold, safe rendering, and splitting without dropping.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { LIMIT, PROMPT, abovePrompt, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
+import { LIMIT, PICK_PROMPT, REVEAL, aboveReveal, block, cross, finding, qaPair, report } from './cross-helpers.mjs';
 
 const PICTOGRAPH = /\p{Extended_Pictographic}/gu;
 const CROSSING_MARK = '\u271a';
@@ -29,9 +29,9 @@ function bigQa({ n, pad = 100, sev = () => 'low', nonRisks = 0, inconclusive = [
   return { reports: { 'behaviour-lens': lens('behaviour-lens'), 'integrity-lens': lens('integrity-lens') }, anchors: claims(n).join(',') };
 }
 
-// ------------------------------------------------------------ nothing leaks above the prompt
+// ------------------------------------------------------------ nothing leaks above the reveal
 
-test('invariance: severities, verdicts and non-risks change nothing above the prompt, in every part, even when they change the part count', t => {
+test('invariance: severities, verdicts and non-risks change nothing above the reveal, in every part, even when they change the part count', t => {
   const base = { n: 95, pad: 110 };
   const variants = [
     bigQa({ ...base }),
@@ -44,7 +44,7 @@ test('invariance: severities, verdicts and non-risks change nothing above the pr
   // The test can only fail if a variant changes the parts: one must split the fold where another does not.
   const continued = runs.map(r => r.all.includes('Verdict, severities and non-risks, continued'));
   assert.ok(continued.includes(true) && continued.includes(false), `near-limit precondition: ${continued}`);
-  const above = runs.map(r => abovePrompt(r.comments).filter(Boolean));
+  const above = runs.map(r => aboveReveal(r.comments).filter(Boolean));
   for (const a of above.slice(1)) assert.deepEqual(a, above[0]);
 });
 
@@ -53,7 +53,7 @@ test('invariance holds with an inconclusive lens, on its mark and its column', t
     bigQa({ n: 4, inconclusive: ['integrity-lens'] }),
     bigQa({ n: 4, inconclusive: ['integrity-lens'], sev: () => 'medium', nonRisks: 3 }),
   ].map(v => cross(t, v));
-  const above = runs.map(r => abovePrompt(r.comments).join(''));
+  const above = runs.map(r => aboveReveal(r.comments).join(''));
   assert.equal(above[0], above[1]);
   assert.match(above[0], /\u26a0\ufe0f \*\*`integrity-lens` not verified\.\*\*/);
   assert.match(above[0], /\| `integrity-lens` \u26a0\ufe0f not verified \|/);
@@ -69,7 +69,7 @@ test('invariance on the tension pair: its heading, map label and settle nodes, w
     anchors: 'S1,S2,S3',
   });
   const runs = [spec('high', 'low'), spec('medium', 'medium', true), spec('low', 'low')].map(v => cross(t, v));
-  const above = runs.map(r => abovePrompt(r.comments).join(''));
+  const above = runs.map(r => aboveReveal(r.comments).join(''));
   assert.equal(above[1], above[0]);
   assert.equal(above[2], above[0]);
   assert.match(above[0], /Disagreements: both lenses called this; you settle it/);
@@ -77,14 +77,14 @@ test('invariance on the tension pair: its heading, map label and settle nodes, w
   assert.match(above[0], /^\| `S2` \| F1 \| F1 \| settle \|$/m);
 });
 
-test('no mark but the crossing mark and the not-verified mark above the prompt, and no verdict word the script wrote', t => {
+test('no mark but the crossing mark and the not-verified mark above the reveal, and no verdict word the script wrote', t => {
   for (const v of [qaPair(), qaPair({ bVerdict: 'inconclusive', bSev: 'medium' }), qaPair({ aVerdict: 'clear', bVerdict: 'clear' })]) {
     const r = cross(t, { reports: v });
     assert.equal(r.code, 0, r.stdout);
-    assert.ok(r.all.includes(PROMPT), 'a comment with its prompt was written');
-    const above = abovePrompt(r.comments).join('');
+    assert.ok(r.all.includes(REVEAL), 'a comment with its reveal was written');
+    const above = aboveReveal(r.comments).join('');
     const marks = [...above.matchAll(PICTOGRAPH)].map(m => m[0]);
-    assert.ok(marks.every(c => c === '\u26a0'), `pictographs above the prompt: ${marks.map(c => c.codePointAt(0).toString(16))}`);
+    assert.ok(marks.every(c => c === '\u26a0'), `pictographs above the reveal: ${marks.map(c => c.codePointAt(0).toString(16))}`);
     for (const w of ['`high`', '`medium`', '`low`', '`blocking`', '`clear`', '`findings`', '`inconclusive`', 'verdict', 'Severity']) assert.ok(!above.includes(w), w);
   }
 });
@@ -103,8 +103,8 @@ test('fixed anchor order: cards and matrix rows keep the list order, whatever or
   const fs = [finding('F2', 'C3', 'low', 'Third claim'), finding('F1', 'C1', 'low', 'First claim'), finding('F3', 'C2', 'low', 'Second claim')];
   const r1 = cross(t, { reports: { 'behaviour-lens': report(block('behaviour-lens', 'findings', fs)), 'integrity-lens': report(block('integrity-lens', 'clear')) }, anchors: 'C1,C2,C3' });
   const r2 = cross(t, { reports: { 'behaviour-lens': report(block('behaviour-lens', 'findings', [...fs].reverse())), 'integrity-lens': report(block('integrity-lens', 'clear')) }, anchors: 'C1,C2,C3' });
-  const a1 = abovePrompt(r1.comments).join('');
-  assert.equal(a1, abovePrompt(r2.comments).join(''));
+  const a1 = aboveReveal(r1.comments).join('');
+  assert.equal(a1, aboveReveal(r2.comments).join(''));
   assert.ok(a1.indexOf('First claim') < a1.indexOf('Second claim') && a1.indexOf('Second claim') < a1.indexOf('Third claim'));
 });
 
@@ -117,7 +117,7 @@ test('fixed anchor order for code anchors: by file, then symbol; K ids in card o
   const data = [finding('F1', symbol('src/b.js', 'zeta'), 'low', 'Token reaches zeta', { likelihood: 'low', data: 'session token' })];
   const r = cross(t, { reports: { 'adversarial-lens': report(block('adversarial-lens', 'findings', adv)), 'data-lens': report(block('data-lens', 'findings', data)) }, point: 'diff', anchors: null });
   assert.equal(r.code, 0, r.stdout);
-  const above = abovePrompt(r.comments).join('');
+  const above = aboveReveal(r.comments).join('');
   // The crossing (zeta) is K1 and its card comes first; the singles follow by file, then symbol.
   assert.match(above, /- \u271a K1 ` src\/b\.js#zeta `/);
   const k2 = above.indexOf('- K2 ` src/a.js#alpha `');
@@ -145,11 +145,12 @@ test('line anchors join on file and overlap', t => {
 
 // ------------------------------------------------------------ the tier views
 
-test('at standard, the verdict and the severities show, with no prompt', t => {
+test('at standard, the verdict and the severities show, with no reveal fold and no pick prompt', t => {
   const r = cross(t, { reports: qaPair(), tier: 'standard' });
   assert.equal(r.code, 0, r.stdout);
   const s = scriptWritten(r.all);
-  assert.ok(!s.includes(PROMPT));
+  assert.ok(!s.includes(REVEAL));
+  assert.ok(!s.includes(PICK_PROMPT));
   assert.match(s, /\*\*Pair verdict: \u26d4 `blocking`\*\*/);
   assert.match(s, /`integrity-lens` F1 `high`: ` The mutation run left the retry branch alive `/);
   assert.match(s, /^### \u{1f9ea} QA pair/mu);
@@ -184,12 +185,12 @@ test('at quick, one line and the not-checked lists show, and nothing else above 
   assert.ok(!r.page.includes('<h2>Cards</h2>'), 'the page has no cards at quick either');
 });
 
-test('unstated-lens alone at thorough: no prompt, and no severity or verdict before its fold, so it cannot hint at the pair\'s answer', t => {
+test('unstated-lens alone at thorough: no pick prompt, and no severity or verdict before its fold, so its cards are read before any verdict', t => {
   const run = (sev, verdict) => cross(t, { reports: { 'unstated-lens': report(block('unstated-lens', verdict, [finding('F1', 'S2', sev, 'The issue asks for a phone view that no section covers')])) }, point: 'spec', anchors: 'S1,S2' });
   const a = run('medium', 'findings');
   const b = run('high', 'blocking');
   assert.equal(a.code, 0, a.stdout);
-  assert.ok(!a.all.includes(PROMPT));
+  assert.ok(!a.all.includes(PICK_PROMPT));
   const beforeFold = r => r.comments[0].slice(0, r.comments[0].indexOf('<details>'));
   assert.equal(beforeFold(a), beforeFold(b));
   assert.match(beforeFold(a), /^- `S2`\n {2}- `unstated-lens` F1: /m);
@@ -202,7 +203,7 @@ test('unstated-lens alone at standard: its own verdict, which advises, its cards
   const r = cross(t, { reports, point: 'spec', anchors: 'S1,S2', tier: 'standard' });
   assert.equal(r.code, 0, r.stdout);
   const s = scriptWritten(r.all);
-  assert.ok(!s.includes(PROMPT));
+  assert.ok(!s.includes(PICK_PROMPT));
   assert.match(s, /\*\*Verdict: \u{1f50e} `findings`\.\*\* It advises: it does not change a pair's verdict\./u);
   assert.match(s, /^\| Anchor \| `unstated-lens` \|$/m);
   assert.match(s, /^- `S2`\n {2}- `unstated-lens` F1 `medium`: /m);
@@ -249,8 +250,8 @@ test('a non-risk on an anchor where the other lens has a finding gives no crossi
   withRisk['behaviour-lens'] = report(block('behaviour-lens', 'findings', [finding('F1', 'C2', 'medium', 'The retry test mocks the helper it is meant to test')], { nonRisks: [nonRisk('C3', 'Empty input is rejected early')] }));
   const a = cross(t, { reports: plain });
   const b = cross(t, { reports: withRisk });
-  assert.equal(abovePrompt(b.comments).join(''), abovePrompt(a.comments).join(''));
-  assert.match(abovePrompt(b.comments)[0], /^\| `C3` \| \u2014 \| F2 \| {2}\|$/m);
+  assert.equal(aboveReveal(b.comments).join(''), aboveReveal(a.comments).join(''));
+  assert.match(aboveReveal(b.comments)[0], /^\| `C3` \| \u2014 \| F2 \| {2}\|$/m);
 });
 
 // ------------------------------------------------------------ rendering safety
@@ -313,16 +314,16 @@ function hugeSecurity() {
   };
 }
 
-test('a section over the limit splits between cards, every finding exactly once, the prompt and fold after the last card part', t => {
+test('a section over the limit splits between cards, every finding exactly once, the reveal after the last card part', t => {
   const r = cross(t, hugeSecurity());
   assert.equal(r.code, 0, r.stdout);
   assert.ok(r.comments.length >= 4, `${r.comments.length} comments`);
   for (const c of r.comments) assert.ok(c.length <= LIMIT, `a comment of ${c.length}`);
-  const promptAt = r.comments.findIndex(c => c.includes(PROMPT));
-  assert.ok(promptAt >= 1, 'the cards span more than one part');
-  assert.equal(r.comments.filter(c => c.includes(PROMPT)).length, 1);
-  const above = abovePrompt(r.comments).join('');
-  const below = r.comments.map((c, i) => (i < promptAt ? '' : i === promptAt ? c.slice(c.indexOf(PROMPT)) : c)).join('');
+  const revealAt = r.comments.findIndex(c => c.includes(REVEAL));
+  assert.ok(revealAt >= 1, 'the cards span more than one part');
+  assert.equal(r.comments.filter(c => c.includes(REVEAL)).length, 1);
+  const above = aboveReveal(r.comments).join('');
+  const below = r.comments.map((c, i) => (i < revealAt ? '' : i === revealAt ? c.slice(c.indexOf(REVEAL)) : c)).join('');
   for (const name of ['adversarial-lens', 'data-lens']) {
     for (let i = 0; i < 100; i += 1) {
       const h = ` ${`${name} headline ${i} `.padEnd(120, 'h')} `;
@@ -333,11 +334,11 @@ test('a section over the limit splits between cards, every finding exactly once,
   // Each part starts at a card (under its group heading, or not) or a repeated
   // matrix header. This fixture's cards hold one finding each, so it cannot
   // show a cut card; the "card that fits" tests below cover multi-line cards.
-  for (const c of r.comments.slice(1, promptAt + 1)) {
+  for (const c of r.comments.slice(1, revealAt + 1)) {
     const body = c.replace(/^_Continued, part [0-9]+\._\n\n/, '');
     assert.match(body, /^(\*\*[^*\n]+\*\*( \(continued\))?\n\n- |- |\| Anchor \|)/, body.slice(0, 80));
   }
-  const heads = r.comments.slice(0, promptAt + 1).flatMap((c, i) => (c.match(/^- [^\n]*$/gm) ?? []).map(h => [h, i]));
+  const heads = r.comments.slice(0, revealAt + 1).flatMap((c, i) => (c.match(/^- [^\n]*$/gm) ?? []).map(h => [h, i]));
   const partsOf = new Map();
   for (const [h, i] of heads) partsOf.set(h, new Set([...(partsOf.get(h) ?? []), i]));
   for (const [h, set] of partsOf) assert.equal(set.size, 1, `${h} shows in parts ${[...set]}`);
@@ -370,7 +371,7 @@ for (const tier of ['thorough', 'standard']) {
         assert.equal(s.filter(c => line.test(c)).length, 1, `${lens} F${i} once`);
       }
     }
-    if (tier === 'thorough') assert.equal(r.comments.filter(c => c.includes(PROMPT)).length, 1);
+    if (tier === 'thorough') assert.equal(r.comments.filter(c => c.includes(REVEAL)).length, 1);
   });
 }
 
@@ -408,8 +409,8 @@ test('invariance holds when whole cards move to the next part', t => {
   };
   const runs = [run(() => 'medium'), run(() => 'low'), run(i => (i % 9 === 0 ? 'high' : 'low'))];
   for (const r of runs) assert.equal(r.code, 0, r.stdout);
-  const above = runs.map(r => abovePrompt(r.comments).filter(Boolean));
-  assert.ok(above[0].length >= 2, 'the part above the prompt splits');
+  const above = runs.map(r => aboveReveal(r.comments).filter(Boolean));
+  assert.ok(above[0].length >= 2, 'the part above the reveal splits');
   assert.deepEqual(above[1], above[0]);
   assert.deepEqual(above[2], above[0]);
 });
@@ -429,11 +430,11 @@ test('a disagreement card split across parts repeats its group heading', t => {
 });
 
 /**
- * Each part above the prompt that holds a card: the group heading that comes
+ * Each part above the reveal that holds a card: the group heading that comes
  * before its first card line, or null when there is none.
  */
 function partHeadings(comments) {
-  return abovePrompt(comments)
+  return aboveReveal(comments)
     .map(scriptWritten)
     .filter(c => /^- /m.test(c))
     .map(c => {
@@ -478,7 +479,7 @@ test('the first card of a group that moves whole carries its group heading once,
   const integrity = [...on(60, 1, two), ...on(40, 61, () => 'C3')];
   const r = cross(t, { reports: { 'behaviour-lens': report(block('behaviour-lens', 'findings', behaviour)), 'integrity-lens': report(block('integrity-lens', 'findings', integrity)) }, anchors: 'C1,C2,C3' });
   assert.equal(r.code, 0, r.stdout);
-  const s = abovePrompt(r.comments).map(scriptWritten);
+  const s = aboveReveal(r.comments).map(scriptWritten);
   const at = s.findIndex(c => /^- `C3`$/m.test(c));
   assert.ok(at >= 1, 'the one-lens card moved to a later part');
   assert.equal(s.join('').split('**One lens only**').length - 1, 1, 'its heading shows once');
@@ -489,8 +490,8 @@ test('the first card of a group that moves whole carries its group heading once,
 test('invariance holds when the cards themselves split across parts', t => {
   const runs = [oneHugeCard('medium'), oneHugeCard('low'), oneHugeCard('high')].map(v => cross(t, v));
   for (const r of runs) assert.equal(r.code, 0, r.stdout);
-  const above = runs.map(r => abovePrompt(r.comments).filter(Boolean));
-  assert.ok(above[0].length >= 2, 'the part above the prompt splits');
+  const above = runs.map(r => aboveReveal(r.comments).filter(Boolean));
+  assert.ok(above[0].length >= 2, 'the part above the reveal splits');
   assert.deepEqual(above[1], above[0]);
   assert.deepEqual(above[2], above[0]);
 });
@@ -525,7 +526,7 @@ test('a single report over the limit gives exit code 2, a written section and a 
   assert.equal(r.code, 2, r.stdout);
   assert.match(r.stdout, /^LEFT-OUT integrity-lens integrity-lens\.md$/m);
   assert.match(r.stdout, /^RESULT: oversize$/m);
-  assert.ok(r.all.includes(PROMPT), 'the section is written');
+  assert.ok(r.all.includes(REVEAL), 'the section is written');
   assert.ok(r.all.includes('**Left out, over the comment limit:** `integrity-lens`.'));
   assert.ok(!r.all.includes('y'.repeat(200)), 'the oversize report is not posted, not even in part');
   assert.ok(r.all.includes(`text\n${reports['behaviour-lens']}`), 'the report that fits is posted');

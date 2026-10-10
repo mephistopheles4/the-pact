@@ -174,7 +174,7 @@ None yet.
 
 ### 13. When would you retire it?
 
-**Confirmed** (2026-10-08): cries wolf (most of its last 10 reports' findings dismissed); two or more confirmed escapes it should have raised; its reviews rarely change the owner's decision.
+**Confirmed** (2026-10-08): cries wolf (most of its last 10 reports' findings dismissed); two or more confirmed escapes it should have raised. The owner reads both in the disposition tables when they choose (#189).
 
 ### 14. How hard should it think?
 

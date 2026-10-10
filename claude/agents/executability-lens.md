@@ -40,7 +40,7 @@ on it.
 ## The risk floor, in the pact's words ("I" is the owner)
 
 <!-- pact:begin risk-floor -->
-Auth, secrets, crypto, input validation, data migrations and anything published are always thorough, whatever tier I name.
+Auth, secrets, crypto, input validation and data migrations are always thorough, whatever tier I name.
 <!-- pact:end risk-floor -->
 
 ## How you work (questions 3, 16, 18)
@@ -170,7 +170,7 @@ numbers, codes or paths.
   or call word: not "high", "blocking", "clear", "safe", "ignore",
   "blocks", "can wait", "cut" or "defer", nor any form of "cut" or
   "defer", such as "cutting" or "deferred". A headline shows before the
-  owner's prediction.
+  owner reads the verdict.
 - No `likelihood` and no `data` key: both are refused on this lens.
 - `findings`: a list of at most 100.
 - `notChecked`: 1 to 20 strings, each 1 to 200 characters. Every review
