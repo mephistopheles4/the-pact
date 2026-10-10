@@ -274,9 +274,10 @@ once you install it.
   before something hard to reverse is published; "secrets" on the floor, for
   keys and tokens; and the tracker rule "Never post a secret or a personal
   detail". Text that frames such a change as quick work can steer past the
-  reviews, and your answer at the stop is then the only check. Signing off a
-  spec answers the stop for its pushes. The owner chose this over narrowing
-  the phrase (#189, ADR 0050).
+  reviews, and your answer at the stop is then the only check. A spec settles
+  the stop for its pushes only when its "Needs a human" section says so, as
+  #189's did. The owner chose this over narrowing the phrase (#189, ADR
+  0050).
 
 ## A session that reads text as instructions
 
@@ -461,6 +462,9 @@ The Node install (#166) closes two that were listed here, in part:
   which can hold API keys. It keeps the file's mode, so a file an older
   install widened stays readable by other users until you restrict it; the
   dry run warns when it is. A rollback to the old installer widens it again.
+  Since #211 the install how-to no longer gives the fix for either case
+  (`chmod 600` on the file): only the owner ever ran the old installer, and
+  the owner accepted this by name.
 - **#110:** the dry run compares permission rules exactly, so it no longer
   misses a tampered rule.
 
