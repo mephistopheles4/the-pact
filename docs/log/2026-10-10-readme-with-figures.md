@@ -24,7 +24,7 @@ The figures' words come from the canvas, fixed where `claude/CLAUDE.md` says oth
 
 The hero is the owner's own AI-generated pencil illustration of an emptied office, with the caption "He meant the repo." set as text under it. It replaced an earlier choice, a comic by another author, which was dropped before anything was committed. The owner stated its terms in the build session's chat: the repo's MIT licence. It carries no credit line, by the owner's decision.
 
-Its metadata was read before the first commit. The file holds a JFIF header and the standard sRGB colour profile, and no EXIF, XMP, IPTC or content credentials. Nothing personal was found, so nothing was removed, and the file was committed byte for byte: 1500 × 1500 px, 494 KiB.
+Its metadata was read before the first commit. The file holds a JFIF header and the standard sRGB colour profile, and no EXIF, XMP, IPTC or content credentials. Nothing personal was found, so nothing was removed, and the file was first committed byte for byte: 1500 × 1500 px, 494 KiB. At the owner's request it was then re-encoded at 1200 × 1200 px, JPEG quality 80, to 379 KiB. The text in the scene stays legible. The re-encode also dropped the colour profile, so the file now holds no metadata at all.
 
 ## What the reviews found
 
@@ -36,7 +36,7 @@ Five lenses read the result: the QA pair, `unstated-lens` and the standards pair
 - **A lost fact.** `unstated-lens` found that the history line had dropped that two old commits name a private folder. The clause went back in, and then the owner removed the whole line: ADR 0035 holds the history note.
 - **One dismissal.** `conventions-lens` asked whether an Install section with a command mixes a how-to into an explanation. The spec asks for it, so it stays at one command and a pointer.
 
-The owner then settled the hero: it is the original download, the alt text doesn't say it is AI-generated, and its 494 KiB stands as it is. The owner's look at the rendered README, in light and dark on desktop and phone, comes before the merge.
+The owner then settled the hero: it is the original download, the alt text doesn't say it is AI-generated, and it was shrunk to 379 KiB. The owner's look at the rendered README, in light and dark on desktop and phone, comes before the merge.
 
 ## Record
 
