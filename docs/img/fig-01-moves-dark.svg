@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="512" viewBox="0 0 800 512" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img">
+<rect width="800" height="512" fill="#1a1614"/>
+<defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#ece5df" stroke-opacity="0.045" stroke-width="1"/></pattern></defs>
+<rect width="800" height="512" fill="url(#grid)"/>
+<rect x="17" y="17" width="766" height="478" fill="#201b18" fill-opacity="0.72" stroke="#ece5df" stroke-width="2"/>
+<text x="44" y="39.2" font-size="12" font-weight="600" letter-spacing="1.92" fill="#ece5df">FIG. 01 — FOUR MOVES, ONE OWNER</text>
+<text x="756" y="39.2" font-size="12" letter-spacing="1.92" text-anchor="end" fill="#ece5df" fill-opacity="0.7">MOVE 1 → 4</text>
+<line x1="18" y1="58" x2="782" y2="58" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="44" y="92.35" font-size="11" font-weight="600" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">YOU — ARCHITECT OF INTENT</text>
+<rect x="44" y="107" width="157" height="169" fill="#1a1614" stroke="#ece5df" stroke-width="2"/>
+<text x="54" y="131.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">MOVE 1</text>
+<text x="54" y="155.9" font-size="14" font-weight="600" fill="#ece5df">Sense the work</text>
+<text x="54" y="180.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Triage it: what</text>
+<text x="54" y="200.55" font-size="13" fill="#ece5df" fill-opacity="0.8">kind, which</text>
+<text x="54" y="220.55" font-size="13" fill="#ece5df" fill-opacity="0.8">tier, is it</text>
+<text x="54" y="240.55" font-size="13" fill="#ece5df" fill-opacity="0.8">ready.</text>
+<path d="M215 183L223.5 191.5L215 200L206.5 191.5Z" fill="#1a1614" stroke="#ece5df" stroke-width="1.5"/>
+<rect x="229" y="107" width="157" height="169" fill="#1a1614" stroke="#ece5df" stroke-width="2"/>
+<text x="239" y="131.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">MOVE 2</text>
+<text x="239" y="155.9" font-size="14" font-weight="600" fill="#ece5df">Think before</text>
+<text x="239" y="173.9" font-size="14" font-weight="600" fill="#ece5df">doing</text>
+<text x="239" y="198.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Settle the</text>
+<text x="239" y="218.55" font-size="13" fill="#ece5df" fill-opacity="0.8">intent.</text>
+<text x="239" y="238.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Proceed, fix or</text>
+<text x="239" y="258.55" font-size="13" fill="#ece5df" fill-opacity="0.8">kill.</text>
+<path d="M400 183L408.5 191.5L400 200L391.5 191.5Z" fill="#1a1614" stroke="#ece5df" stroke-width="1.5"/>
+<rect x="414" y="107" width="157" height="169" fill="#1a1614" stroke="#ece5df" stroke-width="2"/>
+<text x="424" y="131.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">MOVE 3</text>
+<text x="424" y="155.9" font-size="14" font-weight="600" fill="#ece5df">Checkpoint</text>
+<text x="424" y="173.9" font-size="14" font-weight="600" fill="#ece5df">the seams</text>
+<text x="424" y="198.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Cut the</text>
+<text x="424" y="218.55" font-size="13" fill="#ece5df" fill-opacity="0.8">tickets. Start</text>
+<text x="424" y="238.55" font-size="13" fill="#ece5df" fill-opacity="0.8">and watch each</text>
+<text x="424" y="258.55" font-size="13" fill="#ece5df" fill-opacity="0.8">build.</text>
+<path d="M585 183L593.5 191.5L585 200L576.5 191.5Z" fill="#1a1614" stroke="#ece5df" stroke-width="1.5"/>
+<rect x="599" y="107" width="157" height="169" fill="#1a1614" stroke="#ece5df" stroke-width="2"/>
+<text x="609" y="131.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">MOVE 4</text>
+<text x="609" y="155.9" font-size="14" font-weight="600" fill="#ece5df">Stay the owner</text>
+<text x="609" y="180.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Decide whether</text>
+<text x="609" y="200.55" font-size="13" fill="#ece5df" fill-opacity="0.8">it is done.</text>
+<line x1="122.5" y1="276" x2="122.5" y2="304" stroke="#ece5df" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="307.5" y1="276" x2="307.5" y2="304" stroke="#ece5df" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="492.5" y1="276" x2="492.5" y2="304" stroke="#ece5df" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="4 3"/>
+<line x1="677.5" y1="276" x2="677.5" y2="304" stroke="#ece5df" stroke-opacity="0.55" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="44" y="322.35" font-size="11" font-weight="600" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">AGENT — EXECUTOR</text>
+<rect x="44" y="337" width="157" height="104" fill="none" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="56" y="363.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Proposes the</text>
+<text x="56" y="383.55" font-size="13" fill="#ece5df" fill-opacity="0.8">tier. Never</text>
+<text x="56" y="403.55" font-size="13" fill="#ece5df" fill-opacity="0.8">skips triage.</text>
+<rect x="229" y="337" width="157" height="104" fill="none" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="241" y="363.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Grills you,</text>
+<text x="241" y="383.55" font-size="13" fill="#ece5df" fill-opacity="0.8">then writes</text>
+<text x="241" y="403.55" font-size="13" fill="#ece5df" fill-opacity="0.8">the spec.</text>
+<rect x="414" y="337" width="157" height="104" fill="none" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="426" y="363.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Builds</text>
+<text x="426" y="383.55" font-size="13" fill="#ece5df" fill-opacity="0.8">test-first at</text>
+<text x="426" y="403.55" font-size="13" fill="#ece5df" fill-opacity="0.8">the agreed</text>
+<text x="426" y="423.55" font-size="13" fill="#ece5df" fill-opacity="0.8">seams.</text>
+<rect x="599" y="337" width="157" height="104" fill="none" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="611" y="363.55" font-size="13" fill="#ece5df" fill-opacity="0.8">Runs the</text>
+<text x="611" y="383.55" font-size="13" fill="#ece5df" fill-opacity="0.8">checks and</text>
+<text x="611" y="403.55" font-size="13" fill="#ece5df" fill-opacity="0.8">lenses. Brings</text>
+<text x="611" y="423.55" font-size="13" fill="#ece5df" fill-opacity="0.8">a verdict.</text>
+<line x1="44" y1="460" x2="44" y2="474" stroke="#ece5df" stroke-width="1.5"/>
+<line x1="44" y1="467" x2="274" y2="467" stroke="#ece5df" stroke-width="1.5"/>
+<path d="M280 462L285 467L280 472L275 467Z" fill="#1a1614" stroke="#ece5df" stroke-width="1.5"/>
+<text x="400" y="471" font-size="11" font-weight="600" letter-spacing="1.76" text-anchor="middle" fill="#ece5df">YOU DECIDE AT EVERY SEAM</text>
+<path d="M520 462L525 467L520 472L515 467Z" fill="#1a1614" stroke="#ece5df" stroke-width="1.5"/>
+<line x1="526" y1="467" x2="756" y2="467" stroke="#ece5df" stroke-width="1.5"/>
+<line x1="756" y1="460" x2="756" y2="474" stroke="#ece5df" stroke-width="1.5"/>
+</svg>
