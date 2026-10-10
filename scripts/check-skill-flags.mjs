@@ -95,7 +95,9 @@ function main(argv) {
   try {
     for (const l of check(readText(opts['--rules-file']), opts['--skills-dir'])) process.stdout.write(`${l}\n`);
   } catch (e) {
-    process.stderr.write(`${e.message}\n`);
+    // A file error's message holds its path, which names the home folder and
+    // so the user name: print its code only (#210).
+    process.stderr.write(`${e.code ? `cannot read a file the check needs (${e.code})` : e.message}\n`);
     return 1;
   }
   return 0;

@@ -167,8 +167,9 @@ in your working folder, uncommitted edits included. So on a branch that
 changes the installer, run it with `--claude-home` pointing at a throwaway
 folder: a bug in the code under edit then stays away from your real Claude
 home, though hostile code could still ignore the option. Write the folder's
-path out in full: a dry run with a variable, a bracket or a backtick after
-the script's name asks, as an apply does (ADR 0049).
+path out in full: a dry run with a variable, a bracket, a backtick or the
+other characters ADR 0049 lists after the script's name asks, as an apply
+does.
 
 The last lines print the apply command to run next.
 
@@ -189,7 +190,8 @@ Bash(*nstall-run.mjs*)
 
 Until you do, every mention of those files still asks. Don't ask a session to
 do it: the file can hold API keys, and a session that reads it holds them in
-its context.
+its context. If you copied the file first, delete the copy yourself once the
+install works: it holds the same keys, and keeps them after you change one.
 
 ## 5. Install with `--apply`
 

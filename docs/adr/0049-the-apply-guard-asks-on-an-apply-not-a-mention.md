@@ -5,7 +5,7 @@ The ask rules that guard the install no longer fire on any command that names th
 ## What it covers
 
 - **The Node installer, 36 rules.**
-  - `PowerShell(*--apply*)` and `Bash(*--apply*)`: the one flag spelling the script reads, wherever the script is named, so a name in one statement and the flag in the next still asks.
+  - `PowerShell(*--apply*)` and `Bash(*--apply*)`: the one flag spelling the script reads, wherever the script is named, so a name in one statement and the flag in the next still asks when the flag is written whole.
   - After each of `install.mjs` and `install-run.mjs`, under PowerShell: `--a` (the flag split by quotes after it), `$`, `@`, `(`, `%` and a backtick, the words a rule can't read. Under Bash, with the first letter dropped as before: `--a`, `$`, a backtick and a backslash, and a doubled backslash in case the live matcher reads a backslash before a star as an escape.
   - After each name, in each shell, a dash followed by a double or a single quote. A quote that splits the flag before its `a` always sits right after one of its dashes, and a dry run's quoted path never does.
   - `PowerShell(*--review-folder*)` and `Bash(*--review-folder*)`, and `--r` after `install.mjs` in each shell: a dry run that writes the owner's rendered rules to a review folder still asks, since the folder may sit in a repo checkout. No other dry-run option starts with `--r`.
@@ -14,13 +14,17 @@ The ask rules that guard the install no longer fire on any command that names th
 - **Kept broad, 6 rules:** the install record's two, since the record is the dry run's drift baseline and a write has no closed set of spellings; and the four ruleset and protection rules.
 - **Seam A requires all 60 in the overlay,** whatever the allow-list says, with a "stays required when dropped" bad case for each. A near miss in place of a required rule (a hyphen for a dash, a splat that needs its space, a retired broad rule) fails as missing.
 - **The tests check the rules against a model of Claude Code's matching,** as its permissions docs describe it: `*` matches any text, PowerShell matches without regard to case, and a compound command is split into parts. Each apply form in the fixtures asks; each mention, read, search and dry run runs. A control shows the retired broad rules ask on every mention. Each rule but three named backups is the only rule that makes some apply row ask, so a rule that matched nothing would show.
-- **Some mentions still ask.** A rule that watches for a `$`, a `(` or a backtick after the installer's name can't tell an apply from a mention. A commit message that names the installer and ends in "(#210)", a PR body with its name in backticks, a search pattern holding a bracket, and a dry run whose throwaway home is a variable all ask. A dry run with a literal path runs. This errs on the side of asking.
+- **Some mentions still ask.** A rule that watches what follows the installer's name can't tell an apply from a mention. After the name, a `$`, a `(`, a backtick, an `@` or a `%` under PowerShell, a backslash under Bash, a dash followed by a quote, or an option starting `--a` or `--r` (such as `git log -- gate/install.mjs --author x`, or `--rendered-hash` on a dry run) makes the command ask. So does any command holding the text `--apply` or `--review-folder`, a search for either included. A commit message that names the installer and ends in "(#210)", a PR body with its name in backticks, a search pattern holding a bracket, and a dry run whose throwaway home is a variable all ask. A dry run with a literal path runs. This errs on the side of asking.
 - **The live file keeps what it had.** The merge only adds rules, so a broad rule an earlier pact installed stays until the owner deletes it. `docs/install.md` lists the six to delete, by hand.
 
 ## The misses, accepted (threat model R22)
 
 - the old installer named in one statement and run with its switch from a variable in the next: no name-free rule fits, since PowerShell takes any prefix of `-Apply`;
 - a Node flag split by an escape no rule lists, such as a caret through `cmd`, or PowerShell's typographic quotes;
+- the installer's name held in a variable from an earlier statement, or handed over by another command such as `xargs`, with the flag split by quotes or an escape;
+- the old installer's switch with a quote or a backslash right after its dash, which the shell removes before PowerShell binds the switch;
+- Bash brace expansion or a filename wildcard after the installer's name;
+- a review-folder dry run with the script's name and the option both built at run time, which writes the owner's rendered rules unprompted;
 - a wrapped apply line, if the live matcher splits it before the flag;
 - a name built at run time with the flag also hidden, as in ADR 0042;
 - the installer named plainly, with the flag or switch built at run time inside an inline program, an evaluated string or a child shell; no list of rules can close this, and it asked before #210, since the name was in the text;
@@ -32,7 +36,7 @@ The model is built from the same docs the rules rely on, so it can't show what t
 
 - **Every mention prompted.** A build that works on the installer names it in every diff, search and read, and each one asked the owner, though nothing installed. The prompts trained the owner to approve, which was ADR 0042's own habit risk.
 - **ADR 0042's reason was that naming the file is the one thing every spelling shares.** For the Node script that is no longer true in the other direction: the script reads exactly one flag spelling, so the flag itself is shared by every apply, wherever the script is named. The words PowerShell hands a native command that a rule can't read (a variable, a splat, a subexpression, a parenthesised expression, the stop-parsing token), which 0042 feared, each have a rule after the name.
-- **The binding is elsewhere too.** An apply needs the owner's go-ahead in chat (the gated install-go-ahead clause) and the full commit id the owner's dry run printed. The ask rule is a prompt, not a boundary.
+- **The binding is elsewhere too, in part.** An apply needs the owner's go-ahead in chat (the gated install-go-ahead clause) and the full commit id a dry run printed. The ask rule is a prompt, not a boundary. But a dry run no longer asks, so a session can run one unseen and copy its commit and rendered hash: those bind the clone and the render, not the owner's sight of a dry run. The apply prompt is now the one point where the owner sees an apply before it runs.
 - **The security pair read the spec before the build** and added the name-free flag rule, the escape rules, the old installer's indirection rules, the review-folder rule, and the "by hand" cleanup step. At move 4 it added the quote rules, the doubled backslash and the name-free review-folder pair, and named the run-time class among the misses.
 
 ## How this was decided

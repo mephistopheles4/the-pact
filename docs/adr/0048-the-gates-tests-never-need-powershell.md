@@ -8,7 +8,7 @@ No file in `scripts/`, `gate/` or `cross/` is a PowerShell script, and no test s
 - **The PowerShell forms are held word for word.** Since nothing runs them, `pact-call.test.mjs` and `run-guards.test.mjs` compare each documented command with its exact text, so a command chained before or after the call fails.
 - **What stays, because it is not a dependency:**
   - the pact's shell rule for Windows sessions, and the PowerShell forms of the commands in the rules and in AGENTS.md: they tell a session how to run on the owner's machine;
-  - the ask rules `PowerShell(*install.ps1*)` and `Bash(*nstall.ps1*)`: `PowerShell(...)` is Claude Code's tool name, and seam A requires them, so a rollback to an older commit's installer still asks;
+  - the ask rules that guard `install.ps1`'s apply step: `PowerShell(...)` is Claude Code's tool name, and seam A requires them, so a rollback to an older commit's installer still asks. The same PR retired the two broad rules, `PowerShell(*install.ps1*)` and `Bash(*nstall.ps1*)`, for ADR 0049's eighteen apply-step rules;
   - the runner's rule that a test file naming `install.ps1` is in the install tier, and its two fixtures, which name it in a spawn call that never runs;
   - comments, and the old logs and ADRs;
   - `docs/install.md`'s rollback note: a commit from before #166 still needs PowerShell 7 to install itself.

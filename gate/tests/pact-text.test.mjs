@@ -617,6 +617,15 @@ test('the skill-flag check reports zero named skills on the default render', t =
   assert.match(r.stdout, /^named skills: 0; commands: 0; OK\s*$/m, r.stdout + r.stderr);
 });
 
+test('the skill-flag check names no path when it cannot read the rules file', t => {
+  const root = tempDir(t);
+  const missing = join(root, 'no-such-rules.md');
+  const r = spawnSync(process.execPath, [join(REPO, 'scripts', 'check-skill-flags.mjs'), '--skills-dir', join(root, 'skills'), '--rules-file', missing], { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } });
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  assert.match(r.stderr, /^cannot read a file the check needs \(ENOENT\)$/m, r.stderr);
+  assert.ok(!r.stderr.includes('no-such-rules') && !r.stderr.includes(root), r.stderr);
+});
+
 test('the skill-flag check passes a flagged skill written as a command and an unflagged one as a code span', t => {
   const r = skillFlagCheck(t, SECTION('Type `/owner-only 12` or `/owner-only`, and use `agent-ok`. Bare /agent-ok is prose; `/<skill>` is a placeholder.'), { 'owner-only': true, 'agent-ok': false });
   assert.equal(r.status, 0, r.stdout + r.stderr);

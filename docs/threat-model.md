@@ -338,17 +338,27 @@ session can act before you see it.
   split by an escape no rule lists, such as a caret through `cmd` or
   PowerShell's typographic quotes; a wrapped apply line, if Claude Code's
   matcher splits it before the flag; a name built at run time with the flag
-  also hidden; and the installer named plainly with its flag or switch built
-  at run time inside an inline program, an evaluated string or a child shell,
-  which no list of rules can close. A dry run of installer code under edit
+  also hidden; the installer named plainly with its flag or switch built at
+  run time inside an inline program, an evaluated string or a child shell,
+  which no list of rules can close; the installer's name in a variable from
+  an earlier statement, or handed over by a command such as `xargs`, with the
+  flag split by quotes or an escape; the old installer's switch with a quote
+  or a backslash right after its dash; Bash brace expansion or a filename
+  wildcard after the name; and a review-folder dry run with the script's name
+  and the option both built at run time, which writes your rendered rules
+  unprompted. A dry run of installer code under edit
   also runs unprompted against your real Claude home; a throwaway home keeps
   a bug away from it, not hostile code. The pact's tests check the rules
   against a model of Claude Code's documented matching, which can't show
   what the live matcher does with escapes or wrapped lines. Some mentions
-  still ask: a `$`, a `(` or a backtick after the installer's name looks the
-  same in a commit message as in an apply. An apply still needs your
-  go-ahead in chat and the commit your dry run printed. The owner accepted
-  this to stop the prompts on every mention (#210).
+  still ask: a `$`, a `(`, a backtick or the other characters ADR 0049 lists
+  after the installer's name look the same in a commit message as in an
+  apply. An apply still needs your
+  go-ahead in chat and the commit a dry run printed, but a session can now
+  run that dry run unseen: the commit and rendered hash bind the clone and
+  the render, not your sight of them, so the apply prompt is where you see an
+  apply before it runs. The owner accepted this to stop the prompts on every
+  mention (#210).
 
 ## Your own configuration loosening a rule
 
