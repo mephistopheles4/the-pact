@@ -37,8 +37,8 @@ how every session in every repo behaves. So:
   settings and the agents.
 <!-- pact:begin install-go-ahead -->
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
-  pass `-Apply` only after they say so in chat. `-Apply` refuses on drift or a
-  dirty working tree.
+  pass `--apply` only after they say so in chat. `--apply` refuses on drift or
+  a dirty working tree.
 <!-- pact:end install-go-ahead -->
 - **The script confirms the hashes.** After `-Apply` it re-hashes every live
   file against the bytes it checked and installed: the rendered bytes for the

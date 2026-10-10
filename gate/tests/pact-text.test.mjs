@@ -273,6 +273,7 @@ for (const c of table('pact text required clause', {
     { id: 'moved-tracker-authors', plant: moveTo('tracker-authors', '## Watching usage'), fails: ['anchor'], says: /^FAIL anchor: claude\/CLAUDE\.md line \d+: tracker-authors is outside "Implementing a change"$/m, why: 'tracker-authors moved to another section' },
     { id: 'weakened-install-go-ahead', plant: weaken('install-go-ahead'), fails: ['required-clause'], says: /^FAIL required-clause: AGENTS\.md: install-go-ahead differs from its canonical text$/m, why: 'a weakened install go-ahead' },
     { id: 'removed-install-go-ahead', plant: remove('install-go-ahead'), fails: ['required-clause'], says: /^FAIL required-clause: AGENTS\.md: install-go-ahead is missing$/m, why: 'a removed install go-ahead' },
+    { id: 'old-spelling-install-go-ahead', plant: tree => ({ ...tree, [AG]: inBlock(inBlock(tree[AG], 'install-go-ahead', 'pass `--apply`', 'pass `-Apply`'), 'install-go-ahead', '`--apply` refuses', '`-Apply` refuses') }), fails: ['required-clause'], says: /^FAIL required-clause: AGENTS\.md: install-go-ahead differs from its canonical text$/m, why: 'the clause with the flag spelled as before the Node install, -Apply (#153, D1)' },
   ],
 })) test(c.name, c.fn);
 

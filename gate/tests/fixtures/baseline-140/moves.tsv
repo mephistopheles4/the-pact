@@ -132,3 +132,22 @@ gate/tests/pact-text.test.mjs	bad case: a weakened required clause (stop-and-esc
 gate/tests/pact-text.test.mjs	bad case: a removed required clause (stop-and-escalate)	gate/tests/pact-text.test.mjs	pact text required clause: removed-stop-and-escalate
 gate/tests/pact-text.test.mjs	bad case: a weakened required clause (install-go-ahead), on a fixture copy	gate/tests/pact-text.test.mjs	pact text required clause: weakened-install-go-ahead
 gate/tests/pact-text.test.mjs	bad case: a removed required clause (install-go-ahead)	gate/tests/pact-text.test.mjs	pact text required clause: removed-install-go-ahead
+# #166 (#153, S10 and S6 rows A2, A3): the cutover retired install.ps1's twelve ask rules and its
+# parameter block. Each case became a row in its own file that checks what replaced it.
+gate/tests/settings.test.mjs	bad case: the apply-step rule PowerShell(./scripts/install.ps1 -Apply) stays required when both the allow-list and the overlay drop it	gate/tests/settings.test.mjs	retired install rules: apply-step-powershell-path
+gate/tests/settings.test.mjs	bad case: the apply-step rule PowerShell(*install.ps1*-A*) stays required when both the allow-list and the overlay drop it	gate/tests/settings.test.mjs	retired install rules: apply-step-powershell-dash-a
+gate/tests/settings.test.mjs	bad case: the apply-step rule PowerShell(*install.ps1* @*) stays required when both the allow-list and the overlay drop it	gate/tests/settings.test.mjs	retired install rules: apply-step-powershell-splat
+gate/tests/settings.test.mjs	bad case: the apply-step rule PowerShell(*install.ps1*\u2013*) stays required when both the allow-list and the overlay drop it	gate/tests/settings.test.mjs	retired install rules: apply-step-powershell-en-dash
+gate/tests/settings.test.mjs	bad case: the apply-step rule PowerShell(*install.ps1*\u2014*) stays required when both the allow-list and the overlay drop it	gate/tests/settings.test.mjs	retired install rules: apply-step-powershell-em-dash
+gate/tests/settings.test.mjs	bad case: the apply-step rule PowerShell(*install.ps1*\u2015*) stays required when both the allow-list and the overlay drop it	gate/tests/settings.test.mjs	retired install rules: apply-step-powershell-horizontal-bar
+gate/tests/settings.test.mjs	bad case: the apply-step rule Bash(*nstall.ps1* @*) stays required when both the allow-list and the overlay drop it	gate/tests/settings.test.mjs	retired install rules: apply-step-bash-splat
+gate/tests/settings.test.mjs	bad case: PowerShell(*install.ps1*\u2013*) with a hyphen for its dash, in both files, fails as missing	gate/tests/settings.test.mjs	retired install rules: hyphen-for-powershell-en-dash
+gate/tests/settings.test.mjs	bad case: PowerShell(*install.ps1*\u2014*) with a hyphen for its dash, in both files, fails as missing	gate/tests/settings.test.mjs	retired install rules: hyphen-for-powershell-em-dash
+gate/tests/settings.test.mjs	bad case: PowerShell(*install.ps1*\u2015*) with a hyphen for its dash, in both files, fails as missing	gate/tests/settings.test.mjs	retired install rules: hyphen-for-powershell-horizontal-bar
+gate/tests/settings.test.mjs	bad case: Bash(*nstall.ps1*\u2013*) with a hyphen for its dash, in both files, fails as missing	gate/tests/settings.test.mjs	retired install rules: hyphen-for-bash-en-dash
+gate/tests/settings.test.mjs	bad case: Bash(*nstall.ps1*\u2014*) with a hyphen for its dash, in both files, fails as missing	gate/tests/settings.test.mjs	retired install rules: hyphen-for-bash-em-dash
+gate/tests/settings.test.mjs	bad case: Bash(*nstall.ps1*\u2015*) with a hyphen for its dash, in both files, fails as missing	gate/tests/settings.test.mjs	retired install rules: hyphen-for-bash-horizontal-bar
+gate/tests/settings.test.mjs	bad case: PowerShell(*install.ps1* @*) without the space before its @, in both files, fails as missing	gate/tests/settings.test.mjs	retired install rules: splat-without-space-powershell
+gate/tests/settings.test.mjs	bad case: Bash(*nstall.ps1* @*) without the space before its @, in both files, fails as missing	gate/tests/settings.test.mjs	retired install rules: splat-without-space-bash
+gate/tests/settings.test.mjs	the install script's parameters stay non-advanced: no CmdletBinding, no Parameter attribute	gate/tests/settings.test.mjs	apply only as typed: powershell-apply-switch
+gate/tests/settings.test.mjs	bad case: a parameter block made advanced is caught, in every spelling PowerShell accepts	gate/tests/settings.test.mjs	apply only as typed: apply-with-a-value

@@ -7,12 +7,13 @@ import { realOverlay } from './payload.mjs';
 export const OVERLAY = 'claude/settings.overlay.json';
 
 // The three characters PowerShell reads as a parameter's hyphen (#89): en
-// dash, em dash and horizontal bar. Always written as escapes, never typed.
+// dash, em dash and horizontal bar. Always written as escapes, never typed;
+// the retired rules below hold them.
 export const DASHES = ['\u2013', '\u2014', '\u2015'];
 
 // The ask rules #165 adds, from #153's S10, in two lists by what they guard.
 // Under Bash, which matches case exactly, each drops its first letter, as the
-// `nstall.ps1` rules do.
+// `nstall.ps1` rule does.
 //
 // The Node install script's guard: its two files and the install record. They
 // prompt on any command that names one, whatever the shell does to the words
@@ -36,13 +37,19 @@ export const RULESET_ASK = [
   'Bash(*gh*rotection*)',
 ];
 
-// The pact's "ask" rules, as #34 and its pre-build review settled them.
-export const PACT_ASK = [
+// The PowerShell installer's guard, for good (#153, S10): a rollback runs an
+// older commit's install.ps1, and any command naming it asks.
+export const OLD_INSTALL_ASK = ['PowerShell(*install.ps1*)', 'Bash(*nstall.ps1*)'];
+
+// The twelve rules OLD_INSTALL_ASK replaced at the cutover (#34, #89): each
+// spelling of install.ps1's apply step, a splat, and each dash PowerShell takes
+// in place of the hyphen. settings.test.mjs shows none of them stands in for
+// the broad rules.
+export const RETIRED_ASK = [
   'PowerShell(./scripts/install.ps1 -Apply)',
   'PowerShell(*install.ps1*-A*)',
   'Bash(*nstall.ps1*-A*)',
   'Bash(*nstall.ps1*-a*)',
-  // #89: a splat, and each dash PowerShell takes in place of the hyphen.
   'PowerShell(*install.ps1* @*)',
   'PowerShell(*install.ps1*\u2013*)',
   'PowerShell(*install.ps1*\u2014*)',
@@ -51,6 +58,11 @@ export const PACT_ASK = [
   'Bash(*nstall.ps1*\u2013*)',
   'Bash(*nstall.ps1*\u2014*)',
   'Bash(*nstall.ps1*\u2015*)',
+];
+
+// The pact's "ask" rules, as #34 and its pre-build review settled them.
+export const PACT_ASK = [
+  ...OLD_INSTALL_ASK,
   // #165: see NODE_INSTALL_ASK and RULESET_ASK.
   ...NODE_INSTALL_ASK,
   ...RULESET_ASK,
@@ -67,22 +79,11 @@ export const PACT_ASK = [
   'Edit(~/.claude/pact/**)',
 ];
 
-// The apply-step rules, hard-coded in seam A as the permission mode is, and
-// #165's two guards beside them. Named one by one, so a rule added to the
+// The install's rules, hard-coded in seam A as the permission mode is: the
+// PowerShell installer's two and #165's two guards. Named one by one, so a rule added to the
 // pact's list can't push one out.
 export const APPLY_ASK = [
-  'PowerShell(./scripts/install.ps1 -Apply)',
-  'PowerShell(*install.ps1*-A*)',
-  'Bash(*nstall.ps1*-A*)',
-  'Bash(*nstall.ps1*-a*)',
-  'PowerShell(*install.ps1* @*)',
-  'PowerShell(*install.ps1*\u2013*)',
-  'PowerShell(*install.ps1*\u2014*)',
-  'PowerShell(*install.ps1*\u2015*)',
-  'Bash(*nstall.ps1* @*)',
-  'Bash(*nstall.ps1*\u2013*)',
-  'Bash(*nstall.ps1*\u2014*)',
-  'Bash(*nstall.ps1*\u2015*)',
+  ...OLD_INSTALL_ASK,
   ...NODE_INSTALL_ASK,
   ...RULESET_ASK,
 ];

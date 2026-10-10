@@ -9,7 +9,8 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, 
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { copyGate, installScriptText, moduleMatch, plantModule } from './gate-files.mjs';
+import { AGENT_NAMES } from '../install-core.mjs';
+import { copyGate, moduleMatch, plantModule } from './gate-files.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 import { OLD_REVIEWERS } from '../pact-text.mjs';
@@ -290,9 +291,9 @@ test('bad case: a renderer whose locked list loses scout still cannot set it: sc
 
 test('the install script\'s list of agents equals the renderer\'s configurable list', () => {
   const r = moduleMatch(GATE, 'render', /const CONFIGURABLE_AGENTS = Object\.freeze\(\[([^\]]*)\]\);/);
-  const i = /^\$agentNames = @\(([^)]*)\)$/m.exec(installScriptText());
-  assert.ok(r && i);
+  assert.ok(r);
   const names = s => s.split(',').map(x => x.trim().replace(/^'|'$/g, ''));
-  assert.deepEqual(names(i[1]), names(r[1]));
+  // The Node install keeps the list as a constant in its core (#153, S14).
+  assert.deepEqual([...AGENT_NAMES], names(r[1]));
   assert.deepEqual(names(r[1]), PACT_AGENTS);
 });

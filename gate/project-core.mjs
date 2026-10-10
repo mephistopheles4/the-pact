@@ -29,7 +29,7 @@
 //      Windows and macOS, matched on whole segments (gate/paths.mjs). It
 //      refuses a project folder that equals or holds the real home folder, or
 //      that equals, holds or sits inside the real Claude folder (.claude in
-//      the home folder), whatever -ClaudeHome says; and likewise for the
+//      the home folder), whatever --claude-home says; and likewise for the
 //      Claude home folder named for the run, when it differs. The real home
 //      folder is the account's, as the operating system reports it
 //      (os.userInfo), and also the one HOME or USERPROFILE names when that

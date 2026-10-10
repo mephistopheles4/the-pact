@@ -18,11 +18,10 @@ function which(cmd) {
   return r.stdout.split(/\r?\n/)[0].trim();
 }
 
-// git and pwsh are looked up on first use, never at import (#151), so
-// importing the harness starts no process. A missing one still fails the
-// first install, naming it.
+// git is looked up on first use, never at import (#151), so importing the
+// harness starts no process. A missing one still fails the first install,
+// naming it.
 let base = null;
-let pwsh = null;
 const NODE_DIR = dirname(process.execPath);
 
 /** The folders an install's PATH holds besides node's: git's and the system's. */
@@ -108,14 +107,6 @@ afterEach(t => {
     throw new Error(`purity guard: "${t.name}" is in an install-tier file but neither ran the install script nor skipped itself; move it to a file that never installs`);
   }
 });
-
-/** Runs pwsh with `args`, one of which must name the PowerShell install script; counts as an install. */
-export function spawnInstall(args, options) {
-  if (!args.some(a => String(a).toLowerCase().includes('install.ps1'))) throw new Error('spawnInstall: no argument names the install script, so this is not an install');
-  installs++;
-  pwsh ??= which('pwsh');
-  return spawnSync(pwsh, args, options);
-}
 
 /** Runs node with `args`, one of which must name the Node install script; counts as an install (#153). */
 export function spawnNodeInstall(args, options) {
