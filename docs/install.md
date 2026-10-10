@@ -123,10 +123,8 @@ parts:
     ask before an apply, not before a mention: any command holding
     `--apply`; the install script (`install.mjs` or `install-run.mjs`) named
     with a word the rule can't read after it, such as a variable, a splat or
-    a backtick, or with a quote right after a dash; a dry run that writes to
-    a review folder; and the old
-    PowerShell installer (`install.ps1`) named with its apply switch, a
-    dash, a splat or a variable. A dry run, a read, a search or a diff of
+    a backtick, or with a quote right after a dash; and a dry run that
+    writes to a review folder. A dry run, a read, a search or a diff of
     those files runs without asking (ADR 0049). They also ask before any
     command that names the install record, and before a `gh` command that
     names rulesets or branch protection. Those last rules match the letters
@@ -186,6 +184,21 @@ Until you do, every mention of those files still asks. Don't ask a session to
 do it: the file can hold API keys, and a session that reads it holds them in
 its context. If you copied the file first, delete the copy yourself once the
 install works: it holds the same keys, and keeps them after you change one.
+
+After installing the pact from #217 or later (ADR 0052), open
+`~/.claude/settings.json` in an editor again, and delete every line in
+`permissions.ask` that contains `nstall.ps1`. Search for that text rather
+than copying lines from here: three of the rules hold dash characters that
+look like hyphens on screen. Do it only after the install. If you delete them
+earlier, an older commit's dry run warns that rules are missing, and its
+apply adds them back. Then check two things yourself, not through a session:
+
+1. **None left:** your editor's search for `nstall.ps1` finds no match.
+2. **Nothing else broken:** run the dry run again. It must show no
+   `WARN: settings.json lacks …` line, no
+   `WARN: settings.json is not a strict JSON object …` line, and
+   `settings.json: unchanged`. A neighbouring rule deleted by mistake, or a
+   broken comma, shows here.
 
 ## 5. Install with `--apply`
 
@@ -280,9 +293,11 @@ pwsh ./scripts/install.ps1
 ```
 
 Both installers read and write the same install record, so either can follow
-the other. In a Claude Code session, a command that runs `install.ps1` with
-its `-Apply` switch, a prefix of it, a dash for the hyphen, a splat or a
-variable asks you first; its dry run doesn't.
+the other. In a Claude Code session, since #217, no ask rule guards
+`install.ps1`: its apply runs without a prompt, as its dry run does (ADR
+0052). An older commit's install also adds its old ask rules back to your
+`settings.json`. When you return to a pact from #217 or later, remove them
+again, as "Removing rules an older pact added" describes.
 
 ## Known limits
 

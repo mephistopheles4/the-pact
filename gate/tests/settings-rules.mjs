@@ -8,7 +8,7 @@ export const OVERLAY = 'claude/settings.overlay.json';
 
 // The three characters PowerShell reads as a parameter's hyphen (#89): en
 // dash, em dash and horizontal bar. Built from their codes, never typed, so no
-// source file holds one; the rule files write them as \u escapes.
+// source file holds one. Since #217 no pact rule holds one either.
 export const DASHES = [0x2013, 0x2014, 0x2015].map(c => String.fromCharCode(c));
 
 // The apply guard asks on an apply, not a mention (#210, ADR 0049). Under
@@ -39,30 +39,17 @@ export const NODE_INSTALL_ASK = [
 // Rules no apply row needs alone, by design: each backs up another rule that
 // catches every form it does under the model.
 export const BACKUP_ASK = [
-  'PowerShell(./scripts/install.ps1 -Apply)',
   'Bash(*nstall.mjs*\\\\*)',
   'Bash(*nstall-run.mjs*\\\\*)',
 ];
 
-// The old PowerShell installer, which a rollback runs: ADR 0020's apply-step
-// spellings, the splat without its space, and the forms D1 covers for Node.
-// PowerShell binds this script's own parameters, so the three dashes stay.
-export const OLD_INSTALL_ASK = [
-  'PowerShell(./scripts/install.ps1 -Apply)',
-  'PowerShell(*install.ps1*-A*)',
-  'PowerShell(*install.ps1*@*)',
-  ...DASHES.map(d => `PowerShell(*install.ps1*${d}*)`),
-  'PowerShell(*install.ps1*$*)',
-  'PowerShell(*install.ps1*(*)',
-  'PowerShell(*install.ps1*%*)',
-  'PowerShell(*install.ps1*`*)',
-  'Bash(*nstall.ps1*-A*)',
-  'Bash(*nstall.ps1*-a*)',
-  'Bash(*nstall.ps1*@*)',
-  ...DASHES.map(d => `Bash(*nstall.ps1*${d}*)`),
-  'Bash(*nstall.ps1*$*)',
-  'Bash(*nstall.ps1*`*)',
-];
+// The old installer's apply guard left the pact in #217 (ADR 0052). These
+// stand for it in the tests that it stays out: the name its rules shared,
+// compared without regard to case, and one of its rules for each tool. They
+// live here because a test file that names the old installer is in the
+// install tier.
+export const RETIRED_OLD_INSTALL_NAME = 'nstall.ps1';
+export const RETIRED_OLD_INSTALL_ASK = ['PowerShell(*install.ps1*-A*)', 'Bash(*nstall.ps1*-a*)'];
 
 // The install record, kept broad: it is the dry run's drift baseline, and a
 // write to it has no closed set of spellings (#210, D3).
@@ -91,7 +78,7 @@ export const BROAD_INSTALL_ASK = [
 
 // The install's rules, hard-coded in seam A as the permission mode is. Named
 // one by one, so a rule added to the pact's list can't push one out.
-export const APPLY_ASK = [...OLD_INSTALL_ASK, ...NODE_INSTALL_ASK, ...RECORD_ASK, ...RULESET_ASK];
+export const APPLY_ASK = [...NODE_INSTALL_ASK, ...RECORD_ASK, ...RULESET_ASK];
 // The cross script's rule, hard-coded in seam A beside them.
 export const CROSS_ASK = 'Edit(~/.claude/pact/**)';
 
@@ -181,22 +168,6 @@ export const APPLY_COMMANDS = [
   ['Bash', 's=gate/install.mjs; node "$s" --review-folder /review', 'a review-folder dry run with the name in another statement, under Bash'],
   ['PowerShell', 'node gate/install.mjs --r"eview-folder" D:\\review', 'the review-folder option split by quotes after --r'],
   ['Bash', "node gate/install.mjs --r'eview-folder' /review", 'the review-folder option split by quotes after --r, under Bash'],
-  ['PowerShell', './scripts/install.ps1 -Apply', 'the old installer, by its path'],
-  ['PowerShell', 'pwsh -File scripts/install.ps1 -ap', 'the old installer, a prefix of its switch'],
-  ['PowerShell', 'pwsh scripts/install.ps1@p', 'the old installer, a splat with no space'],
-  ['PowerShell', 'pwsh scripts/install.ps1 @p', 'the old installer, a splat with a space'],
-  ...DASHES.map(d => ['PowerShell', `pwsh scripts/install.ps1 ${d}Apply`, `the old installer, ${shown(d)} for the hyphen`]),
-  ['PowerShell', 'pwsh scripts/install.ps1 $sw', 'the old installer, its switch in a variable'],
-  ['PowerShell', 'pwsh scripts/install.ps1 $(Get-Sw)', 'the old installer, its switch from a subexpression'],
-  ['PowerShell', 'pwsh scripts/install.ps1 (Get-Sw)', 'the old installer, a parenthesised expression'],
-  ['PowerShell', 'pwsh scripts/install.ps1 --% %SW%', 'the old installer, the stop-parsing token'],
-  ['PowerShell', 'pwsh scripts/install.ps1 -`Apply', 'the old installer, a backtick escape'],
-  ['Bash', 'pwsh -File scripts/install.ps1 -a', 'the old installer, under Bash'],
-  ['Bash', 'pwsh -File scripts/install.ps1 -Apply', 'the old installer, its switch capitalised, under Bash'],
-  ['Bash', 'pwsh scripts/install.ps1 @p', 'the old installer, a splat, under Bash'],
-  ...DASHES.map(d => ['Bash', `pwsh scripts/install.ps1 ${d}Apply`, `the old installer, ${shown(d)} for the hyphen, under Bash`]),
-  ['Bash', 'pwsh scripts/install.ps1 "$SW"', 'the old installer, its switch in a variable, under Bash'],
-  ['Bash', 'pwsh scripts/install.ps1 `get-sw`', 'the old installer, a command substitution, under Bash'],
   ['PowerShell', 'Set-Content ~/.claude/.pact-install.json "{}"', 'a write to the install record'],
   ['Bash', 'echo {} > ~/.claude/.pact-install.json', 'a write to the install record, under Bash'],
   ['PowerShell', 'gh api -X DELETE repos/o/r/rulesets/1', 'a ruleset write'],

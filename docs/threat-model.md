@@ -237,10 +237,9 @@ once you install it.
   run showed. Every change to the install gate's code takes the security
   route.
 - **Ask rules on the install itself.** The documented apply and its listed
-  spellings ask you first: any command holding `--apply`, the install script
-  named with a word the rule can't read or a quote after a dash after it, and
-  the old PowerShell installer named with its apply switch, a dash, a splat
-  or a variable. A command that names the install record, or a `gh` command
+  spellings ask you first: any command holding `--apply`, and the install
+  script named with a word the rule can't read or a quote after a dash after
+  it. A command that names the install record, or a `gh` command
   naming rulesets or branch protection, asks too. A plain mention, a read, a
   diff or a dry run of the installer runs without asking (ADR 0049), so an
   apply's prompt no longer looks routine. What still gets past them is R22.
@@ -350,8 +349,7 @@ session can act before you see it.
   4 does. The owner accepted this risk by name (#189).
 - **R22. The ask rules ask on an apply, not a mention.** Since #210 the
   rules look for an apply's spelling, not the installer's name, so some
-  applies that asked before now don't: the old installer named in one
-  statement and run with its switch from a variable in the next; a Node flag
+  applies that asked before now don't: a Node flag
   split by an escape no rule lists, such as a caret through `cmd` or
   PowerShell's typographic quotes; a wrapped apply line, if Claude Code's
   matcher splits it before the flag; a name built at run time with the flag
@@ -359,8 +357,7 @@ session can act before you see it.
   run time inside an inline program, an evaluated string or a child shell,
   which no list of rules can close; the installer's name in a variable from
   an earlier statement, or handed over by a command such as `xargs`, with the
-  flag split by quotes or an escape; the old installer's switch with a quote
-  or a backslash right after its dash; Bash brace expansion or a filename
+  flag split by quotes or an escape; Bash brace expansion or a filename
   wildcard after the name; and a review-folder dry run with the script's name
   and the option both built at run time, which writes your rendered rules
   unprompted. A dry run of installer code under edit
@@ -376,6 +373,21 @@ session can act before you see it.
   the render, not your sight of them, so the apply prompt is where you see an
   apply before it runs. The owner accepted this to stop the prompts on every
   mention (#210).
+
+  Since #217 no ask rule guards a rollback to the old PowerShell installer.
+  A fooled session can check out a commit from before #166 in any clone,
+  from its history, and run that commit's `install.ps1` with its apply
+  switch, with no prompt. That replaces your live rules file and agents with
+  the older pact, which lacks later defences such as the rules on whose
+  tracker text counts, and every later session runs under it until you
+  reinstall. On Linux or macOS it also widens `settings.json`'s mode, with no
+  prompt either (#177, below). The drift check does not show the rollback,
+  because both installers write the same install record. The next Node dry
+  run does: the record names an older commit, and the pact's files are
+  listed under Overwrite. What remains is the go-ahead clause, which the same
+  injection could target, and Claude Code's own auto-mode checks, which
+  aren't documented to stop this. The owner accepted this by name (#217,
+  ADR 0052).
 
 ## Your own configuration loosening a rule
 

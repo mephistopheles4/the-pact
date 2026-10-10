@@ -81,32 +81,12 @@ const SETTINGS_CONTAINERS = new Set(['env', 'permissions']);
 const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permissions.ask']);
 // Paths the overlay must set. A set must hold every allowed entry.
 const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions.ask']);
-// The three characters PowerShell reads as a parameter's hyphen (#89), built
-// from their codes so this file holds none.
-const DASHES = [0x2013, 0x2014, 0x2015].map(c => String.fromCharCode(c));
 // The "ask" rules that guard the install (ADR 0049, #210): they ask on an
 // apply, not on a mention. The overlay must hold them, whatever the allow-list
 // says. Under Bash, whose case matching the docs leave open, each name drops
-// its first letter, so a capitalised name still matches.
+// its first letter, so a capitalised name still matches. No rule guards a
+// rollback to the old PowerShell installer (ADR 0052).
 const SETTINGS_APPLY_ASK = Object.freeze([
-  // The old PowerShell installer, which a rollback runs (#153, S10): each
-  // spelling of its apply switch, a splat, each dash PowerShell reads as a
-  // hyphen, and a word the rule can't read (a variable, a subexpression, a
-  // parenthesised expression, the stop-parsing token, a backtick).
-  'PowerShell(./scripts/install.ps1 -Apply)',
-  'PowerShell(*install.ps1*-A*)',
-  'PowerShell(*install.ps1*@*)',
-  ...DASHES.map(d => `PowerShell(*install.ps1*${d}*)`),
-  'PowerShell(*install.ps1*$*)',
-  'PowerShell(*install.ps1*(*)',
-  'PowerShell(*install.ps1*%*)',
-  'PowerShell(*install.ps1*`*)',
-  'Bash(*nstall.ps1*-A*)',
-  'Bash(*nstall.ps1*-a*)',
-  'Bash(*nstall.ps1*@*)',
-  ...DASHES.map(d => `Bash(*nstall.ps1*${d}*)`),
-  'Bash(*nstall.ps1*$*)',
-  'Bash(*nstall.ps1*`*)',
   // The Node installer: its one apply flag, wherever the script is named, and
   // after each of its two names a word the rule can't read, or a quote right
   // after a dash, which is where a quote that splits the flag sits. Under
