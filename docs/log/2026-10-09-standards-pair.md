@@ -25,7 +25,7 @@
 ## What the checks showed
 
 - **Reader parity, before the swap.** Seam A passed both files, and js-yaml 4.1.1 and yaml 2.8.3 read each frontmatter alike. The fresh-session check after install is still to come.
-- **The rule probe, P-STD.** Its expected result was posted before any run. Control run 66 on the live pact failed as predicted: neither standards lens was dispatched. The real run after install is still to come.
+- **The rule probe, P-STD.** Its expected result was posted before any run. Control run 66 on the live pact failed as predicted: neither standards lens was dispatched. The real run never happened: see "What is still open".
 - **Full suite on `b7007c5`:** 51 files, 2073 cases, 0 failures, 10 skips that are Windows platform limits. The no-loss compare passed. `b7007c5` kept two baseline test names that the swap had reworded, since the compare allows no rename.
 - **Install.** The owner said "go ahead". `-Apply` from `b7007c5` exited 0, with every file verified. All nine lenses are installed, and no old reviewer is named outside the roster list's defining line and its test.
 - **Bad reports.** Every bad report scores FAIL.

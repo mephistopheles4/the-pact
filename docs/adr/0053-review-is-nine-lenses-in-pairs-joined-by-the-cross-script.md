@@ -45,4 +45,4 @@ Accepted. Builds on [ADR 0012](0012-reports-for-two-readers.md)'s two-section re
 - **2026-10-01** — Raised by the owner in mephistopheles4/the-pact#35, and grilled into the roster the same day.
 - **2026-10-03** — A throwaway answered the cross script's open questions after two review rounds without convergence; a roster research report shaped revision 6.
 - **2026-10-04** — The owner chose dogfooding over a selection experiment, and signed off revision 7 of the spec.
-- **2026-10-04 to 2026-10-09** — Built as seven tickets: #44 and #45 (the cross script and the roster), #46 (the probe rule), #47 (the QA pair), #99 (the spec pair and `unstated-lens`), #100 (the security pair) and #101 (the standards pair). #102 closed it out.
+- **2026-10-04 to 2026-10-10** — Built as eight issues, cut from the spec's tickets 1, 2 and 4 to 7 (revision 7 has no ticket 3): #44 and #45 (ticket 1: the cross script and the roster), #46 and #47 (ticket 2: the probe rule, and the QA pair), #99 (ticket 4: the spec pair and `unstated-lens`), #100 (ticket 5: the security pair), #101 (ticket 6: the standards pair) and #102 (ticket 7: the close-out).

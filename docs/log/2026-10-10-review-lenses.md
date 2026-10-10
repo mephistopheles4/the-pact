@@ -4,7 +4,7 @@
 
 - **The roster:** the QA pair (`behaviour-lens`, `integrity-lens`), the spec pair (`executability-lens`, `good-enough-lens`), the security pair (`adversarial-lens`, `data-lens`), the standards pair (`conventions-lens`, `reader-lens`), and `unstated-lens`. See [ADR 0053](../adr/0053-review-is-nine-lenses-in-pairs-joined-by-the-cross-script.md).
 - **The report:** two sections, as before, but **For the owner** opens without a verdict word; the cross script places the verdict. See [ADR 0054](../adr/0054-the-cross-script-places-the-verdict.md), which supersedes [ADR 0012](../adr/0012-reports-for-two-readers.md) in part.
-- **Seven tickets, 2026-10-04 to 2026-10-10:** #44 to #47, then #99 to #102. Each swap has its own log entry, listed below.
+- **Eight issues, 2026-10-04 to 2026-10-10,** cut from the spec's tickets 1, 2 and 4 to 7 (revision 7 has no ticket 3): ticket 1 became #44 and #45, ticket 2 became #46 and #47, and tickets 4 to 7 are #99 to #102. Each swap has its own log entry, listed below.
 - **Three periodic reviews kept every lens.** #189 then retired the periodic review, the security sets and the probes, so the close-out had less to do than its ticket planned.
 
 ## What it set out to do
@@ -43,7 +43,7 @@ No lens was added, merged, retuned or cut. Every cross refusal across the three 
 - **The README's roster description:** already done. #202's README describes the nine lenses as a whole, in the figure and its text.
 - **The name search:** already passing. The roster test finds none of the four old names outside the skipped records, the roster list's defining line and its own test file.
 - **#81, `blocked: needs` in `behaviour-lens`:** already in its text, at the missing-tool rule and stop S2. #81 was closed, and its practice case B5 went with #189.
-- **The auto-take wording:** both QA-pair contracts now say the main session acts on its recommendation per finding and marks it `auto`, with the owner's "done" unchanged. The lens files' "You advise; the owner decides" stays, as in all nine lenses: it is about the owner's "done", not each finding.
+- **The auto-take wording:** both QA-pair contracts now say the main session acts on its recommendation per finding and marks it `auto`, with the owner's "done" unchanged. Both lens files' hand-back paragraphs now say so too, in the words the other seven lenses use; `conventions-lens` found them missing at move 4. Their "You advise; the owner decides" stays, as in all nine lenses: it is about the owner's "done", not each finding.
 - **The QA pair's limits:** both lens files now name every cross-script limit on the findings block, in the newer lenses' exact words. The owner chose to add them ("add them"). That closes item 5 of #47's measure fixes.
 - **`behaviour-lens`'s question 14:** its contract no longer says a model change makes its security-set results stale, since #189 deleted the security set.
 - **#101's close-out:** its log entry and ADR, from closed PR #178, renumbered from 0036 to 0044. Its probe run and periodic review are marked moot.
@@ -51,6 +51,9 @@ No lens was added, merged, retuned or cut. Every cross refusal across the three 
 
 ## What is still open
 
+- **The install** of the two changed QA lens files: a dry run, the owner's go-ahead in chat, and a hash check that exits zero. Until then every project runs the old lens text.
+- **The cloud wrapper:** after the merge, the owner pastes `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again, and checks the first session's setup log for the line `pact cloud copy` with the new marker.
+- **Closing:** #102, #35 and the rollout map #58 close on the owner's word once the finishing PR merges.
 - **#69:** sealing `behaviour-lens`, which waits on grimoire#166.
 - **#117:** with no tracker, sessions point at the cross section's file instead of showing it.
 - **`adversarial-lens`'s next change:** its headline rule should name the "in clear" trap that failed D1 once (#100's periodic review).
@@ -79,4 +82,10 @@ Issue comments on mephistopheles4/the-pact#35:
 - `6039666370`, `6039781449` — the periodic review closing #99, and the owner's decision.
 - `6051965421`, `6052024992` — the periodic review closing #100, and the owner's decision.
 
-Issue comments on mephistopheles4/the-pact#102: see "Record of #102" below.
+Issue comments on mephistopheles4/the-pact#102:
+
+- `6026768159`, `6026781023` — added scope: remove the pick (done by #164), and the measure fixes fed in from #47's first periodic review.
+- `6102271163` — the lead's brief for this build, after #189.
+- `6102457009` — the owner's decisions from chat: add the QA pair's limits, and keep #101's close-out; what main already held.
+- `6102497867`, `6102498028`, `6102498163` — move 4: the security pair and the standards pair on the diff, and `unstated-lens` on the result.
+- The claim list, the Lens dispositions, the full suite and the install record follow on #102.

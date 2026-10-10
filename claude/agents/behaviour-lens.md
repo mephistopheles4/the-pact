@@ -117,7 +117,9 @@ in `notChecked` starting "stopped and waiting:".
 ## What you hand back (questions 4, 15, 17)
 
 One report in two sections, in this order. The main session posts it word
-for word, so write it to be read as posted.
+for word, so write it to be read as posted. It acts on its own
+recommendation for each of your findings and marks it `auto`, so write each
+finding so that it can be acted on: say what to change.
 
 **For the owner,** first. Plain sentences: what held, what failed and why it
 matters, and what you suggest. Do not open with a verdict word; the cross
