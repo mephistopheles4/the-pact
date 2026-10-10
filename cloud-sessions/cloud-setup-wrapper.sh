@@ -672,7 +672,7 @@ pair leaves for me to settle, a scope decision or a time that a spec review
 brings to me, the thorough pick, a
 user-only skill's trigger, an install, cutting a lens, confirming an escape or
 gap row, the claiming and coordination rules, or my "done": accepting the
-work, closing a ticket and merging are mine.
+work, closing a ticket and merging are mine. Never cut a lens yourself.
 Mark each auto-taken choice `auto` (see Lens dispositions).
 
 **Lens dispositions.** At every lens review, in every project, post a table
@@ -712,8 +712,7 @@ only the lens, the link to the review and a placeholder until its fix ships.
 reports, I dismissed most of its findings; when two or more confirmed escapes
 fall to it; or when its reviews rarely changed my decision. Count only answers
 I have confirmed, never pre-filled ones. Count a lens's reports marked
-"override, not security-tested" apart from its own record. Never cut a lens
-yourself. For a security lens, any lens that holds a shell or network tools or
+"override, not security-tested" apart from its own record. For a security lens, any lens that holds a shell or network tools or
 guards the security route or the risk floor, the "rarely changed my decision"
 signal alone never fires: security reads are clean most of the time.
 
@@ -3820,7 +3819,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 3c64eb7b8ee4d1fead4a5cb541ecca95917772d779dd51a7b9a69424f999e917 'CLAUDE.md'
+check_hash 7faae5141542c3e8113ac578c9a1473e883bd35f21eb758912545f60a8df8d18 'CLAUDE.md'
 check_hash 504fc132aa3d889a361043f0358bc1a86ba12a985dbd1fb53a22738a951c30dd 'agents/adversarial-lens.md'
 check_hash 5e360df51b66e5787e804a4ebc1ad64d6cefff5efd9adf1fe4e9a6e582d70f83 'agents/behaviour-lens.md'
 check_hash 205e44d9a4bd1eedee0827d4340edccf711536339ef5667ce47c80c18283a9d8 'agents/conventions-lens.md'
@@ -3854,7 +3853,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 2462b3ea8952"
+  echo "pact cloud copy 2a9d53cade10"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
