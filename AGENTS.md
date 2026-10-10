@@ -113,8 +113,7 @@ how every session in every repo behaves. So:
   check the commit out and run its install. A commit from before the Node
   install (#166) holds only `scripts/install.ps1`, which needs PowerShell 7.
   Both installers read and write the same record, so either can follow the
-  other. Eighteen ask rules keep `install.ps1`'s apply step behind a prompt
-  for good (ADR 0049).
+  other. No ask rule guards `install.ps1`'s apply step (ADR 0052).
 - **The cloud copy is generated.** `cloud-sessions/` holds the setup script
   for Claude Code cloud sessions. `cloud-sessions/gen.mjs` builds it, and
   `CLAUDE.cloud.md`, from the payload, through the same render and seam A a

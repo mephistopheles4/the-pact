@@ -12,7 +12,7 @@ import { runSeamA } from './gate-run.mjs';
 import { realOverlay, stage } from './payload.mjs';
 import { GATE, REPO, failRules, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
-import { APPLY_ASK, APPLY_COMMANDS, BACKUP_ASK, BROAD_INSTALL_ASK, CROSS_ASK, DASHES, MENTION_COMMANDS, OLD_INSTALL_ASK, OVERLAY, PACT_ASK, asks, overlayWith, shown } from './settings-rules.mjs';
+import { APPLY_ASK, APPLY_COMMANDS, BACKUP_ASK, BROAD_INSTALL_ASK, CROSS_ASK, DASHES, MENTION_COMMANDS, OVERLAY, PACT_ASK, RETIRED_OLD_INSTALL_ASK, RETIRED_OLD_INSTALL_NAME, asks, overlayWith, shown } from './settings-rules.mjs';
 import { moduleResult, table } from './tables.mjs';
 
 const ALLOWLIST = 'gate/settings-allowlist.json';
@@ -49,9 +49,9 @@ function expectSettingsFail(t, text, rule, script) {
   return r;
 }
 
-/** The rules among `rules` holding a character outside printable ASCII, other than the three dashes. */
+/** The rules among `rules` holding a character outside printable ASCII. */
 function nonAsciiRules(rules) {
-  return rules.filter(r => [...r].some(c => (c < ' ' || c > '~') && !DASHES.includes(c)));
+  return rules.filter(r => [...r].some(c => c < ' ' || c > '~'));
 }
 
 function sha256(text) {
@@ -96,12 +96,40 @@ test('a passing check prints exactly one SETTINGS line, with the hash of the ove
 
 // ------------------------------------------------------------ seam A: banned names
 
-for (const k of BANNED) {
-  test(`bad case: an overlay with ${k} fails, by name`, t => {
-    const r = expectSettingsFail(t, overlayWith(o => (o[k] = k === 'hooks' ? { PreToolUse: [] } : 'x')), 'settings-banned');
-    assert.match(r.stdout, new RegExp(`\\(${k}\\)`), r.out);
-  });
-}
+/** A plant setting the banned top-level key `k` in the overlay. */
+const banned = k => tree => {
+  const o = JSON.parse(tree[OVERLAY]);
+  o[k] = k === 'hooks' ? { PreToolUse: [] } : 'x';
+  return { [OVERLAY]: `${JSON.stringify(o, null, 2)}\n` };
+};
+for (const c of table('banned settings in the overlay', {
+  module: 'gate/seam-a.mjs',
+  base: () => ({ [OVERLAY]: realOverlay() }),
+  run: (tree, t) => {
+    const r = runSeamA(stage(t, { [OVERLAY]: tree[OVERLAY] }));
+    return moduleResult(r.code, r.stdout);
+  },
+  everyRow: r => assert.doesNotMatch(r.out, /^SETTINGS /m, r.out),
+  rows: [
+    { id: 'hooks', plant: banned('hooks'), fails: ['settings-banned'], says: /\(hooks\)/, why: 'hooks run commands' },
+    { id: 'mcp-servers', plant: banned('mcpServers'), fails: ['settings-banned'], says: /\(mcpServers\)/, why: 'an MCP server runs a command' },
+    { id: 'status-line', plant: banned('statusLine'), fails: ['settings-banned'], says: /\(statusLine\)/, why: 'a status line runs a command' },
+    { id: 'file-suggestion', plant: banned('fileSuggestion'), fails: ['settings-banned'], says: /\(fileSuggestion\)/, why: 'file suggestion runs a command' },
+    { id: 'api-key-helper', plant: banned('apiKeyHelper'), fails: ['settings-banned'], says: /\(apiKeyHelper\)/, why: 'a key helper runs a command' },
+    { id: 'aws-auth-refresh', plant: banned('awsAuthRefresh'), fails: ['settings-banned'], says: /\(awsAuthRefresh\)/, why: 'an auth refresh runs a command' },
+    { id: 'aws-credential-export', plant: banned('awsCredentialExport'), fails: ['settings-banned'], says: /\(awsCredentialExport\)/, why: 'a credential export runs a command' },
+    { id: 'otel-headers-helper', plant: banned('otelHeadersHelper'), fails: ['settings-banned'], says: /\(otelHeadersHelper\)/, why: 'a headers helper runs a command' },
+    { id: 'enabled-plugins', plant: banned('enabledPlugins'), fails: ['settings-banned'], says: /\(enabledPlugins\)/, why: 'a plugin can carry hooks' },
+    { id: 'extra-known-marketplaces', plant: banned('extraKnownMarketplaces'), fails: ['settings-banned'], says: /\(extraKnownMarketplaces\)/, why: 'a marketplace supplies plugins' },
+    { id: 'enable-all-project-mcp-servers', plant: banned('enableAllProjectMcpServers'), fails: ['settings-banned'], says: /\(enableAllProjectMcpServers\)/, why: "a project's MCP servers run commands" },
+    { id: 'enabled-mcpjson-servers', plant: banned('enabledMcpjsonServers'), fails: ['settings-banned'], says: /\(enabledMcpjsonServers\)/, why: "an .mcp.json server runs a command" },
+  ],
+})) test(c.name, c.fn);
+
+test('the banned-settings table has a row for each banned name', () => {
+  const src = readFileSync(join(GATE, 'tests', 'settings.test.mjs'), 'utf8');
+  for (const k of BANNED) assert.ok(src.includes(`banned('${k}')`), k);
+});
 
 test('bad case: a banned name nested inside an allowed key fails', t => {
   expectSettingsFail(t, overlayWith(o => (o.permissions.hooks = {})), 'settings-banned');
@@ -201,13 +229,12 @@ for (const rule of APPLY_ASK) {
 
 // Near misses of the required rules (#34, #89, #210): each put in place of the
 // rule it resembles, in both the allow-list and the overlay, and seam A still
-// fails it as missing, so no near miss stands in for a required rule. A hyphen
-// for a dash rule's dash; a splat with a space for the no-space splat (a space
-// is the narrower rule); and a retired broad rule, which seam A no longer asks
-// for, in place of the rule that replaced it.
-const dashRule = (tool, i) => OLD_INSTALL_ASK.find(r => r.startsWith(`${tool}(`) && r.includes(DASHES[i]));
-const splatRule = tool => OLD_INSTALL_ASK.find(r => r.startsWith(`${tool}(`) && r.endsWith('@*)'));
-const hyphened = rule => [...rule].map(c => (DASHES.includes(c) ? '-' : c)).join('');
+// fails it as missing, so no near miss stands in for a required rule. A splat
+// with a space for the no-space splat (a space is the narrower rule), on each
+// of the Node installer's names (Bash has no splat rule); and a retired broad
+// rule, which seam A no longer asks for, in place of the rule that replaced it.
+const SPLAT_RULES = ['PowerShell(*install.mjs*@*)', 'PowerShell(*install-run.mjs*@*)'];
+const spaced = rule => rule.replace('*@', '* @');
 /** A plant putting `to` in place of the required rule `from`, in both files. */
 const swapIn = (from, to) => tree => {
   const put = text => {
@@ -220,26 +247,92 @@ const swapIn = (from, to) => tree => {
   };
   return { [OVERLAY]: put(tree[OVERLAY]), [ALLOWLIST]: put(tree[ALLOWLIST]) };
 };
+/** Today's overlay and allow-list, as a table's base. */
+const bothFiles = () => ({ [OVERLAY]: realOverlay(), [ALLOWLIST]: readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8') });
+/** Seam A run on a tree's overlay, with the tree's allow-list in a copy of the gate. */
+const runBoth = (tree, t) => {
+  const script = gateCopy(t, g => writeFileSync(join(g, 'settings-allowlist.json'), tree[ALLOWLIST]));
+  const r = runSeamA(stage(t, { [OVERLAY]: tree[OVERLAY] }), script);
+  return moduleResult(r.code, r.stdout);
+};
 for (const c of table('near misses of the required rules', {
   module: 'gate/seam-a.mjs',
-  base: () => ({ [OVERLAY]: realOverlay(), [ALLOWLIST]: readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8') }),
-  run: (tree, t) => {
-    const script = gateCopy(t, g => writeFileSync(join(g, 'settings-allowlist.json'), tree[ALLOWLIST]));
-    const r = runSeamA(stage(t, { [OVERLAY]: tree[OVERLAY] }), script);
-    return moduleResult(r.code, r.stdout);
-  },
+  base: bothFiles,
+  run: runBoth,
   rows: [
-    { id: 'hyphen-for-powershell-en-dash', plant: swapIn(dashRule('PowerShell', 0), hyphened(dashRule('PowerShell', 0))), fails: ['settings-required'], why: 'a hyphen in place of the en dash' },
-    { id: 'hyphen-for-powershell-em-dash', plant: swapIn(dashRule('PowerShell', 1), hyphened(dashRule('PowerShell', 1))), fails: ['settings-required'], why: 'a hyphen in place of the em dash' },
-    { id: 'hyphen-for-powershell-horizontal-bar', plant: swapIn(dashRule('PowerShell', 2), hyphened(dashRule('PowerShell', 2))), fails: ['settings-required'], why: 'a hyphen in place of the horizontal bar' },
-    { id: 'hyphen-for-bash-en-dash', plant: swapIn(dashRule('Bash', 0), hyphened(dashRule('Bash', 0))), fails: ['settings-required'], why: 'a hyphen in place of the en dash, under Bash' },
-    { id: 'hyphen-for-bash-em-dash', plant: swapIn(dashRule('Bash', 1), hyphened(dashRule('Bash', 1))), fails: ['settings-required'], why: 'a hyphen in place of the em dash, under Bash' },
-    { id: 'hyphen-for-bash-horizontal-bar', plant: swapIn(dashRule('Bash', 2), hyphened(dashRule('Bash', 2))), fails: ['settings-required'], why: 'a hyphen in place of the horizontal bar, under Bash' },
-    { id: 'splat-with-space-powershell', plant: swapIn(splatRule('PowerShell'), splatRule('PowerShell').replace('*@', '* @')), fails: ['settings-required'], why: 'a splat that needs a space before it misses one after another separator (ADR 0020, miss d)' },
-    { id: 'splat-with-space-bash', plant: swapIn(splatRule('Bash'), splatRule('Bash').replace('*@', '* @')), fails: ['settings-required'], why: 'the same, under Bash' },
+    { id: 'splat-with-space-install-mjs', plant: swapIn(SPLAT_RULES[0], spaced(SPLAT_RULES[0])), fails: ['settings-required'], why: 'a splat that needs a space before it misses one after another separator (ADR 0020, miss d)' },
+    { id: 'splat-with-space-install-run-mjs', plant: swapIn(SPLAT_RULES[1], spaced(SPLAT_RULES[1])), fails: ['settings-required'], why: 'the same, after the runner' },
     { id: 'broad-for-name-free-flag', plant: swapIn('PowerShell(*--apply*)', BROAD_INSTALL_ASK[2]), fails: ['settings-required'], why: 'a retired broad rule does not stand in for the name-free flag rule' },
   ],
 })) test(c.name, c.fn);
+
+// ------------------------------------------------------------ seam A: the old installer's rules stay out (#217)
+
+test("no ask rule in the overlay or the allow-list names the old installer", () => {
+  const allow = JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8'))['permissions.ask'];
+  const overlay = JSON.parse(realOverlay()).permissions.ask;
+  const named = rules => rules.filter(r => r.toLowerCase().includes(RETIRED_OLD_INSTALL_NAME));
+  assert.deepEqual(named(overlay), []);
+  assert.deepEqual(named(allow), []);
+  assert.deepEqual(named(PACT_ASK), []);
+});
+
+// Seam A passes today's overlay, which holds none of the old rules (the first
+// test of this file, and this table's base). The rows show that check can
+// fail: a seam A that still required an old rule refuses today's overlay.
+const SEAM_CORE = 'gate/seam-a-core.mjs';
+const APPLY_LIST = 'const SETTINGS_APPLY_ASK = Object.freeze([';
+/** A plant putting `rule` back at the head of seam A's required list. */
+const requireAgain = rule => tree => {
+  assert.ok(tree[SEAM_CORE].includes(APPLY_LIST));
+  return { [SEAM_CORE]: tree[SEAM_CORE].replace(APPLY_LIST, `${APPLY_LIST}\n  ${JSON.stringify(rule)},`) };
+};
+for (const c of table('seam a still requiring an old installer rule', {
+  module: 'gate/seam-a.mjs',
+  base: () => ({ [SEAM_CORE]: readFileSync(join(GATE, 'seam-a-core.mjs'), 'utf8') }),
+  run: (tree, t) => {
+    const script = gateCopy(t, g => writeFileSync(join(g, 'seam-a-core.mjs'), tree[SEAM_CORE]));
+    const r = runSeamA(stage(t), script);
+    return moduleResult(r.code, r.stdout);
+  },
+  rows: [
+    { id: 'requires-powershell-rule', plant: requireAgain(RETIRED_OLD_INSTALL_ASK[0]), fails: ['settings-required'], says: /the apply step's ask rules/, why: 'an old PowerShell rule the overlay no longer holds' },
+    { id: 'requires-bash-rule', plant: requireAgain(RETIRED_OLD_INSTALL_ASK[1]), fails: ['settings-required'], says: /the apply step's ask rules/, why: 'an old Bash rule the overlay no longer holds' },
+  ],
+})) test(c.name, c.fn);
+
+// An old rule put back into the overlay alone is a rule outside the
+// allow-list. Seam A uses the same id, settings-value, for other faults in a
+// rule list, such as a rule listed twice. The control below shows this id
+// comes from the allow-list: with the rule on both, it passes.
+const addAsk = (rule, ...files) => tree => {
+  const out = { ...tree };
+  for (const f of files) {
+    const doc = JSON.parse(tree[f]);
+    const list = doc.permissions?.ask ?? doc['permissions.ask'];
+    assert.ok(!list.includes(rule), `${f} already holds ${shown(rule)}`);
+    list.push(rule);
+    out[f] = `${JSON.stringify(doc, null, 2)}\n`;
+  }
+  return out;
+};
+for (const c of table('old installer rules put back', {
+  module: 'gate/seam-a.mjs',
+  base: bothFiles,
+  run: runBoth,
+  rows: [
+    { id: 'powershell-rule-in-overlay-alone', plant: addAsk(RETIRED_OLD_INSTALL_ASK[0], OVERLAY), fails: ['settings-value'], why: 'an old PowerShell rule the allow-list no longer holds' },
+    { id: 'bash-rule-in-overlay-alone', plant: addAsk(RETIRED_OLD_INSTALL_ASK[1], OVERLAY), fails: ['settings-value'], why: 'an old Bash rule the allow-list no longer holds' },
+  ],
+})) test(c.name, c.fn);
+
+test('control: an old rule put back into both the overlay and the allow-list passes, so the rows above fail for the allow-list', t => {
+  for (const rule of RETIRED_OLD_INSTALL_ASK) {
+    const r = runBoth(addAsk(rule, OVERLAY, ALLOWLIST)(bothFiles()), t);
+    assert.equal(r.code, 0, r.out);
+    assert.equal(r.last, 'RESULT: pass', r.out);
+  }
+});
 
 // ------------------------------------------------------------ the rules against a model of the matcher (#210, S6)
 
@@ -289,7 +382,7 @@ test('the model splits on each documented separator, and matches PowerShell with
   assert.ok(!asks(['Bash(*abc*)'], 'PowerShell', 'echo abc'), 'a rule matches only its own tool');
 });
 
-test('every pact ask rule is printable ASCII, but for the three dashes', () => {
+test('every pact ask rule is printable ASCII', () => {
   const allow = JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8'))['permissions.ask'];
   const overlay = JSON.parse(realOverlay()).permissions.ask;
   assert.deepEqual(nonAsciiRules(allow), []);
@@ -297,9 +390,9 @@ test('every pact ask rule is printable ASCII, but for the three dashes', () => {
   assert.deepEqual(nonAsciiRules(PACT_ASK), []);
 });
 
-test('bad case: an ask rule with another dash-like or invisible character is caught', () => {
-  for (const c of ['\u2010', '\u2212', '\u00ad', '\u200b', '\t']) {
-    assert.deepEqual(nonAsciiRules([`Bash(*nstall.ps1*${c}*)`]), [`Bash(*nstall.ps1*${c}*)`], shown(c));
+test('bad case: an ask rule with a dash-like or invisible character is caught', () => {
+  for (const c of [...DASHES,'\u2010', '\u2212', '\u00ad', '\u200b', '\t']) {
+    assert.deepEqual(nonAsciiRules([`Bash(*nstall.mjs*${c}*)`]), [`Bash(*nstall.mjs*${c}*)`], shown(c));
   }
 });
 

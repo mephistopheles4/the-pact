@@ -1,5 +1,7 @@
 # The gate's tests never need PowerShell
 
+Superseded in part by [ADR 0052](0052-the-ask-rules-no-longer-guard-a-rollback-to-install-ps1.md) (2026-10-10): the "what stays" bullet on the ask rules that guard `install.ps1`'s apply step no longer holds; those rules are removed.
+
 No file in `scripts/`, `gate/` or `cross/` is a PowerShell script, and no test starts `pwsh`. The full suite passes on a machine without PowerShell 7, and the Linux container run shows it: its image is plain Node 24, and `run.sh` refuses to run where `pwsh` is found.
 
 - **The skill-flag check is Node.** `scripts/check-skill-flags.mjs` replaced `check-skill-flags.ps1`, with the same checks, output and exit codes. The flag line is still matched without regard to case, and a line still ends only at a line feed, as the PowerShell script read them. Before the `.ps1` was deleted, both ran on the same 22 inputs, CRLF and case variants among them, and gave the same output.
