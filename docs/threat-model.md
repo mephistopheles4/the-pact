@@ -145,7 +145,7 @@ How to read it:
 | R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
 | R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
-| R22 Apply asks only | A fooled session | Ask rules on an apply's spelling, the go-ahead clause | Prompt, rule |
+| R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail" | Rule |
 
 ## Strangers on the tracker

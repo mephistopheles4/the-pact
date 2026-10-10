@@ -250,25 +250,33 @@ test("no ask rule in the overlay or the allow-list names the old installer", () 
 });
 
 // Seam A passes today's overlay, which holds none of the old rules (the first
-// test of this file). The control shows that check can fail: a seam A that
-// still required an old rule refuses today's overlay.
-for (const rule of RETIRED_OLD_INSTALL_ASK) {
-  test(`control: a seam A that still required ${shown(rule)} refuses today's overlay`, t => {
-    const script = gateCopy(t, g => {
-      const p = join(g, 'seam-a-core.mjs');
-      const from = 'const SETTINGS_APPLY_ASK = Object.freeze([';
-      const text = readFileSync(p, 'utf8');
-      assert.ok(text.includes(from));
-      writeFileSync(p, text.replace(from, `${from}\n  ${JSON.stringify(rule)},`));
-    });
-    const r = expectSettingsFail(t, realOverlay(), 'settings-required', script);
-    assert.match(r.stdout, /the apply step's ask rules/, r.out);
-  });
-}
+// test of this file, and this table's base). The rows show that check can
+// fail: a seam A that still required an old rule refuses today's overlay.
+const SEAM_CORE = 'gate/seam-a-core.mjs';
+const APPLY_LIST = 'const SETTINGS_APPLY_ASK = Object.freeze([';
+/** A plant putting `rule` back at the head of seam A's required list. */
+const requireAgain = rule => tree => {
+  assert.ok(tree[SEAM_CORE].includes(APPLY_LIST));
+  return { [SEAM_CORE]: tree[SEAM_CORE].replace(APPLY_LIST, `${APPLY_LIST}\n  ${JSON.stringify(rule)},`) };
+};
+for (const c of table('seam a still requiring an old installer rule', {
+  module: 'gate/seam-a.mjs',
+  base: () => ({ [SEAM_CORE]: readFileSync(join(GATE, 'seam-a-core.mjs'), 'utf8') }),
+  run: (tree, t) => {
+    const script = gateCopy(t, g => writeFileSync(join(g, 'seam-a-core.mjs'), tree[SEAM_CORE]));
+    const r = runSeamA(stage(t), script);
+    return moduleResult(r.code, r.stdout);
+  },
+  rows: [
+    { id: 'requires-powershell-rule', plant: requireAgain(RETIRED_OLD_INSTALL_ASK[0]), fails: ['settings-required'], says: /the apply step's ask rules/, why: 'an old PowerShell rule the overlay no longer holds' },
+    { id: 'requires-bash-rule', plant: requireAgain(RETIRED_OLD_INSTALL_ASK[1]), fails: ['settings-required'], says: /the apply step's ask rules/, why: 'an old Bash rule the overlay no longer holds' },
+  ],
+})) test(c.name, c.fn);
 
 // An old rule put back into the overlay alone is a rule outside the
-// allow-list. Seam A gives a repeated rule the same id, so the control below
-// shows the id comes from the allow-list: with the rule on both, it passes.
+// allow-list. Seam A uses the same id, settings-value, for other faults in a
+// rule list, such as a rule listed twice. The control below shows this id
+// comes from the allow-list: with the rule on both, it passes.
 const addAsk = (rule, ...files) => tree => {
   const out = { ...tree };
   for (const f of files) {
