@@ -69,7 +69,7 @@ Not every change needs a spec. Each piece of work gets a process tier (quick, st
 
 ## Review lenses
 
-A lens is a reviewer agent that asks one question from one angle. Lenses run in pairs, each starting fresh and never seeing its partner's report, and `unstated-lens` runs alone. They only read, and none of them builds anything.
+A lens is a reviewer agent that asks one question from one angle. Lenses run in pairs, each starting fresh and never seeing its partner's report, and `unstated-lens` runs alone. They read and report, and none of them builds anything.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
