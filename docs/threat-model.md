@@ -148,7 +148,7 @@ How to read it:
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail" | Rule |
-| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on the settings folders and on branch-protection commands; branch protection where set | Outside the pact, prompt |
+| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
 
 ## Strangers on the tracker
 
@@ -408,20 +408,39 @@ session can act before you see it.
     session, and auto mode reads that prompt as your own ask. A prompt that
     names a specific action can clear auto mode's soft blocks, such as
     merging an unreviewed pull request or changing settings. The deleted
-    relay rule said merges, deletions and settings changes never travel by
-    relay; nothing replaces that sentence.
+    relay rule said five things never travel by relay: merges, deletions,
+    permission changes, settings changes, and starting or stopping a
+    session. Nothing replaces that sentence. For the last of them, starting
+    or stopping a session, nothing in the pact bounds a lead at all.
+  - **A start prompt can reach a rollback.** No ask rule guards a rollback
+    to the old PowerShell installer (R22), and the install's go-ahead clause
+    doesn't say a start prompt isn't chat. So a lead's start prompt could
+    have a session install a pact older than the tracker rule, after which
+    other accounts' tracker text counts in every later session. The next
+    Node dry run shows it, but only afterwards.
   - **The desktop session tool is unknown.** The pact's parallel-sessions
     rules name a desktop tool that sends a message to another session.
     Anthropic's docs don't describe how it delivers one, so whether its
-    messages get the "not your consent" handling is unknown.
+    messages get the "not your consent" handling is unknown. It is also how
+    a lead usually briefs a session that started on a short hold, so the
+    unknown reaches the "from chat" mark and the outsiders'-code OK: if such
+    a brief arrives looking like your own typing, a session could take it as
+    chat.
   - **The merge stops a lead only where the branch requires review.** Auto
     mode allows a push to a default branch by default. On this repo `main`
     requires a pull request and the `gate` check, and blocks force-pushes
     and deletion, but requires no approving review: every session posts as
     you, and GitHub doesn't let an author approve their own pull request. So
     the merge is not a human checkpoint here.
-  - **The ask rules still ask** before an edit to the settings folders and
-    before a `gh` command naming branch protection.
+  - **The ask rules still ask** before Claude Code's own edit tools change
+    a file in the user settings folders, before the Node install's apply in
+    the spellings R22 describes, and before a `gh` command naming branch
+    protection. They don't
+    see a shell command that writes or reads the settings file, or a
+    project's own settings file; only auto mode bounds those.
+  - **"Never post a secret or a personal detail" still holds,** whoever
+    asked, and so does the gated stop before anything hard to reverse is
+    published. Both are rules, so a steered session could still break them.
   - **With auto mode off, or its lists edited,** Claude Code's own prompts
     govern.
 

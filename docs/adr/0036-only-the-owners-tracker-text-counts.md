@@ -1,6 +1,6 @@
 # Only the owner's tracker text counts; outsiders' code never runs
 
-Superseded in part by [ADR 0055](0055-the-pact-is-silent-on-messages-between-sessions.md) (2026-10-10): the checked relay is gone, so Q7, its bullet and its rejected option no longer hold; only the session that heard the owner in chat writes the "from chat" mark.
+Superseded in part by [ADR 0055](0055-the-pact-is-silent-on-messages-between-sessions.md) (2026-10-10): the checked relay is gone, so Q7, the "by checked relay" half of the decision-mark bullet, Q4's "a relayed OK never counts", and the rejected option "Carving all word-for-word relays out of the decision rule" no longer hold. Only the session that heard the owner in chat writes the "from chat" mark, and an OK in a start prompt or another session's text never counts.
 
 The pact treats the issue tracker as the record, and its sessions run in auto mode. Once the-pact is public (#10), any GitHub account can write on its tracker. So a session could take another account's comment as the owner's approval, or run code another account offered. The gated clause `tracker-authors` in `claude/CLAUDE.md` closes both (#160, built in #170, probed in #171). A sentence added to the gated `no-skill-overrides` clause bars skills and repo instruction files from loosening it.
 
