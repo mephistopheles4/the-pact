@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { install, makeRepo, passed, refused, WIN } from './install-harness.mjs';
+import { install, makeRepo, passed, refused, WIN, wrapCheck } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 
 function layout(t) {
@@ -95,4 +95,27 @@ test('node project: --review-folder with --project-folder refuses before anythin
   const repo = makeRepo(t);
   const { ch, proj } = layout(t);
   refused(install(repo, ch, { extra: ['--project-folder', proj, '--review-folder', join(tempDir(t), 'rev')] }), /--review-folder is for a home install/);
+});
+
+// The runner tests the project's paths for links itself, after the project
+// module has (S7, J2): a link that appears once the module has checked is
+// refused by the runner's own test, under its own rule.
+test('node project: a link that appears after the project module checked is refused by the runner', t => {
+  const target = tempDir(t, 'pact-nproj-target-');
+  const repo = makeRepo(t, root => wrapCheck(root, 'project-core', { after: `if (argv[0] === 'check') fs.symlinkSync(${JSON.stringify(target)}, argv[1] + '/.claude/rules', 'junction');` }));
+  const { ch, proj } = layout(t);
+  const r = install(repo, ch, { extra: ['--project-folder', proj] });
+  refused(r, /^REFUSED: a project path is a link or other reparse point, or could not be read: \.claude\/rules\./m);
+  assert.match(r.stdout, /^project\| RESULT: pass$/m, 'the project module passed first');
+  assert.deepEqual(readdirSync(target), []);
+});
+
+test('node project: a project dry run counts the work folders a hard stop left', t => {
+  const repo = makeRepo(t);
+  const { ch, proj } = layout(t);
+  const tmp = tempDir(t, 'pact-tmp-');
+  mkdirSync(join(tmp, 'pact-install-left'));
+  const r = install(repo, ch, { extra: ['--project-folder', proj], env: { TEMP: tmp, TMP: tmp, TMPDIR: tmp } });
+  passed(r);
+  assert.match(r.stdout, /^NOTE: 1 other pact-install-\* folder\(s\) in the temp folder/m);
 });

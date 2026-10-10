@@ -203,7 +203,10 @@ for (const rule of APPLY_ASK) {
 // broad rule that replaced it, in both the allow-list and the overlay: seam A
 // still fails it as missing, so no narrower spelling stands in for the broad
 // rule. The rows keep the cases of #34 and #89: each apply-step spelling, each
-// dash swapped for a hyphen, and each splat without its space.
+// dash swapped for a hyphen, and each splat without its space. With the broad
+// rule gone any spelling fails, so the hyphen and splat rows show only that the
+// old spellings don't stand in; seam A's exact compare of the lasting rules is
+// the per-rule cases' job (#166, move 4).
 const broadFor = rule => OLD_INSTALL_ASK[rule.startsWith('PowerShell') ? 0 : 1];
 const hyphened = rule => [...rule].map(c => (DASHES.includes(c) ? '-' : c)).join('');
 /** A plant putting `to` in place of the broad rule for `rule`'s shell, in both files. */

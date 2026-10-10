@@ -4,7 +4,7 @@
 // writes. It makes no decision; gate/install-core.mjs does. Nothing here runs
 // on import, and no error's text leaves here unhandled by the runner.
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { FOLD_CASE } from './paths.mjs';
 
@@ -100,11 +100,15 @@ export function folderEntries(dir) {
   });
 }
 
+/** The temp file a write to `dest` goes through: the runner checks none is left before it writes. */
+export const tempName = dest => join(dirname(dest), `${basename(dest)}.pact-tmp`);
+
 /**
  * Writes `bytes` over `dest` through an exclusive temp file in the same
  * folder, then a rename (S6, X4 and X5): a hard link at `dest` loses only its
  * own name. The temp file takes `dest`'s current mode, or `fallbackMode` when
- * there is none; it is deleted on any failure, and an existing one refuses.
+ * there is none. Once created, it is deleted on any failure, the write
+ * included; one already there refuses and is left alone.
  */
 export function writeReplacing(dest, bytes, fallbackMode) {
   mkdirSync(dirname(dest), { recursive: true });
@@ -112,16 +116,34 @@ export function writeReplacing(dest, bytes, fallbackMode) {
   try {
     mode = statSync(dest).mode & 0o777;
   } catch {}
-  const tmp = join(dirname(dest), `${basename(dest)}.pact-tmp`);
-  writeFileSync(tmp, bytes, { flag: 'wx', mode: mode ?? 0o666 });
+  const tmp = tempName(dest);
+  let fd = openSync(tmp, 'wx', mode ?? 0o666);
   try {
+    writeFileSync(fd, bytes);
+    closeSync(fd);
+    fd = null;
     if (mode !== undefined && process.platform !== 'win32') chmodSync(tmp, mode);
     renameSync(tmp, dest);
   } catch (e) {
+    if (fd !== null) {
+      try {
+        closeSync(fd);
+      } catch {}
+    }
     try {
       unlinkSync(tmp);
     } catch {}
     throw e;
+  }
+}
+
+/** Whether an existing file grants any group or other permission bit (Unix only; false elsewhere, or when absent). */
+export function openToOthers(p) {
+  if (process.platform === 'win32') return false;
+  try {
+    return (statSync(p).mode & 0o077) !== 0;
+  } catch {
+    return false;
   }
 }
 

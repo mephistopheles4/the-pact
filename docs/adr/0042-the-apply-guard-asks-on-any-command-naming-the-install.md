@@ -10,7 +10,7 @@ The "ask" rules no longer try to match each spelling of an apply. They ask on an
   - `PowerShell(*.pact-install.json*)` and `Bash(*.pact-install.json*)`;
   - `PowerShell(*gh*ruleset*)`, `PowerShell(*gh*protection*)`, `Bash(*gh*uleset*)` and `Bash(*gh*rotection*)`, which guard the CI ruleset (ADR 0041).
   - Under the Bash tool, which matches case exactly, each rule drops its first letter, so a capitalised name still matches.
-- **Seam A requires all ten in the overlay,** whatever the settings allow-list says. The twelve spelling-by-spelling rules of ADR 0020 are retired from the overlay. They stay in each live `settings.json`, because the merge only adds rules, and are harmless there.
+- **Seam A requires all twelve in the overlay,** whatever the settings allow-list says. The twelve spelling-by-spelling rules of ADR 0020 are retired from the overlay. They stay in each live `settings.json`, because the merge only adds rules, and are harmless there.
 - **The gated clause keeps its shape** (option B). A session passes `--apply` only after the owner's go-ahead in chat. Only the flag's spelling changed, from `-Apply` to `--apply`, and seam A refuses the old text.
 - **The habit risk is accepted.** A dry run names the script, so it prompts too, and an apply's prompt can look routine. The owner's words on #153's revision 4: "I'll accept the habit risk".
 - **Person-typed applies** stay where no guard exists yet: a first install by prompt (`docs/install.md`). The cutover's first apply was handed back to a session by the owner in chat.

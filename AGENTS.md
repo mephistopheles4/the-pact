@@ -154,7 +154,7 @@ how every session in every repo behaves. So:
     - **What an agent-file change picks.** The test helpers are split by
       what they touch (ADR 0034), so an agent file picks only the tests that
       read agents: those that import `payload.mjs` or read them themselves.
-      Of the install files, that's the smoke set and five others, 6 of 9.
+      Of the install files, that's the smoke set and six others, 7 of 11.
     - **Some changes still cost about a full suite.** The pact's rules file,
       `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
       deleted or renamed test file, is named by the copy list's entry for the
@@ -348,8 +348,9 @@ Where two bullets apply, the stricter one holds.
   settings guard, `gate/settings-allowlist.json` and
   `claude/settings.overlay.json`.
 - **The gate's code also needs its own tests, on top of any probe above.** The
-  gate's code is every file in `gate/` but its tests, and
-  `.github/workflows/gate.yml`. Every change to it takes the security route. Each
+  gate's code is every file in `gate/` but its tests, every file in
+  `.github/workflows/`, and `.github/dependabot.yml`. Every change to it takes
+  the security route. Each
   check a change adds or tightens needs a bad case in the gate's tests that it
   is seen to catch. Deleting or loosening a check, or changing a built-in
   default that bounds anything above, counts as a change to what it bounds.

@@ -9,6 +9,7 @@
     - It starts the runner from the stage, with an allow-listed environment and a time limit.
     - It never runs `git status`, because status can run a clean filter. It counts dirty paths itself.
     - It never reads a remote address.
+    - It refuses unless it is the file at `gate/install.mjs` in its clone, by real path, so a copy elsewhere in the clone never runs.
   - **The runner, `gate/install-run.mjs`,** runs from the stage only, so every line of it is committed code. It does what the old script did after staging: pin, render, seam A, the copy set, the plan, settings, the review output, apply, record and verify.
 - **The checks run in-process.** The runner calls the render, seam A, project and review cores through their `check()`, keeping ADR 0032's five controls:
   - committed code only;
@@ -39,7 +40,8 @@
 - **Windows access lists.**
   - The work folder takes the temp folder's access list, so it is owner-only only when the temp folder is the usual per-user one.
   - The settings file is written to a new file in its folder and renamed into place, so a stricter list set on the file alone is replaced by the folder's.
-- **The settings file is rewritten unencrypted,** the form Claude Code reads. Its Unix mode is kept.
+- **The settings file is rewritten unencrypted,** the form Claude Code reads. Its Unix mode is kept, so a file an older install widened stays as it is; the dry run warns when other accounts can read it or the record.
+- **A hard stop mid-write** can leave a `.pact-tmp` file beside the file it was replacing, holding the new bytes. The next apply refuses before any write, naming it.
 - **A mapped drive, or a link to a share,** passes the path checks. Only a path typed as a network or device path refuses.
 - **A preload already inside the bootstrap's own process,** for example a Node built with one, could fake what it sees. That is the same class as a deliberately altered install script.
 - **macOS:** not yet run. The owner runs the suite and one dry run on the work Mac, or marks it untested.

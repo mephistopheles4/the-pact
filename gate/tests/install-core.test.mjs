@@ -106,6 +106,13 @@ test('the command line: a refusal never shows a value, only cleaned option names
   assert.match(r.out, /\(--x\?y\)/);
 });
 
+test('the command line: a value typed after = in an option word is never shown, only the name before it', () => {
+  const r = decided(() => core.parseArgs(['--claude-home=C:\\SECRETMARK\\x'], 'win32'));
+  assert.deepEqual(r.fails, ['args-unread']);
+  assert.ok(!r.out.includes('SECRETMARK'), r.out);
+  assert.match(r.out, /\(--claude-home\)/);
+});
+
 test('the apply line quotes each path and carries --project-folder, the commit and the hash (S12)', () => {
   const o = core.parseArgs(['--project-folder', 'C:\\work\\my project', '--claude-home', 'C:\\h'], 'win32');
   assert.equal(core.applyLine(o.paths, ID('a'), H('b'), 'win32'), `$env:NODE_OPTIONS = $null; node gate/install.mjs --claude-home 'C:\\h' --project-folder 'C:\\work\\my project' --apply --commit ${ID('a')} --rendered-hash ${H('b')}`);

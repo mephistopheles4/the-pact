@@ -183,6 +183,8 @@ test('bad case: -Apply on a project install with no hash, a wrong hash or a cut-
   for (const extra of [[], ['--rendered-hash', 'b'.repeat(64)], ['--rendered-hash', hash.slice(0, 12)]]) {
     const r = projInstall(repo, ch, proj, { apply: true, extra });
     refused(r);
+    // The Node install words this refusal as a home install does; the run's first line shows it was the project branch.
+    assert.match(r.stdout, /^Project install from commit /m, r.out);
     assert.match(r.stdout, extra.length ? /^REFUSED: the hash given with --rendered-hash/m : /^REFUSED: a configuration applies, so --apply needs/m, r.out);
   }
   assert.deepEqual(snapshot(proj), before);

@@ -377,9 +377,14 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 - **#107:** the ask rule before an install did not fire once, in a background
   auto-mode session. The cause is unknown.
 
-The Node install (#166) fixes two that were listed here: #177, where an
-install on Linux or macOS left `settings.json` readable by other users, and
-#110, where the dry run could miss a tampered permission rule.
+The Node install (#166) closes two that were listed here, in part:
+
+- **#177:** an install on Linux or macOS no longer widens `settings.json`,
+  which can hold API keys. It keeps the file's mode, so a file an older
+  install widened stays readable by other users until you restrict it; the
+  dry run warns when it is. A rollback to the old installer widens it again.
+- **#110:** the dry run compares permission rules exactly, so it no longer
+  misses a tampered rule.
 
 ## Reporting a security hole
 

@@ -16,7 +16,7 @@ A GitHub Actions workflow, `.github/workflows/gate.yml`, runs the gate on every 
   - the `gate` check is required, with GitHub Actions as its expected source, so a status posted through the API under the same name doesn't count;
   - branches must be up to date before merging;
   - pull requests only, with no deletion, no force-push and no bypass.
-- **The workflow is gate code.** A change to it takes the security route.
+- **Every workflow file is gate code,** and so is `.github/dependabot.yml`. A change to one takes the security route. Every workflow file keeps the same lockdown, and only `gate.yml` may define a job or check named `gate`; `workflow.test.mjs` holds the folder to both.
 
 ## Why
 

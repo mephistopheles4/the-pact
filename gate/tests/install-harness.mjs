@@ -84,18 +84,20 @@ export function makeRepo(t, mutate) {
 // so one count serves the file. The count is per top-level test: a subtest's
 // installs count toward the test it runs in, and a subtest is not checked on
 // its own, so a subtest that reads its parent's install passes. makeRepo and
-// git are not installs. A test that calls t.skip() stays a skip: the hook
-// records the call and never throws for it, since node 24.21 reports a skipped
-// test as failed when this hook throws (20.20 and 24.14 kept the skip). The
-// guard's own tests pin that (ADR 0033).
+// git are not installs. A top-level test that calls t.skip() stays a skip:
+// the hook records the call and never throws for it, since node 24.21 reports
+// a skipped test as failed when this hook throws (20.20 and 24.14 kept the
+// skip). A subtest's skip excuses nothing. A test is top-level when its full
+// name is its own name; a count of hook calls won't do, because node runs no
+// afterEach for a skipped subtest (#166). The guard's own tests pin all this
+// (ADR 0033).
 let installs = 0;
-let depth = 0;
 let skipped = false;
+const topLevel = t => t.fullName === t.name;
 beforeEach(t => {
-  if (depth++ === 0) {
-    installs = 0;
-    skipped = false;
-  }
+  if (!topLevel(t)) return;
+  installs = 0;
+  skipped = false;
   const skip = t.skip.bind(t);
   t.skip = (...args) => {
     skipped = true;
@@ -103,11 +105,10 @@ beforeEach(t => {
   };
 });
 afterEach(t => {
-  if (--depth === 0 && installs === 0 && !skipped) {
+  if (topLevel(t) && installs === 0 && !skipped) {
     throw new Error(`purity guard: "${t.name}" is in an install-tier file but neither ran the install script nor skipped itself; move it to a file that never installs`);
   }
 });
-
 /** Runs node with `args`, one of which must name the Node install script; counts as an install (#153). */
 export function spawnNodeInstall(args, options) {
   if (!args.some(a => /install(-run)?\.mjs$/i.test(String(a)))) throw new Error('spawnNodeInstall: no argument names the Node install script, so this is not an install');

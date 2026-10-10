@@ -148,6 +148,13 @@ parts:
   your temp folder. It may hold your configuration text. Delete those
   `pact-install-*` folders by hand; the script never deletes them, because
   one could belong to an install still running.
+- **`WARN: settings.json can be read by other accounts`.** On Linux or macOS,
+  an older install may have widened your settings file, which can hold API
+  keys. The install keeps a file's mode, so restrict it yourself:
+  `chmod 600 ~/.claude/settings.json`.
+
+The dry run names your home folder and your Node's path, which hold your
+user name. Remove them before you post its output anywhere.
 
 The last lines print the apply command to run next.
 
@@ -186,6 +193,10 @@ the file's mode, and a new file is readable only by you (`600`). On Windows
 the new file takes its folder's access list, so a stricter list set on the
 file alone is lost: restrict the `~/.claude` folder, not the file.
 
+If an apply refuses because a `.pact-tmp` file is already there, an earlier
+install stopped mid-write. The file may hold a copy of your settings. Check
+it, delete it, and run the dry run again.
+
 Run the dry run again if you like. It should print `Nothing to do.`
 
 ## 6. Check in a fresh session
@@ -200,7 +211,9 @@ only your installed files, and run `/agents`. A pass lists these ten:
 
 You can hand the first install to a Claude Code session with this prompt. It
 names the one address to clone from, and leaves the apply to you, because on
-a first install no pact ask rule exists yet to stop the session:
+a first install no pact ask rule exists yet to stop the session. Do step 3's
+backup first. The prompt installs the rules as published, without step 2's
+edits:
 
 > Clone the-pact from `https://github.com/mephistopheles4/the-pact`, and no other address, into a new, empty folder. Don't reuse or pull an existing clone. From the new clone's root, with `NODE_OPTIONS` unset, run `node gate/install.mjs` and show me the whole dry run, including its "Install from commit" line. Don't change anything else. Then show me the apply command the dry run printed, and stop. I'll run it myself.
 
@@ -239,7 +252,9 @@ pwsh ./scripts/install.ps1
 
 Both installers read and write the same install record, so either can follow
 the other. In a Claude Code session, any command that names `install.ps1`
-asks you first.
+asks you first. On Linux and macOS the old installer writes `settings.json`
+readable by other accounts (#177): run `chmod 600 ~/.claude/settings.json`
+after it.
 
 ## Known limits
 

@@ -361,3 +361,51 @@ test('node: a commit with no runner refuses', t => {
   commitAll(repo, 'no runner');
   refused(install(repo, home(t)), /^REFUSED: the commit holds no install runner/m);
 });
+
+test('node: a temp file an earlier install left refuses --apply before any write, naming it', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  writeFileSync(join(h, 'settings.json.pact-tmp'), '{}\n');
+  refused(install(repo, h, { apply: true }), /^REFUSED: a temp file the install writes through is already there: settings\.json\.pact-tmp\. .* Nothing was changed\.$/m);
+  assert.deepEqual(readdirSync(h), ['settings.json.pact-tmp']);
+});
+
+test('node: a settings file other accounts can read draws a warning, and --apply keeps its mode', t => {
+  if (WIN) return t.skip('Windows sets no mode bits');
+  const repo = makeRepo(t);
+  const h = home(t);
+  const sf = join(h, 'settings.json');
+  writeFileSync(sf, '{}\n');
+  chmodSync(sf, 0o644);
+  const r = install(repo, h);
+  passed(r);
+  assert.match(r.stdout, /^WARN: settings\.json can be read by other accounts on this machine; .*\(chmod 600\)\.$/m);
+  chmodSync(sf, 0o600);
+  const again = install(repo, h);
+  passed(again);
+  assert.doesNotMatch(again.stdout, /can be read by other accounts/);
+});
+
+// Nothing outside the typed command can turn on --apply (S6, A2 and A3):
+// environment variables named like its options leave a dry run a dry run.
+test('node: environment variables named like the options never turn on --apply', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const commit = git(repo, 'rev-parse', 'HEAD').trim();
+  const r = install(repo, h, { env: { APPLY: '1', PACT_APPLY: '1', npm_config_apply: 'true', npm_config_commit: commit, INSTALL_ARGS: `--apply --commit ${commit}` } });
+  passed(r);
+  assert.match(r.stdout, /^Dry run only\./m);
+  assert.deepEqual(readdirSync(h), []);
+});
+
+test('node: a copy of the bootstrap anywhere but gate/install.mjs refuses, even one git ignores', t => {
+  const repo = makeRepo(t, root => {
+    writeFileSync(join(root, '.gitignore'), `${readFileSync(join(root, '.gitignore'), 'utf8')}ignored/\n`);
+  });
+  mkdirSync(join(repo, 'ignored'));
+  const copy = join(repo, 'ignored', 'install.mjs');
+  writeFileSync(copy, readFileSync(join(repo, 'gate', 'install.mjs')));
+  const h = home(t);
+  refused(install(repo, h, { script: copy }), /^REFUSED: this script is not at gate\/install\.mjs in the root of its git repository\./m);
+  assert.deepEqual(readdirSync(h), []);
+});

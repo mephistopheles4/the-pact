@@ -66,6 +66,15 @@ test('purity guard: each test is counted on its own, so an install in one test d
   assert.match(r.out, /purity guard: "planted: then nothing"/, r.out);
 });
 
+test('purity guard: a subtest that skips does not excuse a parent test that never installs', t => {
+  // node runs no afterEach for a skipped subtest, so the guard must not lose count after one: the next test is checked too.
+  const r = planted(t, "test('planted: a subtest skips, no install', async t => { await t.test('skips', t => { t.skip('not here'); }); });\ntest('planted: then nothing', () => {});\n");
+  assert.equal(r.status, 1, r.out);
+  assert.equal(r.results.get('planted: a subtest skips, no install'), 'not ok', r.out);
+  assert.match(r.out, /purity guard: "planted: a subtest skips, no install"/, r.out);
+  assert.equal(r.results.get('planted: then nothing'), 'not ok', r.out);
+});
+
 test('purity guard: makeRepo and git are not installs: a planted test that calls only them fails', t => {
   const r = planted(t, `import { git, makeRepo } from ${JSON.stringify(HARNESS_URL)};\ntest('planted: builds a repo only', t => { const repo = makeRepo(t); git(repo, 'status', '--short'); });\n`);
   assert.equal(r.status, 1, r.out);
