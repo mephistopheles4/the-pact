@@ -140,10 +140,17 @@ test('changed: gate code, and the install script, select the full tier', () => {
   }
 });
 
-// ADR 0048: no file the install copies is a PowerShell script, so no throwaway
-// repo the harness builds holds one, and no test can run one by mistake.
+// ADR 0048: none of the copy list's single files is a PowerShell script, so
+// none reaches a throwaway repo the harness builds.
 test('bad case: the copy list holds no PowerShell script', () => {
   assert.deepEqual(COPY_FILES.filter(f => f.endsWith('.ps1')), []);
+});
+
+// Running the gate's tests: a payload path also runs the install smoke file;
+// one of the copy list's single files is payload too.
+test("changed: one of the copy list's single files is a payload path", () => {
+  const r = changedPicks(changedTree(), ['AGENTS.md']);
+  assert.equal(r.files.get(SMOKE_NAME), 'install smoke set: payload AGENTS.md');
 });
 
 test('changed: a payload path picks finely: the smoke set and the files that name it, not an install file that does not', () => {

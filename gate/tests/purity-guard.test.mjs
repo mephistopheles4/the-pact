@@ -112,7 +112,8 @@ function realTree() {
 const FAST = ['settings.test.mjs', 'builder-page.test.mjs', 'agent-settings.test.mjs', 'cross-install.test.mjs', 'project-home.test.mjs'];
 const INSTALL = ['settings-install.test.mjs', 'builder-install.test.mjs', 'agent-settings-install.test.mjs', 'cross-script-install.test.mjs'];
 
-test('one layer per file: the files T6 split run in fast, neither reaching the harness nor naming the install script; their install halves stay in the install tier', () => {
+// Writing a gate test: each test file holds one layer.
+test('one layer per file: the files T6 split run in fast, never reaching the harness; their install halves stay in the install tier', () => {
   const { entries, sources } = realTree();
   const fast = new Map(pick({ tier: 'fast', entries, sources }).files.map(f => [f.file, f.reason]));
   for (const f of FAST) assert.equal(fast.get(f), 'fast tier: does not run the install', f);

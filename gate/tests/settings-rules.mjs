@@ -1,7 +1,6 @@
 // The settings guard's rule lists (#34), shared by settings.test.mjs (seam A)
 // and settings-install.test.mjs (the install), so the two can't drift (#140,
-// T6). The lists name the install script, so they live here: a test file that
-// names it is in the install tier, and seam A's checks never install.
+// T6).
 import { realOverlay } from './payload.mjs';
 
 export const OVERLAY = 'claude/settings.overlay.json';

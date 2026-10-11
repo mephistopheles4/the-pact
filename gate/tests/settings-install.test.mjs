@@ -21,10 +21,10 @@ function readLive(h) {
   return JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
 }
 
+// ADR 0049: a retired rule left in the live file stays, because the merge only adds (#210, S8).
 test("--apply installs the pact's ask rules and auto mode, verifies them, keeps a retired rule the owner still has, and the next dry run is quiet", t => {
   const repo = makeRepo(t);
   const h = home(t);
-  // A rule ADR 0049 retired, left in the live file: the merge only adds, so it stays until the owner removes it (#210, S8).
   writeLive(h, { permissions: { ask: ['PowerShell(*install.mjs*)'] } });
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);

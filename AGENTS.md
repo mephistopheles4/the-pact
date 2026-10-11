@@ -109,18 +109,26 @@ how every session in every repo behaves. So:
   `--rendered-hash <hash>`. On a project install that hash binds the bytes
   installed, not the configuration files: a file changed after the dry run
   still installs if it renders the same bytes, which can never be looser.
-- **Rolling back.** An older pact installs with that commit's own installer:
-  check the commit out and run its install, dry run first. Rollback is
-  supported only to commits from the Node install's cutover (#166, `6821d68`)
-  on. **Before checking out a commit to roll back to,** check two things: it
-  holds `gate/install.mjs` (`git cat-file -e <commit>:gate/install.mjs`
-  succeeds), and it descends from the cutover
-  (`git merge-base --is-ancestor 6821d68 <commit>` succeeds). If either check
-  fails, don't check the commit out, never run an installer from it, and stop
-  to ask the owner. Check first, because an older commit's own `AGENTS.md`
-  presents a PowerShell installer as the route, and no ask rule guards one
-  (the threat model's R22). From a commit that passes, run only
-  `gate/install.mjs`.
+- **Rolling back.** An older pact installs with that commit's own installer.
+  Rollback is supported only to commits on the published `main` from the Node
+  install's cutover (#166, `6821d68`) on. **Before checking out a commit to
+  roll back to,** check it, with no checkout:
+  1. Resolve it to its full id: `git rev-parse --verify "<commit>^{commit}"`.
+     Run every check below on that id.
+  2. It holds `gate/install.mjs`: `git cat-file -e <id>:gate/install.mjs`
+     succeeds.
+  3. It descends from the cutover:
+     `git merge-base --is-ancestor 6821d68f002b2e5307332ba067c049e403f950b0 <id>`
+     succeeds.
+  4. It is on the published `main`: after
+     `git fetch https://github.com/mephistopheles4/the-pact.git main`,
+     `git merge-base --is-ancestor <id> FETCH_HEAD` succeeds.
+
+  If any check fails, don't check the commit out, never run an installer from
+  it, and stop to ask the owner. Check first, because an older commit's own
+  `AGENTS.md` presents a PowerShell installer as the route, and no ask rule
+  guards one (the threat model's R22). From a commit that passes, check out
+  exactly that id and run only `gate/install.mjs`, dry run first.
 - **The cloud copy is generated.** `cloud-sessions/` holds the setup script
   for Claude Code cloud sessions. `cloud-sessions/gen.mjs` builds it, and
   `CLAUDE.cloud.md`, from the payload, through the same render and seam A a
@@ -148,8 +156,7 @@ how every session in every repo behaves. So:
   `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>`
   - **`full`** runs every top-level test file. This is "the full suite".
   - **`fast`** runs every test file that doesn't run the install script. The
-    runner finds the install tier from each file's imports and text on every
-    run.
+    runner finds the install tier from each file's imports on every run.
   - **`changed`** runs `fast` plus the tests your change can reach, and
     prints why it picked each file. It's the only tier that reads git.
     - **The changed paths:** what differs from where your branch left

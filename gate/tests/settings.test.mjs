@@ -220,10 +220,12 @@ test("the apply-step rules are all among the pact's rules", () => {
 });
 
 // One test per rule, so a red run shows every rule that seam A doesn't hold.
+// settings-required, with the message that names the apply step's rules.
 for (const rule of APPLY_ASK) {
   test(`bad case: the apply-step rule ${shown(rule)} stays required when both the allow-list and the overlay drop it`, t => {
     const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== rule))));
-    expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== rule))), 'settings-required', script);
+    const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== rule))), 'settings-required', script);
+    assert.match(r.stdout, /the apply step's ask rules/, r.out);
   });
 }
 
