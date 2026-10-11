@@ -143,7 +143,8 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
     '  Open text is checked for form, imports, routing and the roster, not for meaning.',
-    'Working tree: clean',
+    // The pact commands' block follows the configuration's (#203).
+    'Commands:',
   ]);
   assert.ok(c < lines.findIndex(l => /^Gate: /.test(l)), dry.out);
   assert.match(dry.stdout, new RegExp(`^Dry run only\\. After the owner's go-ahead, run:\n {2}.* --apply --commit [0-9a-f]{40} --rendered-hash ${sha256(want)}$`, 'm'), dry.out);

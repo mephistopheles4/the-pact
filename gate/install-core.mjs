@@ -600,7 +600,7 @@ export function matchCopySet(lines, expected, stagedHashes, commit) {
   let ok = pairs.size === expected.length;
   for (const [rel, dest] of expected) {
     if (!ok) break;
-    ok = pairs.get(`${rel} ${dest}`) === stagedHashes.get(rel) && stagedHashes.has(rel);
+    ok = dest !== null && stagedHashes.has(rel) && pairs.get(`${rel} ${dest}`) === stagedHashes.get(rel);
   }
   if (!ok) refuse('copy-set-mismatch', `the check's copy set does not match the install's own reading of commit ${commit}.`);
   return checked;

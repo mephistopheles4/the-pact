@@ -488,13 +488,17 @@ const cmdCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9
 for (const c of table('copy set with commands', {
   module: 'gate/install-core.mjs',
   base: cmdCopyBase,
-  run: t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(cmdStaged.keys(), t.list ? t.list.split(',') : []), cmdStaged, ID('a'))),
+  run: t => {
+    const st = t.extra ? new Map([...cmdStaged, [`claude/commands/${t.extra}.md`, H('c')]]) : cmdStaged;
+    return decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(st.keys(), t.list ? t.list.split(',') : []), st, ID('a')));
+  },
   rows: [
     { id: 'listed-command-left-off', plant: rep(`INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a command the list names' },
     { id: 'unlisted-command-added', plant: rep('RESULT', `INSTALL ${H('b')} claude/commands/make-it-so.md commands/make-it-so.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'the two sides read different lists' },
     { id: 'install-side-list-differs', plant: t => ({ ...t, list: 'finis,make-it-so' }), fails: ['copy-set-mismatch'], why: 'the install side names a command seam A did not list' },
     { id: 'extra-pair', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/extra.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'one source to a second live path no rule gives' },
     { id: 'pair-twice', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\nRESULT`), fails: ['copy-set-twice'], why: 'a pair listed twice' },
+    { id: 'unknown-file-as-null', plant: t => ({ ...t, in: t.in.replace('RESULT', `INSTALL ${H('c')} claude/commands/ship-it.md null\nRESULT`), extra: 'ship-it' }), fails: ['copy-set-mismatch'], why: 'a file of no known kind never matches, even a line naming null' },
     { id: 'other-command-path', plant: rep('commands/finis.md\n', 'agents/finis.md\n'), fails: ['copy-set-mismatch'], why: 'a command goes to commands/<name>.md' },
   ],
 })) test(c.name, c.fn);

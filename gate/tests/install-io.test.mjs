@@ -111,3 +111,17 @@ test('live state, optional reads and the leftover count', t => {
   const entries = io.folderEntries(root).sort((a, b) => (a.name < b.name ? -1 : 1));
   assert.deepEqual(entries.map(e => [e.name, e.file, e.link]), [['dir', false, false], ['f', true, false], ['pact-install-a', false, false], ['pact-install-b', false, false]]);
 });
+
+// The skill-clash check's presence test (#203, S8): anything at the path counts, a link unfollowed.
+test('presence: a file, a folder and a junction to nothing are present; a missing path is not', t => {
+  const root = tempDir(t, 'pact-io-');
+  writeFileSync(join(root, 'file'), 'x');
+  mkdirSync(join(root, 'folder'));
+  assert.equal(io.present(join(root, 'file')), true);
+  assert.equal(io.present(join(root, 'folder')), true);
+  assert.equal(io.present(join(root, 'missing')), false);
+  assert.equal(io.present(join(root, 'missing', 'deeper')), false);
+  // A junction on Windows needs no privilege; elsewhere a directory symlink.
+  if (!linkOrSkip(t, join(root, 'gone'), join(root, 'dangling'), WIN ? 'junction' : 'dir')) return;
+  assert.equal(io.present(join(root, 'dangling')), true, 'a dangling link is present, read without following it');
+});
