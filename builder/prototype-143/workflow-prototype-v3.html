@@ -1,0 +1,412 @@
+<!doctype html>
+<!-- PROTOTYPE v3 for #143, THROWAWAY. Never for main. Hand-written, no generator.
+     Question it answers: what the workflow builder looks like on the new pact's
+     shape (moves as practices, tiers as checking, lenses as tools with loose
+     conditions), and where the graph adds to or overlaps #262's three parts.
+     It saves, downloads and copies nothing: nothing it shows can reach the installer. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Workflow builder v3 (throwaway)</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#d9d6cf;--acc:#2f5fa7;
+--t262:#2f5fa7;--t262bg:#e6eef9;--tgraph:#9a5b00;--tgraphbg:#fbefd9;--tfix:#555;--tfixbg:#ebe9e4;
+--fire:#1f7a3a;--firebg:#e3f3e7;--warn:#a3281c;--warnbg:#fbe5e2}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1b1a;--card:#262624;--ink:#ecebe7;--mute:#a09e98;--line:#3d3c39;--acc:#8fb2ea;
+--t262:#8fb2ea;--t262bg:#24324a;--tgraph:#e8b25e;--tgraphbg:#3b2f1b;--tfix:#bbb;--tfixbg:#33322f;--fire:#7fd39a;--firebg:#1f3626;--warn:#f08a7e;--warnbg:#45231f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.banner{background:var(--warnbg);color:var(--warn);padding:6px 16px;font-weight:600;font-size:13px}
+header{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:17px;margin:0 12px 0 0}
+button,select,input,textarea{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+select,input,textarea{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.layout{display:grid;grid-template-columns:1fr 340px;min-height:calc(100vh - 90px)}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+main{padding:12px 16px;overflow:auto}
+aside{border-left:1px solid var(--line);padding:12px 16px;background:var(--card);overflow:auto}
+.tag{display:inline-block;font-size:11px;font-weight:600;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:middle;white-space:nowrap}
+.tag.t262{background:var(--t262bg);color:var(--t262)}
+.tag.tgraph{background:var(--tgraphbg);color:var(--tgraph)}
+.tag.tfix{background:var(--tfixbg);color:var(--tfix)}
+.strip{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin-bottom:10px}
+.strip .lbl{font-size:12px;color:var(--mute);width:100%}
+.practice{border:1px dashed var(--line);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--mute);max-width:220px}
+.practice b{color:var(--ink)}
+.sim{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.sim .note{font-size:12px;color:var(--mute)}
+.canvaswrap{position:relative;padding-top:70px}
+svg#loops{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+svg#loops path{fill:none;stroke:var(--tgraph);stroke-width:1.6;stroke-dasharray:5 4}
+svg#loops path.sel{stroke-width:3}
+svg#loops text{font-size:11px;fill:var(--tgraph);pointer-events:auto;cursor:pointer}
+.stages{display:flex;gap:28px;align-items:flex-start;flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px}
+.stage{flex:0 0 190px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;position:relative;cursor:pointer}
+.stage.sel{outline:2px solid var(--acc)}
+.stage.skipped{opacity:.45}
+.stage+.stage::before{content:"→";position:absolute;left:-21px;top:12px;color:var(--mute)}
+.stage h3{margin:0 0 2px;font-size:14px}
+.stage .txt{font-size:12px;color:var(--mute);margin-bottom:6px}
+.group{border:1px solid var(--line);border-radius:7px;padding:4px 6px;margin-top:5px}
+.group.pair{border-color:var(--t262)}
+.group .cond{font-size:11px;color:var(--mute)}
+.agent{display:block;width:100%;text-align:left;border:0;background:none;padding:2px 2px;border-radius:4px;font-size:12px}
+.agent.sel{background:var(--t262bg)}
+.agent.own{font-style:italic}
+.group.fires{background:var(--firebg);border-color:var(--fire)}
+.group.idle{opacity:.5}
+.fixedband{margin-top:14px;background:var(--tfixbg);border-radius:8px;padding:8px 10px;font-size:12px}
+.fixedband div{margin:2px 0}
+.preview{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+.preview .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding:6px}
+.preview .tabs button.on{border-color:var(--acc);font-weight:600}
+.preview pre{margin:0;padding:10px;white-space:pre-wrap;font:12px/1.5 ui-monospace,Consolas,monospace;max-height:340px;overflow:auto}
+aside h2{font-size:14px;margin:14px 0 6px}
+aside h2:first-child{margin-top:0}
+aside label{display:block;font-size:12px;color:var(--mute);margin-top:6px}
+aside input,aside select,aside textarea{width:100%}
+.warn{background:var(--warnbg);color:var(--warn);border-radius:6px;padding:6px 8px;font-size:12px;margin-top:8px}
+.muted{color:var(--mute);font-size:12px}
+table.tiers{width:100%;border-collapse:collapse;font-size:12px}
+table.tiers td{padding:2px 2px;border-bottom:1px solid var(--line);vertical-align:top}
+table.tiers select{width:auto;padding:1px 2px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{background:var(--t262bg);color:var(--t262);border-radius:12px;padding:1px 8px;font-size:12px}
+.chip button{border:0;background:none;padding:0 0 0 4px;color:inherit}
+.row{display:flex;gap:6px;margin-top:6px}
+.tour{position:fixed;z-index:20;max-width:320px;background:var(--card);border:2px solid var(--acc);border-radius:10px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.tour .n{font-size:11px;color:var(--mute)}
+.tourhl{outline:3px solid var(--acc)!important;outline-offset:3px}
+</style>
+</head>
+<body>
+<div class="banner">THROWAWAY PROTOTYPE v3 for #143. Not the builder. It saves and emits nothing; the text below is a preview only.</div>
+<header>
+  <h1>Workflow builder <span class="muted">v3</span></h1>
+  <span class="muted">Key:</span>
+  <span class="tag t262">#262 builds</span><span class="muted">a part Scriptorium already builds</span>
+  <span class="tag tgraph">graph only</span><span class="muted">no part takes it today</span>
+  <span class="tag tfix">fixed</span><span class="muted">shown, not editable</span>
+  <span style="flex:1"></span>
+  <button id="tourBtn" class="primary">Take the tour</button>
+  <button id="resetBtn">Reset</button>
+</header>
+<div class="layout">
+<main>
+  <div class="strip" id="practices"></div>
+  <div class="sim" id="sim"></div>
+  <div class="canvaswrap" id="canvaswrap">
+    <svg id="loops" aria-hidden="true"></svg>
+    <div class="stages" id="stages"></div>
+  </div>
+  <div class="row"><button id="addStage">+ Stage</button><button id="addLoop">+ Loop back</button></div>
+  <div class="fixedband" id="fixedband"></div>
+  <div class="preview" id="preview">
+    <div class="tabs"><button data-tab="parts" class="on">What #262's parts would hold</button><button data-tab="nothing">What compiles to nothing</button></div>
+    <pre id="previewText"></pre>
+  </div>
+</main>
+<aside id="panel"></aside>
+</div>
+<script>
+'use strict';
+// ---- Data, taken from claude/CLAUDE.md on main. Generic: no repo process.
+const PRACTICES = [
+  ['Sense the work', 'kind, size, risk; plan or experiment'],
+  ['Think before doing', 'intent clear enough to defend'],
+  ['Checkpoint the seams', 'the harder to undo, the heavier'],
+  ['Stay the owner', 'verify, reconstruct, know when to stop'],
+];
+const LENSES = ['behaviour-lens','integrity-lens','executability-lens','unstated-lens','reader-lens','conventions-lens','adversarial-lens','data-lens','good-enough-lens'];
+const CONDS = {
+  always:    { label: 'Every build', test: w => true },
+  spec:      { label: 'There is a spec (above quick)', test: w => w.tier !== 'quick' },
+  sensitive: { label: 'Sensitive work', test: w => w.sensitive },
+  prose:     { label: 'The diff adds prose or docs', test: w => w.prose },
+  rules:     { label: 'The repo has written rules', test: w => w.rules },
+  heavy:     { label: 'Scope feels heavy', test: w => w.heavy },
+  custom:    { label: 'Your own words (judgment)', test: w => null },
+};
+const DEFAULT_PAIRS = [['behaviour-lens','integrity-lens','the QA pair'],['adversarial-lens','data-lens','the security pair']];
+function fresh(){ return {
+  stages: [
+    { name: 'Sense', text: 'Kind, size and risk; propose a tier.', agents: [] },
+    { name: 'Spec', text: 'Intent, unhappy paths, decisions with their why.', skipOn: 'quick', agents: [
+      a('executability-lens','spec'), a('unstated-lens','spec'), a('adversarial-lens','sensitive'), a('data-lens','sensitive'), a('good-enough-lens','heavy') ] },
+    { name: 'Build', text: 'Test-first; the tests and gates decide.', agents: [] },
+    { name: 'Review the result', text: 'Claims checked against the ask.', agents: [
+      a('behaviour-lens','always'), a('integrity-lens','always'), a('unstated-lens','spec'), a('reader-lens','prose'),
+      a('conventions-lens','rules'), a('adversarial-lens','sensitive'), a('data-lens','sensitive') ] },
+    { name: 'Decide', text: 'I accept, or send it back.', agents: [] },
+  ],
+  loops: [ { from: 3, to: 2, when: 'a claim fails' }, { from: 4, to: 1, when: 'the intent changed' }, { from: 1, to: 1, when: 'fix' } ],
+  tiers: [
+    { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
+    { name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
+    { name: 'Thorough', fits: 'Too big for one session, or risky', plan: 'Opus, high', build: 'Sonnet, medium' },
+  ],
+  sensitive: ['auth','secrets','crypto','input validation','data migrations'],
+  work: { tier: 'standard', sensitive: false, prose: false, rules: true, heavy: false, on: true },
+  sel: null, tab: 'parts',
+};}
+function a(name, cond){ return { name, cond, custom: '', own: false }; }
+let S = fresh();
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const condText = ag => ag.cond === 'custom' ? (ag.custom || '(empty condition)') : CONDS[ag.cond].label;
+const condKey = ag => ag.cond === 'custom' ? 'custom:' + ag.custom.trim().toLowerCase() : ag.cond;
+const effTier = () => S.work.sensitive ? 'thorough' : S.work.tier;
+
+// Group a stage's agents: same condition at the same stage = fires together (a pair, or more).
+function groups(st){
+  const m = new Map();
+  st.agents.forEach((ag, i) => { const k = condKey(ag); if (!m.has(k)) m.set(k, []); m.get(k).push(i); });
+  return [...m.values()];
+}
+function pairName(names){
+  const p = DEFAULT_PAIRS.find(([x,y]) => names.length === 2 && names.includes(x) && names.includes(y));
+  return p ? p[2] : (names.length > 1 ? 'fire together' : '');
+}
+// A default pair split: both lenses at one stage, different conditions.
+function splits(){
+  const out = [];
+  S.stages.forEach(st => DEFAULT_PAIRS.forEach(([x,y,label]) => {
+    const ax = st.agents.find(g => g.name === x), ay = st.agents.find(g => g.name === y);
+    if (ax && ay && condKey(ax) !== condKey(ay)) out.push(`${label} at ${st.name}: ${x} on "${condText(ax)}", ${y} on "${condText(ay)}"`);
+    if ((ax && !ay) || (ay && !ax)) out.push(`${label} at ${st.name}: only ${ax ? x : y} is placed`);
+  }));
+  return out;
+}
+function defaultsGaps(){
+  const out = [];
+  const has = (n, c) => S.stages.some(st => st.agents.some(g => g.name === n && g.cond === c));
+  if (!has('behaviour-lens','always') || !has('integrity-lens','always')) out.push('The defaults sentence says the QA pair reads every result, but the graph no longer runs it on every build.');
+  if (!has('adversarial-lens','sensitive') || !has('data-lens','sensitive')) out.push('The defaults sentence says the security pair reads sensitive work, but the graph no longer runs it there.');
+  return out;
+}
+
+// ---- Render
+function render(){
+  $('practices').innerHTML = '<div class="lbl">My practices: unordered, taken up as the work needs. Not wired into the graph. <span class="tag tfix">fixed</span></div>' +
+    PRACTICES.map(([n,d]) => `<div class="practice"><b>${n}</b><br>${d}</div>`).join('');
+  const w = S.work;
+  $('sim').innerHTML = `<b>Try a piece of work</b>
+    <label><input type="checkbox" id="w_on" ${w.on?'checked':''}> show what fires</label>
+    <label>tier <select id="w_tier">${['quick','standard','thorough'].map(t=>`<option ${w.tier===t?'selected':''}>${t}</option>`).join('')}</select></label>
+    ${['sensitive','prose','rules','heavy'].map(k=>`<label><input type="checkbox" id="w_${k}" ${w[k]?'checked':''}> ${CONDS[k].label.toLowerCase()}</label>`).join('')}
+    <span class="note">${w.sensitive && w.tier!=='thorough' ? 'Sensitive work runs thorough, whatever the tier picked.' : ''} Your-own-words conditions never fire here: they are judgment.</span>`;
+  ['tier'].forEach(k => $('w_'+k).onchange = e => { S.work[k] = e.target.value; render(); });
+  ['on','sensitive','prose','rules','heavy'].forEach(k => $('w_'+k).onchange = e => { S.work[k] = e.target.checked; render(); });
+
+  const tier = effTier();
+  $('stages').innerHTML = S.stages.map((st, si) => {
+    const skipped = w.on && st.skipOn === tier;
+    const gs = groups(st).map(idx => {
+      const ags = idx.map(i => st.agents[i]);
+      const f = CONDS[ags[0].cond].test({ ...w, tier });
+      const cls = !w.on || skipped ? '' : f ? 'fires' : 'idle';
+      const pn = pairName(ags.map(g => g.name));
+      return `<div class="group ${ags.length>1?'pair':''} ${cls}"><div class="cond">when: ${esc(condText(ags[0]))}${pn?` · <b>${esc(pn)}</b>`:''}</div>` +
+        idx.map(i => `<button class="agent ${st.agents[i].own?'own':''} ${isSel('agent',si,i)?'sel':''}" data-s="${si}" data-a="${i}">${esc(st.agents[i].name)}</button>`).join('') + '</div>';
+    }).join('');
+    return `<div class="stage ${isSel('stage',si)?'sel':''} ${skipped?'skipped':''}" data-s="${si}" tabindex="0">
+      <h3>${esc(st.name)}<span class="tag tgraph">graph only</span></h3><div class="txt">${esc(st.text)}${skipped?' <i>(no plan at quick)</i>':''}</div>
+      ${gs || '<div class="muted">No agents. Click to add.</div>'}
+      ${st.agents.length?'<div class="muted" style="margin-top:4px">agents + conditions <span class="tag t262">#262 builds</span></div>':''}</div>`;
+  }).join('');
+  document.querySelectorAll('.stage').forEach(el => {
+    el.onclick = e => { if (e.target.closest('.agent')) return; S.sel = { kind: 'stage', s: +el.dataset.s }; render(); };
+    el.onkeydown = e => { if (e.key === 'Enter') el.click(); };
+  });
+  document.querySelectorAll('.agent').forEach(el => el.onclick = () => { S.sel = { kind: 'agent', s: +el.dataset.s, a: +el.dataset.a }; render(); });
+
+  $('fixedband').innerHTML = '<b>Fixed</b> <span class="tag tfix">fixed</span>' +
+    '<div>The defaults sentence: the QA pair reads every result; the security pair reads sensitive work; only I skip a default; the rest are judgment or my call. (#262 keeps it outside the lens part.)</div>' +
+    '<div>Stop and ask me: round twice, off the plan, hard to reverse, or no longer able to say why it is right.</div>' +
+    '<div>Always mine: proceed, fix or kill; the ticket cut; accepting, closing, merging; an install; anything published.</div>';
+
+  renderPanel(); renderPreview();
+  requestAnimationFrame(drawLoops);
+}
+function isSel(kind, s, a){ const x = S.sel; return x && x.kind === kind && x.s === s && (a === undefined || x.a === a); }
+
+function drawLoops(){
+  const svg = $('loops'), wrap = $('canvaswrap').getBoundingClientRect(), els = [...document.querySelectorAll('.stage')];
+  let out = '<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="currentColor" style="color:var(--tgraph)"/></marker></defs>';
+  S.loops.forEach((l, li) => {
+    const A = els[l.from], B = els[l.to]; if (!A || !B) return;
+    const ra = A.getBoundingClientRect(), rb = B.getBoundingClientRect();
+    const x1 = ra.left - wrap.left + ra.width * .6, x2 = rb.left - wrap.left + rb.width * .4, y = ra.top - wrap.top;
+    const lift = 18 + 14 * (li % 3) + (l.from === l.to ? 0 : 10);
+    const d = l.from === l.to
+      ? `M${x1},${y} C${x1+30},${y-lift-20} ${x2-30},${y-lift-20} ${x2},${y}`
+      : `M${x1},${y} C${x1},${y-lift-30} ${x2},${y-lift-30} ${x2},${y}`;
+    const sel = S.sel && S.sel.kind === 'loop' && S.sel.l === li;
+    out += `<path d="${d}" marker-end="url(#ah)" class="${sel?'sel':''}"/><text x="${(x1+x2)/2}" y="${y-lift-14}" text-anchor="middle" data-l="${li}">↺ ${esc(l.when)}</text>`;
+  });
+  svg.innerHTML = out;
+  svg.querySelectorAll('text').forEach(t => t.onclick = () => { S.sel = { kind: 'loop', l: +t.dataset.l }; render(); });
+}
+
+// ---- Right-hand panel
+function renderPanel(){
+  const p = $('panel'), x = S.sel;
+  let h = '';
+  if (x && x.kind === 'stage') {
+    const st = S.stages[x.s];
+    h += `<h2>Stage <span class="tag tgraph">graph only</span></h2>
+      <label>Name<input id="p_name" value="${esc(st.name)}"></label>
+      <label>What happens here<textarea id="p_text" rows="2">${esc(st.text)}</textarea></label>
+      <div class="row"><button id="p_left">← Move</button><button id="p_right">Move →</button><button id="p_del">Delete stage</button></div>
+      <label>Add an agent <span class="tag t262">#262 builds</span></label>
+      <div class="row"><select id="p_newag">${LENSES.map(n=>`<option>${n}</option>`).join('')}<option value="__own">your own agent…</option></select><button id="p_add">Add</button></div>
+      <p class="muted">An agent lands with "Every build"; pick its condition after. Two agents with the same condition at the same stage fire together: that is all a pair is.</p>`;
+  } else if (x && x.kind === 'agent') {
+    const st = S.stages[x.s], ag = st.agents[x.a];
+    h += `<h2>${esc(ag.name)} <span class="muted">at ${esc(st.name)}</span> <span class="tag t262">#262 builds</span></h2>
+      <label>When it fires<select id="p_cond">${Object.entries(CONDS).map(([k,c])=>`<option value="${k}" ${ag.cond===k?'selected':''}>${c.label}</option>`).join('')}</select></label>
+      ${ag.cond==='custom'?`<label>In your words<input id="p_custom" value="${esc(ag.custom)}" placeholder="e.g. when the change touches billing"></label>`:''}
+      ${ag.own?'':`<label>Model and effort (a setting, not part of the graph)<select disabled><option>its own file's default</option></select></label>`}
+      <div class="row"><button id="p_rm">Remove from this stage</button></div>`;
+  } else if (x && x.kind === 'loop') {
+    const l = S.loops[x.l];
+    const opts = v => S.stages.map((s,i)=>`<option value="${i}" ${v===i?'selected':''}>${esc(s.name)}</option>`).join('');
+    h += `<h2>Loop back <span class="tag tgraph">graph only</span></h2>
+      <label>From<select id="p_from">${opts(l.from)}</select></label><label>Back to<select id="p_to">${opts(l.to)}</select></label>
+      <label>When<input id="p_when" value="${esc(l.when)}"></label><div class="row"><button id="p_lrm">Delete loop</button></div>`;
+  } else {
+    h += `<h2>Select something</h2><p class="muted">Click a stage, an agent or a loop's label. The tier and sensitive-work parts are below.</p>`;
+  }
+  const sp = splits(), dg = defaultsGaps();
+  if (sp.length || dg.length) h += `<div class="warn"><b>Open question, not a rule:</b><br>${[...sp.map(s=>'Pair split: '+s), ...dg].map(esc).join('<br>')}</div>`;
+
+  h += `<h2>Tiers <span class="tag t262">#262 builds</span></h2><table class="tiers">` +
+    S.tiers.map((t,i)=>`<tr><td><b>${t.name}</b><br><input data-t="${i}" data-f="fits" value="${esc(t.fits)}"></td><td>plan<br>${sel(i,'plan',t.plan,true)}</td><td>build<br>${sel(i,'build',t.build)}</td></tr>`).join('') + '</table>';
+  h += `<h2>Sensitive work <span class="tag t262">#262 builds</span></h2><div class="chips">` +
+    S.sensitive.map((s,i)=>`<span class="chip">${esc(s)}<button data-rs="${i}" aria-label="remove ${esc(s)}">×</button></span>`).join('') +
+    `</div><div class="row"><input id="p_sens" placeholder="add, e.g. payments"><button id="p_sadd">Add</button></div><p class="muted">Runs thorough, built on Opus at high.</p>`;
+  p.innerHTML = h;
+  bindPanel();
+}
+function sel(i, f, v, none){
+  const o = (none?['none']:[]).concat(['Opus, low','Opus, medium','Opus, high','Sonnet, medium','Sonnet, high']);
+  return `<select data-t="${i}" data-f="${f}">${o.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('')}</select>`;
+}
+function bindPanel(){
+  const x = S.sel, on = (id, ev, fn) => { const e = $(id); if (e) e[ev] = fn; };
+  if (x && x.kind === 'stage') {
+    const st = S.stages[x.s];
+    on('p_name','oninput', e => { st.name = e.target.value; renderSoft(); });
+    on('p_text','oninput', e => { st.text = e.target.value; renderSoft(); });
+    on('p_left','onclick', () => moveStage(x.s, -1)); on('p_right','onclick', () => moveStage(x.s, 1));
+    on('p_del','onclick', () => { S.stages.splice(x.s,1); S.loops = S.loops.filter(l=>l.from!==x.s&&l.to!==x.s).map(l=>({...l,from:l.from-(l.from>x.s),to:l.to-(l.to>x.s)})); S.sel=null; render(); });
+    on('p_add','onclick', () => { const v = $('p_newag').value; const own = v === '__own';
+      const n = own ? (prompt2('my-reviewer')) : v; st.agents.push({ name: n, cond: 'always', custom: '', own }); S.sel = { kind:'agent', s:x.s, a:st.agents.length-1 }; render(); });
+  }
+  if (x && x.kind === 'agent') {
+    const ag = S.stages[x.s].agents[x.a];
+    on('p_cond','onchange', e => { ag.cond = e.target.value; render(); });
+    on('p_custom','oninput', e => { ag.custom = e.target.value; renderSoft(); });
+    on('p_rm','onclick', () => { S.stages[x.s].agents.splice(x.a,1); S.sel = { kind:'stage', s:x.s }; render(); });
+  }
+  if (x && x.kind === 'loop') {
+    const l = S.loops[x.l];
+    on('p_from','onchange', e => { l.from = +e.target.value; render(); });
+    on('p_to','onchange', e => { l.to = +e.target.value; render(); });
+    on('p_when','oninput', e => { l.when = e.target.value; requestAnimationFrame(drawLoops); renderPreview(); });
+    on('p_lrm','onclick', () => { S.loops.splice(x.l,1); S.sel=null; render(); });
+  }
+  document.querySelectorAll('#panel [data-t]').forEach(e => e.onchange = e.oninput = ev => { S.tiers[+e.dataset.t][e.dataset.f] = ev.target.value; renderPreview(); });
+  document.querySelectorAll('#panel [data-rs]').forEach(b => b.onclick = () => { S.sensitive.splice(+b.dataset.rs,1); render(); });
+  on('p_sadd','onclick', () => { const v = $('p_sens').value.trim(); if (v) { S.sensitive.push(v); render(); } });
+}
+// No window.prompt (a modal dialog); own agents get a numbered placeholder name.
+let ownN = 0; function prompt2(base){ ownN++; return base + (ownN > 1 ? '-' + ownN : ''); }
+function moveStage(i, d){
+  const j = i + d; if (j < 0 || j >= S.stages.length) return;
+  [S.stages[i], S.stages[j]] = [S.stages[j], S.stages[i]];
+  const sw = k => k === i ? j : k === j ? i : k;
+  S.loops = S.loops.map(l => ({ ...l, from: sw(l.from), to: sw(l.to) }));
+  S.sel = { kind: 'stage', s: j }; render();
+}
+// Text edits: keep the input focused, refresh the canvas text and preview only.
+function renderSoft(){ const f = document.activeElement && document.activeElement.id; render(); if (f && $(f)) { const e = $(f); e.focus(); const n = e.value.length; e.setSelectionRange && e.setSelectionRange(n, n); } }
+
+// ---- Preview: the lens table derived from the graph; and what has nowhere to go.
+function lensRows(){
+  const rows = new Map(); // key: names + condition -> stages
+  S.stages.forEach(st => groups(st).forEach(idx => {
+    const ags = idx.map(i => st.agents[i]); const names = ags.map(g => g.name).sort();
+    const k = names.join('+') + '|' + condKey(ags[0]);
+    if (!rows.has(k)) rows.set(k, { names, cond: condText(ags[0]), stages: [] });
+    rows.get(k).stages.push(st.name);
+  }));
+  return [...rows.values()];
+}
+function renderPreview(){
+  document.querySelectorAll('.preview .tabs button').forEach(b => { b.classList.toggle('on', b.dataset.tab === S.tab); b.onclick = () => { S.tab = b.dataset.tab; renderPreview(); }; });
+  let t;
+  if (S.tab === 'parts') {
+    t = '── tiers (Scriptorium builds this) ──\n| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n' +
+      S.tiers.map(x => `| ${x.name} | ${x.fits} | ${x.plan} | ${x.build} |`).join('\n') +
+      '\n\n── sensitive (Scriptorium builds this) ──\nSensitive work gets more checking. By default, sensitive work is ' + listJoin(S.sensitive) + ': thorough, built on Opus at high.\n\n' +
+      '── lenses (Scriptorium builds this; derived from the graph) ──\n| Lens | Where it fits |\n| --- | --- |\n' +
+      lensRows().map(r => { const pn = pairName(r.names); return `| ${r.names.map(n=>'`'+n+'`').join(', ')}${pn && r.names.length>1 && pn!=='fire together' ? ' ('+pn+')' : ''} | ${r.cond}, at ${listJoin(r.stages)} |`; }).join('\n') +
+      '\n\n── fixed, outside the lens part ──\n**The defaults.** The QA pair reads every result. The security pair reads sensitive work. Only I skip a default. The rest are your judgment, or my call.';
+  } else {
+    t = 'The graph holds these; no open part takes them today. Making any of them reach the rules file is a change to the renderer and the gate (security route).\n\n' +
+      '• Stage names and order: ' + S.stages.map(s=>s.name).join(' → ') + '\n' +
+      '• What happens at each stage:\n' + S.stages.map(s=>`    ${s.name}: ${s.text}`).join('\n') + '\n' +
+      '• Loops back:\n' + (S.loops.map(l=>`    ${S.stages[l.from]?.name} ↺ ${S.stages[l.to]?.name}, when ${l.when}`).join('\n') || '    (none)') + '\n' +
+      '• Where a lens sits beyond its row: the lens table above flattens "at <stages>" into prose; the stage itself is only words in the row.\n' +
+      '• Order of agents inside a stage.\n\n' +
+      'The moves never compile: they are my practices, not steps.';
+  }
+  $('previewText').textContent = t;
+}
+const listJoin = xs => xs.length < 2 ? xs.join('') : xs.slice(0,-1).join(', ') + ' and ' + xs[xs.length-1];
+
+// ---- Toolbar
+$('addStage').onclick = () => { S.stages.push({ name: 'New stage', text: 'What happens here.', agents: [] }); S.sel = { kind:'stage', s:S.stages.length-1 }; render(); };
+$('addLoop').onclick = () => { if (S.stages.length < 1) return; S.loops.push({ from: S.stages.length-1, to: 0, when: 'your words' }); S.sel = { kind:'loop', l:S.loops.length-1 }; render(); };
+$('resetBtn').onclick = () => { S = fresh(); render(); };
+window.addEventListener('resize', () => requestAnimationFrame(drawLoops));
+$('stages').addEventListener('scroll', () => requestAnimationFrame(drawLoops));
+
+// ---- Guided tour
+const TOUR = [
+  ['practices', 'These are my practices. They are not steps and are not wired into anything: I take each up as the work needs it.'],
+  ['stages', 'The graph: stages I name and order. Each stage lists the agents that run there, each with a condition saying when it fires.'],
+  ['stages', 'Two agents with the same condition at the same stage fire together. That is all a pair is: the blue boxes. The pact ships its defaults as pairs.'],
+  ['sim', 'Try a piece of work: pick a tier and what it touches, and see which agents fire (green) and which stay idle.'],
+  ['panel', 'Click anything to edit it here. Tiers and sensitive work are Scriptorium\'s parts from #262, edited in the panel.'],
+  ['preview', 'What the graph would compile to. The lens table is derived from the graph; the second tab lists what has nowhere to go today.'],
+];
+let tourI = -1, tourEl = null;
+function tour(i){
+  document.querySelectorAll('.tourhl').forEach(e => e.classList.remove('tourhl'));
+  if (tourEl) tourEl.remove(); tourEl = null;
+  if (i < 0 || i >= TOUR.length) { tourI = -1; return; }
+  tourI = i; const [id, text] = TOUR[i], target = $(id); target.classList.add('tourhl'); target.scrollIntoView({ block: 'nearest' });
+  const r = target.getBoundingClientRect();
+  tourEl = document.createElement('div'); tourEl.className = 'tour'; tourEl.setAttribute('role','dialog');
+  tourEl.innerHTML = `<div class="n">${i+1} of ${TOUR.length}</div><p>${text}</p><div class="row"><button id="tPrev">Back</button><button id="tNext" class="primary">${i===TOUR.length-1?'Done':'Next'}</button><button id="tSkip">Skip</button></div>`;
+  document.body.appendChild(tourEl);
+  const top = Math.min(window.innerHeight - tourEl.offsetHeight - 10, Math.max(10, r.bottom + 8));
+  const left = Math.min(window.innerWidth - tourEl.offsetWidth - 10, Math.max(10, r.left));
+  tourEl.style.top = top + 'px'; tourEl.style.left = left + 'px';
+  $('tPrev').onclick = () => tour(i-1); $('tNext').onclick = () => tour(i+1); $('tSkip').onclick = () => tour(-1);
+  $('tNext').focus();
+}
+$('tourBtn').onclick = () => tour(0);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && tourI >= 0) tour(-1); });
+
+render();
+</script>
+</body>
+</html>
