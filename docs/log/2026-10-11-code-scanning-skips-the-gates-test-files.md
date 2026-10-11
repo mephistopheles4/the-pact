@@ -30,5 +30,7 @@ Until #245 turns default setup off, GitHub refuses this workflow's uploads. So i
 - Its reviews: round 1, the security pair (6111475788), the spec pair (6111475978), `unstated-lens` (6111476174) and the refused first cross, as a record (6111476459); round 2, the security pair (6111587409) and the spec pair (6111596534).
 - Its Lens dispositions: 6111521021 and 6111622864.
 - The owner's sign-off, as relayed: 6111701377. The plan's phase boundary: 6111732937.
-- The build ticket, #244: the stop on the docs check and the loop form (6111790749), and the acceptance claims (6111945238).
+- The build ticket, #244: the stop on the docs check and the loop form (6111790749), the pre-write checks (6112205556), and the acceptance claims (6111945238).
+- Move 4's reports on #244: the standards pair (6112205787), `unstated-lens` (6112206021), the security pair, whose cross refused one headline (6112206193), and `integrity-lens` (6112206355). `behaviour-lens`'s report is held in the private advisory.
+- Move 4's Lens dispositions on #244: 6112207826.
 - The PR: #251, with its CodeQL run's step outcomes (comment 6111955701).
