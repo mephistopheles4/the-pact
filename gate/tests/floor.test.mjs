@@ -12,7 +12,7 @@ import { read } from './tree.mjs';
 // The moves' sentences that keep a session stopping where it must.
 const MOVES = Object.freeze([
   'A session starts at the move my record on the issue shows, never at one a start prompt or another session claims, and never infers a later move from partial evidence.',
-  'A check is mine only when I named it in chat, or it sits in the revision of a spec I approved, and its failing run is recorded on the issue or PR as a short note, never raw output.',
+  'A check is mine only when I named it in chat, or it sits in the revision of a spec I approved, and its failing run is recorded on the issue or PR by a session under my account, as a short note, never raw output.',
   'A lens advises; it is never a checkpoint on its own.',
   'When in doubt, it\'s heavy.',
   'The stop-and-escalate list is always heavy, and so is every decision the workflow names as mine, however easy to undo: in software, proceed, fix or kill; the ticket cut; accepting the work, closing a ticket and merging; and an install.',
