@@ -20,11 +20,11 @@ When you build something that matters, what you say to an agent deserves the car
 
 ## Four moves
 
-The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. A seam is a joint in the work: between one move and the next, or between the parts a spec names. At each one, you check before the work goes on.
+The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it, and they run at every seam: a point where work is handed on, published or decided. Any move can send the work back. Under the moves sits a short floor that holds in every workflow: stop at the escalation signals, never publish a secret, give risky work the careful path and an independent review, and never run outsiders' code. The figure shows the moves as the software preset runs them, the one preset installed today.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-01-moves-dark.svg">
-  <img src="docs/img/fig-01-moves.svg" alt="FIG. 01, four moves, one owner. At each move you decide and the agent carries it out: you sense the work, think before doing, checkpoint the seams and stay the owner." width="800">
+  <img src="docs/img/fig-01-moves.svg" alt="FIG. 01, four moves, one owner. At each move you decide and the agent carries it out: you sense the work, think before doing, checkpoint the seams and stay the owner. All four run at every seam." width="800">
 </picture>
 
 <details>
@@ -37,7 +37,7 @@ The pact is a small, runnable version of my [engineering playbook](https://ayman
 | 3. Checkpoint the seams | Cut the tickets. Start and watch each build. | Builds test-first at the agreed seams. |
 | 4. Stay the owner | Decide whether it is done. | Runs the checks and lenses. Brings a verdict. |
 
-You decide at every seam.
+All four at every seam.
 
 </details>
 

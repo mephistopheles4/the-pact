@@ -1,5 +1,6 @@
-// FIG. 01: the four moves. What you do at each move, what the agent does,
-// and that you decide at every seam. Words from claude/CLAUDE.md's four moves.
+// FIG. 01: the four moves, as the software preset runs them. What you do at
+// each move, what the agent does, and that all four run at every seam. Words
+// from claude/CLAUDE.md's moves section and its moves 1 to 4.
 import { LEFT, PAD, RIGHT, block, label, sheet } from './draw.mjs';
 
 const YOU = [
@@ -64,8 +65,8 @@ AGENT.forEach((lines, i) => {
 });
 y += agentH + 26;
 
-// You decide at every seam: a bracket across all four moves.
-const DECIDE = 'You decide at every seam'.toUpperCase();
+// All four moves run at every seam: a bracket across them.
+const DECIDE = 'All four at every seam'.toUpperCase();
 els.push({ kind: 'line', x1: LEFT, y1: y - 7, x2: LEFT, y2: y + 7, stroke: 'ink', sw: 1.5 });
 // The text is centred, so it stays centred in any face; a diamond closes each
 // line where the text's widest box ends.
@@ -79,6 +80,6 @@ els.push({ kind: 'line', x1: MID + HALF + 6, y1: y, x2: RIGHT, y2: y, stroke: 'i
 els.push({ kind: 'line', x1: RIGHT, y1: y - 7, x2: RIGHT, y2: y + 7, stroke: 'ink', sw: 1.5 });
 
 const height = y + 7 + 20 + PAD + 2;
-const frame = sheet({ height, title: 'FIG. 01 — Four moves, one owner', aside: 'Move 1 → 4' });
+const frame = sheet({ height, title: 'FIG. 01 — Four moves, one owner', aside: 'Every seam' });
 
 export default { file: 'fig-01-moves', height, elements: [...frame.els, ...els] };

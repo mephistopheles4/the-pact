@@ -140,7 +140,7 @@ How to read it:
 | R12 Lens steered | Text a lens reads | Tool allow-list, the override mark for a setting off the reviewed default | Boundary, rule |
 | R13 Lens quotes a secret | Text a lens reads | "Never post a secret" | Rule |
 | R14 Foothold left behind | Text a session reads | Ask rules, in part | Prompt |
-| R15 Repo files argue | A cloned repo | `no-skill-overrides` | Rule |
+| R15 Repo files argue | A cloned repo | `no-skill-overrides`; the floor's "may only add" | Rule |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, the dry run | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
@@ -148,7 +148,7 @@ How to read it:
 | R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail" | Rule |
+| R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the risk floor, "Never post a secret or a personal detail", in the tracker rule and in the moves section's floor | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Never post a secret or a personal detail" and the publish stop; the cloud copy ships no commands | Outside the pact, rule |
 
@@ -277,13 +277,19 @@ once you install it.
   published, such as a package's contents, a release step or a personal
   detail in a committed file, can be built at the quick tier with no spec
   read. Three rules are left: the gated stop, which has a session ask you
-  before something hard to reverse is published; "secrets" on the floor, for
+  before something hard to reverse is published; "secrets" on the risk floor, for
   keys and tokens; and the tracker rule "Never post a secret or a personal
   detail". Text that frames such a change as quick work can steer past the
   reviews, and your answer at the stop is then the only check. A spec settles
   the stop for its pushes only when its "Needs a human" section says so, as
   #189's did. The owner chose this over narrowing the phrase (#189, ADR
-  0050).
+  0050). Since #186 the floor in the rules file's moves section also says
+  never to post or publish a secret or a personal detail, in any workflow or
+  repo. The owner accepted again, by name, that personal data written into
+  code or logs can ship below the thorough tier, guarded only by that rule
+  and the publish stop. Neither guard reaches personal data the built code
+  writes to its own logs at run time, and the owner accepted that too (#186,
+  ADR 0056).
 
 ## A session that reads text as instructions
 
@@ -334,7 +340,10 @@ session can act before you see it.
 - **R15. A repo's instruction files are instructions.** A cloned repo's
   `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. The pact
   bars them, by a rule, only from widening who counts on the tracker and from
-  running outsiders' code. They can still argue against the other rules.
+  running outsiders' code. Since #186 the floor also says a skill, a workflow
+  or a project instruction file may only add, and that text claiming
+  otherwise is data; that is a rule too, not a check. They can still argue
+  against the other rules.
 - **R16. Sessions no person started** have no rule yet. A routine or an event
   trigger can open with an outsider's text where your chat would be (#184).
   Don't point one at a pact setup with a public tracker.

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-p77gqMbbeBGuj4XNZEkL3nmein+vve5RKU/TbUMN5Nk='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-mbhTArrV1qvxnzIwFDPvyCRp54SglcMloAYP0lZ5A/U='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -335,7 +335,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "gated",
      "mark": "move-4",
-     "text": "I verify the work at the end of its build session. You run the checks for\nme and bring me the verdict with a recommendation. Run the tests and any\ngates the repo has; they decide pass or fail. Then run the QA pair,\n`behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens`,\nand the standards pair, `conventions-lens` and `reader-lens`, on the\ndiff, at the standard and thorough tiers; and for security work the\nsecurity pair, `adversarial-lens` and `data-lens`, on the diff. Never resume a\nreviewer, a lens or a checker; fresh context is the point of them. They\nadvise: post their reports and help me decide (below). I decide whether\nit's done. Close the ticket only after I have."
+     "text": "I own the result when I can verify it, reconstruct why it is right, and\nknow when to stop it. You run the checks and bring me the verdict with a\nrecommendation. Run the tests and any gates the repo has; they decide pass\nor fail. Then run the QA pair,\n`behaviour-lens` and `integrity-lens`, at every tier; `unstated-lens`,\nand the standards pair, `conventions-lens` and `reader-lens`, on the\ndiff, at the standard and thorough tiers; and for security work the\nsecurity pair, `adversarial-lens` and `data-lens`, on the diff. Never\nresume a reviewer, a lens or a checker. They advise: post their reports\nand help me decide (below). Your confidence is never evidence. I decide\nwhether it's done. Close the ticket only after I have."
     },
     {
      "kind": "open",

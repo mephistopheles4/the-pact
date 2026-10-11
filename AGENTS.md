@@ -340,6 +340,7 @@ Where two bullets apply, the stricter one holds.
 - **A change to any of these takes the security route,** so the security pair
   reads its spec and its diff:
   - the risk floor, the security route or a gated clause;
+  - the moves section of `claude/CLAUDE.md`, which holds the floor;
   - anything in the protected set below;
   - any security-set lens;
   - any agent that is not a lens, when it holds a shell or network tools, or
