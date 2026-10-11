@@ -1,9 +1,10 @@
 <!doctype html>
 <!-- PROTOTYPE v3 for #143, THROWAWAY. Never for main. Hand-written, no generator.
-     Question it answers: what the workflow builder looks like on the new pact's
-     shape (moves as practices, tiers as checking, lenses as tools with loose
-     conditions), and where the graph adds to or overlaps #262's three parts.
-     It saves, downloads and copies nothing: nothing it shows can reach the installer. -->
+     Revision 1: a drag-and-drop node canvas. Stages are the work's own lifecycle;
+     condition nodes sit between a stage and its agents and switch on and off;
+     the moves sit beside the work as practices, never on the canvas.
+     Styled with the Aviation design system's deck theme, tokens carried inline
+     as in builder/scriptorium.html. It saves, downloads and copies nothing. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -11,116 +12,213 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 <title>Workflow builder v3 (throwaway)</title>
 <style>
-:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#d9d6cf;--acc:#2f5fa7;
---t262:#2f5fa7;--t262bg:#e6eef9;--tgraph:#9a5b00;--tgraphbg:#fbefd9;--tfix:#555;--tfixbg:#ebe9e4;
---fire:#1f7a3a;--firebg:#e3f3e7;--warn:#a3281c;--warnbg:#fbe5e2}
-@media (prefers-color-scheme:dark){:root{--bg:#1b1b1a;--card:#262624;--ink:#ecebe7;--mute:#a09e98;--line:#3d3c39;--acc:#8fb2ea;
---t262:#8fb2ea;--t262bg:#24324a;--tgraph:#e8b25e;--tgraphbg:#3b2f1b;--tfix:#bbb;--tfixbg:#33322f;--fire:#7fd39a;--firebg:#1f3626;--warn:#f08a7e;--warnbg:#45231f}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-.banner{background:var(--warnbg);color:var(--warn);padding:6px 16px;font-weight:600;font-size:13px}
-header{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-header h1{font-size:17px;margin:0 12px 0 0}
-button,select,input,textarea{font:inherit;color:inherit}
-button{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
-button:hover{border-color:var(--acc)}
-button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
-select,input,textarea{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
-.layout{display:grid;grid-template-columns:1fr 340px;min-height:calc(100vh - 90px)}
-@media (max-width:900px){.layout{grid-template-columns:1fr}}
-main{padding:12px 16px;overflow:auto}
-aside{border-left:1px solid var(--line);padding:12px 16px;background:var(--card);overflow:auto}
-.tag{display:inline-block;font-size:11px;font-weight:600;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:middle;white-space:nowrap}
-.tag.t262{background:var(--t262bg);color:var(--t262)}
-.tag.tgraph{background:var(--tgraphbg);color:var(--tgraph)}
-.tag.tfix{background:var(--tfixbg);color:var(--tfix)}
-.strip{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin-bottom:10px}
-.strip .lbl{font-size:12px;color:var(--mute);width:100%}
-.practice{border:1px dashed var(--line);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--mute);max-width:220px}
-.practice b{color:var(--ink)}
-.sim{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:10px}
-.sim .note{font-size:12px;color:var(--mute)}
-.canvaswrap{position:relative;padding-top:70px}
-svg#loops{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
-svg#loops path{fill:none;stroke:var(--tgraph);stroke-width:1.6;stroke-dasharray:5 4}
-svg#loops path.sel{stroke-width:3}
-svg#loops text{font-size:11px;fill:var(--tgraph);pointer-events:auto;cursor:pointer}
-.stages{display:flex;gap:28px;align-items:flex-start;flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px}
-.stage{flex:0 0 190px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;position:relative;cursor:pointer}
-.stage.sel{outline:2px solid var(--acc)}
-.stage.skipped{opacity:.45}
-.stage+.stage::before{content:"→";position:absolute;left:-21px;top:12px;color:var(--mute)}
-.stage h3{margin:0 0 2px;font-size:14px}
-.stage .txt{font-size:12px;color:var(--mute);margin-bottom:6px}
-.group{border:1px solid var(--line);border-radius:7px;padding:4px 6px;margin-top:5px}
-.group.pair{border-color:var(--t262)}
-.group .cond{font-size:11px;color:var(--mute)}
-.agent{display:block;width:100%;text-align:left;border:0;background:none;padding:2px 2px;border-radius:4px;font-size:12px}
-.agent.sel{background:var(--t262bg)}
-.agent.own{font-style:italic}
-.group.fires{background:var(--firebg);border-color:var(--fire)}
-.group.idle{opacity:.5}
-.fixedband{margin-top:14px;background:var(--tfixbg);border-radius:8px;padding:8px 10px;font-size:12px}
-.fixedband div{margin:2px 0}
-.preview{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:8px}
-.preview .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding:6px}
-.preview .tabs button.on{border-color:var(--acc);font-weight:600}
-.preview pre{margin:0;padding:10px;white-space:pre-wrap;font:12px/1.5 ui-monospace,Consolas,monospace;max-height:340px;overflow:auto}
-aside h2{font-size:14px;margin:14px 0 6px}
-aside h2:first-child{margin-top:0}
-aside label{display:block;font-size:12px;color:var(--mute);margin-top:6px}
-aside input,aside select,aside textarea{width:100%}
-.warn{background:var(--warnbg);color:var(--warn);border-radius:6px;padding:6px 8px;font-size:12px;margin-top:8px}
-.muted{color:var(--mute);font-size:12px}
-table.tiers{width:100%;border-collapse:collapse;font-size:12px}
-table.tiers td{padding:2px 2px;border-bottom:1px solid var(--line);vertical-align:top}
-table.tiers select{width:auto;padding:1px 2px}
-.chips{display:flex;flex-wrap:wrap;gap:4px}
-.chip{background:var(--t262bg);color:var(--t262);border-radius:12px;padding:1px 8px;font-size:12px}
-.chip button{border:0;background:none;padding:0 0 0 4px;color:inherit}
-.row{display:flex;gap:6px;margin-top:6px}
-.tour{position:fixed;z-index:20;max-width:320px;background:var(--card);border:2px solid var(--acc);border-radius:10px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
-.tour .n{font-size:11px;color:var(--mute)}
-.tourhl{outline:3px solid var(--acc)!important;outline-offset:3px}
+/* Aviation design system, deck theme: the tokens, carried inline. Light is the
+   default; dark is opt-in through the toggle. */
+:root {
+  --av-rule-hair: 1px; --av-rule-thin: 1.5px; --av-rule-bold: 2px;
+  --av-s1: 6px; --av-s2: 12px; --av-s3: 24px; --av-s4: 36px;
+  --av-t-micro: 0.6875rem; --av-t-annot: 0.8125rem; --av-t-body: 0.9375rem; --av-t-lead: 1.125rem;
+  --av-track-label: 0.16em;
+  --av-grid-size: 24px; --av-grid-major-every: 5;
+  --av-paper: #fafaf7; --av-ink: #22262b; --av-caution: #b45309; --av-normal: #15803d;
+  --av-ink-80: rgb(34 38 43 / 0.8); --av-ink-70: rgb(34 38 43 / 0.7); --av-ink-55: rgb(34 38 43 / 0.55);
+  --av-ink-30: rgb(34 38 43 / 0.3); --av-ink-12: rgb(34 38 43 / 0.12);
+  --av-grid-minor: rgb(34 38 43 / 0.035); --av-grid-major: rgb(34 38 43 / 0.085);
+  --av-surface: rgb(250 250 247 / 0.72); --av-ground: #efefe9; --av-paper-tech: #eaf0f6;
+  --av-font: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media screen {
+  [data-aviation-scheme="dark"] {
+    --av-paper: #1a1614; --av-ink: #ece5df; --av-caution: #d98a3c; --av-normal: #4fae6d;
+    --av-ink-80: rgb(236 229 223 / 0.80); --av-ink-70: rgb(236 229 223 / 0.70); --av-ink-55: rgb(236 229 223 / 0.55);
+    --av-ink-30: rgb(236 229 223 / 0.28); --av-ink-12: rgb(236 229 223 / 0.11);
+    --av-grid-minor: rgb(236 229 223 / 0.032); --av-grid-major: rgb(236 229 223 / 0.075);
+    --av-surface: rgb(32 27 24 / 0.72); --av-ground: #100e0d; --av-paper-tech: #141a20;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.5; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.av-label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; color: var(--av-ink-70); }
+.av-annot { font-size: var(--av-t-annot); line-height: 1.5; color: var(--av-ink-70); margin: 0; }
+.av-tool-stamp { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; white-space: nowrap; }
+.av-tool-stamp--caution { color: var(--av-caution); }
+.av-tool-stamp--normal { color: var(--av-normal); }
+.av-tool-chip { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; padding: 5px var(--av-s2); border: var(--av-rule-hair) solid var(--av-ink); background: transparent; cursor: pointer; white-space: nowrap; }
+.av-tool-chip:hover { color: var(--av-caution); border-color: var(--av-caution); }
+.av-tool-chip--on { background: var(--av-ink); color: var(--av-paper); }
+.av-tool-chip--on:hover { color: var(--av-paper); border-color: var(--av-ink); }
+.av-tool-chip--ghost { border-color: var(--av-ink-30); color: var(--av-ink-80); }
+:focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; }
+
+/* SHELL: the sheet, head, library | canvas | panel. */
+.sheet { height: 100vh; display: grid; grid-template-rows: auto auto 1fr; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-surface); }
+.head { display: flex; align-items: center; gap: var(--av-s2); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+.head h1 { font-size: var(--av-t-lead); margin: 0; font-weight: 600; }
+.head .sp { flex: 1; }
+.bar { display: flex; align-items: center; gap: var(--av-s1); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.bar .note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
+.cols { display: grid; grid-template-columns: 250px 1fr 330px; min-height: 0; }
+@media (max-width: 1000px) { .cols { grid-template-columns: 200px 1fr; } #panel { grid-column: 1 / -1; max-height: 40vh; } }
+.side { overflow: auto; padding: var(--av-s2); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s1); }
+#panel { overflow: auto; border-left: var(--av-rule-hair) solid var(--av-ink-30); }
+
+/* LIBRARY */
+.lib { display: flex; align-items: center; gap: var(--av-s1); width: 100%; text-align: left; padding: var(--av-s1); border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-paper); cursor: grab; transition: transform .12s, border-color .12s; }
+.lib:hover { border-color: var(--av-ink); transform: translateX(2px); }
+.lib .ic { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: var(--av-rule-hair) solid currentColor; font-size: 12px; }
+.lib .ic.cond { transform: rotate(45deg) scale(.8); }
+.lib .ic.cond span { transform: rotate(-45deg); }
+.lib b { font-size: var(--av-t-annot); font-weight: 600; display: block; }
+.lib small { font-size: var(--av-t-micro); color: var(--av-ink-70); display: block; }
+.practices { margin-top: var(--av-s2); padding-top: var(--av-s2); border-top: var(--av-rule-hair) dashed var(--av-ink-30); }
+.practice { padding: var(--av-s1) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.practice b { font-size: var(--av-t-annot); font-weight: 600; }
+.practice p { margin: 0; font-size: var(--av-t-micro); color: var(--av-ink-70); }
+
+/* CANVAS: the drafting grid, panned and zoomed. */
+#canvas { position: relative; overflow: hidden; cursor: grab; touch-action: none;
+  background-color: var(--av-ground);
+  background-image:
+    linear-gradient(to right, var(--av-grid-major) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-major) 1px, transparent 1px),
+    linear-gradient(to right, var(--av-grid-minor) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-minor) 1px, transparent 1px); }
+#canvas.panning { cursor: grabbing; }
+#canvas.dropping { box-shadow: inset 0 0 0 var(--av-rule-bold) var(--av-caution); }
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+#edges path.e { fill: none; stroke: var(--av-ink-55); stroke-width: 1.5; pointer-events: stroke; cursor: pointer; }
+#edges path.hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; cursor: pointer; }
+#edges path.e.next { stroke: var(--av-ink); stroke-width: 2; }
+#edges path.e.flow { stroke: var(--av-normal); stroke-dasharray: 6 6; animation: flow 0.9s linear infinite; }
+#edges path.e.off { stroke: var(--av-ink-30); stroke-dasharray: 2 5; }
+#edges path.e.loop { stroke: var(--av-caution); stroke-dasharray: 8 5; animation: flow 1.6s linear infinite reverse; }
+#edges path.e.sel { stroke-width: 3.5; }
+#edges path.temp { fill: none; stroke: var(--av-caution); stroke-width: 2; stroke-dasharray: 4 4; }
+#edges text { font-family: var(--av-font); font-size: 11px; fill: var(--av-caution); pointer-events: all; cursor: pointer; paint-order: stroke; stroke: var(--av-ground); stroke-width: 4px; }
+#edges circle.pulse { fill: var(--av-normal); filter: drop-shadow(0 0 4px var(--av-normal)); }
+@keyframes flow { to { stroke-dashoffset: -24; } }
+.zoom { position: absolute; left: var(--av-s2); bottom: var(--av-s2); display: flex; gap: 2px; background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); }
+.zoom button { border: 0; background: none; padding: 4px 9px; cursor: pointer; font-size: var(--av-t-annot); }
+.zoom span { padding: 4px 6px; font-size: var(--av-t-micro); min-width: 44px; text-align: center; align-self: center; }
+#toast { position: absolute; left: 50%; bottom: var(--av-s2); transform: translateX(-50%); background: var(--av-ink); color: var(--av-paper); padding: 5px 12px; font-size: var(--av-t-annot); opacity: 0; transition: opacity .25s; pointer-events: none; }
+#toast.on { opacity: 1; }
+
+/* NODES */
+.node { position: absolute; background: var(--av-paper); border: var(--av-rule-thin) solid var(--av-ink); cursor: move; user-select: none; animation: pop .22s ease-out; transition: box-shadow .15s, opacity .2s; }
+.node:hover { box-shadow: 3px 3px 0 var(--av-ink-12); }
+.node.sel { box-shadow: 0 0 0 var(--av-rule-bold) var(--av-caution); }
+.node.dragging { box-shadow: 6px 6px 0 var(--av-ink-12); z-index: 5; }
+@keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.node.stage { width: 200px; padding: var(--av-s1) var(--av-s2); border-width: var(--av-rule-bold); }
+.node.stage .kind { display: flex; justify-content: space-between; }
+.node.stage h3 { margin: 0; font-size: var(--av-t-body); font-weight: 600; }
+.node.stage p { margin: 0; font-size: var(--av-t-micro); color: var(--av-ink-70); }
+.node.stage.skipped { opacity: .45; }
+.node.stage.active { box-shadow: 0 0 0 4px var(--av-normal); }
+.node.cond { width: 168px; padding: var(--av-s1) var(--av-s1) var(--av-s1) var(--av-s2); border-style: dashed; }
+.node.cond .row1 { display: flex; align-items: center; gap: var(--av-s1); }
+.node.cond .q { flex: 1; font-size: var(--av-t-micro); line-height: 1.3; }
+.node.cond .q b { display: block; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); font-weight: 500; }
+.node.cond.pass { border-color: var(--av-normal); border-style: solid; }
+.node.cond.off { opacity: .55; }
+.node.cond.def::after { content: "default"; position: absolute; top: -9px; right: 6px; background: var(--av-paper); padding: 0 4px; font-size: 10px; letter-spacing: var(--av-track-label); text-transform: uppercase; color: var(--av-caution); }
+.node.cond .pair { font-size: 10px; color: var(--av-ink-70); margin-top: 2px; }
+.node.agent { width: 168px; padding: 4px var(--av-s2); font-size: var(--av-t-annot); border-width: var(--av-rule-hair); }
+.node.agent.own { font-style: italic; }
+.node.agent.fires { border-color: var(--av-normal); color: var(--av-normal); }
+.node.agent.fired { animation: fire .7s ease-out; }
+@keyframes fire { 0% { box-shadow: 0 0 0 0 var(--av-normal); } 100% { box-shadow: 0 0 0 14px transparent; } }
+.sw { position: relative; width: 30px; height: 16px; flex: none; border: var(--av-rule-hair) solid var(--av-ink); background: transparent; cursor: pointer; padding: 0; }
+.sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: var(--av-ink-55); transition: left .18s, background .18s; }
+.sw[aria-checked="true"] { background: var(--av-normal); border-color: var(--av-normal); }
+.sw[aria-checked="true"]::after { left: 16px; background: var(--av-paper); }
+.port { position: absolute; width: 12px; height: 12px; border: var(--av-rule-thin) solid var(--av-ink); background: var(--av-paper); border-radius: 50%; cursor: crosshair; transition: transform .12s, background .12s; }
+.port:hover, .port.hot { transform: scale(1.5); background: var(--av-caution); border-color: var(--av-caution); }
+.port.in { left: -7px; top: calc(50% - 6px); }
+.port.out { right: -7px; top: calc(50% - 6px); }
+.port.down { left: calc(50% - 6px); bottom: -7px; }
+.port.top { left: calc(50% - 6px); top: -7px; }
+
+/* WORKFLOW TABLE: the part the canvas edits, live under it. */
+.centre { display: grid; grid-template-rows: 1fr auto; min-height: 0; min-width: 0; }
+#wtable { max-height: 40vh; overflow: auto; border-top: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper); padding: var(--av-s1) var(--av-s2) var(--av-s2); }
+#wtable .whead { display: flex; gap: var(--av-s2); align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+#wtable h2 { font-size: var(--av-t-body); margin: 0; font-weight: 600; }
+table.wf { width: 100%; border-collapse: collapse; font-size: var(--av-t-micro); }
+table.wf th { text-align: left; font-weight: 500; text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); border-bottom: var(--av-rule-thin) solid var(--av-ink); padding: 3px 6px; }
+table.wf td { padding: 4px 6px; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); vertical-align: top; }
+table.wf tr { cursor: pointer; transition: background .15s; }
+table.wf tbody tr:hover { background: var(--av-ink-12); }
+table.wf tr.sel { box-shadow: inset 3px 0 0 var(--av-caution); }
+table.wf .cur { background: rgb(21 128 61 / 0.09); }
+table.wf th.cur { color: var(--av-normal); }
+table.wf .fire { color: var(--av-normal); font-weight: 600; }
+table.wf .idle { color: var(--av-ink-55); }
+table.wf .loop { color: var(--av-caution); }
+table.wf td b { font-weight: 600; font-size: var(--av-t-annot); }
+.flash { animation: flash .6s ease-out; }
+@keyframes flash { from { background: rgb(180 83 9 / 0.18); } to { background: transparent; } }
+
+/* PANEL */
+.tabs { display: flex; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); position: sticky; top: 0; background: var(--av-paper); z-index: 1; }
+.tab { flex: 1; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); padding: var(--av-s1); border: 0; border-bottom: var(--av-rule-bold) solid transparent; background: none; color: var(--av-ink-70); cursor: pointer; }
+.tab--on { color: var(--av-ink); border-bottom-color: var(--av-ink); font-weight: 600; }
+.pbody { padding: var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
+.pbody h2 { font-size: var(--av-t-body); margin: var(--av-s1) 0 0; font-weight: 600; }
+.pbody label { display: flex; flex-direction: column; gap: 2px; }
+.pbody input, .pbody select, .pbody textarea { width: 100%; padding: 4px 6px; border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-paper); }
+.warn { border-left: var(--av-rule-bold) solid var(--av-caution); padding: 4px 8px; font-size: var(--av-t-annot); color: var(--av-caution); background: var(--av-ink-12); }
+.tag { font-size: 10px; text-transform: uppercase; letter-spacing: var(--av-track-label); padding: 0 4px; border: var(--av-rule-hair) solid currentColor; white-space: nowrap; }
+.tag.t262 { color: var(--av-normal); } .tag.tgraph { color: var(--av-caution); } .tag.tfix { color: var(--av-ink-70); }
+table.tiers { width: 100%; border-collapse: collapse; font-size: var(--av-t-micro); }
+table.tiers td { padding: 3px 2px; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); vertical-align: top; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { border: var(--av-rule-hair) solid var(--av-ink-30); padding: 0 6px; font-size: var(--av-t-annot); }
+.chip button { border: 0; background: none; cursor: pointer; padding: 0 0 0 4px; }
+pre.out { margin: 0; white-space: pre-wrap; font-size: var(--av-t-micro); line-height: 1.55; overflow-wrap: anywhere; }
+
+/* TOUR */
+.tour { position: fixed; z-index: 30; max-width: 320px; background: var(--av-paper); border: var(--av-rule-bold) solid var(--av-ink); padding: var(--av-s2); box-shadow: 6px 6px 0 var(--av-ink-12); font-size: var(--av-t-annot); animation: pop .2s ease-out; }
+.tour p { margin: var(--av-s1) 0; }
+.tourhl { outline: 3px solid var(--av-caution) !important; outline-offset: 2px; }
 </style>
 </head>
 <body>
-<div class="banner">THROWAWAY PROTOTYPE v3 for #143. Not the builder. It saves and emits nothing; the text below is a preview only.</div>
-<header>
-  <h1>Workflow builder <span class="muted">v3</span></h1>
-  <span class="muted">Key:</span>
-  <span class="tag t262">#262 builds</span><span class="muted">a part Scriptorium already builds</span>
-  <span class="tag tgraph">graph only</span><span class="muted">no part takes it today</span>
-  <span class="tag tfix">fixed</span><span class="muted">shown, not editable</span>
-  <span style="flex:1"></span>
-  <button id="tourBtn" class="primary">Take the tour</button>
-  <button id="resetBtn">Reset</button>
-</header>
-<div class="layout">
-<main>
-  <div class="strip" id="practices"></div>
-  <div class="sim" id="sim"></div>
-  <div class="canvaswrap" id="canvaswrap">
-    <svg id="loops" aria-hidden="true"></svg>
-    <div class="stages" id="stages"></div>
+<div class="sheet">
+  <div class="head">
+    <h1>Workflow builder</h1>
+    <span class="av-tool-stamp av-tool-stamp--caution">Throwaway prototype v3 · emits nothing</span>
+    <span class="sp"></span>
+    <span class="tag t262">#262 builds</span><span class="tag tgraph">workflow part · new</span><span class="tag tfix">fixed</span>
+    <button class="av-tool-chip av-tool-chip--ghost" id="darkBtn" aria-pressed="false">Dark</button>
+    <button class="av-tool-chip av-tool-chip--ghost" id="resetBtn">Reset</button>
+    <button class="av-tool-chip av-tool-chip--on" id="tourBtn">Take the tour</button>
   </div>
-  <div class="row"><button id="addStage">+ Stage</button><button id="addLoop">+ Loop back</button></div>
-  <div class="fixedband" id="fixedband"></div>
-  <div class="preview" id="preview">
-    <div class="tabs"><button data-tab="parts" class="on">What #262's parts would hold</button><button data-tab="nothing">What compiles to nothing</button></div>
-    <pre id="previewText"></pre>
+  <div class="bar" id="sim"></div>
+  <div class="cols">
+    <div class="side" id="library"></div>
+    <div class="centre">
+    <div id="canvas">
+      <div id="world"><svg id="edges"></svg></div>
+      <div class="zoom"><button id="zOut" aria-label="zoom out">−</button><span id="zPct">100%</span><button id="zIn" aria-label="zoom in">+</button><button id="zFit">Fit</button></div>
+      <div id="toast" role="status"></div>
+    </div>
+    <div id="wtable"></div>
+    </div>
+    <div id="panel"></div>
   </div>
-</main>
-<aside id="panel"></aside>
 </div>
 <script>
 'use strict';
-// ---- Data, taken from claude/CLAUDE.md on main. Generic: no repo process.
+// ---- Data, from claude/CLAUDE.md on main and the owner's 2026-10-09 software preset.
 const PRACTICES = [
-  ['Sense the work', 'kind, size, risk; plan or experiment'],
-  ['Think before doing', 'intent clear enough to defend'],
-  ['Checkpoint the seams', 'the harder to undo, the heavier'],
-  ['Stay the owner', 'verify, reconstruct, know when to stop'],
+  ['Sense the work', 'Claude nudges when a bug has no reproduction yet, or a target nobody can know gets a plan instead of an experiment.'],
+  ['Think before doing', 'Claude nudges when the intent is still forming: a quick prototype finds it.'],
+  ['Checkpoint the seams', 'Claude nudges when something hard to undo has no checkpoint before it.'],
+  ['Stay the owner', 'Claude nudges when a pass rests on no check that could have failed.'],
 ];
 const LENSES = ['behaviour-lens','integrity-lens','executability-lens','unstated-lens','reader-lens','conventions-lens','adversarial-lens','data-lens','good-enough-lens'];
 const CONDS = {
@@ -130,283 +228,467 @@ const CONDS = {
   prose:     { label: 'The diff adds prose or docs', test: w => w.prose },
   rules:     { label: 'The repo has written rules', test: w => w.rules },
   heavy:     { label: 'Scope feels heavy', test: w => w.heavy },
-  custom:    { label: 'Your own words (judgment)', test: w => null },
+  custom:    { label: 'In your own words', test: w => false },
 };
-const DEFAULT_PAIRS = [['behaviour-lens','integrity-lens','the QA pair'],['adversarial-lens','data-lens','the security pair']];
-function fresh(){ return {
-  stages: [
-    { name: 'Sense', text: 'Kind, size and risk; propose a tier.', agents: [] },
-    { name: 'Spec', text: 'Intent, unhappy paths, decisions with their why.', skipOn: 'quick', agents: [
-      a('executability-lens','spec'), a('unstated-lens','spec'), a('adversarial-lens','sensitive'), a('data-lens','sensitive'), a('good-enough-lens','heavy') ] },
-    { name: 'Build', text: 'Test-first; the tests and gates decide.', agents: [] },
-    { name: 'Review the result', text: 'Claims checked against the ask.', agents: [
-      a('behaviour-lens','always'), a('integrity-lens','always'), a('unstated-lens','spec'), a('reader-lens','prose'),
-      a('conventions-lens','rules'), a('adversarial-lens','sensitive'), a('data-lens','sensitive') ] },
-    { name: 'Decide', text: 'I accept, or send it back.', agents: [] },
-  ],
-  loops: [ { from: 3, to: 2, when: 'a claim fails' }, { from: 4, to: 1, when: 'the intent changed' }, { from: 1, to: 1, when: 'fix' } ],
-  tiers: [
-    { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
-    { name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
-    { name: 'Thorough', fits: 'Too big for one session, or risky', plan: 'Opus, high', build: 'Sonnet, medium' },
-  ],
-  sensitive: ['auth','secrets','crypto','input validation','data migrations'],
-  work: { tier: 'standard', sensitive: false, prose: false, rules: true, heavy: false, on: true },
-  sel: null, tab: 'parts',
-};}
-function a(name, cond){ return { name, cond, custom: '', own: false }; }
-let S = fresh();
+const PAIRS = [['behaviour-lens','integrity-lens','the QA pair'],['adversarial-lens','data-lens','the security pair']];
+
+let S, uid = 0;
+const nid = p => p + (++uid);
+function fresh(){
+  uid = 0;
+  const st = {}, nodes = [], edges = [];
+  const STG = [['Plan','Kind, size and risk; a tier proposed.','plan'],['Design','The spec: intent, unhappy paths, decisions.','plan'],['Build','Test-first; tests and gates decide.','build'],
+    ['Test','Each claim checked against the ask.','build'],['Deploy','I accept and ship; nothing promotes itself.','owner'],['Maintain','What escaped, and what to change.','plan']];
+  const X = [40, 300, 660, 920, 1330, 1590];
+  STG.forEach(([name, text, model], i) => { const n = { id: nid('s'), kind: 'stage', name, text, model, x: X[i], y: 60, skipOn: name === 'Design' ? 'quick' : '' }; st[name] = n; nodes.push(n); });
+  for (let i = 0; i < STG.length - 1; i++) edges.push({ id: nid('e'), from: st[STG[i][0]].id, fp: 'out', to: st[STG[i+1][0]].id });
+  const cond = (stage, c, y, agents, def) => {
+    const n = { id: nid('c'), kind: 'cond', cond: c, custom: '', on: true, def: !!def, x: stage.x, y };
+    nodes.push(n); edges.push({ id: nid('e'), from: stage.id, fp: 'down', to: n.id });
+    agents.forEach((a, k) => { const g = { id: nid('a'), kind: 'agent', name: a, own: false, x: stage.x + 200, y: y + k * 40 - (agents.length > 1 ? 4 : -8) };
+      nodes.push(g); edges.push({ id: nid('e'), from: n.id, fp: 'out', to: g.id }); });
+  };
+  const D = st.Design, T = st.Test;
+  cond(D, 'spec', 200, ['executability-lens']);
+  cond(D, 'spec', 290, ['unstated-lens']);
+  cond(D, 'sensitive', 380, ['adversarial-lens','data-lens'], true);
+  cond(D, 'heavy', 490, ['good-enough-lens']);
+  cond(T, 'always', 200, ['behaviour-lens','integrity-lens'], true);
+  cond(T, 'spec', 310, ['unstated-lens']);
+  cond(T, 'prose', 400, ['reader-lens']);
+  cond(T, 'rules', 490, ['conventions-lens']);
+  cond(T, 'sensitive', 580, ['adversarial-lens','data-lens'], true);
+  edges.push({ id: nid('e'), from: T.id, fp: 'out', to: st.Build.id, when: 'a claim fails' });
+  edges.push({ id: nid('e'), from: T.id, fp: 'out', to: D.id, when: 'the intent changed' });
+  edges.push({ id: nid('e'), from: st.Maintain.id, fp: 'out', to: st.Plan.id, when: 'the next change' });
+  return { nodes, edges,
+    tiers: [
+      { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
+      { name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
+      { name: 'Thorough', fits: 'Too big for one session, or risky', plan: 'Opus, high', build: 'Sonnet, medium' }],
+    sensitive: ['auth','secrets','crypto','input validation','data migrations'],
+    work: { tier: 'standard', sensitive: false, prose: false, rules: true, heavy: false },
+    sel: null, tab: 'inspect', view: { x: 20, y: 10, k: 0.62 } };
+}
+
+// ---- Helpers
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const condText = ag => ag.cond === 'custom' ? (ag.custom || '(empty condition)') : CONDS[ag.cond].label;
-const condKey = ag => ag.cond === 'custom' ? 'custom:' + ag.custom.trim().toLowerCase() : ag.cond;
+const N = id => S.nodes.find(n => n.id === id);
+const nodeEl = id => document.querySelector(`.node[data-id="${id}"]`);
 const effTier = () => S.work.sensitive ? 'thorough' : S.work.tier;
+const condText = c => c.cond === 'custom' ? (c.custom || '(your words)') : CONDS[c.cond].label;
+const isLoop = e => { const a = N(e.from), b = N(e.to); return a && b && a.kind === 'stage' && b.kind === 'stage' && b.x < a.x; };
+const parentStage = c => { const e = S.edges.find(e => e.to === c.id && e.fp === 'down'); return e && N(e.from); };
+const children = c => S.edges.filter(e => e.from === c.id && N(e.to)?.kind === 'agent').map(e => N(e.to));
+const conds = st => S.edges.filter(e => e.from === st.id && e.fp === 'down').map(e => N(e.to)).filter(Boolean);
+function skipped(st){ return st.skipOn && st.skipOn === effTier(); }
+function passes(c){ const st = parentStage(c); return !!(c.on && st && !skipped(st) && CONDS[c.cond].test({ ...S.work, tier: effTier() })); }
+function pairLabel(names){
+  const p = PAIRS.find(([x,y]) => names.length === 2 && names.includes(x) && names.includes(y));
+  return p ? p[2] : names.length > 1 ? `fire together (${names.length})` : '';
+}
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2400); }
 
-// Group a stage's agents: same condition at the same stage = fires together (a pair, or more).
-function groups(st){
-  const m = new Map();
-  st.agents.forEach((ag, i) => { const k = condKey(ag); if (!m.has(k)) m.set(k, []); m.get(k).push(i); });
-  return [...m.values()];
-}
-function pairName(names){
-  const p = DEFAULT_PAIRS.find(([x,y]) => names.length === 2 && names.includes(x) && names.includes(y));
-  return p ? p[2] : (names.length > 1 ? 'fire together' : '');
-}
-// A default pair split: both lenses at one stage, different conditions.
-function splits(){
-  const out = [];
-  S.stages.forEach(st => DEFAULT_PAIRS.forEach(([x,y,label]) => {
-    const ax = st.agents.find(g => g.name === x), ay = st.agents.find(g => g.name === y);
-    if (ax && ay && condKey(ax) !== condKey(ay)) out.push(`${label} at ${st.name}: ${x} on "${condText(ax)}", ${y} on "${condText(ay)}"`);
-    if ((ax && !ay) || (ay && !ax)) out.push(`${label} at ${st.name}: only ${ax ? x : y} is placed`);
-  }));
-  return out;
-}
-function defaultsGaps(){
-  const out = [];
-  const has = (n, c) => S.stages.some(st => st.agents.some(g => g.name === n && g.cond === c));
-  if (!has('behaviour-lens','always') || !has('integrity-lens','always')) out.push('The defaults sentence says the QA pair reads every result, but the graph no longer runs it on every build.');
-  if (!has('adversarial-lens','sensitive') || !has('data-lens','sensitive')) out.push('The defaults sentence says the security pair reads sensitive work, but the graph no longer runs it there.');
-  return out;
-}
-
-// ---- Render
-function render(){
-  $('practices').innerHTML = '<div class="lbl">My practices: unordered, taken up as the work needs. Not wired into the graph. <span class="tag tfix">fixed</span></div>' +
-    PRACTICES.map(([n,d]) => `<div class="practice"><b>${n}</b><br>${d}</div>`).join('');
-  const w = S.work;
-  $('sim').innerHTML = `<b>Try a piece of work</b>
-    <label><input type="checkbox" id="w_on" ${w.on?'checked':''}> show what fires</label>
-    <label>tier <select id="w_tier">${['quick','standard','thorough'].map(t=>`<option ${w.tier===t?'selected':''}>${t}</option>`).join('')}</select></label>
-    ${['sensitive','prose','rules','heavy'].map(k=>`<label><input type="checkbox" id="w_${k}" ${w[k]?'checked':''}> ${CONDS[k].label.toLowerCase()}</label>`).join('')}
-    <span class="note">${w.sensitive && w.tier!=='thorough' ? 'Sensitive work runs thorough, whatever the tier picked.' : ''} Your-own-words conditions never fire here: they are judgment.</span>`;
-  ['tier'].forEach(k => $('w_'+k).onchange = e => { S.work[k] = e.target.value; render(); });
-  ['on','sensitive','prose','rules','heavy'].forEach(k => $('w_'+k).onchange = e => { S.work[k] = e.target.checked; render(); });
-
-  const tier = effTier();
-  $('stages').innerHTML = S.stages.map((st, si) => {
-    const skipped = w.on && st.skipOn === tier;
-    const gs = groups(st).map(idx => {
-      const ags = idx.map(i => st.agents[i]);
-      const f = CONDS[ags[0].cond].test({ ...w, tier });
-      const cls = !w.on || skipped ? '' : f ? 'fires' : 'idle';
-      const pn = pairName(ags.map(g => g.name));
-      return `<div class="group ${ags.length>1?'pair':''} ${cls}"><div class="cond">when: ${esc(condText(ags[0]))}${pn?` · <b>${esc(pn)}</b>`:''}</div>` +
-        idx.map(i => `<button class="agent ${st.agents[i].own?'own':''} ${isSel('agent',si,i)?'sel':''}" data-s="${si}" data-a="${i}">${esc(st.agents[i].name)}</button>`).join('') + '</div>';
-    }).join('');
-    return `<div class="stage ${isSel('stage',si)?'sel':''} ${skipped?'skipped':''}" data-s="${si}" tabindex="0">
-      <h3>${esc(st.name)}<span class="tag tgraph">graph only</span></h3><div class="txt">${esc(st.text)}${skipped?' <i>(no plan at quick)</i>':''}</div>
-      ${gs || '<div class="muted">No agents. Click to add.</div>'}
-      ${st.agents.length?'<div class="muted" style="margin-top:4px">agents + conditions <span class="tag t262">#262 builds</span></div>':''}</div>`;
-  }).join('');
-  document.querySelectorAll('.stage').forEach(el => {
-    el.onclick = e => { if (e.target.closest('.agent')) return; S.sel = { kind: 'stage', s: +el.dataset.s }; render(); };
-    el.onkeydown = e => { if (e.key === 'Enter') el.click(); };
+// ---- Library and practices
+function renderLibrary(){
+  const item = (type, val, ic, title, sub, cls='') => `<button class="lib" draggable="true" data-type="${type}" data-val="${esc(val)}"><span class="ic ${cls}"><span>${ic}</span></span><span><b>${esc(title)}</b><small>${esc(sub)}</small></span></button>`;
+  $('library').innerHTML = `<div class="av-label">Nodes library · drag onto the canvas</div>` +
+    item('stage','', '▭', 'Stage', 'a step of the work\'s own lifecycle') +
+    item('cond','always', '?', 'Condition', 'when its agents fire; switch on or off', 'cond') +
+    `<div class="av-label" style="margin-top:6px">Agents</div>` +
+    LENSES.map(l => item('agent', l, '◇', l, 'a pact lens')).join('') +
+    item('own', 'my-reviewer', '◆', 'Your own agent', 'a reviewer of yours') +
+    `<div class="practices"><div class="av-label">Beside the work · my practices</div><p class="av-annot" style="font-size:var(--av-t-micro)">No order and no arrows. I take each up as the work needs it; they never go on the canvas. <span class="tag tfix">fixed</span></p>` +
+    PRACTICES.map(([n, d]) => `<div class="practice"><b>${n}</b><p>${d}</p></div>`).join('') + `</div>`;
+  document.querySelectorAll('.lib').forEach(b => {
+    b.ondragstart = e => { e.dataTransfer.setData('text/plain', JSON.stringify({ type: b.dataset.type, val: b.dataset.val })); e.dataTransfer.effectAllowed = 'copy'; };
+    b.onclick = () => { const r = $('canvas').getBoundingClientRect(); addNode(b.dataset.type, b.dataset.val, toWorld(r.left + r.width / 2, r.top + r.height / 2)); };
   });
-  document.querySelectorAll('.agent').forEach(el => el.onclick = () => { S.sel = { kind: 'agent', s: +el.dataset.s, a: +el.dataset.a }; render(); });
-
-  $('fixedband').innerHTML = '<b>Fixed</b> <span class="tag tfix">fixed</span>' +
-    '<div>The defaults sentence: the QA pair reads every result; the security pair reads sensitive work; only I skip a default; the rest are judgment or my call. (#262 keeps it outside the lens part.)</div>' +
-    '<div>Stop and ask me: round twice, off the plan, hard to reverse, or no longer able to say why it is right.</div>' +
-    '<div>Always mine: proceed, fix or kill; the ticket cut; accepting, closing, merging; an install; anything published.</div>';
-
-  renderPanel(); renderPreview();
-  requestAnimationFrame(drawLoops);
 }
-function isSel(kind, s, a){ const x = S.sel; return x && x.kind === kind && x.s === s && (a === undefined || x.a === a); }
+function addNode(type, val, p){
+  let n;
+  if (type === 'stage') n = { id: nid('s'), kind: 'stage', name: 'New stage', text: 'What happens here.', model: 'build', skipOn: '' };
+  else if (type === 'cond') n = { id: nid('c'), kind: 'cond', cond: 'always', custom: '', on: true, def: false };
+  else n = { id: nid('a'), kind: 'agent', name: val, own: type === 'own' };
+  n.x = Math.round(p.x - 80); n.y = Math.round(p.y - 20);
+  S.nodes.push(n); S.sel = { node: n.id }; S.tab = 'inspect'; renderAll();
+  toast(type === 'stage' ? 'Drag from its right port to the next stage; from its bottom port to a condition.' : type === 'cond' ? 'Wire a stage\'s bottom port to it, then its right port to agents.' : 'Wire a condition\'s right port to it.');
+}
 
-function drawLoops(){
-  const svg = $('loops'), wrap = $('canvaswrap').getBoundingClientRect(), els = [...document.querySelectorAll('.stage')];
-  let out = '<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10z" fill="currentColor" style="color:var(--tgraph)"/></marker></defs>';
-  S.loops.forEach((l, li) => {
-    const A = els[l.from], B = els[l.to]; if (!A || !B) return;
-    const ra = A.getBoundingClientRect(), rb = B.getBoundingClientRect();
-    const x1 = ra.left - wrap.left + ra.width * .6, x2 = rb.left - wrap.left + rb.width * .4, y = ra.top - wrap.top;
-    const lift = 18 + 14 * (li % 3) + (l.from === l.to ? 0 : 10);
-    const d = l.from === l.to
-      ? `M${x1},${y} C${x1+30},${y-lift-20} ${x2-30},${y-lift-20} ${x2},${y}`
-      : `M${x1},${y} C${x1},${y-lift-30} ${x2},${y-lift-30} ${x2},${y}`;
-    const sel = S.sel && S.sel.kind === 'loop' && S.sel.l === li;
-    out += `<path d="${d}" marker-end="url(#ah)" class="${sel?'sel':''}"/><text x="${(x1+x2)/2}" y="${y-lift-14}" text-anchor="middle" data-l="${li}">↺ ${esc(l.when)}</text>`;
+// ---- Work bar
+function renderSim(){
+  const w = S.work, t = effTier();
+  const chip = (id, label, on) => `<button class="av-tool-chip ${on?'av-tool-chip--on':'av-tool-chip--ghost'}" data-w="${id}" aria-pressed="${on}">${label}</button>`;
+  $('sim').innerHTML = `<span class="av-label">A piece of work</span>` +
+    ['quick','standard','thorough'].map(x => chip('tier:'+x, x, w.tier === x)).join('') + `<span class="note">·</span>` +
+    chip('sensitive','sensitive', w.sensitive) + chip('prose','adds docs', w.prose) + chip('rules','written rules', w.rules) + chip('heavy','heavy scope', w.heavy) +
+    `<button class="av-tool-chip av-tool-chip--on" id="runBtn">▶ Run it through</button>` +
+    `<span class="note">${w.sensitive && w.tier !== 'thorough' ? 'Sensitive work runs thorough, whatever the tier. ' : ''}Green: fires for this work.${t === 'quick' ? ' No plan at quick: Design is skipped.' : ''}</span>`;
+  document.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
+    const k = b.dataset.w; if (k.startsWith('tier:')) S.work.tier = k.slice(5); else S.work[k] = !S.work[k]; renderSim(); refreshState(); renderPanel();
   });
-  svg.innerHTML = out;
-  svg.querySelectorAll('text').forEach(t => t.onclick = () => { S.sel = { kind: 'loop', l: +t.dataset.l }; render(); });
+  $('runBtn').onclick = run;
+}
+
+// ---- Canvas: nodes
+function renderNodes(){
+  document.querySelectorAll('.node').forEach(e => e.remove());
+  const world = $('world');
+  S.nodes.forEach(n => {
+    const el = document.createElement('div');
+    el.className = `node ${n.kind}`; el.dataset.id = n.id; el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; el.tabIndex = 0;
+    if (n.kind === 'stage') el.innerHTML = `<div class="kind"><span class="av-label">Stage</span><span class="tag tgraph">workflow</span></div><h3>${esc(n.name)}</h3><p>${esc(n.text)}</p>` +
+      `<span class="port in" data-port="in"></span><span class="port out" data-port="out" title="drag to the next stage, or back to loop"></span><span class="port down" data-port="down" title="drag to a condition"></span>`;
+    else if (n.kind === 'cond') { const ag = children(n).map(a => a.name);
+      el.innerHTML = `<div class="row1"><span class="q"><b>when</b>${esc(condText(n))}</span><button class="sw" role="switch" aria-checked="${n.on}" aria-label="condition on or off"></button></div>` +
+      `<div class="pair">${esc(pairLabel(ag))}</div><span class="port top" data-port="top"></span><span class="port out" data-port="out" title="drag to an agent"></span>`; }
+    else el.innerHTML = `${esc(n.name)}<span class="port in" data-port="in"></span>`;
+    world.appendChild(el);
+    const sw = el.querySelector('.sw');
+    if (sw) { sw.onpointerdown = e => e.stopPropagation(); sw.onclick = e => { e.stopPropagation(); n.on = !n.on; sw.setAttribute('aria-checked', n.on); refreshState(); renderPanel(); toast(n.on ? 'Condition on.' : n.def ? 'A default switched off: only I skip a default.' : 'Condition off: its agents stay idle.'); }; }
+    el.onkeydown = e => { if (e.key === 'Delete' || e.key === 'Backspace') { if (e.target === el) delSel(); } if (e.key === 'Enter') { S.sel = { node: n.id }; S.tab = 'inspect'; refreshState(); renderPanel(); } };
+  });
+  refreshState();
+}
+// Classes that follow from state, without rebuilding the DOM.
+function refreshState(){
+  S.nodes.forEach(n => {
+    const el = nodeEl(n.id); if (!el) return;
+    el.classList.toggle('sel', !!S.sel && S.sel.node === n.id);
+    if (n.kind === 'stage') el.classList.toggle('skipped', !!skipped(n));
+    if (n.kind === 'cond') { el.classList.toggle('pass', passes(n)); el.classList.toggle('off', !n.on); el.classList.toggle('def', n.def); }
+    if (n.kind === 'agent') { const p = S.edges.find(e => e.to === n.id && N(e.from)?.kind === 'cond'); el.classList.toggle('fires', !!(p && passes(N(p.from)))); }
+  });
+  renderEdges(); renderTable();
+}
+
+// ---- The workflow table: the part that joins the tier table and the lens table.
+const TIERS = ['quick','standard','thorough'];
+const MODELS = { plan: 'the tier\'s plan model', build: 'the tier\'s build model', owner: 'mine: no model' };
+function stagesInOrder(){
+  const stages = S.nodes.filter(n => n.kind === 'stage');
+  const nextOf = s => S.edges.find(e => e.from === s.id && e.fp === 'out' && !isLoop(e) && N(e.to)?.kind === 'stage');
+  const out = [], seen = new Set();
+  let cur = stages.filter(s => !S.edges.some(e => e.to === s.id && !isLoop(e) && N(e.from)?.kind === 'stage')).sort((a, b) => a.x - b.x)[0];
+  while (cur && !seen.has(cur.id)) { seen.add(cur.id); out.push(cur); const nx = nextOf(cur); cur = nx && N(nx.to); }
+  return out.concat(stages.filter(s => !seen.has(s.id)).sort((a, b) => a.x - b.x)); // unwired stages trail, in canvas order
+}
+function tierCell(st, i){
+  if (st.skipOn === TIERS[i]) return 'skipped';
+  if (st.model === 'owner') return 'I decide';
+  return S.tiers[i][st.model] === 'none' ? 'in the session, no plan' : S.tiers[i][st.model];
+}
+function agentsAt(st){ return conds(st).filter(c => children(c).length).map(c => ({ c, names: children(c).map(a => a.name) })); }
+function loopsFrom(st){ return S.edges.filter(e => isLoop(e) && e.from === st.id).map(e => `back to ${N(e.to).name} when ${e.when || '…'}`); }
+function renderTable(){
+  const ti = TIERS.indexOf(effTier()), stages = stagesInOrder();
+  let h = `<div class="whead"><h2>Workflow</h2><span class="tag tgraph">workflow part · new</span><span class="av-annot">The part that joins the tiers and the lenses. Edit the canvas and this table follows; click a row to select its stage.</span></div>
+    <table class="wf"><thead><tr><th>Stage</th>${S.tiers.map((t, i) => `<th class="${i === ti ? 'cur' : ''}">${t.name}</th>`).join('')}<th>Agents, and when they fire</th><th>Loops back</th></tr></thead><tbody>`;
+  h += stages.map(st => `<tr data-st="${st.id}" class="${S.sel && S.sel.node === st.id ? 'sel' : ''}"><td><b>${esc(st.name)}</b><br><span class="idle">${esc(st.text)}</span></td>` +
+    TIERS.map((t, i) => `<td class="${i === ti ? 'cur' : ''}">${esc(tierCell(st, i))}</td>`).join('') +
+    `<td>${agentsAt(st).map(({ c, names }) => `<span class="${passes(c) ? 'fire' : 'idle'}">${esc(names.join(' + '))}</span> <span class="idle">· ${esc(condText(c))}${c.on ? '' : ' (off)'}</span>`).join('<br>') || '<span class="idle">none</span>'}</td>` +
+    `<td class="loop">${loopsFrom(st).map(esc).join('<br>')}</td></tr>`).join('');
+  $('wtable').innerHTML = h + '</tbody></table>';
+  $('wtable').querySelectorAll('tr[data-st]').forEach(r => r.onclick = () => { S.sel = { node: r.dataset.st }; S.tab = 'inspect'; refreshState(); renderPanel();
+    const el = nodeEl(r.dataset.st); if (el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } });
+}
+function workflowPart(){
+  const stages = stagesInOrder();
+  return '| Stage | ' + S.tiers.map(t => t.name).join(' | ') + ' | Agents, when | Loops back |\n| --- | --- | --- | --- | --- | --- |\n' +
+    stages.map(st => `| ${st.name} | ` + TIERS.map((t, i) => tierCell(st, i)).join(' | ') + ' | ' +
+      (agentsAt(st).filter(x => x.c.on).map(({ c, names }) => names.map(n => '`' + n + '`').join(', ') + ': ' + condText(c).toLowerCase()).join('; ') || 'none') + ' | ' +
+      (loopsFrom(st).join('; ') || '') + ' |').join('\n');
+}
+
+// ---- Canvas: edges
+function portPos(n, port){
+  const el = nodeEl(n.id); const w = el ? el.offsetWidth : 160, h = el ? el.offsetHeight : 40;
+  switch (port) {
+    case 'in': return { x: n.x, y: n.y + h / 2, nx: -1, ny: 0 };
+    case 'out': return { x: n.x + w, y: n.y + h / 2, nx: 1, ny: 0 };
+    case 'down': return { x: n.x + w / 2, y: n.y + h, nx: 0, ny: 1 };
+    case 'top': return { x: n.x + w / 2, y: n.y, nx: 0, ny: -1 };
+    case 'ltop': return { x: n.x + w / 2, y: n.y, nx: 0, ny: -1 };
+  }
+}
+function curve(a, b, lift){
+  if (lift) return `M${a.x},${a.y} C${a.x},${a.y - lift} ${b.x},${b.y - lift} ${b.x},${b.y}`;
+  const d = Math.max(40, Math.hypot(b.x - a.x, b.y - a.y) / 2.2);
+  return `M${a.x},${a.y} C${a.x + a.nx * d},${a.y + a.ny * d} ${b.x + b.nx * d},${b.y + b.ny * d} ${b.x},${b.y}`;
+}
+function edgeGeom(e){
+  const a = N(e.from), b = N(e.to); if (!a || !b) return null;
+  if (isLoop(e)) { const i = S.edges.filter(isLoop).indexOf(e); return { d: curve(portPos(a,'ltop'), portPos(b,'ltop'), 60 + 34 * i), kind: 'loop' }; }
+  const tp = b.kind === 'cond' ? 'top' : 'in';
+  const kind = a.kind === 'stage' && b.kind === 'stage' ? 'next' : a.kind === 'stage' ? 'check' : 'fire';
+  return { d: curve(portPos(a, e.fp), portPos(b, tp)), kind };
+}
+function renderEdges(){
+  const svg = $('edges');
+  let h = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--av-ink-70)"/></marker>
+    <marker id="ahc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--av-caution)"/></marker></defs>`;
+  const labels = [];
+  S.edges.forEach(e => {
+    const g = edgeGeom(e); if (!g) return;
+    let cls = g.kind;
+    if (g.kind === 'check' || g.kind === 'fire') { const c = g.kind === 'check' ? N(e.to) : N(e.from); cls += passes(c) ? ' flow' : c.on ? '' : ' off'; }
+    const sel = S.sel && S.sel.edge === e.id ? ' sel' : '';
+    h += `<path class="hit" data-e="${e.id}" d="${g.d}"/><path class="e ${cls}${sel}" id="p_${e.id}" d="${g.d}" marker-end="url(#${g.kind === 'loop' ? 'ahc' : 'ah'})"/>`;
+    if (g.kind === 'loop') labels.push(e);
+  });
+  svg.innerHTML = h;
+  labels.forEach(e => {
+    const p = $('p_' + e.id), L = p.getTotalLength(), m = p.getPointAtLength(L / 2);
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', m.x); t.setAttribute('y', m.y - 6); t.setAttribute('text-anchor', 'middle'); t.dataset.e = e.id; t.textContent = '↺ ' + (e.when || 'loops back');
+    svg.appendChild(t);
+  });
+  svg.querySelectorAll('[data-e]').forEach(x => x.onpointerdown = ev => { ev.stopPropagation(); S.sel = { edge: x.dataset.e }; S.tab = 'inspect'; refreshState(); renderPanel(); });
+}
+
+// ---- Pointer: pan, drag nodes, draw links
+const canvas = $('canvas');
+function applyView(){ const v = S.view; $('world').style.transform = `translate(${v.x}px,${v.y}px) scale(${v.k})`;
+  canvas.style.backgroundPosition = `${v.x}px ${v.y}px`; canvas.style.backgroundSize = `${120*v.k}px ${120*v.k}px, ${120*v.k}px ${120*v.k}px, ${24*v.k}px ${24*v.k}px, ${24*v.k}px ${24*v.k}px`;
+  $('zPct').textContent = Math.round(v.k * 100) + '%'; }
+function toWorld(cx, cy){ const r = canvas.getBoundingClientRect(), v = S.view; return { x: (cx - r.left - v.x) / v.k, y: (cy - r.top - v.y) / v.k }; }
+let drag = null;
+canvas.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const port = e.target.closest('.port'), node = e.target.closest('.node');
+  if (port && (port.dataset.port === 'out' || port.dataset.port === 'down')) {
+    const n = N(node.dataset.id); drag = { mode: 'link', from: n, fp: port.dataset.port }; e.preventDefault(); return;
+  }
+  if (node) { const n = N(node.dataset.id), p = toWorld(e.clientX, e.clientY);
+    drag = { mode: 'node', n, el: node, dx: p.x - n.x, dy: p.y - n.y, moved: false };
+    S.sel = { node: n.id }; S.tab = 'inspect'; refreshState(); renderPanel(); return; }
+  drag = { mode: 'pan', sx: e.clientX - S.view.x, sy: e.clientY - S.view.y }; canvas.classList.add('panning');
+  if (S.sel) { S.sel = null; refreshState(); renderPanel(); }
+});
+window.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (drag.mode === 'pan') { S.view.x = e.clientX - drag.sx; S.view.y = e.clientY - drag.sy; applyView(); }
+  else if (drag.mode === 'node') { const p = toWorld(e.clientX, e.clientY);
+    drag.n.x = Math.round((p.x - drag.dx) / 6) * 6; drag.n.y = Math.round((p.y - drag.dy) / 6) * 6;
+    drag.el.style.left = drag.n.x + 'px'; drag.el.style.top = drag.n.y + 'px'; drag.el.classList.add('dragging'); drag.moved = true; renderEdges(); }
+  else if (drag.mode === 'link') {
+    const a = portPos(drag.from, drag.fp), b = toWorld(e.clientX, e.clientY);
+    let t = $('edges').querySelector('.temp'); if (!t) { t = document.createElementNS('http://www.w3.org/2000/svg', 'path'); t.setAttribute('class', 'temp'); $('edges').appendChild(t); }
+    t.setAttribute('d', curve(a, { x: b.x, y: b.y, nx: 0, ny: 0 }));
+    document.querySelectorAll('.port.hot').forEach(p => p.classList.remove('hot'));
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node');
+    if (over) over.querySelector('.port.in, .port.top')?.classList.add('hot');
+  }
+});
+window.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag; drag = null; canvas.classList.remove('panning');
+  if (d.mode === 'node') { d.el.classList.remove('dragging'); if (d.moved) renderEdges(); }
+  if (d.mode === 'link') { document.querySelectorAll('.port.hot').forEach(p => p.classList.remove('hot'));
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node');
+    if (over) connect(d.from, d.fp, N(over.dataset.id)); else renderEdges(); }
+});
+function connect(a, fp, b){
+  if (!b || a.id === b.id) { renderEdges(); return; }
+  const ok = (fp === 'out' && a.kind === 'stage' && b.kind === 'stage') || (fp === 'down' && a.kind === 'stage' && b.kind === 'cond') || (fp === 'out' && a.kind === 'cond' && b.kind === 'agent');
+  if (!ok) { toast('A stage hands on to a stage, or checks through a condition; a condition fires agents.'); renderEdges(); return; }
+  if (S.edges.some(e => e.from === a.id && e.to === b.id)) { renderEdges(); return; }
+  if (b.kind === 'cond' || b.kind === 'agent') S.edges = S.edges.filter(e => !(e.to === b.id && N(e.from)?.kind === a.kind)); // one parent each
+  const e = { id: nid('e'), from: a.id, fp, to: b.id };
+  if (a.kind === 'stage' && b.kind === 'stage' && b.x < a.x) e.when = 'your words';
+  S.edges.push(e); S.sel = { edge: e.id }; S.tab = 'inspect';
+  renderNodes(); renderPanel();
+  toast(isLoop(e) ? 'A loop back: name when it happens in the panel.' : b.kind === 'agent' ? 'Wired. Agents on one condition fire together.' : 'Wired.');
+}
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX, e.clientY); }, { passive: false });
+function zoomAt(f, cx, cy){ const r = canvas.getBoundingClientRect(); cx = cx ?? r.left + r.width / 2; cy = cy ?? r.top + r.height / 2;
+  const v = S.view, k = Math.min(1.8, Math.max(0.3, v.k * f)), wx = (cx - r.left - v.x) / v.k, wy = (cy - r.top - v.y) / v.k;
+  v.k = k; v.x = cx - r.left - wx * k; v.y = cy - r.top - wy * k; applyView(); }
+function fit(){ if (!S.nodes.length) return; const r = canvas.getBoundingClientRect();
+  const xs = S.nodes.map(n => n.x), ys = S.nodes.map(n => n.y), x0 = Math.min(...xs) - 20, y0 = Math.min(...ys) - 150, x1 = Math.max(...xs) + 240, y1 = Math.max(...ys) + 80;
+  const k = Math.min(1.2, Math.max(0.3, Math.min(r.width / (x1 - x0), r.height / (y1 - y0))));
+  S.view = { k, x: -x0 * k + (r.width - (x1 - x0) * k) / 2, y: -y0 * k }; applyView(); }
+$('zIn').onclick = () => zoomAt(1.15); $('zOut').onclick = () => zoomAt(1 / 1.15); $('zFit').onclick = fit;
+canvas.addEventListener('dragover', e => { e.preventDefault(); canvas.classList.add('dropping'); });
+canvas.addEventListener('dragleave', () => canvas.classList.remove('dropping'));
+canvas.addEventListener('drop', e => { e.preventDefault(); canvas.classList.remove('dropping');
+  let d; try { d = JSON.parse(e.dataTransfer.getData('text/plain')); } catch { return; }
+  if (d && d.type) addNode(d.type, d.val, toWorld(e.clientX, e.clientY)); });
+document.addEventListener('keydown', e => { if ((e.key === 'Delete' || e.key === 'Backspace') && S.sel && S.sel.edge && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) delSel(); });
+function delSel(){
+  if (!S.sel) return;
+  if (S.sel.edge) S.edges = S.edges.filter(e => e.id !== S.sel.edge);
+  if (S.sel.node) { const id = S.sel.node; S.nodes = S.nodes.filter(n => n.id !== id); S.edges = S.edges.filter(e => e.from !== id && e.to !== id); }
+  S.sel = null; renderNodes(); renderPanel();
+}
+
+// ---- Run it through: a pulse travels the spine and out to what fires.
+let running = false;
+function pulse(pathId, ms){ return new Promise(res => {
+  const p = $('p_' + pathId); if (!p) return res(); const L = p.getTotalLength();
+  const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); c.setAttribute('r', 6); c.setAttribute('class', 'pulse'); $('edges').appendChild(c);
+  const t0 = performance.now();
+  const step = t => { const f = Math.min(1, (t - t0) / ms), q = p.getPointAtLength(L * f); c.setAttribute('cx', q.x); c.setAttribute('cy', q.y);
+    if (f < 1) requestAnimationFrame(step); else { c.remove(); res(); } };
+  requestAnimationFrame(step); }); }
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function run(){
+  if (running) return; running = true;
+  const stages = S.nodes.filter(n => n.kind === 'stage');
+  const nextOf = s => S.edges.find(e => e.from === s.id && e.fp === 'out' && !isLoop(e) && N(e.to)?.kind === 'stage');
+  let cur = stages.find(s => !S.edges.some(e => e.to === s.id && !isLoop(e) && N(e.from)?.kind === 'stage')) || stages[0];
+  const seen = new Set();
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id); const el = nodeEl(cur.id); el?.classList.add('active');
+    if (!skipped(cur)) await Promise.all(conds(cur).map(async c => {
+      const e = S.edges.find(e => e.from === cur.id && e.to === c.id); await pulse(e.id, 380);
+      if (!passes(c)) return;
+      await Promise.all(children(c).map(async a => { const ea = S.edges.find(x => x.from === c.id && x.to === a.id); await pulse(ea.id, 320);
+        const ae = nodeEl(a.id); if (ae) { ae.classList.remove('fired'); void ae.offsetWidth; ae.classList.add('fired'); } }));
+    }));
+    else await wait(250);
+    el?.classList.remove('active');
+    const nx = nextOf(cur); if (!nx) break; await pulse(nx.id, 420); cur = N(nx.to);
+  }
+  running = false;
 }
 
 // ---- Right-hand panel
 function renderPanel(){
-  const p = $('panel'), x = S.sel;
-  let h = '';
-  if (x && x.kind === 'stage') {
-    const st = S.stages[x.s];
-    h += `<h2>Stage <span class="tag tgraph">graph only</span></h2>
-      <label>Name<input id="p_name" value="${esc(st.name)}"></label>
-      <label>What happens here<textarea id="p_text" rows="2">${esc(st.text)}</textarea></label>
-      <div class="row"><button id="p_left">← Move</button><button id="p_right">Move →</button><button id="p_del">Delete stage</button></div>
-      <label>Add an agent <span class="tag t262">#262 builds</span></label>
-      <div class="row"><select id="p_newag">${LENSES.map(n=>`<option>${n}</option>`).join('')}<option value="__own">your own agent…</option></select><button id="p_add">Add</button></div>
-      <p class="muted">An agent lands with "Every build"; pick its condition after. Two agents with the same condition at the same stage fire together: that is all a pair is.</p>`;
-  } else if (x && x.kind === 'agent') {
-    const st = S.stages[x.s], ag = st.agents[x.a];
-    h += `<h2>${esc(ag.name)} <span class="muted">at ${esc(st.name)}</span> <span class="tag t262">#262 builds</span></h2>
-      <label>When it fires<select id="p_cond">${Object.entries(CONDS).map(([k,c])=>`<option value="${k}" ${ag.cond===k?'selected':''}>${c.label}</option>`).join('')}</select></label>
-      ${ag.cond==='custom'?`<label>In your words<input id="p_custom" value="${esc(ag.custom)}" placeholder="e.g. when the change touches billing"></label>`:''}
-      ${ag.own?'':`<label>Model and effort (a setting, not part of the graph)<select disabled><option>its own file's default</option></select></label>`}
-      <div class="row"><button id="p_rm">Remove from this stage</button></div>`;
-  } else if (x && x.kind === 'loop') {
-    const l = S.loops[x.l];
-    const opts = v => S.stages.map((s,i)=>`<option value="${i}" ${v===i?'selected':''}>${esc(s.name)}</option>`).join('');
-    h += `<h2>Loop back <span class="tag tgraph">graph only</span></h2>
-      <label>From<select id="p_from">${opts(l.from)}</select></label><label>Back to<select id="p_to">${opts(l.to)}</select></label>
-      <label>When<input id="p_when" value="${esc(l.when)}"></label><div class="row"><button id="p_lrm">Delete loop</button></div>`;
-  } else {
-    h += `<h2>Select something</h2><p class="muted">Click a stage, an agent or a loop's label. The tier and sensitive-work parts are below.</p>`;
-  }
-  const sp = splits(), dg = defaultsGaps();
-  if (sp.length || dg.length) h += `<div class="warn"><b>Open question, not a rule:</b><br>${[...sp.map(s=>'Pair split: '+s), ...dg].map(esc).join('<br>')}</div>`;
-
-  h += `<h2>Tiers <span class="tag t262">#262 builds</span></h2><table class="tiers">` +
-    S.tiers.map((t,i)=>`<tr><td><b>${t.name}</b><br><input data-t="${i}" data-f="fits" value="${esc(t.fits)}"></td><td>plan<br>${sel(i,'plan',t.plan,true)}</td><td>build<br>${sel(i,'build',t.build)}</td></tr>`).join('') + '</table>';
-  h += `<h2>Sensitive work <span class="tag t262">#262 builds</span></h2><div class="chips">` +
-    S.sensitive.map((s,i)=>`<span class="chip">${esc(s)}<button data-rs="${i}" aria-label="remove ${esc(s)}">×</button></span>`).join('') +
-    `</div><div class="row"><input id="p_sens" placeholder="add, e.g. payments"><button id="p_sadd">Add</button></div><p class="muted">Runs thorough, built on Opus at high.</p>`;
-  p.innerHTML = h;
+  const tabs = [['inspect','Inspect'],['tiers','Tiers'],['sensitive','Sensitive'],['preview','Compiles to']];
+  let h = `<div class="tabs">${tabs.map(([k,l]) => `<button class="tab ${S.tab===k?'tab--on':''}" data-tab="${k}">${l}</button>`).join('')}</div><div class="pbody">`;
+  if (S.tab === 'inspect') h += inspectHTML();
+  if (S.tab === 'tiers') h += `<h2>Tiers <span class="tag t262">#262 builds</span></h2><p class="av-annot">How much checking. The Design stage is skipped at a tier with no plan.</p><table class="tiers">` +
+    S.tiers.map((t,i) => `<tr><td><b>${t.name}</b><input data-t="${i}" data-f="fits" value="${esc(t.fits)}"></td><td>plan${msel(i,'plan',t.plan,true)}</td><td>build${msel(i,'build',t.build)}</td></tr>`).join('') + `</table>`;
+  if (S.tab === 'sensitive') h += `<h2>Sensitive work <span class="tag t262">#262 builds</span></h2><p class="av-annot">Runs thorough, built on Opus at high. Lights every "Sensitive work" condition.</p><div class="chips">` +
+    S.sensitive.map((s,i) => `<span class="chip">${esc(s)}<button data-rs="${i}" aria-label="remove ${esc(s)}">×</button></span>`).join('') +
+    `</div><label><span class="av-label">Add</span><input id="sAdd" placeholder="e.g. payments, then Enter"></label>`;
+  if (S.tab === 'preview') h += `<h2>What the graph compiles to</h2><pre class="out">${esc(compiled())}</pre><h2>What compiles to nothing</h2><pre class="out">${esc(nothing())}</pre>`;
+  const warns = warnings(); if (warns.length) h += `<div class="warn"><b>Open question, not a rule</b><br>${warns.map(esc).join('<br>')}</div>`;
+  $('panel').innerHTML = h + '</div>';
+  $('panel').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; renderPanel(); });
   bindPanel();
 }
-function sel(i, f, v, none){
-  const o = (none?['none']:[]).concat(['Opus, low','Opus, medium','Opus, high','Sonnet, medium','Sonnet, high']);
-  return `<select data-t="${i}" data-f="${f}">${o.map(x=>`<option ${x===v?'selected':''}>${x}</option>`).join('')}</select>`;
+function msel(i, f, v, none){ const o = (none ? ['none'] : []).concat(['Opus, low','Opus, medium','Opus, high','Sonnet, medium','Sonnet, high']);
+  return `<select data-t="${i}" data-f="${f}">${o.map(x => `<option ${x===v?'selected':''}>${x}</option>`).join('')}</select>`; }
+function inspectHTML(){
+  const x = S.sel;
+  if (x && x.edge) { const e = S.edges.find(e => e.id === x.edge); if (!e) return '';
+    const a = N(e.from), b = N(e.to);
+    if (isLoop(e)) return `<h2>Loop back <span class="tag tgraph">workflow part</span></h2><p class="av-annot">${esc(a.name)} ↺ ${esc(b.name)}. The work's own loop: it goes back when this happens.</p><label><span class="av-label">When</span><input id="iWhen" value="${esc(e.when||'')}"></label><button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete link</button>`;
+    return `<h2>Link</h2><p class="av-annot">${esc(a.name || condText(a))} → ${esc(b.name || condText(b))}</p><button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete link</button>`; }
+  const n = x && x.node && N(x.node);
+  if (!n) return `<h2>Nothing selected</h2><p class="av-annot">Drag nodes from the library, drag between ports to wire them, and click anything to edit it here. Drag the grid to pan; scroll to zoom. Delete removes what is selected.</p>`;
+  if (n.kind === 'stage') return `<h2>Stage <span class="tag tgraph">workflow part</span></h2>
+    <label><span class="av-label">Name</span><input id="iName" value="${esc(n.name)}"></label>
+    <label><span class="av-label">What happens here</span><textarea id="iText" rows="2">${esc(n.text)}</textarea></label>
+    <label><span class="av-label">Model and effort here</span><select id="iModel">${Object.entries(MODELS).map(([k, l]) => `<option value="${k}" ${n.model===k?'selected':''}>${l}</option>`).join('')}</select></label>
+    <label><span class="av-label">Skipped at</span><select id="iSkip"><option value="">never</option>${['quick','standard','thorough'].map(t => `<option ${n.skipOn===t?'selected':''}>${t}</option>`).join('')}</select></label>
+    <p class="av-annot">Checks here: ${conds(n).length ? conds(n).map(c => `${condText(c)} → ${children(c).map(a => a.name).join(', ') || 'no agent'}`).map(esc).join('; ') : 'none'}.</p>
+    <button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete stage</button>`;
+  if (n.kind === 'cond') { const st = parentStage(n), ag = children(n);
+    return `<h2>Condition <span class="tag t262">#262 builds</span></h2>
+    <p class="av-annot">At ${st ? esc(st.name) : '<b>no stage yet</b>: wire a stage\'s bottom port here'}. Fires ${ag.length ? esc(ag.map(a => a.name).join(' and ')) : 'nothing yet'}${ag.length > 1 ? ', together' : ''}.</p>
+    <label><span class="av-label">When it fires</span><select id="iCond">${Object.entries(CONDS).map(([k,c]) => `<option value="${k}" ${n.cond===k?'selected':''}>${c.label}</option>`).join('')}</select></label>
+    ${n.cond === 'custom' ? `<label><span class="av-label">In your words</span><input id="iCustom" value="${esc(n.custom)}" placeholder="e.g. the change touches billing"></label><p class="av-annot">Your own words are judgment: the run never lights them.</p>` : ''}
+    <label style="flex-direction:row;align-items:center;gap:8px"><button class="sw" id="iOn" role="switch" aria-checked="${n.on}"></button><span>${n.on ? 'On' : 'Off'}${n.def ? ' · <span class="av-tool-stamp av-tool-stamp--caution">a default</span>' : ''}</span></label>
+    <p class="av-annot">For this work: <b>${passes(n) ? 'fires' : 'idle'}</b>.</p>
+    <button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete condition</button>`; }
+  return `<h2>Agent <span class="tag t262">#262 builds</span></h2>
+    ${n.own ? `<label><span class="av-label">Name</span><input id="iName" value="${esc(n.name)}"></label>` : `<p class="av-annot"><b>${esc(n.name)}</b>, a pact lens. Model and effort stay in its own file or the agents setting.</p>`}
+    <button class="av-tool-chip av-tool-chip--ghost" id="iDel">Remove from the canvas</button>`;
 }
 function bindPanel(){
-  const x = S.sel, on = (id, ev, fn) => { const e = $(id); if (e) e[ev] = fn; };
-  if (x && x.kind === 'stage') {
-    const st = S.stages[x.s];
-    on('p_name','oninput', e => { st.name = e.target.value; renderSoft(); });
-    on('p_text','oninput', e => { st.text = e.target.value; renderSoft(); });
-    on('p_left','onclick', () => moveStage(x.s, -1)); on('p_right','onclick', () => moveStage(x.s, 1));
-    on('p_del','onclick', () => { S.stages.splice(x.s,1); S.loops = S.loops.filter(l=>l.from!==x.s&&l.to!==x.s).map(l=>({...l,from:l.from-(l.from>x.s),to:l.to-(l.to>x.s)})); S.sel=null; render(); });
-    on('p_add','onclick', () => { const v = $('p_newag').value; const own = v === '__own';
-      const n = own ? (prompt2('my-reviewer')) : v; st.agents.push({ name: n, cond: 'always', custom: '', own }); S.sel = { kind:'agent', s:x.s, a:st.agents.length-1 }; render(); });
+  const on = (id, ev, fn) => { const e = $(id); if (e) e[ev] = fn; };
+  const n = S.sel && S.sel.node && N(S.sel.node), e = S.sel && S.sel.edge && S.edges.find(x => x.id === S.sel.edge);
+  const soft = () => { renderNodes(); }; // panel keeps focus; only the canvas redraws
+  on('iDel', 'onclick', delSel);
+  if (n) {
+    on('iName', 'oninput', ev => { n.name = ev.target.value; soft(); });
+    on('iText', 'oninput', ev => { n.text = ev.target.value; soft(); });
+    on('iSkip', 'onchange', ev => { n.skipOn = ev.target.value; refreshState(); });
+    on('iModel', 'onchange', ev => { n.model = ev.target.value; renderTable(); });
+    on('iCond', 'onchange', ev => { n.cond = ev.target.value; renderNodes(); renderPanel(); });
+    on('iCustom', 'oninput', ev => { n.custom = ev.target.value; soft(); });
+    on('iOn', 'onclick', () => { n.on = !n.on; renderNodes(); renderPanel(); });
   }
-  if (x && x.kind === 'agent') {
-    const ag = S.stages[x.s].agents[x.a];
-    on('p_cond','onchange', e => { ag.cond = e.target.value; render(); });
-    on('p_custom','oninput', e => { ag.custom = e.target.value; renderSoft(); });
-    on('p_rm','onclick', () => { S.stages[x.s].agents.splice(x.a,1); S.sel = { kind:'stage', s:x.s }; render(); });
-  }
-  if (x && x.kind === 'loop') {
-    const l = S.loops[x.l];
-    on('p_from','onchange', e => { l.from = +e.target.value; render(); });
-    on('p_to','onchange', e => { l.to = +e.target.value; render(); });
-    on('p_when','oninput', e => { l.when = e.target.value; requestAnimationFrame(drawLoops); renderPreview(); });
-    on('p_lrm','onclick', () => { S.loops.splice(x.l,1); S.sel=null; render(); });
-  }
-  document.querySelectorAll('#panel [data-t]').forEach(e => e.onchange = e.oninput = ev => { S.tiers[+e.dataset.t][e.dataset.f] = ev.target.value; renderPreview(); });
-  document.querySelectorAll('#panel [data-rs]').forEach(b => b.onclick = () => { S.sensitive.splice(+b.dataset.rs,1); render(); });
-  on('p_sadd','onclick', () => { const v = $('p_sens').value.trim(); if (v) { S.sensitive.push(v); render(); } });
+  if (e) on('iWhen', 'oninput', ev => { e.when = ev.target.value; renderEdges(); });
+  $('panel').querySelectorAll('[data-t]').forEach(x => x.onchange = x.oninput = ev => { S.tiers[+x.dataset.t][x.dataset.f] = ev.target.value; renderTable(); });
+  $('panel').querySelectorAll('[data-rs]').forEach(b => b.onclick = () => { S.sensitive.splice(+b.dataset.rs, 1); renderPanel(); });
+  on('sAdd', 'onkeydown', ev => { if (ev.key === 'Enter' && ev.target.value.trim()) { S.sensitive.push(ev.target.value.trim()); renderPanel(); $('sAdd').focus(); } });
 }
-// No window.prompt (a modal dialog); own agents get a numbered placeholder name.
-let ownN = 0; function prompt2(base){ ownN++; return base + (ownN > 1 ? '-' + ownN : ''); }
-function moveStage(i, d){
-  const j = i + d; if (j < 0 || j >= S.stages.length) return;
-  [S.stages[i], S.stages[j]] = [S.stages[j], S.stages[i]];
-  const sw = k => k === i ? j : k === j ? i : k;
-  S.loops = S.loops.map(l => ({ ...l, from: sw(l.from), to: sw(l.to) }));
-  S.sel = { kind: 'stage', s: j }; render();
+function warnings(){
+  const out = [];
+  S.nodes.filter(n => n.kind === 'cond' && n.def && !n.on).forEach(c => { const st = parentStage(c);
+    out.push(`A default is off at ${st ? st.name : '?'}: ${children(c).map(a => a.name).join(' and ')}. The defaults sentence still says it runs. Should the builder refuse this?`); });
+  S.nodes.filter(n => n.kind === 'cond').forEach(c => { const names = children(c).map(a => a.name);
+    PAIRS.forEach(([x, y, l]) => { if (names.includes(x) !== names.includes(y)) out.push(`Half of ${l} on one condition at ${parentStage(c)?.name || '?'}: a crossing would be lost.`); }); });
+  return out;
 }
-// Text edits: keep the input focused, refresh the canvas text and preview only.
-function renderSoft(){ const f = document.activeElement && document.activeElement.id; render(); if (f && $(f)) { const e = $(f); e.focus(); const n = e.value.length; e.setSelectionRange && e.setSelectionRange(n, n); } }
 
-// ---- Preview: the lens table derived from the graph; and what has nowhere to go.
+// ---- Compile preview: #262's three parts, the lens table derived from the graph.
+const listJoin = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
 function lensRows(){
-  const rows = new Map(); // key: names + condition -> stages
-  S.stages.forEach(st => groups(st).forEach(idx => {
-    const ags = idx.map(i => st.agents[i]); const names = ags.map(g => g.name).sort();
-    const k = names.join('+') + '|' + condKey(ags[0]);
-    if (!rows.has(k)) rows.set(k, { names, cond: condText(ags[0]), stages: [] });
+  const rows = new Map();
+  S.nodes.filter(n => n.kind === 'cond' && n.on).forEach(c => {
+    const st = parentStage(c), names = children(c).map(a => a.name).sort(); if (!st || !names.length) return;
+    const k = names.join('+') + '|' + c.cond + '|' + c.custom.trim().toLowerCase();
+    if (!rows.has(k)) rows.set(k, { names, cond: condText(c), stages: [] });
     rows.get(k).stages.push(st.name);
-  }));
+  });
   return [...rows.values()];
 }
-function renderPreview(){
-  document.querySelectorAll('.preview .tabs button').forEach(b => { b.classList.toggle('on', b.dataset.tab === S.tab); b.onclick = () => { S.tab = b.dataset.tab; renderPreview(); }; });
-  let t;
-  if (S.tab === 'parts') {
-    t = '── tiers (Scriptorium builds this) ──\n| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n' +
-      S.tiers.map(x => `| ${x.name} | ${x.fits} | ${x.plan} | ${x.build} |`).join('\n') +
-      '\n\n── sensitive (Scriptorium builds this) ──\nSensitive work gets more checking. By default, sensitive work is ' + listJoin(S.sensitive) + ': thorough, built on Opus at high.\n\n' +
-      '── lenses (Scriptorium builds this; derived from the graph) ──\n| Lens | Where it fits |\n| --- | --- |\n' +
-      lensRows().map(r => { const pn = pairName(r.names); return `| ${r.names.map(n=>'`'+n+'`').join(', ')}${pn && r.names.length>1 && pn!=='fire together' ? ' ('+pn+')' : ''} | ${r.cond}, at ${listJoin(r.stages)} |`; }).join('\n') +
-      '\n\n── fixed, outside the lens part ──\n**The defaults.** The QA pair reads every result. The security pair reads sensitive work. Only I skip a default. The rest are your judgment, or my call.';
-  } else {
-    t = 'The graph holds these; no open part takes them today. Making any of them reach the rules file is a change to the renderer and the gate (security route).\n\n' +
-      '• Stage names and order: ' + S.stages.map(s=>s.name).join(' → ') + '\n' +
-      '• What happens at each stage:\n' + S.stages.map(s=>`    ${s.name}: ${s.text}`).join('\n') + '\n' +
-      '• Loops back:\n' + (S.loops.map(l=>`    ${S.stages[l.from]?.name} ↺ ${S.stages[l.to]?.name}, when ${l.when}`).join('\n') || '    (none)') + '\n' +
-      '• Where a lens sits beyond its row: the lens table above flattens "at <stages>" into prose; the stage itself is only words in the row.\n' +
-      '• Order of agents inside a stage.\n\n' +
-      'The moves never compile: they are my practices, not steps.';
-  }
-  $('previewText').textContent = t;
+function compiled(){
+  return '── workflow (new: joins the two tables below) ──\n' + workflowPart() + '\n\n── tiers ──\n| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n' + S.tiers.map(t => `| ${t.name} | ${t.fits} | ${t.plan} | ${t.build} |`).join('\n') +
+    '\n\n── sensitive ──\nSensitive work gets more checking. By default, sensitive work is ' + listJoin(S.sensitive) + ': thorough, built on Opus at high.\n\n' +
+    '── lenses (from the graph) ──\n| Lens | Where it fits |\n| --- | --- |\n' +
+    lensRows().map(r => { const p = pairLabel(r.names); return `| ${r.names.map(n => '`' + n + '`').join(', ')}${PAIRS.some(x => x[2] === p) ? ' (' + p + ')' : ''} | ${r.cond}, at ${listJoin(r.stages)} |`; }).join('\n') +
+    '\n\n── fixed, outside the lens part ──\nThe defaults. The QA pair reads every result. The security pair reads sensitive work. Only I skip a default. The rest are your judgment, or my call.';
 }
-const listJoin = xs => xs.length < 2 ? xs.join('') : xs.slice(0,-1).join(', ') + ' and ' + xs[xs.length-1];
+function nothing(){
+  return 'The workflow part is new: no open part takes it today, so it, like the stages and loops it carries, is a renderer and gate change.\n\n' +
+    '• Where nodes sit on the canvas, and the order of agents under a condition.\n' +
+    '• Conditions switched off: they drop out of every table.\n' +
+    '• Overlap: the lens table\'s "where it fits" repeats the workflow\'s agents column; the tier table\'s Plan and Build columns are what the workflow\'s tier columns look up.\n' +
+    '• My practices: the pact already says them; they never compile from here.';
+}
 
-// ---- Toolbar
-$('addStage').onclick = () => { S.stages.push({ name: 'New stage', text: 'What happens here.', agents: [] }); S.sel = { kind:'stage', s:S.stages.length-1 }; render(); };
-$('addLoop').onclick = () => { if (S.stages.length < 1) return; S.loops.push({ from: S.stages.length-1, to: 0, when: 'your words' }); S.sel = { kind:'loop', l:S.loops.length-1 }; render(); };
-$('resetBtn').onclick = () => { S = fresh(); render(); };
-window.addEventListener('resize', () => requestAnimationFrame(drawLoops));
-$('stages').addEventListener('scroll', () => requestAnimationFrame(drawLoops));
-
-// ---- Guided tour
+// ---- Tour
 const TOUR = [
-  ['practices', 'These are my practices. They are not steps and are not wired into anything: I take each up as the work needs it.'],
-  ['stages', 'The graph: stages I name and order. Each stage lists the agents that run there, each with a condition saying when it fires.'],
-  ['stages', 'Two agents with the same condition at the same stage fire together. That is all a pair is: the blue boxes. The pact ships its defaults as pairs.'],
-  ['sim', 'Try a piece of work: pick a tier and what it touches, and see which agents fire (green) and which stay idle.'],
-  ['panel', 'Click anything to edit it here. Tiers and sensitive work are Scriptorium\'s parts from #262, edited in the panel.'],
-  ['preview', 'What the graph would compile to. The lens table is derived from the graph; the second tab lists what has nowhere to go today.'],
+  ['library', 'The nodes library. Drag a stage, a condition or an agent onto the canvas, or click one to drop it in the middle.'],
+  ['canvas', 'The canvas holds the work\'s own lifecycle: Plan, Design, Build, Test, Deploy, Maintain. Drag nodes about; drag the grid to pan; scroll to zoom.'],
+  ['canvas', 'Wire by dragging from a port: a stage\'s right port to the next stage (or back to an earlier one, which makes a loop), its bottom port to a condition, a condition\'s right port to agents.'],
+  ['canvas', 'A condition sits between a stage and its agents and switches on and off. Agents on one condition fire together: that is all a pair is.'],
+  ['wtable', 'The workflow table, the new part. One row per stage: what each tier sets there, the agents that fire and when, and any loop back. It joins the tier table and the lens table; the canvas is its editor.'],
+  ['sim', 'Describe a piece of work and press Run it through: a pulse travels the stages and lights the agents that would fire.'],
+  ['panel', 'Edit whatever you select here. Tiers and sensitive work are #262\'s parts; Compiles to shows the lens table the graph makes, and what has nowhere to go.'],
+  ['library', 'My practices sit beside the work, below the library: no order, no arrows, never on the canvas. They show where Claude would nudge.'],
 ];
-let tourI = -1, tourEl = null;
+let tourEl = null;
 function tour(i){
-  document.querySelectorAll('.tourhl').forEach(e => e.classList.remove('tourhl'));
-  if (tourEl) tourEl.remove(); tourEl = null;
-  if (i < 0 || i >= TOUR.length) { tourI = -1; return; }
-  tourI = i; const [id, text] = TOUR[i], target = $(id); target.classList.add('tourhl'); target.scrollIntoView({ block: 'nearest' });
-  const r = target.getBoundingClientRect();
-  tourEl = document.createElement('div'); tourEl.className = 'tour'; tourEl.setAttribute('role','dialog');
-  tourEl.innerHTML = `<div class="n">${i+1} of ${TOUR.length}</div><p>${text}</p><div class="row"><button id="tPrev">Back</button><button id="tNext" class="primary">${i===TOUR.length-1?'Done':'Next'}</button><button id="tSkip">Skip</button></div>`;
+  document.querySelectorAll('.tourhl').forEach(e => e.classList.remove('tourhl')); if (tourEl) tourEl.remove(); tourEl = null;
+  if (i < 0 || i >= TOUR.length) return;
+  const [id, text] = TOUR[i], t = $(id); t.classList.add('tourhl'); const r = t.getBoundingClientRect();
+  tourEl = document.createElement('div'); tourEl.className = 'tour'; tourEl.setAttribute('role', 'dialog');
+  tourEl.innerHTML = `<span class="av-label">${i + 1} of ${TOUR.length}</span><p>${text}</p><div style="display:flex;gap:6px"><button class="av-tool-chip av-tool-chip--ghost" id="tB">Back</button><button class="av-tool-chip av-tool-chip--on" id="tN">${i === TOUR.length - 1 ? 'Done' : 'Next'}</button><button class="av-tool-chip av-tool-chip--ghost" id="tS">Skip</button></div>`;
   document.body.appendChild(tourEl);
-  const top = Math.min(window.innerHeight - tourEl.offsetHeight - 10, Math.max(10, r.bottom + 8));
-  const left = Math.min(window.innerWidth - tourEl.offsetWidth - 10, Math.max(10, r.left));
-  tourEl.style.top = top + 'px'; tourEl.style.left = left + 'px';
-  $('tPrev').onclick = () => tour(i-1); $('tNext').onclick = () => tour(i+1); $('tSkip').onclick = () => tour(-1);
-  $('tNext').focus();
+  const left = Math.min(innerWidth - tourEl.offsetWidth - 12, Math.max(12, r.left + 16)), top = Math.min(innerHeight - tourEl.offsetHeight - 12, Math.max(12, r.top + 16));
+  tourEl.style.left = left + 'px'; tourEl.style.top = top + 'px';
+  $('tB').onclick = () => tour(i - 1); $('tN').onclick = () => tour(i + 1); $('tS').onclick = () => tour(-1); $('tN').focus();
 }
 $('tourBtn').onclick = () => tour(0);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && tourI >= 0) tour(-1); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') tour(-1); });
 
-render();
+// ---- Theme: light by default, dark opt-in, remembered per viewer when storage allows.
+let dark = false; try { dark = localStorage.getItem('proto143-scheme') === 'dark'; } catch {}
+function applyTheme(){ if (dark) document.documentElement.setAttribute('data-aviation-scheme', 'dark'); else document.documentElement.removeAttribute('data-aviation-scheme');
+  const b = $('darkBtn'); b.setAttribute('aria-pressed', dark); b.className = 'av-tool-chip ' + (dark ? 'av-tool-chip--on' : 'av-tool-chip--ghost'); }
+$('darkBtn').onclick = () => { dark = !dark; try { localStorage.setItem('proto143-scheme', dark ? 'dark' : 'light'); } catch {} applyTheme(); };
+$('resetBtn').onclick = () => { S = fresh(); renderAll(); fit(); };
+
+function renderAll(){ renderSim(); renderNodes(); renderPanel(); applyView(); }
+S = fresh(); applyTheme(); renderLibrary(); renderAll(); requestAnimationFrame(fit);
 </script>
 </body>
 </html>
