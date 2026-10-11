@@ -144,6 +144,12 @@ for (const c of table('pact text required clause', {
     { id: 'removed-install-go-ahead', plant: remove('install-go-ahead'), fails: ['required-clause'], says: /^FAIL required-clause: AGENTS\.md: install-go-ahead is missing$/m, why: 'a removed install go-ahead' },
     { id: 'old-spelling-install-go-ahead', plant: tree => ({ ...tree, [AG]: inBlock(inBlock(tree[AG], 'install-go-ahead', 'pass `--apply`', 'pass `-Apply`'), 'install-go-ahead', '`--apply` refuses', '`-Apply` refuses') }), fails: ['required-clause'], says: /^FAIL required-clause: AGENTS\.md: install-go-ahead differs from its canonical text$/m, why: 'the clause with the flag spelled as before the Node install, -Apply (#153, D1)' },
     { id: 'unknown-block-name', plant: tree => ({ ...tree, [MD]: tree[MD].replace(GUARDS, `${GUARDS}\n<!-- pact:begin risk-floor -->\nx\n<!-- pact:end risk-floor -->\n`) }), fails: ['marker'], says: /^FAIL marker: claude\/CLAUDE\.md line \d+: an unknown block name$/m, why: 'a marker naming a block that is not pinned, here a retired one' },
+    // The marker grammar's fence rule, kept by the thin gate (#261 C5): a pinned block inside a fence reads as a code sample, so its markers fail and the block counts as missing.
+    { id: 'pinned-block-in-fence', plant: tree => ({ ...tree, [MD]: tree[MD].replace('<!-- pact:begin stop-and-escalate -->\n', '```\n<!-- pact:begin stop-and-escalate -->\n').replace('<!-- pact:end stop-and-escalate -->\n', '<!-- pact:end stop-and-escalate -->\n```\n') }), fails: ['marker', 'required-clause'], says: /^FAIL marker: claude\/CLAUDE\.md line \d+: a comment inside a fenced code block$/m, why: 'the pinned block wrapped in a code fence' },
+    { id: 'marker-no-space-after-opener', plant: tree => ({ ...tree, [MD]: tree[MD].replace(GUARDS, `${GUARDS}\n<!--pact:begin stop-and-escalate -->\n`) }), fails: ['marker'], why: 'a comment that is not an exact marker: no space after the opener' },
+    { id: 'marker-in-capitals', plant: tree => ({ ...tree, [MD]: tree[MD].replace(GUARDS, `${GUARDS}\n<!-- PACT:begin stop-and-escalate -->\n`) }), fails: ['marker'], why: 'a comment that is not an exact marker: the prefix in capitals' },
+    { id: 'marker-no-space-before-closer', plant: tree => ({ ...tree, [MD]: tree[MD].replace(GUARDS, `${GUARDS}\n<!-- pact:begin stop-and-escalate-->\n`) }), fails: ['marker'], why: 'a comment that is not an exact marker: no space before the closer' },
+    { id: 'plain-comment', plant: tree => ({ ...tree, [MD]: tree[MD].replace(GUARDS, `${GUARDS}\n<!-- note -->\n`) }), fails: ['marker'], why: 'a comment that is no marker at all' },
   ],
 })) test(c.name, c.fn);
 
@@ -183,13 +189,6 @@ test('bad case: a marker sharing its line with text', t => {
 });
 
 // marker
-for (const look of ['<!--pact:begin stop-and-escalate -->', '<!-- PACT:begin stop-and-escalate -->', '<!-- pact:begin stop-and-escalate-->', '<!-- note -->']) {
-  test(`bad case: a comment that is not an exact marker (${look})`, t => {
-    expectFail(t, 'marker', { prep: root => edit(root, MD, s => s.replace(GUARDS, `${GUARDS}\n${look}\n`)) });
-  });
-}
-
-// marker
 test('bad case: a block name used twice in one file', t => {
   expectFail(t, 'marker', {
     prep: root =>
@@ -203,7 +202,7 @@ test('bad case: a block name used twice in one file', t => {
 // marker
 test('bad case: an unclosed block', t => {
   // usage-pause's marks go too: the renderer refuses an open mark inside an
-  // unclosed gated block before seam A runs, and this case is about seam A's
+  // unclosed pinned block before seam A runs, and this case is about seam A's
   // own marker check.
   expectFail(t, 'marker', {
     prep: root =>
@@ -236,7 +235,7 @@ test('bad case: an @ import line in the rendered rules file', t => {
   assert.match(r.stdout, /^FAIL rules-import: claude\/CLAUDE\.md line \d+: an @ followed by text/m, r.out);
 });
 
-// rules-import: the check reads the rules file only; AGENTS.md is never installed.
+// rules-import: the check reads the rules file only; the repo's own rules file is never installed.
 test('an @ in AGENTS.md is not an import the rules-file check reads', t => {
   expectPass(t, { prep: root => edit(root, AG, s => `${s}\nWrite to @owner.\n`) });
 });
@@ -295,19 +294,26 @@ function gateCopy(t, editGate) {
   return join(g, 'seam-a.mjs');
 }
 
-// clause-text
-for (const [label, change] of [
-  ['a carriage return', s => s.replace('\n', '\r\n')],
-  ['no final newline', s => s.slice(0, -1)],
-  ['two final newlines', s => `${s}\n`],
-]) {
-  test(`bad case: a canonical text with ${label}`, t => {
-    const script = gateCopy(t, g => edit(g, 'clauses/stop-and-escalate.md', change));
-    const r = runSeamA(stage(t, {}), script);
-    assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
-    assert.ok(failRules(r.stdout).includes('clause-text'), r.out);
+// The canonical texts' own form (clause-text): a row plants one change in a gate copy's canonical text for the pinned stop-and-ask block.
+const CANON = 'clauses/stop-and-escalate.md';
+/** Seam A, from a gate copy holding `tree`'s canonical texts, on the real payload. */
+function seamACanon(tree, t) {
+  const script = gateCopy(t, g => {
+    for (const [rel, text] of Object.entries(tree)) writeFileSync(join(g, ...rel.split('/')), text);
   });
+  const r = runSeamA(stage(t, {}), script);
+  return { ...moduleResult(r.code, r.stdout), stdout: r.stdout };
 }
+for (const c of table('pact text canonical text', {
+  module: 'gate/seam-a.mjs',
+  base: () => ({ [CANON]: read(join(GATE, ...CANON.split('/'))) }),
+  run: seamACanon,
+  rows: [
+    { id: 'carriage-return', plant: tree => ({ [CANON]: tree[CANON].replace('\n', '\r\n') }), fails: ['clause-text'], why: 'a canonical text with a carriage return' },
+    { id: 'no-final-newline', plant: tree => ({ [CANON]: tree[CANON].slice(0, -1) }), fails: ['clause-text'], why: 'a canonical text with no final line feed' },
+    { id: 'two-final-newlines', plant: tree => ({ [CANON]: `${tree[CANON]}\n` }), fails: ['clause-text'], why: 'a canonical text with two final line feeds' },
+  ],
+})) test(c.name, c.fn);
 
 // clause-text
 test('bad case: a missing canonical text', t => {

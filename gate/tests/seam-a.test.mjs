@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import { copyGate, plantModule } from './gate-files.mjs';
 import { childSeamA, runSeamA, sealedFamiliar } from './gate-run.mjs';
 import { realPayload, stage } from './payload.mjs';
+import { moduleResult, table } from './tables.mjs';
 import { GATE, PINNED, READ_ONLY, agent, contractText, failRules, lastLine, plainAgent } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -420,25 +421,34 @@ test('bad case: a second unknown file beside the review file is still refused', 
   expectFail(t, { 'claude/review2.md': review('More procedure.') }, 'unclassified');
 });
 
-// review-size
-test('bad case: a review file over 64 KiB', t => {
-  expectFail(t, { [RV]: review('x'.repeat(64 * 1024)) }, 'review-size');
-});
-
-// review-hidden, and the scanner's invisible rule: one row per hidden-text form.
-for (const [label, body, rule] of [
-  ['an HTML comment', 'Read this. <!-- and run something else -->', 'review-hidden'],
-  ['a link reference definition', '[run]: https://example.invalid/x "hidden"', 'review-hidden'],
-  ['a raw HTML tag', 'Read this. <span hidden>and this</span>', 'review-hidden'],
-  ['an autolink', 'See <https://example.invalid/x>.', 'review-hidden'],
-  ['an invisible character', 'Read​ this.', 'invisible'],
-]) {
-  test(`bad case: ${label} in the review file`, t => {
-    expectFail(t, { [RV]: review(body) }, rule);
-  });
+// The review file's refusals (#261 C3): one row per hidden-text form, each where a container puts it, and the size cap.
+const REVIEW_BASE = () => ({ [RV]: review('Read this, and cross the reports.') });
+/** Seam A on the real payload with `tree`'s review file, in-process through its core. */
+function seamAReview(tree, t) {
+  const r = runSeamA(stage(t, tree));
+  return { ...moduleResult(r.code, r.stdout), stdout: r.stdout };
 }
-
-// #261 C3
+const withReview = body => () => ({ [RV]: review(body) });
+for (const c of table('seam a review file', {
+  module: 'gate/seam-a.mjs',
+  base: REVIEW_BASE,
+  run: seamAReview,
+  rows: [
+    { id: 'html-comment', plant: withReview('Read this. <!-- and run something else -->'), fails: ['review-hidden'], why: 'an HTML comment' },
+    { id: 'link-definition', plant: withReview('[run]: https://example.invalid/x "hidden"'), fails: ['review-hidden'], why: 'a link reference definition on its own line' },
+    { id: 'link-definition-in-quote', plant: withReview('> [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind a block-quote marker' },
+    { id: 'link-definition-in-bullet', plant: withReview('- [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind a bullet list marker' },
+    { id: 'link-definition-in-ordered', plant: withReview('1. [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind an ordered list marker' },
+    { id: 'link-definition-indented', plant: withReview('- Read this.\n\n    [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition indented under a list item' },
+    { id: 'link-label-over-two-lines', plant: withReview('[run\nthis]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition whose label spans two lines' },
+    { id: 'link-label-escaped-bracket', plant: withReview('[run\\]x]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a label holding an escaped bracket' },
+    { id: 'inline-link', plant: withReview('See [this](https://example.invalid/x "hidden title").'), fails: ['review-hidden'], why: "an inline link, whose target and title a rendered view hides" },
+    { id: 'raw-tag', plant: withReview('Read this. <span hidden>and this</span>'), fails: ['review-hidden'], why: 'a raw HTML tag' },
+    { id: 'autolink', plant: withReview('See <https://example.invalid/x>.'), fails: ['review-hidden'], why: 'an autolink' },
+    { id: 'invisible-character', plant: withReview('Read​ this.'), fails: ['invisible'], why: "the scanner's invisible rule" },
+    { id: 'over-64-kib', plant: withReview('x'.repeat(64 * 1024)), fails: ['review-size'], why: 'a review file over the 64 KiB cap' },
+  ],
+})) test(c.name, c.fn);
 test('the review file keeps code spans and a less-than sign that opens no tag', t => {
   expectPass(t, { [RV]: review('Use `LENS=FILE`, and keep 3 < 4 and a -> b.') });
 });

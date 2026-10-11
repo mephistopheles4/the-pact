@@ -59,12 +59,17 @@ const CROSS_FILES = Object.freeze([Object.freeze(['cross/cross.mjs', 'pact/cross
 const REVIEW_FILE = 'claude/review.md';
 const REVIEW_DEST = 'pact/review.md';
 const REVIEW_MAX = 64 * 1024;
-// Hidden-text forms: an HTML comment, a link reference definition (a line
-// CommonMark reads as a definition and never shows), and a raw HTML tag,
-// autolinks included.
+// Hidden-text forms: an HTML comment; a link reference definition, which
+// CommonMark never shows, wherever it sits on a line (after a quote or list
+// marker, or indented), and a bracket a line opens and leaves open, which can
+// start a label split over lines; an inline link, whose target and title a
+// rendered view hides; and a raw HTML tag, autolinks included. Read one line
+// at a time, so each form is refused wherever a container puts it.
 const REVIEW_HIDDEN = Object.freeze([
   [/<!--/, 'an HTML comment'],
-  [/^ {0,3}\[[^\]]*\]:/, 'a link reference definition'],
+  [/\]:/, 'a link reference definition'],
+  [/\[[^\]]*$/, 'a bracket the line leaves open, which can start a link label split over lines'],
+  [/\]\(/, 'an inline link, whose target and title a rendered view hides'],
   [/<[A-Za-z/!?]/, 'a raw HTML tag'],
 ]);
 
