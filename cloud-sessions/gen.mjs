@@ -53,6 +53,14 @@ import { Report, readStrictJson, scanText } from '../gate/shared.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = dirname(HERE);
 
+// The pact commands the cloud copy installs, passed to seam A as its
+// --commands (#203, S9). Never written as a configuration, so the render stays
+// "CONFIG none". Empty for now: a cloud session also takes a command from a
+// queued message and a print-mode run, and neither has been tried against the
+// commands' who-typed-it check (#203, step 0's adversarial-lens F2). Turning
+// /make-it-so and /finis on later is this one list.
+export const CLOUD_COMMANDS = Object.freeze([]);
+
 export const OUTPUTS = Object.freeze({
   rules: 'cloud-sessions/CLAUDE.cloud.md',
   setup: 'cloud-sessions/cloud-setup.sh',
@@ -268,8 +276,7 @@ function seamA(files) {
       mkdirSync(dirname(p), { recursive: true });
       writeFileSync(p, buf, { flag: 'wx' });
     }
-    // No pact command installs in the cloud copy yet (#203, T1); T2 turns on its fixed list.
-    const r = seamCheck([stage, '--commands', 'none']);
+    const r = seamCheck([stage, '--commands', CLOUD_COMMANDS.length ? CLOUD_COMMANDS.join(',') : 'none']);
     if (r.failed || r.lines[r.lines.length - 1] !== 'RESULT: pass') {
       const rules = [...new Set(r.lines.map(l => /^FAIL ([a-z][a-z0-9-]*):/.exec(l)?.[1]).filter(Boolean))];
       refuse('cloud/seam-a', `seam A refused the stage (${rules.join(', ') || 'no rule named'})`);

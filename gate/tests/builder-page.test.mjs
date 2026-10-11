@@ -585,7 +585,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides, keepCommands });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -623,6 +623,24 @@ test('with nothing changed, the page saves a configuration that sets nothing', (
   const s = L.initialState();
   assert.deepEqual(L.problems(s), []);
   assert.deepEqual(JSON.parse(JSON.stringify(L.buildFiles(s))), [{ path: 'config.json', text: '{\n  "schema": 1\n}\n' }]);
+});
+
+test('a save keeps a commands list already in the folder\'s config.json, and won\'t replace one it can\'t read (#203, T2)', () => {
+  const s = L.initialState();
+  L.addPreset(s, 'move-1', 'move-1-matt-pocock');
+  const files = L.buildFiles(s);
+  assert.equal(files.length, 2, 'a block file to carry through');
+  assert.deepEqual(L.keepCommands(files, null), { files }, 'no file there');
+  assert.deepEqual(L.keepCommands(files, '{"schema":1,"settings":{"usage-pause":80}}'), { files }, 'a file with no commands key');
+  assert.deepEqual(L.keepCommands(files, '[]'), { files }, 'JSON that is not an object holds no list to keep');
+  const kept = L.keepCommands(files, '{"schema":1,"commands":["make-it-so","finis"]}');
+  assert.deepEqual(JSON.parse(kept.files[0].text), { ...JSON.parse(files[0].text), commands: ['make-it-so', 'finis'] });
+  assert.equal(kept.files[0].path, 'config.json');
+  assert.deepEqual(kept.files.slice(1), files.slice(1), 'block files pass through unchanged');
+  assert.deepEqual(JSON.parse(L.keepCommands(files, '{"commands":[]}').files[0].text).commands, [], 'an empty list is kept too');
+  const bad = L.keepCommands(files, '{"schema":1,"commands":["finis"');
+  assert.equal(bad.files, undefined, 'nothing to write');
+  assert.match(bad.refuse, /config\.json/);
 });
 
 test('a preset goes only in its own slot, and always goes after the slot\'s text', () => {

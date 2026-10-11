@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import {
+  CLOUD_COMMANDS,
   CONFIG_DELIM,
   CloudRefusal,
   EDITS,
@@ -396,6 +397,12 @@ test('cloud copy: the edit list is pinned', () => {
     EDIT_IDS,
   );
   assert.equal(editsDigest(), EDITS_DIGEST);
+});
+
+test('cloud copy: the command list is pinned, and empty until the cloud channels are tried (#203, S9)', () => {
+  assert.deepEqual([...CLOUD_COMMANDS], []);
+  assert.ok(Object.isFrozen(CLOUD_COMMANDS));
+  assert.doesNotMatch(repoText(OUTPUTS.setup), /^write_config 'commands\//m, 'no command in the cloud copy');
 });
 
 test('cloud copy: the wrapper embeds cloud-setup.sh byte for byte', () => {

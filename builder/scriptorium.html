@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-MbdUSWpsclmcIn3ceTB3CyPKhz8yPBhx0iDGxbgCpQQ='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-efF1UIx81Z8fkPAQSsq/QuZiOPW5H2mKzomEMquiqh8='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -842,6 +842,27 @@ function buildFiles(state) {
   return [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks];
 }
 
+/**
+ * The files a save writes over `existing`, the text of the config.json already
+ * in the folder, or null when there is none (#203). The page sets no pact
+ * commands, so a commands list already there is kept as it stands; without
+ * this, a save would drop it and the next install would delete the commands.
+ * A file that isn't JSON is never replaced. Returns { files } or { refuse }.
+ */
+function keepCommands(files, existing) {
+  if (existing === null) return { files };
+  let doc;
+  try {
+    doc = JSON.parse(existing);
+  } catch {
+    return { refuse: 'The folder already holds a config.json that is not valid JSON, so nothing was written. Fix or move that file, then save again.' };
+  }
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !Object.hasOwn(doc, 'commands')) return { files };
+  const config = JSON.parse(files[0].text);
+  config.commands = doc.commands;
+  return { files: [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...files.slice(1)] };
+}
+
 /** Add a preset after its slot's text. Returns a message when it doesn't belong there. */
 function addPreset(state, mark, id) {
   const p = presetById(id);
@@ -1457,6 +1478,15 @@ function boot() {
       if (e && e.name === 'AbortError') return setStatus('Save cancelled. Nothing was written.', '');
       return setStatus('The folder could not be opened. Use the download buttons instead.', 'error');
     }
+    let existing = null;
+    try {
+      existing = await (await (await dir.getFileHandle('config.json')).getFile()).text();
+    } catch (e) {
+      if (!e || e.name !== 'NotFoundError') return setStatus('The folder\'s config.json could not be read, so nothing was written.', 'error');
+    }
+    const kept = keepCommands(files, existing);
+    if (kept.refuse) return setStatus(kept.refuse, 'error');
+    files = kept.files;
     try {
       for (const f of files) {
         const segs = f.path.split('/');
@@ -1570,8 +1600,8 @@ function boot() {
       overview,
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
       el('p', { class: 'av-annot', text: canPick
-        ? 'Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there. Then run the install script\'s dry run and read its Configuration block.'
-        : 'This browser has no folder picker, so save each file with its download button and put it where it says. Then run the install script\'s dry run and read its Configuration block.' }),
+        ? 'Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there, keeping a commands list config.json already holds. Then run the install script\'s dry run and read its Configuration block.'
+        : 'This browser has no folder picker, so save each file with its download button and put it where it says. A downloaded config.json holds no commands list: if yours has one, copy that line across, or the next install deletes those commands. Then run the install script\'s dry run and read its Configuration block.' }),
       el('ul', { class: 'callouts' }, ...notes),
       el('div', { class: 'files' }, ...fileViews),
     );

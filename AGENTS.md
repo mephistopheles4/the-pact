@@ -345,6 +345,8 @@ Where two bullets apply, the stricter one holds.
   - any agent that is not a lens, when it holds a shell or network tools, or
     guards the security route or the risk floor;
   - the install gate's tool allow-list, `gate/tool-allowlist.json`;
+  - the pact commands, every file in `claude/commands/`: each is a prompt
+    the owner's word starts, and a merge or a push can follow from it;
   - the settings guard, `gate/settings-allowlist.json` and
     `claude/settings.overlay.json`;
   - the cross script, `cross/cross.mjs`, the code that refuses a malformed or

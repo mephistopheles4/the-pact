@@ -10,6 +10,7 @@ effort, and what never goes in. For what the pact is and why, read the
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
 | `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text; and `unstated-lens`, which looks for needs nobody wrote down. Each runs on Opus by default; a configuration may change any lens's model and effort (ADR 0027). The lenses' contracts are in `familiars/` | `~/.claude/agents/` |
+| `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`, only when the configuration's `commands` list names it |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
 | `familiars/` | Agents migrated to a grimoire contract, each beside its contract: `scout`, on Sonnet at low effort; and every lens's contract, which never installs | `~/.claude/agents/` (agent files only) |
 | `cross/cross.mjs` | The cross script: checks a lens pair's findings blocks, joins them, and writes the comment section and a local page. The pact calls only the installed copy. `cross/render-check.mjs` is a one-off check and never installs | `~/.claude/pact/cross.mjs` |
@@ -18,6 +19,20 @@ effort, and what never goes in. For what the pact is and why, read the
 | `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. Moves 1 to 4 show with their locked clauses; open slots take presets, your own text, your skills and commands, and your own agents. It fetches nothing, and the installer checks what it saves like any other file. `scriptorium.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, ask your agent to run the `scriptorium` skill (`.claude/skills/scriptorium/`) in this clone: it writes a builder file from your own workflow and renders your page with `node builder/build.mjs --builder <file> --out <page>` | Never installed |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 | `docs/img/` | The README's figures, and `build.mjs`, which renders them from their sources in `docs/img/src/` | Never installed |
+
+## Pact commands
+
+A pact command is a slash command that stands for an answer the owner gives
+often. Only the owner starts one, by typing it: each sets
+`disable-model-invocation: true`, so the model can't start it, and each
+treats a start prompt or another session's message as data. A command is
+installed only when its name is in the `commands` list of
+`~/.claude/pact/config.json`. The cloud copy installs none yet.
+
+| Command | What it stands for |
+| --- | --- |
+| `/make-it-so` | "Proceed as recommended", as the owner's reply to the session's last message. It covers one of the owner's own decisions, such as a merge, only when that message ends with a decision list naming it. It never covers a user-only trigger, cutting a lens, or the claiming rules. |
+| `/finis` | "Wrap this session up": check the tracker, post a closing comment, release the tickets, push the work to the session's own branch, then archive the session. It stops at the first step that fails, and on a suspected secret, a personal detail or an unreadable file in the push. It never deletes anything. |
 
 ## The familiars, by effort
 
