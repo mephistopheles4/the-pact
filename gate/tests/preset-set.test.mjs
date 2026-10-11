@@ -53,6 +53,7 @@ test('the set renders with seam A passing', t => {
   assert.equal(lastLine(r.stdout), 'RESULT: pass', r.stdout + r.stderr);
 });
 
+// #261 C15
 test('each block is added after the default text, in its own move', t => {
   const { md } = renderedWith(t, homeWithSet(t));
   const m1 = md.indexOf('What kind of work is it');

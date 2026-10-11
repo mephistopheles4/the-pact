@@ -158,6 +158,7 @@ test('each shipped example block is known-good on its own, under each operation 
   }
 });
 
+// #261 C14
 test('a remove takes out the part\'s text and keeps the move\'s bullet', t => {
   const config = JSON.stringify(cfg([{ mark: 'move-1', op: 'remove' }]));
   const r = render(t, homeWith(t, config));
@@ -168,6 +169,7 @@ test('a remove takes out the part\'s text and keeps the move\'s bullet', t => {
   assert.match(r.bytes.toString('utf8'), /^ {2}reproduced and traced to its start before anyone fixes it\.\n- \*\*Think before doing\.\*\* /m);
 });
 
+// #261 C14
 test('a replace keeps the move\'s bullet and lead-in, and the digest changes when only a block changes', t => {
   const config = JSON.stringify(cfg([{ mark: 'move-3', op: 'replace', file: 'm3.md' }]));
   const a = render(t, homeWith(t, config, { 'm3.md': 'First text.\n' }));
@@ -194,6 +196,7 @@ test('a block in a sub-folder of the blocks folder is read', t => {
   assert.match(r.stdout, /^EDIT move-4-extra add-after [0-9a-f]{64} team\/extra\.md$/m);
 });
 
+// #261 C10
 test('with no configuration the diff is empty, and with a values-only one it shows only the value and the notice', t => {
   const none = render(t, tempDir(t));
   assert.equal(none.code, 0, none.out);
@@ -217,6 +220,7 @@ test('with no configuration the diff is empty, and with a values-only one it sho
 
 // ------------------------------------------------------------ re-indenting is load-bearing (seam 2)
 
+// #261 C14
 test('re-indented block text stays inside its move: a move-4-extra block lands at the bullet\'s indent, and seam A passes', t => {
   const root = stage(t, { 'claude/agents/extra-agent.md': plainAgent('extra-agent') });
   const block = 'Then run `extra-agent` on the diff.\n';
@@ -236,6 +240,7 @@ test('seam A: a block naming the user\'s own agent, not on the roster and not in
 });
 // ------------------------------------------------------------ planted controls: the renderer's text checks are load-bearing
 
+// block-text
 test('a block holding a setext heading is refused by the renderer; seam A no longer checks form (#261)', t => {
   refusedWith(render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': 'Title\n===\n' })), 'block-text', /a setext heading underline/);
 });
@@ -251,6 +256,7 @@ test('control: an @ import in open text fails seam A without the renderer, and t
   refusedWith(render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': 'See @notes.md for more.\n' })), 'block-text', /an @ followed by text/);
 });
 
+// #261 C5
 test('control: a heading and a numbered line pass seam A without the renderer, and the renderer refuses them as a block', t => {
   const root = stage(t, {});
   const md = join(root, 'claude', 'CLAUDE.md');
@@ -264,6 +270,7 @@ test('control: a heading and a numbered line pass seam A without the renderer, a
 
 // ------------------------------------------------------------ gated marks and renderer-owned parts
 
+// edit-gated
 for (const clause of GATED) {
   for (const op of OPS) {
     test(`bad case: an edit to the pinned block ${clause} with ${op} refuses, naming the block`, t => {
@@ -273,6 +280,7 @@ for (const clause of GATED) {
   }
 }
 
+// #261 C4
 test('the pinned blocks refused are exactly gate/clauses/, install-go-ahead included', () => {
   assert.equal(GATED.length, 2, GATED.join(', '));
   assert.ok(GATED.includes('install-go-ahead'));
@@ -321,6 +329,7 @@ function refusedOnly(r) {
 
 // ------------------------------------------------------------ the must-refuse table: the edit list
 
+// #261 C4
 for (const c of table('render edit list', {
   module: 'gate/render.mjs',
   base: editHome,
@@ -358,6 +367,7 @@ test('16 edits are not refused by the count: the same list refuses only for a ma
   refusedWith(r, 'edit-twice', /edit 2: move-1 is edited twice/);
 });
 
+// edit-gated
 test('a refusal reports every bad edit, each by its position', t => {
   const r = render(t, homeWith(t, cfg([{ mark: 'stop-and-escalate', op: 'remove' }, { mark: 'move-1', op: 'remove' }, { mark: 'nope', op: 'remove' }])));
   refusedWith(r, 'edit-gated', /edit 1: stop-and-escalate/);
@@ -620,6 +630,7 @@ const SHARE = [
   ['a gated end and an open begin on one line', s => s.replace('<!-- pact:end stop-and-escalate -->\n<!-- pact:begin usage-pause -->\n', '<!-- pact:end stop-and-escalate --><!-- pact:begin usage-pause -->\n')],
 ];
 
+// placement
 for (const [label, change] of SHARE) {
   for (const [withConfig, home] of [
     ['with a configuration', t => homeWith(t, cfg([{ mark: 'move-1', op: 'remove' }]))],
@@ -655,6 +666,7 @@ test('refusals name only the renderer\'s own names and positions: no mark, op, p
   }
 });
 
+// #261 C14
 test('a block\'s text never reaches the renderer\'s output lines on a pass', t => {
   const C = 'CANARYpass';
   const r = render(t, homeWith(t, edit1, { 'b.md': `${C} text.\n` }));

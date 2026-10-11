@@ -203,6 +203,7 @@ test('a rule id is looked for in the module and every gate file it imports, not 
   );
 });
 
+// #261 C6
 test('seam A\'s rule ids are found through the files it imports', () => {
   const lits = moduleLiterals('gate/seam-a.mjs');
   assert.ok(lits.has('rules-import'), 'a rule pact-text.mjs holds, which seam A imports');

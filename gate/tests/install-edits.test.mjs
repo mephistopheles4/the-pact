@@ -79,6 +79,7 @@ function configBlock(r) {
 
 // ------------------------------------------------------------ a configuration with edits installs
 
+// #261 C14
 test('a configuration that replaces move-2, removes move-1 and adds to move-4-extra installs: each edit is a warning in the dry run and named in the notice', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -123,6 +124,7 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 });
 
+// #261 C14
 test('bad case: a block changed between the dry run and -Apply refuses, by the rendered hash', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -149,6 +151,7 @@ test('bad case: an edit to a pinned block refuses through the install, naming th
 
 // ------------------------------------------------------------ the review output
 
+// #261 C14
 test('-ReviewFolder on a configured dry run writes the rendered rules and the diff, and changes nothing else', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -179,6 +182,7 @@ test('-ReviewFolder with no configuration writes the rules and an empty diff', t
   assert.equal(readFileSync(join(folder, 'rendered-rules.txt'), 'utf8'), withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
 });
 
+// #261 C14
 test('-ReviewFolder with -Apply writes the review, then installs', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -243,6 +247,7 @@ test('the review output is written only after every check passes: a refused conf
   assert.ok(!existsSync(folder));
 });
 
+// #261 C5
 test('the review output is written only after every check passes: seam A refusing writes none', t => {
   // An agent that asks for a shell: the render passes, and seam A refuses it.
   const repo = makeRepo(t, root => writeFileSync(join(root, 'claude', 'agents', 'probe.md'), '---\nname: probe\ndescription: A test agent.\ntools: [Read, Glob, Grep, Bash]\n---\n\nBody.\n'));
@@ -256,6 +261,7 @@ test('the review output is written only after every check passes: seam A refusin
   assert.ok(!existsSync(folder));
 });
 
+// #261 C14
 test('the review output is written only after every check passes: a wrong hash on -Apply writes none', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -266,6 +272,7 @@ test('the review output is written only after every check passes: a wrong hash o
   assert.ok(!existsSync(folder));
 });
 
+// #261 C14
 test('the review output is written only after every check passes: -Apply with no hash for a configuration writes none', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -300,6 +307,7 @@ function plantRenderer(root, from, to) {
   plantModule(join(root, 'gate'), 'render', from, to);
 }
 
+// #261 C14
 for (const [label, withConfig, from, to, why] of [
   ['an edit with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'EDIT move-1 remove');", 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
   ['one open part edited twice', true, R_USER, `${R_USER}, 'EDIT move-1 remove'`, 'the renderer reported one open part edited twice'],
@@ -346,6 +354,7 @@ test('bad case: a stray full path after the named options refuses, and is never 
 
 // ------------------------------------------------------------ after the move-4 review (#94)
 
+// #261 C5
 test('a block naming the user\'s own agent installs: the shipped example passes seam A', t => {
   const repo = makeRepo(t);
   const h = home(t);

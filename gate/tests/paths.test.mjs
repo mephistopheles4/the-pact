@@ -32,6 +32,7 @@ test('isClaudeSegment reads .claude however it is cased or padded', () => {
   for (const s of ['.claude2', 'claude', '.claudex']) assert.equal(isClaudeSegment(s), false, s);
 });
 
+// #261 C1
 test('the notice and the fit check never mention a project or its files', () => {
   const notice = moduleMatch(GATE, 'render', /const NOTICE_TEMPLATE = [\s\S]*?\n\];\n/);
   assert.ok(notice, 'the notice template is in the renderer');

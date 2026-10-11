@@ -34,6 +34,7 @@ const A = 'claude/agents/probe.md';
 
 // ------------------------------------------------------------ the real tree
 
+// #261 C3
 test('seam A passes on the repo payload, and lists every file it would install', t => {
   const root = tempDir(t);
   realPayload(root);
@@ -76,7 +77,8 @@ test('an install line carries the staged bytes hash', t => {
   assert.match(hash, /^[0-9a-f]{64}$/);
 });
 
-// The dry run's note says what the thin gate checks (#261, S5); the old note, which claimed form, routing and the roster, fails this test.
+// The dry run's note says what the thin gate checks; the old note, which claimed form, routing and the roster, fails this test.
+// #261 C7
 test('CLAUDE.md is named as the rendered file, with what the thin gate checks in it', t => {
   const r = expectPass(t, {});
   assert.doesNotMatch(r.stdout, /^NOTE unchecked: claude\/CLAUDE\.md/m);
@@ -399,6 +401,7 @@ test('classification: a symlink in the stage', t => {
 const RV = 'claude/review.md';
 const review = body => `# Review\n\n${body}\n`;
 
+// #261 C3
 test('the review file installs to pact/review.md and nowhere else', t => {
   const r = expectPass(t, {});
   const lines = r.stdout.split('\n').filter(l => l.includes(' claude/review.md '));
@@ -411,7 +414,8 @@ test('bad case: no review file in the stage', t => {
   expectFail(t, {}, 'review-file', root => rmSync(join(root, 'claude', 'review.md')));
 });
 
-// unclassified: the classifier takes exactly claude/review.md beyond today's kinds.
+// unclassified, #261 C3: the classifier takes exactly the review file beyond today's kinds.
+// unclassified
 test('bad case: a second unknown file beside the review file is still refused', t => {
   expectFail(t, { 'claude/review2.md': review('More procedure.') }, 'unclassified');
 });
@@ -434,6 +438,7 @@ for (const [label, body, rule] of [
   });
 }
 
+// #261 C3
 test('the review file keeps code spans and a less-than sign that opens no tag', t => {
   expectPass(t, { [RV]: review('Use `LENS=FILE`, and keep 3 < 4 and a -> b.') });
 });

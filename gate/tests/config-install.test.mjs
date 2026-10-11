@@ -67,6 +67,7 @@ function denyRead(p) {
   }
 }
 
+// #261 C10
 test('bad case: an unreadable configuration file refuses, and -Apply writes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -127,6 +128,7 @@ function nothingWritten(h) {
   assert.ok(!tree.some(f => f === 'CLAUDE.md' || f === '.pact-install.json' || f.startsWith('agents')), tree.join('\n'));
 }
 
+// #261 C7
 test('the shipped example installs: the dry run shows it, -Apply with the full rendered hash installs 90% with the notice, and the record names it', t => {
   const repo = makeRepo(t);
   const h = home(t);

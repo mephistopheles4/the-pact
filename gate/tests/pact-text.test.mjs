@@ -95,6 +95,7 @@ const GUARDS = '## Guards\n';
 
 // ------------------------------------------------------------ the real pact
 
+// #261 C4
 test('the real tree passes, with AGENTS.md staged', t => {
   const root = tempDir(t);
   realPayload(root);
@@ -104,6 +105,7 @@ test('the real tree passes, with AGENTS.md staged', t => {
 });
 
 // Every block on PINNED has a home here, and each canonical text equals its block.
+// #261 C4
 test('every pinned block is in its file, and equals its canonical text', () => {
   assert.deepEqual(Object.keys(BLOCKS).sort(), [...PINNED].sort());
   for (const [name, rel] of Object.entries(BLOCKS)) {
@@ -128,6 +130,7 @@ function seamATree(tree, t) {
   return { ...moduleResult(r.code, r.stdout), stdout: r.stdout };
 }
 
+// #261 C4
 for (const c of table('pact text required clause', {
   module: 'gate/seam-a.mjs',
   base: pactText,
@@ -144,6 +147,7 @@ for (const c of table('pact text required clause', {
   ],
 })) test(c.name, c.fn);
 
+// #261 C4
 test('the required-clause table has a weakened, a one-byte and a removed row for every pinned block', () => {
   const src = read(join(GATE, 'tests', 'pact-text.test.mjs'));
   for (const name of PINNED) {
@@ -151,10 +155,12 @@ test('the required-clause table has a weakened, a one-byte and a removed row for
   }
 });
 
+// pact-file
 test('bad case: a missing AGENTS.md', t => {
   expectFail(t, 'pact-file', { prep: root => rmSync(file(root, AG)) });
 });
 
+// pact-file
 test('bad case: an AGENTS.md that is not a regular file', t => {
   expectFail(t, 'pact-file', {
     prep: root => {
@@ -164,22 +170,26 @@ test('bad case: an AGENTS.md that is not a regular file', t => {
   });
 });
 
+// pact-file
 test('bad case: a missing CLAUDE.md', t => {
   expectFail(t, 'pact-file', { prep: root => rmSync(file(root, MD)) });
 });
 
 // ------------------------------------------------------------ the marker grammar
 
+// marker
 test('bad case: a marker sharing its line with text', t => {
   expectFail(t, 'marker', { prep: root => edit(root, MD, s => s.replace('<!-- pact:begin stop-and-escalate -->\n- ', '<!-- pact:begin stop-and-escalate -->- ')) });
 });
 
+// marker
 for (const look of ['<!--pact:begin stop-and-escalate -->', '<!-- PACT:begin stop-and-escalate -->', '<!-- pact:begin stop-and-escalate-->', '<!-- note -->']) {
   test(`bad case: a comment that is not an exact marker (${look})`, t => {
     expectFail(t, 'marker', { prep: root => edit(root, MD, s => s.replace(GUARDS, `${GUARDS}\n${look}\n`)) });
   });
 }
 
+// marker
 test('bad case: a block name used twice in one file', t => {
   expectFail(t, 'marker', {
     prep: root =>
@@ -190,6 +200,7 @@ test('bad case: a block name used twice in one file', t => {
   });
 });
 
+// marker
 test('bad case: an unclosed block', t => {
   // usage-pause's marks go too: the renderer refuses an open mark inside an
   // unclosed gated block before seam A runs, and this case is about seam A's
@@ -202,10 +213,12 @@ test('bad case: an unclosed block', t => {
   });
 });
 
+// marker
 test('bad case: an end marker with no begin', t => {
   expectFail(t, 'marker', { prep: root => edit(root, MD, s => s.replace('<!-- pact:begin stop-and-escalate -->\n', '')) });
 });
 
+// marker
 test('bad case: a pinned block in a file not listed for it', t => {
   expectFail(t, 'marker', {
     prep: root => {
@@ -230,6 +243,7 @@ test('an @ in AGENTS.md is not an import the rules-file check reads', t => {
 
 // ------------------------------------------------------------ agents' markers
 
+// marker
 test('bad case: a marker in an agent that holds no block', t => {
   expectFail(t, 'marker', {
     files: { [PROBE]: plainAgent('probe', [], READ_ONLY).replace('Body.\n', 'Body.\n<!-- pact:begin risk-floor -->\nx\n<!-- pact:end risk-floor -->\n') },
@@ -237,6 +251,7 @@ test('bad case: a marker in an agent that holds no block', t => {
 });
 
 // marker: the exemption is by name; the same pair in another lens still fails (#261, S5).
+// #261 C9
 test("bad case: executability-lens's risk-floor marker planted in another lens", t => {
   const r = expectFail(t, 'marker', {
     prep: root => edit(root, 'claude/agents/good-enough-lens.md', s => s.replace('## How you work', '<!-- pact:begin risk-floor -->\nx\n<!-- pact:end risk-floor -->\n\n## How you work')),
@@ -245,24 +260,29 @@ test("bad case: executability-lens's risk-floor marker planted in another lens",
 });
 
 // marker: the exemption holds the pair once each, and nothing else.
+// #261 C9
 test('bad case: another comment in executability-lens', t => {
   expectFail(t, 'marker', { prep: root => edit(root, EX, s => `${s}\n<!-- pact:begin stop-and-escalate -->\n`) });
 });
 
+// #261 C9
 test('bad case: the risk-floor pair twice in executability-lens', t => {
   expectFail(t, 'marker', { prep: root => edit(root, EX, s => `${s}\n<!-- pact:begin risk-floor -->\nx\n<!-- pact:end risk-floor -->\n`) });
 });
 
 // ------------------------------------------------------------ the pact files' characters
 
+// invisible
 test('bad case: an invisible character in CLAUDE.md', t => {
   expectFail(t, 'invisible', { prep: root => edit(root, MD, s => s.replace('## Guards', '## Gua​rds')) });
 });
 
+// bom
 test('bad case: a byte-order mark on AGENTS.md', t => {
   expectFail(t, 'bom', { prep: root => edit(root, AG, s => `﻿${s}`) });
 });
 
+// characters
 test('bad case: a carriage return in CLAUDE.md', t => {
   expectFail(t, 'characters', { prep: root => edit(root, MD, s => s.replace('\n', '\r\n')) });
 });
@@ -275,6 +295,7 @@ function gateCopy(t, editGate) {
   return join(g, 'seam-a.mjs');
 }
 
+// clause-text
 for (const [label, change] of [
   ['a carriage return', s => s.replace('\n', '\r\n')],
   ['no final newline', s => s.slice(0, -1)],
@@ -288,6 +309,7 @@ for (const [label, change] of [
   });
 }
 
+// clause-text
 test('bad case: a missing canonical text', t => {
   const script = gateCopy(t, g => rmSync(join(g, 'clauses', 'install-go-ahead.md')));
   const r = runSeamA(stage(t, {}), script);
@@ -296,6 +318,7 @@ test('bad case: a missing canonical text', t => {
 });
 
 // clause-text: a name added to PINNED with no file named for it fails closed.
+// #261 C4
 test('bad case: a pinned name the gate names no file for', t => {
   const script = gateCopy(t, g => {
     edit(g, 'shared.mjs', s => s.replace("const PINNED = Object.freeze(['stop-and-escalate', 'install-go-ahead']);", "const PINNED = Object.freeze(['stop-and-escalate', 'install-go-ahead', 'usage-pause']);"));
@@ -308,6 +331,7 @@ test('bad case: a pinned name the gate names no file for', t => {
 
 // ------------------------------------------------------------ never echoes content
 
+// #261 C6
 test('canary: no drifted text, unknown block name or comment text is echoed', t => {
   const C = 'canaryzq';
   const { r } = run(t, {

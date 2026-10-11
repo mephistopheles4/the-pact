@@ -159,6 +159,7 @@ test('an empty source renders to an empty file', t => {
   assert.match(r.stdout, new RegExp(`^RENDERED ${sha256(Buffer.alloc(0))}$`, 'm'));
 });
 
+// #261 C4
 test('no open-mark name is a pinned block name', () => {
   // The two pinned blocks of #261.
   assert.equal(GATED.length, 2, GATED.join(', '));

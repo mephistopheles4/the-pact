@@ -275,6 +275,7 @@ test('bad case: seam A output cannot carry control codes or hide the gate block'
   assert.ok(gate > lastSeam, r.stdout);
 });
 
+// #261 C5
 test('canary: the install never echoes agent file content', t => {
   const C = 'CANARYzq';
   const repo = makeRepo(t, root => {
@@ -487,6 +488,7 @@ test("bad case: a commit with seam A's core deleted refuses, since the runner ca
   assert.doesNotMatch(r.stdout, /^seam-a\| /m, r.out);
 });
 
+// #261 C4
 test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
   const repo = makeRepo(t, root =>
     plantRenderer(root, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('your pick, and wait.', 'your pick.'));"),

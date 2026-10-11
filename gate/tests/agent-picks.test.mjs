@@ -124,6 +124,7 @@ test('#151: a test that imports only helpers that touch no payload is not picked
   assert.equal(p.get('planted-payload.test.mjs'), 'names claude/agents/scout.md in payload.mjs');
 });
 
+// ADR 0034
 test('#151: control: a harness that imports the payload again ties every install file to the agents', () => {
   const sources = sourcesOf(TESTS);
   sources.set('install-harness.mjs', `import { stage } from './payload.mjs';\n${sources.get('install-harness.mjs')}`);

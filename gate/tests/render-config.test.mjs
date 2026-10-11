@@ -77,6 +77,7 @@ function expected(srcText, digest, value) {
 
 // ------------------------------------------------------------ a configuration that applies
 
+// #261 C10
 test('the shipped example sets the usage pause to 90: the rules read 90%, with the notice, its digest and the value', t => {
   const bytes = readFileSync(EXAMPLE);
   const r = render(t, homeWith(t, bytes));
@@ -350,11 +351,13 @@ test('bad case: a source with no usage-pause part refuses a configuration that s
   refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'render', /usage-pause: the part is not in the source/);
 });
 
+// #261 C10
 test('bad case: a usage-pause part that no longer matches its template at the default refuses', t => {
   const src = read(SOURCE).replace('over usage is mine.', 'over usage is yours.');
   refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'render', /usage-pause: the template at its default no longer matches the source/);
 });
 
+// #261 C10
 test('bad case: a usage-pause part with a line more than its template refuses', t => {
   const src = read(SOURCE).replace('  go-ahead. The call to cut or stop work over usage is mine.\n', '  go-ahead. The call to cut or stop work over usage is mine.\n  Extra.\n');
   refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'render', /usage-pause: the template at its default no longer matches the source/);
@@ -402,6 +405,7 @@ const PLACEMENT = [
   ],
 ];
 
+// placement
 for (const [label, change, reason] of PLACEMENT) {
   for (const [withConfig, home] of [
     ['with a configuration', t => homeWith(t, GOOD)],
@@ -416,6 +420,7 @@ for (const [label, change, reason] of PLACEMENT) {
   }
 }
 
+// #261 C10
 test('bad case: a render larger than 1 MiB refuses, though its source is within the cap', t => {
   // A source of exactly 1 MiB with only the two parts a configuration fills:
   // the notice and the wider value outgrow the four mark lines stripped.

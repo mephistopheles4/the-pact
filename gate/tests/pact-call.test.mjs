@@ -43,6 +43,7 @@ function which(cmd) {
 // A POSIX shell: Git's own on Windows, the system's elsewhere.
 const SH = WIN ? [join(dirname(which('git')), '..', 'bin', 'sh.exe'), join(dirname(which('git')), '..', 'usr', 'bin', 'sh.exe')].find(existsSync) : '/bin/sh';
 
+// #261 C2
 test('the paragraph gives one PowerShell and one POSIX command, each through $HOME and clearing NODE_OPTIONS', () => {
   const cmds = commands();
   assert.equal(cmds.length, 2, cmds.join('\n'));
@@ -76,7 +77,8 @@ test('bad case: a command chained before the PowerShell call fails the exact che
   assert.equal(exactForms(text), false);
 });
 
-// #261 S6: the review file carries the exit codes and the four data-handling lines.
+// The review file carries the exit codes and the four data-handling lines.
+// #261 C2
 test('the review file names both failure exit codes, what each means, and the four data-handling lines', () => {
   const p = PACT_TEXT().replace(/\s+/g, ' ');
   for (const words of [
@@ -89,7 +91,8 @@ test('the review file names both failure exit codes, what each means, and the fo
   ]) assert.ok(p.includes(words), words);
 });
 
-// #261 S2: a session that skips the review file still runs the right script, and is told to read the file.
+// A session that skips the review file still runs the right script, and is told to read the file.
+// #261 C1
 test('the rules file points to the review file and names the installed cross script', () => {
   const rules = read(join(REPO, 'claude', 'CLAUDE.md')).replace(/\s+/g, ' ');
   assert.ok(rules.includes("read the pact's review procedure, `~/.claude/pact/review.md`."), 'the review file pointer');

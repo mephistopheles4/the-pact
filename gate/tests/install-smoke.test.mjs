@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo } from './install-harness.mjs';
 
+// #261 C7
 test('dry run on a clean tree passes and shows Node, the pin, the check and the gate', t => {
   const repo = makeRepo(t);
   const r = install(repo, home(t));
@@ -24,6 +25,7 @@ test('dry run on a clean tree passes and shows Node, the pin, the check and the 
   );
 });
 
+// #261 C3
 test('--apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
   const repo = makeRepo(t);
   const h = home(t);

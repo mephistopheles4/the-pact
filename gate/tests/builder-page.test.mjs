@@ -184,6 +184,7 @@ test('control: a copied root with nothing changed rebuilds the committed page ex
   assert.equal(buildPage(buildRoot(t, () => {}), PAGE), PAGE);
 });
 
+// #261 C12
 test('bad case: a pinned block changed in the pact source makes the committed page out of date', t => {
   const root = buildRoot(t, r => {
     const p = join(r, 'claude', 'CLAUDE.md');
@@ -370,7 +371,8 @@ test('each step counts its own changes and problems, and Review counts them all'
   s.usage = 101;
   assert.equal(Object.fromEntries(L.stepSummary(s).map(r => [r.id, r])).start.errors, 1);
 });
-// #261: the moves' parts are empty by default, so they name no agent an edit could drop, and no edit warns.
+// The moves' parts are empty by default, so they name no agent an edit could drop, and no edit warns.
+// #261 C12
 test('a removed default left empty counts as an edit on its own step, and Review counts every problem', () => {
   const s = L.initialState();
   const part = L.PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === 'move-2');
@@ -425,6 +427,7 @@ function bootPage({ picker = false, folder = null } = {}) {
   return { ids, find, button };
 }
 
+// #261 C12
 test('stub page: each step shows only its own sections; a move step shows only its move, two sidebar tabs, and Back and Next', () => {
   const P = bootPage();
   const view = () => ({
@@ -501,6 +504,7 @@ test('stub page: an override shows on the Agents step and on Review, and a step 
   assert.doesNotMatch(P.ids.here.text, /move-3/);
 });
 
+// #261 C12
 test('stub page: the Agents step\'s own-agent card opens the last move on its Yours tab, and does not drag', () => {
   const P = bootPage();
   P.find(P.ids.stepper, n => n.tag === 'button')[5].click();
@@ -598,7 +602,8 @@ function pageLogic() {
 
 const L = pageLogic();
 
-// #261 S5: the builder finds the moves by their parts, in order, and titles each by its bullet's lead-in.
+// The builder finds the moves by their parts, in order, and titles each by its bullet's lead-in.
+// #261 C12
 test('the page shows the four moves as a fixed spine, named by their lead-ins: the pinned block carries its text, open slots are the renderer\'s editable marks', () => {
   assert.deepEqual(L.PACT.moves.map(m => m.n), [1, 2, 3, 4]);
   assert.deepEqual(L.PACT.moves.map(m => m.lead), ['Sense the work', 'Think before doing', 'Checkpoint the seams', 'Stay the owner']);
@@ -744,7 +749,8 @@ test('custom text with Windows line endings is saved with LF only', () => {
   assert.equal(L.buildFiles(s)[1].text, 'One line.\nTwo lines.\n');
 });
 
-// #261: move 2's default text is empty, so replacing it drops no agent and warns about none.
+// Move 2's default text is empty, so replacing it drops no agent and warns about none.
+// #261 C12
 test('the page stops a save on an error, and a move-2 replace that names no agent raises no warning', () => {
   const s = L.initialState();
   s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Think first, then write the spec.' }] };
@@ -816,6 +822,7 @@ test('the page takes each lens\'s class from the renderer: six security-set, two
   });
 });
 
+// #261 C12
 test('the page shows each pact agent with its model and effort, as its file sets them, and where the pact names it', () => {
   const names = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
   assert.deepEqual(L.PACT.agents.map(a => a.name), [...names, 'scout']);

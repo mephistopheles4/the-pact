@@ -240,6 +240,7 @@ test('a security-set override carries its own mark in the notice, and the senten
   assert.doesNotMatch(notice(r.rules), /not verified/);
 });
 
+// #261 C8
 test('bad case: each sign alone marks integrity-lens security-set; with none it stays plain', t => {
   assert.equal(classify(t, 'integrity-lens').words, 'plain override local');
   // A tool beyond the read tools: security-set, and egress.

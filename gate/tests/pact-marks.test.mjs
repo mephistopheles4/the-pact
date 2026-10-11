@@ -40,6 +40,7 @@ test('with no configuration, the installed pact is its source with the open-mark
   assert.equal(readFileSync(join(out, 'CLAUDE.md'), 'utf8'), want);
 });
 
+// #261 C4
 test('seam A refuses the unrendered source: the open marks are not marks it knows, so a skipped render fails closed', t => {
   const root = stage(t);
   const env = { ...process.env };
@@ -71,6 +72,7 @@ test('no open mark encloses or overlaps a gated mark', () => {
   }
 });
 
+// #261 C1
 test('each move is a bullet with a bold lead-in, and its part is an empty slot at the end of it, indented under it', () => {
   const bullets = LINES.map((l, i) => (i > MOVES_AT && /^- \*\*[^*]+\.\*\* /.test(l) ? i : -1)).filter(i => i >= 0);
   assert.ok(bullets.length >= 4, 'four move bullets');
@@ -82,10 +84,12 @@ test('each move is a bullet with a bold lead-in, and its part is an empty slot a
   });
 });
 
+// #261 C1
 test('config-notice is an empty slot right after the line under the title', () => {
   assert.deepEqual(LINES.slice(0, 6), ['# The pact', '', 'To change the pact, edit its repo and install it.', '<!-- pact:begin config-notice -->', '<!-- pact:end config-notice -->', '']);
 });
 
+// #261 C1
 test('usage-pause wraps the usage bullet in "Guards", right after the pinned stop-and-ask block', () => {
   const h = at('## Guards');
   const b = at('<!-- pact:begin usage-pause -->');

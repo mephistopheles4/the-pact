@@ -73,6 +73,7 @@ function installSaved(t, state) {
   return { rules, files, h };
 }
 
+// #261 C15
 test('a configuration the page saves with a value and every preset installs through the dry run and -Apply', t => {
   const s = L.initialState();
   s.usage = 90;
@@ -80,10 +81,11 @@ test('a configuration the page saves with a value and every preset installs thro
   const { rules, files } = installSaved(t, s);
   assert.deepEqual(files.map(f => f.path), ['config.json', 'blocks/move-1.md', 'blocks/move-2.md', 'blocks/move-3.md', 'blocks/move-4-extra.md']);
   assert.match(rules, /When it is above 90%/);
-  for (const p of L.PACT.presets) for (const line of p.text.split('\n')) assert.ok(rules.includes(`   ${line}\n`), `${p.id}: ${line}`);
+  for (const p of L.PACT.presets) for (const line of p.text.split('\n')) assert.ok(rules.includes(`  ${line}\n`), `${p.id}: ${line}`);
   assert.match(rules, /Values set: usage-pause 90\. Parts edited: move-1 \(add-after\), move-2 \(add-after\), move-3 \(add-after\), move-4-extra \(add-after\)\./);
 });
 
+// #261 C14
 test('a configuration the page saves with your own text and a removal installs through the dry run and -Apply', t => {
   const s = L.initialState();
   s.usage = 60;
@@ -92,12 +94,11 @@ test('a configuration the page saves with your own text and a removal installs t
   s.slots['move-2'] = { replaced: false, cards: [{ kind: 'custom', text: 'Before the spec, ask me which open question I want answered first.\r\n' }] };
   s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'custom', text: 'Say which tests you ran.' }, { kind: 'preset', id: 'move-4-docs-check' }, { kind: 'agent', name: 'my-reviewer', reads: 'the diff' }] };
   const { rules, h } = installSaved(t, s);
-  assert.match(rules, /^ {3}Before the spec, ask me which open question I want answered first\.$/m);
-  assert.match(rules, /^ {3}Say which tests you ran\.\n {3}After the checks, list each public interface/m);
+  assert.match(rules, /^ {2}Before the spec, ask me which open question I want answered first\.$/m);
+  assert.match(rules, /^ {2}Say which tests you ran\.\n {2}After the checks, list each public interface/m);
   assert.match(rules, /^ {2}Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue\.$/m);
-  // move-1 was removed: its default text is gone. Control: the default render carries it.
-  assert.doesNotMatch(rules, /I triage it: what kind of work it is/);
-  assert.match(readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8'), /I triage it: what kind of work it is/);
+  // move-1 was removed: its part was empty by default (#261), so the move's bullet stays and is followed by the next move.
+  assert.match(rules, /^ {2}reproduced and traced to its start before anyone fixes it\.\n- \*\*Think before doing\.\*\* /m);
   assert.match(rules, /Values set: usage-pause 60\. Parts edited: move-1 \(remove\), move-2 \(add-after\), move-4-extra \(add-after\)\./);
   assert.match(rules, /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
   assert.match(readFileSync(join(h, 'agents', 'integrity-lens.md'), 'utf8'), /^model: sonnet\neffort: low$/m);

@@ -60,6 +60,7 @@ test('the canonical lists parse into their items', () => {
   assert.deepEqual(RISK_FLOOR, ['auth', 'secrets', 'crypto', 'input validation', 'data migrations']);
 });
 
+// #261 C1
 test("good-enough-lens's risk-floor list and unstated-lens's security-route list hold every canonical item", () => {
   assert.deepEqual(missingFrom(GOOD_ENOUGH_LIST(), RISK_FLOOR), []);
   assert.deepEqual(missingFrom(UNSTATED_LIST(), SECURITY_ROUTE), []);
@@ -212,6 +213,7 @@ function missingRules(lensText, rules) {
   return rules.filter(r => !flat.includes(r));
 }
 
+// #261 C1
 test('reader-lens carries every reader-facing plain-language rule, word for word', () => {
   const lens = read(join(REPO, 'claude', 'agents', 'reader-lens.md'));
   assert.deepEqual(missingRules(lens, PLAIN_LANGUAGE), []);

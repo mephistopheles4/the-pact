@@ -232,7 +232,8 @@ test('cloud copy: an overlay that does not match the SETTINGS hash is refused', 
   refuses(() => readCopySet(seamLines(RULES_BUF, Buffer.from('{"a":1}\n')), staged()), 'cloud/seam-a', /SETTINGS hash/);
 });
 
-// #261: the edits went, and seam A's one run on the rendered rules file is what refuses a hidden character in it.
+// The edits went, and seam A's one run on the rendered rules file is what refuses a hidden character in it.
+// #261 C11
 test('cloud copy: a rules file seam A refuses fails the generator', t => {
   const root = baseRoot(t, r => {
     const p = join(r, 'claude', 'CLAUDE.md');
@@ -308,6 +309,7 @@ for (const dest of ['agents/$(id).md', "agents/a'b.md", 'agents/a b.md', '../x.m
   });
 }
 
+// #261 C11
 test('cloud copy: a direction-changing character in the rules body is refused', () => {
   const rules = RENDER.replace('## Guards', `## Gua${RLO}rds`);
   assert.notEqual(rules, RENDER);
@@ -332,7 +334,8 @@ test('cloud copy: a byte changed in the setup head changes the marker', () => {
 
 // ---------------------------------------------------------------- the committed outputs
 
-// #261 S4: the cloud edits went with the parallel-session text, so the cloud copy is the default render, unchanged, and it holds the pinned block.
+// The cloud edits went with the parallel-session text, so the cloud copy is the default render, unchanged, and it holds the pinned block.
+// #261 C11
 test('cloud copy: CLAUDE.cloud.md is the no-configuration render, unchanged, holding the pinned stop-and-ask block', () => {
   const cloud = repoText(OUTPUTS.rules);
   assert.equal(cloud, RENDER);
@@ -340,6 +343,7 @@ test('cloud copy: CLAUDE.cloud.md is the no-configuration render, unchanged, hol
   assert.equal(cloud.split(block).length, 2, 'the pinned block appears once, word for word');
 });
 
+// #261 C10
 test('cloud copy: CLAUDE.cloud.md carries no configuration and the shipped usage line', () => {
   const cloud = repoText(OUTPUTS.rules);
   // The fit-check instruction "end the fit line with `Config: <digest>.`" is in
@@ -366,6 +370,7 @@ test('cloud copy: the wrapper embeds cloud-setup.sh byte for byte', () => {
   assert.equal(body, setup);
 });
 
+// #261 C11
 test('cloud copy: each embedded file is its repo copy, with its hash checked, and the marker names the script', () => {
   const setup = repoText(OUTPUTS.setup);
   const blocks = [...setup.matchAll(new RegExp(`^write_config '([^']+)' <<'${CONFIG_DELIM}'\\n([\\s\\S]*?)^${CONFIG_DELIM}$`, 'gm'))];
