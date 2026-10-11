@@ -30,8 +30,10 @@ Builds run in a main session the owner watches, not in agents.
 ## The moves and Anthropic's playbook
 
 Anthropic published a six-stage playbook of its own, [*The AI-Native SDLC
-playbook*](https://claude.com/blog/the-ai-native-sdlc-playbook). This is how
-the pact's moves line up with its stages:
+playbook*](https://claude.com/blog/the-ai-native-sdlc-playbook). The pact's
+four moves run at every seam of any work, not once in order. The table shows
+where each move does most of its work in the software preset, "Implementing a
+change", lined up with Anthropic's stages:
 
 | Move | Anthropic stage | What the pact does |
 |---|---|---|

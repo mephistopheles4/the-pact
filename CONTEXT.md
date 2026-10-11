@@ -3,6 +3,17 @@
 The vocabulary for working on this repo. Use these terms as defined here. See
 [`docs/agents/domain.md`](docs/agents/domain.md) for how this file is used.
 
+## The moves and the floor
+
+From the spec for #186 (revision 5), built in #232.
+
+- **Seam:** a point where work is handed on, published or decided. The four moves run at every seam, in order, and any move can send the work back.
+- **Checkpoint:** what stops work at a seam from moving on by itself: a decision of the owner's, or a check the owner wrote earlier that has been seen to fail. A lens advises; it is never a checkpoint on its own. A **light** checkpoint runs without the owner, who reviews after; a **heavy** one is the owner's decision before the work moves on.
+- **Floor:** the short list in the rules file's moves section of what holds in every workflow and every repo, and what nothing overrides. It points at the gated clauses; it restates none of them.
+- **Slot:** a required step the floor names, which must be filled: an independent review of risky work before it ships, and a review of every result that could have failed.
+- **Filler:** the reviewer the rules file names for a slot. In software, the security route fills the first slot and the QA pair the second. Only a change to the rules file, installed through the gate, swaps one.
+- **Preset:** how the moves apply to one kind of work. "Implementing a change" is the software preset, and the only one installed.
+
 ## The review lenses
 
 From the spec for #35 (revision 7). The roster below is a hypothesis: use on
