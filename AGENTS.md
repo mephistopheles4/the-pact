@@ -260,7 +260,7 @@ how every session in every repo behaves. So:
   that names nothing gets a one-line stated reason, or it is cut before move 4.
   A backing comment never writes a file path or a script name. The test runner
   matches a changed path against each test file's text, comments included,
-  and puts any file that names the old installer script in the install tier,
+  and puts any file that names `install.ps1` in the install tier,
   so a path in a comment changes what runs. Quick work has no numbered claims
   while its tests are written first: such a test names the done-criterion in
   words, and the comment is not updated when move 4 numbers the claims.
@@ -268,8 +268,9 @@ how every session in every repo behaves. So:
   fails loudly, with an error the owner sees and can recover from, needs no
   test of its own. A gate check's bad case is not covered by this: a refusal
   test catches the check itself vanishing, and a vanished check passes
-  everything in silence. The rule above, that each check a change adds or
-  tightens needs a bad case it is seen to catch, stands unchanged.
+  everything in silence. The rule in "Which changes take the security route",
+  that each check a change adds or tightens needs a bad case it is seen to
+  catch, stands unchanged.
 - **Minus-one.** A test whose assertions another test already makes, on the
   same function and the same class of input, is a cut candidate. Cut one only
   in a file the change is already editing. List each cut, with the test that

@@ -1,6 +1,6 @@
 # A gate test names what it backs and earns its place
 
-"Writing a gate test" in `AGENTS.md` now asks of each test a change adds or edits: what does it back, and is it worth having? `integrity-lens` asks whether a test can fail; nothing asked whether it was worth keeping, so the only pressure on the suite was upward. The rule is forward-only: it does not touch the 1,085 tests already in the suite (#215). The ADR number is 0057 because 0056 was the last one taken when the build started; a parallel build that merges first may take it, and the later merge renumbers.
+"Writing a gate test" in `AGENTS.md` now asks of each test a change adds or edits: what does it back, and is it worth having? `integrity-lens` asks whether a test can fail; nothing asked whether it was worth keeping, so the only pressure on the suite was upward. The rule is forward-only: it does not touch the 1,085 tests already in the suite (#215).
 
 ## The rule
 
@@ -13,8 +13,8 @@
 ## Decisions
 
 - **D1. No guard test enforces naming.** A guard would parse every test and force a retrofit of the existing suite, which is the growth this pushes against. Move 4's review checks the rule.
-- **D2. No sweep of the existing suite, and no prune issue.** The owner cut about 20,000 lines on 2026-10-10 and was asked at sign-off; no prune issue is filed. D3's measure shows whether forward-only is enough.
-- **D3. The measure is dogfood.** Read the `Tests:` line on the next five merged build PRs, then decide whether the rule does anything. The five lines are recorded on the follow-up issue.
+- **D2. No sweep of the existing suite, and no prune issue.** The owner cut about 20,000 lines on 2026-10-10 and was asked at sign-off and took the recommendation: no prune issue is filed. D3's measure shows whether forward-only is enough.
+- **D3. The measure is dogfood.** Read the `Tests:` line on the next five merged build PRs, then decide whether the rule does anything. The five lines are recorded on the follow-up issue, #240.
 
 ## Why it stays off the security route
 
@@ -22,4 +22,4 @@ The edit touches only "Writing a gate test" in `AGENTS.md`. It changes no gated 
 
 ## Deferred
 
-Held in one follow-up issue, with their triggers: the spec naming which seams get tests, a "worth having" question in `integrity-lens`, and the pact-wide forms of these bullets in `claude/CLAUDE.md` (trigger: #238 merged); and mutation-backed minus-one (trigger: a mutation tool pinned by a lock file lands in this repo).
+Held in one follow-up issue, #240, with their triggers: the spec naming which seams get tests, a "worth having" question in `integrity-lens`, and the pact-wide forms of these bullets in `claude/CLAUDE.md` (trigger: #238 merged); and mutation-backed minus-one (trigger: a mutation tool pinned by a lock file lands in this repo).
