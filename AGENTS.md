@@ -272,7 +272,9 @@ how every session in every repo behaves. So:
   [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
 - **A session assigns the issue it takes.** When it starts work on an issue,
   it runs `gh issue edit <n> --add-assignee @me`. If it stops before the work
-  is done, it removes itself with `--remove-assignee @me`.
+  is done, it removes itself with `--remove-assignee @me`, unless another
+  live session is on the issue: every session is the same account, so
+  removing it would hide that session.
 - **The assignee is for visibility, not a claim.** Every session
   authenticates as the same GitHub user, so an assignee can't tell "mine, a
   minute ago" from "free". Claims still go by the live-session check and the

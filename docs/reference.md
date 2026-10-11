@@ -54,6 +54,16 @@ The pact does not cover Anthropic's Maintain stage yet.
 - **John Ousterhout's *A Philosophy of Software Design*,** the source of the
   deep-module idea those skills apply.
 
+## Owner phrases
+
+Type one as your whole message, in the session's own chat. "Owner phrases" in
+`claude/CLAUDE.md` holds the full rule (ADR 0056).
+
+| Phrase | What the session does |
+|---|---|
+| "make it so" | Takes every recommendation in its last message, as if you had typed "proceed as recommended". Your own decisions, such as a merge or an install, only when that message ends with a decision list naming each one |
+| "archive this session" | Checks the tracker, posts a closing comment, releases its tickets, pushes its own work to its branch, then archives itself. It never deletes anything |
+
 ## What never goes in here
 
 - **Credentials of any kind.** `~/.claude/settings.json` holds API keys in its `env` block, so it is never copied. Only the overlay is.
