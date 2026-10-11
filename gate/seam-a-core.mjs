@@ -12,7 +12,8 @@
 // The stage root holds claude/, familiars/, cross/cross.mjs and AGENTS.md as
 // the commit has them. Seam A decides what each file is, checks every agent
 // the install would copy, every pact command file, the cross script's
-// characters and the pact's own text (pact-text.mjs), and prints the exact
+// characters, the review procedure file's characters and hidden-text forms,
+// and the pact's own text (pact-text.mjs), and prints the exact
 // copy set as INSTALL lines, one per (staged path, live path) pair. The
 // install copies those files and nothing else, and refuses unless its own
 // reading of the stage agrees.
@@ -51,6 +52,26 @@ const OVERLAY = 'claude/settings.overlay.json';
 // The cross script (#35): one file, by exact path, to one fixed live path. The
 // pact calls only the live copy. Nothing else in cross/ is ever installed.
 const CROSS_FILES = Object.freeze([Object.freeze(['cross/cross.mjs', 'pact/cross.mjs'])]);
+// The review procedure file (#261): one file, by exact path, to one fixed live
+// path beside the cross script. The rules file tells a session to read it
+// before any lens runs. The model reads it with the Read tool, which keeps
+// text a rendered view hides, so hidden-text forms are refused in it.
+const REVIEW_FILE = 'claude/review.md';
+const REVIEW_DEST = 'pact/review.md';
+const REVIEW_MAX = 64 * 1024;
+// Hidden-text forms: an HTML comment; a link reference definition, which
+// CommonMark never shows, wherever it sits on a line (after a quote or list
+// marker, or indented), and a bracket a line opens and leaves open, which can
+// start a label split over lines; an inline link, whose target and title a
+// rendered view hides; and a raw HTML tag, autolinks included. Read one line
+// at a time, so each form is refused wherever a container puts it.
+const REVIEW_HIDDEN = Object.freeze([
+  [/<!--/, 'an HTML comment'],
+  [/\]:/, 'a link reference definition'],
+  [/\[[^\]]*$/, 'a bracket the line leaves open, which can start a link label split over lines'],
+  [/\]\(/, 'an inline link, whose target and title a rendered view hides'],
+  [/<[A-Za-z/!?]/, 'a raw HTML tag'],
+]);
 
 // Every agent gets these unless the allow-list names it. Hard-coded here, not
 // read from the allow-list, so a broken allow-list cannot widen the default.
@@ -705,8 +726,10 @@ function classify(root, report) {
         installs.push({ file: rel, dest: 'CLAUDE.md' });
         report.note(
           'partly-checked',
-          'claude/CLAUDE.md is the rendered rules file: its marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers count the rendered file',
+          'claude/CLAUDE.md is the rendered rules file: the gate checks its pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers count the rendered file',
         );
+      } else if (rel === REVIEW_FILE) {
+        installs.push({ file: rel, dest: REVIEW_DEST, review: true });
       } else if (rel === OVERLAY) {
         overlay = true;
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
@@ -734,6 +757,7 @@ function classify(root, report) {
     } else report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   for (const a of agents) a.hasContract = a.familiar && contracts.has(`${a.stem}.contract.md`);
+  if (!installs.some(i => i.review)) report.fail('review-file', REVIEW_FILE, null, 'the review procedure file is missing');
   for (const [file, dest] of CROSS_FILES) {
     let st;
     try {
@@ -847,6 +871,24 @@ function checkImports(text, file, report) {
   });
 }
 
+/**
+ * The review procedure file (#261, S5): at most REVIEW_MAX bytes, the text
+ * scanner's character rules, and none of the hidden-text forms. Its wording
+ * is not checked.
+ */
+function checkReview(root, file, report) {
+  const buf = readFileSync(join(root, ...file.split('/')));
+  if (buf.length > REVIEW_MAX) {
+    report.fail('review-size', file, null, 'larger than 64 KiB');
+    return;
+  }
+  const text = scanText(buf, file, report);
+  if (text === null) return;
+  text.split('\n').forEach((line, i) => {
+    for (const [re, what] of REVIEW_HIDDEN) if (re.test(line)) report.fail('review-hidden', file, i + 1, `${what}, which the model reads and a rendered view hides`);
+  });
+}
+
 /** Run the pinned grimoire check on one familiar. Relays rule names and line numbers only. */
 function runPinned(root, a, report) {
   const env = { ...process.env };
@@ -921,6 +963,8 @@ function run(root, listed, report) {
     if (dests.has(k)) report.fail('destination-duplicate', i.file, null, `installs to the same live path as ${shown(dests.get(k))}`);
     else dests.set(k, i.file);
   }
+
+  for (const i of installs) if (i.review) checkReview(root, i.file, report);
 
   checkPactText(root, agents, report);
 

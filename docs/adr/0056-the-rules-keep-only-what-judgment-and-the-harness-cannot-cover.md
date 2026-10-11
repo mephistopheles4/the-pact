@@ -1,5 +1,7 @@
 # The rules keep only what judgment and the harness can't cover
 
+Superseded in part by [ADR 0060](0060-the-moves-are-the-owners-practices-and-the-pact-leans-on-judgment.md) (2026-10-11): the floor, "data rules are never cut on the harness's word" for the pact, the gated `move-4` clause and the moves section no longer hold; the rules file is the owner's practices, and the cut guards are accepted as judgment. The keep test below stays as background.
+
 The rules file, `claude/CLAUDE.md`, is now three things: the four moves, stated once as intents with their why; a short floor of what holds in every workflow and every repo; and the software preset, "Implementing a change", cut to what earns its place. A sentence stays as a rule only when it passes the keep test below. Everything else became one line of guidance or was deleted. The gated `move-4` clause is the only clause that changed. The ADR number is 0056 because 0055 was the last one taken when the build started; a parallel build that merges first may take it, and the later merge renumbers.
 
 ## The keep test

@@ -3,18 +3,19 @@
 The vocabulary for working on this repo. Use these terms as defined here. See
 [`docs/agents/domain.md`](docs/agents/domain.md) for how this file is used.
 
-## The moves and the floor
+## The moves and how much checking
 
-From the spec for #186 (revision 5), built in #232.
+From the spec for #186 (revision 5), built in #232, and rewritten by #238's
+spec (revision 9), built in #261.
 
-- **Seam:** a point where work is handed on, published or decided. The four moves run at every seam, in order, and any move can send the work back. In a design, a seam is also a boundary between the parts a spec names, where a build is tested first ("test-first at the agreed seams").
-- **Checkpoint:** what stops work at a seam from moving on by itself: a decision of the owner's, or a check the owner wrote earlier that has been seen to fail. A lens advises; it is never a checkpoint on its own. A **light** checkpoint runs without the owner, who reviews after; a **heavy** one is the owner's decision before the work moves on.
-- **Floor:** the short list in the rules file's moves section of what holds in every workflow and every repo, and what nothing overrides. It points at the gated clauses, and restates one of them: the tracker rule's never-post line, widened to anything published. Not the **risk floor**, which is software's risky list (auth, secrets, crypto, input validation and data migrations), the gated `risk-floor` clause.
-- **Slot:** a required step the floor names, which must be filled: an independent review of risky work before it ships, and a review of every result that could have failed.
-- **Filler:** the reviewer the rules file names for a slot. In software, the security route fills the first slot and the QA pair the second. Only a change to the rules file, installed through the gate, swaps one.
-- **Preset:** how the moves apply to one kind of work. "Implementing a change" is the software preset, and the only one installed.
-- **Workflow:** a kind of work the rules file names, with its preset and its own risky list. Software is the only workflow until the rules file names another.
-
+- **Move:** one of the owner's four practices: sense the work, think before doing, checkpoint the seams, and stay the owner. The owner takes each up as the work needs it; a session nudges once when one seems to drop.
+- **Seam:** a point where work is handed on, published or decided. In a design, a seam is also a boundary between the parts a spec names, where a build is tested first.
+- **Checkpoint:** what stops costly work at a seam from moving on by itself: a decision of the owner's, or a check of the owner's that runs without them. A **light** checkpoint runs without the owner, who reviews after; a **heavy** one is the owner's decision before the work moves on. The harder a step is to undo, the heavier its checkpoint.
+- **Tier:** how much checking the work needs: quick, standard or thorough. It is not the set of moves, and not the model's effort setting.
+- **Sensitive work:** the work that gets more checking. By default it is auth, secrets, crypto, input validation and data migrations: thorough, built on Opus at high. It replaced the **risk floor** (#261).
+- **The defaults:** the paragraph in the rules file's Lenses section that says which lenses always run: the QA pair reads every result, and the security pair reads sensitive work. Only the owner skips a default; the other lenses are judgment or the owner's call.
+- **Pinned block:** a block the install gate holds word for word against its canonical text in `gate/clauses/`. Since #261 there are two: `stop-and-escalate` in the rules file and `install-go-ahead` in `AGENTS.md`. It replaced the **gated clause**.
+- **Retired by #261:** the **floor**, the **slot** and the **filler**, the **preset** (the software preset) and the **workflow**. The rules file states the owner's practices and leaves the rest to judgment.
 ## The review lenses
 
 From the spec for #35 (revision 7). The roster below is a hypothesis: use on
@@ -33,10 +34,10 @@ real work selects it.
 - **Inconclusive:** the verdict of a lens that could not verify something it was asked to check. It is never a pass.
 - **Pick:** retired by #189 (#164). It was the anchors the owner expected the problem on, or "none", said before the verdict was revealed; a **mismatch** was a pick that differed from the result.
 - **Swap:** the one commit and install that brings a pair in and takes its old reviewer out.
-- **Security-set lens:** either lens of the security pair, the reviewers the security route names, or any other lens that holds a shell or network tools, or guards the security route or the risk floor. A change to one takes the security route. The name outlived the security set, the practice cases that #189 retired with the bad reports.
+- **Security-set lens:** either lens of the security pair, the reviewers this repo's security route names, or any other lens that holds a shell or network tools, or guards the security route or the sensitive-work default. The gate finds most by signs in their own files, and keeps a fixed list of those it can find by no other sign. A change to one takes the security route. The name outlived the security set, the practice cases that #189 retired with the bad reports.
 - **Escape:** a defect found after a lens review passed the work on, that falls within the question of a lens that ran at that review.
 - **Roster gap:** a defect found later that no lens's question covers.
-- **Auto-take:** a choice a session makes by acting on its own recommendation on a report finding, without waiting for the owner. It never covers a stop, a gated clause, a tier decision or the owner's "done". Each one gets an `auto` row.
+- **Auto-take:** a choice a session makes by acting on its own recommendation on a report finding, without waiting for the owner. It never covers a stop, a pinned block, a tier decision or the owner's "done". Each one gets an `auto` row.
 - **Lens dispositions:** the table posted at every lens review, one row per finding: the finding, the lens, the disposition with its `auto` mark, the cross result, and the override mark when a lens ran off its default. #189 cut its other columns.
 - **Periodic review:** the owner reading the Lens dispositions tables, when they choose, which can add, merge, cut or retune lenses. Since #189 no session collects totals or proposes a lens review on a signal.
 

@@ -1,19 +1,19 @@
-// FIG. 01: the four moves, as the software preset runs them. What you do at
-// each move, what the agent does, and that all four run at every seam. Words
-// from claude/CLAUDE.md's moves section and its moves 1 to 4.
+// FIG. 01: the four moves, my practices. What I do at each move,
+// what the agent does, and that each is taken up as the work needs it. Words
+// from claude/CLAUDE.md's "The moves" and "How Claude helps".
 import { LEFT, PAD, RIGHT, block, label, sheet } from './draw.mjs';
 
 const YOU = [
-  { move: 'Move 1', title: ['Sense the work'], body: ['Triage it: what', 'kind, which', 'tier, is it', 'ready.'] },
-  { move: 'Move 2', title: ['Think before', 'doing'], body: ['Settle the', 'intent.', 'Proceed, fix or', 'kill.'] },
-  { move: 'Move 3', title: ['Checkpoint', 'the seams'], body: ['Cut the', 'tickets. Start', 'and watch each', 'build.'] },
-  { move: 'Move 4', title: ['Stay the owner'], body: ['Decide whether', 'it is done.'] },
+  { move: 'Move 1', title: ['Sense the work'], body: ['How big, how', 'risky, and', 'ready to plan?'] },
+  { move: 'Move 2', title: ['Think before', 'doing'], body: ['Get the intent', 'clear enough', 'to defend.'] },
+  { move: 'Move 3', title: ['Checkpoint', 'the seams'], body: ['Costly work', 'waits for a', 'checkpoint.'] },
+  { move: 'Move 4', title: ['Stay the owner'], body: ['Verify it, and', 'know when to', 'stop it.'] },
 ];
 const AGENT = [
-  ['Proposes the', 'tier. Never', 'skips triage.'],
-  ['Grills you,', 'then writes', 'the spec.'],
-  ['Builds', 'test-first at', 'the agreed', 'seams.'],
-  ['Runs the', 'checks and', 'lenses. Brings', 'a verdict.'],
+  ['Proposes a', 'tier, with a', 'line of why.'],
+  ['Prototypes', 'when intent', 'is still', 'forming.'],
+  ['Builds what', 'it was given,', 'test-first.'],
+  ['Runs the tests', 'and reviews.', 'Brings', 'decisions.'],
 ];
 
 const CW = 157; // card width
@@ -23,10 +23,10 @@ const colX = i => LEFT + i * (CW + GAP);
 const els = [];
 let y = 80;
 
-els.push(label({ top: y, x: LEFT, lines: ['You — architect of intent'], max: 400 }).el);
+els.push(label({ top: y, x: LEFT, lines: ['Me — architect of intent'], max: 400 }).el);
 y += 27;
 
-// Your cards: the move, its name, what you do.
+// My cards: the move, its name, what I do.
 const cardTop = y;
 const cardH = 12 + 17 + 6 + 2 * 18 + 6 + 4 * 20 + 12;
 YOU.forEach((c, i) => {
@@ -46,7 +46,7 @@ YOU.forEach((c, i) => {
 });
 y = cardTop + cardH;
 
-// The seams between you and the agent.
+// The seams between me and the agent.
 YOU.forEach((_, i) => {
   const cx = colX(i) + CW / 2;
   els.push({ kind: 'line', x1: cx, y1: y, x2: cx, y2: y + 28, stroke: 'ink55', sw: 1.5, dash: '4 3' });
@@ -65,8 +65,8 @@ AGENT.forEach((lines, i) => {
 });
 y += agentH + 26;
 
-// All four moves run at every seam: a bracket across them.
-const DECIDE = 'All four at every seam'.toUpperCase();
+// Each move is taken up as the work needs it: a bracket across them.
+const DECIDE = 'As the work needs it'.toUpperCase();
 els.push({ kind: 'line', x1: LEFT, y1: y - 7, x2: LEFT, y2: y + 7, stroke: 'ink', sw: 1.5 });
 // The text is centred, so it stays centred in any face; a diamond closes each
 // line where the text's widest box ends.
@@ -80,6 +80,6 @@ els.push({ kind: 'line', x1: MID + HALF + 6, y1: y, x2: RIGHT, y2: y, stroke: 'i
 els.push({ kind: 'line', x1: RIGHT, y1: y - 7, x2: RIGHT, y2: y + 7, stroke: 'ink', sw: 1.5 });
 
 const height = y + 7 + 20 + PAD + 2;
-const frame = sheet({ height, title: 'FIG. 01 — Four moves, one owner', aside: 'Every seam' });
+const frame = sheet({ height, title: 'FIG. 01 — Four moves, one owner', aside: 'The moves' });
 
 export default { file: 'fig-01-moves', height, elements: [...frame.els, ...els] };

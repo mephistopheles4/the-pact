@@ -51,10 +51,8 @@ export function commitAll(root, msg = 'test') {
 
 /**
  * A git repo holding the files the install reads, committed; `mutate` runs
- * before the commit. The repo is not routed (#151): a `mutate` that adds a
- * test agent routes it itself, so the harness never reads the pact's agent
- * list, and an agent-file change doesn't pick every install test. install()
- * catches a route left out (below).
+ * before the commit. The harness never reads the pact's agent list (#151), so
+ * an agent-file change doesn't pick every install test.
  */
 export function makeRepo(t, mutate) {
   const root = tempDir(t, 'pact-repo-');
@@ -128,33 +126,19 @@ export function nodeEnv(extra = {}, path = [NODE_DIR, ...basePath()]) {
   return envWith(path, extra);
 }
 
-/** The files seam A refused for routing, as the install prints them; what install()'s routing guard reads. */
-export function routingFails(stdout) {
-  return [...(stdout ?? '').matchAll(/^seam-a\| FAIL routing: ([^:\r\n]+):/gm)].map(m => m[1]);
-}
 
 /**
  * Runs the Node install (gate/install.mjs) on `repo` with `home` as its Claude
  * home folder. `apply` passes --apply with the commit `apply` names (true: the
- * repo's HEAD). A run that seam A refuses for routing fails the test, unless
- * the call expects it: `unrouted` lists the files the test means to leave
- * unrouted, or is true for any. makeRepo doesn't route, so a test agent left
- * unrouted would make a test that only asserts a refusal pass for the wrong
- * reason.
+ * repo's HEAD).
  */
-export function install(repo, home, { apply = false, path, env = {}, extra = [], unrouted = [], script = join(repo, 'gate', 'install.mjs'), cwd = repo } = {}) {
+export function install(repo, home, { apply = false, path, env = {}, extra = [], script = join(repo, 'gate', 'install.mjs'), cwd = repo } = {}) {
   path ??= [NODE_DIR, ...basePath()];
-  if (unrouted !== true && !(Array.isArray(unrouted) && unrouted.every(f => typeof f === 'string'))) throw new Error('install: unrouted is true or a list of file paths');
   const args = [script, '--claude-home', home];
   if (apply) args.push('--apply', '--commit', apply === true ? git(repo, 'rev-parse', 'HEAD').trim() : apply);
   args.push(...extra);
   const r = spawnNodeInstall(args, { cwd, encoding: 'utf8', env: envWith(path, env), timeout: 180_000 });
-  const out = { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
-  if (unrouted !== true) {
-    const stray = routingFails(out.stdout).filter(f => !unrouted.includes(f));
-    assert.deepEqual(stray, [], `seam A refused an agent the test did not mean to leave unrouted; route it in the test's makeRepo mutate (routeTree), or name it in unrouted:\n${out.out}`);
-  }
-  return out;
+  return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
 }
 
 /**

@@ -17,15 +17,11 @@ import {
   CLOUD_COMMANDS,
   CONFIG_DELIM,
   CloudRefusal,
-  EDITS,
   OUTPUTS,
   SETUP_DELIM,
   TEMPLATES,
-  applyEdits,
   assemble,
   commandsArg,
-  editsDigest,
-  gatedClauses,
   generate,
   listPayload,
   readCopySet,
@@ -34,12 +30,6 @@ import {
 import { OLD_REVIEWERS } from '../pact-text.mjs';
 import { REPO, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
-
-// The pinned edit list: its ids, and the sha256 of its anchors and
-// replacements. A change to either is a change to what the cloud copy says,
-// so it is made here by hand, on the security route.
-const EDIT_IDS = ['E1', 'E2'];
-const EDITS_DIGEST = 'b0ef1c4aef55795d9852745bf6fd8d8331e42bf8d54e5b9fcd11efdbb5ed2f6f';
 
 const PAYLOAD = ['claude', 'familiars', 'cross/cross.mjs', 'AGENTS.md'];
 // The retired agents: the gate's own list of old reviewers, and the old builder.
@@ -242,35 +232,14 @@ test('cloud copy: an overlay that does not match the SETTINGS hash is refused', 
   refuses(() => readCopySet(seamLines(RULES_BUF, Buffer.from('{"a":1}\n')), staged()), 'cloud/seam-a', /SETTINGS hash/);
 });
 
-test('cloud copy: an edit seam A refuses on its second run fails the generator', () => {
-  // The anchors match and the edit stays in its section, so only the second
-  // seam A run, on the edited rules file, can refuse the hidden character.
-  const edits = [{ ...EDITS[0], replacement: `${EDITS[0].replacement.slice(0, -1)}${RLO}\n` }, EDITS[1]];
-  refuses(() => generate(REPO, { edits }), 'cloud/seam-a', /invisible/);
-});
-
-// ---------------------------------------------------------------- applyEdits
-
-test('cloud copy: an edit whose anchor is missing is refused', () => {
-  refuses(() => applyEdits(RENDER, [{ id: 'X', anchor: 'no such paragraph anywhere\n', replacement: 'x\n' }]), 'cloud/anchor-missing');
-});
-
-test('cloud copy: an edit whose anchor is outside its section is refused', () => {
-  const anchor = '## Watching usage\n';
-  assert.equal(RENDER.split(anchor).length, 2);
-  refuses(() => applyEdits(RENDER, [{ id: 'X', anchor, replacement: '## Watching usage\n' }]), 'cloud/anchor-section');
-});
-
-test('cloud copy: an edit whose anchor is inside the tracker-authors clause is refused', () => {
-  const clause = gatedClauses(RENDER).find(c => c.name === 'tracker-authors');
-  assert.ok(clause, 'the render holds tracker-authors');
-  const line = clause.text.split('\n').find(l => l.length > 30 && RENDER.split(`${l}\n`).length === 2);
-  refuses(() => applyEdits(RENDER, [{ id: 'X', anchor: `${line}\n`, replacement: 'x\n' }]), 'cloud/anchor-gated');
-});
-
-test('cloud copy: an edit that repeats a gated clause is refused', () => {
-  const clause = gatedClauses(RENDER).find(c => c.name === 'stop-and-escalate');
-  refuses(() => applyEdits(RENDER, [{ ...EDITS[0], replacement: `${EDITS[0].replacement}${clause.text}` }]), 'cloud/gated-moved');
+// The edits went, and seam A's one run on the rendered rules file is what refuses a hidden character in it.
+// #261 C11
+test('cloud copy: a rules file seam A refuses fails the generator', t => {
+  const root = baseRoot(t, r => {
+    const p = join(r, 'claude', 'CLAUDE.md');
+    writeFileSync(p, readFileSync(p, 'utf8').replace('## Guards', `## Gua${RLO}rds`));
+  });
+  refuses(() => generate(root), 'cloud/seam-a', /invisible/);
 });
 
 // ---------------------------------------------------------------- assemble
@@ -340,8 +309,10 @@ for (const dest of ['agents/$(id).md', "agents/a'b.md", 'agents/a b.md', '../x.m
   });
 }
 
-test('cloud copy: a direction-changing character in an edit replacement is refused', () => {
-  const rules = applyEdits(RENDER, [{ ...EDITS[0], replacement: `${EDITS[0].replacement.slice(0, -1)}${RLO}\n` }, EDITS[1]]);
+// #261 C11
+test('cloud copy: a direction-changing character in the rules body is refused', () => {
+  const rules = RENDER.replace('## Guards', `## Gua${RLO}rds`);
+  assert.notEqual(rules, RENDER);
   refuses(() => assemble(inputs({ files: [{ dest: 'CLAUDE.md', buf: Buffer.from(rules) }] })), 'cloud/chars');
 });
 
@@ -363,41 +334,24 @@ test('cloud copy: a byte changed in the setup head changes the marker', () => {
 
 // ---------------------------------------------------------------- the committed outputs
 
-test('cloud copy: CLAUDE.cloud.md is the no-configuration render plus E1 and E2 only', () => {
+// The cloud edits went with the parallel-session text, so the cloud copy is the default render, unchanged, and it holds the pinned block.
+// #261 C11
+test('cloud copy: CLAUDE.cloud.md is the no-configuration render, unchanged, holding the pinned stop-and-ask block', () => {
   const cloud = repoText(OUTPUTS.rules);
-  // A plain substitution of each anchor, apart from applyEdits, so a slip in
-  // the edit step can't regenerate into the file and pass.
-  let expected = RENDER;
-  for (const e of EDITS) {
-    assert.equal(expected.split(e.anchor).length, 2, `${e.id}'s anchor appears once`);
-    expected = expected.split(e.anchor).join(e.replacement);
-  }
-  assert.equal(cloud, expected);
-  assert.equal(applyEdits(RENDER), expected);
-  assert.match(cloud, /<!-- pact:begin tracker-authors -->/);
-  for (const c of gatedClauses(RENDER)) {
-    assert.equal(cloud.split(c.text).length, 2, `${c.name} appears once, word for word`);
-  }
-  const order = gatedClauses(RENDER).map(c => cloud.indexOf(c.text));
-  assert.deepEqual(order, [...order].sort((x, y) => x - y));
+  assert.equal(cloud, RENDER);
+  const block = `<!-- pact:begin stop-and-escalate -->\n${repoText('gate/clauses/stop-and-escalate.md')}<!-- pact:end stop-and-escalate -->\n`;
+  assert.equal(cloud.split(block).length, 2, 'the pinned block appears once, word for word');
 });
 
+// #261 C10
 test('cloud copy: CLAUDE.cloud.md carries no configuration and the shipped usage line', () => {
   const cloud = repoText(OUTPUTS.rules);
   // The fit-check instruction "end the fit line with `Config: <digest>.`" is in
   // every render; only a filled notice or digest would be a configuration.
   assert.doesNotMatch(cloud, /Configuration in effect/);
   assert.doesNotMatch(cloud, /Config: [0-9a-f]{12}/);
-  assert.match(cloud, /the weekly limit is above 75%/);
+  assert.match(cloud, /When it is above 75%, wait for my/);
   for (const name of RETIRED) assert.doesNotMatch(cloud, new RegExp(`(?<![\\w-])${name}(?![\\w-])`), name);
-});
-
-test('cloud copy: the edit list is pinned', () => {
-  assert.deepEqual(
-    EDITS.map(e => e.id),
-    EDIT_IDS,
-  );
-  assert.equal(editsDigest(), EDITS_DIGEST);
 });
 
 test('cloud copy: the command list is pinned, and empty until the cloud channels are tried (#203, S9)', () => {
@@ -416,15 +370,16 @@ test('cloud copy: the wrapper embeds cloud-setup.sh byte for byte', () => {
   assert.equal(body, setup);
 });
 
+// #261 C11
 test('cloud copy: each embedded file is its repo copy, with its hash checked, and the marker names the script', () => {
   const setup = repoText(OUTPUTS.setup);
   const blocks = [...setup.matchAll(new RegExp(`^write_config '([^']+)' <<'${CONFIG_DELIM}'\\n([\\s\\S]*?)^${CONFIG_DELIM}$`, 'gm'))];
   const source = dest =>
-    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/cross.mjs' ? 'cross/cross.mjs' : dest === 'agents/scout.md' ? 'familiars/scout.md' : `claude/${dest}`;
+    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/cross.mjs' ? 'cross/cross.mjs' : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'agents/scout.md' ? 'familiars/scout.md' : `claude/${dest}`;
   // The whole set, from the repo apart from seam A: the rules file, every
-  // shipped lens, scout and the cross script.
+  // shipped lens, scout, the cross script and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
-  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'agents/scout.md', 'pact/cross.mjs'].sort();
+  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'agents/scout.md', 'pact/cross.mjs', 'pact/review.md'].sort();
   assert.ok(lenses.length >= 9, lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {

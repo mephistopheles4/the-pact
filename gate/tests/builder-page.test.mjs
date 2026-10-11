@@ -184,10 +184,13 @@ test('control: a copied root with nothing changed rebuilds the committed page ex
   assert.equal(buildPage(buildRoot(t, () => {}), PAGE), PAGE);
 });
 
-test('bad case: a gated clause changed in the pact source makes the committed page out of date', t => {
+// #261 C12
+test('bad case: a pinned block changed in the pact source makes the committed page out of date', t => {
   const root = buildRoot(t, r => {
     const p = join(r, 'claude', 'CLAUDE.md');
-    writeFileSync(p, readFileSync(p, 'utf8').replace('Never\n   substitute another agent', 'Never\n   swap in another agent'));
+    const was = readFileSync(p, 'utf8');
+    assert.ok(was.includes('your pick, and wait.'));
+    writeFileSync(p, was.replace('your pick, and wait.', 'your pick, and stop.'));
   });
   assert.notEqual(buildPage(root, PAGE), PAGE);
 });
@@ -368,14 +371,16 @@ test('each step counts its own changes and problems, and Review counts them all'
   s.usage = 101;
   assert.equal(Object.fromEntries(L.stepSummary(s).map(r => [r.id, r])).start.errors, 1);
 });
-test('warnings count on their own step, a removed default left empty counts as an edit, and Review counts every problem', () => {
+// The moves' parts are empty by default, so they name no agent an edit could drop, and no edit warns.
+// #261 C12
+test('a removed default left empty counts as an edit on its own step, and Review counts every problem', () => {
   const s = L.initialState();
-  const part = L.PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && /`[a-z]+-lens`/.test(p.text));
-  assert.ok(part, 'no open part names a lens, so no edit can raise the dropped-agent warning');
+  const part = L.PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === 'move-2');
+  assert.ok(part);
   s.slots[part.mark] = { replaced: true, cards: [] };
-  const step = `move-${part.mark.match(/^move-(\d)/)[1]}`;
+  const step = 'move-2';
   const by = Object.fromEntries(L.stepSummary(s).map(r => [r.id, r]));
-  assert.deepEqual([by[step].changes, by[step].warns], [1, 1]);
+  assert.deepEqual([by[step].changes, by[step].warns], [1, 0]);
   const found = L.problems(s);
   assert.equal(by.review.warns, found.filter(f => f.level === 'warn').length);
   assert.equal(by.review.errors, found.filter(f => f.level === 'error').length);
@@ -422,6 +427,7 @@ function bootPage({ picker = false, folder = null } = {}) {
   return { ids, find, button };
 }
 
+// #261 C12
 test('stub page: each step shows only its own sections; a move step shows only its move, two sidebar tabs, and Back and Next', () => {
   const P = bootPage();
   const view = () => ({
@@ -435,14 +441,15 @@ test('stub page: each step shows only its own sections; a move step shows only i
   });
   const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
   assert.equal(steps().length, 7);
-  assert.deepEqual(view(), { start: true, agents: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Next: Move 1'] });
-  const want = { 1: ['Back: Start', 'Next: Move 2'], 2: ['Back: Move 1', 'Next: Move 3'], 3: ['Back: Move 2', 'Next: Move 4'], 4: ['Back: Move 3', 'Next: Agents'] };
+  // #261: the move steps are named after the moves, where they said Move 1 to Move 4.
+  assert.deepEqual(view(), { start: true, agents: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Next: Sense the work'] });
+  const want = { 1: ['Back: Start', 'Next: Think before doing'], 2: ['Back: Sense the work', 'Next: Checkpoint the seams'], 3: ['Back: Think before doing', 'Next: Stay the owner'], 4: ['Back: Checkpoint the seams', 'Next: Agents'] };
   for (const n of [1, 2, 3, 4]) {
     P.button(P.ids['step-nav'], 'Next').click();
-    assert.deepEqual(view(), { start: false, agents: false, workspace: true, review: false, moves: [`move-${n}`], tabs: [`Move ${n} presets`, 'Yours'], nav: want[n] }, `move ${n}`);
+    assert.deepEqual(view(), { start: false, agents: false, workspace: true, review: false, moves: [`move-${n}`], tabs: ['Presets', 'Yours'], nav: want[n] }, `move ${n}`);
   }
   P.button(P.ids['step-nav'], 'Next').click();
-  assert.deepEqual(view(), { start: false, agents: true, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Move 4', 'Next: Review and save'] });
+  assert.deepEqual(view(), { start: false, agents: true, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Stay the owner', 'Next: Review and save'] });
   steps()[6].click();
   assert.deepEqual(view(), { start: false, agents: false, workspace: false, review: true, moves: [], tabs: [], nav: ['Back: Agents'] });
 });
@@ -497,13 +504,14 @@ test('stub page: an override shows on the Agents step and on Review, and a step 
   assert.doesNotMatch(P.ids.here.text, /move-3/);
 });
 
-test('stub page: the Agents step\'s own-agent card opens Move 4 on its Yours tab, and does not drag', () => {
+// #261 C12
+test('stub page: the Agents step\'s own-agent card opens the last move on its Yours tab, and does not drag', () => {
   const P = bootPage();
   P.find(P.ids.stepper, n => n.tag === 'button')[5].click();
   const tile = P.find(P.ids.agents, n => n.className === 'tile tile--yours')[0];
   assert.ok(tile, 'no own-agent tile');
   assert.ok(tile.attrs.draggable === undefined && !tile.listeners.dragstart, 'the own-agent tile still drags');
-  P.button(tile, "Open Move 4's Yours tab").click();
+  P.button(tile, "Open Stay the owner's Yours tab").click();
   assert.deepEqual(P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id), ['move-4']);
   assert.deepEqual(P.find(P.ids.sidebar, n => n.attrs.role === 'tab' && n.attrs['aria-selected'] === 'true').map(n => n.text), ['Yours']);
   // The workflows text fits the wizard.
@@ -594,16 +602,18 @@ function pageLogic() {
 
 const L = pageLogic();
 
-test('the page shows moves 1 to 4 as a fixed spine: gated clauses carry their text, open slots are the renderer\'s editable marks', () => {
+// The builder finds the moves by their parts, in order, and titles each by its bullet's lead-in.
+// #261 C12
+test('the page shows the four moves as a fixed spine, named by their lead-ins: the pinned block carries its text, open slots are the renderer\'s editable marks', () => {
   assert.deepEqual(L.PACT.moves.map(m => m.n), [1, 2, 3, 4]);
+  assert.deepEqual(L.PACT.moves.map(m => m.lead), ['Sense the work', 'Think before doing', 'Checkpoint the seams', 'Stay the owner']);
   const parts = L.PACT.moves.flatMap(m => m.parts);
-  const gated = parts.filter(p => p.kind === 'gated');
-  assert.deepEqual(gated.map(p => p.mark), ['security-route', 'never-substitute', 'move-4']);
-  for (const g of [...gated, ...L.PACT.always]) {
+  assert.deepEqual(parts.filter(p => p.kind === 'gated'), []);
+  for (const g of L.PACT.always) {
     const clause = readFileSync(join(REPO, 'gate', 'clauses', `${g.mark}.md`), 'utf8').trim().split('\n').map(l => l.trim()).join('\n');
     assert.equal(g.text.split('\n').map(l => l.trim()).join('\n'), clause, `${g.mark} differs from gate/clauses/${g.mark}.md`);
   }
-  assert.deepEqual(L.PACT.always.map(a => a.mark).sort(), ['no-skill-overrides', 'risk-floor', 'stop-and-escalate', 'tracker-authors']);
+  assert.deepEqual(L.PACT.always.map(a => a.mark), ['stop-and-escalate']);
   assert.deepEqual(parts.filter(p => p.kind === 'open').map(p => p.mark), ['move-1', 'move-2', 'move-3', 'move-4-extra']);
   assert.deepEqual([...L.PACT.editable], ['move-1', 'move-2', 'move-3', 'move-4-extra']);
 });
@@ -739,12 +749,12 @@ test('custom text with Windows line endings is saved with LF only', () => {
   assert.equal(L.buildFiles(s)[1].text, 'One line.\nTwo lines.\n');
 });
 
-test('the page warns when a move-2 edit drops an agent its default text routes to, and stops a save on an error', () => {
+// Move 2's default text is empty, so replacing it drops no agent and warns about none.
+// #261 C12
+test('the page stops a save on an error, and a move-2 replace that names no agent raises no warning', () => {
   const s = L.initialState();
   s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Think first, then write the spec.' }] };
-  const warn = L.problems(s).filter(p => p.level === 'warn');
-  assert.equal(warn.length, 1);
-  assert.match(warn[0].text, /`unstated-lens`/);
+  assert.deepEqual(L.problems(s).filter(p => p.level === 'warn'), []);
   s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: '' }] };
   assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'move-3' && /card 1 is empty/.test(p.text)));
   s.usage = 101;
@@ -812,6 +822,7 @@ test('the page takes each lens\'s class from the renderer: six security-set, two
   });
 });
 
+// #261 C12
 test('the page shows each pact agent with its model and effort, as its file sets them, and where the pact names it', () => {
   const names = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
   assert.deepEqual(L.PACT.agents.map(a => a.name), [...names, 'scout']);
@@ -821,8 +832,8 @@ test('the page shows each pact agent with its model and effort, as its file sets
     assert.match(head, new RegExp(`^model: ${a.model}$`, 'm'));
     assert.match(head, new RegExp(`^effort: ${a.effort}$`, 'm'));
   }
-  const sr = L.PACT.agents.find(a => a.name === 'data-lens');
-  assert.deepEqual(sr.runs.map(r => r.mark), ['security-route', 'move-4']);
+  // #261: no part of the pact's text names a lens; the lens table sits outside the parts.
+  assert.ok(L.PACT.agents.every(a => a.runs.length === 0), JSON.stringify(L.PACT.agents.map(a => [a.name, a.runs])));
 });
 // ------------------------------------------------------------ the page's checks against the renderer's
 

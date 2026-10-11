@@ -233,6 +233,7 @@ const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG
 const renderRun = (project = false) => t => decided(() => core.parseRenderLines(t.in.split('\n'), { project, hash: sha256 }));
 const noConfig = t => ({ in: t.in.replace(`CONFIG user ${U}`, 'CONFIG none').replace('COMMANDS finis', 'COMMANDS none') });
 const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG none', 'COMMANDS none', 'RESULT: pass'].join('\n') });
+// #261 C4
 for (const c of table('renderer lines', {
   module: 'gate/install-core.mjs',
   base: renderBase,
@@ -251,7 +252,7 @@ for (const c of table('renderer lines', {
     { id: 'block-trailing-dot', plant: rep(' a.md', ' a.md.'), fails: ['render-block-path'], why: 'a block path ending in a dot' },
     { id: 'block-two-hashes', plant: rep('DIGEST', `EDIT move-3 replace ${H('9')} a.md\nDIGEST`), fails: ['render-block-changed'], why: 'a block that changed while it was read' },
     { id: 'part-not-open', plant: rep('EDIT move-2', 'EDIT move-5'), fails: ['render-unknown-line'], why: 'an edit to a part that is not open' },
-    { id: 'gated-clause', plant: rep('EDIT move-2', 'EDIT security-route'), fails: ['render-unknown-line'], why: 'an edit to a gated clause' },
+    { id: 'gated-clause', plant: rep('EDIT move-2', 'EDIT stop-and-escalate'), fails: ['render-unknown-line'], why: 'an edit to a pinned block' },
     { id: 'remove-names-file', plant: rep(`replace ${H('e')} a.md`, 'remove a.md'), fails: ['render-unknown-line'], why: 'a remove that names a file' },
     { id: 'block-left-out-of-digest', plant: rep(`DIGEST ${D}`, `DIGEST ${digestOf(`user ${U}\n`)}`), fails: ['render-digest'], why: 'a digest that leaves a block out' },
     { id: 'digest-not-the-hashes', plant: rep(`DIGEST ${D}`, 'DIGEST 0123456789ab'), fails: ['render-digest'], why: "a digest that is not the reported hashes'" },
@@ -453,8 +454,9 @@ for (const c of table('agent file', {
 
 // ------------------------------------------------------------ seam A's copy set and overlay (S-2, S-3)
 
-const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['familiars/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['cross/cross.mjs', H('5')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')]]);
-const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} familiars/scout.md agents/scout.md`, `INSTALL ${H('5')} cross/cross.mjs pact/cross.mjs`, 'RESULT: pass'].join('\n') });
+const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['familiars/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['cross/cross.mjs', H('5')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
+const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} familiars/scout.md agents/scout.md`, `INSTALL ${H('5')} cross/cross.mjs pact/cross.mjs`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
+// #261 C3
 for (const c of table('copy set', {
   module: 'gate/install-core.mjs',
   base: copyBase,
@@ -467,6 +469,8 @@ for (const c of table('copy set', {
     { id: 'other-hash', plant: rep(`INSTALL ${H('1')}`, `INSTALL ${H('0')}`), fails: ['copy-set-mismatch'], why: 'bytes other than the staged ones' },
     { id: 'case-differs', plant: rep('claude/agents/a.md agents/a.md', 'claude/agents/A.md agents/a.md'), fails: ['copy-set-mismatch'], why: 'matched case-sensitively, as seam A matches' },
     { id: 'gate-file', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/builder/gate/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'a gate file installs only as a builder kit entry (#203)' },
+    // #261 C3: both readings map the review file beside the cross script; a seam A that sends it anywhere else disagrees.
+    { id: 'review-elsewhere', plant: rep('claude/review.md pact/review.md', 'claude/review.md review.md'), fails: ['copy-set-mismatch'], why: 'the review file at the top of the Claude folder, where the general rule would put it' },
     { id: 'gate-file-elsewhere', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'nor anywhere else' },
   ],
 })) test(c.name, c.fn);
@@ -499,9 +503,10 @@ test('the copy set with commands: a listed command pairs, an unlisted pact comma
   assert.deepEqual([...core.BUILDER_KIT], [], 'no kit ships before T3');
 });
 
-test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install', () => {
-  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md', 'cross/cross.mjs']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['familiars/x.md', 'agents/x.md'], ['cross/cross.mjs', 'pact/cross.mjs']]);
+// #261 C3
+test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes beside the cross script', () => {
+  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md', 'cross/cross.mjs']);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', 'agents/x.md'], ['cross/cross.mjs', 'pact/cross.mjs']]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
@@ -592,6 +597,7 @@ test('skill clash: only listed names are checked, and only by the path the check
   assert.doesNotThrow(() => core.checkSkillClash([], () => true), 'no list, no check');
 });
 
+// #261 C3
 for (const c of table('new command paths', {
   module: 'gate/install-core.mjs',
   base: () => ({ files: json([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')]]), record: json({ commit: 'x', files: [{ path: 'commands/finis.md', sha256: H('2') }] }), live: json(['CLAUDE.md', 'commands/finis.md']) }),
@@ -599,6 +605,8 @@ for (const c of table('new command paths', {
   rows: [
     { id: 'unlisted-live-file', plant: t => ({ ...t, record: json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }] }) }), fails: ['unlisted-live'], says: /^REFUSED: commands\/finis\.md already exists in the Claude home folder, and the install record does not list it/, why: "the owner's own command is never overwritten" },
     { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
+    // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
+    { id: 'review-path', plant: t => ({ ...t, files: json([['pact/review.md', H('4')]]), live: json(['pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
     { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* take scriptorium, which installs the builder kit, out of the commands list\./, why: 'the same rule is ready for the kit, with its own remedy' },
   ],
 })) test(c.name, c.fn);

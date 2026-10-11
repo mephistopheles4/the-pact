@@ -240,15 +240,15 @@ test('a security-set override carries its own mark in the notice, and the senten
   assert.doesNotMatch(notice(r.rules), /not verified/);
 });
 
+// #261 C8
 test('bad case: each sign alone marks integrity-lens security-set; with none it stays plain', t => {
   assert.equal(classify(t, 'integrity-lens').words, 'plain override local');
   // A tool beyond the read tools: security-set, and egress.
   assert.equal(classify(t, 'integrity-lens', { agent: AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]') }).words, 'security-set override egress');
-  // The security-route clause names it.
-  const src = SOURCE.toString('utf8');
-  const route = src.replace(/(<!-- pact:begin security-route -->\n)/, '$1   The QA pair includes `integrity-lens` here.\n');
-  assert.notEqual(route, src);
-  assert.equal(classify(t, 'integrity-lens', { source: route }).words, 'security-set override local');
+  // On the fixed security-set list (#261).
+  const listed = copyGate(tempDir(t, 'pact-agents-gate-'));
+  plantModule(listed, 'render', "const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);", "const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens', 'integrity-lens']);");
+  assert.equal(classify(t, 'integrity-lens', { renderer: join(listed, 'render.mjs') }).words, 'security-set override local');
   // Its own file carries a risk-floor block.
   const floor = AGENT.replace('# integrity-lens', '<!-- pact:begin risk-floor -->\nThe risk floor.\n<!-- pact:end risk-floor -->\n\n# integrity-lens');
   assert.notEqual(floor, AGENT);
@@ -275,11 +275,23 @@ test('bad case: a renderer whose output would change another line refuses by its
   assert.deepEqual(r.outFiles, []);
 });
 
-test('bad case: a source with no security-route clause refuses a setting', t => {
-  const src = SOURCE.toString('utf8').replace('<!-- pact:begin security-route -->', '<!-- pact:begin security-rout -->');
-  const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { source: src });
-  assert.equal(r.code, 1, r.out);
-  assert.deepEqual(r.outFiles, []);
+// #261 S5: the rules file names no route any more, so the fixed list carries
+// the mark. data-lens has no other sign, and executability-lens none once its
+// risk-floor block is gone; each turns plain when the list loses it.
+test('bad case: the fixed security-set list alone marks data-lens and executability-lens; a list that loses one leaves it plain', t => {
+  const exAgent = readFileSync(join(AGENTS_DIR, 'executability-lens.md'), 'utf8');
+  const exBare = exAgent.replace(/<!-- pact:begin risk-floor -->\n[\s\S]*?<!-- pact:end risk-floor -->\n/, '');
+  assert.notEqual(exBare, exAgent);
+  const r = render(t, cfg({ 'data-lens': { model: 'sonnet' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
+  assert.match(notice(r.rules), /data-lens \(sonnet, high effort; override, not security-tested\)/);
+  assert.equal(classify(t, 'executability-lens', { agent: exBare }).words, 'security-set override local');
+  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
+  plantModule(gate, 'render', "const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);", "const SECURITY_SET = Object.freeze(['adversarial-lens']);");
+  const renderer = join(gate, 'render.mjs');
+  assert.equal(classify(t, 'data-lens', { renderer }).words, 'plain override local');
+  assert.equal(classify(t, 'executability-lens', { agent: exBare, renderer }).words, 'plain override local');
+  const dropped = render(t, cfg({ 'data-lens': { model: 'sonnet' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8'), renderer });
+  assert.doesNotMatch(notice(dropped.rules), /override, not security-tested/);
 });
 
 test('bad case: a renderer whose locked list loses scout still cannot set it: scout stays outside the configurable list', t => {

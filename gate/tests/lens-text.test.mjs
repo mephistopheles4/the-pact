@@ -17,14 +17,23 @@ const LENSES = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWit
 test('the lens list is read from claude/agents/', () => {
   assert.deepEqual(LENSES, ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
 });
-// The security reviewer's F2 on #99's swap: two lenses restate a gated list in their own text, outside the
-// one shared block. Each restatement must hold every item of its canonical clause, so a risk floor that
-// gains an item fails here until the lens's copy gains it too.
-const CLAUSES = join(REPO, 'gate', 'clauses');
+// The security reviewer's F2 on #99's swap: two lenses restate a list in their own text. Each restatement
+// must hold every item of its source, so a default that gains an item fails here until the lens's copy
+// gains it too. Since #261 the risk floor's source is the pact's sensitive-work default, and the security
+// route's list, which the gate no longer pins, is written out here as the retired clause held it.
 
 /** The items of a list written "a, b, c and d" or "a, b, c or d". */
 export function listItems(text) {
   return text.split(/,\s*|\s+(?:and|or)\s+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+
+/** The list between `before` and `after` in a repo file, whitespace flattened; each marker must occur once. */
+function between(rel, before, after) {
+  const flat = read(join(REPO, rel)).replace(/\s+/g, ' ');
+  assert.equal(flat.split(before).length, 2, `${rel}: "${before}" must occur once`);
+  const rest = flat.split(before)[1];
+  assert.ok(rest.includes(after), `${rel}: "${after}" must follow "${before}"`);
+  return rest.split(after)[0];
 }
 
 /** The items of `items` missing from `list`, a list sentence already cut from its lens file. */
@@ -42,44 +51,30 @@ function restated(lens, before, after) {
   return rest.split(after)[0];
 }
 
-const RISK_FLOOR = listItems(read(join(CLAUSES, 'risk-floor.md')).split(' are always thorough')[0]);
-const SECURITY_ROUTE = listItems(read(join(CLAUSES, 'security-route.md')).split('Anything touching ')[1].split('\n')[0]);
+const RISK_FLOOR = listItems(between('claude/CLAUDE.md', 'By default, sensitive work is ', ': thorough,'));
+const SECURITY_ROUTE = ['auth', 'secrets', 'crypto', 'input validation'];
 const GOOD_ENOUGH_LIST = () => restated('good-enough-lens', '**You cannot defer a risk-floor item.** ', ' tolerate no deferral');
 const UNSTATED_LIST = () => restated('unstated-lens', 'did not read this work, and it touches ', ', or opens a way in');
 
+// #261 C1
 test('the canonical lists parse into their items', () => {
-  // #189 (S5) took publishing off the floor; it stays a stop in stop-and-escalate.
   assert.deepEqual(RISK_FLOOR, ['auth', 'secrets', 'crypto', 'input validation', 'data migrations']);
-  assert.deepEqual(SECURITY_ROUTE, ['auth', 'secrets', 'crypto', 'input validation']);
 });
 
+// #261 C1
 test("good-enough-lens's risk-floor list and unstated-lens's security-route list hold every canonical item", () => {
   assert.deepEqual(missingFrom(GOOD_ENOUGH_LIST(), RISK_FLOOR), []);
   assert.deepEqual(missingFrom(UNSTATED_LIST(), SECURITY_ROUTE), []);
 });
 
 // #211's move 4 (integrity-lens F1 to F5): the presence check above passes a copy that keeps an item the
-// floor dropped. Each restated copy of the floor must hold exactly its items, and the publish stop keeps
-// "anything published", which #189 took off the floor only.
-/** The list between `before` and `after` in a repo file, whitespace flattened; each marker must occur once. */
-function between(rel, before, after) {
-  const flat = read(join(REPO, rel)).replace(/\s+/g, ' ');
-  assert.equal(flat.split(before).length, 2, `${rel}: "${before}" must occur once`);
-  const rest = flat.split(before)[1];
-  assert.ok(rest.includes(after), `${rel}: "${after}" must follow "${before}"`);
-  return rest.split(after)[0];
-}
-
+// floor dropped. Each restated copy of the floor must hold exactly its items.
 const FLOOR_COPIES = () => ({
   'good-enough-lens.md': GOOD_ENOUGH_LIST(),
-  'no-skill-overrides.md': between('gate/clauses/no-skill-overrides.md', 'the risk floor (', ' are always thorough)'),
-  // The sentence after the tier table: the text between the table's last cell and the marker.
-  'triage-labels.md': between('docs/agents/triage-labels.md', '| `tier:thorough` |', ' are always `tier:thorough`').split(' | ').pop().trim(),
+  // The sentence after the tier table.
+  'triage-labels.md': between('docs/agents/triage-labels.md', 'By default, ', ' are sensitive work: `tier:thorough`'),
   'good-enough-lens.contract.md': between('familiars/good-enough-lens.contract.md', '**It cannot defer a risk-floor item.** ', ' tolerate no deferral'),
 });
-
-/** The items of the stop's serial list, "a, b, c, or d": its last item keeps its "or" after the comma. */
-const stopItems = list => listItems(list).map(i => i.replace(/^(?:and|or) /, ''));
 
 /** The items of `list` the canonical `items` lack, and the items it lacks: both empty for an exact copy. */
 function exactGaps(list, items) {
@@ -91,16 +86,10 @@ test('every restated copy of the risk floor holds exactly its items, no more', (
   for (const [name, list] of Object.entries(FLOOR_COPIES())) assert.deepEqual(exactGaps(list, RISK_FLOOR), { extra: [], missing: [] }, name);
 });
 
-test('the publish stop keeps "anything published", which left only the floor', () => {
-  assert.deepEqual(stopItems(between('gate/clauses/stop-and-escalate.md', 'the change is hard to reverse: ', ';')), ['auth', 'secrets', 'data migrations', 'anything published']);
-});
-
+// #261 C1
 test('bad case: a copy that keeps an item the floor dropped is caught', () => {
   assert.deepEqual(exactGaps('Auth, secrets, crypto, input validation, data migrations and anything published', RISK_FLOOR), { extra: ['anything published'], missing: [] });
   assert.deepEqual(exactGaps('auth, secrets, crypto, input validation and data migrations', RISK_FLOOR), { extra: [], missing: [] });
-  // The stop's parse sees the phrase go: a stop that loses it no longer equals its expected list.
-  assert.deepEqual(stopItems('auth, secrets, data migrations, or anything published'), ['auth', 'secrets', 'data migrations', 'anything published']);
-  assert.deepEqual(stopItems('auth, secrets or data migrations'), ['auth', 'secrets', 'data migrations']);
 });
 
 test('bad case: a restated list that drops an item is caught, however short the item', () => {
@@ -207,19 +196,18 @@ test('no lens file, contract or practice test holds a line that starts mid-sente
   }
   assert.notDeepEqual(damage('The credential is\n\nplanted in the env.\n'), []);
 });
-// reader-lens carries the pact's plain-language rules, never fetches them (#101). A carried copy can drift
-// from its source, which is conventions-lens's own replay case, so each bullet of the pact's "Explain in plain
-// language" that a reader can be held to is held to the lens file word for word. The documentation bullet is a
-// rule for the session writing docs, not for the reader, so it is left out by its lead-in (main reworded it in #126).
-/** The bullets of the pact's "Explain in plain language", whitespace flattened, minus the documentation bullet. */
-export function plainLanguageRules(pact) {
-  const section = pact.split('## Explain in plain language')[1].split('\n## ')[0];
-  return section
-    .split(/\n(?=- )/)
-    .filter(b => b.startsWith('- '))
-    .map(b => b.replace(/\s+/g, ' ').trim())
-    .filter(b => !b.startsWith('- **Writing documentation files?**'));
-}
+// reader-lens carries the plain-language rules, never fetches them (#101). The pact's "Explain in plain
+// language" section, their source, left the rules file in #261, where the owner's output style carries plain
+// language. The lens keeps its copy, so the six reader-facing rules are written out here as the section held
+// them, and the lens is held to them word for word.
+const PLAIN_LANGUAGE = Object.freeze([
+  '- **Lead with the answer.** Conclusion first, supporting detail after.',
+  '- **Keep sentences short.** Around 20 words. Split multi-clause sentences.',
+  '- **Use active voice.** "Run the migration", not "the migration should be run".',
+  '- **Define a term the first time it appears**, including acronyms and internal names.',
+  '- **Bold the lead-in of each bullet** so a list scans.',
+  '- **Accuracy outranks simplicity.** When plain phrasing would make something wrong or vague, stay precise and explain the term instead.',
+]);
 
 /** The pact's rules missing from a lens text. */
 function missingRules(lensText, rules) {
@@ -227,16 +215,13 @@ function missingRules(lensText, rules) {
   return rules.filter(r => !flat.includes(r));
 }
 
-test("reader-lens carries every reader-facing rule of the pact's plain language, word for word", () => {
-  const pact = read(join(REPO, 'claude', 'CLAUDE.md'));
-  const rules = plainLanguageRules(pact);
-  assert.equal(rules.length, 6, rules.join('\n'));
+// #261 C1
+test('reader-lens carries every reader-facing plain-language rule, word for word', () => {
   const lens = read(join(REPO, 'claude', 'agents', 'reader-lens.md'));
-  assert.deepEqual(missingRules(lens, rules), []);
+  assert.deepEqual(missingRules(lens, PLAIN_LANGUAGE), []);
   assert.ok(lens.replace(/\s+/g, ' ').includes('ISO 24495-1:2023'));
-  // Seen to fail: the pact gains a word in one rule, and the lens's copy no longer matches its source.
-  const changed = plainLanguageRules(pact.replace('Around 20 words.', 'Around 15 words.'));
-  assert.equal(missingRules(lens, changed).length, 1);
+  // Seen to fail: a lens copy that loses a word in one rule.
+  assert.equal(missingRules(lens.replace('Around 20 words.', 'Around 15 words.'), PLAIN_LANGUAGE).length, 1);
 });
 
 // reader-lens's catalogue holds exactly ten tells, each once, numbered 1 to 10 in order (#101, move 4,

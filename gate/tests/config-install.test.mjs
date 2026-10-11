@@ -67,6 +67,7 @@ function denyRead(p) {
   }
 }
 
+// #261 C10
 test('bad case: an unreadable configuration file refuses, and -Apply writes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -102,9 +103,9 @@ test('bad case: an unreadable configuration file refuses, and -Apply writes noth
 /** The rules file a configuration with usage-pause `value` should install, built here from the repo's source. */
 function expectedRules(repo, bytes, value) {
   let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8');
-  const usage = 'the weekly limit is above 75%, wait for my go-ahead.';
+  const usage = 'When it is above 75%, wait for my';
   assert.equal(s.split(usage).length, 2);
-  s = s.replace(usage, `the weekly limit is above ${value}%, wait for my go-ahead.`);
+  s = s.replace(usage, `When it is above ${value}%, wait for my`);
   const slot = '<!-- pact:begin config-notice -->\n';
   assert.equal(s.split(slot).length, 2);
   s = s.replace(
@@ -127,6 +128,7 @@ function nothingWritten(h) {
   assert.ok(!tree.some(f => f === 'CLAUDE.md' || f === '.pact-install.json' || f.startsWith('agents')), tree.join('\n'));
 }
 
+// #261 C7
 test('the shipped example installs: the dry run shows it, -Apply with the full rendered hash installs 90% with the notice, and the record names it', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -142,7 +144,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
     `  configuration digest: ${digestOf(EXAMPLE)}`,
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
-    '  Open text is checked for form, imports, routing and the roster, not for meaning.',
+    '  Edited text is checked for its form, its characters and file imports, not for wording or meaning.',
     // The pact commands' block follows the configuration's (#203).
     'Commands:',
   ]);
@@ -153,7 +155,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
   const text = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
-  assert.ok(text.includes('the weekly limit is above 90%') && !text.includes('above 75%'));
+  assert.ok(text.includes('When it is above 90%') && !text.includes('above 75%'));
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.equal(manifest.digest, digestOf(EXAMPLE));
   assert.deepEqual(manifest.config, [{ kind: 'user', sha256: sha256(EXAMPLE) }]);

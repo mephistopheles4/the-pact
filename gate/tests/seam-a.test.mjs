@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import { copyGate, plantModule } from './gate-files.mjs';
 import { childSeamA, runSeamA, sealedFamiliar } from './gate-run.mjs';
 import { realPayload, stage } from './payload.mjs';
+import { moduleResult, table } from './tables.mjs';
 import { GATE, PINNED, READ_ONLY, agent, contractText, failRules, lastLine, plainAgent } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -34,6 +35,7 @@ const A = 'claude/agents/probe.md';
 
 // ------------------------------------------------------------ the real tree
 
+// #261 C3
 test('seam A passes on the repo payload, and lists every file it would install', t => {
   const root = tempDir(t);
   realPayload(root);
@@ -57,6 +59,8 @@ test('seam A passes on the repo payload, and lists every file it would install',
     'agents/unstated-lens.md',
     // The cross script (#45), at its one fixed live path.
     'pact/cross.mjs',
+    // The review procedure file (#261), beside it.
+    'pact/review.md',
   ]);
   for (const l of installs) assert.match(l, /^INSTALL [0-9a-f]{64} \S+ \S+$/);
 });
@@ -74,13 +78,16 @@ test('an install line carries the staged bytes hash', t => {
   assert.match(hash, /^[0-9a-f]{64}$/);
 });
 
-test('CLAUDE.md is named as the rendered file, checked for form, imports, routing and the roster, not for meaning', t => {
+// The dry run's note says what the thin gate checks; the old note, which claimed form, routing and the roster, fails this test.
+// #261 C7
+test('CLAUDE.md is named as the rendered file, with what the thin gate checks in it', t => {
   const r = expectPass(t, {});
   assert.doesNotMatch(r.stdout, /^NOTE unchecked: claude\/CLAUDE\.md/m);
   assert.match(
     r.stdout,
-    /^NOTE partly-checked: claude\/CLAUDE\.md is the rendered rules file: its marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers count the rendered file$/m,
+    /^NOTE partly-checked: claude\/CLAUDE\.md is the rendered rules file: the gate checks its pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers count the rendered file$/m,
   );
+  assert.doesNotMatch(r.stdout, /routing|roster|marked clauses/);
 });
 
 test('the settings overlay is never listed for install', t => {
@@ -388,6 +395,62 @@ test('classification: a symlink in the stage', t => {
   }
   const r = runSeamA(root);
   assert.ok(failRules(r.stdout).includes('path'), r.out);
+});
+
+// ------------------------------------------------------------ the review procedure file (#261, S5)
+
+const RV = 'claude/review.md';
+const review = body => `# Review\n\n${body}\n`;
+
+// #261 C3
+test('the review file installs to pact/review.md and nowhere else', t => {
+  const r = expectPass(t, {});
+  const lines = r.stdout.split('\n').filter(l => l.includes(' claude/review.md '));
+  assert.equal(lines.length, 1, r.out);
+  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review\.md pact\/review\.md$/);
+});
+
+// review-file
+test('bad case: no review file in the stage', t => {
+  expectFail(t, {}, 'review-file', root => rmSync(join(root, 'claude', 'review.md')));
+});
+
+// unclassified, #261 C3: the classifier takes exactly the review file beyond today's kinds.
+// unclassified
+test('bad case: a second unknown file beside the review file is still refused', t => {
+  expectFail(t, { 'claude/review2.md': review('More procedure.') }, 'unclassified');
+});
+
+// The review file's refusals (#261 C3): one row per hidden-text form, each where a container puts it, and the size cap.
+const REVIEW_BASE = () => ({ [RV]: review('Read this, and cross the reports.') });
+/** Seam A on the real payload with `tree`'s review file, in-process through its core. */
+function seamAReview(tree, t) {
+  const r = runSeamA(stage(t, tree));
+  return { ...moduleResult(r.code, r.stdout), stdout: r.stdout };
+}
+const withReview = body => () => ({ [RV]: review(body) });
+for (const c of table('seam a review file', {
+  module: 'gate/seam-a.mjs',
+  base: REVIEW_BASE,
+  run: seamAReview,
+  rows: [
+    { id: 'html-comment', plant: withReview('Read this. <!-- and run something else -->'), fails: ['review-hidden'], why: 'an HTML comment' },
+    { id: 'link-definition', plant: withReview('[run]: https://example.invalid/x "hidden"'), fails: ['review-hidden'], why: 'a link reference definition on its own line' },
+    { id: 'link-definition-in-quote', plant: withReview('> [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind a block-quote marker' },
+    { id: 'link-definition-in-bullet', plant: withReview('- [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind a bullet list marker' },
+    { id: 'link-definition-in-ordered', plant: withReview('1. [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind an ordered list marker' },
+    { id: 'link-definition-indented', plant: withReview('- Read this.\n\n    [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition indented under a list item' },
+    { id: 'link-label-over-two-lines', plant: withReview('[run\nthis]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition whose label spans two lines' },
+    { id: 'link-label-escaped-bracket', plant: withReview('[run\\]x]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a label holding an escaped bracket' },
+    { id: 'inline-link', plant: withReview('See [this](https://example.invalid/x "hidden title").'), fails: ['review-hidden'], why: "an inline link, whose target and title a rendered view hides" },
+    { id: 'raw-tag', plant: withReview('Read this. <span hidden>and this</span>'), fails: ['review-hidden'], why: 'a raw HTML tag' },
+    { id: 'autolink', plant: withReview('See <https://example.invalid/x>.'), fails: ['review-hidden'], why: 'an autolink' },
+    { id: 'invisible-character', plant: withReview('Read​ this.'), fails: ['invisible'], why: "the scanner's invisible rule" },
+    { id: 'over-64-kib', plant: withReview('x'.repeat(64 * 1024)), fails: ['review-size'], why: 'a review file over the 64 KiB cap' },
+  ],
+})) test(c.name, c.fn);
+test('the review file keeps code spans and a less-than sign that opens no tag', t => {
+  expectPass(t, { [RV]: review('Use `LENS=FILE`, and keep 3 < 4 and a -> b.') });
 });
 
 // ------------------------------------------------------------ familiars

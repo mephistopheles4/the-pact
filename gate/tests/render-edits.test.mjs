@@ -10,7 +10,6 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { ROSTER } from '../pact-text.mjs';
 import { stage } from './payload.mjs';
 import { GATE, RENDER, REPO, applyDiff, editPart, failRules, lastLine, plainAgent, withoutOpenMarks } from './text.mjs';
 import { read, tempDir, writeTree } from './tree.mjs';
@@ -98,7 +97,7 @@ const blockLines = buf => buf.toString('utf8').slice(0, -1).split('\n');
 /** The configured render: each edit applied with its block re-indented, the usage value, the notice, open marks gone. */
 function expected(src, { digest, value, edits }) {
   let s = src;
-  if (value !== undefined) s = s.replace('the weekly limit is above 75%,', `the weekly limit is above ${value}%,`);
+  if (value !== undefined) s = s.replace('When it is above 75%,', `When it is above ${value}%,`);
   for (const e of edits) {
     s = editPart(s, e.mark, (now, indent) => {
       const block = e.bytes ? blockLines(e.bytes).map(l => `${indent}${l}`) : [];
@@ -159,23 +158,25 @@ test('each shipped example block is known-good on its own, under each operation 
   }
 });
 
-test('a remove takes out the part\'s text and keeps the move\'s lead-in line', t => {
+// #261 C14
+test('a remove takes out the part\'s text and keeps the move\'s bullet', t => {
   const config = JSON.stringify(cfg([{ mark: 'move-1', op: 'remove' }]));
   const r = render(t, homeWith(t, config));
   assert.equal(r.code, 0, r.out);
   const edits = [{ mark: 'move-1', op: 'remove' }];
   assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), { digest: digestOf(Buffer.from(config), edits), edits }));
   assert.match(r.stdout, /^EDIT move-1 remove$/m);
-  assert.match(r.bytes.toString('utf8'), /^1\. \*\*I sense the work before I process it\.\*\*\n2\. /m);
+  assert.match(r.bytes.toString('utf8'), /^ {2}reproduced and traced to its start before anyone fixes it\.\n- \*\*Think before doing\.\*\* /m);
 });
 
-test('a replace keeps the move\'s number and lead-in, and the digest changes when only a block changes', t => {
+// #261 C14
+test('a replace keeps the move\'s bullet and lead-in, and the digest changes when only a block changes', t => {
   const config = JSON.stringify(cfg([{ mark: 'move-3', op: 'replace', file: 'm3.md' }]));
   const a = render(t, homeWith(t, config, { 'm3.md': 'First text.\n' }));
   const b = render(t, homeWith(t, config, { 'm3.md': 'Second text.\n' }));
   assert.equal(a.code, 0, a.out);
   assert.equal(b.code, 0, b.out);
-  assert.match(a.bytes.toString('utf8'), /^3\. \*\*I checkpoint the seams\.\*\*\n {3}First text\.\n {3}<!-- pact:begin security-route -->$/m);
+  assert.match(a.bytes.toString('utf8'), /^ {2}checkpoint\. When in doubt, it's heavy\.\n {2}First text\.\n- \*\*Stay the owner\.\*\* /m);
   const dA = /^DIGEST (\S+)$/m.exec(a.stdout)[1];
   const dB = /^DIGEST (\S+)$/m.exec(b.stdout)[1];
   assert.notEqual(dA, dB, 'a block change must show in the digest');
@@ -195,6 +196,7 @@ test('a block in a sub-folder of the blocks folder is read', t => {
   assert.match(r.stdout, /^EDIT move-4-extra add-after [0-9a-f]{64} team\/extra\.md$/m);
 });
 
+// #261 C10
 test('with no configuration the diff is empty, and with a values-only one it shows only the value and the notice', t => {
   const none = render(t, tempDir(t));
   assert.equal(none.code, 0, none.out);
@@ -209,8 +211,8 @@ test('with no configuration the diff is empty, and with a values-only one it sho
       '+',
       `+**Configuration in effect.** This file was rendered with the configuration \`${sha256(`user ${sha256(Buffer.from(config))}\n`).slice(0, 12)}\`.`,
       '+Values set: usage-pause 90. Parts edited: none.',
-      '-the weekly limit is above 75%, wait for my go-ahead. Never cut or stop work',
-      '+the weekly limit is above 90%, wait for my go-ahead. Never cut or stop work',
+      '-  and tell me the figure and a rough cost. When it is above 75%, wait for my',
+      '+  and tell me the figure and a rough cost. When it is above 90%, wait for my',
     ],
   );
   assert.equal(applyDiff(withoutOpenMarks(read(SOURCE)), d), r.bytes.toString('utf8'));
@@ -218,71 +220,17 @@ test('with no configuration the diff is empty, and with a values-only one it sho
 
 // ------------------------------------------------------------ re-indenting is load-bearing (seam 2)
 
-test('re-indented block text stays inside its move: an agent named only in a move-4-extra block is routed', t => {
-  const root = stage(t, { 'claude/agents/extra-agent.md': plainAgent('extra-agent') }, { route: false });
+// #261 C14
+test('re-indented block text stays inside its move: a move-4-extra block lands at the bullet\'s indent, and seam A passes', t => {
+  const root = stage(t, { 'claude/agents/extra-agent.md': plainAgent('extra-agent') });
   const block = 'Then run `extra-agent` on the diff.\n';
   renderStage(root, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'x.md' }]), { 'x.md': block }));
-  assert.match(read(join(root, 'claude', 'CLAUDE.md')), /^ {3}Then run `extra-agent` on the diff\.$/m);
+  assert.match(read(join(root, 'claude', 'CLAUDE.md')), /^ {2}evidence\.\n {2}Then run `extra-agent` on the diff\.$/m);
   const r = runSeamA(root);
   assert.equal(r.code, 0, r.out);
-});
-
-test('control: the same text at column 0, as an un-indented block would land, leaves move 4, and seam A fails routing', t => {
-  const root = stage(t, { 'claude/agents/extra-agent.md': plainAgent('extra-agent') }, { route: false });
-  const md = join(root, 'claude', 'CLAUDE.md');
-  writeFileSync(md, editPart(read(md), 'move-4-extra', () => ['Then run `extra-agent` on the diff.']));
-  const r = runSeamA(root);
-  assert.notEqual(r.code, 0, r.out);
-  assert.ok(failRules(r.stdout).includes('routing'), r.out);
 });
 
 // ------------------------------------------------------------ seam A on a rendered stage (seam 2)
-
-/**
- * The installed agents named in move 2's part and nowhere else seam A's
- * routing reads: the other moves of "Implementing a change" and its
- * "Lookups and searches." line. Derived from the source, so a later change to
- * move 2's reviewers keeps this case true.
- */
-function routedOnlyInMove2() {
-  const src = read(SOURCE);
-  const agents = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3));
-  const m2 = /<!-- pact:begin move-2 -->\n((?:.*\n)*?) *<!-- pact:end move-2 -->/.exec(src)[1];
-  const section = /^## Implementing a change\n((?:.*\n)*?)(?=^## )/m.exec(src)[1];
-  const moves = [...section.matchAll(/^([0-9]+)\. .*\n(?: .*\n)*/gm)].filter(m => m[1] !== '2').map(m => m[0]);
-  const roles = section.split('\n').filter(l => l.startsWith('**Lookups and searches.**'));
-  const spans = text => new Set([...text.matchAll(/`([^`]+)`/g)].map(x => x[1]));
-  const elsewhere = spans([...moves, ...roles].join('\n'));
-  return agents.filter(a => spans(m2).has(a) && !elsewhere.has(a));
-}
-
-test('seam A: a move-2 replace that keeps move 2\'s routed agents passes', t => {
-  const keep = routedOnlyInMove2();
-  const root = stage(t, {});
-  const block = `I grill the idea, then write the spec. Route it: ${keep.map(a => `\`${a}\``).join(', ') || 'none'}.\n`;
-  renderStage(root, homeWith(t, cfg([{ mark: 'move-2', op: 'replace', file: 'm2.md' }]), { 'm2.md': block }));
-  const r = runSeamA(root);
-  assert.equal(r.code, 0, r.out);
-});
-
-test('seam A: a move-2 replace that drops move 2\'s routed agents renders, then fails routing', t => {
-  const dropped = routedOnlyInMove2();
-  assert.ok(dropped.length > 0, 'the source routes no agent in move 2 alone, so this case cannot be planted');
-  const root = stage(t, {});
-  renderStage(root, homeWith(t, cfg([{ mark: 'move-2', op: 'replace', file: 'm2.md' }]), { 'm2.md': 'I grill the idea, then write the spec.\n' }));
-  const r = runSeamA(root);
-  assert.notEqual(r.code, 0, r.out);
-  assert.ok(failRules(r.stdout).includes('routing'), r.out);
-});
-
-test('seam A: a move-2 remove that drops its routed agents renders, then fails routing, as a replace does', t => {
-  assert.ok(routedOnlyInMove2().length > 0, 'the source routes no agent in move 2 alone, so this case cannot be planted');
-  const root = stage(t, {});
-  renderStage(root, homeWith(t, cfg([{ mark: 'move-2', op: 'remove' }])));
-  const r = runSeamA(root);
-  assert.notEqual(r.code, 0, r.out);
-  assert.ok(failRules(r.stdout).includes('routing'), r.out);
-});
 
 test('seam A: a block naming the user\'s own agent, not on the roster and not installed, passes', t => {
   const root = stage(t, {});
@@ -290,41 +238,26 @@ test('seam A: a block naming the user\'s own agent, not on the roster and not in
   const r = runSeamA(root);
   assert.equal(r.code, 0, r.out);
 });
-test('seam A: a block naming an uninstalled reviewer renders, then fails the roster', t => {
-  const root = stage(t, {});
-  // Taken from the gate's roster at run time: a retired name written here
-  // would fail the repo's own name search (roster.test.mjs).
-  const absent = ROSTER.find(n => !readdirSync(join(root, 'claude', 'agents')).includes(`${n}.md`));
-  assert.ok(absent, 'every roster name is installed, so this case cannot be planted');
-  renderStage(root, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'r.md' }]), { 'r.md': `Then run \`${absent}\` on the tests.\n` }));
-  const r = runSeamA(root);
-  assert.notEqual(r.code, 0, r.out);
-  assert.ok(failRules(r.stdout).includes('roster'), r.out);
-});
+// ------------------------------------------------------------ planted controls: the renderer's text checks are load-bearing
 
-test('seam A, the second layer: a configured block holding a setext heading fails structure (hand-built render: the renderer refuses it first)', t => {
-  const root = stage(t, {});
-  const md = join(root, 'claude', 'CLAUDE.md');
-  writeFileSync(md, editPart(read(md), 'move-4-extra', (now, indent) => [`${indent}Title`, `${indent}===`]));
-  const r = runSeamA(root);
-  assert.notEqual(r.code, 0, r.out);
-  assert.ok(failRules(r.stdout).includes('structure'), r.out);
-  // And the renderer refuses the same text as a block, before seam A runs.
+// block-text
+test('a block holding a setext heading is refused by the renderer; seam A no longer checks form (#261)', t => {
   refusedWith(render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': 'Title\n===\n' })), 'block-text', /a setext heading underline/);
 });
 
-// ------------------------------------------------------------ planted controls: the renderer's text checks are load-bearing
-
-test('control: an @ import in open text passes today\'s seam A without the renderer, and the renderer refuses it as a block', t => {
+// rules-import: the second layer (#261, S5). The renderer refuses an @ import in a block first; seam A refuses one in the rendered rules file however it got there.
+test('control: an @ import in open text fails seam A without the renderer, and the renderer refuses it as a block', t => {
   const root = stage(t, {});
   const md = join(root, 'claude', 'CLAUDE.md');
   writeFileSync(md, editPart(read(md), 'move-4-extra', (now, indent) => [`${indent}See @notes.md for more.`]));
   const r = runSeamA(root);
-  assert.equal(r.code, 0, `seam A was expected to miss the import:\n${r.out}`);
+  assert.notEqual(r.code, 0, r.out);
+  assert.ok(failRules(r.stdout).includes('rules-import'), r.out);
   refusedWith(render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': 'See @notes.md for more.\n' })), 'block-text', /an @ followed by text/);
 });
 
-test('control: a heading and a numbered line outside the moves pass today\'s seam A without the renderer, and the renderer refuses them as a block', t => {
+// #261 C5
+test('control: a heading and a numbered line pass seam A without the renderer, and the renderer refuses them as a block', t => {
   const root = stage(t, {});
   const md = join(root, 'claude', 'CLAUDE.md');
   writeFileSync(md, `${read(md)}\n## Extra steps\n\n1. Do this first.\n`);
@@ -337,17 +270,10 @@ test('control: a heading and a numbered line outside the moves pass today\'s sea
 
 // ------------------------------------------------------------ gated marks and renderer-owned parts
 
-for (const clause of GATED) {
-  for (const op of OPS) {
-    test(`bad case: an edit to the gated clause ${clause} with ${op} refuses, naming the clause`, t => {
-      const edit = op === 'remove' ? { mark: clause, op } : { mark: clause, op, file: 'ok.md' };
-      refusedWith(render(t, homeWith(t, cfg([edit]), { 'ok.md': 'Text.\n' })), 'edit-gated', new RegExp(`edit 1: ${clause} is a gated clause; no edit may target it`));
-    });
-  }
-}
 
-test('the gated clauses refused are exactly gate/clauses/, install-go-ahead included', () => {
-  assert.equal(GATED.length, 8, GATED.join(', '));
+// #261 C4
+test('the pinned blocks refused are exactly gate/clauses/, install-go-ahead included', () => {
+  assert.equal(GATED.length, 2, GATED.join(', '));
   assert.ok(GATED.includes('install-go-ahead'));
 });
 
@@ -394,6 +320,7 @@ function refusedOnly(r) {
 
 // ------------------------------------------------------------ the must-refuse table: the edit list
 
+// #261 C4
 for (const c of table('render edit list', {
   module: 'gate/render.mjs',
   base: editHome,
@@ -402,7 +329,16 @@ for (const c of table('render edit list', {
   rows: [
     { id: 'unknown-mark', plant: withEdits([{ mark: 'move-9', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'an unknown mark' },
     { id: 'mark-in-another-case', plant: withEdits([{ mark: 'Move-2', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a mark in another case' },
-    { id: 'gated-mark-in-another-case', plant: withEdits([{ mark: 'Risk-Floor', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a gated mark in another case' },
+    // edit-gated, #261 C4: no edit may target a pinned block, with any operation.
+    { id: 'pinned-stop-and-escalate-remove', plant: withEdits([{ mark: 'stop-and-escalate', op: 'remove' }]), fails: ['edit-gated'], says: /edit 1: stop-and-escalate is a pinned block; no edit may target it/, why: 'removing the pinned stop-and-ask block' },
+    { id: 'pinned-stop-and-escalate-replace', plant: withEdits([{ mark: 'stop-and-escalate', op: 'replace', file: 'ok.md' }]), fails: ['edit-gated'], says: /edit 1: stop-and-escalate is a pinned block; no edit may target it/, why: 'replacing the pinned stop-and-ask block' },
+    { id: 'pinned-stop-and-escalate-add-after', plant: withEdits([{ mark: 'stop-and-escalate', op: 'add-after', file: 'ok.md' }]), fails: ['edit-gated'], says: /edit 1: stop-and-escalate is a pinned block; no edit may target it/, why: 'adding after the pinned stop-and-ask block' },
+    { id: 'pinned-install-go-ahead-remove', plant: withEdits([{ mark: 'install-go-ahead', op: 'remove' }]), fails: ['edit-gated'], says: /edit 1: install-go-ahead is a pinned block; no edit may target it/, why: 'removing the pinned install go-ahead' },
+    { id: 'pinned-install-go-ahead-replace', plant: withEdits([{ mark: 'install-go-ahead', op: 'replace', file: 'ok.md' }]), fails: ['edit-gated'], says: /edit 1: install-go-ahead is a pinned block; no edit may target it/, why: 'replacing the pinned install go-ahead' },
+    { id: 'pinned-install-go-ahead-add-after', plant: withEdits([{ mark: 'install-go-ahead', op: 'add-after', file: 'ok.md' }]), fails: ['edit-gated'], says: /edit 1: install-go-ahead is a pinned block; no edit may target it/, why: 'adding after the pinned install go-ahead' },
+    { id: 'gated-mark-in-another-case', plant: withEdits([{ mark: 'Stop-And-Escalate', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a pinned mark in another case' },
+    // #261: a block the gate retired is no mark at all.
+    { id: 'retired-gated-mark', plant: withEdits([{ mark: 'risk-floor', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a retired gated clause, now an unknown mark' },
     { id: 'mark-not-text', plant: withEdits([{ mark: 2, op: 'remove' }]), fails: ['edit-shape'], says: /edit 1: mark must be text/, why: 'a mark that is not text' },
     { id: 'no-mark', plant: withEdits([{ op: 'remove' }]), fails: ['edit-shape'], says: /edit 1: mark must be text/, why: 'no mark' },
     { id: 'unknown-op', plant: withEdits([{ mark: 'move-2', op: 'append', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an unknown operation' },
@@ -429,9 +365,10 @@ test('16 edits are not refused by the count: the same list refuses only for a ma
   refusedWith(r, 'edit-twice', /edit 2: move-1 is edited twice/);
 });
 
+// edit-gated
 test('a refusal reports every bad edit, each by its position', t => {
-  const r = render(t, homeWith(t, cfg([{ mark: 'risk-floor', op: 'remove' }, { mark: 'move-1', op: 'remove' }, { mark: 'nope', op: 'remove' }])));
-  refusedWith(r, 'edit-gated', /edit 1: risk-floor/);
+  const r = render(t, homeWith(t, cfg([{ mark: 'stop-and-escalate', op: 'remove' }, { mark: 'move-1', op: 'remove' }, { mark: 'nope', op: 'remove' }])));
+  refusedWith(r, 'edit-gated', /edit 1: stop-and-escalate/);
   assert.match(r.stdout, /^FAIL edit-mark: pact\/config\.json: edit 3: an unknown mark$/m, r.out);
 });
 
@@ -687,10 +624,11 @@ test('each block file is opened once and read once, and a large one is read no f
 // ------------------------------------------------------------ placement: an open mark sharing a line with a gated mark
 
 const SHARE = [
-  ['an open end and a gated begin on one line', s => s.replace('   <!-- pact:end move-3 -->\n   <!-- pact:begin security-route -->\n', '   <!-- pact:end move-3 --> <!-- pact:begin security-route -->\n')],
-  ['a gated end and an open begin on one line', s => s.replace('   <!-- pact:end move-4 -->\n   <!-- pact:begin move-4-extra -->\n', '   <!-- pact:end move-4 --><!-- pact:begin move-4-extra -->\n')],
+  ['an open end and a gated begin on one line', s => s.replace('<!-- pact:end config-notice -->\n', '').replace('<!-- pact:begin stop-and-escalate -->\n', '<!-- pact:end config-notice --> <!-- pact:begin stop-and-escalate -->\n')],
+  ['a gated end and an open begin on one line', s => s.replace('<!-- pact:end stop-and-escalate -->\n<!-- pact:begin usage-pause -->\n', '<!-- pact:end stop-and-escalate --><!-- pact:begin usage-pause -->\n')],
 ];
 
+// placement
 for (const [label, change] of SHARE) {
   for (const [withConfig, home] of [
     ['with a configuration', t => homeWith(t, cfg([{ mark: 'move-1', op: 'remove' }]))],
@@ -726,10 +664,11 @@ test('refusals name only the renderer\'s own names and positions: no mark, op, p
   }
 });
 
+// #261 C14
 test('a block\'s text never reaches the renderer\'s output lines on a pass', t => {
   const C = 'CANARYpass';
   const r = render(t, homeWith(t, edit1, { 'b.md': `${C} text.\n` }));
   assert.equal(r.code, 0, r.out);
   assert.ok(!r.stdout.includes(C), r.stdout);
-  assert.ok(r.bytes.toString('utf8').includes(`   ${C} text.`));
+  assert.ok(r.bytes.toString('utf8').includes(`  ${C} text.`));
 });

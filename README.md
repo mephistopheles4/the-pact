@@ -16,92 +16,93 @@ Faust signed a pact with no way out. This one has escape clauses written in: the
 
 An agent acts on what your words say. If "clean up the repo" can also be read as "clean up everything", sooner or later an agent will read it that way, and it will build, test and merge the result.
 
-When you build something that matters, what you say to an agent deserves the care you give a commit. So the pact writes the terms down: whose words count as a decision, when the agent must stop and ask, and what gets checked before anything counts as done.
+When you build something that matters, what you say to an agent deserves the care you give a commit. So the pact writes the terms down: which decisions stay yours, when the agent must stop and ask, and what gets checked before anything counts as done.
 
 ## Four moves
 
-The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it, and they run at every seam: a point where work is handed on, published or decided. Any move can send the work back. Under the moves sits a short floor that holds in every workflow: stop at the escalation signals, never publish a secret, give risky work the careful path and an independent review, and never run outsiders' code. The figure shows the moves as the software preset runs them, the one preset installed today.
+The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. They are my practices, with or without AI, and I take each up as the work needs it. The agent follows my lead, and when a move seems to drop, it nudges once, lightly. Two guards sit under the moves: stop and ask when the work goes round twice, leaves the plan, is hard to reverse or can no longer be explained; and wait before expensive work when weekly usage is high.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-01-moves-dark.svg">
-  <img src="docs/img/fig-01-moves.svg" alt="FIG. 01, four moves, one owner. At each move you decide and the agent carries it out: you sense the work, think before doing, checkpoint the seams and stay the owner. All four run at every seam." width="800">
+  <img src="docs/img/fig-01-moves.svg" alt="FIG. 01, four moves, one owner. At each move I decide and the agent carries it out: I sense the work, think before doing, checkpoint the seams and stay the owner, each as the work needs it." width="800">
 </picture>
 
 <details>
 <summary>Text of FIG. 01</summary>
 
-| Move | You, the architect of intent | The agent, the executor |
+| Move | Me, the architect of intent | The agent, the executor |
 |---|---|---|
-| 1. Sense the work | Triage it: what kind, which tier, is it ready. | Proposes the tier. Never skips triage. |
-| 2. Think before doing | Settle the intent. Proceed, fix or kill. | Grills you, then writes the spec. |
-| 3. Checkpoint the seams | Cut the tickets. Start and watch each build. | Builds test-first at the agreed seams. |
-| 4. Stay the owner | Decide whether it is done. | Runs the checks and lenses. Brings a verdict. |
+| 1. Sense the work | How big, how risky, and ready to plan? | Proposes a tier, with a line of why. |
+| 2. Think before doing | Get the intent clear enough to defend. | Prototypes when the intent is still forming. |
+| 3. Checkpoint the seams | Costly work waits for a checkpoint. | Builds what it was given, test-first. |
+| 4. Stay the owner | Verify it, and know when to stop it. | Runs the tests and reviews. Brings decisions. |
 
-All four at every seam.
+As the work needs it.
 
 </details>
 
 The moves name no skills. You bind your own tools to them through a configuration file (there is an example in [`examples/pact-config/`](examples/pact-config/)), and [Matt Pocock's skills](https://github.com/mattpocock/skills) ship as a ready-made preset.
 
-## Process tiers
+## How much checking
 
-Not every change needs a spec. Each piece of work gets a process tier (quick, standard or thorough), and the tier sets which moves it goes through. Work on the risk floor, such as auth, secrets or a data migration, always takes the thorough tier.
+Not every change needs a spec. Each piece of work gets a tier (quick, standard or thorough), and the tier says how much checking it needs. Sensitive work, by default auth, secrets, crypto, input validation and data migrations, gets more: thorough, built on Opus at high.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-02-tiers-dark.svg">
-  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. Quick, standard and thorough work goes through more moves and more reviews as the tier rises. Auth, secrets, crypto, input validation and data migrations are always thorough." width="800">
+  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. Quick, standard and thorough work gets more checking as the tier rises. By default, auth, secrets, crypto, input validation and data migrations are sensitive work: thorough, built on Opus at high." width="800">
 </picture>
 
 <details>
 <summary>Text of FIG. 02</summary>
 
-| Tier | Triage | Spec | Spec read by | Tickets | Build, then verify |
-|---|---|---|---|---|---|
-| Quick | In chat or on an issue | — | — | — | One session · QA pair |
-| Standard | On an issue | Short spec | unstated-lens | — | One session · QA and standards pairs and unstated-lens |
-| Thorough | On an issue | Full spec | Spec pair and unstated-lens | Thin slices with done-criteria | One session per ticket · QA and standards pairs and unstated-lens |
+| Tier | Fits | Checking | Plan | Build |
+|---|---|---|---|---|
+| Quick | Small, one session, no plan needed | Tests, then the QA pair | — | Opus, low |
+| Standard | Needs a short spec | The spec read for what is unstated; tests, the QA pair, and the lenses the diff calls for | Opus, medium | Sonnet, medium |
+| Thorough | Too big for one session, or risky | The spec read before I approve it; tickets, each its own session; per ticket, tests, the QA pair and the lenses the diff calls for | Opus, high | Sonnet, medium |
 
-**Risk floor, always thorough.** Auth, secrets, crypto, input validation and data migrations are thorough, whatever tier is named. Auth, secrets, crypto and input validation also take the security route: the security pair reads the spec before you approve it, and the diff after the build.
+**Sensitive work · more checking.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations: thorough, built on Opus at high. The security pair reads its spec and its diff. Small work that touches nothing sensitive is quick. Keep one model for a whole session.
 
-**Models.** Opus plans. Sonnet builds, and Opus builds quick work. Security work runs on Opus at high effort.
+**Models.** Opus plans. Sonnet builds, and Opus builds quick work. Sensitive work runs on Opus at high effort.
 
 </details>
 
 ## Review lenses
 
-A lens is a reviewer agent that asks one question from one angle. Lenses run in pairs, each starting fresh and never seeing its partner's report, and `unstated-lens` runs alone. They read and report, and none of them builds anything.
+A lens is a reviewer agent that asks one question from one angle. Lenses are tools that help you through a stage faster. Two pairs are defaults: the QA pair reads every result, and the security pair reads sensitive work. The rest run where they pay, and the agent says which it left out and why. Each lens starts fresh and never sees its partner's report. They read and report, and none of them builds anything.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
-  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, you decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question. Their reports are checked, joined and posted on the issue, and you decide." width="800">
+  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question; the QA pair and the security pair are defaults. Their reports are checked, joined and posted in the work's record, and I decide." width="800">
 </picture>
 
 <details>
 <summary>Text of FIG. 03</summary>
 
-- **Spec pair, at move 2, at the thorough tier.** `executability-lens`: would the spec, built as written, run end to end? `good-enough-lens`: what could be cut or deferred, and what would it save?
-- **QA pair, at every build.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail?
-- **Standards pair, at move 4, at the standard and thorough tiers.** `conventions-lens`: does the diff keep the repo's written rules? `reader-lens`: can the next reader act on what it says?
-- **Security pair, on the security route.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
-- **Alone, at moves 2 and 4, at the standard and thorough tiers.** `unstated-lens`: what need did nobody write down?
+- **Spec lenses, on a spec before a build.** `executability-lens`: would the spec, built as written, run end to end? `good-enough-lens`, when scope feels heavy: what could be cut or deferred, and what would it save?
+- **QA pair, on every result, by default.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail?
+- **Standards lenses, on diffs that call for them.** `conventions-lens`, in a repo with written rules: does the diff keep them? `reader-lens`, on diffs that add prose or docs: can the next reader act on what it says?
+- **Security pair, on sensitive work, by default.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
+- **Alone, on specs and results above quick.** `unstated-lens`: what need did nobody write down?
 
-Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The cross script checks and joins the pair; where both lenses hit one spot, it shows first. The reports are posted on the issue word for word. You decide: done, fix, or stop.
+Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The cross script checks and joins the pair; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
 
 </details>
 
-Their reports go on the issue word for word. The agent sorts the findings and acts on its recommendation for each, and you can reverse any of them. Whether the work is done is your call.
+Their reports go into the work's record word for word. The agent sorts the findings and acts on its recommendation for each, and I can reverse any of them. Whether the work is done is my call.
 
 ## Who it's for
 
-**It is one person's working configuration, shared as a reference.** Read it, borrow from it, or install it, but adopt it with your own judgement. It is written for its owner's setup (PowerShell on Windows, auto mode, the Concise output style), and a configuration file can change some of it.
+**It is one person's working configuration, shared as a reference.** Read it, borrow from it, or install it, but adopt it with your own judgement. It is written for my setup (PowerShell on Windows, auto mode, the Concise output style), and a configuration file can change some of it.
 
-**It reaches beyond your machine.** It treats your issue tracker as the record, and posts review reports there word for word, security findings included. Read [Before you install](docs/install.md#before-you-install) and [the threat model](docs/threat-model.md) first.
+**It reaches beyond your machine.** It keeps the work's record where your project keeps it, and posts review reports there word for word, security findings included. This repo keeps its own record in GitHub issues; that is how this repo is run, not part of what the pact installs. Read [Before you install](docs/install.md#before-you-install) and [the threat model](docs/threat-model.md) first.
 
 ## What's here
 
 | Path | What it is |
 |---|---|
-| `claude/CLAUDE.md` | The rules: the moves, the tiers, and when to stop |
+| `claude/CLAUDE.md` | The rules: the moves, how much checking, the lenses, and when to stop |
+| `claude/review.md` | The review procedure a session reads before it runs a lens |
 | `claude/agents/` | The lenses, in pairs |
 | `familiars/` | `scout`, and the lenses' contracts |
 | `cross/cross.mjs` | Checks and joins a lens pair's findings |

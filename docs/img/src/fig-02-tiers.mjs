@@ -1,35 +1,33 @@
-// FIG. 02: the process tiers. Which moves each tier goes through, the risk
-// floor, and the models. Words from claude/CLAUDE.md's "Implementing a change".
+// FIG. 02: how much checking. What each tier fits, its checking, its models,
+// and sensitive work. Words from claude/CLAUDE.md's "How much checking".
 import { LEFT, PAD, RIGHT, block, label, notched, sheet } from './draw.mjs';
 
-const COLS = [100, 112, 80, 124, 124, 172];
-const HEAD = [['Tier'], ['Triage'], ['Spec'], ['Spec', 'read by'], ['Tickets'], ['Build, then', 'verify']];
+const COLS = [100, 150, 230, 116, 116];
+const HEAD = [['Tier'], ['Fits'], ['Checking'], ['Plan'], ['Build']];
 const DASH = ['—'];
 const ROWS = [
-  ['Quick', ['In chat or', 'on an issue'], DASH, DASH, DASH, ['One session ·', 'QA pair']],
-  ['Standard', ['On an issue'], ['Short', 'spec'], ['unstated-lens'], DASH, ['One session ·', 'QA and standards', 'pairs and', 'unstated-lens']],
+  ['Quick', ['Small, one', 'session, no', 'plan needed'], ['Tests, then the', 'QA pair'], DASH, ['Opus, low']],
+  ['Standard', ['Needs a', 'short spec'], ['The spec read for what', 'is unstated; tests, the', 'QA pair, and the lenses', 'the diff calls for'], ['Opus, medium'], ['Sonnet,', 'medium']],
   [
     'Thorough',
-    ['On an issue'],
-    ['Full', 'spec'],
-    ['Spec pair and', 'unstated-lens'],
-    ['Thin slices', 'with', 'done-criteria'],
-    ['One session per', 'ticket · QA and', 'standards pairs', 'and unstated-lens'],
+    ['Too big for', 'one session,', 'or risky'],
+    ['The spec read before', 'I approve it;', 'tickets, each its own', 'session; per ticket,', 'tests, the QA pair and', 'the lenses the diff', 'calls for'],
+    ['Opus, high'],
+    ['Sonnet,', 'medium'],
   ],
 ];
 const FLOOR = [
-  'Auth, secrets, crypto, input validation and data migrations are',
-  'thorough, whatever tier is named.',
+  'By default, sensitive work is auth, secrets, crypto, input validation',
+  'and data migrations: thorough, built on Opus at high.',
 ];
 const ROUTE = [
-  'Auth, secrets, crypto and input validation also take the security route:',
-  'the security pair reads the spec before you approve it, and the diff after',
-  'the build.',
+  'The security pair reads its spec and its diff. Small work that touches',
+  'nothing sensitive is quick. Keep one model for a whole session.',
 ];
 const MODELS = [
   ['Plans', 'Opus'],
   ['Builds', 'Sonnet · Opus for quick'],
-  ['Security work', 'Opus, high effort'],
+  ['Sensitive work', 'Opus, high effort'],
 ];
 
 const CONTENT_W = RIGHT - LEFT;
@@ -62,9 +60,9 @@ COLS.slice(1).forEach((_, i) => {
 });
 y += tableH + 24;
 
-// The risk floor.
+// Sensitive work.
 const floorH = 22 + FLOOR.length * 21 + 6 + ROUTE.length * 20 + 14;
-els.push(...notched({ x: LEFT, y, w: CONTENT_W, h: floorH, text: 'Risk floor · always thorough', stroke: 'caution', sw: 2, color: 'caution' }));
+els.push(...notched({ x: LEFT, y, w: CONTENT_W, h: floorH, text: 'Sensitive work · more checking', stroke: 'caution', sw: 2, color: 'caution' }));
 const f = block({ top: y + 22, x: LEFT + 16, size: 14, lh: 21, lines: FLOOR, max: CONTENT_W - 32 });
 els.push(f.el);
 els.push(block({ top: y + 22 + f.height + 6, x: LEFT + 16, size: 13, lh: 20, color: 'ink80', lines: ROUTE, max: CONTENT_W - 32 }).el);
@@ -83,6 +81,6 @@ MODELS.forEach(([name, value], i) => {
 y += 47;
 
 const height = y + 22 + PAD + 2;
-const frame = sheet({ height, title: 'FIG. 02 — Rigour follows risk', aside: 'Process tiers' });
+const frame = sheet({ height, title: 'FIG. 02 — Rigour follows risk', aside: 'How much checking' });
 
 export default { file: 'fig-02-tiers', height, elements: [...frame.els, ...els] };

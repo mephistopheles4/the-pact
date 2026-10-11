@@ -21,15 +21,15 @@ These two say whether a session can start the issue's next move without the owne
 
 ## Tier labels
 
-Every issue carries one process tier, as a label. The tier is the set of moves the work goes through (see "Implementing a change" in [`claude/CLAUDE.md`](../../claude/CLAUDE.md)); it is not the model's effort setting. Triage sets it. An issue with no tier label is at move 1.
+Every issue carries one process tier, as a label. A tier says how much checking the work needs (see "How much checking" in [`claude/CLAUDE.md`](../../claude/CLAUDE.md)); it is not the model's effort setting. Triage sets it. An issue with no tier label is not yet triaged.
 
-| Label | Moves |
+| Label | Checking |
 | --- | --- |
-| `tier:quick` | Build, then verify (move 4), in one session. |
-| `tier:standard` | A short `to-spec` posted on the issue and read by `unstated-lens`, then one build session that ends with move 4. |
-| `tier:thorough` | `to-spec`, the spec pair and `unstated-lens`, `to-tickets`, then one build session per ticket, each ending with move 4. |
+| `tier:quick` | Small, one session, no plan: tests, then the QA pair. |
+| `tier:standard` | A short spec on the issue, read for what is unstated; one build session, ending with tests, the QA pair and the lenses the diff calls for. |
+| `tier:thorough` | A spec read before the owner approves it, cut into tickets; one build session per ticket, each ending with tests, the QA pair and the lenses the diff calls for. |
 
-Auth, secrets, crypto, input validation and data migrations are always `tier:thorough`. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
+By default, auth, secrets, crypto, input validation and data migrations are sensitive work: `tier:thorough`. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
 
 ## Creating the labels
 

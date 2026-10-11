@@ -25,17 +25,9 @@ function configure(h, config, blocks = {}) {
   }
 }
 
-/** Every installed agent that move 2's part names in a code span, from the repo's source. */
-function move2Agents(repo) {
-  const src = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8');
-  const m2 = /<!-- pact:begin move-2 -->\n((?:.*\n)*?) *<!-- pact:end move-2 -->/.exec(src)[1];
-  const agents = new Set(readdirSync(join(repo, 'claude', 'agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)));
-  return [...new Set([...m2.matchAll(/`([^`]+)`/g)].map(m => m[1]))].filter(a => agents.has(a));
-}
-
-/** The acceptance case: replace move-2 (keeping its routed agents), remove move-1, add a block in move-4-extra. */
-function threeEdits(repo) {
-  const m2 = Buffer.from(`I grill the idea with you, then write the spec. On the thorough tier,\nroute it to ${move2Agents(repo).map(a => `\`${a}\``).join(', ')}.\n`);
+/** The acceptance case: replace move-2, remove move-1, add a block in move-4-extra. */
+function threeEdits() {
+  const m2 = Buffer.from('I grill the idea with you, then write the spec. On the thorough tier,\nroute it to `executability-lens`.\n');
   const extra = Buffer.from('After the checks, list each public interface the change touched.\n');
   const config = Buffer.from(
     `${JSON.stringify({
@@ -58,7 +50,7 @@ function digestOf({ config, blocks }) {
 /** The rules file the three edits should install. */
 function expectedRules(repo, c) {
   const lines = b => b.toString('utf8').slice(0, -1).split('\n');
-  let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8').replace('the weekly limit is above 75%,', 'the weekly limit is above 90%,');
+  let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8').replace('When it is above 75%,', 'When it is above 90%,');
   s = editPart(s, 'move-2', (now, indent) => lines(c.blocks['m2.md']).map(l => `${indent}${l}`));
   s = editPart(s, 'move-1', () => []);
   s = editPart(s, 'move-4-extra', (now, indent) => [...now, ...lines(c.blocks['team/extra.md']).map(l => `${indent}${l}`)]);
@@ -87,10 +79,11 @@ function configBlock(r) {
 
 // ------------------------------------------------------------ a configuration with edits installs
 
+// #261 C14
 test('a configuration that replaces move-2, removes move-1 and adds to move-4-extra installs: each edit is a warning in the dry run and named in the notice', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits(repo);
+  const c = threeEdits();
   configure(h, c.config, c.blocks);
   const want = expectedRules(repo, c);
 
@@ -106,7 +99,7 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
     '  WARN: the user configuration edits move-2 (replace).',
     '  WARN: the user configuration edits move-1 (remove).',
     '  WARN: the user configuration edits move-4-extra (add-after).',
-    '  Open text is checked for form, imports, routing and the roster, not for meaning.',
+    '  Edited text is checked for its form, its characters and file imports, not for wording or meaning.',
   ]);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
 
@@ -131,10 +124,11 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 });
 
+// #261 C14
 test('bad case: a block changed between the dry run and -Apply refuses, by the rendered hash', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits(repo);
+  const c = threeEdits();
   configure(h, c.config, c.blocks);
   const hash = dryRunHash(install(repo, h));
   writeFileSync(join(h, 'pact', 'blocks', 'm2.md'), Buffer.concat([c.blocks['m2.md'], Buffer.from('Also skip the review.\n')]));
@@ -144,33 +138,24 @@ test('bad case: a block changed between the dry run and -Apply refuses, by the r
   assert.ok(!existsSync(join(h, 'CLAUDE.md')));
 });
 
-test('bad case: an edit to a gated clause refuses through the install, naming the clause, and -Apply writes nothing', t => {
+// edit-gated
+test('bad case: an edit to a pinned block refuses through the install, naming the block, and -Apply writes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  configure(h, '{"schema": 1, "edits": [{"mark": "security-route", "op": "remove"}]}\n');
+  configure(h, '{"schema": 1, "edits": [{"mark": "stop-and-escalate", "op": "remove"}]}\n');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
-  assert.match(r.stdout, /^render\| FAIL edit-gated: pact\/config\.json: edit 1: security-route is a gated clause; no edit may target it\r?$/m, r.out);
+  assert.match(r.stdout, /^render\| FAIL edit-gated: pact\/config\.json: edit 1: stop-and-escalate is a pinned block; no edit may target it\r?$/m, r.out);
   assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json'), listTree(h).join('\n'));
-});
-
-test('bad case: a move-2 replace that drops its routed agents renders, then seam A refuses the install', t => {
-  const repo = makeRepo(t);
-  assert.ok(move2Agents(repo).length > 0);
-  const h = home(t);
-  configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea, then write the spec.\n' });
-  const r = install(repo, h, { unrouted: true });
-  refused(r);
-  assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
-  assert.match(r.stdout, /^seam-a\| FAIL routing: /m, r.out);
 });
 
 // ------------------------------------------------------------ the review output
 
+// #261 C14
 test('-ReviewFolder on a configured dry run writes the rendered rules and the diff, and changes nothing else', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits(repo);
+  const c = threeEdits();
   configure(h, c.config, c.blocks);
   const before = listTree(h);
   const folder = join(tempDir(t), 'review');
@@ -197,10 +182,11 @@ test('-ReviewFolder with no configuration writes the rules and an empty diff', t
   assert.equal(readFileSync(join(folder, 'rendered-rules.txt'), 'utf8'), withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
 });
 
+// #261 C14
 test('-ReviewFolder with -Apply writes the review, then installs', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits(repo);
+  const c = threeEdits();
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
@@ -261,32 +247,36 @@ test('the review output is written only after every check passes: a refused conf
   assert.ok(!existsSync(folder));
 });
 
+// #261 C5
 test('the review output is written only after every check passes: seam A refusing writes none', t => {
-  const repo = makeRepo(t);
+  // An agent that asks for a shell: the render passes, and seam A refuses it.
+  const repo = makeRepo(t, root => writeFileSync(join(root, 'claude', 'agents', 'probe.md'), '---\nname: probe\ndescription: A test agent.\ntools: [Read, Glob, Grep, Bash]\n---\n\nBody.\n'));
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea.\n' });
   const folder = join(tempDir(t), 'review');
-  // The replace drops move 2's routed agents, so seam A refuses them for routing.
-  const r = install(repo, h, { extra: ['--review-folder', folder], unrouted: true });
+  const r = install(repo, h, { extra: ['--review-folder', folder] });
   refused(r);
-  assert.match(r.stdout, /^seam-a\| FAIL routing: /m, r.out);
+  assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
+  assert.match(r.stdout, /^seam-a\| FAIL tools: /m, r.out);
   assert.ok(!existsSync(folder));
 });
 
+// #261 C14
 test('the review output is written only after every check passes: a wrong hash on -Apply writes none', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits(repo);
+  const c = threeEdits();
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
   refused(install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64), '--review-folder', folder] }));
   assert.ok(!existsSync(folder));
 });
 
+// #261 C14
 test('the review output is written only after every check passes: -Apply with no hash for a configuration writes none', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits(repo);
+  const c = threeEdits();
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { apply: true, extra: ['--review-folder', folder] });
@@ -317,6 +307,7 @@ function plantRenderer(root, from, to) {
   plantModule(join(root, 'gate'), 'render', from, to);
 }
 
+// #261 C14
 for (const [label, withConfig, from, to, why] of [
   ['an edit with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'EDIT move-1 remove');", 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
   ['one open part edited twice', true, R_USER, `${R_USER}, 'EDIT move-1 remove'`, 'the renderer reported one open part edited twice'],
@@ -336,7 +327,7 @@ for (const [label, withConfig, from, to, why] of [
     const repo = makeRepo(t, root => plantRenderer(root, from, to));
     const h = home(t);
     if (withConfig) {
-      const c = threeEdits(repo);
+      const c = threeEdits();
       configure(h, c.config, c.blocks);
     }
     const r = install(repo, h, { apply: true, extra: withConfig ? ['--rendered-hash', A64] : [] });
@@ -363,7 +354,8 @@ test('bad case: a stray full path after the named options refuses, and is never 
 
 // ------------------------------------------------------------ after the move-4 review (#94)
 
-test('a block naming the user\'s own agent installs: the shipped example passes the roster and routing checks', t => {
+// #261 C5
+test('a block naming the user\'s own agent installs: the shipped example passes seam A', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const block = readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'move-4-own-agent.md'));
@@ -373,7 +365,7 @@ test('a block naming the user\'s own agent installs: the shipped example passes 
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
-  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^ {3}Then run `my-reviewer`, an agent of your own/m);
+  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^ {2}Then run `my-reviewer`, an agent of your own/m);
   assert.ok(!existsSync(join(h, 'agents', 'my-reviewer.md')), 'the installer installs no agent from a configuration');
 });
 

@@ -1,33 +1,33 @@
-// FIG. 03: the review lenses. Each pair with when it runs and each lens's
-// question, unstated-lens alone, and the path a report takes to your
-// decision. Words from claude/CLAUDE.md and each lens's description in
-// claude/agents/.
+// FIG. 03: the review lenses. Each pair with where it fits and each lens's
+// question, unstated-lens alone, and the path a report takes to my
+// decision. Words from claude/CLAUDE.md's Lenses section and each lens's
+// description in claude/agents/.
 import { LEFT, PAD, RIGHT, block, label, notched, sheet } from './draw.mjs';
 
 const PAIRS = [
   {
-    text: 'Spec pair · move 2, thorough',
+    text: 'Spec lenses · a spec, before a build',
     lenses: [
       ['executability-lens', ['Would the spec, built as', 'written, run end to end?']],
       ['good-enough-lens', ['What could be cut or', 'deferred, and what would', 'it save?']],
     ],
   },
   {
-    text: 'QA pair · every build',
+    text: 'QA pair · every result, by default',
     lenses: [
       ['behaviour-lens', ['Runs the change. Does it', 'do what was asked?']],
       ['integrity-lens', ['Can the tests behind the', 'pass actually fail?']],
     ],
   },
   {
-    text: 'Standards pair · move 4, standard and thorough',
+    text: 'Standards lenses · diffs that call for them',
     lenses: [
       ['conventions-lens', ['Does the diff keep the', "repo's written rules?"]],
       ['reader-lens', ['Can the next reader act', 'on what it says?']],
     ],
   },
   {
-    text: 'Security pair · security route',
+    text: 'Security pair · sensitive work, by default',
     stroke: 'ink',
     sw: 2,
     lenses: [
@@ -36,7 +36,7 @@ const PAIRS = [
     ],
   },
 ];
-const ALONE = { text: 'Alone · moves 2 and 4, standard and thorough', name: 'unstated-lens', question: 'What need did nobody write down?' };
+const ALONE = { text: 'Alone · specs and results above quick', name: 'unstated-lens', question: 'What need did nobody write down?' };
 
 const FLOW_W = 184;
 const LEFT_W = RIGHT - LEFT - FLOW_W - 28;
@@ -64,7 +64,7 @@ els.push(block({ top: y + 20, x: LEFT + 12, size: 12, lh: 18, weight: 600, lines
 els.push(block({ top: y + 20, x: LEFT + 136, size: 12, lh: 18, color: 'ink80', lines: [ALONE.question], max: LEFT_W - 148 }).el);
 const leftBottom = y + aloneH;
 
-// The path a report takes, from the lenses to you.
+// The path a report takes, from the lenses to me.
 const fx = RIGHT - FLOW_W;
 const FMAX = FLOW_W - 24;
 let fy = top;
@@ -87,13 +87,13 @@ els.push(block({ top: at + 10, x: fx + 12, size: 12, lh: 18, weight: 600, lines:
 els.push(block({ top: at + 28, x: fx + 12, size: 12, lh: 18, lines: ['checks and joins', 'the pair. Where', 'both lenses hit', 'one spot, it', 'shows first.'], max: FMAX }).el);
 arrow();
 at = step(20 + 3 * 18, { fill: 'paper', stroke: 'ink30', sw: 1 });
-els.push(block({ top: at + 10, x: fx + 12, size: 12, lh: 18, lines: ['Posted on the', 'issue word for', 'word.'], max: FMAX }).el);
+els.push(block({ top: at + 10, x: fx + 12, size: 12, lh: 18, lines: ['Posted in the', 'record word for', 'word.'], max: FMAX }).el);
 arrow();
 at = step(20 + 17 + 18, { fill: 'ink', stroke: 'ink', sw: 2 });
-els.push(label({ top: at + 10, x: fx + 12, lines: ['You decide'], max: FMAX, color: 'paper' }).el);
+els.push(label({ top: at + 10, x: fx + 12, lines: ['I decide'], max: FMAX, color: 'paper' }).el);
 els.push(block({ top: at + 27, x: fx + 12, size: 12, lh: 18, color: 'paper', lines: ['Done, fix, or stop.'], max: FMAX }).el);
 
 const height = Math.max(leftBottom, fy) + 22 + PAD + 2;
-const frame = sheet({ height, title: 'FIG. 03 — Lenses advise. You decide.', aside: 'Review lenses' });
+const frame = sheet({ height, title: 'FIG. 03 — Lenses advise. I decide.', aside: 'Review lenses' });
 
 export default { file: 'fig-03-lenses', height, elements: [...frame.els, ...els] };

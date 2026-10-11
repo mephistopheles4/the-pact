@@ -2,7 +2,8 @@
 
 This page explains how the pact could break, what it does about each way, and
 which risks it accepts. Read it before you install the pact, and before you
-change it. It describes the pact as published on 2026-10-10. A change that
+change it. It describes the pact as published on 2026-10-10, with the rules
+file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
@@ -21,6 +22,8 @@ issue tracker are public on GitHub.
 Claude home folder, `~/.claude`:
 
 - **The rules file,** `CLAUDE.md`, which every session reads first.
+- **The review procedure,** `pact/review.md`, which the rules file tells a
+  session to read before it runs a lens.
 - **Ten agents:** nine lenses and `scout`. A lens is a reviewer agent that
   asks one question from one angle. Most only read.
 - **The cross script,** `pact/cross.mjs`, which sessions run under Node to
@@ -51,14 +54,21 @@ The pact defends itself in two ways, and they are not equally strong.
   Examples: the install gate, which refuses an install whose checks fail; and
   each agent's tool list, which Claude Code enforces.
 - **A rule is text the model is asked to follow.** It holds only while the
-  model reads it right. Most of the pact is rules. Examples: who counts on the
-  tracker; the security route, which sends risky changes to a second review
-  (see "A session that reads text as instructions"); and the stops, the
-  points where a session must stop and ask you.
+  model reads it right. Most of the pact is rules. Examples: the defaults,
+  which send every result to the QA pair and sensitive work to the security
+  pair; and "Stop and ask me", the points where a session must stop and ask
+  you.
+- **Judgment.** Since #261 the rules file states the owner's practices and
+  leaves much to the model's judgment, as any shared `CLAUDE.md` does. Rules
+  it used to carry, such as whose tracker text counts, are accepted as
+  judgment in the pact. This repo keeps its own tracker rule in `AGENTS.md`.
 
-Some rules are gated clauses. A gated clause is a block of the rules file that
-the install gate holds word for word, so no configuration can change it. The
-gate guards the text. It cannot make a model obey that text.
+One rule is a pinned block: "Stop and ask me". A pinned block is text the
+install gate holds word for word, so no configuration can change it. A second
+pinned block, the install go-ahead, sits in this repo's `AGENTS.md`. The gate
+guards the text. It cannot make a model obey that text. Since #261 the gate no
+longer checks the rest of the rules file's wording or shape: it checks what
+can run, and with what power.
 
 An ask rule is a prompt, not a boundary. It covers Claude Code's own edit
 tools and the spellings it lists. A script or another command can still write
@@ -130,49 +140,54 @@ How to read it:
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
-| R1 Tracker rule misread | Stranger on the tracker | `tracker-authors` | Rule |
-| R2 Session posts as you | Text a session reads | The decision marks | Rule |
+| R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `AGENTS.md`; elsewhere, judgment (#261) | Rule, judgment |
+| R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment | Rule, judgment |
 | R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value | Rule |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
-| R5 Refusal untested | Outside pull request | `tracker-authors` | Rule |
-| R6 Container built wrong | Outside pull request | The five conditions, your typed OK | Rule, then a boundary |
+| R5 Refusal untested | Outside pull request | Here, this repo's tracker rule; elsewhere, judgment | Rule, judgment |
+| R6 Container built wrong | Outside pull request | Here, the five conditions in `AGENTS.md` and your typed OK; elsewhere, judgment | Rule, then a boundary; judgment |
 | R7 Teams blocked | None; a cost to you | None yet (#180) | — |
 | R8 Publisher compromised | This repo's publisher | Dry run, the diff you read | Rule |
 | R9 Installed code | Plugin or skill author | None | — |
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks, ask rules | Outside the pact, prompt |
-| R12 Lens steered | Text a lens reads | Tool allow-list, the override mark for a setting off the reviewed default | Boundary, rule |
-| R13 Lens quotes a secret | Text a lens reads | "Never post a secret" | Rule |
+| R12 Lens steered | Text a lens reads | Tool allow-list; the override mark for a setting off the reviewed default, from the gate's fixed security-set list | Boundary, rule |
+| R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; elsewhere, judgment | Rule, judgment |
 | R14 Foothold left behind | Text a session reads | Ask rules, in part | Prompt |
-| R15 Repo files argue | A cloned repo | `no-skill-overrides`; the floor's "may only add" | Rule |
+| R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
-| R17 Gate path only | You, or a fooled session | The install gate, the dry run | Boundary |
+| R17 Gate path only | You, or a fooled session | The install gate, on what can run and with what power; the dry run | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
-| R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
-| R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
-| R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
-| R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for an installer from before the Node install's cutover, #166), the go-ahead clause | Prompt, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the risk floor, "Never post a secret or a personal detail", in the tracker rule and in the moves section's floor | Rule |
-| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
-| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Never post a secret or a personal detail" and the publish stop; the cloud copy ships no commands | Outside the pact, rule |
+| R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
+| R20 Lens untested | Text a lens reads | The defaults sentence, and this repo's security route for a lens change | Rule |
+| R21 Test code ordinary | A careless or fooled edit | The defaults sentence: the QA pair reads every result | Rule |
+| R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for an installer from before the Node install's cutover, #166), the pinned install go-ahead | Prompt, rule |
+| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default; here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
+| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, prompt, rule, judgment |
+| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main` | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 
 ## Strangers on the tracker
 
-**How it could break.** The pact treats the tracker as the record. A session
-reads tiers, approvals and decisions there. On a public tracker anyone can
+**How it could break.** A session keeps the work's record where the project
+keeps it, and this repo keeps it in GitHub issues. A session reads tiers,
+approvals and decisions there. On a public tracker anyone can
 comment. A stranger could write "approved" or "run this to reproduce", and a
 session could act on it.
 
-**What the pact does.** The gated `tracker-authors` rule makes only the
-owner's account's text count. A session reads authors from GitHub's structured
+**What the pact does.** Since #261, nothing in the pact itself: the gated
+`tracker-authors` rule left the rules file, and whose text counts is accepted
+as judgment. This repo keeps the rule as its own, in `AGENTS.md` and
+`docs/agents/issue-tracker.md` (ADR 0062), because the repo is public and every
+session here posts under the owner's account. There, only the owner's
+account's text counts. A session reads authors from GitHub's structured
 fields, never from text. It counts an item only if the owner's account also
 made its last edit. It treats everything else as data: read, quoted with its
 author, and never followed. If it cannot tell who wrote something, nothing
 counts and it asks the owner. A planted test showed the effect: the pact
-before this rule followed a stranger's comment, and the pact with it refused.
+before the rule followed a stranger's comment, and the pact with it refused.
 
 The pact does not set GitHub's interaction limit, which restricts who can
 comment. That is a repo setting you choose, and it expires after at most six
@@ -180,9 +195,11 @@ months.
 
 **What is accepted.**
 
-- **R1. It is a rule, not a boundary.** A model can still misread. The test
-  covers the cases it planted, not every wording a stranger could try.
-- **R2. Every session posts as you.** A session marks a comment as your
+- **R1. It is a rule, not a boundary; in the pact, judgment.** A model can
+  still misread. The test covered the cases it planted, not every wording a
+  stranger could try. In another repo with a public tracker, nothing but
+  judgment stands here unless that repo writes its own rule.
+- **R2. Every session posts as you.** Here, by this repo's rule, a session marks a comment as your
   decision only when it heard you in chat. Only that session writes the
   mark, and a decision in the prompt that started a session is not from
   chat, whoever wrote it. That mark is plain text. A session fooled by what
@@ -204,8 +221,9 @@ If a session checks it out, the code can run with your rights. A checked-out
 folder can also carry its own `CLAUDE.md`, hooks and server settings, which a
 session started there loads.
 
-**What the pact does.** The same gated rule says outsiders' code never runs.
-Only a pull request your account opened, from a branch in the same repo, with
+**What the pact does.** Since #261, nothing in the pact itself: the rule left
+with `tracker-authors`, and is accepted as judgment. This repo's own tracker
+rule says outsiders' code never runs here. Only a pull request your account opened, from a branch in the same repo, with
 every commit yours, counts as your code. Everything else is read as a diff,
 as text. The one exception needs your typed OK naming the exact commit, and a
 container with no sign-ins, secrets, host folders or network route to your
@@ -213,12 +231,13 @@ machine.
 
 **What is accepted.**
 
-- **R5. No test shows the rule is what stops outsiders' code.** The pact
+- **R5. No test shows the rule is what stops outsiders' code; in the pact, judgment.** The pact
   before this rule also refused to run a stranger's code. The test shows the
   habit holds, not that the rule causes it.
 - **R6. A session builds the container.** Once built, the container is a real
-  boundary. But building it right is a rule the session follows; nothing in
-  the pact builds or checks it.
+  boundary. But building it right is a rule the session follows (here, the
+  five conditions in `AGENTS.md`; elsewhere, judgment); nothing in the pact
+  builds or checks it.
 - **R7. Teams are blocked, not protected.** A teammate's text is data and
   their pull requests never run locally. There is no setting for trusted
   accounts yet (#180).
@@ -235,15 +254,13 @@ once you install it.
 
 **What the pact does.**
 
-- **For skills, a rule.** A gated clause, `no-skill-overrides`, says no skill
-  may override certain rules. Among them: the shell rule (use PowerShell, not
-  Bash, on Windows), the stops, and the risk floor. The risk floor is the list
-  of work that always gets the most careful process: auth, secrets, crypto,
-  input validation and data migrations. Since #189 publishing is not on it:
-  work that publishes can run at a lower tier, guarded by rules alone (R23).
-  The clause also covers the security route, the QA pair
-  (`behaviour-lens` and `integrity-lens`) at the end of each build, and the
-  tracker rule.
+- **For skills, judgment.** Until #261 a gated clause, `no-skill-overrides`,
+  said no skill may override certain rules. It is retired, and accepted as
+  judgment. The rules file's defaults still name the reviews every result and
+  every piece of sensitive work gets. Sensitive work is, by default, auth,
+  secrets, crypto, input validation and data migrations: thorough, built on
+  Opus at high. Publishing is not on that list: work that publishes can run at
+  a lower tier, guarded by rules alone (R23).
 - **For its own install, a dry run and a gate.** The install shows what it
   would change before it changes anything. It installs only committed files,
   and only those its checks passed: a small bootstrap stages them, and every
@@ -264,12 +281,8 @@ once you install it.
 
 - **R8. You trust this repo's publisher.** The dry run already runs the new
   commit's install script and checks, and a session opened in the clone loads
-  the clone's own project files. So read the diff before either. The
-  installed rules also tell sessions to use the tracker reads in a file in
-  this repo on GitHub, `docs/agents/issue-tracker.md`, which is live, not
-  pinned. A change to that file takes the security route here, which guards
-  against a careless edit. It is a rule, so whoever holds the publisher's
-  account can skip it.
+  the clone's own project files. So read the diff before either. Since #261
+  the installed rules point at no live file in this repo (#194).
 - **R9. No rule can stop code you installed.** A plugin's hooks or servers run
   whatever they hold. The pact cannot see or limit them. Trust what you
   install, and pin versions where you can.
@@ -280,23 +293,19 @@ once you install it.
   service's; using it may send code to that service. The owner accepted this
   risk by name (#182).
 - **R23. Work that publishes can run below the thorough tier.** Since #189
-  the risk floor no longer names publishing, so a change to what gets
+  publishing is not on the list of sensitive work, so a change to what gets
   published, such as a package's contents, a release step or a personal
   detail in a committed file, can be built at the quick tier with no spec
-  read. Three rules are left: the gated stop, which has a session ask you
-  before something hard to reverse is published; "secrets" on the risk floor, for
-  keys and tokens; and the tracker rule "Never post a secret or a personal
-  detail". Text that frames such a change as quick work can steer past the
-  reviews, and your answer at the stop is then the only check. A spec settles
-  the stop for its pushes only when its "Needs a human" section says so, as
-  #189's did. The owner chose this over narrowing the phrase (#189, ADR
-  0050). Since #186 the floor in the rules file's moves section also says
-  never to post or publish a secret or a personal detail, in any workflow or
-  repo. The owner accepted again, by name, that personal data written into
-  code or logs can ship below the thorough tier, guarded only by that rule
-  and the publish stop. Neither guard reaches personal data the built code
-  writes to its own logs at run time, and the owner accepted that too (#186,
-  ADR 0056).
+  read. Two rules are left in the pact: the pinned "Stop and ask me", which
+  has a session ask you before something hard to reverse; and "secrets" in the
+  sensitive-work default, for keys and tokens. "Never post a secret or a
+  personal detail" left the pact in #261, accepted as judgment; this repo's
+  `AGENTS.md` keeps it. Text that frames such a change as quick work can steer
+  past the reviews, and your answer at the stop is then the only check. The
+  owner chose this over narrowing the phrase (#189, ADR 0050), accepted that
+  personal data written into code or logs can ship below the thorough tier
+  (#186, ADR 0056), and cut the no-secret rule from the pact as judgment
+  (#261, ADR 0060).
 
 ## A session that reads text as instructions
 
@@ -307,8 +316,9 @@ session can act before you see it.
 
 **What the pact does.**
 
-- **Text from others is data.** The tracker rule says so for the tracker. The
-  security lenses carry the same rule for pages they fetch.
+- **Text from others is data.** This repo's tracker rule says so for its
+  tracker; elsewhere it is judgment. The security lenses carry the same rule
+  for pages they fetch.
 - **Lenses get few tools.** Each lens has a fixed tool list, checked at
   install against an allow-list. Seven only read. `behaviour-lens` has a shell
   and a browser, because it runs the change. `adversarial-lens` can search and
@@ -319,10 +329,12 @@ session can act before you see it.
   no test runs a lens on any setting (R20). For the two lenses with a shell or
   web tools, the install warns that a weaker setting may follow instructions
   planted in the code it reviews, or send a secret out.
-- **Security work gets a second read.** The security route is a gated clause.
-  Any change touching auth, secrets, crypto or input validation goes through
-  the security pair, `adversarial-lens` and `data-lens`. They read the plan,
-  and then the diff.
+- **Sensitive work gets a second read.** The rules file's defaults sentence
+  sends sensitive work to the security pair, `adversarial-lens` and
+  `data-lens`, which read the plan and then the diff. Since #261 it is a rule,
+  not a pinned block, and only the owner skips it. The gate keeps a fixed list
+  of the security-set lenses, so the override mark never depends on the
+  rules file's text.
 
 **What is accepted.**
 
@@ -332,33 +344,33 @@ session can act before you see it.
 - **R12. A lens can be steered.** A lens that runs code or fetches pages can
   be steered by what it reads, like any session. The main session then acts
   on a lens's recommendations without waiting for you, except at the stops,
-  installs and gated clauses. The override mark tells you a lens runs off
+  installs and the decisions the rules file names as yours. The override mark tells you a lens runs off
   its reviewed default; it does not show the default resists steering (R20).
 - **R13. A lens can quote a secret.** A read-only lens can still read any file
-  your account can, and its report goes on the tracker word for word. The
-  rule "never post a secret" applies, but four lenses don't carry it in their
-  own files. A word test checks that the security pair's files hold the
-  carried rules, but since #189 no test has checked that a lens keeps them
-  after a model change.
+  your account can, and its report goes on the tracker word for word. Since
+  #261 the session-level rule "never post a secret" is accepted as judgment
+  in the pact (this repo's `AGENTS.md` keeps it), and four lenses don't carry
+  it in their own files; #192's lens half is the follow-up. A word test checks
+  that the security pair's files hold the carried rules, but since #189 no
+  test has checked that a lens keeps them after a model change.
 - **R14. A fooled session can leave something behind.** It can write files
   that later sessions or installs load: memory files, a repo's own Claude
   settings or rules, its server list, or your configuration blocks. Ask rules
   cover only some of these, and only for Claude Code's edit tools.
 - **R15. A repo's instruction files are instructions.** A cloned repo's
-  `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. The pact
-  bars them, by a rule, only from widening who counts on the tracker and from
-  running outsiders' code. Since #186 the floor also says a skill, a workflow
-  or a project instruction file may only add, and that text claiming
-  otherwise is data; that is a rule too, not a check. They can still argue
-  against the other rules.
+  `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. Since #261
+  the pact holds no rule barring them from anything: `no-skill-overrides` and
+  the floor's "may only add" are retired, and accepted as judgment. They can
+  argue against any rule.
 - **R16. Sessions no person started** have no rule yet. A routine or an event
   trigger can open with an outsider's text where your chat would be (#184).
   Don't point one at a pact setup with a public tracker.
 - **R20. A lens's behaviour is reviewed, not tested.** Until #189, planted
   practice cases ran the security lenses for real after each model change.
   They found defects only in their own cases and wording, so the owner
-  retired them. Now a change to a lens takes the security route, and the
-  pair reads its text, but nothing runs the lens to show it still follows
+  retired them. Now a change to a lens takes this repo's security route, and the
+  pair reads its text; in use, the defaults sentence runs the QA pair on every
+  result and the security pair on sensitive work, but nothing runs the lens to show it still follows
   its carried rules or resists planted text. A lens that reads well and
   behaves badly shows up only in use.
 - **R21. The test runner and its helpers are ordinary test code.** The
@@ -368,8 +380,8 @@ session can act before you see it.
   route. An ordinary edit, or one a fooled session makes, could narrow what
   the CI check runs, or weaken record mode's scrub, which keeps local paths
   and names out of posted test output. The required CI check can't catch
-  that, because it runs the runner the edit narrowed. Only the review at move
-  4 does. The owner accepted this risk by name (#189).
+  that, because it runs the runner the edit narrowed. Only the review at the
+  end of the build does: the QA pair, by the defaults sentence. The owner accepted this risk by name (#189).
 - **R22. The ask rules ask on an apply, not a mention.** Since #210 the
   rules look for an apply's spelling, not the installer's name, so some
   applies that asked before now don't: a Node flag
@@ -408,7 +420,7 @@ session can act before you see it.
   prompt either (#177, below). The drift check does not show the rollback,
   because such an installer writes the same install record. The next Node dry
   run does: the record names an older commit, and the pact's files are
-  listed under Overwrite. What remains is the go-ahead clause, which the same
+  listed under Overwrite. What remains is the pinned go-ahead block, which the same
   injection could target, and Claude Code's own auto-mode checks, which
   aren't documented to stop this. The owner accepted this by name (#217,
   ADR 0052), and the acceptance stands now that the pact keeps no rollback
@@ -434,12 +446,11 @@ session can act before you see it.
     or stopping a session, nothing in the pact bounds a lead at all.
   - **A start prompt can reach a rollback.** No ask rule guards an
     installer from before the Node install's cutover (R22), and the
-    install's go-ahead clause doesn't say a start prompt isn't chat. So a lead's start prompt could
-    have a session install a pact older than the tracker rule, after which
-    other accounts' tracker text counts in every later session. The next
+    pinned install go-ahead doesn't say a start prompt isn't chat. So a
+    lead's start prompt could have a session install an older pact. The next
     Node dry run shows it, but only afterwards.
-  - **The desktop session tool is unknown.** The pact's parallel-sessions
-    rules name a desktop tool that sends a message to another session.
+  - **The desktop session tool is unknown.** This repo's parallel-session
+    rules use a desktop tool that sends a message to another session.
     Anthropic's docs don't describe how it delivers one, so whether its
     messages get the "not your consent" handling is unknown. It is also how
     a lead usually briefs a session that started on a short hold, so the
@@ -458,13 +469,14 @@ session can act before you see it.
     protection. They don't
     see a shell command that writes or reads the settings file, or a
     project's own settings file; only auto mode bounds those.
-  - **"Never post a secret or a personal detail" still holds,** whoever
-    asked, and so does the gated stop before anything hard to reverse is
-    published. Both are rules, so a steered session could still break them.
+  - **"Stop and ask me" still holds,** whoever asked, before anything hard
+    to reverse. Here, so does this repo's "Never post a secret or a personal
+    detail"; elsewhere that is judgment. Both are rules, so a steered session
+    could still break them.
   - **With auto mode off, or its lists edited,** Claude Code's own prompts
     govern.
 
-  The pact still refuses a decision mark for a lead's word or a start
+  This repo's tracker rule still refuses a decision mark for a lead's word or a start
   prompt's decision (R2), and an OK to run outsiders' code that arrives in a
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
@@ -479,8 +491,8 @@ session can act before you see it.
     recommendation to accept.
   - **A resume prompt, or a print-mode run of a resumed session,** has no
     Claude Code guard: auto mode reads it as your own ask (R24). Only the
-    session's judgement and the "start prompt is not chat" rule in
-    `tracker-authors` stand there. Through it, `/make-it-so` carries out the
+    session's judgement stands there, and, here, the "start prompt is not
+    chat" line in this repo's tracker rule. Through it, `/make-it-so` carries out the
     recommendations in the session's last message, which can include a
     merge, a push or a tracker post. A plain-words resume prompt could
     already ask the same.
@@ -489,8 +501,8 @@ session can act before you see it.
     not look at. Claude Code asks you before any archive, in every
     permission mode; that card is the guard against a relayed `/finis`.
 
-  What still holds whoever sent the command: "Never post a secret or a
-  personal detail" and the publish stop. The cloud copy ships neither
+  What still holds whoever sent the command: "Stop and ask me", and here
+  this repo's "Never post a secret or a personal detail". The cloud copy ships neither
   command. A project's own skill with the same name runs in place of a
   command, and the install's skill-clash check covers only your personal
   skills folder. Such a skill can come from another account's commit in a
@@ -512,7 +524,7 @@ safe, and a change made months ago is easy to forget.
   are four. Each lens's model and effort can be set, except `scout`'s. And a
   `commands` list turns on pact commands, by name from a fixed list in the
   gate, which the install then copies into `commands/`. No configuration can
-  change a gated clause's text; the install refuses.
+  change a pinned block's text; the install refuses.
 - **The install says what changed.** The dry run prints a warning for each
   value set and each part edited. The installed rules file names the
   configuration in effect.
@@ -521,12 +533,16 @@ safe, and a change made months ago is easy to forget.
 
 **What is accepted.**
 
-- **R17. The gate guards the install path, not your machine.** You can edit
-  the rules file in your clone, and the install takes any edit outside a
-  gated clause. A committed edit to a clause and to the gate's own copy of it
-  installs too; the dry run shows only that the gate changed. An open part's
-  text can contradict a gated clause in meaning, since the gate checks only
-  where text sits. A rules file copied by hand, or shipped in a repo, skips
+- **R17. The gate guards the install path, not your machine.** Since #261 the
+  gate guards what can run and with what power: committed files only, the
+  payload's kinds, each agent's tools, the settings guard, the cross script's
+  imports, the character scan, a file import in the rules file, hidden text in
+  the review file, the two pinned blocks, and the install's bookkeeping. It no
+  longer checks the rules file's wording or shape. You can edit the rules file
+  in your clone, and the install takes any edit outside a pinned block. A
+  committed edit to a pinned block and to the gate's own copy of it installs
+  too; the dry run shows only that the gate changed. An open part's text can
+  contradict any rule in meaning. A rules file copied by hand, or shipped in a repo, skips
   the gate. So does a direct edit to an installed lens file, such as a weaker
   model line: it carries no override mark, and since #189 the Lens
   dispositions table no longer records the model a lens ran on, so only the
@@ -612,7 +628,7 @@ Each tweak below is yours to make. The cost is what you give up.
 - **Set the usage pause** anywhere from 0 to 100 percent. At 100, sessions
   never wait for you before expensive work.
 - **Edit any other text in your clone** and commit it. The install takes it,
-  unless it touches a gated clause. You own its review (R17).
+  unless it touches a pinned block. You own its review (R17).
 - **Drop or pin plugins and skills.** Lowers R9 and R10. You lose what they
   did.
 - **Set GitHub's interaction limit** on a public repo. It narrows who can
@@ -623,19 +639,23 @@ Each tweak below is yours to make. The cost is what you give up.
   author approve their own pull request, so it needs a second account as
   the reviewer. A bypass for your own account lets every session through.
 
-You cannot loosen a gated clause through configuration. That is deliberate.
+You cannot loosen a pinned block through configuration. That is deliberate.
 
 ## Known open issues at publication
 
 These were open on 2026-10-09. Each is tracked on this repo's tracker.
 
 - **#179:** older versions of the cloud setup script wrote an old copy of the
-  rules, without the tracker rule, the rule on outsiders' code, or the rule
-  against posting a secret. #181 generates a current copy. A cloud
-  environment keeps whatever setup was pasted into it, so until yours holds
-  the current copy, don't point a cloud session at a public tracker.
-- **#188:** with the current copy, a cloud session can't read authors, so
-  nothing on the tracker counts and it asks you. That fails safe.
+  rules. #181 generates a current copy, and a cloud environment keeps
+  whatever setup was pasted into it. Since #261 the current copy carries no
+  tracker rule, no rule on outsiders' code and no rule against posting a
+  secret either: the pact leaves them to judgment. In this repo, `AGENTS.md`
+  supplies them from the checkout. Elsewhere, keep cloud sessions off a
+  public tracker, or write the rules into that repo's own `AGENTS.md`.
+- **#188:** with the current copy, a cloud session can't read authors. Since
+  #261 the pact carries no tracker rule, so this applies to this repo's own
+  rule: there nothing on the tracker counts, and the session asks you. That
+  fails safe.
 - **#180:** no setting yet for trusted accounts on a team repo (R7).
 - **#182:** the cloud setup fetches unpinned code (R10).
 - **#184:** no rule for sessions no person started (R16).
@@ -673,4 +693,6 @@ outsiders' code, and never runs.
   and that tier posts its spec and its security reviews on the public tracker
   before the fix ships. So a hole's details can become public while installed
   copies are still open to it. `SECURITY.md` tells reporters so. A rule for
-  fixing a reported hole out of public view is #199.
+  fixing a reported hole out of public view is #199. Since #261 the pact's
+  placeholder for a security escape on a public repo is retired too, and
+  accepted as judgment in the pact; this repo keeps the line in `AGENTS.md`.

@@ -174,7 +174,7 @@ async function main() {
   const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   const pactAsk = (overlay.get('permissions').get('ask') ?? []).map(String);
   say(`Check: passed on commit ${commit}`);
-  say("Partly checked: the rendered CLAUDE.md's marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file.");
+  say("Partly checked: the gate checks the rendered CLAUDE.md's pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers in seam A's lines count the rendered file.");
 
   // A project install ends here, never reaching the home copy, delete,
   // settings merge or record. The renderer runs again in project mode, the

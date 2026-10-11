@@ -150,25 +150,6 @@ export function parityProblems(inProcess, child) {
 
 // ------------------------------------------------------------ the test helpers' runners (#151)
 
-// Stages whose test agents runSeamA routes before each run. payload.mjs's
-// stage() registers them with its router, so this file never reads the
-// payload, and a test that only runs a module isn't tied to the agents. The
-// process holds one router: a second, different function throws, so nothing
-// else can change a stage between a test's plant and seam A's check.
-const ROUTED = new Set();
-let router = null;
-
-/** Have runSeamA route `root` with `route` before each run on it. `route` must be the one router this process registered. */
-export function routeBeforeRun(root, route) {
-  if (typeof route !== 'function') throw new Error('routeBeforeRun: the router is not a function');
-  if (router !== null && router !== route) throw new Error('routeBeforeRun: a second router; only the fixture router (payload.mjs routeTree) may run before seam A');
-  router = route;
-  ROUTED.add(root);
-}
-
-function routeIfStaged(root) {
-  if (ROUTED.has(root)) router(root);
-}
 
 /**
  * Run the real renderer on the stage's rules file and put its output in its
@@ -201,8 +182,7 @@ export function renderStage(root, claudeHome) {
 }
 
 /**
- * Seam A on a stage, after routing its test agents (when its stage registered
- * a router) and rendering its rules file. The real seam A runs in-process
+ * Seam A on a stage, after rendering its rules file. The real seam A runs in-process
  * through its core (#140, T10); a `script` other than the real one is a
  * planted copy, so it runs as a child (childSeamA). `commands` is the
  * --commands value, none by default, as the install passes it with no
@@ -210,19 +190,17 @@ export function renderStage(root, claudeHome) {
  */
 export function runSeamA(root, script = SEAM_A, { commands = 'none' } = {}) {
   if (script !== SEAM_A) return childSeamA(root, script, { commands });
-  routeIfStaged(root);
   renderStage(root);
   const { code, stdout, stderr, out } = runCore('seam-a', [root, '--commands', commands]);
   return { code, stdout, stderr, out };
 }
 
 /**
- * Seam A's wrapper `script` on a stage, as a child, routed and rendered as
+ * Seam A's wrapper `script` on a stage, as a child, rendered as
  * runSeamA does: for a planted copy, and for the wrapper tests that keep a
  * child run of the real one (#155).
  */
 export function childSeamA(root, script = SEAM_A, { commands = 'none' } = {}) {
-  routeIfStaged(root);
   renderStage(root);
   const r = spawnSync(process.execPath, [script, root, '--commands', commands], { encoding: 'utf8', env: childEnv() });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr };
