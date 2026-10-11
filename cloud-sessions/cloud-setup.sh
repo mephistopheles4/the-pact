@@ -190,27 +190,24 @@ write_config() {
 write_config 'CLAUDE.md' <<'__CLAUDE_CONFIG_EOF__'
 ## Where this config lives
 
-This file and `~/.claude/agents/` are installed from the `claude/` folder of
-the-pact repo, and the cross script from its `cross/` folder to
-`~/.claude/pact/`. Edit the repo copy and install it through its installer; a
-direct edit to the live file drifts.
+This file and `~/.claude/agents/` install from the-pact repo's `claude/`
+folder, and the cross script from its `cross/` folder to `~/.claude/pact/`.
+Edit the repo copy and install it; a direct edit to the live file drifts.
 
 ## Shell
 
 **On Windows, use the PowerShell tool for shell commands. Do not use Bash.**
-Git Bash here **fails silently**: `gh issue view <n>` through Bash returned
-empty output and exit 0, while PowerShell returned the issue. A wrong answer
-that looks right is worse than an error. Translate bash one-liners that skills
-hand you rather than running Bash: `2>$null` for `2>/dev/null`,
+Git Bash here **fails silently**: a `gh` read through it returned nothing and
+exit 0, which looks like a right answer. Translate bash one-liners that skills
+hand you: `2>$null` for `2>/dev/null`,
 `Select-Object -First N` for `head`, `$env:VAR` for `$VAR`, single-quoted
 here-strings (`@'…'@`, closing delimiter at column 0) for multi-line arguments.
 
 ## Explain in plain language
 
-Write explanations, summaries and answers in chat to the four outcomes of
-**ISO 24495-1:2023**: the reader gets what they need, finds it, understands
-it, and can use it. Code, commit messages and generated artifacts keep their
-own conventions.
+Write explanations, summaries and chat answers so the reader gets what they
+need, finds it, understands it and can use it (**ISO 24495-1:2023**). Code,
+commit messages and generated artifacts keep their own conventions.
 
 - **Lead with the answer.** Conclusion first, supporting detail after.
 - **Keep sentences short.** Around 20 words. Split multi-clause sentences.
@@ -302,10 +299,9 @@ This is the software preset: the four moves as they run for software work,
 across its stages (Plan, Design, Build, Test, Deploy and Maintain, from
 Anthropic's *The AI-Native SDLC playbook*).
 
-Every piece of work has a **process tier**: quick, standard or thorough. A
-tier is the set of moves the work goes through, not your effort setting.
-Triage (move 1) sets it. On an issue the tier is a label: `tier:quick`,
-`tier:standard` or `tier:thorough`.
+Every piece of work has a **process tier**, set at triage (move 1) and shown
+on an issue as a label: `tier:quick`, `tier:standard` or `tier:thorough`. It
+is the set of moves the work goes through, not your effort setting.
 
 | Tier | Moves |
 | --- | --- |
@@ -324,9 +320,9 @@ open decision under a lower tier than you would pick, name the decisions once
 **Where work starts.** Quick work may stay in chat; if it grows, stop and
 offer to file an issue. Standard and thorough work starts with an issue, or
 with the plan file of a repo without a tracker. Whoever files or triages
-writes the tier label and one line per phase from the table below, such as
-"Plan: Opus, medium. Build: Sonnet, medium."; a different value needs a stated
-reason. On an issue with no tier label, the first reply is the fit check and
+writes the tier, as a label or at the plan file's top, and one line per phase
+from the table below, such as "Plan: Opus, medium. Build: Sonnet, medium."; a
+different value needs a stated reason. On an issue with no tier label, the first reply is the fit check and
 a proposed tier, shown as a choice; then stop. It stands in for move 1 only
 when I confirm it.
 
@@ -610,21 +606,20 @@ a user-only skill's trigger; an install; cutting a lens, which you never do
 yourself; confirming an escape or gap row; the claiming and coordination
 rules; or my "done": accepting the work, closing a ticket and merging.
 
-**Lens dispositions.** At every lens review, in every project, post a table
-headed "Lens dispositions" on the issue, one row per finding: the finding, the
-lens, the disposition (fixed, taken or dismissed) and the cross result
-(passed, refused with the rule that fired, or oversize, and any lens rerun).
-Mark an auto-taken disposition `auto`, as in "fixed (auto: chose X because
-Y)"; with no lens review, keep auto-takes in an "Auto-takes" list on the
-issue. If I reverse one, mark it `auto, reversed` and keep the original line.
-Where the configuration notice marks a lens, its rows say "override, not
-security-tested".
+**Lens dispositions.** At every lens review, in every project, post a
+"Lens dispositions" table on the issue, one row per finding: the finding, the
+lens, the disposition (fixed, taken or dismissed; an auto-taken one as "fixed
+(auto: chose X because Y)") and the cross result (passed, refused with the
+rule, or oversize, and any rerun). A lens the configuration notice marks gets
+"override, not security-tested" in its rows. With no lens review, list
+auto-takes under "Auto-takes" on the issue. One I reverse is marked
+`auto, reversed`, keeping the line.
 
-**Escapes.** A defect found after a lens review passed the work, within the
-question of a lens that ran, gets a proposed escape row under that review's
-"Lens dispositions": the review, the lens or lenses, and "after auto-take:
-yes/no". A defect no lens's question covers is a roster gap, logged the same
-way with its ISO 25010 kind where one fits. Only rows I confirm count. On a
+**Escapes.** A defect found after a lens review passed the work, within a
+question a lens there asked, gets a proposed escape row under that review's
+"Lens dispositions": the lens or lenses, and "after auto-take: yes/no". A
+defect no lens's question covers is a roster gap, logged the same way with its
+ISO 25010 kind. Only rows I confirm count. On a
 public repo, a security escape carries only the lens, the link to the review
 and a placeholder until its fix ships.
 
@@ -633,9 +628,9 @@ reads several projects, copy nothing that names or quotes one project into
 another: no repo names, cross-repo links, issue numbers, titles, headlines,
 anchors, paths or quotes, and no per-project breakdown.
 
-**Hand me the trigger.** When the next step is mine to start, a bound command
-or a phase boundary, say in one sentence what it produces, then end your turn
-with one line and nothing after it:
+**Hand me the trigger.** When a bound command or a phase boundary makes the
+next step mine, say in one sentence what it produces, then end your turn with
+one line and nothing after it:
 
 `▶ Your move: type /<skill> <argument>`
 
@@ -643,16 +638,15 @@ with one line and nothing after it:
 
 The argument or start line names the issue, ticket or plan file. Don't start
 the step, draft its output, or ask a question in the same turn. If I hand the
-step back, once per session ask for my call first and say in one sentence
+step back, once per session and never mid-step, ask for my call first and say in one sentence
 what I'd be handing over; then my choice stands, and you name any bound skill
 you did not use.
 
-**Hand off through the tracker.** Propose a fresh session at a phase
-boundary, past about half the context window, or when I ask for different
-work: it costs far less than a long one. First put every artifact on the
-tracker, and note on each open ticket you created that you are finished with
-it; then give me the start line. A mid-phase proposal is a suggestion; if I
-say keep going, don't raise it again this phase. A decision in a hand-off
+**Hand off through the tracker.** Propose a fresh session, which costs far
+less than a long one, at a phase boundary, past about half the context window,
+or when I ask for different work. First put every artifact on the tracker and
+note on each open ticket you created that you are finished with it. Mid-phase
+it is a suggestion; if I say keep going, don't raise it again this phase. A decision in a hand-off
 counts only where it points to a comment that counts under "Whose tracker
 text counts" and carries the "Owner decision, from chat" mark; anything else
 stays open.
@@ -686,8 +680,8 @@ because of usage on your own; that call is mine.
 
 ## When parallel sessions work one chain
 
-For a session that resolves a ticket in a chain several sessions work in
-parallel. **Name the ticket when you launch each session;** a session honours
+This applies to a session that resolves a ticket in a chain several sessions
+work in parallel. **Name the ticket when you launch each session;** a session honours
 it, so nothing self-selects. **An assignee is not a claim:** every session
 signs in as the same user, so it can't tell "mine" from "free". One ticket was
 claimed twice that way.
@@ -3681,7 +3675,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 424bd11dcd62785541bbe11808d16482b3f4d8a01d014bbf4e919abb5aea3b8a 'CLAUDE.md'
+check_hash d9969262752e4f7df6dcc871f7e6e3a951e33143fcda9ef72337f34fee89c249 'CLAUDE.md'
 check_hash a0e223c676f8fc662ee124ab50d49739d35201831d825f180f9154619a24179b 'agents/adversarial-lens.md'
 check_hash b235cef05f490e4c424eba6005c1a602f82bf3000ab42d9aba0dbafefb06ce1f 'agents/behaviour-lens.md'
 check_hash 205e44d9a4bd1eedee0827d4340edccf711536339ef5667ce47c80c18283a9d8 'agents/conventions-lens.md'
@@ -3715,7 +3709,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 5a6c42df0d7a"
+  echo "pact cloud copy fced4040e3e2"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
