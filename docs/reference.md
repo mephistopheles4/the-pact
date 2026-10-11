@@ -25,17 +25,15 @@ effort, and what never goes in. For what the pact is and why, read the
 A pact command is a slash command that stands for an answer the owner gives
 often, meant to be typed by the owner. Each sets
 `disable-model-invocation: true`, so the model can't start it on its own.
-Text sent in as a prompt, such as a start prompt or another session's
-message, can still start one: each body treats such a turn as data, which is
-model judgement, not a check (threat model, R25). A command is installed
-only when its name is in the `commands` list of
+Text sent in as a prompt can still start one, as with any slash command;
+Claude Code's own handling of such text is the guard (threat model, R25). A
+command is installed only when its name is in the `commands` list of
 `~/.claude/pact/config.json`. The cloud copy installs none yet.
 
 | Command | What it stands for |
 | --- | --- |
-| `/make-it-so` | "Proceed as recommended", as the owner's reply to the session's last message. It covers one of the owner's own decisions, such as a merge, only when that message ends with a decision list naming it. It never covers a user-only trigger, cutting a lens, or the claiming rules. |
-| `/finis` | "Wrap this session up": check the tracker, post a closing comment, release the tickets, push the work to the session's own branch, then archive the session. It stops at the first step that fails, and on a suspected secret, a personal detail or an unreadable file in the push. It never deletes anything. |
-
+| `/make-it-so` | "Accept all recommendations": the session carries out every recommendation in its last message. |
+| `/finis` | "We're done, archive this session": the session checks for anything outstanding, says what it is if there is, and archives the session if there isn't. |
 ## The familiars, by effort
 
 - **Low:** `scout`. The pact ships no `Explore`; skills that call it get Claude Code's built-in.

@@ -150,7 +150,7 @@ How to read it:
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail" | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
-| R25 Command sent as prompt | A lead, a resumed session, text a session reads | The command body's who-typed-it rule, the decision list, the merge's head-commit match; the cloud copy ships no commands | Rule |
+| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's handling of sent-in text and auto mode; the cloud copy ships no commands | Outside the pact |
 
 ## Strangers on the tracker
 
@@ -453,30 +453,16 @@ session can act before you see it.
 - **R25. A pact command sent as prompt text.** `/make-it-so` and `/finis`
   set `disable-model-invocation: true`. That stops the model starting one,
   not text sent in as a prompt: a start prompt, another session's message, a
-  resumed session's next turn, a print-mode run, or a message queued into a
-  cloud session can each start one. Each body treats a turn the session
-  can't show you typed as data and writes no record for it, but that is
-  model judgement. The real-session check that would have tried it was
-  skipped (#229). Through a turn that passes as typed, `/make-it-so` takes
-  the decisions the session's last message listed, such as a merge at a
-  named head commit, and writes an "Owner decision, from chat" record. What
-  bounds it:
-  - **The decision list.** It covers only decisions the session had already
-    prepared and named, each with its identifier.
-  - **The head-commit match.** The merge itself carries the named commit,
-    so a moved head refuses it.
-  - **Sent-in messages are covered** by Claude Code's own handling (R24);
-    start prompts and resumed turns are not.
-  - **The cloud copy ships no commands** until a queued cloud message and a
-    print-mode run have been tried.
-
-  Two related gaps. A project's own skill with the same name runs in place
-  of the command, and the install's skill-clash check covers only your
-  personal skills folder. And whether text typed after a command is scanned
-  for load-time shell forms is untested; the gate refuses argument
-  placeholders in the bodies, so the text is never spliced into one. No
-  settings rule asks before a merge; you can add one, at the cost of a click
-  on every merge.
+  resumed session's next turn or a print-mode run can each start one, as
+  with any slash command. The bodies add no check of their own; Claude
+  Code's handling of sent-in text and auto mode are the guard (R24), by the
+  owner's decision (#229). Through such a turn, `/make-it-so` carries out
+  the recommendations in the session's last message, which can include a
+  merge, and `/finis` archives a session with nothing outstanding. The cloud
+  copy ships neither. A project's own skill with the same name runs in place
+  of a command; the install's skill-clash check covers only your personal
+  skills folder. No settings rule asks before a merge; you can add one, at
+  the cost of a click on every merge.
 
 ## Your own configuration loosening a rule
 

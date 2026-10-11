@@ -56,9 +56,9 @@ const REPO = dirname(HERE);
 // The pact commands the cloud copy installs, passed to seam A as its
 // --commands (#203, S9). Never written as a configuration, so the render stays
 // "CONFIG none". Empty for now: a cloud session also takes a command from a
-// queued message and a print-mode run, and neither has been tried against the
-// commands' who-typed-it check (#203, step 0's adversarial-lens F2). Turning
-// /make-it-so and /finis on later is this one list.
+// queued message and a print-mode run, and neither has been tried (#203,
+// step 0's adversarial-lens F2). Turning /make-it-so and /finis on later is
+// this one list.
 export const CLOUD_COMMANDS = Object.freeze([]);
 
 /** Seam A's --commands value for a list of pact commands: none, or the names joined by commas. */

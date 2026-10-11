@@ -40,4 +40,3 @@ real work selects it.
 From #203's spec (revision 7) and its T2 build (#229).
 
 - **Pact command:** a slash command the pact ships in `claude/commands/`, standing for an answer the owner gives often, such as `/make-it-so` or `/finis`. The model can't start one on its own; it installs only when the owner's configuration lists it.
-- **Decision list:** the short list that ends a session's message, naming each of the owner's own decisions it asks the owner to take, each with its identifier, such as a merge and its head commit. `/make-it-so` covers one of the owner's own decisions only when it is on this list.
