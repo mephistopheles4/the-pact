@@ -1,6 +1,6 @@
 # The moves as intents, and the rules cut to what judgment and the harness can't cover
 
-**2026-10-11.** The rules file, `claude/CLAUDE.md`, was rewritten from a long list of rules into three parts (mephistopheles4/the-pact#186, built in #232). First come the four moves, stated once as intents with their why. Next comes a short floor of what holds in every workflow and every repo. Last comes the software preset, cut to the sentences that pass a keep test. The gated `move-4` clause is the only clause that changed. The file went from about 6,250 words to 5,043, with every rule the spec chose to keep still in place. ADR 0056 records the decision, the keep test, every deletion and what covers it.
+**2026-10-11.** The rules file, `claude/CLAUDE.md`, was rewritten from a long list of rules into three parts (mephistopheles4/the-pact#186, built in #232). First come the four moves, stated once as intents with their why. Next comes a short floor of what holds in every workflow and every repo. Last comes the software preset, cut to the sentences that pass a keep test. The gated `move-4` clause is the only clause that changed. The file went from about 6,250 words to 5,199, with every rule the spec chose to keep still in place. ADR 0056 records the decision, the keep test, every deletion and what covers it.
 
 ## What it set out to do
 

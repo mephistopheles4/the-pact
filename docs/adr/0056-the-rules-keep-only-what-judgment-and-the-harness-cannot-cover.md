@@ -40,7 +40,7 @@ A sentence stays as a **rule** only when it names a failure that all three of th
 | "Exit 0: every check passed." | The script's `RESULT:` line. |
 | Why `--tier thorough` for the security pair; "that crossing shows first", for the security and standards pairs | The cross script refuses a security-pair report at any other tier, and places crossings itself. |
 | "Decisions are made together…" in "Help me decide" | Guidance; the rule "don't hand me a list with 'your call' on each" is kept. |
-| The hand-back's wording ("No praise, no blame, no 'you should'") and the fresh-session note above a bound command | The model's own tone; the `▶` line stays last. Kept: once per session, never mid-step, ask for the owner's call first, the choice stands. |
+| The fresh-session note above a bound command, and the hand-back's example question | The `▶` line stays last. Kept: once per session, never mid-step, ask for the owner's call first and wait, the fact-not-advice sentence, the choice stands. |
 | "I tend to forget, so check for me"; watching the window "all the way through"; "suggest charting the work at move 1" | Claude Code's compaction handles length, so the reason left is cost: propose a fresh session past about half the window. Move 1's open part keeps charting. |
 | Parallel sessions: "Charting a fresh chain is unaffected", the primary-protection note, the `gh issue list` command, and the cross-session `SendMessage` explanation | Reasons and commands the model finds. The system prompt (2026-10-11; recheck) says which tool reaches another local session. Kept: the six rules. |
 | The project named in the double-claim example | Across projects: the example no longer names another project. |

@@ -363,9 +363,10 @@ never on the tracker.
 
 **The QA pair at move 4.** Number the acceptance claims `C1`, `C2` and on,
 from the ticket's or the spec's criteria. Give `behaviour-lens` the claims,
-the spec, the diff and the working folder, and check `git status` after it
-runs. Give `integrity-lens` the claims, the spec, the diff, the tests you cite
-for each claim, and the plan if there is one.
+the spec or ticket, the issue's request, the diff and the working folder, and
+check `git status` after it runs. Give `integrity-lens` the claims, the spec
+or ticket, the diff, the tests you cite for each claim, and the plan if there
+is one.
 
 **The mutation step.** A mutation-testing tool pinned by the repo's lock file
 runs as its local binary before `integrity-lens`, never through a command that
@@ -382,11 +383,12 @@ issue or plan file; with neither, show it to me in chat.
 **The spec pair and `unstated-lens` at move 2.** Number the spec's headings
 `S1`, `S2` and on. Give `executability-lens`, `good-enough-lens` and
 `unstated-lens` the section list, the spec, the issue's request and its tier,
-and tell `unstated-lens` which reviewers ran. Cross with `--point spec` and
-the section ids as `--anchors`: once for the pair, once for `unstated-lens`
-alone. Where both lenses of the pair call one section, show me both calls and
-let me settle it. At move 4, `unstated-lens` gets the claims, the spec, the
-diff and the request, and its cross call runs alone with `--point result`.
+and tell `unstated-lens` which reviewers ran. On the security route, the
+security pair reads the spec first. Cross with `--point spec` and the section
+ids as `--anchors`: once for the pair, once for `unstated-lens` alone. Where
+both lenses of the pair call one section, show me both calls and let me settle
+it. At move 4, `unstated-lens` gets the claims, the spec, the diff and the
+request, and its cross call runs alone with `--point result`.
 
 **The security pair.** On the security route, at any tier, `adversarial-lens`
 and `data-lens` read the spec before I approve it (the section list, the spec
@@ -404,8 +406,9 @@ use `scout`.
 
 **Help me decide.** Sort a report's findings before you bring me anything:
 fix what is mechanical, group what is really one question, and bring each real
-choice with your recommendation and why. Don't hand me a list of findings with
-"your call" on each.
+choice with your recommendation and why. Ask me only for facts only I have,
+or for approval the pact requires. Don't hand me a list of findings with "your
+call" on each.
 
 **Auto-take.** After a report or review, act on your recommendation for each
 finding and carry on: state it, don't ask me to confirm it. This covers
@@ -452,9 +455,10 @@ At a phase boundary: `▶ Your move: start a fresh session with: <start line>`
 
 The argument or start line names the issue, ticket or plan file. Don't start
 the step, draft its output, or ask a question in the same turn. If I hand the
-step back, once per session and never mid-step, ask for my call first and say
-in one sentence what I'd be handing over; then my choice stands, and you name
-any bound skill you did not use.
+step back, once per session and never mid-step, ask for my call first and
+wait for my answer before showing yours. Say in one sentence what I'd be
+handing over, as a fact about the step, with no praise, no blame and no "you
+should"; then my choice stands, and you name any bound skill you did not use.
 
 **Hand off through the tracker.** Propose a fresh session, which costs far
 less than a long one, at a phase boundary, past about half the context window,
