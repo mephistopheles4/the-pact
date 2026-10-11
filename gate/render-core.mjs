@@ -44,7 +44,10 @@
 // The user file's shape:
 //   { "schema": 1, "settings": { <setting>: <value> },
 //     "edits": [ { "mark": <open mark>, "op": "replace" | "remove" | "add-after",
-//                  "file": <block path, except for remove> } ] }
+//                  "file": <block path, except for remove> } ],
+//     "commands": [ <pact command name>, ... ] }
+// The commands list (#203) turns on pact commands: unique names from
+// PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
 // A setting fills its open part from a fixed template with the checked number;
 // no text from the user file is ever spliced. An edit applies to an open part
 // only: a gated mark, the notice slot and a setting's part are refused by name.
@@ -76,6 +79,7 @@
 //                                          VALUE <setting> <number>   (one per value set)
 //                                          EDIT <mark> remove                        (one per edit,
 //                                          EDIT <mark> <op> <sha256> <block path>     in edit order)
+//   COMMANDS none, or the commands the configuration turns on, comma-joined, in PACT_COMMANDS order
 //   RESULT: pass
 //
 // or FAIL lines and "RESULT: fail", with exit 1. Like seam A, it never echoes a
@@ -141,7 +145,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ANY_FENCE_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, Refused, Report, SEGMENT_RE, SETEXT_RE, readStrictJson, scanText } from './shared.mjs';
+import { ANY_FENCE_RE, AT_IMPORT_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, PACT_COMMANDS, Refused, Report, SEGMENT_RE, SETEXT_RE, readStrictJson, scanText } from './shared.mjs';
 
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, on the
@@ -171,7 +175,7 @@ const BLOCK_MAX = 16 * 1024;
 const BLOCK_PATH_MAX = 200;
 const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
-const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents']);
+const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands']);
 
 // Agent settings: who may be set, to what. Matched exactly; only these
 // constants are ever printed or written.
@@ -253,7 +257,6 @@ const OPEN_NEAR_RE = new RegExp(`<!--\\s*pact\\s*:\\s*(?:begin|end)\\s+(?:${[...
 
 // Block text forms that could frame a clause one way for the model and
 // another way for the check, or move text out of its part.
-const IMPORT_RE = /@[^ \n]/;
 const THEMATIC_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
 const NUMBERED_RE = /^[0-9]{1,9}[.)](?:[ \t]|$)/;
 const RESERVED_RE = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i;
@@ -552,7 +555,7 @@ function checkConfig(buf, report) {
   let ok = true;
   const keys = Object.keys(doc);
   if (keys.some(k => !TOP_KEYS.includes(k))) {
-    fail('config-key', 'a key that is not schema, settings, edits or agents');
+    fail('config-key', 'a key that is not schema, settings, edits, agents or commands');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -568,6 +571,11 @@ function checkConfig(buf, report) {
   if (Object.hasOwn(doc, 'agents')) {
     agents = checkAgentSettings(doc.agents, fail);
     if (agents === null) ok = false;
+  }
+  let commands = [];
+  if (Object.hasOwn(doc, 'commands')) {
+    commands = checkCommands(doc.commands, fail);
+    if (commands === null) ok = false;
   }
   const values = [];
   if (Object.hasOwn(doc, 'settings')) {
@@ -590,7 +598,28 @@ function checkConfig(buf, report) {
       }
     }
   }
-  return ok ? { values, edits, agents } : null;
+  return ok ? { values, edits, agents, commands } : null;
+}
+
+/**
+ * The commands list, checked: the names it turns on, in PACT_COMMANDS order,
+ * or null after recording the refusal. It must be a list of unique names from
+ * PACT_COMMANDS, matched exactly; an empty list turns none on.
+ */
+function checkCommands(v, fail) {
+  if (!Array.isArray(v)) {
+    fail('config-commands', 'commands must be a list of pact command names');
+    return null;
+  }
+  if (v.some(n => !PACT_COMMANDS.some(c => c === n))) {
+    fail('config-commands', `commands names a command this pact does not have; only ${PACT_COMMANDS.join(', ')} can be turned on`);
+    return null;
+  }
+  if (new Set(v).size !== v.length) {
+    fail('config-commands', 'commands names one command twice');
+    return null;
+  }
+  return PACT_COMMANDS.filter(c => v.includes(c));
 }
 
 /**
@@ -762,7 +791,7 @@ function checkBlock(buf, file, report) {
   lines.forEach((line, i) => {
     const ln = i + 1;
     if (line.includes('<!--')) bad(ln, 'an HTML comment opener (<!--)');
-    if (IMPORT_RE.test(line)) bad(ln, 'an @ followed by text, which Claude Code may read as an import');
+    if (AT_IMPORT_RE.test(line)) bad(ln, 'an @ followed by text, which Claude Code may read as an import');
     if (line.trim() === '') bad(ln, 'a blank line');
     else if (/^[ \t]/.test(line)) bad(ln, 'a leading space or tab');
     else if (ANY_FENCE_RE.test(line)) bad(ln, 'a code fence');
@@ -1069,6 +1098,7 @@ function run(argv, report) {
   const head = [];
   let swaps = [];
   let agents = [];
+  let commands = [];
   if (config === NONE) head.push('CONFIG none');
   else {
     const checked = checkConfig(config.buf, report);
@@ -1085,7 +1115,10 @@ function run(argv, report) {
     if (swaps === null) return;
     const editLines = edits.map(e => (e.path ? `EDIT ${e.mark} ${e.op} ${e.hash} ${e.path}` : `EDIT ${e.mark} ${e.op}`));
     head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines);
+    commands = checked.commands;
   }
+  // Exactly one COMMANDS line, from the buffer the digest hashes (#203, S8).
+  head.push(`COMMANDS ${commands.length ? commands.join(',') : 'none'}`);
 
   const { rendered, diff } = apply(lines, swaps);
   if (rendered.length > MAX_BYTES) {

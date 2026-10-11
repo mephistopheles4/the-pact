@@ -268,7 +268,8 @@ function seamA(files) {
       mkdirSync(dirname(p), { recursive: true });
       writeFileSync(p, buf, { flag: 'wx' });
     }
-    const r = seamCheck([stage]);
+    // No pact command installs in the cloud copy yet (#203, T1); T2 turns on its fixed list.
+    const r = seamCheck([stage, '--commands', 'none']);
     if (r.failed || r.lines[r.lines.length - 1] !== 'RESULT: pass') {
       const rules = [...new Set(r.lines.map(l => /^FAIL ([a-z][a-z0-9-]*):/.exec(l)?.[1]).filter(Boolean))];
       refuse('cloud/seam-a', `seam A refused the stage (${rules.join(', ') || 'no rule named'})`);

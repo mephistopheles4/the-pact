@@ -142,6 +142,7 @@ test('the shipped example edits install-ready: each block re-indented into its p
     `DIGEST ${digest}`,
     'VALUE usage-pause 90',
     ...edits.map(e => `EDIT ${e.mark} ${e.op} ${sha256(e.bytes)} ${e.path}`),
+    'COMMANDS none',
     'RESULT: pass',
     '',
   ]);

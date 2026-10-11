@@ -204,13 +204,15 @@ export function renderStage(root, claudeHome) {
  * Seam A on a stage, after routing its test agents (when its stage registered
  * a router) and rendering its rules file. The real seam A runs in-process
  * through its core (#140, T10); a `script` other than the real one is a
- * planted copy, so it runs as a child (childSeamA).
+ * planted copy, so it runs as a child (childSeamA). `commands` is the
+ * --commands value, none by default, as the install passes it with no
+ * configuration (#203).
  */
-export function runSeamA(root, script = SEAM_A) {
-  if (script !== SEAM_A) return childSeamA(root, script);
+export function runSeamA(root, script = SEAM_A, { commands = 'none' } = {}) {
+  if (script !== SEAM_A) return childSeamA(root, script, { commands });
   routeIfStaged(root);
   renderStage(root);
-  const { code, stdout, stderr, out } = runCore('seam-a', [root]);
+  const { code, stdout, stderr, out } = runCore('seam-a', [root, '--commands', commands]);
   return { code, stdout, stderr, out };
 }
 
@@ -219,10 +221,10 @@ export function runSeamA(root, script = SEAM_A) {
  * runSeamA does: for a planted copy, and for the wrapper tests that keep a
  * child run of the real one (#155).
  */
-export function childSeamA(root, script = SEAM_A) {
+export function childSeamA(root, script = SEAM_A, { commands = 'none' } = {}) {
   routeIfStaged(root);
   renderStage(root);
-  const r = spawnSync(process.execPath, [script, root], { encoding: 'utf8', env: childEnv() });
+  const r = spawnSync(process.execPath, [script, root, '--commands', commands], { encoding: 'utf8', env: childEnv() });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr };
 }
 

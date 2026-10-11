@@ -144,6 +144,24 @@ parts:
 - **`Configuration:`.** `no configuration`, unless you have a
   `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
   a rendered hash the apply command carries.
+- **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and
+  `/scriptorium`, each `on` or `off`, and `(not in this commit)` for one the
+  commit doesn't hold yet. None is on until you turn it on: list its name in
+  the `commands` key of `~/.claude/pact/config.json`, for example
+  `"commands": ["make-it-so", "finis"]`. Each command that is on gets a
+  `WARN` line naming the file it installs, `commands/<name>.md`. The install
+  refuses, naming the path inside your Claude home folder:
+  - **A same-named skill.** Anything at `~/.claude/skills/<name>`, a folder, a
+    file or a link, for a command that is on. Claude Code would run that
+    skill in place of the command. Rename or move it, or take the name out of
+    the list. The install only checks that the path exists; it never reads,
+    lists or changes your skills.
+  - **Your own file at the command's path.** A `~/.claude/commands/<name>.md`
+    the last install's record doesn't list. The pact didn't put it there, so
+    it never overwrites it. Move it, or take the name out of the list.
+  - **A bad list.** A `commands` value that is not a list of pact command
+    names, each once. A project's `.claude/pact-config.json` may not hold
+    `commands` at all.
 - **`NOTE: … other pact-install-* folder(s) in the temp folder`.** An install
   stopped hard, by a power cut or a killed process, leaves its work folder in
   your temp folder. It may hold your configuration text. Delete those
@@ -190,6 +208,8 @@ It installs these files under `~/.claude`:
 - `CLAUDE.md`, the rules;
 - `agents/`, ten agents: the nine lenses and `scout`;
 - `pact/cross.mjs`, the cross script;
+- `commands/<name>.md`, each pact command your `commands` list turns on.
+  Taking a name out of the list deletes its file at the next install;
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against.
 
@@ -295,6 +315,10 @@ instead, which needs PowerShell 7:
 pwsh ./scripts/install.ps1
 ```
 
+A pact from before the pact commands (#203) refuses a configuration with a
+`commands` key, so take the key out first. Its install then deletes the
+commands the record lists, as it does any file its own payload lacks.
+
 Both installers read and write the same install record, so either can follow
 the other. In a Claude Code session, no ask rule guards `install.ps1`: its
 apply runs without a prompt, as its dry run does (ADR 0052). An older
@@ -321,7 +345,8 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    set `permissions.defaultMode` back to what you use, so you are not left
    in auto mode.
 2. **Delete the pact's files:** the ten agents listed in step 6 from
-   `agents/`, `pact/cross.mjs`, and `.pact-install.json`.
+   `agents/`, `pact/cross.mjs`, each pact command in `commands/` that the
+   record lists, and `.pact-install.json`.
 3. **Put back your own agents** from your copy of the `agents/` folder.
 
 Start a new session to load the change.

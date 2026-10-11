@@ -89,6 +89,7 @@ test('the shipped example sets the usage pause to 90: the rules read 90%, with t
     `CONFIG user ${sha256(bytes)}`,
     `DIGEST ${digest}`,
     'VALUE usage-pause 90',
+    'COMMANDS none',
     'RESULT: pass',
     '',
   ]);
@@ -131,7 +132,7 @@ test('a configured render of the real source passes seam A', t => {
   assert.ok(read(join(root, 'claude', 'CLAUDE.md')).includes('the weekly limit is above 90%'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [SEAM_A, root], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none'], { encoding: 'utf8', env });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.equal(lastLine(r.stdout), 'RESULT: pass');
 });
@@ -146,7 +147,7 @@ test('no pact folder, an empty pact folder and a missing Claude home folder all 
   for (const h of [noPact, emptyPact, missing]) {
     const r = render(t, h);
     assert.equal(r.code, 0, r.out);
-    assert.deepEqual(r.stdout.split('\n'), [`RENDERED ${sha256(r.bytes)}`, `DIFF ${sha256(Buffer.alloc(0))}`, 'CONFIG none', 'RESULT: pass', '']);
+    assert.deepEqual(r.stdout.split('\n'), [`RENDERED ${sha256(r.bytes)}`, `DIFF ${sha256(Buffer.alloc(0))}`, 'CONFIG none', 'COMMANDS none', 'RESULT: pass', '']);
     assert.equal(r.bytes.toString('utf8'), withoutOpenMarks(read(SOURCE)));
   }
 });
@@ -278,9 +279,9 @@ const BAD = [
   ['schema as a string', '{"schema": "1"}', 'config-schema', /schema must be 1/],
   ['schema 1.5', '{"schema": 1.5}', 'config-schema', /schema must be 1/],
   ['no schema', '{"settings": {"usage-pause": 90}}', 'config-schema', /schema must be 1/],
-  ['an unknown key', '{"schema": 1, "extra": 1}', 'config-key', /not schema, settings, edits or agents/],
-  ['a key in another case, alone', '{"schema": 1, "Settings": {}}', 'config-key', /not schema, settings, edits or agents/],
-  ['a __proto__ key', '{"schema": 1, "__proto__": {"usage-pause": 1}}', 'config-key', /not schema, settings, edits or agents/],
+  ['an unknown key', '{"schema": 1, "extra": 1}', 'config-key', /not schema, settings, edits, agents or commands/],
+  ['a key in another case, alone', '{"schema": 1, "Settings": {}}', 'config-key', /not schema, settings, edits, agents or commands/],
+  ['a __proto__ key', '{"schema": 1, "__proto__": {"usage-pause": 1}}', 'config-key', /not schema, settings, edits, agents or commands/],
   ['an unknown setting', '{"schema": 1, "settings": {"usage-paws": 90}}', 'config-settings', /not a setting/],
   ['a setting in another case, alone', '{"schema": 1, "settings": {"Usage-Pause": 90}}', 'config-settings', /not a setting/],
   ['a __proto__ setting', '{"schema": 1, "settings": {"__proto__": 90}}', 'config-settings', /not a setting/],

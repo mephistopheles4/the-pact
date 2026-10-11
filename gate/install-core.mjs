@@ -10,6 +10,13 @@
 
 export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
 export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md']);
+// The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
+// gate/shared.mjs, so it works out its copy set without seam A's list.
+export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+// The gate files the builder kit installs under pact/builder/, the only gate
+// files that ever install (#203, S8). Empty until the kit ships (T3).
+export const BUILDER_KIT = Object.freeze([]);
+const KIT_DEST = 'pact/builder/';
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 /** The PowerShell installer the Node install replaces: a record from it lists it among the gate files (S9). */
 export const OLD_INSTALLER = 'scripts/install.ps1';
@@ -291,13 +298,16 @@ export function checkVerdict(report, what) {
 const EDIT_RE = /^EDIT (move-1|move-2|move-3|move-4-extra) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (opus|sonnet) (low|medium|high) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause) (0|[1-9][0-9]?|100)$/;
+const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 
 /**
  * The renderer's lines (S6, R5 to R8), every one before RESULT matched to one
- * exact pattern, in these counts: one RENDERED, one DIFF, one CONFIG; with a
- * user configuration one DIGEST that must be the digest of the reported
- * hashes, at most one VALUE per setting, one EDIT per open part and one AGENT
- * per lens; with none, none of those. `hash` is sha256 over bytes, as hex.
+ * exact pattern, in these counts: one RENDERED, one DIFF, one CONFIG, one
+ * COMMANDS; with a user configuration one DIGEST that must be the digest of
+ * the reported hashes, at most one VALUE per setting, one EDIT per open part
+ * and one AGENT per lens; with none, none of those, and COMMANDS none. The
+ * COMMANDS line names pact commands, each once, in PACT_COMMANDS order (#203).
+ * `hash` is sha256 over bytes, as hex.
  */
 export function parseRenderLines(lines, { project, hash }) {
   let renderHash = null;
@@ -308,6 +318,7 @@ export function parseRenderLines(lines, { project, hash }) {
   const edits = new Map();
   const blockHashes = new Map();
   const agentSets = new Map();
+  let commands = null;
   for (const l of lines.slice(0, -1)) {
     let m;
     if ((m = /^RENDERED ([0-9a-f]{64})$/.exec(l))) {
@@ -340,19 +351,27 @@ export function parseRenderLines(lines, { project, hash }) {
     } else if ((m = VALUE_RE.exec(l))) {
       if (values.has(m[1])) refuse('render-value-twice', 'the renderer reported one setting twice.');
       values.set(m[1], m[2]);
+    } else if ((m = COMMANDS_RE.exec(l))) {
+      if (commands) refuse('render-commands-twice', 'the renderer reported two commands lines.');
+      const names = m[1] === 'none' ? [] : m[1].split(',');
+      const order = PACT_COMMANDS.filter(c => names.includes(c));
+      if (order.length !== names.length || order.some((c, i) => c !== names[i])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
+      commands = order;
     } else refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
   }
   if (!renderHash || !diffHash || configs.length !== 1) refuse('render-counts', 'the renderer did not report exactly one output hash, one diff hash and one configuration line.');
+  if (!commands) refuse('render-commands-missing', 'the renderer did not report which pact commands are on.');
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
   if (config.kind === 'none') {
     if (digest || values.size || edits.size || agentSets.size) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit or an agent setting with no configuration.');
+    if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
   } else {
     let text = `user ${config.sha256}\n`;
     for (const e of edits.values()) if (e.path) text += `block ${e.path} ${e.sha256}\n`;
     if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('render-digest', "the renderer's configuration digest is missing or does not match the configuration hashes it reported.");
   }
-  return { renderHash, diffHash, config, digest, values, edits, blockHashes, agentSets };
+  return { renderHash, diffHash, config, digest, values, edits, blockHashes, agentSets, commands };
 }
 
 /**
@@ -534,42 +553,96 @@ export function parseProjectWrite(report, projectHash) {
 
 // ------------------------------------------------------------ seam A's copy set and overlay
 
-/** Where each staged file installs, by the install's own reading of the stage: null for one that never installs. */
-export function expectedCopySet(stagedRels) {
-  const out = new Map();
+/**
+ * The copy set by the install's own reading of the stage (#203, S8): a list
+ * of [staged path, live path] pairs, one source to one or more live paths. A
+ * pact command installs only when `commands` names it, and a gate file only
+ * as a BUILDER_KIT entry under pact/builder/. A staged file of no known kind
+ * pairs with null, which no INSTALL line can match.
+ */
+export function expectedCopySet(stagedRels, commands = []) {
+  const out = [];
   for (const rel of stagedRels) {
+    if (BUILDER_KIT.includes(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
     if (rel.startsWith('gate/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep') continue;
     if (/^familiars\/[^/]+\.(contract|practice-test)\.md$/.test(rel)) continue;
     let m;
-    if ((m = /^claude\/(.+)$/.exec(rel))) out.set(rel, m[1]);
-    else if ((m = /^familiars\/([^/]+\.md)$/.exec(rel))) out.set(rel, `agents/${m[1]}`);
-    else if (rel === 'cross/cross.mjs') out.set(rel, 'pact/cross.mjs');
-    else out.set(rel, null);
+    if ((m = /^claude\/commands\/(.*)$/.exec(rel))) {
+      const name = /^([^/]+)\.md$/.exec(m[1])?.[1];
+      if (commands.includes(name)) out.push([rel, `commands/${name}.md`]);
+      else if (!PACT_COMMANDS.includes(name)) out.push([rel, null]);
+    } else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
+    else if ((m = /^familiars\/([^/]+\.md)$/.exec(rel))) out.push([rel, `agents/${m[1]}`]);
+    else if (rel === 'cross/cross.mjs') out.push([rel, 'pact/cross.mjs']);
+    else out.push([rel, null]);
   }
   return out;
 }
 
 /**
- * Seam A's INSTALL lines against the install's own reading (S6, S-2): the
- * same paths, destinations and hashes exactly, each listed once. Returns
- * staged path -> { dest, sha256 }.
+ * Seam A's INSTALL lines against the install's own reading (S6, S-2, #203
+ * S8): the same pairs and hashes exactly, each pair listed once, and a gate
+ * file only as a kit entry at its kit path. Returns [[staged path, { dest,
+ * sha256 }], ...] in seam A's order.
  */
 export function matchCopySet(lines, expected, stagedHashes, commit) {
-  const checked = new Map();
+  const checked = [];
+  const pairs = new Map();
   for (const l of lines) {
     const m = /^INSTALL ([0-9a-f]{64}) (\S+) (\S+)$/.exec(l);
     if (!m) continue;
-    if (checked.has(m[2])) refuse('copy-set-twice', 'the check listed one file twice.');
-    checked.set(m[2], { dest: m[3], sha256: m[1] });
+    const key = `${m[2]} ${m[3]}`;
+    if (pairs.has(key)) refuse('copy-set-twice', 'the check listed one file twice.');
+    if (m[2].startsWith('gate/') && !(BUILDER_KIT.includes(m[2]) && m[3] === `${KIT_DEST}${m[2]}`)) refuse('copy-set-gate', `the check listed a gate file for install outside the builder kit: ${formatPlain(m[2])}.`);
+    pairs.set(key, m[1]);
+    checked.push([m[2], { dest: m[3], sha256: m[1] }]);
   }
-  let ok = checked.size === expected.size;
+  let ok = pairs.size === expected.length;
   for (const [rel, dest] of expected) {
     if (!ok) break;
-    const c = checked.get(rel);
-    ok = Boolean(c) && c.dest === dest && c.sha256 === stagedHashes.get(rel);
+    ok = pairs.get(`${rel} ${dest}`) === stagedHashes.get(rel) && stagedHashes.has(rel);
   }
   if (!ok) refuse('copy-set-mismatch', `the check's copy set does not match the install's own reading of commit ${commit}.`);
   return checked;
+}
+
+/**
+ * The pact commands against the owner's skills folder (#203, S8): a skill
+ * of the same name runs in place of the command, so anything at
+ * skills/<name>, a folder, a file or a link, refuses. `present(rel)` tests
+ * presence without following a link; nothing else in the folder is read.
+ */
+export function checkSkillClash(commands, present) {
+  for (const name of commands) {
+    const rel = `skills/${name}`;
+    if (present(rel)) refuse('command-skill-clash', `${rel} exists in the Claude home folder, and Claude Code would run that skill in place of the pact command /${name}. Rename or move it, or take ${name} out of the commands list.`);
+  }
+}
+
+/**
+ * A command or kit file the install would add over a live file its record
+ * does not list (#203, S8): refused, never overwritten. Agents keep today's
+ * first-install behaviour. `live(rel)` is the plan's live state.
+ */
+export function checkNewPaths(repoFiles, record, live) {
+  const listed = new Set(record ? record.files.map(e => e.path) : []);
+  for (const rel of repoFiles.keys()) {
+    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST)) || listed.has(rel)) continue;
+    if (live(rel).exists) refuse('command-unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. Move it, or take its name out of the commands list.`);
+  }
+}
+
+/** The Commands block of a dry run (#203, S7): every pact command, on or off, and how to turn one on. */
+export function commandsBlock(commands, stagedRels) {
+  const staged = new Set(stagedRels);
+  const out = ['Commands:'];
+  for (const name of PACT_COMMANDS) {
+    const here = staged.has(`claude/commands/${name}.md`);
+    out.push(`  /${name}: ${commands.includes(name) ? 'on' : 'off'}${here ? '' : ' (not in this commit)'}`);
+  }
+  out.push(`  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${PACT_COMMANDS[0]}"]`);
+  for (const name of commands) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
+  return out;
 }
 
 /** Seam A's one SETTINGS line, bound to the staged overlay's bytes (S6, S-3). Returns the overlay as a settings map. */
@@ -784,7 +857,7 @@ export function isProtected(rel) {
     .filter(Boolean);
   const n = segs.join('/').toLowerCase();
   const leaf = segs.length ? segs[segs.length - 1].toLowerCase() : '';
-  return n === 'settings.json' || n === '.pact-install.json' || n === 'pact/config.json' || leaf.startsWith('.credentials') || /^(projects|memory|skills|handover|pact\/blocks)(\/|$)/.test(n);
+  return n === 'settings.json' || n === '.pact-install.json' || n === 'pact/config.json' || n === 'pact/builder.json' || leaf.startsWith('.credentials') || /^(projects|memory|skills|handover|pact\/blocks)(\/|$)/.test(n);
 }
 
 /** Only plain, canonical record paths are acted on: a name that is not already plain could be a Windows alias. */

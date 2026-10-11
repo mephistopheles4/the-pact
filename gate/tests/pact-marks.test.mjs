@@ -42,7 +42,7 @@ test('seam A refuses the unrendered source: the open marks are not marks it know
   const root = stage(t, {}, { route: false });
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [SEAM_A, root], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none'], { encoding: 'utf8', env });
   assert.notEqual(r.status, 0, r.stdout);
   assert.equal(lastLine(r.stdout), 'RESULT: fail', r.stdout);
   assert.match(r.stdout, /^FAIL marker: claude\/CLAUDE\.md line \d+: an unknown block name$/m, r.stdout);

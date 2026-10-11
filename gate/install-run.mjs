@@ -167,8 +167,9 @@ async function main() {
 
   // Seam A, in-process, on the staged and rendered copy (S-1 to S-3).
   const seamA = await loadCore('seam-a-core.mjs');
-  const { lines: seamLines } = runCheck(seamA, [stage], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys()), staged, commit);
+  // The renderer's COMMANDS line reaches seam A as its --commands (#203, S8); each side works out the copy set on its own.
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', parsed.commands.length ? parsed.commands.join(',') : 'none'], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), parsed.commands), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   const pactAsk = (overlay.get('permissions').get('ask') ?? []).map(String);
@@ -236,6 +237,9 @@ async function main() {
   const linkIn = rel => io.throughLink(home, rel);
   const { repoFiles, sourceOf } = core.installDestinations(checked, linkIn);
   const p = core.plan(record, repoFiles, rel => io.liveState(live(home, rel)), linkIn);
+  // A pact command never shadowed by a same-named skill, nor laid over a file the pact didn't write (#203, S8).
+  core.checkSkillClash(parsed.commands, rel => io.present(live(home, rel)));
+  core.checkNewPaths(repoFiles, record, rel => io.liveState(live(home, rel)));
 
   // Settings (L4 to L9).
   const settingsFile = join(home, 'settings.json');
@@ -276,6 +280,7 @@ async function main() {
   }
   say('Configuration:');
   for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
+  for (const l of core.commandsBlock(parsed.commands, staged.keys())) say(l);
   if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
   else say('Working tree: clean');
   if (nothing) say('Nothing to do.');

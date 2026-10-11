@@ -7,13 +7,20 @@
 // Seam A: the pact's own static check, run by the install (gate/install-run.mjs)
 // on a staged copy of what it is about to install. Zero dependencies.
 //
-//   node seam-a.mjs <stage root>
+//   node seam-a.mjs <stage root> --commands <none | name,name,...>
 //
 // The stage root holds claude/, familiars/, cross/cross.mjs and AGENTS.md as
 // the commit has them. Seam A decides what each file is, checks every agent
-// the install would copy, the cross script's characters and the pact's own
-// text (pact-text.mjs), and prints the exact copy set as INSTALL lines. The install copies those files
-// and nothing else, and refuses unless its own reading of the stage agrees.
+// the install would copy, every pact command file, the cross script's
+// characters and the pact's own text (pact-text.mjs), and prints the exact
+// copy set as INSTALL lines, one per (staged path, live path) pair. The
+// install copies those files and nothing else, and refuses unless its own
+// reading of the stage agrees.
+//
+// --commands names the pact commands the configuration turns on, as the
+// renderer's COMMANDS line gives them (#203). It is required, exactly once;
+// an unknown name, a repeat, and a name with no file in the stage refuse.
+// Every command file is checked, and only a named one is listed for install.
 // It also holds the settings overlay to gate/settings-allowlist.json, and
 // prints its hash as one SETTINGS line, which the install's merge must match.
 //
@@ -33,7 +40,7 @@ import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkPactText } from './pact-text.mjs';
-import { Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
+import { AT_IMPORT_RE, PACT_COMMANDS, Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PINNED = join(HERE, 'grimoire', 'check.mjs');
@@ -54,6 +61,17 @@ const ALLOWED_KEYS = new Set(['name', 'description', 'tools', 'model', 'effort',
 // The one wildcard tool name a flow list may hold.
 const BROWSER_WILDCARD = 'mcp__Claude_Browser__*';
 const MARK_KEYS = ['contract-version', 'familiar-digest', 'contract-digest'];
+// The frontmatter keys a pact command file may have, and no other (#203). A
+// command never grants a tool, a model or a hook. disable-model-invocation
+// must be exactly true: it keeps the model from starting the command itself.
+const COMMAND_KEYS = new Set(['description', 'disable-model-invocation']);
+const INVOCATION_KEY = 'disable-model-invocation';
+// The two forms Claude Code runs as shell when a command loads, read more
+// strictly than it reads them, so a near miss fails too: an exclamation mark
+// right before a backtick anywhere, and a fence line, backtick or tilde, at
+// any indent, with an exclamation mark anywhere after its fence characters.
+const INLINE_SHELL = '!`';
+const FENCE_LINE_RE = /^[ \t]*(?:`{3,}|~{3,})(.*)$/;
 
 // Settings that run a command, load code or reach a tool server. Refused by
 // name as an object key at any depth of the overlay, whatever the settings
@@ -255,9 +273,11 @@ function parseFlow(raw) {
   });
 }
 
-/** One value after "key: ". Returns { kind: 'text' | 'flow', value?, items? }. */
+/** One value after "key: ". Returns { kind: 'text' | 'flow' | 'true', value?, items? }. */
 function parseValue(raw, key) {
   if (raw.startsWith(' ')) throw new Refused('value', 'more than one space after the colon');
+  // The one boolean the reader takes: a command's invocation key, as plain true.
+  if (key === INVOCATION_KEY && raw === 'true') return { kind: 'true' };
   if (raw[0] === '"' || raw[0] === "'") {
     const value = parseQuoted(raw);
     if (key === 'tools') throw new Refused('quoted-list', 'tools must be a flow list, not a quoted value');
@@ -285,6 +305,11 @@ function parseValue(raw, key) {
 function readAgent(buf, file, report) {
   const text = scanText(buf, file, report);
   if (text === null) return null;
+  return readFrontmatter(text, file, report);
+}
+
+/** The frontmatter of scanned `text`, as readAgent reads it. */
+function readFrontmatter(text, file, report) {
   const lines = text.split('\n');
 
   if (lines[0] !== '---') {
@@ -661,6 +686,7 @@ function walk(root, top, report) {
  */
 function classify(root, report) {
   const agents = [];
+  const commands = [];
   const installs = [];
   const contracts = new Set();
   let overlay = false;
@@ -684,6 +710,12 @@ function classify(root, report) {
         const a = { file: rel, stem: seg[2].slice(0, -3), dest: `agents/${seg[2]}`, familiar: false };
         agents.push(a);
         installs.push(a);
+      } else if (seg[1] === 'commands') {
+        // A pact command (#203): exactly claude/commands/<name>.md, the name on PACT_COMMANDS.
+        const stem = seg.length === 3 && seg[2].endsWith('.md') ? seg[2].slice(0, -3) : null;
+        if (seg.length !== 3) report.fail('command-path', rel, null, 'a subfolder in claude/commands; a command is claude/commands/<name>.md');
+        else if (!PACT_COMMANDS.some(c => c === stem)) report.fail('command-name', rel, null, 'a file in claude/commands that is not a pact command; the gate lists them');
+        else commands.push({ file: rel, stem, dest: `commands/${seg[2]}` });
       } else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       continue;
     }
@@ -713,7 +745,7 @@ function classify(root, report) {
     }
     installs.push({ file, dest, text: true });
   }
-  return { agents, installs, overlay };
+  return { agents, commands, installs, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
@@ -755,6 +787,33 @@ function checkAgent(a, parsed, allow, report) {
     if (marks.length !== MARK_KEYS.length) report.fail('mark', a.file, null, 'a familiar without a full contract mark');
     a.marked = marks.length === MARK_KEYS.length;
   }
+}
+
+/**
+ * A pact command file (#203, S3): the two frontmatter keys, read by the
+ * agents' strict reader, and a body that runs nothing when it loads and
+ * includes no file. Checks the whole file, its frontmatter included.
+ */
+function checkCommand(root, c, report) {
+  const text = scanText(readFileSync(join(root, ...c.file.split('/'))), c.file, report);
+  if (text === null) return;
+  const parsed = readFrontmatter(text, c.file, report);
+  if (parsed) {
+    for (const [key, e] of parsed.top) {
+      if (!COMMAND_KEYS.has(key)) report.fail('command-keys', c.file, e.line, 'a key a command may not have; only description and disable-model-invocation');
+    }
+    const desc = parsed.top.get('description');
+    if (!desc) report.fail('command-description', c.file, null, 'no description');
+    else if (desc.kind === 'text' && desc.value.trim() === '') report.fail('command-description', c.file, desc.line, 'an empty description');
+    const inv = parsed.top.get(INVOCATION_KEY);
+    if (!inv || inv.kind !== 'true') report.fail('command-invocation', c.file, inv ? inv.line : null, 'disable-model-invocation must be set to true, unquoted');
+  }
+  text.split('\n').forEach((line, i) => {
+    const fence = FENCE_LINE_RE.exec(line);
+    if (line.includes(INLINE_SHELL)) report.fail('command-shell', c.file, i + 1, 'an exclamation mark before a backtick, which runs a shell command when the command loads');
+    else if (fence && fence[1].includes('!')) report.fail('command-shell', c.file, i + 1, 'a fence line with an exclamation mark after its fence characters, which runs a shell block when the command loads');
+    if (AT_IMPORT_RE.test(line)) report.fail('command-include', c.file, i + 1, 'an @ followed by text, which Claude Code may read as a file include');
+  });
 }
 
 // The one import form the cross script may use: a whole line, from one of the
@@ -808,12 +867,12 @@ function runPinned(root, a, report) {
   report.fail('grimoire', a.file, null, 'the pinned check did not pass');
 }
 
-function run(root, report) {
+function run(root, listed, report) {
   // @@TEST-CRASH-HOOK@@
   const pinned = verifyPin(report);
   const allow = loadAllowlist(report);
   const settingsAllow = loadSettingsAllowlist(report);
-  const { agents, installs, overlay } = classify(root, report);
+  const { agents, commands, installs, overlay } = classify(root, report);
   let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
@@ -824,6 +883,16 @@ function run(root, report) {
     if (!nameOk(a.stem, true)) report.fail('familiar-name', a.file, null, "a familiar's file stem must be lower-case letters, digits and single hyphens");
     if (!a.hasContract) report.fail('contract', a.file, null, 'a familiar without its sibling contract');
     if (pinned && parsed && !parsed.partial && a.hasContract && a.marked && nameOk(a.stem, true)) runPinned(root, a, report);
+  }
+
+  // Every command file is checked; only those --commands names are installed.
+  for (const c of commands) {
+    checkCommand(root, c, report);
+    if (!report.failedFiles.has(c.file)) report.pass('command', c.file);
+    if (listed.includes(c.stem)) installs.push(c);
+  }
+  for (const name of listed) {
+    if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
   }
 
   // The cross script is code the pact runs: held to the same character rules
@@ -871,14 +940,39 @@ function run(root, report) {
 }
 
 /**
+ * The command line: the stage root, then --commands exactly once, with none
+ * or pact command names joined by commas, each once. Returns { root,
+ * commands }, or undefined after recording the refusal. A name it prints is
+ * PACT_COMMANDS' own constant, never the argument's text.
+ */
+function parseArgs(argv, report) {
+  const usage = () => report.fail('usage', null, null, 'usage: node seam-a.mjs <stage root> --commands <none | name,name,...>');
+  if (argv.length === 0 || argv[0] === '' || argv[0].startsWith('-')) return usage();
+  let given = 0;
+  let value;
+  for (let i = 1; i < argv.length; i += 2) {
+    if (argv[i] !== '--commands') return usage();
+    given += 1;
+    value = argv[i + 1];
+  }
+  if (given !== 1) return report.fail('commands-arg', null, null, given ? '--commands is given more than once' : 'no --commands: give none, or the pact commands to install');
+  if (value === undefined) return report.fail('commands-arg', null, null, '--commands needs a value: none, or pact command names joined by commas');
+  if (value === 'none') return { root: argv[0], commands: [] };
+  const names = value.split(',');
+  if (names.some(n => !PACT_COMMANDS.some(c => c === n))) return report.fail('commands-name', null, null, `--commands names something that is not a pact command; only ${PACT_COMMANDS.join(', ')} are`);
+  if (new Set(names).size !== names.length) return report.fail('commands-repeat', null, null, '--commands names one command twice');
+  return { root: argv[0], commands: names };
+}
+
+/**
  * Run the check on `argv`. Returns the report's lines, with the RESULT line
  * last, and whether it failed. Any throw is an `internal` failure, never a pass.
  */
 export function check(argv) {
   const report = new Report();
   try {
-    if (argv.length !== 1 || argv[0] === '' || argv[0].startsWith('-')) report.fail('usage', null, null, 'usage: node seam-a.mjs <stage root>');
-    else run(argv[0], report);
+    const args = parseArgs(argv, report);
+    if (args) run(args.root, args.commands, report);
   } catch {
     // Never a pass, and never the error's text: it can quote a file.
     report.fail('internal', null, null, 'the check itself failed');

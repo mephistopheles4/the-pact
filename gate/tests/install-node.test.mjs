@@ -339,7 +339,7 @@ test('node: a review module that writes into the stage refuses, saying the revie
 });
 
 // Seam A passes, then changes the staged rules file it checked: the review's re-hash and the apply's re-hash catch it.
-const seamAThenEdit = root => plantCore(root, 'seam-a', 'end', "if (argv.length === 1) plantAppend(argv[0] + '/claude/CLAUDE.md', 'x');");
+const seamAThenEdit = root => plantCore(root, 'seam-a', 'end', "if (argv[1] === '--commands') plantAppend(argv[0] + '/claude/CLAUDE.md', 'x');");
 
 test('node: a staged rules file changed after the check refuses the review output before it is written', t => {
   const repo = makeRepo(t, seamAThenEdit);

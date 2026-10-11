@@ -14,6 +14,16 @@
 const MAX_BYTES = 1024 * 1024;
 const CHARACTER_HITS_MAX = 20;
 
+// The pact's own commands (#203), each a file claude/commands/<name>.md that
+// installs to commands/<name>.md only when the configuration's commands list
+// names it. Seam A and the renderer read this one list; the install keeps its
+// own copy (install-core.mjs), held to this one by a test. Adding a name is a
+// change to gate code, so it takes the security route.
+const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+// An at sign followed by text, which Claude Code may read as a file include:
+// refused in a block (render-core.mjs) and in a command file (seam-a-core.mjs).
+const AT_IMPORT_RE = /@[^ \n]/;
+
 const SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
 const JSON_SCALAR_RE = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?)/;
 const JSON_DEPTH_MAX = 64;
@@ -285,6 +295,8 @@ function parseDoc(text, file, known, allowed, report) {
 }
 
 export {
+  PACT_COMMANDS,
+  AT_IMPORT_RE,
   MAX_BYTES,
   CHARACTER_HITS_MAX,
   DEFAULT_IGNORABLE_RE,
