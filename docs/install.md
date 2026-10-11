@@ -233,36 +233,31 @@ Run the dry run again if you like. It should print `Nothing to do.`
 
 **Removing rules an older pact added.** Do this after the install above. The
 merge only ever adds rules, so a rule a later pact retires stays in your
-`settings.json` until you remove it. After installing the pact that narrowed
-the ask rules (ADR 0049), open `~/.claude/settings.json` in an editor
-yourself, and delete these six lines from `permissions.ask`, if they are
+`settings.json` until you remove it by hand. Open `~/.claude/settings.json` in
+an editor yourself, and delete these lines from `permissions.ask` if they are
 there:
 
-```text
-PowerShell(*install.ps1*)
-Bash(*nstall.ps1*)
-PowerShell(*install.mjs*)
-PowerShell(*install-run.mjs*)
-Bash(*nstall.mjs*)
-Bash(*nstall-run.mjs*)
-```
+- **The four broad rules ADR 0049 retired:** `PowerShell(*install.mjs*)`,
+  `PowerShell(*install-run.mjs*)`, `Bash(*nstall.mjs*)` and
+  `Bash(*nstall-run.mjs*)`.
+- **The rules of the PowerShell installer the pact used before the Node
+  install:** every line that holds the search text in ADR 0052's bullet "The
+  owner's live settings are cleaned by hand". Search for that text rather than
+  copying lines: some of these rules hold dash characters that look like
+  hyphens on screen. This guide doesn't spell the text out, so that a search
+  of the live docs for that installer's file name stays empty.
 
-Until you do, every mention of those files still asks. Don't ask a session to
-do it: the file can hold API keys, and a session that reads it holds them in
-its context. If you copied the file first, delete the copy yourself once the
-install works: it holds the same keys, and keeps them after you change one.
+If a deleted line was the last in the list, also delete the comma now left
+before `]`.
 
-Once you have installed a pact that includes ADR 0052, open
-`~/.claude/settings.json` in an editor again, and delete every line in
-`permissions.ask` that contains `nstall.ps1`. Search for that text rather
-than copying lines from here: six of the rules hold dash characters that
-look like hyphens on screen. One of the lines is likely the last in the
-list, so the line now above `]` may end in a comma: delete that comma. Do it
-only after the install. If you delete the rules earlier, an older commit's
-dry run warns that rules are missing, and its apply adds them back. Then
-check two things yourself, not through a session:
+Don't ask a session to do any of this: the file can hold API keys, and a
+session that reads it holds them in its context. If you copied the file
+first, delete the copy yourself once the install works: it holds the same
+keys, and keeps them after you change one. Then check two things yourself, not
+through a session:
 
-1. **None left:** your editor's search for `nstall.ps1` finds no match.
+1. **None left:** your editor's search for each of the four rules above,
+   written out in full, and for ADR 0052's search text, finds no match.
 2. **Nothing else broken:** run the dry run again. It must show no
    `WARN: settings.json lacks …` line, no
    `WARN: settings.json is not a strict JSON object …` line, and
@@ -312,24 +307,36 @@ see `examples/pact-config/` and the config builder in `builder/`.
 
 ## Roll back to an older version
 
-Check out the older commit and run that commit's own installer, dry run first.
-Commits from before the Node install (#166) hold `scripts/install.ps1`
-instead, which needs PowerShell 7:
+An older pact installs with that commit's own installer. Rollback is
+supported only to commits on the published `main` from the Node install's
+cutover (#166, commit `6821d68`) on. Before you check a commit out, check it,
+with no checkout:
 
-```powershell
-pwsh ./scripts/install.ps1
-```
+1. **Resolve it to its full id:** `git rev-parse --verify "<commit>^{commit}"`.
+   Run every check below on that id.
+2. **It holds the Node installer:** `git cat-file -e <id>:gate/install.mjs`
+   succeeds.
+3. **It descends from the cutover:**
+   `git merge-base --is-ancestor 6821d68f002b2e5307332ba067c049e403f950b0 <id>`
+   succeeds.
+4. **It is on the published `main`:** after
+   `git fetch https://github.com/mephistopheles4/the-pact.git main`,
+   `git merge-base --is-ancestor <id> FETCH_HEAD` succeeds.
+
+If any check fails, don't check the commit out, and never run, or let a
+session run, an installer from it: nothing prompts before such an installer
+runs (the threat model's R22). From a commit that passes, check out exactly
+that id and run only `gate/install.mjs`, dry run first.
 
 A pact from before the pact commands (#203) refuses a configuration with a
 `commands` key, so take the key out first. Its install then deletes the
 commands the record lists, as it does any file its own payload lacks.
 
-Both installers read and write the same install record, so either can follow
-the other. In a Claude Code session, no ask rule guards `install.ps1`: its
-apply runs without a prompt, as its dry run does (ADR 0052). An older
-commit's install also adds its old ask rules back to your `settings.json`.
-When you return to a pact that includes ADR 0052, remove them again, as
-"Removing rules an older pact added", in step 5, describes.
+Every Node install reads and writes the same install record, so an older one
+can follow a newer one. An older commit's install also adds back to your
+`settings.json` any ask rules it held. When you return to the newer pact,
+remove them again, as "Removing rules an older pact added", in step 5,
+describes.
 
 ## Known limits
 

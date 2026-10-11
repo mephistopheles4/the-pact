@@ -1,6 +1,6 @@
 // The install runner (#153, S3). The bootstrap (gate/install.mjs) starts it
 // from the stage it made of HEAD's files, so every line here is committed
-// code. It does everything after staging, as scripts/install.ps1 did: pin,
+// code. It does everything after staging: pin,
 // render, seam A, the copy set, the plan, settings, review output, apply,
 // record and verify. The four gate checks run in-process, through each core's
 // check(), with ADR 0032's controls kept (S5): this process refuses any

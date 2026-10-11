@@ -109,11 +109,26 @@ how every session in every repo behaves. So:
   `--rendered-hash <hash>`. On a project install that hash binds the bytes
   installed, not the configuration files: a file changed after the dry run
   still installs if it renders the same bytes, which can never be looser.
-- **Rolling back.** An older pact installs with that commit's own installer:
-  check the commit out and run its install. A commit from before the Node
-  install (#166) holds only `scripts/install.ps1`, which needs PowerShell 7.
-  Both installers read and write the same record, so either can follow the
-  other. No ask rule guards `install.ps1`'s apply step (ADR 0052).
+- **Rolling back.** An older pact installs with that commit's own installer.
+  Rollback is supported only to commits on the published `main` from the Node
+  install's cutover (#166, `6821d68`) on. **Before checking out a commit to
+  roll back to,** check it, with no checkout:
+  1. Resolve it to its full id: `git rev-parse --verify "<commit>^{commit}"`.
+     Run every check below on that id.
+  2. It holds `gate/install.mjs`: `git cat-file -e <id>:gate/install.mjs`
+     succeeds.
+  3. It descends from the cutover:
+     `git merge-base --is-ancestor 6821d68f002b2e5307332ba067c049e403f950b0 <id>`
+     succeeds.
+  4. It is on the published `main`: after
+     `git fetch https://github.com/mephistopheles4/the-pact.git main`,
+     `git merge-base --is-ancestor <id> FETCH_HEAD` succeeds.
+
+  If any check fails, don't check the commit out, never run an installer from
+  it, and stop to ask the owner. Check first, because an older commit's own
+  `AGENTS.md` presents a PowerShell installer as the route, and no ask rule
+  guards one (the threat model's R22). From a commit that passes, check out
+  exactly that id and run only `gate/install.mjs`, dry run first.
 - **The cloud copy is generated.** `cloud-sessions/` holds the setup script
   for Claude Code cloud sessions. `cloud-sessions/gen.mjs` builds it, and
   `CLAUDE.cloud.md`, from the payload, through the same render and seam A a
@@ -141,8 +156,7 @@ how every session in every repo behaves. So:
   `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>`
   - **`full`** runs every top-level test file. This is "the full suite".
   - **`fast`** runs every test file that doesn't run the install script. The
-    runner finds the install tier from each file's imports and text on every
-    run.
+    runner finds the install tier from each file's imports on every run.
   - **`changed`** runs `fast` plus the tests your change can reach, and
     prints why it picked each file. It's the only tier that reads git.
     - **The changed paths:** what differs from where your branch left
@@ -230,8 +244,7 @@ how every session in every repo behaves. So:
   A test that runs the script without `install()` goes through the harness's
   `spawnNodeInstall`, so it counts. A test that only reads the script's code
   belongs in a file that never installs, and imports `install-core.mjs` or
-  reads the file. A test file that names `install.ps1` is still put in the
-  install tier, so a test of a rollback to it is counted as an install.
+  reads the file.
 - **Import helpers by what they touch** (ADR 0034), and take only what the
   test uses. `text.mjs` touches nothing; `tree.mjs` touches the files a test
   names; `gate-files.mjs` reads the gate's own files; `payload.mjs` reads the
@@ -260,7 +273,6 @@ how every session in every repo behaves. So:
   that names nothing gets a one-line stated reason, or it is cut before move 4.
   A backing comment never writes a file path or a script name. The test runner
   matches a changed path against each test file's text, comments included,
-  and puts any file that names `install.ps1` in the install tier,
   so a path in a comment changes what runs. Quick work has no numbered claims
   while its tests are written first: such a test names the done-criterion in
   words, and the comment is not updated when move 4 numbers the claims.

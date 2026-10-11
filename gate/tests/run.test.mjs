@@ -4,8 +4,7 @@
 // runner finds its own folder and the repo root as it does in this tree.
 //
 // This file must stay out of the install tier, or fast stops running it, so it
-// never names the install script or imports the harness, even inside a string:
-// those plants live in fixtures/run/ and in strings built at run time.
+// never imports the harness, even inside a string.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -15,10 +14,9 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { tempDir } from './tree.mjs';
 import { COPY_DIRS, COPY_FILES } from './copy-list.mjs';
-import { CAP, MAX_CHANGED, PLAIN_NAME, leakedLines, makeScrub, namesInstallScript, parseArgs, pathNames, pick, relativeImports, stringLiterals, verdict } from './run.mjs';
+import { CAP, MAX_CHANGED, PLAIN_NAME, leakedLines, makeScrub, parseArgs, pathNames, pick, relativeImports, stringLiterals, verdict } from './run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const FIX = join(HERE, 'fixtures', 'run');
 const WIN = process.platform === 'win32';
 const HARNESS = ['install', 'harness.mjs'].join('-');
 /** An import line for `spec`, built at run time so this file's own source holds no import of it. */
@@ -47,22 +45,6 @@ test('pick: full is every top-level test file; fast holds none from the install 
   );
 });
 
-test('pick: a file that names the install script, written out or in pieces, is in the install tier, never fast', () => {
-  const sources = new Map([
-    ['out.test.mjs', readFileSync(join(FIX, 'written-out.txt'), 'utf8')],
-    ['pieces.test.mjs', readFileSync(join(FIX, 'in-pieces.txt'), 'utf8')],
-    ['plain.test.mjs', "readFileSync('scripts/other.ps1');\n"],
-  ]);
-  const ents = entries(['out.test.mjs', 'pieces.test.mjs', 'plain.test.mjs']);
-  assert.deepEqual(
-    pick({ tier: 'fast', entries: ents, sources }).files.map(f => f.file),
-    ['plain.test.mjs'],
-  );
-  const full = pick({ tier: 'full', entries: ents, sources }).files;
-  assert.match(full.find(f => f.file === 'out.test.mjs').reason, /^install tier: names /);
-  assert.match(full.find(f => f.file === 'pieces.test.mjs').reason, /^install tier: names /);
-});
-
 test('pick: a file reaching the harness through a re-exporting helper, two helpers deep, or a dynamic import is in the install tier', () => {
   const sources = new Map([
     ['re.test.mjs', imp('./re.mjs')],
@@ -87,18 +69,6 @@ test('pick: a file reaching the harness through a re-exporting helper, two helpe
   assert.deepEqual(
     pick({ tier: 'fast', entries: ents, sources }).files.map(f => f.file),
     ['near.test.mjs'],
-  );
-});
-
-test('pick: a helper that names the install script as data does not put its importers in the install tier', () => {
-  // The copy-list module is such a helper: S4 keeps its importers out.
-  const sources = new Map([
-    ['uses.test.mjs', imp('./list.mjs')],
-    ['list.mjs', readFileSync(join(FIX, 'written-out.txt'), 'utf8')],
-  ]);
-  assert.deepEqual(
-    pick({ tier: 'fast', entries: entries(['uses.test.mjs']), sources }).files.map(f => f.file),
-    ['uses.test.mjs'],
   );
 });
 
@@ -170,10 +140,17 @@ test('changed: gate code, and the install script, select the full tier', () => {
   }
 });
 
-// The PowerShell installer left at the cutover (#153, S9), so no throwaway repo the harness builds holds it,
-// and no test can run it by mistake.
+// ADR 0048: none of the copy list's single files is a PowerShell script, so
+// none reaches a throwaway repo the harness builds.
 test('bad case: the copy list holds no PowerShell script', () => {
   assert.deepEqual(COPY_FILES.filter(f => f.endsWith('.ps1')), []);
+});
+
+// Running the gate's tests: a payload path also runs the install smoke file;
+// one of the copy list's single files is payload too.
+test("changed: one of the copy list's single files is a payload path", () => {
+  const r = changedPicks(changedTree(), ['AGENTS.md']);
+  assert.equal(r.files.get(SMOKE_NAME), 'install smoke set: payload AGENTS.md');
 });
 
 test('changed: a payload path picks finely: the smoke set and the files that name it, not an install file that does not', () => {
@@ -313,10 +290,10 @@ test('pathNames: the file name and every run of two or more segments', () => {
   assert.deepEqual(pathNames('AGENTS.md'), ['agents.md']);
 });
 
+// Running the gate's tests: a test that names a changed path runs, and the
+// changed tier finds such a name through this reader and the import reader.
 test('the literal reader: comments are skipped, template pieces kept, a regex holding a quote is not a string', () => {
   assert.deepEqual(stringLiterals("// 'no'\nconst a = 'x'; /* \"no\" */ const b = `p${a}q`; const r = /'/; const c = \"y\";"), ['x', 'p', 'q', 'y']);
-  assert.equal(namesInstallScript("const n = 'inst' + 'all.ps1';"), true);
-  assert.equal(namesInstallScript("const n = 'install.ps2';"), false);
   assert.deepEqual(relativeImports("import a from './a.mjs';\nimport 'node:fs';\nexport * from \"../b.mjs\";\nawait import('./c.mjs');"), ['./a.mjs', '../b.mjs', './c.mjs']);
 });
 

@@ -12,7 +12,7 @@ import { runSeamA } from './gate-run.mjs';
 import { realOverlay, stage } from './payload.mjs';
 import { GATE, REPO, failRules, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
-import { APPLY_ASK, APPLY_COMMANDS, BACKUP_ASK, BROAD_INSTALL_ASK, CROSS_ASK, DASHES, MENTION_COMMANDS, OVERLAY, PACT_ASK, RETIRED_OLD_INSTALL_ASK, RETIRED_OLD_INSTALL_NAME, asks, overlayWith, shown } from './settings-rules.mjs';
+import { APPLY_ASK, APPLY_COMMANDS, BACKUP_ASK, BROAD_INSTALL_ASK, CROSS_ASK, DASHES, MENTION_COMMANDS, OVERLAY, PACT_ASK, asks, overlayWith, shown } from './settings-rules.mjs';
 import { moduleResult, table } from './tables.mjs';
 
 const ALLOWLIST = 'gate/settings-allowlist.json';
@@ -220,10 +220,12 @@ test("the apply-step rules are all among the pact's rules", () => {
 });
 
 // One test per rule, so a red run shows every rule that seam A doesn't hold.
+// settings-required, with the message that names the apply step's rules.
 for (const rule of APPLY_ASK) {
   test(`bad case: the apply-step rule ${shown(rule)} stays required when both the allow-list and the overlay drop it`, t => {
     const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== rule))));
-    expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== rule))), 'settings-required', script);
+    const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== rule))), 'settings-required', script);
+    assert.match(r.stdout, /the apply step's ask rules/, r.out);
   });
 }
 
@@ -262,46 +264,13 @@ for (const c of table('near misses of the required rules', {
   rows: [
     { id: 'splat-with-space-install-mjs', plant: swapIn(SPLAT_RULES[0], spaced(SPLAT_RULES[0])), fails: ['settings-required'], why: 'a splat that needs a space before it misses one after another separator (ADR 0020, miss d)' },
     { id: 'splat-with-space-install-run-mjs', plant: swapIn(SPLAT_RULES[1], spaced(SPLAT_RULES[1])), fails: ['settings-required'], why: 'the same, after the runner' },
-    { id: 'broad-for-name-free-flag', plant: swapIn('PowerShell(*--apply*)', BROAD_INSTALL_ASK[2]), fails: ['settings-required'], why: 'a retired broad rule does not stand in for the name-free flag rule' },
+    { id: 'broad-for-name-free-flag', plant: swapIn('PowerShell(*--apply*)', 'PowerShell(*install.mjs*)'), fails: ['settings-required'], why: 'a retired broad rule does not stand in for the name-free flag rule' },
   ],
 })) test(c.name, c.fn);
 
-// ------------------------------------------------------------ seam A: the old installer's rules stay out (#217)
+// ------------------------------------------------------------ seam A: a rule outside the allow-list (#217)
 
-test("no ask rule in the overlay or the allow-list names the old installer", () => {
-  const allow = JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8'))['permissions.ask'];
-  const overlay = JSON.parse(realOverlay()).permissions.ask;
-  const named = rules => rules.filter(r => r.toLowerCase().includes(RETIRED_OLD_INSTALL_NAME));
-  assert.deepEqual(named(overlay), []);
-  assert.deepEqual(named(allow), []);
-  assert.deepEqual(named(PACT_ASK), []);
-});
-
-// Seam A passes today's overlay, which holds none of the old rules (the first
-// test of this file, and this table's base). The rows show that check can
-// fail: a seam A that still required an old rule refuses today's overlay.
-const SEAM_CORE = 'gate/seam-a-core.mjs';
-const APPLY_LIST = 'const SETTINGS_APPLY_ASK = Object.freeze([';
-/** A plant putting `rule` back at the head of seam A's required list. */
-const requireAgain = rule => tree => {
-  assert.ok(tree[SEAM_CORE].includes(APPLY_LIST));
-  return { [SEAM_CORE]: tree[SEAM_CORE].replace(APPLY_LIST, `${APPLY_LIST}\n  ${JSON.stringify(rule)},`) };
-};
-for (const c of table('seam a still requiring an old installer rule', {
-  module: 'gate/seam-a.mjs',
-  base: () => ({ [SEAM_CORE]: readFileSync(join(GATE, 'seam-a-core.mjs'), 'utf8') }),
-  run: (tree, t) => {
-    const script = gateCopy(t, g => writeFileSync(join(g, 'seam-a-core.mjs'), tree[SEAM_CORE]));
-    const r = runSeamA(stage(t), script);
-    return moduleResult(r.code, r.stdout);
-  },
-  rows: [
-    { id: 'requires-powershell-rule', plant: requireAgain(RETIRED_OLD_INSTALL_ASK[0]), fails: ['settings-required'], says: /the apply step's ask rules/, why: 'an old PowerShell rule the overlay no longer holds' },
-    { id: 'requires-bash-rule', plant: requireAgain(RETIRED_OLD_INSTALL_ASK[1]), fails: ['settings-required'], says: /the apply step's ask rules/, why: 'an old Bash rule the overlay no longer holds' },
-  ],
-})) test(c.name, c.fn);
-
-// An old rule put back into the overlay alone is a rule outside the
+// A rule put back into the overlay alone is a rule outside the
 // allow-list. Seam A uses the same id, settings-value, for other faults in a
 // rule list, such as a rule listed twice. The control below shows this id
 // comes from the allow-list: with the rule on both, it passes.
@@ -316,22 +285,20 @@ const addAsk = (rule, ...files) => tree => {
   }
   return out;
 };
-for (const c of table('old installer rules put back', {
+for (const c of table('a rule put back into the overlay alone', {
   module: 'gate/seam-a.mjs',
   base: bothFiles,
   run: runBoth,
   rows: [
-    { id: 'powershell-rule-in-overlay-alone', plant: addAsk(RETIRED_OLD_INSTALL_ASK[0], OVERLAY), fails: ['settings-value'], why: 'an old PowerShell rule the allow-list no longer holds' },
-    { id: 'bash-rule-in-overlay-alone', plant: addAsk(RETIRED_OLD_INSTALL_ASK[1], OVERLAY), fails: ['settings-value'], why: 'an old Bash rule the allow-list no longer holds' },
+    { id: 'rule-in-overlay-alone', plant: addAsk('Bash(ls *)', OVERLAY), fails: ['settings-value'], why: 'a rule the allow-list does not hold' },
   ],
 })) test(c.name, c.fn);
 
-test('control: an old rule put back into both the overlay and the allow-list passes, so the rows above fail for the allow-list', t => {
-  for (const rule of RETIRED_OLD_INSTALL_ASK) {
-    const r = runBoth(addAsk(rule, OVERLAY, ALLOWLIST)(bothFiles()), t);
-    assert.equal(r.code, 0, r.out);
-    assert.equal(r.last, 'RESULT: pass', r.out);
-  }
+// #242 C4: the passing partner of the row above.
+test('control: a rule added to both the overlay and the allow-list passes, so the row above fails for the allow-list', t => {
+  const r = runBoth(addAsk('Bash(ls *)', OVERLAY, ALLOWLIST)(bothFiles()), t);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.last, 'RESULT: pass', r.out);
 });
 
 // ------------------------------------------------------------ the rules against a model of the matcher (#210, S6)

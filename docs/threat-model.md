@@ -151,7 +151,7 @@ How to read it:
 | R19 Fix work public | Anyone who reads the tracker | None yet (#199) | — |
 | R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
-| R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
+| R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for an installer from before the Node install's cutover, #166), the go-ahead clause | Prompt, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the risk floor, "Never post a secret or a personal detail", in the tracker rule and in the moves section's floor | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Never post a secret or a personal detail" and the publish stop; the cloud copy ships no commands | Outside the pact, rule |
@@ -397,20 +397,22 @@ session can act before you see it.
   apply before it runs. The owner accepted this to stop the prompts on every
   mention (#210).
 
-  Since #217 no ask rule guards a rollback to the old PowerShell installer.
-  A fooled session can check out a commit from before #166 in any clone,
-  from its history, and run that commit's `install.ps1` with its apply
-  switch, with no prompt. That replaces your live rules file and agents with
+  No ask rule guards an installer from a commit before the Node install's
+  cutover (#166), the #166 build commits that still hold the old one
+  included. No supported rollback reaches such a commit, but a fooled session
+  can still check one out from history in any clone and run its installer's
+  apply, with no prompt. That replaces your live rules file and agents with
   the older pact, which lacks later defences such as the rules on whose
   tracker text counts, and every later session runs under it until you
   reinstall. On Linux or macOS it also widens `settings.json`'s mode, with no
   prompt either (#177, below). The drift check does not show the rollback,
-  because both installers write the same install record. The next Node dry
+  because such an installer writes the same install record. The next Node dry
   run does: the record names an older commit, and the pact's files are
   listed under Overwrite. What remains is the go-ahead clause, which the same
   injection could target, and Claude Code's own auto-mode checks, which
   aren't documented to stop this. The owner accepted this by name (#217,
-  ADR 0052).
+  ADR 0052), and the acceptance stands now that the pact keeps no rollback
+  route to such an installer (#242, ADR 0059).
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -430,9 +432,9 @@ session can act before you see it.
     permission changes, settings changes, and starting or stopping a
     session. Nothing replaces that sentence. For the last of them, starting
     or stopping a session, nothing in the pact bounds a lead at all.
-  - **A start prompt can reach a rollback.** No ask rule guards a rollback
-    to the old PowerShell installer (R22), and the install's go-ahead clause
-    doesn't say a start prompt isn't chat. So a lead's start prompt could
+  - **A start prompt can reach a rollback.** No ask rule guards an
+    installer from before the Node install's cutover (R22), and the
+    install's go-ahead clause doesn't say a start prompt isn't chat. So a lead's start prompt could
     have a session install a pact older than the tracker rule, after which
     other accounts' tracker text counts in every later session. The next
     Node dry run shows it, but only afterwards.
@@ -646,10 +648,10 @@ The Node install (#166) closes two that were listed here, in part:
 - **#177:** an install on Linux or macOS no longer widens `settings.json`,
   which can hold API keys. It keeps the file's mode, so a file an older
   install widened stays readable by other users until you restrict it; the
-  dry run warns when it is. A rollback to the old installer widens it again.
-  Since #211 the install how-to no longer gives the fix for either case
-  (`chmod 600` on the file): only the owner ever ran the old installer, and
-  the owner accepted this by name.
+  dry run warns when it is. A rollback to an installer from before the Node
+  install's cutover widens it again. Since #211 the install how-to no longer
+  gives the fix for either case (`chmod 600` on the file): only the owner
+  ever ran such an installer, and the owner accepted this by name.
 - **#110:** the dry run compares permission rules exactly, so it no longer
   misses a tampered rule.
 

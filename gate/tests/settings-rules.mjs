@@ -1,7 +1,6 @@
 // The settings guard's rule lists (#34), shared by settings.test.mjs (seam A)
 // and settings-install.test.mjs (the install), so the two can't drift (#140,
-// T6). The lists name the install script, so they live here: a test file that
-// names it is in the install tier, and seam A's checks never install.
+// T6).
 import { realOverlay } from './payload.mjs';
 
 export const OVERLAY = 'claude/settings.overlay.json';
@@ -43,14 +42,6 @@ export const BACKUP_ASK = [
   'Bash(*nstall-run.mjs*\\\\*)',
 ];
 
-// The old installer's apply guard left the pact in #217 (ADR 0052). These
-// stand for it in the tests that it stays out: the name its rules shared,
-// compared without regard to case, and one of its rules for each tool. They
-// live here because a test file that names the old installer is in the
-// install tier.
-export const RETIRED_OLD_INSTALL_NAME = 'nstall.ps1';
-export const RETIRED_OLD_INSTALL_ASK = ['PowerShell(*install.ps1*-A*)', 'Bash(*nstall.ps1*-a*)'];
-
 // The install record, kept broad: it is the dry run's drift baseline, and a
 // write to it has no closed set of spellings (#210, D3).
 export const RECORD_ASK = ['PowerShell(*.pact-install.json*)', 'Bash(*.pact-install.json*)'];
@@ -68,8 +59,6 @@ export const RULESET_ASK = [
 // The broad installer rules ADR 0049 retired: any command naming the files.
 // The matcher table's control shows they ask on a mention.
 export const BROAD_INSTALL_ASK = [
-  'PowerShell(*install.ps1*)',
-  'Bash(*nstall.ps1*)',
   'PowerShell(*install.mjs*)',
   'PowerShell(*install-run.mjs*)',
   'Bash(*nstall.mjs*)',
@@ -188,8 +177,6 @@ export const MENTION_COMMANDS = [
   ['PowerShell', 'node gate/install.mjs --claude-home "C:\\tmp\\home"', 'a dry run with a double-quoted throwaway home'],
   ['PowerShell', "node gate/install.mjs --claude-home 'C:\\tmp\\home'", 'a dry run with a single-quoted throwaway home'],
   ['Bash', 'node gate/install.mjs --claude-home "/tmp/home"', 'a dry run with a quoted throwaway home, under Bash'],
-  ['PowerShell', 'git log --oneline -- scripts/install.ps1', "the old installer's history"],
-  ['Bash', 'git show 0980943:scripts/install.ps1', 'the old installer read from history'],
 ];
 
 /** Today's overlay as an object, changed by `edit`, as JSON text. */
