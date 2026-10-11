@@ -1,0 +1,53 @@
+# Code scanning as an advanced setup (#239, S4): CodeQL analyses the repo's
+# Actions workflows and its JavaScript on every pull request, every push to
+# main, once a week, and by hand. It replaces default setup, which can't leave
+# a path out on this repo, so that the gate's test files, which plant bad
+# cases on purpose, stop raising alerts. The runner, the helpers and the
+# fixtures under gate/tests/ stay in the scan.
+#
+# This file is gate code, so an edit here takes the security route, and
+# gate/tests/workflow.test.mjs holds it to an exact allow-list. It holds a
+# write permission, security-events: write, in one job only, because
+# uploading results needs it; that token can read and dismiss code-scanning
+# alerts on main. So Dependabot's pull requests are skipped: a new version of
+# either action first runs here after the owner has read and merged it. A
+# pull request runs this file as the pull request has it.
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '27 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          config: |
+            paths-ignore:
+              - 'gate/tests/*.test.mjs'
+      - uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          category: /language:${{ matrix.language }}

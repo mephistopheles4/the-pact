@@ -6,7 +6,7 @@ change it. It describes the pact as published on 2026-10-10. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R24, so other work can point at it. A
+Each accepted risk has a label, R1 to R28, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -74,7 +74,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R25
+  title Residual risk, R1 to R28
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -105,6 +105,9 @@ quadrantChart
   R23 Publish below the floor: [0.30, 0.56]
   R24 A lead moves work: [0.40, 0.70]
   R25 Command sent as prompt: [0.30, 0.64]
+  R26 Test files unscanned: [0.15, 0.30]
+  R27 Scan edits its own guard: [0.20, 0.55]
+  R28 Scan token writes alerts: [0.12, 0.52]
 ```
 
 How to read it:
@@ -117,12 +120,13 @@ How to read it:
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   apply spelled past the ask rules (R22), publishing work below the
-  thorough tier (R23), a lead moving work (R24), and a pact command sent as prompt text (R25) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), and the code-scanning workflow's write token (R27, R28) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26.** R17 needs your own edits, and the dry
   run shows them. R21 needs an edit to this repo's tests that its review
-  misses.
+  misses. R26 needs shipped code to start loading a test file past a test
+  that refuses it.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -151,6 +155,9 @@ How to read it:
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the risk floor, "Never post a secret or a personal detail", in the tracker rule and in the moves section's floor | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Never post a secret or a personal detail" and the publish stop; the cloud copy ships no commands | Outside the pact, rule |
+| R26 Test files unscanned | A careless edit to shipped code | The premise test: nothing outside `gate/tests/` loads a file inside it | Boundary, in CI |
+| R27 Scan edits its own guard | A pull request's author | Your review and merge; the guard catches accidents only | Rule |
+| R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 
 ## Strangers on the tracker
 
@@ -557,6 +564,52 @@ Each tweak below is yours to make. The cost is what you give up.
 
 You cannot loosen a gated clause through configuration. That is deliberate.
 
+## Code scanning on this repo
+
+**How it could break.** CodeQL scans this repo for security holes and raises
+alerts in the Security tab. Since #239 it runs from a workflow the repo holds,
+`.github/workflows/codeql.yml`, not from GitHub's default setup. To upload
+results, its one job holds `security-events: write`, the only write permission
+any workflow here has. That token can read every open alert, the private ones
+included, and change or dismiss alerts on `main`. The workflow's configuration
+also leaves the gate's test files, `gate/tests/*.test.mjs`, out of the scan,
+because they plant bad cases on purpose and raised alerts that were noise.
+
+**What the pact does.**
+
+- **An exact allow-list.** `gate/tests/workflow.test.mjs` holds the workflow
+  to the triggers, permissions, steps and inputs the spec sets, and nothing
+  else: no shell step, no environment, no secret, no other action, no debug
+  output, and no YAML form a line-based check could misread. Both actions are
+  pinned to full commit SHAs, and the checkout to `gate.yml`'s.
+- **Dependabot's pull requests are skipped.** A new version of either action
+  first runs with the write token on `main`, after you have read and merged
+  it.
+- **A premise test.** The same file fails if any file outside `gate/tests/`
+  loads a file inside it.
+
+**What is accepted.**
+
+- **R26. The gate's test files aren't scanned.** They run on your machine and
+  in CI with a read-only token and no secrets. They take no outside input:
+  they read the repo and write temp folders, and CodeQL's JavaScript queries
+  look for untrusted input reaching a sink. This holds only while nothing
+  shipped imports them, which the premise test checks. The runner, the
+  helpers and the fixtures are still scanned (ADR 0058).
+- **R27. A pull request that edits the workflow or its guard carries its own
+  copy of both.** A pull request runs its own workflow and its own tests, so
+  one that loosens both passes the guard. The guard catches an accident; your
+  review and merge are the control. For such a pull request, its own
+  code-scanning result is not evidence, and neither is a fork pull request's,
+  which can upload results to its own ref but not reach `main`'s alerts.
+- **R28. The workflow's token can read every open alert and change or
+  dismiss alerts on `main`.** A compromised release of `checkout` or
+  `codeql-action` running in that job would hold it. What bounds it: both
+  are GitHub-owned and pinned to full commit SHAs; Dependabot holds a new
+  release back 14 days before it proposes it; and the Dependabot skip means
+  a new version first runs after your merge. Your review of any SHA change
+  is the control, since the guard can't tell a release commit from one that
+  lives only in a fork of the action's repo.
 ## Known open issues at publication
 
 These were open on 2026-10-09. Each is tracked on this repo's tracker.
