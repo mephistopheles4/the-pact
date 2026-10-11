@@ -37,7 +37,8 @@ test('the notice and the fit check never mention a project or its files', () => 
   assert.ok(notice, 'the notice template is in the renderer');
   assert.doesNotMatch(notice[0], /project/i);
   const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
-  const fit = /When a configuration notice follows[\s\S]*?\n\n/.exec(rules);
-  assert.ok(fit, 'the fit check names the configuration digest');
+  // #261: the fit check is the "Say a mismatch first" bullet; it no longer names the digest.
+  const fit = /- \*\*Say a mismatch first\.\*\*[\s\S]*?\n\n/.exec(rules);
+  assert.ok(fit, 'the fit check is in the rules file');
   assert.doesNotMatch(fit[0], /project/i);
 });

@@ -47,8 +47,8 @@ spec or ticket, the request and the working folder.
 
 ## Crossing the reports
 
-**The cross script** is the installed one, `~/.claude/pact/cross.mjs`, never a
-copy in a repo. Call it by its full path, with `NODE_OPTIONS` cleared.
+**The cross script** is the installed one, never a copy in a repo. Call it by
+its full path, with `NODE_OPTIONS` cleared.
 - In PowerShell:
   `$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" ARGUMENTS`
 - In a POSIX shell:

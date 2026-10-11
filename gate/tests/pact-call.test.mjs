@@ -1,9 +1,10 @@
 // How the pact calls the cross script (#45): by its full installed path
 // through $HOME, never `~` and never relative, with NODE_OPTIONS cleared, and
-// naming both failure exit codes. The commands under test are read from the
-// pact's own text, never copied here. Only the POSIX form is run: the suite
-// never starts PowerShell (#210, the owner's decision), so the PowerShell form
-// is checked as text.
+// naming both failure exit codes. Since #261 the commands and the exit codes
+// sit in the review procedure file, which the rules file points to; the
+// commands under test are read from it, never copied here. Only the POSIX
+// form is run: the suite never starts PowerShell (#210, the owner's
+// decision), so the PowerShell form is checked as text.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -14,10 +15,10 @@ import { REPO } from './text.mjs';
 import { read, tempDir } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
-const LEAD = '**The cross script.**';
+const LEAD = '**The cross script**';
 const LIVE = '"$HOME/.claude/pact/cross.mjs"';
 
-const PACT_TEXT = () => read(join(REPO, 'claude', 'CLAUDE.md'));
+const PACT_TEXT = () => read(join(REPO, 'claude', 'review.md'));
 
 /** The pact's cross-script paragraph: from its bold lead to the next blank line. */
 function paragraph(text = PACT_TEXT()) {
@@ -56,7 +57,7 @@ test('the paragraph gives one PowerShell and one POSIX command, each through $HO
 
 // The PowerShell form is never run here (ADR 0048), so it is held word for
 // word: a command chained before the call would pass a prefix check (#210).
-const EXACT = ['$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" <arguments>', 'env -u NODE_OPTIONS node "$HOME/.claude/pact/cross.mjs" <arguments>'];
+const EXACT = ['$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" ARGUMENTS', 'env -u NODE_OPTIONS node "$HOME/.claude/pact/cross.mjs" ARGUMENTS'];
 
 /** Whether a text's cross-script commands are exactly the documented forms. */
 const exactForms = text => JSON.stringify([...commands(text)].sort()) === JSON.stringify([...EXACT].sort());
@@ -75,15 +76,24 @@ test('bad case: a command chained before the PowerShell call fails the exact che
   assert.equal(exactForms(text), false);
 });
 
-test('the paragraph names both failure exit codes and what each means', () => {
-  const p = paragraph();
-  assert.match(p, /Exit 1: a report failed a check/);
-  assert.match(p, /no section\s+was written/);
-  assert.match(p, /Exit 2: a report alone is over\s+the comment limit/);
-  assert.match(p, /never rebuild the cards by\s+hand/);
-  assert.match(p, /Post only the fenced, folded reports it wrote, never the raw\s+report text/);
-  assert.match(p, /On either failure code, keep each report it lists as\s+kept local or left out as a local file/);
-  assert.match(p, /output without one means the\s+script is unavailable, so stop and report/);
+// #261 S6: the review file carries the exit codes and the four data-handling lines.
+test('the review file names both failure exit codes, what each means, and the four data-handling lines', () => {
+  const p = PACT_TEXT().replace(/\s+/g, ' ');
+  for (const words of [
+    '**1:** a report failed a check, and no section was written. Post only the fenced, folded reports it wrote',
+    '**2:** a report alone is over the comment limit. Post the section and the reports that fit.',
+    'Its last line is always a `RESULT:` line.** Output without one means the script is unavailable: stop and say so.',
+    'Post only the fenced reports and sections the cross script wrote. Never rebuild them by hand, and never post the raw report text.',
+    'A report the cross script kept local or left out stays a local file.** Name its path to me in chat, never on the tracker.',
+    "A report's \"For the owner\" section holds no line numbers, codes or paths.",
+  ]) assert.ok(p.includes(words), words);
+});
+
+// #261 S2: a session that skips the review file still runs the right script, and is told to read the file.
+test('the rules file points to the review file and names the installed cross script', () => {
+  const rules = read(join(REPO, 'claude', 'CLAUDE.md')).replace(/\s+/g, ' ');
+  assert.ok(rules.includes("read the pact's review procedure, `~/.claude/pact/review.md`."), 'the review file pointer');
+  assert.ok(rules.includes('the installed script, `~/.claude/pact/cross.mjs`, never a copy in a repo.'), 'the installed script');
 });
 
 /** The last non-empty line of the script's stdout. */
@@ -162,7 +172,7 @@ function reachedInstalled(r) {
   assert.ok(!out.includes('PRELOAD'), `NODE_OPTIONS was not cleared:\n${out}`);
 }
 
-const bare = c => c.replace(/\s*<arguments>/, '');
+const bare = c => c.replace(/\s*ARGUMENTS/, '');
 
 test("the pact's POSIX command reaches the installed script, not a planted one", t => {
   assert.ok(SH, 'no POSIX shell found; the POSIX form must not go untested');
