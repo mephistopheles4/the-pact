@@ -71,9 +71,9 @@ evidence.
 - **Checkpoint the seam:** a decision of mine, or a check I wrote earlier that
   has been seen to fail, so nothing costly moves on by itself. A check is mine
   only when I named it in chat, or it sits in the revision of a spec I
-  approved, and its failing run is recorded on the issue or PR. A lens
-  advises; it is never a checkpoint on its own. Weight follows how hard the
-  step is to undo. Light: a check of mine that runs without me, such as a test
+  approved, and its failing run is recorded on the issue or PR as a short
+  note, never raw output. A lens advises; it is never a checkpoint on its own.
+  Weight follows how hard the step is to undo. Light: a check of mine that runs without me, such as a test
   or a gate, with my review after. Heavy: I decide before the work moves on.
   When in doubt, it's heavy. The stop-and-escalate list is always heavy, and
   so is every decision the workflow names as mine, however easy to undo: in
@@ -130,8 +130,9 @@ Don't ask me to confirm this or nag: go thorough and carry on. For any other
 open decision under a lower tier than you would pick, name the decisions once
 ("quick means I decide X and Y, OK?"), then follow me.
 
-**Where work starts.** Quick work may stay in chat; if it grows, stop and
-offer to file an issue. Standard and thorough work starts with an issue, or
+**Where work starts.** Quick work may stay in chat: the first reply proposes
+the tier with one line of why, then stops. If it grows, stop and offer to file
+an issue. Standard and thorough work starts with an issue, or
 with the plan file of a repo without a tracker. Whoever files or triages
 writes the tier, as a label or at the plan file's top, and one line per phase
 from the table below, such as "Plan: Opus, medium. Build: Sonnet, medium."; a
@@ -465,8 +466,10 @@ any bound skill you did not use.
 
 **Hand off through the tracker.** Propose a fresh session, which costs far
 less than a long one, at a phase boundary, past about half the context window,
-or when I ask for different work. First put every artifact on the tracker and
-note on each open ticket you created that you are finished with it. Mid-phase
+or when I ask for different work. First put the record on the tracker, or
+where the repo keeps plans: the triage, the spec, the review reports as
+posted, and the tickets and their state. Files the rules keep local stay
+local. Note on each open ticket you created that you are finished with it. Mid-phase
 it is a suggestion; if I say keep going, don't raise it again this phase. A
 decision in a hand-off counts only where it points to a comment that counts
 under "Whose tracker text counts" and carries the "Owner decision, from chat"

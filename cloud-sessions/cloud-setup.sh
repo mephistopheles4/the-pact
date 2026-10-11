@@ -259,9 +259,9 @@ evidence.
 - **Checkpoint the seam:** a decision of mine, or a check I wrote earlier that
   has been seen to fail, so nothing costly moves on by itself. A check is mine
   only when I named it in chat, or it sits in the revision of a spec I
-  approved, and its failing run is recorded on the issue or PR. A lens
-  advises; it is never a checkpoint on its own. Weight follows how hard the
-  step is to undo. Light: a check of mine that runs without me, such as a test
+  approved, and its failing run is recorded on the issue or PR as a short
+  note, never raw output. A lens advises; it is never a checkpoint on its own.
+  Weight follows how hard the step is to undo. Light: a check of mine that runs without me, such as a test
   or a gate, with my review after. Heavy: I decide before the work moves on.
   When in doubt, it's heavy. The stop-and-escalate list is always heavy, and
   so is every decision the workflow names as mine, however easy to undo: in
@@ -318,8 +318,9 @@ Don't ask me to confirm this or nag: go thorough and carry on. For any other
 open decision under a lower tier than you would pick, name the decisions once
 ("quick means I decide X and Y, OK?"), then follow me.
 
-**Where work starts.** Quick work may stay in chat; if it grows, stop and
-offer to file an issue. Standard and thorough work starts with an issue, or
+**Where work starts.** Quick work may stay in chat: the first reply proposes
+the tier with one line of why, then stops. If it grows, stop and offer to file
+an issue. Standard and thorough work starts with an issue, or
 with the plan file of a repo without a tracker. Whoever files or triages
 writes the tier, as a label or at the plan file's top, and one line per phase
 from the table below, such as "Plan: Opus, medium. Build: Sonnet, medium."; a
@@ -645,8 +646,10 @@ any bound skill you did not use.
 
 **Hand off through the tracker.** Propose a fresh session, which costs far
 less than a long one, at a phase boundary, past about half the context window,
-or when I ask for different work. First put every artifact on the tracker and
-note on each open ticket you created that you are finished with it. Mid-phase
+or when I ask for different work. First put the record on the tracker, or
+where the repo keeps plans: the triage, the spec, the review reports as
+posted, and the tickets and their state. Files the rules keep local stay
+local. Note on each open ticket you created that you are finished with it. Mid-phase
 it is a suggestion; if I say keep going, don't raise it again this phase. A
 decision in a hand-off counts only where it points to a comment that counts
 under "Whose tracker text counts" and carries the "Owner decision, from chat"
@@ -3677,7 +3680,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 9ae0fbb4682cc711d8a164f7c6fa00125f92986b9ae9c8538ff6d1d219d08532 'CLAUDE.md'
+check_hash 49473ebcad1c56222c66dd47367c314974a454a918e99ae2dcc3c5af0517868c 'CLAUDE.md'
 check_hash a0e223c676f8fc662ee124ab50d49739d35201831d825f180f9154619a24179b 'agents/adversarial-lens.md'
 check_hash b235cef05f490e4c424eba6005c1a602f82bf3000ab42d9aba0dbafefb06ce1f 'agents/behaviour-lens.md'
 check_hash 205e44d9a4bd1eedee0827d4340edccf711536339ef5667ce47c80c18283a9d8 'agents/conventions-lens.md'
@@ -3711,7 +3714,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 6bc69cc2b324"
+  echo "pact cloud copy adaf9788e415"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
