@@ -147,7 +147,7 @@ How to read it:
 | R20 Lens untested | Text a lens reads | Review at move 4, the security route | Rule |
 | R21 Test code ordinary | A careless or fooled edit | Review at move 4 | Rule |
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail", in the tracker rule and in the moves section's floor | Rule |
+| R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the risk floor, "Never post a secret or a personal detail", in the tracker rule and in the moves section's floor | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
 
 ## Strangers on the tracker
@@ -275,7 +275,7 @@ once you install it.
   published, such as a package's contents, a release step or a personal
   detail in a committed file, can be built at the quick tier with no spec
   read. Three rules are left: the gated stop, which has a session ask you
-  before something hard to reverse is published; "secrets" on the floor, for
+  before something hard to reverse is published; "secrets" on the risk floor, for
   keys and tokens; and the tracker rule "Never post a secret or a personal
   detail". Text that frames such a change as quick work can steer past the
   reviews, and your answer at the stop is then the only check. A spec settles

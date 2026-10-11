@@ -14,16 +14,16 @@ A sentence stays as a **rule** only when it names a failure that all three of th
 
 **What the harness was taken to cover**, as read on 2026-10-11 from Claude Code's public docs and the system prompt the build session ran under:
 
-- **Auto mode** blocks force-pushes, merges with no human approval (a soft block that a user message or start prompt naming the merge lifts; on this repo the merge is not a human checkpoint, per R24), destroying files that existed before the session, printing a live token, sending sensitive data out of the repo, sensitive details in public comments, and piping a download into a shell. It allows pushes to the default branch and opening pull requests. Those blocks hold only in auto mode, which the owner runs by default.
+- **Auto mode** blocks force-pushes, merges with no human approval (a soft block that a user message or start prompt naming the merge lifts; on this repo the merge is not a human checkpoint, per R24 in `docs/threat-model.md`), destroying files that existed before the session, printing a live token, sending sensitive data out of the repo, sensitive details in public comments, and piping a download into a shell. It allows pushes to the default branch and opening pull requests. Those blocks hold only in auto mode, which the owner runs by default.
 - **The system prompt**, as of 2026-10-11, has the model confirm hard-to-reverse or outward-facing actions, report failures faithfully, and know its own model name; its tool list holds a message tool that reaches other local sessions. Its default text isn't published and can change. **Recheck it** for each deletion below that rests on it.
 - **The docs' own caveat:** `CLAUDE.md` is context, not enforced configuration, and auto mode's classifier reads it. A kept rule still steers the classifier; a hard rule belongs in a deny rule, an ask rule or a hook where one fits.
 
 ## What changed
 
 - **`## The moves`** is new, directly above "Implementing a change". It holds the four moves as intents: sense the work, think before doing, checkpoint the seam, stay the owner. They repeat at every seam, any move can send the work back, and a session starts at the move the owner's record on the issue shows. A checkpoint is the owner's decision, or a check the owner wrote earlier that has been seen to fail; a lens advises and is never one on its own. Weight follows how hard a step is to undo, and every decision the workflow names as the owner's is heavy.
-- **The floor** is a paragraph in that section that points at the gated clauses and restates none of them: stop and escalate; never post or publish a secret or a personal detail; risky work takes the careful path; risky work gets an independent review before it ships, and every result gets a review that could have failed (the two **required slots**, filled in software by the security route and the QA pair); whose text counts, and outsiders' code never runs. Only a change to the rules file, installed through the gate, narrows the risky list or swaps a reviewer; anything else may only add. A new test, `gate/tests/floor.test.mjs`, holds its sentences word for word.
+- **The floor** is a paragraph in that section that points at the gated clauses and restates only one, the tracker rule's never-post line, widened to anything published: stop and escalate; never post or publish a secret or a personal detail; risky work takes the careful path; risky work gets an independent review before it ships, and every result gets a review that could have failed (the two **required slots**, filled in software by the security route and the QA pair); whose text counts, and outsiders' code never runs. Only a change to the rules file, installed through the gate, narrows the risky list or swaps a reviewer; anything else may only add. A new test, `gate/tests/floor.test.mjs`, holds its sentences word for word.
 - **The section is not gated,** so the gate's code is unchanged. Instead, `AGENTS.md` puts "the moves section of `claude/CLAUDE.md`" on the security route.
-- **`move-4`** opens with the owner's three tests of ownership: "I own the result when I can verify it, reconstruct why it is right, and know when to stop it." It adds "Your confidence is never evidence." "Never resume a reviewer, a lens or a checker" keeps its scope and loses its restated reason. The reviewers, the tiers, "Then run the QA pair," the "(below)" pointer and the "I decide" ending are unchanged. The span from `` `unstated-lens`, `` to "thorough tiers;" keeps today's line breaks, because an existing test plants a weakening on those exact bytes (q1 on #232, option A).
+- **`move-4`** opens with the owner's three tests of ownership: "I own the result when I can verify it, reconstruct why it is right, and know when to stop it." It adds "Your confidence is never evidence." "Never resume a reviewer, a lens or a checker" keeps its scope and loses its restated reason. The reviewers, the tiers, "Then run the QA pair," the "(below)" pointer and the "I decide" ending are unchanged. The span from `` `unstated-lens`, `` to "thorough tiers;" keeps today's line breaks, because an existing test plants a weakening on those exact bytes (q1 on #232: the lead session, whose messages the build's brief counts as the owner's decisions, chose option A).
 - **The other seven gated clauses are byte for byte unchanged,** and so are the open parts of moves 1 to 4 and `usage-pause`.
 
 ## What was deleted, and what covers it
@@ -46,7 +46,7 @@ A sentence stays as a **rule** only when it names a failure that all three of th
 | The project named in the double-claim example | Across projects: the example no longer names another project. |
 | `move-4`: "I verify the work at the end of its build session", and "fresh context is the point of them" | The three tests of ownership; the freshness rule keeps its scope. |
 
-**Kept although S6 cut them:** the two tool names in the parallel-session rules, `mcp__ccd_session_mgmt__list_sessions` and `mcp__ccd_session_mgmt__send_message`. The cloud copy's edits anchor on those two paragraph openings, and a test pins the edits by digest, so the spec's rule that pinned text stays word for word wins. The threat model's R24 still describes them.
+**Kept although the spec's table of rows (S6) cut them:** the two tool names in the parallel-session rules, `mcp__ccd_session_mgmt__list_sessions` and `mcp__ccd_session_mgmt__send_message`. The cloud copy's edits anchor on those two paragraph openings, and a test pins the edits by digest, so the spec's rule that pinned text stays word for word wins. The threat model's R24 still describes them.
 
 ## What was kept, and the failure each prevents
 
@@ -59,7 +59,7 @@ A sentence stays as a **rule** only when it names a failure that all three of th
 - **The fit check's two formats and the digest:** the owner wants a mismatch first, and only a Sonnet session can read its effort setting, so the formats differ by model.
 - **Bound skills:** a session that follows a user-only skill's file in its place takes a step the owner keeps for themselves.
 - **The lens operation sentences:** fresh and alone; word for word, from a file; the cross script by full path with `NODE_OPTIONS` cleared; no `RESULT:` line means stop; on exit 1, only the fenced, folded reports; a kept report's path to the owner in chat, never the tracker; `git status` after `behaviour-lens`; the mutation step's lock-pinned binary, no fetching runner, and before-and-after snapshot. On a cross failure the script writes nothing, so these are the only guard; the fence keeps a report's links and images from rendering, and a path on a public tracker leaks the machine's layout.
-- **Lookups:** C3 routes `scout` through this line.
+- **Lookups:** seam A's routing check (C3) routes `scout` through this line.
 - **Auto-take and its exceptions:** each exception is a decision only the owner makes.
 - **Lens dispositions and escapes:** they feed the only measure of the lenses. "On a public repo, a security escape carries only the lens, the link to the review and a placeholder until its fix ships" keeps an unfixed hole off a public tracker.
 - **Across projects:** the harness can't know which names are private.
@@ -68,9 +68,9 @@ A sentence stays as a **rule** only when it names a failure that all three of th
 - **Needs a human:** without it a spec hides the owner's steps until the build stalls on them.
 - **Parallel sessions:** one ticket was claimed by two sessions (recorded), because every session signs in as the same user.
 
-## The owner's acceptance (S4)
+## The owner's acceptance (the spec's S4)
 
-The risky list stays the gated `risk-floor` clause, unchanged (q2 on #186, option A). The owner accepts, by name, that personal data written into code or logs can be built below the thorough tier. It is guarded only by the never-post rule and the publish stop. Neither guard reaches personal data the built code writes to its own logs at run time, and the owner accepts that too. The threat model's R23 records it.
+The risky list stays the gated `risk-floor` clause, unchanged (the owner's answer to question q2 on #186, option A). The owner accepts, by name, that personal data written into code or logs can be built below the thorough tier. It is guarded only by the never-post rule and the publish stop. Neither guard reaches personal data the built code writes to its own logs at run time, and the owner accepts that too. The threat model's R23 records it.
 
 ## Considered and rejected
 
@@ -82,4 +82,4 @@ The risky list stays the gated `risk-floor` clause, unchanged (q2 on #186, optio
 ## How this was decided
 
 - **2026-10-11** in mephistopheles4/the-pact#186: the direction, a judgment-first rewrite; q1, the slots declared only; risky-list option A; the hand-off test cut; the marketing example deferred to #143; the planted probe dropped; a floor test added; proceed on spec rev 5. Each is an owner decision from chat. The security pair read revisions 2 and 4; the spec pair and `unstated-lens` read revision 3.
-- **2026-10-11** in mephistopheles4/the-pact#232, the build: q1, move 4's line breaks (option A); q2, the word budget.
+- **2026-10-11** in mephistopheles4/the-pact#232, the build: question q1, move 4's line breaks (option A, the lead session's decision); question q2, the word budget (option A, the owner's, relayed by the lead): the 3,500-word budget left the ticket and the size target moved to #233.
