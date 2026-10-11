@@ -52,8 +52,9 @@ test('the gated blocks are skipped: stop-and-escalate still holds its `prototype
   assert.deepEqual(namedSkills(MD), []);
 });
 
+// #247 C3: the plant site follows move 3's owner-voice text.
 test('bad case: one skill name put back in move 3 is caught', () => {
-  const planted = MD.replace('test-first at the agreed seams.', 'test-first at the agreed seams (`tdd`).');
+  const planted = MD.replace('each built in its own session.', 'each built in its own session (`tdd`).');
   assert.notEqual(planted, MD, 'the plant found nothing to replace');
   assert.deepEqual(namedSkills(withoutOpenMarks(planted)), ['tdd']);
 });
