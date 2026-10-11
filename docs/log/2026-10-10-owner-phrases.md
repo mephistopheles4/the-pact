@@ -28,4 +28,4 @@ Issue comments on mephistopheles4/the-pact#203:
 - **Spec:** revision 1 6103293852; security pair on it 6103325746. Revision 2 6103331500; `unstated-lens` on it 6103346603. Lens dispositions 6103350689. Revision 3 6103350775.
 - **Plan phase finished, proceed on revision 3:** 6103355047.
 - **Build:** draft PR #226 and the first full run, 6103670404.
-- **Move 4:** QA pair 6103670619, `unstated-lens` 6103670911, standards pair 6103671109, security pair 6103671511.
+- **Move 4:** QA pair 6103670619, `unstated-lens` 6103670911, standards pair 6103671109, security pair 6103671511; Lens dispositions 6103691176.
