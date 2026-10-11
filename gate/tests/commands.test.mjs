@@ -1,10 +1,11 @@
 // Pact commands in the gate (#203, T1): seam A's command kind and its
 // --commands argument, and the renderer's commands key and COMMANDS line.
-// Each bad case is a table row that must fail with its exact rule ids. No
-// command file ships yet, so every case plants its own. Nothing here installs;
-// commands-install.test.mjs runs the install script.
+// Each bad case is a table row that must fail with its exact rule ids. Every
+// bad case plants its own command file; the shipped ones (#203, T2) are
+// checked at the end. Nothing here installs; commands-install.test.mjs runs
+// the install script.
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { PACT_COMMANDS as INSTALL_COMMANDS } from '../install-core.mjs';
@@ -183,4 +184,29 @@ test('a project configuration may not hold commands', t => {
   const r = runCore('render', ['project', tempDir(t, 'pact-render-out-'), tempDir(t, 'pact-render-home-'), proj]);
   assert.equal(r.code, 1, r.out);
   assert.match(r.stdout, /^FAIL project-key: /m, r.out);
+});
+
+// ------------------------------------------------------------ the shipped commands (#203, T2)
+
+const SHIPPED = ['make-it-so', 'finis'];
+const shipped = name => readFileSync(join(REPO, 'claude', 'commands', `${name}.md`), 'utf8').replace(/\r\n/g, '\n');
+
+test('the shipped /make-it-so and /finis pass seam A and are listed to install', t => {
+  const root = stage(t, Object.fromEntries(SHIPPED.map(n => [`claude/commands/${n}.md`, shipped(n)])));
+  const r = runSeamA(root, undefined, { commands: SHIPPED.join(',') });
+  assert.equal(r.code, 0, r.out);
+  for (const n of SHIPPED) {
+    assert.match(r.stdout, new RegExp(`^PASS command: claude/commands/${n}\\.md$`, 'm'), r.out);
+    assert.match(r.stdout, new RegExp(`^INSTALL [0-9a-f]{64} claude/commands/${n}\\.md commands/${n}\\.md$`, 'm'), r.out);
+  }
+});
+
+// The whole text of each body, so an added rule fails here and is read at review.
+const BODIES = {
+  'make-it-so': ['---', 'description: The owner\'s "accept all recommendations", meant to be typed by the owner.', 'disable-model-invocation: true', '---', '', '# /make-it-so', '', 'Accept every recommendation in your last message, and carry them out.', ''].join('\n'),
+  finis: ['---', 'description: The owner\'s "we\'re done, archive this session", meant to be typed by the owner.', 'disable-model-invocation: true', '---', '', '# /finis', '', 'We\'re done: archive this session.', '', 'First check whether anything in it is outstanding, such as work not yet', 'committed or pushed, or a step left unfinished. If there is, say what it is', 'and don\'t archive. If there isn\'t, archive the session.', ''].join('\n'),
+};
+
+test('the shipped bodies are exactly the owner\'s plain meaning: accept every recommendation; archive only when nothing is outstanding', () => {
+  for (const n of SHIPPED) assert.equal(shipped(n), BODIES[n], n);
 });

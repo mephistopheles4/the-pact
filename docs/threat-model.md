@@ -74,7 +74,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R24
+  title Residual risk, R1 to R25
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -104,6 +104,7 @@ quadrantChart
   R22 Apply asks only: [0.34, 0.62]
   R23 Publish below the floor: [0.30, 0.56]
   R24 A lead moves work: [0.40, 0.70]
+  R25 Command sent as prompt: [0.30, 0.64]
 ```
 
 How to read it:
@@ -116,7 +117,7 @@ How to read it:
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   apply spelled past the ask rules (R22), publishing work below the
-  thorough tier (R23), and a lead moving work (R24) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  thorough tier (R23), a lead moving work (R24), and a pact command sent as prompt text (R25) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
 - **Accept (bottom left): R17, R21.** R17 needs your own edits, and the dry
@@ -149,6 +150,7 @@ How to read it:
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the risk floor, "Never post a secret or a personal detail", in the tracker rule and in the moves section's floor | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
+| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Never post a secret or a personal detail" and the publish stop; the cloud copy ships no commands | Outside the pact, rule |
 
 ## Strangers on the tracker
 
@@ -457,6 +459,35 @@ session can act before you see it.
   prompt's decision (R2), and an OK to run outsiders' code that arrives in a
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
+- **R25. A pact command sent as prompt text.** `/make-it-so` and `/finis`
+  set `disable-model-invocation: true`. That stops the model starting one,
+  not text sent in as a prompt. The bodies add no check of their own, by the
+  owner's decision (#229), so what guards each channel is outside them, and
+  none has been tried live:
+  - **A message from another desktop session** arrives quoted and attributed
+    to its sender, by Claude Code's own handling (R24).
+  - **A fresh start prompt** has no last message, so `/make-it-so` has no
+    recommendation to accept.
+  - **A resume prompt, or a print-mode run of a resumed session,** has no
+    Claude Code guard: auto mode reads it as your own ask (R24). Only the
+    session's judgement and the "start prompt is not chat" rule in
+    `tracker-authors` stand there. Through it, `/make-it-so` carries out the
+    recommendations in the session's last message, which can include a
+    merge, a push or a tracker post. A plain-words resume prompt could
+    already ask the same.
+  - **`/finis` archives,** and archiving removes the session's worktree,
+    files git ignores included, which its check for outstanding work does
+    not look at. Claude Code asks you before any archive, in every
+    permission mode; that card is the guard against a relayed `/finis`.
+
+  What still holds whoever sent the command: "Never post a secret or a
+  personal detail" and the publish stop. The cloud copy ships neither
+  command. A project's own skill with the same name runs in place of a
+  command, and the install's skill-clash check covers only your personal
+  skills folder. Such a skill can come from another account's commit in a
+  tree you work in, and its shell commands run when you type the name,
+  before the model reads anything. No settings rule asks before a merge;
+  you can add one, at the cost of a click on every merge.
 
 ## Your own configuration loosening a rule
 
