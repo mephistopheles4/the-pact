@@ -23,6 +23,7 @@ import {
   TEMPLATES,
   applyEdits,
   assemble,
+  commandsArg,
   editsDigest,
   gatedClauses,
   generate,
@@ -403,6 +404,9 @@ test('cloud copy: the command list is pinned, and empty until the cloud channels
   assert.deepEqual([...CLOUD_COMMANDS], []);
   assert.ok(Object.isFrozen(CLOUD_COMMANDS));
   assert.doesNotMatch(repoText(OUTPUTS.setup), /^write_config 'commands\//m, 'no command in the cloud copy');
+  assert.equal(commandsArg([]), 'none');
+  assert.equal(commandsArg(['make-it-so', 'finis']), 'make-it-so,finis');
+  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\)\]\)/, 'seam A gets the constant');
 });
 
 test('cloud copy: the wrapper embeds cloud-setup.sh byte for byte', () => {

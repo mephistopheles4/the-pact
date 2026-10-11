@@ -39,7 +39,9 @@ nothing it doesn't.
   one, still follows it. A decision missing from the list isn't covered. The
   list is the "tell me and wait" a stop asks for, so a merge or an install
   in it is answered as if I had typed "proceed". Merge only at the named
-  head commit; if the head has moved, stop and ask.
+  head commit, and pass that commit to the merge itself, such as
+  `gh pr merge --match-head-commit`, so a head that moves at the last moment
+  refuses the merge. If the head has moved, stop and ask.
 - **What it never covers:** anything a rule says I type or start myself, such
   as a user-only command's or skill's trigger, the OK to run outsiders' code,
   or confirming the login when a token is set; cutting a lens; and the
@@ -61,10 +63,11 @@ nothing it doesn't.
   newest one: the command then covers none of my own decisions, so restate
   the decision list and ask.
 - **The record names the decisions.** Post each of my decisions you took,
-  marked "Owner decision, from chat", quoting the decision list it answered:
-  for example "Owner decision, from chat: make it so, answering: proceed on
-  revision 2". Name a decision and its commit, never a rendered hash, an
-  apply command or a local path. The record goes on the issue; with no
+  marked "Owner decision, from chat", quoting the decision it answered from
+  the list, with any rendered hash left out: for example "Owner decision,
+  from chat: make it so, answering: proceed on revision 2", or "answering:
+  install commit 1a2b3c4". Name a decision and its commit, never a rendered
+  hash, an apply command or a local path. The record goes on the issue; with no
   issue, in the plan file; with neither, in chat.
 - **Not auto-take.** Auto-take is you acting on your own recommendation
   without me. `/make-it-so` is my word: its limits are the ones above, the

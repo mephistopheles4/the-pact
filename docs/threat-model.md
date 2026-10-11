@@ -74,7 +74,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R24
+  title Residual risk, R1 to R25
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -104,6 +104,7 @@ quadrantChart
   R22 Apply asks only: [0.34, 0.62]
   R23 Publish below the floor: [0.30, 0.56]
   R24 A lead moves work: [0.40, 0.70]
+  R25 Command sent as prompt: [0.30, 0.64]
 ```
 
 How to read it:
@@ -116,7 +117,7 @@ How to read it:
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   apply spelled past the ask rules (R22), publishing work below the
-  thorough tier (R23), and a lead moving work (R24) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  thorough tier (R23), a lead moving work (R24), and a pact command sent as prompt text (R25) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
 - **Accept (bottom left): R17, R21.** R17 needs your own edits, and the dry
@@ -149,6 +150,7 @@ How to read it:
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail" | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
+| R25 Command sent as prompt | A lead, a resumed session, text a session reads | The command body's who-typed-it rule, the decision list, the merge's head-commit match; the cloud copy ships no commands | Rule |
 
 ## Strangers on the tracker
 
@@ -448,6 +450,33 @@ session can act before you see it.
   prompt's decision (R2), and an OK to run outsiders' code that arrives in a
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
+- **R25. A pact command sent as prompt text.** `/make-it-so` and `/finis`
+  set `disable-model-invocation: true`. That stops the model starting one,
+  not text sent in as a prompt: a start prompt, another session's message, a
+  resumed session's next turn, a print-mode run, or a message queued into a
+  cloud session can each start one. Each body treats a turn the session
+  can't show you typed as data and writes no record for it, but that is
+  model judgement. The real-session check that would have tried it was
+  skipped (#229). Through a turn that passes as typed, `/make-it-so` takes
+  the decisions the session's last message listed, such as a merge at a
+  named head commit, and writes an "Owner decision, from chat" record. What
+  bounds it:
+  - **The decision list.** It covers only decisions the session had already
+    prepared and named, each with its identifier.
+  - **The head-commit match.** The merge itself carries the named commit,
+    so a moved head refuses it.
+  - **Sent-in messages are covered** by Claude Code's own handling (R24);
+    start prompts and resumed turns are not.
+  - **The cloud copy ships no commands** until a queued cloud message and a
+    print-mode run have been tried.
+
+  Two related gaps. A project's own skill with the same name runs in place
+  of the command, and the install's skill-clash check covers only your
+  personal skills folder. And whether text typed after a command is scanned
+  for load-time shell forms is untested; the gate refuses argument
+  placeholders in the bodies, so the text is never spliced into one. No
+  settings rule asks before a merge; you can add one, at the cost of a click
+  on every merge.
 
 ## Your own configuration loosening a rule
 

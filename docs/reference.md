@@ -23,10 +23,12 @@ effort, and what never goes in. For what the pact is and why, read the
 ## Pact commands
 
 A pact command is a slash command that stands for an answer the owner gives
-often. Only the owner starts one, by typing it: each sets
-`disable-model-invocation: true`, so the model can't start it, and each
-treats a start prompt or another session's message as data. A command is
-installed only when its name is in the `commands` list of
+often, meant to be typed by the owner. Each sets
+`disable-model-invocation: true`, so the model can't start it on its own.
+Text sent in as a prompt, such as a start prompt or another session's
+message, can still start one: each body treats such a turn as data, which is
+model judgement, not a check (threat model, R25). A command is installed
+only when its name is in the `commands` list of
 `~/.claude/pact/config.json`. The cloud copy installs none yet.
 
 | Command | What it stands for |

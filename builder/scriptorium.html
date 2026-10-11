@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-efF1UIx81Z8fkPAQSsq/QuZiOPW5H2mKzomEMquiqh8='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-2nJjdRi0Qqf5yKcgcX1TFAlTnT7yewkdIN7tf64LBAk='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -863,6 +863,24 @@ function keepCommands(files, existing) {
   return { files: [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...files.slice(1)] };
 }
 
+/**
+ * Read the config.json already in the picked folder `dir`, a directory
+ * handle, and pass it through keepCommands. No file there is not a problem;
+ * a file that can't be read refuses, so nothing is written.
+ */
+async function keepCommandsIn(dir, files) {
+  let existing = null;
+  try {
+    existing = await (await (await dir.getFileHandle('config.json')).getFile()).text();
+  } catch (e) {
+    if (!e || e.name !== 'NotFoundError') return { refuse: 'The folder\'s config.json could not be read, so nothing was written.' };
+  }
+  return keepCommands(files, existing);
+}
+
+// Shown wherever the config.json download button is, with or without a folder picker.
+const DOWNLOAD_NOTE = 'A downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands.';
+
 /** Add a preset after its slot's text. Returns a message when it doesn't belong there. */
 function addPreset(state, mark, id) {
   const p = presetById(id);
@@ -1478,13 +1496,7 @@ function boot() {
       if (e && e.name === 'AbortError') return setStatus('Save cancelled. Nothing was written.', '');
       return setStatus('The folder could not be opened. Use the download buttons instead.', 'error');
     }
-    let existing = null;
-    try {
-      existing = await (await (await dir.getFileHandle('config.json')).getFile()).text();
-    } catch (e) {
-      if (!e || e.name !== 'NotFoundError') return setStatus('The folder\'s config.json could not be read, so nothing was written.', 'error');
-    }
-    const kept = keepCommands(files, existing);
+    const kept = await keepCommandsIn(dir, files);
     if (kept.refuse) return setStatus(kept.refuse, 'error');
     files = kept.files;
     try {
@@ -1600,8 +1612,8 @@ function boot() {
       overview,
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
       el('p', { class: 'av-annot', text: canPick
-        ? 'Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there, keeping a commands list config.json already holds. Then run the install script\'s dry run and read its Configuration block.'
-        : 'This browser has no folder picker, so save each file with its download button and put it where it says. A downloaded config.json holds no commands list: if yours has one, copy that line across, or the next install deletes those commands. Then run the install script\'s dry run and read its Configuration block.' }),
+        ? `Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there, keeping a commands list config.json already holds. ${DOWNLOAD_NOTE} Then run the install script\'s dry run and read its Configuration block.`
+        : `This browser has no folder picker, so save each file with its download button and put it where it says. ${DOWNLOAD_NOTE} Then run the install script\'s dry run and read its Configuration block.` }),
       el('ul', { class: 'callouts' }, ...notes),
       el('div', { class: 'files' }, ...fileViews),
     );
