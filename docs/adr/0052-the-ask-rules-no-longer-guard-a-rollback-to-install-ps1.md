@@ -1,5 +1,7 @@
 # The ask rules no longer guard a rollback to install.ps1
 
+Superseded in part by [ADR 0058](0058-the-pact-keeps-no-rollback-path-to-install-ps1.md) (2026-10-11): "`docs/install.md` gives the step" no longer holds as written. The how-to points here for the text to search for, and keeps the warning and the two checks. The risk acceptance below stands.
+
 The 18 ask rules that guarded the old PowerShell installer's apply step are gone from the settings overlay, the settings allow-list and seam A's required list. A rollback that runs an older commit's `install.ps1` with its apply switch now runs without a prompt. This supersedes [ADR 0049](0049-the-apply-guard-asks-on-an-apply-not-a-mention.md) in part: its "old PowerShell installer, 18 rules" item, and its "Seam A requires all 60", which is now 42. It also ends the "what stays" bullet in [ADR 0048](0048-the-gates-tests-never-need-powershell.md) on the `install.ps1` ask rules.
 
 ## What changed

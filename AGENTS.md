@@ -110,10 +110,17 @@ how every session in every repo behaves. So:
   installed, not the configuration files: a file changed after the dry run
   still installs if it renders the same bytes, which can never be looser.
 - **Rolling back.** An older pact installs with that commit's own installer:
-  check the commit out and run its install. A commit from before the Node
-  install (#166) holds only `scripts/install.ps1`, which needs PowerShell 7.
-  Both installers read and write the same record, so either can follow the
-  other. No ask rule guards `install.ps1`'s apply step (ADR 0052).
+  check the commit out and run its install, dry run first. Rollback is
+  supported only to commits from the Node install's cutover (#166, `6821d68`)
+  on. **Before checking out a commit to roll back to,** check two things: it
+  holds `gate/install.mjs` (`git cat-file -e <commit>:gate/install.mjs`
+  succeeds), and it descends from the cutover
+  (`git merge-base --is-ancestor 6821d68 <commit>` succeeds). If either check
+  fails, don't check the commit out, never run an installer from it, and stop
+  to ask the owner. Check first, because an older commit's own `AGENTS.md`
+  presents a PowerShell installer as the route, and no ask rule guards one
+  (the threat model's R22). From a commit that passes, run only
+  `gate/install.mjs`.
 - **The cloud copy is generated.** `cloud-sessions/` holds the setup script
   for Claude Code cloud sessions. `cloud-sessions/gen.mjs` builds it, and
   `CLAUDE.cloud.md`, from the payload, through the same render and seam A a
@@ -230,8 +237,7 @@ how every session in every repo behaves. So:
   A test that runs the script without `install()` goes through the harness's
   `spawnNodeInstall`, so it counts. A test that only reads the script's code
   belongs in a file that never installs, and imports `install-core.mjs` or
-  reads the file. A test file that names `install.ps1` is still put in the
-  install tier, so a test of a rollback to it is counted as an install.
+  reads the file.
 - **Import helpers by what they touch** (ADR 0034), and take only what the
   test uses. `text.mjs` touches nothing; `tree.mjs` touches the files a test
   names; `gate-files.mjs` reads the gate's own files; `payload.mjs` reads the
@@ -260,7 +266,6 @@ how every session in every repo behaves. So:
   that names nothing gets a one-line stated reason, or it is cut before move 4.
   A backing comment never writes a file path or a script name. The test runner
   matches a changed path against each test file's text, comments included,
-  and puts any file that names `install.ps1` in the install tier,
   so a path in a comment changes what runs. Quick work has no numbered claims
   while its tests are written first: such a test names the done-criterion in
   words, and the comment is not updated when move 4 numbers the claims.
