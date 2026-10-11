@@ -375,13 +375,12 @@ the spec, the diff and the working folder, and check `git status` after it
 runs. Give `integrity-lens` the claims, the spec, the diff, the tests you cite
 for each claim, and the plan if there is one.
 
-**The mutation step.** When the repo has a mutation-testing tool pinned by its
-own lock file, run its local binary before dispatching `integrity-lens`;
-never run a command that can fetch a package, such as `npx`, `pnpm dlx` or
-`bunx`. Write its output to a new file in your scratch folder for the lens.
-Snapshot the working tree, untracked files included, before and after, and
-check the two match. A tool config that comes with the diff runs code, like
-the diff's tests. With no tool, say so.
+**The mutation step.** A mutation-testing tool pinned by the repo's lock file
+runs as its local binary before `integrity-lens`, never through a command that
+can fetch a package (`npx`, `pnpm dlx`, `bunx`), with its output in a new file
+in your scratch folder. Snapshot the working tree, untracked files included,
+before and after, and check they match. A tool config in the diff runs code,
+like its tests. With no tool, say so.
 
 **The cross call.** Run the cross script with `cross`, `--point result`, the
 issue's tier as `--tier`, the claim ids as `--anchors`, a new folder as
@@ -439,9 +438,9 @@ auto-takes under "Auto-takes" on the issue. One I reverse is marked
 question a lens there asked, gets a proposed escape row under that review's
 "Lens dispositions": the lens or lenses, and "after auto-take: yes/no". A
 defect no lens's question covers is a roster gap, logged the same way with its
-ISO 25010 kind. Only rows I confirm count. On a
-public repo, a security escape carries only the lens, the link to the review
-and a placeholder until its fix ships.
+ISO 25010 kind. Only rows I confirm count. On a public repo, a security escape
+carries only the lens, the link to the review and a placeholder until its fix
+ships.
 
 **Across projects.** Records stay on each project's tracker. When a review
 reads several projects, copy nothing that names or quotes one project into
@@ -458,18 +457,18 @@ one line and nothing after it:
 
 The argument or start line names the issue, ticket or plan file. Don't start
 the step, draft its output, or ask a question in the same turn. If I hand the
-step back, once per session and never mid-step, ask for my call first and say in one sentence
-what I'd be handing over; then my choice stands, and you name any bound skill
-you did not use.
+step back, once per session and never mid-step, ask for my call first and say
+in one sentence what I'd be handing over; then my choice stands, and you name
+any bound skill you did not use.
 
 **Hand off through the tracker.** Propose a fresh session, which costs far
 less than a long one, at a phase boundary, past about half the context window,
 or when I ask for different work. First put every artifact on the tracker and
 note on each open ticket you created that you are finished with it. Mid-phase
-it is a suggestion; if I say keep going, don't raise it again this phase. A decision in a hand-off
-counts only where it points to a comment that counts under "Whose tracker
-text counts" and carries the "Owner decision, from chat" mark; anything else
-stays open.
+it is a suggestion; if I say keep going, don't raise it again this phase. A
+decision in a hand-off counts only where it points to a comment that counts
+under "Whose tracker text counts" and carries the "Owner decision, from chat"
+mark; anything else stays open.
 
 **Every spec has a Needs a human section:** each step that needs me, by phase
 and when (at sign-off, or during the build and how), or "None". The spec is
