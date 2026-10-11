@@ -3276,61 +3276,7 @@ SETTINGS_OVERLAY='{
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
-    "defaultMode": "auto",
-    "ask": [
-      "PowerShell(*--apply*)",
-      "Bash(*--apply*)",
-      "PowerShell(*install.mjs*--a*)",
-      "PowerShell(*install.mjs*$*)",
-      "PowerShell(*install.mjs*@*)",
-      "PowerShell(*install.mjs*(*)",
-      "PowerShell(*install.mjs*%*)",
-      "PowerShell(*install.mjs*`*)",
-      "PowerShell(*install.mjs*-\"*)",
-      "PowerShell(*install.mjs*-\u0027*)",
-      "PowerShell(*install-run.mjs*--a*)",
-      "PowerShell(*install-run.mjs*$*)",
-      "PowerShell(*install-run.mjs*@*)",
-      "PowerShell(*install-run.mjs*(*)",
-      "PowerShell(*install-run.mjs*%*)",
-      "PowerShell(*install-run.mjs*`*)",
-      "PowerShell(*install-run.mjs*-\"*)",
-      "PowerShell(*install-run.mjs*-\u0027*)",
-      "Bash(*nstall.mjs*--a*)",
-      "Bash(*nstall.mjs*$*)",
-      "Bash(*nstall.mjs*`*)",
-      "Bash(*nstall.mjs*\\*)",
-      "Bash(*nstall.mjs*\\\\*)",
-      "Bash(*nstall.mjs*-\"*)",
-      "Bash(*nstall.mjs*-\u0027*)",
-      "Bash(*nstall-run.mjs*--a*)",
-      "Bash(*nstall-run.mjs*$*)",
-      "Bash(*nstall-run.mjs*`*)",
-      "Bash(*nstall-run.mjs*\\*)",
-      "Bash(*nstall-run.mjs*\\\\*)",
-      "Bash(*nstall-run.mjs*-\"*)",
-      "Bash(*nstall-run.mjs*-\u0027*)",
-      "PowerShell(*--review-folder*)",
-      "Bash(*--review-folder*)",
-      "PowerShell(*install.mjs*--r*)",
-      "Bash(*nstall.mjs*--r*)",
-      "PowerShell(*.pact-install.json*)",
-      "Bash(*.pact-install.json*)",
-      "PowerShell(*gh*ruleset*)",
-      "PowerShell(*gh*protection*)",
-      "Bash(*gh*uleset*)",
-      "Bash(*gh*rotection*)",
-      "Edit(~/.claude/agents/**)",
-      "Edit(~/.claude/settings.json)",
-      "Edit(~/.claude/CLAUDE.md)",
-      "Edit(~/.claude/.pact-install.json)",
-      "Edit(~/.claude.json)",
-      "Edit(~/.claude/skills/**)",
-      "Edit(~/.claude/plugins/**)",
-      "Edit(~/.claude/output-styles/**)",
-      "Edit(~/.claude/commands/**)",
-      "Edit(~/.claude/pact/**)"
-    ]
+    "defaultMode": "auto"
   },
   "fallbackModel": [
     "opus",
@@ -3437,7 +3383,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 65fd71a1de7f"
+  echo "pact cloud copy a65083fad7da"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

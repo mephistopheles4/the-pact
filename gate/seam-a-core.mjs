@@ -122,69 +122,10 @@ const SETTINGS_MODE = 'auto';
 const SETTINGS_CONTAINERS = new Set(['env', 'permissions']);
 // Permission lists are sets of rules: each entry must be allowed, none twice.
 const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permissions.ask']);
-// Paths the overlay must set. A set must hold every allowed entry.
-const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions.ask']);
-// The "ask" rules that guard the install (ADR 0049, #210): they ask on an
-// apply, not on a mention. The overlay must hold them, whatever the allow-list
-// says. Under Bash, whose case matching the docs leave open, each name drops
-// its first letter, so a capitalised name still matches.
-const SETTINGS_APPLY_ASK = Object.freeze([
-  // The Node installer: its one apply flag, wherever the script is named, and
-  // after each of its two names a word the rule can't read, or a quote right
-  // after a dash, which is where a quote that splits the flag sits. Under
-  // Bash, a doubled backslash backs up the single one, in case the matcher
-  // reads a backslash before a star as an escape.
-  'PowerShell(*--apply*)',
-  'Bash(*--apply*)',
-  'PowerShell(*install.mjs*--a*)',
-  'PowerShell(*install.mjs*$*)',
-  'PowerShell(*install.mjs*@*)',
-  'PowerShell(*install.mjs*(*)',
-  'PowerShell(*install.mjs*%*)',
-  'PowerShell(*install.mjs*`*)',
-  'PowerShell(*install.mjs*-"*)',
-  "PowerShell(*install.mjs*-'*)",
-  'PowerShell(*install-run.mjs*--a*)',
-  'PowerShell(*install-run.mjs*$*)',
-  'PowerShell(*install-run.mjs*@*)',
-  'PowerShell(*install-run.mjs*(*)',
-  'PowerShell(*install-run.mjs*%*)',
-  'PowerShell(*install-run.mjs*`*)',
-  'PowerShell(*install-run.mjs*-"*)',
-  "PowerShell(*install-run.mjs*-'*)",
-  'Bash(*nstall.mjs*--a*)',
-  'Bash(*nstall.mjs*$*)',
-  'Bash(*nstall.mjs*`*)',
-  'Bash(*nstall.mjs*\\*)',
-  'Bash(*nstall.mjs*\\\\*)',
-  'Bash(*nstall.mjs*-"*)',
-  "Bash(*nstall.mjs*-'*)",
-  'Bash(*nstall-run.mjs*--a*)',
-  'Bash(*nstall-run.mjs*$*)',
-  'Bash(*nstall-run.mjs*`*)',
-  'Bash(*nstall-run.mjs*\\*)',
-  'Bash(*nstall-run.mjs*\\\\*)',
-  'Bash(*nstall-run.mjs*-"*)',
-  "Bash(*nstall-run.mjs*-'*)",
-  // A dry run that writes the owner's rendered rules to a review folder: its
-  // option wherever the script is named, and after the name its first letter.
-  'PowerShell(*--review-folder*)',
-  'Bash(*--review-folder*)',
-  'PowerShell(*install.mjs*--r*)',
-  'Bash(*nstall.mjs*--r*)',
-  // The install record, the drift baseline, and the CI ruleset (S11): kept
-  // broad, since a write to either has no closed set of spellings (#165, #210).
-  'PowerShell(*.pact-install.json*)',
-  'Bash(*.pact-install.json*)',
-  'PowerShell(*gh*ruleset*)',
-  'PowerShell(*gh*protection*)',
-  'Bash(*gh*uleset*)',
-  'Bash(*gh*rotection*)',
-]);
-// The "ask" rule on edits to the installed cross script's folder (#45). The
-// overlay must hold it too, whatever the allow-list says.
-const SETTINGS_CROSS_ASK = 'Edit(~/.claude/pact/**)';
-
+// Paths the overlay must set. A set must hold every allowed entry. Since
+// #265 the overlay sets no ask rules: the allow-list holds no ask list, so an
+// overlay that sets one fails as unlisted.
+const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode']);
 const PINNED_TIMEOUT_MS = 60_000;
 
 const PIN_RE = /^commit ([0-9a-f]{40})\nsha256 ([0-9a-f]{64})\n$/;
@@ -634,9 +575,6 @@ function checkSettings(root, present, allow, report) {
   if (isObject(perms) && Object.hasOwn(perms, 'defaultMode') && perms.defaultMode !== SETTINGS_MODE) {
     fail('settings-mode', 'permissions.defaultMode may only be auto');
   }
-  const ask = isObject(perms) && Array.isArray(perms.ask) ? perms.ask : [];
-  if (!SETTINGS_APPLY_ASK.every(r => ask.includes(r))) fail('settings-required', "the overlay must hold the apply step's ask rules");
-  if (!ask.includes(SETTINGS_CROSS_ASK)) fail('settings-required', "the overlay must hold the cross script's ask rule");
 
   // Default-deny: every key path, top level and inside env and permissions.
   const leaves = new Map();

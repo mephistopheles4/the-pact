@@ -1,79 +1,57 @@
-// The settings guard's rule lists (#34), shared by settings.test.mjs (seam A)
-// and settings-install.test.mjs (the install), so the two can't drift (#140,
-// T6).
+// The settings guard's shared test data (#34), used by settings.test.mjs (seam
+// A) and settings-install.test.mjs (the install), so the two can't drift (#140,
+// T6). Since #265 the pact sets no ask rules; what is left is the list of the
+// rules it retired, which the install takes out of a live file.
 import { realOverlay } from './payload.mjs';
 
 export const OVERLAY = 'claude/settings.overlay.json';
 
-// The three characters PowerShell reads as a parameter's hyphen (#89): en
-// dash, em dash and horizontal bar. Built from their codes, never typed, so no
-// source file holds one. Since #217 no pact rule holds one either.
-export const DASHES = [0x2013, 0x2014, 0x2015].map(c => String.fromCharCode(c));
-
-// The apply guard asks on an apply, not a mention (#210, ADR 0049). Under
-// Bash, whose match the docs leave open, each name drops its first letter, as
-// before, so a capitalised name still matches.
-//
-// The Node installer: the one flag spelling the script reads, anywhere; then,
-// after each of its two names, what hands the script a word the rule can't
-// read. PowerShell passes a dash-like character to a native program as typed,
-// and the script refuses it, so the Node rules need no dash forms. A quote
-// that splits the flag before its "a" sits right after a dash (#210, round 2).
-// Under Bash, a doubled backslash backs up the single one, in case the live
-// matcher reads a backslash before a star as an escape.
-const NODE_NAMES = { PowerShell: ['install.mjs', 'install-run.mjs'], Bash: ['nstall.mjs', 'nstall-run.mjs'] };
-const AFTER = { PowerShell: ['--a', '$', '@', '(', '%', '`', '-"', "-'"], Bash: ['--a', '$', '`', '\\', '\\\\', '-"', "-'"] };
-export const NODE_INSTALL_ASK = [
+// #265 C5: the pact's retired ask rules, frozen as a literal. The first 52 are
+// the overlay's ask list on main at d2cd915, in its order; the last four are the
+// broad installer rules ADR 0049 retired. The install's own copy must equal it.
+export const RETIRED_RULES = Object.freeze([
   'PowerShell(*--apply*)',
   'Bash(*--apply*)',
-  ...['PowerShell', 'Bash'].flatMap(tool => NODE_NAMES[tool].flatMap(n => AFTER[tool].map(a => `${tool}(*${n}*${a}*)`))),
-  // A dry run that writes the owner's rendered rules to a folder still asks:
-  // its option wherever the script is named, and after the name its first
-  // letter, which no other dry-run option starts with.
+  'PowerShell(*install.mjs*--a*)',
+  'PowerShell(*install.mjs*$*)',
+  'PowerShell(*install.mjs*@*)',
+  'PowerShell(*install.mjs*(*)',
+  'PowerShell(*install.mjs*%*)',
+  'PowerShell(*install.mjs*`*)',
+  'PowerShell(*install.mjs*-"*)',
+  "PowerShell(*install.mjs*-'*)",
+  'PowerShell(*install-run.mjs*--a*)',
+  'PowerShell(*install-run.mjs*$*)',
+  'PowerShell(*install-run.mjs*@*)',
+  'PowerShell(*install-run.mjs*(*)',
+  'PowerShell(*install-run.mjs*%*)',
+  'PowerShell(*install-run.mjs*`*)',
+  'PowerShell(*install-run.mjs*-"*)',
+  "PowerShell(*install-run.mjs*-'*)",
+  'Bash(*nstall.mjs*--a*)',
+  'Bash(*nstall.mjs*$*)',
+  'Bash(*nstall.mjs*`*)',
+  'Bash(*nstall.mjs*\\*)',
+  'Bash(*nstall.mjs*\\\\*)',
+  'Bash(*nstall.mjs*-"*)',
+  "Bash(*nstall.mjs*-'*)",
+  'Bash(*nstall-run.mjs*--a*)',
+  'Bash(*nstall-run.mjs*$*)',
+  'Bash(*nstall-run.mjs*`*)',
+  'Bash(*nstall-run.mjs*\\*)',
+  'Bash(*nstall-run.mjs*\\\\*)',
+  'Bash(*nstall-run.mjs*-"*)',
+  "Bash(*nstall-run.mjs*-'*)",
   'PowerShell(*--review-folder*)',
   'Bash(*--review-folder*)',
   'PowerShell(*install.mjs*--r*)',
   'Bash(*nstall.mjs*--r*)',
-];
-// Rules no apply row needs alone, by design: each backs up another rule that
-// catches every form it does under the model.
-export const BACKUP_ASK = [
-  'Bash(*nstall.mjs*\\\\*)',
-  'Bash(*nstall-run.mjs*\\\\*)',
-];
-
-// The install record, kept broad: it is the dry run's drift baseline, and a
-// write to it has no closed set of spellings (#210, D3).
-export const RECORD_ASK = ['PowerShell(*.pact-install.json*)', 'Bash(*.pact-install.json*)'];
-
-// The CI ruleset's guard (S11), kept broad: a `gh` command naming rulesets or
-// branch protection (#210, D4). The Bash pair also catches GitHub's
-// capitalised GraphQL names.
-export const RULESET_ASK = [
+  'PowerShell(*.pact-install.json*)',
+  'Bash(*.pact-install.json*)',
   'PowerShell(*gh*ruleset*)',
   'PowerShell(*gh*protection*)',
   'Bash(*gh*uleset*)',
   'Bash(*gh*rotection*)',
-];
-
-// The broad installer rules ADR 0049 retired: any command naming the files.
-// The matcher table's control shows they ask on a mention.
-export const BROAD_INSTALL_ASK = [
-  'PowerShell(*install.mjs*)',
-  'PowerShell(*install-run.mjs*)',
-  'Bash(*nstall.mjs*)',
-  'Bash(*nstall-run.mjs*)',
-];
-
-// The install's rules, hard-coded in seam A as the permission mode is. Named
-// one by one, so a rule added to the pact's list can't push one out.
-export const APPLY_ASK = [...NODE_INSTALL_ASK, ...RECORD_ASK, ...RULESET_ASK];
-// The cross script's rule, hard-coded in seam A beside them.
-export const CROSS_ASK = 'Edit(~/.claude/pact/**)';
-
-// The pact's "ask" rules, as #34 and its pre-build review settled them.
-export const PACT_ASK = [
-  ...APPLY_ASK,
   'Edit(~/.claude/agents/**)',
   'Edit(~/.claude/settings.json)',
   'Edit(~/.claude/CLAUDE.md)',
@@ -83,101 +61,12 @@ export const PACT_ASK = [
   'Edit(~/.claude/plugins/**)',
   'Edit(~/.claude/output-styles/**)',
   'Edit(~/.claude/commands/**)',
-  // The installed cross script (#45).
-  CROSS_ASK,
-];
-
-// ------------------------------------------------------------ a model of Claude Code's matcher (#210, S2)
-
-// From Claude Code's permissions docs, read on 2026-10-10: `*` matches any
-// text, spaces included, anywhere in a rule; PowerShell rules match without
-// regard to case, and Bash rules are taken as exact, which the docs leave
-// open; a compound command is split on its separators and an ask rule fires
-// when any part matches. Escapes and continuations are not modelled, so this
-// can't show what the live matcher does with them (#210, S5 c).
-const SEPARATORS = /&&|\|\||\|&|[;|&\n]/;
-
-/** Whether `rule` (`Tool(pattern)`) matches the whole of `part` run under `tool`. */
-function ruleMatches(rule, tool, part) {
-  const m = /^(\w+)\(([\s\S]*)\)$/.exec(rule);
-  if (!m || m[1] !== tool) return false;
-  const source = m[2].split('*').map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[\\s\\S]*');
-  return new RegExp(`^${source}$`, tool === 'PowerShell' ? 'i' : '').test(part.trim());
-}
-
-/** Whether a command run under `tool` asks under `rules`: any part of it, split on the separators, matches any rule. */
-export function asks(rules, tool, command) {
-  return command.split(SEPARATORS).some(part => rules.some(rule => ruleMatches(rule, tool, part)));
-}
-
-// Commands that change something, each of which must ask. [tool, command, why]
-export const APPLY_COMMANDS = [
-  ['PowerShell', '$env:NODE_OPTIONS = $null; node gate/install.mjs --claude-home C:\\h --apply --commit 0123456789abcdef0123456789abcdef01234567', 'the apply line a dry run prints'],
-  ['Bash', 'env -u NODE_OPTIONS node gate/install.mjs --apply --commit 0123456789abcdef0123456789abcdef01234567', 'the POSIX apply line'],
-  ['PowerShell', '$s = "gate/install.mjs"; node $s --apply --commit abc', 'the name in one statement and the flag in another'],
-  ['PowerShell', 'Get-Item gate/install.mjs | ForEach-Object { node $_.FullName --apply --commit abc }', 'the name in one pipeline stage and the flag in another'],
-  ['PowerShell', 'node gate/install.mjs --a"pply" --commit abc', 'the flag split by quotes after --a'],
-  ['PowerShell', 'node gate/install.mjs $flag --commit abc', 'the flag in a variable'],
-  ['PowerShell', 'node gate/install.mjs $(Get-Flag) --commit abc', 'the flag from a subexpression'],
-  ['PowerShell', 'node gate/install.mjs @params', 'a splat'],
-  ['PowerShell', 'node gate/install.mjs (Get-Flag) --commit abc', 'a parenthesised expression'],
-  ['PowerShell', "node gate/install.mjs ('--ap' + 'ply') --commit abc", 'a parenthesised expression of two pieces'],
-  ['PowerShell', 'node gate/install.mjs --% %FLAG%', 'an environment variable after the stop-parsing token'],
-  ['PowerShell', 'node gate/install.mjs -`-apply --commit abc', 'a backtick escape before the flag'],
-  ['PowerShell', 'node gate/install.mjs --claude-home C:\\h `', 'a backtick line wrap after the name'],
-  ['PowerShell', 'node gate/install.mjs --"apply" --commit abc', 'the flag split by double quotes before its a'],
-  ['PowerShell', "node gate/install.mjs --'apply' --commit abc", 'the flag split by single quotes before its a'],
-  ['PowerShell', 'node gate/install.mjs "-"-apply --commit abc', 'the flag split by quotes between its dashes'],
-  ['Bash', 'node gate/install.mjs --claude-home /h \\', 'a backslash line wrap after the name'],
-  ['Bash', 'node gate/install.mjs --claude-home /h \\\\', 'two backslashes after the name'],
-  ['Bash', 'node gate/install.mjs --a"pply" --commit abc', 'the flag split by quotes after --a, under Bash'],
-  ['Bash', 'node gate/install.mjs "$FLAG" --commit abc', 'the flag in a variable, under Bash'],
-  ['Bash', 'node gate/install.mjs `get-flag` --commit abc', 'the flag from a command substitution, under Bash'],
-  ['Bash', 'node gate/install.mjs `printf -- --apply`', 'the flag spelled out in a command substitution, under Bash'],
-  ['Bash', 'node gate/install.mjs --"apply" --commit abc', 'the flag split by double quotes before its a, under Bash'],
-  ['Bash', "node gate/install.mjs --'apply' --commit abc", 'the flag split by single quotes before its a, under Bash'],
-  ['Bash', 's=gate/install.mjs; node "$s" --apply --commit abc', 'the name in one statement and the flag in another, under Bash'],
-  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- --apply', 'the runner started by hand'],
-  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- --a"pply"', 'the runner, the flag split by quotes after --a'],
-  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- $flag', 'the runner, the flag in a variable'],
-  ['PowerShell', 'node gate/install-run.mjs @params', 'the runner, a splat'],
-  ['PowerShell', 'node gate/install-run.mjs (Get-Args)', 'the runner, a parenthesised expression'],
-  ['PowerShell', 'node gate/install-run.mjs --% %ARGS%', 'the runner, the stop-parsing token'],
-  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- -`-apply', 'the runner, a backtick escape'],
-  ['PowerShell', 'node gate/install-run.mjs C:\\w 0123 3 no -- --"apply"', 'the runner, the flag split by double quotes'],
-  ['PowerShell', "node gate/install-run.mjs C:\\w 0123 3 no -- --'apply'", 'the runner, the flag split by single quotes'],
-  ['Bash', 'node gate/install-run.mjs /w 0123 3 no -- --a"pply"', 'the runner, the flag split by quotes after --a, under Bash'],
-  ['Bash', 'node gate/install-run.mjs /w 0123 3 no -- "$FLAG"', 'the runner, the flag in a variable, under Bash'],
-  ['Bash', 'node gate/install-run.mjs /w 0123 3 no -- `get-flag`', 'the runner, a command substitution, under Bash'],
-  ['Bash', 'node gate/install-run.mjs /w 0123 3 no \\', 'the runner, a backslash line wrap, under Bash'],
-  ['Bash', 'node gate/install-run.mjs /w 0123 3 no -- --"apply"', 'the runner, the flag split by double quotes, under Bash'],
-  ['Bash', "node gate/install-run.mjs /w 0123 3 no -- --'apply'", 'the runner, the flag split by single quotes, under Bash'],
-  ['PowerShell', 'node gate/install.mjs --review-folder D:\\review', "a dry run that writes the owner's rendered rules to a folder"],
-  ['PowerShell', '$s = "gate/install.mjs"; node $s --review-folder D:\\review', 'a review-folder dry run with the name in another statement'],
-  ['Bash', 's=gate/install.mjs; node "$s" --review-folder /review', 'a review-folder dry run with the name in another statement, under Bash'],
-  ['PowerShell', 'node gate/install.mjs --r"eview-folder" D:\\review', 'the review-folder option split by quotes after --r'],
-  ['Bash', "node gate/install.mjs --r'eview-folder' /review", 'the review-folder option split by quotes after --r, under Bash'],
-  ['PowerShell', 'Set-Content ~/.claude/.pact-install.json "{}"', 'a write to the install record'],
-  ['Bash', 'echo {} > ~/.claude/.pact-install.json', 'a write to the install record, under Bash'],
-  ['PowerShell', 'gh api -X DELETE repos/o/r/rulesets/1', 'a ruleset write'],
-  ['PowerShell', 'gh api -X PUT repos/o/r/branches/main/protection', 'a branch-protection write'],
-  ['Bash', 'gh api -X DELETE repos/o/r/rulesets/1', 'a ruleset write, under Bash'],
-  ['Bash', 'gh api -X PUT repos/o/r/branches/main/protection', 'a branch-protection write, under Bash'],
-];
-
-// Commands that change nothing, each of which must run. [tool, command, why]
-export const MENTION_COMMANDS = [
-  ['PowerShell', 'git diff -- gate/install.mjs gate/install-run.mjs', 'a diff'],
-  ['PowerShell', 'Get-Content gate/install.mjs', 'a read'],
-  ['PowerShell', 'Select-String -Path gate/install-run.mjs -Pattern parseArgs', 'a search'],
-  ['Bash', 'grep -n parseArgs gate/install.mjs', 'a search, under Bash'],
-  ['PowerShell', '$env:NODE_OPTIONS = $null; node gate/install.mjs', 'a dry run'],
-  ['Bash', 'env -u NODE_OPTIONS node gate/install.mjs', 'a dry run, under Bash'],
-  ['PowerShell', 'node gate/install.mjs --project-folder C:\\proj', 'a project dry run'],
-  ['PowerShell', 'node gate/install.mjs --claude-home "C:\\tmp\\home"', 'a dry run with a double-quoted throwaway home'],
-  ['PowerShell', "node gate/install.mjs --claude-home 'C:\\tmp\\home'", 'a dry run with a single-quoted throwaway home'],
-  ['Bash', 'node gate/install.mjs --claude-home "/tmp/home"', 'a dry run with a quoted throwaway home, under Bash'],
-];
+  'Edit(~/.claude/pact/**)',
+  'PowerShell(*install.mjs*)',
+  'PowerShell(*install-run.mjs*)',
+  'Bash(*nstall.mjs*)',
+  'Bash(*nstall-run.mjs*)',
+]);
 
 /** Today's overlay as an object, changed by `edit`, as JSON text. */
 export function overlayWith(edit) {
