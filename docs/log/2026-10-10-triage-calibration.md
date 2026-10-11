@@ -31,5 +31,6 @@ Issue comments on mephistopheles4/the-pact#214:
 - **Spec:** revision 1, 6103314386; revision 2, 6103330562; revision 3, 6103349569.
 - **Review:** `unstated-lens` on the spec, 6103327308; Lens dispositions, 6103330685.
 - **Owner decisions, from chat:** 6103349686 and 6103352120. **Plan phase end:** 6103354458.
+- **Move 4:** QA pair 6103701489; `unstated-lens` 6103701717; standards pair 6103701863; Lens dispositions 6103704452; build state and kit location 6103704636.
 
 The replay kit (script, prompt, set with each issue's outcome tier, proxy settings), the results and the report are in the owner's local results folder, outside the repo.
