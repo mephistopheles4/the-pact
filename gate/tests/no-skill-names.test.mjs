@@ -2,7 +2,6 @@
 // when it appears as a code span (`name`) or as a command (`/name`). Plain
 // words that are also skill names ("triage", "prototype") are allowed. The
 // gated blocks are out of scope: they are held word for word elsewhere.
-// The command definition here is the one scripts/check-skill-flags.mjs uses.
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -47,19 +46,14 @@ test('the source file names no skill either, in its open parts or outside them',
   assert.deepEqual(namedSkills(MD), []);
 });
 
-test('the gated blocks are skipped: stop-and-escalate still holds its `prototype` span', () => {
-  assert.ok(MD.includes('(`prototype`, built as in move'), 'the gated clause no longer names prototype');
-  assert.deepEqual(namedSkills(MD), []);
-});
-
 test('bad case: one skill name put back in move 3 is caught', () => {
-  const planted = MD.replace('test-first at the agreed seams.', 'test-first at the agreed seams (`tdd`).');
+  const planted = MD.replace('such as a test.', 'such as a test (`tdd`).');
   assert.notEqual(planted, MD, 'the plant found nothing to replace');
   assert.deepEqual(namedSkills(withoutOpenMarks(planted)), ['tdd']);
 });
 
-test('bad case: a skill name put back in the intro, as a command, is caught', () => {
-  const planted = MD.replace('The moves name no\nskills.', 'The moves name no\nskills, except `/to-spec`.');
+test('bad case: a skill name put back in the intro to the moves, as a command, is caught', () => {
+  const planted = MD.replace('The moves are how I work,', 'The moves are how I work (`/to-spec`),');
   assert.notEqual(planted, MD, 'the plant found nothing to replace');
   assert.deepEqual(namedSkills(withoutOpenMarks(planted)), ['/to-spec']);
 });

@@ -17,7 +17,7 @@ import { read, tempDir } from './tree.mjs';
 const WIN = process.platform === 'win32';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const EXAMPLE = join(REPO, 'examples', 'pact-config', 'config.json');
-const USAGE_75 = 'the weekly limit is above 75%, wait for my go-ahead.';
+const USAGE_75 = 'When it is above 75%, wait for my';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const digestOf = bytes => sha256(`user ${sha256(bytes)}\n`).slice(0, 12);
@@ -63,7 +63,7 @@ function refusedWith(r, rule, reason) {
 /** The configured render the tests expect: the value in the usage line, the notice in its slot, open marks gone. */
 function expected(srcText, digest, value) {
   assert.equal(srcText.split(USAGE_75).length, 2, 'the source no longer holds the usage line once');
-  let s = value === undefined ? srcText : srcText.replace(USAGE_75, `the weekly limit is above ${value}%, wait for my go-ahead.`);
+  let s = value === undefined ? srcText : srcText.replace(USAGE_75, `When it is above ${value}%, wait for my`);
   const slot = '<!-- pact:begin config-notice -->\n<!-- pact:end config-notice -->\n';
   assert.equal(s.split(slot).length, 2, 'the source no longer holds the empty notice slot once');
   const notice = [
@@ -94,8 +94,8 @@ test('the shipped example sets the usage pause to 90: the rules read 90%, with t
     '',
   ]);
   const text = r.bytes.toString('utf8');
-  assert.ok(text.includes('the weekly limit is above 90%'));
-  assert.ok(!text.includes('the weekly limit is above 75%'));
+  assert.ok(text.includes('When it is above 90%'));
+  assert.ok(!text.includes('When it is above 75%'));
 });
 
 for (const spelling of ['90', '90.0', '9e1', '900e-1']) {
@@ -129,7 +129,7 @@ test('a configuration with no values still applies: the notice names it, and the
 test('a configured render of the real source passes seam A', t => {
   const root = stage(t, {});
   renderStage(root, homeWith(t, readFileSync(EXAMPLE)));
-  assert.ok(read(join(root, 'claude', 'CLAUDE.md')).includes('the weekly limit is above 90%'));
+  assert.ok(read(join(root, 'claude', 'CLAUDE.md')).includes('When it is above 90%'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none'], { encoding: 'utf8', env });
@@ -351,12 +351,12 @@ test('bad case: a source with no usage-pause part refuses a configuration that s
 });
 
 test('bad case: a usage-pause part that no longer matches its template at the default refuses', t => {
-  const src = read(SOURCE).replace('that call is mine.', 'that call is yours.');
+  const src = read(SOURCE).replace('over usage is mine.', 'over usage is yours.');
   refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'render', /usage-pause: the template at its default no longer matches the source/);
 });
 
 test('bad case: a usage-pause part with a line more than its template refuses', t => {
-  const src = read(SOURCE).replace('because of usage on your own; that call is mine.\n', 'because of usage on your own; that call is mine.\nExtra.\n');
+  const src = read(SOURCE).replace('  go-ahead. The call to cut or stop work over usage is mine.\n', '  go-ahead. The call to cut or stop work over usage is mine.\n  Extra.\n');
   refusedWith(render(t, homeWith(t, GOOD), sourceFile(t, src)), 'render', /usage-pause: the template at its default no longer matches the source/);
 });
 
@@ -379,7 +379,7 @@ const noUsageMarks = s => s.replace(UP_BEGIN, '').replace(UP_END, '');
 const PLACEMENT = [
   [
     'an open mark that encloses a gated block',
-    s => noUsageMarks(s).replace('<!-- pact:begin risk-floor -->\n', `${UP_BEGIN}<!-- pact:begin risk-floor -->\n`).replace('<!-- pact:end risk-floor -->\n', `<!-- pact:end risk-floor -->\n${UP_END}`),
+    s => noUsageMarks(s).replace('<!-- pact:begin stop-and-escalate -->\n', `${UP_BEGIN}<!-- pact:begin stop-and-escalate -->\n`).replace('<!-- pact:end stop-and-escalate -->\n', `<!-- pact:end stop-and-escalate -->\n${UP_END}`),
     /usage-pause encloses a gated mark/,
   ],
   [
@@ -389,8 +389,8 @@ const PLACEMENT = [
   ],
   [
     'an open mark whose end sits after a gated begin',
-    s => s.replace('   <!-- pact:end move-3 -->\n   <!-- pact:begin security-route -->\n', '   <!-- pact:begin security-route -->\n   <!-- pact:end move-3 -->\n'),
-    /move-3 encloses a gated mark/,
+    s => noUsageMarks(s).replace('<!-- pact:begin stop-and-escalate -->\n', `${UP_BEGIN}<!-- pact:begin stop-and-escalate -->\n${UP_END}`),
+    /usage-pause encloses a gated mark/,
   ],
   ['an open mark that opens twice', s => s.replace(UP_END, `${UP_END}${UP_BEGIN}${UP_END}`), /usage-pause opens twice/],
   ['an open mark that never closes', s => s.replace(UP_END, ''), /usage-pause never closes/],
@@ -423,11 +423,9 @@ test('bad case: a render larger than 1 MiB refuses, though its source is within 
     '<!-- pact:begin config-notice -->',
     '<!-- pact:end config-notice -->',
     '<!-- pact:begin usage-pause -->',
-    'Before starting anything expensive — several subagents, a workflow, an eval —',
-    'check my plan usage if a usage tool is available (the desktop app has one).',
-    "Tell me the weekly figure and a rough cost for what you're about to start. If",
-    'the weekly limit is above 75%, wait for my go-ahead. Never cut or stop work',
-    'because of usage on your own; that call is mine.',
+    '- **Usage.** Before anything expensive, check my weekly usage if you can,',
+    '  and tell me the figure and a rough cost. When it is above 75%, wait for my',
+    '  go-ahead. The call to cut or stop work over usage is mine.',
     '<!-- pact:end usage-pause -->',
     '',
   ].join('\n');

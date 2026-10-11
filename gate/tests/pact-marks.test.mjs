@@ -12,7 +12,9 @@ import { read, tempDir } from './tree.mjs';
 
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const LINES = read(SOURCE).split('\n');
-const MOVES_AT = LINES.indexOf('## Implementing a change');
+const MOVES_AT = LINES.indexOf('## The moves');
+// The moves' parts, in move order (#261): each sits under its move's bullet.
+const MOVE_PARTS = ['move-1', 'move-2', 'move-3', 'move-4-extra'];
 
 /** Every mark line in the source: { line, kind, name, indent }. */
 function marks(lines) {
@@ -39,7 +41,7 @@ test('with no configuration, the installed pact is its source with the open-mark
 });
 
 test('seam A refuses the unrendered source: the open marks are not marks it knows, so a skipped render fails closed', t => {
-  const root = stage(t, {}, { route: false });
+  const root = stage(t);
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none'], { encoding: 'utf8', env });
@@ -69,45 +71,28 @@ test('no open mark encloses or overlaps a gated mark', () => {
   }
 });
 
-test('each move keeps only its bold lead-in on its numbered line; moves 1 to 3 open their mark on the next line', () => {
-  for (const n of [1, 2, 3, 4]) {
-    const i = LINES.findIndex((l, j) => j > MOVES_AT && l.startsWith(`${n}. `));
-    assert.match(LINES[i], /^[1-4]\. \*\*[^*]+\*\*$/, `move ${n}`);
-    assert.equal(LINES[i + 1], `   <!-- pact:begin move-${n} -->`, `move ${n}`);
-  }
+test('each move is a bullet with a bold lead-in, and its part is an empty slot at the end of it, indented under it', () => {
+  const bullets = LINES.map((l, i) => (i > MOVES_AT && /^- \*\*[^*]+\.\*\* /.test(l) ? i : -1)).filter(i => i >= 0);
+  assert.ok(bullets.length >= 4, 'four move bullets');
+  MOVE_PARTS.forEach((name, k) => {
+    const b = at(`  <!-- pact:begin ${name} -->`);
+    assert.ok(b > bullets[k] && (k === 3 || b < bullets[k + 1]), `${name} sits under move ${k + 1}`);
+    assert.ok(LINES.slice(bullets[k] + 1, b).every(l => l.startsWith('  ') && l.trim() !== ''), `${name} follows its move's text with no break`);
+    assert.equal(LINES[b + 1], `  <!-- pact:end ${name} -->`, `${name} is an empty slot`);
+  });
 });
 
-test('each move mark closes inside its move, before the next move', () => {
-  for (const n of [1, 2, 3]) {
-    const e = at(`   <!-- pact:end move-${n} -->`);
-    const next = LINES.findIndex((l, j) => j > MOVES_AT && l.startsWith(`${n + 1}. `));
-    assert.ok(e > 0 && e < next, `move-${n}`);
-    assert.ok(LINES.slice(at(`   <!-- pact:begin move-${n} -->`) + 1, e).every(l => l.startsWith('   ') && l.trim() !== ''), `move-${n}`);
-  }
+test('config-notice is an empty slot right after the line under the title', () => {
+  assert.deepEqual(LINES.slice(0, 6), ['# The pact', '', 'To change the pact, edit its repo and install it.', '<!-- pact:begin config-notice -->', '<!-- pact:end config-notice -->', '']);
 });
 
-test('move-3 ends right before security-route opens, and move-4-extra is an empty slot right after move-4', () => {
-  assert.equal(at('   <!-- pact:end move-3 -->') + 1, at('   <!-- pact:begin security-route -->'));
-  assert.equal(at('   <!-- pact:end move-4 -->') + 1, at('   <!-- pact:begin move-4-extra -->'));
-  assert.equal(at('   <!-- pact:begin move-4-extra -->') + 1, at('   <!-- pact:end move-4-extra -->'));
-  assert.equal(LINES[at('   <!-- pact:end move-4-extra -->') + 1], '');
-});
-
-test('config-notice is an empty slot right after the last line of the "Where this config lives" paragraph', () => {
-  const b = at('<!-- pact:begin config-notice -->');
-  assert.equal(LINES[0], '## Where this config lives');
-  assert.equal(LINES[1], '');
-  assert.ok(b > 2 && LINES.slice(2, b).every(l => l !== ''), 'the notice must follow the paragraph with no blank line between');
-  assert.equal(LINES[b + 1], '<!-- pact:end config-notice -->');
-  assert.equal(LINES[b + 2], '');
-});
-
-test('usage-pause wraps the usage paragraph in "Watching usage"', () => {
-  const h = at('## Watching usage');
+test('usage-pause wraps the usage bullet in "Guards", right after the pinned stop-and-ask block', () => {
+  const h = at('## Guards');
   const b = at('<!-- pact:begin usage-pause -->');
   const e = at('<!-- pact:end usage-pause -->');
-  assert.equal(b, h + 2);
+  assert.ok(b > h);
+  assert.equal(at('<!-- pact:end stop-and-escalate -->') + 1, b);
   assert.ok(LINES.slice(b + 1, e).every(l => l !== ''));
-  assert.ok(LINES.slice(b + 1, e).join(' ').includes('the weekly limit is above 75%'));
+  assert.ok(LINES.slice(b + 1, e).join(' ').includes('When it is above 75%, wait for my'));
   assert.equal(LINES[e + 1], '');
 });

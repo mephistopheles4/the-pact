@@ -1,15 +1,16 @@
 // #127: the "Matt Pocock's skills" preset set. Three example blocks, one each for
 // moves 1 to 3, added after the default text. Applied through the renderer, the
-// result must pass seam A, the skill-flag check must report no mismatch on it,
-// and each skill must appear in its intended form: a command (`/name`) for a
-// skill only the owner starts, a code span (`name`) for a skill the agent uses.
+// result must pass seam A, and each skill must appear in its intended form: a
+// command (`/name`) for a skill only the owner starts, a code span (`name`) for
+// a skill the agent uses. The skill-flag check that read the render went with
+// the thin gate (#261).
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { renderStage } from './gate-run.mjs';
-import { routeTree, stage } from './payload.mjs';
+import { stage } from './payload.mjs';
 import { REPO, SEAM_A, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -39,8 +40,7 @@ function homeWithSet(t, set = SET) {
 
 /** The pact's rules file rendered with `home`, in a staged tree. Returns { root, md }. */
 function renderedWith(t, home) {
-  const root = stage(t, {}, { route: false });
-  routeTree(root);
+  const root = stage(t);
   renderStage(root, home);
   return { root, md: readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8') };
 }
@@ -55,19 +55,18 @@ test('the set renders with seam A passing', t => {
 
 test('each block is added after the default text, in its own move', t => {
   const { md } = renderedWith(t, homeWithSet(t));
-  const m1 = md.indexOf('I triage it:');
+  const m1 = md.indexOf('What kind of work is it');
   const b1 = md.indexOf('Skills I bind to this move. Triage');
-  const m2 = md.indexOf('You question me until');
+  const m2 = md.indexOf('I get the intent clear');
   const b2 = md.indexOf('Skills I bind to this move. Questioning');
-  const m3 = md.indexOf('On the thorough tier, I cut the approved spec');
+  const m3 = md.indexOf('Where work is handed on');
   const b3 = md.indexOf('Skills I bind to this move. Cutting');
   assert.ok(m1 >= 0 && b1 > m1 && b1 < m2, 'move 1 block follows the move 1 text');
   assert.ok(m2 > b1 && b2 > m2 && b2 < m3, 'move 2 block follows the move 2 text');
   assert.ok(m3 > b2 && b3 > m3, 'move 3 block follows the move 3 text');
 });
 
-// Which skills each block binds. Checked against the block's own text, because a
-// gated clause already holds `prototype`, so a whole-render search would pass without it.
+// Which skills each block binds, checked against the block's own text.
 const PER_BLOCK = {
   'move-1-matt-pocock.md': { commands: ['triage', 'wayfinder'], spans: ['diagnosing-bugs'] },
   'move-2-matt-pocock.md': { commands: ['to-spec'], spans: ['grilling', 'domain-modeling', 'codebase-design', 'prototype'] },
@@ -99,48 +98,4 @@ test('the render carries each block\'s text', t => {
     const first = readFileSync(join(BLOCKS, file), 'utf8').split('\n')[0];
     assert.ok(md.includes(first), `${file} is not in the render`);
   }
-});
-
-/** Run the skill-flag check on `md` with the 11 skills installed, the owner's five flagged. */
-function skillFlags(t, md, flagged = COMMANDS) {
-  const root = tempDir(t, 'pact-preset-skills-');
-  for (const n of [...COMMANDS, ...SPANS]) {
-    mkdirSync(join(root, 'skills', n), { recursive: true });
-    const flag = flagged.includes(n) ? 'disable-model-invocation: true\n' : '';
-    writeFileSync(join(root, 'skills', n, 'SKILL.md'), `---\nname: ${n}\n${flag}---\n`);
-  }
-  writeFileSync(join(root, 'rules.md'), md);
-  return spawnSync(
-    process.execPath,
-    [join(REPO, 'scripts', 'check-skill-flags.mjs'), '--skills-dir', join(root, 'skills'), '--rules-file', join(root, 'rules.md')],
-    { encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } },
-  );
-}
-
-test('the skill-flag check reports no mismatch on the render', t => {
-  const { md } = renderedWith(t, homeWithSet(t));
-  const r = skillFlags(t, md);
-  assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.doesNotMatch(r.stdout, /^WARN:/m, r.stdout);
-  assert.match(r.stdout, /^named skills: 11; commands: 5; OK\s*$/m, r.stdout + r.stderr);
-});
-
-test('bad case: the same render warns when an owner-only skill lacks its flag', t => {
-  const { md } = renderedWith(t, homeWithSet(t));
-  const r = skillFlags(t, md, COMMANDS.filter(n => n !== 'to-spec'));
-  assert.match(r.stdout, /^WARN: to-spec is written as a command /m, r.stdout);
-  assert.doesNotMatch(r.stdout, /OK/, r.stdout);
-});
-
-test('bad case: the render warns when the agent\'s skill carries the flag', t => {
-  const { md } = renderedWith(t, homeWithSet(t));
-  const r = skillFlags(t, md, [...COMMANDS, 'tdd']);
-  assert.match(r.stdout, /^WARN: tdd is written as a code span /m, r.stdout);
-});
-
-test('the default render, with no set bound, still names no skill', t => {
-  const empty = tempDir(t, 'pact-preset-empty-');
-  const { md } = renderedWith(t, empty);
-  const r = skillFlags(t, md);
-  assert.match(r.stdout, /^named skills: 0; commands: 0; OK\s*$/m, r.stdout + r.stderr);
 });
