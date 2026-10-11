@@ -22,12 +22,16 @@ const CHARACTER_HITS_MAX = 20;
 const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
 // The builder kit (#203, S6): what /scriptorium's builder reads outside a
 // clone, installed under pact/builder/ in the repo's own layout, and only when
-// the commands list names scriptorium. Every claude/agents/<name>.md joins it.
-// The rules source is the install's own unrendered copy of claude/CLAUDE.md,
-// so the kit never holds a file named CLAUDE.md. The install keeps its own
-// copy of this list (install-core.mjs), held to this one by a test. Adding a
-// file is a change to gate code, so it takes the security route.
+// the commands list names scriptorium. The install copies the unrendered
+// rules file and agents into the stage before the render, so the kit shows
+// the pact as committed, not as the owner configured it: the rules source,
+// claude/rules.source.md, so the kit never holds a file named CLAUDE.md, and
+// each claude/agents/<name>.md as claude/agents.source/<name>.md, which
+// installs at the kit's claude/agents/<name>.md. The install keeps its own
+// copy of these (install-core.mjs), held to them by a test. Adding a file is
+// a change to gate code, so it takes the security route.
 const RULES_SOURCE = 'claude/rules.source.md';
+const AGENT_SOURCES = 'claude/agents.source/';
 const BUILDER_KIT = Object.freeze([
   'builder/build.mjs',
   'builder/scriptorium.html',
@@ -47,8 +51,12 @@ const BUILDER_KIT = Object.freeze([
 ]);
 // The only node: built-ins a kit module may import. A network module is not one.
 const KIT_BUILTINS = Object.freeze(['node:child_process', 'node:crypto', 'node:fs', 'node:os', 'node:path', 'node:url']);
-/** True for a staged path the builder kit installs: a BUILDER_KIT entry or an agent in claude/agents/. */
-const inBuilderKit = rel => BUILDER_KIT.includes(rel) || /^claude\/agents\/[^/]+\.md$/.test(rel);
+/** The kit path of a staged kit file, under pact/builder/: an agent source at claude/agents/, any other at its own path; null for a file not in the kit. */
+function kitPath(rel) {
+  if (BUILDER_KIT.includes(rel)) return rel;
+  const m = /^claude\/agents\.source\/([^/]+\.md)$/.exec(rel);
+  return m ? `claude/agents/${m[1]}` : null;
+}
 // An at sign followed by text, which Claude Code may read as a file include:
 // refused in a block (render-core.mjs) and in a command file (seam-a-core.mjs).
 const AT_IMPORT_RE = /@[^ \n]/;
@@ -326,9 +334,10 @@ function parseDoc(text, file, known, allowed, report) {
 export {
   PACT_COMMANDS,
   RULES_SOURCE,
+  AGENT_SOURCES,
   BUILDER_KIT,
   KIT_BUILTINS,
-  inBuilderKit,
+  kitPath,
   AT_IMPORT_RE,
   MAX_BYTES,
   CHARACTER_HITS_MAX,

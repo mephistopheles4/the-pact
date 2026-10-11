@@ -510,14 +510,14 @@ test('the copy set with commands: a listed command pairs, an unlisted pact comma
 });
 
 // The builder kit's copy set (#203, S6, S8): under pact/builder/ only when scriptorium is listed.
-const KIT_STAGED = ['claude/CLAUDE.md', core.RULES_SOURCE_REL, 'claude/agents/a.md', 'claude/commands/scriptorium.md', 'familiars/scout.md', 'gate/shared.mjs', 'gate/seam-a-core.mjs', 'builder/build.mjs', 'examples/pact-config/builder.json', 'cross/cross.mjs'];
-test('the copy set with the kit: every kit file under pact/builder/, the agents in both places, and the rules source nowhere else', () => {
+const KIT_STAGED = ['claude/CLAUDE.md', core.RULES_SOURCE_REL, 'claude/agents/a.md', 'claude/agents.source/a.md', 'claude/commands/scriptorium.md', 'familiars/scout.md', 'gate/shared.mjs', 'gate/seam-a-core.mjs', 'builder/build.mjs', 'examples/pact-config/builder.json', 'cross/cross.mjs'];
+test('the copy set with the kit: every kit file under pact/builder/, the agents unrendered from their sources, and the sources nowhere else', () => {
   const on = core.expectedCopySet(KIT_STAGED, ['scriptorium']);
   assert.deepEqual(on, [
     ['claude/CLAUDE.md', 'CLAUDE.md'],
     [core.RULES_SOURCE_REL, 'pact/builder/claude/rules.source.md'],
-    ['claude/agents/a.md', 'pact/builder/claude/agents/a.md'],
     ['claude/agents/a.md', 'agents/a.md'],
+    ['claude/agents.source/a.md', 'pact/builder/claude/agents/a.md'],
     ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
     ['familiars/scout.md', 'pact/builder/familiars/scout.md'],
     ['familiars/scout.md', 'agents/scout.md'],
@@ -529,7 +529,11 @@ test('the copy set with the kit: every kit file under pact/builder/, the agents 
   assert.ok(!on.some(([rel]) => rel === 'gate/seam-a-core.mjs'), 'a gate file off the kit list never installs');
   const off = core.expectedCopySet(KIT_STAGED, ['finis']);
   assert.ok(!off.some(([, dest]) => dest && dest.startsWith('pact/builder/')), 'no kit pair without scriptorium');
-  assert.ok(!off.some(([rel]) => rel === core.RULES_SOURCE_REL || rel.startsWith('builder/') || rel.startsWith('examples/')), 'the kit-only files are left out, not paired with null');
+  assert.ok(!off.some(([rel]) => rel === core.RULES_SOURCE_REL || rel.startsWith('claude/agents.source/') || rel.startsWith('builder/') || rel.startsWith('examples/')), 'the kit-only files are left out, not paired with null');
+  assert.ok(!on.some(([rel, dest]) => rel === 'claude/agents/a.md' && dest.startsWith('pact/builder/')), 'the kit takes the rendered agent');
+  assert.deepEqual(core.expectedCopySet(['claude/agents.source/x/a.md', 'claude/agents.source/a.txt'], ['scriptorium']), [['claude/agents.source/x/a.md', null], ['claude/agents.source/a.txt', null]], 'only claude/agents.source/<name>.md is a source');
+  assert.equal(core.agentSourceOf('claude/agents/a.md'), 'claude/agents.source/a.md');
+  assert.equal(core.agentSourceOf('familiars/scout.md'), null);
   assert.deepEqual(core.expectedCopySet(['builder/other.mjs', 'examples/x.json'], ['scriptorium']), [['builder/other.mjs', null], ['examples/x.json', null]], 'a staged file off the kit list has no known kind');
 });
 
@@ -539,7 +543,8 @@ for (const c of table('copy set with the kit', {
   run: t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(KIT_STAGED, t.list.split(',')), new Map(KIT_STAGED.map(r => [r, H('1')])), ID('a'))),
   rows: [
     { id: 'kit-file-left-off', plant: rep(`INSTALL ${H('1')} builder/build.mjs pact/builder/builder/build.mjs\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list every kit file when scriptorium is on' },
-    { id: 'kit-agent-left-off', plant: rep(`INSTALL ${H('1')} claude/agents/a.md pact/builder/claude/agents/a.md\n`, ''), fails: ['copy-set-mismatch'], why: 'and every agent beside the kit' },
+    { id: 'kit-agent-left-off', plant: rep(`INSTALL ${H('1')} claude/agents.source/a.md pact/builder/claude/agents/a.md\n`, ''), fails: ['copy-set-mismatch'], why: 'and every agent beside the kit' },
+    { id: 'kit-agent-rendered', plant: rep('claude/agents.source/a.md pact/builder', 'claude/agents/a.md pact/builder'), fails: ['copy-set-mismatch'], why: 'the kit takes each agent unrendered, from its source' },
     { id: 'kit-without-scriptorium', plant: t => ({ ...t, list: 'finis' }), fails: ['copy-set-mismatch'], why: 'a kit pair the install side does not expect' },
     { id: 'rules-source-to-home', plant: rep('RESULT', `INSTALL ${H('1')} ${core.RULES_SOURCE_REL} rules.source.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'the rules source installs only in the kit' },
     { id: 'kit-gate-file-elsewhere', plant: rep('pact/builder/gate/shared.mjs', 'pact/gate/shared.mjs'), fails: ['copy-set-gate'], why: 'a kit gate file only at its kit path' },
@@ -549,15 +554,19 @@ for (const c of table('copy set with the kit', {
 
 for (const c of table('rules source copy', {
   module: 'gate/install-core.mjs',
-  base: () => ({ rels: 'claude/CLAUDE.md,claude/agents/a.md', copy: H('1'), rules: H('1') }),
+  base: () => ({ rels: 'claude/CLAUDE.md,claude/agents/a.md', copy: H('1'), rules: H('1'), agentCopy: H('3'), agent: H('3') }),
   run: t => decided(() => {
     core.checkNoRulesSource(t.rels.split(','));
     core.checkRulesSourceCopy(t.copy, t.rules);
+    core.checkAgentSourceCopy('claude/agents.source/a.md', t.agentCopy, t.agent);
   }),
   rows: [
     { id: 'committed', plant: t => ({ ...t, rels: `${t.rels},claude/rules.source.md` }), fails: ['rules-source-committed'], says: /the commit holds claude\/rules\.source\.md/, why: 'the install makes the source copy; a commit may not carry one' },
     { id: 'committed-other-case', plant: t => ({ ...t, rels: `${t.rels},claude/Rules.Source.md` }), fails: ['rules-source-committed'], why: 'matched case-folded, as a case-folding file system would' },
     { id: 'copy-differs', plant: t => ({ ...t, copy: H('2') }), fails: ['rules-source-copy'], why: "the copy must hash to the tree's rules file" },
+    { id: 'agent-source-committed', plant: t => ({ ...t, rels: `${t.rels},claude/agents.source/a.md` }), fails: ['agent-source-committed'], says: /the install makes claude\/agents\.source\/ itself/, why: 'the install makes the agent sources; a commit may not carry one' },
+    { id: 'agent-source-committed-other-case', plant: t => ({ ...t, rels: `${t.rels},Claude/Agents.Source/a.md` }), fails: ['agent-source-committed'], why: 'matched case-folded' },
+    { id: 'agent-copy-differs', plant: t => ({ ...t, agentCopy: H('2') }), fails: ['agent-source-copy'], why: `each agent's copy must hash to the tree's file` },
   ],
 })) test(c.name, c.fn);
 

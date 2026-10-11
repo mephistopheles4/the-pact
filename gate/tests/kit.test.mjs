@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { BUILDER_KIT as INSTALL_KIT, RULES_SOURCE_REL, isStaged } from '../install-core.mjs';
 import { SOURCE_OPEN_MARKS } from '../pact-text.mjs';
-import { BUILDER_KIT, KIT_BUILTINS, RULES_SOURCE, inBuilderKit } from '../shared.mjs';
+import { AGENT_SOURCES, BUILDER_KIT, KIT_BUILTINS, RULES_SOURCE, kitPath } from '../shared.mjs';
 import { COPY_FILES } from './copy-list.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
@@ -25,6 +25,11 @@ function kitTree() {
   for (const rel of BUILDER_KIT) out[rel] = read(rel === RULES_SOURCE ? 'claude/CLAUDE.md' : rel);
   out['familiars/scout.contract.md'] = read('familiars/scout.contract.md');
   out['claude/commands/scriptorium.md'] = read('claude/commands/scriptorium.md');
+  // Each agent, and the install's unrendered copy of it, as it stages them before the render.
+  for (const f of readdirSync(join(REPO, 'claude', 'agents'))) {
+    out[`claude/agents/${f}`] = read(`claude/agents/${f}`);
+    out[`${AGENT_SOURCES}${f}`] = read(`claude/agents/${f}`);
+  }
   return out;
 }
 /** A plant that replaces `from` with `to` in the file `key`. */
@@ -69,6 +74,12 @@ for (const c of table('builder kit', {
     { id: 'refused-character', plant: line('examples/pact-config/builder.json', '\u202e'), fails: ['invisible'], why: 'every kit text file is scanned' },
     { id: 'source-unknown-mark', plant: rep(RULES_SOURCE, '<!-- pact:begin move-1 -->', '<!-- pact:begin move-9 -->'), fails: ['marker'], why: 'only the open marks the renderer knows' },
     { id: 'source-clause-changed', plant: rep(RULES_SOURCE, 'Auth, secrets, crypto, input validation and data migrations are always thorough', 'Auth and secrets are always thorough'), fails: ['required-clause', 'shared-block'], why: 'the gated clauses word for word, in the source too' },
+    { id: 'agent-source-missing', plant: drop('claude/agents.source/data-lens.md'), fails: ['kit-missing'], why: 'scriptorium is on, so every agent needs its unrendered copy' },
+    { id: 'agent-source-body-changed', plant: rep('claude/agents.source/data-lens.md', 'name: data-lens', 'name: data-lens\ntools: [Read, Glob, Grep, Bash]'), fails: ['kit-agent-source'], why: "a source must be its agent's file but for model and effort" },
+    { id: 'agent-source-line-dropped', plant: t => ({ ...t, 'claude/agents.source/data-lens.md': t['claude/agents.source/data-lens.md'].split('\n').slice(0, -2).join('\n') }), fails: ['kit-agent-source'], why: 'the same lines, every one' },
+    { id: 'agent-source-model-in-body', plant: t => ({ ...t, 'claude/agents.source/data-lens.md': `${t['claude/agents.source/data-lens.md']}model: x\n`, 'claude/agents/data-lens.md': `${t['claude/agents/data-lens.md']}model: y\n` }), fails: ['kit-agent-source'], why: 'only a frontmatter line may differ' },
+    { id: 'agent-source-orphan', plant: t => ({ ...t, 'claude/agents.source/ghost-lens.md': t['claude/agents.source/data-lens.md'] }), fails: ['kit-agent-source'], why: 'a source with no agent beside it' },
+    { id: 'agent-source-subfolder', plant: t => ({ ...t, 'claude/agents.source/more/data-lens.md': t['claude/agents.source/data-lens.md'] }), fails: ['unclassified'], why: 'exactly claude/agents.source/<name>.md' },
     { id: 'source-move-gone', plant: rep(RULES_SOURCE, '4. **I stay the owner.**', '4) **I stay the owner.**'), fails: ['moves', 'anchor', 'routing'], why: 'the moves, as the rules file is held to them' },
   ],
 })) test(c.name, c.fn);
@@ -80,7 +91,8 @@ test('seam A lists the kit under pact/builder/ only when scriptorium is on, ever
   const pairs = [...on.stdout.matchAll(/^INSTALL [0-9a-f]{64} (\S+) (\S+)$/gm)].map(m => [m[1], m[2]]);
   for (const rel of BUILDER_KIT) assert.ok(pairs.some(([s, d]) => s === rel && d === `pact/builder/${rel}`), `${rel} is not in the kit`);
   for (const f of readdirSync(join(REPO, 'claude', 'agents'))) {
-    assert.ok(pairs.some(([s, d]) => s === `claude/agents/${f}` && d === `pact/builder/claude/agents/${f}`), `${f} is not in the kit`);
+    assert.ok(pairs.some(([s, d]) => s === `claude/agents.source/${f}` && d === `pact/builder/claude/agents/${f}`), `${f} is not in the kit from its unrendered copy`);
+    assert.ok(!pairs.some(([s, d]) => s === `claude/agents/${f}` && d.startsWith('pact/builder/')), `the kit takes ${f} as rendered`);
     assert.ok(pairs.some(([s, d]) => s === `claude/agents/${f}` && d === `agents/${f}`), `${f} is not installed as an agent`);
   }
   assert.ok(!pairs.some(([, d]) => /(^|\/)CLAUDE\.md$/.test(d) && d !== 'CLAUDE.md'), 'the kit holds a CLAUDE.md');
@@ -93,6 +105,15 @@ test('seam A lists the kit under pact/builder/ only when scriptorium is on, ever
   const badOff = runSeamA(stage(t, bad), undefined, { commands: 'none' });
   assert.equal(badOff.code, 1, 'a kit module is checked even with scriptorium off');
   assert.match(badOff.stdout, /^FAIL kit-imports: builder\/build\.mjs line \d+: /m);
+});
+
+test("control: an agent source may differ from its rendered agent in the model and effort lines alone, as a configuration sets them", t => {
+  const tree = kitTree();
+  const agent = 'claude/agents/data-lens.md';
+  const model = /^model: (\S+)$/m.exec(tree[agent])[1];
+  tree[agent] = tree[agent].replace(/^model: \S+$/m, `model: ${model === 'opus' ? 'sonnet' : 'opus'}`).replace(/^effort: \S+$/m, 'effort: low');
+  const r = runSeamA(stage(t, tree), undefined, { commands: 'scriptorium' });
+  assert.equal(r.code, 0, r.out);
 });
 
 test('control: with scriptorium off, a stage without the kit passes, as the cloud copy stages it', t => {
@@ -125,7 +146,10 @@ test('the kit list is one list: the install keeps the same paths, frozen, and bo
   assert.equal(RULES_SOURCE, RULES_SOURCE_REL);
   assert.equal(RULES_SOURCE, 'claude/rules.source.md');
   assert.ok(!BUILDER_KIT.some(rel => /(^|\/)CLAUDE\.md$/.test(rel)), 'the kit names a CLAUDE.md');
-  assert.ok(inBuilderKit('claude/agents/x.md') && !inBuilderKit('claude/agents/x/y.md') && !inBuilderKit('claude/CLAUDE.md'));
+  assert.equal(AGENT_SOURCES, 'claude/agents.source/');
+  assert.equal(kitPath('claude/agents.source/x.md'), 'claude/agents/x.md');
+  assert.equal(kitPath('builder/build.mjs'), 'builder/build.mjs');
+  for (const rel of ['claude/agents/x.md', 'claude/agents.source/x/y.md', 'claude/CLAUDE.md', 'gate/seam-a-core.mjs']) assert.equal(kitPath(rel), null, rel);
 });
 
 test('every kit file outside claude/, familiars/ and gate/ is staged by exact path, by the bootstrap, the core and the harness', () => {

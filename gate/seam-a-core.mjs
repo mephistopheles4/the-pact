@@ -11,7 +11,8 @@
 //
 // The stage root holds claude/, familiars/, gate/, cross/cross.mjs, AGENTS.md
 // and the builder kit's other files as the commit has them, and the install's
-// unrendered copy of the rules file, claude/rules.source.md. Seam A decides
+// unrendered copies of the rules file and agents, claude/rules.source.md and
+// claude/agents.source/. Seam A decides
 // what each file is, checks every agent the install would copy, every pact
 // command file, every builder kit file, the cross script's characters and
 // the pact's own text (pact-text.mjs), and prints the exact
@@ -43,7 +44,7 @@ import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkPactText } from './pact-text.mjs';
-import { AT_IMPORT_RE, BUILDER_KIT, KIT_BUILTINS, PACT_COMMANDS, RULES_SOURCE, Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
+import { AGENT_SOURCES, AT_IMPORT_RE, BUILDER_KIT, KIT_BUILTINS, PACT_COMMANDS, RULES_SOURCE, Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PINNED = join(HERE, 'grimoire', 'check.mjs');
@@ -698,6 +699,7 @@ function walk(root, top, report) {
 function classify(root, report) {
   const agents = [];
   const commands = [];
+  const sources = [];
   const installs = [];
   const contracts = new Set();
   let overlay = false;
@@ -720,6 +722,10 @@ function classify(root, report) {
       } else if (rel === RULES_SOURCE) {
         // The builder kit's rules source, the install's own unrendered copy:
         // checked as pact text and as a kit file, installed only in the kit.
+      } else if (rel.startsWith(AGENT_SOURCES)) {
+        // An agent's unrendered copy for the kit: exactly claude/agents.source/<name>.md.
+        if (seg.length === 3 && seg[2].endsWith('.md')) sources.push({ file: rel, agent: `claude/agents/${seg[2]}` });
+        else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
         const a = { file: rel, stem: seg[2].slice(0, -3), dest: `agents/${seg[2]}`, familiar: false };
         agents.push(a);
@@ -759,7 +765,7 @@ function classify(root, report) {
     }
     installs.push({ file, dest, text: true });
   }
-  return { agents, commands, installs, overlay };
+  return { agents, commands, sources, installs, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
@@ -918,11 +924,39 @@ function checkKitImports(text, file, report) {
 /**
  * The builder kit (#203, S6). Every kit file the stage holds is checked, a
  * regular file, its text scanned, and each module held to the kit's import
- * rule; the agents and the rules source are checked as agents and as pact
- * text. When `on`, every kit file must be there, and each is added to the copy
- * set under pact/builder/, with every claude/agents/ agent beside them.
+ * rule; the rules source is checked as pact text, scout as an agent. Each
+ * agent source must be its agent's file, unrendered: the same lines, but for
+ * the model and effort lines a configuration may set. When `on`, every kit
+ * file must be there, with a source for every claude/agents/ agent, and each
+ * is added to the copy set under pact/builder/, a source at the kit's
+ * claude/agents/.
  */
-function checkKit(root, agents, installs, on, report) {
+function checkKit(root, agents, sources, installs, on, report) {
+  const text = rel => scanText(readFileSync(join(root, ...rel.split('/'))), rel, report);
+  const setLine = l => /^(?:model|effort):/.test(l);
+  for (const s of sources) {
+    const own = text(s.file);
+    if (own === null) continue;
+    if (!agents.some(a => a.file === s.agent)) {
+      report.fail('kit-agent-source', s.file, null, 'an agent source with no agent beside it in claude/agents');
+      continue;
+    }
+    const a = readFileSync(join(root, ...s.agent.split('/')), 'utf8').split('\n');
+    const b = own.split('\n');
+    // Only a frontmatter line may differ, and only a model or effort line for the same key.
+    const fmEnd = a.indexOf('---', 1);
+    if (a.length !== b.length || a.some((l, i) => l !== b[i] && !(i < fmEnd && setLine(l) && setLine(b[i]) && l.split(':')[0] === b[i].split(':')[0]))) {
+      report.fail('kit-agent-source', s.file, null, "differs from its agent's file beyond the model and effort lines a configuration may set");
+    }
+  }
+  if (on) {
+    for (const a of agents) {
+      if (a.familiar) continue;
+      const s = sources.find(x => x.agent === a.file);
+      if (!s) report.fail('kit-missing', a.file, null, 'scriptorium is listed, but this agent has no unrendered copy in claude/agents.source');
+      else installs.push({ file: s.file, dest: `${KIT_DEST}${s.agent}` });
+    }
+  }
   for (const rel of BUILDER_KIT) {
     const abs = join(root, ...rel.split('/'));
     let st;
@@ -942,7 +976,6 @@ function checkKit(root, agents, installs, on, report) {
     }
     if (on) installs.push({ file: rel, dest: `${KIT_DEST}${rel}` });
   }
-  if (on) for (const a of agents) if (!a.familiar) installs.push({ file: a.file, dest: `${KIT_DEST}${a.file}` });
 }
 
 /** Run the pinned grimoire check on one familiar. Relays rule names and line numbers only. */
@@ -973,7 +1006,7 @@ function run(root, listed, report) {
   const pinned = verifyPin(report);
   const allow = loadAllowlist(report);
   const settingsAllow = loadSettingsAllowlist(report);
-  const { agents, commands, installs, overlay } = classify(root, report);
+  const { agents, commands, sources, installs, overlay } = classify(root, report);
   let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
@@ -996,7 +1029,7 @@ function run(root, listed, report) {
     if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
   }
 
-  checkKit(root, agents, installs, listed.includes(KIT_COMMAND), report);
+  checkKit(root, agents, sources, installs, listed.includes(KIT_COMMAND), report);
 
   // The cross script is code the pact runs: held to the same character rules
   // as every other installed text, so nothing in it reads one way and runs

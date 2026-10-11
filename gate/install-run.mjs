@@ -139,13 +139,23 @@ async function main() {
   const render = await loadCore('render-core.mjs');
   if (!staged.has(core.RULES_REL)) core.stops.rulesMissing();
   const rulesStaged = live(stage, core.RULES_REL);
-  // The builder kit's rules source (#203, S6): the unrendered rules file,
-  // copied every time before the render overwrites it, and bound to the tree.
+  // The builder kit's sources (#203, S6): the unrendered rules file and
+  // agents, copied every time before the render overwrites them, and bound to
+  // the tree, so the kit shows the pact as committed.
   core.checkNoRulesSource(staged.keys());
   writeFileSync(live(stage, core.RULES_SOURCE_REL), readFileSync(rulesStaged), { flag: 'wx' });
   const sourceHash = io.fileSha256(live(stage, core.RULES_SOURCE_REL));
   core.checkRulesSourceCopy(sourceHash, staged.get(core.RULES_REL));
   staged.set(core.RULES_SOURCE_REL, sourceHash);
+  for (const rel of [...staged.keys()]) {
+    const src = core.agentSourceOf(rel);
+    if (!src) continue;
+    mkdirSync(dirname(live(stage, src)), { recursive: true });
+    writeFileSync(live(stage, src), readFileSync(live(stage, rel)), { flag: 'wx' });
+    const h = io.fileSha256(live(stage, src));
+    core.checkAgentSourceCopy(src, h, staged.get(rel));
+    staged.set(src, h);
+  }
   const before = stateOf(stage);
   const renderOut = mkdtempSync(join(work, 'render-'));
   // A project install gives the stage its no-file render, against a new empty

@@ -15,10 +15,12 @@ export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.
 export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
 // The builder kit (#203, S6, S8): the install's own copy of BUILDER_KIT in
 // gate/shared.mjs, held to it by a test. It installs under pact/builder/, in
-// the repo's layout, only when the commands list names scriptorium, with every
-// claude/agents/<name>.md beside it. Its gate files are the only gate files
-// that ever install, and its rules source is the install's own copy.
+// the repo's layout, only when the commands list names scriptorium. Its gate
+// files are the only gate files that ever install. Its rules source and its
+// agents are the install's own unrendered copies, made before the render:
+// claude/agents.source/<name>.md installs at the kit's claude/agents/.
 export const RULES_SOURCE_REL = 'claude/rules.source.md';
+export const AGENT_SOURCES_REL = 'claude/agents.source/';
 export const BUILDER_KIT = Object.freeze([
   'builder/build.mjs',
   'builder/scriptorium.html',
@@ -38,7 +40,17 @@ export const BUILDER_KIT = Object.freeze([
 ]);
 const KIT_COMMAND = 'scriptorium';
 const KIT_DEST = 'pact/builder/';
-const inKit = rel => BUILDER_KIT.includes(rel) || /^claude\/agents\/[^/]+\.md$/.test(rel);
+/** A staged kit file's path under pact/builder/: an agent source at claude/agents/, any other at its own path; null when not in the kit. */
+const kitPath = rel => {
+  if (BUILDER_KIT.includes(rel)) return rel;
+  const m = /^claude\/agents\.source\/([^/]+\.md)$/.exec(rel);
+  return m ? `claude/agents/${m[1]}` : null;
+};
+/** The agent source the install makes for a staged agent, or null for a path that is not one. */
+export const agentSourceOf = rel => {
+  const m = /^claude\/agents\/([^/]+\.md)$/.exec(rel);
+  return m ? `${AGENT_SOURCES_REL}${m[1]}` : null;
+};
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 /** The PowerShell installer the Node install replaces: a record from it lists it among the gate files (S9). */
 export const OLD_INSTALLER = 'scripts/install.ps1';
@@ -174,15 +186,23 @@ export function applyLine(paths, commit, renderedHash, platform) {
 export const isStaged = rel => rel === 'AGENTS.md' || rel === 'cross/cross.mjs' || BUILDER_KIT.includes(rel) || (/^(claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
 
 /**
- * The builder kit's rules source is the install's own copy of the committed
- * rules file (#203, S6). A commit that already holds one, in any case, is
- * refused before anything is copied, and the copy must hash to the tree's.
+ * The builder kit's rules source and agent sources are the install's own
+ * copies of the committed rules file and agents (#203, S6). A commit that
+ * already holds either, in any case, is refused before anything is copied,
+ * and each copy must hash to the tree's file.
  */
 export function checkNoRulesSource(stagedRels) {
-  for (const rel of stagedRels) if (rel.toLowerCase() === RULES_SOURCE_REL) refuse('rules-source-committed', `the commit holds ${formatPlain(rel)}; the install makes that file itself, from ${RULES_REL}, so a commit may not carry one.`);
+  for (const rel of stagedRels) {
+    const low = rel.toLowerCase();
+    if (low === RULES_SOURCE_REL) refuse('rules-source-committed', `the commit holds ${formatPlain(rel)}; the install makes that file itself, from ${RULES_REL}, so a commit may not carry one.`);
+    if (low.startsWith(AGENT_SOURCES_REL)) refuse('agent-source-committed', `the commit holds ${formatPlain(rel)}; the install makes ${AGENT_SOURCES_REL} itself, from claude/agents/, so a commit may not carry it.`);
+  }
 }
 export function checkRulesSourceCopy(copyHash, rulesHash) {
   if (copyHash !== rulesHash) refuse('rules-source-copy', `the staged copy of ${RULES_REL} made for the builder kit does not match the commit's ${RULES_REL}.`);
+}
+export function checkAgentSourceCopy(rel, copyHash, agentHash) {
+  if (copyHash !== agentHash) refuse('agent-source-copy', `the staged copy of ${formatPlain(rel)} made for the builder kit does not match the commit's file.`);
 }
 
 /**
@@ -592,15 +612,20 @@ export function parseProjectWrite(report, projectHash) {
  * of [staged path, live path] pairs, one source to one or more live paths. A
  * pact command installs only when `commands` names it. The builder kit
  * installs under pact/builder/ only when it names scriptorium: its gate files,
- * builder/ and examples/ files and the rules source install nowhere else, and
- * its agents also install as agents. A staged file of no known kind pairs
- * with null, which no INSTALL line can match.
+ * builder/ and examples/ files, the rules source and the agent sources
+ * install nowhere else, and scout also installs as an agent. A staged file of
+ * no known kind pairs with null, which no INSTALL line can match.
  */
 export function expectedCopySet(stagedRels, commands = []) {
   const out = [];
   const kit = commands.includes(KIT_COMMAND);
   for (const rel of stagedRels) {
-    if (kit && inKit(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
+    const inKit = kitPath(rel);
+    if (kit && inKit) out.push([rel, `${KIT_DEST}${inKit}`]);
+    if (rel.startsWith(AGENT_SOURCES_REL)) {
+      if (!inKit) out.push([rel, null]);
+      continue;
+    }
     if (rel === RULES_SOURCE_REL || (BUILDER_KIT.includes(rel) && /^(builder|examples)\//.test(rel))) continue;
     if (rel.startsWith('gate/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep') continue;
     if (/^familiars\/[^/]+\.(contract|practice-test)\.md$/.test(rel)) continue;

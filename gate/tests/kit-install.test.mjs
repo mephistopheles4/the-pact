@@ -16,11 +16,11 @@ const OLD_NODE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'old-
 const KIT = ['pact', 'builder'];
 const BUILDER = { schema: 1, title: 'Mine', presets: [{ id: 'grill-first', title: 'Grill first', slot: 'move-2', text: 'Before the spec, use the `grill-me` skill.', why: 'I think better when grilled.' }], workflows: [{ id: 'mine', title: 'Mine', about: 'How I work.', presets: ['grill-first'] }], yours: { skills: [{ name: 'grill-me', description: 'Grill the plan' }] } };
 
-/** A Claude home folder whose configuration turns on `commands`. */
-function homeWith(t, commands) {
+/** A Claude home folder whose configuration turns on `commands`, with `more` beside it. */
+function homeWith(t, commands, more = {}) {
   const h = home(t);
   mkdirSync(join(h, 'pact'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, commands })}\n`);
+  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, commands, ...more })}\n`);
   return h;
 }
 
@@ -52,13 +52,16 @@ const filesUnder = dir => readdirSync(dir, { recursive: true, withFileTypes: tru
 
 test('the kit installs with scriptorium, runs from the Claude home outside any clone, refuses where a page may not go, and is deleted when scriptorium is dropped', t => {
   const repo = makeRepo(t);
-  const h = homeWith(t, ['scriptorium']);
+  // An agent the owner sets off its default: the installed agent carries it, the kit's copy never does (q1).
+  const h = homeWith(t, ['scriptorium'], { agents: { 'integrity-lens': { model: 'sonnet' } } });
   const dry = installFully(repo, h);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact command \/scriptorium; it installs to commands\/scriptorium\.md, with the builder kit, the builder script and what it reads, under pact\/builder\/\.\r?$/m, dry.out);
   const kit = join(h, ...KIT);
   assert.equal(readFileSync(join(h, 'commands', 'scriptorium.md'), 'utf8'), readFileSync(join(repo, 'claude', 'commands', 'scriptorium.md'), 'utf8'));
   // The rules source is the committed rules file, unrendered, and the kit holds no CLAUDE.md.
   assert.deepEqual(readFileSync(join(kit, 'claude', 'rules.source.md')), readFileSync(join(repo, 'claude', 'CLAUDE.md')));
+  assert.match(readFileSync(join(h, 'agents', 'integrity-lens.md'), 'utf8'), /^model: sonnet$/m, 'the override did not install');
+  for (const f of readdirSync(join(repo, 'claude', 'agents'))) assert.deepEqual(readFileSync(join(kit, 'claude', 'agents', f)), readFileSync(join(repo, 'claude', 'agents', f)), `the kit's ${f} is not the committed file`);
   const files = filesUnder(kit);
   assert.ok(!files.some(f => /(^|\/)CLAUDE\.md$/i.test(f)), `the kit holds a CLAUDE.md: ${files.join(', ')}`);
   for (const f of ['builder/build.mjs', 'builder/scriptorium.html', 'gate/render.mjs', 'gate/render-core.mjs', 'gate/shared.mjs', 'gate/tool-allowlist.json', 'familiars/scout.md', 'examples/pact-config/builder.json', 'claude/agents/data-lens.md']) assert.ok(files.includes(f), `the kit lacks ${f}`);
@@ -111,7 +114,7 @@ test('the kit installs with scriptorium, runs from the Claude home outside any c
   assert.ok(!existsSync(join(tree, 'pages', 'mine.html')) && !existsSync(join(dot, 'mine.html')) && !existsSync(join(h, 'mine.html')), 'a refused run wrote a page');
 
   // Dropping scriptorium deletes the command and the whole kit, through the record.
-  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, commands: [] })}\n`);
+  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, commands: [], agents: { 'integrity-lens': { model: 'sonnet' } } })}\n`);
   const drop = installFully(repo, h);
   assert.match(drop.stdout, /^Delete: \d+\r?$/m, drop.out);
   assert.match(drop.stdout, /^ {2}pact\/builder\/builder\/build\.mjs\r?$/m, drop.out);
@@ -132,6 +135,14 @@ test('with no commands list, the kit is staged and checked but never installs', 
 test('bad case: a commit that carries claude/rules.source.md refuses, and changes nothing', t => {
   const repo = makeRepo(t, root => writeFileSync(join(root, 'claude', 'rules.source.md'), readFileSync(join(root, 'claude', 'CLAUDE.md'))));
   refusedUnchanged(repo, homeWith(t, ['scriptorium']), /^REFUSED: the commit holds claude\/rules\.source\.md; the install makes that file itself, from claude\/CLAUDE\.md, so a commit may not carry one\./m);
+});
+
+test('bad case: a commit that carries a claude/agents.source/ file refuses, and changes nothing', t => {
+  const repo = makeRepo(t, root => {
+    mkdirSync(join(root, 'claude', 'agents.source'));
+    writeFileSync(join(root, 'claude', 'agents.source', 'data-lens.md'), readFileSync(join(root, 'claude', 'agents', 'data-lens.md')));
+  });
+  refusedUnchanged(repo, homeWith(t, ['scriptorium']), /^REFUSED: the commit holds claude\/agents\.source\/data-lens\.md; the install makes claude\/agents\.source\/ itself, from claude\/agents\/, so a commit may not carry it\./m);
 });
 
 test('bad case: a kit module that imports a network built-in refuses the install, which copies nothing', t => {

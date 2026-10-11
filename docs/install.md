@@ -225,9 +225,10 @@ It installs these files under `~/.claude`:
 - `pact/builder/`, the builder kit, only when the list names `scriptorium`:
   the builder script `builder/build.mjs` and what it reads, in the repo's
   own layout. That is the shipped page, four gate files (`shared.mjs`,
-  `render.mjs`, `render-core.mjs` and `tool-allowlist.json`), the agents,
-  the example builder file and its blocks, and the pact's rules as
-  `claude/rules.source.md`, unrendered and never named `CLAUDE.md`. The
+  `render.mjs`, `render-core.mjs` and `tool-allowlist.json`), the example
+  builder file and its blocks, and the pact's rules and agents as committed,
+  unrendered, so the page shows each lens's default, not your setting. The
+  rules are `claude/rules.source.md`, never named `CLAUDE.md`. The
   builder needs Node 24 or later. It never edits itself, and it never writes
   a page inside a git work tree, the Claude folder or any `.claude` folder,
   or over a file that exists. Taking `scriptorium` out of the list deletes
