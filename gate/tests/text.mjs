@@ -36,9 +36,6 @@ export function plainAgent(name, extra = [], tools = READ_ONLY) {
   return agent([`name: ${name}`, 'description: A test agent.', ...(tools === null ? [] : [tools]), ...extra]);
 }
 
-/** The line of the pact's rules file that routes lookups, which the fixture router extends. */
-export const ROLE_LEAD = '**Lookups and searches.**';
-
 export function contractText(extraKeys = 'tools, model, effort') {
   return `# Contract: test\n\nVersion: 0.6.0\nTarget: claude\nExtra keys: ${extraKeys}\n`;
 }

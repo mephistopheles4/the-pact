@@ -11,9 +11,10 @@
 // That object has two sources, and they never mix:
 //
 //   - The pact itself, always from this clone: the moves and their open and
-//     locked parts (claude/CLAUDE.md), the renderer's lists (gate/render-core.mjs,
-//     read as text, never run as a module) and the pact's agents
-//     (claude/agents/). A builder file cannot change any of it.
+//     locked parts (claude/CLAUDE.md), the renderer's lists (gate/render-core.mjs)
+//     and the pinned blocks (gate/shared.mjs), both read as text, never run as
+//     modules, and the pact's agents (claude/agents/). A builder file cannot
+//     change any of it.
 //   - A builder file (schema below): the person's presets, workflows and their
 //     own skills, commands and agents. The scriptorium skill writes one from
 //     the person's own workflow and revises it over time;
@@ -46,7 +47,10 @@ export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
 
 const MARK_RE = /^( *)<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
-const LEAD_RE = /^([1-4])\. \*\*(.+)\*\*$/;
+// A move's bullet: its bold lead-in, which titles the move on the page (#261).
+const LEAD_RE = /^- \*\*([^*]+?)\.?\*\*/;
+// The moves' open parts, in move order: each move is found by its part.
+const MOVE_PARTS = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra']);
 const DATA_RE = /\/\* pact-data:begin \*\/[\s\S]*?\/\* pact-data:end \*\//;
 const SCRIPT_RE = /<script>([\s\S]*?)<\/script>/;
 const STYLE_RE = /<style>([\s\S]*?)<\/style>/;
@@ -56,10 +60,10 @@ const fail = msg => {
   throw new Error(`builder: ${msg}`);
 };
 
-/** A quoted list declared in gate/render-core.mjs, such as OPEN_MARKS, read from its text. */
-function listFrom(renderSrc, name) {
-  const m = new RegExp(`const ${name} = Object\\.freeze\\(\\[([^\\]]*)\\]\\)`).exec(renderSrc);
-  if (!m) fail(`gate/render-core.mjs no longer declares ${name} as a frozen list`);
+/** A quoted list declared in a gate file's text, such as OPEN_MARKS in gate/render-core.mjs. */
+function listFrom(src, name, file = 'gate/render-core.mjs') {
+  const m = new RegExp(`const ${name} = Object\\.freeze\\(\\[([^\\]]*)\\]\\)`).exec(src);
+  if (!m) fail(`${file} no longer declares ${name} as a frozen list`);
   return [...m[1].matchAll(/'([^']*)'/g)].map(x => x[1]);
 }
 
@@ -94,7 +98,7 @@ function parseSource(src) {
       continue;
     }
     const l = LEAD_RE.exec(line);
-    seq.push(l ? { move: Number(l[1]), lead: l[2] } : { text: true });
+    seq.push(l ? { lead: l[1] } : { text: true });
   }
   if (cur) fail(`${cur.name} never closes`);
   return { parts, seq };
@@ -108,7 +112,7 @@ export function pactData(root) {
   const renderSrc = readFileSync(join(root, 'gate', 'render-core.mjs'), 'utf8');
   const open = listFrom(renderSrc, 'OPEN_MARKS');
   const editable = listFrom(renderSrc, 'EDITABLE');
-  const gated = listFrom(renderSrc, 'GATED');
+  const gated = listFrom(readFileSync(join(root, 'gate', 'shared.mjs'), 'utf8'), 'PINNED', 'gate/shared.mjs');
   const agentFiles = readdirSync(join(root, 'claude', 'agents'))
     .filter(f => f.endsWith('.md'))
     .sort();
@@ -126,14 +130,23 @@ export function pactData(root) {
     return { kind: 'gated', mark: name, text };
   };
 
+  // Each move is found by its open part, in MOVE_PARTS order, and titled by
+  // the bold lead-in of the bullet before it. The parts after it, up to the
+  // next text line, are the move's.
   const moves = [];
-  seq.forEach((s, i) => {
-    if (!s.move) return;
+  MOVE_PARTS.forEach((name, k) => {
+    const at = seq.findIndex(s => s.mark === name);
+    if (at < 0) fail(`claude/CLAUDE.md has no ${name} part`);
+    let lead = null;
+    for (let j = at - 1; j >= 0 && !lead; j -= 1) if (seq[j].lead) lead = seq[j].lead;
+    if (!lead) fail(`the ${name} part has no bulleted move before it`);
+    let first = at;
+    while (first > 0 && seq[first - 1].mark) first -= 1;
     const ps = [];
-    for (let j = i + 1; j < seq.length && seq[j].mark; j += 1) ps.push(part(seq[j].mark));
-    if (ps.length) moves.push({ n: s.move, lead: s.lead, parts: ps });
+    for (let j = first; j < seq.length && seq[j].mark; j += 1) ps.push(part(seq[j].mark));
+    moves.push({ n: k + 1, lead, parts: ps });
   });
-  if (moves.map(m => m.n).join() !== '1,2,3,4') fail('claude/CLAUDE.md no longer has moves 1 to 4, each followed by its marked parts');
+  if (new Set(moves.map(m => m.lead)).size !== moves.length) fail('claude/CLAUDE.md has two move parts under one move');
   const inMoves = moves.flatMap(m => m.parts.map(p => p.mark));
   for (const m of editable) if (!inMoves.includes(m)) fail(`the editable part ${m} is not in moves 1 to 4`);
 
@@ -349,7 +362,7 @@ export function loadBuilder(file, pact) {
     if (p.standsIn) {
       const routed = pact.moves.flatMap(m => m.parts).find(q => q.mark === p.mark).agents;
       const lost = routed.filter(a => !codeSpans(p.text).includes(a));
-      if (lost.length) findings.push(`preset ${p.id}: it stands in for ${p.mark}'s text but drops ${lost.length} agent${lost.length === 1 ? '' : 's'} that text routes to; the install would refuse it on its own`);
+      if (lost.length) findings.push(`preset ${p.id}: it stands in for ${p.mark}'s text but drops ${lost.length} agent${lost.length === 1 ? '' : 's'} that text names`);
     }
   }
   if (!listed) findings.push('yours lists no skills, commands or agents; the page\'s "Yours" section will say so');

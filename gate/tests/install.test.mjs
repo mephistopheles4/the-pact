@@ -5,9 +5,8 @@ import { createHash } from 'node:crypto';
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, routingFails, WIN, wrapCheck } from './install-harness.mjs';
+import { basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
-import { routeTree } from './payload.mjs';
 import { READ_ONLY, agent, plainAgent, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -283,10 +282,8 @@ test('canary: the install never echoes agent file content', t => {
       'claude/agents/c1.md': plainAgent('c1', [`model: ${C}: x`, `${C}key: y`]),
       'claude/agents/c2.md': agent([`name: ${C}`, 'description: x', READ_ONLY]),
     });
-    routeTree(root);
   });
-  // c2's name differs from its stem, so seam A refuses it for routing as well.
-  const r = install(repo, home(t), { unrouted: ['claude/agents/c2.md'] });
+  const r = install(repo, home(t));
   refused(r);
   assert.ok(!r.out.includes(C), r.out);
 });
@@ -312,20 +309,6 @@ test('AGENTS.md is read from HEAD: a working-tree-only weakening is not what is 
   const r = install(repo, home(t));
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /uncommitted edits are not checked/);
-});
-
-test('bad case: an unrouted agent at HEAD refuses, naming its file', t => {
-  const repo = makeRepo(t);
-  // Planted after makeRepo and never routed, so seam A refuses it.
-  writeTree(repo, { 'claude/agents/probe.md': plainAgent('probe') });
-  commitAll(repo);
-  const r = install(repo, home(t), { unrouted: ['claude/agents/probe.md'] });
-  // Seam A's own verdict refuses, before the copy-set check could (#210, move 4).
-  refused(r, /^REFUSED: the check failed\./m);
-  assert.match(r.stdout, /^seam-a\| FAIL routing: claude\/agents\/probe\.md: /m, r.out);
-  // The routing guard in install() reads this output: it must find the file, or a missed route would pass unseen.
-  assert.deepEqual(routingFails(r.stdout), ['claude/agents/probe.md'], r.out);
-  assert.throws(() => install(repo, home(t), { unrouted: 'claude/agents/probe.md' }), /unrouted is true or a list/);
 });
 
 // ------------------------------------------------------------ the check's runner, on real Node

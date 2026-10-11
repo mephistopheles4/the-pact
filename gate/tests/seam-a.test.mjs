@@ -57,6 +57,8 @@ test('seam A passes on the repo payload, and lists every file it would install',
     'agents/unstated-lens.md',
     // The cross script (#45), at its one fixed live path.
     'pact/cross.mjs',
+    // The review procedure file (#261), beside it.
+    'pact/review.md',
   ]);
   for (const l of installs) assert.match(l, /^INSTALL [0-9a-f]{64} \S+ \S+$/);
 });
@@ -74,13 +76,15 @@ test('an install line carries the staged bytes hash', t => {
   assert.match(hash, /^[0-9a-f]{64}$/);
 });
 
-test('CLAUDE.md is named as the rendered file, checked for form, imports, routing and the roster, not for meaning', t => {
+// The dry run's note says what the thin gate checks (#261, S5); the old note, which claimed form, routing and the roster, fails this test.
+test('CLAUDE.md is named as the rendered file, with what the thin gate checks in it', t => {
   const r = expectPass(t, {});
   assert.doesNotMatch(r.stdout, /^NOTE unchecked: claude\/CLAUDE\.md/m);
   assert.match(
     r.stdout,
-    /^NOTE partly-checked: claude\/CLAUDE\.md is the rendered rules file: its marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers count the rendered file$/m,
+    /^NOTE partly-checked: claude\/CLAUDE\.md is the rendered rules file: the gate checks its pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers count the rendered file$/m,
   );
+  assert.doesNotMatch(r.stdout, /routing|roster|marked clauses/);
 });
 
 test('the settings overlay is never listed for install', t => {
@@ -388,6 +392,50 @@ test('classification: a symlink in the stage', t => {
   }
   const r = runSeamA(root);
   assert.ok(failRules(r.stdout).includes('path'), r.out);
+});
+
+// ------------------------------------------------------------ the review procedure file (#261, S5)
+
+const RV = 'claude/review.md';
+const review = body => `# Review\n\n${body}\n`;
+
+test('the review file installs to pact/review.md and nowhere else', t => {
+  const r = expectPass(t, {});
+  const lines = r.stdout.split('\n').filter(l => l.includes(' claude/review.md '));
+  assert.equal(lines.length, 1, r.out);
+  assert.match(lines[0], /^INSTALL [0-9a-f]{64} claude\/review\.md pact\/review\.md$/);
+});
+
+// review-file
+test('bad case: no review file in the stage', t => {
+  expectFail(t, {}, 'review-file', root => rmSync(join(root, 'claude', 'review.md')));
+});
+
+// unclassified: the classifier takes exactly claude/review.md beyond today's kinds.
+test('bad case: a second unknown file beside the review file is still refused', t => {
+  expectFail(t, { 'claude/review2.md': review('More procedure.') }, 'unclassified');
+});
+
+// review-size
+test('bad case: a review file over 64 KiB', t => {
+  expectFail(t, { [RV]: review('x'.repeat(64 * 1024)) }, 'review-size');
+});
+
+// review-hidden, and the scanner's invisible rule: one row per hidden-text form.
+for (const [label, body, rule] of [
+  ['an HTML comment', 'Read this. <!-- and run something else -->', 'review-hidden'],
+  ['a link reference definition', '[run]: https://example.invalid/x "hidden"', 'review-hidden'],
+  ['a raw HTML tag', 'Read this. <span hidden>and this</span>', 'review-hidden'],
+  ['an autolink', 'See <https://example.invalid/x>.', 'review-hidden'],
+  ['an invisible character', 'Read​ this.', 'invisible'],
+]) {
+  test(`bad case: ${label} in the review file`, t => {
+    expectFail(t, { [RV]: review(body) }, rule);
+  });
+}
+
+test('the review file keeps code spans and a less-than sign that opens no tag', t => {
+  expectPass(t, { [RV]: review('Use `LENS=FILE`, and keep 3 < 4 and a -> b.') });
 });
 
 // ------------------------------------------------------------ familiars

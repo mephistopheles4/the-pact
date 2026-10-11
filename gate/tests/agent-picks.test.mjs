@@ -126,7 +126,7 @@ test('#151: a test that imports only helpers that touch no payload is not picked
 
 test('#151: control: a harness that imports the payload again ties every install file to the agents', () => {
   const sources = sourcesOf(TESTS);
-  sources.set('install-harness.mjs', `import { routeTree } from './payload.mjs';\n${sources.get('install-harness.mjs')}`);
+  sources.set('install-harness.mjs', `import { stage } from './payload.mjs';\n${sources.get('install-harness.mjs')}`);
   const entries = entriesOf(TESTS);
   const p = picks(sources, entries);
   for (const f of INSTALL_NOT_PICKED) assert.equal(p.get(f), 'names claude/agents/scout.md in payload.mjs', f);

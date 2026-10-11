@@ -22,19 +22,18 @@
 //      (cloud/not-plain), and a private path (cloud/private).
 //   2. Render claude/CLAUDE.md with no configuration (renderNoConfig).
 //   3. Stage the payload with the render in place of claude/CLAUDE.md and run
-//      seam A on it. The copy set is exactly seam A's INSTALL lines; each staged
-//      file is re-hashed against its line, and the overlay against SETTINGS.
-//   4. Apply the cloud edits, E1 and E2, to the render (applyEdits).
-//   5. Re-stage with the edited rules file and run seam A again. Every embedded
-//      file matches an INSTALL hash from this second run.
-//   6. Assemble both scripts from the templates in this folder (assemble), then
+//      seam A on it. The copy set is exactly seam A's INSTALL lines, the review
+//      procedure file included; each staged file is re-hashed against its
+//      line, and the overlay against SETTINGS. The cloud copy is the default
+//      render as it stands: the cloud edits to the parallel-session text went
+//      with that text (#261).
+//   4. Assemble both scripts from the templates in this folder (assemble), then
 //      run the form checks and the gate's character scan on every output.
 //
 // The gate's modules and allow-lists come from this generator's own repo, and
 // the templates from its own folder, whatever `root` is. It never reads the
 // live ~/.claude or the owner's configuration. `options` is for the tests only:
-// `home`, a render home folder in place of a new empty one, and `edits`, an
-// edit list in place of EDITS.
+// `home`, a render home folder in place of a new empty one.
 //
 // Every refusal is a CloudRefusal with its rule id. A message names a file only
 // by its repo-relative path and never relays a caught error's text.
@@ -99,41 +98,6 @@ const PH = Object.freeze({
 // and single-quoted anyway.
 const DEST_RE = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/;
 
-export const SECTION = '## When parallel sessions work one chain';
-const GATED_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
-
-// The cloud edits (#179, spec v3, S3). Each anchor is a paragraph's opening
-// lines as the pact has them; the freshness test pins this list by its ids and
-// editsDigest().
-export const EDITS = Object.freeze([
-  Object.freeze({
-    id: 'E1',
-    anchor:
-      '**Check for a live session before claiming.** Call\n' +
-      '`mcp__ccd_session_mgmt__list_sessions` and match candidates **on worktree name**.\n',
-    replacement:
-      '**Check for a live session before claiming.** If the desktop session tools\n' +
-      '(`mcp__ccd_session_mgmt__*`) are available, call `list_sessions` and match\n' +
-      'candidates **on worktree name**. In a cloud session,\n' +
-      '`mcp__Claude_Code_Remote__list_sessions` lists my cloud sessions by title only.\n' +
-      'It cannot see local desktop sessions and cannot message any session. So a\n' +
-      'ticket assigned in the last hour that no listed session clearly owns counts as\n' +
-      'live: ask me before claiming it.\n',
-  }),
-  Object.freeze({
-    id: 'E2',
-    anchor:
-      "**Message the session, don't guess.** Use\n" +
-      '`mcp__ccd_session_mgmt__send_message` to ask the other session whether it is\n' +
-      'done, rather than inferring from a stale transcript or an idle-looking process.\n',
-    replacement:
-      "**Message the session, don't guess.** If the desktop session tools are\n" +
-      'available, use `mcp__ccd_session_mgmt__send_message` to ask the other session\n' +
-      'whether it is done; otherwise ask me. Never infer it from a stale transcript or\n' +
-      'an idle-looking process.\n',
-  }),
-]);
-
 export class CloudRefusal extends Error {
   constructor(rule, reason) {
     super(`${rule}: ${reason}`);
@@ -146,11 +110,6 @@ const refuse = (rule, reason) => {
 };
 
 const sha256 = buf => createHash('sha256').update(buf).digest('hex');
-
-/** The sha256 of an edit list: each id, anchor and replacement, NUL-separated. */
-export function editsDigest(edits = EDITS) {
-  return sha256(edits.map(e => `${e.id}\0${e.anchor}\0${e.replacement}\0`).join(''));
-}
 
 /** Count of non-overlapping occurrences of `needle` in `hay`. */
 function count(hay, needle) {
@@ -266,7 +225,7 @@ export function renderNoConfig(source, { home } = {}) {
   }
 }
 
-// ---------------------------------------------------------------- steps 3 and 5: seam A
+// ---------------------------------------------------------------- step 3: seam A
 
 /**
  * Stage `files` (path -> bytes) in a new folder and run seam A on it. Returns
@@ -321,66 +280,7 @@ export function readCopySet(lines, files) {
   return { copy, overlay: settings };
 }
 
-// ---------------------------------------------------------------- step 4: the cloud edits
-
-/** The gated clauses of `text`, each from its begin line through its end line, as [start, end) offsets and text. */
-export function gatedClauses(text) {
-  const out = [];
-  const open = new Map();
-  let off = 0;
-  for (const line of text.split('\n')) {
-    const m = GATED_RE.exec(line);
-    if (m) {
-      if (m[1] === 'begin') open.set(m[2], off);
-      else if (open.has(m[2])) {
-        const start = open.get(m[2]);
-        open.delete(m[2]);
-        const end = off + line.length + 1;
-        out.push({ name: m[2], start, end, text: text.slice(start, end) });
-      }
-    }
-    off += line.length + 1;
-  }
-  return out.sort((a, b) => a.start - b.start);
-}
-
-/** The [start, end) offsets of the section headed SECTION, up to the next level-2 heading. */
-function sectionRange(text) {
-  const head = `\n${SECTION}\n`;
-  const at = text.indexOf(head);
-  if (at < 0 || count(text, head) !== 1) return null;
-  const start = at + 1;
-  const next = text.indexOf('\n## ', start + SECTION.length);
-  return [start, next < 0 ? text.length : next + 1];
-}
-
-/**
- * Apply `edits` (default EDITS) to the rendered rules text, in order. Every
- * mark left in a no-configuration render is gated, so each one is a clause no
- * edit may touch.
- */
-export function applyEdits(text, edits = EDITS) {
-  const clauses = gatedClauses(text);
-  let out = text;
-  for (const e of edits) {
-    if (count(out, e.anchor) !== 1) refuse('cloud/anchor-missing', `${e.id}'s anchor must appear exactly once`);
-    const start = out.indexOf(e.anchor);
-    const end = start + e.anchor.length;
-    if (gatedClauses(out).some(c => start < c.end && end > c.start)) refuse('cloud/anchor-gated', `${e.id}'s anchor overlaps a gated clause`);
-    const section = sectionRange(out);
-    if (!section || start < section[0] || end > section[1]) refuse('cloud/anchor-section', `${e.id}'s anchor is not inside the section "${SECTION}"`);
-    out = out.slice(0, start) + e.replacement + out.slice(end);
-  }
-  let from = 0;
-  for (const c of clauses) {
-    const at = out.indexOf(c.text, from);
-    if (count(out, c.text) !== 1 || at < 0) refuse('cloud/gated-moved', `the gated clause ${c.name} is not once, word for word and in order`);
-    from = at + c.text.length;
-  }
-  return out;
-}
-
-// ---------------------------------------------------------------- step 6: assemble
+// ---------------------------------------------------------------- step 4: assemble
 
 /** Read the four templates from `dir` (default: this folder) as text. */
 export function readTemplates(dir = HERE) {
@@ -503,20 +403,16 @@ export function generate(root, options = {}) {
     }
 
     files.set(RULES_SOURCE, rendered);
-    const first = seamA(files);
-    const edited = Buffer.from(applyEdits(rendered.toString('utf8'), options.edits ?? EDITS), 'utf8');
-    files.set(RULES_SOURCE, edited);
-    const second = seamA(files);
-    if (second.copy.map(c => `${c.source} ${c.dest}`).join('\n') !== first.copy.map(c => `${c.source} ${c.dest}`).join('\n')) refuse('cloud/seam-a', 'the copy set changed between the two seam A runs');
+    const checked = seamA(files);
 
     const { setup, wrapper, marker } = assemble({
-      files: second.copy.map(c => ({ dest: c.dest, buf: c.buf })),
-      overlay: second.overlay,
+      files: checked.copy.map(c => ({ dest: c.dest, buf: c.buf })),
+      overlay: checked.overlay,
       templates: readTemplates(),
     });
-    const rules = edited.toString('utf8');
+    const rules = rendered.toString('utf8');
     const report = new Report();
-    if (scanText(edited, OUTPUTS.rules, report) === null) refuse('cloud/chars', `${OUTPUTS.rules} holds a refused character`);
+    if (scanText(rendered, OUTPUTS.rules, report) === null) refuse('cloud/chars', `${OUTPUTS.rules} holds a refused character`);
     return {
       files: { [OUTPUTS.rules]: rules, [OUTPUTS.setup]: setup, [OUTPUTS.wrapper]: wrapper },
       marker,
