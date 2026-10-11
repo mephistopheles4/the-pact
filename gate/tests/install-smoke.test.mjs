@@ -20,7 +20,7 @@ test('dry run on a clean tree passes and shows Node, the pin, the check and the 
   assert.doesNotMatch(r.stdout, /not content-checked until #33/);
   assert.match(
     r.stdout,
-    /^Partly checked: the rendered CLAUDE\.md's marked clauses are checked word for word, and its open text for form, imports, routing and the roster, not for meaning; line numbers in seam A's lines count the rendered file\.$/m,
+    /^Partly checked: the gate checks the rendered CLAUDE\.md's pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers in seam A's lines count the rendered file\.$/m,
   );
 });
 
@@ -38,13 +38,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   // The Node install's gate is the gate folder alone (#153, S9).
   assert.deepEqual(gatePaths, [
     'gate/clauses/install-go-ahead.md',
-    'gate/clauses/move-4.md',
-    'gate/clauses/never-substitute.md',
-    'gate/clauses/no-skill-overrides.md',
-    'gate/clauses/risk-floor.md',
-    'gate/clauses/security-route.md',
     'gate/clauses/stop-and-escalate.md',
-    'gate/clauses/tracker-authors.md',
     'gate/contained.mjs',
     'gate/grimoire/check.mjs',
     'gate/grimoire/check.mjs.pin',
@@ -67,6 +61,10 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
     'gate/tool-allowlist.json',
   ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
+  // #261 S5: the review file installs beside the cross script, byte for byte, and the manifest lists it.
+  assert.deepEqual(readFileSync(join(h, 'pact', 'review.md')), readFileSync(join(repo, 'claude', 'review.md')));
+  assert.ok(manifest.files.some(f => f.path === 'pact/review.md'), JSON.stringify(manifest.files));
+  assert.ok(!existsSync(join(h, 'review.md')), 'the review file is never at the top of the Claude folder');
   // A sealed familiar installs as agents/<stem>.md; its contract never reaches the home folder (#210, move 4).
   assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'familiars', 'scout.md')));
   assert.ok(existsSync(join(repo, 'familiars', 'scout.contract.md')), 'the control: the repo holds a contract that could have installed');

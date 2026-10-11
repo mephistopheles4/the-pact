@@ -295,6 +295,21 @@ function weakenGoAhead(s) {
   return s.replace('only after they say so in chat', 'when ready');
 }
 
+// unlisted-live (#261, S5): the review file is never laid over a live file the pact did not put there.
+test('bad case: a live pact/review.md the record does not list refuses, on the dry run and on --apply, and nothing is written', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  mkdirSync(join(h, 'pact'), { recursive: true });
+  writeFileSync(join(h, 'pact', 'review.md'), 'my own notes\n');
+  const before = listTree(h);
+  for (const r of [install(repo, h), install(repo, h, { apply: true })]) {
+    refused(r);
+    assert.match(r.stdout, /^REFUSED: pact\/review\.md already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there\. Move it out of the way, then install again\./m, r.out);
+  }
+  assert.deepEqual(listTree(h), before);
+  assert.equal(readFileSync(join(h, 'pact', 'review.md'), 'utf8'), 'my own notes\n');
+});
+
 test('bad case: a weakened install go-ahead in AGENTS.md at HEAD refuses', t => {
   const repo = makeRepo(t, root => writeFileSync(join(root, 'AGENTS.md'), weakenGoAhead(readFileSync(join(root, 'AGENTS.md'), 'utf8'))));
   const r = install(repo, home(t));
@@ -474,11 +489,11 @@ test("bad case: a commit with seam A's core deleted refuses, since the runner ca
 
 test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('however small:', 'when large:'));"),
+    plantRenderer(root, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('your pick, and wait.', 'your pick.'));"),
   );
   const r = install(repo, home(t));
   refused(r);
   assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
-  assert.match(r.stdout, /^seam-a\| FAIL required-clause: claude\/CLAUDE\.md: security-route /m, r.out);
+  assert.match(r.stdout, /^seam-a\| FAIL required-clause: claude\/CLAUDE\.md: stop-and-escalate /m, r.out);
 });
 

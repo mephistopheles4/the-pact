@@ -205,7 +205,7 @@ test('a rule id is looked for in the module and every gate file it imports, not 
 
 test('seam A\'s rule ids are found through the files it imports', () => {
   const lits = moduleLiterals('gate/seam-a.mjs');
-  assert.ok(lits.has('routing'), 'a rule seam-a.mjs holds');
+  assert.ok(lits.has('rules-import'), 'a rule pact-text.mjs holds, which seam A imports');
 });
 
 test('a tree\'s bytes differ when a path or its bytes differ, and not when only key order does', () => {

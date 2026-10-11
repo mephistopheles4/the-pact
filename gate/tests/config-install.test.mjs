@@ -142,7 +142,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
     `  configuration digest: ${digestOf(EXAMPLE)}`,
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
-    '  Open text is checked for form, imports, routing and the roster, not for meaning.',
+    '  Edited text is checked for its form, its characters and file imports, not for wording or meaning.',
     // The pact commands' block follows the configuration's (#203).
     'Commands:',
   ]);

@@ -98,7 +98,7 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
     '  WARN: the user configuration edits move-2 (replace).',
     '  WARN: the user configuration edits move-1 (remove).',
     '  WARN: the user configuration edits move-4-extra (add-after).',
-    '  Open text is checked for form, imports, routing and the roster, not for meaning.',
+    '  Edited text is checked for its form, its characters and file imports, not for wording or meaning.',
   ]);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
 

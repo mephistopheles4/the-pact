@@ -1,33 +1,17 @@
-// The roster list and the reverse routing check (#45, from #35's "The
-// changeover"). The gate refuses a roster name that is not installed, in the
-// pact or in an installed agent file, and a lens file that names any reviewer
-// but itself. Each planted bad case asserts the rule it must fail on.
+// The roster list (#45, from #35's "The changeover") and the name search that
+// keeps retired reviewers out of the repo. The gate's reverse routing check on
+// the pact's text went with the thin gate (#261); a retired reviewer's tools
+// are still refused by the tool allow-list.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { LENSES, OLD_REVIEWERS, ROSTER } from '../pact-text.mjs';
-import { runSeamA, sealedFamiliar } from './gate-run.mjs';
+import { runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
-import { REPO, failRules, lastLine, plainAgent, withoutOpenMarks } from './text.mjs';
+import { REPO, failRules, lastLine, plainAgent } from './text.mjs';
 import { read, tempDir, writeTree } from './tree.mjs';
-
-const MD = 'claude/CLAUDE.md';
-// A roster name the state after the standards swap does not install: from #101 every lens is installed,
-// so it is a retired reviewer (#47, #99, #100, #101).
-const ABSENT = 'result-checker';
-// A lens file planted over an installed lens, for the checks on what a lens file may name.
-const LENS = 'reader-lens';
-
-function file(root, rel) {
-  return join(root, ...rel.split('/'));
-}
-
-function edit(root, rel, fn) {
-  const p = file(root, rel);
-  writeFileSync(p, fn(readFileSync(p, 'utf8')));
-}
 
 function seam(t, files = {}, prep) {
   const root = stage(t, files);
@@ -69,177 +53,12 @@ test("the roster's nine lenses are the cross script's lenses", () => {
   assert.deepEqual(names.sort(), [...LENSES].sort());
 });
 
-// ------------------------------------------------------------ the state after ticket 6 (the standards swap)
-
-test('the real tree passes: the pact and the agents name only installed reviewers', t => {
-  const r = seam(t);
-  assert.equal(r.code, 0, r.out);
-  assert.equal(lastLine(r.stdout), 'RESULT: pass', r.out);
-  assert.ok(!failRules(r.stdout).some(x => x.startsWith('roster')), r.out);
-});
-
-// ------------------------------------------------------------ the pact
-
-// Each place the pact names reviewers: a string there, after which a plant goes.
-const PLACES = {
-  'move 2': '`good-enough-lens`, reads it too.',
-  'move 4': 'Then run the QA pair,',
-  'the security route': 'however small: the security pair,',
-  'what no skill overrides': '`integrity-lens`, in move 4.',
-  'the tier table': '| **Thorough** | On an issue: the spec, read by the spec pair and `unstated-lens`;',
-  'the reading-agents paragraph': '**Reading agents.** The lenses read;',
-};
-
-for (const [place, at] of Object.entries(PLACES)) {
-  for (const [form, plant] of [
-    ['in a code span', `\`${ABSENT}\``],
-    ['as plain text', ABSENT],
-  ]) {
-    test(`bad case: a roster name that is not installed, ${form}, in ${place}`, t => {
-      const r = seam(t, {}, root =>
-        edit(root, MD, s => {
-          assert.ok(s.includes(at), `the pact no longer holds ${JSON.stringify(at)}`);
-          return s.replace(at, () => `${at} ${plant}`);
-        }),
-      );
-      expectRule(r, 'roster', MD);
-      assert.ok(fails(r.stdout, 'roster').some(l => l.includes(`names ${ABSENT}, which is not installed`)), r.out);
-    });
-  }
-}
-
-test('bad case: an old reviewer that is not installed, named in the pact', t => {
-  // The QA swap removed test-reviewer; the pact may not name it again.
-  const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 4'], () => `${PLACES['move 4']} \`test-reviewer\``)));
-  expectRule(r, 'roster', MD);
-  assert.ok(fails(r.stdout, 'roster').some(l => l.includes('names test-reviewer, which is not installed')), r.out);
-});
+// ------------------------------------------------------------ a retired reviewer's tools
 
 test('bad case: the retired checker, back with its old tools, has no allow-list entry and fails', t => {
   const r = seam(t, { 'claude/agents/result-checker.md': plainAgent('result-checker', [], 'tools: [Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*]') });
   expectRule(r, 'tools', 'claude/agents/result-checker.md');
 });
-
-test('bad case: a roster name in another case, or with a non-ASCII hyphen, still counts', t => {
-  for (const plant of ['Result-Checker', 'result‑checker', 'RESULT–CHECKER']) {
-    const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} ${plant}`)));
-    expectRule(r, 'roster', MD);
-  }
-});
-
-test('bad case: a roster name wrapped at its hyphen, or written with a minus sign, still counts', t => {
-  // result-checker's advisory A1 on #45: a line wrap is the likely accident.
-  for (const plant of ['result-\n   checker', 'result‑\nchecker', 'result−checker']) {
-    const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} See ${plant}.`)));
-    expectRule(r, 'roster', MD);
-  }
-  const r = seam(t, { 'claude/agents/probe.md': plainAgent('probe').replace('Body.', 'Hand off to result-\nchecker.') });
-  expectRule(r, 'roster', 'claude/agents/probe.md');
-});
-
-test('the roster check names the line where a wrapped name starts', t => {
-  const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} See result-\n   checker.`)));
-  // Seam A reads the rendered file, so the line is counted in the no-file render.
-  const at = withoutOpenMarks(read(join(REPO, 'claude', 'CLAUDE.md'))).split('\n').findIndex(l => l.includes(PLACES['move 2'])) + 1;
-  assert.notEqual(at, read(join(REPO, 'claude', 'CLAUDE.md')).split('\n').findIndex(l => l.includes(PLACES['move 2'])) + 1, 'the source and the render put the line at the same number, so this test would pass for the wrong reason');
-  assert.ok(fails(r.stdout, 'roster').some(l => l.startsWith(`${MD} line ${at}: names ${ABSENT}`)), r.out);
-});
-
-test('whole words only: a roster name inside a longer word, and names off the roster, pass', t => {
-  const r = seam(t, {}, root =>
-    edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} See preresult-checker, result-checkers, result_checker and \`fable\`.`)),
-  );
-  assert.equal(r.code, 0, r.out);
-});
-
-test('canary: the roster check prints the roster constant, never the planted spelling', t => {
-  const plant = 'ReSuLt‑ChEcKeR';
-  const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} ${plant}`)));
-  expectRule(r, 'roster', MD);
-  assert.ok(!r.stdout.includes('ReSuLt'), r.out);
-  assert.ok(!r.stdout.includes('‑'), r.out);
-});
-
-// ------------------------------------------------------------ installed agent files
-
-test('bad case: an installed agent whose body names a roster name that is not installed', t => {
-  const r = seam(t, { 'claude/agents/probe.md': plainAgent('probe').replace('Body.', `Hand off to \`${ABSENT}\`.`) });
-  expectRule(r, 'roster', 'claude/agents/probe.md');
-});
-
-test('bad case: an installed agent whose description names a roster name that is not installed', t => {
-  const r = seam(t, { 'claude/agents/probe.md': plainAgent('probe').replace('A test agent.', `A test agent beside ${ABSENT}.`) });
-  expectRule(r, 'roster', 'claude/agents/probe.md');
-});
-
-test('bad case: a sealed familiar whose body names a roster name that is not installed', t => {
-  const r = seam(t, {}, root => sealedFamiliar(root, 'probe', { body: `Hand off to ${ABSENT}.\n` }));
-  expectRule(r, 'roster', 'familiars/probe.md');
-});
-
-test('bad case: with adversarial-lens gone, the pact, which names it, fails', t => {
-  const r = seam(t, {}, root => rmSync(file(root, 'claude/agents/adversarial-lens.md')));
-  expectRule(r, 'roster', MD);
-  assert.ok(fails(r.stdout, 'roster').some(l => l.includes('names adversarial-lens, which is not installed')), r.out);
-});
-
-test('bad case: the retired security reviewer, named in the security route after the security swap', t => {
-  const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['the security route'], () => `${PLACES['the security route']} \`security-reviewer\` or`)));
-  expectRule(r, 'roster', MD);
-  assert.ok(fails(r.stdout, 'roster').some(l => l.includes('names security-reviewer, which is not installed')), r.out);
-});
-
-test('bad case: the retired plan reviewer, named in the pact after the spec swap', t => {
-  const r = seam(t, {}, root => edit(root, MD, s => s.replace(PLACES['move 2'], () => `${PLACES['move 2']} \`plan-reviewer\` too.`)));
-  expectRule(r, 'roster', MD);
-  assert.ok(fails(r.stdout, 'roster').some(l => l.includes('names plan-reviewer, which is not installed')), r.out);
-});
-
-test('an installed agent that names an installed reviewer, or itself, passes', t => {
-  const r = seam(t, { 'claude/agents/probe.md': plainAgent('probe').replace('Body.', 'Hand off to `data-lens`; probe is my name.') });
-  assert.equal(r.code, 0, r.out);
-});
-
-// ------------------------------------------------------------ lens files name only themselves
-
-const lensAgent = (name, { description = 'A test lens.', body = 'Body.\n' } = {}) =>
-  plainAgent(name).replace('A test agent.', description).replace('Body.\n', body);
-
-test('a lens file that names only itself passes', t => {
-  const r = seam(t, { [`claude/agents/${LENS}.md`]: lensAgent(LENS, { body: `I am \`${LENS}\`.\n` }) });
-  assert.equal(r.code, 0, r.out);
-});
-
-test('bad case: a lens whose description names an installed reviewer', t => {
-  const r = seam(t, { [`claude/agents/${LENS}.md`]: lensAgent(LENS, { description: 'Replaces behaviour-lens.' }) });
-  expectRule(r, 'roster-lens', `claude/agents/${LENS}.md`);
-});
-
-test('bad case: a sealed lens familiar whose description names an installed reviewer', t => {
-  const r = seam(t, {}, root =>
-    sealedFamiliar(root, LENS, { lines: [`name: ${LENS}`, 'description: Replaces behaviour-lens.', 'tools: [Read, Glob, Grep]'] }),
-  );
-  expectRule(r, 'roster-lens', `familiars/${LENS}.md`);
-});
-
-test('bad case: a lens whose body names its partner, installed or not', t => {
-  const alone = seam(t, { 'claude/agents/data-lens.md': lensAgent('data-lens', { body: 'Never read `adversarial-lens`.\n' }) });
-  expectRule(alone, 'roster-lens', 'claude/agents/data-lens.md');
-  const both = seam(t, {
-    'claude/agents/data-lens.md': lensAgent('data-lens', { body: 'Never read `adversarial-lens`.\n' }),
-    'claude/agents/adversarial-lens.md': lensAgent('adversarial-lens'),
-  });
-  expectRule(both, 'roster-lens', 'claude/agents/data-lens.md');
-  // The real QA pair, installed together, may not name each other either.
-  const real = seam(t, {}, root => edit(root, 'claude/agents/integrity-lens.md', s => s.replace('# integrity-lens', '# integrity-lens\n\nNever read `behaviour-lens`.')));
-  expectRule(real, 'roster-lens', 'claude/agents/integrity-lens.md');
-});
-
-test('bad case: a lens that names an installed reviewer in its body, as plain text', t => {
-  const r = seam(t, { [`claude/agents/${LENS}.md`]: lensAgent(LENS, { body: 'Read what behaviour-lens found.\n' }) });
-  expectRule(r, 'roster-lens', `claude/agents/${LENS}.md`);
-});
-
 // ------------------------------------------------------------ the name search
 
 // The five places the name search skips: records, the cloud copy (#41), and

@@ -39,8 +39,6 @@ const MOVED = [
   'ANY_FENCE_RE',
   'SETEXT_RE',
   'HEADING_LIKE_RE',
-  'HEADING_RE',
-  'MOVE_RE',
   // the marker parser
   'MARKER_RE',
   'PACT_MARKER_RE',
