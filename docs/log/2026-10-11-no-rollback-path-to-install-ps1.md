@@ -27,3 +27,7 @@ The Node install (#166) replaced `scripts/install.ps1`, and #217 removed its ask
 - Its reviews and dispositions: the security pair on revision 1 (6111712797, 6111723821); `unstated-lens` and the spec pair on revision 2 (6111744207, 6111755398, 6111775890).
 - The owner's decisions on #242: the head chef's O1 to O3 (6111668494); proceed and confirm all, with the hand-off (6111822168); merge first, from the build's stop (6111863836, answered in 6111950712).
 - The build record, claims and test cuts: 6111950712.
+- Move 4's reports, as crossed sections on #242: the standards pair (6112060702), `unstated-lens` (6112060905), the security pair (6112071547) and the QA pair (6112112033).
+- Move 4's Lens dispositions, the rollback checks run on real commits, and the claims as now written: 6112252465.
+- The rebase note for #238's tickets: mephistopheles4/the-pact#238 (comment 6112253722).
+- The PR: #252.
