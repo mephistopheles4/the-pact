@@ -24,6 +24,7 @@ const INSTALL_PICKS = Object.freeze([
   'install-project.test.mjs', // names the live folder's agents in its own text
   'install-smoke.test.mjs', // the smoke set; compares every installed agent
   'install.test.mjs', // plants and routes agents, and lists the copy's
+  'kit-install.test.mjs', // compares the builder kit's agents with the copy's (#203)
   'settings-install.test.mjs', // settings-rules.mjs reads the overlay through payload.mjs
 ]);
 

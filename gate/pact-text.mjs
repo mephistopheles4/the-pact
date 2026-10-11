@@ -274,12 +274,20 @@ function checkShared(root, agents, pact, report) {
   return holders;
 }
 
-/** C3 routing: every installed agent is named in `pact`'s moves 1 to 4 or a listed role line. */
-function checkRouting(pact, moves, agents, report) {
+/**
+ * C3 routing: every installed agent is named in `pact`'s moves 1 to 4 or a
+ * listed role line. Returns the agents it failed; one in `already` is not
+ * reported again, so an agent unrouted in both rules files fails once.
+ */
+function checkRouting(pact, moves, agents, report, already = new Set()) {
   const routed = routedNames(pact, moves);
+  const failed = new Set();
   for (const a of agents) {
-    if (typeof a.name === 'string' && !routed.has(a.name)) report.fail('routing', a.file, null, 'not named in moves 1 to 4 or a listed role line');
+    if (typeof a.name !== 'string' || routed.has(a.name)) continue;
+    failed.add(a);
+    if (!already.has(a)) report.fail('routing', a.file, null, 'not named in moves 1 to 4 or a listed role line');
   }
+  return failed;
 }
 
 /**
@@ -315,7 +323,7 @@ export function checkPactText(root, agents, report, { source = null } = {}) {
     });
   }
 
-  if (pact) checkRouting(pact, moves, agents, report);
+  const unrouted = pact ? checkRouting(pact, moves, agents, report) : new Set();
   checkRoster(pactText, root, agents, report);
 
   // The unrendered source, when the stage holds it: the rules file's checks.
@@ -334,6 +342,6 @@ export function checkPactText(root, agents, report, { source = null } = {}) {
   const srcMoves = findMoves(doc, report, source);
   checkClauses(doc, PACT, source, srcMoves, canon, report);
   checkShared(root, agents, doc, report);
-  checkRouting(doc, srcMoves, agents, report);
+  checkRouting(doc, srcMoves, agents, report, unrouted);
   checkRoster(text, root, agents, report, source, false);
 }
