@@ -150,7 +150,7 @@ How to read it:
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for a rollback to `install.ps1`), the go-ahead clause | Prompt, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the floor, "Never post a secret or a personal detail" | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
-| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's handling of sent-in text and auto mode; the cloud copy ships no commands | Outside the pact |
+| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Never post a secret or a personal detail" and the publish stop; the cloud copy ships no commands | Outside the pact, rule |
 
 ## Strangers on the tracker
 
@@ -452,17 +452,33 @@ session can act before you see it.
   name (#220, ADR 0055).
 - **R25. A pact command sent as prompt text.** `/make-it-so` and `/finis`
   set `disable-model-invocation: true`. That stops the model starting one,
-  not text sent in as a prompt: a start prompt, another session's message, a
-  resumed session's next turn or a print-mode run can each start one, as
-  with any slash command. The bodies add no check of their own; Claude
-  Code's handling of sent-in text and auto mode are the guard (R24), by the
-  owner's decision (#229). Through such a turn, `/make-it-so` carries out
-  the recommendations in the session's last message, which can include a
-  merge, and `/finis` archives a session with nothing outstanding. The cloud
-  copy ships neither. A project's own skill with the same name runs in place
-  of a command; the install's skill-clash check covers only your personal
-  skills folder. No settings rule asks before a merge; you can add one, at
-  the cost of a click on every merge.
+  not text sent in as a prompt. The bodies add no check of their own, by the
+  owner's decision (#229), so what guards each channel is outside them, and
+  none has been tried live:
+  - **A message from another desktop session** arrives quoted and attributed
+    to its sender, by Claude Code's own handling (R24).
+  - **A fresh start prompt** has no last message, so `/make-it-so` has no
+    recommendation to accept.
+  - **A resume prompt, or a print-mode run of a resumed session,** has no
+    Claude Code guard: auto mode reads it as your own ask (R24). Only the
+    session's judgement and the "start prompt is not chat" rule in
+    `tracker-authors` stand there. Through it, `/make-it-so` carries out the
+    recommendations in the session's last message, which can include a
+    merge, a push or a tracker post. A plain-words resume prompt could
+    already ask the same.
+  - **`/finis` archives,** and archiving removes the session's worktree,
+    files git ignores included, which its check for outstanding work does
+    not look at. Claude Code asks you before any archive, in every
+    permission mode; that card is the guard against a relayed `/finis`.
+
+  What still holds whoever sent the command: "Never post a secret or a
+  personal detail" and the publish stop. The cloud copy ships neither
+  command. A project's own skill with the same name runs in place of a
+  command, and the install's skill-clash check covers only your personal
+  skills folder. Such a skill can come from another account's commit in a
+  tree you work in, and its shell commands run when you type the name,
+  before the model reads anything. No settings rule asks before a merge;
+  you can add one, at the cost of a click on every merge.
 
 ## Your own configuration loosening a rule
 

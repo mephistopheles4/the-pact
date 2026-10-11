@@ -1,5 +1,5 @@
 ---
-description: The owner's "accept all recommendations". Only the owner starts it, by typing it.
+description: The owner's "accept all recommendations", meant to be typed by the owner.
 disable-model-invocation: true
 ---
 

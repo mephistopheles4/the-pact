@@ -201,10 +201,12 @@ test('the shipped /make-it-so and /finis pass seam A and are listed to install',
   }
 });
 
-test('/make-it-so accepts every recommendation in the last message, and /finis archives only when nothing is outstanding', () => {
-  assert.match(shipped('make-it-so'), /^Accept every recommendation in your last message, and carry them out\.$/m);
-  const f = shipped('finis');
-  assert.match(f, /First check whether anything in it is outstanding/);
-  assert.match(f, /If there is, say what it is\s+and don't archive\. If there isn't, archive the session\./);
-  assert.doesNotMatch(f, /\bpush the work\b/i, '/finis never pushes on its own');
+// The whole text of each body, so an added rule fails here and is read at review.
+const BODIES = {
+  'make-it-so': ['---', 'description: The owner\'s "accept all recommendations", meant to be typed by the owner.', 'disable-model-invocation: true', '---', '', '# /make-it-so', '', 'Accept every recommendation in your last message, and carry them out.', ''].join('\n'),
+  finis: ['---', 'description: The owner\'s "we\'re done, archive this session", meant to be typed by the owner.', 'disable-model-invocation: true', '---', '', '# /finis', '', 'We\'re done: archive this session.', '', 'First check whether anything in it is outstanding, such as work not yet', 'committed or pushed, or a step left unfinished. If there is, say what it is', 'and don\'t archive. If there isn\'t, archive the session.', ''].join('\n'),
+};
+
+test('the shipped bodies are exactly the owner\'s plain meaning: accept every recommendation; archive only when nothing is outstanding', () => {
+  for (const n of SHIPPED) assert.equal(shipped(n), BODIES[n], n);
 });

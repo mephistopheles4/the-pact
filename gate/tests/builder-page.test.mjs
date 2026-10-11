@@ -398,7 +398,7 @@ test('a security-set lens off its default counts as an override on Agents and Re
 // ------------------------------------------------------------ the wizard on a stub page
 
 /** Boot the page's script against a small stand-in for the DOM; returns the elements by id and helpers. */
-function bootPage({ picker = false } = {}) {
+function bootPage({ picker = false, folder = null } = {}) {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   class N {
     constructor(tag) { Object.assign(this, { tag, children: [], attrs: {}, hidden: false, textContent: '', listeners: {}, style: {}, dataset: {}, value: '' }); this.classList = { add() {}, remove() {}, toggle() {} }; }
@@ -415,7 +415,7 @@ function bootPage({ picker = false } = {}) {
   }
   const ids = {};
   const document = { createElement: t => new N(t), createTextNode: t => Object.assign(new N('#text'), { textContent: t }), getElementById: id => (ids[id] ||= new N('div')), documentElement: new N('html'), body: new N('body') };
-  const window = { localStorage: { getItem: () => null, setItem() {} }, scrollTo() {}, isSecureContext: picker, ...(picker ? { showDirectoryPicker: async () => { throw Object.assign(new Error('x'), { name: 'AbortError' }); } } : {}) };
+  const window = { localStorage: { getItem: () => null, setItem() {} }, scrollTo() {}, isSecureContext: picker, ...(picker ? { showDirectoryPicker: async () => { if (folder) return folder; throw Object.assign(new Error('x'), { name: 'AbortError' }); } } : {}) };
   vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout }));
   const find = (n, pred, out = []) => { if (pred(n)) out.push(n); n.children.forEach(c => find(c, pred, out)); return out; };
   const button = (root, label) => find(root, n => n.tag === 'button' && n.text.startsWith(label))[0];
@@ -638,6 +638,10 @@ test('a save keeps a commands list already in the folder\'s config.json, and won
   assert.equal(kept.files[0].path, 'config.json');
   assert.deepEqual(kept.files.slice(1), files.slice(1), 'block files pass through unchanged');
   assert.deepEqual(JSON.parse(L.keepCommands(files, '{"commands":[]}').files[0].text).commands, [], 'an empty list is kept too');
+  const twice = L.keepCommands(files, '{"schema":1,"commands":["finis"],"Commands":["make-it-so"]}');
+  assert.equal(twice.files, undefined, 'a key given twice, case folded, writes nothing');
+  assert.match(twice.refuse, /gives a key twice/);
+  assert.deepEqual(JSON.parse(L.keepCommands(files, '{"commands":["finis"],"agents":{"commands":{}}}').files[0].text).commands, ['finis'], 'a nested key of the same name is not a repeat');
   const bad = L.keepCommands(files, '{"schema":1,"commands":["finis"');
   assert.equal(bad.files, undefined, 'nothing to write');
   assert.match(bad.refuse, /config\.json/);
@@ -669,6 +673,33 @@ test('stub page: the review step warns that a downloaded config.json holds no co
     assert.match(text, /A downloaded config\.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands\./, `picker ${picker}`);
     assert.equal(/keeping a commands list config\.json already holds/.test(text), picker, `picker ${picker}: the save note says Save keeps the list only where Save exists`);
   }
+});
+test('stub page: Save to a picked folder keeps its commands list, and writes nothing over a config.json that isn\'t JSON (#203, T2)', async () => {
+  /** A stand-in folder holding `held` (name -> text); `written` collects what Save writes. */
+  const fakeFolder = held => {
+    const written = {};
+    const dir = {
+      name: 'pact',
+      written,
+      async getFileHandle(name, opts = {}) {
+        if (!Object.hasOwn(held, name) && !opts.create) throw Object.assign(new Error('x'), { name: 'NotFoundError' });
+        return { getFile: async () => ({ text: async () => held[name] }), createWritable: async () => ({ write: async text => { written[name] = text; }, close: async () => {} }) };
+      },
+      async getDirectoryHandle() { return dir; },
+    };
+    return dir;
+  };
+  const save = async folder => {
+    const P = bootPage({ picker: true, folder });
+    P.find(P.ids.stepper, n => n.tag === 'button')[6].click();
+    P.button(P.ids.output, 'Save to a folder').click();
+    for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 0));
+    return folder.written;
+  };
+  const kept = await save(fakeFolder({ 'config.json': '{"schema":1,"commands":["finis"]}' }));
+  assert.deepEqual(JSON.parse(kept['config.json']), { schema: 1, commands: ['finis'] });
+  assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
+  assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), { schema: 1 }, 'no file there: the save goes as built');
 });
 test('a preset goes only in its own slot, and always goes after the slot\'s text', () => {
   const s = L.initialState();

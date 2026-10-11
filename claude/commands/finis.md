@@ -1,5 +1,5 @@
 ---
-description: The owner's "we're done, archive this session". Only the owner starts it, by typing it.
+description: The owner's "we're done, archive this session", meant to be typed by the owner.
 disable-model-invocation: true
 ---
 

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-2nJjdRi0Qqf5yKcgcX1TFAlTnT7yewkdIN7tf64LBAk='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-p77gqMbbeBGuj4XNZEkL3nmein+vve5RKU/TbUMN5Nk='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -842,6 +842,26 @@ function buildFiles(state) {
   return [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks];
 }
 
+/** The top-level keys of `text`, a JSON object JSON.parse accepted, in order, repeats kept. */
+function topKeys(text) {
+  const keys = [];
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
+      const raw = text.slice(i, j + 1);
+      i = j;
+      let k = j + 1;
+      while (/\s/.test(text[k] || '')) k++;
+      if (depth === 1 && text[k] === ':') keys.push(JSON.parse(raw));
+    } else if (c === '{' || c === '[') depth++;
+    else if (c === '}' || c === ']') depth--;
+  }
+  return keys;
+}
+
 /**
  * The files a save writes over `existing`, the text of the config.json already
  * in the folder, or null when there is none (#203). The page sets no pact
@@ -858,6 +878,9 @@ function keepCommands(files, existing) {
     return { refuse: 'The folder already holds a config.json that is not valid JSON, so nothing was written. Fix or move that file, then save again.' };
   }
   if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !Object.hasOwn(doc, 'commands')) return { files };
+  // The installer refuses a key given twice, case folded; JSON.parse would keep the last one.
+  const keys = topKeys(existing).map(k => k.toLowerCase());
+  if (new Set(keys).size !== keys.length) return { refuse: 'The folder already holds a config.json that gives a key twice, which the installer refuses, so nothing was written. Fix that file, then save again.' };
   const config = JSON.parse(files[0].text);
   config.commands = doc.commands;
   return { files: [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...files.slice(1)] };
