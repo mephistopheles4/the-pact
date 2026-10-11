@@ -193,7 +193,7 @@ test('the fault-fixture guard reads every source file outside fixtures/, test fi
 
 test('the fault-fixture guard\'s pattern names every fault fixture, the contained driver and the import trap the fixtures folder holds', () => {
   const held = readdirSync(join(TESTS, 'fixtures')).filter(f => FIXTURE.test(f)).sort();
-  assert.deepEqual(held, ['contained-driver.mjs', 'contained-faults.mjs', 'import-trap-driver.mjs', 'import-trap.mjs', 'render-faults.mjs']);
+  assert.deepEqual(held, ['contained-driver.mjs', 'contained-faults.mjs', 'import-trap-driver.mjs', 'import-trap.mjs', 'old-node-faults.mjs', 'render-faults.mjs']);
   for (const f of held) assert.equal(FIXTURE.exec(f)[0], f);
 });
 

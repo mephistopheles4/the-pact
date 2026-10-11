@@ -66,7 +66,7 @@ for (const c of table('builder kit', {
     { id: 'kit-file-missing', plant: drop('builder/scriptorium.html'), fails: ['kit-missing'], why: 'scriptorium is on, so every kit file must be staged' },
     { id: 'example-block-missing', plant: drop('examples/pact-config/blocks/move-4-own-agent.md'), fails: ['kit-missing'], why: "the example's block files too" },
     { id: 'source-missing', plant: drop(RULES_SOURCE), fails: ['kit-missing'], why: 'the rules source the install copies' },
-    { id: 'refused-character', plant: line('examples/pact-config/builder.json', '‮'), fails: ['invisible'], why: 'every kit text file is scanned' },
+    { id: 'refused-character', plant: line('examples/pact-config/builder.json', '\u202e'), fails: ['invisible'], why: 'every kit text file is scanned' },
     { id: 'source-unknown-mark', plant: rep(RULES_SOURCE, '<!-- pact:begin move-1 -->', '<!-- pact:begin move-9 -->'), fails: ['marker'], why: 'only the open marks the renderer knows' },
     { id: 'source-clause-changed', plant: rep(RULES_SOURCE, 'Auth, secrets, crypto, input validation and data migrations are always thorough', 'Auth and secrets are always thorough'), fails: ['required-clause', 'shared-block'], why: 'the gated clauses word for word, in the source too' },
     { id: 'source-move-gone', plant: rep(RULES_SOURCE, '4. **I stay the owner.**', '4) **I stay the owner.**'), fails: ['moves', 'anchor', 'routing'], why: 'the moves, as the rules file is held to them' },

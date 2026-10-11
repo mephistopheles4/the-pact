@@ -149,8 +149,10 @@ parts:
   commit doesn't hold yet. None is on until you turn it on: list its name in
   the `commands` key of `~/.claude/pact/config.json`, for example
   `"commands": ["make-it-so", "finis"]`. Each command that is on gets a
-  `WARN` line naming the file it installs, `commands/<name>.md`. The install
-  refuses, naming the path inside your Claude home folder:
+  `WARN` line naming the file it installs, `commands/<name>.md`.
+  `/scriptorium`'s line also names the builder kit it brings, under
+  `pact/builder/` (see step 5). The install refuses, naming the path inside
+  your Claude home folder:
   - **A same-named skill.** Anything at `~/.claude/skills/<name>`, a folder, a
     file or a link, for a command that is on. Claude Code would run that
     skill in place of the command. Rename or move it, or take the name out of
@@ -159,8 +161,13 @@ parts:
     commands, a plugin's, or a command in a subfolder of your `commands/`
     folder, any of which may also share a pact command's name.
   - **Your own file at the command's path.** A `~/.claude/commands/<name>.md`
-    the last install's record doesn't list. The pact didn't put it there, so
-    it never overwrites it. Move it, or take the name out of the list.
+    the last install's record doesn't list, or, with `scriptorium` on, a file
+    under `~/.claude/pact/builder/`. The pact didn't put it there, so it never
+    overwrites it. Move it, or take the name out of the list.
+  - **A builder kit that fails its checks,** with `scriptorium` on. The
+    install refuses as a whole and copies nothing. A commit that carries its
+    own `claude/rules.source.md` always refuses: the install makes that file
+    itself, from `claude/CLAUDE.md`.
   - **A bad list.** A `commands` value that is not a list of pact command
     names, each once. A project's `.claude/pact-config.json` may not hold
     `commands` at all.
@@ -215,6 +222,17 @@ It installs these files under `~/.claude`:
 - `pact/cross.mjs`, the cross script;
 - `commands/<name>.md`, each pact command your `commands` list turns on.
   Taking a name out of the list deletes its file at the next install;
+- `pact/builder/`, the builder kit, only when the list names `scriptorium`:
+  the builder script `builder/build.mjs` and what it reads, in the repo's
+  own layout. That is the shipped page, four gate files (`shared.mjs`,
+  `render.mjs`, `render-core.mjs` and `tool-allowlist.json`), the agents,
+  the example builder file and its blocks, and the pact's rules as
+  `claude/rules.source.md`, unrendered and never named `CLAUDE.md`. The
+  builder needs Node 24 or later. It never edits itself, and it never writes
+  a page inside a git work tree, the Claude folder or any `.claude` folder,
+  or over a file that exists. Taking `scriptorium` out of the list deletes
+  the whole kit at the next install. Your builder file,
+  `pact/builder.json`, is never touched;
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against.
 
@@ -322,7 +340,8 @@ pwsh ./scripts/install.ps1
 
 A pact from before the pact commands (#203) refuses a configuration with a
 `commands` key, so take the key out first. Its install then deletes the
-commands the record lists, as it does any file its own payload lacks.
+commands and the builder kit the record lists, as it does any file its own
+payload lacks.
 
 Both installers read and write the same install record, so either can follow
 the other. In a Claude Code session, no ask rule guards `install.ps1`: its
@@ -351,7 +370,8 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    in auto mode.
 2. **Delete the pact's files:** the ten agents listed in step 6 from
    `agents/`, `pact/cross.mjs`, each pact command in `commands/` that the
-   record lists, and `.pact-install.json`.
+   record lists, the `pact/builder/` folder if it is there, and
+   `.pact-install.json`.
 3. **Put back your own agents** from your copy of the `agents/` folder.
 
 Start a new session to load the change.
