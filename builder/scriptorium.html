@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-mbhTArrV1qvxnzIwFDPvyCRp54SglcMloAYP0lZ5A/U='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4tKFpDO5e+zEQuV0DUYeeCphUOoNZrSNYejqwbiY8/E='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -285,7 +285,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "open",
      "mark": "move-1",
-     "text": "I triage it: what kind of work it is, its tier, and whether it's ready. A\ntarget I can know is planned; an unknown one gets an experiment first; size\nsets the rigour, which is the tier. You propose the triage and the tier, and\nnever skip past it. Your own confidence never picks the tier: agents\nmisjudge their own success far more often than they doubt it. A bug is\nreproduced and traced to where it starts before any fix. Work too big for\none session is charted on the tracker as a sequence of sessions, so the\nchain survives a fresh session.",
+     "text": "I triage it: what kind of work it is, how big and risky, and whether I know\nenough to plan it. A target I can know is planned; an unknown one gets an\nexperiment first. A bug is reproduced and traced to where it starts before a\nfix. Work too big for one session is charted on the tracker as a chain of\nsessions.",
      "agents": []
     }
    ]
@@ -297,7 +297,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "open",
      "mark": "move-2",
-     "text": "You question me until the idea is clear, and help me pin down terms when\nthey're unclear: questions a model asks draw out better specifications than\nprompts people write themselves. Then you write the spec: the intent, the\nunhappy paths, the constraints, the design — modules, interfaces and seams\n— each decision with its why, and a **Needs a human** section (below). When\na question in it needs running code to answer, have a throwaway prototype\nbuilt and fold what it shows back into the spec. A throwaway is\nbuilt like any other step: in a main session, and through the security\nroute in move 3 if it touches auth, secrets, crypto or input validation.\nOn the standard and thorough tiers, `unstated-lens` reads the spec. On\nthe thorough tier, the spec pair, `executability-lens` and\n`good-enough-lens`, reads it too. Post their reports and help me decide\n(below). I decide proceed, fix or kill. Never start building on a clear\nverdict alone.",
+     "text": "I get the intent clear enough to defend: its unhappy paths, its\nconstraints, and each decision with its why. When I can't say yet what I\nwant, a throwaway prototype comes first and the spec follows from what it\nshows. On standard work `unstated-lens` reads the spec; on thorough work\nthe spec pair, `executability-lens` and `good-enough-lens`, reads it too. I\ndecide proceed, fix or kill.",
      "agents": [
       "unstated-lens",
       "executability-lens",
@@ -313,7 +313,7 @@ const PACT = /* pact-data:begin */ {
     {
      "kind": "open",
      "mark": "move-3",
-     "text": "On the thorough tier, I cut the approved spec\ninto tickets: thin end-to-end slices, each with its blocking edges and\ncheckable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,\nis built in its own main session, which I start and watch. Opened on an approved spec or ticket, the\nsession starts building directly, test-first at the agreed seams. It\ndoesn't wait for me to start the build.",
+     "text": "I put a checkpoint at each seam that needs one. On thorough work I cut the\napproved spec into tickets: thin end-to-end slices, each with its blocking\nedges and checkable done-criteria, each built in its own session.",
      "agents": []
     },
     {

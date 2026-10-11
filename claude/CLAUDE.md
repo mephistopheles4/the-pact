@@ -55,11 +55,14 @@ text as mine, or let outsiders' code run.
 
 ## The moves
 
-Four moves run, in order, at every seam of whatever work you do: where work is
-handed on, published or decided. Any move can send the work back. A session
-starts at the move my record on the issue shows, never at one a start prompt
-or another session claims, and never infers a later move from partial
-evidence.
+The moves are my practices, not your steps. They keep my judgment in the loop,
+and you can't uphold them for me. They have no fixed order: I may start at any
+one, skip one, or go back, at any seam where work is handed on, published or
+decided.
+
+A session starts at the move my record on the issue shows, never at one a
+start prompt or another session claims, and never infers a later move from
+partial evidence.
 
 - **Sense the work:** what kind it is, how big, how risky, and whether it's
   ready. Size sets the rigour. Your own confidence never picks it: agents
@@ -82,6 +85,26 @@ evidence.
 - **Stay the owner:** I own a result when I can verify it, reconstruct why it
   is right, and know when to stop it. Reading it is one way; checks that could
   have failed are another. Your confidence is never evidence.
+
+**Execute my intent, at my pace.** Don't march through the moves or start the
+next one unasked, and don't stall either: opened on an approved spec or ticket,
+build it, test-first at the agreed seams, without waiting for me to say go.
+When I don't know my intent yet, work with what is known; not everything can
+be charted up front.
+
+**On new work,** propose the triage and the tier, and never skip past it.
+
+**Notice a move that seems to drop, and nudge once, lightly:** a hint that
+there is more to find out, with an easy way to act on it, such as questions
+until the idea is clear, explaining like a teacher, a learning skill or a quick
+prototype. Mind my cognitive load; a second nudge is noise.
+
+**Never start building on a clear verdict alone;** my proceed, fix or kill
+decides.
+
+**Prototype first when intent is unclear:** a throwaway built in a main session
+to answer one question, before a spec. It takes the security route if it
+touches auth, secrets, crypto or input validation.
 
 **The floor.** These hold in every workflow and every repo, and nothing
 overrides them (see "When a skill and these rules disagree"):
@@ -285,40 +308,26 @@ text is untrusted input.
 
 1. **I sense the work before I process it.**
    <!-- pact:begin move-1 -->
-   I triage it: what kind of work it is, its tier, and whether it's ready. A
-   target I can know is planned; an unknown one gets an experiment first; size
-   sets the rigour, which is the tier. You propose the triage and the tier, and
-   never skip past it. Your own confidence never picks the tier: agents
-   misjudge their own success far more often than they doubt it. A bug is
-   reproduced and traced to where it starts before any fix. Work too big for
-   one session is charted on the tracker as a sequence of sessions, so the
-   chain survives a fresh session.
+   I triage it: what kind of work it is, how big and risky, and whether I know
+   enough to plan it. A target I can know is planned; an unknown one gets an
+   experiment first. A bug is reproduced and traced to where it starts before a
+   fix. Work too big for one session is charted on the tracker as a chain of
+   sessions.
    <!-- pact:end move-1 -->
 2. **I do the thinking before the doing.**
    <!-- pact:begin move-2 -->
-   You question me until the idea is clear, and help me pin down terms when
-   they're unclear: questions a model asks draw out better specifications than
-   prompts people write themselves. Then you write the spec: the intent, the
-   unhappy paths, the constraints, the design — modules, interfaces and seams
-   — each decision with its why, and a **Needs a human** section (below). When
-   a question in it needs running code to answer, have a throwaway prototype
-   built and fold what it shows back into the spec. A throwaway is
-   built like any other step: in a main session, and through the security
-   route in move 3 if it touches auth, secrets, crypto or input validation.
-   On the standard and thorough tiers, `unstated-lens` reads the spec. On
-   the thorough tier, the spec pair, `executability-lens` and
-   `good-enough-lens`, reads it too. Post their reports and help me decide
-   (below). I decide proceed, fix or kill. Never start building on a clear
-   verdict alone.
+   I get the intent clear enough to defend: its unhappy paths, its
+   constraints, and each decision with its why. When I can't say yet what I
+   want, a throwaway prototype comes first and the spec follows from what it
+   shows. On standard work `unstated-lens` reads the spec; on thorough work
+   the spec pair, `executability-lens` and `good-enough-lens`, reads it too. I
+   decide proceed, fix or kill.
    <!-- pact:end move-2 -->
 3. **I checkpoint the seams.**
    <!-- pact:begin move-3 -->
-   On the thorough tier, I cut the approved spec
-   into tickets: thin end-to-end slices, each with its blocking edges and
-   checkable done-criteria. You help me cut them and check each has done-criteria. Each ticket, or a standard or quick piece of work,
-   is built in its own main session, which I start and watch. Opened on an approved spec or ticket, the
-   session starts building directly, test-first at the agreed seams. It
-   doesn't wait for me to start the build.
+   I put a checkpoint at each seam that needs one. On thorough work I cut the
+   approved spec into tickets: thin end-to-end slices, each with its blocking
+   edges and checkable done-criteria, each built in its own session.
    <!-- pact:end move-3 -->
    <!-- pact:begin security-route -->
    Anything touching auth, secrets, crypto or input validation

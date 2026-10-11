@@ -53,13 +53,14 @@ test('the set renders with seam A passing', t => {
   assert.equal(lastLine(r.stdout), 'RESULT: pass', r.stdout + r.stderr);
 });
 
+// #247 C3: the anchors follow the owner-voice text of moves 2 and 3.
 test('each block is added after the default text, in its own move', t => {
   const { md } = renderedWith(t, homeWithSet(t));
   const m1 = md.indexOf('I triage it:');
   const b1 = md.indexOf('Skills I bind to this move. Triage');
-  const m2 = md.indexOf('You question me until');
+  const m2 = md.indexOf('I get the intent clear enough to defend');
   const b2 = md.indexOf('Skills I bind to this move. Questioning');
-  const m3 = md.indexOf('On the thorough tier, I cut the approved spec');
+  const m3 = md.indexOf('I put a checkpoint at each seam that needs one.');
   const b3 = md.indexOf('Skills I bind to this move. Cutting');
   assert.ok(m1 >= 0 && b1 > m1 && b1 < m2, 'move 1 block follows the move 1 text');
   assert.ok(m2 > b1 && b2 > m2 && b2 < m3, 'move 2 block follows the move 2 text');
