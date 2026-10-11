@@ -680,35 +680,76 @@ test('the changes are told from the overlay\'s side, rules escaped, and a live v
   assert.deepEqual(core.settingsChanges(core.readSettings('{"b":{"y":2,"x":1}}'), core.readSettings('{"b":{"x":1,"y":2}}')), [], 'a reorder is no change');
 });
 
-test('the live warnings: banned keys at any depth, missing ask rules, a mode not auto, own keys capped, env names only counted', () => {
+// #265 C3: the merge takes the pact's retired ask rules out of the live list,
+// matched exactly, and leaves the owner's own rules, look-alikes included.
+test('the merge drops every retired ask rule, exactly, and keeps the owner\'s own', () => {
+  const retired = [...core.RETIRED_ASK];
+  const own = ['Bash(git push *)', retired[0].toLowerCase(), `${retired[0]} `];
+  const live = core.readSettings(json({ permissions: { ask: [...retired, ...own], defaultMode: 'auto' } }));
+  const overlay = core.readSettings(json({ permissions: { defaultMode: 'auto' } }));
+  const m = JSON.parse(core.settingsText(core.mergeSettings(live, overlay)));
+  assert.deepEqual(m.permissions.ask, [...own].sort());
+});
+
+// #265 C3
+test('the merge wraps a single live ask value, then drops it if retired, and keeps an emptied list as []', () => {
+  const overlay = core.readSettings(json({ permissions: { defaultMode: 'auto' } }));
+  const one = r => JSON.parse(core.settingsText(core.mergeSettings(core.readSettings(json({ permissions: { ask: r } })), overlay))).permissions;
+  assert.deepEqual(one(core.RETIRED_ASK[0]).ask, []);
+  assert.deepEqual(one('Bash(mine)').ask, ['Bash(mine)']);
+  assert.equal(Object.hasOwn(JSON.parse(core.settingsText(core.mergeSettings(core.readSettings('{}'), overlay))).permissions, 'ask'), false, 'no ask on either side adds none');
+});
+
+// #265 C4: one removal line per retired rule found, printed from the pact's
+// constant, and no other line about the ask list.
+test('the changes list each retired rule the merge removes, and nothing else about the ask list', () => {
+  const retired = [...core.RETIRED_ASK];
+  const live = core.readSettings(json({ permissions: { ask: ['Bash(CANARYmine)', retired[1], retired[21]], defaultMode: 'auto' } }));
+  const overlay = core.readSettings(json({ permissions: { defaultMode: 'auto' } }));
+  const lines = core.settingsChanges(live, overlay);
+  assert.deepEqual(lines, ['  - permissions.ask: Bash(*--apply*)', '  - permissions.ask: Bash(*nstall.mjs*\\u005c*)']);
+  assert.ok(!lines.join('\n').includes('CANARY'));
+});
+
+// #265 C4: the retired rules draw a note; the banned-key and mode warnings stay.
+test('the live warnings: banned keys at any depth, retired ask rules, a mode not auto, own keys capped, env names only counted', () => {
   const own = Object.fromEntries(Array.from({ length: 22 }, (_, i) => [`k${String(i).padStart(2, '0')}`, 1]));
-  const live = core.readSettings(json({ ...own, enabledPlugins: {}, deep: { x: [{ hooks: {} }] }, env: { A: 1, B: 2, P: 3 }, permissions: { ask: ['r1'], defaultMode: 'plan' } }));
-  const overlay = core.readSettings(json({ env: { P: '1' }, permissions: { ask: ['r1', 'r2'] } }));
-  const lines = core.liveSettingsLines(live, overlay, ['r1', 'r2']);
+  const live = core.readSettings(json({ ...own, enabledPlugins: {}, deep: { x: [{ hooks: {} }] }, env: { A: 1, B: 2, P: 3 }, permissions: { ask: ['r1', core.RETIRED_ASK[3], core.RETIRED_ASK[40]], defaultMode: 'plan' } }));
+  const overlay = core.readSettings(json({ env: { P: '1' }, permissions: { defaultMode: 'auto' } }));
+  const lines = core.liveSettingsLines(live, overlay);
   assert.equal(lines[0], 'WARN: settings.json holds hooks, a command-running setting the pact never sets.');
-  assert.equal(lines[1], "WARN: settings.json lacks 1 of the pact's ask rules; --apply adds them back.");
+  assert.equal(lines[1], "NOTE: settings.json holds 2 of the pact's retired ask rules; --apply removes them.");
   assert.equal(lines[2], 'WARN: settings.json: permissions.defaultMode is not auto; --apply sets it.');
   assert.match(lines[3], /^NOTE: live keys the pact does not set \(yours, not checked\): deep, enabledPlugins, k00, .* and 4 more$/);
   assert.equal(lines[4], 'NOTE: live env names the pact does not set: 2');
+  assert.ok(!core.liveSettingsLines(core.readSettings(json({ permissions: { ask: ['r1'], defaultMode: 'auto' } })), overlay).some(l => l.includes('retired')), 'no note without a retired rule');
 });
 
-test('bad case: a live rule that differs from a pact rule only by an invisible character is missing, not matched (#110)', () => {
+// #265 C3: a look-alike that differs by an invisible character is the owner's
+// rule, not the pact's, so it stays (#110).
+test('bad case: a live rule that differs from a retired rule only by an invisible character is kept, not dropped', () => {
   const rule = 'Bash(*nstall.mjs*)';
+  assert.ok(core.RETIRED_ASK.includes(rule));
+  const overlay = core.readSettings(json({ permissions: { defaultMode: 'auto' } }));
   for (const c of ['\u00ad', '\u200b', '\u2060']) {
     const near = rule.replace('nstall', `ns${c}tall`);
     const live = core.readSettings(json({ permissions: { ask: [near], defaultMode: 'auto' } }));
-    const overlay = core.readSettings(json({ permissions: { ask: [rule] } }));
-    assert.equal(core.liveSettingsLines(live, overlay, [rule])[0], "WARN: settings.json lacks 1 of the pact's ask rules; --apply adds them back.", JSON.stringify(c));
-    assert.equal(core.guardHolds(live, [rule]), false, JSON.stringify(c));
+    assert.deepEqual(JSON.parse(core.settingsText(core.mergeSettings(live, overlay))).permissions.ask, [near], JSON.stringify(c));
+    assert.ok(core.guardHolds(live), JSON.stringify(c));
   }
 });
 
-test('the guard after an apply: every pact ask rule exactly, and auto mode', () => {
-  const ok = core.readSettings(json({ permissions: { defaultMode: 'auto', ask: ['a', 'b', 'c'] } }));
-  assert.ok(core.guardHolds(ok, ['a', 'b']));
-  assert.ok(!core.guardHolds(ok, ['A']), 'compared exactly');
-  assert.ok(!core.guardHolds(core.readSettings(json({ permissions: { defaultMode: 'Auto', ask: ['a'] } })), ['a']));
-  assert.ok(!core.guardHolds(null, []));
+// #265 C6
+test('the guard after an apply: auto mode, and no retired ask rule left', () => {
+  const s = p => core.readSettings(json({ permissions: p }));
+  assert.ok(core.guardHolds(s({ defaultMode: 'auto' })), 'no ask list holds');
+  assert.ok(core.guardHolds(s({ defaultMode: 'auto', ask: [] })));
+  assert.ok(core.guardHolds(s({ defaultMode: 'auto', ask: ['Bash(mine)'] })));
+  assert.ok(!core.guardHolds(s({ defaultMode: 'auto', ask: ['Bash(mine)', core.RETIRED_ASK[55]] })), 'a retired rule remains');
+  assert.ok(!core.guardHolds(s({ defaultMode: 'auto', ask: 'Bash(mine)' })), 'a non-list ask');
+  assert.ok(!core.guardHolds(s({ defaultMode: 'Auto' })));
+  assert.ok(!core.guardHolds(core.readSettings('{}')));
+  assert.ok(!core.guardHolds(null));
 });
 
 // ------------------------------------------------------------ binding and apply (H1, X1)

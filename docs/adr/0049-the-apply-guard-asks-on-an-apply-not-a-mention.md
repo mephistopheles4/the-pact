@@ -2,6 +2,8 @@
 
 Superseded in part by [ADR 0052](0052-the-ask-rules-no-longer-guard-a-rollback-to-install-ps1.md) (2026-10-10): the old installer's 18 rules are removed; seam A requires 42.
 
+Superseded in part by [ADR 0063](0063-the-pact-sets-no-ask-rules-and-defers-to-the-harness.md) (2026-10-11): the pact sets no ask rules and seam A requires none; the install takes them, and the four broad rules retired here, out of a live settings file.
+
 The ask rules that guard the install no longer fire on any command that names the installer. They fire on the spellings of an apply. A dry run, a read, a search or a diff of the installer runs without a prompt. This supersedes [ADR 0042](0042-the-apply-guard-asks-on-any-command-naming-the-install.md) in part: its rules for the install record and for rulesets and branch protection stay as they were.
 
 ## What it covers

@@ -2,6 +2,8 @@
 
 Superseded in part by [ADR 0059](0059-the-pact-keeps-no-rollback-path-to-install-ps1.md) (2026-10-11): two parts no longer hold as written. "`docs/install.md` gives the step": the how-to points here for the text to search for, and keeps the warning and the two checks. "The tests" bullet's new cases, that no rule names the old installer and that a seam A still requiring one would refuse, are gone; one case remains, a rule put into the overlay alone failing as outside the allow-list. The risk acceptance below stands.
 
+Superseded in part by [ADR 0063](0063-the-pact-sets-no-ask-rules-and-defers-to-the-harness.md) (2026-10-11): the pact sets no ask rules and seam A requires none. The old installer's rules are still removed by hand.
+
 The 18 ask rules that guarded the old PowerShell installer's apply step are gone from the settings overlay, the settings allow-list and seam A's required list. A rollback that runs an older commit's `install.ps1` with its apply switch now runs without a prompt. This supersedes [ADR 0049](0049-the-apply-guard-asks-on-an-apply-not-a-mention.md) in part: its "old PowerShell installer, 18 rules" item, and its "Seam A requires all 60", which is now 42. It also ends the "what stays" bullet in [ADR 0048](0048-the-gates-tests-never-need-powershell.md) on the `install.ps1` ask rules.
 
 ## What changed

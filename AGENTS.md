@@ -129,9 +129,10 @@ how every session in every repo behaves. So:
 
   If any check fails, don't check the commit out, never run an installer from
   it, and stop to ask the owner. Check first, because an older commit's own
-  `AGENTS.md` presents a PowerShell installer as the route, and no ask rule
-  guards one (the threat model's R22). From a commit that passes, check out
-  exactly that id and run only `gate/install.mjs`, dry run first.
+  `AGENTS.md` presents a PowerShell installer as the route, and nothing but
+  this check stands before one (the threat model's R22). From a commit that
+  passes, check out exactly that id and run only `gate/install.mjs`, dry run
+  first.
 - **The cloud copy is generated.** `cloud-sessions/` holds the setup script
   for Claude Code cloud sessions. `cloud-sessions/gen.mjs` builds it, and
   `CLAUDE.cloud.md`, from the payload, through the same render and seam A a

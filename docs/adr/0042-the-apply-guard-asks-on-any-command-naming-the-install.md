@@ -2,6 +2,8 @@
 
 Superseded in part by [ADR 0049](0049-the-apply-guard-asks-on-an-apply-not-a-mention.md) (2026-10-10): the installer's rules ask on an apply, not a mention. The install-record and ruleset rules stand.
 
+Superseded in part by [ADR 0063](0063-the-pact-sets-no-ask-rules-and-defers-to-the-harness.md) (2026-10-11): the pact sets no ask rules; the install takes them out of a live settings file.
+
 The "ask" rules no longer try to match each spelling of an apply. They ask on any shell command that names the install script, its runner, the old PowerShell installer or the install record. They also ask on a `gh` command that names rulesets or branch protection.
 
 ## What it covers

@@ -39,6 +39,68 @@ export const JSON_DEPTH_MAX = 64;
 export const BANNED_SETTINGS = Object.freeze(['hooks', 'mcpServers', 'statusLine', 'fileSuggestion', 'apiKeyHelper', 'awsAuthRefresh', 'awsCredentialExport', 'otelHeadersHelper', 'enabledPlugins', 'extraKnownMarketplaces', 'enableAllProjectMcpServers', 'enabledMcpjsonServers']);
 // Banned in the overlay, but the owner's own in the live file, which the merge keeps.
 export const LIVE_OWN_SETTINGS = Object.freeze(['enabledPlugins', 'extraKnownMarketplaces']);
+// The ask rules the pact once set and retired (#265, ADR 0063): the 52 the
+// overlay held until #265, then the four broad rules ADR 0049 retired. The
+// merge takes each out of the live ask list, matched exactly, so the prompts
+// stop after the next install. Hard-coded, so only a gate change can widen it.
+export const RETIRED_ASK = Object.freeze([
+  'PowerShell(*--apply*)',
+  'Bash(*--apply*)',
+  'PowerShell(*install.mjs*--a*)',
+  'PowerShell(*install.mjs*$*)',
+  'PowerShell(*install.mjs*@*)',
+  'PowerShell(*install.mjs*(*)',
+  'PowerShell(*install.mjs*%*)',
+  'PowerShell(*install.mjs*`*)',
+  'PowerShell(*install.mjs*-"*)',
+  "PowerShell(*install.mjs*-'*)",
+  'PowerShell(*install-run.mjs*--a*)',
+  'PowerShell(*install-run.mjs*$*)',
+  'PowerShell(*install-run.mjs*@*)',
+  'PowerShell(*install-run.mjs*(*)',
+  'PowerShell(*install-run.mjs*%*)',
+  'PowerShell(*install-run.mjs*`*)',
+  'PowerShell(*install-run.mjs*-"*)',
+  "PowerShell(*install-run.mjs*-'*)",
+  'Bash(*nstall.mjs*--a*)',
+  'Bash(*nstall.mjs*$*)',
+  'Bash(*nstall.mjs*`*)',
+  'Bash(*nstall.mjs*\\*)',
+  'Bash(*nstall.mjs*\\\\*)',
+  'Bash(*nstall.mjs*-"*)',
+  "Bash(*nstall.mjs*-'*)",
+  'Bash(*nstall-run.mjs*--a*)',
+  'Bash(*nstall-run.mjs*$*)',
+  'Bash(*nstall-run.mjs*`*)',
+  'Bash(*nstall-run.mjs*\\*)',
+  'Bash(*nstall-run.mjs*\\\\*)',
+  'Bash(*nstall-run.mjs*-"*)',
+  "Bash(*nstall-run.mjs*-'*)",
+  'PowerShell(*--review-folder*)',
+  'Bash(*--review-folder*)',
+  'PowerShell(*install.mjs*--r*)',
+  'Bash(*nstall.mjs*--r*)',
+  'PowerShell(*.pact-install.json*)',
+  'Bash(*.pact-install.json*)',
+  'PowerShell(*gh*ruleset*)',
+  'PowerShell(*gh*protection*)',
+  'Bash(*gh*uleset*)',
+  'Bash(*gh*rotection*)',
+  'Edit(~/.claude/agents/**)',
+  'Edit(~/.claude/settings.json)',
+  'Edit(~/.claude/CLAUDE.md)',
+  'Edit(~/.claude/.pact-install.json)',
+  'Edit(~/.claude.json)',
+  'Edit(~/.claude/skills/**)',
+  'Edit(~/.claude/plugins/**)',
+  'Edit(~/.claude/output-styles/**)',
+  'Edit(~/.claude/commands/**)',
+  'Edit(~/.claude/pact/**)',
+  'PowerShell(*install.mjs*)',
+  'PowerShell(*install-run.mjs*)',
+  'Bash(*nstall.mjs*)',
+  'Bash(*nstall-run.mjs*)',
+]);
 
 /** A refusal: the rule id a table names, and the sentence the install prints. */
 export class Refusal extends Error {
@@ -749,10 +811,18 @@ function union(x, y) {
   return [...set].sort();
 }
 
+/** The live ask list's entries that are retired pact rules, as rule strings, sorted, once each. */
+function retiredIn(live) {
+  const lp = live.get('permissions');
+  if (!isMap(lp) || !lp.has('ask')) return [];
+  return union(lp.get('ask')).filter(r => RETIRED_ASK.includes(r));
+}
+
 /**
  * The live settings with the overlay merged in (S6, L5): the overlay wins,
  * objects merge, the plugin keys stay the owner's, and the allow, deny and ask
  * lists are unioned and sorted ordinally, so the owner's own rules survive.
+ * Then the retired pact rules leave the ask list (#265), matched exactly.
  */
 export function mergeSettings(live, overlay) {
   const m = mergeDeep(live, overlay);
@@ -760,6 +830,8 @@ export function mergeSettings(live, overlay) {
   const pa = isMap(live.get('permissions')) ? live.get('permissions') : new Map();
   const pb = overlay.has('permissions') ? overlay.get('permissions') : new Map();
   for (const k of ['allow', 'deny', 'ask']) if (pa.has(k) || pb.has(k)) m.get('permissions').set(k, union(pa.get(k), pb.get(k)));
+  const mp = m.get('permissions');
+  if (isMap(mp) && mp.has('ask')) mp.set('ask', mp.get('ask').filter(r => !RETIRED_ASK.includes(r)));
   return m;
 }
 
@@ -789,6 +861,8 @@ export function settingsChanges(live, overlay) {
       for (const rule of listOf(now)) if (!had.includes(ruleString(rule))) out.push(`  + ${name}: ${formatRule(ruleString(rule))}`);
     } else if (!old.has || canonical(old.value) !== canonical(now)) out.push(`  set ${name} = ${formatPlain(canonical(now))}`);
   }
+  // A removal prints the pact's own retired rule, never a live entry (#265).
+  for (const rule of retiredIn(live)) out.push(`  - permissions.ask: ${formatRule(rule)}`);
   return out;
 }
 
@@ -808,17 +882,17 @@ function bannedKeys(v) {
 }
 
 /**
- * Warnings about the live file (S6, L7): a banned key, missing pact ask rules,
- * a mode other than auto. The owner's own keys are named once, capped; env
- * names are only counted, since a name can say what a secret is for.
+ * Warnings about the live file (S6, L7): a banned key, retired pact ask rules
+ * still there (#265), a mode other than auto. The owner's own keys are named
+ * once, capped; env names are only counted, since a name can say what a secret
+ * is for.
  */
-export function liveSettingsLines(live, overlay, pactAsk) {
+export function liveSettingsLines(live, overlay) {
   const out = [];
   for (const k of bannedKeys(live)) if (!LIVE_OWN_SETTINGS.includes(k)) out.push(`WARN: settings.json holds ${k}, a command-running setting the pact never sets.`);
   const lp = live.get('permissions');
-  const liveAsk = isMap(lp) && Array.isArray(lp.get('ask')) ? lp.get('ask').map(ruleString) : [];
-  const missing = pactAsk.filter(r => !liveAsk.includes(r));
-  if (missing.length) out.push(`WARN: settings.json lacks ${missing.length} of the pact's ask rules; --apply adds them back.`);
+  const retired = retiredIn(live).length;
+  if (retired) out.push(`NOTE: settings.json holds ${retired} of the pact's retired ask rules; --apply removes them.`);
   const mode = isMap(lp) ? lp.get('defaultMode') : undefined;
   if (mode !== 'auto') out.push('WARN: settings.json: permissions.defaultMode is not auto; --apply sets it.');
   const own = [...live.keys()].filter(k => !overlay.has(k) && (!BANNED_SETTINGS.includes(k) || LIVE_OWN_SETTINGS.includes(k))).sort();
@@ -841,10 +915,13 @@ export function liveSettingsLines(live, overlay, pactAsk) {
   return out;
 }
 
-/** The guard, in the settings Claude Code reads (S6, X7): every pact ask rule, compared exactly, and auto mode. */
-export function guardHolds(after, pactAsk) {
+/** The guard, in the settings Claude Code reads (S6, X7; #265): auto mode, and no retired pact ask rule left. An absent ask list holds; one that is not a list fails. */
+export function guardHolds(after) {
   const ap = isMap(after) ? after.get('permissions') : null;
-  return isMap(ap) && ap.get('defaultMode') === 'auto' && Array.isArray(ap.get('ask')) && pactAsk.every(r => ap.get('ask').some(x => x === r));
+  if (!isMap(ap) || ap.get('defaultMode') !== 'auto') return false;
+  if (!ap.has('ask')) return true;
+  const ask = ap.get('ask');
+  return Array.isArray(ask) && !ask.some(x => RETIRED_ASK.includes(x));
 }
 
 // ------------------------------------------------------------ the plan

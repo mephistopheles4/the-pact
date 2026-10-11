@@ -172,7 +172,6 @@ async function main() {
   const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), parsed.commands), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
-  const pactAsk = (overlay.get('permissions').get('ask') ?? []).map(String);
   say(`Check: passed on commit ${commit}`);
   say("Partly checked: the gate checks the rendered CLAUDE.md's pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers in seam A's lines count the rendered file.");
 
@@ -257,7 +256,7 @@ async function main() {
     if (liveBytes === null) settings = 'would be created from the overlay';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
-      notes = core.liveSettingsLines(liveSettings, overlay, pactAsk);
+      notes = core.liveSettingsLines(liveSettings, overlay);
     }
     changes = core.settingsChanges(liveSettings, overlay);
   }
@@ -358,9 +357,9 @@ async function main() {
     }
   }
   const after = io.readOptional(settingsFile);
-  if (core.guardHolds(after === null ? null : core.readSettings(after.toString('utf8')), pactAsk)) say("OK       settings.json (the pact's ask rules and auto mode)");
+  if (core.guardHolds(after === null ? null : core.readSettings(after.toString('utf8')))) say('OK       settings.json (auto mode, no retired ask rules)');
   else {
-    say("MISMATCH settings.json (the pact's ask rules or auto mode are missing)");
+    say('MISMATCH settings.json (auto mode is off or a retired ask rule remains)');
     bad++;
   }
   if (bad) {

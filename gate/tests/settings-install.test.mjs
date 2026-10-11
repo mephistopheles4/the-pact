@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { plantModule } from './gate-files.mjs';
 import { commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
-import { OVERLAY, PACT_ASK, overlayWith } from './settings-rules.mjs';
+import { OVERLAY, RETIRED_RULES, overlayWith, shown } from './settings-rules.mjs';
 
 // ------------------------------------------------------------ install: the merge
 
@@ -21,36 +21,30 @@ function readLive(h) {
   return JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
 }
 
-// ADR 0049: a retired rule left in the live file stays, because the merge only adds (#210, S8).
-test("--apply installs the pact's ask rules and auto mode, verifies them, keeps a retired rule the owner still has, and the next dry run is quiet", t => {
+// #265 C7: an install into a home whose settings hold every retired rule
+// names each removal in the dry run, adds no ask rule, takes them all out on
+// --apply, keeps the owner's own rule, and the next dry run is quiet.
+test('--apply removes the retired ask rules, keeps the owner\'s own, sets auto mode, verifies it, and the next dry run is quiet', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  writeLive(h, { permissions: { ask: ['PowerShell(*install.mjs*)'] } });
+  writeLive(h, { permissions: { ask: [...RETIRED_RULES, 'Bash(git push *)'] } });
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^ {2}\+ permissions\.ask: PowerShell\(\*--apply\*\)$/m, dry.out);
+  assert.match(dry.stdout, new RegExp(`^NOTE: settings\\.json holds ${RETIRED_RULES.length} of the pact's retired ask rules; --apply removes them\\.$`, 'm'), dry.out);
+  const removed = dry.stdout.split('\n').filter(l => l.startsWith('  - permissions.ask: '));
+  assert.deepEqual(removed.map(l => l.slice('  - permissions.ask: '.length)).sort(), RETIRED_RULES.map(shown).sort());
+  assert.doesNotMatch(dry.stdout, /^ {2}\+ permissions\.ask: /m, dry.out);
   const r = install(repo, h, { apply: true });
   assert.equal(r.code, 0, r.out);
   const live = readLive(h);
-  for (const rule of PACT_ASK) assert.ok(live.permissions.ask.includes(rule), rule);
-  assert.ok(live.permissions.ask.includes('PowerShell(*install.mjs*)'), 'the retired rule left in the live file was removed');
+  assert.deepEqual(live.permissions.ask, ['Bash(git push *)']);
   assert.equal(live.permissions.defaultMode, 'auto');
-  assert.match(r.stdout, /^OK {7}settings\.json/m, r.out);
+  assert.match(r.stdout, /^OK {7}settings\.json \(auto mode, no retired ask rules\)$/m, r.out);
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^settings\.json: unchanged$/m, again.out);
-  assert.doesNotMatch(again.stdout, /^WARN: /m, again.out);
+  assert.doesNotMatch(again.stdout, /^WARN: |retired ask rules/m, again.out);
 });
-
-test("live settings missing the pact's ask rules draw a warning", t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  writeLive(h, { permissions: { defaultMode: 'auto' } });
-  const r = install(repo, h);
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, new RegExp(`^WARN: settings\\.json lacks ${PACT_ASK.length} of the pact's ask rules`, 'm'), r.out);
-});
-
 test('a live file the merge cannot read draws a plain warning, and -Apply refuses before writing anything', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -121,7 +115,8 @@ test('bad case: an -Apply whose written settings lack the guard reports a mismat
   writeLive(h, { theme: 'dark' });
   const r = install(repo, h, { apply: true });
   assert.notEqual(r.code, 0, r.out);
-  assert.match(r.stdout, /^MISMATCH settings\.json/m, r.out);
+  // #265 C6
+  assert.match(r.stdout, /^MISMATCH settings\.json \(auto mode is off or a retired ask rule remains\)$/m, r.out);
 });
 
 test('the dry run no longer says the overlay is unchecked', t => {

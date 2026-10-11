@@ -1,21 +1,19 @@
 // The settings guard (#34): seam A holds the settings overlay to an exact
 // allow-list. The install's side, the merge and its warnings, is in
-// settings-install.test.mjs; the rule lists both use are in settings-rules.mjs.
+// settings-install.test.mjs; the data both use is in settings-rules.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import * as core from '../install-core.mjs';
-import { moduleFiles, moduleMatch } from './gate-files.mjs';
+import { moduleMatch } from './gate-files.mjs';
 import { runSeamA } from './gate-run.mjs';
 import { realOverlay, stage } from './payload.mjs';
-import { GATE, REPO, failRules, lastLine } from './text.mjs';
+import { GATE, failRules, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
-import { APPLY_ASK, APPLY_COMMANDS, BACKUP_ASK, BROAD_INSTALL_ASK, CROSS_ASK, DASHES, MENTION_COMMANDS, OVERLAY, PACT_ASK, asks, overlayWith, shown } from './settings-rules.mjs';
+import { OVERLAY, RETIRED_RULES, overlayWith, shown } from './settings-rules.mjs';
 import { moduleResult, table } from './tables.mjs';
-
-const ALLOWLIST = 'gate/settings-allowlist.json';
 
 // Command-running settings, refused by name in seam A's own code.
 const BANNED = [
@@ -49,11 +47,6 @@ function expectSettingsFail(t, text, rule, script) {
   return r;
 }
 
-/** The rules among `rules` holding a character outside printable ASCII. */
-function nonAsciiRules(rules) {
-  return rules.filter(r => [...r].some(c => c < ' ' || c > '~'));
-}
-
 function sha256(text) {
   return createHash('sha256').update(text).digest('hex');
 }
@@ -76,9 +69,10 @@ function editSettingsAllowlist(g, edit) {
 
 // ------------------------------------------------------------ seam A: today's overlay
 
-test("today's overlay holds the pact's ask rules and auto mode, and passes", t => {
+// #265 C1, C2
+test("today's overlay sets auto mode and no ask rules, and passes", t => {
   const o = JSON.parse(realOverlay());
-  assert.deepEqual([...o.permissions.ask].sort(), [...PACT_ASK].sort());
+  assert.equal(Object.hasOwn(o.permissions, 'ask'), false);
   assert.equal(o.permissions.defaultMode, 'auto');
   const r = runSeamA(stage(t));
   assert.equal(r.code, 0, r.out);
@@ -206,172 +200,27 @@ test('bad case: an allow entry the allow-list does not hold fails', t => {
   expectSettingsFail(t, overlayWith(o => (o.permissions.allow = ['PowerShell(*)'])), 'settings-value');
 });
 
-// ------------------------------------------------------------ seam A: the ask rules
+// ------------------------------------------------------------ seam A: no ask rules (#265)
 
-test("bad case: an ask list missing one of the pact's rules fails", t => {
-  expectSettingsFail(t, overlayWith(o => o.permissions.ask.pop()), 'settings-required');
+// #265 C1: the allow-list holds no ask list, so an overlay that sets one is a
+// key path outside it, whatever the rules in it.
+test('bad case: an overlay that sets an ask list fails as unlisted', t => {
+  expectSettingsFail(t, overlayWith(o => (o.permissions.ask = ['PowerShell(*--apply*)'])), 'settings-unlisted');
+  expectSettingsFail(t, overlayWith(o => (o.permissions.ask = [])), 'settings-unlisted');
 });
 
-// The install's rules are the same spreads in both lists, so this guards the
-// lists' shape; the per-rule cases below and the overlay comparison above
-// cover each rule.
-test("the apply-step rules are all among the pact's rules", () => {
-  for (const rule of APPLY_ASK) assert.ok(PACT_ASK.includes(rule), shown(rule));
+// settings-value: a rule list is a set. Moved from the ask list to the allow
+// list, so the last bad case for a repeated rule stays.
+test('bad case: an allow list with a repeated rule fails, even when the allow-list holds the rule', t => {
+  const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.allow'] = ['Bash(ls *)'])));
+  expectSettingsFail(t, overlayWith(o => (o.permissions.allow = ['Bash(ls *)', 'Bash(ls *)'])), 'settings-value', script);
+  const once = runSeamA(stage(t, { [OVERLAY]: overlayWith(o => (o.permissions.allow = ['Bash(ls *)'])) }), script);
+  assert.equal(once.code, 0, `control: the rule once passes\n${once.out}`);
 });
 
-// One test per rule, so a red run shows every rule that seam A doesn't hold.
-// settings-required, with the message that names the apply step's rules.
-for (const rule of APPLY_ASK) {
-  test(`bad case: the apply-step rule ${shown(rule)} stays required when both the allow-list and the overlay drop it`, t => {
-    const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== rule))));
-    const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== rule))), 'settings-required', script);
-    assert.match(r.stdout, /the apply step's ask rules/, r.out);
-  });
-}
-
-// Near misses of the required rules (#34, #89, #210): each put in place of the
-// rule it resembles, in both the allow-list and the overlay, and seam A still
-// fails it as missing, so no near miss stands in for a required rule. A splat
-// with a space for the no-space splat (a space is the narrower rule), on each
-// of the Node installer's names (Bash has no splat rule); and a retired broad
-// rule, which seam A no longer asks for, in place of the rule that replaced it.
-const SPLAT_RULES = ['PowerShell(*install.mjs*@*)', 'PowerShell(*install-run.mjs*@*)'];
-const spaced = rule => rule.replace('*@', '* @');
-/** A plant putting `to` in place of the required rule `from`, in both files. */
-const swapIn = (from, to) => tree => {
-  const put = text => {
-    const doc = JSON.parse(text);
-    const list = doc.permissions?.ask ?? doc['permissions.ask'];
-    const i = list.indexOf(from);
-    assert.ok(i >= 0, shown(from));
-    list[i] = to;
-    return `${JSON.stringify(doc, null, 2)}\n`;
-  };
-  return { [OVERLAY]: put(tree[OVERLAY]), [ALLOWLIST]: put(tree[ALLOWLIST]) };
-};
-/** Today's overlay and allow-list, as a table's base. */
-const bothFiles = () => ({ [OVERLAY]: realOverlay(), [ALLOWLIST]: readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8') });
-/** Seam A run on a tree's overlay, with the tree's allow-list in a copy of the gate. */
-const runBoth = (tree, t) => {
-  const script = gateCopy(t, g => writeFileSync(join(g, 'settings-allowlist.json'), tree[ALLOWLIST]));
-  const r = runSeamA(stage(t, { [OVERLAY]: tree[OVERLAY] }), script);
-  return moduleResult(r.code, r.stdout);
-};
-for (const c of table('near misses of the required rules', {
-  module: 'gate/seam-a.mjs',
-  base: bothFiles,
-  run: runBoth,
-  rows: [
-    { id: 'splat-with-space-install-mjs', plant: swapIn(SPLAT_RULES[0], spaced(SPLAT_RULES[0])), fails: ['settings-required'], why: 'a splat that needs a space before it misses one after another separator (ADR 0020, miss d)' },
-    { id: 'splat-with-space-install-run-mjs', plant: swapIn(SPLAT_RULES[1], spaced(SPLAT_RULES[1])), fails: ['settings-required'], why: 'the same, after the runner' },
-    { id: 'broad-for-name-free-flag', plant: swapIn('PowerShell(*--apply*)', 'PowerShell(*install.mjs*)'), fails: ['settings-required'], why: 'a retired broad rule does not stand in for the name-free flag rule' },
-  ],
-})) test(c.name, c.fn);
-
-// ------------------------------------------------------------ seam A: a rule outside the allow-list (#217)
-
-// A rule put back into the overlay alone is a rule outside the
-// allow-list. Seam A uses the same id, settings-value, for other faults in a
-// rule list, such as a rule listed twice. The control below shows this id
-// comes from the allow-list: with the rule on both, it passes.
-const addAsk = (rule, ...files) => tree => {
-  const out = { ...tree };
-  for (const f of files) {
-    const doc = JSON.parse(tree[f]);
-    const list = doc.permissions?.ask ?? doc['permissions.ask'];
-    assert.ok(!list.includes(rule), `${f} already holds ${shown(rule)}`);
-    list.push(rule);
-    out[f] = `${JSON.stringify(doc, null, 2)}\n`;
-  }
-  return out;
-};
-for (const c of table('a rule put back into the overlay alone', {
-  module: 'gate/seam-a.mjs',
-  base: bothFiles,
-  run: runBoth,
-  rows: [
-    { id: 'rule-in-overlay-alone', plant: addAsk('Bash(ls *)', OVERLAY), fails: ['settings-value'], why: 'a rule the allow-list does not hold' },
-  ],
-})) test(c.name, c.fn);
-
-// #242 C4: the passing partner of the row above.
-test('control: a rule added to both the overlay and the allow-list passes, so the row above fails for the allow-list', t => {
-  const r = runBoth(addAsk('Bash(ls *)', OVERLAY, ALLOWLIST)(bothFiles()), t);
-  assert.equal(r.code, 0, r.out);
-  assert.equal(r.last, 'RESULT: pass', r.out);
-});
-
-// ------------------------------------------------------------ the rules against a model of the matcher (#210, S6)
-
-// The model reads Claude Code's documented matching (settings-rules.mjs); it
-// can't show what the live matcher does with escapes or wrapped lines.
-test('every apply form in the fixtures asks under the overlay\'s rules', () => {
-  const rules = JSON.parse(realOverlay()).permissions.ask;
-  assert.deepEqual(APPLY_COMMANDS.filter(([tool, cmd]) => !asks(rules, tool, cmd)).map(([, , why]) => why), []);
-});
-
-test('every mention, read, search and dry run in the fixtures runs under the overlay\'s rules', () => {
-  const rules = JSON.parse(realOverlay()).permissions.ask;
-  assert.deepEqual(MENTION_COMMANDS.filter(([tool, cmd]) => asks(rules, tool, cmd)).map(([, , why]) => why), []);
-});
-
-test('control: the retired broad rules ask on every mention, so the mention rows can fail', () => {
-  assert.deepEqual(MENTION_COMMANDS.filter(([tool, cmd]) => !asks(BROAD_INSTALL_ASK, tool, cmd)).map(([, , why]) => why), []);
-});
-
-test('control: an apply split across two statements runs under the per-name rules alone, so the name-free rule is what catches it', () => {
-  const split = APPLY_COMMANDS.find(([, , why]) => why === 'the name in one statement and the flag in another');
-  const perName = APPLY_ASK.filter(r => !r.endsWith('(*--apply*)'));
-  assert.equal(asks(perName, split[0], split[1]), false);
-  assert.equal(asks(APPLY_ASK, split[0], split[1]), true);
-});
-
-// A rule the same in every copy can still match nothing it should: so each
-// rule but the named backups is the one rule some apply row needs (#210,
-// round 2). A rule that matched nothing would leave that row running.
-test('each install rule but the named backups is the only rule that makes some apply row ask', () => {
-  const needed = rule => APPLY_COMMANDS.some(([tool, cmd]) => asks(APPLY_ASK, tool, cmd) && !asks(APPLY_ASK.filter(r => r !== rule), tool, cmd));
-  assert.deepEqual(APPLY_ASK.filter(r => !BACKUP_ASK.includes(r) && !needed(r)).map(shown), []);
-  for (const rule of BACKUP_ASK) assert.ok(APPLY_ASK.includes(rule), shown(rule));
-});
-
-test('control: a rule that matches nothing is caught as needed by no row', () => {
-  const broken = APPLY_ASK.map(r => (r === 'PowerShell(*install-run.mjs*@*)' ? 'PowerShell(*install-run.mjs*@@nothing*)' : r));
-  const needed = rule => APPLY_COMMANDS.some(([tool, cmd]) => asks(broken, tool, cmd) && !asks(broken.filter(r => r !== rule), tool, cmd));
-  assert.equal(needed('PowerShell(*install-run.mjs*@@nothing*)'), false);
-  assert.equal(APPLY_COMMANDS.every(([tool, cmd]) => asks(broken, tool, cmd)), false, 'the splat row then runs');
-});
-
-test('the model splits on each documented separator, and matches PowerShell without regard to case and Bash exactly', () => {
-  for (const sep of ['&&', '||', ';', '|', '&', '\n']) assert.ok(asks(['PowerShell(echo x)'], 'PowerShell', `cd a ${sep} echo x`), JSON.stringify(sep));
-  assert.ok(asks(['PowerShell(*abc*)'], 'PowerShell', 'echo ABC'));
-  assert.ok(!asks(['Bash(*abc*)'], 'Bash', 'echo ABC'));
-  assert.ok(!asks(['Bash(*abc*)'], 'PowerShell', 'echo abc'), 'a rule matches only its own tool');
-});
-
-test('every pact ask rule is printable ASCII', () => {
-  const allow = JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8'))['permissions.ask'];
-  const overlay = JSON.parse(realOverlay()).permissions.ask;
-  assert.deepEqual(nonAsciiRules(allow), []);
-  assert.deepEqual(nonAsciiRules(overlay), []);
-  assert.deepEqual(nonAsciiRules(PACT_ASK), []);
-});
-
-test('bad case: an ask rule with a dash-like or invisible character is caught', () => {
-  for (const c of [...DASHES,'\u2010', '\u2212', '\u00ad', '\u200b', '\t']) {
-    assert.deepEqual(nonAsciiRules([`Bash(*nstall.mjs*${c}*)`]), [`Bash(*nstall.mjs*${c}*)`], shown(c));
-  }
-});
-
-test('each dash is written as an escape: the rule files and their code hold no dash character', () => {
-  const seam = moduleFiles(GATE, 'seam-a').map(p => `gate/${p.slice(GATE.length + 1)}`);
-  const files = ['claude/settings.overlay.json', 'gate/settings-allowlist.json', ...seam, 'gate/tests/settings.test.mjs', 'gate/tests/settings-rules.mjs', 'gate/tests/settings-install.test.mjs'];
-  for (const f of files) {
-    const text = readFileSync(join(GATE, '..', ...f.split('/')), 'utf8');
-    for (const d of DASHES) assert.ok(!text.includes(d), `${f} holds ${shown(d)} as a character`);
-  }
-  const rules = readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8') + realOverlay();
-  assert.ok(/^[\x00-\x7f]*$/.test(rules), 'a rule file holds a byte outside ASCII');
+// settings-required: the mode is the one path the overlay must set.
+test('bad case: an overlay with no defaultMode fails', t => {
+  expectSettingsFail(t, overlayWith(o => delete o.permissions.defaultMode), 'settings-required');
 });
 
 // The PowerShell installer had no [CmdletBinding()], so
@@ -396,21 +245,6 @@ for (const c of table('apply only as typed', {
     { id: 'apply-with-a-value', plant: t => ({ in: JSON.stringify([...JSON.parse(t.in), '--apply=true']) }), fails: ['args-unread'], why: 'nothing but the bare word turns on --apply' },
   ],
 })) test(c.name, c.fn);
-
-test("bad case: the cross script's ask rule stays required when both the allow-list and the overlay drop it", t => {
-  const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.ask'] = doc['permissions.ask'].filter(x => x !== CROSS_ASK))));
-  const r = expectSettingsFail(t, overlayWith(o => (o.permissions.ask = o.permissions.ask.filter(x => x !== CROSS_ASK))), 'settings-required', script);
-  assert.match(r.stdout, /the cross script's ask rule/, r.out);
-});
-
-test('bad case: an overlay with no ask list fails', t => {
-  expectSettingsFail(t, overlayWith(o => delete o.permissions.ask), 'settings-required');
-});
-
-test('bad case: an ask list with an extra or a repeated rule fails', t => {
-  expectSettingsFail(t, overlayWith(o => o.permissions.ask.push('Bash(ls *)')), 'settings-value');
-  expectSettingsFail(t, overlayWith(o => o.permissions.ask.push(o.permissions.ask[0])), 'settings-value');
-});
 
 // ------------------------------------------------------------ seam A: strict reading
 
@@ -464,7 +298,10 @@ test("the install's banned names are seam A's", () => {
   assert.deepEqual(names(seam[1]), BANNED);
 });
 
-test('the settings overlay asks before any edit to the user file or its blocks folder', () => {
-  const overlay = JSON.parse(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
-  assert.ok(overlay.permissions.ask.includes('Edit(~/.claude/pact/**)'), overlay.permissions.ask.join('\n'));
+
+// #265 C5: the install's retired list is the frozen one, rule for rule, so no
+// rule the pact once set is left behind in a live file.
+test("the install's retired ask rules are the pact's old rules, exactly", () => {
+  assert.equal(RETIRED_RULES.length, 56);
+  assert.deepEqual([...core.RETIRED_ASK].map(shown), RETIRED_RULES.map(shown));
 });
