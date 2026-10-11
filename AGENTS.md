@@ -247,6 +247,52 @@ how every session in every repo behaves. So:
   (ADR 0047). Keep at least one end-to-end case that drives each of the
   install runner's checks (in `gate/install-run.mjs`) to refuse. Never cut a
   case that checks a refused install wrote nothing.
+- **A test names what it backs.** The rules in this bullet and the three below
+  apply to a test or table row a change adds or edits; they are not a sweep of
+  the tests already there. Each such test names one of:
+  - a claim of the issue it was built for, as `#<issue> C<n>`;
+  - an invariant already written down: a gate rule id (a table row's rule ids
+    count), an ADR by number (`ADR 0047`), a threat-model risk (`R21`), or a
+    rule of this repo by its section heading (`Writing a gate test`).
+
+  Put the name in a comment on the line above the `test(...)` call, or once in
+  the file header when every test in the file backs the same thing. A test
+  that names nothing gets a one-line stated reason, or it is cut before move 4.
+  A backing comment never writes a file path or a script name. The test runner
+  matches a changed path against each test file's text, comments included,
+  and puts any file that names the old installer script in the install tier,
+  so a path in a comment changes what runs. Quick work has no numbered claims
+  while its tests are written first: such a test names the done-criterion in
+  words, and the comment is not updated when move 4 numbers the claims.
+- **Test what fails silently.** Outside the gate's checks, a path that already
+  fails loudly, with an error the owner sees and can recover from, needs no
+  test of its own. A gate check's bad case is not covered by this: a refusal
+  test catches the check itself vanishing, and a vanished check passes
+  everything in silence. The rule above, that each check a change adds or
+  tightens needs a bad case it is seen to catch, stands unchanged.
+- **Minus-one.** A test whose assertions another test already makes, on the
+  same function and the same class of input, is a cut candidate. Cut one only
+  in a file the change is already editing. List each cut, with the test that
+  covers it, in an issue comment and in the PR body, and hand that list to
+  `integrity-lens` at move 4 with the tests it cites. The repo has no mutation
+  tool, so this is judged by reading.
+- **Size the suite to review cost.** Every test is something the owner has to
+  trust and maintain. The PR body carries one line, `Tests: +<added> −<cut>`,
+  counting `test(...)` calls and table rows, as its second line, straight
+  after the close-out checkbox line. A change adds no test beyond what its
+  claims and the invariants it names need.
+- **What is never a cut candidate.** The two bullets on silent failures and
+  on minus-one never reach these:
+  - the last bad case for a gate check;
+  - an install case: ADR 0047 and "Cutting an install case" govern those cuts;
+  - a test that guards anything in the protected set: the tests that hold a
+    gated clause or the floor word for word, the tool allow-list, the
+    settings guard, the cross script's refusals, and any test of a
+    security-set lens;
+  - any test in `gate/tests/cloud-sessions.test.mjs`, whose changes take the
+    security route.
+
+  When it is unclear whether a test falls under this list, it does.
 
 ## Where work lives
 
