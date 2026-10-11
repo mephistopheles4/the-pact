@@ -3,7 +3,7 @@
 <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#22262b" stroke-opacity="0.05" stroke-width="1"/></pattern></defs>
 <rect width="800" height="620" fill="url(#grid)"/>
 <rect x="17" y="17" width="766" height="586" fill="#fafaf7" fill-opacity="0.72" stroke="#22262b" stroke-width="2"/>
-<text x="44" y="39.2" font-size="12" font-weight="600" letter-spacing="1.92" fill="#22262b">FIG. 03 — LENSES ADVISE. YOU DECIDE.</text>
+<text x="44" y="39.2" font-size="12" font-weight="600" letter-spacing="1.92" fill="#22262b">FIG. 03 — LENSES ADVISE. I DECIDE.</text>
 <text x="756" y="39.2" font-size="12" letter-spacing="1.92" text-anchor="end" fill="#22262b" fill-opacity="0.7">REVIEW LENSES</text>
 <line x1="18" y1="58" x2="782" y2="58" stroke="#22262b" stroke-opacity="0.3" stroke-width="1"/>
 <rect x="44" y="80" width="500" height="104" fill="#fafaf7" stroke="#22262b" stroke-opacity="0.3" stroke-width="1"/>
@@ -64,12 +64,12 @@
 <line x1="664" y1="328" x2="664" y2="339" stroke="#22262b" stroke-width="1.5"/>
 <path d="M660 338L668 338L664 344Z" fill="#22262b"/>
 <rect x="572" y="348" width="184" height="74" fill="#fafaf7" stroke="#22262b" stroke-opacity="0.3" stroke-width="1"/>
-<text x="584" y="371.2" font-size="12" fill="#22262b">Posted on the</text>
-<text x="584" y="389.2" font-size="12" fill="#22262b">issue word for</text>
+<text x="584" y="371.2" font-size="12" fill="#22262b">Posted in the</text>
+<text x="584" y="389.2" font-size="12" fill="#22262b">record word for</text>
 <text x="584" y="407.2" font-size="12" fill="#22262b">word.</text>
 <line x1="664" y1="426" x2="664" y2="437" stroke="#22262b" stroke-width="1.5"/>
 <path d="M660 436L668 436L664 442Z" fill="#22262b"/>
 <rect x="572" y="446" width="184" height="55" fill="#22262b" stroke="#22262b" stroke-width="2"/>
-<text x="584" y="468.35" font-size="11" font-weight="600" letter-spacing="1.76" fill="#fafaf7">YOU DECIDE</text>
+<text x="584" y="468.35" font-size="11" font-weight="600" letter-spacing="1.76" fill="#fafaf7">I DECIDE</text>
 <text x="584" y="486.2" font-size="12" fill="#fafaf7">Done, fix, or stop.</text>
 </svg>

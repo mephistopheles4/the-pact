@@ -20,17 +20,17 @@ When you build something that matters, what you say to an agent deserves the car
 
 ## Four moves
 
-The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. They are the owner's practices, with or without AI, and the owner takes each up as the work needs it. The agent follows the owner's lead, and when a move seems to drop, it nudges once, lightly. Two guards sit under the moves: stop and ask when the work goes round twice, leaves the plan, is hard to reverse or can no longer be explained; and wait before expensive work when weekly usage is high.
+The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. They are my practices, with or without AI, and I take each up as the work needs it. The agent follows my lead, and when a move seems to drop, it nudges once, lightly. Two guards sit under the moves: stop and ask when the work goes round twice, leaves the plan, is hard to reverse or can no longer be explained; and wait before expensive work when weekly usage is high.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-01-moves-dark.svg">
-  <img src="docs/img/fig-01-moves.svg" alt="FIG. 01, four moves, one owner. At each move you decide and the agent carries it out: you sense the work, think before doing, checkpoint the seams and stay the owner, each as the work needs it." width="800">
+  <img src="docs/img/fig-01-moves.svg" alt="FIG. 01, four moves, one owner. At each move I decide and the agent carries it out: I sense the work, think before doing, checkpoint the seams and stay the owner, each as the work needs it." width="800">
 </picture>
 
 <details>
 <summary>Text of FIG. 01</summary>
 
-| Move | You, the architect of intent | The agent, the executor |
+| Move | Me, the architect of intent | The agent, the executor |
 |---|---|---|
 | 1. Sense the work | How big, how risky, and ready to plan? | Proposes a tier, with a line of why. |
 | 2. Think before doing | Get the intent clear enough to defend. | Prototypes when the intent is still forming. |
@@ -59,7 +59,7 @@ Not every change needs a spec. Each piece of work gets a tier (quick, standard o
 |---|---|---|---|---|
 | Quick | Small, one session, no plan needed | Tests, then the QA pair | — | Opus, low |
 | Standard | Needs a short spec | The spec read for what is unstated; tests, the QA pair, and the lenses the diff calls for | Opus, medium | Sonnet, medium |
-| Thorough | Too big for one session, or risky | The spec read before you approve it; tickets, each its own session; per ticket, tests, the QA pair and the lenses the diff calls for | Opus, high | Sonnet, medium |
+| Thorough | Too big for one session, or risky | The spec read before I approve it; tickets, each its own session; per ticket, tests, the QA pair and the lenses the diff calls for | Opus, high | Sonnet, medium |
 
 **Sensitive work · more checking.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations: thorough, built on Opus at high. The security pair reads its spec and its diff. Small work that touches nothing sensitive is quick. Keep one model for a whole session.
 
@@ -73,7 +73,7 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
-  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, you decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question; the QA pair and the security pair are defaults. Their reports are checked, joined and posted on the issue, and you decide." width="800">
+  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question; the QA pair and the security pair are defaults. Their reports are checked, joined and posted in the work's record, and I decide." width="800">
 </picture>
 
 <details>
@@ -85,17 +85,17 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 - **Security pair, on sensitive work, by default.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
 - **Alone, on specs and results above quick.** `unstated-lens`: what need did nobody write down?
 
-Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The cross script checks and joins the pair; where both lenses hit one spot, it shows first. The reports are posted on the issue word for word. You decide: done, fix, or stop.
+Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The cross script checks and joins the pair; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
 
 </details>
 
-Their reports go on the issue word for word. The agent sorts the findings and acts on its recommendation for each, and you can reverse any of them. Whether the work is done is your call.
+Their reports go into the work's record word for word. The agent sorts the findings and acts on its recommendation for each, and I can reverse any of them. Whether the work is done is my call.
 
 ## Who it's for
 
-**It is one person's working configuration, shared as a reference.** Read it, borrow from it, or install it, but adopt it with your own judgement. It is written for its owner's setup (PowerShell on Windows, auto mode, the Concise output style), and a configuration file can change some of it.
+**It is one person's working configuration, shared as a reference.** Read it, borrow from it, or install it, but adopt it with your own judgement. It is written for my setup (PowerShell on Windows, auto mode, the Concise output style), and a configuration file can change some of it.
 
-**It reaches beyond your machine.** It treats your issue tracker as the record, and posts review reports there word for word, security findings included. Read [Before you install](docs/install.md#before-you-install) and [the threat model](docs/threat-model.md) first.
+**It reaches beyond your machine.** It keeps the work's record where your project keeps it, and posts review reports there word for word, security findings included. This repo keeps its own record in GitHub issues; that is how this repo is run, not part of what the pact installs. Read [Before you install](docs/install.md#before-you-install) and [the threat model](docs/threat-model.md) first.
 
 ## What's here
 

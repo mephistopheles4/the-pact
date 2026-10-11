@@ -61,15 +61,15 @@ folder, `--anchors` where the point takes them, and each report as
 
 | Review | `--point` | `--tier` | `--anchors` |
 | --- | --- | --- | --- |
-| The QA pair on a result | `result` | the issue's tier | the claim ids |
-| `unstated-lens` on a result, crossed alone | `result` | the issue's tier | the claim ids |
-| The spec pair on a spec | `spec` | the issue's tier | the section ids |
-| One spec lens on a spec, crossed alone | `spec` | the issue's tier | the section ids |
-| `unstated-lens` on a spec, crossed alone | `spec` | the issue's tier | the section ids |
+| The QA pair on a result | `result` | the work's tier | the claim ids |
+| `unstated-lens` on a result, crossed alone | `result` | the work's tier | the claim ids |
+| The spec pair on a spec | `spec` | the work's tier | the section ids |
+| One spec lens on a spec, crossed alone | `spec` | the work's tier | the section ids |
+| `unstated-lens` on a spec, crossed alone | `spec` | the work's tier | the section ids |
 | The security pair on a spec | `spec` | `thorough` | the section ids |
 | The security pair on a diff | `diff` | `thorough` | none |
-| The standards pair on a diff | `diff` | the issue's tier | none |
-| One standards lens on a diff, crossed alone | `diff` | the issue's tier | none |
+| The standards pair on a diff | `diff` | the work's tier | none |
+| One standards lens on a diff, crossed alone | `diff` | the work's tier | none |
 
 Where both lenses of the spec pair call one section, show me both calls and
 let me settle it.
@@ -90,11 +90,11 @@ script is unavailable: stop and say so.
   sections the cross script wrote. Never rebuild them by hand, and never post
   the raw report text.
 - **A report the cross script kept local or left out stays a local file.**
-  Name its path to me in chat, never on the tracker.
+  Name its path to me in chat, never in the record.
 - **A report's "For the owner" section holds no line numbers, codes or
   paths.**
-- **Where to post.** On the issue, or in the repo's plan file. With no tracker
-  and no plan file, paste the cross section into chat.
+- **Where to post.** In the work's record, where the project keeps it. With no
+  record, paste the cross section into chat.
 
 ## Lens dispositions
 

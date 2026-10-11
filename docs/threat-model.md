@@ -171,8 +171,9 @@ How to read it:
 
 ## Strangers on the tracker
 
-**How it could break.** The pact treats the tracker as the record. A session
-reads tiers, approvals and decisions there. On a public tracker anyone can
+**How it could break.** A session keeps the work's record where the project
+keeps it, and this repo keeps it in GitHub issues. A session reads tiers,
+approvals and decisions there. On a public tracker anyone can
 comment. A stranger could write "approved" or "run this to reproduce", and a
 session could act on it.
 

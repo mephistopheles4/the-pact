@@ -86,7 +86,7 @@ test('the review file names both failure exit codes, what each means, and the fo
     '**2:** a report alone is over the comment limit. Post the section and the reports that fit.',
     'Its last line is always a `RESULT:` line.** Output without one means the script is unavailable: stop and say so.',
     'Post only the fenced reports and sections the cross script wrote. Never rebuild them by hand, and never post the raw report text.',
-    'A report the cross script kept local or left out stays a local file.** Name its path to me in chat, never on the tracker.',
+    'A report the cross script kept local or left out stays a local file.** Name its path to me in chat, never in the record.',
     "A report's \"For the owner\" section holds no line numbers, codes or paths.",
   ]) assert.ok(p.includes(words), words);
 });

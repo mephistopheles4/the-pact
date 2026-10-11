@@ -25,8 +25,8 @@ The rules reach beyond your machine in two ways. Decide on each before you
 install, because the install copies the rules as your clone's last commit
 holds them:
 
-- **They treat your issue tracker as the record.** A session reads tiers,
-  approvals and decisions there. Since #261 the pact carries no rule on whose
+- **They keep the work's record where your project keeps it,** often an issue
+  tracker. A session reads tiers, approvals and decisions there. Since #261 the pact carries no rule on whose
   text counts there: it leaves that to judgment. Before you use the rules on
   a tracker where others can comment, keep that tracker private, or write
   your own rule into the repo's `AGENTS.md`, as this repo does.

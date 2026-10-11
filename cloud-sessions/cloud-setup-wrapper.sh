@@ -241,10 +241,10 @@ and help with what it needs.
   with why. A command only I may start, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then the reviews the work needs (see Lenses).
-- **Keep the record.** The issue tracker is the record; a repo without one
-  says where plans live. Sign each comment with your session's short label.
-  At a phase boundary, or past half the context window, post the state and
-  the open questions, and propose a fresh session.
+- **Keep the record where the project keeps it.** Sign what you post there
+  with your session's short label. At a phase boundary, or past half the
+  context window, put the state and the open questions in the record, and
+  propose a fresh session.
 - **Say a mismatch first.** If the tier, model or effort doesn't fit the
   work, say so in the first line, before any work.
 
@@ -3206,15 +3206,15 @@ folder, `--anchors` where the point takes them, and each report as
 
 | Review | `--point` | `--tier` | `--anchors` |
 | --- | --- | --- | --- |
-| The QA pair on a result | `result` | the issue's tier | the claim ids |
-| `unstated-lens` on a result, crossed alone | `result` | the issue's tier | the claim ids |
-| The spec pair on a spec | `spec` | the issue's tier | the section ids |
-| One spec lens on a spec, crossed alone | `spec` | the issue's tier | the section ids |
-| `unstated-lens` on a spec, crossed alone | `spec` | the issue's tier | the section ids |
+| The QA pair on a result | `result` | the work's tier | the claim ids |
+| `unstated-lens` on a result, crossed alone | `result` | the work's tier | the claim ids |
+| The spec pair on a spec | `spec` | the work's tier | the section ids |
+| One spec lens on a spec, crossed alone | `spec` | the work's tier | the section ids |
+| `unstated-lens` on a spec, crossed alone | `spec` | the work's tier | the section ids |
 | The security pair on a spec | `spec` | `thorough` | the section ids |
 | The security pair on a diff | `diff` | `thorough` | none |
-| The standards pair on a diff | `diff` | the issue's tier | none |
-| One standards lens on a diff, crossed alone | `diff` | the issue's tier | none |
+| The standards pair on a diff | `diff` | the work's tier | none |
+| One standards lens on a diff, crossed alone | `diff` | the work's tier | none |
 
 Where both lenses of the spec pair call one section, show me both calls and
 let me settle it.
@@ -3235,11 +3235,11 @@ script is unavailable: stop and say so.
   sections the cross script wrote. Never rebuild them by hand, and never post
   the raw report text.
 - **A report the cross script kept local or left out stays a local file.**
-  Name its path to me in chat, never on the tracker.
+  Name its path to me in chat, never in the record.
 - **A report's "For the owner" section holds no line numbers, codes or
   paths.**
-- **Where to post.** On the issue, or in the repo's plan file. With no tracker
-  and no plan file, paste the cross section into chat.
+- **Where to post.** In the work's record, where the project keeps it. With no
+  record, paste the cross section into chat.
 
 ## Lens dispositions
 
@@ -3404,7 +3404,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 0876d74384915f9dce0af52e592f39744ba96562bd27572a15b5db52cdbb5b0e 'CLAUDE.md'
+check_hash 2c8321dcf59c2021d798a4983078bc3ff40838c42be6ef2936fd1b272f076949 'CLAUDE.md'
 check_hash a0e223c676f8fc662ee124ab50d49739d35201831d825f180f9154619a24179b 'agents/adversarial-lens.md'
 check_hash b235cef05f490e4c424eba6005c1a602f82bf3000ab42d9aba0dbafefb06ce1f 'agents/behaviour-lens.md'
 check_hash 205e44d9a4bd1eedee0827d4340edccf711536339ef5667ce47c80c18283a9d8 'agents/conventions-lens.md'
@@ -3416,7 +3416,7 @@ check_hash 623fe899ab9f2a50799e3ee777e75029a20ec2a70459a9397dccfc0bddaa9e17 'age
 check_hash 0c076132eb156b317641144b984f7b05d324881ccb3f05633589cb366f754f40 'agents/scout.md'
 check_hash 21a0547777fe0ad06aaf4ccc7a2dfcc4eca4f4755bc04c0ef1fcd3d03c18381e 'agents/unstated-lens.md'
 check_hash ccd359c94c38ff91501092d9e4e6c429d8903cd093b4518ec2bb08d0447e7243 'pact/cross.mjs'
-check_hash 0da73c9466fbbb072d9873c8441919ce61eddf2636b5e07c09a1455f8c4b85ab 'pact/review.md'
+check_hash 3512021f30a114f23a6a63a293873ef7272230b35cbdf85e8a0bf9245ca0e1ee 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -3439,7 +3439,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 8763defecd22"
+  echo "pact cloud copy 65fd71a1de7f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

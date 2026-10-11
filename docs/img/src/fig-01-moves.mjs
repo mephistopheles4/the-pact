@@ -1,4 +1,4 @@
-// FIG. 01: the four moves, the owner's practices. What you do at each move,
+// FIG. 01: the four moves, my practices. What I do at each move,
 // what the agent does, and that each is taken up as the work needs it. Words
 // from claude/CLAUDE.md's "The moves" and "How Claude helps".
 import { LEFT, PAD, RIGHT, block, label, sheet } from './draw.mjs';
@@ -23,10 +23,10 @@ const colX = i => LEFT + i * (CW + GAP);
 const els = [];
 let y = 80;
 
-els.push(label({ top: y, x: LEFT, lines: ['You — architect of intent'], max: 400 }).el);
+els.push(label({ top: y, x: LEFT, lines: ['Me — architect of intent'], max: 400 }).el);
 y += 27;
 
-// Your cards: the move, its name, what you do.
+// My cards: the move, its name, what I do.
 const cardTop = y;
 const cardH = 12 + 17 + 6 + 2 * 18 + 6 + 4 * 20 + 12;
 YOU.forEach((c, i) => {
@@ -46,7 +46,7 @@ YOU.forEach((c, i) => {
 });
 y = cardTop + cardH;
 
-// The seams between you and the agent.
+// The seams between me and the agent.
 YOU.forEach((_, i) => {
   const cx = colX(i) + CW / 2;
   els.push({ kind: 'line', x1: cx, y1: y, x2: cx, y2: y + 28, stroke: 'ink55', sw: 1.5, dash: '4 3' });

@@ -11,7 +11,7 @@ const ROWS = [
   [
     'Thorough',
     ['Too big for', 'one session,', 'or risky'],
-    ['The spec read before', 'you approve it;', 'tickets, each its own', 'session; per ticket,', 'tests, the QA pair and', 'the lenses the diff', 'calls for'],
+    ['The spec read before', 'I approve it;', 'tickets, each its own', 'session; per ticket,', 'tests, the QA pair and', 'the lenses the diff', 'calls for'],
     ['Opus, high'],
     ['Sonnet,', 'medium'],
   ],

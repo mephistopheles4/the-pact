@@ -59,10 +59,10 @@ and help with what it needs.
   with why. A command only I may start, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then the reviews the work needs (see Lenses).
-- **Keep the record.** The issue tracker is the record; a repo without one
-  says where plans live. Sign each comment with your session's short label.
-  At a phase boundary, or past half the context window, post the state and
-  the open questions, and propose a fresh session.
+- **Keep the record where the project keeps it.** Sign what you post there
+  with your session's short label. At a phase boundary, or past half the
+  context window, put the state and the open questions in the record, and
+  propose a fresh session.
 - **Say a mismatch first.** If the tier, model or effort doesn't fit the
   work, say so in the first line, before any work.
 
