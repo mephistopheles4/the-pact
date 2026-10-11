@@ -44,7 +44,11 @@ const SECRETS = {
 };
 const ENV_SECRET = 'zebra-quokka-42';
 const USERINFO = 'https://bob:' + 'hunter2pass@example.com/x';
-const PLANTED = [...Object.values(SECRETS), ENV_SECRET, 'hunter2pass', 'alice@example.org', 'notes-for-alice', SESSION, GH_TOKEN_SHAPE.slice(10)];
+// Every text a refusal row plants, so each row can show its output holds none of it.
+const PLANTED = [
+  ...Object.values(SECRETS), ENV_SECRET, 'hunter2pass', 'alice', 'example.org', 'notes-for-alice', SESSION, GH_TOKEN_SHAPE.slice(10),
+  '/srv/home', 'tester', 'buildhost', 'fileserver', '/tmp/abc', 'work/notes', '426614174000', 'abc/file',
+];
 
 const TRAILER = `${ROBOT} Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_${SESSION}\n`;
 
@@ -62,9 +66,10 @@ function world({ login = ME, tamper = x => x, answer = x => x, fail = {} } = {})
       const [owner, branch] = req.head.includes(':') ? req.head.split(':') : [m[1].split('/')[0], req.head];
       return [`repos/${m[1]}/pulls/7`, { number: 7, title: req.title, body: req.body, draft: req.draft, base: { ref: req.base }, head: { ref: branch, repo: { full_name: `${owner}/${m[1].split('/')[1]}` } }, user }];
     }
-    if ((m = path.match(/^repos\/([^/]+\/[^/]+)\/issues\/\d+\/comments$/))) return [`repos/${m[1]}/issues/comments/9001`, { id: 9001, body: req.body, user }];
-    if ((m = path.match(/^repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/reviews$/))) return [`repos/${m[1]}/pulls/${m[2]}/reviews/777`, { id: 777, body: req.body, state: 'COMMENTED', user }];
-    if ((m = path.match(/^repos\/([^/]+\/[^/]+)\/pulls\/\d+\/comments\/\d+\/replies$/))) return [`repos/${m[1]}/pulls/comments/8080`, { id: 8080, body: req.body, user }];
+    const api = 'https://api.github.com/repos/';
+    if ((m = path.match(/^repos\/([^/]+\/[^/]+)\/issues\/(\d+)\/comments$/))) return [`repos/${m[1]}/issues/comments/9001`, { id: 9001, body: req.body, issue_url: `${api}${m[1]}/issues/${m[2]}`, user }];
+    if ((m = path.match(/^repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/reviews$/))) return [`repos/${m[1]}/pulls/${m[2]}/reviews/777`, { id: 777, body: req.body, state: 'COMMENTED', pull_request_url: `${api}${m[1]}/pulls/${m[2]}`, user }];
+    if ((m = path.match(/^repos\/([^/]+\/[^/]+)\/pulls\/(\d+)\/comments\/(\d+)\/replies$/))) return [`repos/${m[1]}/pulls/comments/8080`, { id: 8080, body: req.body, in_reply_to_id: Number(m[3]), pull_request_url: `${api}${m[1]}/pulls/${m[2]}`, user }];
     return null;
   };
   const gh = (args, input) => {
@@ -148,8 +153,8 @@ test('pull-request --draft sends draft true and verifies it', t => {
   assert.equal(JSON.parse(w.calls[1].input).draft, true);
 });
 
-// #246 C2: an id from the answer passes the number rule before it enters a path
 for (const [id, bad] of [['a string', '9001'], ['a fraction', 1.5], ['zero', 0], ['a negative', -3], ['an unsafe integer', 2 ** 53], ['missing', undefined], ['null', null]]) {
+  // #246 C2: an id from the answer passes the number rule before it enters a path
   test(`an answer whose id is ${id} ends unverified, with no read-back`, t => {
     const w = world({ answer: x => ({ ...x, id: bad }) });
     const r = run(t, 'issue-comment', w);
@@ -171,6 +176,13 @@ const TAMPERS = [
   ['head repo', 'pull-request', x => ({ ...x, head: { ...x.head, repo: { full_name: 'someone/sandbox' } } })],
   ['draft', 'pull-request', x => ({ ...x, draft: true })],
   ['body', 'pull-request-review', x => ({ ...x, body: 'A plain body.\r\n' })],
+  ['labels', 'issue', x => ({ ...x, labels: [...x.labels, { name: 'unsent' }] })],
+  ['number', 'issue', x => ({ ...x, number: 43 })],
+  ['id', 'issue-comment', x => ({ ...x, id: 9002 })],
+  ['target', 'issue-comment', x => ({ ...x, issue_url: x.issue_url.replace(/5$/, '6') })],
+  ['target', 'pull-request-review', x => ({ ...x, pull_request_url: x.pull_request_url.replace(/7$/, '8') })],
+  ['state', 'pull-request-review', x => ({ ...x, state: 'APPROVED' })],
+  ['thread', 'review-thread-reply', x => ({ ...x, in_reply_to_id: 56 })],
 ];
 for (const [field, surface, tamper] of TAMPERS) {
   // #246 C3
@@ -180,7 +192,7 @@ for (const [field, surface, tamper] of TAMPERS) {
     assert.equal(r.code, 1, out(r));
     assert.match(last(r), /^RESULT: mismatch https:\/\/github\.com\/tester\/sandbox\//);
     assert.ok(r.lines.some(l => l.startsWith(`MISMATCH ${field}:`)), out(r));
-    assert.ok(!/plain|develop|feature|someone|tier/.test(out(r).replace(/https:\S+/g, '')), out(r));
+    assert.ok(!/plain|develop|feature|someone|tier|unsent|APPROVED/.test(out(r).replace(/https:\S+/g, '')), out(r));
   });
 }
 
@@ -211,8 +223,17 @@ test("a repo another account owns is refused after the login read, with no post"
   assert.equal(w.calls.length, 1);
 });
 
-// #246 C11: a token in the environment needs --as, checked against the login
 for (const name of ['GH_TOKEN', 'GITHUB_TOKEN', 'gh_token']) {
+  // #246 C4: the owner compares exactly, capitals included
+test('a repo owner that differs from the login only in case is refused', t => {
+  const w = world();
+  const r = run(t, 'issue-comment', w, { repo: 'Tester/sandbox' });
+  assert.equal(r.code, 2, out(r));
+  assert.ok(r.lines.includes('REFUSED owner/repo option --repo'), out(r));
+  assert.equal(w.calls.length, 1);
+});
+
+// #246 C11: a token in the environment needs --as, checked against the login
   test(`with ${name} set, a missing --as is refused before any gh call`, t => {
     const w = world();
     const r = run(t, 'issue-comment', w, { env: { [name]: 'x' } });
@@ -262,10 +283,38 @@ test('gh runs from a new empty folder under tmp, removed after, with GH_DEBUG an
   assert.equal(seen[1].input, '{"body":"b"}');
 });
 
-// #246 C11: a failed spawn is a failed call, never a pass
-test('a gh that cannot start is a failed call', t => {
-  const gh = makeGh({ env: {}, tmp: tempDir(t), run: () => ({ error: new Error('spawn ENOENT'), status: null, stdout: '', stderr: '' }) });
-  assert.equal(gh(['api', 'user']).ok, false);
+// #246 C11: a failed spawn, or a non-zero exit, is a failed call, never a pass
+test('a gh that cannot start, or exits non-zero, is a failed call', t => {
+  const failing = r => makeGh({ env: {}, tmp: tempDir(t), run: () => r })(['api', 'user']).ok;
+  assert.equal(failing({ error: new Error('spawn ENOENT'), status: null, stdout: '', stderr: '' }), false);
+  assert.equal(failing({ status: 1, stdout: '{}', stderr: 'HTTP 404' }), false);
+  assert.equal(failing({ status: 0, stdout: '{}', stderr: '' }), true);
+});
+
+// #246 C10: a fault inside a run still ends with the result line its phase calls for
+for (const [where, method, code, result] of [['the login read', 'GET user', 4, 'RESULT: unavailable'], ['the post', 'POST', 3, 'RESULT: failed'], ['the read-back', 'GET repos', 1, `RESULT: unverified ${WEB}/issues/5#issuecomment-9001`]]) {
+  // #246 C10
+  test(`a gh that throws during ${where} ends ${result.split(' ')[1]}, exit ${code}`, t => {
+    const w = world();
+    const gh = (args, input) => {
+      if (`${args[4]} ${args[5]}`.startsWith(method)) throw new Error('planted');
+      return w.gh(args, input);
+    };
+    const argv = place(t, { 'body.md': 'b\n' }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']);
+    const r = post(argv, { gh, env: {}, ...MACHINE });
+    assert.equal(r.code, code, r.lines.join('\n'));
+    assert.equal(last(r), result);
+    assert.ok(!r.lines.join('\n').includes('planted'));
+  });
+}
+
+// #246 C10: gh's error line is shown only when it trips no scan rule
+test("a gh error line naming this machine's home folder is withheld", t => {
+  const w = world({ fail: { GET: 'open /srv/home/tester/.config/gh/hosts.yml: permission denied' } });
+  const r = run(t, 'issue-comment', w);
+  assert.equal(r.code, 4);
+  assert.ok(r.lines.includes('gh said: (withheld: path/machine)'), out(r));
+  assert.ok(!out(r).includes('/srv/home'));
 });
 
 // ---------------------------------------------------------------- C10: the last line is always the true result
@@ -468,7 +517,18 @@ for (const c of table('poster scan', {
   run: runTree,
   everyRow: refusedQuietly,
   rows: [
-    ...Object.entries(SECRETS).map(([k, v]) => ({ id: `token-${k}`, plant: inBody(v), fails: ['secret/token'], why: `a ${k} credential shape` })),
+    { id: 'token-github', plant: inBody(SECRETS.github), fails: ['secret/token'], why: 'a GitHub token' },
+    { id: 'token-pat', plant: inBody(SECRETS.pat), fails: ['secret/token'], why: 'a fine-grained GitHub token' },
+    { id: 'token-sk', plant: inBody(SECRETS.sk), fails: ['secret/token'], why: 'an sk- key' },
+    { id: 'token-live', plant: inBody(SECRETS.live), fails: ['secret/token'], why: 'a live payment key' },
+    { id: 'token-npm', plant: inBody(SECRETS.npm), fails: ['secret/token'], why: 'an npm token' },
+    { id: 'token-gitlab', plant: inBody(SECRETS.gitlab), fails: ['secret/token'], why: 'a GitLab token' },
+    { id: 'token-google', plant: inBody(SECRETS.google), fails: ['secret/token'], why: 'a Google API key' },
+    { id: 'token-aws', plant: inBody(SECRETS.aws), fails: ['secret/token'], why: 'an AWS access key id' },
+    { id: 'token-slack', plant: inBody(SECRETS.slack), fails: ['secret/token'], why: 'a Slack token' },
+    { id: 'token-jwt', plant: inBody(SECRETS.jwt), fails: ['secret/token'], why: 'a JWT' },
+    { id: 'token-pem', plant: inBody(SECRETS.pem), fails: ['secret/token'], why: 'a PEM private-key header' },
+    { id: 'token-conn', plant: inBody(SECRETS.conn), fails: ['secret/token'], why: 'a connection string with a key' },
     { id: 'url-userinfo', plant: inBody(USERINFO), fails: ['secret/url-userinfo'], why: 'a password in a URL' },
     { id: 'env-value', plant: inBody(ENV_SECRET), fails: ['secret/env'], why: "a variable's value whose name ends in KEY" },
     { id: 'drive-backslash', plant: inBody('D:' + '\\work\\notes.md'), fails: ['path/local'], why: 'a drive letter and a backslash' },
@@ -478,7 +538,20 @@ for (const c of table('poster scan', {
     { id: 'home', plant: inBody('/home/' + 'notes-for-alice/x'), fails: ['path/local'], why: 'a Linux home' },
     { id: 'machine-home', plant: inBody('/srv/home/tester' + '/notes'), fails: ['path/machine'], why: "this machine's home folder as a prefix" },
     { id: 'machine-tmp', plant: inBody('/tmp' + '/abc/file'), fails: ['path/machine'], why: "this machine's temp folder as a prefix" },
-    { id: 'machine-user', plant: inBody('build/' + 'tester/out'), fails: ['path/machine'], why: "this machine's user name in a path" },
+    { id: 'machine-user', plant: inBody('/opt/build/' + 'tester/out'), fails: ['path/machine'], why: "this machine's user name in a local path" },
+    { id: 'machine-private-tmp', plant: inBody('/private' + '/tmp/abc/file'), fails: ['path/machine'], why: 'macOS writes its temp folder behind /private' },
+    { id: 'git-bash-home', plant: inBody('/c/Users/' + 'notes-for-alice/x'), fails: ['path/local'], why: 'a Windows home as Git Bash writes it' },
+    { id: 'wsl-home', plant: inBody('/mnt/c/Users/' + 'notes-for-alice/x'), fails: ['path/local'], why: 'a Windows home as WSL writes it' },
+    { id: 'email-mail-link', plant: inBody('[mail](mailto:' + 'alice@example.org)'), fails: ['personal/email'], why: 'an address in a mail link' },
+    { id: 'email-after-colon', plant: inBody('Contact:' + 'alice@example.org'), fails: ['personal/email'], why: 'an address straight after a colon' },
+    { id: 'hidden-tag', plant: inBody('a' + String.fromCodePoint(0xe0041) + 'b'), fails: ['text/hidden'], why: 'a tag character a reader never sees' },
+    { id: 'hidden-override', plant: inBody('a' + String.fromCharCode(0x202e) + 'b'), fails: ['text/hidden'], why: 'a direction override' },
+    { id: 'split-by-ignorable', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + String.fromCharCode(0x115f) + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a default-ignorable character that is not a format character' },
+    { id: 'fullwidth', plant: inBody([...GH_TOKEN_SHAPE].map(ch => String.fromCharCode(ch.charCodeAt(0) + 0xfee0)).join('')), fails: ['secret/token'], why: 'full-width letters NFKC folds' },
+    { id: 'split-by-escape', plant: inBody(GH_TOKEN_SHAPE.replace('_', '\\_')), fails: ['secret/token'], why: 'a markdown escape the page hides' },
+    { id: 'split-by-tag', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<b></b>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an inline tag the page hides' },
+    { id: 'encoded-in-comment', plant: inBody('<!-- ' + [...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('') + ' -->'), fails: ['secret/token'], why: 'the source still shows a comment' },
+    { id: 'after-open-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + ZWSP + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an unclosed comment marker hides nothing' },
     { id: 'machine-host', plant: inBody('//' + 'buildhost/share'), fails: ['path/machine'], why: "this machine's host name in a path" },
     { id: 'uuid', plant: inBody('123e4567-e89b-12d3-a456-' + '426614174000'), fails: ['id/session'], why: 'a UUID' },
     { id: 'session-id', plant: inBody('session_' + SESSION), fails: ['id/session'], why: 'a session id' },
@@ -515,6 +588,30 @@ test('plain words that look like the rules pass the scan', t => {
   assert.equal(last(r), 'RESULT: dry-run issue-comment');
 });
 
+// #246 C7: the user name counts only inside a local path, never in a web link or a repo path
+test("links to the owner's own repo, and emoji with joiners, pass when the user name is the login", t => {
+  const ZWJ = String.fromCharCode(0x200d);
+  const VS16 = String.fromCharCode(0xfe0f);
+  const body = [
+    `See ${WEB}/issues/5 and ${WEB}/pull/7, and docs/tester/notes.md in the repo.`,
+    `A flag ${String.fromCodePoint(0x1f3f3)}${VS16}${ZWJ}${String.fromCodePoint(0x1f308)} stays.`,
+    '',
+  ].join('\n');
+  const argv = place(t, { 'body.md': body }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5', '--dry-run']);
+  const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
+  assert.equal(r.code, 0, r.lines.join('\n'));
+});
+
+// #246 C8: the trailer's id may be 16 to 40 letters and digits, both ends included
+test('the trailer passes with an id of exactly 16 and of exactly 40 characters', t => {
+  for (const n of [16, 40]) {
+    const body = `A plain body.\n\n${TRAILER.replace(SESSION, 'A1'.repeat(n / 2))}`;
+    const argv = place(t, { 'body.md': body, 'title.txt': 'A plain title\n' }, PR_ARGV);
+    const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
+    assert.equal(r.code, 0, `${n}: ${r.lines.join('\n')}`);
+  }
+});
+
 // #246 C8: the harness trailer, only on a pull request, only at the end
 const PR_BODY = `A plain body.\n\n${TRAILER}`;
 for (const c of table('poster trailer', {
@@ -543,8 +640,8 @@ test('a dry run prints the gh arguments and the request sizes, never the text', 
   assert.ok(!/plain|thorough/.test(r.lines.join('\n')));
 });
 
-// #246 C10: the real file, as a child, runs main only as the entry script, with gh absent
-test('the file run as a child with --dry-run ends with its result line, gh absent from PATH', t => {
+// #246 C10, C11: the real file, as a child, runs main only as the entry script, with gh absent
+test('the file run as a child ends with its result line, gh absent from PATH: a dry run passes, a post is unavailable', t => {
   const dir = tempDir(t, 'pact-poster-child-');
   const empty = join(dir, 'empty');
   writeTree(dir, { 'body.md': 'A plain body.\n', 'empty/.keep': '' });
@@ -555,4 +652,8 @@ test('the file run as a child with --dry-run ends with its result line, gh absen
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.equal(r.stdout.trimEnd().split('\n').at(-1), 'RESULT: dry-run issue-comment');
   assert.equal(r.stderr, '');
+  // Without --dry-run, main's own gh runner is called and can't find gh: nothing is sent.
+  const p = spawnSync(process.execPath, [POSTER, 'issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5'], { cwd: empty, env, encoding: 'utf8' });
+  assert.equal(p.status, 4, p.stdout + p.stderr);
+  assert.equal(p.stdout.trimEnd().split('\n').at(-1), 'RESULT: unavailable');
 });

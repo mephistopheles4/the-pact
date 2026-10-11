@@ -2,8 +2,8 @@
 // The poster (#246, its core built in #253). It posts free text to GitHub
 // through one fixed gh api call per surface, reads back what landed by the id
 // the answer carried, and exits non-zero unless what landed is what was sent.
-// A port of stacks' gh-post.ts, github-post.ts and github-body.ts, read as
-// text.
+// A port of gh-post.ts, github-post.ts and github-body.ts from stacks, the
+// owner's other repository, read as text.
 //
 //   node poster.mjs <surface> --repo <owner/name> --body <file> [--as <login>] [options]
 //
@@ -18,7 +18,7 @@
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every option and file, and scans the
 // exact text it would send for credential shapes, environment secrets, local
-// paths, session ids and email addresses. The scan is a backstop for
+// paths, session ids, email addresses and hidden text. The scan is a backstop for
 // accidents, not a guard against a session that sets out to get past it.
 //
 // The last line is always a RESULT line on stdout:
@@ -27,7 +27,8 @@
 //   1  RESULT: unverified <url>   posted, but the read-back failed or was unusable
 //   2  RESULT: refused <count>    a usage fault or a content refusal; nothing sent
 //   3  RESULT: failed             the post call failed; it may or may not have landed
-//   4  RESULT: unavailable        a read before posting failed; nothing sent
+//   4  RESULT: unavailable        a read before posting failed, or the poster
+//                                 itself failed before sending; nothing sent
 //   0  RESULT: dry-run <surface>
 // Output names rules, fields, positions and sizes, never the text itself. It
 // never retries.
@@ -39,9 +40,10 @@
 // script.
 
 import { spawnSync } from 'node:child_process';
-import { closeSync, fstatSync, lstatSync, mkdtempSync, openSync, readSync, rmSync } from 'node:fs';
+import { closeSync, fstatSync, lstatSync, mkdtempSync, openSync, readSync, realpathSync, rmSync } from 'node:fs';
 import { homedir, hostname, tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------- the surfaces
 
@@ -67,7 +69,7 @@ export const EXAMPLES = Object.freeze({
   'review-thread-reply': 'review-thread-reply --repo you/your-repo --body reply.md --pr 34 --comment 5678',
 });
 
-/** The surfaces whose body may end with the harness's attribution trailer. */
+/** The surfaces whose body may end with the harness's attribution trailer. edit-pull-request arrives with the edit surfaces (S4, T2). */
 const TRAILER_SURFACES = new Set(['pull-request', 'edit-pull-request']);
 
 const FILE_MAX = 256 * 1024;
@@ -289,6 +291,7 @@ const RULE = Object.freeze({
   machine: 'path/machine',
   session: 'id/session',
   email: 'personal/email',
+  hidden: 'text/hidden',
 });
 
 const TOKEN_RES = [
@@ -305,14 +308,24 @@ const TOKEN_RES = [
   /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/g,
   /(?:AccountKey|Password)=[^;\s'"`<>]+/gi,
 ];
-const USERINFO_RE = /[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s/@:]+:[^\s/@]+@/g;
-const LOCAL_RES = [/(?<![A-Za-z])[A-Za-z]:[\\/]/g, /\\\\[A-Za-z0-9._$-]+\\/g, /(?<![A-Za-z0-9._~-])\/(?:Users|home)\/[^\s/]+/g];
+// The lookbehind starts a scheme only where one can start, so a long run of
+// text is tried once, not from every character in it.
+const USERINFO_RE = /(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s/@:]+:[^\s/@]+@/g;
+const LOCAL_RES = [
+  /(?<![A-Za-z])[A-Za-z]:[\\/]/g,
+  /\\\\[A-Za-z0-9._$-]+\\/g,
+  /(?<![A-Za-z0-9._~-])\/(?:Users|home)\/[^\s/]+/g,
+  // A Windows home as Git Bash (/c/Users/...) or WSL (/mnt/c/Users/...) writes it.
+  /(?<![A-Za-z0-9._~-])\/(?:mnt\/)?[A-Za-z]\/(?:Users|home)\/[^\s/]+/g,
+];
 const SESSION_RES = [
   /(?<![0-9A-Fa-f])[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}(?![0-9A-Fa-f])/g,
   /session_[A-Za-z0-9]{16,}/g,
   /claude\.ai\/code\/session_/g,
 ];
-const EMAIL_RE = /(?<![A-Za-z0-9._%+:/-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
+// An address may follow a colon, as in a mail link, but not the password in a
+// URL's user part, which secret/url-userinfo covers.
+const EMAIL_RE = /(?<![A-Za-z0-9._%+/-])(?<!\/\/[^\s/@]*:)[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
 const EMAIL_OK = addr => addr.toLowerCase().endsWith('@users.noreply.github.com') || addr.toLowerCase() === 'noreply@anthropic.com';
 
 const ENV_WORDS = ['TOKEN', 'SECRET', 'KEY', 'PASSWORD', 'PASSWD', 'PWD', 'PAT', 'AUTH', 'CREDENTIAL', 'CREDENTIALS', 'COOKIE'];
@@ -348,19 +361,42 @@ const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** A path written with either separator, as a pattern: each separator matches / or \. */
 const anySep = p => p.split(/[\\/]/).map(escapeRe).join('[\\\\/]');
 
-function machineRes(ctx) {
+const matches = (text, re) => [...text.matchAll(re)].map(m => ({ index: m.index, text: m[0] }));
+
+// Where a path can start: after a space, a quote, a bracket, an equals sign or
+// a comma. A local path then starts with a drive letter, one or two slashes or
+// backslashes, or a tilde and a separator; a web link starts with its scheme.
+const TOKEN_START_RE = /[\s"'`(<[{=,|]/;
+const LOCAL_START_RE = /^(?:[A-Za-z]:[\\/]|[\\/]{1,2}(?![\\/])|~[\\/])/;
+
+/** Whether `index` lies inside a local path: the word it sits in starts like one. */
+function inLocalPath(text, index) {
+  let start = index;
+  while (start > 0 && !TOKEN_START_RE.test(text[start - 1])) start -= 1;
+  return LOCAL_START_RE.test(text.slice(start, index));
+}
+
+/** This machine's home and temp folders as a path prefix, and its user and host names inside a local path. */
+function machineHits(text, ctx) {
   const out = [];
   for (const p of [ctx.home, ctx.tmp]) {
     const trimmed = typeof p === 'string' ? p.replace(/[\\/]+$/, '') : '';
-    if (trimmed !== '') out.push(new RegExp(`(?<![A-Za-z0-9._-])${anySep(trimmed)}[\\\\/][^\\s]`, 'gi'));
+    // macOS writes its temp folder behind /private as well.
+    if (trimmed !== '') out.push(...matches(text, new RegExp(`(?:(?<![A-Za-z0-9._-])|(?<=\\/private))${anySep(trimmed)}[\\\\/][^\\s]`, 'gi')));
   }
   for (const n of [ctx.user, ctx.host]) {
-    if (typeof n === 'string' && n !== '') out.push(new RegExp(`(?<=[\\\\/])${escapeRe(n)}(?![A-Za-z0-9._-])`, 'gi'));
+    if (typeof n !== 'string' || n === '') continue;
+    out.push(...matches(text, new RegExp(`(?<=[\\\\/])${escapeRe(n)}(?![A-Za-z0-9._-])`, 'gi')).filter(h => inLocalPath(text, h.index)));
   }
   return out;
 }
 
-const matches = (text, re) => [...text.matchAll(re)].map(m => ({ index: m.index, text: m[0] }));
+// Characters that make a reader see other text than a model reads: the tag
+// block, and the direction embeddings, overrides and isolates. Joiners and
+// variation selectors stay, since ordinary emoji use them. Built from code
+// points, so this source stays plain ASCII.
+const cp = String.fromCodePoint;
+const HIDDEN_RE = new RegExp(`[${cp(0xe0000)}-${cp(0xe007f)}${cp(0x202a)}-${cp(0x202e)}${cp(0x2066)}-${cp(0x2069)}]`, 'gu');
 
 function indexesOf(text, s) {
   const out = [];
@@ -378,7 +414,8 @@ function hitsIn(text, ctx, trailer) {
   add(RULE.userinfo, matches(text, USERINFO_RE));
   for (const [name, val] of envSecrets(ctx.env)) add(RULE.env, indexesOf(text, val).map(index => ({ index })), name);
   for (const re of LOCAL_RES) add(RULE.local, matches(text, re));
-  for (const re of machineRes(ctx)) add(RULE.machine, matches(text, re));
+  add(RULE.machine, machineHits(text, ctx));
+  add(RULE.hidden, matches(text, HIDDEN_RE));
   const link = trailer ? trailerLink(text) : null;
   for (const re of SESSION_RES) add(RULE.session, matches(text, re).filter(h => !(link && h.index >= link.start && h.index < link.end)));
   add(RULE.email, matches(text, EMAIL_RE).filter(h => !EMAIL_OK(h.text)));
@@ -407,12 +444,22 @@ function decodeEntities(s) {
 
 const INVISIBLE_RE = /[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu;
 const COMMENT_RE = /<!--[\s\S]*?(?:-->|$)/g;
+const COMMENT_MARK_RE = /<!--|-->/g;
+const ESCAPE_RE = /\\(?=[!-/:-@[-`{-~])/g;
+const TAG_RE = /<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>/g;
 
-/** The text as a reader sees it: format and other invisible characters and HTML comments removed, entities decoded, NFKC applied, until nothing changes. */
-export function normalise(text) {
+/**
+ * The text as a reader sees it: invisible characters, markdown escapes and
+ * inline tags removed, entities decoded and NFKC applied, repeated until
+ * nothing changes, at most five rounds. HTML comments are removed with their
+ * contents, as the page shows them; with `keepComments`, only their markers
+ * go, as the source shows them.
+ */
+export function normalise(text, keepComments = false) {
   let s = text;
   for (let round = 0; round < 5; round += 1) {
-    const next = decodeEntities(s.replace(INVISIBLE_RE, '').replace(COMMENT_RE, '')).replace(INVISIBLE_RE, '').normalize('NFKC');
+    const unmarked = s.replace(INVISIBLE_RE, '').replace(keepComments ? COMMENT_MARK_RE : COMMENT_RE, '');
+    const next = decodeEntities(unmarked.replace(ESCAPE_RE, '').replace(TAG_RE, '')).replace(INVISIBLE_RE, '').normalize('NFKC');
     if (next === s) break;
     s = next;
   }
@@ -428,10 +475,11 @@ function lineCol(text, index) {
 
 /**
  * Every content refusal in the fields to send ([{ field, text }]), as
- * [{ rule, where }]. Each field is scanned as is and as a normalised copy; a
- * rule the copy alone trips is reported once, marked normalised. `where`
- * names the field, the line and column, and for secret/env the variable's
- * name, never the text.
+ * [{ rule, where }]. Each field is scanned as is and as two normalised
+ * copies, one without its HTML comments and one with their contents kept. A
+ * rule only a copy trips is reported once, with its line and column in that
+ * copy, which can differ from the file's. `where` names the field, the line
+ * and column, and for secret/env the variable's name, never the text.
  */
 export function scan(fields, ctx) {
   const out = [];
@@ -443,13 +491,14 @@ export function scan(fields, ctx) {
       seen.add(`${h.rule} ${h.note ?? ''}`);
       out.push({ rule: h.rule, where: `${field} ${lineCol(text, h.index)}${h.note ? ` (${h.note})` : ''}` });
     }
-    const norm = normalise(text);
-    if (norm === text) continue;
-    for (const h of hitsIn(norm, ctx, trailer && isBody)) {
-      const key = `${h.rule} ${h.note ?? ''}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ rule: h.rule, where: `${field} ${lineCol(norm, h.index)} normalised${h.note ? ` (${h.note})` : ''}` });
+    for (const norm of new Set([normalise(text), normalise(text, true)])) {
+      if (norm === text) continue;
+      for (const h of hitsIn(norm, ctx, trailer && isBody)) {
+        const key = `${h.rule} ${h.note ?? ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ rule: h.rule, where: `${field} ${lineCol(norm, h.index)} in the normalised copy${h.note ? ` (${h.note})` : ''}` });
+      }
     }
   }
   return out;
@@ -458,7 +507,7 @@ export function scan(fields, ctx) {
 // ---------------------------------------------------------------- gh
 
 /** The environment gh runs with: the caller's, without GH_DEBUG or DEBUG in any case. */
-export function childEnv(env) {
+export function ghEnv(env) {
   const out = {};
   for (const [k, v] of Object.entries(env ?? {})) {
     const upper = k.toUpperCase();
@@ -480,7 +529,7 @@ function envValue(env, name) {
  * process call in tests. Returns { ok, stdout, stderr }.
  */
 export function makeGh({ env, tmp, run }) {
-  const clean = childEnv(env);
+  const clean = ghEnv(env);
   const call = run ?? ((args, opts) => spawnSync('gh', args, opts));
   return (args, input) => {
     const cwd = mkdtempSync(join(tmp, 'pact-poster-'));
@@ -495,8 +544,16 @@ export function makeGh({ env, tmp, run }) {
 
 const ghArgs = (method, path, withInput) => ['api', '--hostname', 'github.com', '--method', method, path, ...(withInput ? ['--input', '-'] : [])];
 
-/** gh's stderr as one line: its first line, JSON-escaped and capped. */
-const saidLine = stderr => `gh said: ${JSON.stringify(String(stderr ?? '').split(/\r?\n/)[0].slice(0, 300))}`;
+/**
+ * gh's stderr as one line: its first line, JSON-escaped and capped. A line
+ * that trips a scan rule, such as one naming a local config path, is withheld
+ * and only the rule is named.
+ */
+export function saidLine(stderr, ctx) {
+  const line = String(stderr ?? '').split(/\r?\n/)[0].slice(0, 300);
+  const rules = [...new Set(scan([{ field: 'stderr', text: line }], { ...ctx, surface: null }).map(r => r.rule))];
+  return rules.length ? `gh said: (withheld: ${rules.join(', ')})` : `gh said: ${JSON.stringify(line)}`;
+}
 
 /** A JSON answer, or undefined; never an error message, which would quote the answer. */
 function parseJson(s) {
@@ -617,6 +674,21 @@ export function compare(plan, request, back, login, id, key) {
     if (typeof back.draft !== 'boolean') unusable.push('draft');
     else if (back.draft !== plan.draft) mismatches.push(`MISMATCH draft: sent ${plan.draft ? 'a draft' : 'not a draft'}, read back ${back.draft ? 'a draft' : 'not a draft'}`);
   }
+  // Where it landed: the issue or pull request it sits on, the thread it
+  // answers, and a review's state. Its API address is matched without regard
+  // to case, as GitHub matches it.
+  const repo = `/repos/${plan.repo.owner}/${plan.repo.name}`.toLowerCase();
+  const on = (field, url, path) => {
+    if (typeof url !== 'string') unusable.push(field);
+    else if (!url.toLowerCase().endsWith(`${repo}/${path}`)) mismatches.push(`MISMATCH ${field}: it sits on another item`);
+  };
+  if (plan.surface === 'issue-comment') on('target', back.issue_url, `issues/${plan.issue}`);
+  if (plan.surface === 'pull-request-review' || plan.surface === 'review-thread-reply') on('target', back.pull_request_url, `pulls/${plan.pr}`);
+  if (plan.surface === 'pull-request-review') {
+    if (typeof back.state !== 'string') unusable.push('state');
+    else if (back.state !== 'COMMENTED') mismatches.push('MISMATCH state: the review is not a comment');
+  }
+  if (plan.surface === 'review-thread-reply' && idText(back.in_reply_to_id) !== plan.comment) mismatches.push('MISMATCH thread: it answers another comment');
   return { unusable, mismatches, notes };
 }
 
@@ -628,7 +700,7 @@ function sizes(v) {
   return v;
 }
 
-const refused = (lines, refusals) => ({ code: 2, lines: [...lines, ...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), `RESULT: refused ${refusals.length}`] });
+const refused = refusals => ({ code: 2, lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), `RESULT: refused ${refusals.length}`] });
 
 /**
  * One run of the poster: `argv` after the script's name, and `io` holding
@@ -640,15 +712,16 @@ export function post(argv, io) {
   let near = '';
   try {
     const parsed = parseArgs(argv);
-    if (parsed.refusals.length) return refused([], parsed.refusals);
+    if (parsed.refusals.length) return refused(parsed.refusals);
     const { plan, refusals } = buildPlan(parsed);
-    if (refusals.length) return refused([], refusals);
+    if (refusals.length) return refused(refusals);
     const fields = [];
     if (plan.title !== undefined) fields.push({ field: 'title', text: plan.title });
     plan.labels.forEach((text, i) => fields.push({ field: `label ${i + 1}`, text }));
     fields.push({ field: 'body', text: plan.body });
-    const hits = scan(fields, { env: io.env, home: io.home, tmp: io.tmp, user: io.user, host: io.host, surface: plan.surface });
-    if (hits.length) return refused([], hits);
+    const ctx = { env: io.env, home: io.home, tmp: io.tmp, user: io.user, host: io.host };
+    const hits = scan(fields, { ...ctx, surface: plan.surface });
+    if (hits.length) return refused(hits);
 
     const p = postOf(plan);
     near = p.near;
@@ -656,26 +729,26 @@ export function post(argv, io) {
     if (plan.dryRun) return { code: 0, lines: [`gh ${args.join(' ')}`, `request: ${JSON.stringify(sizes(p.request))}`, `RESULT: dry-run ${plan.surface}`] };
 
     const token = envValue(io.env, 'GH_TOKEN') || envValue(io.env, 'GITHUB_TOKEN');
-    if (token && plan.as === undefined) return refused([], [{ rule: 'as/missing', where: 'option --as' }]);
+    if (token && plan.as === undefined) return refused([{ rule: 'as/missing', where: 'option --as' }]);
 
     const who = io.gh(ghArgs('GET', 'user', false));
     const login = who.ok ? parseJson(who.stdout)?.login : undefined;
-    if (!isLogin(login)) return { code: 4, lines: [...(who.ok ? ['the login read gave no login'] : [saidLine(who.stderr)]), 'RESULT: unavailable'] };
+    if (!isLogin(login)) return { code: 4, lines: [...(who.ok ? ['the login read gave no login'] : [saidLine(who.stderr, ctx)]), 'RESULT: unavailable'] };
     const wrong = [];
     if (plan.as !== undefined && plan.as !== login) wrong.push({ rule: 'as/differs', where: 'option --as' });
     if (plan.repo.owner !== login) wrong.push({ rule: 'owner/repo', where: 'option --repo' });
-    if (wrong.length) return refused([], wrong);
+    if (wrong.length) return refused(wrong);
 
     phase = 'sending';
     const sent = io.gh(args, JSON.stringify(p.request));
-    if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr), 'RESULT: failed'] };
+    if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr, ctx), 'RESULT: failed'] };
     phase = 'sent';
     const id = idText(parseJson(sent.stdout)?.[p.key]);
     if (id === null) return { code: 1, lines: [`the answer carried no usable ${p.key}`, `RESULT: unverified ${near}`] };
     const url = p.url(id);
     near = url;
     const read = io.gh(ghArgs('GET', p.read(id), false));
-    if (!read.ok) return { code: 1, lines: [saidLine(read.stderr), `RESULT: unverified ${url}`] };
+    if (!read.ok) return { code: 1, lines: [saidLine(read.stderr, ctx), `RESULT: unverified ${url}`] };
     const back = parseJson(read.stdout);
     const c = compare(plan, p.request, back, login, id, p.key);
     if (c.unusable.length) return { code: 1, lines: [`the read-back could not be read: ${c.unusable.join(', ')}`, `RESULT: unverified ${url}`] };
@@ -704,4 +777,14 @@ function main() {
   process.exitCode = r.code;
 }
 
-if (import.meta.main) main();
+/** Whether this file is the entry script. Node added import.meta.main in 24.2; an earlier Node 24 compares the real paths instead. */
+function isEntry() {
+  if (typeof import.meta.main === 'boolean') return import.meta.main;
+  try {
+    return typeof process.argv[1] === 'string' && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isEntry()) main();

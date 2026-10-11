@@ -151,6 +151,13 @@ test('control: the same table with a good row loads, and a grimoire id the pinne
   expect(r, { 'malformed: one': 'ok', 'malformed: pinned': 'ok' });
 });
 
+// #253: a table may name a script beside the cross script; any other folder, and the tests folder, are still refused
+test("bad case: a module outside gate and cross, or in the tests folder, is refused", () => {
+  const spec = module => ({ module, base: () => ({ 'in.txt': 'base' }), run: () => {}, rows: [{ id: 'one', plant: () => ({ 'in.txt': 'x' }), fails: ['x'], why: 'w' }] });
+  for (const module of ['docs/x.mjs', 'gate/tests/x.mjs', 'crossx/y.mjs']) assert.ok(problems('t', spec(module)).includes('module is not a gate or cross module path'), module);
+  assert.ok(!problems('t', spec('cross/x.mjs'), () => "const x = 'x';").includes('module is not a gate or cross module path'));
+});
+
 // ------------------------------------------------------------ registration: each test file registers its tables' tests itself
 
 test('every test file that uses a table registers its tests in the file, so the report names that file', () => {

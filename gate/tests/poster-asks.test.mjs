@@ -25,10 +25,11 @@ test('every surface has one documented command line, and each parses cleanly', (
   }
 });
 
-// #246 C9: no documented line asks. A title or body file holding "ruleset" or
+// No documented line asks. A title or body file holding "ruleset" or
 // "protection" can't change this: only the file's name reaches the line.
 for (const tool of Object.keys(LAUNCH)) {
   for (const [surface, line] of Object.entries(EXAMPLES)) {
+    // #246 C9
     test(`${surface}, under ${tool}: the documented line trips no ask rule`, () => {
       assert.equal(asks(RULES, tool, `${LAUNCH[tool]} ${line}`), false);
     });

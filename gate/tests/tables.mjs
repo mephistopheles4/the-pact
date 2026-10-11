@@ -1,5 +1,5 @@
 // Tables of bad cases (#140, T5): the shape for a gate module's must-refuse
-// cases. A table has a base input that passes and rows; a row is one plant on
+// cases, or those of a script beside the cross script (#253). A table has a base input that passes and rows; a row is one plant on
 // the base and the exact rule ids it must fail with. A new bad case is a new
 // row, with no setup of its own.
 //
