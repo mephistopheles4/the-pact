@@ -158,7 +158,7 @@ How to read it:
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on what can run and with what power; the dry run | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
-| R19 Fix work public | Anyone who reads the tracker | Judgment; none yet in code (#199) | Judgment |
+| R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
 | R20 Lens untested | Text a lens reads | The defaults sentence, and this repo's security route for a lens change | Rule |
 | R21 Test code ordinary | A careless or fooled edit | The defaults sentence: the QA pair reads every result | Rule |
 | R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for an installer from before the Node install's cutover, #166), the pinned install go-ahead | Prompt, rule |
@@ -645,10 +645,12 @@ You cannot loosen a pinned block through configuration. That is deliberate.
 These were open on 2026-10-09. Each is tracked on this repo's tracker.
 
 - **#179:** older versions of the cloud setup script wrote an old copy of the
-  rules, without the tracker rule, the rule on outsiders' code, or the rule
-  against posting a secret. #181 generates a current copy. A cloud
-  environment keeps whatever setup was pasted into it, so until yours holds
-  the current copy, don't point a cloud session at a public tracker.
+  rules. #181 generates a current copy, and a cloud environment keeps
+  whatever setup was pasted into it. Since #261 the current copy carries no
+  tracker rule, no rule on outsiders' code and no rule against posting a
+  secret either: the pact leaves them to judgment. In this repo, `AGENTS.md`
+  supplies them from the checkout. Elsewhere, keep cloud sessions off a
+  public tracker, or write the rules into that repo's own `AGENTS.md`.
 - **#188:** with the current copy, a cloud session can't read authors. Since
   #261 the pact carries no tracker rule, so this applies to this repo's own
   rule: there nothing on the tracker counts, and the session asks you. That
@@ -692,4 +694,4 @@ outsiders' code, and never runs.
   copies are still open to it. `SECURITY.md` tells reporters so. A rule for
   fixing a reported hole out of public view is #199. Since #261 the pact's
   placeholder for a security escape on a public repo is retired too, and
-  accepted as judgment.
+  accepted as judgment in the pact; this repo keeps the line in `AGENTS.md`.

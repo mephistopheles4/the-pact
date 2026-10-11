@@ -270,15 +270,6 @@ test('control: a heading and a numbered line pass seam A without the renderer, a
 
 // ------------------------------------------------------------ gated marks and renderer-owned parts
 
-// edit-gated
-for (const clause of GATED) {
-  for (const op of OPS) {
-    test(`bad case: an edit to the pinned block ${clause} with ${op} refuses, naming the block`, t => {
-      const edit = op === 'remove' ? { mark: clause, op } : { mark: clause, op, file: 'ok.md' };
-      refusedWith(render(t, homeWith(t, cfg([edit]), { 'ok.md': 'Text.\n' })), 'edit-gated', new RegExp(`edit 1: ${clause} is a pinned block; no edit may target it`));
-    });
-  }
-}
 
 // #261 C4
 test('the pinned blocks refused are exactly gate/clauses/, install-go-ahead included', () => {
@@ -338,6 +329,13 @@ for (const c of table('render edit list', {
   rows: [
     { id: 'unknown-mark', plant: withEdits([{ mark: 'move-9', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'an unknown mark' },
     { id: 'mark-in-another-case', plant: withEdits([{ mark: 'Move-2', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a mark in another case' },
+    // edit-gated, #261 C4: no edit may target a pinned block, with any operation.
+    { id: 'pinned-stop-and-escalate-remove', plant: withEdits([{ mark: 'stop-and-escalate', op: 'remove' }]), fails: ['edit-gated'], says: /edit 1: stop-and-escalate is a pinned block; no edit may target it/, why: 'removing the pinned stop-and-ask block' },
+    { id: 'pinned-stop-and-escalate-replace', plant: withEdits([{ mark: 'stop-and-escalate', op: 'replace', file: 'ok.md' }]), fails: ['edit-gated'], says: /edit 1: stop-and-escalate is a pinned block; no edit may target it/, why: 'replacing the pinned stop-and-ask block' },
+    { id: 'pinned-stop-and-escalate-add-after', plant: withEdits([{ mark: 'stop-and-escalate', op: 'add-after', file: 'ok.md' }]), fails: ['edit-gated'], says: /edit 1: stop-and-escalate is a pinned block; no edit may target it/, why: 'adding after the pinned stop-and-ask block' },
+    { id: 'pinned-install-go-ahead-remove', plant: withEdits([{ mark: 'install-go-ahead', op: 'remove' }]), fails: ['edit-gated'], says: /edit 1: install-go-ahead is a pinned block; no edit may target it/, why: 'removing the pinned install go-ahead' },
+    { id: 'pinned-install-go-ahead-replace', plant: withEdits([{ mark: 'install-go-ahead', op: 'replace', file: 'ok.md' }]), fails: ['edit-gated'], says: /edit 1: install-go-ahead is a pinned block; no edit may target it/, why: 'replacing the pinned install go-ahead' },
+    { id: 'pinned-install-go-ahead-add-after', plant: withEdits([{ mark: 'install-go-ahead', op: 'add-after', file: 'ok.md' }]), fails: ['edit-gated'], says: /edit 1: install-go-ahead is a pinned block; no edit may target it/, why: 'adding after the pinned install go-ahead' },
     { id: 'gated-mark-in-another-case', plant: withEdits([{ mark: 'Stop-And-Escalate', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a pinned mark in another case' },
     // #261: a block the gate retired is no mark at all.
     { id: 'retired-gated-mark', plant: withEdits([{ mark: 'risk-floor', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a retired gated clause, now an unknown mark' },

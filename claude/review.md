@@ -28,9 +28,10 @@ the repo's lock file pins one.
   check they match. A tool config in the diff runs code, like its tests.
 - With no tool, say so.
 
-**A spec.** Number the spec's headings `S1`, `S2` and on. Give
-`executability-lens`, `good-enough-lens` and `unstated-lens` the section list,
-the spec, the request and its tier. Tell `unstated-lens` which reviewers ran.
+**A spec.** Number the spec's headings `S1`, `S2` and on. The spec pair is
+`executability-lens` and `good-enough-lens`. Give each lens that runs, and
+`unstated-lens`, the section list, the spec, the request and its tier. Tell
+`unstated-lens` which reviewers ran.
 For sensitive work, the security pair reads the spec first.
 
 **`unstated-lens` on a result** gets the claims, the spec, the diff and the
@@ -63,10 +64,12 @@ folder, `--anchors` where the point takes them, and each report as
 | The QA pair on a result | `result` | the issue's tier | the claim ids |
 | `unstated-lens` on a result, crossed alone | `result` | the issue's tier | the claim ids |
 | The spec pair on a spec | `spec` | the issue's tier | the section ids |
+| One spec lens on a spec, crossed alone | `spec` | the issue's tier | the section ids |
 | `unstated-lens` on a spec, crossed alone | `spec` | the issue's tier | the section ids |
 | The security pair on a spec | `spec` | `thorough` | the section ids |
 | The security pair on a diff | `diff` | `thorough` | none |
 | The standards pair on a diff | `diff` | the issue's tier | none |
+| One standards lens on a diff, crossed alone | `diff` | the issue's tier | none |
 
 Where both lenses of the spec pair call one section, show me both calls and
 let me settle it.

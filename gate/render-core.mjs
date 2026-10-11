@@ -155,10 +155,9 @@ const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'move-1', 'mov
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
 const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra']);
-// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/),
-// which no edit may target with any operation. install-go-ahead lives in
+// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/)
+// are refused to every edit, with any operation. install-go-ahead lives in
 // AGENTS.md, which is never installed, and is refused like the other.
-const GATED = PINNED;
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);
 const EDIT_KEYS = Object.freeze(['mark', 'op', 'file']);
 const EDITS_MAX = 16;
@@ -189,7 +188,7 @@ const AGENT_FIELDS = Object.freeze(['model', 'effort']);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
 // The lenses the security route names, as a fixed list (#261, S4): the
-// security pair, and executability-lens, which holds the risk floor. The rules
+// security pair, and executability-lens, which carries the sensitive-work list in its own block. The rules
 // file names no route any more, so the renderer reads none from it. Without
 // this list the override mark would vanish with no error for data-lens, which
 // has no other sign.
@@ -510,8 +509,8 @@ function checkEdits(edits, fail) {
     if (Object.keys(e).some(k => !EDIT_KEYS.includes(k))) return bad('edit-shape', 'a key that is not mark, op or file');
     if (typeof e.mark !== 'string') return bad('edit-shape', 'mark must be text');
     // Matched exactly against constant lists, and only the constant is printed.
-    const gated = GATED.find(g => g === e.mark);
-    if (gated) return bad('edit-gated', `${gated} is a pinned block; no edit may target it`);
+    const pinned = PINNED.find(g => g === e.mark);
+    if (pinned) return bad('edit-gated', `${pinned} is a pinned block; no edit may target it`);
     if (e.mark === 'usage-pause') return bad('edit-setting', 'usage-pause is set only through its setting; no edit may target it');
     if (e.mark === NOTICE_MARK) return bad('edit-notice', 'config-notice is filled by the renderer; no edit may target it');
     const mark = EDITABLE.find(m => m === e.mark);

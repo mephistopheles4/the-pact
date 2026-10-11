@@ -32,7 +32,9 @@ holds them:
   your own rule into the repo's `AGENTS.md`, as this repo does.
 - **They post every review report on the tracker, word for word,** security
   findings included. So choose: keep the tracker private, or accept that those
-  findings are public until they are fixed.
+  findings are public until they are fixed. Since #261 the pact also leaves
+  keeping secrets and personal details out of posts to judgment, unless the
+  repo's own `AGENTS.md` adds a rule, as this repo's does.
 
 [The threat model](threat-model.md) explains how the pact could break, the
 risks it accepts, and what each tweak costs. Read it before you decide.

@@ -13,7 +13,7 @@ spec (revision 9), built in #261.
 - **Checkpoint:** what stops costly work at a seam from moving on by itself: a decision of the owner's, or a check of the owner's that runs without them. A **light** checkpoint runs without the owner, who reviews after; a **heavy** one is the owner's decision before the work moves on. The harder a step is to undo, the heavier its checkpoint.
 - **Tier:** how much checking the work needs: quick, standard or thorough. It is not the set of moves, and not the model's effort setting.
 - **Sensitive work:** the work that gets more checking. By default it is auth, secrets, crypto, input validation and data migrations: thorough, built on Opus at high. It replaced the **risk floor** (#261).
-- **The defaults:** the one sentence in the rules file's Lenses section that says which lenses always run: the QA pair reads every result, and the security pair reads sensitive work. Only the owner skips a default.
+- **The defaults:** the paragraph in the rules file's Lenses section that says which lenses always run: the QA pair reads every result, and the security pair reads sensitive work. Only the owner skips a default; the other lenses are judgment or the owner's call.
 - **Pinned block:** a block the install gate holds word for word against its canonical text in `gate/clauses/`. Since #261 there are two: `stop-and-escalate` in the rules file and `install-go-ahead` in `AGENTS.md`. It replaced the **gated clause**.
 - **Retired by #261:** the **floor**, the **slot** and the **filler**, the **preset** (the software preset) and the **workflow**. The rules file states the owner's practices and leaves the rest to judgment.
 ## The review lenses
@@ -34,7 +34,7 @@ real work selects it.
 - **Inconclusive:** the verdict of a lens that could not verify something it was asked to check. It is never a pass.
 - **Pick:** retired by #189 (#164). It was the anchors the owner expected the problem on, or "none", said before the verdict was revealed; a **mismatch** was a pick that differed from the result.
 - **Swap:** the one commit and install that brings a pair in and takes its old reviewer out.
-- **Security-set lens:** either lens of the security pair, the reviewers this repo's security route names, or any other lens that holds a shell or network tools, or guards the security route or the sensitive-work default. The gate keeps a fixed list of them. A change to one takes the security route. The name outlived the security set, the practice cases that #189 retired with the bad reports.
+- **Security-set lens:** either lens of the security pair, the reviewers this repo's security route names, or any other lens that holds a shell or network tools, or guards the security route or the sensitive-work default. The gate finds most by signs in their own files, and keeps a fixed list of those it can find by no other sign. A change to one takes the security route. The name outlived the security set, the practice cases that #189 retired with the bad reports.
 - **Escape:** a defect found after a lens review passed the work on, that falls within the question of a lens that ran at that review.
 - **Roster gap:** a defect found later that no lens's question covers.
 - **Auto-take:** a choice a session makes by acting on its own recommendation on a report finding, without waiting for the owner. It never covers a stop, a pinned block, a tier decision or the owner's "done". Each one gets an `auto` row.

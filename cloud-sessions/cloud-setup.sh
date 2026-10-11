@@ -3171,9 +3171,10 @@ the repo's lock file pins one.
   check they match. A tool config in the diff runs code, like its tests.
 - With no tool, say so.
 
-**A spec.** Number the spec's headings `S1`, `S2` and on. Give
-`executability-lens`, `good-enough-lens` and `unstated-lens` the section list,
-the spec, the request and its tier. Tell `unstated-lens` which reviewers ran.
+**A spec.** Number the spec's headings `S1`, `S2` and on. The spec pair is
+`executability-lens` and `good-enough-lens`. Give each lens that runs, and
+`unstated-lens`, the section list, the spec, the request and its tier. Tell
+`unstated-lens` which reviewers ran.
 For sensitive work, the security pair reads the spec first.
 
 **`unstated-lens` on a result** gets the claims, the spec, the diff and the
@@ -3206,10 +3207,12 @@ folder, `--anchors` where the point takes them, and each report as
 | The QA pair on a result | `result` | the issue's tier | the claim ids |
 | `unstated-lens` on a result, crossed alone | `result` | the issue's tier | the claim ids |
 | The spec pair on a spec | `spec` | the issue's tier | the section ids |
+| One spec lens on a spec, crossed alone | `spec` | the issue's tier | the section ids |
 | `unstated-lens` on a spec, crossed alone | `spec` | the issue's tier | the section ids |
 | The security pair on a spec | `spec` | `thorough` | the section ids |
 | The security pair on a diff | `diff` | `thorough` | none |
 | The standards pair on a diff | `diff` | the issue's tier | none |
+| One standards lens on a diff, crossed alone | `diff` | the issue's tier | none |
 
 Where both lenses of the spec pair call one section, show me both calls and
 let me settle it.
@@ -3411,7 +3414,7 @@ check_hash 623fe899ab9f2a50799e3ee777e75029a20ec2a70459a9397dccfc0bddaa9e17 'age
 check_hash 0c076132eb156b317641144b984f7b05d324881ccb3f05633589cb366f754f40 'agents/scout.md'
 check_hash 21a0547777fe0ad06aaf4ccc7a2dfcc4eca4f4755bc04c0ef1fcd3d03c18381e 'agents/unstated-lens.md'
 check_hash ccd359c94c38ff91501092d9e4e6c429d8903cd093b4518ec2bb08d0447e7243 'pact/cross.mjs'
-check_hash 07dd47333ed7b23157e2cca6d4b766a6e9fb79b5406f15ea01d9f12b3d09c0f8 'pact/review.md'
+check_hash 0da73c9466fbbb072d9873c8441919ce61eddf2636b5e07c09a1455f8c4b85ab 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -3434,7 +3437,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 6da1417bda17"
+  echo "pact cloud copy 8763defecd22"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

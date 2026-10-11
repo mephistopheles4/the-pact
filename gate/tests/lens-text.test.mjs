@@ -56,6 +56,7 @@ const SECURITY_ROUTE = ['auth', 'secrets', 'crypto', 'input validation'];
 const GOOD_ENOUGH_LIST = () => restated('good-enough-lens', '**You cannot defer a risk-floor item.** ', ' tolerate no deferral');
 const UNSTATED_LIST = () => restated('unstated-lens', 'did not read this work, and it touches ', ', or opens a way in');
 
+// #261 C1
 test('the canonical lists parse into their items', () => {
   assert.deepEqual(RISK_FLOOR, ['auth', 'secrets', 'crypto', 'input validation', 'data migrations']);
 });
@@ -70,8 +71,8 @@ test("good-enough-lens's risk-floor list and unstated-lens's security-route list
 // floor dropped. Each restated copy of the floor must hold exactly its items.
 const FLOOR_COPIES = () => ({
   'good-enough-lens.md': GOOD_ENOUGH_LIST(),
-  // The sentence after the tier table: the text between the table's last cell and the marker.
-  'triage-labels.md': between('docs/agents/triage-labels.md', '| `tier:thorough` |', ' are always `tier:thorough`').split(' | ').pop().trim(),
+  // The sentence after the tier table.
+  'triage-labels.md': between('docs/agents/triage-labels.md', 'By default, ', ' are sensitive work: `tier:thorough`'),
   'good-enough-lens.contract.md': between('familiars/good-enough-lens.contract.md', '**It cannot defer a risk-floor item.** ', ' tolerate no deferral'),
 });
 
@@ -85,6 +86,7 @@ test('every restated copy of the risk floor holds exactly its items, no more', (
   for (const [name, list] of Object.entries(FLOOR_COPIES())) assert.deepEqual(exactGaps(list, RISK_FLOOR), { extra: [], missing: [] }, name);
 });
 
+// #261 C1
 test('bad case: a copy that keeps an item the floor dropped is caught', () => {
   assert.deepEqual(exactGaps('Auth, secrets, crypto, input validation, data migrations and anything published', RISK_FLOOR), { extra: ['anything published'], missing: [] });
   assert.deepEqual(exactGaps('auth, secrets, crypto, input validation and data migrations', RISK_FLOOR), { extra: [], missing: [] });
