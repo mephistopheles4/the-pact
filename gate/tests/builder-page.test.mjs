@@ -1,18 +1,20 @@
-// The builder page (#53, slice 7): builder/scriptorium.html. The page is never
-// installed and is not gate code; the installer is the authority on what it
-// saves. These tests read the page as text and hold it to its content policy,
-// check its carried pact text against the repo, and run its own logic in
-// node:vm, with no page, and through the renderer. A save installed by the
-// install script is in builder-install.test.mjs.
+// The builder page (#53, slice 7): builder/scriptorium.html. The page is not
+// gate code, and installs only as part of the builder kit (#203); the
+// installer is the authority on what it saves. These tests read the page as
+// text and hold it to its content policy, check its carried pact text against
+// the repo, run its own logic in node:vm, with no page, and through the
+// renderer, and hold build.mjs to its refusals. A save installed by the
+// install script is in builder-install.test.mjs, and the kit run from an
+// install in kit-install.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
-import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
-import { isStaged } from '../install-core.mjs';
+import { EXAMPLE_BUILDER_REL, NODE_FLOOR, PAGE_REL, buildPage, checkBuilder, nodeProblem, outProblem, rulesSource } from '../../builder/build.mjs';
+import { BUILDER_KIT, expectedCopySet, isStaged } from '../install-core.mjs';
 import { RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -158,10 +160,13 @@ test('bad pages planted in the script fail only their own check, so each check i
 
 // ------------------------------------------------------------ where the page lives
 
-test('the page is outside claude/ and every path the install stages, so it is never installed', () => {
+test('the page is staged only as a builder kit file, by exact path, so it installs only under pact/builder/ (#203)', () => {
   // The Node install stages the paths its core's isStaged names (#153, S3, step 7).
   assert.ok(isStaged('claude/CLAUDE.md') && isStaged('gate/seam-a.mjs'), 'the install no longer stages claude/ and gate/');
-  assert.ok(!isStaged(PAGE_REL), `${PAGE_REL} is a path the install stages`);
+  assert.ok(isStaged(PAGE_REL) && BUILDER_KIT.includes(PAGE_REL), `${PAGE_REL} is not a staged builder kit file`);
+  assert.ok(!isStaged('builder/other.html') && !isStaged('builder/build.test.mjs') && !isStaged('examples/pact-config/config.json'), 'the install stages builder/ or examples/ beyond the kit list');
+  assert.deepEqual(expectedCopySet([PAGE_REL], []), [], 'the page installs with no scriptorium');
+  assert.deepEqual(expectedCopySet([PAGE_REL], ['scriptorium']), [[PAGE_REL, `pact/builder/${PAGE_REL}`]], 'the page installs anywhere but the kit');
 });
 
 // ------------------------------------------------------------ the carried pact text
@@ -509,14 +514,27 @@ test('stub page: the Agents step\'s own-agent card opens Move 4 on its Yours tab
   // The workflows text fits the wizard.
   assert.match(P.ids.workflows.text, /Tweak each move on its own step after/);
 });
-test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
+test('the page is named scriptorium, and the docs and the command name it so; the old names and the repo skill are gone (#203)', () => {
   assert.equal(PAGE_REL, 'builder/scriptorium.html');
-  for (const f of ['README.md', 'AGENTS.md', join('.claude', 'skills', 'scriptorium', 'SKILL.md'), join('builder', 'build.mjs')]) {
+  for (const f of ['README.md', 'AGENTS.md', join('builder', 'build.mjs'), join('docs', 'reference.md')]) {
     const text = readFileSync(join(REPO, f), 'utf8');
     assert.match(text, /scriptorium\.html/, `${f} does not name the page`);
     assert.doesNotMatch(text, /pact-config\.html|pact-builder/, `${f} still names the old page or skill`);
+    assert.doesNotMatch(text, /`scriptorium` skill|skills\/scriptorium/, `${f} still names the repo skill`);
   }
-  assert.match(readFileSync(join(REPO, '.claude', 'skills', 'scriptorium', 'SKILL.md'), 'utf8'), /^name: scriptorium$/m);
+  assert.match(readFileSync(join(REPO, 'AGENTS.md'), 'utf8'), /`\/scriptorium` pact command/, "AGENTS.md's builder bullet does not point at the command");
+  assert.ok(!existsSync(join(REPO, '.claude', 'skills', 'scriptorium')), 'the repo skill is still there');
+  const cmd = readFileSync(join(REPO, 'claude', 'commands', 'scriptorium.md'), 'utf8');
+  assert.match(cmd, /^disable-model-invocation: true$/m, 'only the owner starts the command');
+  // It runs the installed kit, never a clone's copy, with NODE_OPTIONS cleared, in both shells.
+  assert.match(cmd, /^ {3}\$env:NODE_OPTIONS = \$null; node "\$HOME\/\.claude\/pact\/builder\/builder\/build\.mjs" --builder '<builder file>' --check$/m);
+  assert.match(cmd, /^ {3}env -u NODE_OPTIONS node "\$HOME\/\.claude\/pact\/builder\/builder\/build\.mjs" --builder '<builder file>' --check$/m);
+  assert.doesNotMatch(cmd, /node builder\/build\.mjs/, 'the command runs a clone-relative builder');
+  // Step 0's fixes (adversarial F3, data F3): who typed it first, two paths only, the temp folder by default.
+  assert.match(cmd, /\*\*First, check who typed it\.\*\*/);
+  assert.match(cmd, /It may name two paths, and nothing else/);
+  assert.match(cmd, /new folder in the system's temporary\s+folder, open only to this account/);
+  assert.match(cmd, /drop or shorten any description that holds a key/, 'the trim step is gone');
 });
 
 test('the example builder offers the "Matt Pocock\'s skills" workflow from #127\'s three blocks, and no retired or fixed-name preset', () => {
@@ -575,6 +593,150 @@ test('the command line writes a page from a builder file, and refuses to write o
   assert.match(bad.stdout, /^REFUSE schema must be 1$/m);
 });
 
+// ------------------------------------------------------------ where build.mjs writes, and what it runs as (#203, S6)
+
+/** A plain folder outside any repo and any .claude folder, for outProblem's cases. */
+const outside = t => tempDir(t, 'pact-builder-out-');
+/** A throwaway kit root: the clone's files, with the rules file renamed as the install names it. */
+function kitRoot(t) {
+  const h = tempDir(t, 'pact-kit-home-');
+  const root = join(h, 'pact', 'builder');
+  for (const d of ['claude', 'examples', 'familiars', 'builder']) cpSync(join(REPO, d), join(root, d), { recursive: true });
+  cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: s => !s.includes(`${join('gate', 'tests')}`) });
+  cpSync(join(root, 'claude', 'CLAUDE.md'), join(root, 'claude', 'rules.source.md'));
+  rmSync(join(root, 'claude', 'CLAUDE.md'));
+  return { home: h, root };
+}
+/** A link to `target` at `at`: a junction on Windows, which needs no privilege; a directory symlink elsewhere. Null when the account may not make one. */
+function linkTo(target, at) {
+  try {
+    symlinkSync(target, at, WIN ? 'junction' : 'dir');
+    return at;
+  } catch (e) {
+    if (e.code === 'EPERM' || e.code === 'EACCES') return null;
+    throw e;
+  }
+}
+
+for (const [name, setup, says] of [
+  ['a .claude folder', t => {
+    const d = join(outside(t), '.claude');
+    mkdirSync(d);
+    return { out: join(d, 'p.html') };
+  }, /outside any \.claude folder/],
+  ['a .claude folder in another case', t => {
+    const d = join(outside(t), WIN ? '.CLAUDE' : '.claude');
+    mkdirSync(join(d, 'deep'), { recursive: true });
+    return { out: join(d, 'deep', 'p.html') };
+  }, /outside any \.claude folder/],
+  ['the Claude folder named by CLAUDE_CONFIG_DIR', t => {
+    const d = outside(t);
+    return { out: join(d, 'p.html'), env: { CLAUDE_CONFIG_DIR: d } };
+  }, /outside the Claude folder/],
+  ['the home folder\'s .claude', t => {
+    const h = outside(t);
+    mkdirSync(join(h, '.claude', 'x'), { recursive: true });
+    return { out: join(h, '.claude', 'x', 'p.html'), home: h };
+  }, /outside the Claude folder/],
+  ['a git work tree', t => {
+    const d = outside(t);
+    mkdirSync(join(d, '.git'));
+    mkdirSync(join(d, 'sub'));
+    return { out: join(d, 'sub', 'p.html') };
+  }, /outside any git work tree/],
+  ['a git work tree whose .git is a file', t => {
+    const d = outside(t);
+    writeFileSync(join(d, '.git'), 'gitdir: elsewhere\n');
+    return { out: join(d, 'p.html') };
+  }, /outside any git work tree/],
+  ['a file that exists', t => {
+    const p = join(outside(t), 'p.html');
+    writeFileSync(p, 'mine\n');
+    return { out: p };
+  }, /must not be a file that exists/],
+  ['a folder that does not exist', t => ({ out: join(outside(t), 'none', 'p.html') }), /a folder that exists/],
+]) {
+  test(`bad case: build.mjs refuses a page in ${name}`, t => {
+    const s = setup(t);
+    const why = outProblem(REPO, s.out, join(outside(t), 'b.json'), { env: s.env ?? {}, home: s.home ?? outside(t) });
+    assert.ok(why, `${name} was taken`);
+    assert.match(why, says);
+  });
+}
+
+test('control: build.mjs takes a new file in a plain folder outside any repo and any Claude folder', t => {
+  assert.equal(outProblem(REPO, join(outside(t), 'p.html'), join(outside(t), 'b.json'), { env: {}, home: outside(t) }), null);
+});
+
+test('bad case: build.mjs refuses a page reached through a link into a git work tree or a .claude folder', t => {
+  const repo = outside(t);
+  mkdirSync(join(repo, '.git'));
+  mkdirSync(join(repo, 'pages'));
+  const viaRepo = linkTo(join(repo, 'pages'), join(outside(t), 'to-repo'));
+  if (!viaRepo) return t.skip('this account may not make a link here');
+  assert.match(outProblem(REPO, join(viaRepo, 'p.html'), join(outside(t), 'b.json'), { env: {}, home: outside(t) }), /outside any git work tree/);
+  const dot = join(outside(t), '.claude');
+  mkdirSync(dot);
+  const viaDot = linkTo(dot, join(outside(t), 'to-dot'));
+  assert.match(outProblem(REPO, join(viaDot, 'p.html'), join(outside(t), 'b.json'), { env: {}, home: outside(t) }), /outside any \.claude folder/);
+});
+
+test('as the kit, build.mjs refuses a page inside the kit, and inside the Claude folder two levels above it', t => {
+  const { home, root } = kitRoot(t);
+  assert.match(outProblem(root, join(root, 'builder', 'mine.html'), join(outside(t), 'b.json'), { env: {}, home: outside(t) }), /outside the builder kit/);
+  mkdirSync(join(home, 'elsewhere'));
+  assert.match(outProblem(root, join(home, 'elsewhere', 'p.html'), join(outside(t), 'b.json'), { env: {}, home: outside(t) }), /outside the Claude folder/);
+});
+
+test('the rules file: claude/CLAUDE.md in a clone, claude/rules.source.md in the kit, and both or neither refuses', t => {
+  assert.deepEqual(rulesSource(REPO), { path: join(REPO, 'claude', 'CLAUDE.md'), kit: false });
+  const { root } = kitRoot(t);
+  assert.deepEqual(rulesSource(root), { path: join(root, 'claude', 'rules.source.md'), kit: true });
+  assert.ok(!readdirSync(join(root, 'claude')).includes('CLAUDE.md'));
+  writeFileSync(join(root, 'claude', 'CLAUDE.md'), 'x\n');
+  assert.throws(() => rulesSource(root), /are both here/);
+  rmSync(join(root, 'claude', 'CLAUDE.md'));
+  rmSync(join(root, 'claude', 'rules.source.md'));
+  assert.throws(() => rulesSource(root), /neither/);
+});
+
+test('the kit builds the same page data as the clone it came from, from its rules source', t => {
+  const { root } = kitRoot(t);
+  assert.equal(buildPage(root, PAGE), PAGE);
+});
+
+test('the Node floor is the pact\'s, 24: an older Node is refused with the version found and the floor', () => {
+  assert.equal(NODE_FLOOR, 24);
+  assert.equal(nodeProblem('24.0.0'), null);
+  assert.equal(nodeProblem('25.1.2'), null);
+  assert.equal(nodeProblem('22.11.0'), 'the builder needs Node 24 or later; this is Node 22.11.0');
+  assert.match(nodeProblem('banana'), /needs Node 24/);
+  assert.equal(nodeProblem(process.versions.node), null, 'the tests run on the floor or later');
+});
+
+test('as the kit, build.mjs never edits itself: the modes without --builder refuse, and --builder alone writes to a new temp folder', t => {
+  const { root } = kitRoot(t);
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const cli = args => spawnSync(process.execPath, [join(root, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env, cwd: outside(t) });
+  const page = readFileSync(join(root, PAGE_REL));
+  for (const args of [[], ['--check']]) {
+    const r = cli(args);
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stdout, /^REFUSE the builder kit never edits itself/m);
+  }
+  assert.deepEqual(readFileSync(join(root, PAGE_REL)), page, 'the kit\'s page changed');
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  const r = cli(['--builder', f]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const wrote = /^WROTE (.+)$/m.exec(r.stdout)[1].trim();
+  t.after(() => rmSync(dirname(wrote), { recursive: true, force: true }));
+  assert.equal(basename(wrote), 'scriptorium.html');
+  assert.match(basename(dirname(wrote)), /^scriptorium-/);
+  assert.deepEqual(pageProblems(readFileSync(wrote, 'utf8')), []);
+  assert.deepEqual(readdirSync(dirname(wrote)), ['scriptorium.html'], 'the new folder holds the page alone');
+});
+
 // ------------------------------------------------------------ the page's own logic, run without a page
 
 /**
@@ -585,7 +747,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides, setCommand });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -623,6 +785,25 @@ test('with nothing changed, the page saves a configuration that sets nothing', (
   const s = L.initialState();
   assert.deepEqual(L.problems(s), []);
   assert.deepEqual(JSON.parse(JSON.stringify(L.buildFiles(s))), [{ path: 'config.json', text: '{\n  "schema": 1\n}\n' }]);
+});
+
+test('the Commands section: untouched it writes no commands list; once set, the list holds exactly the ticked commands in the pact\'s order (#203)', () => {
+  assert.deepEqual([...L.PACT.commands], ['make-it-so', 'finis', 'scriptorium'], 'the page carries PACT_COMMANDS');
+  const s = L.initialState();
+  assert.equal(s.commands, null);
+  assert.ok(!('commands' in JSON.parse(L.buildFiles(s)[0].text)), 'an untouched section writes a commands key');
+  assert.equal(L.setCommand(s, 'scriptorium', true), null);
+  assert.equal(L.setCommand(s, 'make-it-so', true), null);
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).commands, ['make-it-so', 'scriptorium']);
+  assert.equal(L.stepSummary(s).find(r => r.id === 'start').changes, 1, 'a set list counts as a change on Start');
+  assert.ok(!L.atDefaults(s));
+  L.setCommand(s, 'make-it-so', false);
+  L.setCommand(s, 'scriptorium', false);
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).commands, [], 'unticking every one writes an empty list, which turns them all off');
+  assert.equal(L.setCommand(s, 'ship-it', true), 'That is not a pact command.');
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).commands, []);
+  L.resetAll(s);
+  assert.equal(s.commands, null, 'reset puts the section back to untouched');
 });
 
 test('a preset goes only in its own slot, and always goes after the slot\'s text', () => {

@@ -20,6 +20,35 @@ const CHARACTER_HITS_MAX = 20;
 // own copy (install-core.mjs), held to this one by a test. Adding a name is a
 // change to gate code, so it takes the security route.
 const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+// The builder kit (#203, S6): what /scriptorium's builder reads outside a
+// clone, installed under pact/builder/ in the repo's own layout, and only when
+// the commands list names scriptorium. Every claude/agents/<name>.md joins it.
+// The rules source is the install's own unrendered copy of claude/CLAUDE.md,
+// so the kit never holds a file named CLAUDE.md. The install keeps its own
+// copy of this list (install-core.mjs), held to this one by a test. Adding a
+// file is a change to gate code, so it takes the security route.
+const RULES_SOURCE = 'claude/rules.source.md';
+const BUILDER_KIT = Object.freeze([
+  'builder/build.mjs',
+  'builder/scriptorium.html',
+  'gate/shared.mjs',
+  'gate/render.mjs',
+  'gate/render-core.mjs',
+  'gate/tool-allowlist.json',
+  RULES_SOURCE,
+  'familiars/scout.md',
+  'examples/pact-config/builder.json',
+  'examples/pact-config/blocks/move-1-matt-pocock.md',
+  'examples/pact-config/blocks/move-2-matt-pocock.md',
+  'examples/pact-config/blocks/move-3-done-criteria.md',
+  'examples/pact-config/blocks/move-3-matt-pocock.md',
+  'examples/pact-config/blocks/move-4-docs-check.md',
+  'examples/pact-config/blocks/move-4-own-agent.md',
+]);
+// The only node: built-ins a kit module may import. A network module is not one.
+const KIT_BUILTINS = Object.freeze(['node:child_process', 'node:crypto', 'node:fs', 'node:os', 'node:path', 'node:url']);
+/** True for a staged path the builder kit installs: a BUILDER_KIT entry or an agent in claude/agents/. */
+const inBuilderKit = rel => BUILDER_KIT.includes(rel) || /^claude\/agents\/[^/]+\.md$/.test(rel);
 // An at sign followed by text, which Claude Code may read as a file include:
 // refused in a block (render-core.mjs) and in a command file (seam-a-core.mjs).
 const AT_IMPORT_RE = /@[^ \n]/;
@@ -296,6 +325,10 @@ function parseDoc(text, file, known, allowed, report) {
 
 export {
   PACT_COMMANDS,
+  RULES_SOURCE,
+  BUILDER_KIT,
+  KIT_BUILTINS,
+  inBuilderKit,
   AT_IMPORT_RE,
   MAX_BYTES,
   CHARACTER_HITS_MAX,

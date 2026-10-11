@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-MbdUSWpsclmcIn3ceTB3CyPKhz8yPBhx0iDGxbgCpQQ='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nUq1OORqkVIZZQQzUPMJIWU0kD3GvD7JpuG27UpZzlY='; style-src 'sha256-higv92wPshPXUiphCJKUmRsoylPRLaoMJFHyDtmE/Gc='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -260,6 +260,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
     <div class="av-tool-bar" id="summary"></div>
     <nav class="stepper" id="stepper" aria-label="Steps"></nav>
     <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
+    <section class="av-tool-bar av-tool-bar--stack" id="commands"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="workflows"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="agents"></section>
     <div class="workspace" id="workspace">
@@ -560,6 +561,11 @@ const PACT = /* pact-data:begin */ {
    "high"
   ]
  },
+ "commands": [
+  "make-it-so",
+  "finis",
+  "scriptorium"
+ ],
  "title": "Example builder",
  "presets": [
   {
@@ -757,7 +763,19 @@ function initialState() {
   // Each configurable agent starts at its file's own model and effort.
   const agents = {};
   for (const a of PACT.agents) if (a.configurable) agents[a.name] = { model: a.model, effort: a.effort };
-  return { usage: PACT.setting.def, slots, agents };
+  // The pact commands to turn on (#203): null until the person sets them, so a
+  // save that never touched them writes no commands list.
+  return { usage: PACT.setting.def, slots, agents, commands: null };
+}
+
+/** Turn the pact command `name` on or off. The first change sets the list, from none. */
+function setCommand(state, name, on) {
+  if (!PACT.commands.includes(name)) return 'That is not a pact command.';
+  const now = new Set(state.commands || []);
+  if (on) now.add(name);
+  else now.delete(name);
+  state.commands = PACT.commands.filter(c => now.has(c));
+  return null;
 }
 
 /**
@@ -813,6 +831,8 @@ function problems(state) {
 function buildFiles(state) {
   const config = { schema: 1 };
   if (state.usage !== PACT.setting.def) config.settings = { [PACT.setting.name]: state.usage };
+  // A commands list only once the person has set one, in the pact's own order.
+  if (Array.isArray(state.commands)) config.commands = PACT.commands.filter(c => state.commands.includes(c));
   // Only the fields that differ from the agent file's own are written.
   const agents = {};
   for (const a of PACT.agents) {
@@ -914,7 +934,8 @@ function wizardSteps() {
 
 /**
  * Per step: { id, title, changes, errors, warns }. A move step counts its
- * edited slots, Start the usage value, Agents the lenses off their default;
+ * edited slots, Start the usage value and a set commands list, Agents the
+ * lenses off their default;
  * Review counts everything.
  */
 function stepSummary(state) {
@@ -925,7 +946,7 @@ function stepSummary(state) {
   const rows = wizardSteps().map(s => {
     if (s.marks === null) return { id: s.id, title: s.title, changes: 0, errors: count(found, 'error'), warns: count(found, 'warn'), overrides: over };
     const here = found.filter(f => s.marks.includes(f.where));
-    const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0)
+    const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0) + (Array.isArray(state.commands) ? 1 : 0)
       : s.id === 'agents' ? agentsOff
       : s.marks.filter(m => slotOp(state.slots[m]) !== 'keep').length;
     return { id: s.id, title: s.title, changes, errors: count(here, 'error'), warns: count(here, 'warn'), overrides: s.id === 'agents' ? over : 0 };
@@ -1021,6 +1042,7 @@ function boot() {
   /** Put the whole page back on screen after its state changed underneath it. */
   function renderAll() {
     renderValues();
+    renderCommands();
     renderWorkflows();
     renderAgents();
     renderSpine();
@@ -1086,6 +1108,28 @@ function boot() {
       para,
     );
     show();
+  }
+
+  /** The pact commands (#203): one checkbox each, written into the configuration's commands list once one is changed. */
+  function renderCommands() {
+    const set = Array.isArray(state.commands);
+    const rows = PACT.commands.map(name => {
+      const box = el('input', { type: 'checkbox', 'aria-label': `Turn on /${name}` });
+      box.checked = set && state.commands.includes(name);
+      box.addEventListener('change', () => {
+        setCommand(state, name, box.checked);
+        renderCommands();
+        renderOutput();
+      });
+      return el('label', { class: 'value-row' }, box, el('span', { class: 'av-num', text: `/${name}` }));
+    });
+    $('commands').replaceChildren(
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Commands' }), el('span', { class: 'av-annot', text: set ? `On: ${state.commands.length ? state.commands.map(c => `/${c}`).join(', ') : 'none'}` : 'Not set' })),
+      el('p', { class: 'av-annot', text: set
+        ? 'The saved config.json lists exactly the commands ticked here. The install puts each one in your Claude folder, and takes out any you untick.'
+        : 'Untouched, the saved config.json holds no commands list, and the install turns every pact command off. Tick or untick one to set the list. Only you start a pact command, by typing it.' }),
+      ...rows,
+    );
   }
 
   /** A new "Your agent" card: a move-2 slot hands it the spec, every other slot the diff. */
@@ -1235,7 +1279,7 @@ function boot() {
     const total = y.skills.length + y.commands.length + y.agents.length;
     const newAgent = listRow('agent:new', 'A new agent of yours', 'Name it and pick what it reads once it is in a slot.', 'agent:new', () => [addTo(mark => newAgentCard(mark), 'a new agent')]);
     if (!total) {
-      return [el('p', { class: 'av-annot', text: 'This builder lists none of your own skills, commands or agents. Ask your agent to regenerate it with the scriptorium skill.' }), el('div', { class: 'list' }, newAgent)];
+      return [el('p', { class: 'av-annot', text: 'This builder lists none of your own skills, commands or agents. Type /scriptorium to build one from your own skills, commands and agents.' }), el('div', { class: 'list' }, newAgent)];
     }
     const search = el('input', { type: 'text', 'aria-label': 'Filter by name or description', placeholder: 'Filter', spellcheck: 'false' });
     search.value = filter;
@@ -1488,7 +1532,7 @@ function boot() {
   function showStep(id) {
     step = id;
     openKey = null;
-    $('values').hidden = $('workflows').hidden = id !== 'start';
+    $('values').hidden = $('commands').hidden = $('workflows').hidden = id !== 'start';
     $('agents').hidden = id !== 'agents';
     $('workspace').hidden = !stepMove();
     $('output').hidden = $('always').hidden = id !== 'review';
@@ -1580,6 +1624,7 @@ function boot() {
   if (PACT.title) $('builder-title').textContent = `The pact · configuration · ${PACT.title}`;
   renderActions();
   renderValues();
+  renderCommands();
   renderWorkflows();
   renderAgents();
   renderAlways();

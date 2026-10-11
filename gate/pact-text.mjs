@@ -81,6 +81,12 @@ const ROSTER_RES = new Map(
   ROSTER.map(n => [n, new RegExp(`(?<![\\p{L}\\p{N}_])${n.split('-').join(ROSTER_HYPHEN)}(?![\\p{L}\\p{N}_])`, 'iu')]),
 );
 
+// The open marks of the unrendered rules source: render-core.mjs's OPEN_MARKS,
+// held to it by a test. The renderer removes their lines, so the rendered
+// rules file may hold none; the builder kit's source copy (#203, S6) holds
+// them, and only that file may.
+export const SOURCE_OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'move-1', 'move-2', 'move-3', 'move-4-extra']);
+
 const SPAN_RE = /`([^`]+)`/g;
 
 /** The canonical texts, as a Map from clause name to text. A bad file fails and is left out. */
@@ -121,7 +127,7 @@ function checkStructure(doc, file, report) {
 }
 
 /** Moves 1 to 4 of "Implementing a change": number -> [first line, last line]. */
-function findMoves(doc, report) {
+function findMoves(doc, report, rel = PACT) {
   const moves = new Map();
   const { lines, meta } = doc;
   let i = 0;
@@ -135,13 +141,13 @@ function findMoves(doc, report) {
     let j = i + 1;
     while (j < lines.length && lines[j].trim() !== '' && lines[j][0] === ' ') j += 1;
     if (MOVES.includes(n)) {
-      if (moves.has(n)) report.fail('moves', PACT, i + 1, `move ${n} appears more than once`);
+      if (moves.has(n)) report.fail('moves', rel, i + 1, `move ${n} appears more than once`);
       else moves.set(n, [i, j - 1]);
     }
     i = j;
   }
-  if (!meta.some(x => x.section === IMPLEMENTING)) report.fail('moves', PACT, null, `no "${IMPLEMENTING}" section`);
-  else for (const n of MOVES) if (!moves.has(n)) report.fail('moves', PACT, null, `move ${n} is missing`);
+  if (!meta.some(x => x.section === IMPLEMENTING)) report.fail('moves', rel, null, `no "${IMPLEMENTING}" section`);
+  else for (const n of MOVES) if (!moves.has(n)) report.fail('moves', rel, null, `move ${n} is missing`);
   return moves;
 }
 
@@ -190,15 +196,16 @@ function rosterLine(text, name) {
  * installed reviewers, and a lens file names no reviewer but itself, anywhere
  * in the file. Prints the roster's own constant names, never a matched spelling.
  */
-function checkRoster(pactText, root, agents, report) {
+function checkRoster(pactText, root, agents, report, rel = PACT, agentFiles = true) {
   const installed = new Set(agents.map(a => a.stem));
   if (pactText !== null) {
     for (const name of ROSTER) {
       if (installed.has(name)) continue;
       const ln = rosterLine(pactText, name);
-      if (ln) report.fail('roster', PACT, ln, `names ${name}, which is not installed`);
+      if (ln) report.fail('roster', rel, ln, `names ${name}, which is not installed`);
     }
   }
+  if (!agentFiles) return;
   for (const a of agents) {
     let text;
     try {
@@ -224,43 +231,29 @@ function namesFor(file) {
 }
 
 /**
- * Check the pact's text. `agents` are seam A's installed agents, each with
- * `file` and, once its frontmatter was read, `name`.
+ * The clauses that live in `file` against `doc`, which is that file as the
+ * check reads it at `rel`: present, word for word, and where they belong.
  */
-export function checkPactText(root, agents, report) {
-  const canon = loadClauses(report);
-  const docs = new Map();
-  let pactText = null;
-  for (const rel of [PACT, RULES]) {
-    const text = readPactFile(root, rel, report);
-    if (text === null) continue;
-    if (rel === PACT) pactText = text;
-    const doc = parseDoc(text, rel, CLAUSES, namesFor(rel), report);
-    checkStructure(doc, rel, report);
-    docs.set(rel, doc);
-  }
-
-  // Required clauses: present, word for word, and where they belong.
-  const pact = docs.get(PACT);
-  const moves = pact ? findMoves(pact, report) : new Map();
+function checkClauses(doc, file, rel, moves, canon, report) {
   for (const [name, spec] of CLAUSES) {
-    const doc = docs.get(spec.file);
-    if (!doc) continue;
+    if (spec.file !== file) continue;
     const block = doc.blocks.get(name);
     if (!block) {
-      report.fail('required-clause', spec.file, null, `${name} is missing`);
+      report.fail('required-clause', rel, null, `${name} is missing`);
       continue;
     }
-    if (canon.has(name) && block.text !== canon.get(name)) report.fail('required-clause', spec.file, null, `${name} differs from its canonical text`);
+    if (canon.has(name) && block.text !== canon.get(name)) report.fail('required-clause', rel, null, `${name} differs from its canonical text`);
     const inSection = [block.begin, block.end].every(i => doc.meta[i].section === spec.section && !doc.meta[i].sub);
     const range = spec.move ? moves.get(spec.move) : null;
     const inMove = !spec.move || (range && block.begin >= range[0] && block.end <= range[1]);
     if (!inSection || !inMove) {
-      report.fail('anchor', spec.file, block.begin + 1, `${name} is outside ${spec.move ? `move ${spec.move}` : `"${spec.section}"`}`);
+      report.fail('anchor', rel, block.begin + 1, `${name} is outside ${spec.move ? `move ${spec.move}` : `"${spec.section}"`}`);
     }
   }
+}
 
-  // Shared blocks: the holder's copy equals the pact's. Other agents hold none.
+/** Each shared block's holder against `pact`'s copy. Returns the holders. */
+function checkShared(root, agents, pact, report) {
   const holders = new Set();
   for (const [name, holderName] of SHARED) {
     const holder = agents.find(a => a.name === holderName);
@@ -278,6 +271,42 @@ export function checkPactText(root, agents, report) {
     else if (!source || block.text !== source.text) report.fail('shared-block', holder.file, block.begin + 1, `the shared ${name} block differs from the pact's`);
     else if (firstFence >= 0 && firstFence < block.end) report.fail('shared-block', holder.file, block.begin + 1, `the shared ${name} block must come before any fenced code block`);
   }
+  return holders;
+}
+
+/** C3 routing: every installed agent is named in `pact`'s moves 1 to 4 or a listed role line. */
+function checkRouting(pact, moves, agents, report) {
+  const routed = routedNames(pact, moves);
+  for (const a of agents) {
+    if (typeof a.name === 'string' && !routed.has(a.name)) report.fail('routing', a.file, null, 'not named in moves 1 to 4 or a listed role line');
+  }
+}
+
+/**
+ * Check the pact's text. `agents` are seam A's installed agents, each with
+ * `file` and, once its frontmatter was read, `name`. `source` names the
+ * builder kit's unrendered rules source (#203, S6): when the stage holds it,
+ * it gets the same checks as the rules file, its open marks allowed.
+ */
+export function checkPactText(root, agents, report, { source = null } = {}) {
+  const canon = loadClauses(report);
+  const docs = new Map();
+  let pactText = null;
+  for (const rel of [PACT, RULES]) {
+    const text = readPactFile(root, rel, report);
+    if (text === null) continue;
+    if (rel === PACT) pactText = text;
+    const doc = parseDoc(text, rel, CLAUSES, namesFor(rel), report);
+    checkStructure(doc, rel, report);
+    docs.set(rel, doc);
+  }
+
+  const pact = docs.get(PACT);
+  const moves = pact ? findMoves(pact, report) : new Map();
+  for (const file of [PACT, RULES]) if (docs.has(file)) checkClauses(docs.get(file), file, file, moves, canon, report);
+
+  // Shared blocks: the holder's copy equals the pact's. Other agents hold none.
+  const holders = checkShared(root, agents, pact, report);
   for (const a of agents) {
     if (holders.has(a)) continue;
     const lines = readFileSync(join(root, ...a.file.split('/')), 'utf8').split('\n');
@@ -286,13 +315,25 @@ export function checkPactText(root, agents, report) {
     });
   }
 
-  // C3 routing.
-  if (pact) {
-    const routed = routedNames(pact, moves);
-    for (const a of agents) {
-      if (typeof a.name === 'string' && !routed.has(a.name)) report.fail('routing', a.file, null, 'not named in moves 1 to 4 or a listed role line');
-    }
-  }
-
+  if (pact) checkRouting(pact, moves, agents, report);
   checkRoster(pactText, root, agents, report);
+
+  // The unrendered source, when the stage holds it: the rules file's checks.
+  let present = false;
+  if (source !== null) {
+    try {
+      lstatSync(join(root, ...source.split('/')));
+      present = true;
+    } catch {}
+  }
+  if (!present) return;
+  const text = readPactFile(root, source, report);
+  if (text === null) return;
+  const doc = parseDoc(text, source, new Set([...CLAUSES.keys(), ...SOURCE_OPEN_MARKS]), new Set([...namesFor(PACT), ...SOURCE_OPEN_MARKS]), report);
+  checkStructure(doc, source, report);
+  const srcMoves = findMoves(doc, report, source);
+  checkClauses(doc, PACT, source, srcMoves, canon, report);
+  checkShared(root, agents, doc, report);
+  checkRouting(doc, srcMoves, agents, report);
+  checkRoster(text, root, agents, report, source, false);
 }

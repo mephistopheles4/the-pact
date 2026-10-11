@@ -49,7 +49,7 @@ test('a listed command installs to commands/<name>.md, and dropping it from the 
   const h = homeWith(t, ['finis']);
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off \(not in this commit\)\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: off \(not in this commit\)\r?$/m, dry.out);
+  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off \(not in this commit\)\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: off\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}To turn one on, list its name in pact\/config\.json, for example: "commands": \["finis"\]\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact command \/finis; it installs to commands\/finis\.md\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}commands\/finis\.md\r?$/m, dry.out);
@@ -188,7 +188,7 @@ test('bad case: an extra copy-set pair refuses', t => {
 });
 
 test('bad case: a gate file listed for install outside the builder kit refuses', t => {
-  const plant = "r.lines.splice(r.lines.findIndex(l => l.startsWith('SETTINGS ')), 0, 'INSTALL ' + 'a'.repeat(64) + ' gate/shared.mjs pact/builder/gate/shared.mjs');";
+  const plant = "r.lines.splice(r.lines.findIndex(l => l.startsWith('SETTINGS ')), 0, 'INSTALL ' + 'a'.repeat(64) + ' gate/seam-a-core.mjs pact/builder/gate/seam-a-core.mjs');";
   const repo = repoWithFinis(t, root => wrapCheck(root, 'seam-a-core', { after: plant }));
-  refusedUnchanged(repo, homeWith(t, ['finis']), /^REFUSED: the check listed a gate file for install outside the builder kit: gate\/shared\.mjs\./m);
+  refusedUnchanged(repo, homeWith(t, ['finis']), /^REFUSED: the check listed a gate file for install outside the builder kit: gate\/seam-a-core\.mjs\./m);
 });

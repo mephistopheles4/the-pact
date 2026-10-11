@@ -85,11 +85,15 @@ how every session in every repo behaves. So:
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists or the example blocks, run
   `node builder/build.mjs` to refresh it; a gate test fails until you do. A
-  person's own builder comes from the `scriptorium` skill in
-  `.claude/skills/`. It reads their skills, commands, agents and
-  configuration, keeps the result in `~/.claude/pact/builder.json`, and
-  renders a page that carries those lists in plain text. Such a page belongs
-  outside any repo; `build.mjs` refuses to write one inside this clone.
+  person's own builder comes from the `/scriptorium` pact command
+  (`claude/commands/scriptorium.md`), which works in any project. Turning
+  it on installs the builder kit, `build.mjs` and what it reads, under
+  `~/.claude/pact/builder/`. The command reads their skills, commands,
+  agents and configuration, keeps the result in
+  `~/.claude/pact/builder.json`, and renders a page that carries those lists
+  in plain text. Such a page belongs outside any repo: `build.mjs` refuses
+  one inside a git work tree, the Claude folder or any `.claude` folder, or
+  over a file that exists.
 - **Review output.** To read what a configuration does before installing it,
   add `--review-folder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the

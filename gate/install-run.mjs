@@ -139,6 +139,13 @@ async function main() {
   const render = await loadCore('render-core.mjs');
   if (!staged.has(core.RULES_REL)) core.stops.rulesMissing();
   const rulesStaged = live(stage, core.RULES_REL);
+  // The builder kit's rules source (#203, S6): the unrendered rules file,
+  // copied every time before the render overwrites it, and bound to the tree.
+  core.checkNoRulesSource(staged.keys());
+  writeFileSync(live(stage, core.RULES_SOURCE_REL), readFileSync(rulesStaged), { flag: 'wx' });
+  const sourceHash = io.fileSha256(live(stage, core.RULES_SOURCE_REL));
+  core.checkRulesSourceCopy(sourceHash, staged.get(core.RULES_REL));
+  staged.set(core.RULES_SOURCE_REL, sourceHash);
   const before = stateOf(stage);
   const renderOut = mkdtempSync(join(work, 'render-'));
   // A project install gives the stage its no-file render, against a new empty

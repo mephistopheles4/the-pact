@@ -507,8 +507,59 @@ test('the copy set with commands: a listed command pairs, an unlisted pact comma
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/commands/finis.md', 'claude/commands/make-it-so.md', 'claude/commands/ship-it.md', 'claude/commands/sub/finis.md', 'gate/a.mjs'], ['finis']);
   assert.deepEqual(e, [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/commands/finis.md', 'commands/finis.md'], ['claude/commands/ship-it.md', null], ['claude/commands/sub/finis.md', null]]);
   assert.deepEqual(core.expectedCopySet(['claude/commands/finis.md']), [], 'no list installs no command');
-  assert.deepEqual([...core.BUILDER_KIT], [], 'no kit ships before T3');
 });
+
+// The builder kit's copy set (#203, S6, S8): under pact/builder/ only when scriptorium is listed.
+const KIT_STAGED = ['claude/CLAUDE.md', core.RULES_SOURCE_REL, 'claude/agents/a.md', 'claude/commands/scriptorium.md', 'familiars/scout.md', 'gate/shared.mjs', 'gate/seam-a-core.mjs', 'builder/build.mjs', 'examples/pact-config/builder.json', 'cross/cross.mjs'];
+test('the copy set with the kit: every kit file under pact/builder/, the agents in both places, and the rules source nowhere else', () => {
+  const on = core.expectedCopySet(KIT_STAGED, ['scriptorium']);
+  assert.deepEqual(on, [
+    ['claude/CLAUDE.md', 'CLAUDE.md'],
+    [core.RULES_SOURCE_REL, 'pact/builder/claude/rules.source.md'],
+    ['claude/agents/a.md', 'pact/builder/claude/agents/a.md'],
+    ['claude/agents/a.md', 'agents/a.md'],
+    ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
+    ['familiars/scout.md', 'pact/builder/familiars/scout.md'],
+    ['familiars/scout.md', 'agents/scout.md'],
+    ['gate/shared.mjs', 'pact/builder/gate/shared.mjs'],
+    ['builder/build.mjs', 'pact/builder/builder/build.mjs'],
+    ['examples/pact-config/builder.json', 'pact/builder/examples/pact-config/builder.json'],
+    ['cross/cross.mjs', 'pact/cross.mjs'],
+  ]);
+  assert.ok(!on.some(([rel]) => rel === 'gate/seam-a-core.mjs'), 'a gate file off the kit list never installs');
+  const off = core.expectedCopySet(KIT_STAGED, ['finis']);
+  assert.ok(!off.some(([, dest]) => dest && dest.startsWith('pact/builder/')), 'no kit pair without scriptorium');
+  assert.ok(!off.some(([rel]) => rel === core.RULES_SOURCE_REL || rel.startsWith('builder/') || rel.startsWith('examples/')), 'the kit-only files are left out, not paired with null');
+  assert.deepEqual(core.expectedCopySet(['builder/other.mjs', 'examples/x.json'], ['scriptorium']), [['builder/other.mjs', null], ['examples/x.json', null]], 'a staged file off the kit list has no known kind');
+});
+
+for (const c of table('copy set with the kit', {
+  module: 'gate/install-core.mjs',
+  base: () => ({ in: [...core.expectedCopySet(KIT_STAGED, ['scriptorium']).map(([rel, dest]) => `INSTALL ${H('1')} ${rel} ${dest}`), 'RESULT: pass'].join('\n'), list: 'scriptorium' }),
+  run: t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(KIT_STAGED, t.list.split(',')), new Map(KIT_STAGED.map(r => [r, H('1')])), ID('a'))),
+  rows: [
+    { id: 'kit-file-left-off', plant: rep(`INSTALL ${H('1')} builder/build.mjs pact/builder/builder/build.mjs\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list every kit file when scriptorium is on' },
+    { id: 'kit-agent-left-off', plant: rep(`INSTALL ${H('1')} claude/agents/a.md pact/builder/claude/agents/a.md\n`, ''), fails: ['copy-set-mismatch'], why: 'and every agent beside the kit' },
+    { id: 'kit-without-scriptorium', plant: t => ({ ...t, list: 'finis' }), fails: ['copy-set-mismatch'], why: 'a kit pair the install side does not expect' },
+    { id: 'rules-source-to-home', plant: rep('RESULT', `INSTALL ${H('1')} ${core.RULES_SOURCE_REL} rules.source.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'the rules source installs only in the kit' },
+    { id: 'kit-gate-file-elsewhere', plant: rep('pact/builder/gate/shared.mjs', 'pact/gate/shared.mjs'), fails: ['copy-set-gate'], why: 'a kit gate file only at its kit path' },
+    { id: 'gate-file-off-the-list', plant: rep('RESULT', `INSTALL ${H('1')} gate/seam-a-core.mjs pact/builder/gate/seam-a-core.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'a gate file the kit list does not name' },
+  ],
+})) test(c.name, c.fn);
+
+for (const c of table('rules source copy', {
+  module: 'gate/install-core.mjs',
+  base: () => ({ rels: 'claude/CLAUDE.md,claude/agents/a.md', copy: H('1'), rules: H('1') }),
+  run: t => decided(() => {
+    core.checkNoRulesSource(t.rels.split(','));
+    core.checkRulesSourceCopy(t.copy, t.rules);
+  }),
+  rows: [
+    { id: 'committed', plant: t => ({ ...t, rels: `${t.rels},claude/rules.source.md` }), fails: ['rules-source-committed'], says: /the commit holds claude\/rules\.source\.md/, why: 'the install makes the source copy; a commit may not carry one' },
+    { id: 'committed-other-case', plant: t => ({ ...t, rels: `${t.rels},claude/Rules.Source.md` }), fails: ['rules-source-committed'], why: 'matched case-folded, as a case-folding file system would' },
+    { id: 'copy-differs', plant: t => ({ ...t, copy: H('2') }), fails: ['rules-source-copy'], why: "the copy must hash to the tree's rules file" },
+  ],
+})) test(c.name, c.fn);
 
 test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install', () => {
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md', 'cross/cross.mjs']);

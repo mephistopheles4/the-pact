@@ -27,6 +27,8 @@ const GIT_REDIRECTS = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT
 // The only variables git and the runner get from the owner's environment.
 const KEEP = ['PATH', 'SystemRoot', 'windir', 'HOME', 'USERPROFILE', 'TEMP', 'TMP', 'TMPDIR'];
 const SIGNALS = WIN ? ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
+// The builder kit's files outside claude/, familiars/ and gate/, staged by exact path (#203, S6): BUILDER_KIT's, held to it by a test.
+const KIT = ['builder/build.mjs', 'builder/scriptorium.html', 'examples/pact-config/builder.json'].concat(['move-1-matt-pocock', 'move-2-matt-pocock', 'move-3-done-criteria', 'move-3-matt-pocock', 'move-4-docs-check', 'move-4-own-agent'].map(n => `examples/pact-config/blocks/${n}.md`));
 
 const say = s => process.stdout.write(`${s}\n`);
 class Stop extends Error {}
@@ -131,7 +133,7 @@ function main() {
   const staged = [];
   const folded = new Set();
   for (const e of all) {
-    if (!(e.rel === 'AGENTS.md' || e.rel === 'cross/cross.mjs' || (/^(claude|familiars|gate)\//.test(e.rel) && e.rel.indexOf('gate/tests/') !== 0))) continue;
+    if (!(e.rel === 'AGENTS.md' || e.rel === 'cross/cross.mjs' || KIT.indexOf(e.rel) >= 0 || (/^(claude|familiars|gate)\//.test(e.rel) && e.rel.indexOf('gate/tests/') !== 0))) continue;
     const shownRel = e.rel.replace(/[^A-Za-z0-9._/-]/g, '?');
     if (e.mode !== '100644' || e.type !== 'blob') refuse(`the commit holds ${shownRel} with file mode ${e.mode}; only plain files (100644) are installed.`);
     for (const seg of e.rel.split('/')) if (!/^[A-Za-z0-9._-]+$/.test(seg) || seg === '.' || seg === '..') refuse(`the commit holds a path with unsafe characters: ${shownRel}.`);

@@ -13,10 +13,32 @@ export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
 // gate/shared.mjs, so it works out its copy set without seam A's list.
 export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
-// The gate files the builder kit installs under pact/builder/, the only gate
-// files that ever install (#203, S8). Empty until the kit ships (T3).
-export const BUILDER_KIT = Object.freeze([]);
+// The builder kit (#203, S6, S8): the install's own copy of BUILDER_KIT in
+// gate/shared.mjs, held to it by a test. It installs under pact/builder/, in
+// the repo's layout, only when the commands list names scriptorium, with every
+// claude/agents/<name>.md beside it. Its gate files are the only gate files
+// that ever install, and its rules source is the install's own copy.
+export const RULES_SOURCE_REL = 'claude/rules.source.md';
+export const BUILDER_KIT = Object.freeze([
+  'builder/build.mjs',
+  'builder/scriptorium.html',
+  'gate/shared.mjs',
+  'gate/render.mjs',
+  'gate/render-core.mjs',
+  'gate/tool-allowlist.json',
+  RULES_SOURCE_REL,
+  'familiars/scout.md',
+  'examples/pact-config/builder.json',
+  'examples/pact-config/blocks/move-1-matt-pocock.md',
+  'examples/pact-config/blocks/move-2-matt-pocock.md',
+  'examples/pact-config/blocks/move-3-done-criteria.md',
+  'examples/pact-config/blocks/move-3-matt-pocock.md',
+  'examples/pact-config/blocks/move-4-docs-check.md',
+  'examples/pact-config/blocks/move-4-own-agent.md',
+]);
+const KIT_COMMAND = 'scriptorium';
 const KIT_DEST = 'pact/builder/';
+const inKit = rel => BUILDER_KIT.includes(rel) || /^claude\/agents\/[^/]+\.md$/.test(rel);
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 /** The PowerShell installer the Node install replaces: a record from it lists it among the gate files (S9). */
 export const OLD_INSTALLER = 'scripts/install.ps1';
@@ -148,8 +170,20 @@ export function applyLine(paths, commit, renderedHash, platform) {
 
 // ------------------------------------------------------------ the commit's tree
 
-/** True for a path the install stages: claude/, familiars/ and gate/ but its tests, AGENTS.md, and the cross script. */
-export const isStaged = rel => rel === 'AGENTS.md' || rel === 'cross/cross.mjs' || (/^(claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
+/** True for a path the install stages: claude/, familiars/ and gate/ but its tests, AGENTS.md, the cross script, and the builder kit's files by exact path. */
+export const isStaged = rel => rel === 'AGENTS.md' || rel === 'cross/cross.mjs' || BUILDER_KIT.includes(rel) || (/^(claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
+
+/**
+ * The builder kit's rules source is the install's own copy of the committed
+ * rules file (#203, S6). A commit that already holds one, in any case, is
+ * refused before anything is copied, and the copy must hash to the tree's.
+ */
+export function checkNoRulesSource(stagedRels) {
+  for (const rel of stagedRels) if (rel.toLowerCase() === RULES_SOURCE_REL) refuse('rules-source-committed', `the commit holds ${formatPlain(rel)}; the install makes that file itself, from ${RULES_REL}, so a commit may not carry one.`);
+}
+export function checkRulesSourceCopy(copyHash, rulesHash) {
+  if (copyHash !== rulesHash) refuse('rules-source-copy', `the staged copy of ${RULES_REL} made for the builder kit does not match the commit's ${RULES_REL}.`);
+}
 
 /**
  * The commit's tree from `ls-tree -r -z` bytes (S6, G7), checked again from
@@ -556,14 +590,18 @@ export function parseProjectWrite(report, projectHash) {
 /**
  * The copy set by the install's own reading of the stage (#203, S8): a list
  * of [staged path, live path] pairs, one source to one or more live paths. A
- * pact command installs only when `commands` names it, and a gate file only
- * as a BUILDER_KIT entry under pact/builder/. A staged file of no known kind
- * pairs with null, which no INSTALL line can match.
+ * pact command installs only when `commands` names it. The builder kit
+ * installs under pact/builder/ only when it names scriptorium: its gate files,
+ * builder/ and examples/ files and the rules source install nowhere else, and
+ * its agents also install as agents. A staged file of no known kind pairs
+ * with null, which no INSTALL line can match.
  */
 export function expectedCopySet(stagedRels, commands = []) {
   const out = [];
+  const kit = commands.includes(KIT_COMMAND);
   for (const rel of stagedRels) {
-    if (BUILDER_KIT.includes(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
+    if (kit && inKit(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
+    if (rel === RULES_SOURCE_REL || (BUILDER_KIT.includes(rel) && /^(builder|examples)\//.test(rel))) continue;
     if (rel.startsWith('gate/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep') continue;
     if (/^familiars\/[^/]+\.(contract|practice-test)\.md$/.test(rel)) continue;
     let m;
@@ -643,7 +681,7 @@ export function commandsBlock(commands, stagedRels) {
   }
   const example = PACT_COMMANDS.find(name => staged.has(`claude/commands/${name}.md`));
   out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command is in this commit yet, so none can be turned on.');
-  for (const name of commands) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
+  for (const name of commands) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md${name === KIT_COMMAND ? `, with the builder kit, the builder script and what it reads, under ${KIT_DEST}` : ''}.`);
   return out;
 }
 

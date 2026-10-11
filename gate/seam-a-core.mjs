@@ -40,7 +40,7 @@ import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkPactText } from './pact-text.mjs';
-import { AT_IMPORT_RE, PACT_COMMANDS, Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
+import { AT_IMPORT_RE, BUILDER_KIT, KIT_BUILTINS, PACT_COMMANDS, RULES_SOURCE, Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PINNED = join(HERE, 'grimoire', 'check.mjs');
@@ -51,6 +51,10 @@ const OVERLAY = 'claude/settings.overlay.json';
 // The cross script (#35): one file, by exact path, to one fixed live path. The
 // pact calls only the live copy. Nothing else in cross/ is ever installed.
 const CROSS_FILES = Object.freeze([Object.freeze(['cross/cross.mjs', 'pact/cross.mjs'])]);
+// The builder kit (#203, S6): BUILDER_KIT and every claude/agents/<name>.md,
+// under pact/builder/ in the repo's layout, only when scriptorium is listed.
+const KIT_COMMAND = 'scriptorium';
+const KIT_DEST = 'pact/builder/';
 
 // Every agent gets these unless the allow-list names it. Hard-coded here, not
 // read from the allow-list, so a broken allow-list cannot widen the default.
@@ -710,6 +714,9 @@ function classify(root, report) {
         );
       } else if (rel === OVERLAY) {
         overlay = true;
+      } else if (rel === RULES_SOURCE) {
+        // The builder kit's rules source, the install's own unrendered copy:
+        // checked as pact text and as a kit file, installed only in the kit.
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
         const a = { file: rel, stem: seg[2].slice(0, -3), dest: `agents/${seg[2]}`, familiar: false };
         agents.push(a);
@@ -848,6 +855,93 @@ function checkImports(text, file, report) {
   });
 }
 
+// The kit's import rule (#203, S6): one whole-line static import, from a
+// built-in on KIT_BUILTINS or a relative path to another BUILDER_KIT module.
+const KIT_IMPORT_RE = /^import (?:\{[A-Za-z0-9_$, ]*\}|[A-Za-z_$][A-Za-z0-9_$]*|\* as [A-Za-z_$][A-Za-z0-9_$]*) from '([^'\\]+)';$/;
+const KIT_IMPORT_WORD_RE = /\bimport\b(?!\.meta\b)/;
+const KIT_FROM_RE = /\bfrom\s*""/;
+// A line's quoted strings, each blanked to "", so the word import inside a
+// message is not read as an import. A loader call is still looked for in the
+// line as written.
+const QUOTED_RE = /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`/g;
+
+/** True when `spec`, imported by the kit file `file`, is a listed built-in or another kit module. */
+function kitImportOk(spec, file) {
+  if (spec.startsWith('node:')) return KIT_BUILTINS.includes(spec);
+  if (!spec.startsWith('./') && !spec.startsWith('../')) return false;
+  const segs = file.split('/').slice(0, -1);
+  for (const s of spec.split('/')) {
+    if (s === '.') continue;
+    if (s === '..') {
+      if (!segs.length) return false;
+      segs.pop();
+    } else segs.push(s);
+  }
+  const target = segs.join('/');
+  return target.endsWith('.mjs') && BUILDER_KIT.includes(target);
+}
+
+/**
+ * A builder kit module's imports (#203, S6). Outside comments, require,
+ * createRequire and import() fail anywhere, and every line that holds the
+ * word import, or a from before a quote, outside its quoted strings, must be
+ * one whole-line static import
+ * that kitImportOk takes: so a bare package, an unlisted built-in such as a
+ * network module, and a re-export all fail. Like checkImports, it reads lines,
+ * not JavaScript, and guards against an accident, not a deliberate disguise.
+ */
+function checkKitImports(text, file, report) {
+  let inBlock = false;
+  text.split('\n').forEach((line, i) => {
+    const code = line.trimStart();
+    if (inBlock) {
+      inBlock = !line.includes('*/');
+      return;
+    }
+    if (code.startsWith('//')) return;
+    if (code.startsWith('/*')) {
+      inBlock = !code.slice(2).includes('*/');
+      return;
+    }
+    if (LOADER_RE.test(line)) return report.fail('kit-imports', file, i + 1, 'a require, createRequire or import() call');
+    const bare = line.replace(QUOTED_RE, '""');
+    if (!KIT_IMPORT_WORD_RE.test(bare) && !KIT_FROM_RE.test(bare)) return;
+    const m = KIT_IMPORT_RE.exec(line);
+    if (!m) return report.fail('kit-imports', file, i + 1, 'an import or re-export that is not one whole-line static import');
+    if (!kitImportOk(m[1], file)) report.fail('kit-imports', file, i + 1, 'an import from something other than a listed node: built-in or another builder kit module');
+  });
+}
+
+/**
+ * The builder kit (#203, S6). Every kit file the stage holds is checked, a
+ * regular file, its text scanned, and each module held to the kit's import
+ * rule; the agents and the rules source are checked as agents and as pact
+ * text. When `on`, every kit file must be there, and each is added to the copy
+ * set under pact/builder/, with every claude/agents/ agent beside them.
+ */
+function checkKit(root, agents, installs, on, report) {
+  for (const rel of BUILDER_KIT) {
+    const abs = join(root, ...rel.split('/'));
+    let st;
+    try {
+      st = lstatSync(abs);
+    } catch {
+      if (on) report.fail('kit-missing', rel, null, 'scriptorium is listed, but this builder kit file is not in the stage');
+      continue;
+    }
+    if (st.isSymbolicLink() || !st.isFile()) {
+      report.fail('kit-file', rel, null, 'a builder kit file that is not a regular file');
+      continue;
+    }
+    if (rel !== RULES_SOURCE && !rel.startsWith('familiars/')) {
+      const text = scanText(readFileSync(abs), rel, report);
+      if (text !== null && rel.endsWith('.mjs')) checkKitImports(text, rel, report);
+    }
+    if (on) installs.push({ file: rel, dest: `${KIT_DEST}${rel}` });
+  }
+  if (on) for (const a of agents) if (!a.familiar) installs.push({ file: a.file, dest: `${KIT_DEST}${a.file}` });
+}
+
 /** Run the pinned grimoire check on one familiar. Relays rule names and line numbers only. */
 function runPinned(root, a, report) {
   const env = { ...process.env };
@@ -899,6 +993,8 @@ function run(root, listed, report) {
     if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
   }
 
+  checkKit(root, agents, installs, listed.includes(KIT_COMMAND), report);
+
   // The cross script is code the pact runs: held to the same character rules
   // as every other installed text, so nothing in it reads one way and runs
   // another, and to three built-in modules, so no package is pulled in by
@@ -923,7 +1019,7 @@ function run(root, listed, report) {
     else dests.set(k, i.file);
   }
 
-  checkPactText(root, agents, report);
+  checkPactText(root, agents, report, { source: RULES_SOURCE });
 
   for (const a of agents) if (!report.failedFiles.has(a.file)) report.pass('agent', a.file);
 

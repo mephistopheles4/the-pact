@@ -5,18 +5,29 @@
 //   node builder/build.mjs --check                         check the example builder file, and that the page is up to date
 //   node builder/build.mjs --builder <file> --check        check a builder file: refusals and findings
 //   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it
+//   node builder/build.mjs --builder <file>                check it, then write a page in a new folder in the temp folder
+//
+// It runs in two places. In a clone of the pact, the pact's rules file is
+// claude/CLAUDE.md. As the builder kit the install puts in
+// ~/.claude/pact/builder/ for the /scriptorium command (#203, S6), it is
+// claude/rules.source.md, the install's unrendered copy, so the kit holds no
+// file named CLAUDE.md; finding both, or neither, refuses. The kit never
+// edits itself: the first two modes, which rewrite this folder's page, refuse
+// there. A page is never written inside a git work tree, the Claude folder or
+// any .claude folder, nor over a file that exists.
 //
 // The page runs from disk with no network, so everything it shows is carried
 // inside it, as one JSON object in its script between the pact-data marks.
 // That object has two sources, and they never mix:
 //
-//   - The pact itself, always from this clone: the moves and their open and
-//     locked parts (claude/CLAUDE.md), the renderer's lists (gate/render-core.mjs,
-//     read as text, never run as a module) and the pact's agents
-//     (claude/agents/). A builder file cannot change any of it.
+//   - The pact itself, always from this folder: the moves and their open and
+//     locked parts (the rules file), the renderer's lists (gate/render-core.mjs,
+//     read as text, never run as a module), the pact's agents
+//     (claude/agents/) and its commands (PACT_COMMANDS). A builder file cannot
+//     change any of it.
 //   - A builder file (schema below): the person's presets, workflows and their
-//     own skills, commands and agents. The scriptorium skill writes one from
-//     the person's own workflow and revises it over time;
+//     own skills, commands and agents. The /scriptorium command writes one
+//     from the person's own workflow and revises it over time;
 //     examples/pact-config/builder.json is the shipped one.
 //
 // The builder file:
@@ -37,13 +48,47 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readStrictJson, Refused, Report, scanText, SEGMENT_RE } from '../gate/shared.mjs';
+import { PACT_COMMANDS, readStrictJson, Refused, Report, scanText, SEGMENT_RE } from '../gate/shared.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
+// The pact's rules file: claude/CLAUDE.md in a clone, the install's unrendered
+// copy in the builder kit (#203, S6).
+export const CLONE_RULES_REL = 'claude/CLAUDE.md';
+export const KIT_RULES_REL = 'claude/rules.source.md';
+// The pact's Node floor, the current LTS: a project can pin an older Node.
+export const NODE_FLOOR = 24;
+
+/** Why `version` (process.versions.node's form) is too old for the builder, or null. */
+export function nodeProblem(version) {
+  const major = Number(String(version).split('.')[0]);
+  return Number.isInteger(major) && major >= NODE_FLOOR ? null : `the builder needs Node ${NODE_FLOOR} or later; this is Node ${version}`;
+}
+
+const present = p => {
+  try {
+    lstatSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The rules file under `root`, and whether `root` is the builder kit: the
+ * kit's claude/rules.source.md, or a clone's claude/CLAUDE.md. Both, or
+ * neither, refuses, so the kit never reads a CLAUDE.md beside its source.
+ */
+export function rulesSource(root) {
+  const clone = present(join(root, ...CLONE_RULES_REL.split('/')));
+  const kit = present(join(root, ...KIT_RULES_REL.split('/')));
+  if (clone && kit) fail(`${CLONE_RULES_REL} and ${KIT_RULES_REL} are both here; a clone holds only the first, the builder kit only the second`);
+  if (!clone && !kit) fail(`neither ${CLONE_RULES_REL} nor ${KIT_RULES_REL} is here, so this is neither a clone of the pact nor its builder kit`);
+  return { path: join(root, ...(kit ? KIT_RULES_REL : CLONE_RULES_REL).split('/')), kit };
+}
 
 const MARK_RE = /^( *)<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 const LEAD_RE = /^([1-4])\. \*\*(.+)\*\*$/;
@@ -104,7 +149,7 @@ const codeSpans = text => [...text.matchAll(/`([^`\n]+)`/g)].map(m => m[1]);
 
 /** The pact's half of the page data, always from the clone at `root`: moves, locked clauses, the usage setting and the pact's agents. */
 export function pactData(root) {
-  const src = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
+  const src = readFileSync(rulesSource(root).path, 'utf8');
   const renderSrc = readFileSync(join(root, 'gate', 'render-core.mjs'), 'utf8');
   const open = listFrom(renderSrc, 'OPEN_MARKS');
   const editable = listFrom(renderSrc, 'EDITABLE');
@@ -171,7 +216,9 @@ export function pactData(root) {
 
   // Skills the pact's own text names, so a preset naming one is not a finding.
   const pactNames = [...new Set([...parts.values()].flatMap(codeSpans))];
-  return { moves, always, editable, setting, agents: agentInfo, agentChoices, pactNames };
+  // The pact's commands (#203), each turned on by name in the configuration.
+  const commands = [...PACT_COMMANDS];
+  return { moves, always, editable, setting, agents: agentInfo, agentChoices, commands, pactNames };
 }
 
 // ------------------------------------------------------------ the builder file
@@ -332,7 +379,7 @@ export function loadBuilder(file, pact) {
     ...['skills', 'commands', 'agents'].flatMap(k => yours[k].map(x => [`yours.${k}`, x.name, x.description])),
     ['title', '', typeof doc.title === 'string' ? doc.title : ''],
   ];
-  for (const [kind, id, text] of texts) if (POLICY_RE.test(text)) refuse(`${kind}${id ? ` ${id}` : ''}: holds text the page's content policy refuses (a URL, fetch(, import(, innerHTML or a document write)`);
+  for (const [kind, id, text] of texts) if (POLICY_RE.test(text)) refuse(`${kind}${id ? ` ${id}` : ''}: holds text the page's content policy refuses (a URL, a fetch or import call, innerHTML or a document write)`);
   // A workflow may not stand two presets for one slot in for its text.
   for (const w of workflows) {
     const standing = w.presets.map(id => presets.find(p => p.id === id)).filter(p => p && p.standsIn);
@@ -374,7 +421,7 @@ export function presetsThroughRenderer(root, presets) {
       mkdirSync(join(home, 'pact', 'blocks'), { recursive: true });
       writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: p.mark, op: 'add-after', file: 'b.md' }] })}\n`);
       writeFileSync(join(home, 'pact', 'blocks', 'b.md'), `${p.text}\n`);
-      const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), join(root, 'claude', 'CLAUDE.md'), dest, home], { encoding: 'utf8', env });
+      const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesSource(root).path, dest, home], { encoding: 'utf8', env });
       if (r.status !== 0) {
         const fails = (r.stdout || '').split('\n').filter(l => l.startsWith('FAIL '));
         out.push(`preset ${p.id}: the installer's renderer refuses its text${fails.length ? ` (${fails.join('; ')})` : ''}`);
@@ -402,7 +449,7 @@ function agentClassesThroughRenderer(root, agents) {
     mkdirSync(join(home, 'pact'), { recursive: true });
     const set = Object.fromEntries(agents.map(a => [a.name, { model: a.model === 'opus' ? 'sonnet' : 'opus' }]));
     writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, agents: set })}\n`);
-    const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), join(root, 'claude', 'CLAUDE.md'), dest, home], { encoding: 'utf8', env });
+    const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesSource(root).path, dest, home], { encoding: 'utf8', env });
     if (r.status !== 0) fail(`the installer's renderer refuses to set the configurable agents (${(r.stdout || '').split('\n').filter(l => l.startsWith('FAIL ')).join('; ')})`);
     const out = {};
     for (const m of (r.stdout || '').matchAll(/^AGENT ([a-z-]+) \S+ \S+ [0-9a-f]{64} (plain|security-set) override (local|egress)$/gm)) out[m[1]] = { security: m[2] === 'security-set', egress: m[3] === 'egress' };
@@ -465,18 +512,48 @@ function canonical(p) {
   return FOLD ? real.toLowerCase() : real;
 }
 
+/** `dir` as a folder prefix in canonical form, ending with a separator. */
+const folderPrefix = dir => canonical(join(dir, 'x')).slice(0, -1);
+
 /**
  * Why a page may not be written at `out`, or null. A page carries the person's
- * own presets and lists, so it is never written inside this clone, where a
- * commit would publish it, and never over the builder file. Paths compare in
- * canonical form, so a different spelling of the same file is caught.
+ * own presets and lists in plain text, so it is never written over the
+ * builder file or any file that exists, inside this folder (a clone, where a
+ * commit would publish it, or the kit), inside the Claude folder or any
+ * .claude folder, where a session would read it, or inside a git work tree.
+ * The Claude folder is each of CLAUDE_CONFIG_DIR when set, .claude in the
+ * home folder, and, as the kit, the folder two above the kit's root (#203,
+ * S6). Paths compare in canonical form, and the two upward checks walk from
+ * the real path of the page's folder, so a link or junction into a repo or a
+ * .claude folder is caught. `env` and `home` stand in for the process's own.
  */
-export function outProblem(root, out, builder) {
+export function outProblem(root, out, builder, { env = process.env, home = homedir() } = {}) {
   const o = canonical(out);
   if (o === canonical(builder)) return 'must not be the builder file';
-  const r = canonical(join(root, 'x')).slice(0, -1);
-  if (o.startsWith(r)) return 'must be outside this clone: a page carries your own presets and lists, so keep it out of any repo';
+  const kit = present(join(root, ...KIT_RULES_REL.split('/')));
+  if (o.startsWith(folderPrefix(root))) {
+    return kit ? 'must be outside the builder kit, which never edits itself' : 'must be outside this clone: a page carries your own presets and lists, so keep it out of any repo';
+  }
+  if (present(resolve(out))) return 'must not be a file that exists: the page is always written as a new file';
+  const homes = [env.CLAUDE_CONFIG_DIR, join(home, '.claude'), kit ? join(root, '..', '..') : null].filter(h => typeof h === 'string' && h !== '');
+  if (homes.some(h => o.startsWith(folderPrefix(h)))) return 'must be outside the Claude folder: a session there could read your presets and lists';
+  let dir;
+  try {
+    dir = realpathSync.native(dirname(resolve(out)));
+  } catch {
+    return "must be in a folder that exists; the builder makes no folder for it";
+  }
+  for (let d = dir; ; d = dirname(d)) {
+    if ((FOLD ? basename(d).toLowerCase() : basename(d)) === '.claude') return 'must be outside any .claude folder: a session there could read your presets and lists';
+    if (present(join(d, '.git'))) return 'must be outside any git work tree: a page carries your own presets and lists, so keep it out of any repo';
+    if (dirname(d) === d) break;
+  }
   return null;
+}
+
+/** A new folder in the temp folder for a page, made by mkdtemp: open only to this account on Linux and macOS (mode 0700), and on Windows under the per-account temp folder. */
+function defaultOut() {
+  return join(mkdtempSync(join(tmpdir(), 'scriptorium-')), 'scriptorium.html');
 }
 
 function printCheck(name, r) {
@@ -486,22 +563,34 @@ function printCheck(name, r) {
 }
 
 function main(argv) {
+  // First: a project can pin an older Node, and the builder needs the pact's floor.
+  const old = nodeProblem(process.versions.node);
+  if (old) {
+    process.stdout.write(`REFUSE ${old}\n`);
+    process.exitCode = 1;
+    return;
+  }
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const page = join(root, PAGE_REL);
   const usage = () => {
-    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> (--check | --out <page>)\n');
+    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> [--check | --out <page>]\n');
     process.exitCode = 2;
   };
   const opts = { check: false, builder: null, out: null };
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === '--check') opts.check = true;
-    else if (argv[i] === '--builder' && argv[i + 1]) opts.builder = argv[(i += 1)];
-    else if (argv[i] === '--out' && argv[i + 1]) opts.out = argv[(i += 1)];
+    if (argv[i] === '--check' && !opts.check) opts.check = true;
+    else if (argv[i] === '--builder' && argv[i + 1] && opts.builder === null) opts.builder = argv[(i += 1)];
+    else if (argv[i] === '--out' && argv[i + 1] && opts.out === null) opts.out = argv[(i += 1)];
     else return usage();
   }
 
   if (!opts.builder) {
     if (opts.out) return usage();
+    if (rulesSource(root).kit) {
+      process.stdout.write('REFUSE the builder kit never edits itself: give --builder <file>, with --check, --out <page> or neither\n');
+      process.exitCode = 1;
+      return;
+    }
     const r = checkBuilder(root, join(root, EXAMPLE_BUILDER_REL));
     if (opts.check) printCheck(EXAMPLE_BUILDER_REL, r);
     if (!r.builder) {
@@ -523,7 +612,7 @@ function main(argv) {
     return;
   }
 
-  if (opts.check === Boolean(opts.out)) return usage();
+  if (opts.check && opts.out) return usage();
   const r = checkBuilder(root, opts.builder);
   printCheck('builder file', r);
   if (!r.builder) {
@@ -531,14 +620,17 @@ function main(argv) {
     return;
   }
   if (opts.check) return;
-  const why = outProblem(root, opts.out, opts.builder);
+  const out = opts.out === null ? defaultOut() : resolve(opts.out);
+  const why = outProblem(root, out, opts.builder);
   if (why) {
+    if (opts.out === null) rmSync(dirname(out), { recursive: true, force: true });
     process.stdout.write(`REFUSE --out ${why}\n`);
     process.exitCode = 1;
     return;
   }
-  writeFileSync(resolve(opts.out), buildPage(root, readFileSync(page, 'utf8'), opts.builder));
-  process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
+  // Exclusive create: a file that appeared since the check is never written over.
+  writeFileSync(out, buildPage(root, readFileSync(page, 'utf8'), opts.builder), { flag: 'wx' });
+  process.stdout.write(`WROTE ${out}\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv.slice(2));
