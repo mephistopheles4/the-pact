@@ -480,10 +480,22 @@ function decodeEntities(s) {
 }
 
 const INVISIBLE_RE = /[\p{Cf}\p{Default_Ignorable_Code_Point}]/gu;
-const COMMENT_RE = /<!--[\s\S]*?(?:-->|$)/g;
-const COMMENT_MARK_RE = /<!--|-->/g;
+// A comment ends at --> or, as HTML parsers also read it, --!>.
+const COMMENT_RE = /<!--[\s\S]*?(?:--!?>|$)/g;
+const COMMENT_MARK_RE = /<!--|--!?>/g;
 const ESCAPE_RE = /\\(?=[!-/:-@[-`{-~])/g;
 const TAG_RE = /<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>/g;
+
+/** `s` with every match of `re` removed, again until none is left, since a removal can join two pieces into a new match. At most 50 passes. */
+function removeAll(s, re) {
+  let out = s;
+  for (let pass = 0; pass < 50; pass += 1) {
+    const next = out.replace(re, '');
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
 
 /**
  * The text as a reader sees it: invisible characters, markdown escapes and
@@ -495,8 +507,8 @@ const TAG_RE = /<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>/g;
 export function normalise(text, keepComments = false) {
   let s = text;
   for (let round = 0; round < 5; round += 1) {
-    const unmarked = s.replace(INVISIBLE_RE, '').replace(keepComments ? COMMENT_MARK_RE : COMMENT_RE, '');
-    const next = decodeEntities(unmarked.replace(ESCAPE_RE, '').replace(TAG_RE, '')).replace(INVISIBLE_RE, '').normalize('NFKC');
+    const unmarked = removeAll(s.replace(INVISIBLE_RE, ''), keepComments ? COMMENT_MARK_RE : COMMENT_RE);
+    const next = decodeEntities(removeAll(unmarked.replace(ESCAPE_RE, ''), TAG_RE)).replace(INVISIBLE_RE, '').normalize('NFKC');
     if (next === s) break;
     s = next;
   }

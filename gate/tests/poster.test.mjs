@@ -570,6 +570,7 @@ for (const c of table('poster scan', {
     { id: 'split-by-tag', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<b></b>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an inline tag the page hides' },
     { id: 'encoded-in-comment', plant: inBody('<!-- ' + [...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('') + ' -->'), fails: ['secret/token'], why: 'the source still shows a comment' },
     { id: 'after-open-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an unclosed comment marker hides nothing' },
+    { id: 'split-by-bang-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x --!>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a comment HTML parsers close at --!>' },
     { id: 'hidden-zero-width', plant: inBody('a' + ZWSP + 'b'), fails: ['text/hidden'], why: 'the zero-width alphabet' },
     { id: 'hidden-word-joiner', plant: inBody('a' + String.fromCharCode(0x2063) + 'b'), fails: ['text/hidden'], why: 'an invisible separator' },
     { id: 'hidden-selector', plant: inBody('a' + String.fromCodePoint(0xe0100) + 'b'), fails: ['text/hidden'], why: 'a supplementary variation selector' },
@@ -634,7 +635,7 @@ test("links to the owner's own repo, and emoji with joiners, pass when the user 
 // A quadratic scan took 1.5 to 12 seconds on these, a linear one under 20 ms; the bound leaves room for a busy machine.
 test('the scan of a full-size body of repeated path or colon shapes ends within 750 ms', () => {
   const ctx = { env: {}, home: '/srv/home/x', tmp: '/tmp', user: 'a', host: 'h', surface: 'issue-comment' };
-  for (const body of ['//a:'.repeat(16384), '/a/'.repeat(21845), 'a:'.repeat(32768), 'C:/'.repeat(21845), 'eyJ'.repeat(21845)]) {
+  for (const body of ['//a:'.repeat(16384), '/a/'.repeat(21845), 'a:'.repeat(32768), 'C:/'.repeat(21845), 'eyJ'.repeat(21845), '<'.repeat(30000) + '<a>b>'.repeat(7000)]) {
     const t = performance.now();
     scan([{ field: 'body', text: body }], ctx);
     assert.ok(performance.now() - t < 750, `${body.slice(0, 4)}: ${Math.round(performance.now() - t)} ms`);
