@@ -71,10 +71,10 @@ The builder file's shape is in the header of `builder/build.mjs`.
 5. **Save the file and render the page.** Before saving, show the person the
    `yours` lists, and drop or shorten any description that holds a key, a
    token, an internal address or a name they would not want in a page. Write
-   the builder file to `~/.claude/pact/builder.json` once the person agrees
-   (the folder asks before each edit). Render into a scratch folder outside
-   any repo: the page carries their presets and lists in plain text, so it
-   never goes in this clone, which the command refuses:
+   the builder file to `~/.claude/pact/builder.json` once the person agrees.
+   Render into a scratch folder outside any repo: the page carries their
+   presets and lists in plain text, so it never goes in this clone, which the
+   command refuses:
 
    ```
    node builder/build.mjs --builder <file> --out <scratch>/scriptorium.html

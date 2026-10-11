@@ -15,7 +15,7 @@ retired risk keeps its label, so the others keep theirs: R18 is retired.
 **The setup.** One person, the owner, runs Claude Code sessions on their own
 machine. Each session has a shell and the owner's rights, and posts on GitHub
 under the owner's account. Most run in auto mode: Claude Code acts without
-asking, unless its own checks or an ask rule stop it. The owner's repo and its
+asking, unless its own checks stop it. The owner's repo and its
 issue tracker are public on GitHub.
 
 **What the pact puts on that machine.** The install copies these into the
@@ -30,8 +30,9 @@ Claude home folder, `~/.claude`:
   check and join lens reports.
 - **Settings,** merged into `settings.json`. They turn on auto mode and skip
   its opt-in prompt, keep sessions going when a usage limit is reached, turn
-  on an experimental agent-teams flag, and add ask rules. An ask rule makes
-  Claude Code ask before one kind of action.
+  on an experimental agent-teams flag. Since #265 they set no ask rules (an
+  ask rule makes Claude Code ask before one kind of action), and the install
+  takes out the ones an older pact added.
 
 The repo also holds a setup script for Claude Code cloud sessions, in
 `cloud-sessions/`. It is not part of the install. You paste it into a cloud
@@ -70,9 +71,10 @@ guards the text. It cannot make a model obey that text. Since #261 the gate no
 longer checks the rest of the rules file's wording or shape: it checks what
 can run, and with what power.
 
-An ask rule is a prompt, not a boundary. It covers Claude Code's own edit
-tools and the spellings it lists. A script or another command can still write
-the same files.
+Since #265 the pact sets no ask rules, so nothing it adds prompts you. What
+stands before an action is Claude Code's own: its protected paths (the
+`~/.claude` folder and `~/.claude.json`), which in auto mode go to its
+classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 
 ## The risks at a glance
 
@@ -111,7 +113,7 @@ quadrantChart
   R19 Fix work public: [0.20, 0.74]
   R20 Lens untested: [0.38, 0.54]
   R21 Test code ordinary: [0.30, 0.36]
-  R22 Apply asks only: [0.34, 0.62]
+  R22 Apply unprompted: [0.45, 0.62]
   R23 Publish below the floor: [0.30, 0.56]
   R24 A lead moves work: [0.40, 0.70]
   R25 Command sent as prompt: [0.30, 0.64]
@@ -129,12 +131,12 @@ How to read it:
   tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
-  apply spelled past the ask rules (R22), publishing work below the
+  unprompted apply (R22), publishing work below the
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), and the code-scanning workflow's write token (R27, R28) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
 - **Accept (bottom left): R17, R21, R26.** R17 needs your own edits, and the dry
-  run shows them. R21 needs an edit to this repo's tests that its review
+  run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it.
 
@@ -150,10 +152,10 @@ How to read it:
 | R8 Publisher compromised | This repo's publisher | Dry run, the diff you read | Rule |
 | R9 Installed code | Plugin or skill author | None | — |
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
-| R11 Auto mode on | Text a session reads | Claude Code's own checks, ask rules | Outside the pact, prompt |
+| R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Tool allow-list; the override mark for a setting off the reviewed default, from the gate's fixed security-set list | Boundary, rule |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; elsewhere, judgment | Rule, judgment |
-| R14 Foothold left behind | Text a session reads | Ask rules, in part | Prompt |
+| R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on what can run and with what power; the dry run | Boundary |
@@ -161,12 +163,12 @@ How to read it:
 | R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
 | R20 Lens untested | Text a lens reads | The defaults sentence, and this repo's security route for a lens change | Rule |
 | R21 Test code ordinary | A careless or fooled edit | The defaults sentence: the QA pair reads every result | Rule |
-| R22 Apply asks only | A fooled session | Ask rules on an apply's spelling (none for an installer from before the Node install's cutover, #166), the pinned install go-ahead | Prompt, rule |
+| R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the pinned install go-ahead | Outside the pact, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default; here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
-| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, prompt, rule, judgment |
+| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, prompt, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
-| R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main` | Boundary, rule |
+| R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 
 ## Strangers on the tracker
@@ -267,15 +269,10 @@ once you install it.
   check runs from that staged copy. An apply is bound to the commit its dry
   run showed. Every change to the install gate's code takes the security
   route.
-- **Ask rules on the install itself.** The documented apply and its listed
-  spellings ask you first: any command holding `--apply`, and the install
-  script named with a word the rule can't read or a quote after a dash after
-  it. A command that names the install record, or a `gh` command
-  naming rulesets or branch protection, asks too. A plain mention, a read, a
-  diff or a dry run of the installer runs without asking (ADR 0049), so an
-  apply's prompt no longer looks routine. What still gets past them is R22.
-- **Ask rules** on the skills, plugins, agents and settings folders, for
-  Claude Code's own edit tools.
+- **No ask rules (#265).** The pact sets none, and the install takes out the
+  ones an older pact added. Claude Code guards its own folder and
+  `~/.claude.json`; the install's apply, a `gh` command on rulesets or branch
+  protection, and a review-folder dry run run unprompted (R22, R24, ADR 0063).
 
 **What is accepted.**
 
@@ -355,8 +352,10 @@ session can act before you see it.
   test has checked that a lens keeps them after a model change.
 - **R14. A fooled session can leave something behind.** It can write files
   that later sessions or installs load: memory files, a repo's own Claude
-  settings or rules, its server list, or your configuration blocks. Ask rules
-  cover only some of these, and only for Claude Code's edit tools.
+  settings or rules, its server list, or your configuration blocks. Claude
+  Code's protected paths cover only some of these, and in auto mode send them
+  to its classifier. The next dry run shows drift in pact files and warns on a
+  command-running key in `settings.json`, but only afterwards.
 - **R15. A repo's instruction files are instructions.** A cloned repo's
   `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. Since #261
   the pact holds no rule barring them from anything: `no-skill-overrides` and
@@ -382,34 +381,26 @@ session can act before you see it.
   and names out of posted test output. The required CI check can't catch
   that, because it runs the runner the edit narrowed. Only the review at the
   end of the build does: the QA pair, by the defaults sentence. The owner accepted this risk by name (#189).
-- **R22. The ask rules ask on an apply, not a mention.** Since #210 the
-  rules look for an apply's spelling, not the installer's name, so some
-  applies that asked before now don't: a Node flag
-  split by an escape no rule lists, such as a caret through `cmd` or
-  PowerShell's typographic quotes; a wrapped apply line, if Claude Code's
-  matcher splits it before the flag; a name built at run time with the flag
-  also hidden; the installer named plainly with its flag or switch built at
-  run time inside an inline program, an evaluated string or a child shell,
-  which no list of rules can close; the installer's name in a variable from
-  an earlier statement, or handed over by a command such as `xargs`, with the
-  flag split by quotes or an escape; Bash brace expansion or a filename
-  wildcard after the name; and a review-folder dry run with the script's name
-  and the option both built at run time, which writes your rendered rules
-  unprompted. A dry run of installer code under edit
-  also runs unprompted against your real Claude home; a throwaway home keeps
-  a bug away from it, not hostile code. The pact's tests check the rules
-  against a model of Claude Code's documented matching, which can't show
-  what the live matcher does with escapes or wrapped lines. Some mentions
-  still ask: a `$`, a `(`, a backtick or the other characters ADR 0049 lists
-  after the installer's name look the same in a commit message as in an
-  apply. An apply still needs your
-  go-ahead in chat and the commit a dry run printed, but a session can now
-  run that dry run unseen: the commit and rendered hash bind the clone and
-  the render, not your sight of them, so the apply prompt is where you see an
-  apply before it runs. The owner accepted this to stop the prompts on every
-  mention (#210).
+- **R22. The install's apply is unprompted.** Since #265 the pact sets no ask
+  rules, so nothing prompts you before `--apply`, in any spelling. Before it,
+  ask rules looked for an apply's spelling, and some spellings already got
+  past them (#210, ADR 0049). What stands now: auto mode's classifier, which
+  reads the rules that make an install your call, and the pinned install
+  go-ahead in this repo's `AGENTS.md`. Both bend to text: a lead's start
+  prompt can clear a soft block. An apply still needs the commit and rendered
+  hash a dry run printed, but a session can run that dry run unseen: the
+  commit and hash bind the clone and the render, not your sight of them. So a
+  fooled or careless session could install a commit it made, with its own
+  gate checks, and the next dry run would show it only afterwards. A dry run
+  with `--review-folder` also runs unprompted and writes your rendered rules
+  and their diff, your block text included, to any new or empty folder
+  outside the Claude home and any `.claude` folder; those folder checks are
+  its only guard. A dry run of installer code under edit runs against your
+  real Claude home unless you pass a throwaway one, which keeps a bug away
+  from it, not hostile code. The owner accepted this to stop the prompts and
+  defer to the harness (#265, ADR 0063).
 
-  No ask rule guards an installer from a commit before the Node install's
+  Nothing prompts before an installer from a commit before the Node install's
   cutover (#166), the #166 build commits that still hold the old one
   included. No supported rollback reaches such a commit, but a fooled session
   can still check one out from history in any clone and run its installer's
@@ -444,7 +435,7 @@ session can act before you see it.
     permission changes, settings changes, and starting or stopping a
     session. Nothing replaces that sentence. For the last of them, starting
     or stopping a session, nothing in the pact bounds a lead at all.
-  - **A start prompt can reach a rollback.** No ask rule guards an
+  - **A start prompt can reach a rollback.** Nothing prompts before an
     installer from before the Node install's cutover (R22), and the
     pinned install go-ahead doesn't say a start prompt isn't chat. So a
     lead's start prompt could have a session install an older pact. The next
@@ -463,12 +454,12 @@ session can act before you see it.
     and deletion, but requires no approving review: every session posts as
     you, and GitHub doesn't let an author approve their own pull request. So
     the merge is not a human checkpoint here.
-  - **The ask rules still ask** before Claude Code's own edit tools change
-    a file in the user settings folders, before the Node install's apply in
-    the spellings R22 describes, and before a `gh` command naming branch
-    protection. They don't
-    see a shell command that writes or reads the settings file, or a
-    project's own settings file; only auto mode bounds those.
+  - **No ask rule stands** since #265. Claude Code's protected paths send an
+    edit in the user settings folders to auto mode's classifier. The
+    install's apply and a `gh` command on rulesets or branch protection meet
+    only the classifier's soft blocks, which a start prompt can clear. With
+    branch protection loosened, auto mode's default push to the default
+    branch lands on `main`.
   - **"Stop and ask me" still holds,** whoever asked, before anything hard
     to reverse. Here, so does this repo's "Never post a secret or a personal
     detail"; elsewhere that is judgment. Both are rules, so a steered session
@@ -660,8 +651,6 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
 - **#182:** the cloud setup fetches unpinned code (R10).
 - **#184:** no rule for sessions no person started (R16).
 - **#199:** no rule for fixing a reported hole out of public view (R19).
-- **#107:** the ask rule before an install did not fire once, in a background
-  auto-mode session. The cause is unknown.
 
 The Node install (#166) closes two that were listed here, in part:
 

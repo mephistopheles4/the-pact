@@ -119,22 +119,15 @@ parts:
     opt-in prompt (`skipAutoPermissionPrompt`). To keep auto mode off, set
     `defaultMode` back after the install. Every later `--apply` sets it to
     `auto` again, and its dry run warns you first;
-  - adds ask rules (`permissions.ask`). They make Claude Code ask before its
-    own edit tools change your Claude home folder's rules, agents, settings,
-    skills, plugins, output styles, commands, `pact/` folder or install
-    record (`.pact-install.json`), or `~/.claude.json`. In the shell, they
-    ask before an apply, not before a mention: any command holding
-    `--apply`; the install script (`install.mjs` or `install-run.mjs`) named
-    with a word the rule can't read after it, such as a variable, a splat or
-    a backtick, or with a quote right after a dash; and a dry run that
-    writes to a review folder. A dry run, a read, a search or a diff of
-    those files runs without asking (ADR 0049). They also ask before any
-    command that names the install record, and before a `gh` command that
-    names rulesets or branch protection. Those last rules match the letters
-    `gh` anywhere before the word, so an ordinary command such as a commit
-    message that says "through" and then "protection" asks too. The rules
-    are not a boundary: a script or another command can still write those
-    files, and in auto mode only Claude Code's own checks stand in the way;
+  - takes out the ask rules (`permissions.ask`) an older pact added. Since
+    #265 the pact sets no ask rules: Claude Code guards its own folder and
+    `~/.claude.json`, and in auto mode its classifier weighs the rest. The
+    dry run's `- permissions.ask:` lines name each rule it removes, matched
+    exactly, and a `NOTE:` line counts them. A rule of your own that only
+    looks like one stays. If you want one back, add it again by hand from that
+    list. The install's apply, a `gh` command on rulesets or branch
+    protection, and a dry run that writes to a review folder no longer prompt
+    you (ADR 0063);
   - keeps sessions going when a usage limit is reached
     (`autoContinueAtUsageLimit`) and skips the workflow usage warning
     (`skipWorkflowUsageWarning`);
@@ -237,21 +230,16 @@ it, delete it, and run the dry run again.
 
 Run the dry run again if you like. It should print `Nothing to do.`
 
-**Removing rules an older pact added.** Do this after the install above. The
-merge only ever adds rules, so a rule a later pact retires stays in your
-`settings.json` until you remove it by hand. Open `~/.claude/settings.json` in
-an editor yourself, and delete these lines from `permissions.ask` if they are
-there:
-
-- **The four broad rules ADR 0049 retired:** `PowerShell(*install.mjs*)`,
-  `PowerShell(*install-run.mjs*)`, `Bash(*nstall.mjs*)` and
-  `Bash(*nstall-run.mjs*)`.
-- **The rules of the PowerShell installer the pact used before the Node
-  install:** every line that holds the search text in ADR 0052's bullet "The
-  owner's live settings are cleaned by hand". Search for that text rather than
-  copying lines: some of these rules hold dash characters that look like
-  hyphens on screen. This guide doesn't spell the text out, so that a search
-  of the live docs for that installer's file name stays empty.
+**Removing rules an older pact added.** The install takes out every ask rule
+a Node-install pact added, and the four broad rules ADR 0049 retired, by
+itself. One set it can't find by exact text: the rules of the PowerShell
+installer the pact used before the Node install. Do this after the install
+above. Open `~/.claude/settings.json` in an editor yourself, and delete from
+`permissions.ask` every line that holds the search text in ADR 0052's bullet
+"The owner's live settings are cleaned by hand". Search for that text rather
+than copying lines: some of these rules hold dash characters that look like
+hyphens on screen. This guide doesn't spell the text out, so that a search of
+the live docs for that installer's file name stays empty.
 
 If a deleted line was the last in the list, also delete the comma now left
 before `]`.
@@ -262,10 +250,10 @@ first, delete the copy yourself once the install works: it holds the same
 keys, and keeps them after you change one. Then check two things yourself, not
 through a session:
 
-1. **None left:** your editor's search for each of the four rules above,
-   written out in full, and for ADR 0052's search text, finds no match.
+1. **None left:** your editor's search for ADR 0052's search text finds no
+   match.
 2. **Nothing else broken:** run the dry run again. It must show no
-   `WARN: settings.json lacks …` line, no
+   `NOTE: settings.json holds …` line about retired ask rules, no
    `WARN: settings.json is not a strict JSON object …` line, and
    `settings.json: unchanged`. A neighbouring rule deleted by mistake, or a
    comma left before `]`, shows here.
@@ -282,7 +270,7 @@ only your installed files, and run `/agents`. A pass lists these ten:
 
 You can hand the first install to a Claude Code session with this prompt. It
 names the one address to clone from, and leaves the apply to you, because on
-a first install no pact ask rule exists yet to stop the session. Do step 3's
+an install is your call and nothing prompts before it. Do step 3's
 backup first. The prompt installs the rules as published, without step 2's
 edits:
 
@@ -345,9 +333,8 @@ commands the record lists, as it does any file its own payload lacks.
 
 Every Node install reads and writes the same install record, so an older one
 can follow a newer one. An older commit's install also adds back to your
-`settings.json` any ask rules it held. When you return to the newer pact,
-remove them again, as "Removing rules an older pact added", in step 5,
-describes.
+`settings.json` any ask rules it held. When you return to the newer pact, its
+install takes them out again.
 
 ## Known limits
 
