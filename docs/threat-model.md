@@ -405,7 +405,7 @@ session can act before you see it.
   injection could target, and Claude Code's own auto-mode checks, which
   aren't documented to stop this. The owner accepted this by name (#217,
   ADR 0052), and the acceptance stands now that the pact keeps no rollback
-  route to such an installer (#242, ADR 0058).
+  route to such an installer (#242, ADR 0059).
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A

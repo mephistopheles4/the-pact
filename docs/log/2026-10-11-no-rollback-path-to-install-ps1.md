@@ -1,6 +1,6 @@
 # No rollback path to install.ps1
 
-**2026-10-11.** The live docs and the gate now describe only the Node install (mephistopheles4/the-pact#242). The rollback route to `scripts/install.ps1` is gone from `AGENTS.md`, `docs/install.md` and the threat model. So are the gate code and tests that existed only for it. The history stays: ADR and log bodies are untouched, and ADRs 0048 and 0052 gain a one-line pointer to ADR 0058, which records the cut.
+**2026-10-11.** The live docs and the gate now describe only the Node install (mephistopheles4/the-pact#242). The rollback route to `scripts/install.ps1` is gone from `AGENTS.md`, `docs/install.md` and the threat model. So are the gate code and tests that existed only for it. The history stays: ADR and log bodies are untouched, and ADRs 0048 and 0052 gain a one-line pointer to ADR 0059, which records the cut.
 
 ## What it set out to do
 
