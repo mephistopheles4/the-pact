@@ -9,9 +9,15 @@
 # gate/tests/workflow.test.mjs holds it to an exact allow-list. It holds a
 # write permission, security-events: write, in one job only, because
 # uploading results needs it; that token can read and dismiss code-scanning
-# alerts on main. So Dependabot's pull requests are skipped: a new version of
-# either action first runs here after the owner has read and merged it. A
-# pull request runs this file as the pull request has it.
+# alerts on main. So Dependabot's pull requests are skipped, whoever pushed
+# to them last: a new version of either action first runs here after the
+# owner has read and merged it. A pull request runs this file as the pull
+# request has it.
+#
+# Never re-run it with debug logging while a shipped-code alert is open: in
+# debug mode the CodeQL action attaches its database and results to the run,
+# and on this public repo anyone can download them. Delete any debug artifact
+# at once.
 name: codeql
 
 on:
@@ -27,7 +33,7 @@ permissions:
 
 jobs:
   analyze:
-    if: github.actor != 'dependabot[bot]'
+    if: github.actor != 'dependabot[bot]' && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:

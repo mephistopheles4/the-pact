@@ -155,8 +155,8 @@ How to read it:
 | R23 Publish below the floor | Text a session reads, a careless session | The publish stop, "secrets" on the risk floor, "Never post a secret or a personal detail", in the tracker rule and in the moves section's floor | Rule |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; the ask rules on edit-tool edits of the user settings folders, on an install's apply and on branch-protection commands; branch protection where set; "Never post a secret or a personal detail" and the publish stop | Outside the pact, prompt, rule |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Never post a secret or a personal detail" and the publish stop; the cloud copy ships no commands | Outside the pact, rule |
-| R26 Test files unscanned | A careless edit to shipped code | The premise test: nothing outside `gate/tests/` loads a file inside it | Boundary, in CI |
-| R27 Scan edits its own guard | A pull request's author | Your review and merge; the guard catches accidents only | Rule |
+| R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
+| R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main` | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 
 ## Strangers on the tracker
@@ -533,6 +533,65 @@ safe, and a change made months ago is easy to forget.
   totals into an issue on this repo. A session that reads several projects'
   records copies nothing from one project into another.
 
+## Code scanning on this repo
+
+**How it could break.** CodeQL scans this repo for security holes and raises
+alerts in the Security tab. Since #239 it runs from a workflow the repo holds,
+`.github/workflows/codeql.yml`, not from GitHub's default setup. To upload
+results, its one job holds `security-events: write`, the only write permission
+any workflow here has. That token can read every open alert, the private ones
+included, and change or dismiss alerts on `main`. The workflow's configuration
+also leaves the gate's test files, `gate/tests/*.test.mjs`, out of the scan,
+because they plant bad cases on purpose and raised alerts that were noise.
+
+**What the pact does.**
+
+- **An exact allow-list.** `gate/tests/workflow.test.mjs` holds the file to
+  the triggers, permissions, steps and inputs the spec sets, plus the
+  top-level `name` and the matrix's `fail-fast` (ADR 0058), and nothing else:
+  no shell step, no environment, no secret, no other action, no debug input,
+  and no YAML form a line-based check could misread. Both actions are pinned
+  to full commit SHAs, and the checkout to `gate.yml`'s. The test reads the
+  file, so it can't see a run started from GitHub's pages.
+- **Dependabot's pull requests are skipped,** whoever pushed to them last. A
+  new version of either action first runs with the write token on `main`,
+  after you have read and merged it.
+- **A premise test.** The same file fails if any file outside `gate/tests/`
+  loads a file inside it, or loads a module by a name it can't read.
+- **No debug re-run.** The workflow's header says never to re-run it with
+  debug logging while a shipped-code alert is open, and to delete any debug
+  artifact at once. In debug mode the CodeQL action attaches its database and
+  results to the run, and on a public repo anyone can download them. This is
+  a rule: nothing stops the re-run button.
+
+**What is accepted.**
+
+- **R26. The gate's test files aren't scanned.** They run on your machine and
+  in CI with a read-only token and no secrets. They take no outside input:
+  they read the repo and write temp folders, and CodeQL's JavaScript queries
+  look for untrusted input reaching a sink. This holds only while nothing
+  shipped imports them, which the premise test checks in the required `gate`
+  check. The runner, the helpers and the fixtures are still scanned
+  (ADR 0058).
+- **R27. A pull request from a branch in this repo runs its own copy of the
+  workflow and its guard, with the write token, as soon as it opens.** That is
+  before anyone reviews it. One that edits the workflow could read every open
+  alert, the private ones included, and print it to the public run log, or
+  dismiss alerts on `main`; one that also edits the guard passes it. Any
+  workflow added on such a branch could already ask for write rights before
+  #239; the new part is a workflow that holds the token by design. What bounds
+  it: only your account can push branches here, so the path runs through you
+  or a session fooled into pushing (R11, R14, R24), and a fork's run gets a
+  read-only token. Your review and merge stop such an edit reaching `main`,
+  not its first run. Its own code-scanning result is not evidence for it.
+- **R28. The workflow's token can read every open alert and change or
+  dismiss alerts on `main`.** A compromised release of `checkout` or
+  `codeql-action` running in that job would hold it. What bounds it: both
+  are GitHub-owned and pinned to full commit SHAs; Dependabot holds a new
+  release back 14 days before it proposes it; and the Dependabot skip means
+  a new version first runs after your merge. Your review of any SHA change
+  is the control, since the guard can't tell a release commit from one that
+  lives only in a fork of the action's repo.
 ## What you may tweak, and what it costs
 
 Each tweak below is yours to make. The cost is what you give up.
@@ -564,52 +623,6 @@ Each tweak below is yours to make. The cost is what you give up.
 
 You cannot loosen a gated clause through configuration. That is deliberate.
 
-## Code scanning on this repo
-
-**How it could break.** CodeQL scans this repo for security holes and raises
-alerts in the Security tab. Since #239 it runs from a workflow the repo holds,
-`.github/workflows/codeql.yml`, not from GitHub's default setup. To upload
-results, its one job holds `security-events: write`, the only write permission
-any workflow here has. That token can read every open alert, the private ones
-included, and change or dismiss alerts on `main`. The workflow's configuration
-also leaves the gate's test files, `gate/tests/*.test.mjs`, out of the scan,
-because they plant bad cases on purpose and raised alerts that were noise.
-
-**What the pact does.**
-
-- **An exact allow-list.** `gate/tests/workflow.test.mjs` holds the workflow
-  to the triggers, permissions, steps and inputs the spec sets, and nothing
-  else: no shell step, no environment, no secret, no other action, no debug
-  output, and no YAML form a line-based check could misread. Both actions are
-  pinned to full commit SHAs, and the checkout to `gate.yml`'s.
-- **Dependabot's pull requests are skipped.** A new version of either action
-  first runs with the write token on `main`, after you have read and merged
-  it.
-- **A premise test.** The same file fails if any file outside `gate/tests/`
-  loads a file inside it.
-
-**What is accepted.**
-
-- **R26. The gate's test files aren't scanned.** They run on your machine and
-  in CI with a read-only token and no secrets. They take no outside input:
-  they read the repo and write temp folders, and CodeQL's JavaScript queries
-  look for untrusted input reaching a sink. This holds only while nothing
-  shipped imports them, which the premise test checks. The runner, the
-  helpers and the fixtures are still scanned (ADR 0058).
-- **R27. A pull request that edits the workflow or its guard carries its own
-  copy of both.** A pull request runs its own workflow and its own tests, so
-  one that loosens both passes the guard. The guard catches an accident; your
-  review and merge are the control. For such a pull request, its own
-  code-scanning result is not evidence, and neither is a fork pull request's,
-  which can upload results to its own ref but not reach `main`'s alerts.
-- **R28. The workflow's token can read every open alert and change or
-  dismiss alerts on `main`.** A compromised release of `checkout` or
-  `codeql-action` running in that job would hold it. What bounds it: both
-  are GitHub-owned and pinned to full commit SHAs; Dependabot holds a new
-  release back 14 days before it proposes it; and the Dependabot skip means
-  a new version first runs after your merge. Your review of any SHA change
-  is the control, since the guard can't tell a release commit from one that
-  lives only in a fork of the action's repo.
 ## Known open issues at publication
 
 These were open on 2026-10-09. Each is tracked on this repo's tracker.

@@ -18,6 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { test } from 'node:test';
+import { tokens } from './tables.mjs';
 import { REPO } from './text.mjs';
 
 const WORKFLOWS = join(REPO, '.github', 'workflows');
@@ -155,8 +156,10 @@ const yamlFormUsed = text =>
   text
     .split('\n')
     .map(l => uncommented(l).replace(/'[^']*'|"[^"]*"/g, "''"))
-    .some(l => /(?:^|[\s[,])[&*][^\s,\]]/.test(l) || /(?:^|\s|-\s)<<\s*:/.test(l) || /(?:^|:\s|-\s|[[,]\s*)\{/.test(l.trim()));
+    .some(l => /(?:^|:\s+|-\s+|[[,]\s*)[&*][^\s,\]]/.test(l.trim()) || /(?:^|\s|-\s)<<\s*:/.test(l) || /(?:^|:\s|-\s|[[,]\s*)\{/.test(l.trim()));
 
+// Skips a run Dependabot started, and a run on Dependabot's pull request that another account's push started.
+const DEPENDABOT_SKIP = "github.actor != 'dependabot[bot]' && github.event.pull_request.user.login != 'dependabot[bot]'";
 const SHA = '[0-9a-f]{40}';
 const STEPS = [
   ['actions/checkout', ['persist-credentials']],
@@ -166,9 +169,10 @@ const STEPS = [
 
 /**
  * Where the CodeQL workflow breaks its allow-list, as plain sentences; empty
- * when it keeps it. Every level holds exactly the keys #239's S4 names, and
- * each value is the one it sets. `gateSrc` is gate.yml's text, whose checkout
- * pin this file's must match.
+ * when it keeps it. Every level holds exactly the keys #239's S4 names, plus
+ * the top-level name and the strategy's fail-fast (ADR 0058), and each value
+ * is the one they set. `gateSrc` is gate.yml's text, whose checkout pin this
+ * file's must match.
  */
 function codeqlProblems(src, gateSrc) {
   const code = codeOf(src);
@@ -191,6 +195,7 @@ function codeqlProblems(src, gateSrc) {
   }
 
   extras('the file', w, ['name', 'on', 'permissions', 'jobs']);
+  if (w.name !== 'codeql') out.push('is not named codeql');
   const on = isMap(w.on) ? w.on : {};
   extras('on', on, ['push', 'pull_request', 'schedule', 'workflow_dispatch']);
   const weekly = Array.isArray(on.schedule) && on.schedule.length === 1 && isMap(on.schedule[0]) && same(Object.keys(on.schedule[0]), ['cron']) && /^\d{1,2} \d{1,2} \* \* [0-6]$/.test(on.schedule[0].cron);
@@ -204,7 +209,7 @@ function codeqlProblems(src, gateSrc) {
   const job = isMap(w.jobs?.analyze) ? w.jobs.analyze : {};
   extras('the job', job, ['if', 'runs-on', 'timeout-minutes', 'permissions', 'strategy', 'steps']);
   if (!same(job.permissions, { contents: 'read', 'security-events': 'write' })) out.push('gives the job other permissions than contents: read and security-events: write');
-  if (job.if !== "github.actor != 'dependabot[bot]'") out.push("does not skip Dependabot's pull requests");
+  if (job.if !== DEPENDABOT_SKIP) out.push("does not skip Dependabot's pull requests");
   if (job['runs-on'] !== 'ubuntu-24.04' || !/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push('does not run on ubuntu-24.04 with a time limit');
   extras('the strategy', job.strategy, ['fail-fast', 'matrix']);
   if (isMap(job.strategy) && job.strategy['fail-fast'] !== 'false') out.push('lets one language cancel the other');
@@ -247,34 +252,39 @@ function codeqlProblems(src, gateSrc) {
   return [...new Set(out)];
 }
 
-// A file allowed a dynamic import the check can't read, with why it can't load a test file.
-const UNREAD_IMPORTS = new Map([
-  ['builder/build.mjs', 'the text "import(" sits in a refusal message, not a call: the page refuses it'],
-  ['gate/seam-a-core.mjs', 'the text "import(" sits in the pattern and the comment of the check that refuses it in the cross script'],
-]);
-const LOADS = [/\bfrom\s*(['"])([^'"\n]+)\1/g, /\bimport\s*(['"])([^'"\n]+)\1/g, /\bimport\s*\(\s*(['"`])([^'"`\n]+)\1\s*\)/g, /\brequire\s*\(\s*(['"`])([^'"`\n]+)\1\s*\)/g];
-const UNREAD = /\bimport\s*\((?!\s*(['"`])[^'"`\n]+\1\s*\))/;
+// A file allowed a load the check can't read, with why it can't load a test file.
+const UNREAD_LOADS = new Map([['gate/install-run.mjs', "loads a gate module's core from the staged copy, by names the runner holds; the install stages no test file"]]);
 
 /**
  * Where a file outside gate/tests/ loads a file inside it, by a static import
  * or export, a dynamic import() or a require(), with each relative specifier
- * resolved from the file's own folder; or makes a dynamic import whose
- * specifier is not a string literal, unless UNREAD_IMPORTS names the file.
- * `files` maps each repo-relative path to its text.
+ * resolved from the file's own folder; or loads by a specifier that is not a
+ * string literal (a template with a substitution included), or through
+ * createRequire, unless UNREAD_LOADS names the file. It reads the code's
+ * tokens, so a comment, a string or a pattern that holds the words is not a
+ * load. `files` maps each repo-relative path to its text.
  */
 function premiseProblems(files) {
   const out = [];
   for (const [rel, src] of files) {
     if (rel.startsWith('gate/tests/')) continue;
-    for (const re of LOADS) {
-      for (const m of src.matchAll(re)) {
-        const spec = m[2];
-        if (!spec.startsWith('./') && !spec.startsWith('../')) continue;
-        const to = posix.normalize(posix.join(posix.dirname(rel), spec));
-        if (to === 'gate/tests' || to.startsWith('gate/tests/')) out.push(`${rel} loads ${spec}, a file under gate/tests/`);
-      }
-    }
-    if (UNREAD.test(src) && !UNREAD_IMPORTS.has(rel)) out.push(`${rel} makes a dynamic import whose specifier is not a string literal`);
+    const toks = tokens(src);
+    const unread = () => {
+      if (!UNREAD_LOADS.has(rel)) out.push(`${rel} loads a module by a specifier that is not a string literal`);
+    };
+    toks.forEach((tk, i) => {
+      if (tk.t !== 'word' || toks[i - 1]?.v === '.') return;
+      const [next, arg, close] = [toks[i + 1], toks[i + 2], toks[i + 3]];
+      let spec = null;
+      if ((tk.v === 'from' || tk.v === 'import') && next?.t === 'str') spec = next.v;
+      else if ((tk.v === 'import' || tk.v === 'require') && next?.v === '(') {
+        if (arg?.t === 'str' && close?.v === ')') spec = arg.v;
+        else unread();
+      } else if (tk.v === 'createRequire') unread();
+      if (spec === null || !(spec.startsWith('./') || spec.startsWith('../'))) return;
+      const to = posix.normalize(posix.join(posix.dirname(rel), spec));
+      if (to === 'gate/tests' || to.startsWith('gate/tests/')) out.push(`${rel} loads ${spec}, a file under gate/tests/`);
+    });
   }
   return [...new Set(out)];
 }
@@ -390,14 +400,24 @@ for (const [label, plant, says] of [
   ['caches the workspace', s => s.replace('      - uses: github/codeql-action/analyze', `      - uses: actions/cache@${'0'.repeat(40)}\n      - uses: github/codeql-action/analyze`), 'uploads or caches the workspace'],
   ['builds the code', s => s.replace('build-mode: none', 'build-mode: autobuild'), 'does not run init on the matrix language with build-mode none'],
   ['adds a top-level key', s => s.replace('\njobs:\n', '\nconcurrency: codeql\njobs:\n'), extraKey('the file', 'concurrency')],
-]) {
+  ['runs on pushes to another branch', s => s.replace('    branches: [main]\n', '    branches: [develop]\n'), TRIGGERS],
+  ['filters its pull requests', s => s.replace('  pull_request:\n', '  pull_request:\n    branches: [main]\n'), TRIGGERS],
+  ['runs daily', s => s.replace("'27 4 * * 1'", "'27 4 * * *'"), TRIGGERS],
+  ['runs on a second schedule', s => s.replace("    - cron: '27 4 * * 1'\n", "    - cron: '27 4 * * 1'\n    - cron: '27 5 * * 3'\n"), TRIGGERS],
+  ['lets a step carry on after an error', s => s.replace('      - uses: github/codeql-action/init', '      - continue-on-error: true\n        uses: github/codeql-action/init'), extraKey('step 2', 'continue-on-error')],
+  ['limits the parallel jobs', s => s.replace('      fail-fast: false\n', '      fail-fast: false\n      max-parallel: 1\n'), extraKey('the strategy', 'max-parallel')],
+  ['fixes the init language', s => s.replace('languages: ${{ matrix.language }}', 'languages: actions'), 'does not run init on the matrix language with build-mode none'],
+  ['writes a key twice', s => s.replace('\npermissions:\n  contents: read\n', '\npermissions:\n  contents: read\n  contents: read\n'), /^is not in the YAML the check reads: the key contents repeats/],
+  ['is renamed', s => s.replace('name: codeql\n', 'name: scan\n'), 'is not named codeql'],
+  ['drops its name', s => s.replace('name: codeql\n', ''), 'is not named codeql'],
+  ['skips only runs Dependabot started', s => s.replace(" && github.event.pull_request.user.login != 'dependabot[bot]'", ''), "does not skip Dependabot's pull requests"],]) {
   // #244 C2: each rule of the CodeQL workflow's allow-list catches its plant.
   test(`bad case: the CodeQL allow-list catches a workflow that ${label}`, () => {
     const src = readFileSync(CODEQL, 'utf8');
     const planted = plant(src);
     assert.notEqual(planted, src, 'the plant changed nothing');
     const problems = codeqlProblems(planted, readFileSync(WORKFLOW, 'utf8'));
-    assert.ok(problems.includes(says), problems.join('\n'));
+    assert.ok(problems.some(p => (says instanceof RegExp ? says.test(p) : p === says)), problems.join('\n'));
   });
 }
 
@@ -415,15 +435,28 @@ const realSources = () => {
 
 // #244 C3: nothing outside the test folder loads a file inside it, so leaving the test files out of the scan leaves no shipped code unscanned.
 test('nothing outside gate/tests/ loads a file inside it', () => {
-  assert.deepEqual(premiseProblems(realSources()), []);
+  const sources = realSources();
+  // A listing that came back empty or cut short would pass everything below.
+  assert.ok(sources.size > 20 && sources.has('gate/install.mjs') && sources.has('cross/cross.mjs'), `the listing holds ${sources.size} files`);
+  assert.deepEqual(premiseProblems(sources), []);
 });
 
+// #244 C3: the premise test reads code, so the words in a comment, a string or a pattern are not a load.
+test('the premise test reads no load into a comment, a string or a pattern', () => {
+  const text = "// import(name) and require(name)\nconst s = 'import(name)';\nconst t = `createRequire(${x})`;\nconst re = /\\bimport\\s*\\(/;\n";
+  assert.deepEqual(premiseProblems(new Map([['gate/planted.mjs', text]])), []);
+});
+
+const UNREAD_SAYS = 'gate/planted.mjs loads a module by a specifier that is not a string literal';
 for (const [label, rel, text, says] of [
   ['imports a test file', 'gate/planted.mjs', "import { x } from './tests/x.test.mjs';\n", 'gate/planted.mjs loads ./tests/x.test.mjs, a file under gate/tests/'],
   ['imports a test helper dynamically', 'gate/planted.mjs', "const h = await import('./tests/text.mjs');\n", 'gate/planted.mjs loads ./tests/text.mjs, a file under gate/tests/'],
   ['requires a test helper', 'gate/planted.cjs', "const h = require('./tests/text.mjs');\n", 'gate/planted.cjs loads ./tests/text.mjs, a file under gate/tests/'],
   ['reaches gate/tests from another folder', 'scripts/planted.mjs', "import '../gate/tests/run.mjs';\n", 'scripts/planted.mjs loads ../gate/tests/run.mjs, a file under gate/tests/'],
-  ['makes a dynamic import of a built name', 'gate/planted.mjs', 'const m = await import(name);\n', 'gate/planted.mjs makes a dynamic import whose specifier is not a string literal'],
+  ['makes a dynamic import of a built name', 'gate/planted.mjs', 'const m = await import(name);\n', UNREAD_SAYS],
+  ['imports through a template with a substitution', 'gate/planted.mjs', 'const m = await import(`./${dir}/x.test.mjs`);\n', UNREAD_SAYS],
+  ['requires a built name', 'gate/planted.mjs', 'const h = require(name);\n', UNREAD_SAYS],
+  ['loads through createRequire', 'gate/planted.mjs', "import { createRequire } from 'node:module';\nconst r = createRequire(import.meta.url);\n", UNREAD_SAYS],
 ]) {
   // #244 C3: each rule of the premise test catches its plant.
   test(`bad case: the premise test catches a file outside gate/tests/ that ${label}`, () => {
