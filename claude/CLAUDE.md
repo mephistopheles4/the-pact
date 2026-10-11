@@ -136,7 +136,8 @@ open decision under a lower tier than you would pick, name the decisions once
 **Where work starts.** Quick work may stay in chat; if it grows, stop and
 offer to file an issue. Standard and thorough work starts with an issue, or
 with the plan file of a repo without a tracker. Whoever files or triages
-writes the tier label and one line per phase from the table below, such as
+writes the tier, as a label or at the plan file's top, and one line per phase
+from the table below, such as
 "Plan: Opus, medium. Build: Sonnet, medium."; a different value needs a stated
 reason. On an issue with no tier label, the first reply is the fit check and
 a proposed tier, shown as a choice; then stop. It stands in for move 1 only
@@ -463,7 +464,7 @@ with one line and nothing after it:
 
 The argument or start line names the issue, ticket or plan file. Don't start
 the step, draft its output, or ask a question in the same turn. If I hand the
-step back, once per session ask for my call first and say in one sentence
+step back, once per session and never mid-step, ask for my call first and say in one sentence
 what I'd be handing over; then my choice stands, and you name any bound skill
 you did not use.
 
@@ -508,8 +509,8 @@ because of usage on your own; that call is mine.
 
 ## When parallel sessions work one chain
 
-For a session that resolves a ticket in a chain several sessions work in
-parallel. **Name the ticket when you launch each session;** a session honours
+This applies to a session that resolves a ticket in a chain several sessions
+work in parallel. **Name the ticket when you launch each session;** a session honours
 it, so nothing self-selects. **An assignee is not a claim:** every session
 signs in as the same user, so it can't tell "mine" from "free". One ticket was
 claimed twice that way.
