@@ -10,6 +10,7 @@ effort, and what never goes in. For what the pact is and why, read the
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
 | `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text; and `unstated-lens`, which looks for needs nobody wrote down. Each runs on Opus by default; a configuration may change any lens's model and effort (ADR 0027). The lenses' contracts are in `familiars/` | `~/.claude/agents/` |
+| `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`, only when the configuration's `commands` list names it |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
 | `familiars/` | Agents migrated to a grimoire contract, each beside its contract: `scout`, on Sonnet at low effort; and every lens's contract, which never installs | `~/.claude/agents/` (agent files only) |
 | `cross/cross.mjs` | The cross script: checks a lens pair's findings blocks, joins them, and writes the comment section and a local page. The pact calls only the installed copy. `cross/render-check.mjs` is a one-off check and never installs | `~/.claude/pact/cross.mjs` |
@@ -19,6 +20,20 @@ effort, and what never goes in. For what the pact is and why, read the
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 | `docs/img/` | The README's figures, and `build.mjs`, which renders them from their sources in `docs/img/src/` | Never installed |
 
+## Pact commands
+
+A pact command is a slash command that stands for an answer the owner gives
+often, meant to be typed by the owner. Each sets
+`disable-model-invocation: true`, so the model can't start it on its own.
+Text sent in as a prompt can still start one, as with any slash command;
+Claude Code's own handling of such text is the guard (threat model, R25). A
+command is installed only when its name is in the `commands` list of
+`~/.claude/pact/config.json`. The cloud copy installs none yet.
+
+| Command | What it stands for |
+| --- | --- |
+| `/make-it-so` | "Accept all recommendations": the session carries out every recommendation in its last message. |
+| `/finis` | "We're done, archive this session": the session checks for anything outstanding, says what it is if there is, and archives the session if there isn't. |
 ## The familiars, by effort
 
 - **Low:** `scout`. The pact ships no `Explore`; skills that call it get Claude Code's built-in.

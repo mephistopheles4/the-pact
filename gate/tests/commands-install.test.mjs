@@ -1,9 +1,10 @@
 // Pact commands through the install script (#203, T1), end to end against a
-// throwaway repo and a throwaway --claude-home. No command file ships yet, so
-// each repo plants claude/commands/finis.md. One case per new refusal, each
+// throwaway repo and a throwaway --claude-home. Each repo plants its own
+// claude/commands/finis.md over the shipped one (#203, T2), so a case doesn't
+// depend on the shipped text. One case per new refusal, each
 // checking that a refused install changed nothing. Never touches ~/.claude.
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { WIN, home, install, listTree, makeRepo, passed, refused, wrapCheck } from './install-harness.mjs';
@@ -49,8 +50,8 @@ test('a listed command installs to commands/<name>.md, and dropping it from the 
   const h = homeWith(t, ['finis']);
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off \(not in this commit\)\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: off \(not in this commit\)\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}To turn one on, list its name in pact\/config\.json, for example: "commands": \["finis"\]\r?$/m, dry.out);
+  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: off \(not in this commit\)\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}To turn one on, list its name in pact\/config\.json, for example: "commands": \["make-it-so"\]\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact command \/finis; it installs to commands\/finis\.md\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}commands\/finis\.md\r?$/m, dry.out);
   passed(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }));
@@ -132,7 +133,7 @@ test('bad case: a commands value that is not a list of pact commands refuses at 
 });
 
 test('bad case: a listed command that is not in this pact refuses at seam A', t => {
-  const repo = makeRepo(t);
+  const repo = makeRepo(t, root => rmSync(join(root, 'claude', 'commands', 'finis.md'), { force: true }));
   const h = homeWith(t, ['finis']);
   const r = refusedUnchanged(repo, h, /^REFUSED: the check failed\./m);
   assert.match(r.stdout, /^seam-a\| FAIL commands-not-in-pact: --commands names finis, but the stage holds no claude\/commands\/finis\.md: it is not in this pact\r?$/m, r.out);
