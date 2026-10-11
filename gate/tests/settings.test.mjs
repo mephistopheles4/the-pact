@@ -209,6 +209,15 @@ test('bad case: an overlay that sets an ask list fails as unlisted', t => {
   expectSettingsFail(t, overlayWith(o => (o.permissions.ask = [])), 'settings-unlisted');
 });
 
+// settings-value: a rule list is a set. Moved from the ask list to the allow
+// list, so the last bad case for a repeated rule stays.
+test('bad case: an allow list with a repeated rule fails, even when the allow-list holds the rule', t => {
+  const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['permissions.allow'] = ['Bash(ls *)'])));
+  expectSettingsFail(t, overlayWith(o => (o.permissions.allow = ['Bash(ls *)', 'Bash(ls *)'])), 'settings-value', script);
+  const once = runSeamA(stage(t, { [OVERLAY]: overlayWith(o => (o.permissions.allow = ['Bash(ls *)'])) }), script);
+  assert.equal(once.code, 0, `control: the rule once passes\n${once.out}`);
+});
+
 // settings-required: the mode is the one path the overlay must set.
 test('bad case: an overlay with no defaultMode fails', t => {
   expectSettingsFail(t, overlayWith(o => delete o.permissions.defaultMode), 'settings-required');
