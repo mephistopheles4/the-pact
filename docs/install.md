@@ -155,13 +155,18 @@ parts:
     file or a link, for a command that is on. Claude Code would run that
     skill in place of the command. Rename or move it, or take the name out of
     the list. The install only checks that the path exists; it never reads,
-    lists or changes your skills.
+    lists or changes your skills. It doesn't check a project's own skills or
+    commands, a plugin's, or a command in a subfolder of your `commands/`
+    folder, any of which may also share a pact command's name.
   - **Your own file at the command's path.** A `~/.claude/commands/<name>.md`
     the last install's record doesn't list. The pact didn't put it there, so
     it never overwrites it. Move it, or take the name out of the list.
   - **A bad list.** A `commands` value that is not a list of pact command
     names, each once. A project's `.claude/pact-config.json` may not hold
     `commands` at all.
+  - **A command this commit doesn't hold.** A name the block marks
+    `(not in this commit)` refuses. Leave it out of the list until a commit
+    ships it.
 - **`NOTE: … other pact-install-* folder(s) in the temp folder`.** An install
   stopped hard, by a power cut or a killed process, leaves its work folder in
   your temp folder. It may hold your configuration text. Delete those

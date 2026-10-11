@@ -607,9 +607,9 @@ for (const c of table('new command paths', {
   base: () => ({ files: json([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')]]), record: json({ commit: 'x', files: [{ path: 'commands/finis.md', sha256: H('2') }] }), live: json(['CLAUDE.md', 'commands/finis.md']) }),
   run: t => decided(() => core.checkNewPaths(new Map(JSON.parse(t.files)), t.record === 'null' ? null : core.parseRecord(t.record), rel => ({ exists: JSON.parse(t.live).includes(rel) }))),
   rows: [
-    { id: 'unlisted-live-file', plant: t => ({ ...t, record: json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }] }) }), fails: ['command-unlisted-live'], says: /^REFUSED: commands\/finis\.md already exists in the Claude home folder, and the install record does not list it/, why: "the owner's own command is never overwritten" },
-    { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['command-unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
-    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['command-unlisted-live'], why: 'the same rule is ready for the kit' },
+    { id: 'unlisted-live-file', plant: t => ({ ...t, record: json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }] }) }), fails: ['unlisted-live'], says: /^REFUSED: commands\/finis\.md already exists in the Claude home folder, and the install record does not list it/, why: "the owner's own command is never overwritten" },
+    { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
+    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* take scriptorium, which installs the builder kit, out of the commands list\./, why: 'the same rule is ready for the kit, with its own remedy' },
   ],
 })) test(c.name, c.fn);
 
@@ -625,10 +625,12 @@ test('the commands block lists every pact command, on or off, says which this co
     '  /make-it-so: off (not in this commit)',
     '  /finis: on',
     '  /scriptorium: off (not in this commit)',
-    '  To turn one on, list its name in pact/config.json, for example: "commands": ["make-it-so"]',
+    '  To turn one on, list its name in pact/config.json, for example: "commands": ["finis"]',
     '  WARN: the user configuration turns on the pact command /finis; it installs to commands/finis.md.',
   ]);
   assert.equal(core.commandsBlock([], []).filter(l => l.startsWith('  WARN')).length, 0);
+  assert.equal(core.commandsBlock([], ['claude/CLAUDE.md']).at(-1), '  No pact command is in this commit yet, so none can be turned on.', 'never an example the commit lacks');
+  assert.match(core.commandsBlock([], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']).at(-1), /for example: "commands": \["finis"\]$/, 'the first staged command, in PACT_COMMANDS order');
 });
 
 // ------------------------------------------------------------ settings JSON and the merge (S8, L4 to L9)

@@ -41,6 +41,14 @@ for (const c of table('command file', {
     { id: 'fenced-tab-indented', plant: line('\t````!\ngit status\n````'), fails: ['command-shell'], why: 'a tab before a longer fence' },
     { id: 'fenced-space-before-mark', plant: line('```  !\ngit status\n```'), fails: ['command-shell'], why: 'whitespace before the mark' },
     { id: 'fenced-mark-after-info', plant: line('```bash !\ngit status\n```'), fails: ['command-shell'], why: 'a mark anywhere after the fence characters' },
+    { id: 'fenced-deep-indent', plant: line('        ```!\ngit status\n        ```'), fails: ['command-shell'], why: 'any indent, not only up to three spaces' },
+    { id: 'fenced-two-tabs', plant: line('\t\t~~~!\ngit status\n\t\t~~~'), fails: ['command-shell'], why: 'any indent of tabs' },
+    { id: 'fenced-mid-line', plant: line('see ```!git status``` here'), fails: ['command-shell'], why: 'Claude Code finds the opener anywhere on a line' },
+    { id: 'fenced-in-blockquote', plant: line('> ```!\n> git status\n> ```'), fails: ['command-shell'], why: 'an opener after a quote marker' },
+    { id: 'fenced-in-list-item', plant: line('- ```!\n  git status\n  ```'), fails: ['command-shell'], why: 'an opener after a list bullet' },
+    { id: 'argument-placeholder', plant: line('Wrap up $ARGUMENTS now.'), fails: ['command-argument'], why: 'typed text spliced into the body; a pact command takes no argument' },
+    { id: 'argument-indexed', plant: line('Use $ARGUMENTS[0].'), fails: ['command-argument'], why: 'the indexed placeholder' },
+    { id: 'argument-positional', plant: line('Use $1 here.'), fails: ['command-argument'], why: 'the positional placeholder' },
     { id: 'file-include', plant: line('Read @notes.md first.'), fails: ['command-include'], why: 'an at sign followed by text may include a file' },
     { id: 'file-include-home', plant: line('@~/.claude/CLAUDE.md'), fails: ['command-include'], why: 'an include at the start of a line' },
     { id: 'allowed-tools', plant: rep('disable-model-invocation: true', 'disable-model-invocation: true\nallowed-tools: Bash'), fails: ['command-keys'], why: 'a command never grants a tool' },
@@ -55,10 +63,10 @@ for (const c of table('command file', {
     { id: 'empty-description', plant: rep('description: Wrap this session up.', "description: ''"), fails: ['command-description'], why: 'an empty description' },
     { id: 'no-frontmatter', plant: t => ({ ...t, [CMD]: 'Just a body.\n' }), fails: ['frontmatter'], why: 'a command with no frontmatter' },
     { id: 'refused-character', plant: line('Wrap ‮up.'), fails: ['invisible'], why: 'the pact-text scan runs on a command' },
-    { id: 'unlisted-name', plant: t => ({ ...t, 'claude/commands/ship-it.md': GOOD }), fails: ['command-name'], why: 'a fourth command needs a gate change' },
-    { id: 'name-in-capitals', plant: () => ({ 'claude/commands/Finis.md': GOOD }), fails: ['command-name', 'commands-not-in-pact'], why: 'names are matched exactly, so finis is not in the stage' },
+    { id: 'unlisted-name', plant: t => ({ ...t, 'claude/commands/ship-it.md': GOOD }), fails: ['command-file-name'], why: 'a fourth command needs a gate change' },
+    { id: 'name-in-capitals', plant: () => ({ 'claude/commands/Finis.md': GOOD }), fails: ['command-file-name', 'commands-not-in-pact'], why: 'names are matched exactly, so finis is not in the stage' },
     { id: 'subfolder', plant: t => ({ ...t, 'claude/commands/more/finis.md': GOOD }), fails: ['command-path'], why: 'a command is exactly claude/commands/<name>.md' },
-    { id: 'not-markdown', plant: t => ({ ...t, 'claude/commands/finis.txt': GOOD }), fails: ['command-name'], why: 'only a .md file is a command' },
+    { id: 'not-markdown', plant: t => ({ ...t, 'claude/commands/finis.txt': GOOD }), fails: ['command-file-name'], why: 'only a .md file is a command' },
   ],
 })) test(c.name, c.fn);
 
@@ -77,7 +85,7 @@ test('seam A lists a command for install only when --commands names it, and chec
 });
 
 test('seam A takes the inline and fenced forms only where they run nothing: no false hit on plain text', t => {
-  const body = ['Use `git status` and say so!', 'A fence with no mark:', '```bash', 'echo hi', '```', 'An email is not written here, and ~ alone is fine.', ''].join('\n');
+  const body = ['Use `git status` and say so!', 'A fence with no mark:', '```bash', 'echo hi', '```', 'An email is not written here, and ~ alone is fine.', 'A dollar sign alone, $, is no placeholder.', ''].join('\n');
   const r = runSeamA(stage(t, { [CMD]: `${GOOD}${body}` }), undefined, { commands: 'finis' });
   assert.equal(r.code, 0, r.out);
 });

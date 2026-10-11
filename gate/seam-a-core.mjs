@@ -68,10 +68,14 @@ const COMMAND_KEYS = new Set(['description', 'disable-model-invocation']);
 const INVOCATION_KEY = 'disable-model-invocation';
 // The two forms Claude Code runs as shell when a command loads, read more
 // strictly than it reads them, so a near miss fails too: an exclamation mark
-// right before a backtick anywhere, and a fence line, backtick or tilde, at
-// any indent, with an exclamation mark anywhere after its fence characters.
+// right before a backtick anywhere, and a run of three or more backticks or
+// tildes anywhere on a line, at any indent or after any text, with an
+// exclamation mark later on that line.
 const INLINE_SHELL = '!`';
-const FENCE_LINE_RE = /^[ \t]*(?:`{3,}|~{3,})(.*)$/;
+const FENCE_SHELL_RE = /(?:`{3}|~{3}).*!/;
+// An argument placeholder, which splices typed text into the body before the
+// shell pass: $ARGUMENTS, $ARGUMENTS[N] or $N. The pact commands take none.
+const ARGUMENT_RE = /\$(?:ARGUMENTS|[0-9])/;
 
 // Settings that run a command, load code or reach a tool server. Refused by
 // name as an object key at any depth of the overlay, whatever the settings
@@ -714,7 +718,7 @@ function classify(root, report) {
         // A pact command (#203): exactly claude/commands/<name>.md, the name on PACT_COMMANDS.
         const stem = seg.length === 3 && seg[2].endsWith('.md') ? seg[2].slice(0, -3) : null;
         if (seg.length !== 3) report.fail('command-path', rel, null, 'a subfolder in claude/commands; a command is claude/commands/<name>.md');
-        else if (!PACT_COMMANDS.some(c => c === stem)) report.fail('command-name', rel, null, 'a file in claude/commands that is not a pact command; the gate lists them');
+        else if (!PACT_COMMANDS.some(c => c === stem)) report.fail('command-file-name', rel, null, 'a file in claude/commands that is not a pact command; the gate lists them');
         else commands.push({ file: rel, stem, dest: `commands/${seg[2]}` });
       } else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       continue;
@@ -792,7 +796,7 @@ function checkAgent(a, parsed, allow, report) {
 /**
  * A pact command file (#203, S3): the two frontmatter keys, read by the
  * agents' strict reader, and a body that runs nothing when it loads and
- * includes no file. Checks the whole file, its frontmatter included.
+ * includes no file or argument. Checks the whole file, its frontmatter included.
  */
 function checkCommand(root, c, report) {
   const text = scanText(readFileSync(join(root, ...c.file.split('/'))), c.file, report);
@@ -809,10 +813,10 @@ function checkCommand(root, c, report) {
     if (!inv || inv.kind !== 'true') report.fail('command-invocation', c.file, inv ? inv.line : null, 'disable-model-invocation must be set to true, unquoted');
   }
   text.split('\n').forEach((line, i) => {
-    const fence = FENCE_LINE_RE.exec(line);
     if (line.includes(INLINE_SHELL)) report.fail('command-shell', c.file, i + 1, 'an exclamation mark before a backtick, which runs a shell command when the command loads');
-    else if (fence && fence[1].includes('!')) report.fail('command-shell', c.file, i + 1, 'a fence line with an exclamation mark after its fence characters, which runs a shell block when the command loads');
+    else if (FENCE_SHELL_RE.test(line)) report.fail('command-shell', c.file, i + 1, 'three backticks or tildes with an exclamation mark after them, which open a shell block when the command loads');
     if (AT_IMPORT_RE.test(line)) report.fail('command-include', c.file, i + 1, 'an @ followed by text, which Claude Code may read as a file include');
+    if (ARGUMENT_RE.test(line)) report.fail('command-argument', c.file, i + 1, 'an argument placeholder, which splices typed text into the command; a pact command takes no argument');
   });
 }
 

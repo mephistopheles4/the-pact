@@ -628,7 +628,8 @@ export function checkNewPaths(repoFiles, record, live) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
     if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST)) || listed.has(rel)) continue;
-    if (live(rel).exists) refuse('command-unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. Move it, or take its name out of the commands list.`);
+    const remedy = rel.startsWith(KIT_DEST) ? 'take scriptorium, which installs the builder kit, out of the commands list' : 'take its name out of the commands list';
+    if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. Move it, or ${remedy}.`);
   }
 }
 
@@ -640,7 +641,8 @@ export function commandsBlock(commands, stagedRels) {
     const here = staged.has(`claude/commands/${name}.md`);
     out.push(`  /${name}: ${commands.includes(name) ? 'on' : 'off'}${here ? '' : ' (not in this commit)'}`);
   }
-  out.push(`  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${PACT_COMMANDS[0]}"]`);
+  const example = PACT_COMMANDS.find(name => staged.has(`claude/commands/${name}.md`));
+  out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command is in this commit yet, so none can be turned on.');
   for (const name of commands) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
   return out;
 }

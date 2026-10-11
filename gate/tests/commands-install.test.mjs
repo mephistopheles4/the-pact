@@ -3,10 +3,10 @@
 // each repo plants claude/commands/finis.md. One case per new refusal, each
 // checking that a refused install changed nothing. Never touches ~/.claude.
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo, passed, refused, wrapCheck } from './install-harness.mjs';
+import { WIN, home, install, listTree, makeRepo, passed, refused, wrapCheck } from './install-harness.mjs';
 
 const FINIS = ['---', 'description: Wrap this session up.', 'disable-model-invocation: true', '---', '', 'Wrap the session up, step by step.', ''].join('\n');
 
@@ -50,7 +50,7 @@ test('a listed command installs to commands/<name>.md, and dropping it from the 
   const dry = install(repo, h);
   passed(dry);
   assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off \(not in this commit\)\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: off \(not in this commit\)\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}To turn one on, list its name in pact\/config\.json, for example: "commands": \["make-it-so"\]\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}To turn one on, list its name in pact\/config\.json, for example: "commands": \["finis"\]\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact command \/finis; it installs to commands\/finis\.md\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}commands\/finis\.md\r?$/m, dry.out);
   passed(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] }));
@@ -98,6 +98,28 @@ test('bad case: a same-named skill folder refuses, in the dry run and on --apply
   refused(dry, /^REFUSED: skills\/finis exists in the Claude home folder, and Claude Code would run that skill in place of the pact command \/finis\./m);
   assert.ok(!dry.stdout.split('\n').find(l => l.startsWith('REFUSED: ')).includes(h), 'the refusal names no full path');
   refusedUnchanged(repo, h, /^REFUSED: skills\/finis exists/m);
+});
+
+test('bad case: a same-named skill that is a plain file refuses', t => {
+  const repo = repoWithFinis(t);
+  const h = homeWith(t, ['finis']);
+  mkdirSync(join(h, 'skills'));
+  writeFileSync(join(h, 'skills', 'finis'), 'mine\n');
+  refusedUnchanged(repo, h, /^REFUSED: skills\/finis exists in the Claude home folder/m);
+});
+
+test('bad case: a same-named skill that is a dangling link refuses, read without following it', t => {
+  const repo = repoWithFinis(t);
+  const h = homeWith(t, ['finis']);
+  mkdirSync(join(h, 'skills'));
+  // A junction on Windows needs no privilege; elsewhere a directory symlink, both to a folder that does not exist.
+  try {
+    symlinkSync(join(h, 'gone'), join(h, 'skills', 'finis'), WIN ? 'junction' : 'dir');
+  } catch (e) {
+    if (e.code === 'EPERM' || e.code === 'EACCES') return t.skip('this account may not make a link here');
+    throw e;
+  }
+  refusedUnchanged(repo, h, /^REFUSED: skills\/finis exists in the Claude home folder/m);
 });
 
 // ------------------------------------------------------------ refusals of the list (S7, S8)
