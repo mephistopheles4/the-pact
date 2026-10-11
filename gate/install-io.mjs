@@ -92,6 +92,20 @@ export function liveState(p) {
   return { exists: true, file: true, sha256: fileSha256(p) };
 }
 
+/**
+ * Whether anything is at `p`, a file, a folder or a link, read without
+ * following a link (#203, the skill-clash check). An error other than "does
+ * not exist" counts as present, so a path it can't read is never passed over.
+ */
+export function present(p) {
+  try {
+    lstatSync(p);
+    return true;
+  } catch (e) {
+    return !(e && e.code === 'ENOENT');
+  }
+}
+
 /** A folder's entries as the output checks read them: name, plain file or not, link or not, size. */
 export function folderEntries(dir) {
   return readdirSync(dir).map(name => {

@@ -457,11 +457,13 @@ safe, and a change made months ago is easy to forget.
 **What the pact does.**
 
 - **The configuration file is narrow.** `~/.claude/pact/config.json` can set
-  three kinds of thing. The usage pause is the weekly-usage level above which
+  four kinds of thing. The usage pause is the weekly-usage level above which
   sessions wait for you before expensive work. The open parts of the moves
   are slots in the pact's four steps where you bind your own skills; there
-  are four. And each lens's model and effort can be set, except `scout`'s. No
-  configuration can change a gated clause's text; the install refuses.
+  are four. Each lens's model and effort can be set, except `scout`'s. And a
+  `commands` list turns on pact commands, by name from a fixed list in the
+  gate, which the install then copies into `commands/`. No configuration can
+  change a gated clause's text; the install refuses.
 - **The install says what changed.** The dry run prints a warning for each
   value set and each part edited. The installed rules file names the
   configuration in effect.

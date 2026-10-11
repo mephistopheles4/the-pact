@@ -240,10 +240,10 @@ for (const c of table('check verdict', {
 const U = H('7');
 const digestOf = text => sha256(Buffer.from(text, 'ascii')).slice(0, 12);
 const D = digestOf(`user ${U}\nblock a.md ${H('e')}\n`);
-const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG user ${U}`, `EDIT move-2 replace ${H('e')} a.md`, `DIGEST ${D}`, 'VALUE usage-pause 90', `AGENT data-lens sonnet high ${H('f')} security-set override local`, 'RESULT: pass'].join('\n') });
+const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG user ${U}`, `EDIT move-2 replace ${H('e')} a.md`, `DIGEST ${D}`, 'VALUE usage-pause 90', `AGENT data-lens sonnet high ${H('f')} security-set override local`, 'COMMANDS finis', 'RESULT: pass'].join('\n') });
 const renderRun = (project = false) => t => decided(() => core.parseRenderLines(t.in.split('\n'), { project, hash: sha256 }));
-const noConfig = t => ({ in: t.in.replace(`CONFIG user ${U}`, 'CONFIG none') });
-const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG none', 'RESULT: pass'].join('\n') });
+const noConfig = t => ({ in: t.in.replace(`CONFIG user ${U}`, 'CONFIG none').replace('COMMANDS finis', 'COMMANDS none') });
+const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG none', 'COMMANDS none', 'RESULT: pass'].join('\n') });
 for (const c of table('renderer lines', {
   module: 'gate/install-core.mjs',
   base: renderBase,
@@ -276,6 +276,13 @@ for (const c of table('renderer lines', {
     { id: 'agent-not-configurable', plant: rep('AGENT data-lens', 'AGENT scout'), fails: ['render-unknown-line'], why: 'an agent the configuration cannot set' },
     { id: 'agent-in-capitals', plant: rep('AGENT data-lens', 'AGENT Data-lens'), fails: ['render-unknown-line'], why: 'names are matched case-sensitively' },
     { id: 'digest-with-no-config', plant: t => noConfig(t), fails: ['render-none-extras'], why: 'a digest, value, edit or agent with no configuration' },
+    { id: 'no-commands-line', plant: rep('COMMANDS finis\n', ''), fails: ['render-commands-missing'], why: 'the renderer must say which commands are on (#203)' },
+    { id: 'two-commands-lines', plant: rep('COMMANDS finis', 'COMMANDS finis\nCOMMANDS none'), fails: ['render-commands-twice'], why: 'exactly one commands line' },
+    { id: 'commands-unknown-name', plant: rep('COMMANDS finis', 'COMMANDS ship-it'), fails: ['render-unknown-line'], why: 'a name that is not a pact command' },
+    { id: 'commands-repeat', plant: rep('COMMANDS finis', 'COMMANDS finis,finis'), fails: ['render-unknown-line'], why: 'one name twice' },
+    { id: 'commands-out-of-order', plant: rep('COMMANDS finis', 'COMMANDS finis,make-it-so'), fails: ['render-unknown-line'], why: 'names in PACT_COMMANDS order only' },
+    { id: 'commands-none-and-name', plant: rep('COMMANDS finis', 'COMMANDS none,finis'), fails: ['render-unknown-line'], why: 'none stands alone' },
+    { id: 'commands-spaced', plant: rep('COMMANDS finis', 'COMMANDS make-it-so, finis'), fails: ['render-unknown-line'], why: 'commas alone between names' },
   ],
 })) test(c.name, c.fn);
 
@@ -290,6 +297,8 @@ for (const c of table('renderer lines with no configuration', {
     { id: 'agent', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-none-extras'], why: 'an agent setting with no configuration' },
     { id: 'no-config-line', plant: rep('CONFIG none\n', ''), fails: ['render-counts'], why: 'no configuration line at all' },
     { id: 'two-none-lines', plant: rep('CONFIG none', 'CONFIG none\nCONFIG none'), fails: ['render-counts'], why: 'two configuration lines, both none' },
+    { id: 'command-on', plant: rep('COMMANDS none', 'COMMANDS finis'), fails: ['render-none-extras'], says: /a pact command with no configuration/, why: 'a named list with CONFIG none (#203)' },
+    { id: 'no-commands-line', plant: rep('COMMANDS none\n', ''), fails: ['render-commands-missing'], why: 'COMMANDS none is still printed' },
   ],
 })) test(c.name, c.fn);
 
@@ -307,6 +316,9 @@ test('the renderer lines: the parse gives the hashes, the configuration, the edi
   assert.deepEqual([...p.blockHashes], [['a.md', H('e')]]);
   assert.deepEqual(p.agentSets.get('data-lens'), { model: 'sonnet', effort: 'high', sha256: H('f'), security: true, override: true, egress: false });
   assert.deepEqual([...core.configNow(p)], [['user', U], ['block a.md', H('e')]]);
+  assert.deepEqual(p.commands, ['finis']);
+  assert.deepEqual(core.parseRenderLines(noneBase().in.split('\n'), { project: false, hash: sha256 }).commands, []);
+  assert.deepEqual(core.parseRenderLines(renderBase().in.replace('COMMANDS finis', 'COMMANDS make-it-so,finis,scriptorium').split('\n'), { project: false, hash: sha256 }).commands, ['make-it-so', 'finis', 'scriptorium']);
 });
 
 // ------------------------------------------------------------ the project install (J1 to J4)
@@ -465,8 +477,38 @@ for (const c of table('copy set', {
     { id: 'other-destination', plant: rep('pact/cross.mjs', 'agents/cross.mjs'), fails: ['copy-set-mismatch'], why: 'the cross script sent to another live path' },
     { id: 'other-hash', plant: rep(`INSTALL ${H('1')}`, `INSTALL ${H('0')}`), fails: ['copy-set-mismatch'], why: 'bytes other than the staged ones' },
     { id: 'case-differs', plant: rep('claude/agents/a.md agents/a.md', 'claude/agents/A.md agents/a.md'), fails: ['copy-set-mismatch'], why: 'matched case-sensitively, as seam A matches' },
+    { id: 'gate-file', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/builder/gate/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'a gate file installs only as a builder kit entry (#203)' },
+    { id: 'gate-file-elsewhere', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'nor anywhere else' },
   ],
 })) test(c.name, c.fn);
+
+// The copy set with pact commands (#203, S8): pairs, each side working out its own.
+const cmdStaged = new Map([...staged, ['claude/commands/finis.md', H('9')], ['claude/commands/make-it-so.md', H('b')]]);
+const cmdCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\nRESULT`), list: 'finis' });
+for (const c of table('copy set with commands', {
+  module: 'gate/install-core.mjs',
+  base: cmdCopyBase,
+  run: t => {
+    const st = t.extra ? new Map([...cmdStaged, [`claude/commands/${t.extra}.md`, H('c')]]) : cmdStaged;
+    return decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(st.keys(), t.list ? t.list.split(',') : []), st, ID('a')));
+  },
+  rows: [
+    { id: 'listed-command-left-off', plant: rep(`INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a command the list names' },
+    { id: 'unlisted-command-added', plant: rep('RESULT', `INSTALL ${H('b')} claude/commands/make-it-so.md commands/make-it-so.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'the two sides read different lists' },
+    { id: 'install-side-list-differs', plant: t => ({ ...t, list: 'finis,make-it-so' }), fails: ['copy-set-mismatch'], why: 'the install side names a command seam A did not list' },
+    { id: 'extra-pair', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/extra.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'one source to a second live path no rule gives' },
+    { id: 'pair-twice', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\nRESULT`), fails: ['copy-set-twice'], why: 'a pair listed twice' },
+    { id: 'unknown-file-as-null', plant: t => ({ ...t, in: t.in.replace('RESULT', `INSTALL ${H('c')} claude/commands/ship-it.md null\nRESULT`), extra: 'ship-it' }), fails: ['copy-set-mismatch'], why: 'a file of no known kind never matches, even a line naming null' },
+    { id: 'other-command-path', plant: rep('commands/finis.md\n', 'agents/finis.md\n'), fails: ['copy-set-mismatch'], why: 'a command goes to commands/<name>.md' },
+  ],
+})) test(c.name, c.fn);
+
+test('the copy set with commands: a listed command pairs, an unlisted pact command is left out, an unknown one pairs with null', () => {
+  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/commands/finis.md', 'claude/commands/make-it-so.md', 'claude/commands/ship-it.md', 'claude/commands/sub/finis.md', 'gate/a.mjs'], ['finis']);
+  assert.deepEqual(e, [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/commands/finis.md', 'commands/finis.md'], ['claude/commands/ship-it.md', null], ['claude/commands/sub/finis.md', null]]);
+  assert.deepEqual(core.expectedCopySet(['claude/commands/finis.md']), [], 'no list installs no command');
+  assert.deepEqual([...core.BUILDER_KIT], [], 'no kit ships before T3');
+});
 
 test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install', () => {
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md', 'cross/cross.mjs']);
@@ -510,7 +552,7 @@ for (const c of table('install destinations', {
 
 test('skip reasons: unsafe, protected, non-canonical and linked paths, as the PowerShell installer read them', () => {
   for (const p of ['', '../x', 'a/../b', '/x', '\\x', 'C:x', null, 5]) assert.equal(core.skipReason(p, noLink), 'unsafe path', String(p));
-  for (const p of ['settings.json', 'SETTINGS.JSON', '.pact-install.json', 'pact/config.json', 'pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', 'pact/blocks/b.md']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+  for (const p of ['settings.json', 'SETTINGS.JSON', '.pact-install.json', 'pact/config.json', 'pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', 'pact/blocks/b.md', 'pact/builder.json', 'Pact/Builder.json. ']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
   for (const p of ['agents/a b.md', 'agents/.x', 'agents/a.', 'a\\b']) assert.equal(core.skipReason(p, noLink), 'non-canonical path', p);
   assert.equal(core.skipReason('agents/a.md', () => true), 'path through a link');
   assert.equal(core.skipReason('agents/a.md', noLink), null);
@@ -529,6 +571,66 @@ test('the plan: drift, overwrite, add, delete and unchanged; a record hash in ca
   assert.deepEqual(p.warnings, ['protected path in the install record, skipped: settings.json']);
   assert.equal(p.same, 1);
   assert.deepEqual(core.plan(null, repoFiles, live, noLink).delete, ['agents/builder.md']);
+});
+
+test('the plan: a record holding command and kit entries, under a payload without them, deletes them (#203, the rollback row)', () => {
+  const liveFiles = new Map([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')], ['pact/builder/builder/build.mjs', H('3')], ['commands/mine.md', H('4')]]);
+  const live = rel => (liveFiles.has(rel) ? { exists: true, file: true, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'commands/finis.md', sha256: H('2') }, { path: 'pact/builder/builder/build.mjs', sha256: H('3') }] }));
+  const p = core.plan(record, new Map([['CLAUDE.md', H('1')]]), live, noLink);
+  assert.deepEqual(p.delete, ['commands/finis.md', 'pact/builder/builder/build.mjs']);
+  assert.deepEqual(p.drift, []);
+  assert.ok(!p.delete.includes('commands/mine.md'), "the owner's own command is never deleted");
+});
+
+// ------------------------------------------------------------ pact commands against the live home folder (#203, S8)
+
+for (const c of table('skill clash', {
+  module: 'gate/install-core.mjs',
+  base: () => ({ in: json(['make-it-so', 'finis']), present: json(['skills/other', 'skills/finis-old', 'commands/finis.md']) }),
+  run: t => decided(() => core.checkSkillClash(JSON.parse(t.in), rel => JSON.parse(t.present).includes(rel))),
+  rows: [
+    { id: 'same-named-skill', plant: t => ({ ...t, present: json(['skills/finis']) }), fails: ['command-skill-clash'], says: /^REFUSED: skills\/finis exists in the Claude home folder, and Claude Code would run that skill in place of the pact command \/finis\./, why: 'a skill of the same name runs in place of the command' },
+    { id: 'first-name-clashes', plant: t => ({ ...t, present: json(['skills/make-it-so']) }), fails: ['command-skill-clash'], why: 'each listed name is checked' },
+  ],
+})) test(c.name, c.fn);
+
+test('skill clash: only listed names are checked, and only by the path the check names', () => {
+  const asked = [];
+  core.checkSkillClash(['finis'], rel => (asked.push(rel), false));
+  assert.deepEqual(asked, ['skills/finis']);
+  assert.doesNotThrow(() => core.checkSkillClash([], () => true), 'no list, no check');
+});
+
+for (const c of table('new command paths', {
+  module: 'gate/install-core.mjs',
+  base: () => ({ files: json([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')]]), record: json({ commit: 'x', files: [{ path: 'commands/finis.md', sha256: H('2') }] }), live: json(['CLAUDE.md', 'commands/finis.md']) }),
+  run: t => decided(() => core.checkNewPaths(new Map(JSON.parse(t.files)), t.record === 'null' ? null : core.parseRecord(t.record), rel => ({ exists: JSON.parse(t.live).includes(rel) }))),
+  rows: [
+    { id: 'unlisted-live-file', plant: t => ({ ...t, record: json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }] }) }), fails: ['unlisted-live'], says: /^REFUSED: commands\/finis\.md already exists in the Claude home folder, and the install record does not list it/, why: "the owner's own command is never overwritten" },
+    { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
+    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* take scriptorium, which installs the builder kit, out of the commands list\./, why: 'the same rule is ready for the kit, with its own remedy' },
+  ],
+})) test(c.name, c.fn);
+
+test('new command paths: agents keep their first-install behaviour, and a path not live passes', () => {
+  assert.doesNotThrow(() => core.checkNewPaths(new Map([['agents/a.md', H('1')]]), null, () => ({ exists: true })));
+  assert.doesNotThrow(() => core.checkNewPaths(new Map([['commands/finis.md', H('1')]]), null, () => ({ exists: false })));
+});
+
+test('the commands block lists every pact command, on or off, says which this commit lacks, and how to turn one on', () => {
+  const b = core.commandsBlock(['finis'], ['claude/CLAUDE.md', 'claude/commands/finis.md']);
+  assert.deepEqual(b, [
+    'Commands:',
+    '  /make-it-so: off (not in this commit)',
+    '  /finis: on',
+    '  /scriptorium: off (not in this commit)',
+    '  To turn one on, list its name in pact/config.json, for example: "commands": ["finis"]',
+    '  WARN: the user configuration turns on the pact command /finis; it installs to commands/finis.md.',
+  ]);
+  assert.equal(core.commandsBlock([], []).filter(l => l.startsWith('  WARN')).length, 0);
+  assert.equal(core.commandsBlock([], ['claude/CLAUDE.md']).at(-1), '  No pact command is in this commit yet, so none can be turned on.', 'never an example the commit lacks');
+  assert.match(core.commandsBlock([], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']).at(-1), /for example: "commands": \["finis"\]$/, 'the first staged command, in PACT_COMMANDS order');
 });
 
 // ------------------------------------------------------------ settings JSON and the merge (S8, L4 to L9)

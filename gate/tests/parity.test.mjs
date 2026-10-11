@@ -39,7 +39,7 @@ function seamStage(root, files = {}) {
     ...files,
   });
   renderStage(root);
-  return [root];
+  return [root, '--commands', 'none'];
 }
 
 const reviewInputs = root => {
