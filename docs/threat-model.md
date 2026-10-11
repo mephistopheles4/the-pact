@@ -433,8 +433,8 @@ session can act before you see it.
     session. Nothing replaces that sentence. For the last of them, starting
     or stopping a session, nothing in the pact bounds a lead at all.
   - **A start prompt can reach a rollback.** No ask rule guards an
-    installer from before the Node install's cutover (R22), and the install's go-ahead clause
-    doesn't say a start prompt isn't chat. So a lead's start prompt could
+    installer from before the Node install's cutover (R22), and the
+    install's go-ahead clause doesn't say a start prompt isn't chat. So a lead's start prompt could
     have a session install a pact older than the tracker rule, after which
     other accounts' tracker text counts in every later session. The next
     Node dry run shows it, but only afterwards.
