@@ -26,4 +26,6 @@ The owner, from chat on #186: the more rules there are, the more friction they c
 - Its reviews and dispositions: the security pair on rev 2 (6109152268, 6109154395) and rev 4 (6109356685, 6109378494); the spec pair and `unstated-lens` on rev 3 (6109207595, 6109208596, 6109222334).
 - The owner's decisions on #186: 6104666592, 6108942180, 6109285401, 6109423226; the contract moved to #233 (#233's body).
 - The build ticket and its questions: #232, q1 (6109605165) and q2 (6109634854, answered in 6109818737).
-- Move 4's reports and Lens dispositions: on #232, listed in the PR.
+- Move 4's reports, as crossed sections on #232: the standards pair (6109879637), `unstated-lens` (6109899396), the security pair (6109931306) and the QA pair (6110118454).
+- Move 4's Lens dispositions on #232: 6109950342 and 6110132814.
+- The PR: #237.
