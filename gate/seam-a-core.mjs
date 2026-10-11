@@ -9,10 +9,12 @@
 //
 //   node seam-a.mjs <stage root> --commands <none | name,name,...>
 //
-// The stage root holds claude/, familiars/, cross/cross.mjs and AGENTS.md as
-// the commit has them. Seam A decides what each file is, checks every agent
-// the install would copy, every pact command file, the cross script's
-// characters and the pact's own text (pact-text.mjs), and prints the exact
+// The stage root holds claude/, familiars/, gate/, cross/cross.mjs, AGENTS.md
+// and the builder kit's other files as the commit has them, and the install's
+// unrendered copy of the rules file, claude/rules.source.md. Seam A decides
+// what each file is, checks every agent the install would copy, every pact
+// command file, every builder kit file, the cross script's characters and
+// the pact's own text (pact-text.mjs), and prints the exact
 // copy set as INSTALL lines, one per (staged path, live path) pair. The
 // install copies those files and nothing else, and refuses unless its own
 // reading of the stage agrees.
@@ -21,6 +23,7 @@
 // renderer's COMMANDS line gives them (#203). It is required, exactly once;
 // an unknown name, a repeat, and a name with no file in the stage refuse.
 // Every command file is checked, and only a named one is listed for install.
+// The builder kit is listed, under pact/builder/, only when scriptorium is.
 // It also holds the settings overlay to gate/settings-allowlist.json, and
 // prints its hash as one SETTINGS line, which the install's merge must match.
 //
