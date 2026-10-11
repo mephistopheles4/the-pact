@@ -811,7 +811,7 @@ function union(x, y) {
   return [...set].sort();
 }
 
-/** The live ask list's entries that are retired pact rules, as rule strings, in list order. */
+/** The live ask list's entries that are retired pact rules, as rule strings, sorted, once each. */
 function retiredIn(live) {
   const lp = live.get('permissions');
   if (!isMap(lp) || !lp.has('ask')) return [];

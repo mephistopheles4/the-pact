@@ -1,5 +1,5 @@
 // The poster's documented command lines (#253, T1 of #246). Its ask-rule
-// tests left with the ask rules (#265).
+// tests left with the ask rules, and the file its old name (#265).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { EXAMPLES, SURFACES, parseArgs } from '../../cross/poster.mjs';

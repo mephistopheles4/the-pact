@@ -124,8 +124,8 @@ parts:
     `~/.claude.json`, and in auto mode its classifier weighs the rest. The
     dry run's `- permissions.ask:` lines name each rule it removes, matched
     exactly, and a `NOTE:` line counts them. A rule of your own that only
-    looks like one stays. If you want one back, add it again by hand from that
-    list. The install's apply, a `gh` command on rulesets or branch
+    looks like one stays. Every install removes these exact strings again, so
+    a rule you want back must differ from the listed text. The install's apply, a `gh` command on rulesets or branch
     protection, and a dry run that writes to a review folder no longer prompt
     you (ADR 0063);
   - keeps sessions going when a usage limit is reached
@@ -177,10 +177,8 @@ A dry run no longer asks first, and it runs `gate/install.mjs` as it stands
 in your working folder, uncommitted edits included. So on a branch that
 changes the installer, run it with `--claude-home` pointing at a throwaway
 folder: a bug in the code under edit then stays away from your real Claude
-home, though hostile code could still ignore the option. Write the folder's
-path out in full: a dry run with a variable, a bracket, a backtick or the
-other characters ADR 0049 lists after the script's name asks, as an apply
-does.
+home, though hostile code could still ignore the option. Nothing prompts
+before a dry run or an apply (ADR 0063).
 
 The last lines print the apply command to run next.
 
@@ -230,16 +228,19 @@ it, delete it, and run the dry run again.
 
 Run the dry run again if you like. It should print `Nothing to do.`
 
-**Removing rules an older pact added.** The install takes out every ask rule
-a Node-install pact added, and the four broad rules ADR 0049 retired, by
-itself. One set it can't find by exact text: the rules of the PowerShell
+**Removing rules an older pact added.** The install takes out, by itself, the
+56 ask rules it holds as retired (ADR 0063): the 52 the pact set until #265,
+and the four broad rules ADR 0049 retired. Some pacts from before #217 also
+added rules it doesn't know: two review rules,
+`PowerShell(*install.mjs*--rev*)` and `Bash(*nstall.mjs*--rev*)`, and the rules that guarded the PowerShell
 installer the pact used before the Node install. Do this after the install
 above. Open `~/.claude/settings.json` in an editor yourself, and delete from
-`permissions.ask` every line that holds the search text in ADR 0052's bullet
-"The owner's live settings are cleaned by hand". Search for that text rather
-than copying lines: some of these rules hold dash characters that look like
-hyphens on screen. This guide doesn't spell the text out, so that a search of
-the live docs for that installer's file name stays empty.
+`permissions.ask` the two review rules, and every line that holds the search
+text in ADR 0052's bullet "The owner's live settings are cleaned by hand".
+Search for that text rather than copying lines: some of these rules hold dash
+characters that look like hyphens on screen. This guide doesn't spell the
+text out, so that a search of the live docs for that installer's file name
+stays empty.
 
 If a deleted line was the last in the list, also delete the comma now left
 before `]`.
@@ -250,8 +251,8 @@ first, delete the copy yourself once the install works: it holds the same
 keys, and keeps them after you change one. Then check two things yourself, not
 through a session:
 
-1. **None left:** your editor's search for ADR 0052's search text finds no
-   match.
+1. **None left:** your editor's search for `--rev*` and for ADR 0052's
+   search text finds no match.
 2. **Nothing else broken:** run the dry run again. It must show no
    `NOTE: settings.json holds …` line about retired ask rules, no
    `WARN: settings.json is not a strict JSON object …` line, and
@@ -269,8 +270,8 @@ only your installed files, and run `/agents`. A pass lists these ten:
 ## Install by prompt
 
 You can hand the first install to a Claude Code session with this prompt. It
-names the one address to clone from, and leaves the apply to you, because on
-an install is your call and nothing prompts before it. Do step 3's
+names the one address to clone from, and leaves the apply to you, because an
+install is your call and nothing prompts before it. Do step 3's
 backup first. The prompt installs the rules as published, without step 2's
 edits:
 
@@ -334,7 +335,8 @@ commands the record lists, as it does any file its own payload lacks.
 Every Node install reads and writes the same install record, so an older one
 can follow a newer one. An older commit's install also adds back to your
 `settings.json` any ask rules it held. When you return to the newer pact, its
-install takes them out again.
+install takes out the 56 it knows. After returning from a commit before #217,
+also repeat the removal by hand in step 5.
 
 ## Known limits
 

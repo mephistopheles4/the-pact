@@ -115,7 +115,8 @@ test('bad case: an -Apply whose written settings lack the guard reports a mismat
   writeLive(h, { theme: 'dark' });
   const r = install(repo, h, { apply: true });
   assert.notEqual(r.code, 0, r.out);
-  assert.match(r.stdout, /^MISMATCH settings\.json/m, r.out);
+  // #265 C6
+  assert.match(r.stdout, /^MISMATCH settings\.json \(auto mode is off or a retired ask rule remains\)$/m, r.out);
 });
 
 test('the dry run no longer says the overlay is unchecked', t => {
