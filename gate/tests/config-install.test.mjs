@@ -102,9 +102,9 @@ test('bad case: an unreadable configuration file refuses, and -Apply writes noth
 /** The rules file a configuration with usage-pause `value` should install, built here from the repo's source. */
 function expectedRules(repo, bytes, value) {
   let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8');
-  const usage = 'the weekly limit is above 75%, wait for my go-ahead.';
+  const usage = 'When it is above 75%, wait for my';
   assert.equal(s.split(usage).length, 2);
-  s = s.replace(usage, `the weekly limit is above ${value}%, wait for my go-ahead.`);
+  s = s.replace(usage, `When it is above ${value}%, wait for my`);
   const slot = '<!-- pact:begin config-notice -->\n';
   assert.equal(s.split(slot).length, 2);
   s = s.replace(
@@ -153,7 +153,7 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
   const text = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
-  assert.ok(text.includes('the weekly limit is above 90%') && !text.includes('above 75%'));
+  assert.ok(text.includes('When it is above 90%') && !text.includes('above 75%'));
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.equal(manifest.digest, digestOf(EXAMPLE));
   assert.deepEqual(manifest.config, [{ kind: 'user', sha256: sha256(EXAMPLE) }]);

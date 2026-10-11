@@ -1,33 +1,33 @@
-// FIG. 03: the review lenses. Each pair with when it runs and each lens's
+// FIG. 03: the review lenses. Each pair with where it fits and each lens's
 // question, unstated-lens alone, and the path a report takes to your
-// decision. Words from claude/CLAUDE.md and each lens's description in
-// claude/agents/.
+// decision. Words from claude/CLAUDE.md's Lenses section and each lens's
+// description in claude/agents/.
 import { LEFT, PAD, RIGHT, block, label, notched, sheet } from './draw.mjs';
 
 const PAIRS = [
   {
-    text: 'Spec pair · move 2, thorough',
+    text: 'Spec lenses · a spec, before a build',
     lenses: [
       ['executability-lens', ['Would the spec, built as', 'written, run end to end?']],
       ['good-enough-lens', ['What could be cut or', 'deferred, and what would', 'it save?']],
     ],
   },
   {
-    text: 'QA pair · every build',
+    text: 'QA pair · every result, by default',
     lenses: [
       ['behaviour-lens', ['Runs the change. Does it', 'do what was asked?']],
       ['integrity-lens', ['Can the tests behind the', 'pass actually fail?']],
     ],
   },
   {
-    text: 'Standards pair · move 4, standard and thorough',
+    text: 'Standards lenses · diffs that call for them',
     lenses: [
       ['conventions-lens', ['Does the diff keep the', "repo's written rules?"]],
       ['reader-lens', ['Can the next reader act', 'on what it says?']],
     ],
   },
   {
-    text: 'Security pair · security route',
+    text: 'Security pair · sensitive work, by default',
     stroke: 'ink',
     sw: 2,
     lenses: [
@@ -36,7 +36,7 @@ const PAIRS = [
     ],
   },
 ];
-const ALONE = { text: 'Alone · moves 2 and 4, standard and thorough', name: 'unstated-lens', question: 'What need did nobody write down?' };
+const ALONE = { text: 'Alone · specs and results above quick', name: 'unstated-lens', question: 'What need did nobody write down?' };
 
 const FLOW_W = 184;
 const LEFT_W = RIGHT - LEFT - FLOW_W - 28;

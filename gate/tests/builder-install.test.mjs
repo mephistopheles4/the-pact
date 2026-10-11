@@ -79,7 +79,7 @@ test('a configuration the page saves with a value and every preset installs thro
   for (const p of L.PACT.presets) assert.equal(L.addPreset(s, p.mark, p.id), null);
   const { rules, files } = installSaved(t, s);
   assert.deepEqual(files.map(f => f.path), ['config.json', 'blocks/move-1.md', 'blocks/move-2.md', 'blocks/move-3.md', 'blocks/move-4-extra.md']);
-  assert.match(rules, /the weekly limit is above 90%/);
+  assert.match(rules, /When it is above 90%/);
   for (const p of L.PACT.presets) for (const line of p.text.split('\n')) assert.ok(rules.includes(`   ${line}\n`), `${p.id}: ${line}`);
   assert.match(rules, /Values set: usage-pause 90\. Parts edited: move-1 \(add-after\), move-2 \(add-after\), move-3 \(add-after\), move-4-extra \(add-after\)\./);
 });
@@ -94,7 +94,7 @@ test('a configuration the page saves with your own text and a removal installs t
   const { rules, h } = installSaved(t, s);
   assert.match(rules, /^ {3}Before the spec, ask me which open question I want answered first\.$/m);
   assert.match(rules, /^ {3}Say which tests you ran\.\n {3}After the checks, list each public interface/m);
-  assert.match(rules, /^ {3}Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue\.$/m);
+  assert.match(rules, /^ {2}Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue\.$/m);
   // move-1 was removed: its default text is gone. Control: the default render carries it.
   assert.doesNotMatch(rules, /I triage it: what kind of work it is/);
   assert.match(readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8'), /I triage it: what kind of work it is/);

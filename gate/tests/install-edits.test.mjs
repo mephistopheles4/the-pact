@@ -50,7 +50,7 @@ function digestOf({ config, blocks }) {
 /** The rules file the three edits should install. */
 function expectedRules(repo, c) {
   const lines = b => b.toString('utf8').slice(0, -1).split('\n');
-  let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8').replace('the weekly limit is above 75%,', 'the weekly limit is above 90%,');
+  let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8').replace('When it is above 75%,', 'When it is above 90%,');
   s = editPart(s, 'move-2', (now, indent) => lines(c.blocks['m2.md']).map(l => `${indent}${l}`));
   s = editPart(s, 'move-1', () => []);
   s = editPart(s, 'move-4-extra', (now, indent) => [...now, ...lines(c.blocks['team/extra.md']).map(l => `${indent}${l}`)]);
@@ -346,7 +346,7 @@ test('bad case: a stray full path after the named options refuses, and is never 
 
 // ------------------------------------------------------------ after the move-4 review (#94)
 
-test('a block naming the user\'s own agent installs: the shipped example passes the roster and routing checks', t => {
+test('a block naming the user\'s own agent installs: the shipped example passes seam A', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const block = readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'move-4-own-agent.md'));
@@ -356,7 +356,7 @@ test('a block naming the user\'s own agent installs: the shipped example passes 
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
-  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^ {3}Then run `my-reviewer`, an agent of your own/m);
+  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^ {2}Then run `my-reviewer`, an agent of your own/m);
   assert.ok(!existsSync(join(h, 'agents', 'my-reviewer.md')), 'the installer installs no agent from a configuration');
 });
 

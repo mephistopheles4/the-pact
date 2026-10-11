@@ -1,6 +1,7 @@
 # Install the pact
 
-This how-to installs the pact's rules file, agents and cross script into your
+This how-to installs the pact's rules file, review procedure, agents and cross
+script into your
 Claude Code home folder (`~/.claude`), and merges its settings into yours. It
 takes about five minutes.
 
@@ -25,10 +26,10 @@ install, because the install copies the rules as your clone's last commit
 holds them:
 
 - **They treat your issue tracker as the record.** A session reads tiers,
-  approvals and decisions there. The pact's `tracker-authors` rule (#160)
-  makes only your own account's text count. Check that your copy of
-  `claude/CLAUDE.md` holds it before you use the rules on a tracker where
-  others can comment; without it, keep that tracker private.
+  approvals and decisions there. Since #261 the pact carries no rule on whose
+  text counts there: it leaves that to judgment. Before you use the rules on
+  a tracker where others can comment, keep that tracker private, or write
+  your own rule into the repo's `AGENTS.md`, as this repo does.
 - **They post every review report on the tracker, word for word,** security
   findings included. So choose: keep the tracker private, or accept that those
   findings are public until they are fixed.
@@ -213,6 +214,9 @@ It installs these files under `~/.claude`:
 - `CLAUDE.md`, the rules;
 - `agents/`, ten agents: the nine lenses and `scout`;
 - `pact/cross.mjs`, the cross script;
+- `pact/review.md`, the review procedure the rules file points to before any
+  lens runs. If a `pact/review.md` the install record doesn't list is already
+  there, the install refuses and changes nothing: move your file out of the way;
 - `commands/<name>.md`, each pact command your `commands` list turns on.
   Taking a name out of the list deletes its file at the next install;
 - `settings.json`, merged as the dry run showed;
@@ -328,6 +332,11 @@ session run, an installer from it: nothing prompts before such an installer
 runs (the threat model's R22). From a commit that passes, check out exactly
 that id and run only `gate/install.mjs`, dry run first.
 
+**Rolling back to before the thin gate (#261).** Its parent commit's install
+deletes `pact/review.md`, which its payload lacks, and overwrites `CLAUDE.md`
+with the rules it held. Run its dry run first and check that it lists exactly
+those two.
+
 A pact from before the pact commands (#203) refuses a configuration with a
 `commands` key, so take the key out first. Its install then deletes the
 commands the record lists, as it does any file its own payload lacks.
@@ -357,7 +366,7 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    set `permissions.defaultMode` back to what you use, so you are not left
    in auto mode.
 2. **Delete the pact's files:** the ten agents listed in step 6 from
-   `agents/`, `pact/cross.mjs`, each pact command in `commands/` that the
+   `agents/`, `pact/cross.mjs`, `pact/review.md`, each pact command in `commands/` that the
    record lists, and `.pact-install.json`.
 3. **Put back your own agents** from your copy of the `agents/` folder.
 

@@ -3190,8 +3190,8 @@ spec or ticket, the request and the working folder.
 
 ## Crossing the reports
 
-**The cross script** is the installed one, `~/.claude/pact/cross.mjs`, never a
-copy in a repo. Call it by its full path, with `NODE_OPTIONS` cleared.
+**The cross script** is the installed one, never a copy in a repo. Call it by
+its full path, with `NODE_OPTIONS` cleared.
 - In PowerShell:
   `$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" ARGUMENTS`
 - In a POSIX shell:
@@ -3411,7 +3411,7 @@ check_hash 623fe899ab9f2a50799e3ee777e75029a20ec2a70459a9397dccfc0bddaa9e17 'age
 check_hash 0c076132eb156b317641144b984f7b05d324881ccb3f05633589cb366f754f40 'agents/scout.md'
 check_hash 21a0547777fe0ad06aaf4ccc7a2dfcc4eca4f4755bc04c0ef1fcd3d03c18381e 'agents/unstated-lens.md'
 check_hash ccd359c94c38ff91501092d9e4e6c429d8903cd093b4518ec2bb08d0447e7243 'pact/cross.mjs'
-check_hash 32818fbb2a36bd28f26a37d216704a6c134cdcd5cf2387e715300949158fe3fc 'pact/review.md'
+check_hash 07dd47333ed7b23157e2cca6d4b766a6e9fb79b5406f15ea01d9f12b3d09c0f8 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -3434,7 +3434,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 28c9b803c3c4"
+  echo "pact cloud copy 6da1417bda17"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
