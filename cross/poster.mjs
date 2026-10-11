@@ -304,13 +304,14 @@ const TOKEN_RES = [
   /AIza[0-9A-Za-z_-]{35}/g,
   /(?<![A-Z0-9])(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}(?![A-Z0-9])/g,
   /xox[abposr]-[A-Za-z0-9-]{10,}/g,
-  /eyJ[A-Za-z0-9_-]{5,}\.eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g,
+  /(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}\.eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g,
   /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/g,
   /(?:AccountKey|Password)=[^;\s'"`<>]+/gi,
 ];
-// The lookbehind starts a scheme only where one can start, so a long run of
-// text is tried once, not from every character in it.
-const USERINFO_RE = /(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s/@:]+:[^\s/@]+@/g;
+// A password in a URL's user part: after an optional scheme, two slashes and a
+// user name that may be empty. The lookbehind starts a scheme only where one
+// can start, so a long run of text is tried once, not from every character.
+const USERINFO_RE = /(?<![A-Za-z0-9+.-])(?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/[^\s/@:]*:[^\s/@]+@/g;
 const LOCAL_RES = [
   /(?<![A-Za-z])[A-Za-z]:[\\/]/g,
   /\\\\[A-Za-z0-9._$-]+\\/g,
@@ -324,9 +325,9 @@ const SESSION_RES = [
   /claude\.ai\/code\/session_/g,
 ];
 // An address may follow a colon, as in a mail link, but not the password in a
-// URL's user part, which secret/url-userinfo covers. The look back is capped,
-// so a long word of colons costs a bounded step at each one.
-const EMAIL_RE = /(?<![A-Za-z0-9._%+/-])(?<!\/\/[^\s/@]{0,64}:)[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
+// URL's user part: the look back skips exactly the shape secret/url-userinfo
+// refuses. It is capped, so a long word of colons costs a bounded step at each.
+const EMAIL_RE = /(?<![A-Za-z0-9._%+/-])(?<!\/\/[^\s/@:]{0,64}:)[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
 const EMAIL_OK = addr => addr.toLowerCase().endsWith('@users.noreply.github.com') || addr.toLowerCase() === 'noreply@anthropic.com';
 
 const ENV_WORDS = ['TOKEN', 'SECRET', 'KEY', 'PASSWORD', 'PASSWD', 'PWD', 'PAT', 'AUTH', 'CREDENTIAL', 'CREDENTIALS', 'COOKIE'];
@@ -364,10 +365,11 @@ const anySep = p => p.split(/[\\/]/).map(escapeRe).join('[\\\\/]');
 
 const matches = (text, re) => [...text.matchAll(re)].map(m => ({ index: m.index, text: m[0] }));
 
-// Where a path can start: after a space, a quote, a bracket, an equals sign or
-// a comma. A local path then starts with a drive letter, one or two slashes or
-// backslashes, or a tilde and a separator; a web link starts with its scheme.
-const TOKEN_START_RE = /[\s"'`(<[{=,|]/;
+// Where a path can start: after a space, a quote, a bracket, an equals sign, a
+// comma, a bar, or markdown's emphasis marks. A local path then starts with a
+// drive letter, one or two slashes or backslashes, or a tilde and a separator;
+// a web link starts with its scheme.
+const TOKEN_START_RE = /[\s"'`(<[{=,|*_]/;
 const LOCAL_START_RE = /^(?:[A-Za-z]:[\\/]|[\\/]{1,2}(?![\\/])|~[\\/])/;
 
 /**
@@ -384,7 +386,15 @@ function inLocalPath(text) {
   };
 }
 
-/** This machine's home and temp folders as a path prefix, and its user and host names inside a local path. */
+/**
+ * This machine's home and temp folders as a path prefix, and its user and host
+ * names as a path segment. A name after a backslash counts anywhere: web links
+ * have none, and Windows writes an account as host, backslash, user. A name
+ * after a forward slash counts only inside a local path, since the user name is
+ * often also the login in the owner's own repo links. The host name counts
+ * after two slashes anywhere, as a link's host. The home folder also counts in
+ * the dash-joined form Claude gives a project's folder.
+ */
 function machineHits(text, ctx) {
   const out = [];
   for (const p of [ctx.home, ctx.tmp]) {
@@ -392,20 +402,38 @@ function machineHits(text, ctx) {
     // macOS writes its temp folder behind /private as well.
     if (trimmed !== '') out.push(...matches(text, new RegExp(`(?:(?<![A-Za-z0-9._-])|(?<=\\/private))${anySep(trimmed)}[\\\\/][^\\s]`, 'gi')));
   }
-  for (const n of [ctx.user, ctx.host]) {
+  const home = typeof ctx.home === 'string' ? ctx.home.replace(/[\\/]+$/, '') : '';
+  // Only for a home two folders deep, so /root can't match "non-root".
+  if (/[\\/][^\\/]+[\\/][^\\/]/.test(home)) out.push(...matches(text, new RegExp(`(?<![A-Za-z0-9])${escapeRe(home.replace(/[:\\/]/g, '-'))}(?![A-Za-z0-9._])`, 'gi')));
+  for (const [n, isHost] of [[ctx.user, false], [ctx.host, true]]) {
     if (typeof n !== 'string' || n === '') continue;
     const local = inLocalPath(text);
-    out.push(...matches(text, new RegExp(`(?<=[\\\\/])${escapeRe(n)}(?![A-Za-z0-9._-])`, 'gi')).filter(h => local(h.index)));
+    const keep = h => text[h.index - 1] === '\\' || (isHost && text[h.index - 2] === '/') || local(h.index);
+    out.push(...matches(text, new RegExp(`(?<=[\\\\/])${escapeRe(n)}(?![A-Za-z0-9._-])`, 'gi')).filter(keep));
   }
   return out;
 }
 
 // Characters that make a reader see other text than a model reads: the tag
-// block, and the direction embeddings, overrides and isolates. Joiners and
-// variation selectors stay, since ordinary emoji use them. Built from code
-// points, so this source stays plain ASCII.
+// block (but for a subdivision flag), the direction embeddings, overrides and
+// isolates, the zero-width space and word joiners, the rarer variation
+// selectors, and a byte-order mark inside the text. The joiners U+200C and
+// U+200D and the selectors U+FE0E and U+FE0F stay, since ordinary emoji and
+// scripts use them. Built from code points, so this source stays plain ASCII.
 const cp = String.fromCodePoint;
-const HIDDEN_RE = new RegExp(`[${cp(0xe0000)}-${cp(0xe007f)}${cp(0x202a)}-${cp(0x202e)}${cp(0x2066)}-${cp(0x2069)}]`, 'gu');
+const HIDDEN_RE = new RegExp(
+  `[${cp(0xe0000)}-${cp(0xe007f)}${cp(0xe0100)}-${cp(0xe01ef)}${cp(0x202a)}-${cp(0x202e)}${cp(0x2066)}-${cp(0x2069)}` +
+    `${cp(0x200b)}${cp(0x2060)}-${cp(0x2064)}${cp(0xfe00)}-${cp(0xfe0d)}${cp(0xfeff)}]`,
+  'gu',
+);
+// A subdivision flag, such as Scotland's: the black flag, tag letters, and the cancel tag.
+const FLAG_RE = new RegExp(`${cp(0x1f3f4)}[${cp(0xe0020)}-${cp(0xe007e)}]{1,8}${cp(0xe007f)}`, 'gu');
+
+/** The hidden characters in `text`, but for those inside a subdivision flag. */
+function hiddenHits(text) {
+  const flags = [...text.matchAll(FLAG_RE)].map(m => [m.index, m.index + m[0].length]);
+  return matches(text, HIDDEN_RE).filter(h => !flags.some(([s, e]) => h.index >= s && h.index < e));
+}
 
 function indexesOf(text, s) {
   const out = [];
@@ -424,7 +452,7 @@ function hitsIn(text, ctx, trailer) {
   for (const [name, val] of envSecrets(ctx.env)) add(RULE.env, indexesOf(text, val).map(index => ({ index })), name);
   for (const re of LOCAL_RES) add(RULE.local, matches(text, re));
   add(RULE.machine, machineHits(text, ctx));
-  add(RULE.hidden, matches(text, HIDDEN_RE));
+  add(RULE.hidden, hiddenHits(text));
   const link = trailer ? trailerLink(text) : null;
   for (const re of SESSION_RES) add(RULE.session, matches(text, re).filter(h => !(link && h.index >= link.start && h.index < link.end)));
   add(RULE.email, matches(text, EMAIL_RE).filter(h => !EMAIL_OK(h.text)));

@@ -25,6 +25,7 @@ const MACHINE = { home: '/srv/home/tester', tmp: '/tmp', user: ME, host: 'buildh
 
 const rep = (s, n) => s.repeat(n);
 const ZWSP = String.fromCharCode(0x200b);
+const SHY = String.fromCharCode(0xad);
 const ROBOT = String.fromCodePoint(0x1f916);
 const SESSION = 'Ab12'.repeat(6);
 const GH_TOKEN_SHAPE = 'gh' + 'p_' + rep('A1', 18);
@@ -46,6 +47,7 @@ const ENV_SECRET = 'zebra-quokka-42';
 const USERINFO = 'https://bob:' + 'hunter2pass@example.com/x';
 // Every text a refusal row plants, so each row can show its output holds none of it.
 const PLANTED = [
+  'cache.example.com',
   ...Object.values(SECRETS), ENV_SECRET, 'hunter2pass', 'alice', 'example.org', 'notes-for-alice', SESSION, GH_TOKEN_SHAPE.slice(10),
   '/srv/home', 'tester', 'buildhost', 'fileserver', '/tmp/abc', 'work/notes', '426614174000', 'abc/file',
 ];
@@ -348,13 +350,29 @@ test('a login answer that is not a login ends unavailable', t => {
 
 // #246 C10
 test('a failed post call ends failed, exit 3, with only the first line of stderr, escaped', t => {
-  const w = world({ fail: { POST: 'HTTP 422: Validation Failed\nsecond line\u0007' } });
+  const w = world({ fail: { POST: `HTTP 422: "Validation" Failed${String.fromCharCode(7)}\nsecond line` } });
   const r = run(t, 'issue-comment', w);
   assert.equal(r.code, 3);
   assert.equal(last(r), 'RESULT: failed');
-  assert.ok(r.lines.includes('gh said: "HTTP 422: Validation Failed"'), out(r));
+  // The quotes and the bell come back escaped, as JSON writes them.
+  assert.ok(r.lines.includes('gh said: "HTTP 422: \\"Validation\\" Failed\\' + 'u0007"'), out(r));
   assert.ok(!out(r).includes('second line'));
 });
+
+for (const [what, argv] of [
+  ['a token in the body', ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']],
+  ['a misspelled option', ['issue-comment', '--repo', TARGET, '--body', '@plain.md', '--issue', '5', '--lable', 'x']],
+]) {
+  // #246 C6, C7: a refusal holds on a real post too, not only on a dry run
+  test(`a real post with ${what} is refused before any gh call`, t => {
+    const calls = [];
+    const r = post(place(t, { 'body.md': `See ${SECRETS.github}.\n`, 'plain.md': 'A plain body.\n' }, argv), { gh: (...a) => (calls.push(a), { ok: false }), env: {}, ...MACHINE });
+    assert.equal(r.code, 2, out(r));
+    assert.match(last(r), /^RESULT: refused [1-9]/);
+    assert.equal(calls.length, 0);
+    assert.ok(!out(r).includes(SECRETS.github));
+  });
+}
 
 // #246 C10
 test('a read-back that is not JSON ends unverified and shows none of it', t => {
@@ -551,7 +569,17 @@ for (const c of table('poster scan', {
     { id: 'split-by-escape', plant: inBody(GH_TOKEN_SHAPE.replace('_', '\\_')), fails: ['secret/token'], why: 'a markdown escape the page hides' },
     { id: 'split-by-tag', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<b></b>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an inline tag the page hides' },
     { id: 'encoded-in-comment', plant: inBody('<!-- ' + [...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('') + ' -->'), fails: ['secret/token'], why: 'the source still shows a comment' },
-    { id: 'after-open-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + ZWSP + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an unclosed comment marker hides nothing' },
+    { id: 'after-open-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an unclosed comment marker hides nothing' },
+    { id: 'hidden-zero-width', plant: inBody('a' + ZWSP + 'b'), fails: ['text/hidden'], why: 'the zero-width alphabet' },
+    { id: 'hidden-word-joiner', plant: inBody('a' + String.fromCharCode(0x2063) + 'b'), fails: ['text/hidden'], why: 'an invisible separator' },
+    { id: 'hidden-selector', plant: inBody('a' + String.fromCodePoint(0xe0100) + 'b'), fails: ['text/hidden'], why: 'a supplementary variation selector' },
+    { id: 'hidden-rare-selector', plant: inBody('a' + String.fromCharCode(0xfe00) + 'b'), fails: ['text/hidden'], why: 'a variation selector no emoji needs' },
+    { id: 'userinfo-empty-user', plant: inBody('redis://:' + 'hunter2pass@cache.example.com:6379'), fails: ['secret/url-userinfo'], why: 'a password with an empty user name' },
+    { id: 'userinfo-no-scheme', plant: inBody('//bob:' + 'hunter2pass@example.com/x'), fails: ['secret/url-userinfo'], why: 'a password in a link with no scheme' },
+    { id: 'account-form', plant: inBody('buildhost\\' + 'tester'), fails: ['path/machine'], why: 'a Windows account: host, backslash, user' },
+    { id: 'emphasised-path', plant: inBody('**/opt/' + 'tester/x**'), fails: ['path/machine'], why: 'a local path in bold' },
+    { id: 'host-in-link', plant: inBody('http://' + 'buildhost:8080/x'), fails: ['path/machine'], why: "this machine's host name as a link's host" },
+    { id: 'claude-project-folder', plant: inBody('~/.claude/projects/-srv-home-' + 'tester-sandbox/x.jsonl'), fails: ['path/machine'], why: 'the home folder as Claude names a project folder' },
     { id: 'machine-host', plant: inBody('//' + 'buildhost/share'), fails: ['path/machine'], why: "this machine's host name in a path" },
     { id: 'uuid', plant: inBody('123e4567-e89b-12d3-a456-' + '426614174000'), fails: ['id/session'], why: 'a UUID' },
     { id: 'session-id', plant: inBody('session_' + SESSION), fails: ['id/session'], why: 'a session id' },
@@ -565,7 +593,7 @@ for (const c of table('poster scan', {
     { id: 'title-session', plant: inTitle('session_' + SESSION), fails: ['id/session'], why: 'a session id in the title' },
     { id: 'title-email', plant: inTitle('alice' + '@example.org'), fails: ['personal/email'], why: 'an email in the title' },
     { id: 'label-token', plant: tree => withArgv(tree, () => ISSUE_ARGV('tier:thorough', 'AK' + 'IA' + rep('H8', 8))), fails: ['secret/token'], why: 'every label is scanned' },
-    { id: 'split-by-format-character', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + ZWSP + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a zero-width space hides the shape' },
+    { id: 'split-by-format-character', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a soft hyphen hides the shape' },
     { id: 'split-by-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x -->' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an HTML comment hides the shape' },
     { id: 'as-entities', plant: inBody([...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('')), fails: ['secret/token'], why: 'entities hide the shape' },
     { id: 'named-entity', plant: inBody(GH_TOKEN_SHAPE.replace('_', '&lowbar;')), fails: ['secret/token'], why: 'a named entity for the underscore' },
@@ -594,7 +622,7 @@ test("links to the owner's own repo, and emoji with joiners, pass when the user 
   const VS16 = String.fromCharCode(0xfe0f);
   const body = [
     `See ${WEB}/issues/5 and ${WEB}/pull/7, and docs/tester/notes.md in the repo.`,
-    `A flag ${String.fromCodePoint(0x1f3f3)}${VS16}${ZWJ}${String.fromCodePoint(0x1f308)} stays.`,
+    `A flag ${String.fromCodePoint(0x1f3f3)}${VS16}${ZWJ}${String.fromCodePoint(0x1f308)} and Scotland's ${String.fromCodePoint(0x1f3f4, 0xe0067, 0xe0062, 0xe0073, 0xe0063, 0xe0074, 0xe007f)} stay.`,
     '',
   ].join('\n');
   const argv = place(t, { 'body.md': body }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5', '--dry-run']);
@@ -603,13 +631,13 @@ test("links to the owner's own repo, and emoji with joiners, pass when the user 
 });
 
 // #246 C7: the scan stays linear on a full-size body built to make it slow.
-// A quadratic scan took over ten seconds on these; the bound leaves room for a busy machine.
-test('the scan of a full-size body of repeated path or colon shapes ends within two seconds', () => {
+// A quadratic scan took 1.5 to 12 seconds on these, a linear one under 20 ms; the bound leaves room for a busy machine.
+test('the scan of a full-size body of repeated path or colon shapes ends within 750 ms', () => {
   const ctx = { env: {}, home: '/srv/home/x', tmp: '/tmp', user: 'a', host: 'h', surface: 'issue-comment' };
-  for (const body of ['//a:'.repeat(16384), '/a/'.repeat(21845), 'a:'.repeat(32768), 'C:/'.repeat(21845)]) {
+  for (const body of ['//a:'.repeat(16384), '/a/'.repeat(21845), 'a:'.repeat(32768), 'C:/'.repeat(21845), 'eyJ'.repeat(21845)]) {
     const t = performance.now();
     scan([{ field: 'body', text: body }], ctx);
-    assert.ok(performance.now() - t < 2000, `${body.slice(0, 4)}: ${Math.round(performance.now() - t)} ms`);
+    assert.ok(performance.now() - t < 750, `${body.slice(0, 4)}: ${Math.round(performance.now() - t)} ms`);
   }
 });
 
