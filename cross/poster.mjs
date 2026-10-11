@@ -324,8 +324,9 @@ const SESSION_RES = [
   /claude\.ai\/code\/session_/g,
 ];
 // An address may follow a colon, as in a mail link, but not the password in a
-// URL's user part, which secret/url-userinfo covers.
-const EMAIL_RE = /(?<![A-Za-z0-9._%+/-])(?<!\/\/[^\s/@]*:)[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
+// URL's user part, which secret/url-userinfo covers. The look back is capped,
+// so a long word of colons costs a bounded step at each one.
+const EMAIL_RE = /(?<![A-Za-z0-9._%+/-])(?<!\/\/[^\s/@]{0,64}:)[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
 const EMAIL_OK = addr => addr.toLowerCase().endsWith('@users.noreply.github.com') || addr.toLowerCase() === 'noreply@anthropic.com';
 
 const ENV_WORDS = ['TOKEN', 'SECRET', 'KEY', 'PASSWORD', 'PASSWD', 'PWD', 'PAT', 'AUTH', 'CREDENTIAL', 'CREDENTIALS', 'COOKIE'];
@@ -369,11 +370,18 @@ const matches = (text, re) => [...text.matchAll(re)].map(m => ({ index: m.index,
 const TOKEN_START_RE = /[\s"'`(<[{=,|]/;
 const LOCAL_START_RE = /^(?:[A-Za-z]:[\\/]|[\\/]{1,2}(?![\\/])|~[\\/])/;
 
-/** Whether `index` lies inside a local path: the word it sits in starts like one. */
-function inLocalPath(text, index) {
-  let start = index;
-  while (start > 0 && !TOKEN_START_RE.test(text[start - 1])) start -= 1;
-  return LOCAL_START_RE.test(text.slice(start, index));
+/**
+ * A test of whether an index lies inside a local path: the word it sits in
+ * starts like one. Asked about rising indexes, it walks the text once, so
+ * many hits in one long word cost no more than one.
+ */
+function inLocalPath(text) {
+  let pos = 0;
+  let start = 0;
+  return index => {
+    for (; pos < index; pos += 1) if (TOKEN_START_RE.test(text[pos])) start = pos + 1;
+    return LOCAL_START_RE.test(text.slice(start, Math.min(index, start + 3)));
+  };
 }
 
 /** This machine's home and temp folders as a path prefix, and its user and host names inside a local path. */
@@ -386,7 +394,8 @@ function machineHits(text, ctx) {
   }
   for (const n of [ctx.user, ctx.host]) {
     if (typeof n !== 'string' || n === '') continue;
-    out.push(...matches(text, new RegExp(`(?<=[\\\\/])${escapeRe(n)}(?![A-Za-z0-9._-])`, 'gi')).filter(h => inLocalPath(text, h.index)));
+    const local = inLocalPath(text);
+    out.push(...matches(text, new RegExp(`(?<=[\\\\/])${escapeRe(n)}(?![A-Za-z0-9._-])`, 'gi')).filter(h => local(h.index)));
   }
   return out;
 }
@@ -476,9 +485,10 @@ function lineCol(text, index) {
 /**
  * Every content refusal in the fields to send ([{ field, text }]), as
  * [{ rule, where }]. Each field is scanned as is and as two normalised
- * copies, one without its HTML comments and one with their contents kept. A
- * rule only a copy trips is reported once, with its line and column in that
- * copy, which can differ from the file's. `where` names the field, the line
+ * copies, one without its HTML comments and one with their contents kept.
+ * Each rule is reported once per field, at its first hit; a rule only a copy
+ * trips gives its line and column in that copy, which can differ from the
+ * file's. `where` names the field, the line
  * and column, and for secret/env the variable's name, never the text.
  */
 export function scan(fields, ctx) {
@@ -488,7 +498,9 @@ export function scan(fields, ctx) {
     const seen = new Set();
     const isBody = field === 'body';
     for (const h of hitsIn(text, ctx, trailer && isBody)) {
-      seen.add(`${h.rule} ${h.note ?? ''}`);
+      const key = `${h.rule} ${h.note ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       out.push({ rule: h.rule, where: `${field} ${lineCol(text, h.index)}${h.note ? ` (${h.note})` : ''}` });
     }
     for (const norm of new Set([normalise(text), normalise(text, true)])) {

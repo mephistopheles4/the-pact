@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { makeGh, post } from '../../cross/poster.mjs';
+import { makeGh, post, scan } from '../../cross/poster.mjs';
 import { childEnv } from './gate-run.mjs';
 import { table } from './tables.mjs';
 import { REPO } from './text.mjs';
@@ -600,6 +600,17 @@ test("links to the owner's own repo, and emoji with joiners, pass when the user 
   const argv = place(t, { 'body.md': body }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5', '--dry-run']);
   const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
   assert.equal(r.code, 0, r.lines.join('\n'));
+});
+
+// #246 C7: the scan stays linear on a full-size body built to make it slow.
+// A quadratic scan took over ten seconds on these; the bound leaves room for a busy machine.
+test('the scan of a full-size body of repeated path or colon shapes ends within two seconds', () => {
+  const ctx = { env: {}, home: '/srv/home/x', tmp: '/tmp', user: 'a', host: 'h', surface: 'issue-comment' };
+  for (const body of ['//a:'.repeat(16384), '/a/'.repeat(21845), 'a:'.repeat(32768), 'C:/'.repeat(21845)]) {
+    const t = performance.now();
+    scan([{ field: 'body', text: body }], ctx);
+    assert.ok(performance.now() - t < 2000, `${body.slice(0, 4)}: ${Math.round(performance.now() - t)} ms`);
+  }
 });
 
 // #246 C8: the trailer's id may be 16 to 40 letters and digits, both ends included
