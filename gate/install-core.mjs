@@ -2,9 +2,8 @@
 // tested in-process by the tables in gate/tests/. The runner
 // (gate/install-run.mjs) reads and writes; every choice it makes about what
 // it read is one of these. Each refusal is a Refusal with one rule id, a
-// string literal here, so a table row can name it. Ported check by check from
-// scripts/install.ps1 (S6); where PowerShell compared without regard to case,
-// so does this.
+// string literal here, so a table row can name it. Where a check compares
+// paths, it does so without regard to case.
 //
 // Nothing here runs on import. Imports nothing.
 
@@ -18,8 +17,6 @@ export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium'
 export const BUILDER_KIT = Object.freeze([]);
 const KIT_DEST = 'pact/builder/';
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
-/** The PowerShell installer the Node install replaces: a record from it lists it among the gate files (S9). */
-export const OLD_INSTALLER = 'scripts/install.ps1';
 export const RULES_REL = 'claude/CLAUDE.md';
 export const OVERLAY_REL = 'claude/settings.overlay.json';
 export const CONFIG_REL = 'pact/config.json';
@@ -246,8 +243,7 @@ export function recordText({ commit, digest, userHash, blockHashes, repoFiles, g
 
 /**
  * The gate block (S6, G11): every gate file but the tests, against the
- * record's. The first Node install's change set, exactly install.ps1 out and
- * the four install files in, gets one line saying so (S9).
+ * record's.
  */
 export function gateBlock(gateNow, recordGate, selfDiffers) {
   const then = new Map(recordGate);
@@ -266,8 +262,6 @@ export function gateBlock(gateNow, recordGate, selfDiffers) {
     for (const k of gateNow.keys()) order.push(added.includes(k) ? `  added ${k}` : changed.includes(k) ? `  changed ${k}` : null);
     const changes = [...order.filter(Boolean), ...removed.map(k => `  removed ${formatPlain(k)}`)];
     lines = changes.length ? ['Gate: CHANGED since the last install', ...changes] : ['Gate: unchanged since the last install'];
-    const cutover = !changed.length && removed.length === 1 && removed[0] === OLD_INSTALLER && added.length === INSTALL_FILES.length && INSTALL_FILES.every(f => added.includes(f));
-    if (cutover) lines.push('  This is the expected change of the first Node install: scripts/install.ps1 replaced by the four gate/install*.mjs files.');
   }
   if (selfDiffers) lines.push('WARN: this install script differs from the committed copy; --apply will refuse.');
   return lines;

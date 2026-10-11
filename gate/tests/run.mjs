@@ -3,8 +3,8 @@
 //   node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--list]
 //
 // full is every top-level test file in this folder. The install tier is every
-// test file that reaches install-harness.mjs through its imports, or names the
-// install script in a string literal; fast is full minus the install tier.
+// test file that reaches install-harness.mjs through its imports; fast is full
+// minus the install tier.
 // changed is the everyday run (#145): the tests the changed paths can reach,
 // by the mapping rules in pick, with the reason for each file. Its changed set
 // is what differs from the merge-base of HEAD and --base (default main), plus
@@ -41,14 +41,10 @@ export const TEST_SUFFIX = '.test.mjs';
 /** A top-level test-file name the runner accepts; anything else refuses the run. */
 export const PLAIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*\.test\.mjs$/;
 export const HARNESS = 'install-harness.mjs';
-// The PowerShell installer's file name. The installer left at the cutover (#166),
-// but a test that names it, such as one of a rollback to an older commit, is
-// still put in the install tier. The Node install runs through the harness.
-export const INSTALL_SCRIPT = 'install.ps1';
 /** The install smoke set: the install's happy path, run for every payload change. */
 export const SMOKE = 'install-smoke.test.mjs';
 export const DEFAULT_BASE = 'main';
-/** The gate's code is this folder outside the tests folder, and the install script. */
+/** The gate's code is this folder outside the tests folder. */
 const GATE_DIR = 'gate';
 const TESTS_DIR = 'gate/tests';
 /**
@@ -177,14 +173,6 @@ export function stringLiterals(src) {
   return out;
 }
 
-/** Whether a module's own source names the install script: written out, or in consecutive string literals. */
-export function namesInstallScript(src) {
-  const name = INSTALL_SCRIPT.toLowerCase();
-  if (src.toLowerCase().includes(name)) return true;
-  const lits = stringLiterals(src).map(s => s.toLowerCase());
-  return ['', '/', '\\', '.'].some(j => lits.join(j).includes(name));
-}
-
 /** The chain of modules from `from` to the harness, through relative imports, or null. */
 function harnessChain(from, sources) {
   const seen = new Set([from]);
@@ -266,7 +254,7 @@ export function pick({ tier, entries, sources, copyList, changed = [], withFast 
   const install = new Map();
   for (const name of tests) {
     const chain = harnessChain(name, sources);
-    install.set(name, chain ? `install tier: imports ${chain.slice(1).map(SHOWN).join(' -> ')}` : namesInstallScript(sources.get(name) ?? '') ? `install tier: names ${INSTALL_SCRIPT}` : null);
+    install.set(name, chain ? `install tier: imports ${chain.slice(1).map(SHOWN).join(' -> ')}` : null);
   }
   if (tier !== 'changed') {
     const files = [];
@@ -278,10 +266,8 @@ export function pick({ tier, entries, sources, copyList, changed = [], withFast 
   }
 
   if (!copyList) throw new Error('changed needs the copy list');
-  const installScript = copyList.files.find(f => posix.basename(f) === INSTALL_SCRIPT);
   const payloadDirs = copyList.dirs.filter(d => d !== GATE_DIR);
-  const payloadFiles = copyList.files.filter(f => f !== installScript);
-  const isPayload = p => payloadDirs.some(d => under(p, d)) || payloadFiles.includes(p);
+  const isPayload = p => payloadDirs.some(d => under(p, d)) || copyList.files.includes(p);
   const reached = new Map(tests.map(t => [t, reach(t, sources)]));
   const texts = new Map([...sources].map(([k, v]) => [k, namingText(v)]));
 
@@ -298,7 +284,7 @@ export function pick({ tier, entries, sources, copyList, changed = [], withFast 
   for (const path of paths.length > MAX_CHANGED ? [] : paths) {
     const shown = SHOWN(path);
     // Rule 3: gate code selects the full tier.
-    if ((under(path, GATE_DIR) && !under(path, TESTS_DIR)) || path === installScript) {
+    if (under(path, GATE_DIR) && !under(path, TESTS_DIR)) {
       all(`gate code changed: ${shown}`);
       continue;
     }

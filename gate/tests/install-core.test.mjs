@@ -189,24 +189,13 @@ test('the record the install writes keeps today\'s shape and order', () => {
   assert.equal(back.digest, 'abcdef012345');
 });
 
-// ------------------------------------------------------------ the gate's fingerprints (G11) and the cutover line (S9)
+// ------------------------------------------------------------ the gate's fingerprints (G11)
 
 test('the gate block: changed, added and removed lines, compared without regard to case, and the self-differs warning', () => {
   const now = new Map([['gate/a.mjs', H('a')], ['gate/b.mjs', H('b')], ['gate/new.mjs', H('c')]]);
   assert.deepEqual(core.gateBlock(now, [], false), ['Gate: no gate recorded at the last install']);
   assert.deepEqual(core.gateBlock(now, [['gate/a.mjs', H('A')], ['gate/b.mjs', H('d')], ['gate/old\u0007.mjs', H('e')]], true), ['Gate: CHANGED since the last install', '  changed gate/b.mjs', '  added gate/new.mjs', '  removed gate/old?.mjs', 'WARN: this install script differs from the committed copy; --apply will refuse.']);
   assert.deepEqual(core.gateBlock(now, [...now], false), ['Gate: unchanged since the last install']);
-});
-
-test('the gate block names the cutover only when the change set is exactly the PowerShell installer out and the four install files in', () => {
-  const rest = [['gate/seam-a-core.mjs', H('a')]];
-  const now = new Map([...rest, ...core.INSTALL_FILES.map((f, i) => [f, H(String(i))])]);
-  const then = [...rest, [core.OLD_INSTALLER, H('9')]];
-  assert.match(core.gateBlock(now, then, false).at(-1), /expected change of the first Node install/);
-  const changedToo = core.gateBlock(now, [['gate/seam-a-core.mjs', H('b')], [core.OLD_INSTALLER, H('9')]], false);
-  assert.ok(!changedToo.some(l => /expected change/.test(l)), 'a changed core prints as today');
-  const fewer = new Map([...now].filter(([k]) => k !== 'gate/install-io.mjs'));
-  assert.ok(!core.gateBlock(fewer, then, false).some(l => /expected change/.test(l)), 'three of four is not the cutover');
 });
 
 // ------------------------------------------------------------ the pin (P1) and a check's verdict (R4, S-1, control 4)
@@ -550,7 +539,8 @@ for (const c of table('install destinations', {
   ],
 })) test(c.name, c.fn);
 
-test('skip reasons: unsafe, protected, non-canonical and linked paths, as the PowerShell installer read them', () => {
+// dest-skip: the reasons behind the rule id the table above checks.
+test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
   for (const p of ['', '../x', 'a/../b', '/x', '\\x', 'C:x', null, 5]) assert.equal(core.skipReason(p, noLink), 'unsafe path', String(p));
   for (const p of ['settings.json', 'SETTINGS.JSON', '.pact-install.json', 'pact/config.json', 'pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', 'pact/blocks/b.md', 'pact/builder.json', 'Pact/Builder.json. ']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
   for (const p of ['agents/a b.md', 'agents/.x', 'agents/a.', 'a\\b']) assert.equal(core.skipReason(p, noLink), 'non-canonical path', p);

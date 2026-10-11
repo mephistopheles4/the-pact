@@ -106,8 +106,7 @@ const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode', 'permissions
 // The "ask" rules that guard the install (ADR 0049, #210): they ask on an
 // apply, not on a mention. The overlay must hold them, whatever the allow-list
 // says. Under Bash, whose case matching the docs leave open, each name drops
-// its first letter, so a capitalised name still matches. No rule guards a
-// rollback to the old PowerShell installer (ADR 0052).
+// its first letter, so a capitalised name still matches.
 const SETTINGS_APPLY_ASK = Object.freeze([
   // The Node installer: its one apply flag, wherever the script is named, and
   // after each of its two names a word the rule can't read, or a quote right

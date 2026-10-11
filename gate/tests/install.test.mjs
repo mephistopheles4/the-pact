@@ -13,10 +13,10 @@ import { tempDir, writeTree } from './tree.mjs';
 
 // The throwaway-repo builder, install runner and the small helpers are the harness's.
 //
-// These cases were written for scripts/install.ps1 and now run the Node
-// install (#153, S13). A decision the install makes in a pure function is a
-// row in install-core.test.mjs; a case stays here when only a whole run can
-// show it, or when it checks that a refused install wrote nothing (#210).
+// These cases run the Node install (#153, S13). A decision the install makes
+// in a pure function is a row in install-core.test.mjs; a case stays here when
+// only a whole run can show it, or when it checks that a refused install wrote
+// nothing (#210).
 
 /** A file in `root` with its one `from` replaced by `to`. */
 function edit(root, rel, from, to) {
