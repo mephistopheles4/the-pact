@@ -191,7 +191,7 @@ const PUNCT_REGEX_AFTER = new Set([...'(,=:[!&|?{};+-*%<>~^']);
 const WORDS_REGEX_AFTER = new Set(['return', 'typeof', 'case', 'of', 'in', 'void', 'delete', 'throw', 'yield', 'await']);
 
 /** A module's source as tokens: { t: 'str', v } for a string literal (a template only when it has no ${}), { t: 'tpl' } for one that has, { t: 're' } for a regex literal, { t: 'word', v }, { t: 'p', v }. Comments are dropped. */
-function tokens(src) {
+export function tokens(src) {
   const out = [];
   const n = src.length;
   let i = 0;
