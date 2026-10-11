@@ -13,8 +13,9 @@
 //
 // The second form is the project mode, described at the end of this header.
 //
-// The source carries two kinds of mark. Gated marks are seam A's seven clauses
-// (gate/pact-text.mjs); the renderer passes them through untouched. Open marks
+// The source carries two kinds of mark. Gated marks are the pinned blocks
+// (PINNED in shared.mjs, checked by gate/pact-text.mjs); the renderer passes
+// them through untouched. Open marks
 // name the parts a configuration may change; the renderer always strips their
 // mark lines from its output.
 //
@@ -98,10 +99,10 @@
 // the file's value, which must be on the allow-list too; and it refuses if the
 // result would differ from the file anywhere else, so no setting adds a tool.
 // It classifies the agent as security-set when any sign holds: its tools line
-// is not DEFAULT_AGENT_TOOLS, the tool allow-list has an entry for it, the
-// source's security-route clause names it, its own file carries a risk-floor
-// block, or it is on SECURITY_DOUBT. The signs are read on every run, so a lens
-// that later gains one is marked without anyone editing a list. It writes the
+// is not DEFAULT_AGENT_TOOLS, the tool allow-list has an entry for it, it is on
+// SECURITY_SET, its own file carries a risk-floor block, or it is on
+// SECURITY_DOUBT. The signs other than the two lists are read on every run, so
+// a lens that later gains one is marked without anyone editing a list. It writes the
 // result as AGENT_OUTPUT_PREFIX + <name>.md and prints
 //   AGENT <name> <model> <effort> <sha256 of the agent file> <plain|security-set> <default|override> <local|egress>
 // after the CONFIG lines: override when the result differs from the file's
@@ -145,7 +146,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ANY_FENCE_RE, AT_IMPORT_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, PACT_COMMANDS, Refused, Report, SEGMENT_RE, SETEXT_RE, readStrictJson, scanText } from './shared.mjs';
+import { ANY_FENCE_RE, AT_IMPORT_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, PACT_COMMANDS, PINNED, Refused, Report, SEGMENT_RE, SETEXT_RE, readStrictJson, scanText } from './shared.mjs';
 
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, on the
@@ -154,10 +155,10 @@ const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'move-1', 'mov
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
 const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra']);
-// The gated clauses (gate/clauses/), which no edit may target with any
-// operation. install-go-ahead lives in AGENTS.md, which is never installed,
-// and is refused like the others.
-const GATED = Object.freeze(['risk-floor', 'no-skill-overrides', 'security-route', 'never-substitute', 'move-4', 'stop-and-escalate', 'tracker-authors', 'install-go-ahead']);
+// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/),
+// which no edit may target with any operation. install-go-ahead lives in
+// AGENTS.md, which is never installed, and is refused like the other.
+const GATED = PINNED;
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);
 const EDIT_KEYS = Object.freeze(['mark', 'op', 'file']);
 const EDITS_MAX = 16;
@@ -187,9 +188,13 @@ const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high']);
 const AGENT_FIELDS = Object.freeze(['model', 'effort']);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
-// The signs of a security-set agent that are read from text: the gated
-// clause that names it, and the block its own file carries.
-const ROUTE_CLAUSE = 'security-route';
+// The lenses the security route names, as a fixed list (#261, S4): the
+// security pair, and executability-lens, which holds the risk floor. The rules
+// file names no route any more, so the renderer reads none from it. Without
+// this list the override mark would vanish with no error for data-lens, which
+// has no other sign.
+const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);
+// The sign of a security-set agent read from its own file: the risk-floor block.
 const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
 // Security-set lenses by doubt (AGENTS.md: when in doubt, a change takes the
 // security route), each with its reason. No sign in their files says so.
@@ -204,11 +209,9 @@ const TOOL_ALLOWLIST = join(dirname(fileURLToPath(import.meta.url)), 'tool-allow
 // and its fixed template. The template at the default must equal the source's
 // text between the part's marks, or the render refuses.
 const USAGE_TEMPLATE = n => [
-  'Before starting anything expensive — several subagents, a workflow, an eval —',
-  'check my plan usage if a usage tool is available (the desktop app has one).',
-  "Tell me the weekly figure and a rough cost for what you're about to start. If",
-  `the weekly limit is above ${n}%, wait for my go-ahead. Never cut or stop work`,
-  'because of usage on your own; that call is mine.',
+  '- **Usage.** Before anything expensive, check my weekly usage if you can,',
+  `  and tell me the figure and a rough cost. When it is above ${n}%, wait for my`,
+  '  go-ahead. The call to cut or stop work over usage is mine.',
 ];
 // A setting's project line, for the project rules file: it reads as the lower
 // of the project's value and the user's. `tighter` is the direction a project
@@ -508,7 +511,7 @@ function checkEdits(edits, fail) {
     if (typeof e.mark !== 'string') return bad('edit-shape', 'mark must be text');
     // Matched exactly against constant lists, and only the constant is printed.
     const gated = GATED.find(g => g === e.mark);
-    if (gated) return bad('edit-gated', `${gated} is a gated clause; no edit may target it`);
+    if (gated) return bad('edit-gated', `${gated} is a pinned block; no edit may target it`);
     if (e.mark === 'usage-pause') return bad('edit-setting', 'usage-pause is set only through its setting; no edit may target it');
     if (e.mark === NOTICE_MARK) return bad('edit-notice', 'config-notice is filled by the renderer; no edit may target it');
     const mark = EDITABLE.find(m => m === e.mark);
@@ -707,7 +710,7 @@ function readCapped(path, cap, rule, shown, report) {
  * or null after recording the refusal. Only the frontmatter's column-0 model
  * and effort lines change, to allow-list constants.
  */
-function renderAgent(source, a, report, srcText = '') {
+function renderAgent(source, a, report) {
   const shown = `claude/agents/${a.name}.md`;
   const fail = reason => {
     report.fail('agent-file', shown, null, reason);
@@ -729,8 +732,7 @@ function renderAgent(source, a, report, srcText = '') {
   if (effortAt.length !== 1) return fail('the frontmatter must hold exactly one effort line');
   if (at(/^metadata:/).length) return fail('the agent carries a metadata (seal) key; a sealed agent cannot be configured');
   if (toolsAt.length !== 1) return fail('the frontmatter must hold exactly one tools line');
-  const route = new RegExp(`<!-- pact:begin ${ROUTE_CLAUSE} -->\\n([\\s\\S]*?)<!-- pact:end ${ROUTE_CLAUSE} -->`).exec(srcText);
-  if (!route) return fail(`the source has no ${ROUTE_CLAUSE} clause to check the agent against`);
+
   const allow = readCapped(TOOL_ALLOWLIST, 64 * 1024, 'agent-file', 'gate/tool-allowlist.json', report);
   if (allow === null) return null;
   let allowDoc;
@@ -745,7 +747,7 @@ function renderAgent(source, a, report, srcText = '') {
   const egress = lines[toolsAt[0]] !== DEFAULT_AGENT_TOOLS;
   const security = egress
     || Object.hasOwn(allowDoc, a.name)
-    || route[1].includes(`\`${a.name}\``)
+    || SECURITY_SET.includes(a.name)
     || lines.includes(RISK_FLOOR_BLOCK)
     || Object.hasOwn(SECURITY_DOUBT, a.name);
   const nowModel = AGENT_MODELS.find(m => lines[modelAt[0]] === `model: ${m}`);
@@ -1107,7 +1109,7 @@ function run(argv, report) {
     const edits = readBlocks(home, checked.edits, report);
     if (edits === null) return;
     // An agent file is read only when a setting names its agent.
-    agents = checked.agents.map(a => renderAgent(source, a, report, buf.toString('utf8')));
+    agents = checked.agents.map(a => renderAgent(source, a, report));
     if (agents.some(a => a === null)) return;
     const hash = sha256(config.buf);
     const digest = sha256(`user ${hash}\n${edits.filter(e => e.path).map(e => `block ${e.path} ${e.hash}\n`).join('')}`).slice(0, 12);

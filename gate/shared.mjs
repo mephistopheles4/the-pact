@@ -20,6 +20,13 @@ const CHARACTER_HITS_MAX = 20;
 // own copy (install-core.mjs), held to this one by a test. Adding a name is a
 // change to gate code, so it takes the security route.
 const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+// The pinned blocks (#261): the only text the gate holds word for word, each
+// against its canonical copy in gate/clauses/. Seam A (pact-text.mjs) checks
+// them, the renderer refuses an edit to one, and the builder reads this list
+// as text. stop-and-escalate sits in claude/CLAUDE.md; install-go-ahead in
+// AGENTS.md, which is never installed. Changing the list is a change to the
+// protected set, so it takes the security route.
+const PINNED = Object.freeze(['stop-and-escalate', 'install-go-ahead']);
 // An at sign followed by text, which Claude Code may read as a file include:
 // refused in a block (render-core.mjs) and in a command file (seam-a-core.mjs).
 const AT_IMPORT_RE = /@[^ \n]/;
@@ -230,15 +237,12 @@ function safePath(rel) {
 
 const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 const FENCE_RE = /^ *(?:```|~~~)/;
-// The pact files' structure is held to the forms the gate reads exactly as
-// CommonMark does: no fence of any kind, no setext heading, and ATX headings
-// only at column 0 with one space. Anything else could frame a block one way
-// for the model and another way for the check.
+// The Markdown forms a configuration block may not use (render-core.mjs):
+// a fence of any kind, a setext heading, an ATX heading. Each could move text
+// out of the part it was meant for.
 const ANY_FENCE_RE = /^\s*(?:`{3,}|~{3,})/;
 const SETEXT_RE = /^ {0,3}(?:=+|-+)\s*$/;
 const HEADING_LIKE_RE = /^\s*#{1,6}(?:\s|$)/;
-const HEADING_RE = /^#{1,6} \S/;
-const MOVE_RE = /^([0-9]+)\. /;
 const PACT_MARKER_RE = /<!--\s*pact\s*:/i;
 
 /**
@@ -296,6 +300,7 @@ function parseDoc(text, file, known, allowed, report) {
 
 export {
   PACT_COMMANDS,
+  PINNED,
   AT_IMPORT_RE,
   MAX_BYTES,
   CHARACTER_HITS_MAX,
@@ -315,8 +320,6 @@ export {
   ANY_FENCE_RE,
   SETEXT_RE,
   HEADING_LIKE_RE,
-  HEADING_RE,
-  MOVE_RE,
   MARKER_RE,
   PACT_MARKER_RE,
   parseDoc,

@@ -19,6 +19,9 @@ const KIT_DEST = 'pact/builder/';
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 export const RULES_REL = 'claude/CLAUDE.md';
 export const OVERLAY_REL = 'claude/settings.overlay.json';
+// The review procedure file (#261): staged here, installed beside the cross script.
+export const REVIEW_REL = 'claude/review.md';
+export const REVIEW_DEST = 'pact/review.md';
 export const CONFIG_REL = 'pact/config.json';
 export const BLOCKS_REL = 'pact/blocks';
 export const PROJECT_CONFIG_REL = '.claude/pact-config.json';
@@ -565,7 +568,8 @@ export function expectedCopySet(stagedRels, commands = []) {
       const name = /^([^/]+)\.md$/.exec(m[1])?.[1];
       if (commands.includes(name)) out.push([rel, `commands/${name}.md`]);
       else if (!PACT_COMMANDS.includes(name)) out.push([rel, null]);
-    } else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
+    } else if (rel === REVIEW_REL) out.push([rel, REVIEW_DEST]);
+    else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
     else if ((m = /^familiars\/([^/]+\.md)$/.exec(rel))) out.push([rel, `agents/${m[1]}`]);
     else if (rel === 'cross/cross.mjs') out.push([rel, 'pact/cross.mjs']);
     else out.push([rel, null]);
@@ -614,16 +618,17 @@ export function checkSkillClash(commands, present) {
 }
 
 /**
- * A command or kit file the install would add over a live file its record
- * does not list (#203, S8): refused, never overwritten. Agents keep today's
- * first-install behaviour. `live(rel)` is the plan's live state.
+ * A command, kit or review file the install would add over a live file its
+ * record does not list (#203 S8, #261 S5): refused, never overwritten. Agents
+ * keep today's first-install behaviour. `live(rel)` is the plan's live state.
  */
 export function checkNewPaths(repoFiles, record, live) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
-    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST)) || listed.has(rel)) continue;
+    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
     const remedy = rel.startsWith(KIT_DEST) ? 'take scriptorium, which installs the builder kit, out of the commands list' : 'take its name out of the commands list';
-    if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. Move it, or ${remedy}.`);
+    const next = rel === REVIEW_DEST ? 'Move it out of the way, then install again.' : `Move it, or ${remedy}.`;
+    if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
   }
 }
 
@@ -966,7 +971,7 @@ export function configBlock(parsed, rulesHash, record) {
     }
     out.push(warn);
   }
-  out.push('  Open text is checked for form, imports, routing and the roster, not for meaning.');
+  out.push('  Edited text is checked for its form, its characters and file imports, not for wording or meaning.');
   return out;
 }
 
