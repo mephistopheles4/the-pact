@@ -83,7 +83,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lib b { font-size: var(--av-t-annot); font-weight: 600; display: block; }
 .lib small { font-size: var(--av-t-micro); color: var(--av-ink-70); display: block; }
 .libpair { border-left: var(--av-rule-bold) solid var(--av-ink-30); padding-left: var(--av-s1); display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
-.libpair-h { display: flex; gap: var(--av-s1); justify-content: space-between; align-items: center; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; }
+.libpair-h { display: flex; gap: var(--av-s1); align-items: center; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; }
+.libpair-h.lib { border: 0; background: none; padding: 2px 0; }
+.libpair-h > span:first-child { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.libpair-h .defmark { color: var(--av-caution); font-weight: 500; letter-spacing: 0.04em; }
+.libpair-h .tag, .libpair-h .both { white-space: nowrap; flex: none; }
+.libpair .lib small { display: none; }
+.libpair .lib .ic { width: 16px; height: 16px; font-size: 10px; }
+.libpair-h.lib:hover { transform: none; color: var(--av-caution); }
+.libpair-h .both { margin-left: auto; font-weight: 500; color: var(--av-ink-70); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 0 4px; }
+.libpair-h.lib:hover .both { color: var(--av-caution); border-color: var(--av-caution); }
 .libpair .lib { padding: 3px var(--av-s1); }
 .practices { margin-top: var(--av-s2); padding-top: var(--av-s2); border-top: var(--av-rule-hair) dashed var(--av-ink-30); }
 .practice { padding: var(--av-s1) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
@@ -316,8 +325,9 @@ function renderLibrary(){
     item('stage','', '▭', 'Stage', 'a step of the work\'s own lifecycle') +
     item('cond','always', '?', 'Condition', 'when its agents fire; switch on or off', 'cond') +
     `<div class="av-label" style="margin-top:6px">Agents</div>` +
-    PAIRS.map(([x, y, l]) => `<div class="libpair"><div class="libpair-h"><span>${esc(l)}</span>${DEFAULT_PAIRS.includes(l) ? '<span class="tag tfix">default</span>' : ''}</div>` +
-      item('pair', x + '+' + y, '⧉', 'Both, on one condition', 'they fire together') + item('agent', x, '◇', x, 'one lens') + item('agent', y, '◇', y, 'one lens') + `</div>`).join('') +
+    PAIRS.map(([x, y, l]) => `<div class="libpair"><button class="lib libpair-h" draggable="true" data-type="pair" data-val="${esc(x + '+' + y)}" title="drag or click: both on one condition">` +
+      `<span>${esc(l.replace(/^the /, ''))}${DEFAULT_PAIRS.includes(l) ? ' <span class="defmark" title="a default: the defaults sentence names it">✱</span>' : ''}</span><span class="both">⧉ both</span></button>` +
+      item('agent', x, '◇', x, 'one lens') + item('agent', y, '◇', y, 'one lens') + `</div>`).join('') +
     `<div class="libpair"><div class="libpair-h"><span>On its own</span></div>` +
     LENSES.filter(l => !PAIRS.some(([x, y]) => x === l || y === l)).map(l => item('agent', l, '◇', l, 'a pact lens')).join('') + `</div>` +
     item('own', 'my-reviewer', '◆', 'Your own agent', 'a reviewer of yours') +
