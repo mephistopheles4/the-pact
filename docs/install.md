@@ -1,8 +1,9 @@
 # Install the pact
 
-This how-to installs the pact's rules file, review procedure and agents into your
-Claude Code home folder (`~/.claude`), and merges its settings into yours. It
-takes about five minutes.
+This how-to installs the pact's rules file, review procedure, agents and
+`/scriptorium` command, with the builder kit it runs, into your Claude Code
+home folder (`~/.claude`), and merges its settings into yours. It takes about
+five minutes.
 
 Read the README's [Who it's for](../README.md#who-its-for) first. The rules
 are written for one person's setup, and installing them changes how every
@@ -104,16 +105,22 @@ parts:
   the commit the repository page shows.
 - **`Check: passed on commit …`.** If the check fails, the script refuses and
   installs nothing.
+- **`Not checked: what the pact's files say.`** The check covers install
+  mechanics only: what each file is, where it goes, and that it is clean
+  text. Read the pact's files as you would any skill you install (ADR 0069).
 - **`Drift:`.** On a later install, the number of installed files you have
   edited since the last one. If it isn't 0, stop: `--apply` refuses, and you
   would lose those edits. On a first install it is 0.
 - **`Overwrite:`, `Add:` and `Delete:`.** The files `--apply` would replace,
   create and remove. On a first install, `Overwrite` lists your own
-  `~/.claude/CLAUDE.md` if you have one. An agent of yours with the same name
-  as a pact agent is replaced the same way. Your other agents are left alone.
-  `Delete` lists only files an earlier pact install put there, or, on a first
+  `~/.claude/CLAUDE.md` if you have one. `Delete` lists only files an earlier pact install put there, or, on a first
   install, an agent named `builder`, `spec-builder` or `security-builder`,
   which older pact versions shipped.
+- **`Yours, left as is:`.** Agent files the pact leaves alone: one it didn't
+  write, such as your own agent with a pact agent's name, or one it wrote
+  that you have changed since. The install never overwrites, deletes or
+  records them, and a changed pact agent is not drift. Delete your file to
+  get the pact's back at the next install (ADR 0071).
 - **`settings.json:`.** What the merge into `~/.claude/settings.json` would
   change. Your other keys stay. The merge:
   - turns on auto mode (`permissions.defaultMode` set to `auto`) and skips its
@@ -142,21 +149,30 @@ parts:
   `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
   a rendered hash the apply command carries.
 - **`WARN: SECURITY DEFAULTS:`.** Shown before every other warning when your
-  configuration edits any of the four parts Scriptorium builds: `tiers`,
-  `sensitive`, `workflow` or `lenses`. They hold the tier table, what
-  Claude looks for as sensitive work and the route it recommends, the
-  workflow table with the lenses offered at each stage, and the lens roster.
+  configuration edits any of the five parts Scriptorium builds that set
+  security defaults: `tiers`, `sensitive`, `workflow`, `lenses` or
+  `qualities`. They hold the tier table, what Claude looks for as sensitive
+  work and the route it recommends, the workflow table with the lenses
+  offered at each stage, the lens roster, and the ranked qualities with the
+  lenses that check them.
   The line names the parts you edit and says whether your configuration
   changed since the last install. Read those parts in the rendered rules file
   (`--review-folder` writes it out) before you install. Only your home
   configuration may edit them; a project's `.claude/pact-config.json` may
-  edit no part.
+  edit no part. A project may hold its own `qualities` list, which takes the
+  place of yours in that repo; its dry run leads with a `WARN: SECURITY
+  DEFAULTS:` line saying so (ADR 0068).
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and
   `/scriptorium`, each `on` or `off`, and `(not in this commit)` for one the
-  commit doesn't hold yet. None is on until you turn it on: list its name in
-  the `commands` key of `~/.claude/pact/config.json`, for example
-  `"commands": ["make-it-so", "finis"]`. Each command that is on gets a
-  `WARN` line naming the file it installs, `commands/<name>.md`. The install
+  commit doesn't hold yet. `/scriptorium` reads `on, always: part of the
+  pact, with the builder kit under pact/builder/`: it builds your own
+  Scriptorium page, and installs whenever the commit holds it (ADR 0070).
+  The others are off until you turn them on: list a name in the `commands`
+  key of `~/.claude/pact/config.json`, for example
+  `"commands": ["make-it-so", "finis"]`, or tick it in the builder's
+  Settings. Each such command gets a `WARN` line naming the file it installs,
+  `commands/<name>.md`. A list that still names `scriptorium` gets a `NOTE`
+  asking you to take it out, since an older pact refuses it. The install
   refuses, naming the path inside your Claude home folder:
   - **A same-named skill.** Anything at `~/.claude/skills/<name>`, a folder, a
     file or a link, for a command that is on. Claude Code would run that
@@ -220,8 +236,16 @@ It installs these files under `~/.claude`:
 - `pact/review.md`, the review procedure the rules file points to before any
   lens runs. If a `pact/review.md` the install record doesn't list is already
   there, the install refuses and changes nothing: move your file out of the way;
-- `commands/<name>.md`, each pact command your `commands` list turns on.
-  Taking a name out of the list deletes its file at the next install;
+- `commands/scriptorium.md`, always, and `commands/<name>.md` for each other
+  pact command your `commands` list turns on. Taking a name out of the list
+  deletes its file at the next install;
+- `pact/builder/`, the builder kit `/scriptorium` runs: the builder
+  (`builder/build.mjs` and its parts module), the shipped page and presets,
+  the pact's agents, the renderer it checks parts with, the brand mark, the
+  example builder file, and the rules as they stand before your
+  configuration, as `claude/rules.source.md`. It holds no file named
+  `CLAUDE.md`. The kit's builder writes a page only outside any repo, the
+  Claude home folder and any `.claude` folder;
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against.
 
@@ -311,9 +335,11 @@ To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default), and
 `usage-pause-session`, the 5-hour session line, unset by default (#142). The
-builder's Settings dialog holds both. Its Workflow step edits the four parts
-above on #143's canvas; `examples/pact-config/config-parts.json` edits all
-four, with the session line set.
+builder's Settings dialog holds both. The canvas edits the workflow, Settings
+the tiers and sensitive work, and the Agents dialog the lens roster and the
+qualities; `examples/pact-config/config-parts.json` edits all five, with the
+session line set. For a builder of your own, type `/scriptorium` in any
+session.
 
 ## Roll back to an older version
 
@@ -344,8 +370,11 @@ with the rules it held. Run its dry run first and check that it lists exactly
 those two.
 
 A pact from before #262 and #142 refuses a configuration that edits `tiers`,
-`sensitive`, `workflow` or `lenses`, or sets `usage-pause-session`, so
-take those out first.
+`sensitive`, `workflow`, `lenses` or `qualities`, sets `usage-pause-session`,
+sets an agent's model to anything but `opus` or `sonnet`, its effort above
+`high`, or any setting for `scout`, so take those out first. Its install
+deletes `commands/scriptorium.md` and the builder kit, which its payload
+lacks; a configuration that lists `scriptorium` in `commands` refuses there.
 
 A pact from before the pact commands (#203) refuses a configuration with a
 `commands` key, so take the key out first. Its install then deletes the
@@ -376,8 +405,9 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    set `permissions.defaultMode` back to what you use, so you are not left
    in auto mode.
 2. **Delete the pact's files:** the ten agents listed in step 6 from
-   `agents/`, `pact/review.md`, each pact command in `commands/` that the
-   record lists, and `.pact-install.json`.
+   `agents/`, `pact/review.md`, the `pact/builder/` folder, each pact command
+   in `commands/` that the record lists, `/scriptorium` included, and
+   `.pact-install.json`.
 3. **Put back your own agents** from your copy of the `agents/` folder.
 
 Start a new session to load the change.

@@ -77,9 +77,10 @@ how every session in every repo behaves. So:
   handed back as `--rendered-hash <hash>`, and refuses if it does not match this
   run's render. A pact from before edits (#94) refuses a file that has any, so
   to install such a commit, empty the edit list first.
-- **The parts Scriptorium builds.** Four open parts, `tiers`, `sensitive`,
-  `workflow` and `lenses`, can be edited in the home configuration only; a
-  project configuration may edit no part (#262). An edit to any of them gets
+- **The parts Scriptorium builds.** Six open parts, `moves`, `tiers`,
+  `sensitive`, `workflow`, `lenses` and `qualities`, can be edited in the
+  home configuration only; a project configuration may edit no part (#262).
+  An edit to any of the five but `moves` gets
   the dry run's security-defaults line, before every other warning: it names
   the parts and says whether the configuration changed since the last
   install. A pact from before #262 refuses an edit to these parts, so to roll
@@ -107,8 +108,9 @@ how every session in every repo behaves. So:
   what it refuses first.
 - **The builder page.** [`builder/scriptorium.html`](builder/scriptorium.html)
   builds a configuration without writing JSON. After a change to the pact
-  text, the renderer's lists or the example blocks, run
-  `node builder/build.mjs` to refresh it; a gate test fails until you do. A
+  text, the renderer's lists, the example blocks or a preset in
+  `builder/presets/`, run `node builder/build.mjs` to refresh it; a gate test
+  fails until you do. A
   person's own builder comes from the `/scriptorium` command
   ([`claude/commands/scriptorium.md`](claude/commands/scriptorium.md)),
   which every install puts in place with the builder kit under
@@ -127,7 +129,10 @@ how every session in every repo behaves. So:
 - **Project install.** To make the pact stricter in one repo, add
   `--project-folder <full path>`. It reads the project's
   `.claude/pact-config.json`, which may only set values strictly tighter than
-  your own, and writes one rules file, `.claude/rules/pact-project.md`, with a
+  your own, but for one thing: a `qualities` list, which takes the place of
+  the home list in that repo. Its rows are a quality, a measure and a list of
+  lenses, each one line, compiled into a table under fixed text, and the
+  dry run leads with a security-defaults line for it (ADR 0068). It writes one rules file, `.claude/rules/pact-project.md`, with a
   record beside it. It installs nothing in the Claude home folder and no
   agents into the project. It refuses a project with no configuration file, a
   project that is or holds your home folder, or is, holds or sits inside a
@@ -136,7 +141,8 @@ how every session in every repo behaves. So:
   `--apply` needs the project rules file's full rendered hash, given as
   `--rendered-hash <hash>`. On a project install that hash binds the bytes
   installed, not the configuration files: a file changed after the dry run
-  still installs if it renders the same bytes, which can never be looser.
+  still installs if it renders the same bytes, which can never be looser
+  than the configuration the dry run showed.
 - **Rolling back.** An older pact installs with that commit's own installer.
   Rollback is supported only to commits on the published `main` from the Node
   install's cutover (#166, `6821d68`) on. **Before checking out a commit to

@@ -41,7 +41,7 @@ As the work needs it.
 
 </details>
 
-The moves name no skills. You bind your own tools to them through a configuration file (there is an example in [`examples/pact-config/`](examples/pact-config/)), and [Matt Pocock's skills](https://github.com/mattpocock/skills) ship as a ready-made preset.
+The moves name no skills. You put your own skills and commands on the stages of the workflow instead, with the Scriptorium builder page: type `/scriptorium` after installing, or write a configuration file by hand (there is an example in [`examples/pact-config/`](examples/pact-config/)). The builder starts from a full workflow and ships six presets, [Matt Pocock's skills](https://github.com/mattpocock/skills) and Superpowers among them.
 
 ## How much checking
 
@@ -89,6 +89,8 @@ Each lens is offered with a one-line why, and I say yes or no. Each lens runs fr
 
 </details>
 
+The rules file also ranks the qualities that matter in my work, each with how it is measured and the lenses that check it; a lens checks the rows it is handed against their measures, and a project may rank its own.
+
 Their reports go into the work's record word for word. The agent sorts the findings and acts on its recommendation for each, and I can reverse any of them. Whether the work is done is my call.
 
 ## Who it's for
@@ -101,13 +103,14 @@ Their reports go into the work's record word for word. The agent sorts the findi
 
 | Path | What it is |
 |---|---|
-| `claude/CLAUDE.md` | The rules: the moves, how much checking, the lenses, and when to stop |
+| `claude/CLAUDE.md` | The rules: the moves, how much checking, the lenses, the qualities that matter, and when to stop |
 | `claude/review.md` | The review procedure a session reads before it runs a lens |
 | `claude/agents/` | The lenses, in pairs, and `scout`, the search helper |
+| `claude/commands/` | The pact commands: `/scriptorium`, always installed, and `/make-it-so` and `/finis`, when you list them |
 | `familiars/` | Each agent's contract |
 | `cross/poster.mjs` | The poster's core: posts free text to GitHub and reads it back. Not installed yet |
 | `gate/` | The install gate: the pact checks itself before it installs |
-| `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON |
+| `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON, and its presets; it installs with `/scriptorium` |
 | `cloud-sessions/` | Setup for Claude Code cloud sessions |
 
 The full table, with every agent and where each file installs, is in [docs/reference.md](docs/reference.md).
@@ -129,5 +132,5 @@ The full how-to, with the command for each shell, is in [docs/install.md](docs/i
 - **git.** The install reads the clone's committed files. On Windows, the gate's tests also use the `sh` that ships with Git for Windows.
 - **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
 - **[grimoire](https://github.com/mephistopheles4/grimoire).** Each agent's contract follows its format; its skills are optional.
-- **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: a preset you can bind to the moves.
+- **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: one of the builder's presets puts them on the workflow's stages.
 - **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the Linux test run.

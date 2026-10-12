@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R29, so other work can point at it. A
+Each accepted risk has a label, R1 to R31, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -31,6 +31,12 @@ Claude home folder, `~/.claude`:
   on an experimental agent-teams flag. Since #265 they set no ask rules (an
   ask rule makes Claude Code ask before one kind of action), and the install
   takes out the ones an older pact added.
+- **The `/scriptorium` command and its builder kit,** in `commands/` and
+  `pact/builder/`. The kit is Node code, the builder and the renderer, that
+  runs when you type `/scriptorium`; it writes a page only into a new
+  temporary folder or a path you name outside any repo, the Claude home
+  folder and any `.claude` folder (#262, ADR 0070). `/make-it-so` and
+  `/finis` install only when your configuration lists them.
 
 The repo also holds a setup script for Claude Code cloud sessions, in
 `cloud-sessions/`. It is not part of the install. You paste it into a cloud
@@ -85,7 +91,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R29
+  title Residual risk, R1 to R31
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -121,6 +127,7 @@ quadrantChart
   R28: [0.12, 0.52]
   R29: [0.20, 0.30]
   R30: [0.26, 0.60]
+  R31: [0.14, 0.42]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -138,12 +145,13 @@ How to read it:
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), and the security defaults rewritten in a configuration (R30) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21, R26, R29.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
   a posted report; a rule and a search before posting guard it until the
-  poster installs.
+  poster installs. R31 needs you to run a project install and pass over the
+  warning that leads its dry run.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -160,7 +168,7 @@ How to read it:
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); elsewhere, judgment | Rule, judgment |
-| R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too | Outside the pact, boundary |
+| R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071) | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on install mechanics only since ADR 0069; the dry run; your review of the commit | Boundary |
@@ -171,12 +179,13 @@ How to read it:
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
-| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
+| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; the poster's hidden-text scan once it installs (#246) | Rule |
-| R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the four parts Scriptorium builds (`tiers`, `sensitive`, `workflow`, `lenses`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's graph checks are not install-time controls (#262) | Boundary (a pointer), judgment |
+| R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the five parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
+| R31 A project's qualities list | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list | You run each project install and read its dry run, which leads with a security-defaults line for the list; the renderer builds the table from three one-line fields under fixed text, taking no prose (#262, ADR 0068) | Boundary (a pointer), judgment |
 
 ## Strangers on the tracker
 
@@ -517,8 +526,8 @@ session can act before you see it.
   prompt's decision (R2), and an OK to run outsiders' code that arrives in a
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
-- **R25. A pact command sent as prompt text.** `/make-it-so` and `/finis`
-  set `disable-model-invocation: true`. That stops the model starting one,
+- **R25. A pact command sent as prompt text.** `/make-it-so`, `/finis` and
+  `/scriptorium` set `disable-model-invocation: true`. That stops the model starting one,
   not text sent in as a prompt. The bodies add no check of their own, by the
   owner's decision (#229), so what guards each channel is outside them, and
   none has been tried live:
@@ -539,8 +548,9 @@ session can act before you see it.
     permission mode; that card is the guard against a relayed `/finis`.
 
   What still holds whoever sent the command: "Stop and ask me", and here
-  this repo's "Never post a secret or a personal detail". The cloud copy ships neither
-  command. A project's own skill with the same name runs in place of a
+  this repo's "Never post a secret or a personal detail". `/scriptorium`,
+  sent in, writes a builder file and renders a page outside any repo; it
+  merges, pushes and posts nothing. The cloud copy ships no command. A project's own skill with the same name runs in place of a
   command, and the install's skill-clash check covers only your personal
   skills folder. Such a skill can come from another account's commit in a
   tree you work in, and its shell commands run when you type the name,
@@ -555,10 +565,11 @@ safe, and a change made months ago is easy to forget.
 **What the pact does.**
 
 - **The configuration file is narrow.** `~/.claude/pact/config.json` can set
-  four kinds of thing. The usage pause is the weekly-usage level above which
-  sessions wait for you before expensive work. The open parts of the moves
-  are slots in the pact's four steps where you bind your own skills; there
-  are four. Every agent's model and effort can be set, `scout`'s included,
+  four kinds of thing. The usage pauses are the weekly and, if you set it,
+  the 5-hour usage levels above which sessions wait for you before expensive
+  work. The open parts are the text Scriptorium builds: the moves, the
+  tiers, sensitive work, the workflow, the lens roster and the qualities,
+  each replaced whole by a block of yours. Every agent's model and effort can be set, `scout`'s included,
   to any model Claude Code takes (#262); the model is your own text, so the
   dry run and the review files carry it and are shared by verdict and counts
   only, and the installed rules file names a model beyond the five aliases
@@ -569,8 +580,10 @@ safe, and a change made months ago is easy to forget.
 - **The install says what changed.** The dry run prints a warning for each
   value set and each part edited. The installed rules file names the
   configuration in effect.
-- **A project can only tighten.** A project's own configuration, installed
-  through the install script, may only set values stricter than yours.
+- **A project can only tighten, but for its qualities.** A project's own
+  configuration, installed through the install script, may only set values
+  stricter than yours, and may hold its own qualities list, which takes the
+  place of yours in that repo (R31).
 
 **What is accepted.**
 
@@ -585,8 +598,23 @@ safe, and a change made months ago is easy to forget.
   contradict any rule in meaning. A rules file copied by hand, or shipped in a repo, skips
   the gate. So does a direct edit to an installed lens file, such as a weaker
   model line: nothing marks it, and since #189 the Lens
-  dispositions table no longer records the model a lens ran on, so only the
-  next dry run's drift check shows it.
+  dispositions table no longer records the model a lens ran on, and since
+  #262 the next dry run lists such a file under "Yours, left as is", not as
+  drift (ADR 0071).
+- **R30. The security defaults can be rewritten in a configuration.** A
+  home configuration may replace the tiers, the sensitive-work list and its
+  route, the workflow, the lens roster and the qualities. The dry run's
+  security-defaults line names each such part first, and says whether the
+  configuration changed since the last install; it points, and you read the
+  rendered part. The builder's checks and its Presets checklist, which shows
+  each section a preset or shared file carries before anything is taken, are
+  your look at what you load, not a control the install runs.
+- **R31. A project's qualities list takes the place of yours.** A project's
+  `.claude/pact-config.json` may hold a list that drops the Security row, or
+  any other, in that repo, the one way a project may loosen. A cloned repo
+  can't install it by itself: you run the project install, and its dry run
+  leads with a security-defaults line for the list. The table is compiled
+  from three one-line fields under fixed text, so no prose rides in.
 - **R18. Retired by #189.** The rules no longer have sessions collect review
   totals into an issue on this repo. A session that reads several projects'
   records copies nothing from one project into another.
@@ -675,10 +703,12 @@ Each tweak below is yours to make. The cost is what you give up.
 - **Set an agent's model or effort.** Cheaper and faster. Nothing marks a
   security lens's reports since #262, and a shell or web lens on a weaker
   model may be easier to steer (R12).
-- **Edit the open parts of the moves** to bind your own skills. You own what
-  those blocks say (R17).
-- **Set the usage pause** anywhere from 0 to 100 percent. At 100, sessions
-  never wait for you before expensive work.
+- **Edit the open parts,** in the builder or by hand: the moves, the tiers,
+  sensitive work, the workflow with your own skills on its stages, the lens
+  roster and the qualities. You own what those blocks say (R17, R30).
+- **Set the usage pauses** anywhere from 0 to 100 percent, the weekly one
+  and, if you want it, the 5-hour session one. At 100, sessions never wait
+  for you before expensive work.
 - **Edit any other text in your clone** and commit it. The install takes it.
   You own its review (R17).
 - **Drop or pin plugins and skills.** Lowers R9 and R10. You lose what they

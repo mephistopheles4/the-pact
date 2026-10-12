@@ -17,7 +17,7 @@ effort, and what never goes in. For what the pact is and why, read the
 | `cross/poster.mjs` | The poster's core (#246, #253): posts free text to GitHub through one fixed call per surface and reads back what landed. Not installed yet. Nothing under `cross/` installs | Never installed |
 | `gate/` | The install gate: the pact's own check (seam A), the renderer and the install. Since ADR 0069 it checks install mechanics only; the pact is vetted like any skill | Never installed |
 | `examples/pact-config/` | An example user configuration: the values a person may set, such as the usage pause line. Copy it to `~/.claude/pact/config.json` to use it; the installer reads that file and never writes it | Never installed |
-| `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. The four moves show by name, with the fixed block; open slots take presets, your own text, your skills and commands, and your own agents. It fetches nothing, and the installer checks what it saves like any other file. `scriptorium.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, type `/scriptorium` in any session: it writes a builder file from your own workflow and renders your page with the installed kit's `build.mjs` | The kit `build.mjs` reads, with `/scriptorium`: `~/.claude/pact/builder/` |
+| `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. It edits the moves, the tiers, sensitive work, the workflow on a canvas with your skills and commands on its stages, the lens roster, the qualities, the agents' settings and files, and the opt-in pact commands. It starts from Level 3 · Full, and `presets/` holds six presets, builder files you take part by part. It fetches nothing, and the installer checks what it saves like any other file. `scriptorium.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, type `/scriptorium` in any session: it writes a builder file from your own workflow and renders your page with the installed kit's `build.mjs` | The kit `build.mjs` reads, with `/scriptorium`: `~/.claude/pact/builder/` |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 | `docs/img/` | The README's figures, and `build.mjs`, which renders them from their sources in `docs/img/src/` | Never installed |
 
@@ -64,12 +64,13 @@ The rules file's Workflow table runs the same six stages, Plan to Maintain: what
 **Built on:**
 
 - **[Matt Pocock's skills](https://github.com/mattpocock/skills)** are one set
-  you can bind to the moves: triage, grilling, specs, prototypes, tickets,
-  test-driven development and deep modules. The pact describes practices, not
-  skills, and a person binds their own tools to them through configuration.
-  The set ships as a preset: three blocks in `examples/pact-config/blocks/`
-  (`move-N-matt-pocock.md`) and `examples/pact-config/config-matt-pocock-skills.json`
-  to bind them.
+  you can put on the workflow's stages: triage, grilling, specs, prototypes,
+  tickets, test-driven development and deep modules. The pact describes
+  practices, not skills, and a person puts their own tools on the stages
+  through configuration. The set ships as the builder preset
+  `builder/presets/level-3-matt-pocock.json`, and by hand as
+  `examples/pact-config/blocks/workflow-matt-pocock-skills.md` with
+  `examples/pact-config/config-matt-pocock-skills.json`.
 - **John Ousterhout's *A Philosophy of Software Design*,** the source of the
   deep-module idea those skills apply.
 
