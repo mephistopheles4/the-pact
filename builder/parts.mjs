@@ -90,7 +90,7 @@ export const DEFAULT_PARTS = Object.freeze({
   lenses: [
     { agents: ['behaviour-lens', 'integrity-lens'], label: 'the QA pair', asks: 'Does the change do what was asked? Can the tests behind the pass actually fail?' },
     { agents: ['executability-lens', 'good-enough-lens'], label: 'the spec pair', asks: 'Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save?' },
-    { agents: ['unstated-lens'], label: '', asks: 'What need did nobody write down?' },
+    { agents: ['unstated-lens'], label: 'the gatekeeper', asks: 'What need did nobody write down?' },
     { agents: ['conventions-lens', 'reader-lens'], label: 'the standards pair', asks: "Does the diff keep the repo's written rules? Can the next reader act on what it says?" },
     { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
   ],

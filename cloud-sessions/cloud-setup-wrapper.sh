@@ -312,7 +312,7 @@ judgment more than rules here, more so as models improve.
 | --- | --- |
 | `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail? |
 | `executability-lens`, `good-enough-lens` (the spec pair) | Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save? |
-| `unstated-lens` | What need did nobody write down? |
+| `unstated-lens` (the gatekeeper) | What need did nobody write down? |
 | `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |
 | `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |
 
@@ -2272,7 +2272,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 291f257438ae69d99f10bef19cbc8aab2d0762088252a1ba3e0eb4f72fd42611 'CLAUDE.md'
+check_hash 04295cbc624e7f60378f006729fb0ec26f1df1d05ad78e2c5ae0443e43da70fd 'CLAUDE.md'
 check_hash b7f32609e682b95f0f4b76afdfdbde87749c41cba240a029a385c48f79a30807 'agents/adversarial-lens.md'
 check_hash 3bb7d5996df6cfb32cab6ecee4a00186ff5e736f11b1e95f6c56e14bc5cefc27 'agents/behaviour-lens.md'
 check_hash ae2297a24909f710c061a145dc3fdaa80198f7f76da06875af57070d2061ae60 'agents/conventions-lens.md'
@@ -2303,7 +2303,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy d9e16bf71b18"
+  echo "pact cloud copy 29890323232f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

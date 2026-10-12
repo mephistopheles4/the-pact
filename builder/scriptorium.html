@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-FuDyq6j7A/6yYxrSbI6EVH4zrCTb7ct4VE9MaTpzPvI='; style-src 'sha256-wq9tA6DF8DJOKD29ahrS7s/Ohux+wRW8ibZpFSb6344='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oZpARLNbazGbuhYSv8+wScaPdScC4Lj6LynlcKa79S8='; style-src 'sha256-6orX0RB1WAmUGfK+JrpJ/5Ev9mFN7otnpqOt4LwIN1Y='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -153,6 +153,7 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
 input[type="text"], select { font: inherit; font-size: var(--av-t-annot); color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
 input[type="text"] { min-width: 14em; flex: 1 1 14em; }
+.wf-field > input, .wf-field > select, .wf-field input[type="text"] { flex: none; min-width: 0; }
 .field-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
 .field-row label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--av-s3) var(--av-s2); padding-top: var(--av-s1); }
@@ -509,7 +510,7 @@ const PACT = /* pact-data:begin */ {
    "tiers": "| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small, one session, no plan needed | none | Opus, low |\n| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |\n| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |",
    "sensitive": "Sensitive work gets more checking when I choose it. By default, sensitive\nwork is auth, secrets, crypto, input validation and data migrations:\nthorough, planned and built on Opus at high, with the security pair,\n`adversarial-lens` and `data-lens`, on the spec and the diff. That is the\nsensitive route. When the work matches that list, or you think it sensitive\notherwise, say why in one line in your tier proposal and recommend the route;\nI take it or not. If I didn't take the route, offer the security pair once\nmore at Test when the change matches the list. Beyond that one offer,\nsensitivity doesn't stop the run. A flag or an offer I haven't answered stays\nopen, in one line, in every hand-off and in the result. If you find it later,\nsay so in one line at the next hand-off or result, and keep saying it until I\nanswer.",
    "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `good-enough-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
-   "lenses": "| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail? |\n| `executability-lens`, `good-enough-lens` (the spec pair) | Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save? |\n| `unstated-lens` | What need did nobody write down? |\n| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |\n| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |"
+   "lenses": "| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail? |\n| `executability-lens`, `good-enough-lens` (the spec pair) | Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save? |\n| `unstated-lens` (the gatekeeper) | What need did nobody write down? |\n| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |\n| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |"
   },
   "defaults": {
    "tiers": [
@@ -752,7 +753,7 @@ const PACT = /* pact-data:begin */ {
      "agents": [
       "unstated-lens"
      ],
-     "label": "",
+     "label": "the gatekeeper",
      "asks": "What need did nobody write down?"
     },
     {
@@ -1120,7 +1121,7 @@ const DEFAULT_PARTS = Object.freeze({
   lenses: [
     { agents: ['behaviour-lens', 'integrity-lens'], label: 'the QA pair', asks: 'Does the change do what was asked? Can the tests behind the pass actually fail?' },
     { agents: ['executability-lens', 'good-enough-lens'], label: 'the spec pair', asks: 'Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save?' },
-    { agents: ['unstated-lens'], label: '', asks: 'What need did nobody write down?' },
+    { agents: ['unstated-lens'], label: 'the gatekeeper', asks: 'What need did nobody write down?' },
     { agents: ['conventions-lens', 'reader-lens'], label: 'the standards pair', asks: "Does the diff keep the repo's written rules? Can the next reader act on what it says?" },
     { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
   ],
@@ -2018,17 +2019,18 @@ function workflowEditor(host, state, changed) {
       });
       return b;
     };
-    const pairs = rosterPairs(state.parts);
-    const inPair = n => pairs.some(p => p.agents.includes(n));
+    const rows = state.parts.lenses.filter(r => r.agents.length);
+    const inRoster = n => rows.some(r => r.agents.includes(n));
     const lenses = PACT.agents.filter(a => a.configurable).map(a => a.name);
+    const heading = r => (r.label ? r.label.replace(/^the /, '').replace(/^./, c => c.toUpperCase()) : r.agents.join(', '));
     library.replaceChildren(
       el('div', { class: 'av-label', text: 'Nodes library · drag onto the canvas' }),
       item('stage', '', '▭', 'Stage', "a step of the work's own lifecycle"),
       item('cond', '', '?', 'Condition', 'when its lenses are offered'),
       item('skill', '', '✦', 'Skill', 'a skill or command, offered or used'),
       el('div', { class: 'av-label', text: 'Lenses' }),
-      ...pairs.map(p => el('div', { class: 'wf-libpair' }, item('pair', p.agents.join('+'), '◇◇', p.label, 'both on one condition'), ...p.agents.map(a => item('agent', a, '◇', a, 'one lens')))),
-      el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'The gatekeeper' }), ...lenses.filter(n => !inPair(n)).map(n => item('agent', n, '◇', n, 'a pact lens'))),
+      ...rows.map(r => el('div', { class: 'wf-libpair' }, r.agents.length > 1 ? item('pair', r.agents.join('+'), '◇◇', heading(r), 'all on one condition') : el('div', { class: 'av-label', text: heading(r) }), ...r.agents.map(a => item('agent', a, '◇', a, r.agents.length > 1 ? 'one lens' : r.asks)))),
+      ...(lenses.some(n => !inRoster(n)) ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Not in the roster' }), ...lenses.filter(n => !inRoster(n)).map(n => item('agent', n, '◇', n, 'a pact lens')))] : []),
       ...(PACT.yours.agents.length ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Yours' }), ...PACT.yours.agents.map(a => item('agent', a.name, '◆', a.name, a.description || 'your agent')))] : []),
     );
   }
@@ -2665,13 +2667,13 @@ function workflowEditor(host, state, changed) {
     });
     return s;
   };
-  const toggle = (on, set, label) => {
+  const toggle = (on, set, label, text) => {
     const b = el('button', { type: 'button', class: 'wf-sw', role: 'switch', 'aria-checked': String(on), 'aria-label': label });
     b.addEventListener('click', () => {
       set(!on);
       edited();
     });
-    return el('label', { class: 'wf-field wf-field--row' }, b, el('span', { text: on ? 'On' : 'Off' }));
+    return el('label', { class: 'wf-field wf-field--row' }, b, el('span', { text: text || (on ? 'On' : 'Off') }));
   };
   /** A model and its effort as two dropdowns, as the agents take them; `none` adds "none" for a tier with no plan. */
   function modelEffort(label, value, set, none) {
@@ -2720,9 +2722,13 @@ function workflowEditor(host, state, changed) {
         field('What happens here (compiles to nothing)', input(st.text, v => (st.text = v))),
         field('Model and effort from', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')),
         ...(st.model === 'owner' ? [] : [
-          ...state.parts.tiers.map(t => modelEffort(t.name, t[st.model], v => (t[st.model] = v), st.model === 'plan')),
-          modelEffort('Sensitive route', state.parts.sensitive[st.model], v => (state.parts.sensitive[st.model] = v), false),
-          el('p', { class: 'av-annot', text: `These are the tiers' ${st.model} models: every stage that takes the ${st.model} model changes with them.` }),
+          el('p', { class: 'av-annot', text: [...state.parts.tiers.map((t, i) => `${t.name}: ${stageCell(state.parts, st, i)}`), `Sensitive route: ${stageCell(state.parts, st, null)}`].join(' · ') }),
+          toggle(ui.perTier, v => (ui.perTier = v), 'set per tier', 'Set per tier'),
+          ...(ui.perTier ? [
+            ...state.parts.tiers.map(t => modelEffort(t.name, t[st.model], v => (t[st.model] = v), st.model === 'plan')),
+            modelEffort('Sensitive route', state.parts.sensitive[st.model], v => (state.parts.sensitive[st.model] = v), false),
+            el('p', { class: 'av-annot', text: `These are the tiers' ${st.model} models: every stage that takes the ${st.model} model changes with them.` }),
+          ] : []),
         ]),
         el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Skipped at' }), el('div', { class: 'chips' }, ...TIER_KEYS.map(k => chip(k, st.skipAt.includes(k), () => {
           st.skipAt = st.skipAt.includes(k) ? st.skipAt.filter(x => x !== k) : TIER_KEYS.filter(x => x === k || st.skipAt.includes(x));
