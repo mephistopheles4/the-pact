@@ -93,27 +93,6 @@ test('bad case: an uncommitted edit to the install script refuses --apply', t =>
 
 // ------------------------------------------------------------ fails closed
 
-test('bad case: a pinned script that does not match its pin refuses', t => {
-  const repo = makeRepo(t, root => {
-    const p = join(root, 'gate', 'grimoire', 'check.mjs');
-    writeFileSync(p, `${readFileSync(p, 'utf8')}// edited\n`);
-  });
-  const r = install(repo, home(t));
-  // The runner's own refusal, before seam A runs: seam A checks the pin too,
-  // and its line alone would let a runner that skipped the check pass (#210).
-  refused(r, /^REFUSED: the pinned check script does not match its pin\./m);
-  assert.doesNotMatch(r.stdout, /^seam-a\| /m, r.out);
-});
-
-test('bad case: a missing pinned script refuses', t => {
-  const repo = makeRepo(t, root => {
-    rmSync(join(root, 'gate', 'grimoire', 'check.mjs'));
-  });
-  const r = install(repo, home(t));
-  refused(r);
-  assert.match(r.stdout, /^REFUSED: the pinned check script or its pin file is missing\./m, r.out);
-});
-
 // The Node install runs every check in-process on the Node that started it
 // (S6, rows P2 and R4), so these cases plant faults in the renderer's core,
 // and the Node lookup cases show that nothing on PATH is ever run as Node.
@@ -291,11 +270,6 @@ test('canary: the install never echoes agent file content', t => {
 
 // ------------------------------------------------------------ the pact text (#33)
 
-function weakenGoAhead(s) {
-  assert.ok(s.includes('only after they say so in chat'));
-  return s.replace('only after they say so in chat', 'when ready');
-}
-
 // unlisted-live (#261, S5): the review file is never laid over a live file the pact did not put there.
 test('bad case: a live pact/review.md the record does not list refuses, on the dry run and on --apply, and nothing is written', t => {
   const repo = makeRepo(t);
@@ -309,22 +283,6 @@ test('bad case: a live pact/review.md the record does not list refuses, on the d
   }
   assert.deepEqual(listTree(h), before);
   assert.equal(readFileSync(join(h, 'pact', 'review.md'), 'utf8'), 'my own notes\n');
-});
-
-test('bad case: a weakened install go-ahead in AGENTS.md at HEAD refuses', t => {
-  const repo = makeRepo(t, root => writeFileSync(join(root, 'AGENTS.md'), weakenGoAhead(readFileSync(join(root, 'AGENTS.md'), 'utf8'))));
-  const r = install(repo, home(t));
-  refused(r);
-  assert.match(r.stdout, /^seam-a\| FAIL required-clause: AGENTS\.md: install-go-ahead /m, r.out);
-});
-
-test('AGENTS.md is read from HEAD: a working-tree-only weakening is not what is checked', t => {
-  const repo = makeRepo(t);
-  const p = join(repo, 'AGENTS.md');
-  writeFileSync(p, weakenGoAhead(readFileSync(p, 'utf8')));
-  const r = install(repo, home(t));
-  assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /uncommitted edits are not checked/);
 });
 
 // ------------------------------------------------------------ the check's runner, on real Node
@@ -443,7 +401,7 @@ test('bad case: a renderer that adds a file to the stage refuses, with nothing w
 
 test('bad case: a renderer that changes a staged file refuses', t => {
   const repo = makeRepo(t, root =>
-    plantRenderer(root, R_RENDER, `  writeFileSync('gate/clauses/move-4.md', 'x\\n', { flag: 'a' });\n${R_RENDER}`),
+    plantRenderer(root, R_RENDER, `  writeFileSync('gate/settings-allowlist.json', 'x\\n', { flag: 'a' });\n${R_RENDER}`),
   );
   const r = install(repo, home(t));
   refused(r);
@@ -486,16 +444,5 @@ test("bad case: a commit with seam A's core deleted refuses, since the runner ca
   const r = install(repo, home(t));
   refused(r, /^REFUSED: the commit's gate\/seam-a-core\.mjs could not be loaded\./m);
   assert.doesNotMatch(r.stdout, /^seam-a\| /m, r.out);
-});
-
-// #261 C4
-test('seam A checks the rendered bytes: a rendered file that weakens a clause refuses', t => {
-  const repo = makeRepo(t, root =>
-    plantRenderer(root, R_RENDER, "  const { rendered: whole, diff } = apply(lines, swaps);\n  const rendered = Buffer.from(whole.toString('utf8').replace('your pick, and wait.', 'your pick.'));"),
-  );
-  const r = install(repo, home(t));
-  refused(r);
-  assert.match(r.stdout, /^render\| RESULT: pass$/m, r.out);
-  assert.match(r.stdout, /^seam-a\| FAIL required-clause: claude\/CLAUDE\.md: stop-and-escalate /m, r.out);
 });
 

@@ -26,7 +26,6 @@ test('node: a dry run on a clean tree passes, shows the pin, the check, the gate
   passed(r);
   const commit = git(repo, 'rev-parse', 'HEAD').trim();
   assert.match(r.stdout, new RegExp(`^Install from commit ${commit} into `, 'm'));
-  assert.match(r.stdout, /^Pinned check: grimoire [0-9a-f]{40}, sha256 verified$/m);
   assert.match(r.stdout, /^seam-a\| RESULT: pass$/m);
   assert.match(r.stdout, /^Working tree: clean$/m);
   assert.match(r.stdout, /^Gate: no gate recorded at the last install$/m);

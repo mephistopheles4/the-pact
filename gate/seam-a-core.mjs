@@ -10,18 +10,19 @@
 //   node seam-a.mjs <stage root> --commands <none | name,name,...>
 //
 // The stage root holds claude/, familiars/ and AGENTS.md as the commit has
-// them. Seam A decides what each file is, checks every agent
-// the install would copy, every pact command file, the review procedure
-// file's characters and hidden-text forms,
-// and the pact's own text (pact-text.mjs), and prints the exact
-// copy set as INSTALL lines, one per (staged path, live path) pair. The
-// install copies those files and nothing else, and refuses unless its own
-// reading of the stage agrees.
+// them. Seam A checks install mechanics only (#262, the pact is vetted like a
+// skill): it decides what each file is and where it goes, reads each agent's
+// frontmatter so the file still parses with a name that matches its stem, runs
+// the text scanner on every installed text file, holds
+// the settings overlay to its allow-list, and prints the exact copy set as
+// INSTALL lines, one per (staged path, live path) pair. What a file says, and
+// which tools an agent holds, is not its question. The install copies those
+// files and nothing else, and refuses unless its own reading of the stage agrees.
 //
 // --commands names the pact commands the configuration turns on, as the
 // renderer's COMMANDS line gives them (#203). It is required, exactly once;
 // an unknown name, a repeat, and a name with no file in the stage refuse.
-// Every command file is checked, and only a named one is listed for install.
+// Only a named command is listed for install.
 // It also holds the settings overlay to gate/settings-allowlist.json, and
 // prints its hash as one SETTINGS line, which the install's merge must match.
 //
@@ -35,65 +36,18 @@
 //
 // Node 20 or later, ESM, node: built-ins and the gate's own modules only.
 
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkPactText } from './pact-text.mjs';
-import { AT_IMPORT_RE, PACT_COMMANDS, Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
+import { PACT_COMMANDS, Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PINNED = join(HERE, 'grimoire', 'check.mjs');
-const PIN = join(HERE, 'grimoire', 'check.mjs.pin');
-const ALLOWLIST = join(HERE, 'tool-allowlist.json');
 const SETTINGS_ALLOWLIST = join(HERE, 'settings-allowlist.json');
 const OVERLAY = 'claude/settings.overlay.json';
-// The review procedure file (#261): one file, by exact path, to one fixed live
-// path. The rules file tells a session to read it before any lens runs. The model reads it with the Read tool, which keeps
-// text a rendered view hides, so hidden-text forms are refused in it.
+// The review procedure file (#261): one file, by exact path, to one fixed live path.
 const REVIEW_FILE = 'claude/review.md';
 const REVIEW_DEST = 'pact/review.md';
-const REVIEW_MAX = 64 * 1024;
-// Hidden-text forms: an HTML comment; a link reference definition, which
-// CommonMark never shows, wherever it sits on a line (after a quote or list
-// marker, or indented), and a bracket a line opens and leaves open, which can
-// start a label split over lines; an inline link, whose target and title a
-// rendered view hides; and a raw HTML tag, autolinks included. Read one line
-// at a time, so each form is refused wherever a container puts it.
-const REVIEW_HIDDEN = Object.freeze([
-  [/<!--/, 'an HTML comment'],
-  [/\]:/, 'a link reference definition'],
-  [/\[[^\]]*$/, 'a bracket the line leaves open, which can start a link label split over lines'],
-  [/\]\(/, 'an inline link, whose target and title a rendered view hides'],
-  [/<[A-Za-z/!?]/, 'a raw HTML tag'],
-]);
-
-// Every agent gets these unless the allow-list names it. Hard-coded here, not
-// read from the allow-list, so a broken allow-list cannot widen the default.
-const DEFAULT_TOOLS = Object.freeze(['Read', 'Glob', 'Grep']);
-// The frontmatter keys any installed agent may have. Everything else fails,
-// whatever a contract's "Extra keys:" line says.
-const ALLOWED_KEYS = new Set(['name', 'description', 'tools', 'model', 'effort', 'metadata']);
-// The one wildcard tool name a flow list may hold.
-const BROWSER_WILDCARD = 'mcp__Claude_Browser__*';
-const MARK_KEYS = ['contract-version', 'familiar-digest', 'contract-digest'];
-// The frontmatter keys a pact command file may have, and no other (#203). A
-// command never grants a tool, a model or a hook. disable-model-invocation
-// must be exactly true: it keeps the model from starting the command itself.
-const COMMAND_KEYS = new Set(['description', 'disable-model-invocation']);
-const INVOCATION_KEY = 'disable-model-invocation';
-// The two forms Claude Code runs as shell when a command loads, read more
-// strictly than it reads them, so a near miss fails too: an exclamation mark
-// right before a backtick anywhere, and a run of three or more backticks or
-// tildes anywhere on a line, at any indent or after any text, with an
-// exclamation mark later on that line.
-const INLINE_SHELL = '!`';
-const FENCE_SHELL_RE = /(?:`{3}|~{3}).*!/;
-// An argument placeholder, which splices typed text into the body before the
-// shell pass: $ARGUMENTS, $ARGUMENTS[N] or $N. The pact commands take none.
-const ARGUMENT_RE = /\$(?:ARGUMENTS|[0-9])/;
-
 // Settings that run a command, load code or reach a tool server. Refused by
 // name as an object key at any depth of the overlay, whatever the settings
 // allow-list says. Hard-coded here so an allow-list edit cannot unban one.
@@ -122,21 +76,16 @@ const SETTINGS_SETS = new Set(['permissions.allow', 'permissions.deny', 'permiss
 // #265 the overlay sets no ask rules: the allow-list holds no ask list, so an
 // overlay that sets one fails as unlisted.
 const SETTINGS_REQUIRED = Object.freeze(['permissions.defaultMode']);
-const PINNED_TIMEOUT_MS = 60_000;
-
-const PIN_RE = /^commit ([0-9a-f]{40})\nsha256 ([0-9a-f]{64})\n$/;
 const TOP_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const META_KEY_RE = /^[a-z][a-z0-9-]*$/;
 const SETTINGS_KEY_RE = /^[A-Za-z0-9_]+$/;
 const SETTINGS_PATH_RE = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)?$/;
-const TOOL_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
-// An unmigrated agent's name: letters and digits in hyphen-joined runs, as
-// today's files use (Explore keeps its capital). A familiar's stem must pass
-// grimoire's own rule as well: lower case only.
+// A flow-list item YAML reads as plain text: a letter first, then no flow
+// punctuation, quote or comment sign.
+const TOOL_ITEM_RE = /^[A-Za-z][^,[\]{}#'"&*!|>%@`]*\*?$/;
+// An agent's name: letters and digits in hyphen-joined runs, as the files use.
 const AGENT_NAME_RE = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
-const FAMILIAR_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const NAME_MAX = 64;
-const GRIMOIRE_RULE_RE = /^(?:FAIL|CANNOT-CHECK) ([a-z][a-z0-9-]*)(?::|$)/;
 
 // ---------------------------------------------------------------- values
 
@@ -220,14 +169,14 @@ function parsePlain(v) {
   return v;
 }
 
-/** `[A, B]`: the tool names, in order. Each is a plain tool name or the one browser wildcard. */
+/** `[A, B]`: the tool names, in order. Which tools an agent holds is not the gate's question; only that the list reads as plain text. */
 function parseFlow(raw) {
   if (!raw.endsWith(']')) throw new Refused('value', 'a flow list that does not close on its line');
   const inner = raw.slice(1, -1);
   if (inner.trim() === '') return [];
   return inner.split(',').map(part => {
     const item = part.trim();
-    if (item !== BROWSER_WILDCARD && (!TOOL_RE.test(item) || yamlReadsAsNonText(item))) {
+    if (!TOOL_ITEM_RE.test(item) || yamlReadsAsNonText(item)) {
       throw new Refused('value', 'a flow list item that is not a plain tool name');
     }
     return item;
@@ -237,8 +186,6 @@ function parseFlow(raw) {
 /** One value after "key: ". Returns { kind: 'text' | 'flow' | 'true', value?, items? }. */
 function parseValue(raw, key) {
   if (raw.startsWith(' ')) throw new Refused('value', 'more than one space after the colon');
-  // The one boolean the reader takes: a command's invocation key, as plain true.
-  if (key === INVOCATION_KEY && raw === 'true') return { kind: 'true' };
   if (raw[0] === '"' || raw[0] === "'") {
     const value = parseQuoted(raw);
     if (key === 'tools') throw new Refused('quoted-list', 'tools must be a flow list, not a quoted value');
@@ -396,80 +343,6 @@ function readFrontmatter(text, file, report) {
 
 function sha256(buf) {
   return createHash('sha256').update(buf).digest('hex');
-}
-
-function verifyPin(report) {
-  let pin;
-  let script;
-  try {
-    pin = readFileSync(PIN, 'utf8');
-    script = readFileSync(PINNED);
-  } catch {
-    report.fail('pin', null, null, 'the pinned check script or its pin file is missing');
-    return null;
-  }
-  const m = PIN_RE.exec(pin);
-  if (!m) {
-    report.fail('pin', null, null, 'the pin file is not exactly "commit <40 hex>" and "sha256 <64 hex>"');
-    return null;
-  }
-  if (sha256(script) !== m[2]) {
-    report.fail('pin', null, null, 'the pinned check script does not match its pin');
-    return null;
-  }
-  report.note('pin', `grimoire check.mjs at ${m[1]}, sha256 verified`);
-  return m[1];
-}
-
-/** The per-agent tool allow-list, as a Map from agent name to its exact tool set. */
-function loadAllowlist(report) {
-  let text;
-  try {
-    text = readFileSync(ALLOWLIST, 'utf8');
-  } catch {
-    report.fail('allowlist', null, null, 'the tool allow-list is missing');
-    return null;
-  }
-  // JSON.parse keeps the last of two equal keys. Every string in this file is
-  // a key or a tool name, and only a key is followed by a colon.
-  // Each key is decoded first, so an escape cannot spell one name two ways.
-  let keys;
-  try {
-    keys = [...text.matchAll(/"((?:[^"\\]|\\.)*)"\s*:/g)].map(m => JSON.parse(`"${m[1]}"`));
-  } catch {
-    report.fail('allowlist', null, null, 'the tool allow-list is not valid JSON');
-    return null;
-  }
-  if (new Set(keys).size !== keys.length) {
-    report.fail('allowlist', null, null, 'the tool allow-list names an agent twice');
-    return null;
-  }
-  let doc;
-  try {
-    doc = JSON.parse(text);
-  } catch {
-    report.fail('allowlist', null, null, 'the tool allow-list is not valid JSON');
-    return null;
-  }
-  if (doc === null || typeof doc !== 'object' || Array.isArray(doc)) {
-    report.fail('allowlist', null, null, 'the tool allow-list must be an object of agent name to tool list');
-    return null;
-  }
-  const map = new Map();
-  for (const name of Object.keys(doc)) {
-    const tools = doc[name];
-    const valid =
-      AGENT_NAME_RE.test(name) &&
-      Array.isArray(tools) &&
-      tools.every(x => typeof x === 'string' && (TOOL_RE.test(x) || x === BROWSER_WILDCARD)) &&
-      new Set(tools).size === tools.length;
-    if (!valid) {
-      report.fail('allowlist', null, null, 'an allow-list entry is not a name with a list of distinct tool names');
-      return null;
-    }
-    map.set(name, new Set(tools));
-  }
-  return map;
 }
 
 // ---------------------------------------------------------------- settings
@@ -639,14 +512,13 @@ function walk(root, top, report) {
 
 /**
  * What each staged file is. Returns { agents, installs } where each agent is
- * { file, stem, dest, familiar } and each install is { file, dest }. Matching
+ * { file, stem, dest } and each install is { file, dest }. Matching
  * is exact and case-sensitive: `x.CONTRACT.md` is an agent, not a contract.
  */
 function classify(root, report) {
   const agents = [];
   const commands = [];
   const installs = [];
-  const contracts = new Set();
   let overlay = false;
   const files = [...walk(root, 'claude', report), ...walk(root, 'familiars', report)];
   for (const rel of files) {
@@ -658,16 +530,12 @@ function classify(root, report) {
     if (seg[0] === 'claude') {
       if (rel === 'claude/CLAUDE.md') {
         installs.push({ file: rel, dest: 'CLAUDE.md' });
-        report.note(
-          'partly-checked',
-          'claude/CLAUDE.md is the rendered rules file: the gate checks its pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers count the rendered file',
-        );
       } else if (rel === REVIEW_FILE) {
         installs.push({ file: rel, dest: REVIEW_DEST, review: true });
       } else if (rel === OVERLAY) {
         overlay = true;
       } else if (seg.length === 3 && seg[1] === 'agents' && seg[2].endsWith('.md')) {
-        const a = { file: rel, stem: seg[2].slice(0, -3), dest: `agents/${seg[2]}`, familiar: false };
+        const a = { file: rel, stem: seg[2].slice(0, -3), dest: `agents/${seg[2]}` };
         agents.push(a);
         installs.push(a);
       } else if (seg[1] === 'commands') {
@@ -679,155 +547,46 @@ function classify(root, report) {
       } else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       continue;
     }
-    // familiars/
+    // familiars/: each agent's contract, kept as its record, and nothing installed.
     if (seg.length !== 2) report.fail('unclassified', rel, null, 'a subfolder in familiars');
-    else if (seg[1] === '.gitkeep') continue;
-    else if (seg[1].endsWith('.contract.md')) contracts.add(seg[1]);
-    else if (seg[1].endsWith('.practice-test.md')) continue;
-    else if (seg[1].endsWith('.md')) {
-      const a = { file: rel, stem: seg[1].slice(0, -3), dest: `agents/${seg[1]}`, familiar: true };
-      agents.push(a);
-      installs.push(a);
-    } else report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
+    else if (!(seg[1] === '.gitkeep' || seg[1].endsWith('.contract.md') || seg[1].endsWith('.practice-test.md'))) report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
-  for (const a of agents) a.hasContract = a.familiar && contracts.has(`${a.stem}.contract.md`);
   if (!installs.some(i => i.review)) report.fail('review-file', REVIEW_FILE, null, 'the review procedure file is missing');
   return { agents, commands, installs, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
 
-function nameOk(v, familiar) {
-  return v.length >= 1 && v.length <= NAME_MAX && (familiar ? FAMILIAR_NAME_RE : AGENT_NAME_RE).test(v);
-}
-
-function checkAgent(a, parsed, allow, report) {
+function checkAgent(a, parsed, report) {
   const { top } = parsed;
-  for (const [key, e] of top) {
-    if (!ALLOWED_KEYS.has(key)) report.fail('keys', a.file, e.line, 'a key outside the allow-list');
-  }
-
   const name = top.get('name');
   if (!name) report.fail('name', a.file, null, 'no name');
   else if (name.kind === 'text') {
-    if (!nameOk(name.value, false)) report.fail('name', a.file, name.line, 'a name outside letters, digits and single hyphens, 1-64 long');
+    if (name.value.length > NAME_MAX || !AGENT_NAME_RE.test(name.value)) report.fail('name', a.file, name.line, 'a name outside letters, digits and single hyphens, 1-64 long');
     if (name.value !== a.stem) report.fail('name-stem', a.file, name.line, 'the name differs from the file stem');
     a.name = name.value;
   }
-
   const desc = top.get('description');
   if (!desc) report.fail('description', a.file, null, 'no description');
   else if (desc.kind === 'text' && desc.value.trim() === '') report.fail('description', a.file, desc.line, 'an empty description');
-
-  const tools = top.get('tools');
-  if (!tools) report.fail('tools-missing', a.file, null, 'no tools line; an agent without one gets every tool');
-  else if (tools.kind === 'flow') {
-    const want = (allow && allow.get(a.stem)) ?? new Set(DEFAULT_TOOLS);
-    const got = new Set(tools.items);
-    const same = got.size === tools.items.length && got.size === want.size && [...got].every(x => want.has(x));
-    if (got.size !== tools.items.length) report.fail('tools', a.file, tools.line, 'a tool listed twice');
-    else if (!same) report.fail('tools', a.file, tools.line, "the tools differ from this agent's allow-list entry");
-  }
-
-  if (a.familiar) {
-    const marks = MARK_KEYS.filter(k => parsed.metadata.has(k));
-    if (marks.length !== MARK_KEYS.length) report.fail('mark', a.file, null, 'a familiar without a full contract mark');
-    a.marked = marks.length === MARK_KEYS.length;
-  }
-}
-
-/**
- * A pact command file (#203, S3): the two frontmatter keys, read by the
- * agents' strict reader, and a body that runs nothing when it loads and
- * includes no file or argument. Checks the whole file, its frontmatter included.
- */
-function checkCommand(root, c, report) {
-  const text = scanText(readFileSync(join(root, ...c.file.split('/'))), c.file, report);
-  if (text === null) return;
-  const parsed = readFrontmatter(text, c.file, report);
-  if (parsed) {
-    for (const [key, e] of parsed.top) {
-      if (!COMMAND_KEYS.has(key)) report.fail('command-keys', c.file, e.line, 'a key a command may not have; only description and disable-model-invocation');
-    }
-    const desc = parsed.top.get('description');
-    if (!desc) report.fail('command-description', c.file, null, 'no description');
-    else if (desc.kind === 'text' && desc.value.trim() === '') report.fail('command-description', c.file, desc.line, 'an empty description');
-    const inv = parsed.top.get(INVOCATION_KEY);
-    if (!inv || inv.kind !== 'true') report.fail('command-invocation', c.file, inv ? inv.line : null, 'disable-model-invocation must be set to true, unquoted');
-  }
-  text.split('\n').forEach((line, i) => {
-    if (line.includes(INLINE_SHELL)) report.fail('command-shell', c.file, i + 1, 'an exclamation mark before a backtick, which runs a shell command when the command loads');
-    else if (FENCE_SHELL_RE.test(line)) report.fail('command-shell', c.file, i + 1, 'three backticks or tildes with an exclamation mark after them, which open a shell block when the command loads');
-    if (AT_IMPORT_RE.test(line)) report.fail('command-include', c.file, i + 1, 'an @ followed by text, which Claude Code may read as a file include');
-    if (ARGUMENT_RE.test(line)) report.fail('command-argument', c.file, i + 1, 'an argument placeholder, which splices typed text into the command; a pact command takes no argument');
-  });
-}
-
-/**
- * The review procedure file (#261, S5): at most REVIEW_MAX bytes, the text
- * scanner's character rules, and none of the hidden-text forms. Its wording
- * is not checked.
- */
-function checkReview(root, file, report) {
-  const buf = readFileSync(join(root, ...file.split('/')));
-  if (buf.length > REVIEW_MAX) {
-    report.fail('review-size', file, null, 'larger than 64 KiB');
-    return;
-  }
-  const text = scanText(buf, file, report);
-  if (text === null) return;
-  text.split('\n').forEach((line, i) => {
-    for (const [re, what] of REVIEW_HIDDEN) if (re.test(line)) report.fail('review-hidden', file, i + 1, `${what}, which the model reads and a rendered view hides`);
-  });
-}
-
-/** Run the pinned grimoire check on one familiar. Relays rule names and line numbers only. */
-function runPinned(root, a, report) {
-  const env = { ...process.env };
-  delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [PINNED, join(root, ...a.file.split('/'))], {
-    cwd: root,
-    env,
-    encoding: 'utf8',
-    timeout: PINNED_TIMEOUT_MS,
-    maxBuffer: 4 * 1024 * 1024,
-  });
-  const out = typeof r.stdout === 'string' ? r.stdout : '';
-  const lines = out.split('\n').filter(l => l !== '');
-  if (r.status === 0 && lines[lines.length - 1] === 'RESULT: pass') return;
-  for (const l of lines) {
-    const m = GRIMOIRE_RULE_RE.exec(l);
-    if (!m) continue;
-    const ln = /\bline ([0-9]+)\b/.exec(l);
-    report.fail(`grimoire/${m[1]}`, a.file, ln ? ln[1] : null, 'the pinned check reports this rule');
-  }
-  report.fail('grimoire', a.file, null, 'the pinned check did not pass');
 }
 
 function run(root, listed, report) {
   // @@TEST-CRASH-HOOK@@
-  const pinned = verifyPin(report);
-  const allow = loadAllowlist(report);
   const settingsAllow = loadSettingsAllowlist(report);
   const { agents, commands, installs, overlay } = classify(root, report);
   let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
-    const buf = readFileSync(join(root, ...a.file.split('/')));
-    const parsed = readAgent(buf, a.file, report);
-    if (parsed) checkAgent(a, parsed, allow, report);
-    if (!a.familiar) continue;
-    if (!nameOk(a.stem, true)) report.fail('familiar-name', a.file, null, "a familiar's file stem must be lower-case letters, digits and single hyphens");
-    if (!a.hasContract) report.fail('contract', a.file, null, 'a familiar without its sibling contract');
-    if (pinned && parsed && !parsed.partial && a.hasContract && a.marked && nameOk(a.stem, true)) runPinned(root, a, report);
+    const parsed = readAgent(readFileSync(join(root, ...a.file.split('/'))), a.file, report);
+    if (parsed) checkAgent(a, parsed, report);
   }
 
-  // Every command file is checked; only those --commands names are installed.
-  for (const c of commands) {
-    checkCommand(root, c, report);
-    if (!report.failedFiles.has(c.file)) report.pass('command', c.file);
-    if (listed.includes(c.stem)) installs.push(c);
-  }
+  // Only those --commands names are installed.
+  for (const c of commands) if (listed.includes(c.stem)) installs.push(c);
+  // Every other installed text file passes the text scanner: valid UTF-8, no
+  // hidden or control characters, so what a reader sees is what the model reads.
+  for (const i of [...installs, ...commands]) if (!agents.includes(i)) scanText(readFileSync(join(root, ...i.file.split('/'))), i.file, report);
   for (const name of listed) {
     if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
   }
@@ -845,10 +604,6 @@ function run(root, listed, report) {
     if (dests.has(k)) report.fail('destination-duplicate', i.file, null, `installs to the same live path as ${shown(dests.get(k))}`);
     else dests.set(k, i.file);
   }
-
-  for (const i of installs) if (i.review) checkReview(root, i.file, report);
-
-  checkPactText(root, agents, report);
 
   for (const a of agents) if (!report.failedFiles.has(a.file)) report.pass('agent', a.file);
 

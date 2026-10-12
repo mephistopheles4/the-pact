@@ -62,12 +62,13 @@ The pact defends itself in two ways, and they are not equally strong.
   it used to carry, such as whose tracker text counts, are accepted as
   judgment in the pact. This repo keeps its own tracker rule in `AGENTS.md`.
 
-One rule is a pinned block: "Stop and ask me". A pinned block is text the
-install gate holds word for word, so no configuration can change it. A second
-pinned block, the install go-ahead, sits in this repo's `AGENTS.md`. The gate
-guards the text. It cannot make a model obey that text. Since #261 the gate no
-longer checks the rest of the rules file's wording or shape: it checks what
-can run, and with what power.
+One rule is a fixed block: "Stop and ask me". No configuration edit can target
+it. Since ADR 0069 the gate holds no text word for word: the pact is vetted
+like any skill. The gate checks install mechanics only: what each file is and
+where it goes, that each agent file still parses, the text scanner, the
+settings overlay, and the install's bookkeeping. What the pact's files say, and
+which tools each agent holds, rest on your review of the commit you install and
+on the model's judgment. No gate could make a model obey the text anyway.
 
 Since #265 the pact sets no ask rules, so nothing it adds prompts you. What
 stands before an action is Claude Code's own: its protected paths (the
@@ -157,17 +158,17 @@ How to read it:
 | R9 Installed code | Plugin or skill author | None | — |
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
-| R12 Lens steered | Text a lens reads | Tool allow-list; the dry run lists a setting off the default, with no mark since #262 | Boundary |
+| R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); elsewhere, judgment | Rule, judgment |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
-| R17 Gate path only | You, or a fooled session | The install gate, on what can run and with what power; the dry run | Boundary |
+| R17 Gate path only | You, or a fooled session | The install gate, on install mechanics only since ADR 0069; the dry run; your review of the commit | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
 | R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
 | R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline that came only by relay kept open until you answer in chat; this repo's security route for a lens change; a change Claude doesn't see as sensitive, judgment | Rule, judgment |
 | R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build, in the default workflow, which a home configuration can change behind the security-defaults line (#262, R30); here, the QA pair reads every change to the gate's tests at move 4, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
-| R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the pinned install go-ahead | Outside the pact, rule |
+| R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
@@ -309,7 +310,7 @@ once you install it.
   publishing is not on the list of sensitive work, so a change to what gets
   published, such as a package's contents, a release step or a personal
   detail in a committed file, can be built at the quick tier with no spec
-  read. Two rules are left in the pact: the pinned "Stop and ask me", which
+  read. Two rules are left in the pact: the fixed "Stop and ask me", which
   has a session ask you before something hard to reverse; and "secrets" in the
   sensitive-work default, for keys and tokens, which since #262 a session
   flags and recommends the sensitive route for, rather than forcing it; the
@@ -337,8 +338,9 @@ session can act before you see it.
 - **Text from others is data.** This repo's tracker rule says so for its
   tracker; elsewhere it is judgment. The security lenses carry the same rule
   for pages they fetch.
-- **Lenses get few tools.** Each lens has a fixed tool list, checked at
-  install against an allow-list. Seven only read. `behaviour-lens` has a shell
+- **Lenses get few tools.** Each lens's file lists its tools. Since ADR 0069
+  no allow-list checks them at install: a lens's tools are what its committed
+  file says, and you vet them like any skill's. Seven only read. `behaviour-lens` has a shell
   and a browser, because it runs the change. `adversarial-lens` can search and
   fetch the web.
 - **Any model is yours to choose.** Since #262 you may move any agent, a
@@ -358,8 +360,7 @@ session can act before you see it.
   flag or offer you haven't answered stays open in every hand-off and in the
   result, a decline that reached the session only by relay stays open until
   you answer in chat, and a flag found later is said at the next hand-off
-  until you answer. It is a rule, not a
-  pinned block. The gate keeps a fixed list of the security-set lenses, so
+  until you answer. It is a rule, held by review. The gate keeps a fixed list of the security-set lenses, so
   the class it prints on each agent setting never depends on the rules file's text.
 
 **What is accepted.**
@@ -368,7 +369,9 @@ session can act before you see it.
   on again. In auto mode, the main thing between a fooled session and your
   shell is Claude Code's own checks. The pact chose speed here.
 - **R12. A lens can be steered.** A lens that runs code or fetches pages can
-  be steered by what it reads, like any session. The main session then acts
+  be steered by what it reads, like any session. Since ADR 0069 nothing at
+  install stops a commit that gives a lens more tools; you see it in the diff
+  you vet. The main session then acts
   on a lens's recommendations without waiting for you, except at the stops,
   installs and the decisions the rules file names as yours. The pact reviews
   each lens only at its default; that does not show the default resists
@@ -423,8 +426,8 @@ session can act before you see it.
   rules, so nothing prompts you before `--apply`, in any spelling. Before it,
   ask rules looked for an apply's spelling, and some spellings already got
   past them (#210, ADR 0049). What stands now: auto mode's classifier, which
-  reads the rules that make an install your call, and the pinned install
-  go-ahead in this repo's `AGENTS.md`. Both bend to text: a lead's start
+  reads the rules that make an install your call, and the install go-ahead
+  in this repo's `AGENTS.md`. Both bend to text: a lead's start
   prompt can clear a soft block. An apply still needs the commit and rendered
   hash a dry run printed, but a session can run that dry run unseen: the
   commit and hash bind the clone and the render, not your sight of them. So a
@@ -449,7 +452,7 @@ session can act before you see it.
   prompt either (#177, below). The drift check does not show the rollback,
   because such an installer writes the same install record. The next Node dry
   run does: the record names an older commit, and the pact's files are
-  listed under Overwrite. What remains is the pinned go-ahead block, which the same
+  listed under Overwrite. What remains is the go-ahead rule, which the same
   injection could target, and Claude Code's own auto-mode checks, which
   aren't documented to stop this. The owner accepted this by name (#217,
   ADR 0052), and the acceptance stands now that the pact keeps no rollback
@@ -475,7 +478,7 @@ session can act before you see it.
     or stopping a session, nothing in the pact bounds a lead at all.
   - **A start prompt can reach a rollback.** Nothing prompts before an
     installer from before the Node install's cutover (R22), and the
-    pinned install go-ahead doesn't say a start prompt isn't chat. So a
+    install go-ahead doesn't say a start prompt isn't chat. So a
     lead's start prompt could have a session install an older pact. The next
     Node dry run shows it, but only afterwards.
   - **The desktop session tool is unknown.** This repo's parallel-session
@@ -556,8 +559,8 @@ safe, and a change made months ago is easy to forget.
   only, and the installed rules file names a model beyond the five aliases
   only as "a custom model". And a
   `commands` list turns on pact commands, by name from a fixed list in the
-  gate, which the install then copies into `commands/`. No configuration can
-  change a pinned block's text; the install refuses.
+  gate, which the install then copies into `commands/`. No configuration
+  edit can target the fixed "Stop and ask me" block; the renderer refuses.
 - **The install says what changed.** The dry run prints a warning for each
   value set and each part edited. The installed rules file names the
   configuration in effect.
@@ -566,15 +569,14 @@ safe, and a change made months ago is easy to forget.
 
 **What is accepted.**
 
-- **R17. The gate guards the install path, not your machine.** Since #261 the
-  gate guards what can run and with what power: committed files only, the
-  payload's kinds, each agent's tools, the settings guard, the character
-  scan, a file import in the rules file, hidden text in
-  the review file, the two pinned blocks, and the install's bookkeeping. It no
-  longer checks the rules file's wording or shape. You can edit the rules file
-  in your clone, and the install takes any edit outside a pinned block. A
-  committed edit to a pinned block and to the gate's own copy of it installs
-  too; the dry run shows only that the gate changed. An open part's text can
+- **R17. The gate guards the install path, not your machine.** Since ADR 0069
+  the gate checks install mechanics only: committed files only, the payload's
+  kinds and where each goes, that each agent file parses, the settings guard,
+  the character scan, and the install's bookkeeping. It no longer checks an
+  agent's tools, a file import in the rules file or a block, hidden text in
+  the review file, a command file's body, or any text word for word. You can
+  edit any file in your clone, and the install takes it; you vet the commit as
+  you would any skill. An open part's text can
   contradict any rule in meaning. A rules file copied by hand, or shipped in a repo, skips
   the gate. So does a direct edit to an installed lens file, such as a weaker
   model line: nothing marks it, and since #189 the Lens
@@ -672,8 +674,8 @@ Each tweak below is yours to make. The cost is what you give up.
   those blocks say (R17).
 - **Set the usage pause** anywhere from 0 to 100 percent. At 100, sessions
   never wait for you before expensive work.
-- **Edit any other text in your clone** and commit it. The install takes it,
-  unless it touches a pinned block. You own its review (R17).
+- **Edit any other text in your clone** and commit it. The install takes it.
+  You own its review (R17).
 - **Drop or pin plugins and skills.** Lowers R9 and R10. You lose what they
   did.
 - **Set GitHub's interaction limit** on a public repo. It narrows who can
@@ -684,7 +686,8 @@ Each tweak below is yours to make. The cost is what you give up.
   author approve their own pull request, so it needs a second account as
   the reviewer. A bypass for your own account lets every session through.
 
-You cannot loosen a pinned block through configuration. That is deliberate.
+You cannot edit the fixed "Stop and ask me" block through configuration. That
+is deliberate; a committed edit to it installs, and you vet it like any other.
 
 ## Known open issues at publication
 

@@ -8,9 +8,9 @@
 // Nothing here runs on import. Imports nothing.
 
 export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
-// The renderer's model shape and efforts (#262 S15, S16), copied: a test holds them equal.
-export const AGENT_MODEL_RE = /^[A-Za-z][A-Za-z0-9._:/-]{0,127}$/;
-export const AGENT_MODEL_WORDS = Object.freeze(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n']);
+// The renderer's model shape and efforts (#262), copied: a test holds them equal.
+// A model is one word: no space or line break, at most 128 characters.
+export const AGENT_MODEL_RE = /^\S{1,128}$/;
 export const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md']);
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
@@ -336,16 +336,6 @@ export function gateBlock(gateNow, recordGate, selfDiffers) {
   return lines;
 }
 
-// ------------------------------------------------------------ the pinned check
-
-/** The pin file's text: exactly a commit line and a sha256 line (S6, P1). */
-export function parsePin(text, pinnedSha) {
-  const m = /^commit ([0-9a-f]{40})\nsha256 ([0-9a-f]{64})\n$/.exec(text);
-  if (!m) refuse('pin-format', 'the pin file is not exactly "commit <40 hex>" and "sha256 <64 hex>".');
-  if (pinnedSha !== m[2]) refuse('pin-mismatch', 'the pinned check script does not match its pin.');
-  return m[1];
-}
-
 // ------------------------------------------------------------ a check's verdict
 
 /** ADR 0032's control 4: a check passes only when it did not fail and its last line is RESULT: pass. */
@@ -408,7 +398,7 @@ export function parseRenderLines(lines, { project, hash }) {
       digest = m[1];
     } else if ((m = AGENT_RE.exec(l))) {
       const name = AGENT_NAMES.find(a => a === m[1]);
-      const modelOk = AGENT_MODEL_RE.test(m[2]) && !m[2].endsWith(':') && !m[2].includes('---') && !m[2].includes('//') && !AGENT_MODEL_WORDS.includes(m[2].toLowerCase());
+      const modelOk = AGENT_MODEL_RE.test(m[2]);
       if (!name || !modelOk || !AGENT_EFFORTS.includes(m[3])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
@@ -653,7 +643,6 @@ export function expectedCopySet(stagedRels, commands = []) {
       else if (!PACT_COMMANDS.includes(name)) out.push([rel, null]);
     } else if (rel === REVIEW_REL) out.push([rel, REVIEW_DEST]);
     else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
-    else if ((m = /^familiars\/([^/]+\.md)$/.exec(rel))) out.push([rel, `agents/${m[1]}`]);
     else out.push([rel, null]);
   }
   return out;
@@ -1109,7 +1098,6 @@ export const stops = Object.freeze({
   preload: () => refuse('run-preload', 'NODE_OPTIONS is set, or the runner was started with an option; start the install with node gate/install.mjs.'),
   runArgs: () => refuse('run-args', 'the install runner was not started by the install bootstrap: run node gate/install.mjs.'),
   stageUnreadable: () => refuse('stage-unreadable', 'the stage could not be read.'),
-  pinMissing: () => refuse('pin-missing', 'the pinned check script or its pin file is missing.'),
   configLink: () => refuse('config-link', 'the user configuration file, or the pact folder that holds it, is a link or other reparse point.'),
   blocksLink: () => refuse('blocks-link', 'the configuration blocks folder is a link or other reparse point.'),
   blocksUnreadable: () => refuse('blocks-unreadable', 'the configuration blocks folder could not be read.'),

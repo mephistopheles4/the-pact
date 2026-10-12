@@ -200,19 +200,7 @@ test('the gate block: changed, added and removed lines, compared without regard 
   assert.deepEqual(core.gateBlock(now, [...now], false), ['Gate: unchanged since the last install']);
 });
 
-// ------------------------------------------------------------ the pin (P1) and a check's verdict (R4, S-1, control 4)
-
-for (const c of table('pin file', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: `commit ${ID('a')}\nsha256 ${H('b')}\n`, sha: H('b') }),
-  run: t => decided(() => core.parsePin(t.in, t.sha)),
-  rows: [
-    { id: 'crlf', plant: rep(/\n/g, '\r\n'), fails: ['pin-format'], why: 'exact bytes only' },
-    { id: 'extra-line', plant: t => ({ ...t, in: `${t.in}x\n` }), fails: ['pin-format'], why: 'nothing after the hash' },
-    { id: 'capital-hex', plant: rep(ID('a'), ID('A')), fails: ['pin-format'], why: 'lower-case hex only' },
-    { id: 'script-not-pinned', plant: set(H('c'), 'sha'), fails: ['pin-mismatch'], why: 'an edited pinned script' },
-  ],
-})) test(c.name, c.fn);
+// ------------------------------------------------------------ a check's verdict (R4, S-1, control 4)
 
 for (const c of table('check verdict', {
   module: 'gate/install-core.mjs',
@@ -267,12 +255,8 @@ for (const c of table('renderer lines', {
     { id: 'agent-twice', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-agent-twice'], why: 'one agent setting twice' },
     { id: 'agent-not-configurable', plant: rep('AGENT data-lens', 'AGENT my-reviewer'), fails: ['render-unknown-line'], why: 'an agent the configuration cannot set' },
     // #262 C14: the install's AGENT parser takes the renderer's model shape and five efforts, and nothing else.
-    { id: 'agent-model-off-shape', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens son#net'), fails: ['render-unknown-line'], why: 'a model outside the shape' },
-    { id: 'agent-model-yaml-word', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens Null'), fails: ['render-unknown-line'], why: 'a word YAML reads as null' },
-    { id: 'agent-model-trailing-colon', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens sonnet:'), fails: ['render-unknown-line'], why: 'YAML reads a trailing colon as a key' },
+    { id: 'agent-model-too-long', plant: rep('AGENT data-lens sonnet', `AGENT data-lens ${'a'.repeat(129)}`), fails: ['render-unknown-line'], why: 'a model over 128 characters' },
     { id: 'agent-effort-unknown', plant: rep('sonnet high', 'sonnet ultra'), fails: ['render-unknown-line'], why: 'an effort outside the five' },
-    { id: 'agent-model-three-dashes', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens son---net'), fails: ['render-unknown-line'], why: 'a frontmatter fence' },
-    { id: 'agent-model-web-address', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens https://x.example'), fails: ['render-unknown-line'], why: 'a web address' },
     { id: 'agent-in-capitals', plant: rep('AGENT data-lens', 'AGENT Data-lens'), fails: ['render-unknown-line'], why: 'names are matched case-sensitively' },
     { id: 'digest-with-no-config', plant: t => noConfig(t), fails: ['render-none-extras'], why: 'a digest, value, edit or agent with no configuration' },
     { id: 'no-commands-line', plant: rep('COMMANDS finis\n', ''), fails: ['render-commands-missing'], why: 'the renderer must say which commands are on (#203)' },
@@ -475,8 +459,8 @@ for (const c of table('agent file', {
 
 // ------------------------------------------------------------ seam A's copy set and overlay (S-2, S-3)
 
-const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['familiars/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
-const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} familiars/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
+const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['claude/agents/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
+const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} claude/agents/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
 // #261 C3
 for (const c of table('copy set', {
   module: 'gate/install-core.mjs',
@@ -527,7 +511,7 @@ test('the copy set with commands: a listed command pairs, an unlisted pact comma
 // #261 C3
 test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes to its one fixed path', () => {
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', 'agents/x.md']]);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', null]]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });

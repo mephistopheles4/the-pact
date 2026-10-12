@@ -27,13 +27,13 @@ import {
   readCopySet,
   renderNoConfig,
 } from '../../cloud-sessions/gen.mjs';
-import { OLD_REVIEWERS } from '../pact-text.mjs';
 import { REPO, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const PAYLOAD = ['claude', 'familiars', 'AGENTS.md'];
 // The retired agents: the gate's own list of old reviewers, and the old builder.
-const RETIRED = [...OLD_REVIEWERS, 'builder'];
+// The reviewers the pact retired (#45), and the old builder.
+const RETIRED = ['plan-reviewer', 'result-checker', 'test-reviewer', 'security-reviewer', 'builder'];
 const RLO = '‮';
 
 const sha256 = s => createHash('sha256').update(s).digest('hex');
@@ -336,13 +336,14 @@ test('cloud copy: a byte changed in the setup head changes the marker', () => {
 
 // ---------------------------------------------------------------- the committed outputs
 
-// The cloud edits went with the parallel-session text, so the cloud copy is the default render, unchanged, and it holds the pinned block.
-// #261 C11
-test('cloud copy: CLAUDE.cloud.md is the no-configuration render, unchanged, holding the pinned stop-and-ask block', () => {
+// The cloud edits went with the parallel-session text, so the cloud copy is the default render, unchanged, and it holds the stop-and-ask block.
+// #261 C11; since #262 the block is the pact source's own, not a gate-held copy.
+test('cloud copy: CLAUDE.cloud.md is the no-configuration render, unchanged, holding the stop-and-ask block', () => {
   const cloud = repoText(OUTPUTS.rules);
   assert.equal(cloud, RENDER);
-  const block = `<!-- pact:begin stop-and-escalate -->\n${repoText('gate/clauses/stop-and-escalate.md')}<!-- pact:end stop-and-escalate -->\n`;
-  assert.equal(cloud.split(block).length, 2, 'the pinned block appears once, word for word');
+  const block = /<!-- pact:begin stop-and-escalate -->\n[\s\S]*?<!-- pact:end stop-and-escalate -->\n/.exec(repoText('claude/CLAUDE.md'));
+  assert.ok(block, 'the pact source holds the stop-and-ask block');
+  assert.equal(cloud.split(block[0]).length, 2, 'the block appears once, as the source has it');
 });
 
 // #261 C10

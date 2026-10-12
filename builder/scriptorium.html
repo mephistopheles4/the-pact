@@ -1617,19 +1617,11 @@ function partsTexts(p) {
 // The open parts that are slots for cards: every editable part but the four Scriptorium builds (#262).
 const SLOT_MARKS = PACT.editable.filter(m => !PACT.parts.marks.includes(m));
 
-// The block-text rules, mirrored from gate/render-core.mjs for usability only.
-// The renderer at install is the authority; a block that passes here can
-// still be refused there.
-const IMPORT_RE = /@[^ \n]/;
-const FENCE_RE = /^\s*(?:`{3,}|~{3,})/;
-const HEADING_RE = /^\s*#{1,6}(?:\s|$)/;
-const SETEXT_RE = /^ {0,3}(?:=+|-+)\s*$/;
-const THEMATIC_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
-const NUMBERED_RE = /^[0-9]{1,9}[.)](?:[ \t]|$)/;
+// The block rules, mirrored from gate/render-core.mjs for usability only: the
+// size cap and the characters. What a block says is the owner's to judge. The
+// renderer at install is the authority.
 const IGNORABLE_RE = /^\p{Default_Ignorable_Code_Point}$/u;
 const BLOCK_MAX = 16 * 1024;
-// Split, so the page's script never holds a comment opener.
-const COMMENT_OPEN = '<' + '!--';
 
 
 /** A character the gate's text scanner refuses: control, line-separator or invisible. */
@@ -1670,6 +1662,7 @@ function blockProblems(text) {
   if (text.includes('\r')) out.push('a carriage return');
   const body = text.endsWith('\n') ? text.slice(0, -1) : text;
   if (body.trim() === '') return ['the block is empty'];
+  if (body.endsWith('\n')) out.push('the block ends in more than one line feed');
   body.split('\n').forEach((line, i) => {
     const at = `line ${i + 1}: `;
     for (const ch of line) {
@@ -1678,15 +1671,6 @@ function blockProblems(text) {
         break;
       }
     }
-    if (line.includes(COMMENT_OPEN)) out.push(`${at}an HTML comment opener (${COMMENT_OPEN})`);
-    if (IMPORT_RE.test(line)) out.push(`${at}an @ followed by text, which Claude Code may read as an import`);
-    if (line.trim() === '') out.push(`${at}a blank line`);
-    else if (/^[ \t]/.test(line)) out.push(`${at}a leading space or tab`);
-    else if (FENCE_RE.test(line)) out.push(`${at}a code fence`);
-    else if (HEADING_RE.test(line)) out.push(`${at}a heading`);
-    else if (SETEXT_RE.test(line)) out.push(`${at}a heading underline`);
-    else if (THEMATIC_RE.test(line)) out.push(`${at}a thematic break`);
-    else if (NUMBERED_RE.test(line)) out.push(`${at}a numbered list line`);
   });
   return out;
 }

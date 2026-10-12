@@ -26,7 +26,7 @@ const sha256 = b => createHash('sha256').update(b).digest('hex');
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, overrides });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -97,8 +97,8 @@ test('a configuration the page saves with your own text and a removal installs t
   assert.match(rules, /^ {2}Before the spec, ask me which open question I want answered first\.$/m);
   assert.match(rules, /^ {2}Say which tests you ran\.\n {2}After the checks, list each public interface/m);
   assert.match(rules, /^ {2}Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue\.$/m);
-  // move-1 was removed: its part was empty by default (#261), so the move's bullet stays and is followed by the next move.
-  assert.match(rules, /^ {2}reproduced and traced to its start before anyone fixes it\.\n- \*\*Think before doing\.\*\* /m);
+  // move-1 was removed: its text goes, so the move's bullet stays and is followed by the next move.
+  assert.match(rules, /^- \*\*Sense the work\.\*\*\n- \*\*Think before doing\.\*\*/m);
   assert.match(rules, /Values set: usage-pause 60\. Parts edited: move-1 \(remove\), move-2 \(add-after\), move-4-extra \(add-after\)\./);
   assert.match(rules, /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
   assert.match(readFileSync(join(h, 'agents', 'integrity-lens.md'), 'utf8'), /^model: sonnet\neffort: low$/m);
@@ -108,12 +108,12 @@ test('bad case: text the page flags is refused by the install too, since the pag
   const repo = makeRepo(t);
   const h = home(t);
   const s = L.initialState();
-  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: 'Also read @secrets.md first.' }] };
-  assert.ok(L.problems(s).some(p => p.level === 'error' && /import/.test(p.text)));
+  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: 'Also read\u200b this first.' }] };
+  assert.ok(L.problems(s).some(p => p.level === 'error' && /invisible/.test(p.text)));
   saveInto(h, s);
   const dry = install(repo, h);
   refused(dry);
-  assert.match(dry.stdout, /FAIL block-text: /, dry.out);
+  assert.match(dry.stdout, /FAIL invisible: /, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256('x')] });
   refused(r);
   assert.ok(!existsSync(join(h, 'CLAUDE.md')), 'the refused configuration installed a rules file');

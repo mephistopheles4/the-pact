@@ -15,16 +15,10 @@ const CHARACTER_HITS_MAX = 20;
 // own copy (install-core.mjs), held to this one by a test. Adding a name is a
 // change to gate code, so it takes the security route.
 const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
-// The pinned blocks (#261): the only text the gate holds word for word, each
-// against its canonical copy in gate/clauses/. Seam A (pact-text.mjs) checks
-// them, the renderer refuses an edit to one, and the builder reads this list
-// as text. stop-and-escalate sits in claude/CLAUDE.md; install-go-ahead in
-// AGENTS.md, which is never installed. Changing the list is a change to the
-// protected set, so it takes the security route.
-const PINNED = Object.freeze(['stop-and-escalate', 'install-go-ahead']);
-// An at sign followed by text, which Claude Code may read as a file include:
-// refused in a block (render-core.mjs) and in a command file (seam-a-core.mjs).
-const AT_IMPORT_RE = /@[^ \n]/;
+// The fixed blocks: marked parts of the rules file that no configuration edit
+// can target, which the builder shows as locked clauses. Since #262 the gate
+// no longer holds their words; the pact is vetted like a skill.
+const PINNED = Object.freeze(['stop-and-escalate']);
 
 const SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
 const JSON_SCALAR_RE = /^(?:true|false|null|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][-+]?[0-9]+)?)/;
@@ -228,75 +222,13 @@ function safePath(rel) {
   return rel.split('/').every(s => SEGMENT_RE.test(s) && s !== '.' && s !== '..' && !s.endsWith('.'));
 }
 
-// ---------------------------------------------------------------- structure and markers
+// ---------------------------------------------------------------- markers
 
 const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
-const FENCE_RE = /^ *(?:```|~~~)/;
-// The Markdown forms a configuration block may not use (render-core.mjs):
-// a fence of any kind, a setext heading, an ATX heading. Each could move text
-// out of the part it was meant for.
-const ANY_FENCE_RE = /^\s*(?:`{3,}|~{3,})/;
-const SETEXT_RE = /^ {0,3}(?:=+|-+)\s*$/;
-const HEADING_LIKE_RE = /^\s*#{1,6}(?:\s|$)/;
-const PACT_MARKER_RE = /<!--\s*pact\s*:/i;
-
-/**
- * Read one checked file into lines, each with its section and whether it sits
- * in a fence, and its blocks. `known` is every block name the pact defines;
- * `allowed` is the set of block names this file may hold. Every grammar
- * failure is recorded in `report`.
- *
- * Some failures name the block. That echoes no file content only because the
- * name is first checked against `known`, so callers must pass a fixed set
- * the gate defines itself, never one built from a file.
- */
-function parseDoc(text, file, known, allowed, report) {
-  const lines = text.split('\n');
-  const meta = [];
-  const blocks = new Map();
-  const seen = new Set();
-  let section = null;
-  let sub = false;
-  let fenced = false;
-  let open = null;
-  lines.forEach((line, i) => {
-    const ln = i + 1;
-    const fence = FENCE_RE.test(line);
-    if (fence) fenced = !fenced;
-    const inFence = fence || fenced;
-    if (!inFence) {
-      if (line.startsWith('## ')) [section, sub] = [line.slice(3), false];
-      else if (line.startsWith('# ')) [section, sub] = [null, false];
-      else if (/^#{3,6} /.test(line)) sub = true;
-    }
-    meta.push({ section, sub, fenced: inFence, marker: false });
-    if (!line.includes('<!--')) return;
-    meta[i].marker = true;
-    if (inFence) return report.fail('marker', file, ln, 'a comment inside a fenced code block');
-    const m = MARKER_RE.exec(line);
-    if (!m) return report.fail('marker', file, ln, 'a comment that is not a pact marker alone on its line');
-    const [, kind, name] = m;
-    if (!known.has(name)) return report.fail('marker', file, ln, 'an unknown block name');
-    if (!allowed.has(name)) return report.fail('marker', file, ln, `${name} is not a block this file may hold`);
-    if (kind === 'begin') {
-      if (open) return report.fail('marker', file, ln, 'a block that opens inside another');
-      if (seen.has(name)) return report.fail('marker', file, ln, `${name} opens twice`);
-      seen.add(name);
-      open = { name, line: i };
-      return;
-    }
-    if (!open || open.name !== name) return report.fail('marker', file, ln, `an end of ${name} with no open begin of the same name`);
-    blocks.set(name, { begin: open.line, end: i, text: lines.slice(open.line + 1, i).join('\n') });
-    open = null;
-  });
-  if (open) report.fail('marker', file, open.line + 1, `${open.name} never closes`);
-  return { lines, meta, blocks };
-}
 
 export {
   PACT_COMMANDS,
   PINNED,
-  AT_IMPORT_RE,
   MAX_BYTES,
   CHARACTER_HITS_MAX,
   DEFAULT_IGNORABLE_RE,
@@ -311,11 +243,5 @@ export {
   shown,
   Report,
   Refused,
-  FENCE_RE,
-  ANY_FENCE_RE,
-  SETEXT_RE,
-  HEADING_LIKE_RE,
   MARKER_RE,
-  PACT_MARKER_RE,
-  parseDoc,
 };

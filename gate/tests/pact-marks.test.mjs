@@ -40,19 +40,6 @@ test('with no configuration, the installed pact is its source with the open-mark
   assert.equal(readFileSync(join(out, 'CLAUDE.md'), 'utf8'), want);
 });
 
-// #261 C4
-test('seam A refuses the unrendered source: the open marks are not marks it knows, so a skipped render fails closed', t => {
-  const root = stage(t);
-  const env = { ...process.env };
-  delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none'], { encoding: 'utf8', env });
-  assert.notEqual(r.status, 0, r.stdout);
-  assert.equal(lastLine(r.stdout), 'RESULT: fail', r.stdout);
-  assert.match(r.stdout, /^FAIL marker: claude\/CLAUDE\.md line \d+: an unknown block name$/m, r.stdout);
-  // The same stage, rendered first, passes.
-  assert.equal(runSeamA(root).code, 0);
-});
-
 test('the pact source carries each open mark once, as a begin then an end, each alone on its line', () => {
   const all = marks(LINES);
   for (const n of OPEN_MARKS) {

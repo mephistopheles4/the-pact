@@ -13,9 +13,6 @@ import { GATE, OPEN_MARKS, RENDER, REPO, lastLine, withoutOpenMarks } from './te
 import { read, tempDir } from './tree.mjs';
 
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
-const GATED = readdirSync(join(GATE, 'clauses'))
-  .filter(f => f.endsWith('.md'))
-  .map(f => f.slice(0, -3));
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
@@ -157,13 +154,6 @@ test('an empty source renders to an empty file', t => {
   assert.equal(r.code, 0, r.out);
   assert.equal(r.bytes.length, 0);
   assert.match(r.stdout, new RegExp(`^RENDERED ${sha256(Buffer.alloc(0))}$`, 'm'));
-});
-
-// #261 C4
-test('no open-mark name is a pinned block name', () => {
-  // The two pinned blocks of #261.
-  assert.equal(GATED.length, 2, GATED.join(', '));
-  for (const n of OPEN_MARKS) assert.ok(!GATED.includes(n), n);
 });
 
 test('the renderer never echoes the source', t => {

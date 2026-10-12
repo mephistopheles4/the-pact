@@ -1,13 +1,12 @@
 // The roster list (#45, from #35's "The changeover") and the name search that
 // keeps retired reviewers out of the repo. The gate's reverse routing check on
-// the pact's text went with the thin gate (#261); a retired reviewer's tools
-// are still refused by the tool allow-list.
+// the pact's text went with the thin gate (#261), and the gate's roster list
+// and tool allow-list with #262's install-mechanics cut, so the list lives here.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { LENSES, OLD_REVIEWERS, ROSTER } from '../pact-text.mjs';
 import { runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
 import { REPO, failRules, lastLine, plainAgent } from './text.mjs';
@@ -36,6 +35,11 @@ function expectRule(r, rule, fileName) {
 
 // ------------------------------------------------------------ the roster list
 
+// The roster (#35): every reviewer name the pact has had, the four of old and the nine lenses.
+const OLD_REVIEWERS = Object.freeze(['plan-reviewer', 'result-checker', 'test-reviewer', 'security-reviewer']);
+const LENSES = Object.freeze(['behaviour-lens', 'integrity-lens', 'adversarial-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'conventions-lens', 'reader-lens', 'unstated-lens']);
+const ROSTER = Object.freeze([...OLD_REVIEWERS, ...LENSES]);
+
 test('the roster list holds thirteen names: the four of today and the nine lenses', () => {
   assert.equal(ROSTER.length, 13);
   assert.equal(new Set(ROSTER).size, 13);
@@ -59,20 +63,14 @@ test("the roster's nine lenses are the lenses in the review file's table of pair
 
 // ------------------------------------------------------------ a retired reviewer's tools
 
-test('bad case: the retired checker, back with its old tools, has no allow-list entry and fails', t => {
-  const r = seam(t, { 'claude/agents/result-checker.md': plainAgent('result-checker', [], 'tools: [Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*]') });
-  expectRule(r, 'tools', 'claude/agents/result-checker.md');
-});
 // ------------------------------------------------------------ the name search
 
 // The five places the name search skips: records, the cloud copy (#41), and
 // historical snapshots that tests depend on.
 const SKIP = ['docs/adr/', 'docs/log/', 'docs/plans/', 'cloud-sessions/', 'gate/tests/fixtures/'];
-// The roster list itself must hold the four old names for as long as the gate
-// refuses them (#35, "The roster"), so its one defining line, and this file,
-// which tests that list and plants the names, are not searched (#47).
-const ROSTER_LINE = /^export const OLD_REVIEWERS = .*$/m;
-const ROSTER_HOME = { 'gate/pact-text.mjs': text => text.replace(ROSTER_LINE, ''), 'gate/tests/roster.test.mjs': () => '' };
+// This file holds the roster list and plants the names, so it is not searched (#47); the cloud
+// test's one line listing the retired names is not searched either.
+const ROSTER_HOME = { 'gate/tests/roster.test.mjs': () => '', 'gate/tests/cloud-sessions.test.mjs': text => text.replace(/^const RETIRED = .*$/m, '') };
 
 /** The old reviewers named, as whole words, in `files` ({ rel: text }), outside the skipped places. */
 function nameSearch(files) {
@@ -101,12 +99,6 @@ test('the name search finds only the installed reviewers', () => {
   assert.ok(nameSearch({ ...files, 'README.md': `${files['README.md']}\nAsk security-reviewer.\n` }).has('security-reviewer'), 'the search is not looking');
   const installed = installedIn(REPO);
   for (const [name, where] of found) assert.ok(installed.has(name), `${name} is named in ${where.join(', ')} but not installed`);
-});
-
-test('bad case: outside its one defining line, the roster file is searched', () => {
-  const found = nameSearch({ 'gate/pact-text.mjs': "export const OLD_REVIEWERS = Object.freeze(['result-checker']);\n// result-checker\n" });
-  assert.deepEqual([...found.keys()], ['result-checker']);
-  assert.equal(nameSearch({ 'gate/pact-text.mjs': "export const OLD_REVIEWERS = Object.freeze(['result-checker']);\n" }).size, 0);
 });
 
 test('bad case: the name search reports a reviewer that is named but not installed', t => {

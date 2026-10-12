@@ -9,7 +9,6 @@ export const GATE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const REPO = resolve(GATE, '..');
 export const SEAM_A = join(GATE, 'seam-a.mjs');
 export const RENDER = join(GATE, 'render.mjs');
-export const PINNED = join(GATE, 'grimoire', 'check.mjs');
 
 // The open marks the pact source carries (#53), written out here rather than
 // read from gate/render.mjs, so the tests' expected render is their own.

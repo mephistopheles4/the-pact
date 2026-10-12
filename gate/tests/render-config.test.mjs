@@ -417,21 +417,6 @@ const UP_END = '<!-- pact:end usage-pause -->\n';
 const noUsageMarks = s => s.replace(UP_BEGIN, '').replace(UP_END, '');
 
 const PLACEMENT = [
-  [
-    'an open mark that encloses a gated block',
-    s => noUsageMarks(s).replace('<!-- pact:begin stop-and-escalate -->\n', `${UP_BEGIN}<!-- pact:begin stop-and-escalate -->\n`).replace('<!-- pact:end stop-and-escalate -->\n', `<!-- pact:end stop-and-escalate -->\n${UP_END}`),
-    /usage-pause encloses a gated mark/,
-  ],
-  [
-    'an open mark inside a gated block',
-    s => noUsageMarks(s).replace('<!-- pact:end stop-and-escalate -->\n', `${UP_BEGIN}${UP_END}<!-- pact:end stop-and-escalate -->\n`),
-    /usage-pause opens inside a gated block/,
-  ],
-  [
-    'an open mark whose end sits after a gated begin',
-    s => noUsageMarks(s).replace('<!-- pact:begin stop-and-escalate -->\n', `${UP_BEGIN}<!-- pact:begin stop-and-escalate -->\n${UP_END}`),
-    /usage-pause encloses a gated mark/,
-  ],
   ['an open mark that opens twice', s => s.replace(UP_END, `${UP_END}${UP_BEGIN}${UP_END}`), /usage-pause opens twice/],
   ['an open mark that never closes', s => s.replace(UP_END, ''), /usage-pause never closes/],
   ['an end with no begin', s => s.replace(UP_BEGIN, ''), /an end of usage-pause with no open begin of the same name/],

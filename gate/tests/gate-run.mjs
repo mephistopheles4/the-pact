@@ -7,7 +7,7 @@
 // under a test preload; runWrapper starts one as the install does.
 //
 // The test helpers' gate-module runners live here too (#151): renderStage,
-// runSeamA and childSeamA, and sealedFamiliar, which runs the pinned check.
+// runSeamA and childSeamA.
 //
 // Importing this file loads the four cores, which do nothing when imported
 // (#155); it touches no file and starts no process. Ordinary test code
@@ -21,8 +21,7 @@ import { check as project } from '../project-core.mjs';
 import { check as render } from '../render-core.mjs';
 import { check as review } from '../review-core.mjs';
 import { check as seamA } from '../seam-a-core.mjs';
-import { PINNED, READ_ONLY, SEAM_A, agent, contractText, lastLine } from './text.mjs';
-import { writeTree } from './tree.mjs';
+import { SEAM_A, lastLine } from './text.mjs';
 
 const GATE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CORES = Object.freeze({ project, render, review, 'seam-a': seamA });
@@ -206,13 +205,3 @@ export function childSeamA(root, script = SEAM_A, { commands = 'none' } = {}) {
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr };
 }
 
-/** Write a familiar and its contract under root/familiars, then seal it with the pinned check (tests only). */
-export function sealedFamiliar(root, name, { lines, contract, body } = {}) {
-  const fm = lines ?? [`name: ${name}`, 'description: A test familiar.', READ_ONLY];
-  writeTree(root, {
-    [`familiars/${name}.md`]: agent(fm, body),
-    [`familiars/${name}.contract.md`]: contract ?? contractText(),
-  });
-  const r = spawnSync(process.execPath, [PINNED, '--seal', join(root, 'familiars', `${name}.md`)], { encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`sealing ${name} failed:\n${r.stdout}${r.stderr}`);
-}

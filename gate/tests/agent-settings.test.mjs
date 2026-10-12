@@ -9,12 +9,11 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, 
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { AGENT_EFFORTS, AGENT_MODEL_RE, AGENT_MODEL_WORDS, AGENT_NAMES } from '../install-core.mjs';
+import { AGENT_EFFORTS, AGENT_MODEL_RE, AGENT_NAMES } from '../install-core.mjs';
 import { copyGate, moduleMatch, plantModule } from './gate-files.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { moduleResult, table } from './tables.mjs';
 import { tempDir } from './tree.mjs';
-import { OLD_REVIEWERS } from '../pact-text.mjs';
 
 const WIN = process.platform === 'win32';
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -132,8 +131,6 @@ for (const c of table('render agents key', {
   },
   rows: [
     { id: 'unknown-agent', plant: () => ({ config: agentsKey({ 'my-reviewer': { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'an agent the pact does not ship' },
-    // Every retired reviewer, from the roster's own list: an old configuration fails loudly.
-    { id: 'retired-reviewers', plant: () => ({ config: agentsKey(Object.fromEntries(OLD_REVIEWERS.map(a => [a, { model: 'sonnet' }]))) }), fails: ['config-agents'], says: /cannot set/, why: 'reviewers the pact retired' },
     { id: 'agent-name-in-capitals', plant: () => ({ config: agentsKey({ 'Integrity-Lens': { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'names are matched exactly' },
     { id: 'constructor-as-agent', plant: () => ({ config: agentsKey({ constructor: { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'a prototype name is no agent' },
     { id: 'proto-as-agent', plant: () => ({ config: '{ "schema": 1, "agents": { "__proto__": { "model": "sonnet" } } }\n' }), fails: ['config-agents'], says: /cannot set/, why: 'a prototype name is no agent' },
@@ -147,19 +144,11 @@ for (const c of table('render agents key', {
     { id: 'field-in-capitals', plant: setTo({ Model: 'sonnet' }), fails: ['config-agents'], says: /must be an object/, why: 'fields are matched exactly' },
     { id: 'constructor-as-field', plant: setTo({ constructor: 'sonnet' }), fails: ['config-agents'], says: /must be an object/, why: 'a prototype name is no field' },
     { id: 'proto-as-field', plant: () => ({ config: '{ "schema": 1, "agents": { "integrity-lens": { "__proto__": "sonnet" } } }\n' }), fails: ['config-agents'], says: /must be an object/, why: 'a prototype name is no field' },
-    // #262 C14: a model is one plain YAML word of AGENT_MODEL_RE's shape.
+    // #262: a model is one word, so it stays one frontmatter line and one AGENT field.
     { id: 'model-newline-and-frontmatter', plant: setTo({ model: 'sonnet\ntools: [Bash]' }), fails: ['config-agents'], says: /model must be/, why: 'a line break would add a key' },
     { id: 'model-space', plant: setTo({ model: 'claude opus' }), fails: ['config-agents'], says: /model must be/, why: 'a space could start a key or a comment' },
     { id: 'model-trailing-space', plant: setTo({ model: 'sonnet ' }), fails: ['config-agents'], says: /model must be/, why: 'a space' },
     { id: 'model-colon-space', plant: setTo({ model: 'sonnet:\x20tools' }), fails: ['config-agents'], says: /model must be/, why: 'a colon and a space make a key' },
-    { id: 'model-trailing-colon', plant: setTo({ model: 'sonnet:' }), fails: ['config-agents'], says: /model must be/, why: 'YAML reads a trailing colon as a key' },
-    { id: 'model-three-dashes', plant: setTo({ model: 'sonnet---x' }), fails: ['config-agents'], says: /model must be/, why: 'a frontmatter fence (adversarial-lens F3)' },
-    { id: 'model-web-address', plant: setTo({ model: 'https://models.example/x' }), fails: ['config-agents'], says: /model must be/, why: 'a web address (adversarial-lens F2)' },
-    { id: 'model-hash', plant: setTo({ model: 'sonnet#x' }), fails: ['config-agents'], says: /model must be/, why: 'a comment mark' },
-    { id: 'model-quote', plant: setTo({ model: "sonnet'" }), fails: ['config-agents'], says: /model must be/, why: 'a quote' },
-    { id: 'model-yaml-word', plant: setTo({ model: 'No' }), fails: ['config-agents'], says: /model must be/, why: 'YAML reads it as false' },
-    { id: 'model-non-ascii-letter', plant: setTo({ model: 'sonn\u0435t' }), fails: ['config-agents'], says: /model must be/, why: 'a look-alike letter (adversarial-lens F3)' },
-    { id: 'model-leading-digit', plant: setTo({ model: '4-opus' }), fails: ['config-agents'], says: /model must be/, why: 'YAML could read a number' },
     { id: 'model-too-long', plant: setTo({ model: `a${'b'.repeat(128)}` }), fails: ['config-agents'], says: /model must be/, why: 'over 128 characters' },
     { id: 'model-empty', plant: setTo({ model: '' }), fails: ['config-agents'], says: /model must be/, why: 'no model' },
     { id: 'model-number', plant: setTo({ model: 4 }), fails: ['config-agents'], says: /model must be/, why: 'a model is text' },
@@ -197,7 +186,7 @@ for (const c of table('render agent file', {
     { id: 'two-effort-lines', plant: () => ({ 'agent.md': AGENT.replace(/^effort: .*$/m, 'effort: medium\neffort: low') }), fails: ['agent-file'], says: /exactly one effort line/, why: 'one line to rewrite' },
     { id: 'metadata-seal-key', plant: () => ({ 'agent.md': AGENT.replace(/^effort: .*$/m, '$&\nmetadata:\n  contract-version: 1') }), fails: ['agent-file'], says: /sealed agent cannot be configured/, why: 'a seal would break' },
     // #262 C14: the file's own values pass the same checks as a setting.
-    { id: 'own-model-off-shape', plant: () => ({ 'agent.md': AGENT.replace(/^model: .*$/m, 'model: opus # cheap') }), fails: ['agent-file'], says: /model line is not a letter/, why: 'a kept model is written back' },
+    { id: 'own-model-off-shape', plant: () => ({ 'agent.md': AGENT.replace(/^model: .*$/m, 'model: opus # cheap') }), fails: ['agent-file'], says: /model line is not one word/, why: 'a kept model is written back' },
     { id: 'own-effort-off-list', plant: () => ({ 'agent.md': AGENT.replace(/^effort: .*$/m, 'effort: ultra') }), fails: ['agent-file'], says: /effort line is not one of/, why: 'a kept effort is written back' },
     { id: 'second-tools-line', plant: () => ({ 'agent.md': AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep]\ntools: [Bash]') }), fails: ['agent-file'], says: /exactly one tools line/, why: 'the tools line is read once' },
     { id: 'no-tools-line', plant: () => ({ 'agent.md': AGENT.replace(/^tools: .*\n/m, '') }), fails: ['agent-file'], says: /exactly one tools line/, why: 'the tools line is read once' },
@@ -290,13 +279,8 @@ test('bad case: each sign alone marks integrity-lens security-set; with none it 
   const floor = AGENT.replace('# integrity-lens', '<!-- pact:begin risk-floor -->\nThe risk floor.\n<!-- pact:end risk-floor -->\n\n# integrity-lens');
   assert.notEqual(floor, AGENT);
   assert.equal(classify(t, 'integrity-lens', { agent: floor }).words, 'security-set override local');
-  // An entry in the tool allow-list.
-  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
-  const allow = JSON.parse(readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'));
-  writeFileSync(join(gate, 'tool-allowlist.json'), `${JSON.stringify({ ...allow, 'integrity-lens': ['Read', 'Glob', 'Grep'] })}\n`);
-  assert.equal(classify(t, 'integrity-lens', { renderer: join(gate, 'render.mjs') }).words, 'security-set override local');
   // On the doubt list.
-  writeFileSync(join(gate, 'tool-allowlist.json'), `${JSON.stringify(allow)}\n`);
+  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
   const doubt = "  'unstated-lens': 'it reports work that should have taken the security route',";
   plantModule(gate, 'render', doubt, `${doubt}\n  'integrity-lens': 'planted',`);
   assert.equal(classify(t, 'integrity-lens', { renderer: join(gate, 'render.mjs') }).words, 'security-set override local');
@@ -335,8 +319,7 @@ test('the install script\'s list of agents equals the renderer\'s configurable l
   // The Node install keeps the list as a constant in its core (#153, S14).
   assert.deepEqual([...AGENT_NAMES], names(r[1]));
   assert.deepEqual(names(r[1]), PACT_AGENTS);
-  // #262 S15, S16: the install's copy of the model shape, its YAML words and the efforts.
+  // #262: the install's copy of the model shape and the efforts.
   assert.equal(moduleMatch(GATE, 'render', /const AGENT_MODEL_RE = (.*);/)[1], String(AGENT_MODEL_RE));
-  assert.equal(moduleMatch(GATE, 'render', /const AGENT_MODEL_WORDS = Object\.freeze\((\[.*\])\);/)[1], JSON.stringify(AGENT_MODEL_WORDS).replace(/"/g, "'").replace(/,/g, ', '));
   assert.equal(moduleMatch(GATE, 'render', /const AGENT_EFFORTS = Object\.freeze\((\[.*\])\);/)[1], JSON.stringify(AGENT_EFFORTS).replace(/"/g, "'").replace(/,/g, ', '));
 });

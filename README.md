@@ -128,6 +128,6 @@ The full how-to, with the command for each shell, is in [docs/install.md](docs/i
 - **Node 24 or later,** the current LTS, to install and to run the gate's tests, on Windows, macOS or Linux.
 - **git.** The install reads the clone's committed files. On Windows, the gate's tests also use the `sh` that ships with Git for Windows.
 - **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
-- **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy of its check script ships here; its skills are optional.
+- **[grimoire](https://github.com/mephistopheles4/grimoire).** Each agent's contract follows its format; its skills are optional.
 - **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: a preset you can bind to the moves.
 - **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the Linux test run.

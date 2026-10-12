@@ -100,13 +100,8 @@ async function main() {
   const gateNow = new Map([...staged].filter(([rel]) => rel.startsWith('gate/')).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
   gateLines = core.gateBlock(gateNow, record ? record.gate : [], run.selfDiffers);
 
-  // The pinned check (P1). Node is this process: no lookup happens (P2).
-  const pinFile = live(stage, 'gate/grimoire/check.mjs.pin');
-  const pinned = live(stage, 'gate/grimoire/check.mjs');
-  if (!io.exists(pinFile) || !io.exists(pinned)) core.stops.pinMissing();
-  const pinCommit = core.parsePin(readFileSync(pinFile, 'utf8'), io.fileSha256(pinned));
+  // Node is this process: no lookup happens (P2).
   say(`Node: ${process.execPath} (${process.version})`);
-  say(`Pinned check: grimoire ${pinCommit}, sha256 verified`);
 
   // A project install checks the project folder before anything reads from
   // it (J1): the project module's real path is parsed, never shown, and the
@@ -173,7 +168,7 @@ async function main() {
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   say(`Check: passed on commit ${commit}`);
-  say("Partly checked: the gate checks the rendered CLAUDE.md's pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers in seam A's lines count the rendered file.");
+  say("Not checked: what the pact's files say. The gate checks install mechanics only; vet the pact as you would any skill.");
   // Before every other warning (#262, S8). A project install never edits a part.
   const securityLine = project ? null : core.securityDefaultsLine(parsed, record);
   if (securityLine) say(securityLine);

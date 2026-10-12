@@ -161,14 +161,14 @@ test('bad case: a block changed between the dry run and -Apply refuses, by the r
   assert.ok(!existsSync(join(h, 'CLAUDE.md')));
 });
 
-// edit-gated
-test('bad case: an edit to a pinned block refuses through the install, naming the block, and -Apply writes nothing', t => {
+// edit-mark: the fixed stop-and-ask block is no open part.
+test('bad case: an edit to the fixed block refuses through the install, and -Apply writes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "stop-and-escalate", "op": "remove"}]}\n');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
-  assert.match(r.stdout, /^render\| FAIL edit-gated: pact\/config\.json: edit 1: stop-and-escalate is a pinned block; no edit may target it\r?$/m, r.out);
+  assert.match(r.stdout, /^render\| FAIL edit-mark: pact\/config\.json: edit 1: an unknown mark\r?$/m, r.out);
   assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json'), listTree(h).join('\n'));
 });
 
@@ -262,25 +262,25 @@ test('bad case: a relative -ReviewFolder refuses before anything runs', t => {
 test('the review output is written only after every check passes: a refused configuration writes none', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  configure(h, '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "b.md"}]}\n', { 'b.md': 'See @notes.md.\n' });
+  configure(h, '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "b.md"}]}\n', { 'b.md': 'See\u200b this.\n' });
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { extra: ['--review-folder', folder] });
   refused(r);
-  assert.match(r.stdout, /^render\| FAIL block-text: /m, r.out);
+  assert.match(r.stdout, /^render\| FAIL invisible: /m, r.out);
   assert.ok(!existsSync(folder));
 });
 
 // #261 C5
 test('the review output is written only after every check passes: seam A refusing writes none', t => {
-  // An agent that asks for a shell: the render passes, and seam A refuses it.
-  const repo = makeRepo(t, root => writeFileSync(join(root, 'claude', 'agents', 'probe.md'), '---\nname: probe\ndescription: A test agent.\ntools: [Read, Glob, Grep, Bash]\n---\n\nBody.\n'));
+  // An agent whose name differs from its file: the render passes, and seam A refuses it.
+  const repo = makeRepo(t, root => writeFileSync(join(root, 'claude', 'agents', 'probe.md'), '---\nname: other\ndescription: A test agent.\ntools: [Read, Glob, Grep]\n---\n\nBody.\n'));
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea.\n' });
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
-  assert.match(r.stdout, /^seam-a\| FAIL tools: /m, r.out);
+  assert.match(r.stdout, /^seam-a\| FAIL name-stem: /m, r.out);
   assert.ok(!existsSync(folder));
 });
 

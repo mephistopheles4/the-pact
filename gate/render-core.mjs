@@ -13,15 +13,13 @@
 //
 // The second form is the project mode, described at the end of this header.
 //
-// The source carries two kinds of mark. Gated marks are the pinned blocks
-// (PINNED in shared.mjs, checked by gate/pact-text.mjs); the renderer passes
-// them through untouched. Open marks
-// name the parts a configuration may change; the renderer always strips their
-// mark lines from its output.
+// The source's open marks name the parts a configuration may change; the
+// renderer always strips their mark lines from its output. Any other marker
+// line passes through untouched.
 //
 // Before any change, it checks the source's open marks: each opens at most
-// once, closes after it opens, sits alone on its line, and never encloses, sits
-// inside or shares a line with a gated mark.
+// once, closes after it opens, sits alone on its line, and never opens inside
+// another.
 //
 // The files it reads. The user file is CONFIG_REL under the Claude home
 // folder; each block file an edit names is under BLOCKS_REL beside it. Both
@@ -38,8 +36,9 @@
 //     own reparse-attribute test on the file and its blocks folder before it
 //     runs this; these checks are the second layer.
 //   - Each file's one buffer is checked (gate's text scanner, then strict JSON
-//     and an exact shape for the user file, or the block-text rules for a
-//     block), rendered and hashed.
+//     and an exact shape for the user file; a block must be LF-only text that
+//     ends in one line feed), rendered and hashed. What a block says is the
+//     owner's to judge: the gate does not read its wording or its markup.
 //   - A block path is checked on its text before any file system call.
 //
 // The user file's shape:
@@ -51,7 +50,7 @@
 // PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
 // A setting fills its open part from a fixed template with the checked number;
 // no text from the user file is ever spliced. An edit applies to an open part
-// only: a gated mark, the notice slot and a setting's part are refused by name.
+// only: the notice slot and a setting's part are refused by name.
 // Block text is re-indented to the part's mark line, so text inside a move
 // stays inside it. When a configuration applies, the config-notice slot is
 // filled with a fixed notice naming its digest, its values and its edited
@@ -63,9 +62,7 @@
 //
 // With no configuration, the output is the source with its open-mark lines
 // removed and every other byte unchanged. A line that is not an open-mark line
-// passes through as it is, so anything else malformed (a bad gated mark, a
-// carriage return, invalid UTF-8) reaches seam A unchanged, and seam A refuses
-// it as before. Seam A's line numbers then count the rendered file.
+// passes through as it is.
 //
 // It writes two files into the output folder (a third per agent setting, see below), which must be an empty folder
 // that is not a link: OUTPUT_NAME, the rendered rules file, and DIFF_NAME, a
@@ -91,9 +88,9 @@
 //
 // Agent settings (#97). A user file may set the model and effort of every
 // agent in CONFIGURABLE_AGENTS, the nine lenses and scout (#262 S17); each
-// file's own values are its default. A model is any value of AGENT_MODEL_RE's
-// shape that is not a YAML word (#262 S15): one plain word, which can never
-// add a key, a comment or a line. Only when a setting is given, the renderer
+// file's own values are its default. A model is any one line with no space
+// (#262): one word, so it stays one frontmatter line and one AGENT field. Seam
+// A then reads the rewritten file, so a value YAML cannot read refuses there. Only when a setting is given, the renderer
 // reads that agent's file from the staged claude/agents/ folder beside the
 // source rules file, under the source's read rules. It refuses an agent that
 // carries a metadata (seal) key. It rewrites only the frontmatter's column-0
@@ -101,9 +98,8 @@
 // value, which must pass the same checks; and it refuses if the
 // result would differ from the file anywhere else, so no setting adds a tool.
 // It classifies the agent as security-set when any sign holds: its tools line
-// is not DEFAULT_AGENT_TOOLS, the tool allow-list has an entry for it, it is on
-// SECURITY_SET, its own file carries a risk-floor block, or it is on
-// SECURITY_DOUBT. The signs other than the two lists are read on every run, so
+// is not DEFAULT_AGENT_TOOLS, it is on SECURITY_SET, its own file carries a
+// risk-floor block, or it is on SECURITY_DOUBT. The signs other than the two lists are read on every run, so
 // a lens that later gains one is marked without anyone editing a list. It writes the
 // result as AGENT_OUTPUT_PREFIX + <name>.md and prints
 //   AGENT <name> <model> <effort> <sha256 of the agent file> <plain|security-set> <default|override> <local|egress>
@@ -146,8 +142,7 @@
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { ANY_FENCE_RE, AT_IMPORT_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, PACT_COMMANDS, PINNED, Refused, Report, SEGMENT_RE, SETEXT_RE, readStrictJson, scanText } from './shared.mjs';
+import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, Refused, Report, SEGMENT_RE, readStrictJson, scanText } from './shared.mjs';
 
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, on the
@@ -155,9 +150,7 @@ import { ANY_FENCE_RE, AT_IMPORT_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, PACT
 const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
-const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/)
-// are refused to every edit, with any operation. install-go-ahead lives in
-// AGENTS.md, which is never installed, and is refused like the other.
+const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);
 const EDIT_KEYS = Object.freeze(['mark', 'op', 'file']);
 const EDITS_MAX = 16;
@@ -184,11 +177,9 @@ const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'comman
 const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
 // Any Claude Code model: an alias (opus, sonnet, haiku, fable, inherit) or a
 // full or provider model ID. No space, '#', quote or line break can appear.
-const AGENT_MODEL_RE = /^[A-Za-z][A-Za-z0-9._:/-]{0,127}$/;
-// Words YAML reads as something other than a string; a trailing ':', which
-// YAML reads as a key; '---', a frontmatter fence; and '//', a web address.
-const AGENT_MODEL_WORDS = Object.freeze(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n']);
-const AGENT_MODEL_SHAPE = "a letter, then letters, digits, '.', '_', ':', '/' or '-', up to 128 characters, with no '---' or '//', not ending in ':', and not a YAML word such as true or null";
+// A model is one word: no space or line break, at most 128 characters (#262).
+const AGENT_MODEL_RE = /^\S{1,128}$/;
+const AGENT_MODEL_SHAPE = 'one word: no space or line break, at most 128 characters';
 const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 // The models the rules file's notice names as they are. Every session reads
 // the notice and may quote it, so any other model, which can hold a provider
@@ -197,7 +188,7 @@ const NOTICE_MODELS = Object.freeze(['opus', 'sonnet', 'haiku', 'fable', 'inheri
 const noticeModel = m => (NOTICE_MODELS.includes(m) ? m : 'a custom model');
 const AGENT_FIELDS = Object.freeze(['model', 'effort']);
 /** `v` when it is a model the renderer may write, else undefined. */
-const agentModel = v => (typeof v === 'string' && AGENT_MODEL_RE.test(v) && !v.endsWith(':') && !v.includes('---') && !v.includes('//') && !AGENT_MODEL_WORDS.includes(v.toLowerCase()) ? v : undefined);
+const agentModel = v => (typeof v === 'string' && AGENT_MODEL_RE.test(v) ? v : undefined);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
 // The lenses the security route names, as a fixed list (#261, S4): the
@@ -214,7 +205,6 @@ const SECURITY_DOUBT = Object.freeze({
   'good-enough-lens': 'it never defers a risk-floor item',
   'unstated-lens': 'it reports work that should have taken the security route',
 });
-const TOOL_ALLOWLIST = join(dirname(fileURLToPath(import.meta.url)), 'tool-allowlist.json');
 
 // Each setting: the open part it fills, its whole-number range, its default
 // and its fixed template. The template at the default must equal the source's
@@ -255,16 +245,12 @@ const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings', 'qualities']);
 const PROJECT_OUTPUT_NAME = 'pact-project.md';
 // A project's own qualities list (#262 S25, from #273): the one thing a
 // project may set that is not a tighter value. Its table is compiled here from
-// checked fields alone, under fixed text; nothing else from the file is
-// written. The quality names are ISO/IEC 25010:2023's; the lenses, the pact's.
-const QUALITY_NAMES = Object.freeze(['Functional suitability', 'Performance efficiency', 'Compatibility', 'Interaction capability', 'Reliability', 'Security', 'Maintainability', 'Flexibility', 'Safety']);
-const QUALITY_LENSES = Object.freeze(CONFIGURABLE_AGENTS.filter(n => n.endsWith('-lens')));
+// the rows' three fields under fixed text. Which qualities and measures a
+// project lists is the owner's to judge; each field only has to stay on one
+// line, so the table stays a table.
 const QUALITY_FIELDS = Object.freeze(['quality', 'measure', 'lenses']);
-const QUALITY_LENSES_MAX = 4;
-const MEASURE_MAX = 160;
-// A measure is one line of plain words: no table bar, no code, no markup, no
-// import, no address. The text scanner then checks every character.
-const MEASURE_BAD_RE = /[|`<>@\r\n]|[a-z][a-z0-9+.-]*:\/\//i;
+const oneLine = v => typeof v === 'string' && !/[\r\n]/.test(v);
+const named = v => oneLine(v) && v.trim() !== '';
 const PROJECT_TEMPLATE = (lines, qualities = null) => [
   '# Pact settings for this project',
   '',
@@ -288,34 +274,22 @@ const PROJECT_TEMPLATE = (lines, qualities = null) => [
   '',
 ];
 
-/** A project's qualities list, checked (#262 S25): [{ quality, measure, lenses }], or null after recording each refusal. */
+/** A project's qualities list (#262 S25): [{ quality, measure, lenses }], or null after recording each refusal. */
 function checkProjectQualities(v, fail) {
-  // Each quality once, so a list holds at most as many rows as there are names.
   if (!Array.isArray(v) || !v.length) {
     fail('project-qualities', 'qualities must be a list of one or more rows');
     return null;
   }
   let ok = true;
   const out = [];
-  const bad = (i, why) => {
-    fail('project-qualities', `row ${i + 1}: ${why}`);
-    ok = false;
-  };
   v.forEach((r, i) => {
-    if (!isObject(r) || Object.keys(r).length !== QUALITY_FIELDS.length || !QUALITY_FIELDS.every(k => Object.hasOwn(r, k))) return bad(i, 'a row holds quality, measure and lenses, and nothing else');
-    const quality = QUALITY_NAMES.find(n => n === r.quality);
-    if (!quality) bad(i, 'the quality must be one of the ISO/IEC 25010:2023 names, matched exactly');
-    const measureOk = typeof r.measure === 'string' && r.measure.length <= MEASURE_MAX && r.measure === r.measure.trim() && !MEASURE_BAD_RE.test(r.measure);
-    if (!measureOk) bad(i, `the measure must be one line of at most ${MEASURE_MAX} characters, with no bar, backtick, angle bracket, at sign or address`);
-    const lenses = Array.isArray(r.lenses) ? r.lenses.map(n => QUALITY_LENSES.find(l => l === n)) : null;
-    if (!lenses || !lenses.length || lenses.length > QUALITY_LENSES_MAX || lenses.some(n => !n) || new Set(lenses).size !== lenses.length) bad(i, `lenses must name 1 to ${QUALITY_LENSES_MAX} of the pact's lenses, each once`);
-    else if (quality && measureOk) out.push({ quality, measure: r.measure, lenses });
+    const shaped = isObject(r) && Object.keys(r).length === QUALITY_FIELDS.length && QUALITY_FIELDS.every(k => Object.hasOwn(r, k))
+      && named(r.quality) && oneLine(r.measure) && Array.isArray(r.lenses) && r.lenses.length && r.lenses.every(named);
+    if (!shaped) {
+      fail('project-qualities', `row ${i + 1}: a row holds quality, measure and a list of lenses, each one line of text (the measure may be empty), and nothing else`);
+      ok = false;
+    } else out.push({ quality: r.quality, measure: r.measure, lenses: r.lenses });
   });
-  const names = v.filter(isObject).map(r => r.quality);
-  if (new Set(names).size !== names.length) {
-    fail('project-qualities', 'the list names one quality twice');
-    ok = false;
-  }
   return ok ? out : null;
 }
 
@@ -336,10 +310,6 @@ const FOLD_CASE = process.platform === 'win32' || process.platform === 'darwin';
 // renderer while a reader still takes it for one.
 const OPEN_NEAR_RE = new RegExp(`<!--\\s*pact\\s*:\\s*(?:begin|end)\\s+(?:${[...OPEN_MARKS].sort((a, b) => b.length - a.length).join('|')})(?![a-z0-9])`, 'i');
 
-// Block text forms that could frame a clause one way for the model and
-// another way for the check, or move text out of its part.
-const THEMATIC_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
-const NUMBERED_RE = /^[0-9]{1,9}[.)](?:[ \t]|$)/;
 const RESERVED_RE = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i;
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -388,21 +358,15 @@ function checkMarks(lines, report) {
     report.fail('placement', 'claude/CLAUDE.md', i + 1, reason);
   };
   let open = null; // the open mark now open: { name, begin }
-  let gated = false; // whether a gated block is open
   lines.forEach((line, i) => {
     const m = markOf(line);
     if (!m) {
       if (OPEN_NEAR_RE.test(line.toString('latin1'))) fail(i, 'an open mark that is not alone on its line, exactly as written');
       return;
     }
-    if (!m.open) {
-      if (open) fail(i, `${open.name} encloses a gated mark`);
-      gated = m.kind === 'begin';
-      return;
-    }
+    if (!m.open) return;
     if (m.kind === 'begin') {
       if (open) fail(i, `${m.name} opens inside ${open.name}`);
-      else if (gated) fail(i, `${m.name} opens inside a gated block`);
       else if (pairs.has(m.name)) fail(i, `${m.name} opens twice`);
       else open = { name: m.name, begin: i };
       return;
@@ -588,8 +552,6 @@ function checkEdits(edits, fail) {
     if (Object.keys(e).some(k => !EDIT_KEYS.includes(k))) return bad('edit-shape', 'a key that is not mark, op or file');
     if (typeof e.mark !== 'string') return bad('edit-shape', 'mark must be text');
     // Matched exactly against constant lists, and only the constant is printed.
-    const pinned = PINNED.find(g => g === e.mark);
-    if (pinned) return bad('edit-gated', `${pinned} is a pinned block; no edit may target it`);
     const setting = [...SETTINGS.keys()].find(k => k === e.mark);
     if (setting) return bad('edit-setting', `${setting} is set only through its setting; no edit may target it`);
     if (e.mark === NOTICE_MARK) return bad('edit-notice', 'config-notice is filled by the renderer; no edit may target it');
@@ -811,20 +773,10 @@ function renderAgent(source, a, report) {
   if (at(/^metadata:/).length) return fail('the agent carries a metadata (seal) key; a sealed agent cannot be configured');
   if (toolsAt.length !== 1) return fail('the frontmatter must hold exactly one tools line');
 
-  const allow = readCapped(TOOL_ALLOWLIST, 64 * 1024, 'agent-file', 'gate/tool-allowlist.json', report);
-  if (allow === null) return null;
-  let allowDoc;
-  try {
-    allowDoc = readStrictJson(allow);
-  } catch {
-    return fail('the tool allow-list could not be read');
-  }
-  if (!isObject(allowDoc)) return fail('the tool allow-list could not be read');
   // The pact's definition of a security-set lens, read from the evidence on
   // every run (see the header).
   const egress = lines[toolsAt[0]] !== DEFAULT_AGENT_TOOLS;
   const security = egress
-    || Object.hasOwn(allowDoc, a.name)
     || SECURITY_SET.includes(a.name)
     || lines.includes(RISK_FLOOR_BLOCK)
     || Object.hasOwn(SECURITY_DOUBT, a.name);
@@ -843,8 +795,8 @@ function renderAgent(source, a, report) {
 }
 
 /**
- * A block file's lines, checked against the block-text rules, or null after
- * recording every failure. `file` is the block's shown name.
+ * A block file's lines: LF-only text, not empty, ending in one line feed; or
+ * null after recording the failure. `file` is the block's shown name.
  */
 function checkBlock(buf, file, report) {
   const fail = (line, reason) => report.fail('block-text', file, line, reason);
@@ -862,25 +814,7 @@ function checkBlock(buf, file, report) {
     fail(null, 'must end with exactly one line feed');
     return null;
   }
-  let ok = true;
-  const bad = (line, reason) => {
-    fail(line, reason);
-    ok = false;
-  };
-  const lines = text.slice(0, -1).split('\n');
-  lines.forEach((line, i) => {
-    const ln = i + 1;
-    if (line.includes('<!--')) bad(ln, 'an HTML comment opener (<!--)');
-    if (AT_IMPORT_RE.test(line)) bad(ln, 'an @ followed by text, which Claude Code may read as an import');
-    if (line.trim() === '') bad(ln, 'a blank line');
-    else if (/^[ \t]/.test(line)) bad(ln, 'a leading space or tab');
-    else if (ANY_FENCE_RE.test(line)) bad(ln, 'a code fence');
-    else if (HEADING_LIKE_RE.test(line)) bad(ln, 'an ATX heading');
-    else if (SETEXT_RE.test(line)) bad(ln, 'a setext heading underline');
-    else if (THEMATIC_RE.test(line)) bad(ln, 'a thematic break');
-    else if (NUMBERED_RE.test(line)) bad(ln, 'a numbered list line');
-  });
-  return ok ? lines : null;
+  return text.slice(0, -1).split('\n');
 }
 
 /**

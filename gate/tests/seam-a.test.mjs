@@ -6,10 +6,10 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { copyGate, plantModule } from './gate-files.mjs';
-import { childSeamA, runSeamA, sealedFamiliar } from './gate-run.mjs';
+import { childSeamA, runSeamA } from './gate-run.mjs';
 import { realOverlay, realPayload, stage } from './payload.mjs';
 import { moduleResult, table } from './tables.mjs';
-import { GATE, PINNED, READ_ONLY, agent, contractText, failRules, lastLine, plainAgent } from './text.mjs';
+import { GATE, READ_ONLY, agent, contractText, failRules, lastLine, plainAgent } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 function expectFail(t, files, rule, prep) {
@@ -76,16 +76,10 @@ test('an install line carries the staged bytes hash', t => {
   assert.match(hash, /^[0-9a-f]{64}$/);
 });
 
-// The dry run's note says what the thin gate checks; the old note, which claimed form, routing and the roster, fails this test.
-// #261 C7
-test('CLAUDE.md is named as the rendered file, with what the thin gate checks in it', t => {
+// The pact is vetted like a skill: seam A says it checks install mechanics, not what the files say.
+test('seam A makes no claim about the rules file\'s words', t => {
   const r = expectPass(t, {});
-  assert.doesNotMatch(r.stdout, /^NOTE unchecked: claude\/CLAUDE\.md/m);
-  assert.match(
-    r.stdout,
-    /^NOTE partly-checked: claude\/CLAUDE\.md is the rendered rules file: the gate checks its pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers count the rendered file$/m,
-  );
-  assert.doesNotMatch(r.stdout, /routing|roster|marked clauses/);
+  assert.doesNotMatch(r.stdout, /^NOTE partly-checked/m);
 });
 
 test('the settings overlay is never listed for install', t => {
@@ -95,40 +89,12 @@ test('the settings overlay is never listed for install', t => {
 
 // ------------------------------------------------------------ the allow-list (C5 row)
 
-test('bad case: a shell in tools', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], 'tools: [Read, Glob, Grep, Bash]') }, 'tools');
-});
-
-test('bad case: hooks (one-line form reaches the key rule)', t => {
-  expectFail(t, { [A]: plainAgent('probe', ['hooks: x']) }, 'keys');
-});
-
 test('bad case: hooks as a nested map fails the reader', t => {
   expectFail(t, { [A]: plainAgent('probe', ['hooks:', '  PreToolUse: x']) }, 'block-list');
 });
 
-test('bad case: an inline mcpServers', t => {
-  expectFail(t, { [A]: plainAgent('probe', ['mcpServers: x']) }, 'keys');
-});
-
 test('bad case: an inline mcpServers as a flow map fails the reader', t => {
   expectFail(t, { [A]: plainAgent('probe', ['mcpServers: {a: b}']) }, 'value');
-});
-
-test('bad case: an omitted tools', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], null) }, 'tools-missing');
-});
-
-test('bad case: a permissionMode key', t => {
-  expectFail(t, { [A]: plainAgent('probe', ['permissionMode: default']) }, 'keys');
-});
-
-test('bad case: allowed-tools', t => {
-  expectFail(t, { [A]: plainAgent('probe', ['allowed-tools: Bash']) }, 'keys');
-});
-
-test('bad case: memory', t => {
-  expectFail(t, { [A]: plainAgent('probe', ['memory: user']) }, 'keys');
 });
 
 test('bad case: a comma-form tools list', t => {
@@ -139,89 +105,39 @@ test('bad case: a duplicate tools key', t => {
   expectFail(t, { [A]: plainAgent('probe', ['tools: [Read, Glob, Grep, Bash]']) }, 'duplicate-key');
 });
 
+// The pact is vetted like a skill: which tools and keys an agent holds is the owner's to judge, not seam A's.
+test('an agent with any tools, any key or no tools line passes and installs', t => {
+  const r = expectPass(t, {
+    'claude/agents/probe.md': plainAgent('probe', ['hooks: x', 'permissionMode: default'], 'tools: [Read, Bash, WebFetch, mcp__any__*]'),
+    'claude/agents/bare.md': plainAgent('bare', [], null),
+  });
+  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/probe\.md agents\/probe\.md$/m);
+  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/agents\/bare\.md agents\/bare\.md$/m);
+});
+
+// One live path per file: two agents whose names differ only in case install to one path.
+test('bad case: two agents whose names differ only in case', t => {
+  const probe = join(tempDir(t), 'Case');
+  mkdirSync(probe);
+  writeFileSync(join(probe, 'a'), '');
+  let folds = false;
+  try {
+    readFileSync(join(probe, 'A'));
+    folds = true;
+  } catch {}
+  if (folds) return t.skip('this disk folds case, so it cannot hold both files');
+  const r = expectFail(t, { 'claude/agents/probe.md': plainAgent('probe'), 'claude/agents/Probe.md': plainAgent('Probe') }, 'name-duplicate');
+  assert.ok(failRules(r.stdout).includes('destination-duplicate'), r.out);
+});
+
+// Agents install only from claude/agents/; familiars/ holds each agent's contract.
+test('bad case: an agent file in familiars is of no known kind', t => {
+  const r = expectFail(t, { 'familiars/probe.md': plainAgent('probe') }, 'unclassified');
+  assert.doesNotMatch(r.stdout, /^INSTALL .*familiars/m);
+});
+
 test('bad case: a name that differs from the stem', t => {
   expectFail(t, { [A]: plainAgent('other') }, 'name-stem');
-});
-
-test('bad case: two agents with one name', t => {
-  expectFail(t, { 'claude/agents/probe.md': plainAgent('probe') }, 'name-duplicate', root => sealedFamiliar(root, 'probe'));
-});
-
-test('bad case: two agents whose names differ only in case', t => {
-  // In two folders, since a folding disk cannot hold both in one.
-  expectFail(t, { 'claude/agents/Probe.md': plainAgent('Probe') }, 'name-duplicate', root => sealedFamiliar(root, 'probe'));
-});
-
-test('bad case: two sources for one live path', t => {
-  expectFail(t, { 'claude/agents/probe.md': plainAgent('probe') }, 'destination-duplicate', root => sealedFamiliar(root, 'probe'));
-});
-
-test('tools must match exactly: case', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], 'tools: [read, Glob, Grep]') }, 'tools');
-});
-
-test('tools must match exactly: a missing tool', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], 'tools: [Read, Glob]') }, 'tools');
-});
-
-test('tools must match exactly: a repeated tool', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], 'tools: [Read, Glob, Grep, Grep]') }, 'tools');
-});
-
-test('a listed agent gets its exact entry', t => {
-  expectPass(t, {
-    'claude/agents/adversarial-lens.md': plainAgent('adversarial-lens', [], 'tools: [Read, Glob, Grep, WebFetch, WebSearch]'),
-  });
-});
-
-test('a listed agent with the default set fails', t => {
-  expectFail(t, { 'claude/agents/adversarial-lens.md': plainAgent('adversarial-lens') }, 'tools');
-});
-
-// The security swap (#100): only adversarial-lens holds the web tools, and no lens of the pair a shell.
-test('bad case: data-lens given a web tool fails', t => {
-  expectFail(t, { 'claude/agents/data-lens.md': plainAgent('data-lens', [], 'tools: [Read, Glob, Grep, WebFetch]') }, 'tools');
-});
-
-test('bad case: adversarial-lens given a tool beyond its entry fails', t => {
-  expectFail(t, { 'claude/agents/adversarial-lens.md': plainAgent('adversarial-lens', [], 'tools: [Read, Glob, Grep, WebFetch, WebSearch, Bash]') }, 'tools');
-});
-
-test('the allow-list names only agents the payload installs', () => {
-  const allow = JSON.parse(readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'));
-  const installed = new Set(readdirSync(join(GATE, '..', 'claude', 'agents')).map(f => f.replace(/\.md$/, '')));
-  const orphans = list => Object.keys(list).filter(n => !installed.has(n));
-  assert.deepEqual(orphans(allow), []);
-  // Seen to fail: a retired agent's entry, left behind, is caught.
-  assert.deepEqual(orphans({ ...allow, 'retired-reviewer': ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch'] }), ['retired-reviewer']);
-});
-
-test('the browser wildcard passes only where listed', t => {
-  expectPass(t, {
-    'claude/agents/behaviour-lens.md': plainAgent(
-      'behaviour-lens',
-      [],
-      'tools: [Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*]',
-    ),
-  });
-  expectFail(t, { [A]: plainAgent('probe', [], 'tools: [Read, Glob, Grep, mcp__Claude_Browser__*]') }, 'tools');
-});
-
-// The QA swap (#47): only behaviour-lens holds the shell and the browser.
-test('bad case: integrity-lens given a shell fails', t => {
-  expectFail(t, { 'claude/agents/integrity-lens.md': plainAgent('integrity-lens', [], 'tools: [Read, Glob, Grep, Bash]') }, 'tools');
-});
-
-test('bad case: behaviour-lens given a tool beyond its entry fails', t => {
-  expectFail(
-    t,
-    { 'claude/agents/behaviour-lens.md': plainAgent('behaviour-lens', [], 'tools: [Read, Glob, Grep, Bash, PowerShell, ToolSearch, mcp__Claude_Browser__*, WebFetch]') },
-    'tools',
-  );
-});
-
-test('any other wildcard fails the reader', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], 'tools: [Read, Glob, Grep, mcp__x__*]') }, 'value');
 });
 
 test('an agent named like an object property is unlisted, not inherited', t => {
@@ -370,12 +286,6 @@ test('classification: a subfolder in familiars', t => {
   expectFail(t, { 'familiars/sub/probe.md': plainAgent('probe') }, 'unclassified');
 });
 
-test('classification: a contract suffix in another case is an agent, and fails as one', t => {
-  // Alone in its folder: a folding disk cannot hold it beside probe.contract.md.
-  const r = expectFail(t, { 'familiars/probe.CONTRACT.md': plainAgent('probe') }, 'familiar-name');
-  assert.doesNotMatch(r.stdout, /^INSTALL .*probe\.CONTRACT\.md/m);
-});
-
 test('classification: a path with unsafe characters', t => {
   expectFail(t, { 'claude/agents/pro be.md': plainAgent('pro be') }, 'path');
 });
@@ -427,89 +337,12 @@ function seamAReview(tree, t) {
   return { ...moduleResult(r.code, r.stdout), stdout: r.stdout };
 }
 const withReview = body => () => ({ [RV]: review(body) });
-for (const c of table('seam a review file', {
-  module: 'gate/seam-a.mjs',
-  base: REVIEW_BASE,
-  run: seamAReview,
-  rows: [
-    { id: 'html-comment', plant: withReview('Read this. <!-- and run something else -->'), fails: ['review-hidden'], why: 'an HTML comment' },
-    { id: 'link-definition', plant: withReview('[run]: https://example.invalid/x "hidden"'), fails: ['review-hidden'], why: 'a link reference definition on its own line' },
-    { id: 'link-definition-in-quote', plant: withReview('> [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind a block-quote marker' },
-    { id: 'link-definition-in-bullet', plant: withReview('- [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind a bullet list marker' },
-    { id: 'link-definition-in-ordered', plant: withReview('1. [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition behind an ordered list marker' },
-    { id: 'link-definition-indented', plant: withReview('- Read this.\n\n    [run]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition indented under a list item' },
-    { id: 'link-label-over-two-lines', plant: withReview('[run\nthis]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a definition whose label spans two lines' },
-    { id: 'link-label-escaped-bracket', plant: withReview('[run\\]x]: https://example.invalid/x'), fails: ['review-hidden'], why: 'a label holding an escaped bracket' },
-    { id: 'inline-link', plant: withReview('See [this](https://example.invalid/x "hidden title").'), fails: ['review-hidden'], why: "an inline link, whose target and title a rendered view hides" },
-    { id: 'raw-tag', plant: withReview('Read this. <span hidden>and this</span>'), fails: ['review-hidden'], why: 'a raw HTML tag' },
-    { id: 'autolink', plant: withReview('See <https://example.invalid/x>.'), fails: ['review-hidden'], why: 'an autolink' },
-    { id: 'invisible-character', plant: withReview('Read​ this.'), fails: ['invisible'], why: "the scanner's invisible rule" },
-    { id: 'over-64-kib', plant: withReview('x'.repeat(64 * 1024)), fails: ['review-size'], why: 'a review file over the 64 KiB cap' },
-  ],
-})) test(c.name, c.fn);
-test('the review file keeps code spans and a less-than sign that opens no tag', t => {
-  expectPass(t, { [RV]: review('Use `LENS=FILE`, and keep 3 < 4 and a -> b.') });
-});
 
 // ------------------------------------------------------------ familiars
 
-test('a sealed familiar with its contract passes and installs to agents/<stem>.md', t => {
-  const r = expectPass(t, {}, root => sealedFamiliar(root, 'probe'));
-  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} familiars\/probe\.md agents\/probe\.md$/m);
-  assert.doesNotMatch(r.stdout, /^INSTALL .*contract/m);
-});
-
 test('a practice test is never installed', t => {
-  const r = expectPass(t, { 'familiars/probe.practice-test.md': '# practice\n' }, root => sealedFamiliar(root, 'probe'));
+  const r = expectPass(t, { 'familiars/probe.practice-test.md': '# practice\n', 'familiars/probe.contract.md': contractText() });
   assert.doesNotMatch(r.stdout, /^INSTALL .*practice-test/m);
-});
-
-test('bad case: a familiar with its contract deleted (mark kept)', t => {
-  expectFail(t, {}, 'contract', root => {
-    sealedFamiliar(root, 'probe');
-    rmSync(join(root, 'familiars', 'probe.contract.md'));
-  });
-});
-
-test('bad case: a familiar with its contract and its mark both removed', t => {
-  // The pinned check alone passes this file ("not built from a contract").
-  const root = stage(t, { 'familiars/probe.md': plainAgent('probe') });
-  const pinned = spawnSync(process.execPath, [PINNED, join(root, 'familiars', 'probe.md')], { encoding: 'utf8' });
-  assert.equal(pinned.status, 1, 'the pinned check refuses tools without a contract; the case below still needs seam A');
-  const r = runSeamA(root);
-  assert.ok(failRules(r.stdout).includes('contract'), r.out);
-  assert.ok(failRules(r.stdout).includes('mark'), r.out);
-});
-
-test('bad case: a familiar with no tools, no contract and no mark: the pinned check passes, seam A fails', t => {
-  const root = stage(t, { 'familiars/probe.md': agent(['name: probe', 'description: x']) });
-  const pinned = spawnSync(process.execPath, [PINNED, join(root, 'familiars', 'probe.md')], { encoding: 'utf8' });
-  assert.equal(pinned.status, 0, pinned.stdout);
-  const r = runSeamA(root);
-  const rules = failRules(r.stdout);
-  assert.ok(rules.includes('contract') && rules.includes('mark') && rules.includes('tools-missing'), r.out);
-});
-
-test('bad case: a contract whose Extra keys list hooks and permissionMode', t => {
-  const r = expectFail(t, {}, 'keys', root =>
-    sealedFamiliar(root, 'probe', {
-      lines: ['name: probe', 'description: x', READ_ONLY, 'hooks: x', 'permissionMode: default'],
-      contract: contractText('tools, model, effort, hooks, permissionMode'),
-    }),
-  );
-  assert.ok(!failRules(r.stdout).some(x => x.startsWith('grimoire')), 'the pinned check passes this file; seam A must catch it');
-});
-
-test('bad case: a familiar edited after sealing fails through the pinned check', t => {
-  expectFail(t, {}, 'grimoire/familiar-digest', root => {
-    sealedFamiliar(root, 'probe');
-    const p = join(root, 'familiars', 'probe.md');
-    writeFileSync(p, readFileSync(p, 'utf8').replace('Body.', 'Changed.'));
-  });
-});
-
-test('bad case: a familiar whose stem fails the name rule', t => {
-  expectFail(t, { 'familiars/Probe.md': plainAgent('Probe'), 'familiars/Probe.contract.md': contractText() }, 'familiar-name');
 });
 
 test('a contract with no agent beside it is not installed and passes', t => {
@@ -524,45 +357,6 @@ function gateCopy(t, edit) {
   edit(g);
   return join(g, 'seam-a.mjs');
 }
-
-test('gate: a pinned script that does not match its pin fails', t => {
-  const script = gateCopy(t, g => writeFileSync(join(g, 'grimoire', 'check.mjs'), '// edited\n', { flag: 'a' }));
-  const r = runSeamA(stage(t, {}), script);
-  assert.ok(failRules(r.stdout).includes('pin'), r.out);
-});
-
-test('gate: a malformed pin file fails', t => {
-  const script = gateCopy(t, g => writeFileSync(join(g, 'grimoire', 'check.mjs.pin'), 'sha256 abc\n'));
-  const r = runSeamA(stage(t, {}), script);
-  assert.ok(failRules(r.stdout).includes('pin'), r.out);
-});
-
-test('gate: a missing pinned script fails', t => {
-  const script = gateCopy(t, g => rmSync(join(g, 'grimoire', 'check.mjs')));
-  const r = runSeamA(stage(t, {}), script);
-  assert.ok(failRules(r.stdout).includes('pin'), r.out);
-});
-
-test('gate: an allow-list with a duplicate key fails', t => {
-  const script = gateCopy(t, g =>
-    writeFileSync(join(g, 'tool-allowlist.json'), '{"probe": ["Read", "Glob", "Grep"], "probe": ["Read", "Glob", "Grep", "Bash"]}\n'),
-  );
-  const r = runSeamA(stage(t, {}), script);
-  assert.ok(failRules(r.stdout).includes('allowlist'), r.out);
-});
-
-test('gate: an allow-list with a duplicate key spelled with an escape fails', t => {
-  const script = gateCopy(t, g =>
-    writeFileSync(join(g, 'tool-allowlist.json'), '{"probe": ["Read", "Glob", "Grep"], "pro\\u0062e": ["Read", "Glob", "Grep", "Bash"]}\n'),
-  );
-  const r = runSeamA(stage(t, {}), script);
-  assert.ok(failRules(r.stdout).includes('allowlist'), r.out);
-});
-test('gate: an allow-list entry that is not a list of tool names fails', t => {
-  const script = gateCopy(t, g => writeFileSync(join(g, 'tool-allowlist.json'), '{"probe": "Bash"}\n'));
-  const r = runSeamA(stage(t, {}), script);
-  assert.ok(failRules(r.stdout).includes('allowlist'), r.out);
-});
 
 test('gate: no stage root is a usage failure', t => {
   const r = spawnSync(process.execPath, [join(GATE, 'seam-a.mjs')], { encoding: 'utf8' });
@@ -593,16 +387,8 @@ test('canary: no value, key, metadata key or duplicate key is echoed', t => {
     'claude/agents/a8.md': plainAgent('a8', [`description: "${C}"`]),
     'claude/agents/a9.md': plainAgent('a9', [`hooks: ${C}`]),
     'claude/agents/a10.md': plainAgent('a10', [`  ${C}: x`]),
-    'familiars/b1.md': plainAgent('b1', [`${C}x: y`]),
-    'familiars/b1.contract.md': contractText(`tools, ${C}x`),
   };
-  const root = stage(t, files);
-  // Sealed, so the pinned check runs on it and prints its own WARN line naming the key.
-  sealedFamiliar(root, 'b2', {
-    lines: ['name: b2', 'description: x', READ_ONLY, `${C.toLowerCase()}k: yy`],
-    contract: contractText(`tools, ${C.toLowerCase()}k`),
-  });
-  const r = runSeamA(root);
+  const r = runSeamA(stage(t, files));
   assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
   assert.ok(!r.out.includes(C) && !r.out.includes(C.toLowerCase()), r.out);
 });

@@ -34,15 +34,15 @@ export const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
 // list, which starts as MODEL_NAMES (#262 S19).
 export const MODEL_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku', 'Fable']);
 export const EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
-// A model the person adds takes the renderer's agent model shape (#262 S15);
-// the renderer keeps its own copy, and a builder test holds them equal.
-export const MODEL_RE = /^[A-Za-z][A-Za-z0-9._:/-]{0,127}$/;
-export const MODEL_WORDS = Object.freeze(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n']);
+// A model the person adds takes the renderer's agent model shape (#262): one
+// word, with no space or line break. The renderer keeps its own copy, and a
+// builder test holds them equal.
+export const MODEL_RE = /^\S{1,128}$/;
 export const MODELS_CAP = 32;
 
-/** Whether `m` is a model the gate takes: one plain word of the shape. */
+/** Whether `m` is a model the gate takes: one word of the shape. */
 export function modelOk(m) {
-  return typeof m === 'string' && MODEL_RE.test(m) && !m.endsWith(':') && !m.includes('---') && !/\/{2}/.test(m) && !MODEL_WORDS.includes(m.toLowerCase());
+  return typeof m === 'string' && MODEL_RE.test(m);
 }
 
 /** Whether `v` is "<model>, <effort>", as a tier or the route takes it. */

@@ -6,8 +6,7 @@
 //   node cloud-sessions/gen.mjs --check    write nothing; exit 1 naming each stale output
 //
 // Run it with NODE_OPTIONS cleared, as for the install script: it refuses to run
-// while NODE_OPTIONS is set, so seam A's pinned grimoire child inherits no Node
-// options.
+// while NODE_OPTIONS is set, so no gate check runs with outside Node options.
 //
 // The outputs are CLAUDE.cloud.md, cloud-setup.sh and cloud-setup-wrapper.sh,
 // in this folder. The cloud environment's setup field holds the wrapper, which
