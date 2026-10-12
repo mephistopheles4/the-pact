@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kt9fRRonpDZOqYZMsyw4zAPWrtugD5tJGNqG3c66UYg='; style-src 'sha256-8pSVwkwrkqU0OwxuuGisMvEMXskeGRxWoPqI/FM+T9M='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-lkg4YErnWm/PvL8TdYohbbKrLuZsZCvz07RMPIqqt84='; style-src 'sha256-YdmQ+zAWnGFsDb8TmhXgv1XSsqabGFy1phbH7wKMECM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -252,7 +252,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-head { padding: var(--av-s2) var(--av-s4); }
 .wf-bar { display: flex; align-items: center; gap: var(--av-s1); flex-wrap: wrap; padding: var(--av-s1) var(--av-s4); border-top: var(--av-rule-hair) solid var(--av-ink-12); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); background: var(--av-surface); }
 .wf-note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
-.wf-cols { display: grid; grid-template-columns: 240px minmax(0, 1fr) 330px; height: 78vh; min-height: 480px; }
+.wf-cols { display: grid; grid-template-columns: 240px minmax(0, 1fr) 7px var(--panel-w, 330px); height: 78vh; min-height: 480px; }
 @media (max-width: 1000px) { .wf-cols { grid-template-columns: minmax(0, 1fr); height: auto; } .wf-side { max-height: 14rem; } .wf-canvas { height: 60vh; } }
 .wf-side, .wf-panel, .wf-table { background: var(--av-surface); box-shadow: var(--wf-shadow); position: relative; z-index: 2; }
 .wf-side { overflow: auto; padding: var(--av-s2); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s1); }
@@ -305,7 +305,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-cond.wf-pass { border-color: var(--av-normal); border-style: solid; }
 .wf-cond.wf-off { opacity: .55; }
 .wf-pair { font-size: 10px; color: var(--av-ink-70); margin-top: 2px; }
-.wf-agent { width: 168px; padding: 4px var(--av-s2); font-size: var(--av-t-annot); border-width: var(--av-rule-hair); }
+.wf-agent { min-width: 168px; white-space: nowrap; padding: 4px var(--av-s2); font-size: var(--av-t-annot); border-width: var(--av-rule-hair); }
 .wf-agent--loose { border-style: dashed; font-style: italic; }
 .wf-agent.wf-fires { border-color: var(--av-normal); color: var(--av-normal); }
 .wf-agent.wf-fired { animation: wf-fire .7s ease-out; }
@@ -360,8 +360,10 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 
 /* PAGE: Scriptorium's head, then the canvas, the whole height. */
 html, body { height: 100%; }
-.page { height: 100vh; display: flex; flex-direction: column; background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.5; }
-.brand-head { display: flex; align-items: center; justify-content: space-between; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-bold) solid var(--av-ink); background: var(--av-surface); }
+body { padding: var(--av-s1); background: var(--av-ground); }
+/* The sheet, as groundtrack lays a drawing: one bordered sheet of paper on the ground, the panels laid on it. */
+.page { height: calc(100vh - 2 * var(--av-s1)); display: flex; flex-direction: column; overflow: hidden; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.5; }
+.brand-head { display: flex; align-items: center; justify-content: space-between; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-hair) solid var(--av-ink); background: var(--av-surface); box-shadow: var(--wf-shadow, 0 2px 6px rgb(34 38 43 / 0.16)); position: relative; z-index: 3; }
 .brand { display: flex; align-items: center; gap: var(--av-s2); min-width: 0; }
 .brand-mark { display: flex; flex: none; }
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
@@ -373,9 +375,17 @@ dialog.classic::backdrop { background: rgb(0 0 0 / 0.35); }
 dialog.classic .av-tool-sheet { border: 0; max-width: none; }
 
 /* SETTINGS: both usage limits, in one dialog. */
-dialog.settings { max-width: 560px; width: calc(100% - 32px); padding: 0; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper); color: var(--av-ink); font-family: var(--av-font); }
+dialog.settings { width: min(960px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 0; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.6; }
 dialog.settings::backdrop { background: rgb(0 0 0 / 0.35); }
-.settings-body { padding: var(--av-s3); display: flex; flex-direction: column; gap: var(--av-s2); }
+dialog.settings .av-tool-sheet { border: 0; max-width: none; }
+.limit-label { min-width: 12rem; font-size: var(--av-t-annot); font-weight: 600; }
+.acc { border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.acc summary { cursor: pointer; padding: var(--av-s1) 0; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; }
+.acc-body { display: flex; flex-direction: column; gap: var(--av-s1); padding: 0 0 var(--av-s2); }
+.acc-body input[type="text"], .acc-body select { width: 100%; min-width: 0; }
+.wf-resizer { cursor: col-resize; background: var(--av-surface); position: relative; z-index: 2; border-left: var(--av-rule-hair) solid var(--av-ink-30); touch-action: none; transition: background .15s; }
+.wf-resizer:hover, .wf-resizer.on { background: var(--av-caution); }
+@media (max-width: 1000px) { .wf-resizer { display: none; } }
 </style>
 </head>
 <body>
@@ -1865,7 +1875,7 @@ const WF_TOUR = [
   ['canvas', 'A condition sits between a stage and its lenses and says when they are offered. Lenses on one condition are offered together: that is all a pair is.'],
   ['table', 'The workflow table, the part this canvas edits. One row per stage: what each tier sets there, the lenses offered and when, and the other ways out.'],
   ['sim', 'Describe a piece of work and press Run it through: a pulse travels the stages and lights the lenses that would be offered.'],
-  ['panel', 'Edit whatever you select here. Tiers, Sensitive and Lenses are the other three parts; Compiles to shows the text each part becomes.'],
+  ['panel', 'Edit whatever you select here. Tiers, sensitive work, the lens roster and the results are in Settings, in the head.'],
   ['library', 'The moves sit beside the work, below the library: no order, no arrows, never on the canvas.'],
 ];
 
@@ -1951,6 +1961,8 @@ function workflowEditor(host, state, changed) {
   );
   const table = el('div', { class: 'wf-table' });
   const panel = el('div', { class: 'wf-panel' });
+  const resizer = el('div', { class: 'wf-resizer', role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize the panel', tabindex: '0' });
+  const cols = el('div', { class: 'wf-cols' }, library, el('div', { class: 'wf-centre' }, canvas, table), resizer, panel);
   const parts = { library, canvas, table, sim, panel };
   host.replaceChildren(
     el(
@@ -1969,8 +1981,38 @@ function workflowEditor(host, state, changed) {
       }, 'av-tool-chip--ghost')),
     ),
     sim,
-    el('div', { class: 'wf-cols' }, library, el('div', { class: 'wf-centre' }, canvas, table), panel),
+    cols,
   );
+
+  // The panel's width: drag the bar, or arrow keys on it; remembered in this browser when storage allows.
+  const setPanel = w => {
+    const width = Math.max(240, Math.min(Math.round(w), window.innerWidth * 0.6));
+    cols.style.setProperty('--panel-w', `${width}px`);
+    try {
+      window.localStorage.setItem('scriptorium-panel', String(width));
+    } catch {}
+  };
+  try {
+    const w = Number(window.localStorage.getItem('scriptorium-panel'));
+    if (w) setPanel(w);
+  } catch {}
+  resizer.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    resizer.setPointerCapture(e.pointerId);
+    resizer.classList.add('on');
+  });
+  resizer.addEventListener('pointermove', e => {
+    if (resizer.hasPointerCapture(e.pointerId)) setPanel(cols.getBoundingClientRect().right - e.clientX);
+  });
+  resizer.addEventListener('pointerup', e => {
+    resizer.releasePointerCapture(e.pointerId);
+    resizer.classList.remove('on');
+  });
+  resizer.addEventListener('dblclick', () => setPanel(330));
+  resizer.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') setPanel(panel.offsetWidth + 24);
+    if (e.key === 'ArrowRight') setPanel(panel.offsetWidth - 24);
+  });
 
   function toast(msg) {
     toastEl.textContent = msg;
@@ -2002,7 +2044,7 @@ function workflowEditor(host, state, changed) {
       item('cond', '', '?', 'Condition', 'when its lenses are offered'),
       el('div', { class: 'av-label', text: 'Lenses' }),
       ...pairs.map(p => el('div', { class: 'wf-libpair' }, item('pair', p.agents.join('+'), '◇◇', p.label, 'both on one condition'), ...p.agents.map(a => item('agent', a, '◇', a, 'one lens')))),
-      el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'On its own' }), ...lenses.filter(n => !inPair(n)).map(n => item('agent', n, '◇', n, 'a pact lens'))),
+      el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'The gatekeeper' }), ...lenses.filter(n => !inPair(n)).map(n => item('agent', n, '◇', n, 'a pact lens'))),
       ...(PACT.yours.agents.length ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Yours' }), ...PACT.yours.agents.map(a => item('agent', a.name, '◆', a.name, a.description || 'your agent')))] : []),
       el(
         'div',
@@ -2688,7 +2730,6 @@ function workflowEditor(host, state, changed) {
   function tiersTab() {
     const p = state.parts;
     return [
-      el('h2', { text: 'Tiers' }),
       el('p', { class: 'av-annot', text: 'How much checking. A stage skipped at a tier is passed by there.' }),
       ...p.tiers.map(t => el('div', { class: 'wf-group' }, el('b', { text: t.name }), field('Fits', input(t.fits, v => (t.fits = v))), field('Plan', pickList(models(true), t.plan, v => (t.plan = v), `${t.name} plan`)), field('Build', pickList(models(false), t.build, v => (t.build = v), `${t.name} build`)))),
     ];
@@ -2700,16 +2741,15 @@ function workflowEditor(host, state, changed) {
       if (e.key === 'Enter' && add.value.trim()) {
         s.items.push(add.value.trim());
         edited();
-        renderPanel();
+        renderSettings();
       }
     });
     return [
-      el('h2', { text: 'Sensitive work' }),
       el('p', { class: 'av-annot', text: 'What Claude looks for, and the sensitive route it recommends with a one-line why. I take the route or not.' }),
       el('div', { class: 'chips' }, ...s.items.map((x, i) => el('span', { class: 'wf-chip' }, x, button('×', () => {
         s.items.splice(i, 1);
         edited();
-        renderPanel();
+        renderSettings();
       })))),
       field('Add', add),
       field("The route's tier", pickList(TIER_KEYS.map(k => [k, k]), s.tier, v => (s.tier = v), 'route tier')),
@@ -2720,7 +2760,6 @@ function workflowEditor(host, state, changed) {
   function lensesTab() {
     const rows = state.parts.lenses;
     return [
-      el('h2', { text: 'Lenses' }),
       el('p', { class: 'av-annot', text: 'The roster: each row a lens or a pair, and the question it asks. A row of two is a pair the library offers as one.' }),
       ...rows.map((r, i) => el(
         'div',
@@ -2731,36 +2770,48 @@ function workflowEditor(host, state, changed) {
         chip('Remove row', false, () => {
           rows.splice(i, 1);
           edited();
-          renderPanel();
+          renderSettings();
         }, 'av-tool-chip--ghost'),
       )),
       chip('Add a row', false, () => {
         rows.push({ agents: ['my-lens'], label: '', asks: 'What does it ask?' });
         edited();
-        renderPanel();
+        renderSettings();
       }, 'av-tool-chip--ghost'),
     ];
   }
   function compiledTab() {
     const out = compileParts(state.parts);
     return [
-      el('h2', { text: 'What the parts compile to' }),
+      el('p', { class: 'av-annot', text: 'The text each part becomes in your rules file.' }),
       ...PACT.parts.marks.flatMap(m => [el('div', { class: 'file-head' }, el('span', { class: 'section-title', text: m }), el('span', { class: 'av-annot', text: out[m] === PACT.parts.text[m] ? 'the default' : 'edited: saved as a replace edit' })), el('pre', { class: 'av-tool-code', text: out[m] })]),
       el('h2', { text: 'What compiles to nothing' }),
       el('p', { class: 'av-annot', text: 'Where nodes sit, each stage\'s own note, and lenses not yet on a condition. The moves: the pact already says them.' }),
     ];
   }
+  /** The panel beside the canvas: what is selected, and anything to fix. */
   function renderPanel() {
-    const tabs = [['inspect', 'Inspect'], ['tiers', 'Tiers'], ['sensitive', 'Sensitive'], ['lenses', 'Lenses'], ['compiled', 'Compiles to']];
-    const body = ui.tab === 'tiers' ? tiersTab() : ui.tab === 'sensitive' ? sensitiveTab() : ui.tab === 'lenses' ? lensesTab() : ui.tab === 'compiled' ? compiledTab() : inspect();
     const found = partsProblems(state.parts);
     panel.replaceChildren(
-      el('div', { class: 'wf-tabs' }, ...tabs.map(([k, l]) => button(l, () => {
-        ui.tab = k;
-        renderPanel();
-      }, `wf-tab${ui.tab === k ? ' wf-tab--on' : ''}`))),
-      el('div', { class: 'wf-body' }, ...body, ...(found.length ? [el('ul', { class: 'callouts' }, ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.part} · ${f.text}` })))] : [])),
+      el('div', { class: 'wf-tabs' }, el('span', { class: 'wf-tab wf-tab--on', text: 'Inspect' })),
+      el('div', { class: 'wf-body' }, ...inspect(), ...(found.length ? [el('ul', { class: 'callouts' }, ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.part} · ${f.text}` })))] : [])),
     );
+    renderSettings();
+  }
+
+  // ---- the other three parts and the results, as accordions in the Settings dialog
+  const openSections = new Set(['tiers']);
+  let settingsBox = null;
+  function renderSettings(box = settingsBox) {
+    if (!box) return;
+    settingsBox = box;
+    const section = (key, title, nodes) => {
+      const d = el('details', { class: 'acc' }, el('summary', { text: title }), el('div', { class: 'acc-body' }, ...nodes));
+      d.open = openSections.has(key);
+      d.addEventListener('toggle', () => (d.open ? openSections.add(key) : openSections.delete(key)));
+      return d;
+    };
+    box.replaceChildren(section('tiers', 'Tiers', tiersTab()), section('sensitive', 'Sensitive work', sensitiveTab()), section('lenses', 'Lenses', lensesTab()), section('results', 'Results', compiledTab()));
   }
 
   // ---- the tour
@@ -2861,6 +2912,9 @@ function workflowEditor(host, state, changed) {
         if (!raf) raf = requestAnimationFrame(loop);
       });
     },
+    settings(box) {
+      renderSettings(box);
+    },
     reset() {
       ui.sel = null;
       ui.loose = [];
@@ -2923,29 +2977,61 @@ function boot() {
   let editor = null; // the workflow canvas, mounted the first time its step shows
 
   /** The settings dialog: both usage limits, the weekly one and the 5-hour session one (#142). */
+  /**
+   * The settings dialog: the usage limits as sliders, the 5-hour session one
+   * on top of the weekly one (#142), then tiers, sensitive work, the lens
+   * roster and the results, as accordions from the canvas (#262).
+   */
   function renderSettings() {
     const s = PACT.setting;
     const ss = PACT.session;
-    const num = (label, value, min, max, set) => {
-      const n = el('input', { type: 'number', min: String(min), max: String(max), step: '1', 'aria-label': label });
-      n.value = value === null ? '' : String(value);
-      n.addEventListener('input', () => {
-        set(n.value);
+    /** A slider and a number for one limit; `off` gives the session limit its unset state. */
+    const limit = (label, value, min, max, def, set, off) => {
+      const range = el('input', { type: 'range', min: String(min), max: String(max), step: '1', 'aria-label': `${label}, percent` });
+      const num = el('input', { type: 'number', min: String(min), max: String(max), step: '1', 'aria-label': `${label}, percent` });
+      const show = v => {
+        range.value = String(v === null ? def : v);
+        num.value = v === null ? '' : String(v);
+        range.disabled = num.disabled = v === null;
+      };
+      const take = v => {
+        set(v);
         renderValues();
         renderOutput();
+      };
+      range.addEventListener('input', () => {
+        num.value = range.value;
+        take(Number(range.value));
       });
-      return n;
+      num.addEventListener('input', () => {
+        if (num.value !== '' && Number.isInteger(Number(num.value))) range.value = num.value;
+        take(num.value === '' ? NaN : Number(num.value));
+      });
+      show(value);
+      const unset = off ? chip(value === null ? 'Off' : 'On', value !== null, () => {
+        off(value === null ? def : null);
+        renderSettings();
+        renderValues();
+        renderOutput();
+      }, value === null ? 'av-tool-chip--ghost' : '', true) : null;
+      return el('div', { class: 'value-row' }, el('label', { class: 'limit-label', text: label }), range, num, el('span', { class: 'av-num', text: '%' }), unset);
     };
-    const weekly = num('Weekly usage pause line, percent', state.usage, s.min, s.max, v => (state.usage = v === '' ? NaN : Number(v)));
-    const session = num('Session usage pause line, percent', state.session, ss.min, ss.max, v => (state.session = v === '' ? null : Number(v)));
+    const box = el('div', { class: 'settings-parts' });
+    if (editor) editor.settings(box);
     $('settings').replaceChildren(el(
       'div',
-      { class: 'settings-body' },
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Settings · usage limits' }), chip('Close', false, () => $('settings').close(), 'av-tool-chip--ghost')),
-      el('div', { class: 'field-row' }, el('label', { text: 'Weekly limit' }), weekly, el('span', { class: 'av-num', text: '%' }), el('span', { class: 'av-annot', text: `Default ${s.def}% · allowed ${s.min} to ${s.max}` })),
-      el('p', { class: 'av-annot', text: 'Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead.' }),
-      el('div', { class: 'field-row' }, el('label', { text: '5-hour session limit' }), session, el('span', { class: 'av-num', text: '%' }), el('span', { class: 'av-annot', text: `Unset by default · allowed ${ss.min} to ${ss.max}` })),
-      el('p', { class: 'av-annot', text: 'Leave it empty for no session line. Set, Claude also gives the session figure and waits above this line; a session that cannot see the figure says so and carries on under the weekly rule.' }),
+      { class: 'av-tool-sheet' },
+      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, and the parts the canvas builds that live off it: tiers, sensitive work, the lens roster, and what they compile to.' })), chip('Close', false, () => $('settings').close(), 'av-tool-chip--ghost')),
+      el(
+        'section',
+        { class: 'av-tool-bar av-tool-bar--stack' },
+        el('h3', { class: 'section-title', text: 'Usage limits' }),
+        limit('5-hour session limit', state.session, ss.min, ss.max, 80, v => (state.session = v), v => (state.session = v)),
+        el('p', { class: 'av-annot', text: `Off by default: no session line. On, Claude also gives the session figure before anything expensive and waits above this line; a session that can't see the figure says so and carries on under the weekly rule. Allowed ${ss.min} to ${ss.max}.` }),
+        limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v)),
+        el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
+      ),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, box),
     ));
   }
   function openSettings() {
