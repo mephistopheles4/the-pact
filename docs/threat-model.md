@@ -164,10 +164,10 @@ How to read it:
 | R17 Gate path only | You, or a fooled session | The install gate, on what can run and with what power; the dry run | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
 | R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
-| R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test when the route was declined or unanswered on a list match, the flag never dropped; this repo's security route for a lens change; a change Claude doesn't see as sensitive, judgment | Rule, judgment |
-| R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build; here, a reviewer reads every change to the gate's tests at move 4, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
+| R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline that came only by relay kept open until you answer in chat; this repo's security route for a lens change; a change Claude doesn't see as sensitive, judgment | Rule, judgment |
+| R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build; here, the QA pair reads every change to the gate's tests at move 4, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the pinned install go-ahead | Outside the pact, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262); the one-line exception, which never covers work flagged sensitive but does cover personal data the list doesn't name; the review procedure's written no-secret read before posting a report (#264); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
+| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
@@ -270,7 +270,8 @@ once you install it.
   said no skill may override certain rules. It is retired, and accepted as
   judgment. Since #262 the rules file's offers paragraph has a session offer
   each lens with a one-line reason, and a skill you typed runs its own lenses
-  unasked, which never lifts the sensitive-route flag. Sensitive work is, by
+  unasked, which never lifts the sensitive-route flag or its offer at Test.
+  Sensitive work is, by
   default, auth, secrets, crypto, input validation and data migrations; a
   session that sees it recommends the sensitive route, thorough, planned and
   built on Opus at high with the security pair, and you take it or not.
@@ -310,8 +311,10 @@ once you install it.
   has a session ask you before something hard to reverse; and "secrets" in the
   sensitive-work default, for keys and tokens, which since #262 a session
   flags and recommends the sensitive route for, rather than forcing it; the
-  one-line exception never covers work flagged sensitive, but does cover
-  personal data the list doesn't name. "Never post a secret or a
+  one-line exception never covers work that matches the list or is flagged
+  sensitive, but does cover personal data the list doesn't name, and the
+  backstop at Test doesn't reach that data either: the owner accepted this
+  to keep the stop rare (#262). "Never post a secret or a
   personal detail" left the pact in #261, accepted as judgment; this repo's
   `AGENTS.md` keeps it. Text that frames such a change as quick work can steer
   past the reviews, and your answer at the stop is then the only check. The
@@ -346,9 +349,12 @@ session can act before you see it.
   a session that sees sensitive work says why in one line in its tier
   proposal and recommends the sensitive route, which brings the security
   pair, `adversarial-lens` and `data-lens`, to read the plan and then the
-  diff. If you decline it, or nobody answers, the pair is offered once more
-  at Test when the change matches the list. A flag found later is said at the
-  next hand-off and never dropped until you answer. It is a rule, not a
+  diff. If you don't take it, the pair is offered once more at Test when the
+  change matches the list, which also catches a flag the session missed. A
+  flag or offer you haven't answered stays open in every hand-off and in the
+  result, a decline that reached the session only by relay stays open until
+  you answer in chat, and a flag found later is said at the next hand-off
+  until you answer. It is a rule, not a
   pinned block. The gate keeps a fixed list of the security-set lenses, so
   the override mark never depends on the rules file's text.
 
@@ -404,7 +410,7 @@ session can act before you see it.
   the CI check runs, or weaken record mode's scrub, which keeps local paths
   and names out of posted test output. The required CI check can't catch
   that, because it runs the runner the edit narrowed. Only the review at the
-  end of the build does: here, a reviewer at move 4, which the pact's one-line exception never covers (#262); elsewhere, the QA pair when you take its offer. The owner accepted this risk by name (#189).
+  end of the build does: here, the QA pair at move 4, which the pact's one-line exception never covers (#262); elsewhere, the QA pair when you take its offer. The owner accepted this risk by name (#189).
 - **R22. The install's apply is unprompted.** Since #265 the pact sets no ask
   rules, so nothing prompts you before `--apply`, in any spelling. Before it,
   ask rules looked for an apply's spelling, and some spellings already got

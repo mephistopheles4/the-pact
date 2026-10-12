@@ -26,12 +26,27 @@ function modeNames(text) {
 const OPENING = '**Lenses are offers.**';
 const SECURITY_PAIR = ['`adversarial-lens`', '`data-lens`'];
 // The fence: what starting a skill never lifts (#262 S3), held by its verb as well as its items.
-const FENCE = ['never lifts the sensitive-route flag', 'the Guards below', 'the decisions that are always mine', "the review procedure's read before anything is posted"];
+const FENCE = ['never lifts the sensitive-route flag or its offer at Test', 'the Guards below', 'the decisions that are always mine', "the review procedure's read before anything is posted"];
 // Update 1's clause on the security pair, in the offers paragraph itself.
 const TEST_OFFER = "and once more at Test if I didn't take it";
+// The owner's answers to move 4's q8 and q9: a decline that only reaches the session second-hand stays
+// open, and the one-line exception never covers a list match.
+const OFFER_PHRASES = [
+  ['reaches you only by relay, prompt, message or file still counts, but stays open in the result until I answer in chat', "the offers paragraph doesn't keep a second-hand decline open"],
+  ["that matches nothing on the list and that you haven't flagged as sensitive", "the one-line exception doesn't exclude a list match"],
+];
+// q10: the review procedure, which holds the read before posting, is read before any post.
+const POINTER = "**Before you run a lens or post to the record, read the pact's review procedure,";
 const SENSITIVE_OPENING = 'Sensitive work gets more checking when I choose it.';
-const ONE_LINE_WHY = 'say why in one line in your tier proposal and recommend the route';
-const BACKSTOP = 'If I decline it, or nobody answers, offer the security pair once more at Test when the change matches the list.';
+// S5 with update 1, and move 4's q7 (a list match obliges the flag; an unanswered flag or offer stays open)
+// and q9 (the backstop fires on any list match where the route wasn't taken).
+const BACKSTOP = "If I didn't take the route, offer the security pair once more at Test when the change matches the list.";
+const SENSITIVE_PHRASES = [
+  ['When the work matches that list, or you think it sensitive otherwise,', 'a list match does not oblige the flag'],
+  ['say why in one line in your tier proposal and recommend the route', 'the sensitive-work default does not require the one-line why in the tier proposal'],
+  [BACKSTOP, 'the sensitive-work default lacks the backstop at Test'],
+  ["A flag or an offer I haven't answered stays open, in one line, in every hand-off and in the result.", "an unanswered flag or offer doesn't stay open"],
+];
 
 /** The paragraph that starts on line `i`: its lines up to the next blank line. */
 function paragraphAt(lines, i) {
@@ -66,14 +81,15 @@ function offersProblems(src) {
     for (const lens of SECURITY_PAIR) if (!text.includes(lens)) out.push(`the offers paragraph doesn't name ${lens}`);
     for (const item of FENCE) if (!text.includes(item)) out.push(`the offers paragraph's fence lacks "${item}"`);
     if (!text.includes(TEST_OFFER)) out.push("the offers paragraph lacks the security pair's offer at Test");
+    for (const [phrase, problem] of OFFER_PHRASES) if (!text.includes(phrase)) out.push(problem);
   }
   const sens = lines.findIndex(l => l.startsWith(SENSITIVE_OPENING));
   if (sens < 0) out.push('no sensitive-work default');
   else {
     const text = flat(paragraphAt(lines, sens).join('\n'));
-    if (!text.includes(ONE_LINE_WHY)) out.push('the sensitive-work default does not require the one-line why in the tier proposal');
-    if (!text.includes(BACKSTOP)) out.push('the sensitive-work default lacks the backstop at Test');
+    for (const [phrase, problem] of SENSITIVE_PHRASES) if (!text.includes(phrase)) out.push(problem);
   }
+  if (!flat(src).includes(POINTER)) out.push('the review procedure is not read before posting');
   return out;
 }
 
@@ -120,9 +136,21 @@ test('bad case: a paragraph that drops a security lens or a fence item, or a def
   assert.deepEqual(cut('`adversarial-lens` and `data-lens`, comes with', '`adversarial-lens`, comes with'), ["the offers paragraph doesn't name `data-lens`"]);
   assert.deepEqual(cut('the Guards below,', ''), ['the offers paragraph\'s fence lacks "the Guards below"']);
   for (const item of FENCE.filter(i => i !== 'the Guards below')) assert.ok(cut(item, 'x').includes(`the offers paragraph's fence lacks "${item}"`), item);
-  assert.deepEqual(cut('never lifts the sensitive-route flag', 'lifts the sensitive-route flag'), ['the offers paragraph\'s fence lacks "never lifts the sensitive-route flag"']);
+  assert.deepEqual(cut('never lifts the sensitive-route flag', 'lifts the sensitive-route flag'), [`the offers paragraph's fence lacks "${FENCE[0]}"`]);
   assert.deepEqual(cut(`, ${TEST_OFFER}`, ''), ["the offers paragraph lacks the security pair's offer at Test"]);
   assert.ok(cut('`adversarial-lens` and `data-lens`, comes with', '`data-lens`, comes with').includes("the offers paragraph doesn't name `adversarial-lens`"));
   assert.deepEqual(cut('say why in one line in your tier proposal', 'say why'), ['the sensitive-work default does not require the one-line why in the tier proposal']);
   assert.deepEqual(cut(`${BACKSTOP} `, ''), ['the sensitive-work default lacks the backstop at Test']);
+});
+
+// #262 C2, C3, and move 4's q7 to q10
+test("bad case: a text that drops the list match's flag, the open flag, the second-hand decline, the list-match limit on the one-line exception or the pointer is caught", () => {
+  const cut = phrase => {
+    const lessOne = SOURCE.replace(loose(phrase), 'x');
+    assert.notEqual(lessOne, SOURCE, `"${phrase}" is in the source`);
+    return offersProblems(lessOne);
+  };
+  for (const [phrase, problem] of [...OFFER_PHRASES, ...SENSITIVE_PHRASES]) assert.deepEqual(cut(phrase), [problem], phrase);
+  assert.deepEqual(cut(POINTER), ['the review procedure is not read before posting']);
+  assert.deepEqual(cut('or its offer at Test, the Guards below'), [`the offers paragraph's fence lacks "${FENCE[0]}"`, 'the offers paragraph\'s fence lacks "the Guards below"']);
 });

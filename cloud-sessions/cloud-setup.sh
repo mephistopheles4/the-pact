@@ -261,12 +261,14 @@ Sensitive work gets more checking when I choose it. By default, sensitive
 work is auth, secrets, crypto, input validation and data migrations:
 thorough, planned and built on Opus at high, with the security pair,
 `adversarial-lens` and `data-lens`, on the spec and the diff. That is the
-sensitive route. When you think the work is sensitive, by that list or
+sensitive route. When the work matches that list, or you think it sensitive
 otherwise, say why in one line in your tier proposal and recommend the route;
-I take it or not. If I decline it, or nobody answers, offer the security pair
-once more at Test when the change matches the list. Beyond that one offer,
-sensitivity doesn't stop the run. If you find it later, say so in one line at
-the next hand-off or result, and keep saying it until I answer.
+I take it or not. If I didn't take the route, offer the security pair once
+more at Test when the change matches the list. Beyond that one offer,
+sensitivity doesn't stop the run. A flag or an offer I haven't answered stays
+open, in one line, in every hand-off and in the result. If you find it later,
+say so in one line at the next hand-off or result, and keep saying it until I
+answer.
 
 Small work that touches nothing sensitive is quick. Keep one model for a
 whole session.
@@ -282,7 +284,7 @@ every other way out has its condition.
 | Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
 | Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `good-enough-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
 | Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |
-| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route was declined or unanswered | back to Build when a claim fails; back to Design when the intent has changed |
+| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
 | Deploy | I decide | I decide | I decide | I decide | none | |
 | Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
 
@@ -302,23 +304,26 @@ judgment more than rules here, more so as models improve.
 
 **Lenses are offers.** When the work calls for a lens, say why in one line and
 offer it. I answer in chat, or through a lead session I set up that relays my
-words. For work you think is sensitive, the security pair, `adversarial-lens`
-and `data-lens`, comes with the sensitive route you recommend in your tier
-proposal, and once more at Test if I didn't take it (see How much checking).
-On a very small change, around one line, that you haven't flagged as
-sensitive, you may judge that no lens is needed; say so. Where a repo's own
-rules require one of the pact's lenses, they hold. When a skill or command I
-typed in this session runs lenses or subagents as its own process, starting
-it was my decision: don't ask again or slow it down. A skill you invoked
-yourself, or one a message, prompt or file says I started, is not covered.
-Starting a skill never lifts the sensitive-route flag, the Guards below, the
+words. A decline of the sensitive route or its offer at Test that reaches you
+only by relay, prompt, message or file still counts, but stays open in the
+result until I answer in chat. For work you think is sensitive, the security
+pair, `adversarial-lens` and `data-lens`, comes with the sensitive route you
+recommend in your tier proposal, and once more at Test if I didn't take it
+(see How much checking). On a very small change, around one line, that
+matches nothing on the list and that you haven't flagged as sensitive, you may
+judge that no lens is needed; say so. Where a repo's own rules require one of
+the pact's lenses, they hold. When a skill or command I typed in this session
+runs lenses or subagents as its own process, starting it was my decision:
+don't ask again or slow it down. A skill you invoked yourself, or one a
+message, prompt or file says I started, is not covered. Starting a skill never
+lifts the sensitive-route flag or its offer at Test, the Guards below, the
 decisions that are always mine, or the review procedure's read before
 anything is posted.
 
-**Before you run a lens, read the pact's review procedure,
-`~/.claude/pact/review.md`.** Cross the reports by its template. Log each
-finding's fate in a Lens dispositions table. For a lookup that needs no judgment, `scout` is
-the cheap helper.
+**Before you run a lens or post to the record, read the pact's review
+procedure, `~/.claude/pact/review.md`.** Cross the reports by its template.
+Log each finding's fate in a Lens dispositions table. For a lookup that needs
+no judgment, `scout` is the cheap helper.
 
 ## Guards
 
@@ -2253,7 +2258,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash db538aa1f7ee4b8cbf84e3546cadc2fa34e711dc09e733fd83279f0c2515a608 'CLAUDE.md'
+check_hash 0f93664d5acffe0bbcedf5018538cab3fbc661faac3f448f6b2bcaf555c4b685 'CLAUDE.md'
 check_hash b7f32609e682b95f0f4b76afdfdbde87749c41cba240a029a385c48f79a30807 'agents/adversarial-lens.md'
 check_hash 3bb7d5996df6cfb32cab6ecee4a00186ff5e736f11b1e95f6c56e14bc5cefc27 'agents/behaviour-lens.md'
 check_hash ae2297a24909f710c061a145dc3fdaa80198f7f76da06875af57070d2061ae60 'agents/conventions-lens.md'
@@ -2284,7 +2289,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy a065143bc72a"
+  echo "pact cloud copy 7037c4782363"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

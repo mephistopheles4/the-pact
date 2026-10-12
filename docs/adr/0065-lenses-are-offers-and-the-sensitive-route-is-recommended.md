@@ -6,15 +6,16 @@ The rules file no longer runs any lens by default. A session offers each lens wi
 
 - **The offers paragraph replaces the defaults.** The four sentences that had the QA pair read every result and the security pair read sensitive work give way to one paragraph in the Lenses section, outside every configurable part. It says:
   - a lens is offered with a one-line reason;
-  - the owner answers in chat, or through a lead that relays the owner's words;
+  - the owner answers in chat, or through a lead that relays the owner's words; a decline that reaches the session only by relay, prompt, message or file stays open in the result until the owner answers in chat;
   - the security pair, named, comes with the sensitive route, and once more at Test if the owner didn't take it;
-  - on a change of about one line not flagged sensitive, no lens may be needed, said aloud;
+  - on a change of about one line that matches nothing on the list and isn't flagged sensitive, no lens may be needed, said aloud;
   - a repo's own rules requiring one of the pact's lenses hold;
-  - a skill or command the owner typed in this session runs its own lenses unasked. That never lifts the sensitive-route flag, the Guards, the decisions that are always the owner's, or the review procedure's read before anything is posted.
-- **The sensitive route.** The list (auth, secrets, crypto, input validation and data migrations) is what a session looks for, by that list or otherwise. A match obliges a one-line why and a recommendation of the route in the tier proposal: thorough, planned and built on Opus at high, with the security pair on the spec and the diff.
-  - If the owner declines it, or nobody answers, the security pair is offered once more at Test on a list match.
+  - a skill or command the owner typed in this session runs its own lenses unasked. That never lifts the sensitive-route flag or its offer at Test, the Guards, the decisions that are always the owner's, or the review procedure's read before anything is posted.
+- **The sensitive route.** The list (auth, secrets, crypto, input validation and data migrations) is what a session looks for; it may also judge work sensitive otherwise. A list match obliges a one-line why and a recommendation of the route in the tier proposal: thorough, planned and built on Opus at high, with the security pair on the spec and the diff.
+  - If the owner didn't take the route, the security pair is offered once more at Test on a list match. That also catches a match the session missed at the tier proposal.
   - Beyond that one offer, sensitivity doesn't stop the run.
-  - A flag found later is said at the next hand-off or result until the owner answers.
+  - A flag or offer the owner hasn't answered stays open, in one line, in every hand-off and in the result. A flag found later is said at the next hand-off or result until the owner answers.
+- **The review procedure is read before any post,** not only before a lens runs, so its no-secret read covers every hand-off and result a session posts.
 - **A Workflow section,** fixed text for now, between "How much checking" and "Lenses". Its table has one row per stage, Plan to Maintain. It gives what each tier sets there, the Sensitive route's models, the lenses offered and when, and the other ways out.
 - **The tier table** loses its Checking column, which the workflow table now carries. Thorough's Fits gains "cut into tickets, each its own session", so that statement isn't lost.
 - **The lens table becomes a roster,** Lens and Asks, with FIG. 03's questions. The intro loses "say which you left out and why", and "Finish the build" offers the reviews rather than running them.
@@ -22,9 +23,9 @@ The rules file no longer runs any lens by default. A session offers each lens wi
 - **The review procedure** describes how a lens runs, not whether. Its Posting section covers every report the session posts, those of lenses a skill runs included.
 - **`AGENTS.md`'s protected set:**
   - Item 2 is the offers paragraph, all of it.
-  - Item 3 is the list, the recommendation it obliges, the backstop at Test, and the flag never dropped.
-  - A new line says the gate's tests are never a one-line change here.
-- **Two tests read the rules file's source.** One checks that it names no permission mode. The other checks that the offers paragraph sits once in Lenses, outside every open mark, names both security lenses and holds the fence's four items, and that the sensitive default holds the one-line why and the backstop.
+  - Item 3 is the list, the recommendation it obliges, the backstop at Test, and an unanswered flag or offer kept open.
+  - A new line says the gate's tests are never a one-line change here, and the QA pair reads them at move 4.
+- **Two tests read the rules file's source.** One checks that it names no permission mode. The other checks that the offers paragraph sits once in Lenses, outside every open mark, names both security lenses and holds the fence's four items, and that the sensitive default holds the one-line why and the backstop. After move 4 they also hold the open flag, the list-match limits, the second-hand decline and the pointer to the review procedure before any post.
 
 ## Why
 
@@ -44,8 +45,10 @@ Protected items 2 and 3 are loosened. No lens runs without the owner's yes, unle
 
 A sensitive change can now run with no security read in three cases:
 - the owner declines twice, at the tier proposal and at Test;
-- both offers go unanswered;
-- the session misses the match.
+- both offers go unanswered, and the open flag reaches the owner's acceptance;
+- the work is sensitive only "otherwise", off the list, and the session misses it.
+
+Personal data the list doesn't name gets no backstop at Test, and the one-line exception can cover it. The owner accepted that to keep the stop rare.
 
 What covers it:
 - the list kept as what a session looks for;
@@ -68,3 +71,9 @@ The threat model's R20, R21 and R23 record the rest as judgment.
 
 - **2026-10-11 and 2026-10-12** in mephistopheles4/the-pact#262: the owner's decisions on stages, agents and conditions, lenses as offers, and no auto mode of its own.
 - **2026-10-12:** spec revisions 2 to 4 and update 1. The spec pair and the security pair read revision 2. On the owner's word, relayed by the head chef: q2 B, q4 A, q5 A, q6 no reread, then proceed. Phase 1 builds the text; phase 2 makes the four parts editable.
+- **2026-10-12, move 4 on phase 1:** the QA pair read the whole change, and the security pair read the sensitive-work wording, its first read of the loosened default. On the owner's "proceed as recommended", relayed by the head chef:
+  - q7: an unanswered flag or offer stays open, a list match obliges the flag, the fence names the offer at Test, and this repo names the QA pair for gate-test changes;
+  - q8: a second-hand decline stays open until the owner answers in chat;
+  - q9: the backstop fires on any list match where the route wasn't taken, and the one-line exception excludes list matches;
+  - q10: the review procedure is read before any post;
+  - q11: personal data outside the list stays without a backstop, said in R23.
