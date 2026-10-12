@@ -15,7 +15,8 @@ const flat = s => s.replace(/\s+/g, ' ');
 
 // Claude Code's permission modes, by the names a rules file would use for them. Bare words such as
 // "plan", "auto" or "default" are ordinary prose here, so only the modes' own names and phrases count.
-const MODE_RE = /\b(?:acceptEdits|bypassPermissions|dontAsk)\b|--permission-mode\b|\b(?:auto|plan|permission|accept[- ]edits|bypass[- ]permissions|don't[- ]ask) mode\b/gi;
+// Settings keys and hyphenated or curly-apostrophe spellings count too (#262's move 4, integrity-lens).
+const MODE_RE = /\b(?:acceptEdits|bypassPermissions|dontAsk|permissionMode|defaultMode)\b|--permission-mode\b|\b(?:auto|plan|permission|accept[- ]edits|bypass[- ]permissions|don['’]t[- ]ask)[- ]mode\b/gi;
 
 /** The permission-mode names a text holds, in order. */
 function modeNames(text) {
@@ -24,8 +25,10 @@ function modeNames(text) {
 
 const OPENING = '**Lenses are offers.**';
 const SECURITY_PAIR = ['`adversarial-lens`', '`data-lens`'];
-// The fence: what starting a skill never lifts (#262 S3).
-const FENCE = ['the sensitive-route flag', 'the Guards below', 'the decisions that are always mine', "the review procedure's read before anything is posted"];
+// The fence: what starting a skill never lifts (#262 S3), held by its verb as well as its items.
+const FENCE = ['never lifts the sensitive-route flag', 'the Guards below', 'the decisions that are always mine', "the review procedure's read before anything is posted"];
+// Update 1's clause on the security pair, in the offers paragraph itself.
+const TEST_OFFER = "and once more at Test if I didn't take it";
 const SENSITIVE_OPENING = 'Sensitive work gets more checking when I choose it.';
 const ONE_LINE_WHY = 'say why in one line in your tier proposal and recommend the route';
 const BACKSTOP = 'If I decline it, or nobody answers, offer the security pair once more at Test when the change matches the list.';
@@ -62,6 +65,7 @@ function offersProblems(src) {
     const text = flat(para.join('\n'));
     for (const lens of SECURITY_PAIR) if (!text.includes(lens)) out.push(`the offers paragraph doesn't name ${lens}`);
     for (const item of FENCE) if (!text.includes(item)) out.push(`the offers paragraph's fence lacks "${item}"`);
+    if (!text.includes(TEST_OFFER)) out.push("the offers paragraph lacks the security pair's offer at Test");
   }
   const sens = lines.findIndex(l => l.startsWith(SENSITIVE_OPENING));
   if (sens < 0) out.push('no sensitive-work default');
@@ -83,6 +87,8 @@ test('bad case: a permission mode named in the rules file is caught, and ordinar
   assert.deepEqual(modeNames('Run in auto\n  mode when I am away.'), ['auto mode']);
   assert.deepEqual(modeNames('Pass --permission-mode bypassPermissions.'), ['--permission-mode', 'bypassPermissions']);
   assert.deepEqual(modeNames('A plan is made in Plan mode.'), ['Plan mode']);
+  assert.deepEqual(modeNames('Run in auto-mode, or dontAsk, acceptEdits or accept edits mode.'), ['auto-mode', 'dontAsk', 'acceptEdits', 'accept edits mode']);
+  assert.deepEqual(modeNames('Set permissionMode, or defaultMode, or don’t ask mode, or bypass permissions mode.'), ['permissionMode', 'defaultMode', 'don’t ask mode', 'bypass permissions mode']);
   assert.deepEqual(modeNames('Plan, then build. The default is auto-taken. A target I can know gets a plan.'), []);
 });
 
@@ -113,6 +119,10 @@ test('bad case: a paragraph that drops a security lens or a fence item, or a def
   // The offers paragraph names the pair once, as "`adversarial-lens` and `data-lens`".
   assert.deepEqual(cut('`adversarial-lens` and `data-lens`, comes with', '`adversarial-lens`, comes with'), ["the offers paragraph doesn't name `data-lens`"]);
   assert.deepEqual(cut('the Guards below,', ''), ['the offers paragraph\'s fence lacks "the Guards below"']);
+  for (const item of FENCE.filter(i => i !== 'the Guards below')) assert.ok(cut(item, 'x').includes(`the offers paragraph's fence lacks "${item}"`), item);
+  assert.deepEqual(cut('never lifts the sensitive-route flag', 'lifts the sensitive-route flag'), ['the offers paragraph\'s fence lacks "never lifts the sensitive-route flag"']);
+  assert.deepEqual(cut(`, ${TEST_OFFER}`, ''), ["the offers paragraph lacks the security pair's offer at Test"]);
+  assert.ok(cut('`adversarial-lens` and `data-lens`, comes with', '`data-lens`, comes with').includes("the offers paragraph doesn't name `adversarial-lens`"));
   assert.deepEqual(cut('say why in one line in your tier proposal', 'say why'), ['the sensitive-work default does not require the one-line why in the tier proposal']);
   assert.deepEqual(cut(`${BACKSTOP} `, ''), ['the sensitive-work default lacks the backstop at Test']);
 });

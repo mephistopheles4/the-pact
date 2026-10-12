@@ -69,11 +69,11 @@ Not every change needs a spec. Each piece of work gets a tier (quick, standard o
 
 ## Review lenses
 
-A lens is a reviewer agent that asks one question from one angle. Lenses are tools that help you through a stage faster, and they are offers: when the work calls for one, the agent says why in one line and offers it, and I answer. The security pair comes with the sensitive route. On a change of about one line that isn't flagged sensitive, the agent may judge that no lens is needed, and says so. A skill I typed runs its own lenses without asking again. Each lens starts fresh and never sees its partner's report. They read and report, and none of them builds anything.
+A lens is a reviewer agent that asks one question from one angle. Lenses are tools that help you through a stage faster, and they are offers: when the work calls for one, the agent says why in one line and offers it, and I answer. The security pair comes with the sensitive route, and is offered once more at Test on a declined list match. On a change of about one line that isn't flagged sensitive, the agent may judge that no lens is needed, and says so. A skill I typed runs its own lenses without asking again. Each lens starts fresh and never sees its partner's report. They read and report, and none of them builds anything.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
-  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question, and each is offered with a one-line why; the security pair comes with the sensitive route. Their reports are crossed by a template and posted in the work's record, and I decide." width="800">
+  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question, and each is offered with a one-line why; the security pair comes with the sensitive route, and once more at Test on a declined list match. Their reports are crossed by a template and posted in the work's record, and I decide." width="800">
 </picture>
 
 <details>
@@ -82,7 +82,7 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 - **Spec pair, offered on a spec, standard and up.** `executability-lens`: would the spec, built as written, run end to end? `good-enough-lens`: what could be cut or deferred, and what would it save?
 - **QA pair, offered at every build.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail?
 - **Standards pair, offered on a diff, standard and up.** `conventions-lens`: does the diff keep the repo's written rules? `reader-lens`: can the next reader act on what it says?
-- **Security pair, with the sensitive route.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
+- **Security pair, with the sensitive route, and once more at Test on a declined list match.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
 - **Alone, offered on a spec and a result, standard and up.** `unstated-lens`: what need did nobody write down?
 
 Each lens is offered with a one-line why, and I say yes or no. Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The session crosses the pair by a template; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.

@@ -27,7 +27,7 @@ const PAIRS = [
     ],
   },
   {
-    text: 'Security pair · the sensitive route',
+    text: 'Security pair · sensitive route, then Test',
     stroke: 'ink',
     sw: 2,
     lenses: [
