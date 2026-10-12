@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1NHgyYnvi2jnnU7DSoGz5aMseZ4Oy9FvGMTWFpchZg0='; style-src 'sha256-bSPx3NTmKoOTXIvsr5sLYqerXy3MJ8btQTtd/Xmflp8='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-9u/K/qnKMBHVpq0qotvk5+LOZqpInRktNyy/0F6UYvQ='; style-src 'sha256-zZ32ss0RY1r0MQQyAoOFJzZ1atjzVNL3gchbftxM1eE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -426,6 +426,25 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .acc summary:hover::before, .acc summary:focus-visible::before { color: var(--av-caution); }
 .acc-body { display: flex; flex-direction: column; gap: var(--av-s1); padding: 0 0 var(--av-s2); }
 .acc-body input[type="text"], .acc-body select { width: 100%; min-width: 0; }
+/* SPACING, by role (#262). The design system gives a scale, s1 to s5, and no
+   roles, so the page names three and every dialog spaces by them: a section
+   from the next, a row from the next, and the items inside a row. */
+:root { --space-section: var(--av-s3); --space-row: var(--av-s2); --space-item: var(--av-s1); }
+dialog.settings .av-tool-bar--stack { gap: var(--space-row); padding-top: var(--space-section); padding-bottom: var(--space-section); }
+.acc summary { min-height: 3rem; }
+.acc-body { gap: var(--space-row); padding: var(--space-row) 0 var(--space-section); }
+.acc-stack, .agent-detail { gap: var(--space-row); }
+.agents-grid { gap: var(--space-section); }
+dialog.settings .wf-field { gap: var(--space-item); }
+dialog.settings .row-line, dialog.settings .tags { gap: var(--space-item); }
+/* CONTRAST. A row is a card of paper on the dialog's ground, so rows read as
+   rows; an open section's heading is ink, a closed one ink 70. */
+dialog.settings .wf-group, dialog.settings .moves .move { gap: var(--space-item); padding: var(--space-row) var(--space-row) var(--space-row) calc(var(--space-row) - 3px); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-12); border-left: 3px solid var(--av-ink-12); }
+dialog.settings .moves { display: flex; flex-direction: column; gap: var(--space-row); }
+dialog.settings .moves .move:first-child { padding-top: var(--space-row); }
+.acc > summary { color: var(--av-ink-70); }
+.acc[open] > summary { color: var(--av-ink); }
+dialog.settings .acc[open] > summary { border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
 .wf-resizer { cursor: col-resize; background: var(--av-surface); position: relative; z-index: 2; border-left: var(--av-rule-hair) solid var(--av-ink-30); touch-action: none; transition: background .15s; }
 .wf-resizer:hover, .wf-resizer.on { background: var(--av-caution); }
 .wf-resizer--y { cursor: row-resize; border-left: 0; border-top: var(--av-rule-hair) solid var(--av-ink-30); }
@@ -3460,6 +3479,14 @@ function boot() {
 
 
   let agentSel = PACT.agents[0].name;
+  const agentsOpen = new Set();
+  /** An accordion in the Agents dialog that stays as it was across redraws. */
+  const agentsSection = (key, title, ...nodes) => {
+    const d = el('details', { class: 'acc' }, el('summary', { text: title }), el('div', { class: 'acc-body' }, ...nodes));
+    d.open = agentsOpen.has(key);
+    d.addEventListener('toggle', () => (d.open ? agentsOpen.add(key) : agentsOpen.delete(key)));
+    return d;
+  };
   /** The lens names a roster row or a quality can take: the pact's lenses, your own agents, and any name already there. */
   const lensNames = (...more) => [...new Set([...PACT.agents.filter(a => a.name.endsWith('-lens')).map(a => a.name), ...PACT.yours.agents.map(a => a.name), ...more])];
   /** The parts changed in the Agents dialog: the editor records it, and the dialog redraws unless the change came from typing. */
@@ -3535,10 +3562,9 @@ function boot() {
       el('span', { class: 'av-label', text: 'Where it runs' }),
       offered(a),
     );
-    const roster = el(
-      'div',
-      { class: 'acc-stack' },
-      el('h3', { class: 'section-title', text: 'Lens roster' }),
+    const roster = agentsSection(
+      'roster',
+      'Lens roster',
       el('p', { class: 'av-annot', text: 'Each row a lens or a pair, and the question it asks. A row of two is a pair the library offers as one.' }),
       ...state.parts.lenses.map((r, i) => el(
         'div',
@@ -3564,10 +3590,9 @@ function boot() {
       [qs[i], qs[j]] = [qs[j], qs[i]];
       partsTouched();
     };
-    const qualities = el(
-      'div',
-      { class: 'acc-stack' },
-      el('h3', { class: 'section-title', text: 'Qualities' }),
+    const qualities = agentsSection(
+      'qualities',
+      'Qualities',
       el('p', { class: 'av-annot', text: 'The qualities that matter, ranked: each with how it is measured and the lenses that check it. A lens is handed its rows; a row with no measure is a claim to add, not a defect.' }),
       ...qs.map((q, i) => el(
         'div',
@@ -3605,8 +3630,7 @@ function boot() {
         el('nav', { class: 'agent-list', 'aria-label': 'Agents' }, el('span', { class: 'av-label', text: 'Lenses' }), ...PACT.agents.filter(x => x.name.endsWith('-lens')).map(listItem), el('span', { class: 'av-label', text: 'Helpers' }), ...PACT.agents.filter(x => !x.name.endsWith('-lens')).map(listItem)),
         detail,
       )),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, roster),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, qualities),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, roster, qualities)),
     ));
   }
   function openAgents() {
