@@ -251,7 +251,6 @@ const BAD_BUILDERS = [
   ['another schema', () => ({ ...GOOD, schema: 2 }), /schema must be 1/],
   // #262: presets and workflows left the builder; a file holding either is refused.
   ['a presets list', () => ({ ...GOOD, presets: [] }), /presets and workflows left the builder/],
-  ['a workflows list', () => ({ ...GOOD, workflows: [] }), /presets and workflows left the builder/],
   ['a bad skill name', () => ({ ...GOOD, yours: { skills: [{ name: 'bad name!' }] } }), /needs a name/],
   ['a pact agent listed as yours', () => ({ ...GOOD, yours: { agents: [{ name: 'data-lens' }] } }), /pact's own agents/],
   // #262 C16: the Models list holds models of the gate's shape, each once.

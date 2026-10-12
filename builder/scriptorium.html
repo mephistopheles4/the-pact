@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-T/R4wrgVnxiWxfYkC0OybVEt5JPZopz/3pUroQK2T/I='; style-src 'sha256-zZ32ss0RY1r0MQQyAoOFJzZ1atjzVNL3gchbftxM1eE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-siw4jtQaw9/ii6+/lifDZJbyCzNij0s+zqB4Gd1d1oo='; style-src 'sha256-xjIFB6+TTVC9i5Lx8pWng6Z5YXXNifldXpv0+1zhJWQ='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -70,34 +70,10 @@
 html, body { margin: 0; }
 body { background-color: var(--av-ground); color: var(--av-ink); }
 
-/* PAGE: the ground, with the two-tier drafting grid. */
-.av-tool {
-  min-height: 100vh;
-  padding: var(--av-s3);
-  background-color: var(--av-ground);
-  color: var(--av-ink);
-  font-family: var(--av-font);
-  font-size: var(--av-t-body);
-  line-height: 1.6;
-  display: flex;
-  background-image:
-    linear-gradient(to right, var(--av-grid-major) var(--av-rule-hair), transparent var(--av-rule-hair)),
-    linear-gradient(to bottom, var(--av-grid-major) var(--av-rule-hair), transparent var(--av-rule-hair)),
-    linear-gradient(to right, var(--av-grid-minor) var(--av-rule-hair), transparent var(--av-rule-hair)),
-    linear-gradient(to bottom, var(--av-grid-minor) var(--av-rule-hair), transparent var(--av-rule-hair));
-  background-size:
-    calc(var(--av-grid-size) * var(--av-grid-major-every)) calc(var(--av-grid-size) * var(--av-grid-major-every)),
-    calc(var(--av-grid-size) * var(--av-grid-major-every)) calc(var(--av-grid-size) * var(--av-grid-major-every)),
-    var(--av-grid-size) var(--av-grid-size),
-    var(--av-grid-size) var(--av-grid-size);
-}
-@media (max-width: 640px) { .av-tool { padding: 0; } }
-
 /* SHEET: the bordered document, one per page. */
 .av-tool-sheet { flex: 1; display: flex; flex-direction: column; min-width: 0; max-width: 1400px; margin: 0 auto; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-surface); }
 
 /* HEAD */
-.av-tool-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s3) var(--av-s4) var(--av-s2); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
 .av-tool-head-text { display: flex; flex-direction: column; min-width: 0; }
 .av-tool-title { font-size: var(--av-t-lead); font-weight: 600; line-height: 1.3; margin: 0; }
 .av-tool-blurb { font-size: var(--av-t-annot); color: var(--av-ink-70); margin: 2px 0 0; max-width: 110ch; }
@@ -125,11 +101,7 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-tool-detail { min-width: 0; padding: var(--av-s3) var(--av-s4); }
 .moves .move { padding: var(--av-s2) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
 .moves .move:first-child { padding-top: 0; }
-.move-area { min-height: 5em; padding: var(--av-s1) var(--av-s2); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-thin) dashed var(--av-ink-30); cursor: text; }
-.move-area:hover { border-color: var(--av-ink-55); }
-.move-area:focus { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; border-style: solid; border-color: var(--av-ink); }
-.move-box { display: flex; flex-direction: column; gap: var(--av-s1); }
-@media (max-width: 900px) { .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); } }
+@media (max-width: 900px) { .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); } }
 /* TYPE */
 .av-label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; color: var(--av-ink-70); }
 .av-annot { font-size: var(--av-t-annot); line-height: 1.5; color: var(--av-ink-70); margin: 0; }
@@ -138,7 +110,6 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .prose { font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-line; overflow-wrap: anywhere; margin: 0; }
 .prose code { white-space: nowrap; font-family: inherit; color: var(--av-ink); background: var(--av-ink-12); padding: 0 3px; }
 .prose strong { color: var(--av-ink); font-weight: 600; }
-.prose--struck { color: var(--av-ink-70); text-decoration: line-through; text-decoration-color: var(--av-ink-55); }
 
 /* TITLE BLOCK: the ruled cells in the corner of a drawing sheet. */
 .av-titleblock { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border: var(--av-rule-bold) solid var(--av-ink); }
@@ -156,14 +127,6 @@ input[type="text"] { min-width: 14em; flex: 1 1 14em; }
 .wf-field > input, .wf-field > select, .wf-field input[type="text"] { flex: none; min-width: 0; }
 .field-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
 .field-row label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--av-s3) var(--av-s2); padding-top: var(--av-s1); }
-.tile { position: relative; border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-surface); padding: var(--av-s3) var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
-.tile--on { border: var(--av-rule-bold) solid var(--av-ink); }
-.tile--locked { background: var(--av-paper-tech); border-left: var(--av-rule-bold) solid var(--av-ink); }
-.tile--yours { border: var(--av-rule-thin) dashed var(--av-ink); cursor: grab; }
-.tile--drag { cursor: grab; }
-.tile .av-annot { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.group-title { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); margin: var(--av-s2) 0 var(--av-s1); }
 .runs { list-style: none; margin: 0; padding: 0; font-size: var(--av-t-annot); color: var(--av-ink-80); }
 input[type="number"] { width: 5.5em; font: inherit; font-variant-numeric: tabular-nums; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
 
@@ -179,18 +142,10 @@ input[type="number"] { width: 5.5em; font: inherit; font-variant-numeric: tabula
 .part--locked { border: var(--av-rule-hair) solid var(--av-ink-30); border-left: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper-tech); }
 .part--locked .part-tag { background: var(--av-paper-tech); }
 
-/* OPEN: a slot drawn as a dashed cutaway, opened up for inspection. */
-.part--open { border: var(--av-rule-thin) dashed var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s2); }
-.part--open.part--edited { border: var(--av-rule-bold) solid var(--av-ink); }
-.part--open.part--over { border: var(--av-rule-bold) dashed var(--av-ink); background: var(--av-ink-12); }
+/* A bar: a title on one side, its actions on the other. */
 .slot-bar { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; justify-content: space-between; }
 
-/* CARDS: a labelled specimen, its tab on the border. */
-.card { position: relative; border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-surface); padding: var(--av-s3) var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
-.card-tab { position: absolute; top: 0; left: var(--av-s2); transform: translateY(-50%); background: var(--av-paper); padding: 0 var(--av-s1); font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink); font-weight: 600; }
-.card-foot { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; justify-content: space-between; }
-.preset { cursor: grab; }
-.preset:active { cursor: grabbing; }
+/* TEXT BOXES */
 textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font-size: var(--av-t-annot); line-height: 1.6; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: var(--av-s1) var(--av-s2); }
 
 /* CALLOUT: a note on a leader line. Amber only where something needs attention. */
@@ -215,7 +170,6 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
    table and the panel are sheets laid on it. */
 .wf { --wf-shadow: 0 2px 6px rgb(34 38 43 / 0.16); display: flex; flex-direction: column; border-top: var(--av-rule-hair) solid var(--av-ink-30); }
 @media screen { [data-aviation-scheme="dark"] .wf { --wf-shadow: 0 2px 6px rgb(0 0 0 / 0.45); } }
-.wf-head { padding: var(--av-s2) var(--av-s4); }
 .wf-bar { display: flex; align-items: center; gap: var(--av-s1); flex-wrap: wrap; padding: var(--av-s1) var(--av-s4); border-top: var(--av-rule-hair) solid var(--av-ink-12); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); background: var(--av-surface); }
 .wf-note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
 .wf-cols { display: grid; grid-template-columns: var(--side-w, 240px) 7px minmax(0, 1fr) 7px var(--panel-w, 330px); height: 78vh; min-height: 480px; }
@@ -236,8 +190,6 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-libpair .wf-lib { padding: 3px var(--av-s1); }
 .wf-libpair .wf-lib small { display: none; }
 .wf-libpair .wf-lib:first-child small { display: block; }
-.wf-practices { margin-top: var(--av-s2); padding-top: var(--av-s2); border-top: var(--av-rule-hair) dashed var(--av-ink-30); display: flex; flex-direction: column; gap: 4px; }
-.wf-practice { padding: 4px 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); font-size: var(--av-t-annot); }
 
 .wf-canvas { position: relative; overflow: hidden; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; min-height: 0;
   background-color: var(--av-paper);
@@ -900,12 +852,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "high",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -920,12 +870,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "medium",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -940,12 +888,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "medium",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -960,12 +906,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "high",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -980,12 +924,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "medium",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -1000,12 +942,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "medium",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -1020,12 +960,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "medium",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -1040,12 +978,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "medium",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -1069,12 +1005,10 @@ const PACT = /* pact-data:begin */ {
    "effort": "medium",
    "runs": [
     {
-     "move": null,
      "mark": "workflow",
      "kind": "part"
     },
     {
-     "move": null,
      "mark": "lenses",
      "kind": "part"
     }
@@ -1860,7 +1794,6 @@ function workflowEditor(host, state, changed) {
 
   // ---- the graph, read as nodes and links
   const stageById = id => G().stages.find(s => s.id === id);
-  const offerById = id => G().offers.find(o => o.id === id);
   const skillList = () => G().skills || (G().skills = []);
   const taken = id => G().stages.some(s => s.id === id) || G().offers.some(o => o.id === id) || skillList().some(k => k.id === id) || ui.loose.some(l => l.id === id);
   const freshId = prefix => {

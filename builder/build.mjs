@@ -185,9 +185,9 @@ export function pactData(root) {
     if (!head) fail(`${rel} has no frontmatter`);
     const field = k => (new RegExp(`^${k}:[ \\t]*([A-Za-z0-9._-]+)[ \\t]*$`, 'm').exec(head[1]) ?? [])[1] ?? null;
     const runs = [
-      ...always.filter(a => named(a.text, name)).map(a => ({ move: null, mark: a.mark, kind: 'gated' })),
+      ...always.filter(a => named(a.text, name)).map(a => ({ mark: a.mark, kind: 'gated' })),
       // #262 S8: its offers in the workflow and its row in the roster. The page counts them from the person's own parts.
-      ...['moves', 'workflow', 'lenses'].filter(m => named(partText[m], name)).map(m => ({ move: null, mark: m, kind: 'part' })),
+      ...['moves', 'workflow', 'lenses'].filter(m => named(partText[m], name)).map(m => ({ mark: m, kind: 'part' })),
     ];
     return { name, model: field('model'), effort: field('effort'), runs, configurable: configurable.includes(name) };
   };
@@ -201,7 +201,6 @@ export function pactData(root) {
 // ------------------------------------------------------------ the builder file
 
 const BUILDER_MAX = 1024 * 1024;
-const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SKILL_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
 const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const LINE_RE = /^[^\n\r]{0,300}$/;
