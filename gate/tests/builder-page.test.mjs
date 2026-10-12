@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, upgradeParts } from '../../builder/parts.mjs';
-import { BUILDER_KIT, KIT_RULES_REL, expectedCopySet, isStaged } from '../install-core.mjs';
+import { BUILDER_KIT, KIT_RULES_REL, PACT_COMMANDS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -614,9 +614,9 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
-  const out = { PACT: clone(got.PACT) };
+  const out = { PACT: clone(got.PACT), OPT_COMMANDS: clone(got.OPT_COMMANDS) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
   return out;
 }
@@ -682,14 +682,43 @@ test('a save reads the folder\'s config.json through keepCommands: none there, a
   assert.match((await keepCommandsIn(holding('{'), files)).refuse, /not valid JSON/);
 });
 
+// #203 S10: the page writes the commands list once the person sets it, in the installer's order, never /scriptorium; until then a save keeps the folder's.
+test('a commands list set on the page is saved in the installer\'s order without scriptorium, and wins over the folder\'s; left as is, the folder\'s is kept', () => {
+  assert.deepEqual(L.OPT_COMMANDS.map(c => c.name), PACT_COMMANDS.filter(n => n !== 'scriptorium'));
+  const s = L.startState();
+  assert.equal(s.commands, null);
+  const config = st => JSON.parse(L.buildFiles(st)[0].text);
+  assert.equal(Object.hasOwn(config(s), 'commands'), false, 'left as is, no list');
+  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, ['finis'], 'left as is keeps the folder\'s');
+  s.commands = ['finis', 'scriptorium', 'make-it-so'];
+  assert.deepEqual(config(s).commands, ['make-it-so', 'finis']);
+  s.commands = [];
+  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, [], 'the page\'s empty list wins');
+});
+
+// #203 S10: one checkbox per opt-in command, /scriptorium on and locked, and Leave as is.
+test('stub page: ticking /finis under Settings saves it; Leave as is drops the list again', () => {
+  const P = bootPage();
+  openSettings(P);
+  const box = name => P.find(P.ids.settings, n => n.tag === 'input' && n.attrs['aria-label'] === name)[0];
+  assert.equal(box('/scriptorium').checked && box('/scriptorium').disabled, true);
+  box('/finis').checked = true;
+  box('/finis').listeners.change.forEach(f => f({}));
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /"commands": \[\s*"finis"\s*\]/);
+  P.button(P.ids.settings, 'Leave as is').click();
+  P.button(P.ids.actions, 'Export').click();
+  assert.doesNotMatch(P.ids.output.text, /"commands"/);
+});
+
 test('stub page: the review step warns that a downloaded config.json holds no commands list, with or without a folder picker (#203, T2)', () => {
   for (const picker of [false, true]) {
     const P = bootPage({ picker });
     P.button(P.ids.actions, 'Export').click();
     const text = P.ids.output.text;
     assert.ok(P.find(P.ids.output, n => n.tag === 'button' && n.text === 'Download config.json').length, `picker ${picker}: a download button`);
-    assert.match(text, /A downloaded config\.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands\./, `picker ${picker}`);
-    assert.equal(/keeping a commands list config\.json already holds/.test(text), picker, `picker ${picker}: the save note says Save keeps the list only where Save exists`);
+    assert.match(text, /Unless you set the commands under Settings, a downloaded config\.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands\./, `picker ${picker}`);
+    assert.equal(/keeping a commands list config\.json already holds unless you set the commands under Settings/.test(text), picker, `picker ${picker}: the save note says Save keeps the list only where Save exists`);
   }
 });
 test('stub page: Save to a picked folder keeps its commands list, and writes nothing over a config.json that isn\'t JSON (#203, T2)', async () => {

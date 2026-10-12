@@ -5,7 +5,7 @@
 // are in builder-page.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import vm from 'node:vm';
@@ -83,6 +83,15 @@ test('a configuration the page saves with a value and an added move installs thr
   assert.match(rules, /When it is above 90%/);
   assert.match(rules, /^- \*\*Stay the owner\.\*\*\n(?: {2}.*\n)+- \*\*Leave it better\.\*\*\n {2}I leave the code a little better than I found it\.$/m);
   assert.match(rules, /Values set: usage-pause 90\. Parts edited: moves \(replace\)\./);
+});
+
+// #203 S10: a commands list the page saves installs those commands, beside /scriptorium.
+test('a commands list the page saves installs /finis beside /scriptorium, and nothing it leaves unticked', t => {
+  const s = L.initialState();
+  s.usage = 90;
+  s.commands = ['finis'];
+  const { h } = installSaved(t, s);
+  assert.deepEqual(readdirSync(join(h, 'commands')).sort(), ['finis.md', 'scriptorium.md']);
 });
 
 // #261 C14; #262

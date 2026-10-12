@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hvuWjUddiVRypP7ooWUHhgPquICQEiqU2Eknc60fZO4='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3eY8UtpBCLQRRzrrr+LHu8MFtLNMAtybyGy3dQqJOgo='; style-src 'sha256-H4ccihSyX7930j2oS6HVB/xa+OaTlz2Z6QgE/TJwKlA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -122,6 +122,7 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 /* VALUES */
 #values .prose { max-width: 110ch; }
 .value-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
+.command-row { display: grid; grid-template-columns: 1.5rem 9.5rem 1fr; gap: var(--av-s2); align-items: baseline; }
 input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
 input[type="text"], select { font: inherit; font-size: var(--av-t-annot); color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
 input[type="text"] { min-width: 14em; flex: 1 1 14em; }
@@ -3410,7 +3411,8 @@ function initialState() {
   // #262 addendum 4: the builder file's agent files come back, and a pact agent's own file sets its model and effort.
   const own = { ...(PACT.ownAgentFiles || {}) };
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
-  return { usage: PACT.setting.def, session: null, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)] };
+  // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here.
+  return { usage: PACT.setting.def, session: null, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null };
 }
 
 /** The model and effort an agent file's frontmatter sets, each falling back to `def`'s. */
@@ -3535,6 +3537,8 @@ function buildFiles(state) {
     if (Object.keys(set).length) agents[a.name] = set;
   }
   if (Object.keys(agents).length) config.agents = agents;
+  // The opt-in commands the person set, in the installer's order; /scriptorium installs without a listing.
+  if (Array.isArray(state.commands)) config.commands = OPT_COMMANDS.map(c => c.name).filter(n => state.commands.includes(n));
   const edits = [];
   const blocks = [];
   // A part Scriptorium builds is saved only when its text differs from the pact's: an untouched part raises no security-defaults line.
@@ -3604,9 +3608,10 @@ function topKeys(text) {
 
 /**
  * The files a save writes over `existing`, the text of the config.json already
- * in the folder, or null when there is none (#203). The page sets no pact
- * commands, so a commands list already there is kept as it stands; without
- * this, a save would drop it and the next install would delete the commands.
+ * in the folder, or null when there is none (#203). Until the person sets
+ * the commands on the page (S10), a commands list already there is kept as it
+ * stands; without this, a save would drop it and the next install would
+ * delete the commands. A list set on the page is written as set.
  * A file that isn't JSON is never replaced. Returns { files } or { refuse }.
  */
 function keepCommands(files, existing) {
@@ -3618,6 +3623,7 @@ function keepCommands(files, existing) {
     return { refuse: 'The folder already holds a config.json that is not valid JSON, so nothing was written. Fix or move that file, then save again.' };
   }
   if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !Object.hasOwn(doc, 'commands')) return { files };
+  if (Object.hasOwn(JSON.parse(files[0].text), 'commands')) return { files };
   // The installer refuses a key given twice, case folded; JSON.parse would keep the last one.
   const keys = topKeys(existing).map(k => k.toLowerCase());
   if (new Set(keys).size !== keys.length) return { refuse: 'The folder already holds a config.json that gives a key twice, which the installer refuses, so nothing was written. Fix that file, then save again.' };
@@ -3642,7 +3648,14 @@ async function keepCommandsIn(dir, files) {
 }
 
 // Shown wherever the config.json download button is, with or without a folder picker.
-const DOWNLOAD_NOTE = 'A downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands.';
+const DOWNLOAD_NOTE = 'Unless you set the commands under Settings, a downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands.';
+// The pact commands a save may list (#203, S10), in the installer's order, each with what it stands for. /scriptorium is not
+// among them: every install puts it in place with the builder kit.
+const OPT_COMMANDS = Object.freeze([
+  { name: 'make-it-so', what: '"Accept all recommendations": the session carries out every recommendation in its last message.' },
+  { name: 'finis', what: '"We\'re done, archive this session": the session checks for anything outstanding, and archives the session if there is none.' },
+]);
+const ALWAYS_COMMAND = { name: 'scriptorium', what: 'Always installed: the builder is part of the pact.' };
 // #262 addendum 3: a save writes agent files and never deletes one, and every file in agents/ installs.
 const AGENTS_NOTE = 'An agent file a save writes is yours: an install never writes over it, and a save deletes nothing.';
 
@@ -5201,7 +5214,7 @@ function boot() {
     $('settings').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
-      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your moves and models, and the parts the canvas builds: tiers, sensitive work, and what they compile to. The agents, the lens and agent roster and the qualities are under Agents.' })), closeX('settings')),
+      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your pact commands, your moves and models, and the parts the canvas builds: tiers, sensitive work, and what they compile to. The agents, the lens and agent roster and the qualities are under Agents.' })), closeX('settings')),
       el(
         'section',
         { class: 'av-tool-bar av-tool-bar--stack' },
@@ -5211,8 +5224,44 @@ function boot() {
         limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v)),
         el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
       ),
+      commandsSection(),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('moves', 'Moves', movesTab()), section('models', 'Models', modelsTab()), box)),
     ));
+  }
+  /**
+   * The pact commands (#203, S10): one checkbox per opt-in command, and
+   * /scriptorium shown on and locked. Until one is ticked or unticked, a save
+   * leaves the folder's own commands list as it is.
+   */
+  function commandsSection() {
+    const set = state.commands;
+    const row = (c, on, locked) => {
+      const box = el('input', { type: 'checkbox', 'aria-label': `/${c.name}` });
+      box.checked = on;
+      box.disabled = locked;
+      if (!locked)
+        box.addEventListener('change', () => {
+          const now = Array.isArray(state.commands) ? state.commands.filter(n => n !== c.name) : [];
+          state.commands = box.checked ? [...now, c.name] : now;
+          renderSettings();
+          renderOutput();
+        });
+      return el('label', { class: 'command-row' }, box, el('code', { text: `/${c.name}` }), el('span', { class: 'av-annot', text: c.what }));
+    };
+    const leave = chip('Leave as is', set === null, () => {
+      state.commands = null;
+      renderSettings();
+      renderOutput();
+    }, set === null ? '' : 'av-tool-chip--ghost', true);
+    return el(
+      'section',
+      { class: 'av-tool-bar av-tool-bar--stack' },
+      el('h3', { class: 'section-title', text: 'Pact commands' }),
+      ...OPT_COMMANDS.map(c => row(c, Array.isArray(set) && set.includes(c.name), false)),
+      row(ALWAYS_COMMAND, true, true),
+      el('div', { class: 'chips' }, leave),
+      el('p', { class: 'av-annot', text: set === null ? 'Left as is: a save keeps the commands list already in your config.json. Tick or untick one to set the list here instead.' : 'Set here: a save writes this list, and the next install adds or deletes those commands. Leave as is keeps your config.json\'s own list instead.' }),
+    );
   }
   /**
    * The moves (#262): how I work, upheld at all times, one part. Each is a
@@ -5657,7 +5706,7 @@ function boot() {
         openPresets(r.preset || null, r.refuse ? `${f.name} can't be opened: ${r.refuse}.` : '');
       });
       $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
-        head('A preset or a shared result is a saved Scriptorium builder file. You see what it carries and tick what to take before anything changes; Reset takes it back.'),
+        head('A preset or a shared result is a saved Scriptorium builder file. You see what it carries and tick what to take before anything changes; Undo, on the Reset button, takes it back.'),
         el('section', { class: 'av-tool-bar av-tool-bar--stack' },
           el('h3', { class: 'section-title', text: 'Presets' }),
           ...(PACT.presets.length ? PACT.presets.map(p => el('div', { class: 'chips' }, chip(p.title, false, () => openPresets(p), 'av-tool-chip--ghost'))) : [el('p', { class: 'av-annot', text: 'No presets ship with this page yet.' })]),
@@ -5821,7 +5870,7 @@ function boot() {
     $('output').replaceChildren(
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
       el('p', { class: 'av-annot', text: canPick
-        ? `Save writes these files into the folder you pick: choose your Claude folder (~/.claude). It replaces pact/config.json, any block file of the same name, and any agent file it writes, keeping a commands list config.json already holds. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.`
+        ? `Save writes these files into the folder you pick: choose your Claude folder (~/.claude). It replaces pact/config.json, any block file of the same name, and any agent file it writes, keeping a commands list config.json already holds unless you set the commands under Settings. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.`
         : `This browser has no folder picker, so save each file with its download button and put it where it says. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.` }),
       el('ul', { class: 'callouts' }, ...notes),
       el('div', { class: 'files' }, ...fileViews),
