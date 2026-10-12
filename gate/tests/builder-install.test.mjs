@@ -26,7 +26,7 @@ const sha256 = b => createHash('sha256').update(b).digest('hex');
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -73,33 +73,29 @@ function installSaved(t, state) {
   return { rules, files, h };
 }
 
-// #261 C15
-test('a configuration the page saves with a value and every preset installs through the dry run and -Apply', t => {
+// #261 C15; #262: the moves part saves as one replace.
+test('a configuration the page saves with a value and an added move installs through the dry run and -Apply', t => {
   const s = L.initialState();
   s.usage = 90;
-  for (const p of L.PACT.presets) assert.equal(L.addPreset(s, p.mark, p.id), null);
+  s.parts.moves.push({ lead: 'Leave it better', text: 'I leave the code a little better than I found it.' });
   const { rules, files } = installSaved(t, s);
-  assert.deepEqual(files.map(f => f.path), ['config.json', 'blocks/move-1.md', 'blocks/move-2.md', 'blocks/move-3.md', 'blocks/move-4-extra.md']);
+  assert.deepEqual(files.map(f => f.path), ['config.json', 'blocks/moves.md']);
   assert.match(rules, /When it is above 90%/);
-  for (const p of L.PACT.presets) for (const line of p.text.split('\n')) assert.ok(rules.includes(`  ${line}\n`), `${p.id}: ${line}`);
-  assert.match(rules, /Values set: usage-pause 90\. Parts edited: move-1 \(add-after\), move-2 \(add-after\), move-3 \(add-after\), move-4-extra \(add-after\)\./);
+  assert.match(rules, /^- \*\*Stay the owner\.\*\*\n(?: {2}.*\n)+- \*\*Leave it better\.\*\*\n {2}I leave the code a little better than I found it\.$/m);
+  assert.match(rules, /Values set: usage-pause 90\. Parts edited: moves \(replace\)\./);
 });
 
-// #261 C14
-test('a configuration the page saves with your own text and a removal installs through the dry run and -Apply', t => {
+// #261 C14; #262
+test('a configuration the page saves with your own move text, a removed move and an agent setting installs through the dry run and -Apply', t => {
   const s = L.initialState();
   s.usage = 60;
   s.agents['integrity-lens'] = { model: 'sonnet', effort: 'low' };
-  s.slots['move-1'].replaced = true;
-  s.slots['move-2'] = { replaced: false, cards: [{ kind: 'custom', text: 'Before the spec, ask me which open question I want answered first.\r\n' }] };
-  s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'custom', text: 'Say which tests you ran.' }, { kind: 'preset', id: 'move-4-docs-check' }, { kind: 'agent', name: 'my-reviewer', reads: 'the diff' }] };
+  s.parts.moves[1].text = 'Before the spec, I say which open question I want answered first.';
+  s.parts.moves.splice(0, 1);
   const { rules, h } = installSaved(t, s);
-  assert.match(rules, /^ {2}Before the spec, ask me which open question I want answered first\.$/m);
-  assert.match(rules, /^ {2}Say which tests you ran\.\n {2}After the checks, list each public interface/m);
-  assert.match(rules, /^ {2}Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue\.$/m);
-  // move-1 was removed: its text goes, so the move's bullet stays and is followed by the next move.
-  assert.match(rules, /^- \*\*Sense the work\.\*\*\n- \*\*Think before doing\.\*\*/m);
-  assert.match(rules, /Values set: usage-pause 60\. Parts edited: move-1 \(remove\), move-2 \(add-after\), move-4-extra \(add-after\)\./);
+  assert.match(rules, /^## The moves\n[\s\S]*?\n- \*\*Think before doing\.\*\*\n {2}Before the spec, I say which open question I want answered first\.$/m);
+  assert.doesNotMatch(rules, /Sense the work/);
+  assert.match(rules, /Values set: usage-pause 60\. Parts edited: moves \(replace\)\./);
   assert.match(rules, /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
   assert.match(readFileSync(join(h, 'agents', 'integrity-lens.md'), 'utf8'), /^model: sonnet\neffort: low$/m);
 });
@@ -108,7 +104,7 @@ test('bad case: text the page flags is refused by the install too, since the pag
   const repo = makeRepo(t);
   const h = home(t);
   const s = L.initialState();
-  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: 'Also read\u200b this first.' }] };
+  s.parts.moves[2].text = 'Also read\u200b this first.';
   assert.ok(L.problems(s).some(p => p.level === 'error' && /invisible/.test(p.text)));
   saveInto(h, s);
   const dry = install(repo, h);

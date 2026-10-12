@@ -167,7 +167,7 @@ test('the page is outside claude/ and every path the install stages, so it is ne
 
 // ------------------------------------------------------------ the carried pact text
 
-test('the page carries what builder/build.mjs builds from the repo now: the moves, the clauses, the setting and the presets', () => {
+test('the page carries what builder/build.mjs builds from the repo now: the parts, the fixed clause and the settings', () => {
   assert.equal(buildPage(REPO, PAGE), PAGE, 'the page is out of date: run node builder/build.mjs');
 });
 
@@ -196,8 +196,8 @@ test('bad case: a pinned block changed in the pact source makes the committed pa
   assert.notEqual(buildPage(root, PAGE), PAGE);
 });
 
-test('bad case: an example block changed makes the committed page out of date', t => {
-  const root = buildRoot(t, r => writeFileSync(join(r, 'examples', 'pact-config', 'blocks', 'move-3-done-criteria.md'), 'Read me each done-criterion back.\n'));
+test('bad case: the example builder file changed makes the committed page out of date', t => {
+  const root = buildRoot(t, r => writeFileSync(join(r, ...EXAMPLE_BUILDER_REL.split('/')), '{ "schema": 1, "title": "Another builder" }\n'));
   assert.notEqual(buildPage(root, PAGE), PAGE);
 });
 
@@ -219,14 +219,9 @@ function builderFile(t, doc, blocks = {}) {
 const GOOD = {
   schema: 1,
   title: 'Test builder',
-  presets: [
-    { id: 'grill-first', title: 'Grill first', slot: 'move-2', text: 'Before the spec, use the `grill-me` skill.', why: 'I think better when grilled.' },
-    { id: 'ship-check', title: 'Ship check', slot: 'move-4-extra', file: 'presets/ship.md', why: 'Name the rollback.' },
-  ],
-  workflows: [{ id: 'mine', title: 'Mine', about: 'My usual run.', presets: ['grill-first', 'ship-check'] }],
   yours: { skills: [{ name: 'grill-me', description: 'Grill the plan' }], commands: [{ name: 'ship', description: 'Ship it' }], agents: [{ name: 'my-reviewer', description: 'Reviews' }] },
 };
-const GOOD_BLOCKS = { 'presets/ship.md': 'Before a deploy, name the rollback step on the issue.\n' };
+const GOOD_BLOCKS = {};
 
 test('the example builder file passes the check, with one finding: it lists none of the person\'s own skills', () => {
   const r = checkBuilder(REPO, join(REPO, EXAMPLE_BUILDER_REL));
@@ -234,7 +229,7 @@ test('the example builder file passes the check, with one finding: it lists none
   assert.deepEqual(r.findings, ['yours lists no skills, commands or agents; the page\'s "Yours" section will say so']);
 });
 
-test('a person\'s builder file passes, and its page carries their presets, workflow and own skills beside the pact\'s own spine', t => {
+test('a person\'s builder file passes, and its page carries their own skills beside the pact\'s own text', t => {
   const f = builderFile(t, GOOD, GOOD_BLOCKS);
   const r = checkBuilder(REPO, f);
   assert.deepEqual(r.refusals, []);
@@ -244,31 +239,21 @@ test('a person\'s builder file passes, and its page carries their presets, workf
   const script = [...page.matchAll(SCRIPT_RE)][0][2];
   const D = JSON.parse(JSON.stringify(vm.runInContext(`${script}\n;PACT`, vm.createContext({}))));
   assert.equal(D.title, 'Test builder');
-  assert.deepEqual(D.presets.map(p => [p.id, p.mark]), [['grill-first', 'move-2'], ['ship-check', 'move-4-extra']]);
-  assert.equal(D.presets[1].text, 'Before a deploy, name the rollback step on the issue.');
   assert.deepEqual(D.yours.skills.map(x => x.name), ['grill-me']);
-  // The spine and the locked clauses come from the clone, never from the builder file.
-  assert.equal(JSON.stringify(D.moves), JSON.stringify(L.PACT.moves));
+  // The parts' text and the fixed clause come from the clone, never from the builder file.
+  assert.equal(JSON.stringify(D.parts.text), JSON.stringify(L.PACT.parts.text));
   assert.equal(JSON.stringify(D.always), JSON.stringify(L.PACT.always));
 });
 
 const BAD_BUILDERS = [
   ['not JSON', () => '{ nope', /not strict JSON/],
   ['a duplicate key', () => '{ "schema": 1, "schema": 1 }\n', /not strict JSON/],
-  ['the pact\'s own text in the file', () => ({ ...GOOD, moves: [] }), /top-level key/],
   ['another schema', () => ({ ...GOOD, schema: 2 }), /schema must be 1/],
-  ['a gated clause as a slot', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-4', text: 'Hi.' }], workflows: [] }), /slot must be one of/],
-  ['an unknown slot', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-9', text: 'Hi.' }], workflows: [] }), /slot must be one of/],
-  ['both text and file', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Hi.', file: 'a.md' }], workflows: [] }), /exactly one of text and file/],
-  ['a file path that climbs out', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', file: '../a.md' }], workflows: [] }), /no \. or \.\. segment/],
-  ['an absolute file path', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', file: 'C:/a.md' }], workflows: [] }), /must be relative/],
-  ['a missing preset file', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', file: 'nope.md' }], workflows: [] }), /could not be read|not a regular file/],
-  ['a bad preset id', () => ({ ...GOOD, presets: [{ id: 'Bad Id', title: 'X', slot: 'move-3', text: 'Hi.' }], workflows: [] }), /id must be lowercase/],
-  ['a duplicate preset id', () => ({ ...GOOD, presets: [GOOD.presets[0], GOOD.presets[0]], workflows: [] }), /used twice/],
-  ['a workflow naming a missing preset', () => ({ ...GOOD, workflows: [{ id: 'w', title: 'W', about: 'A', presets: ['nope'] }] }), /does not define/],
+  // #262: presets and workflows left the builder; a file holding either is refused.
+  ['a presets list', () => ({ ...GOOD, presets: [] }), /presets and workflows left the builder/],
+  ['a workflows list', () => ({ ...GOOD, workflows: [] }), /presets and workflows left the builder/],
   ['a bad skill name', () => ({ ...GOOD, yours: { skills: [{ name: 'bad name!' }] } }), /needs a name/],
   ['a pact agent listed as yours', () => ({ ...GOOD, yours: { agents: [{ name: 'data-lens' }] } }), /pact's own agents/],
-  ['a two-line why', () => ({ ...GOOD, presets: [{ ...GOOD.presets[0], why: 'a\nb' }], workflows: [] }), /why must be one line/],
   // #262 C16: the Models list holds models of the gate's shape, each once.
   ['a model that is a web address', () => ({ ...GOOD, models: ['Opus', 'https:/x.example/m'.replace(':/', ':/' + '/')] }), /models: holds text the page's content policy refuses/],
   ['one model twice', () => ({ ...GOOD, models: ['Opus', 'opus'] }), /models: the models list names one model twice/],
@@ -287,7 +272,7 @@ test('bad case: builder text the page\'s content policy refuses is refused by th
   for (const doc of [
     { ...GOOD, yours: { skills: [{ name: 'x-y', description: 'Docs at https://example.invalid/x' }] } },
     { ...GOOD, title: 'Uses fetch(x)' },
-    { ...GOOD, presets: [{ ...GOOD.presets[0], why: 'Sets innerHTML' }], workflows: [] },
+    { ...GOOD, yours: { skills: [{ name: 'x-y', description: 'Sets innerHTML' }] } },
   ]) {
     const r = checkBuilder(REPO, builderFile(t, doc, GOOD_BLOCKS));
     assert.equal(r.builder, null);
@@ -369,51 +354,16 @@ test('a builder file\'s parts load into its page; the page saves only the parts 
   assert.deepEqual(L.partsChanged(L.initialState()), {});
   const s = L.initialState();
   s.parts.lenses[2].asks = 'Who needs what, unsaid?';
-  const kept = JSON.parse(L.builderWith('{"schema": 1, "title": "Mine", "presets": []}', s).text);
-  assert.deepEqual([kept.title, kept.lenses[2].asks, Object.keys(kept).sort()], ['Mine', 'Who needs what, unsaid?', ['lenses', 'presets', 'schema', 'sensitive', 'tiers', 'title', 'workflowGraph']]);
+  const kept = JSON.parse(L.builderWith('{"schema": 1, "title": "Mine", "yours": {}}', s).text);
+  assert.deepEqual([kept.title, kept.lenses[2].asks, Object.keys(kept).sort()], ['Mine', 'Who needs what, unsaid?', ['lenses', 'moves', 'schema', 'sensitive', 'tiers', 'title', 'workflowGraph', 'yours']]);
 });
 
-/** The logic of a page built from builder file `f`, run in vm as for the shipped page. */
-function logicOf(page) {
-  const script = [...page.matchAll(SCRIPT_RE)][0][2];
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, applyWorkflow, buildFiles, slotOp });`, vm.createContext({}));
-  const clone = v => (v === null || typeof v !== 'object' ? v : JSON.parse(JSON.stringify(v)));
-  const out = { PACT: clone(got.PACT) };
-  for (const [k, fn] of Object.entries(got)) if (typeof fn === 'function') out[k] = (...a) => clone(fn(...a));
-  return out;
-}
-
-test('a workflow with a stand-in preset turns that slot\'s Replace on, so the preset stands in for the text', t => {
-  const doc = { ...GOOD, presets: [...GOOD.presets, { id: 'lean-move-3', title: 'Lean move 3', slot: 'move-3', text: 'Build each ticket in its own session, test-first.', standsIn: true, why: 'Shorter.' }], workflows: [{ id: 'lean', title: 'Lean', about: 'Short move 3.', presets: ['lean-move-3', 'ship-check'] }] };
-  const page = buildPage(REPO, PAGE, builderFile(t, doc, GOOD_BLOCKS));
-  const P = logicOf(page);
-  const s = P.initialState();
-  assert.equal(P.applyWorkflow(s, 'lean'), null);
-  // applyWorkflow mutated the vm copy; run it again on a state the vm owns and read the files.
-  const files = vm.runInContext(`${[...page.matchAll(SCRIPT_RE)][0][2]}\n;(() => { const s = initialState(); applyWorkflow(s, 'lean'); return JSON.stringify(buildFiles(s)); })()`, vm.createContext({}));
-  const edits = JSON.parse(JSON.parse(files)[0].text).edits;
-  assert.deepEqual(edits, [{ mark: 'move-3', op: 'replace', file: 'move-3.md' }, { mark: 'move-4-extra', op: 'add-after', file: 'move-4-extra.md' }]);
-  const two = checkBuilder(REPO, builderFile(t, { ...doc, presets: [...doc.presets, { ...doc.presets[2], id: 'lean-two' }], workflows: [{ id: 'w', title: 'W', about: 'A', presets: ['lean-move-3', 'lean-two'] }] }, GOOD_BLOCKS));
-  assert.ok(two.refusals.some(m => /two presets stand in for one slot/.test(m)), JSON.stringify(two.refusals));
-});
-
-test('undo puts back the slots exactly as they were before a workflow', () => {
-  const s = L.initialState();
-  s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Mine.' }] };
-  const snap = L.snapshotSlots(s);
-  L.applyWorkflow(s, 'close-the-loop');
-  assert.notDeepEqual(JSON.parse(JSON.stringify(s.slots)), JSON.parse(snap));
-  L.restoreSlots(s, snap);
-  assert.deepEqual(JSON.parse(JSON.stringify(s.slots)), JSON.parse(snap));
-});
-
-test('reset puts the usage value, every slot and every agent back to the plain pact, and undo puts it all back', () => {
+test('reset puts the usage value, every part and every agent back to the plain pact, and undo puts it all back', () => {
   const s = L.initialState();
   assert.equal(L.atDefaults(s), true);
   assert.equal(L.buildFiles(s).length, 1);
-  L.applyWorkflow(s, 'close-the-loop');
   s.usage = 90;
-  s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Mine.' }] };
+  s.parts.moves[1].text = 'Mine.';
   // Every agent off its default, and a model added, so a reset that misses one fails.
   for (const a of Object.keys(s.agents)) s.agents[a].model = s.agents[a].model === 'opus' ? 'sonnet' : 'opus';
   assert.equal(Object.keys(s.agents).length, 10);
@@ -429,14 +379,6 @@ test('reset puts the usage value, every slot and every agent back to the plain p
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
-// #261 C12: a removed default left empty is an edit of its own, and raises no warning.
-test('a removed default left empty saves a remove edit, and raises no warning', () => {
-  const s = L.initialState();
-  s.slots['move-2'] = { replaced: true, cards: [] };
-  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).edits, [{ mark: 'move-2', op: 'remove' }]);
-  assert.deepEqual(L.problems(s).filter(f => f.level === 'warn'), []);
-});
-
 // #262: no setting is marked; a security-set lens off its default saves like a plain one, and no problem is found.
 test('a security-set lens off its default saves like a plain one, with no warning', () => {
   const s = L.initialState();
@@ -487,20 +429,24 @@ const openAgents = (P, name) => {
   return P.ids.agents;
 };
 
-/** Type `text` into a move's box on a stub page, as the input event would. */
-const typeInto = (area, text) => {
-  area.textContent = text;
-  area.listeners.input.forEach(f => f({}));
+/** Type `text` into a box on a stub page, as the input event would. */
+const typeInto = (box, text) => {
+  box.value = text;
+  box.listeners.input.forEach(f => f({}));
 };
 
 // The page's stub tests on labels and layout folded into this one smoke test (#262): the page boots, opens its
 // dialogs, and an edited move reaches the saved configuration. How the page looks is the owner's to judge, in a browser.
-test('stub page: the page boots, Settings and Agents open, and an edited move saves as a replace edit', () => {
+// #262: a move typed with Windows line endings saves as one reflowed paragraph.
+test('stub page: the page boots, Settings and Agents open, and an edited move saves as a replace edit with LF only', () => {
   const P = bootPage();
   assert.ok(openAgents(P, 'data-lens').children.length, 'Agents opens');
-  typeInto(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0], 'I sense the work my own way.');
+  openSettings(P);
+  typeInto(P.find(P.ids.settings, n => n.tag === 'textarea' && n.attrs['aria-label'] === 'Move 1 text')[0], 'I sense the work\r\nmy own way.');
   P.button(P.ids.actions, 'Export').click();
-  assert.match(P.ids.output.text, /"mark": "move-1",\s*"op": "replace"/);
+  assert.match(P.ids.output.text, /"mark": "moves",\s*"op": "replace"/);
+  assert.match(P.ids.output.text, /I sense the work my own way\./);
+  assert.doesNotMatch(P.ids.output.text, /\r/);
 });
 
 test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
@@ -511,27 +457,6 @@ test('the page is named scriptorium, and the docs and the skill name it so; the 
     assert.doesNotMatch(text, /pact-config\.html|pact-builder/, `${f} still names the old page or skill`);
   }
   assert.match(readFileSync(join(REPO, '.claude', 'skills', 'scriptorium', 'SKILL.md'), 'utf8'), /^name: scriptorium$/m);
-});
-
-test('the example builder offers the "Matt Pocock\'s skills" workflow from #127\'s three blocks, and no retired or fixed-name preset', () => {
-  const w = L.PACT.workflows.find(x => x.id === 'matt-pocock-skills');
-  assert.ok(w, 'no Matt Pocock workflow');
-  assert.deepEqual(w.presets, ['move-1-matt-pocock', 'move-2-matt-pocock', 'move-3-matt-pocock']);
-  for (const id of w.presets) {
-    const p = L.PACT.presets.find(x => x.id === id);
-    assert.equal(`${p.text}\n`, readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', `${id}.md`), 'utf8'));
-  }
-  assert.deepEqual(L.PACT.workflows.map(x => x.id), ['pact-default', 'close-the-loop', 'matt-pocock-skills']);
-  const ids = L.PACT.presets.map(x => x.id);
-  assert.ok(!ids.includes('move-1-no-wayfinder'), 'the retired No wayfinder preset is back');
-  // A preset may not name an agent the page cannot rename: the "Your agent" card asks for the name.
-  assert.ok(!L.PACT.presets.some(x => /`my-reviewer`/.test(x.text)), 'a preset names a fixed own agent');
-});
-test('findings never refuse: a preset with no why, and one naming a skill the file does not list', t => {
-  const r = checkBuilder(REPO, builderFile(t, { ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Use the `ghost-skill` skill.' }], workflows: [] }));
-  assert.deepEqual(r.refusals, []);
-  assert.ok(r.findings.some(m => /no "why"/.test(m)), JSON.stringify(r.findings));
-  assert.ok(r.findings.some(m => /not in yours/.test(m)), JSON.stringify(r.findings));
 });
 
 test('the command line writes a page from a builder file, and refuses to write over the shipped page or without a builder', t => {
@@ -579,7 +504,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -588,33 +513,16 @@ function pageLogic() {
 
 const L = pageLogic();
 
-// The builder finds the moves by their parts, in order, and titles each by its bullet's lead-in.
-// #261 C12
-test('the page shows the four moves as a fixed spine, named by their lead-ins: the fixed block carries its text, open slots are the renderer\'s editable marks', () => {
-  assert.deepEqual(L.PACT.moves.map(m => m.n), [1, 2, 3, 4]);
-  assert.deepEqual(L.PACT.moves.map(m => m.lead), ['Sense the work', 'Think before doing', 'Checkpoint the seams', 'Stay the owner']);
-  const parts = L.PACT.moves.flatMap(m => m.parts);
-  assert.deepEqual(parts.filter(p => p.kind === 'gated'), []);
+// #262: the moves are one part, its default the four moves by their lead-ins; the fixed clause carries its text.
+test('the page holds the moves as one part, named by their lead-ins, beside the fixed clause and the other parts', () => {
+  assert.deepEqual(L.PACT.parts.defaults.moves.map(m => m.lead), ['Sense the work', 'Think before doing', 'Checkpoint the seams', 'Stay the owner']);
   const src = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
   for (const g of L.PACT.always) {
     const clause = new RegExp(`<!-- pact:begin ${g.mark} -->\\n([\\s\\S]*?)<!-- pact:end ${g.mark} -->`).exec(src)[1].trim().split('\n').map(l => l.trim()).join('\n');
     assert.equal(g.text.split('\n').map(l => l.trim()).join('\n'), clause, `${g.mark} differs from its block in claude/CLAUDE.md`);
   }
   assert.deepEqual(L.PACT.always.map(a => a.mark), ['stop-and-escalate']);
-  assert.deepEqual(parts.filter(p => p.kind === 'open').map(p => p.mark), ['move-1', 'move-2', 'move-3', 'move-4-extra']);
-  // #262 S8: the four parts Scriptorium builds are editable too, outside the moves.
-  assert.deepEqual([...L.PACT.editable], ['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
-});
-
-test('the shipped page\'s presets are the example builder file\'s, each from its example block, in an editable slot', () => {
-  const builder = JSON.parse(readFileSync(join(REPO, EXAMPLE_BUILDER_REL), 'utf8'));
-  assert.deepEqual(L.PACT.presets.map(p => p.id), builder.presets.map(p => p.id));
-  for (const p of L.PACT.presets) {
-    const b = builder.presets.find(x => x.id === p.id);
-    assert.equal(`${p.text}\n`, readFileSync(join(REPO, 'examples', 'pact-config', ...b.file.split('/')), 'utf8'));
-    assert.ok(L.PACT.editable.includes(p.mark), p.mark);
-    assert.deepEqual(L.blockProblems(`${p.text}\n`), [], p.id);
-  }
+  assert.deepEqual([...L.PACT.editable], ['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 });
 
 test('with nothing changed, the page saves a configuration that sets nothing', () => {
@@ -625,7 +533,7 @@ test('with nothing changed, the page saves a configuration that sets nothing', (
 
 test('a save keeps a commands list already in the folder\'s config.json, and won\'t replace one it can\'t read (#203, T2)', () => {
   const s = L.initialState();
-  L.addPreset(s, 'move-1', 'move-1-matt-pocock');
+  s.parts.moves[0].text = 'I sense the work my own way.';
   const files = L.buildFiles(s);
   assert.equal(files.length, 2, 'a block file to carry through');
   assert.deepEqual(L.keepCommands(files, null), { files }, 'no file there');
@@ -699,86 +607,16 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
   assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
   assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), { schema: 1 }, 'no file there: the save goes as built');
 });
-test('a preset goes only in its own slot, and always goes after the slot\'s text', () => {
+// #262: a moves edit saves the whole part as one replace; an empty move stops a save.
+test('an edited move saves the moves part as one replace, and an empty move stops a save', () => {
   const s = L.initialState();
-  assert.match(L.addPreset(s, 'move-2', 'move-1-matt-pocock'), /belongs in the move-1 slot/);
-  assert.equal(s.slots['move-2'].cards.length, 0);
-  assert.equal(L.addPreset(s, 'move-1', 'move-1-matt-pocock'), null);
-  assert.equal(L.slotOp(s.slots['move-1']), 'add-after');
-  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).edits, [{ mark: 'move-1', op: 'add-after', file: 'move-1.md' }]);
-});
-
-test('a slot\'s edit follows from two things: whether its default is replaced, and whether it holds cards', () => {
-  const card = { kind: 'custom', text: 'x' };
-  assert.equal(L.slotOp({ replaced: false, cards: [] }), 'keep');
-  assert.equal(L.slotOp({ replaced: false, cards: [card] }), 'add-after');
-  assert.equal(L.slotOp({ replaced: true, cards: [card] }), 'replace');
-  assert.equal(L.slotOp({ replaced: true, cards: [] }), 'remove');
-});
-
-test('two cards in one slot become one block file, joined with no blank line; remove carries no file', () => {
-  const s = L.initialState();
-  L.addPreset(s, 'move-4-extra', 'move-4-docs-check');
-  s.slots['move-4-extra'].cards.push({ kind: 'custom', text: 'Say which tests you ran.' });
-  s.slots['move-1'].replaced = true;
-  const files = JSON.parse(JSON.stringify(L.buildFiles(s)));
-  assert.deepEqual(JSON.parse(files[0].text).edits, [
-    { mark: 'move-1', op: 'remove' },
-    { mark: 'move-4-extra', op: 'add-after', file: 'move-4-extra.md' },
-  ]);
-  const block = files.find(f => f.path === 'blocks/move-4-extra.md').text;
-  const want = `${readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'move-4-docs-check.md'), 'utf8')}Say which tests you ran.\n`;
-  assert.equal(block, want);
-});
-
-test('custom text with Windows line endings is saved with LF only', () => {
-  const s = L.initialState();
-  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: 'One line.\r\nTwo lines.\r\n\r\n' }] };
-  assert.equal(L.buildFiles(s)[1].text, 'One line.\nTwo lines.\n');
-});
-
-// Move 2's default text is empty, so replacing it drops no agent and warns about none.
-// #261 C12
-test('the page stops a save on an error, and a move-2 replace that names no agent raises no warning', () => {
-  const s = L.initialState();
-  s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Think first, then write the spec.' }] };
-  assert.deepEqual(L.problems(s).filter(p => p.level === 'warn'), []);
-  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: '' }] };
-  assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'move-3' && /card 1 is empty/.test(p.text)));
+  s.parts.moves[2].text = 'One line, then two.';
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).edits, [{ mark: 'moves', op: 'replace', file: 'moves.md' }]);
+  assert.deepEqual(L.problems(s), []);
+  s.parts.moves[2].text = '';
+  assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'moves'), JSON.stringify(L.problems(s)));
   s.usage = 101;
   assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'usage-pause'));
-});
-
-test('a workflow sets every slot to its presets, after the default text, and keeps the usage value', () => {
-  const s = L.initialState();
-  s.usage = 60;
-  s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'x' }] };
-  const w = L.PACT.workflows.find(x => x.presets.length);
-  assert.equal(L.applyWorkflow(s, w.id), null);
-  assert.equal(s.usage, 60);
-  assert.deepEqual(L.slotOp(s.slots['move-2']), 'keep');
-  const ids = Object.values(s.slots).flatMap(sl => sl.cards.map(c => c.id));
-  assert.deepEqual(ids.sort(), [...w.presets].sort());
-  for (const sl of Object.values(s.slots)) assert.equal(sl.replaced, false);
-  assert.equal(L.applyWorkflow(s, 'pact-default'), null);
-  assert.ok(Object.values(s.slots).every(sl => L.slotOp(sl) === 'keep'));
-  assert.match(L.applyWorkflow(s, 'no-such-workflow'), /not on this page/);
-});
-
-test('a "Your agent" card writes one plain line naming the agent, and refuses a bad name or a pact agent\'s name', () => {
-  const ok = { kind: 'agent', name: 'my-reviewer', reads: 'the diff' };
-  assert.deepEqual(L.agentProblems(ok), []);
-  assert.match(L.agentProblems({ ...ok, name: '' })[0], /lowercase letters/);
-  assert.match(L.agentProblems({ ...ok, name: 'My Reviewer' })[0], /lowercase letters/);
-  assert.match(L.agentProblems({ ...ok, name: '@x' })[0], /lowercase letters/);
-  assert.match(L.agentProblems({ ...ok, name: 'data-lens' })[0], /pact's own agents/);
-  assert.match(L.agentProblems({ ...ok, reads: 'everything' })[0], /something to read/);
-  const s = L.initialState();
-  s.slots['move-4-extra'] = { replaced: false, cards: [ok] };
-  assert.deepEqual(L.problems(s), []);
-  assert.equal(L.buildFiles(s)[1].text, 'Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue.\n');
-  s.slots['move-4-extra'].cards[0] = { ...ok, name: 'Bad Name' };
-  assert.ok(L.problems(s).some(p => p.level === 'error' && /card 1: the agent name/.test(p.text)));
 });
 
 // #262 C13: scout is set like any lens.
@@ -854,11 +692,11 @@ test('the page shows each pact agent with its model and effort, as its file sets
 });
 // ------------------------------------------------------------ the page's checks against the renderer's
 
-/** Render the real pact with a user file whose one edit adds `block` after move-3; true when the renderer refuses. */
+/** Render the real pact with a user file whose one edit adds `block` after the moves; true when the renderer refuses. */
 function rendererRefuses(t, block) {
   const h = tempDir(t, 'pact-builder-home-');
   mkdirSync(join(h, 'pact', 'blocks'), { recursive: true });
-  writeFileSync(join(h, 'pact', 'config.json'), '{ "schema": 1, "edits": [ { "mark": "move-3", "op": "add-after", "file": "b.md" } ] }\n');
+  writeFileSync(join(h, 'pact', 'config.json'), '{ "schema": 1, "edits": [ { "mark": "moves", "op": "add-after", "file": "b.md" } ] }\n');
   writeFileSync(join(h, 'pact', 'blocks', 'b.md'), block);
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
@@ -880,42 +718,14 @@ function renderSaved(t, state) {
   return spawnSync(process.execPath, [RENDER, join(REPO, 'claude', 'CLAUDE.md'), tempDir(t, 'pact-builder-out-'), h], { encoding: 'utf8', env });
 }
 
-test('every shipped workflow renders: the page finds no problem and the renderer passes it', t => {
-  for (const w of L.PACT.workflows) {
-    const s = L.initialState();
-    assert.equal(L.applyWorkflow(s, w.id), null);
-    assert.deepEqual(L.problems(s), [], w.id);
-    const r = renderSaved(t, s);
-    assert.equal(r.status, 0, `${w.id}: ${r.stdout}`);
-  }
-});
-
-test('skill and command cards write one plain line each, and refuse a bad name or a two-line "when"', () => {
+// #262: the page's saved files for an edited move and an added one render through the renderer.
+test('an edited and an added move render through the renderer', t => {
   const s = L.initialState();
-  s.slots['move-2'] = { replaced: false, cards: [{ kind: 'skill', name: 'grill-me', when: 'the idea is still vague' }, { kind: 'command', name: 'team:review' }] };
-  assert.deepEqual(L.problems(s), []);
-  assert.equal(L.buildFiles(s)[1].text, 'Use the `grill-me` skill when the idea is still vague.\nAt this step, hand me the trigger: type `/team:review`.\n');
-  assert.match(L.skillProblems({ kind: 'skill', name: 'bad name', when: '' })[0], /skill name/);
-  assert.match(L.skillProblems({ kind: 'skill', name: 'ok', when: 'one\ntwo' })[0], /one line/);
-  assert.match(L.skillProblems({ kind: 'command', name: '@x' })[0], /command name/);
-});
-
-test('a slot holding a skill, a command and your agent renders through the renderer', t => {
-  const s = L.initialState();
-  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'skill', name: 'grill-me', when: '' }, { kind: 'command', name: 'ship' }] };
-  s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'agent', name: 'my-reviewer', reads: 'the diff' }] };
+  s.parts.moves[0].text = 'I sense the work my own way.';
+  s.parts.moves.push({ lead: 'Leave it better', text: 'I leave the code a little better than I found it.' });
   assert.deepEqual(L.problems(s), []);
   const r = renderSaved(t, s);
   assert.equal(r.status, 0, r.stdout);
-});
-
-test('every preset on its own renders through the renderer', t => {
-  for (const p of L.PACT.presets) {
-    const s = L.initialState();
-    L.addPreset(s, p.mark, p.id);
-    const r = renderSaved(t, s);
-    assert.equal(r.status, 0, `${p.id}: ${r.stdout}`);
-  }
 });
 
 const BLOCKS = [

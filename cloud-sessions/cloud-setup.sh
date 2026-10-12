@@ -199,6 +199,8 @@ The moves are how I work, with or without AI. They are my practices, and I
 take each up as the work needs it. They keep human judgment above everything
 else: the stages, the tools and the agents of working with AI.
 
+*Scriptorium builds this.*
+
 - **Sense the work.**
   What kind of work is it, how big, how risky, and do I know enough to plan
   it? Size sets how much checking it needs. A target I can know gets a plan;
@@ -2355,7 +2357,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash e4fbe5bc46a55a5e691266b6a71b8674bb7ad7ab234c7f0ce94017cb6aa62e5e 'CLAUDE.md'
+check_hash 987591b64d5d3f4ccc0ede36c352cc9d4813ff30cab0b052fb4d6d3356b47680 'CLAUDE.md'
 check_hash 8dd5d56a29ba79f1c3b7de6617485217772233fe6c0a11525cd7d5d776790e63 'agents/adversarial-lens.md'
 check_hash 4013aea6409e34744d5a6b4fd3e7a1588a8ebc5378e8d0b6a30d7fdea13bf9c1 'agents/behaviour-lens.md'
 check_hash c09c5414669ea47e1ea51638de58316ab8e0edd9eb565ec2838458de04516491 'agents/conventions-lens.md'
@@ -2386,7 +2388,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy e1ca5c4c7d74"
+  echo "pact cloud copy 36f4d8ec0bbb"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
