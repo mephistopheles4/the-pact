@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oZpARLNbazGbuhYSv8+wScaPdScC4Lj6LynlcKa79S8='; style-src 'sha256-6orX0RB1WAmUGfK+JrpJ/5Ev9mFN7otnpqOt4LwIN1Y='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Go3nODve3s7wkzLs1RHZz0Glx6hzAnhOFO3xYr6Dyws='; style-src 'sha256-ZyemiGANFyVjfPlaKmdrO8vjG2yqST2GbOiuwm10i9c='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -360,6 +360,11 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .classic-head { position: relative; padding-right: var(--av-s5); }
 .close-x { position: absolute; top: var(--av-s1); right: var(--av-s2); font: inherit; font-size: var(--av-t-lead); line-height: 1; padding: 4px 8px; border: 0; background: transparent; color: var(--av-ink-70); cursor: pointer; }
 .close-x:hover { color: var(--av-caution); }
+.row-line { display: flex; align-items: center; gap: var(--av-s1); }
+.row-line input[type="text"] { flex: 1 1 auto; }
+.row-x { flex: none; font: inherit; font-size: var(--av-t-body); line-height: 1; padding: 2px 6px; border: 0; background: transparent; color: var(--av-ink-55); cursor: pointer; }
+.row-x:hover, .row-x:focus-visible { color: var(--av-caution); }
+.wf-group:has(.row-x:hover), .wf-group:has(.row-x:focus-visible) { background: rgb(180 83 9 / 0.10); box-shadow: inset 3px 0 0 var(--av-caution); }
 .reset-btn { min-width: 9ch; text-align: center; }
 .reset-btn.armed { background: var(--av-caution); border-color: var(--av-caution); color: var(--av-paper); }
 .model-row label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
@@ -2656,6 +2661,8 @@ function workflowEditor(host, state, changed) {
       set(i.value);
       edited(false);
     });
+    // Leaving the field: the library takes up a label or a lens name. Settings itself is not redrawn, so focus moves on.
+    i.addEventListener('change', () => renderLibrary());
     return i;
   };
   const pickList = (options, value, set, label) => {
@@ -2674,6 +2681,11 @@ function workflowEditor(host, state, changed) {
       edited();
     });
     return el('label', { class: 'wf-field wf-field--row' }, b, el('span', { text: text || (on ? 'On' : 'Off') }));
+  };
+  /** `node` with a tooltip. */
+  const withTip = (node, tip) => {
+    node.setAttribute('title', tip);
+    return node;
   };
   /** A model and its effort as two dropdowns, as the agents take them; `none` adds "none" for a tier with no plan. */
   function modelEffort(label, value, set, none) {
@@ -2720,7 +2732,7 @@ function workflowEditor(host, state, changed) {
         el('h2', { text: 'Stage' }),
         field('Name', input(st.name, v => (st.name = v))),
         field('What happens here (compiles to nothing)', input(st.text, v => (st.text = v))),
-        field('Model and effort from', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')),
+        withTip(field('Model and effort from', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')), "Which of the tier table's models this stage uses: its plan model, its build model, or none, because the step is yours."),
         ...(st.model === 'owner' ? [] : [
           el('p', { class: 'av-annot', text: [...state.parts.tiers.map((t, i) => `${t.name}: ${stageCell(state.parts, st, i)}`), `Sensitive route: ${stageCell(state.parts, st, null)}`].join(' · ') }),
           toggle(ui.perTier, v => (ui.perTier = v), 'set per tier', 'Set per tier'),
@@ -2730,7 +2742,7 @@ function workflowEditor(host, state, changed) {
             el('p', { class: 'av-annot', text: `These are the tiers' ${st.model} models: every stage that takes the ${st.model} model changes with them.` }),
           ] : []),
         ]),
-        el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Skipped at' }), el('div', { class: 'chips' }, ...TIER_KEYS.map(k => chip(k, st.skipAt.includes(k), () => {
+        el('div', { class: 'wf-field', title: 'At these tiers the work passes this stage by.' }, el('span', { class: 'av-label', text: 'Skipped at' }), el('div', { class: 'chips' }, ...TIER_KEYS.map(k => chip(k, st.skipAt.includes(k), () => {
           st.skipAt = st.skipAt.includes(k) ? st.skipAt.filter(x => x !== k) : TIER_KEYS.filter(x => x === k || st.skipAt.includes(x));
           edited();
         }, '', true)))),
@@ -2744,10 +2756,10 @@ function workflowEditor(host, state, changed) {
       return [
         el('h2', { text: 'Condition' }),
         el('p', { class: 'av-annot', text: `At ${st ? st.name : 'no stage yet: wire a stage\'s bottom port here'}. Offers ${o.agents.length ? o.agents.join(' and ') : 'nothing yet'}${o.agents.length > 1 ? ', together' : ''}.` }),
-        field('When they are offered', pickList(Object.entries(WF_WHEN_LABELS), o.when, v => {
+        withTip(field('When they are offered', pickList(Object.entries(WF_WHEN_LABELS), o.when, v => {
           o.when = v;
           if (v !== 'words') o.words = '';
-        }, 'when')),
+        }, 'when')), 'The work these lenses are offered for. On the sensitive route: only once you take the route.'),
         ...(o.when === 'words' ? [field('In your words', input(o.words, v => (o.words = v), { placeholder: 'e.g. the change touches billing' })), el('p', { class: 'av-annot', text: 'Your own words are judgment: the run never lights them.' })] : []),
         toggle(o.on, v => (o.on = v), 'condition on or off'),
         el('p', { class: 'av-annot', text: `For this work: ${passes(o) ? 'offered' : 'idle'}.` }),
@@ -2761,7 +2773,7 @@ function workflowEditor(host, state, changed) {
         el('h2', { text: 'Skill' }),
         el('p', { class: 'av-annot', text: `At ${st ? st.name : "no stage yet: wire a stage's bottom port here"}.` }),
         ...skillPicker(k),
-        field('Offered or used', pickList([['offered', 'Offered: Claude offers it, I answer'], ['used', 'Used: Claude runs it']], k.mode, v => (k.mode = v), 'mode')),
+        withTip(field('Offered or used', pickList([['offered', 'Offered: Claude offers it, I answer'], ['used', 'Used: Claude runs it']], k.mode, v => (k.mode = v), 'mode')), 'Offered: Claude names the skill and why, and waits for your yes. Used: Claude runs it at this stage.'),
         field('When', pickList(Object.entries(WF_WHEN_LABELS), k.when, v => {
           k.when = v;
           if (v !== 'words') k.words = '';
@@ -2816,14 +2828,13 @@ function workflowEditor(host, state, changed) {
       ...rows.map((r, i) => el(
         'div',
         { class: 'wf-group' },
-        field('Lenses, comma-separated', input(r.agents.join(', '), v => (r.agents = v.split(',').map(x => x.trim()).filter(Boolean)))),
-        field('Label (optional)', input(r.label, v => (r.label = v))),
-        field('Asks', input(r.asks, v => (r.asks = v))),
-        chip('Remove row', false, () => {
+        el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Lenses, comma-separated' }), el('div', { class: 'row-line' }, input(r.agents.join(', '), v => (r.agents = v.split(',').map(x => x.trim()).filter(Boolean)), { title: 'The lenses in this row, by name. Two or more make a pair the library offers as one.' }), el('button', { type: 'button', class: 'row-x', title: 'Remove this row from the roster (undo brings it back)', 'aria-label': `Remove the row ${r.label || r.agents.join(', ')}`, onclick: () => {
           rows.splice(i, 1);
           edited();
           renderSettings();
-        }, 'av-tool-chip--ghost'),
+        } }, '×'))),
+        field('Label (optional)', input(r.label, v => (r.label = v), { title: "The row's name: it heads the lens's group in the library, and follows the lenses in the rules file's table." })),
+        field('Asks', input(r.asks, v => (r.asks = v), { title: 'The one question this lens asks, as the rules file states it.' })),
       )),
       chip('Add a row', false, () => {
         rows.push({ agents: ['my-lens'], label: '', asks: 'What does it ask?' });
