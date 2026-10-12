@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6NzhpDLA2akKJ2BcyP9h5LOrcZdpJs8jVN9wEthiGCg='; style-src 'sha256-QGPJzVArVBtw60znlxxFQE4XGzOJ8Lm04wWG1n/tD+Y='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hA4NJEfReEyheqT7UnXcrbzCIgiNuV5KuFzFWQyfZAc='; style-src 'sha256-8RVDShZAh9TYPbWZNMOyQudNNgRIqEFuRu89Lb4EfV4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -318,7 +318,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-body h2 { font-size: var(--av-t-body); margin: var(--av-s1) 0 0; font-weight: 600; }
 .wf-field { display: flex; flex-direction: column; gap: 2px; }
 .wf-field--row { flex-direction: row; align-items: center; gap: var(--av-s1); }
-.wf-body input[type="text"], .wf-body select { width: 100%; min-width: 0; }
+.wf-body input[type="text"], .wf-body select { width: 100%; min-width: 0; flex: none; }
 .wf-group { display: flex; flex-direction: column; gap: 4px; padding: var(--av-s1) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
 .wf-chip { border: var(--av-rule-hair) solid var(--av-ink-30); padding: 0 6px; font-size: var(--av-t-annot); }
 .wf-chip button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0 0 0 4px; }
@@ -1884,6 +1884,23 @@ function workflowEditor(host, state, changed) {
   }
   const hasDefault = st => G().links.some(l => l.from === st.id && !l.when && l.on !== false);
 
+  /** The skills and commands this builder lists, as a skill node names them: commands with a leading /. */
+  const skillChoices = () => [...PACT.yours.skills.map(x => x.name), ...PACT.yours.commands.map(x => `/${x.name}`)];
+  /** The skill field: a dropdown of yours, and a name of your own when it isn't listed. */
+  function skillPicker(k) {
+    const OWN = '__own'; // no skill name starts with an underscore
+    const listed = skillChoices();
+    const own = !listed.includes(k.skill);
+    const pick = el('select', { 'aria-label': 'Skill or command' }, ...listed.map(n => el('option', { value: n, text: n })), el('option', { value: OWN, text: listed.length ? 'Another skill, by name…' : 'A skill, by name…' }));
+    pick.value = own ? OWN : k.skill;
+    pick.addEventListener('change', () => {
+      if (pick.value !== OWN) k.skill = pick.value;
+      else if (listed.includes(k.skill)) k.skill = 'my-skill';
+      edited();
+    });
+    return [field('Skill or command', pick), ...(own ? [field('Its name', input(k.skill, v => (k.skill = v.trim()), { placeholder: 'e.g. tdd, or /grill-with-docs' }))] : [])];
+  }
+
   // ---- the run: a piece of work, and what it is offered
   const effTier = () => (ui.work.route ? state.parts.sensitive.tier : ui.work.tier);
   const skipped = st => st.skipAt.includes(effTier());
@@ -2001,11 +2018,10 @@ function workflowEditor(host, state, changed) {
       el('div', { class: 'av-label', text: 'Nodes library · drag onto the canvas' }),
       item('stage', '', '▭', 'Stage', "a step of the work's own lifecycle"),
       item('cond', '', '?', 'Condition', 'when its lenses are offered'),
+      item('skill', '', '✦', 'Skill', 'a skill or command, offered or used'),
       el('div', { class: 'av-label', text: 'Lenses' }),
       ...pairs.map(p => el('div', { class: 'wf-libpair' }, item('pair', p.agents.join('+'), '◇◇', p.label, 'both on one condition'), ...p.agents.map(a => item('agent', a, '◇', a, 'one lens')))),
       el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'The gatekeeper' }), ...lenses.filter(n => !inPair(n)).map(n => item('agent', n, '◇', n, 'a pact lens'))),
-      el('div', { class: 'av-label', text: 'Skills' }),
-      el('div', { class: 'wf-libpair' }, ...PACT.yours.skills.map(x => item('skill', x.name, '✦', x.name, x.description || 'your skill')), ...PACT.yours.commands.map(x => item('skill', `/${x.name}`, '✦', `/${x.name}`, x.description || 'your command')), item('skill', 'my-skill', '✦', 'A skill of yours', 'name it in the panel')),
       ...(PACT.yours.agents.length ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Yours' }), ...PACT.yours.agents.map(a => item('agent', a.name, '◆', a.name, a.description || 'your agent')))] : []),
       el(
         'div',
@@ -2037,7 +2053,7 @@ function workflowEditor(host, state, changed) {
       msg = type === 'pair' ? 'A pair on one condition. Wire a stage to the condition.' : "Wire a stage's bottom port to it, then its right port to lenses.";
     } else if (type === 'skill') {
       const id = freshId('skill');
-      skillList().push({ id, stage: '', skill: String(val), mode: 'offered', when: 'every-build', words: '', on: true });
+      skillList().push({ id, stage: '', skill: String(val || (skillChoices()[0] || 'my-skill')), mode: 'offered', when: 'every-build', words: '', on: true });
       g.layout[id] = at;
       ui.sel = { node: id };
       msg = "Wire a stage's bottom port to it; say in the panel whether it is offered or used, and when.";
@@ -2725,7 +2741,7 @@ function workflowEditor(host, state, changed) {
       return [
         el('h2', { text: 'Skill' }),
         el('p', { class: 'av-annot', text: `At ${st ? st.name : "no stage yet: wire a stage's bottom port here"}.` }),
-        field('Skill or command', input(k.skill, v => (k.skill = v.trim()), { placeholder: 'e.g. tdd, or /grill-with-docs' })),
+        ...skillPicker(k),
         field('Offered or used', pickList([['offered', 'Offered: Claude offers it, I answer'], ['used', 'Used: Claude runs it']], k.mode, v => (k.mode = v), 'mode')),
         field('When', pickList(Object.entries(WF_WHEN_LABELS), k.when, v => {
           k.when = v;
