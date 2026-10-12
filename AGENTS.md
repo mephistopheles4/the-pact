@@ -318,8 +318,7 @@ how every session in every repo behaves. So:
   on minus-one never reach these:
   - the last bad case for a gate check;
   - an install case: ADR 0047 and "Cutting an install case" govern those cuts;
-  - a test that guards anything in the protected set: the settings guard,
-    and any test of a security-set lens;
+  - a test that guards the settings guard;
   - any test in `gate/tests/cloud-sessions.test.mjs`, whose changes take the
     security route.
 
