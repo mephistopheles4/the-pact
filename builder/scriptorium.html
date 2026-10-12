@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Go3nODve3s7wkzLs1RHZz0Glx6hzAnhOFO3xYr6Dyws='; style-src 'sha256-ZyemiGANFyVjfPlaKmdrO8vjG2yqST2GbOiuwm10i9c='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-7lUy5ahWJjACH1f1LYMMbD8qVz3muT2XpJfPBPkgYGk='; style-src 'sha256-iHqjElAyTNwUphdzdzR/SlhBZxkeWxUKPEKTCALdsSo='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -351,6 +351,7 @@ dialog.classic .av-tool-sheet { border: 0; max-width: none; }
 /* SETTINGS: both usage limits, in one dialog. */
 dialog.settings { width: min(960px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 0; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.6; }
 dialog.settings::backdrop { background: rgb(0 0 0 / 0.35); }
+dialog.settings, dialog.classic { box-shadow: 5px 5px 0 -1px var(--av-paper), 5px 5px 0 0 var(--av-ink-55), 10px 10px 0 -1px var(--av-paper), 10px 10px 0 0 var(--av-ink-30), 14px 18px 28px rgb(0 0 0 / 0.25); }
 dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .limit-label { min-width: 12rem; font-size: var(--av-t-annot); font-weight: 600; }
 .accs { display: flex; flex-direction: column; }
@@ -364,12 +365,18 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .row-line input[type="text"] { flex: 1 1 auto; }
 .row-x { flex: none; font: inherit; font-size: var(--av-t-body); line-height: 1; padding: 2px 6px; border: 0; background: transparent; color: var(--av-ink-55); cursor: pointer; }
 .row-x:hover, .row-x:focus-visible { color: var(--av-caution); }
-.wf-group:has(.row-x:hover), .wf-group:has(.row-x:focus-visible) { background: rgb(180 83 9 / 0.10); box-shadow: inset 3px 0 0 var(--av-caution); }
+.lens-row { border-left: 3px solid transparent; padding-left: var(--av-s1); padding-right: var(--av-s1); transition: background .15s, border-color .15s; }
+.lens-row:has(.row-x:hover), .lens-row:has(.row-x:focus-visible) { background: rgb(180 83 9 / 0.10); border-left-color: var(--av-caution); }
 .reset-btn { min-width: 9ch; text-align: center; }
 .reset-btn.armed { background: var(--av-caution); border-color: var(--av-caution); color: var(--av-paper); }
 .model-row label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
 .model-row select { width: auto; flex: 1 1 6em; }
-.acc summary { cursor: pointer; padding: var(--av-s1) 0; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; }
+.acc summary { cursor: pointer; padding: var(--av-s1) var(--av-s1); margin: 0 calc(-1 * var(--av-s1)); font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; list-style: none; transition: background .15s, color .15s; }
+.acc summary::-webkit-details-marker { display: none; }
+.acc summary::before { content: '▸'; display: inline-block; width: 1em; color: var(--av-ink-55); transition: transform .15s; }
+.acc[open] > summary::before { transform: rotate(90deg); }
+.acc summary:hover, .acc summary:focus-visible { background: rgb(180 83 9 / 0.08); color: var(--av-caution); }
+.acc summary:hover::before, .acc summary:focus-visible::before { color: var(--av-caution); }
 .acc-body { display: flex; flex-direction: column; gap: var(--av-s1); padding: 0 0 var(--av-s2); }
 .acc-body input[type="text"], .acc-body select { width: 100%; min-width: 0; }
 .wf-resizer { cursor: col-resize; background: var(--av-surface); position: relative; z-index: 2; border-left: var(--av-rule-hair) solid var(--av-ink-30); touch-action: none; transition: background .15s; }
@@ -963,8 +970,8 @@ const PACT = /* pact-data:begin */ {
   },
   {
    "name": "scout",
-   "model": "sonnet",
-   "effort": "low",
+   "model": "haiku",
+   "effort": "medium",
    "runs": [],
    "configurable": false,
    "security": null,
@@ -2732,7 +2739,8 @@ function workflowEditor(host, state, changed) {
         el('h2', { text: 'Stage' }),
         field('Name', input(st.name, v => (st.name = v))),
         field('What happens here (compiles to nothing)', input(st.text, v => (st.text = v))),
-        withTip(field('Model and effort from', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')), "Which of the tier table's models this stage uses: its plan model, its build model, or none, because the step is yours."),
+        withTip(field('Model and effort, by tier', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')), "Which of the tier table's models this stage uses: its plan model, its build model, or none, because the step is yours."),
+        el('p', { class: 'av-annot', text: `A tier is how much checking a piece of work gets: ${state.parts.tiers.map(t => t.name).join(', ')}. Claude proposes one and you set it; each tier names its plan and build models (Settings, Tiers).` }),
         ...(st.model === 'owner' ? [] : [
           el('p', { class: 'av-annot', text: [...state.parts.tiers.map((t, i) => `${t.name}: ${stageCell(state.parts, st, i)}`), `Sensitive route: ${stageCell(state.parts, st, null)}`].join(' · ') }),
           toggle(ui.perTier, v => (ui.perTier = v), 'set per tier', 'Set per tier'),
@@ -2827,7 +2835,7 @@ function workflowEditor(host, state, changed) {
       el('p', { class: 'av-annot', text: 'The roster: each row a lens or a pair, and the question it asks. A row of two is a pair the library offers as one.' }),
       ...rows.map((r, i) => el(
         'div',
-        { class: 'wf-group' },
+        { class: 'wf-group lens-row' },
         el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Lenses, comma-separated' }), el('div', { class: 'row-line' }, input(r.agents.join(', '), v => (r.agents = v.split(',').map(x => x.trim()).filter(Boolean)), { title: 'The lenses in this row, by name. Two or more make a pair the library offers as one.' }), el('button', { type: 'button', class: 'row-x', title: 'Remove this row from the roster (undo brings it back)', 'aria-label': `Remove the row ${r.label || r.agents.join(', ')}`, onclick: () => {
           rows.splice(i, 1);
           edited();

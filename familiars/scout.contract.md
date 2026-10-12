@@ -1,6 +1,6 @@
 # Contract: scout
 
-Version: 0.1.1
+Version: 0.1.2
 
 - **Type:** agent
 - **Level:** Standard
@@ -100,8 +100,8 @@ On a follow-up in the same run, it uses what it already found and does not repea
 Extra keys: tools, model, effort
 
 - `tools`: `[Read, Glob, Grep]` — **Decided** (2026-10-05, unchanged from today's file; seam A's default).
-- `model`: `sonnet` — **Decided** (2026-10-05). The owner kept Sonnet after Haiku was offered as the cheaper choice for question 2's cost goal.
-- `effort`: `low` — **Decided** (2026-10-05, unchanged).
+- `model`: `haiku` — **Decided** (2026-10-12). The owner moved scout to Haiku, the cheaper choice for question 2's cost goal; on 2026-10-05 they had kept Sonnet.
+- `effort`: `medium` — **Decided** (2026-10-12), with the move to Haiku.
 
 ### 6. Does it do anything beyond reading?
 
@@ -113,6 +113,7 @@ Extra keys: tools, model, effort
 |---|---|---|---|---|
 | 0.1.0 | 2026-10-05 | Contract written; migrated from `claude/agents/scout.md`. scout becomes the pact's one search helper and the Explore override is retired. | #70, cut on #59 | all |
 | 0.1.1 | 2026-10-05 | Question 8 names the neighbours by role, not by agent name. The familiar's text is unchanged; only its mark is rewritten. | #47's QA swap retires two of the four reviewers it named; the name search after the swap may find only installed reviewers. Owner's go: the defaults at #47's first checkpoint | 8 |
+| 0.1.2 | 2026-10-12 | scout runs on Haiku at medium effort, not Sonnet at low. | Cost is scout's reason to exist (question 2). The owner's decision in chat, on #262 | 5, 14 |
 
 ## Standard questions (8–15)
 
@@ -149,7 +150,7 @@ Not run: this change is proved by use under AGENTS.md's probe rule (ADR 0014), a
 
 ### 14. How hard should it think?
 
-**Confirmed** (2026-10-05) Sonnet at low effort: lookups need speed, not depth. A second opinion from another model is the owner's call, never scout's.
+**Confirmed** (2026-10-12) Haiku at medium effort: lookups need speed and low cost, not depth. A second opinion from another model is the owner's call, never scout's.
 
 ### 15. How does it write?
 

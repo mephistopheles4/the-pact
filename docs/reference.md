@@ -13,7 +13,7 @@ effort, and what never goes in. For what the pact is and why, read the
 | `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text; and `unstated-lens`, which looks for needs nobody wrote down. Each runs on Opus by default; a configuration may change any lens's model and effort (ADR 0027). The lenses' contracts are in `familiars/` | `~/.claude/agents/` |
 | `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`, only when the configuration's `commands` list names it |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
-| `familiars/` | Agents migrated to a grimoire contract, each beside its contract: `scout`, on Sonnet at low effort; and every lens's contract, which never installs | `~/.claude/agents/` (agent files only) |
+| `familiars/` | Agents migrated to a grimoire contract, each beside its contract: `scout`, on Haiku at medium effort; and every lens's contract, which never installs | `~/.claude/agents/` (agent files only) |
 | `cross/poster.mjs` | The poster's core (#246, #253): posts free text to GitHub through one fixed call per surface and reads back what landed. Not installed yet. Nothing under `cross/` installs | Never installed |
 | `gate/` | The install gate: the pact's own check (seam A), the renderer, a pinned copy of grimoire's check script, the per-agent tool allow-list, and the canonical text of the two pinned blocks. Since #261 it checks what can run and with what power, not the rules file's wording | Never installed |
 | `examples/pact-config/` | An example user configuration: the values a person may set, such as the usage pause line. Copy it to `~/.claude/pact/config.json` to use it; the installer reads that file and never writes it | Never installed |
@@ -37,8 +37,7 @@ command is installed only when its name is in the `commands` list of
 | `/finis` | "We're done, archive this session": the session checks for anything outstanding, says what it is if there is, and archives the session if there isn't. |
 ## The familiars, by effort
 
-- **Low:** `scout`. The pact ships no `Explore`; skills that call it get Claude Code's built-in.
-- **Medium:** the QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.
+- **Medium:** `scout`, on Haiku; the pact ships no `Explore`, so skills that call it get Claude Code's built-in. The QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.
 - **High:** the security pair, `adversarial-lens` and `data-lens`.
 
 Builds run in a main session the owner watches, not in agents.
