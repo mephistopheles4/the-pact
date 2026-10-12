@@ -36,7 +36,7 @@ const PAIRS = [
     ],
   },
 ];
-const ALONE = { text: 'Alone · standard and up', name: 'unstated-lens', question: 'What need did nobody write down?' };
+const ALONE = { text: 'The gatekeeper · standard and up', name: 'unstated-lens', question: 'What need did nobody write down?' };
 
 const FLOW_W = 184;
 const LEFT_W = RIGHT - LEFT - FLOW_W - 28;

@@ -5,7 +5,7 @@
 // are in builder-page.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import vm from 'node:vm';
@@ -26,7 +26,7 @@ const sha256 = b => createHash('sha256').update(b).digest('hex');
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, addAgent });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -41,7 +41,7 @@ const L = pageLogic();
 function saveInto(h, state) {
   const files = JSON.parse(JSON.stringify(L.buildFiles(state)));
   for (const f of files) {
-    const p = join(h, 'pact', ...f.path.split('/'));
+    const p = join(h, ...f.path.split('/'));
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, f.text);
   }
@@ -68,38 +68,43 @@ function installSaved(t, state) {
   assert.match(r.stdout, /^Installed commit [0-9a-f]{40} with configuration [0-9a-f]{12}; all files verified\.\r?$/m, r.out);
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.match(rules, /^\*\*Configuration in effect\.\*\*/m);
-  // The page is never installed.
-  assert.ok(!listTree(h).some(p => p.toLowerCase().endsWith(PAGE_NAME.toLowerCase())), 'the page was installed');
+  // The page installs only as the builder kit's copy (#203, S6).
+  assert.deepEqual(listTree(h).filter(p => p.toLowerCase().endsWith(PAGE_NAME.toLowerCase())).map(p => p.split('\\').join('/')), ['pact/builder/builder/scriptorium.html'], 'the page installed outside the kit');
   return { rules, files, h };
 }
 
-// #261 C15
-test('a configuration the page saves with a value and every preset installs through the dry run and -Apply', t => {
+// #261 C15; #262: the moves part saves as one replace.
+test('a configuration the page saves with a value and an added move installs through the dry run and -Apply', t => {
   const s = L.initialState();
   s.usage = 90;
-  for (const p of L.PACT.presets) assert.equal(L.addPreset(s, p.mark, p.id), null);
+  s.parts.moves.push({ lead: 'Leave it better', text: 'I leave the code a little better than I found it.' });
   const { rules, files } = installSaved(t, s);
-  assert.deepEqual(files.map(f => f.path), ['config.json', 'blocks/move-1.md', 'blocks/move-2.md', 'blocks/move-3.md', 'blocks/move-4-extra.md']);
+  assert.deepEqual(files.map(f => f.path), ['pact/config.json', 'pact/blocks/moves.md']);
   assert.match(rules, /When it is above 90%/);
-  for (const p of L.PACT.presets) for (const line of p.text.split('\n')) assert.ok(rules.includes(`  ${line}\n`), `${p.id}: ${line}`);
-  assert.match(rules, /Values set: usage-pause 90\. Parts edited: move-1 \(add-after\), move-2 \(add-after\), move-3 \(add-after\), move-4-extra \(add-after\)\./);
+  assert.match(rules, /^- \*\*Stay the owner\.\*\*\n(?: {2}.*\n)+- \*\*Leave it better\.\*\*\n {2}I leave the code a little better than I found it\.$/m);
+  assert.match(rules, /Values set: usage-pause 90\. Parts edited: moves \(replace\)\./);
 });
 
-// #261 C14
-test('a configuration the page saves with your own text and a removal installs through the dry run and -Apply', t => {
+// #203 S10: a commands list the page saves installs those commands, beside /scriptorium.
+test('a commands list the page saves installs /finis beside /scriptorium, and nothing it leaves unticked', t => {
+  const s = L.initialState();
+  s.usage = 90;
+  s.commands = ['finis'];
+  const { h } = installSaved(t, s);
+  assert.deepEqual(readdirSync(join(h, 'commands')).sort(), ['finis.md', 'scriptorium.md']);
+});
+
+// #261 C14; #262
+test('a configuration the page saves with your own move text, a removed move and an agent setting installs through the dry run and -Apply', t => {
   const s = L.initialState();
   s.usage = 60;
   s.agents['integrity-lens'] = { model: 'sonnet', effort: 'low' };
-  s.slots['move-1'].replaced = true;
-  s.slots['move-2'] = { replaced: false, cards: [{ kind: 'custom', text: 'Before the spec, ask me which open question I want answered first.\r\n' }] };
-  s.slots['move-4-extra'] = { replaced: false, cards: [{ kind: 'custom', text: 'Say which tests you ran.' }, { kind: 'preset', id: 'move-4-docs-check' }, { kind: 'agent', name: 'my-reviewer', reads: 'the diff' }] };
+  s.parts.moves[1].text = 'Before the spec, I say which open question I want answered first.';
+  s.parts.moves.splice(0, 1);
   const { rules, h } = installSaved(t, s);
-  assert.match(rules, /^ {2}Before the spec, ask me which open question I want answered first\.$/m);
-  assert.match(rules, /^ {2}Say which tests you ran\.\n {2}After the checks, list each public interface/m);
-  assert.match(rules, /^ {2}Then run `my-reviewer`, an agent from your own agents folder, on the diff, and post its report on the issue\.$/m);
-  // move-1 was removed: its part was empty by default (#261), so the move's bullet stays and is followed by the next move.
-  assert.match(rules, /^ {2}reproduced and traced to its start before anyone fixes it\.\n- \*\*Think before doing\.\*\* /m);
-  assert.match(rules, /Values set: usage-pause 60\. Parts edited: move-1 \(remove\), move-2 \(add-after\), move-4-extra \(add-after\)\./);
+  assert.match(rules, /^## The moves\n[\s\S]*?\n- \*\*Think before doing\.\*\*\n {2}Before the spec, I say which open question I want answered first\.$/m);
+  assert.doesNotMatch(rules, /Sense the work/);
+  assert.match(rules, /Values set: usage-pause 60\. Parts edited: moves \(replace\)\./);
   assert.match(rules, /^Agents set: integrity-lens \(sonnet, low effort\)\.$/m);
   assert.match(readFileSync(join(h, 'agents', 'integrity-lens.md'), 'utf8'), /^model: sonnet\neffort: low$/m);
 });
@@ -108,13 +113,25 @@ test('bad case: text the page flags is refused by the install too, since the pag
   const repo = makeRepo(t);
   const h = home(t);
   const s = L.initialState();
-  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: 'Also read @secrets.md first.' }] };
-  assert.ok(L.problems(s).some(p => p.level === 'error' && /import/.test(p.text)));
+  s.parts.moves[2].text = 'Also read\u200b this first.';
+  assert.ok(L.problems(s).some(p => p.level === 'error' && /invisible/.test(p.text)));
   saveInto(h, s);
   const dry = install(repo, h);
   refused(dry);
-  assert.match(dry.stdout, /FAIL block-text: /, dry.out);
+  assert.match(dry.stdout, /FAIL invisible: /, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256('x')] });
   refused(r);
   assert.ok(!existsSync(join(h, 'CLAUDE.md')), 'the refused configuration installed a rules file');
+});
+
+// #262: the agent files the page saves are the person's: an install leaves them as written and never records them.
+test('an added agent and an edited prompt the page saves are yours: the install leaves them as the page wrote them, and records neither', t => {
+  const s = L.initialState();
+  assert.equal(L.addAgent(s, 'my-reviewer'), null);
+  s.own.scout = L.PACT.agents.find(a => a.name === 'scout').file.replace(/\n---\n\n[\s\S]*$/, '\n---\n\nFind things, briefly.\n');
+  s.usage = 90;
+  const { files, h } = installSaved(t, s);
+  for (const name of ['my-reviewer', 'scout']) assert.equal(readFileSync(join(h, 'agents', `${name}.md`), 'utf8'), files.find(f => f.path === `agents/${name}.md`).text);
+  const recorded = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).files.map(f => f.path);
+  assert.ok(!recorded.includes('agents/my-reviewer.md') && !recorded.includes('agents/scout.md'), recorded.join(', '));
 });

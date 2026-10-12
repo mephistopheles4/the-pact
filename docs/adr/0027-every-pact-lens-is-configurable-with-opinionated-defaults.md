@@ -2,6 +2,8 @@
 
 Superseded in part by [ADR 0045](0045-agent-and-rule-changes-are-proved-by-review-not-by-probe.md) and [ADR 0046](0046-the-protected-set-is-five-items.md) (2026-10-10): a change to a shipped lens's model no longer reruns a security set, the protected set no longer holds one, and the override mark means a lens runs off the default the pact ships and reviews.
 
+Superseded in part by [ADR 0067](0067-every-agent-can-be-set-on-any-claude-code-model.md) (2026-10-12): `scout` is no longer locked, a model is any Claude Code model of one plain-word shape, with five efforts, and no setting carries the override mark.
+
 A user configuration's `agents` key may set the `model` and `effort` of every lens the pact ships. Each lens's own file holds its default. `scout` is the one exception: it is a sealed familiar, so it stays locked.
 
 - **Values:** models `opus` or `sonnet`; efforts `low`, `medium` or `high`. `xhigh` is never a starting setting.

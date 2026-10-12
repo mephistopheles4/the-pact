@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { commitAll, git, home, install, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
+import { withoutOpenMarks } from './text.mjs';
 
 const edit = (root, rel, from, to) => {
   const p = join(root, ...rel.split('/'));
@@ -26,7 +27,6 @@ test('node: a dry run on a clean tree passes, shows the pin, the check, the gate
   passed(r);
   const commit = git(repo, 'rev-parse', 'HEAD').trim();
   assert.match(r.stdout, new RegExp(`^Install from commit ${commit} into `, 'm'));
-  assert.match(r.stdout, /^Pinned check: grimoire [0-9a-f]{40}, sha256 verified$/m);
   assert.match(r.stdout, /^seam-a\| RESULT: pass$/m);
   assert.match(r.stdout, /^Working tree: clean$/m);
   assert.match(r.stdout, /^Gate: no gate recorded at the last install$/m);
@@ -44,7 +44,7 @@ test('node: --apply installs the files byte for byte, writes the record and the 
   const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.equal(record.commit, git(repo, 'rev-parse', 'HEAD').trim());
   assert.deepEqual(Object.keys(record), ['commit', 'digest', 'config', 'files', 'gate']);
-  for (const f of record.files.filter(f => f.path.startsWith('agents/') && f.path !== 'agents/scout.md')) {
+  for (const f of record.files.filter(f => f.path.startsWith('agents/'))) {
     assert.deepEqual(readFileSync(join(h, ...f.path.split('/'))), readFileSync(join(repo, 'claude', ...f.path.split('/'))), f.path);
   }
   assert.ok(record.gate.some(g => g.path === 'gate/install.mjs'));
@@ -84,11 +84,11 @@ test('node: an installed file that is a hard link loses only its own name; the o
   const h = home(t);
   const outside = join(tempDir(t, 'pact-outside-'), 'victim.md');
   writeFileSync(outside, 'victim\n');
-  mkdirSync(join(h, 'agents'));
-  linkSync(outside, join(h, 'agents', 'scout.md'));
+  // #262: the rules file, which the pact always writes; an agent file it didn't write is the person's and left alone.
+  linkSync(outside, join(h, 'CLAUDE.md'));
   passed(install(repo, h, { apply: true }));
   assert.equal(readFileSync(outside, 'utf8'), 'victim\n');
-  assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'familiars', 'scout.md')));
+  assert.equal(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')), 'the rules file holds the no-configuration render');
 });
 
 for (const [name, dirty] of [

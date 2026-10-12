@@ -4,8 +4,8 @@
 // to its refusals. They never install. The full pipeline runs four times at
 // most; every other case calls one step directly.
 //
-// Every change to cloud-sessions/ and to this file takes the security route
-// (AGENTS.md).
+// Every change to cloud-sessions/ and to this file is read closely: the
+// script is published and runs as root (AGENTS.md).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -27,13 +27,13 @@ import {
   readCopySet,
   renderNoConfig,
 } from '../../cloud-sessions/gen.mjs';
-import { OLD_REVIEWERS } from '../pact-text.mjs';
 import { REPO, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const PAYLOAD = ['claude', 'familiars', 'AGENTS.md'];
 // The retired agents: the gate's own list of old reviewers, and the old builder.
-const RETIRED = [...OLD_REVIEWERS, 'builder'];
+// The reviewers the pact retired (#45), and the old builder.
+const RETIRED = ['plan-reviewer', 'result-checker', 'test-reviewer', 'security-reviewer', 'builder'];
 const RLO = '‮';
 
 const sha256 = s => createHash('sha256').update(s).digest('hex');
@@ -336,13 +336,14 @@ test('cloud copy: a byte changed in the setup head changes the marker', () => {
 
 // ---------------------------------------------------------------- the committed outputs
 
-// The cloud edits went with the parallel-session text, so the cloud copy is the default render, unchanged, and it holds the pinned block.
-// #261 C11
-test('cloud copy: CLAUDE.cloud.md is the no-configuration render, unchanged, holding the pinned stop-and-ask block', () => {
+// The cloud edits went with the parallel-session text, so the cloud copy is the default render, unchanged, and it holds the stop-and-ask block.
+// #261 C11; since #262 the block is the pact source's own, not a gate-held copy.
+test('cloud copy: CLAUDE.cloud.md is the no-configuration render, unchanged, holding the stop-and-ask block', () => {
   const cloud = repoText(OUTPUTS.rules);
   assert.equal(cloud, RENDER);
-  const block = `<!-- pact:begin stop-and-escalate -->\n${repoText('gate/clauses/stop-and-escalate.md')}<!-- pact:end stop-and-escalate -->\n`;
-  assert.equal(cloud.split(block).length, 2, 'the pinned block appears once, word for word');
+  const block = /<!-- pact:begin stop-and-escalate -->\n[\s\S]*?<!-- pact:end stop-and-escalate -->\n/.exec(repoText('claude/CLAUDE.md'));
+  assert.ok(block, 'the pact source holds the stop-and-ask block');
+  assert.equal(cloud.split(block[0]).length, 2, 'the block appears once, as the source has it');
 });
 
 // #261 C10
@@ -377,12 +378,12 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   const setup = repoText(OUTPUTS.setup);
   const blocks = [...setup.matchAll(new RegExp(`^write_config '([^']+)' <<'${CONFIG_DELIM}'\\n([\\s\\S]*?)^${CONFIG_DELIM}$`, 'gm'))];
   const source = dest =>
-    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'agents/scout.md' ? 'familiars/scout.md' : `claude/${dest}`;
+    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : `claude/${dest}`;
   // The whole set, from the repo apart from seam A: the rules file, every
-  // shipped lens, scout and the review file.
+  // shipped agent (the lenses and scout, #262 S18) and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
-  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'agents/scout.md', 'pact/review.md'].sort();
-  assert.ok(lenses.length >= 9, lenses.join(', '));
+  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md'].sort();
+  assert.ok(lenses.length >= 10 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {
     assert.equal(body, repoText(source(dest)), dest);

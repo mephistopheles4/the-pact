@@ -41,7 +41,7 @@ As the work needs it.
 
 </details>
 
-The moves name no skills. You bind your own tools to them through a configuration file (there is an example in [`examples/pact-config/`](examples/pact-config/)), and [Matt Pocock's skills](https://github.com/mattpocock/skills) ship as a ready-made preset.
+The moves name no skills. You put your own skills and commands on the stages of the workflow instead, with the Scriptorium builder page: type `/scriptorium` after installing, or write a configuration file by hand (there is an example in [`examples/pact-config/`](examples/pact-config/)). The builder starts from a full workflow and ships six presets, [Matt Pocock's skills](https://github.com/mattpocock/skills) and Superpowers among them.
 
 ## How much checking
 
@@ -61,7 +61,7 @@ Not every change needs a spec. Each piece of work gets a tier (quick, standard o
 | Standard | Needs a short spec | Opus, medium | Sonnet, medium |
 | Thorough | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
 
-**Sensitive work · when I choose it.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations. The sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. If I don't, the security pair is offered once more at Test on a list match, and a flag I haven't answered stays open in the result. Small work that touches nothing sensitive is quick. Keep one model for a whole session.
+**Sensitive work · when I choose it.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations. The sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. If I don't, the security pair is offered once more at Test on a list match, and a flag I haven't answered stays open in the result. Keep one model for a whole session.
 
 **Models.** Opus plans. Sonnet builds, and Opus builds quick work. The sensitive route runs on Opus at high effort.
 
@@ -83,11 +83,13 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 - **QA pair, offered at every build.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail?
 - **Standards pair, offered on a diff, standard and up.** `conventions-lens`: does the diff keep the repo's written rules? `reader-lens`: can the next reader act on what it says?
 - **Security pair, with the sensitive route, and once more at Test on a list match if I didn't take the route.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
-- **Alone, offered on a spec and a result, standard and up.** `unstated-lens`: what need did nobody write down?
+- **The gatekeeper, alone, offered on a spec and a result, standard and up.** `unstated-lens`: what need did nobody write down?
 
 Each lens is offered with a one-line why, and I say yes or no. Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The session crosses the pair by a template; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
 
 </details>
+
+The rules file also ranks the qualities that matter in my work, each with how it is measured and the lenses that check it; a lens checks the rows it is handed against their measures, and a project may rank its own.
 
 Their reports go into the work's record word for word. The agent sorts the findings and acts on its recommendation for each, and I can reverse any of them. Whether the work is done is my call.
 
@@ -101,13 +103,14 @@ Their reports go into the work's record word for word. The agent sorts the findi
 
 | Path | What it is |
 |---|---|
-| `claude/CLAUDE.md` | The rules: the moves, how much checking, the lenses, and when to stop |
+| `claude/CLAUDE.md` | The rules: the moves, how much checking, the lenses, the qualities that matter, and when to stop |
 | `claude/review.md` | The review procedure a session reads before it runs a lens |
-| `claude/agents/` | The lenses, in pairs |
-| `familiars/` | `scout`, and the lenses' contracts |
+| `claude/agents/` | The lenses, in pairs, and `scout`, the search helper |
+| `claude/commands/` | The pact commands: `/scriptorium`, always installed, and `/make-it-so` and `/finis`, when you list them |
+| `familiars/` | Each agent's contract |
 | `cross/poster.mjs` | The poster's core: posts free text to GitHub and reads it back. Not installed yet |
 | `gate/` | The install gate: the pact checks itself before it installs |
-| `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON |
+| `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON, and its presets; it installs with `/scriptorium` |
 | `cloud-sessions/` | Setup for Claude Code cloud sessions |
 
 The full table, with every agent and where each file installs, is in [docs/reference.md](docs/reference.md).
@@ -128,6 +131,6 @@ The full how-to, with the command for each shell, is in [docs/install.md](docs/i
 - **Node 24 or later,** the current LTS, to install and to run the gate's tests, on Windows, macOS or Linux.
 - **git.** The install reads the clone's committed files. On Windows, the gate's tests also use the `sh` that ships with Git for Windows.
 - **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
-- **[grimoire](https://github.com/mephistopheles4/grimoire).** A pinned copy of its check script ships here; its skills are optional.
-- **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: a preset you can bind to the moves.
+- **[grimoire](https://github.com/mephistopheles4/grimoire).** Each agent's contract follows its format; its skills are optional.
+- **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: one of the builder's presets puts them on the workflow's stages.
 - **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the Linux test run.

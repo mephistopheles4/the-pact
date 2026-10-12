@@ -8,7 +8,7 @@
 // are shown, and the bootstrap's clock stops the whole run until CHECKS DONE.
 // Every decision is a function in install-core.mjs; every read and write is
 // in install-io.mjs. No error's own text is ever printed.
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -100,13 +100,8 @@ async function main() {
   const gateNow = new Map([...staged].filter(([rel]) => rel.startsWith('gate/')).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
   gateLines = core.gateBlock(gateNow, record ? record.gate : [], run.selfDiffers);
 
-  // The pinned check (P1). Node is this process: no lookup happens (P2).
-  const pinFile = live(stage, 'gate/grimoire/check.mjs.pin');
-  const pinned = live(stage, 'gate/grimoire/check.mjs');
-  if (!io.exists(pinFile) || !io.exists(pinned)) core.stops.pinMissing();
-  const pinCommit = core.parsePin(readFileSync(pinFile, 'utf8'), io.fileSha256(pinned));
+  // Node is this process: no lookup happens (P2).
   say(`Node: ${process.execPath} (${process.version})`);
-  say(`Pinned check: grimoire ${pinCommit}, sha256 verified`);
 
   // A project install checks the project folder before anything reads from
   // it (J1): the project module's real path is parsed, never shown, and the
@@ -139,6 +134,12 @@ async function main() {
   const render = await loadCore('render-core.mjs');
   if (!staged.has(core.RULES_REL)) core.stops.rulesMissing();
   const rulesStaged = live(stage, core.RULES_REL);
+  // The builder kit's rules source (#203 S6): the unrendered rules, copied in the stage before the render, bound to the commit's hash.
+  if (staged.has(core.KIT_RULES_REL)) core.stops.rulesSourceInTree();
+  copyFileSync(rulesStaged, live(stage, core.KIT_RULES_REL));
+  const sourceHash = io.fileSha256(live(stage, core.KIT_RULES_REL));
+  if (sourceHash !== staged.get(core.RULES_REL)) core.stops.rulesSourceHash();
+  staged.set(core.KIT_RULES_REL, sourceHash);
   const before = stateOf(stage);
   const renderOut = mkdtempSync(join(work, 'render-'));
   // A project install gives the stage its no-file render, against a new empty
@@ -167,13 +168,19 @@ async function main() {
 
   // Seam A, in-process, on the staged and rendered copy (S-1 to S-3).
   const seamA = await loadCore('seam-a-core.mjs');
-  // The renderer's COMMANDS line reaches seam A as its --commands (#203, S8); each side works out the copy set on its own.
-  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', parsed.commands.length ? parsed.commands.join(',') : 'none'], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), parsed.commands), staged, commit);
+  // The commands that install: the renderer's COMMANDS line, and /scriptorium whenever it is in the commit (#262).
+  // They reach seam A as its --commands (#203, S8); each side works out the copy set on its own.
+  const on = project ? [] : core.commandsOn(parsed.commands, staged.keys());
+  core.checkKit(on, staged.keys());
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none'], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   say(`Check: passed on commit ${commit}`);
-  say("Partly checked: the gate checks the rendered CLAUDE.md's pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers in seam A's lines count the rendered file.");
+  say("Not checked: what the pact's files say. The gate checks install mechanics only; vet the pact as you would any skill.");
+  // Before every other warning (#262, S8). A project install never edits a part.
+  const securityLine = project ? null : core.securityDefaultsLine(parsed, record);
+  if (securityLine) say(securityLine);
 
   // A project install ends here, never reaching the home copy, delete,
   // settings merge or record. The renderer runs again in project mode, the
@@ -188,6 +195,9 @@ async function main() {
     const projectFile = join(projectOut, 'pact-project.md');
     const entries = io.folderEntries(projectOut);
     core.checkProjectOutput(entries, entries.length === 1 && entries[0].file ? io.fileSha256(projectFile) : null, pr.projectHash);
+    // A project's own qualities list leads the warnings (#262 S25).
+    const projectSecurity = core.projectSecurityLine(pr);
+    if (projectSecurity) say(projectSecurity);
     for (const l of core.projectBlock(pc.state, pr)) say(l);
     if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
     else say('Working tree: clean');
@@ -236,8 +246,10 @@ async function main() {
   const linkIn = rel => io.throughLink(home, rel);
   const { repoFiles, sourceOf } = core.installDestinations(checked, linkIn);
   const p = core.plan(record, repoFiles, rel => io.liveState(live(home, rel)), linkIn);
+  // #262: the person's agents are not the pact's to write, check or record.
+  for (const rel of p.yours) repoFiles.delete(rel);
   // A pact command never shadowed by a same-named skill, nor laid over a file the pact didn't write (#203, S8).
-  core.checkSkillClash(parsed.commands, rel => io.present(live(home, rel)));
+  core.checkSkillClash(on, rel => io.present(live(home, rel)));
   core.checkNewPaths(repoFiles, record, rel => io.liveState(live(home, rel)));
 
   // Settings (L4 to L9).
@@ -263,9 +275,11 @@ async function main() {
   const settingsWill = settings.startsWith('would');
   const lastConfig = record ? record.config : new Map();
   const stale = (record && record.commit.toLowerCase() !== commit) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig);
-  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || stale || !record);
+  // An agent the record lists that is now yours needs the record rewritten without it.
+  const yoursListed = record ? p.yours.some(rel => record.files.some(e => e.path === rel)) : false;
+  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || stale || yoursListed || !record);
 
-  for (const [title, items] of [['Drift', p.drift], ['Overwrite', p.overwrite], ['Add', p.add], ['Delete', p.delete]]) {
+  for (const [title, items] of [['Drift', p.drift], ['Overwrite', p.overwrite], ['Add', p.add], ['Delete', p.delete], ['Yours, left as is', p.yours]]) {
     say(`${title}: ${items.length}`);
     for (const i of items) say(`  ${core.formatPlain(i)}`);
   }
@@ -279,7 +293,7 @@ async function main() {
   }
   say('Configuration:');
   for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
-  for (const l of core.commandsBlock(parsed.commands, staged.keys())) say(l);
+  for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
   if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
   else say('Working tree: clean');
   if (nothing) say('Nothing to do.');

@@ -90,9 +90,9 @@ test('a gated block is skipped, an open part is not', () => {
     '<!-- pact:begin stop-and-escalate -->',
     'Use (`prototype`) here.',
     '<!-- pact:end stop-and-escalate -->',
-    '<!-- pact:begin move-2 -->',
+    '<!-- pact:begin moves -->',
     'Use `prototype` here.',
-    '<!-- pact:end move-2 -->',
+    '<!-- pact:end moves -->',
   ].join('\n');
   assert.deepEqual(namedSkills(text), ['prototype']);
 });

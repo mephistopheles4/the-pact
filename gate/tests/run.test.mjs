@@ -133,7 +133,7 @@ test('changed: a changed test file runs itself, and only itself when nothing els
 
 test('changed: gate code, and the install script, select the full tier', () => {
   // The Node install script lives in the gate folder (#153, S3).
-  for (const p of ['gate/seam-a.mjs', 'gate/grimoire/check.mjs', 'gate/install.mjs']) {
+  for (const p of ['gate/seam-a.mjs', 'gate/render-core.mjs', 'gate/install.mjs']) {
     const r = changedPicks(changedTree(), [p]);
     assert.deepEqual([...r.files.keys()].sort(), ['agent.test.mjs', 'install-smoke.test.mjs', 'other-install.test.mjs', 'plain.test.mjs'], p);
     assert.match(r.files.get('plain.test.mjs'), /^gate code changed: /, p);

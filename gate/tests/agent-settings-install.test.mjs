@@ -36,7 +36,7 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   configure(h, { schema: 1, agents: { 'integrity-lens': { model: 'sonnet', effort: 'low' } } });
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to sonnet, low effort\.\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to `sonnet`, low effort\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
@@ -58,25 +58,25 @@ test('a configured install writes the rendered integrity-lens, records its hash,
   assert.deepEqual(readFileSync(join(h, 'agents', 'integrity-lens.md')), readFileSync(join(repo, 'claude', 'agents', 'integrity-lens.md')));
 });
 
-test('a configured install sets a security-set lens and a shell lens: each WARN names the override, the shell lens names its egress risk, and both files install', t => {
+// #262: no setting is marked, in the dry run or the rules file; a person may run any agent on any model.
+test('a configured install sets a security-set lens and a shell lens: each WARN lists the setting plainly, and both files install', t => {
   const repo = makeRepo(t);
   const h = home(t);
   configure(h, { schema: 1, agents: { 'behaviour-lens': { model: 'sonnet' }, 'data-lens': { effort: 'medium' }, 'integrity-lens': { effort: 'high' } } });
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  const over = name => `${name} is a security-set lens, so this is an override, not security-tested: the pact reviews only its default\\.`;
-  const egress = ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query\\.';
-  assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets behaviour-lens to sonnet, medium effort\\. ${over('behaviour-lens')}${egress}\\r?$`, 'm'), dry.out);
-  assert.match(dry.stdout, new RegExp(`^ {2}WARN: the user configuration sets data-lens to opus, medium effort\\. ${over('data-lens')}\\r?$`, 'm'), dry.out);
-  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to opus, high effort\.\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets behaviour-lens to `sonnet`, medium effort\.\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets data-lens to `opus`, medium effort\.\r?$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, /not security-tested|SECURITY DEFAULTS/, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration sets integrity-lens to `opus`, high effort\.\r?$/m, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   const set = (name, model, effort) => Buffer.from(readFileSync(join(repo, 'claude', 'agents', `${name}.md`), 'utf8').replace(/^model: .*$/m, `model: ${model}`).replace(/^effort: .*$/m, `effort: ${effort}`));
   assert.deepEqual(readFileSync(join(h, 'agents', 'behaviour-lens.md')), set('behaviour-lens', 'sonnet', 'medium'));
   assert.deepEqual(readFileSync(join(h, 'agents', 'data-lens.md')), set('data-lens', 'opus', 'medium'));
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
-  assert.match(rules, /^Agents set: behaviour-lens \(sonnet, medium effort; override, not security-tested\), data-lens \(opus, medium effort; override, not security-tested\), integrity-lens \(opus, high effort\)\.$/m);
-  assert.match(rules, /^Put "override, not security-tested" beside every report you post from these lenses, and in their rows of the Lens dispositions table: behaviour-lens, data-lens\.$/m);
+  assert.match(rules, /^Agents set: behaviour-lens \(sonnet, medium effort\), data-lens \(opus, medium effort\), integrity-lens \(opus, high effort\)\.$/m);
+  assert.doesNotMatch(rules, /not security-tested|beside every report/);
   // Rollback: with the agents key gone, the next install puts back the committed files.
   configure(h, { schema: 1 });
   const dry2 = install(repo, h);
@@ -114,9 +114,9 @@ const SET = { schema: 1, agents: { 'integrity-lens': { model: 'sonnet', effort: 
 
 for (const [label, config, from, to, why] of [
   ['an AGENT line with no configuration', null, R_PUSH, `${R_PUSH}\n  report.lines.push('AGENT integrity-lens sonnet low ${A64} plain override local');`, 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
-  ['an AGENT line for an agent off the list', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT scout sonnet low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
+  ['an AGENT line for an agent off the list', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT my-reviewer sonnet low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
   ['an AGENT line whose name differs only in case', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT Integrity-lens sonnet low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
-  ['an AGENT line with a value off the pattern', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT integrity-lens haiku low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
+  ['an AGENT line with a value off the pattern', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT integrity-lens ${'a'.repeat(129)} low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
   ['an AGENT line with no classification words', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT integrity-lens sonnet low ${sha256(agents[0].buf)}`);", 'the renderer printed a line the install does not read'],
   ['the AGENT line twice', SET, R_AGENT_PUSH, `${R_AGENT_PUSH}\n${R_AGENT_PUSH}`, 'the renderer reported one agent setting twice'],
   ['an agent file hash other than its own', SET, R_AGENT_PUSH, `  report.lines.push('AGENT integrity-lens sonnet low ${A64} plain override local');`, "the rendered agent file's hash does not match the one the renderer reported"],

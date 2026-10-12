@@ -2,12 +2,8 @@
 name: scout
 description: Read-only search helper, and the cheapest way to answer a lookup. Use for any search, lookup, or "where/how is X" question about a codebase that needs no judgment - locating files, symbols, usages, config values, or how something is wired across files. Returns the answer first, with file-and-line references. Not for verdicts, reviews or design calls, and not for anything that edits, runs commands or fetches pages.
 tools: [Read, Glob, Grep]
-model: sonnet
-effort: low
-metadata:
-  contract-version: 0.1.1
-  familiar-digest: "sha256:5ab93f19b319277fc4182131a7df1ca97a9c10b5bf6a96c0723c52a10efaf28b"
-  contract-digest: "sha256:95abe6da2eb432d296ade69bb42961a9b09dd32d7b3dd9bf744219b3bebfd9c8"
+model: haiku
+effort: medium
 ---
 
 # scout

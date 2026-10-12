@@ -24,7 +24,7 @@
 // the base. A malformed table throws when registered, which fails its file:
 // no rows, a duplicate or odd row id, empty `fails`, a plant that leaves the
 // input's bytes unchanged, or a rule id no string literal in the module or
-// the gate files it imports holds (a grimoire/ id: the pinned check's).
+// the gate files it imports holds.
 // The table name and each row id must be string literals in the call, so a
 // reader can find a row by searching the file for its name.
 // Importing this file touches nothing; calling table() reads the module's
@@ -45,7 +45,6 @@ const ROW_KEYS = new Set(['id', 'plant', 'fails', 'says', 'why']);
 const SPEC_KEYS = new Set(['module', 'base', 'run', 'rows', 'everyRow']);
 // A gate module, or a script in cross/ (#253: the poster's refusals are rows too).
 const MODULE = /^(?:gate|cross)\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\.mjs$/;
-const PINNED = 'gate/grimoire/check.mjs';
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 // ------------------------------------------------------------ inputs: pure
@@ -122,7 +121,6 @@ export function problems(name, spec, read) {
 
   let literals = null;
   const known = id => {
-    if (id.startsWith('grimoire/')) return moduleLiterals(PINNED, read).has(id.slice('grimoire/'.length));
     literals ??= moduleLiterals(spec.module, read);
     return literals.has(id);
   };
@@ -140,7 +138,7 @@ export function problems(name, spec, read) {
     if (!Array.isArray(row.fails) || row.fails.length === 0) out.push(`${at} names no rule it fails`);
     else if (row.fails.some(f => typeof f !== 'string' || f === '')) out.push(`${at} names a rule that is not text`);
     else if (new Set(row.fails).size !== row.fails.length) out.push(`${at} names a rule twice`);
-    else for (const f of row.fails) if (!known(f)) out.push(`${at} names the rule ${JSON.stringify(f)}, which ${f.startsWith('grimoire/') ? 'the pinned check' : spec.module} does not hold`);
+    else for (const f of row.fails) if (!known(f)) out.push(`${at} names the rule ${JSON.stringify(f)}, which ${spec.module} does not hold`);
     if (typeof row.plant !== 'function') return out.push(`${at}'s plant is not a function`);
     let planted;
     try {

@@ -131,7 +131,7 @@ function main() {
   const staged = [];
   const folded = new Set();
   for (const e of all) {
-    if (!(e.rel === 'AGENTS.md' || (/^(claude|familiars|gate)\//.test(e.rel) && e.rel.indexOf('gate/tests/') !== 0))) continue;
+    if (!(e.rel === 'AGENTS.md' || e.rel === 'docs/brand/scriptorium/scriptorium-mark.svg' || e.rel === 'examples/pact-config/builder.json' || (/^(builder|claude|familiars|gate)\//.test(e.rel) && e.rel.indexOf('gate/tests/') !== 0))) continue;
     const shownRel = e.rel.replace(/[^A-Za-z0-9._/-]/g, '?');
     if (e.mode !== '100644' || e.type !== 'blob') refuse(`the commit holds ${shownRel} with file mode ${e.mode}; only plain files (100644) are installed.`);
     for (const seg of e.rel.split('/')) if (!/^[A-Za-z0-9._-]+$/.test(seg) || seg === '.' || seg === '..') refuse(`the commit holds a path with unsafe characters: ${shownRel}.`);

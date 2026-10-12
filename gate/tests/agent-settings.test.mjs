@@ -9,11 +9,11 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, 
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { AGENT_NAMES } from '../install-core.mjs';
+import { AGENT_EFFORTS, AGENT_MODEL_RE, AGENT_NAMES } from '../install-core.mjs';
 import { copyGate, moduleMatch, plantModule } from './gate-files.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
+import { moduleResult, table } from './tables.mjs';
 import { tempDir } from './tree.mjs';
-import { OLD_REVIEWERS } from '../pact-text.mjs';
 
 const WIN = process.platform === 'win32';
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -113,79 +113,85 @@ test('with no agents key, no agent file is read: a stage with none renders, and 
 
 // ------------------------------------------------------------ the renderer: the configuration's refusals
 
-const BAD_CONFIGS = [
-  ['an unknown agent', cfg({ 'my-reviewer': { model: 'sonnet' } }), /cannot set/],
-  ['the sealed agent scout', cfg({ scout: { model: 'opus' } }), /scout is locked: it is sealed/],
-  // Every retired reviewer, from the roster's own list: an old configuration fails loudly.
-  ...OLD_REVIEWERS.map(a => [`the retired reviewer ${a}`, cfg({ [a]: { model: 'sonnet' } }), /cannot set/]),
-  ['an entry that is a string', cfg({ 'integrity-lens': 'sonnet' }), /must be an object/],
-  ['an entry that is a list', cfg({ 'integrity-lens': [] }), /must be an object/],
-  ['an entry that is null', cfg({ 'integrity-lens': null }), /must be an object/],
-  ['an empty agents object', cfg({}), /at least one agent/],
-  ['agents that is not an object', cfg('x'), /at least one agent/],
-  ['an empty entry', cfg({ 'integrity-lens': {} }), /must be an object/],
-  ['an unknown field', cfg({ 'integrity-lens': { model: 'sonnet', tools: 'Bash' } }), /must be an object/],
-  ['a field in capitals', cfg({ 'integrity-lens': { Model: 'sonnet' } }), /must be an object/],
-  ['the agent name in capitals', cfg({ 'Integrity-Lens': { model: 'sonnet' } }), /cannot set/],
-  ['a model in capitals', cfg({ 'integrity-lens': { model: 'Sonnet' } }), /model must be one of/],
-  ['a model in upper case', cfg({ 'integrity-lens': { model: 'OPUS' } }), /model must be one of/],
-  ['an effort in capitals', cfg({ 'integrity-lens': { effort: 'High' } }), /effort must be one of/],
-  ['haiku', cfg({ 'integrity-lens': { model: 'haiku' } }), /model must be one of/],
-  ['inherit', cfg({ 'integrity-lens': { model: 'inherit' } }), /model must be one of/],
-  ['a full model id', cfg({ 'integrity-lens': { model: 'claude-opus-5-5' } }), /model must be one of/],
-  ['a trailing space', cfg({ 'integrity-lens': { model: 'sonnet ' } }), /model must be one of/],
-  ['xhigh', cfg({ 'integrity-lens': { effort: 'xhigh' } }), /effort must be one of/],
-  ['max', cfg({ 'integrity-lens': { effort: 'max' } }), /effort must be one of/],
-  ['a model that is a number', cfg({ 'integrity-lens': { model: 4 } }), /model must be one of/],
-  ['a model that is null', cfg({ 'integrity-lens': { model: null } }), /model must be one of/],
-  ['an effort that is a list', cfg({ 'integrity-lens': { effort: ['low'] } }), /effort must be one of/],
-  ['an effort that is an object', cfg({ 'integrity-lens': { effort: { v: 'low' } } }), /effort must be one of/],
-  ['a value holding a newline and frontmatter', cfg({ 'integrity-lens': { model: 'sonnet\ntools: [Bash]' } }), /model must be one of/],
-  ['__proto__ as the agent', '{ "schema": 1, "agents": { "__proto__": { "model": "sonnet" } } }\n', null],
-  ['constructor as the agent', cfg({ constructor: { model: 'sonnet' } }), /cannot set/],
-  ['__proto__ as the field', '{ "schema": 1, "agents": { "integrity-lens": { "__proto__": "sonnet" } } }\n', null],
-  ['constructor as the field', cfg({ 'integrity-lens': { constructor: 'sonnet' } }), /must be an object/],
-];
+const agentsKey = agents => `${JSON.stringify({ schema: 1, agents })}\n`;
+const setTo = v => () => ({ config: agentsKey({ 'integrity-lens': v }) });
 
-for (const [name, config, reason] of BAD_CONFIGS) {
-  test(`bad case: ${name} is refused`, t => {
+for (const c of table('render agents key', {
+  module: 'gate/render.mjs',
+  base: () => ({ config: agentsKey({ 'integrity-lens': { model: 'sonnet' } }) }),
+  run: ({ config }, t) => {
     const r = render(t, config);
-    refusedWith(r, reason ? 'config-agents' : 'config-(?:agents|json)', reason);
-    assert.ok(!r.stdout.includes('tools: [Bash]'), 'a refused value was printed');
-  });
-}
+    const planted = Object.values(JSON.parse(config).agents ?? {}).flatMap(e => (e && typeof e === 'object' ? Object.values(e) : [])).filter(v => typeof v === 'string' && v.length >= 6);
+    return { ...moduleResult(r.code, r.stdout, r.stderr), outFiles: r.outFiles, planted };
+  },
+  // #262 C14: a refusal names the agent and the rule, never the refused value (data-lens F3).
+  everyRow: r => {
+    assert.deepEqual(r.outFiles, [], 'a refused render left output files');
+    for (const v of r.planted) if (v !== 'sonnet') assert.ok(!r.out.includes(v), `a refused value was printed: ${JSON.stringify(v)}`);
+  },
+  rows: [
+    { id: 'unknown-agent', plant: () => ({ config: agentsKey({ 'my-reviewer': { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'an agent the pact does not ship' },
+    { id: 'agent-name-in-capitals', plant: () => ({ config: agentsKey({ 'Integrity-Lens': { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'names are matched exactly' },
+    { id: 'constructor-as-agent', plant: () => ({ config: agentsKey({ constructor: { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'a prototype name is no agent' },
+    { id: 'proto-as-agent', plant: () => ({ config: '{ "schema": 1, "agents": { "__proto__": { "model": "sonnet" } } }\n' }), fails: ['config-agents'], says: /cannot set/, why: 'a prototype name is no agent' },
+    { id: 'agents-empty', plant: () => ({ config: agentsKey({}) }), fails: ['config-agents'], says: /at least one agent/, why: 'an empty agents object' },
+    { id: 'agents-not-object', plant: () => ({ config: agentsKey('x') }), fails: ['config-agents'], says: /at least one agent/, why: 'agents is an object' },
+    { id: 'entry-string', plant: setTo('sonnet'), fails: ['config-agents'], says: /must be an object/, why: 'an entry is an object' },
+    { id: 'entry-list', plant: setTo([]), fails: ['config-agents'], says: /must be an object/, why: 'an entry is an object' },
+    { id: 'entry-null', plant: setTo(null), fails: ['config-agents'], says: /must be an object/, why: 'an entry is an object' },
+    { id: 'entry-empty', plant: setTo({}), fails: ['config-agents'], says: /must be an object/, why: 'an entry sets something' },
+    { id: 'unknown-field', plant: setTo({ model: 'sonnet', tools: 'Bash' }), fails: ['config-agents'], says: /must be an object/, why: 'no setting adds a tool' },
+    { id: 'field-in-capitals', plant: setTo({ Model: 'sonnet' }), fails: ['config-agents'], says: /must be an object/, why: 'fields are matched exactly' },
+    { id: 'constructor-as-field', plant: setTo({ constructor: 'sonnet' }), fails: ['config-agents'], says: /must be an object/, why: 'a prototype name is no field' },
+    { id: 'proto-as-field', plant: () => ({ config: '{ "schema": 1, "agents": { "integrity-lens": { "__proto__": "sonnet" } } }\n' }), fails: ['config-agents'], says: /must be an object/, why: 'a prototype name is no field' },
+    // #262: a model is one word, so it stays one frontmatter line and one AGENT field.
+    { id: 'model-newline-and-frontmatter', plant: setTo({ model: 'sonnet\ntools: [Bash]' }), fails: ['config-agents'], says: /model must be/, why: 'a line break would add a key' },
+    { id: 'model-space', plant: setTo({ model: 'claude opus' }), fails: ['config-agents'], says: /model must be/, why: 'a space could start a key or a comment' },
+    { id: 'model-trailing-space', plant: setTo({ model: 'sonnet ' }), fails: ['config-agents'], says: /model must be/, why: 'a space' },
+    { id: 'model-colon-space', plant: setTo({ model: 'sonnet:\x20tools' }), fails: ['config-agents'], says: /model must be/, why: 'a colon and a space make a key' },
+    { id: 'model-too-long', plant: setTo({ model: `a${'b'.repeat(128)}` }), fails: ['config-agents'], says: /model must be/, why: 'over 128 characters' },
+    { id: 'model-empty', plant: setTo({ model: '' }), fails: ['config-agents'], says: /model must be/, why: 'no model' },
+    { id: 'model-number', plant: setTo({ model: 4 }), fails: ['config-agents'], says: /model must be/, why: 'a model is text' },
+    { id: 'model-null', plant: setTo({ model: null }), fails: ['config-agents'], says: /model must be/, why: 'a model is text' },
+    { id: 'effort-unknown', plant: setTo({ effort: 'ultra' }), fails: ['config-agents'], says: /effort must be one of/, why: 'an effort Claude Code does not take' },
+    { id: 'effort-in-capitals', plant: setTo({ effort: 'High' }), fails: ['config-agents'], says: /effort must be one of/, why: 'efforts are matched exactly' },
+    { id: 'effort-list', plant: setTo({ effort: ['low'] }), fails: ['config-agents'], says: /effort must be one of/, why: 'an effort is text' },
+    { id: 'effort-object', plant: setTo({ effort: { v: 'low' } }), fails: ['config-agents'], says: /effort must be one of/, why: 'an effort is text' },
+  ],
+})) test(c.name, c.fn);
 
 // ------------------------------------------------------------ the renderer: the agent file's refusals
 
-const BAD_AGENT_FILES = [
-  ['a missing agent file', null, /the file is missing/],
-  ['no model line', AGENT.replace(/^model: .*\n/m, ''), /exactly one model line/],
-  ['two effort lines', AGENT.replace(/^effort: .*$/m, 'effort: medium\neffort: low'), /exactly one effort line/],
-  ['no frontmatter', AGENT.replace(/^---\n/, ''), /no frontmatter/],
-  ['frontmatter that never closes', AGENT.replace(/\n---\n/, '\n'), /never closes/],
-  ['a model line only in the body', AGENT.replace(/^model: .*\n/m, '').replace('# integrity-lens', 'model: opus\n\n# integrity-lens'), /exactly one model line/],
-  ['a model line only as an indented child', AGENT.replace(/^model: .*$/m, 'notes:\n  model: opus'), /exactly one model line/],
-  ['a metadata (seal) key', AGENT.replace(/^effort: .*$/m, '$&\nmetadata:\n  contract-version: 1'), /sealed agent cannot be configured/],
-
-  ['the file\'s own effort off the list', AGENT.replace(/^effort: .*$/m, 'effort: max'), /effort line is not one of/],
-  ['CRLF line endings', AGENT.replace(/\n/g, '\r\n'), /carriage return/],
-  ['a folder in place of the file', p => mkdirSync(p), /not a regular file/],
-  ['a file over 1 MiB', `${AGENT}${'x'.repeat(1024 * 1024)}\n`, /larger than its cap/],
-  ['two model lines', AGENT.replace(/^model: .*$/m, 'model: opus\nmodel: opus'), /exactly one model line/],
-  ['no effort line', AGENT.replace(/^effort: .*\n/m, ''), /exactly one effort line/],
-  ['the file\'s own model off the list', AGENT.replace(/^model: .*$/m, 'model: haiku'), /model line is not one of/],
-  ['a second tools line after the default one', AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep]\ntools: [Bash]'), /exactly one tools line/],
-  ['no tools line', AGENT.replace(/^tools: .*\n/m, ''), /exactly one tools line/],
-];
-
-for (const [name, agent, reason] of BAD_AGENT_FILES) {
-  test(`bad case: ${name} is refused, with a setting given`, t => {
+for (const c of table('render agent file', {
+  module: 'gate/render.mjs',
+  base: () => ({ 'agent.md': AGENT }),
+  run: (tree, t) => {
+    const agent = Object.hasOwn(tree, 'agent.md') ? tree['agent.md'] : Object.hasOwn(tree, 'folder') ? p => mkdirSync(p) : null;
     const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { agent });
-    assert.equal(r.code, 1, r.out);
-    assert.match(r.stdout, reason, r.out);
-    assert.deepEqual(r.outFiles, []);
-  });
-}
+    return { ...moduleResult(r.code, r.stdout, r.stderr), outFiles: r.outFiles };
+  },
+  everyRow: r => assert.deepEqual(r.outFiles, [], 'a refused render left output files'),
+  rows: [
+    { id: 'missing', plant: () => ({ none: '' }), fails: ['agent-file'], says: /the file is missing/, why: 'no file to set' },
+    { id: 'folder', plant: () => ({ folder: '' }), fails: ['agent-file'], says: /not a regular file/, why: 'a folder in place of the file' },
+    { id: 'over-1-mib', plant: () => ({ 'agent.md': `${AGENT}${'x'.repeat(1024 * 1024)}\n` }), fails: ['agent-file'], says: /larger than its cap/, why: 'the read cap' },
+    { id: 'crlf', plant: () => ({ 'agent.md': AGENT.replace(/\n/g, '\r\n') }), fails: ['characters'], says: /carriage return/, why: 'line feeds only' },
+    { id: 'no-frontmatter', plant: () => ({ 'agent.md': AGENT.replace(/^---\n/, '') }), fails: ['agent-file'], says: /no frontmatter/, why: 'the lines live in frontmatter' },
+    { id: 'frontmatter-never-closes', plant: () => ({ 'agent.md': AGENT.replace(/\n---\n/, '\n') }), fails: ['agent-file'], says: /never closes/, why: 'the frontmatter must end' },
+    { id: 'no-model-line', plant: () => ({ 'agent.md': AGENT.replace(/^model: .*\n/m, '') }), fails: ['agent-file'], says: /exactly one model line/, why: 'one line to rewrite' },
+    { id: 'two-model-lines', plant: () => ({ 'agent.md': AGENT.replace(/^model: .*$/m, 'model: opus\nmodel: opus') }), fails: ['agent-file'], says: /exactly one model line/, why: 'one line to rewrite' },
+    { id: 'model-line-only-in-body', plant: () => ({ 'agent.md': AGENT.replace(/^model: .*\n/m, '').replace('# integrity-lens', 'model: opus\n\n# integrity-lens') }), fails: ['agent-file'], says: /exactly one model line/, why: 'only the frontmatter counts' },
+    { id: 'model-line-indented-child', plant: () => ({ 'agent.md': AGENT.replace(/^model: .*$/m, 'notes:\n  model: opus') }), fails: ['agent-file'], says: /exactly one model line/, why: 'only a column-0 line counts' },
+    { id: 'no-effort-line', plant: () => ({ 'agent.md': AGENT.replace(/^effort: .*\n/m, '') }), fails: ['agent-file'], says: /exactly one effort line/, why: 'one line to rewrite' },
+    { id: 'two-effort-lines', plant: () => ({ 'agent.md': AGENT.replace(/^effort: .*$/m, 'effort: medium\neffort: low') }), fails: ['agent-file'], says: /exactly one effort line/, why: 'one line to rewrite' },
+    { id: 'metadata-seal-key', plant: () => ({ 'agent.md': AGENT.replace(/^effort: .*$/m, '$&\nmetadata:\n  contract-version: 1') }), fails: ['agent-file'], says: /sealed agent cannot be configured/, why: 'a seal would break' },
+    // #262 C14: the file's own values pass the same checks as a setting.
+    { id: 'own-model-off-shape', plant: () => ({ 'agent.md': AGENT.replace(/^model: .*$/m, 'model: opus # cheap') }), fails: ['agent-file'], says: /model line is not one word/, why: 'a kept model is written back' },
+    { id: 'own-effort-off-list', plant: () => ({ 'agent.md': AGENT.replace(/^effort: .*$/m, 'effort: ultra') }), fails: ['agent-file'], says: /effort line is not one of/, why: 'a kept effort is written back' },
+    { id: 'second-tools-line', plant: () => ({ 'agent.md': AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep]\ntools: [Bash]') }), fails: ['agent-file'], says: /exactly one tools line/, why: 'the tools line is read once' },
+    { id: 'no-tools-line', plant: () => ({ 'agent.md': AGENT.replace(/^tools: .*\n/m, '') }), fails: ['agent-file'], says: /exactly one tools line/, why: 'the tools line is read once' },
+  ],
+})) test(c.name, c.fn);
 
 test('bad case: an agent file that is a link is refused', { skip: WIN && 'not run: planting a symbolic link needs privileges on Windows' }, t => {
   const target = join(tempDir(t, 'pact-agents-target-'), 'real.md');
@@ -207,8 +213,9 @@ function classify(t, name, opts = {}) {
   return { words: m.slice(1).join(' '), r };
 }
 
-test('every pact lens can be set, and the security-set ones are exactly the six the spec names; only the shell and web lenses are egress', t => {
-  assert.deepEqual(PACT_AGENTS, ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
+// #262 C13: scout is set like any lens.
+test('every pact agent can be set, scout included, and the security-set ones are exactly the six the spec names; only the shell and web lenses are egress', t => {
+  assert.deepEqual(PACT_AGENTS, ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
   const got = Object.fromEntries(PACT_AGENTS.map(a => [a, classify(t, a).words]));
   assert.deepEqual(got, {
     'adversarial-lens': 'security-set override egress',
@@ -219,8 +226,25 @@ test('every pact lens can be set, and the security-set ones are exactly the six 
     'good-enough-lens': 'security-set override local',
     'integrity-lens': 'plain override local',
     'reader-lens': 'plain override local',
+    scout: 'plain override local',
     'unstated-lens': 'security-set override local',
   });
+});
+
+// #262 C13
+test('any Claude Code model and each of the five efforts render, written exactly as given', t => {
+  for (const [model, effort] of [['haiku', 'xhigh'], ['fable', 'max'], ['inherit', 'low'], ['claude-opus-5-5', 'medium'], ['us.anthropic.claude-opus-5-5-v1:0', 'high'], ['Sonnet', 'low']]) {
+    const r = render(t, cfg({ 'integrity-lens': { model, effort } }));
+    assert.equal(r.code, 0, r.out);
+    const want = Buffer.from(withAgent(model, effort));
+    assert.deepEqual(r.agentBytes, want);
+    assert.ok(r.stdout.split('\n').includes(`AGENT integrity-lens ${model} ${effort} ${sha256(want)} plain override local`), r.out);
+    // The rules file's notice names an alias as it is, and any other model only as custom (data-lens F1).
+    const named = ['haiku', 'fable', 'inherit'].includes(model);
+    assert.match(r.rules, new RegExp(`^Agents set: integrity-lens \\(${named ? model : 'a custom model'}, ${effort} effort\\)\\.$`, 'm'));
+    // (The tier table already says "Sonnet", so only the IDs are looked for.)
+    if (model.includes('-')) assert.ok(!r.rules.includes(model), 'a custom model reached the rules file');
+  }
 });
 
 test('a lens set to its own values is not an override: no mark, and the AGENT line says default', t => {
@@ -228,14 +252,16 @@ test('a lens set to its own values is not an override: no mark, and the AGENT li
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^AGENT data-lens opus high [0-9a-f]{64} security-set default local$/m);
   assert.match(r.rules, /^Agents set: data-lens \(opus, high effort\)\.$/m);
-  assert.doesNotMatch(notice(r.rules), /override, not security-tested/);
+  assert.doesNotMatch(notice(r.rules), /override/);
 });
 
-test('a security-set override carries its own mark in the notice, and the sentence that carries it to every posted report; a plain one does not', t => {
+// #262: no setting is marked; a person may run any agent on any model.
+test('a security-set lens off its default is listed like any other: no mark in the notice, and no sentence carrying one to reports', t => {
   const r = render(t, cfg({ 'data-lens': { model: 'sonnet' }, 'integrity-lens': { effort: 'low' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
   assert.equal(r.code, 0, r.out);
-  assert.match(r.rules, /^Agents set: data-lens \(sonnet, high effort; override, not security-tested\), integrity-lens \(opus, low effort\)\.$/m);
-  assert.match(r.rules, /^Put "override, not security-tested" beside every report you post from these lenses, and in their rows of the Lens dispositions table: data-lens\.$/m);
+  assert.match(r.stdout, /^AGENT data-lens sonnet high [0-9a-f]{64} security-set override local$/m);
+  assert.match(r.rules, /^Agents set: data-lens \(sonnet, high effort\), integrity-lens \(opus, low effort\)\.$/m);
+  assert.doesNotMatch(r.rules, /not security-tested|beside every report/);
   // The review template's "not verified" keeps its one meaning.
   assert.doesNotMatch(notice(r.rules), /not verified/);
 });
@@ -253,14 +279,9 @@ test('bad case: each sign alone marks integrity-lens security-set; with none it 
   const floor = AGENT.replace('# integrity-lens', '<!-- pact:begin risk-floor -->\nThe risk floor.\n<!-- pact:end risk-floor -->\n\n# integrity-lens');
   assert.notEqual(floor, AGENT);
   assert.equal(classify(t, 'integrity-lens', { agent: floor }).words, 'security-set override local');
-  // An entry in the tool allow-list.
-  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
-  const allow = JSON.parse(readFileSync(join(GATE, 'tool-allowlist.json'), 'utf8'));
-  writeFileSync(join(gate, 'tool-allowlist.json'), `${JSON.stringify({ ...allow, 'integrity-lens': ['Read', 'Glob', 'Grep'] })}\n`);
-  assert.equal(classify(t, 'integrity-lens', { renderer: join(gate, 'render.mjs') }).words, 'security-set override local');
   // On the doubt list.
-  writeFileSync(join(gate, 'tool-allowlist.json'), `${JSON.stringify(allow)}\n`);
-  const doubt = "  'unstated-lens': 'it reports work that should have taken the security route',";
+  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
+  const doubt = "  'unstated-lens': 'it asks whether security-sensitive work should have had a security review',";
   plantModule(gate, 'render', doubt, `${doubt}\n  'integrity-lens': 'planted',`);
   assert.equal(classify(t, 'integrity-lens', { renderer: join(gate, 'render.mjs') }).words, 'security-set override local');
 });
@@ -275,30 +296,19 @@ test('bad case: a renderer whose output would change another line refuses by its
   assert.deepEqual(r.outFiles, []);
 });
 
-// #261 S5: the rules file names no route any more, so the fixed list carries
-// the mark. data-lens has no other sign, and executability-lens none once its
-// risk-floor block is gone; each turns plain when the list loses it.
+// #261 S5: the fixed list carries the class. data-lens has no other sign, and
+// executability-lens none since #262 took its risk-floor block out; each turns
+// plain when the list loses it. Since #262 the class shows only on the AGENT line.
 test('bad case: the fixed security-set list alone marks data-lens and executability-lens; a list that loses one leaves it plain', t => {
-  const exAgent = readFileSync(join(AGENTS_DIR, 'executability-lens.md'), 'utf8');
-  const exBare = exAgent.replace(/<!-- pact:begin risk-floor -->\n[\s\S]*?<!-- pact:end risk-floor -->\n/, '');
-  assert.notEqual(exBare, exAgent);
-  const r = render(t, cfg({ 'data-lens': { model: 'sonnet' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
-  assert.match(notice(r.rules), /data-lens \(sonnet, high effort; override, not security-tested\)/);
+  const exBare = readFileSync(join(AGENTS_DIR, 'executability-lens.md'), 'utf8');
+  assert.ok(!exBare.includes('pact:begin'), 'executability-lens carries no pact block (#262)');
+  assert.equal(classify(t, 'data-lens').words, 'security-set override local');
   assert.equal(classify(t, 'executability-lens', { agent: exBare }).words, 'security-set override local');
   const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
   plantModule(gate, 'render', "const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);", "const SECURITY_SET = Object.freeze(['adversarial-lens']);");
   const renderer = join(gate, 'render.mjs');
   assert.equal(classify(t, 'data-lens', { renderer }).words, 'plain override local');
   assert.equal(classify(t, 'executability-lens', { agent: exBare, renderer }).words, 'plain override local');
-  const dropped = render(t, cfg({ 'data-lens': { model: 'sonnet' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8'), renderer });
-  assert.doesNotMatch(notice(dropped.rules), /override, not security-tested/);
-});
-
-test('bad case: a renderer whose locked list loses scout still cannot set it: scout stays outside the configurable list', t => {
-  const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
-  plantModule(gate, 'render', "const LOCKED_AGENTS = Object.freeze(['scout']);", 'const LOCKED_AGENTS = Object.freeze([]);');
-  const r = render(t, cfg({ scout: { model: 'opus' } }), { renderer: join(gate, 'render.mjs') });
-  refusedWith(r, 'config-agents', /cannot set/);
 });
 
 test('the install script\'s list of agents equals the renderer\'s configurable list', () => {
@@ -308,4 +318,7 @@ test('the install script\'s list of agents equals the renderer\'s configurable l
   // The Node install keeps the list as a constant in its core (#153, S14).
   assert.deepEqual([...AGENT_NAMES], names(r[1]));
   assert.deepEqual(names(r[1]), PACT_AGENTS);
+  // #262: the install's copy of the model shape and the efforts.
+  assert.equal(moduleMatch(GATE, 'render', /const AGENT_MODEL_RE = (.*);/)[1], String(AGENT_MODEL_RE));
+  assert.equal(moduleMatch(GATE, 'render', /const AGENT_EFFORTS = Object\.freeze\((\[.*\])\);/)[1], JSON.stringify(AGENT_EFFORTS).replace(/"/g, "'").replace(/,/g, ', '));
 });

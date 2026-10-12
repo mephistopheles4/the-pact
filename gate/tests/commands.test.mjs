@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { PACT_COMMANDS as INSTALL_COMMANDS } from '../install-core.mjs';
-import { PACT_COMMANDS } from '../shared.mjs';
+import { BUILDER_KIT as INSTALL_KIT, BUILDER_KIT_PATTERNS as INSTALL_KIT_PATTERNS, PACT_COMMANDS as INSTALL_COMMANDS } from '../install-core.mjs';
+import { BUILDER_KIT, BUILDER_KIT_PATTERNS, PACT_COMMANDS } from '../shared.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
 import { moduleResult, table } from './tables.mjs';
@@ -24,6 +24,7 @@ const rep = (from, to, key = CMD) => t => ({ ...t, [key]: t[key].replace(from, t
 const line = text => t => ({ ...t, [CMD]: `${t[CMD]}${text}\n` });
 
 // ------------------------------------------------------------ seam A: the command file (S3)
+// Since #262 seam A checks only a command file's path and name; what it says is the owner's to judge.
 
 for (const c of table('command file', {
   module: 'gate/seam-a.mjs',
@@ -33,37 +34,6 @@ for (const c of table('command file', {
     return moduleResult(r.code, r.stdout, r.stderr);
   },
   rows: [
-    { id: 'inline-shell', plant: line('Now run !`git status` and report.'), fails: ['command-shell'], why: 'the inline form runs a shell command when the command loads' },
-    { id: 'inline-shell-after-text', plant: line('x!`y'), fails: ['command-shell'], why: 'the inline form after any character, stricter than Claude Code' },
-    { id: 'inline-shell-at-start', plant: line('!`ls`'), fails: ['command-shell'], why: 'the inline form at the start of a line' },
-    { id: 'fenced-backticks', plant: line('```!\ngit status\n```'), fails: ['command-shell'], why: 'the fenced form with backticks' },
-    { id: 'fenced-tildes', plant: line('~~~!\ngit status\n~~~'), fails: ['command-shell'], why: 'the fenced form with tildes' },
-    { id: 'fenced-indented', plant: line('   ```!\n   git status\n   ```'), fails: ['command-shell'], why: 'a fence opener at any indent' },
-    { id: 'fenced-tab-indented', plant: line('\t````!\ngit status\n````'), fails: ['command-shell'], why: 'a tab before a longer fence' },
-    { id: 'fenced-space-before-mark', plant: line('```  !\ngit status\n```'), fails: ['command-shell'], why: 'whitespace before the mark' },
-    { id: 'fenced-mark-after-info', plant: line('```bash !\ngit status\n```'), fails: ['command-shell'], why: 'a mark anywhere after the fence characters' },
-    { id: 'fenced-deep-indent', plant: line('        ```!\ngit status\n        ```'), fails: ['command-shell'], why: 'any indent, not only up to three spaces' },
-    { id: 'fenced-two-tabs', plant: line('\t\t~~~!\ngit status\n\t\t~~~'), fails: ['command-shell'], why: 'any indent of tabs' },
-    { id: 'fenced-mid-line', plant: line('see ```!git status``` here'), fails: ['command-shell'], why: 'Claude Code finds the opener anywhere on a line' },
-    { id: 'fenced-in-blockquote', plant: line('> ```!\n> git status\n> ```'), fails: ['command-shell'], why: 'an opener after a quote marker' },
-    { id: 'fenced-in-list-item', plant: line('- ```!\n  git status\n  ```'), fails: ['command-shell'], why: 'an opener after a list bullet' },
-    { id: 'argument-placeholder', plant: line('Wrap up $ARGUMENTS now.'), fails: ['command-argument'], why: 'typed text spliced into the body; a pact command takes no argument' },
-    { id: 'argument-indexed', plant: line('Use $ARGUMENTS[0].'), fails: ['command-argument'], why: 'the indexed placeholder' },
-    { id: 'argument-positional', plant: line('Use $1 here.'), fails: ['command-argument'], why: 'the positional placeholder' },
-    { id: 'file-include', plant: line('Read @notes.md first.'), fails: ['command-include'], why: 'an at sign followed by text may include a file' },
-    { id: 'file-include-home', plant: line('@~/.claude/CLAUDE.md'), fails: ['command-include'], why: 'an include at the start of a line' },
-    { id: 'allowed-tools', plant: rep('disable-model-invocation: true', 'disable-model-invocation: true\nallowed-tools: Bash'), fails: ['command-keys'], why: 'a command never grants a tool' },
-    { id: 'model-key', plant: rep('disable-model-invocation: true', 'disable-model-invocation: true\nmodel: opus'), fails: ['command-keys'], why: 'only the two keys' },
-    { id: 'hooks-key', plant: rep('disable-model-invocation: true', 'disable-model-invocation: true\nhooks:\n  Stop: x'), fails: ['block-list', 'indented', 'command-keys'], why: 'hooks, as a nested map' },
-    { id: 'name-key', plant: rep('description:', 'name: finis\ndescription:'), fails: ['command-keys'], why: 'even a harmless agent key' },
-    { id: 'no-invocation-key', plant: rep('disable-model-invocation: true\n', ''), fails: ['command-invocation'], why: 'the model could start the command itself' },
-    { id: 'invocation-false', plant: rep('invocation: true', 'invocation: false'), fails: ['value', 'command-invocation'], why: 'false, which YAML reads as a boolean' },
-    { id: 'invocation-quoted', plant: rep('invocation: true', 'invocation: "true"'), fails: ['command-invocation'], why: 'a quoted true is text, not the boolean' },
-    { id: 'invocation-capital', plant: rep('invocation: true', 'invocation: True'), fails: ['value', 'command-invocation'], why: 'exactly true, matched case-sensitively' },
-    { id: 'no-description', plant: rep('description: Wrap this session up.\n', ''), fails: ['command-description'], why: 'a command says what it does' },
-    { id: 'empty-description', plant: rep('description: Wrap this session up.', "description: ''"), fails: ['command-description'], why: 'an empty description' },
-    { id: 'no-frontmatter', plant: t => ({ ...t, [CMD]: 'Just a body.\n' }), fails: ['frontmatter'], why: 'a command with no frontmatter' },
-    { id: 'refused-character', plant: line('Wrap ‮up.'), fails: ['invisible'], why: 'the pact-text scan runs on a command' },
     { id: 'unlisted-name', plant: t => ({ ...t, 'claude/commands/ship-it.md': GOOD }), fails: ['command-file-name'], why: 'a fourth command needs a gate change' },
     { id: 'name-in-capitals', plant: () => ({ 'claude/commands/Finis.md': GOOD }), fails: ['command-file-name', 'commands-not-in-pact'], why: 'names are matched exactly, so finis is not in the stage' },
     { id: 'subfolder', plant: t => ({ ...t, 'claude/commands/more/finis.md': GOOD }), fails: ['command-path'], why: 'a command is exactly claude/commands/<name>.md' },
@@ -71,24 +41,22 @@ for (const c of table('command file', {
   ],
 })) test(c.name, c.fn);
 
-test('seam A lists a command for install only when --commands names it, and checks it either way', t => {
+test('seam A lists a command for install only when --commands names it', t => {
   const root = stage(t, { [CMD]: GOOD });
   const on = runSeamA(root, undefined, { commands: 'finis' });
   assert.equal(on.code, 0, on.out);
   assert.match(on.stdout, /^INSTALL [0-9a-f]{64} claude\/commands\/finis\.md commands\/finis\.md$/m, on.out);
-  assert.match(on.stdout, /^PASS command: claude\/commands\/finis\.md$/m, on.out);
   const off = runSeamA(root, undefined, { commands: 'none' });
   assert.equal(off.code, 0, off.out);
   assert.doesNotMatch(off.stdout, /^INSTALL .*commands\//m, off.out);
-  assert.match(off.stdout, /^PASS command: claude\/commands\/finis\.md$/m, off.out);
-  const bad = runSeamA(stage(t, { [CMD]: `${GOOD}!\`ls\`\n` }), undefined, { commands: 'none' });
-  assert.equal(bad.code, 1, 'an unlisted command file is still checked');
 });
 
-test('seam A takes the inline and fenced forms only where they run nothing: no false hit on plain text', t => {
-  const body = ['Use `git status` and say so!', 'A fence with no mark:', '```bash', 'echo hi', '```', 'An email is not written here, and ~ alone is fine.', 'A dollar sign alone, $, is no placeholder.', ''].join('\n');
-  const r = runSeamA(stage(t, { [CMD]: `${GOOD}${body}` }), undefined, { commands: 'finis' });
+// The pact is vetted like a skill: a command's keys and body are the owner's to judge.
+test('a command with a shell line, an argument, an include and any key passes and installs', t => {
+  const body = '---\ndescription: x\nallowed-tools: Bash\n---\n\nRun !`git status` with $ARGUMENTS and read @notes.md.\n';
+  const r = runSeamA(stage(t, { [CMD]: body }), undefined, { commands: 'finis' });
   assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^INSTALL [0-9a-f]{64} claude\/commands\/finis\.md commands\/finis\.md$/m, r.out);
 });
 
 // ------------------------------------------------------------ seam A: --commands (S8)
@@ -123,6 +91,13 @@ test('the pact command list is one list: the install keeps the same names in the
   assert.deepEqual([...INSTALL_COMMANDS], [...PACT_COMMANDS]);
   assert.deepEqual([...PACT_COMMANDS], ['make-it-so', 'finis', 'scriptorium']);
   assert.ok(Object.isFrozen(PACT_COMMANDS) && Object.isFrozen(INSTALL_COMMANDS));
+});
+
+// #203 S8: seam A and the install each keep the builder kit's list; the two copies agree.
+test('the builder kit is one list: the install keeps the same files and patterns', () => {
+  assert.deepEqual([...INSTALL_KIT], [...BUILDER_KIT]);
+  assert.deepEqual(INSTALL_KIT_PATTERNS.map(String), BUILDER_KIT_PATTERNS.map(String));
+  assert.ok([BUILDER_KIT, INSTALL_KIT, BUILDER_KIT_PATTERNS, INSTALL_KIT_PATTERNS].every(Object.isFrozen));
 });
 
 // ------------------------------------------------------------ the renderer: the commands key (S7)
@@ -196,7 +171,6 @@ test('the shipped /make-it-so and /finis pass seam A and are listed to install',
   const r = runSeamA(root, undefined, { commands: SHIPPED.join(',') });
   assert.equal(r.code, 0, r.out);
   for (const n of SHIPPED) {
-    assert.match(r.stdout, new RegExp(`^PASS command: claude/commands/${n}\\.md$`, 'm'), r.out);
     assert.match(r.stdout, new RegExp(`^INSTALL [0-9a-f]{64} claude/commands/${n}\\.md commands/${n}\\.md$`, 'm'), r.out);
   }
 });

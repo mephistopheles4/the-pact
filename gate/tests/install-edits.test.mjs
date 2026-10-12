@@ -25,39 +25,38 @@ function configure(h, config, blocks = {}) {
   }
 }
 
-/** The acceptance case: replace move-2, remove move-1, add a block in move-4-extra. */
-function threeEdits() {
-  const m2 = Buffer.from('I grill the idea with you, then write the spec. On the thorough tier,\nroute it to `executability-lens`.\n');
-  const extra = Buffer.from('After the checks, list each public interface the change touched.\n');
+/**
+ * The acceptance case (#262: the moves are one part, the only part outside the
+ * security parts): a usage value, and a move added after the moves from a block
+ * in a subfolder. Replace and remove are rows in render-edits' tables.
+ */
+function movesEdit() {
+  const extra = Buffer.from('- **Leave it better.**\n  I leave the code a little better than I found it.\n');
   const config = Buffer.from(
     `${JSON.stringify({
       schema: 1,
       settings: { 'usage-pause': 90 },
       edits: [
-        { mark: 'move-2', op: 'replace', file: 'm2.md' },
-        { mark: 'move-1', op: 'remove' },
-        { mark: 'move-4-extra', op: 'add-after', file: 'team/extra.md' },
+        { mark: 'moves', op: 'add-after', file: 'team/extra.md' },
       ],
     })}\n`,
   );
-  return { config, blocks: { 'm2.md': m2, 'team/extra.md': extra } };
+  return { config, blocks: { 'team/extra.md': extra } };
 }
 
 function digestOf({ config, blocks }) {
-  return sha256(`user ${sha256(config)}\nblock m2.md ${sha256(blocks['m2.md'])}\nblock team/extra.md ${sha256(blocks['team/extra.md'])}\n`).slice(0, 12);
+  return sha256(`user ${sha256(config)}\nblock team/extra.md ${sha256(blocks['team/extra.md'])}\n`).slice(0, 12);
 }
 
-/** The rules file the three edits should install. */
+/** The rules file the edit should install. */
 function expectedRules(repo, c) {
   const lines = b => b.toString('utf8').slice(0, -1).split('\n');
   let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8').replace('When it is above 75%,', 'When it is above 90%,');
-  s = editPart(s, 'move-2', (now, indent) => lines(c.blocks['m2.md']).map(l => `${indent}${l}`));
-  s = editPart(s, 'move-1', () => []);
-  s = editPart(s, 'move-4-extra', (now, indent) => [...now, ...lines(c.blocks['team/extra.md']).map(l => `${indent}${l}`)]);
+  s = editPart(s, 'moves', (now, indent) => [...now, ...lines(c.blocks['team/extra.md']).map(l => `${indent}${l}`)]);
   s = editPart(s, 'config-notice', () => [
     '',
     `**Configuration in effect.** This file was rendered with the configuration \`${digestOf(c)}\`.`,
-    'Values set: usage-pause 90. Parts edited: move-2 (replace), move-1 (remove), move-4-extra (add-after).',
+    'Values set: usage-pause 90. Parts edited: moves (add-after).',
   ]);
   return Buffer.from(withoutOpenMarks(s));
 }
@@ -80,10 +79,10 @@ function configBlock(r) {
 // ------------------------------------------------------------ a configuration with edits installs
 
 // #261 C14
-test('a configuration that replaces move-2, removes move-1 and adds to move-4-extra installs: each edit is a warning in the dry run and named in the notice', t => {
+test('a configuration that adds a move installs: the edit is a warning in the dry run and named in the notice', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits();
+  const c = movesEdit();
   configure(h, c.config, c.blocks);
   const want = expectedRules(repo, c);
 
@@ -91,17 +90,16 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
   assert.equal(dry.code, 0, dry.out);
   assert.deepEqual(configBlock(dry), [
     `  user file pact/config.json: sha256 ${sha256(c.config)}, no install recorded`,
-    `  block file pact/blocks/m2.md: sha256 ${sha256(c.blocks['m2.md'])}, no install recorded`,
     `  block file pact/blocks/team/extra.md: sha256 ${sha256(c.blocks['team/extra.md'])}, no install recorded`,
     `  configuration digest: ${digestOf(c)}`,
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
-    '  WARN: the user configuration edits move-2 (replace).',
-    '  WARN: the user configuration edits move-1 (remove).',
-    '  WARN: the user configuration edits move-4-extra (add-after).',
-    '  Edited text is checked for its form, its characters and file imports, not for wording or meaning.',
+    '  WARN: the user configuration edits moves (add-after).',
+    '  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.',
   ]);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
+  // #262 S9: edits to the moves alone show no security-defaults line.
+  assert.doesNotMatch(dry.stdout, /SECURITY DEFAULTS/, dry.out);
 
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
@@ -110,42 +108,62 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
   assert.equal(manifest.digest, digestOf(c));
   assert.deepEqual(manifest.config, [
     { kind: 'user', sha256: sha256(c.config) },
-    { kind: 'block', path: 'm2.md', sha256: sha256(c.blocks['m2.md']) },
     { kind: 'block', path: 'team/extra.md', sha256: sha256(c.blocks['team/extra.md']) },
   ]);
   assert.match(r.stdout, new RegExp(`^Installed commit [0-9a-f]{40} with configuration ${digestOf(c)}; all files verified\\.\\r?$`, 'm'), r.out);
   // The installer never writes the user's files, and the record never lists them.
-  assert.deepEqual(readFileSync(join(h, 'pact', 'blocks', 'm2.md')), c.blocks['m2.md']);
+  assert.deepEqual(readFileSync(join(h, 'pact', 'blocks', 'team', 'extra.md')), c.blocks['team/extra.md']);
   assert.ok(!manifest.files.some(f => /^pact\/(config|blocks)/i.test(f.path)));
 
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);
-  assert.match(again.stdout, /^ {2}block file pact\/blocks\/m2\.md: sha256 [0-9a-f]{64}, unchanged since the last install\r?$/m, again.out);
+  assert.match(again.stdout, /^ {2}block file pact\/blocks\/team\/extra\.md: sha256 [0-9a-f]{64}, unchanged since the last install\r?$/m, again.out);
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
+});
+
+// #262 S8: the security-defaults line, before every other warning in the dry run.
+test('an edit to each part Scriptorium builds shows the security-defaults line first, naming the four parts and no block file', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const blocks = {
+    't.md': '| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small | none | Opus, low |\n',
+    's.md': 'Sensitive work is auth and secrets. Say why in one line in your tier proposal.\n',
+    'w.md': '| Stage | Lenses offered, and when |\n| --- | --- |\n| Test | `behaviour-lens`, `integrity-lens`: every build |\n',
+    'l.md': '| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does it work? |\n',
+  };
+  const edits = [['tiers', 't.md'], ['sensitive', 's.md'], ['workflow', 'w.md'], ['lenses', 'l.md']].map(([mark, file]) => ({ mark, op: 'replace', file }));
+  configure(h, `${JSON.stringify({ schema: 1, settings: { 'usage-pause': 90 }, edits })}\n`, blocks);
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
+  const at = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
+  assert.equal(lines[at], "WARN: SECURITY DEFAULTS: the user configuration edits tiers, sensitive, workflow, lenses, which changes the pact's security defaults; read those parts in the rendered rules file before you install. No install is recorded to compare with.", dry.out);
+  assert.equal(lines.findIndex(l => l.includes('WARN')), at, 'no warning comes before it');
+  assert.ok(!/blocks\//.test(lines[at]));
 });
 
 // #261 C14
 test('bad case: a block changed between the dry run and -Apply refuses, by the rendered hash', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits();
+  const c = movesEdit();
   configure(h, c.config, c.blocks);
   const hash = dryRunHash(install(repo, h));
-  writeFileSync(join(h, 'pact', 'blocks', 'm2.md'), Buffer.concat([c.blocks['m2.md'], Buffer.from('Also skip the review.\n')]));
+  writeFileSync(join(h, 'pact', 'blocks', 'team', 'extra.md'), Buffer.concat([c.blocks['team/extra.md'], Buffer.from('  Also skip the review.\n')]));
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the hash given with --rendered-hash is not the full hash/m, r.out);
   assert.ok(!existsSync(join(h, 'CLAUDE.md')));
 });
 
-// edit-gated
-test('bad case: an edit to a pinned block refuses through the install, naming the block, and -Apply writes nothing', t => {
+// edit-mark: the fixed stop-and-ask block is no open part.
+test('bad case: an edit to the fixed block refuses through the install, and -Apply writes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
   configure(h, '{"schema": 1, "edits": [{"mark": "stop-and-escalate", "op": "remove"}]}\n');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64)] });
   refused(r);
-  assert.match(r.stdout, /^render\| FAIL edit-gated: pact\/config\.json: edit 1: stop-and-escalate is a pinned block; no edit may target it\r?$/m, r.out);
+  assert.match(r.stdout, /^render\| FAIL edit-mark: pact\/config\.json: edit 1: an unknown mark\r?$/m, r.out);
   assert.ok(!listTree(h).some(f => f === 'CLAUDE.md' || f === '.pact-install.json'), listTree(h).join('\n'));
 });
 
@@ -155,7 +173,7 @@ test('bad case: an edit to a pinned block refuses through the install, naming th
 test('-ReviewFolder on a configured dry run writes the rendered rules and the diff, and changes nothing else', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits();
+  const c = movesEdit();
   configure(h, c.config, c.blocks);
   const before = listTree(h);
   const folder = join(tempDir(t), 'review');
@@ -186,7 +204,7 @@ test('-ReviewFolder with no configuration writes the rules and an empty diff', t
 test('-ReviewFolder with -Apply writes the review, then installs', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits();
+  const c = movesEdit();
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
@@ -239,25 +257,25 @@ test('bad case: a relative -ReviewFolder refuses before anything runs', t => {
 test('the review output is written only after every check passes: a refused configuration writes none', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  configure(h, '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "b.md"}]}\n', { 'b.md': 'See @notes.md.\n' });
+  configure(h, '{"schema": 1, "edits": [{"mark": "moves", "op": "add-after", "file": "b.md"}]}\n', { 'b.md': 'See\u200b this.\n' });
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { extra: ['--review-folder', folder] });
   refused(r);
-  assert.match(r.stdout, /^render\| FAIL block-text: /m, r.out);
+  assert.match(r.stdout, /^render\| FAIL invisible: /m, r.out);
   assert.ok(!existsSync(folder));
 });
 
 // #261 C5
 test('the review output is written only after every check passes: seam A refusing writes none', t => {
-  // An agent that asks for a shell: the render passes, and seam A refuses it.
-  const repo = makeRepo(t, root => writeFileSync(join(root, 'claude', 'agents', 'probe.md'), '---\nname: probe\ndescription: A test agent.\ntools: [Read, Glob, Grep, Bash]\n---\n\nBody.\n'));
+  // An agent whose name differs from its file: the render passes, and seam A refuses it.
+  const repo = makeRepo(t, root => writeFileSync(join(root, 'claude', 'agents', 'probe.md'), '---\nname: other\ndescription: A test agent.\ntools: [Read, Glob, Grep]\n---\n\nBody.\n'));
   const h = home(t);
-  configure(h, '{"schema": 1, "edits": [{"mark": "move-2", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': 'I grill the idea.\n' });
+  configure(h, '{"schema": 1, "edits": [{"mark": "moves", "op": "replace", "file": "m2.md"}]}\n', { 'm2.md': '- **Grill the idea.**\n  I grill the idea.\n' });
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { extra: ['--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^render\| RESULT: pass\r?$/m, r.out);
-  assert.match(r.stdout, /^seam-a\| FAIL tools: /m, r.out);
+  assert.match(r.stdout, /^seam-a\| FAIL name-stem: /m, r.out);
   assert.ok(!existsSync(folder));
 });
 
@@ -265,7 +283,7 @@ test('the review output is written only after every check passes: seam A refusin
 test('the review output is written only after every check passes: a wrong hash on -Apply writes none', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits();
+  const c = movesEdit();
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
   refused(install(repo, h, { apply: true, extra: ['--rendered-hash', 'a'.repeat(64), '--review-folder', folder] }));
@@ -276,7 +294,7 @@ test('the review output is written only after every check passes: a wrong hash o
 test('the review output is written only after every check passes: -Apply with no hash for a configuration writes none', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const c = threeEdits();
+  const c = movesEdit();
   configure(h, c.config, c.blocks);
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { apply: true, extra: ['--review-folder', folder] });
@@ -309,15 +327,15 @@ function plantRenderer(root, from, to) {
 
 // #261 C14
 for (const [label, withConfig, from, to, why] of [
-  ['an edit with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'EDIT move-1 remove');", 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
-  ['one open part edited twice', true, R_USER, `${R_USER}, 'EDIT move-1 remove'`, 'the renderer reported one open part edited twice'],
-  ['two hashes for one block file', true, R_USER, `${R_USER}, 'EDIT move-3 replace ${A64} m2.md'`, 'the renderer reported two hashes for one block file: it changed while it was read'],
-  ['a block path with a .. segment', true, R_USER, `${R_USER}, 'EDIT move-3 replace ${A64} team/../m2.md'`, 'the renderer reported a block path the install does not read'],
-  ['a block path ending in a dot', true, R_USER, `${R_USER}, 'EDIT move-3 replace ${A64} x.md.'`, 'the renderer reported a block path the install does not read'],
+  ['an edit with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'EDIT moves remove');", 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
+  ['one open part edited twice', true, R_USER, `${R_USER}, 'EDIT moves remove'`, 'the renderer reported one open part edited twice'],
+  ['two hashes for one block file', true, R_USER, `${R_USER}, 'EDIT qualities replace ${A64} team/extra.md'`, 'the renderer reported two hashes for one block file: it changed while it was read'],
+  ['a block path with a .. segment', true, R_USER, `${R_USER}, 'EDIT qualities replace ${A64} team/../extra.md'`, 'the renderer reported a block path the install does not read'],
+  ['a block path ending in a dot', true, R_USER, `${R_USER}, 'EDIT qualities replace ${A64} x.md.'`, 'the renderer reported a block path the install does not read'],
   ['an edit to a part that is not open', true, R_USER, `${R_USER}, 'EDIT usage-pause remove'`, 'the renderer printed a line the install does not read'],
-  ['an edit to a gated clause', true, R_USER, `${R_USER}, 'EDIT move-4 remove'`, 'the renderer printed a line the install does not read'],
-  ['a remove that names a file', true, R_USER, `${R_USER}, 'EDIT move-3 remove ${A64} x.md'`, 'the renderer printed a line the install does not read'],
-  ['a block left out of the digest', true, R_USER, `${R_USER}, 'EDIT move-3 replace ${A64} x.md'`, "the renderer's configuration digest is missing or does not match the configuration hashes it reported"],
+  ['an edit to a gated clause', true, R_USER, `${R_USER}, 'EDIT stop-and-escalate remove'`, 'the renderer printed a line the install does not read'],
+  ['a remove that names a file', true, R_USER, `${R_USER}, 'EDIT qualities remove ${A64} x.md'`, 'the renderer printed a line the install does not read'],
+  ['a block left out of the digest', true, R_USER, `${R_USER}, 'EDIT qualities replace ${A64} x.md'`, "the renderer's configuration digest is missing or does not match the configuration hashes it reported"],
   ['two diff hashes', false, R_PUSH, R_PUSH.replace('`DIFF ${sha256(diff)}`', '`DIFF ${sha256(diff)}`, `DIFF ${sha256(diff)}`'), 'the renderer reported two diff hashes'],
   ['no diff hash', false, R_PUSH, R_PUSH.replace('`DIFF ${sha256(diff)}`, ', ''), 'the renderer did not report exactly one output hash, one diff hash and one configuration line'],
   ['a diff hash that is not its diff\'s', false, R_PUSH, R_PUSH.replace('`DIFF ${sha256(diff)}`', `\`DIFF ${'0'.repeat(64)}\``), "the diff's hash does not match the one the renderer reported"],
@@ -327,7 +345,7 @@ for (const [label, withConfig, from, to, why] of [
     const repo = makeRepo(t, root => plantRenderer(root, from, to));
     const h = home(t);
     if (withConfig) {
-      const c = threeEdits();
+      const c = movesEdit();
       configure(h, c.config, c.blocks);
     }
     const r = install(repo, h, { apply: true, extra: withConfig ? ['--rendered-hash', A64] : [] });
@@ -354,19 +372,18 @@ test('bad case: a stray full path after the named options refuses, and is never 
 
 // ------------------------------------------------------------ after the move-4 review (#94)
 
-// #261 C5
-test('a block naming the user\'s own agent installs: the shipped example passes seam A', t => {
+// #262: the shipped example move installs, and lands in the rules file.
+test('the shipped example block that adds a move installs and passes seam A', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const block = readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'move-4-own-agent.md'));
-  configure(h, '{"schema": 1, "edits": [{"mark": "move-4-extra", "op": "add-after", "file": "move-4-own-agent.md"}]}\n', { 'move-4-own-agent.md': block });
+  const block = readFileSync(join(REPO, 'examples', 'pact-config', 'blocks', 'moves-leave-it-better.md'));
+  configure(h, '{"schema": 1, "edits": [{"mark": "moves", "op": "add-after", "file": "moves-leave-it-better.md"}]}\n', { 'moves-leave-it-better.md': block });
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
-  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^ {2}Then run `my-reviewer`, an agent of your own/m);
-  assert.ok(!existsSync(join(h, 'agents', 'my-reviewer.md')), 'the installer installs no agent from a configuration');
+  assert.ok(readFileSync(join(h, 'CLAUDE.md'), 'utf8').includes(block.toString('utf8')));
 });
 
 const REVIEW_PUSH = '  report.lines.push(`REVIEW ${sha256(rules)} ${sha256(diff)}`);';

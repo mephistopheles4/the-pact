@@ -13,15 +13,13 @@
 //
 // The second form is the project mode, described at the end of this header.
 //
-// The source carries two kinds of mark. Gated marks are the pinned blocks
-// (PINNED in shared.mjs, checked by gate/pact-text.mjs); the renderer passes
-// them through untouched. Open marks
-// name the parts a configuration may change; the renderer always strips their
-// mark lines from its output.
+// The source's open marks name the parts a configuration may change; the
+// renderer always strips their mark lines from its output. Any other marker
+// line passes through untouched.
 //
 // Before any change, it checks the source's open marks: each opens at most
-// once, closes after it opens, sits alone on its line, and never encloses, sits
-// inside or shares a line with a gated mark.
+// once, closes after it opens, sits alone on its line, and never opens inside
+// another.
 //
 // The files it reads. The user file is CONFIG_REL under the Claude home
 // folder; each block file an edit names is under BLOCKS_REL beside it. Both
@@ -38,8 +36,9 @@
 //     own reparse-attribute test on the file and its blocks folder before it
 //     runs this; these checks are the second layer.
 //   - Each file's one buffer is checked (gate's text scanner, then strict JSON
-//     and an exact shape for the user file, or the block-text rules for a
-//     block), rendered and hashed.
+//     and an exact shape for the user file; a block must be LF-only text that
+//     ends in one line feed), rendered and hashed. What a block says is the
+//     owner's to judge: the gate does not read its wording or its markup.
 //   - A block path is checked on its text before any file system call.
 //
 // The user file's shape:
@@ -51,7 +50,7 @@
 // PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
 // A setting fills its open part from a fixed template with the checked number;
 // no text from the user file is ever spliced. An edit applies to an open part
-// only: a gated mark, the notice slot and a setting's part are refused by name.
+// only: the notice slot and a setting's part are refused by name.
 // Block text is re-indented to the part's mark line, so text inside a move
 // stays inside it. When a configuration applies, the config-notice slot is
 // filled with a fixed notice naming its digest, its values and its edited
@@ -63,9 +62,7 @@
 //
 // With no configuration, the output is the source with its open-mark lines
 // removed and every other byte unchanged. A line that is not an open-mark line
-// passes through as it is, so anything else malformed (a bad gated mark, a
-// carriage return, invalid UTF-8) reaches seam A unchanged, and seam A refuses
-// it as before. Seam A's line numbers then count the rendered file.
+// passes through as it is.
 //
 // It writes two files into the output folder (a third per agent setting, see below), which must be an empty folder
 // that is not a link: OUTPUT_NAME, the rendered rules file, and DIFF_NAME, a
@@ -89,28 +86,28 @@
 // has passed the path-text check, so it holds only letters, digits, '.', '_',
 // '-' and '/'.
 //
-// Agent settings (#97). A user file may set the model and effort of every lens
-// in CONFIGURABLE_AGENTS; each file's own values are its default. A sealed
-// agent (scout) is refused by name. Only when a setting is given, the renderer
+// Agent settings (#97). A user file may set the model and effort of every
+// agent in CONFIGURABLE_AGENTS, the nine lenses and scout (#262 S17); each
+// file's own values are its default. A model is any one line with no space
+// (#262): one word, so it stays one frontmatter line and one AGENT field. Seam
+// A then reads the rewritten file, so a value YAML cannot read refuses there. Only when a setting is given, the renderer
 // reads that agent's file from the staged claude/agents/ folder beside the
 // source rules file, under the source's read rules. It refuses an agent that
 // carries a metadata (seal) key. It rewrites only the frontmatter's column-0
-// model and effort lines, from the allow-list constants; an unset field keeps
-// the file's value, which must be on the allow-list too; and it refuses if the
+// model and effort lines, to checked values; an unset field keeps the file's
+// value, which must pass the same checks; and it refuses if the
 // result would differ from the file anywhere else, so no setting adds a tool.
 // It classifies the agent as security-set when any sign holds: its tools line
-// is not DEFAULT_AGENT_TOOLS, the tool allow-list has an entry for it, it is on
-// SECURITY_SET, its own file carries a risk-floor block, or it is on
-// SECURITY_DOUBT. The signs other than the two lists are read on every run, so
+// is not DEFAULT_AGENT_TOOLS, it is on SECURITY_SET, its own file carries a
+// risk-floor block, or it is on SECURITY_DOUBT. The signs other than the two lists are read on every run, so
 // a lens that later gains one is marked without anyone editing a list. It writes the
 // result as AGENT_OUTPUT_PREFIX + <name>.md and prints
 //   AGENT <name> <model> <effort> <sha256 of the agent file> <plain|security-set> <default|override> <local|egress>
 // after the CONFIG lines: override when the result differs from the file's
 // own values, egress when the tools line holds more than the read tools. The
-// notice gains an "Agents set:" line, and a security-set override carries
-// OVERRIDE_MARK there, with a sentence telling the session to put it beside
-// every report from that lens. Adding an agent to CONFIGURABLE_AGENTS takes
-// the security route (AGENTS.md).
+// notice gains an "Agents set:" line. Since #262 no setting is marked: a
+// person may run any agent on any model, and the pact does not test them.
+// Adding an agent to CONFIGURABLE_AGENTS is a spec change (AGENTS.md).
 //
 // The project mode (#53, slice 5) renders the project rules file for a
 // project install. It reads the user file, for the user's effective values and
@@ -145,19 +142,15 @@
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { ANY_FENCE_RE, AT_IMPORT_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, PACT_COMMANDS, PINNED, Refused, Report, SEGMENT_RE, SETEXT_RE, readStrictJson, scanText } from './shared.mjs';
+import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, Refused, Report, SEGMENT_RE, readStrictJson, scanText } from './shared.mjs';
 
 // The open marks this version knows. Hard-coded, so no file can add one.
-// Adding a mark is a change to this list and to the pact source, on the
-// security route like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'move-1', 'move-2', 'move-3', 'move-4-extra']);
+// Adding a mark is a change to this list and to the pact source, a spec
+// change like any other change here.
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
-const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra']);
-// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/)
-// are refused to every edit, with any operation. install-go-ahead lives in
-// AGENTS.md, which is never installed, and is refused like the other.
+const EDITABLE = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);
 const EDIT_KEYS = Object.freeze(['mark', 'op', 'file']);
 const EDITS_MAX = 16;
@@ -177,36 +170,47 @@ const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
 const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands']);
 
-// Agent settings: who may be set, to what. Matched exactly; only these
-// constants are ever printed or written.
-const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
-// scout is a sealed familiar: its digest covers its own file.
-const LOCKED_AGENTS = Object.freeze(['scout']);
-const AGENT_MODELS = Object.freeze(['opus', 'sonnet']);
-const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high']);
+// Agent settings: who may be set, to what. Names and efforts are matched
+// exactly against these constants; a model is the user's own text, printed
+// and written only once agentModel() has passed it. The install keeps its own
+// copy of the names, the shape and the efforts; a test holds them equal.
+const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+// Any Claude Code model: an alias (opus, sonnet, haiku, fable, inherit) or a
+// full or provider model ID. No space, '#', quote or line break can appear.
+// A model is one word: no space or line break, at most 128 characters (#262).
+const AGENT_MODEL_RE = /^\S{1,128}$/;
+const AGENT_MODEL_SHAPE = 'one word: no space or line break, at most 128 characters';
+const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+// The models the rules file's notice names as they are. Every session reads
+// the notice and may quote it, so any other model, which can hold a provider
+// account or project, is "a custom model" there (#262 S15, data-lens F1).
+const NOTICE_MODELS = Object.freeze(['opus', 'sonnet', 'haiku', 'fable', 'inherit']);
+const noticeModel = m => (NOTICE_MODELS.includes(m) ? m : 'a custom model');
 const AGENT_FIELDS = Object.freeze(['model', 'effort']);
+/** `v` when it is a model the renderer may write, else undefined. */
+const agentModel = v => (typeof v === 'string' && AGENT_MODEL_RE.test(v) ? v : undefined);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
-// The lenses the security route names, as a fixed list (#261, S4): the
-// security pair, and executability-lens, which carries the sensitive-work list in its own block. The rules
+// The security-set lenses no file sign shows, as a fixed list (#261, S4): the
+// security pair, and executability-lens, which checks that security-sensitive work has a security review planned. The rules
 // file names no route any more, so the renderer reads none from it. Without
-// this list the override mark would vanish with no error for data-lens, which
-// has no other sign.
+// this list data-lens, which has no other sign, would print as plain on its
+// AGENT line with no error.
 const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);
-// The sign of a security-set agent read from its own file: the risk-floor block.
+// The sign of a security-set agent read from its own file: a risk-floor block.
+// No pact lens carries one since #262; the sign stays for an agent that does.
 const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
-// Security-set lenses by doubt (AGENTS.md: when in doubt, a change takes the
-// security route), each with its reason. No sign in their files says so.
+// Security-set lenses by doubt, each with its reason: each guards security
+// or data work. No sign in their files says so.
 const SECURITY_DOUBT = Object.freeze({
-  'good-enough-lens': 'it never defers a risk-floor item',
-  'unstated-lens': 'it reports work that should have taken the security route',
+  'good-enough-lens': 'it never suggests deferring work that guards security or data',
+  'unstated-lens': 'it asks whether security-sensitive work should have had a security review',
 });
-const OVERRIDE_MARK = 'override, not security-tested';
-const TOOL_ALLOWLIST = join(dirname(fileURLToPath(import.meta.url)), 'tool-allowlist.json');
 
 // Each setting: the open part it fills, its whole-number range, its default
 // and its fixed template. The template at the default must equal the source's
-// text between the part's marks, or the render refuses.
+// text between the part's marks (an empty part, for a setting with no
+// default), or the render refuses.
 const USAGE_TEMPLATE = n => [
   '- **Usage.** Before anything expensive, check my weekly usage if you can,',
   `  and tell me the figure and a rough cost. When it is above ${n}%, wait for my`,
@@ -217,8 +221,20 @@ const USAGE_TEMPLATE = n => [
 // may move it: 'lower' means a smaller number is stricter.
 const USAGE_PROJECT_LINE = n =>
   `- **Usage pause.** In this project, wait for my go-ahead when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+// The 5-hour session limit (#142). It has no default: unset, its part stays
+// empty, so the render is byte-for-byte what it is without the setting.
+const SESSION_TEMPLATE = n => [
+  '- **Session usage.** Before anything expensive, also give my 5-hour session',
+  `  figure. When it is above ${n}%, wait for my go-ahead. If you can't see the`,
+  '  figure, say so in one line and carry on under the weekly rule.',
+];
+const SESSION_PROJECT_LINE = n =>
+  `- **Session usage pause.** In this project, wait for my go-ahead when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+// `def: null` marks a setting with no default: its part is empty in the
+// source, and a project may set it whatever the user's file says.
 const SETTINGS = new Map([
   ['usage-pause', Object.freeze({ mark: 'usage-pause', min: 0, max: 100, def: 75, template: USAGE_TEMPLATE, tighter: 'lower', projectLine: USAGE_PROJECT_LINE })],
+  ['usage-pause-session', Object.freeze({ mark: 'usage-pause-session', min: 0, max: 100, def: null, template: SESSION_TEMPLATE, tighter: 'lower', projectLine: SESSION_PROJECT_LINE })],
 ]);
 
 // The project file, in the project folder, and the project rules file this
@@ -226,16 +242,61 @@ const SETTINGS = new Map([
 const PROJECT_REL = Object.freeze(['.claude', 'pact-config.json']);
 const PROJECT_SHOWN = '.claude/pact-config.json';
 const PROJECT_NAMES = Object.freeze(["the project's .claude folder", 'the project configuration file']);
-const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings']);
+const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings', 'qualities']);
 const PROJECT_OUTPUT_NAME = 'pact-project.md';
-const PROJECT_TEMPLATE = lines => [
+// A project's own qualities list (#262 S25, from #273): the one thing a
+// project may set that is not a tighter value. Its table is compiled here from
+// the rows' three fields under fixed text. Which qualities and measures a
+// project lists is the owner's to judge; each field only has to stay on one
+// line, so the table stays a table.
+const QUALITY_FIELDS = Object.freeze(['quality', 'measure', 'lenses']);
+const oneLine = v => typeof v === 'string' && !/[\r\n]/.test(v);
+const named = v => oneLine(v) && v.trim() !== '';
+// A bar in a field would start a new cell, so it is escaped, backslashes first: the table stays three columns.
+const cell = v => v.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+// At most one row per quality: the install reads the count as one digit.
+const QUALITIES_MAX = 9;
+const PROJECT_TEMPLATE = (lines, qualities = null) => [
   '# Pact settings for this project',
   '',
-  "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
+  qualities
+    ? "The pact's installer wrote this file from this project's pact configuration. Each setting line can only make the pact stricter here, and the qualities list takes the place of the one in my user rules."
+    : "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
   '',
   ...lines,
+  ...(qualities
+    ? [
+        ...(lines.length ? [''] : []),
+        '## Qualities for this project',
+        '',
+        "In this project, this list takes the place of the Qualities table in my user rules: the qualities that matter here, ranked, each with its measure and the lenses that check it.",
+        '',
+        '| Quality | Measure | Lens |',
+        '| --- | --- | --- |',
+        ...qualities.map(q => `| ${cell(q.quality)} | ${cell(q.measure)} | ${q.lenses.map(n => `\`${cell(n)}\``).join(', ')} |`),
+      ]
+    : []),
   '',
 ];
+
+/** A project's qualities list (#262 S25): [{ quality, measure, lenses }], or null after recording each refusal. */
+function checkProjectQualities(v, fail) {
+  if (!Array.isArray(v) || !v.length || v.length > QUALITIES_MAX) {
+    fail('project-qualities', `qualities must be a list of 1 to ${QUALITIES_MAX} rows`);
+    return null;
+  }
+  let ok = true;
+  const out = [];
+  v.forEach((r, i) => {
+    const shaped = isObject(r) && Object.keys(r).length === QUALITY_FIELDS.length && QUALITY_FIELDS.every(k => Object.hasOwn(r, k))
+      && named(r.quality) && oneLine(r.measure) && Array.isArray(r.lenses) && r.lenses.length && r.lenses.every(named);
+    if (!shaped) {
+      fail('project-qualities', `row ${i + 1}: a row holds quality, measure and a list of lenses, each one line of text (the measure may be empty), and nothing else`);
+      ok = false;
+    } else out.push({ quality: r.quality, measure: r.measure, lenses: r.lenses });
+  });
+  return ok ? out : null;
+}
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.
 const NOTICE_MARK = 'config-notice';
@@ -243,10 +304,7 @@ const NOTICE_TEMPLATE = (digest, values, edits, agents = []) => [
   '',
   `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`,
   `Values set: ${values.length ? values.map(([k, v]) => `${k} ${v}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
-  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${a.model}, ${a.effort} effort${a.security && a.override ? `; ${OVERRIDE_MARK}` : ''})`).join(', ')}.`] : []),
-  ...(agents.some(a => a.security && a.override)
-    ? [`Put "${OVERRIDE_MARK}" beside every report you post from these lenses, and in their rows of the Lens dispositions table: ${agents.filter(a => a.security && a.override).map(a => a.name).join(', ')}.`]
-    : []),
+  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${noticeModel(a.model)}, ${a.effort} effort)`).join(', ')}.`] : []),
 ];
 
 const LF = 0x0a;
@@ -257,10 +315,6 @@ const FOLD_CASE = process.platform === 'win32' || process.platform === 'darwin';
 // renderer while a reader still takes it for one.
 const OPEN_NEAR_RE = new RegExp(`<!--\\s*pact\\s*:\\s*(?:begin|end)\\s+(?:${[...OPEN_MARKS].sort((a, b) => b.length - a.length).join('|')})(?![a-z0-9])`, 'i');
 
-// Block text forms that could frame a clause one way for the model and
-// another way for the check, or move text out of its part.
-const THEMATIC_RE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
-const NUMBERED_RE = /^[0-9]{1,9}[.)](?:[ \t]|$)/;
 const RESERVED_RE = /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i;
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -309,21 +363,15 @@ function checkMarks(lines, report) {
     report.fail('placement', 'claude/CLAUDE.md', i + 1, reason);
   };
   let open = null; // the open mark now open: { name, begin }
-  let gated = false; // whether a gated block is open
   lines.forEach((line, i) => {
     const m = markOf(line);
     if (!m) {
       if (OPEN_NEAR_RE.test(line.toString('latin1'))) fail(i, 'an open mark that is not alone on its line, exactly as written');
       return;
     }
-    if (!m.open) {
-      if (open) fail(i, `${open.name} encloses a gated mark`);
-      gated = m.kind === 'begin';
-      return;
-    }
+    if (!m.open) return;
     if (m.kind === 'begin') {
       if (open) fail(i, `${m.name} opens inside ${open.name}`);
-      else if (gated) fail(i, `${m.name} opens inside a gated block`);
       else if (pairs.has(m.name)) fail(i, `${m.name} opens twice`);
       else open = { name: m.name, begin: i };
       return;
@@ -509,9 +557,8 @@ function checkEdits(edits, fail) {
     if (Object.keys(e).some(k => !EDIT_KEYS.includes(k))) return bad('edit-shape', 'a key that is not mark, op or file');
     if (typeof e.mark !== 'string') return bad('edit-shape', 'mark must be text');
     // Matched exactly against constant lists, and only the constant is printed.
-    const pinned = PINNED.find(g => g === e.mark);
-    if (pinned) return bad('edit-gated', `${pinned} is a pinned block; no edit may target it`);
-    if (e.mark === 'usage-pause') return bad('edit-setting', 'usage-pause is set only through its setting; no edit may target it');
+    const setting = [...SETTINGS.keys()].find(k => k === e.mark);
+    if (setting) return bad('edit-setting', `${setting} is set only through its setting; no edit may target it`);
     if (e.mark === NOTICE_MARK) return bad('edit-notice', 'config-notice is filled by the renderer; no edit may target it');
     const mark = EDITABLE.find(m => m === e.mark);
     if (!mark) return bad('edit-mark', 'an unknown mark');
@@ -639,8 +686,7 @@ function checkAgentSettings(v, fail) {
   for (const k of Object.keys(v)) {
     const name = CONFIGURABLE_AGENTS.find(a => a === k);
     if (!name) {
-      const locked = LOCKED_AGENTS.find(a => a === k);
-      fail('config-agents', locked ? `${locked} is locked: it is sealed, so its model and effort are not configurable` : `agents names an agent this configuration cannot set; only ${CONFIGURABLE_AGENTS.join(', ')} can be set`);
+      fail('config-agents', `agents names an agent this configuration cannot set; only ${CONFIGURABLE_AGENTS.join(', ')} can be set`);
       ok = false;
       continue;
     }
@@ -650,10 +696,10 @@ function checkAgentSettings(v, fail) {
       ok = false;
       continue;
     }
-    const model = Object.hasOwn(e, 'model') ? AGENT_MODELS.find(m => m === e.model) : null;
+    const model = Object.hasOwn(e, 'model') ? agentModel(e.model) : null;
     const effort = Object.hasOwn(e, 'effort') ? AGENT_EFFORTS.find(m => m === e.effort) : null;
     if (model === undefined) {
-      fail('config-agents', `${name}: model must be one of ${AGENT_MODELS.join(', ')}`);
+      fail('config-agents', `${name}: model must be ${AGENT_MODEL_SHAPE}`);
       ok = false;
     }
     if (effort === undefined) {
@@ -732,26 +778,16 @@ function renderAgent(source, a, report) {
   if (at(/^metadata:/).length) return fail('the agent carries a metadata (seal) key; a sealed agent cannot be configured');
   if (toolsAt.length !== 1) return fail('the frontmatter must hold exactly one tools line');
 
-  const allow = readCapped(TOOL_ALLOWLIST, 64 * 1024, 'agent-file', 'gate/tool-allowlist.json', report);
-  if (allow === null) return null;
-  let allowDoc;
-  try {
-    allowDoc = readStrictJson(allow);
-  } catch {
-    return fail('the tool allow-list could not be read');
-  }
-  if (!isObject(allowDoc)) return fail('the tool allow-list could not be read');
   // The pact's definition of a security-set lens, read from the evidence on
   // every run (see the header).
   const egress = lines[toolsAt[0]] !== DEFAULT_AGENT_TOOLS;
   const security = egress
-    || Object.hasOwn(allowDoc, a.name)
     || SECURITY_SET.includes(a.name)
     || lines.includes(RISK_FLOOR_BLOCK)
     || Object.hasOwn(SECURITY_DOUBT, a.name);
-  const nowModel = AGENT_MODELS.find(m => lines[modelAt[0]] === `model: ${m}`);
+  const nowModel = lines[modelAt[0]].startsWith('model: ') ? agentModel(lines[modelAt[0]].slice('model: '.length)) : undefined;
   const nowEffort = AGENT_EFFORTS.find(e => lines[effortAt[0]] === `effort: ${e}`);
-  if (!nowModel) return fail(`the file's model line is not one of ${AGENT_MODELS.join(', ')}`);
+  if (!nowModel) return fail(`the file's model line is not ${AGENT_MODEL_SHAPE}`);
   if (!nowEffort) return fail(`the file's effort line is not one of ${AGENT_EFFORTS.join(', ')}`);
   const model = a.model ?? nowModel;
   const effort = a.effort ?? nowEffort;
@@ -764,8 +800,8 @@ function renderAgent(source, a, report) {
 }
 
 /**
- * A block file's lines, checked against the block-text rules, or null after
- * recording every failure. `file` is the block's shown name.
+ * A block file's lines: LF-only text, not empty, ending in one line feed; or
+ * null after recording the failure. `file` is the block's shown name.
  */
 function checkBlock(buf, file, report) {
   const fail = (line, reason) => report.fail('block-text', file, line, reason);
@@ -783,25 +819,7 @@ function checkBlock(buf, file, report) {
     fail(null, 'must end with exactly one line feed');
     return null;
   }
-  let ok = true;
-  const bad = (line, reason) => {
-    fail(line, reason);
-    ok = false;
-  };
-  const lines = text.slice(0, -1).split('\n');
-  lines.forEach((line, i) => {
-    const ln = i + 1;
-    if (line.includes('<!--')) bad(ln, 'an HTML comment opener (<!--)');
-    if (AT_IMPORT_RE.test(line)) bad(ln, 'an @ followed by text, which Claude Code may read as an import');
-    if (line.trim() === '') bad(ln, 'a blank line');
-    else if (/^[ \t]/.test(line)) bad(ln, 'a leading space or tab');
-    else if (ANY_FENCE_RE.test(line)) bad(ln, 'a code fence');
-    else if (HEADING_LIKE_RE.test(line)) bad(ln, 'an ATX heading');
-    else if (SETEXT_RE.test(line)) bad(ln, 'a setext heading underline');
-    else if (THEMATIC_RE.test(line)) bad(ln, 'a thematic break');
-    else if (NUMBERED_RE.test(line)) bad(ln, 'a numbered list line');
-  });
-  return ok ? lines : null;
+  return text.slice(0, -1).split('\n');
 }
 
 /**
@@ -858,7 +876,7 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = []) {
     const p = pairs.get(spec.mark);
     if (!p) return fail(spec.mark, 'the part is not in the source');
     const now = lines.slice(p.begin + 1, p.end);
-    const def = toLines(spec.template(spec.def));
+    const def = spec.def === null ? [] : toLines(spec.template(spec.def));
     if (now.length !== def.length || now.some((l, i) => !l.equals(def[i]))) return fail(spec.mark, 'the template at its default no longer matches the source');
     swaps.push({ ...p, with: toLines(spec.template(value)) });
   }
@@ -985,7 +1003,7 @@ function checkProject(buf, effective, report) {
     ok = false;
   }
   if (Object.keys(doc).some(k => k !== 'edits' && !PROJECT_TOP_KEYS.includes(k))) {
-    fail('project-key', 'a key that is not schema or settings');
+    fail('project-key', 'a key that is not schema, settings or qualities');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -1011,16 +1029,18 @@ function checkProject(buf, effective, report) {
     } else if (spec.tighter !== 'lower') {
       fail('project-direction', `${name} has no tightening direction, so a project may not set it`);
       ok = false;
-    } else if (!(v < effective.get(name))) {
+    } else if (effective.get(name) !== null && !(v < effective.get(name))) {
       fail('project-looser', `${name} ${v} is not tighter than the user's effective value, ${effective.get(name)}`);
       ok = false;
     } else values.push([name, v]);
   }
-  if (ok && !values.length) {
-    fail('project-empty', 'the project configuration sets no value, so there is nothing to install');
+  const qualities = Object.hasOwn(doc, 'qualities') ? checkProjectQualities(doc.qualities, fail) : null;
+  if (Object.hasOwn(doc, 'qualities') && qualities === null) ok = false;
+  if (ok && !values.length && !qualities) {
+    fail('project-empty', 'the project configuration sets no value and no qualities, so there is nothing to install');
     ok = false;
   }
-  return ok ? values : null;
+  return ok ? { values, qualities } : null;
 }
 
 /** The project mode: see the header. */
@@ -1045,12 +1065,13 @@ function runProject(out, home, projectFolder, report) {
     report.fail('project-none', PROJECT_SHOWN, null, 'there is no project configuration in the project folder, so there is nothing to install');
     return;
   }
-  const values = checkProject(proj.buf, effective, report);
-  if (values === null) return;
-  const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v))).join('\n'), 'utf8');
-  // The output holds only constant text and checked numbers; the scanner runs
-  // on it anyway, before its hash is reported, so a template change that
-  // brings in a refused character can never be installed.
+  const checked = checkProject(proj.buf, effective, report);
+  if (checked === null) return;
+  const { values, qualities } = checked;
+  const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v)), qualities).join('\n'), 'utf8');
+  // The output holds constant text, checked numbers and, with a qualities
+  // list, the project's own one-line fields; the scanner runs on it before
+  // its hash is reported, so a refused character can never be installed.
   if (scanText(output, PROJECT_OUTPUT_NAME, report) === null) return;
   const userHash = user === NONE ? null : sha256(user.buf);
   const projHash = sha256(proj.buf);
@@ -1062,6 +1083,7 @@ function runProject(out, home, projectFolder, report) {
     `PROJECT ${projHash}`,
     `DIGEST ${digest}`,
     ...values.map(([k, v]) => `VALUE ${k} ${v}`),
+    ...(qualities ? [`QUALITIES ${qualities.length}`] : []),
   );
 }
 

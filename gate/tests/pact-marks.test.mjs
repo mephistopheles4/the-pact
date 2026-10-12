@@ -13,8 +13,6 @@ import { read, tempDir } from './tree.mjs';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const LINES = read(SOURCE).split('\n');
 const MOVES_AT = LINES.indexOf('## The moves');
-// The moves' parts, in move order (#261): each sits under its move's bullet.
-const MOVE_PARTS = ['move-1', 'move-2', 'move-3', 'move-4-extra'];
 
 /** Every mark line in the source: { line, kind, name, indent }. */
 function marks(lines) {
@@ -40,19 +38,6 @@ test('with no configuration, the installed pact is its source with the open-mark
   assert.equal(readFileSync(join(out, 'CLAUDE.md'), 'utf8'), want);
 });
 
-// #261 C4
-test('seam A refuses the unrendered source: the open marks are not marks it knows, so a skipped render fails closed', t => {
-  const root = stage(t);
-  const env = { ...process.env };
-  delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none'], { encoding: 'utf8', env });
-  assert.notEqual(r.status, 0, r.stdout);
-  assert.equal(lastLine(r.stdout), 'RESULT: fail', r.stdout);
-  assert.match(r.stdout, /^FAIL marker: claude\/CLAUDE\.md line \d+: an unknown block name$/m, r.stdout);
-  // The same stage, rendered first, passes.
-  assert.equal(runSeamA(root).code, 0);
-});
-
 test('the pact source carries each open mark once, as a begin then an end, each alone on its line', () => {
   const all = marks(LINES);
   for (const n of OPEN_MARKS) {
@@ -72,21 +57,40 @@ test('no open mark encloses or overlaps a gated mark', () => {
   }
 });
 
-// #261 C1
-test('each move is a bullet with a bold lead-in, and its part is an empty slot at the end of it, indented under it', () => {
-  const bullets = LINES.map((l, i) => (i > MOVES_AT && /^- \*\*[^*]+\.\*\* /.test(l) ? i : -1)).filter(i => i >= 0);
-  assert.ok(bullets.length >= 4, 'four move bullets');
-  MOVE_PARTS.forEach((name, k) => {
-    const b = at(`  <!-- pact:begin ${name} -->`);
-    assert.ok(b > bullets[k] && (k === 3 || b < bullets[k + 1]), `${name} sits under move ${k + 1}`);
-    assert.ok(LINES.slice(bullets[k] + 1, b).every(l => l.startsWith('  ') && l.trim() !== ''), `${name} follows its move's text with no break`);
-    assert.equal(LINES[b + 1], `  <!-- pact:end ${name} -->`, `${name} is an empty slot`);
-  });
+// #262: the moves are one part, every move in it: a bullet with its bold lead-in alone on its line, its body indented under it.
+test('the moves part holds every move, each a bold lead-in with its body indented under it', () => {
+  const b = at('<!-- pact:begin moves -->');
+  const e = at('<!-- pact:end moves -->');
+  assert.ok(b > MOVES_AT && e > b, 'the moves part sits in the moves section');
+  const body = LINES.slice(b + 1, e);
+  assert.ok(body.filter(l => /^- \*\*[^*]+\.\*\*$/.test(l)).length >= 4, 'four move bullets');
+  assert.ok(body.every(l => /^- \*\*[^*]+\.\*\*$/.test(l) || /^ {2}\S/.test(l)), 'every line is a lead-in or its indented body');
+  assert.ok(LINES.slice(MOVES_AT, e).filter(l => /^- \*\*/.test(l)).every(l => body.includes(l)), 'no move outside the part');
 });
 
-// #261 C1
-test('config-notice is an empty slot right after the line under the title', () => {
-  assert.deepEqual(LINES.slice(0, 6), ['# The pact', '', 'To change the pact, edit its repo and install it.', '<!-- pact:begin config-notice -->', '<!-- pact:end config-notice -->', '']);
+// #261 C1; #262 S8: the line under the title names the parts Scriptorium builds.
+test('config-notice is an empty slot right after the lines under the title', () => {
+  assert.deepEqual(LINES.slice(0, 7), [
+    '# The pact',
+    '',
+    'To change the pact, edit its repo and install it. Parts marked *Scriptorium',
+    'builds this* come from my configuration; the text under them is the default.',
+    '<!-- pact:begin config-notice -->',
+    '<!-- pact:end config-notice -->',
+    '',
+  ]);
+});
+
+// #262 S8, C18: each part Scriptorium builds wraps its whole default, with the italic mark above it.
+test('each part Scriptorium builds sits under its mark, flush against its text, with no blank line inside', () => {
+  for (const n of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']) {
+    const b = at(`<!-- pact:begin ${n} -->`);
+    const e = at(`<!-- pact:end ${n} -->`);
+    assert.ok(b > 0 && e > b + 1, n);
+    assert.deepEqual(LINES.slice(b - 2, b), ['*Scriptorium builds this.*', ''], n);
+    assert.ok(LINES.slice(b + 1, e).every(l => l.trim() !== '' && !/^\s/.test(l)), `${n}: a block may hold no blank line and no leading space`);
+    assert.equal(LINES[e + 1], '', n);
+  }
 });
 
 // #261 C1
@@ -98,5 +102,6 @@ test('usage-pause wraps the usage bullet in "Guards", right after the pinned sto
   assert.equal(at('<!-- pact:end stop-and-escalate -->') + 1, b);
   assert.ok(LINES.slice(b + 1, e).every(l => l !== ''));
   assert.ok(LINES.slice(b + 1, e).join(' ').includes('When it is above 75%, wait for my'));
-  assert.equal(LINES[e + 1], '');
+  // #142: the session limit's part follows, empty, so an unset session limit renders nothing.
+  assert.deepEqual(LINES.slice(e + 1, e + 4), ['<!-- pact:begin usage-pause-session -->', '<!-- pact:end usage-pause-session -->', '']);
 });

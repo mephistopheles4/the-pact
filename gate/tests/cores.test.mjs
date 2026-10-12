@@ -78,7 +78,7 @@ for (const [label, m, plant, trapped] of [
   ['reads a file in a promise callback', 'render', "Promise.resolve().then(() => readdirSync('.'));", 'fs.readdirSync'],
   ['reads a file on the next tick', 'review', "process.nextTick(() => readdirSync('.'));", 'fs.readdirSync'],
   ['reads a file in an immediate', 'render', "setImmediate(() => readdirSync('.'));", 'fs.readdirSync'],
-  ['starts a process', 'seam-a', "spawnSync(process.execPath, ['-e', '']);", 'child_process.spawnSync'],
+  ['starts a process', 'seam-a', "import { spawnSync as plantedSpawn } from 'node:child_process';\nplantedSpawn(process.execPath, ['-e', '']);", 'child_process.spawnSync'],
   ['reads an environment variable', 'review', 'const planted = process.env.HOME;', 'process.env'],
   ['reads the home folder through os.homedir', 'project', 'homedir();', 'os.homedir'],
   ['reads the OS user and catches the trap', 'project', 'try { userInfo(); } catch {}', 'os.userInfo'],

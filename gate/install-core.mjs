@@ -7,15 +7,29 @@
 //
 // Nothing here runs on import. Imports nothing.
 
-export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
+export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+// The renderer's model shape and efforts (#262), copied: a test holds them equal.
+// A model is one word: no space or line break, at most 128 characters.
+export const AGENT_MODEL_RE = /^\S{1,128}$/;
+export const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md']);
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
 // gate/shared.mjs, so it works out its copy set without seam A's list.
 export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
-// The gate files the builder kit installs under pact/builder/, the only gate
-// files that ever install (#203, S8). Empty until the kit ships (T3).
-export const BUILDER_KIT = Object.freeze([]);
+// The builder kit (#203 S6; #262), the install's own copy of seam A's list in
+// gate/shared.mjs: installed under pact/builder/ in the repo's own layout
+// whenever /scriptorium installs. Its gate files are the only gate files that
+// ever install. The agents and the presets go by pattern.
+export const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
+export const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^builder\/presets\/[^/]+\.json$/]);
+export const inKit = rel => BUILDER_KIT.includes(rel) || BUILDER_KIT_PATTERNS.some(re => re.test(rel));
 const KIT_DEST = 'pact/builder/';
+// The unrendered rules file, which the install copies into the stage for the kit; never in a commit.
+export const KIT_RULES_REL = 'claude/rules.source.md';
+// The kit's files outside claude/, gate/ and builder/, staged by exact path.
+export const KIT_EXTRA = Object.freeze(['docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json']);
+// The command that brings the kit. It installs whenever its file is in the commit (#262: the builder is part of the pact).
+export const KIT_COMMAND = 'scriptorium';
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 export const RULES_REL = 'claude/CLAUDE.md';
 export const OVERLAY_REL = 'claude/settings.overlay.json';
@@ -211,7 +225,7 @@ export function applyLine(paths, commit, renderedHash, platform) {
 // ------------------------------------------------------------ the commit's tree
 
 /** True for a path the install stages: claude/, familiars/ and gate/ but its tests, and AGENTS.md. Nothing under cross/ is staged. */
-export const isStaged = rel => rel === 'AGENTS.md' || (/^(claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
+export const isStaged = rel => rel === 'AGENTS.md' || KIT_EXTRA.includes(rel) || (/^(builder|claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
 
 /**
  * The commit's tree from `ls-tree -r -z` bytes (S6, G7), checked again from
@@ -332,16 +346,6 @@ export function gateBlock(gateNow, recordGate, selfDiffers) {
   return lines;
 }
 
-// ------------------------------------------------------------ the pinned check
-
-/** The pin file's text: exactly a commit line and a sha256 line (S6, P1). */
-export function parsePin(text, pinnedSha) {
-  const m = /^commit ([0-9a-f]{40})\nsha256 ([0-9a-f]{64})\n$/.exec(text);
-  if (!m) refuse('pin-format', 'the pin file is not exactly "commit <40 hex>" and "sha256 <64 hex>".');
-  if (pinnedSha !== m[2]) refuse('pin-mismatch', 'the pinned check script does not match its pin.');
-  return m[1];
-}
-
 // ------------------------------------------------------------ a check's verdict
 
 /** ADR 0032's control 4: a check passes only when it did not fail and its last line is RESULT: pass. */
@@ -354,9 +358,9 @@ export function checkVerdict(report, what) {
 
 // ------------------------------------------------------------ the renderer's lines
 
-const EDIT_RE = /^EDIT (move-1|move-2|move-3|move-4-extra) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
-const AGENT_RE = /^AGENT ([a-z-]+) (opus|sonnet) (low|medium|high) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
-const VALUE_RE = /^VALUE (usage-pause) (0|[1-9][0-9]?|100)$/;
+const EDIT_RE = /^EDIT (moves|tiers|sensitive|workflow|lenses|qualities) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
+const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
+const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 
 /**
@@ -404,7 +408,8 @@ export function parseRenderLines(lines, { project, hash }) {
       digest = m[1];
     } else if ((m = AGENT_RE.exec(l))) {
       const name = AGENT_NAMES.find(a => a === m[1]);
-      if (!name) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
+      const modelOk = AGENT_MODEL_RE.test(m[2]);
+      if (!name || !modelOk || !AGENT_EFFORTS.includes(m[3])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
     } else if ((m = VALUE_RE.exec(l))) {
@@ -553,6 +558,7 @@ export function parseProjectRenderLines(lines, hash) {
   let user = null;
   let userSeen = false;
   const values = new Map();
+  let qualities = 0;
   for (const l of lines.slice(0, -1)) {
     let m;
     if ((m = /^RENDERED ([0-9a-f]{64})$/.exec(l))) {
@@ -571,12 +577,27 @@ export function parseProjectRenderLines(lines, hash) {
     } else if ((m = VALUE_RE.exec(l))) {
       if (values.has(m[1])) refuse('project-render-value-twice', 'the project render reported one setting twice.');
       values.set(m[1], m[2]);
+    } else if ((m = /^QUALITIES ([1-9])$/.exec(l))) {
+      // A project's own qualities list (#262 S25): its row count, one row per ISO/IEC 25010:2023 quality at most.
+      if (qualities) refuse('project-render-two-qualities', 'the project render reported two qualities lines.');
+      qualities = Number(m[1]);
     } else refuse('project-render-unknown-line', 'the project render printed a line the install does not read.');
   }
-  if (!projectHash || !userSeen || !fileHash || !values.size) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash and a value.');
+  if (!projectHash || !userSeen || !fileHash || (!values.size && !qualities)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value or a qualities list.');
   const text = `${user ? `user ${user}\n` : ''}project ${fileHash}\n`;
   if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('project-render-digest', "the project render's configuration digest is missing or does not match the hashes it reported.");
-  return { projectHash, fileHash, digest, user, values };
+  return { projectHash, fileHash, digest, user, values, qualities };
+}
+
+/**
+ * The project dry run's security-defaults line (#262 S25), or null: a
+ * project's own qualities list takes the place of the person's in that repo,
+ * so it is the one project setting that can loosen a default. Printed before
+ * every other warning.
+ */
+export function projectSecurityLine(parsed) {
+  if (!parsed.qualities) return null;
+  return `WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (${parsed.qualities} row${parsed.qualities === 1 ? '' : 's'}), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.`;
 }
 
 /** The project render's output (J3): exactly its rules file, a plain file of at most 64 KiB, holding the reported hash. */
@@ -621,10 +642,16 @@ export function parseProjectWrite(report, projectHash) {
  */
 export function expectedCopySet(stagedRels, commands = []) {
   const out = [];
+  const kitOn = commands.includes(KIT_COMMAND);
   for (const rel of stagedRels) {
-    if (BUILDER_KIT.includes(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
-    if (rel.startsWith('gate/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep') continue;
+    if (kitOn && inKit(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
+    if (rel.startsWith('gate/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep' || rel === KIT_RULES_REL) continue;
     if (/^familiars\/[^/]+\.(contract|practice-test)\.md$/.test(rel)) continue;
+    // A builder or kit file goes only to the kit; one the kit doesn't list pairs with null.
+    if (rel.startsWith('builder/') || KIT_EXTRA.includes(rel)) {
+      if (!inKit(rel)) out.push([rel, null]);
+      continue;
+    }
     let m;
     if ((m = /^claude\/commands\/(.*)$/.exec(rel))) {
       const name = /^([^/]+)\.md$/.exec(m[1])?.[1];
@@ -632,10 +659,31 @@ export function expectedCopySet(stagedRels, commands = []) {
       else if (!PACT_COMMANDS.includes(name)) out.push([rel, null]);
     } else if (rel === REVIEW_REL) out.push([rel, REVIEW_DEST]);
     else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
-    else if ((m = /^familiars\/([^/]+\.md)$/.exec(rel))) out.push([rel, `agents/${m[1]}`]);
     else out.push([rel, null]);
   }
   return out;
+}
+
+/**
+ * With /scriptorium on, every file the builder kit lists by name is staged, so
+ * the builder never installs half a kit (#203 S6). The rules source is the
+ * install's own copy, made before this runs.
+ */
+export function checkKit(on, stagedRels) {
+  if (!on.includes(KIT_COMMAND)) return;
+  const staged = new Set(stagedRels);
+  const missing = BUILDER_KIT.filter(rel => !staged.has(rel));
+  if (missing.length) refuse('kit-incomplete', `the commit holds /${KIT_COMMAND} but not all of its builder kit: ${missing.map(formatPlain).join(', ')}.`);
+}
+
+/**
+ * The pact commands that install: those the configuration lists, and the
+ * builder's command whenever its file is in the commit (#262), in
+ * PACT_COMMANDS order. A project install installs none.
+ */
+export function commandsOn(listed, stagedRels) {
+  const staged = new Set(stagedRels);
+  return PACT_COMMANDS.filter(c => listed.includes(c) || (c === KIT_COMMAND && staged.has(`claude/commands/${c}.md`)));
 }
 
 /**
@@ -652,7 +700,7 @@ export function matchCopySet(lines, expected, stagedHashes, commit) {
     if (!m) continue;
     const key = `${m[2]} ${m[3]}`;
     if (pairs.has(key)) refuse('copy-set-twice', 'the check listed one file twice.');
-    if (m[2].startsWith('gate/') && !(BUILDER_KIT.includes(m[2]) && m[3] === `${KIT_DEST}${m[2]}`)) refuse('copy-set-gate', `the check listed a gate file for install outside the builder kit: ${formatPlain(m[2])}.`);
+    if (m[2].startsWith('gate/') && !(inKit(m[2]) && m[3] === `${KIT_DEST}${m[2]}`)) refuse('copy-set-gate', `the check listed a gate file for install outside the builder kit: ${formatPlain(m[2])}.`);
     pairs.set(key, m[1]);
     checked.push([m[2], { dest: m[3], sha256: m[1] }]);
   }
@@ -674,7 +722,7 @@ export function matchCopySet(lines, expected, stagedHashes, commit) {
 export function checkSkillClash(commands, present) {
   for (const name of commands) {
     const rel = `skills/${name}`;
-    if (present(rel)) refuse('command-skill-clash', `${rel} exists in the Claude home folder, and Claude Code would run that skill in place of the pact command /${name}. Rename or move it, or take ${name} out of the commands list.`);
+    if (present(rel)) refuse('command-skill-clash', `${rel} exists in the Claude home folder, and Claude Code would run that skill in place of the pact command /${name}. Rename or move it${name === KIT_COMMAND ? '' : `, or take ${name} out of the commands list`}.`);
   }
 }
 
@@ -687,23 +735,30 @@ export function checkNewPaths(repoFiles, record, live) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
     if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
-    const remedy = rel.startsWith(KIT_DEST) ? 'take scriptorium, which installs the builder kit, out of the commands list' : 'take its name out of the commands list';
-    const next = rel === REVIEW_DEST ? 'Move it out of the way, then install again.' : `Move it, or ${remedy}.`;
+    const always = rel === REVIEW_DEST || rel.startsWith(KIT_DEST) || rel === `commands/${KIT_COMMAND}.md`;
+    const next = always ? 'Move it out of the way, then install again.' : 'Move it, or take its name out of the commands list.';
     if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
   }
 }
 
-/** The Commands block of a dry run (#203, S7): every pact command, on or off, and how to turn one on. */
-export function commandsBlock(commands, stagedRels) {
+/**
+ * The Commands block of a dry run (#203, S7): every pact command, on or off,
+ * and how to turn one on. /scriptorium installs whenever it is in the commit
+ * (#262); a list that still names it is told to drop the name, which an older
+ * pact would refuse on a rollback.
+ */
+export function commandsBlock(on, stagedRels, listed = []) {
   const staged = new Set(stagedRels);
   const out = ['Commands:'];
   for (const name of PACT_COMMANDS) {
     const here = staged.has(`claude/commands/${name}.md`);
-    out.push(`  /${name}: ${commands.includes(name) ? 'on' : 'off'}${here ? '' : ' (not in this commit)'}`);
+    const always = name === KIT_COMMAND && here;
+    out.push(`  /${name}: ${always ? 'on, always: part of the pact, with the builder kit under pact/builder/' : on.includes(name) ? 'on' : 'off'}${here ? '' : ' (not in this commit)'}`);
   }
-  const example = PACT_COMMANDS.find(name => staged.has(`claude/commands/${name}.md`));
-  out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command is in this commit yet, so none can be turned on.');
-  for (const name of commands) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
+  const example = PACT_COMMANDS.find(name => name !== KIT_COMMAND && staged.has(`claude/commands/${name}.md`));
+  out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command that can be turned on is in this commit.');
+  for (const name of on) if (!(name === KIT_COMMAND && staged.has(`claude/commands/${name}.md`))) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
+  if (listed.includes(KIT_COMMAND) && staged.has(`claude/commands/${KIT_COMMAND}.md`)) out.push(`  NOTE: ${CONFIG_REL} lists ${KIT_COMMAND}, which now always installs; take it out of the list, since an older pact refuses it.`);
   return out;
 }
 
@@ -979,6 +1034,9 @@ export function plan(record, repoFiles, live, throughLink) {
   const add = [];
   let del = [];
   const warnings = [];
+  // #262: an agent file the pact didn't write, or changed since it wrote it, is the person's: never overwritten, deleted or recorded.
+  const yours = [];
+  const isAgent = rel => rel.startsWith('agents/');
   let same = 0;
   if (record) {
     const entries = [];
@@ -989,18 +1047,30 @@ export function plan(record, repoFiles, live, throughLink) {
     }
     for (const e of entries) {
       const s = live(e.path);
-      if (!s.file) drift.push(`${e.path} (deleted since the install)`);
+      // A deleted agent file comes back as an add, not as drift.
+      if (isAgent(e.path) && !s.exists) continue;
+      // A changed regular file is the person's; anything else at the path (a folder, say) is drift, so the install stops.
+      if (isAgent(e.path) && s.file && s.sha256 !== e.sha256.toLowerCase()) yours.push(e.path);
+      else if (!s.file) drift.push(`${e.path} (deleted since the install)`);
       else if (s.sha256 !== e.sha256.toLowerCase()) drift.push(`${e.path} (changed since the install)`);
     }
-    del = entries.filter(e => !repoFiles.has(e.path) && live(e.path).exists).map(e => e.path);
+    del = entries.filter(e => !repoFiles.has(e.path) && live(e.path).exists && !yours.includes(e.path)).map(e => e.path);
   } else del = RETIRED.filter(r => live(r).exists);
+  const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const [rel, sha] of repoFiles) {
     const s = live(rel);
+    if (yours.includes(rel)) continue;
+    if (isAgent(rel) && s.exists && !listed.has(rel)) {
+      // An agent file of the person's, with a pact agent's name: theirs, unless it is byte for byte the pact's.
+      if (s.file && s.sha256 === sha) same++;
+      else yours.push(rel);
+      continue;
+    }
     if (!s.file) add.push(rel);
     else if (s.sha256 !== sha) overwrite.push(rel);
     else same++;
   }
-  return { drift, overwrite, add, delete: del, warnings, same };
+  return { drift, overwrite, add, delete: del, warnings, same, yours };
 }
 
 // ------------------------------------------------------------ the configuration against the record
@@ -1018,6 +1088,24 @@ export function configStale(now, last) {
   if (now.size !== last.size) return true;
   for (const [k, v] of now) if (!last.has(k) || last.get(k) !== v) return true;
   return false;
+}
+
+// The parts Scriptorium builds (#262). An edit to any of them changes the
+// security defaults: what Claude looks for as sensitive, the route it
+// recommends, and which lenses are offered when.
+export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+
+/**
+ * The security-defaults line (#262, S8), or null when no edit reaches one of
+ * SECURITY_PARTS. The dry run prints it before every other warning. It points
+ * by part name and never names a block file. An agent setting never shows it:
+ * a person may run any agent on any model (#262).
+ */
+export function securityDefaultsLine(parsed, record) {
+  const parts = SECURITY_PARTS.filter(p => parsed.edits.has(p));
+  if (!parts.length) return null;
+  const since = !record ? 'no install is recorded to compare with' : configStale(configNow(parsed), record.config) ? 'the configuration CHANGED since the last install' : 'the configuration is unchanged since the last install';
+  return `WARN: SECURITY DEFAULTS: the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install. ${since[0].toUpperCase()}${since.slice(1)}.`;
 }
 
 /** The Configuration block, built from the renderer's parsed lines alone. */
@@ -1039,15 +1127,8 @@ export function configBlock(parsed, rulesHash, record) {
   out.push(`  rendered rules file: sha256 ${rulesHash}`);
   for (const [k, v] of parsed.values) out.push(`  WARN: the user configuration sets ${k} to ${v}.`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
-  for (const [name, a] of parsed.agentSets) {
-    let warn = `  WARN: the user configuration sets ${name} to ${a.model}, ${a.effort} effort.`;
-    if (a.security && a.override) {
-      warn += ` ${name} is a security-set lens, so this is an override, not security-tested: the pact reviews only its default.`;
-      if (a.egress) warn += ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.';
-    }
-    out.push(warn);
-  }
-  out.push('  Edited text is checked for its form, its characters and file imports, not for wording or meaning.');
+  for (const [name, a] of parsed.agentSets) out.push(`  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`);
+  out.push('  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.');
   return out;
 }
 
@@ -1077,13 +1158,14 @@ export const stops = Object.freeze({
   preload: () => refuse('run-preload', 'NODE_OPTIONS is set, or the runner was started with an option; start the install with node gate/install.mjs.'),
   runArgs: () => refuse('run-args', 'the install runner was not started by the install bootstrap: run node gate/install.mjs.'),
   stageUnreadable: () => refuse('stage-unreadable', 'the stage could not be read.'),
-  pinMissing: () => refuse('pin-missing', 'the pinned check script or its pin file is missing.'),
   configLink: () => refuse('config-link', 'the user configuration file, or the pact folder that holds it, is a link or other reparse point.'),
   blocksLink: () => refuse('blocks-link', 'the configuration blocks folder is a link or other reparse point.'),
   blocksUnreadable: () => refuse('blocks-unreadable', 'the configuration blocks folder could not be read.'),
   blocksHoldLink: () => refuse('blocks-hold-link', 'the configuration blocks folder holds a link or other reparse point.'),
   moduleMissing: name => refuse('module-missing', `the commit's ${name} could not be loaded.`),
   rulesMissing: () => refuse('rules-missing', `the commit holds no ${RULES_REL}.`),
+  rulesSourceInTree: () => refuse('rules-source-in-tree', `the commit holds ${KIT_RULES_REL}, a file only the install makes, from ${RULES_REL}.`),
+  rulesSourceHash: () => refuse('rules-source-hash', `the copy of ${RULES_REL} made for the builder kit does not match the commit's.`),
   renderChangedStage: () => refuse('render-changed-stage', 'the renderer changed the stage.'),
   stageChanged: rel => refuse('stage-changed', `the staged copy of ${formatPlain(rel)} changed after the check.`),
   reviewRulesChanged: () => refuse('review-rules-changed', 'the staged rules file changed after the check.'),

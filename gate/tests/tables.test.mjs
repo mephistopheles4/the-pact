@@ -132,7 +132,6 @@ const MALFORMED = [
   ['a no-op plant', "[{ id: 'one', plant: tree => tree, fails: ['edit-mark'], why: 'w' }]", /row 1's plant leaves the input unchanged/],
   ['a plant that writes the same bytes again', "[{ id: 'one', plant: tree => ({ ...tree, 'in.txt': 'base' }), fails: ['edit-mark'], why: 'w' }]", /row 1's plant leaves the input unchanged/],
   ['a row naming an id the module does not hold', "[{ id: 'one', plant: trip('no-such-rule'), fails: ['no-such-rule'], why: 'w' }]", /row 1 names the rule "no-such-rule", which gate\/render\.mjs does not hold/],
-  ['a grimoire id the pinned check does not hold', "[{ id: 'one', plant: trip('grimoire/no-such-rule'), fails: ['grimoire/no-such-rule'], why: 'w' }]", /row 1 names the rule "grimoire\/no-such-rule", which the pinned check does not hold/],
   ['a row with no why', "[{ id: 'one', plant: trip('edit-mark'), fails: ['edit-mark'] }]", /row 1 gives no why/],
 ];
 
@@ -145,10 +144,10 @@ for (const [label, rows, reason] of MALFORMED) {
   });
 }
 
-test('control: the same table with a good row loads, and a grimoire id the pinned check holds is accepted', t => {
-  const r = planted(t, `table('malformed', { module: 'gate/render.mjs', base, run: fake, rows: [${GOOD_ROW}, { id: 'pinned', plant: trip('grimoire/keys'), fails: ['grimoire/keys'], why: 'w' }] });\n`);
+test('control: the same table with a good row loads', t => {
+  const r = planted(t, `table('malformed', { module: 'gate/render.mjs', base, run: fake, rows: [${GOOD_ROW}] });\n`);
   assert.equal(r.status, 0, r.out);
-  expect(r, { 'malformed: one': 'ok', 'malformed: pinned': 'ok' });
+  expect(r, { 'malformed: one': 'ok' });
 });
 
 // Writing a gate test: a table may name a script in the poster's folder; any other folder, and the tests folder, are still refused
@@ -206,7 +205,7 @@ test('a rule id is looked for in the module and every gate file it imports, not 
 // #261 C6
 test('seam A\'s rule ids are found through the files it imports', () => {
   const lits = moduleLiterals('gate/seam-a.mjs');
-  assert.ok(lits.has('rules-import'), 'a rule pact-text.mjs holds, which seam A imports');
+  assert.ok(lits.has('invisible'), 'a rule shared.mjs holds, which seam A imports');
 });
 
 test('a tree\'s bytes differ when a path or its bytes differ, and not when only key order does', () => {

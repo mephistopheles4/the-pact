@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="652" viewBox="0 0 800 652" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img">
-<rect width="800" height="652" fill="#1a1614"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="632" viewBox="0 0 800 632" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img">
+<rect width="800" height="632" fill="#1a1614"/>
 <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#ece5df" stroke-opacity="0.045" stroke-width="1"/></pattern></defs>
-<rect width="800" height="652" fill="url(#grid)"/>
-<rect x="17" y="17" width="766" height="618" fill="#201b18" fill-opacity="0.72" stroke="#ece5df" stroke-width="2"/>
+<rect width="800" height="632" fill="url(#grid)"/>
+<rect x="17" y="17" width="766" height="598" fill="#201b18" fill-opacity="0.72" stroke="#ece5df" stroke-width="2"/>
 <text x="44" y="39.2" font-size="12" font-weight="600" letter-spacing="1.92" fill="#ece5df">FIG. 02 — RIGOUR FOLLOWS RISK</text>
 <text x="756" y="39.2" font-size="12" letter-spacing="1.92" text-anchor="end" fill="#ece5df" fill-opacity="0.7">HOW MUCH CHECKING</text>
 <line x1="18" y1="58" x2="782" y2="58" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
@@ -33,7 +33,7 @@
 <line x1="164" y1="81" x2="164" y2="313" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
 <line x1="524" y1="81" x2="524" y2="313" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
 <line x1="640" y1="81" x2="640" y2="313" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<rect x="44" y="338" width="712" height="205" fill="#1a1614" stroke="#d98a3c" stroke-width="2"/>
+<rect x="44" y="338" width="712" height="185" fill="#1a1614" stroke="#d98a3c" stroke-width="2"/>
 <rect x="54" y="335" width="320.55" height="6" fill="#1a1614"/>
 <text x="60" y="342" font-size="11" font-weight="600" letter-spacing="1.76" fill="#d98a3c">SENSITIVE WORK · WHEN I CHOOSE IT</text>
 <text x="60" y="375.4" font-size="14" fill="#ece5df">By default, sensitive work is auth, secrets, crypto, input validation</text>
@@ -42,15 +42,14 @@
 <text x="60" y="443.55" font-size="13" fill="#ece5df" fill-opacity="0.8">The agent recommends the route, with its why, in its tier proposal,</text>
 <text x="60" y="463.55" font-size="13" fill="#ece5df" fill-opacity="0.8">and I take it or not. If I don't, the security pair is offered once</text>
 <text x="60" y="483.55" font-size="13" fill="#ece5df" fill-opacity="0.8">more at Test on a list match, and a flag I haven't answered stays</text>
-<text x="60" y="503.55" font-size="13" fill="#ece5df" fill-opacity="0.8">open in the result. Small work that touches nothing sensitive is</text>
-<text x="60" y="523.55" font-size="13" fill="#ece5df" fill-opacity="0.8">quick. Keep one model for a whole session.</text>
-<line x1="44" y1="565" x2="756" y2="565" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
-<text x="44" y="587.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">PLANS</text>
-<text x="44" y="606.55" font-size="13" font-weight="500" fill="#ece5df">Opus</text>
-<line x1="281.33" y1="565" x2="281.33" y2="612" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<text x="293.33" y="587.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">BUILDS</text>
-<text x="293.33" y="606.55" font-size="13" font-weight="500" fill="#ece5df">Sonnet · Opus for quick</text>
-<line x1="518.67" y1="565" x2="518.67" y2="612" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<text x="530.67" y="587.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">SENSITIVE ROUTE</text>
-<text x="530.67" y="606.55" font-size="13" font-weight="500" fill="#ece5df">Opus, high effort</text>
+<text x="60" y="503.55" font-size="13" fill="#ece5df" fill-opacity="0.8">open in the result. Keep one model for a whole session.</text>
+<line x1="44" y1="545" x2="756" y2="545" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="44" y="567.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">PLANS</text>
+<text x="44" y="586.55" font-size="13" font-weight="500" fill="#ece5df">Opus</text>
+<line x1="281.33" y1="545" x2="281.33" y2="592" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="293.33" y="567.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">BUILDS</text>
+<text x="293.33" y="586.55" font-size="13" font-weight="500" fill="#ece5df">Sonnet · Opus for quick</text>
+<line x1="518.67" y1="545" x2="518.67" y2="592" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="530.67" y="567.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">SENSITIVE ROUTE</text>
+<text x="530.67" y="586.55" font-size="13" font-weight="500" fill="#ece5df">Opus, high effort</text>
 </svg>

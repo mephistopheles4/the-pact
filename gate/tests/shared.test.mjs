@@ -1,7 +1,7 @@
 // The shared gate module (#91): the strict JSON reader, the text scanner, the
-// safe-path test, the name filter, the report and refusal types, the structure
-// patterns and the marker parser live in gate/shared.mjs, and seam A and its
-// pact-text checks hold no copy of their own.
+// safe-path test, the name filter, the report and refusal types and the marker
+// pattern live in gate/shared.mjs, and seam A and the renderer hold no copy of
+// their own.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,7 +11,7 @@ import { moduleFiles } from './gate-files.mjs';
 import { GATE } from './text.mjs';
 
 const SHARED = join(GATE, 'shared.mjs');
-const USERS = ['seam-a.mjs', 'pact-text.mjs', 'render.mjs'];
+const USERS = ['seam-a.mjs', 'render.mjs'];
 
 // Every piece that moved, by its declared name.
 const MOVED = [
@@ -33,15 +33,8 @@ const MOVED = [
   // the report and refusal types
   'Report',
   'Refused',
-  // the structure patterns
-  'FENCE_RE',
-  'ANY_FENCE_RE',
-  'SETEXT_RE',
-  'HEADING_LIKE_RE',
-  // the marker parser
+  // the marker pattern
   'MARKER_RE',
-  'PACT_MARKER_RE',
-  'parseDoc',
 ];
 
 /** The moved names `text` declares at its top level: its own copies. */

@@ -200,19 +200,7 @@ test('the gate block: changed, added and removed lines, compared without regard 
   assert.deepEqual(core.gateBlock(now, [...now], false), ['Gate: unchanged since the last install']);
 });
 
-// ------------------------------------------------------------ the pin (P1) and a check's verdict (R4, S-1, control 4)
-
-for (const c of table('pin file', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: `commit ${ID('a')}\nsha256 ${H('b')}\n`, sha: H('b') }),
-  run: t => decided(() => core.parsePin(t.in, t.sha)),
-  rows: [
-    { id: 'crlf', plant: rep(/\n/g, '\r\n'), fails: ['pin-format'], why: 'exact bytes only' },
-    { id: 'extra-line', plant: t => ({ ...t, in: `${t.in}x\n` }), fails: ['pin-format'], why: 'nothing after the hash' },
-    { id: 'capital-hex', plant: rep(ID('a'), ID('A')), fails: ['pin-format'], why: 'lower-case hex only' },
-    { id: 'script-not-pinned', plant: set(H('c'), 'sha'), fails: ['pin-mismatch'], why: 'an edited pinned script' },
-  ],
-})) test(c.name, c.fn);
+// ------------------------------------------------------------ a check's verdict (R4, S-1, control 4)
 
 for (const c of table('check verdict', {
   module: 'gate/install-core.mjs',
@@ -231,7 +219,7 @@ for (const c of table('check verdict', {
 const U = H('7');
 const digestOf = text => sha256(Buffer.from(text, 'ascii')).slice(0, 12);
 const D = digestOf(`user ${U}\nblock a.md ${H('e')}\n`);
-const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG user ${U}`, `EDIT move-2 replace ${H('e')} a.md`, `DIGEST ${D}`, 'VALUE usage-pause 90', `AGENT data-lens sonnet high ${H('f')} security-set override local`, 'COMMANDS finis', 'RESULT: pass'].join('\n') });
+const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG user ${U}`, `EDIT moves replace ${H('e')} a.md`, `DIGEST ${D}`, 'VALUE usage-pause 90', `AGENT data-lens sonnet high ${H('f')} security-set override local`, 'COMMANDS finis', 'RESULT: pass'].join('\n') });
 const renderRun = (project = false) => t => decided(() => core.parseRenderLines(t.in.split('\n'), { project, hash: sha256 }));
 const noConfig = t => ({ in: t.in.replace(`CONFIG user ${U}`, 'CONFIG none').replace('COMMANDS finis', 'COMMANDS none') });
 const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG none', 'COMMANDS none', 'RESULT: pass'].join('\n') });
@@ -249,12 +237,12 @@ for (const c of table('renderer lines', {
     { id: 'no-config-line', plant: rep(`CONFIG user ${U}\n`, ''), fails: ['render-counts'], why: 'no configuration line' },
     { id: 'two-config-lines', plant: rep('DIGEST', 'CONFIG none\nDIGEST'), fails: ['render-counts'], why: 'a user and a none configuration line' },
     { id: 'unknown-line', plant: rep('VALUE', 'INSTALL x y z\nVALUE'), fails: ['render-unknown-line'], why: 'a line that could feed another parse' },
-    { id: 'edit-twice', plant: rep('DIGEST', 'EDIT move-2 remove\nDIGEST'), fails: ['render-edit-twice'], why: 'one open part edited twice' },
+    { id: 'edit-twice', plant: rep('DIGEST', 'EDIT moves remove\nDIGEST'), fails: ['render-edit-twice'], why: 'one open part edited twice' },
     { id: 'block-dot-dot', plant: rep(' a.md', ' ../a.md'), fails: ['render-block-path'], why: 'a block path with a .. segment' },
     { id: 'block-trailing-dot', plant: rep(' a.md', ' a.md.'), fails: ['render-block-path'], why: 'a block path ending in a dot' },
-    { id: 'block-two-hashes', plant: rep('DIGEST', `EDIT move-3 replace ${H('9')} a.md\nDIGEST`), fails: ['render-block-changed'], why: 'a block that changed while it was read' },
-    { id: 'part-not-open', plant: rep('EDIT move-2', 'EDIT move-5'), fails: ['render-unknown-line'], why: 'an edit to a part that is not open' },
-    { id: 'gated-clause', plant: rep('EDIT move-2', 'EDIT stop-and-escalate'), fails: ['render-unknown-line'], why: 'an edit to a pinned block' },
+    { id: 'block-two-hashes', plant: rep('DIGEST', `EDIT tiers replace ${H('9')} a.md\nDIGEST`), fails: ['render-block-changed'], why: 'a block that changed while it was read' },
+    { id: 'part-not-open', plant: rep('EDIT moves', 'EDIT move-5'), fails: ['render-unknown-line'], why: 'an edit to a part that is not open' },
+    { id: 'gated-clause', plant: rep('EDIT moves', 'EDIT stop-and-escalate'), fails: ['render-unknown-line'], why: 'an edit to a pinned block' },
     { id: 'remove-names-file', plant: rep(`replace ${H('e')} a.md`, 'remove a.md'), fails: ['render-unknown-line'], why: 'a remove that names a file' },
     { id: 'block-left-out-of-digest', plant: rep(`DIGEST ${D}`, `DIGEST ${digestOf(`user ${U}\n`)}`), fails: ['render-digest'], why: 'a digest that leaves a block out' },
     { id: 'digest-not-the-hashes', plant: rep(`DIGEST ${D}`, 'DIGEST 0123456789ab'), fails: ['render-digest'], why: "a digest that is not the reported hashes'" },
@@ -265,7 +253,10 @@ for (const c of table('renderer lines', {
     { id: 'value-unknown-setting', plant: rep('VALUE usage-pause', 'VALUE other-thing'), fails: ['render-unknown-line'], why: 'a value for no known setting' },
     { id: 'value-out-of-range', plant: rep('usage-pause 90', 'usage-pause 101'), fails: ['render-unknown-line'], why: 'a value out of range' },
     { id: 'agent-twice', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-agent-twice'], why: 'one agent setting twice' },
-    { id: 'agent-not-configurable', plant: rep('AGENT data-lens', 'AGENT scout'), fails: ['render-unknown-line'], why: 'an agent the configuration cannot set' },
+    { id: 'agent-not-configurable', plant: rep('AGENT data-lens', 'AGENT my-reviewer'), fails: ['render-unknown-line'], why: 'an agent the configuration cannot set' },
+    // #262 C14: the install's AGENT parser takes the renderer's model shape and five efforts, and nothing else.
+    { id: 'agent-model-too-long', plant: rep('AGENT data-lens sonnet', `AGENT data-lens ${'a'.repeat(129)}`), fails: ['render-unknown-line'], why: 'a model over 128 characters' },
+    { id: 'agent-effort-unknown', plant: rep('sonnet high', 'sonnet ultra'), fails: ['render-unknown-line'], why: 'an effort outside the five' },
     { id: 'agent-in-capitals', plant: rep('AGENT data-lens', 'AGENT Data-lens'), fails: ['render-unknown-line'], why: 'names are matched case-sensitively' },
     { id: 'digest-with-no-config', plant: t => noConfig(t), fails: ['render-none-extras'], why: 'a digest, value, edit or agent with no configuration' },
     { id: 'no-commands-line', plant: rep('COMMANDS finis\n', ''), fails: ['render-commands-missing'], why: 'the renderer must say which commands are on (#203)' },
@@ -285,7 +276,7 @@ for (const c of table('renderer lines with no configuration', {
   rows: [
     { id: 'digest', plant: rep('RESULT', `DIGEST ${D}\nRESULT`), fails: ['render-none-extras'], why: 'a digest with no configuration' },
     { id: 'value', plant: rep('RESULT', 'VALUE usage-pause 90\nRESULT'), fails: ['render-none-extras'], why: 'a value with no configuration' },
-    { id: 'edit', plant: rep('RESULT', 'EDIT move-1 remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
+    { id: 'edit', plant: rep('RESULT', 'EDIT moves remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
     { id: 'agent', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-none-extras'], why: 'an agent setting with no configuration' },
     { id: 'no-config-line', plant: rep('CONFIG none\n', ''), fails: ['render-counts'], why: 'no configuration line at all' },
     { id: 'two-none-lines', plant: rep('CONFIG none', 'CONFIG none\nCONFIG none'), fails: ['render-counts'], why: 'two configuration lines, both none' },
@@ -300,6 +291,14 @@ for (const c of table('renderer lines on a project install', {
   run: renderRun(true),
   rows: [{ id: 'stage-render-read-config', plant: () => renderBase(), fails: ['render-project-config'], why: "the stage's render must read no configuration" }],
 })) test(c.name, c.fn);
+
+// #262 C4 (#142): the session limit's value line reaches both parses, home and project.
+test('the renderer lines: a usage-pause-session value parses beside the weekly one, in a home and a project render', () => {
+  const home = core.parseRenderLines(renderBase().in.replace('VALUE usage-pause 90', 'VALUE usage-pause 90\nVALUE usage-pause-session 80').split('\n'), { project: false, hash: sha256 });
+  assert.deepEqual([...home.values], [['usage-pause', '90'], ['usage-pause-session', '80']]);
+  const proj = core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE usage-pause-session 70').split('\n'), sha256);
+  assert.deepEqual([...proj.values], [['usage-pause-session', '70']]);
+});
 
 test('the renderer lines: the parse gives the hashes, the configuration, the edits, the values and the agent settings', () => {
   const p = core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 });
@@ -355,8 +354,20 @@ for (const c of table('project render lines', {
     { id: 'no-project-hash', plant: rep(`PROJECT ${PF}\n`, ''), fails: ['project-render-counts'], why: 'the project file is named' },
     { id: 'digest-wrong', plant: rep(`DIGEST ${PD}`, `DIGEST ${digestOf(`project ${PF}\n`)}`), fails: ['project-render-digest'], why: 'the digest leaves the user file out' },
     { id: 'no-digest', plant: rep(`DIGEST ${PD}\n`, ''), fails: ['project-render-digest'], why: 'a digest is required' },
+    // #262 C21: a project's own qualities list is reported once, as a row count of 1 to 9.
+    { id: 'qualities-twice', plant: rep('RESULT', 'QUALITIES 3\nQUALITIES 3\nRESULT'), fails: ['project-render-two-qualities'], why: 'one qualities list' },
+    { id: 'qualities-zero', plant: rep('RESULT', 'QUALITIES 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'a list holds a row' },
+    { id: 'qualities-too-many', plant: rep('RESULT', 'QUALITIES 10\nRESULT'), fails: ['project-render-unknown-line'], why: 'at most nine rows, one per quality' },
   ],
 })) test(c.name, c.fn);
+
+// #262 C21, C22: a project with only a qualities list renders, and its dry run leads with the security-defaults line.
+test('the project render with a qualities list and no value passes, and the project security-defaults line names it; with no list there is none', () => {
+  const p = core.parseProjectRenderLines([`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, 'QUALITIES 3', 'RESULT: pass'], sha256);
+  assert.equal(p.qualities, 3);
+  assert.equal(core.projectSecurityLine(p), "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (3 rows), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.");
+  assert.equal(core.projectSecurityLine(core.parseProjectRenderLines(projRenderBase().in.split('\n'), sha256)), null);
+});
 
 test('the project render with no user file: the digest is the project file\'s alone', () => {
   const p = core.parseProjectRenderLines([`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, 'VALUE usage-pause 60', 'RESULT: pass'], sha256);
@@ -456,8 +467,8 @@ for (const c of table('agent file', {
 
 // ------------------------------------------------------------ seam A's copy set and overlay (S-2, S-3)
 
-const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['familiars/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
-const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} familiars/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
+const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['claude/agents/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
+const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} claude/agents/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
 // #261 C3
 for (const c of table('copy set', {
   module: 'gate/install-core.mjs',
@@ -502,13 +513,44 @@ test('the copy set with commands: a listed command pairs, an unlisted pact comma
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/commands/finis.md', 'claude/commands/make-it-so.md', 'claude/commands/ship-it.md', 'claude/commands/sub/finis.md', 'gate/a.mjs'], ['finis']);
   assert.deepEqual(e, [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/commands/finis.md', 'commands/finis.md'], ['claude/commands/ship-it.md', null], ['claude/commands/sub/finis.md', null]]);
   assert.deepEqual(core.expectedCopySet(['claude/commands/finis.md']), [], 'no list installs no command');
-  assert.deepEqual([...core.BUILDER_KIT], [], 'no kit ships before T3');
+});
+
+// #203 S6, S8; #262: the builder kit pairs under pact/builder/ only with /scriptorium on; the rules source goes only there, and a builder file the kit doesn't list pairs with null.
+test('the copy set with the builder kit: each kit file pairs under pact/builder/ only with scriptorium on, the rules source only there, an unlisted builder file with null', () => {
+  const rels = ['claude/CLAUDE.md', 'claude/rules.source.md', 'claude/agents/a.md', 'builder/build.mjs', 'builder/presets/p.json', 'builder/notes.txt', 'gate/shared.mjs', 'gate/seam-a.mjs', 'examples/pact-config/builder.json', 'claude/commands/scriptorium.md'];
+  assert.deepEqual(core.expectedCopySet(rels, ['scriptorium']), [
+    ['claude/CLAUDE.md', 'CLAUDE.md'],
+    ['claude/rules.source.md', 'pact/builder/claude/rules.source.md'],
+    ['claude/agents/a.md', 'pact/builder/claude/agents/a.md'], ['claude/agents/a.md', 'agents/a.md'],
+    ['builder/build.mjs', 'pact/builder/builder/build.mjs'],
+    ['builder/presets/p.json', 'pact/builder/builder/presets/p.json'],
+    ['builder/notes.txt', null],
+    ['gate/shared.mjs', 'pact/builder/gate/shared.mjs'],
+    ['examples/pact-config/builder.json', 'pact/builder/examples/pact-config/builder.json'],
+    ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
+  ]);
+  assert.deepEqual(core.expectedCopySet(rels, []), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/agents/a.md', 'agents/a.md'], ['builder/notes.txt', null]], 'no kit without /scriptorium');
+});
+
+// #203 S6: with /scriptorium on, the kit is whole or the install refuses.
+test('the builder kit: with scriptorium on, a kit file the commit lacks refuses; with it off, nothing is asked', () => {
+  const whole = [...core.BUILDER_KIT];
+  assert.doesNotThrow(() => core.checkKit(['scriptorium'], whole));
+  assert.deepEqual(decided(() => core.checkKit(['scriptorium'], whole.filter(r => r !== 'builder/parts.mjs'))).fails, ['kit-incomplete']);
+  assert.doesNotThrow(() => core.checkKit(['finis'], []));
+});
+
+// #262: /scriptorium installs whenever its file is in the commit; the others only when listed.
+test('the commands on: the listed ones, and scriptorium whenever the commit holds it', () => {
+  assert.deepEqual(core.commandsOn([], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']), ['scriptorium']);
+  assert.deepEqual(core.commandsOn(['finis'], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']), ['finis', 'scriptorium']);
+  assert.deepEqual(core.commandsOn(['finis'], ['claude/commands/finis.md']), ['finis'], 'no file, no command');
 });
 
 // #261 C3
 test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes to its one fixed path', () => {
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', 'agents/x.md']]);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', null]]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
@@ -555,19 +597,30 @@ test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
   assert.equal(core.skipReason('agents/a.md', noLink), null);
 });
 
-test('the plan: drift, overwrite, add, delete and unchanged; a record hash in capitals is not drift; a first install deletes only the retired agents', () => {
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['agents/a.md', H('9')], ['agents/old.md', H('3')], ['agents/builder.md', H('4')], ['agents/gone.md', null]]);
+// #262: an agent file changed since the install, or one the record never listed, is the person's: in yours, never drift, overwrite or delete.
+test('the plan: drift, overwrite, add, delete, yours and unchanged; a record hash in capitals is not drift; a first install deletes only the retired agents', () => {
+  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('9')], ['agents/a.md', H('9')], ['agents/old.md', H('3')], ['agents/edited-old.md', H('6')], ['agents/builder.md', H('4')], ['agents/mine.md', H('5')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: liveFiles.get(rel) !== null, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const repoFiles = new Map([['CLAUDE.md', H('1')], ['agents/a.md', H('2')], ['agents/new.md', H('5')]]);
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1').toUpperCase() }, { path: 'agents/old.md', sha256: H('3') }, { path: 'agents/a.md', sha256: H('8') }, { path: 'settings.json', sha256: H('0') }, { path: 'agents/missing.md', sha256: H('7') }] }));
+  const repoFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('2')], ['agents/a.md', H('2')], ['agents/new.md', H('5')], ['agents/mine.md', H('4')], ['agents/missing.md', H('7')]]);
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1').toUpperCase() }, { path: 'pact/review.md', sha256: H('8') }, { path: 'commands/finis.md', sha256: H('7') }, { path: 'agents/old.md', sha256: H('3') }, { path: 'agents/edited-old.md', sha256: H('3') }, { path: 'agents/a.md', sha256: H('8') }, { path: 'settings.json', sha256: H('0') }, { path: 'agents/missing.md', sha256: H('7') }] }));
   const p = core.plan(record, repoFiles, live, noLink);
-  assert.deepEqual(p.drift, ['agents/a.md (changed since the install)', 'agents/missing.md (deleted since the install)']);
-  assert.deepEqual(p.overwrite, ['agents/a.md']);
-  assert.deepEqual(p.add, ['agents/new.md']);
+  assert.deepEqual(p.drift, ['pact/review.md (changed since the install)', 'commands/finis.md (deleted since the install)']);
+  assert.deepEqual(p.yours, ['agents/edited-old.md', 'agents/a.md', 'agents/mine.md']);
+  assert.deepEqual(p.overwrite, ['pact/review.md']);
+  assert.deepEqual(p.add, ['agents/new.md', 'agents/missing.md']);
   assert.deepEqual(p.delete, ['agents/old.md']);
   assert.deepEqual(p.warnings, ['protected path in the install record, skipped: settings.json']);
   assert.equal(p.same, 1);
   assert.deepEqual(core.plan(null, repoFiles, live, noLink).delete, ['agents/builder.md']);
+});
+
+// #262 C25, from CodeRabbit's review: a recorded agent path that is now a folder is drift, never the person's file.
+test('the plan: a recorded agent path that is no longer a file is drift, not yours', () => {
+  const live = rel => (rel === 'agents/a.md' ? { exists: true, file: false, sha256: null } : { exists: false, file: false, sha256: null });
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'agents/a.md', sha256: H('2') }] }));
+  const p = core.plan(record, new Map([['agents/a.md', H('2')]]), live, noLink);
+  assert.deepEqual(p.yours, []);
+  assert.deepEqual(p.drift, ['agents/a.md (deleted since the install)']);
 });
 
 test('the plan: a record holding command and kit entries, under a payload without them, deletes them (#203, the rollback row)', () => {
@@ -619,7 +672,7 @@ for (const c of table('new command paths', {
     { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
     // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
     { id: 'review-path', plant: t => ({ ...t, files: json([['pact/review.md', H('4')]]), live: json(['pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
-    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* take scriptorium, which installs the builder kit, out of the commands list\./, why: 'the same rule is ready for the kit, with its own remedy' },
+    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
   ],
 })) test(c.name, c.fn);
 
@@ -639,8 +692,13 @@ test('the commands block lists every pact command, on or off, says which this co
     '  WARN: the user configuration turns on the pact command /finis; it installs to commands/finis.md.',
   ]);
   assert.equal(core.commandsBlock([], []).filter(l => l.startsWith('  WARN')).length, 0);
-  assert.equal(core.commandsBlock([], ['claude/CLAUDE.md']).at(-1), '  No pact command is in this commit yet, so none can be turned on.', 'never an example the commit lacks');
-  assert.match(core.commandsBlock([], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']).at(-1), /for example: "commands": \["finis"\]$/, 'the first staged command, in PACT_COMMANDS order');
+  assert.equal(core.commandsBlock([], ['claude/CLAUDE.md']).at(-1), '  No pact command that can be turned on is in this commit.', 'never an example the commit lacks');
+  assert.match(core.commandsBlock(['scriptorium'], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']).at(-1), /for example: "commands": \["finis"\]$/, 'the first staged command that can be turned on, in PACT_COMMANDS order');
+  // #262: /scriptorium is always on, with no warning; a list that still names it is told to drop it.
+  const always = core.commandsBlock(['scriptorium'], ['claude/commands/scriptorium.md'], ['scriptorium']);
+  assert.ok(always.includes('  /scriptorium: on, always: part of the pact, with the builder kit under pact/builder/'));
+  assert.ok(!always.some(l => l.startsWith('  WARN')));
+  assert.match(always.at(-1), /^  NOTE: pact\/config\.json lists scriptorium, which now always installs; take it out of the list/);
 });
 
 // ------------------------------------------------------------ settings JSON and the merge (S8, L4 to L9)
@@ -864,7 +922,7 @@ test('the configurable agents and the banned settings are the renderer\'s and se
   assert.deepEqual([...core.BANNED_SETTINGS], list('seam-a-core.mjs', 'BANNED_SETTINGS'));
 });
 
-test('the configuration block: a removed configuration, changed and new files, warnings, and the security override sentence', () => {
+test('the configuration block: a removed configuration, changed and new files, and warnings, a security-set lens\'s as plain as any (#262)', () => {
   const record = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: H('0') }, { kind: 'block', path: 'gone.md', sha256: H('9') }] }));
   const none = core.parseRenderLines(noneBase().in.split('\n'), { project: false, hash: sha256 });
   assert.deepEqual(core.configBlock(none, H('a'), record), ['  no configuration', '  the last install had a configuration; this install removes it from the rules file']);
@@ -873,10 +931,32 @@ test('the configuration block: a removed configuration, changed and new files, w
   assert.equal(b[0], `  user file pact/config.json: sha256 ${U}, CHANGED since the last install`);
   assert.equal(b[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, new since the last install`);
   assert.equal(b[2], '  1 block file(s) the last install read are no longer used');
-  assert.match(b.find(l => l.includes('data-lens')), /data-lens is a security-set lens, so this is an override, not security-tested: the pact reviews only its default\.$/);
+  assert.equal(b.find(l => l.includes('data-lens')), '  WARN: the user configuration sets data-lens to `sonnet`, high effort.');
   const blockChanged = core.configBlock(p, H('a'), core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] })));
   assert.equal(blockChanged[0], `  user file pact/config.json: sha256 ${U}, unchanged since the last install`);
   assert.equal(blockChanged[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, CHANGED since the last install`);
   assert.ok(core.configStale(core.configNow(p), record.config));
   assert.ok(!core.configStale(new Map([['user', H('0')]]), new Map([['user', H('0')]])));
+});
+
+// #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for the moves.
+test('the security-defaults line: each part Scriptorium builds alone shows it, a moves edit does not, and it says whether the configuration changed', () => {
+  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT moves', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
+  for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']) {
+    const line = core.securityDefaultsLine(withEdit(mark), null);
+    assert.match(line, new RegExp(`^WARN: SECURITY DEFAULTS: the user configuration edits ${mark}, which changes the pact's security defaults;`));
+    assert.doesNotMatch(line, /a\.md|blocks/, 'it names no block file');
+  }
+  assert.equal(core.securityDefaultsLine(withEdit('moves'), null), null);
+  const p = withEdit('lenses');
+  const same = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('e') }] }));
+  const changed = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] }));
+  assert.match(core.securityDefaultsLine(p, same), / The configuration is unchanged since the last install\.$/);
+  assert.match(core.securityDefaultsLine(p, changed), / The configuration CHANGED since the last install\.$/);
+});
+
+// #262: an agent setting never shows the security-defaults line; a person may run any agent on any model.
+test('the security-defaults line: a security-set lens off its default alone does not show it, and does not change the parts\' line', () => {
+  const lines = (from, to) => core.parseRenderLines(renderBase().in.replace(from, to).split('\n'), { project: false, hash: sha256 });
+  assert.match(core.securityDefaultsLine(lines('EDIT moves', 'EDIT tiers'), null), /^WARN: SECURITY DEFAULTS: the user configuration edits tiers, which changes the pact's security defaults; read those parts in the rendered rules file before you install\. No install is recorded to compare with\.$/);
 });

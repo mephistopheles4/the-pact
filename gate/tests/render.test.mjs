@@ -13,9 +13,6 @@ import { GATE, OPEN_MARKS, RENDER, REPO, lastLine, withoutOpenMarks } from './te
 import { read, tempDir } from './tree.mjs';
 
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
-const GATED = readdirSync(join(GATE, 'clauses'))
-  .filter(f => f.endsWith('.md'))
-  .map(f => f.slice(0, -3));
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 
@@ -63,9 +60,9 @@ test('with no configuration, the output is the source with its open-mark lines r
     '<!-- pact:begin config-notice -->',
     '<!-- pact:end config-notice -->',
     '1. **Lead.**',
-    '   <!-- pact:begin move-1 -->',
+    '   <!-- pact:begin moves -->',
     '   Open text.',
-    '   <!-- pact:end move-1 -->',
+    '   <!-- pact:end moves -->',
     '<!-- pact:begin risk-floor -->',
     'gated',
     '<!-- pact:end risk-floor -->',
@@ -98,7 +95,7 @@ test('each of the six open marks is stripped, and only exact open-mark lines are
     '<!-- pact:end move-4 -->',
     '<!-- pact:begin risk-floor -->',
     '<!-- pact:end security-route -->',
-    '<!-- pact:open move-1 -->',
+    '<!-- pact:open moves -->',
     '<!-- pact:begin move-10 -->',
   ];
   const stripped = OPEN_MARKS.flatMap(n => [`<!-- pact:begin ${n} -->`, `   <!-- pact:end ${n} -->`]);
@@ -113,14 +110,14 @@ test('each of the six open marks is stripped, and only exact open-mark lines are
 // F3 on #92): each would hide an open mark from the renderer while a reader
 // still takes it for one.
 for (const near of [
-  '<!-- pact:begin move-1-->',
-  '<!-- pact:begin move-1 --> ',
-  '\t<!-- pact:begin move-1 -->',
-  '<!-- pact:begin Move-1 -->',
-  '<!--  pact:begin move-1 -->',
-  'text <!-- pact:begin move-1 -->',
+  '<!-- pact:begin moves-->',
+  '<!-- pact:begin moves --> ',
+  '\t<!-- pact:begin moves -->',
+  '<!-- pact:begin Moves -->',
+  '<!--  pact:begin moves -->',
+  'text <!-- pact:begin moves -->',
   '<!-- pact:end usage-pause --><!-- pact:begin risk-floor -->',
-  '<!-- pact:begin risk-floor --> <!-- pact:begin move-4-extra -->',
+  '<!-- pact:begin risk-floor --> <!-- pact:begin moves -->',
 ]) {
   test(`bad case: an open mark not alone on its line refuses: ${JSON.stringify(near)}`, t => {
     const r = render(t, sourceFile(t, `# Title\n${near}\nlast\n`));
@@ -133,9 +130,9 @@ test('every byte outside an open-mark line passes through: a carriage return, in
   // The carriage-return line was an open mark until slice 3, when a mark not
   // exactly alone on its line began to refuse (the bad case below).
   const body = Buffer.concat([
-    Buffer.from('﻿line one\r\n<!-- pact:begin move-2 -->\n'),
+    Buffer.from('﻿line one\r\n<!-- pact:begin moves -->\n'),
     Buffer.from([0xff, 0xfe, 0x0a]),
-    Buffer.from('<!-- pact:begin risk-floor -->\r\n<!-- pact:end move-2 -->\nno final newline'),
+    Buffer.from('<!-- pact:begin risk-floor -->\r\n<!-- pact:end moves -->\nno final newline'),
   ]);
   const r = render(t, sourceFile(t, body));
   assert.equal(r.code, 0, r.out);
@@ -148,7 +145,7 @@ test('every byte outside an open-mark line passes through: a carriage return, in
 });
 
 test('bad case: an open mark line ending in a carriage return refuses', t => {
-  const r = render(t, sourceFile(t, '<!-- pact:begin move-2 -->\r\n<!-- pact:end move-2 -->\n'));
+  const r = render(t, sourceFile(t, '<!-- pact:begin moves -->\r\n<!-- pact:end moves -->\n'));
   refusedWith(r, 'placement');
 });
 
@@ -159,17 +156,10 @@ test('an empty source renders to an empty file', t => {
   assert.match(r.stdout, new RegExp(`^RENDERED ${sha256(Buffer.alloc(0))}$`, 'm'));
 });
 
-// #261 C4
-test('no open-mark name is a pinned block name', () => {
-  // The two pinned blocks of #261.
-  assert.equal(GATED.length, 2, GATED.join(', '));
-  for (const n of OPEN_MARKS) assert.ok(!GATED.includes(n), n);
-});
-
 test('the renderer never echoes the source', t => {
   const C = 'CANARYrender';
   // The mark is closed since slice 3, when an unclosed open mark began to refuse.
-  const r = render(t, sourceFile(t, `${C}\n<!-- pact:begin move-1 -->\n${C}\n<!-- pact:end move-1 -->\n`));
+  const r = render(t, sourceFile(t, `${C}\n<!-- pact:begin moves -->\n${C}\n<!-- pact:end moves -->\n`));
   assert.equal(r.code, 0, r.out);
   assert.ok(!r.out.includes(C), r.out);
 });

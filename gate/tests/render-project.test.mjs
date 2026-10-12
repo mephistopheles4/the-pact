@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { copyGate, plantModule } from './gate-files.mjs';
+import { moduleResult, table } from './tables.mjs';
 import { RENDER, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -116,8 +117,22 @@ test('bad case: a project value looser than the default refuses', t => {
   refusedWith(render(t, userHome(t), project(t, projectFile(80))), 'project-looser');
 });
 
+// #142: the session limit layers like the weekly one: a project may only set it tighter.
+test('bad case: a project session value looser than the user\'s refuses', t => {
+  const user = '{"schema": 1, "settings": {"usage-pause-session": 50}}\n';
+  refusedWith(render(t, userHome(t, user), project(t, '{"schema": 1, "settings": {"usage-pause-session": 60}}\n')), 'project-looser', /usage-pause-session 60 is not tighter than the user's effective value, 50/);
+});
+
+// #142: with no session value in the user file there is no session line to loosen, so a project's is tighter.
+test('with no user session value, a project session value installs its lower-of line', t => {
+  const r = render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause-session": 60}}\n'));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^VALUE usage-pause-session 60$/m, r.out);
+  assert.match(r.bytes.toString('utf8'), /^- \*\*Session usage pause\.\*\* In this project, wait for my go-ahead when the 5-hour session limit is above 60% or above the line in my user rules, whichever is lower\.$/m);
+});
+
 test('bad case: a project file with an edit refuses, even an empty edit list', t => {
-  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": [{"mark": "move-2", "op": "remove"}]}\n')), 'project-edit');
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": [{"mark": "moves", "op": "remove"}]}\n')), 'project-edit');
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": []}\n')), 'project-edit');
 });
 
@@ -140,6 +155,73 @@ for (const [label, content, rule] of [
     refusedWith(render(t, userHome(t), project(t, content)), rule);
   });
 }
+
+// ------------------------------------------------------------ a project's own qualities list (#262 S25)
+
+const Q_ROWS = [
+  { quality: 'Performance efficiency', measure: 'p95 under 200 ms on checkout', lenses: ['behaviour-lens'] },
+  { quality: 'Security', measure: 'ASVS 5.0 level 2', lenses: ['adversarial-lens', 'data-lens'] },
+  { quality: 'Compatibility', measure: '', lenses: ['conventions-lens'] },
+];
+const qFile = (rows, extra = {}) => `${JSON.stringify({ schema: 1, ...extra, qualities: rows })}\n`;
+
+// #262 C21
+test('a project qualities list, alone, renders its table from its fields under fixed text, and reports its row count', t => {
+  const pbytes = Buffer.from(qFile(Q_ROWS));
+  const r = render(t, userHome(t), project(t, pbytes));
+  assert.equal(r.code, 0, r.out);
+  const want = [
+    '# Pact settings for this project',
+    '',
+    "The pact's installer wrote this file from this project's pact configuration. Each setting line can only make the pact stricter here, and the qualities list takes the place of the one in my user rules.",
+    '',
+    '## Qualities for this project',
+    '',
+    'In this project, this list takes the place of the Qualities table in my user rules: the qualities that matter here, ranked, each with its measure and the lenses that check it.',
+    '',
+    '| Quality | Measure | Lens |',
+    '| --- | --- | --- |',
+    '| Performance efficiency | p95 under 200 ms on checkout | `behaviour-lens` |',
+    '| Security | ASVS 5.0 level 2 | `adversarial-lens`, `data-lens` |',
+    '| Compatibility |  | `conventions-lens` |',
+    '',
+  ].join('\n');
+  assert.equal(r.bytes.toString('utf8'), want);
+  assert.match(r.stdout, /^QUALITIES 3$/m);
+  // Beside a value, the setting line comes first.
+  const both = render(t, userHome(t), project(t, qFile(Q_ROWS.slice(0, 1), { settings: { 'usage-pause': 60 } })));
+  assert.equal(both.code, 0, both.out);
+  assert.match(both.bytes.toString('utf8'), /% or above the line in my user rules, whichever is lower\.\n\n## Qualities for this project\n/);
+});
+
+// #262 C21: a bar in a field is escaped, so the table stays three columns.
+test('a bar in a project quality field is escaped in the table, so the row keeps three cells', t => {
+  const r = render(t, userHome(t), project(t, qRow({ measure: 'p95 | p99, a\\|b under 1 s' })));
+  assert.equal(r.code, 0, r.out);
+  assert.ok(r.bytes.toString('utf8').split('\n').includes('| Performance efficiency | p95 \\| p99, a\\\\\\|b under 1 s | `behaviour-lens` |'), r.bytes.toString('utf8'));
+});
+
+const qRow = (over, base = Q_ROWS[0]) => qFile([{ ...base, ...over }]);
+// #262 C21, thinned by the gate's install-mechanics cut: a row's shape, each field one line.
+for (const c of table('render project qualities', {
+  module: 'gate/render.mjs',
+  base: () => ({ project: qFile(Q_ROWS) }),
+  run: (tree, t) => {
+    const r = render(t, userHome(t), project(t, tree.project));
+    return { ...moduleResult(r.code, r.stdout, r.stderr), files: readdirSync(r.dir) };
+  },
+  everyRow: r => assert.deepEqual(r.files, [], 'a refused render writes no file'),
+  rows: [
+    { id: 'measure-line-break', plant: () => ({ project: qRow({ measure: 'fast\n# Heading' }) }), fails: ['project-qualities'], why: 'a second line' },
+    { id: 'measure-not-text', plant: () => ({ project: qRow({ measure: 5 }) }), fails: ['project-qualities'], why: 'a measure is text' },
+    { id: 'lenses-none', plant: () => ({ project: qRow({ lenses: [] }) }), fails: ['project-qualities'], why: 'at least one' },
+    { id: 'rows-none', plant: () => ({ project: qFile([]) }), fails: ['project-qualities'], why: 'a list holds a row' },
+    { id: 'rows-too-many', plant: () => ({ project: qFile(Array.from({ length: 10 }, (_, i) => ({ ...Q_ROWS[0], quality: `Q${i}` }))) }), fails: ['project-qualities'], why: 'at most nine, as the install reads the count' },
+    { id: 'row-extra-field', plant: () => ({ project: qRow({ note: 'x' }) }), fails: ['project-qualities'], why: 'only the three fields' },
+    { id: 'row-missing-field', plant: () => ({ project: qFile([{ quality: 'Security', lenses: ['data-lens'] }]) }), fails: ['project-qualities'], why: 'all three fields' },
+    { id: 'qualities-not-list', plant: () => ({ project: `${JSON.stringify({ schema: 1, qualities: { Security: 'x' } })}\n` }), fails: ['project-qualities'], why: 'a list' },
+  ],
+})) test(c.name, c.fn);
 
 test('bad case: no project file refuses, saying there is no project configuration', t => {
   refusedWith(render(t, userHome(t), project(t)), 'project-none', /there is no project configuration/);
