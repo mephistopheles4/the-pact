@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-siw4jtQaw9/ii6+/lifDZJbyCzNij0s+zqB4Gd1d1oo='; style-src 'sha256-xjIFB6+TTVC9i5Lx8pWng6Z5YXXNifldXpv0+1zhJWQ='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-UEGY6QVr1/FXnuP9jKSv+/Rta1gPCKx2UGcUzNByCjc='; style-src 'sha256-xjIFB6+TTVC9i5Lx8pWng6Z5YXXNifldXpv0+1zhJWQ='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3389,7 +3389,7 @@ function boot() {
       { class: 'av-tool-sheet' },
       el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Agents' }), el('p', { class: 'av-tool-blurb', text: 'An agent can be a plain helper, like scout, or a lens that checks qualities. Each takes your model and effort, and starts at its file\'s own: the pact suggests, you decide.' })), closeX('agents')),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'agents-grid' },
-        el('nav', { class: 'agent-list', 'aria-label': 'Agents' }, ...PACT.agents.map(listItem)),
+        el('nav', { class: 'agent-list', 'aria-label': 'Agents' }, ...PACT.agents.filter(x => x.name.endsWith('-lens')).concat(PACT.agents.filter(x => !x.name.endsWith('-lens'))).map(listItem)),
         detail,
       )),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, roster, qualities)),
