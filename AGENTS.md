@@ -82,17 +82,25 @@ how every session in every repo behaves. So:
   back past it, remove those edits first. The `usage-pause-session` setting
   (#142) sets the 5-hour session limit beside the weekly `usage-pause`; unset,
   the rules file has no session line.
-- **Agent settings.** The file's `agents` key may set any pact lens's
-  `model` (`opus` or `sonnet`) and `effort` (`low`, `medium` or `high`); each
-  lens's own file holds its default. `scout` is sealed and refused by name.
-  The installer renders and installs each set agent's file with those two
-  lines changed, and warns about each setting in the dry run. A security-set
-  lens set off its default is marked "override, not security-tested" in the
-  dry run, the installed notice, every report posted from it and its Lens
-  dispositions row (ADR 0027). A pact from before agent settings (#97)
-  refuses a file that has an `agents` key, and one from before #97's unlock
-  refuses a setting for any lens but `integrity-lens`, so to install such a
-  commit, remove the key first.
+- **Agent settings.** The file's `agents` key may set any pact agent's
+  `model` and `effort`, `scout` included (#262). The model is any model
+  Claude Code takes: an alias such as `opus`, `sonnet`, `haiku`, `fable` or
+  `inherit`, or a full or provider model ID, of one plain-word shape the gate
+  checks. The effort is `low`, `medium`, `high`, `xhigh` or `max`. Each
+  agent's own file holds its default. The installer renders and installs each
+  set agent's file with those two lines changed, and warns about each setting
+  in the dry run. A security-set lens set off its default is marked
+  "override, not security-tested" in the dry run, where the security-defaults
+  line names it first, the installed notice, every report posted from it and
+  its Lens dispositions row (ADRs 0027 and 0067). The model is the person's
+  own text: the dry run's warnings and the review folder's files carry it, so
+  share them by verdict and counts only; the installed notice names a model
+  other than those five aliases only as "a custom model". A pact from before
+  #262 refuses any model but `opus` and `sonnet`, an effort above `high` and
+  any setting for `scout`; one from before agent settings (#97) refuses a
+  file that has an `agents` key, and one from before #97's unlock refuses a
+  setting for any lens but `integrity-lens`. To install such a commit, remove
+  what it refuses first.
 - **The builder page.** [`builder/scriptorium.html`](builder/scriptorium.html)
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists or the example blocks, run

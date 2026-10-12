@@ -175,7 +175,7 @@ How to read it:
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; the poster's hidden-text scan once it installs (#246) | Rule |
-| R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the four parts Scriptorium builds (`tiers`, `sensitive`, `workflow`, `lenses`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's graph checks are not install-time controls (#262) | Boundary (a pointer), judgment |
+| R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the four parts Scriptorium builds (`tiers`, `sensitive`, `workflow`, `lenses`) or a security-set lens set off its default; it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's graph checks are not install-time controls (#262) | Boundary (a pointer), judgment |
 
 ## Strangers on the tracker
 
@@ -342,7 +342,10 @@ session can act before you see it.
   and a browser, because it runs the change. `adversarial-lens` can search and
   fetch the web.
 - **A weaker model is flagged.** If you move a security lens off its default
-  model or effort, its reports say "override, not security-tested". The mark
+  model or effort, to any model Claude Code takes since #262, Haiku, `inherit`
+  and a provider's own model ID included, the dry run's security-defaults line
+  names it before every other warning, and its reports say "override, not
+  security-tested". The mark
   means the lens runs off the default the pact ships and reviews; since #189
   no test runs a lens on any setting (R20). For the two lenses with a shell or
   web tools, the install warns that a weaker setting may follow instructions
@@ -370,6 +373,9 @@ session can act before you see it.
   on a lens's recommendations without waiting for you, except at the stops,
   installs and the decisions the rules file names as yours. The override mark tells you a lens runs off
   its reviewed default; it does not show the default resists steering (R20).
+  Since #262 a lens can be set to any model, so the shell and web lenses have
+  no floor at Sonnet: the mark and the dry run's security-defaults line are
+  the control, by your choice of a warning over a floor.
 - **R13. A lens can quote a secret.** A read-only lens can still read any file
   your account can, and its report goes on the tracker word for word. Since
   #261 the session-level rule "never post a secret" is accepted as judgment
@@ -544,7 +550,11 @@ safe, and a change made months ago is easy to forget.
   four kinds of thing. The usage pause is the weekly-usage level above which
   sessions wait for you before expensive work. The open parts of the moves
   are slots in the pact's four steps where you bind your own skills; there
-  are four. Each lens's model and effort can be set, except `scout`'s. And a
+  are four. Every agent's model and effort can be set, `scout`'s included,
+  to any model Claude Code takes (#262); the model is your own text, so the
+  dry run and the review files carry it and are shared by verdict and counts
+  only, and the installed rules file names a model beyond the five aliases
+  only as "a custom model". And a
   `commands` list turns on pact commands, by name from a fixed list in the
   gate, which the install then copies into `commands/`. No configuration can
   change a pinned block's text; the install refuses.
