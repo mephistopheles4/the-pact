@@ -196,9 +196,9 @@ test('a project qualities list, alone, renders its table from its fields under f
 
 // #262 C21: a bar in a field is escaped, so the table stays three columns.
 test('a bar in a project quality field is escaped in the table, so the row keeps three cells', t => {
-  const r = render(t, userHome(t), project(t, qRow({ measure: 'p95 | p99 under 1 s' })));
+  const r = render(t, userHome(t), project(t, qRow({ measure: 'p95 | p99, a\\|b under 1 s' })));
   assert.equal(r.code, 0, r.out);
-  assert.match(r.bytes.toString('utf8'), /^\| Performance efficiency \| p95 \\\| p99 under 1 s \| `behaviour-lens` \|$/m);
+  assert.ok(r.bytes.toString('utf8').split('\n').includes('| Performance efficiency | p95 \\| p99, a\\\\\\|b under 1 s | `behaviour-lens` |'), r.bytes.toString('utf8'));
 });
 
 const qRow = (over, base = Q_ROWS[0]) => qFile([{ ...base, ...over }]);

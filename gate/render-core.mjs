@@ -252,8 +252,8 @@ const PROJECT_OUTPUT_NAME = 'pact-project.md';
 const QUALITY_FIELDS = Object.freeze(['quality', 'measure', 'lenses']);
 const oneLine = v => typeof v === 'string' && !/[\r\n]/.test(v);
 const named = v => oneLine(v) && v.trim() !== '';
-// A bar in a field would start a new cell, so it is escaped: the table stays three columns.
-const cell = v => v.replace(/\|/g, '\\|');
+// A bar in a field would start a new cell, so it is escaped, backslashes first: the table stays three columns.
+const cell = v => v.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 // At most one row per quality: the install reads the count as one digit.
 const QUALITIES_MAX = 9;
 const PROJECT_TEMPLATE = (lines, qualities = null) => [
