@@ -401,7 +401,34 @@ test('a builder file\'s parts load into its page; the page saves only the parts 
   const s = L.initialState();
   s.parts.lenses[2].asks = 'Who needs what, unsaid?';
   const kept = JSON.parse(L.builderWith('{"schema": 1, "title": "Mine", "yours": {}}', s).text);
-  assert.deepEqual([kept.title, kept.lenses[2].asks, Object.keys(kept).sort()], ['Mine', 'Who needs what, unsaid?', ['lenses', 'moves', 'schema', 'sensitive', 'tiers', 'title', 'workflowGraph', 'yours']]);
+  assert.deepEqual([kept.title, kept.lenses[2].asks, Object.keys(kept).sort()], ['Mine', 'Who needs what, unsaid?', ['lenses', 'moves', 'qualities', 'schema', 'sensitive', 'tiers', 'title', 'workflowGraph', 'yours']]);
+});
+
+// #262 addendum 4: a builder file carries the agent files written on the page; a
+// reopened page loads them back, a pact agent's file sets its model, and Save keeps them.
+test('a builder file\'s agent files load into the page, set a pact agent\'s model, and come back in Save\'s builder.json', t => {
+  const scout = readFileSync(join(REPO, 'claude', 'agents', 'scout.md'), 'utf8').replace(/^model: .*$/m, 'model: sonnet');
+  const mine = '---\nname: my-reviewer\ndescription: Reads my diffs.\ntools: Read, Glob, Grep\nmodel: opus\neffort: low\n---\n\n# my-reviewer\n';
+  const file = builderFile(t, { ...GOOD, agentFiles: { scout, 'my-reviewer': mine } }, GOOD_BLOCKS);
+  assert.deepEqual(checkBuilder(REPO, file).refusals, []);
+  const page = buildPage(REPO, PAGE, file);
+  const out = JSON.parse(vm.runInContext(`${[...page.matchAll(SCRIPT_RE)][0][2]}\n;const s = initialState(); JSON.stringify({ scout: s.agents.scout, files: buildFiles(s).map(f => f.path), kept: JSON.parse(builderWith(null, s).text).agentFiles })`, vm.createContext({})));
+  assert.equal(out.scout.model, 'sonnet');
+  assert.deepEqual(out.files.filter(f => f.startsWith('agents/')), ['agents/my-reviewer.md', 'agents/scout.md']);
+  assert.deepEqual(out.kept, { 'my-reviewer': mine, scout });
+});
+
+// #262 addendum 4: the builder check refuses agent files it can't carry.
+test('bad builder file: agent files with a bad name, no text, or a web address are refused', t => {
+  for (const [agentFiles, says] of [
+    [{ 'Bad Name': 'x' }, /agentFiles: "Bad Name" is not an agent name/],
+    [{ mine: '' }, /agentFiles mine: the file must be text/],
+    [{ mine: ['x'] }, /agentFiles mine: the file must be text/],
+    [{ mine: `see ${'https:/'}/x.example` }, /agentFiles mine: holds text the page's content policy refuses/],
+  ]) {
+    const r = checkBuilder(REPO, builderFile(t, { ...GOOD, agentFiles }, GOOD_BLOCKS));
+    assert.ok(r.refusals.some(m => says.test(m)), JSON.stringify(r.refusals));
+  }
 });
 
 test('reset puts the usage value, every part and every agent back to the plain pact, and undo puts it all back', () => {

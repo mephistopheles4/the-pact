@@ -26,7 +26,11 @@
 //     "moves", "tiers", "sensitive", "workflowGraph", "lenses", "qualities": the
 //       parts Scriptorium builds, each optional, in the shapes builder/parts.mjs
 //       describes (#262),
-//     "models": [<model>]: the Models list every dropdown offers, optional (#262 S19) }
+//     "models": [<model>]: the Models list every dropdown offers, optional (#262 S19),
+//     "agentFiles": { <agent name>: <the whole agent file> }: the agent files
+//       written or edited on the page, optional (#262 addendum 4) }
+// A builder file is also a preset: a saved result, shipped in builder/presets/
+// or shared, that the page loads after the person ticks what to take.
 // Skills bind to the workflow's stages as skill nodes, never to a move: the
 // moves are upheld at all times (#262).
 //
@@ -209,6 +213,8 @@ const LINE_RE = /^[^\n\r]{0,300}$/;
 const YOURS_RE = { skills: SKILL_NAME_RE, commands: SKILL_NAME_RE, agents: AGENT_NAME_RE };
 const YOURS_MAX = 2000;
 // The builder file's keys for the parts (#262), in PART_MARKS order: workflowGraph holds the workflow part's graph.
+const AGENT_FILES_MAX = 32;
+const AGENT_FILE_MAX = 65536;
 const PART_KEYS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflowGraph', 'lenses', 'qualities']);
 
 const isObject = v => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -244,7 +250,7 @@ export function loadBuilder(file, pact) {
   }
   if (!isObject(doc)) return { builder: null, refusals: ['the builder file is not a JSON object'], findings };
   if (Object.hasOwn(doc, 'presets') || Object.hasOwn(doc, 'workflows')) refuse('presets and workflows left the builder (#262): bind a skill to a stage as a skill node in workflowGraph instead');
-  else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')} or models; the pact's own text is never part of a builder file`);
+  else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models', 'agentFiles'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')}, models or agentFiles; the pact's own text is never part of a builder file`);
   if (doc.schema !== 1) refuse('schema must be 1');
   if (Object.hasOwn(doc, 'title') && (typeof doc.title !== 'string' || !LINE_RE.test(doc.title) || doc.title.length > 80)) refuse('title must be one line of at most 80 characters');
 
@@ -284,6 +290,17 @@ export function loadBuilder(file, pact) {
   const models = Object.hasOwn(doc, 'models') ? doc.models : null;
   if (models !== null) for (const p of modelsProblems(models)) refusals.push(`models: ${p}`);
 
+  // The agent files (#262 addendum 4): by name, each the whole file as text.
+  const agentFiles = Object.hasOwn(doc, 'agentFiles') ? doc.agentFiles : null;
+  if (agentFiles !== null) {
+    if (!isObject(agentFiles) || Object.keys(agentFiles).length > AGENT_FILES_MAX) refuse(`agentFiles must map at most ${AGENT_FILES_MAX} agent names to their files`);
+    else
+      for (const [name, text] of Object.entries(agentFiles)) {
+        if (!AGENT_NAME_RE.test(name)) refuse(`agentFiles: ${JSON.stringify(name.slice(0, 64))} is not an agent name of lowercase letters, digits and hyphens`);
+        else if (typeof text !== 'string' || !text.trim() || text.length > AGENT_FILE_MAX) refuse(`agentFiles ${name}: the file must be text of 1 to ${AGENT_FILE_MAX} characters`);
+      }
+  }
+
   // Text the page's content-policy test refuses never reaches a page.
   const POLICY_RE = /[a-z][a-z0-9+.-]*:\/\/|\bfetch\s*\(|\bimport\s*\(|\binnerHTML\b|\bouterHTML\b|\binsertAdjacentHTML\b|\bdocument\s*\.\s*write/i;
   const texts = [
@@ -291,13 +308,14 @@ export function loadBuilder(file, pact) {
     ...(Array.isArray(models) ? models.filter(m => typeof m === 'string').map(m => ['models', '', m]) : []),
     ...['skills', 'commands', 'agents'].flatMap(k => yours[k].map(x => [`yours.${k}`, x.name, x.description])),
     ['title', '', typeof doc.title === 'string' ? doc.title : ''],
+    ...(isObject(agentFiles) ? Object.entries(agentFiles).filter(([, t]) => typeof t === 'string').map(([n, t]) => ['agentFiles', n, t]) : []),
   ];
   for (const [kind, id, text] of texts) if (POLICY_RE.test(text)) refuse(`${kind}${id ? ` ${id}` : ''}: holds text the page's content policy refuses (a URL, fetch(, import(, innerHTML or a document write)`);
   const listed = yours.skills.length + yours.commands.length + yours.agents.length;
   if (!listed) findings.push('yours lists no skills, commands or agents; the page\'s "Yours" section will say so');
 
   if (refusals.length) return { builder: null, refusals, findings };
-  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}) }, refusals, findings };
+  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}) }, refusals, findings };
 }
 
 /**

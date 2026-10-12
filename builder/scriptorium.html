@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-BPUwwcdoI0hv87dVnIeCYKt7orr7VA4A7MuYfAQxdEo='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-9gmhVRYoLVm3uC8W+/wKoqQrgQkm3lw+LOaIr7GAoq8='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -1616,7 +1616,18 @@ function initialState() {
   for (const a of PACT.agents) agents[a.name] = { model: a.model, effort: a.effort };
   // The session limit (#142) starts unset; the parts (#262) and the Models list (#262 S19) start as the builder file holds them, else the pact's defaults.
   // #262 addendum 3: own holds each agent file the person wrote or edited here, by name: a pact agent's replacement or a new agent.
-  return { usage: PACT.setting.def, session: null, agents, own: {}, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)] };
+  // #262 addendum 4: the builder file's agent files come back, and a pact agent's own file sets its model and effort.
+  const own = { ...(PACT.ownAgentFiles || {}) };
+  for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
+  return { usage: PACT.setting.def, session: null, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)] };
+}
+
+/** The model and effort an agent file's frontmatter sets, each falling back to `def`'s. */
+function fileModel(text, def) {
+  const head = text.replace(/\r\n?/g, '\n').split('\n---\n')[0];
+  const m = /^model:[ \t]*(\S+)[ \t]*$/m.exec(head);
+  const e = /^effort:[ \t]*(\S+)[ \t]*$/m.exec(head);
+  return { model: m ? m[1] : def.model, effort: e ? e[1] : def.effort };
 }
 
 // #262: the agents a person writes or edits here. A save writes each as a standard agent file in agents/; the pact never manages it.
@@ -1762,8 +1773,10 @@ function partsChanged(state) {
 function builderWith(existing, state) {
   const modelsAtPact = JSON.stringify(state.models) === JSON.stringify(MODEL_NAMES);
   const hasModels = existing !== null && /"models"\s*:/.test(existing);
-  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, ...(modelsAtPact && !hasModels ? {} : { models: state.models }) };
-  const atPact = !Object.keys(partsChanged(state)).length && modelsAtPact;
+  const hasFiles = existing !== null && /"agentFiles"\s*:/.test(existing);
+  const files = Object.fromEntries(Object.keys(state.own).sort().map(name => [name, ownFile(state, name)]));
+  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, qualities: state.parts.qualities, ...(modelsAtPact && !hasModels ? {} : { models: state.models }), ...(!Object.keys(files).length && !hasFiles ? {} : { agentFiles: files }) };
+  const atPact = !Object.keys(partsChanged(state)).length && modelsAtPact && !Object.keys(files).length;
   if (existing === null) return atPact ? { skip: true } : { text: `${JSON.stringify({ schema: 1, ...keys }, null, 2)}\n` };
   let doc;
   try {
