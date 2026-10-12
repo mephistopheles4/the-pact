@@ -253,7 +253,7 @@ const CONDS = {
   custom:    { label: 'In your own words', test: w => false },
 };
 const PAIRS = [['behaviour-lens','integrity-lens','the QA pair'],['adversarial-lens','data-lens','the security pair'],
-  ['unstated-lens','good-enough-lens','the spec pair'],['conventions-lens','reader-lens','the standards pair']];
+  ['executability-lens','good-enough-lens','the spec pair'],['conventions-lens','reader-lens','the standards pair']];
 const DEFAULT_PAIRS = ['the QA pair','the security pair']; // the defaults sentence names these two
 
 let S, uid = 0;
@@ -273,8 +273,8 @@ function fresh(){
       nodes.push(g); edges.push({ id: nid('e'), from: n.id, fp: 'out', to: g.id }); });
   };
   const D = st.Design, T = st.Test;
-  cond(D, 'spec', 200, ['unstated-lens','good-enough-lens']);
-  cond(D, 'spec', 290, ['executability-lens']);
+  cond(D, 'spec', 200, ['executability-lens','good-enough-lens']);
+  cond(D, 'spec', 290, ['unstated-lens']);
   cond(D, 'sensitive', 380, ['adversarial-lens','data-lens'], true);
   cond(T, 'always', 200, ['behaviour-lens','integrity-lens'], true);
   cond(T, 'spec', 310, ['conventions-lens','reader-lens']);
