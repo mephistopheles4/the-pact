@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CI19jcXG+fok19F7s1LFjU1RzOQaryu9aQ7/0yW+LOE='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-BPUwwcdoI0hv87dVnIeCYKt7orr7VA4A7MuYfAQxdEo='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -2888,7 +2888,6 @@ function workflowEditor(host, state, changed) {
           st.skipAt = st.skipAt.includes(k) ? st.skipAt.filter(x => x !== k) : tierIds().filter(x => x === k || st.skipAt.includes(x));
           edited();
         }, '', true)))),
-        el('p', { class: 'av-annot', text: `Offered here: ${g.offers.filter(o => o.stage === st.id).map(o => offerText(state.parts, o)).join('; ') || 'nothing'}.` }),
         chip('Delete stage', false, delSel, 'av-tool-chip--ghost'),
       ];
     }
