@@ -3,11 +3,6 @@
 // filter, the report and refusal types, the structure patterns and the marker
 // parser. One copy, so every gate module reads a file the same way.
 //
-// The cross script keeps its own copy of the reader and the character rules,
-// because it installs standalone; gate/tests/cross-parity.test.mjs holds that
-// copy to this one, byte for byte. So the declarations it compares are written
-// here exactly as there, and exported in one list at the end.
-//
 // Nothing here runs on import, and nothing here echoes a file's content.
 // Node 20 or later, ESM, no imports.
 

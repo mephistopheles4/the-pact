@@ -63,7 +63,7 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
     'gate/tool-allowlist.json',
   ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
-  // #261 S5: the review file installs beside the cross script, byte for byte, and the manifest lists it.
+  // #261 S5: the review file installs byte for byte, and the manifest lists it.
   assert.deepEqual(readFileSync(join(h, 'pact', 'review.md')), readFileSync(join(repo, 'claude', 'review.md')));
   assert.ok(manifest.files.some(f => f.path === 'pact/review.md'), JSON.stringify(manifest.files));
   assert.ok(!existsSync(join(h, 'review.md')), 'the review file is never at the top of the Claude folder');

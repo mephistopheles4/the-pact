@@ -1,5 +1,5 @@
 // Tables of bad cases (#140, T5): the shape for a gate module's must-refuse
-// cases, or those of a script beside the cross script (#253). A table has a base input that passes and rows; a row is one plant on
+// cases, or those of a script in cross/ (#253). A table has a base input that passes and rows; a row is one plant on
 // the base and the exact rule ids it must fail with. A new bad case is a new
 // row, with no setup of its own.
 //
@@ -43,7 +43,7 @@ const TABLE_FN = 'table';
 export const TABLE_NAME = /^[a-z0-9]+(?: [a-z0-9]+)*$/;
 const ROW_KEYS = new Set(['id', 'plant', 'fails', 'says', 'why']);
 const SPEC_KEYS = new Set(['module', 'base', 'run', 'rows', 'everyRow']);
-// A gate module, or a script beside the cross script (#253: the poster's refusals are rows too).
+// A gate module, or a script in cross/ (#253: the poster's refusals are rows too).
 const MODULE = /^(?:gate|cross)\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\.mjs$/;
 const PINNED = 'gate/grimoire/check.mjs';
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');

@@ -392,7 +392,7 @@ test('the user file and its blocks folder are never deleted, whatever the record
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(readFileSync(configPath(h)), EXAMPLE);
   assert.ok(existsSync(join(h, 'pact', 'blocks', 'a.md')));
-  assert.ok(existsSync(join(h, 'pact', 'cross.mjs')), 'the cross script still installs beside the user file');
+  assert.ok(existsSync(join(h, 'pact', 'review.md')), 'the review file still installs beside the user file');
   const after = JSON.parse(readFileSync(mf, 'utf8'));
   assert.ok(!after.files.some(f => /^pact\/(config|blocks)/i.test(f.path)), 'the record never lists the user file or its blocks');
 });

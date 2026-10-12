@@ -136,8 +136,8 @@ how every session in every repo behaves. So:
 - **The cloud copy is generated.** `cloud-sessions/` holds the setup script
   for Claude Code cloud sessions. `cloud-sessions/gen.mjs` builds it, and
   `CLAUDE.cloud.md`, from the payload, through the same render and seam A a
-  home install uses. After any change to `claude/`, `familiars/`,
-  `cross/cross.mjs` or the templates, regenerate it with `NODE_OPTIONS`
+  home install uses. After any change to `claude/`, `familiars/`
+  or the templates, regenerate it with `NODE_OPTIONS`
   cleared: `$env:NODE_OPTIONS = $null; node cloud-sessions/gen.mjs` in
   PowerShell, or `env -u NODE_OPTIONS node cloud-sessions/gen.mjs` in a POSIX
   shell. `gate/tests/cloud-sessions.test.mjs`, in the `fast` tier, fails until
@@ -153,7 +153,7 @@ how every session in every repo behaves. So:
 
 - **One runner, three tiers.** Run the gate's tests through
   [`gate/tests/run.mjs`](gate/tests/run.mjs), from the repo root, with
-  `NODE_OPTIONS` cleared in the shell first, as for the cross script. In
+  `NODE_OPTIONS` cleared in the shell first, as for the install script. In
   PowerShell:
   `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs <tier>`
   In a POSIX shell:
@@ -302,8 +302,7 @@ how every session in every repo behaves. So:
   - an install case: ADR 0047 and "Cutting an install case" govern those cuts;
   - a test that guards anything in the protected set: the tests that hold a
     pinned block word for word, the tool allow-list, the
-    settings guard, the cross script's refusals, and any test of a
-    security-set lens;
+    settings guard, and any test of a security-set lens;
   - any test in `gate/tests/cloud-sessions.test.mjs`, whose changes take the
     security route.
 
@@ -472,8 +471,6 @@ Where two bullets apply, the stricter one holds.
     the owner's word starts, and a merge or a push can follow from it;
   - the settings guard, `gate/settings-allowlist.json` and
     `claude/settings.overlay.json`;
-  - the cross script, `cross/cross.mjs`, the code that refuses a malformed or
-    out-of-tier lens report;
   - [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md), which
     holds this repo's tracker rule and the reads that show authors;
   - this section itself: any edit to it that does more than tighten or

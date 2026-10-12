@@ -1,6 +1,6 @@
 # Contract: reader-lens
 
-Version: 0.1.3
+Version: 0.1.4
 
 - **Type:** agent
 - **Level:** Thorough
@@ -44,7 +44,7 @@ Red step: the owner reads the README to install; they need to run the dry run, t
 | README.md 40-48 | yes | yes | yes | no: the hash's source is missing |
 ```
 
-Each sample ends with its `lens-findings` block.
+Each sample ends with its plain findings list.
 
 **Target:** **Confirmed** (2026-10-08, the owner's "go") — Sample A. It walks the reader's steps in order and stops where they would stop, as a cognitive walkthrough does in usability testing.
 
@@ -52,7 +52,7 @@ Each sample ends with its `lens-findings` block.
 
 ### 1. What is it for?
 
-**Name:** `reader-lens`. **Confirmed** (2026-10-08) (the working name from #35; the cross script and the gate's roster list already hold it).
+**Name:** `reader-lens`. **Confirmed** (2026-10-08) (the working name from #35; the gate's roster list already hold it).
 
 **Where it came from** (traced for the owner, 2026-10-08): the session proposed "a repo-conventions lens and a reader lens" in the eagle-eye box of #35's grilling (2026-10-01), and the owner accepted the set. Its purpose was the crossing: "a finding that breaks a convention and also loses the reader is a must-fix … a reader problem alone points at a missing convention". The spec (user story 37) asked "can the owner act on it?"; the roster research (2026-10-03) placed it under ISO 25010's interaction capability and analysability, and set its artifact: "the specific reader action that fails".
 
@@ -85,8 +85,8 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
   Held by: review at move 4; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
-- C8. Ends with exactly one `lens-findings` block, inside the cross script's limits, written into the lens in exact words.
-  Held by: Enforced — the cross script.
+- C8. Ends with a plain findings list, written into the lens in exact words.
+  Held by: the review template, by judgment.
 - C9. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore".
   Held by: review at move 4; the practice cases were retired by #189.
 - C10. Its artifact sits under the fixed heading `### What the owner must do`.
@@ -98,7 +98,7 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
 - C13. **The catalogue holds ten tells, in order.**
   Held by: Enforced — a word test counts them.
 
-**Automatic checks** **Confirmed** (2026-10-08): seam A; the cross script, which takes it with its partner at `--point diff`, `lines` anchors, any tier.
+**Automatic checks** **Confirmed** (2026-10-08): seam A; the review template, which crosses it with its partner, by judgment, `lines` anchors.
 
 **You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87), within the pact's listed exceptions: never a gated clause, a stop, the risk floor or anything else the pact's auto-take rule leaves to you. Accepting the work, closing the ticket and merging stay yours.
 
@@ -117,7 +117,7 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
 **Confirmed** (2026-10-08): one report in two sections, posted word for word.
 
 - **For the owner:** what the next reader must do, where they would misread or stall, and what it suggests. No verdict word, codes or paths.
-- **For the session:** `### What the owner must do` (the red step, then one row per action: Action the change asks of you; Where it is; Where you would fail); one bullet per finding, opening with its tell; one `lens-findings` block with `lines` anchors.
+- **For the session:** `### What the owner must do` (the red step, then one row per action: Action the change asks of you; Where it is; Where you would fail); one bullet per finding, opening with its tell; a plain findings list with `lines` anchors.
 
 **Severity mapping** **Confirmed** (2026-10-08), by what the tell costs the reader:
 - `high`: the reader would act wrongly: a misleading name, or stale words, that point the wrong way (`tell 1:`, `tell 2:`).
@@ -144,6 +144,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.4 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.3 | 2026-10-08 | C12: the handed files may be read; a link counts as outside; the secret exception written where evidence is quoted. | Move 4 round 2: `behaviour-lens` F2; `data-lens` F1; `adversarial-lens` F2 | 3 |
 | 0.1.2 | 2026-10-08 | C12: a secret by its place, inside the working folder; C13: the catalogue counted; the tell scored on every case with a finding; the auto-take exceptions named. | Move 4 on the swap: `data-lens` F1, `adversarial-lens` F2, `integrity-lens` F1 to F3, `unstated-lens` F4 | 3 |
 | 0.1.1 | 2026-10-08 | Question 2 in the owner's words; code in scope; the lens reframed around cohesion and understanding, with a carried catalogue of ten tells and no finding without one; severity by what a tell costs the reader; every answer Confirmed. | The owner's answers, challenge and "confirmed" on #101 | 1, 2, 3, 4 |

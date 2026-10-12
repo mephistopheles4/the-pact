@@ -35,7 +35,6 @@ function seamStage(root, files = {}) {
     'AGENTS.md': read(join(REPO, 'AGENTS.md')),
     ...realAgents(),
     'claude/settings.overlay.json': realOverlay(),
-    'cross/cross.mjs': read(join(REPO, 'cross', 'cross.mjs')),
     'familiars/.gitkeep': '',
     ...files,
   });

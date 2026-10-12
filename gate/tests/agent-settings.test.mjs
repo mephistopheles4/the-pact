@@ -236,7 +236,7 @@ test('a security-set override carries its own mark in the notice, and the senten
   assert.equal(r.code, 0, r.out);
   assert.match(r.rules, /^Agents set: data-lens \(sonnet, high effort; override, not security-tested\), integrity-lens \(opus, low effort\)\.$/m);
   assert.match(r.rules, /^Put "override, not security-tested" beside every report you post from these lenses, and in their rows of the Lens dispositions table: data-lens\.$/m);
-  // The cross script's "not verified" keeps its one meaning.
+  // The review template's "not verified" keeps its one meaning.
   assert.doesNotMatch(notice(r.rules), /not verified/);
 });
 

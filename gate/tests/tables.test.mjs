@@ -151,7 +151,7 @@ test('control: the same table with a good row loads, and a grimoire id the pinne
   expect(r, { 'malformed: one': 'ok', 'malformed: pinned': 'ok' });
 });
 
-// Writing a gate test: a table may name a script beside the cross script; any other folder, and the tests folder, are still refused
+// Writing a gate test: a table may name a script in cross/; any other folder, and the tests folder, are still refused
 test("bad case: a module outside gate and cross, or in the tests folder, is refused", () => {
   const spec = module => ({ module, base: () => ({ 'in.txt': 'base' }), run: () => {}, rows: [{ id: 'one', plant: () => ({ 'in.txt': 'x' }), fails: ['x'], why: 'w' }] });
   for (const module of ['docs/x.mjs', 'gate/tests/x.mjs', 'crossx/y.mjs']) assert.ok(problems('t', spec(module)).includes('module is not a gate or cross module path'), module);

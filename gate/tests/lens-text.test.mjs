@@ -244,12 +244,12 @@ test("reader-lens's catalogue holds the ten tells, in order", () => {
 test('the standards pair names a secret by its place, and conventions-lens reads inside the working folder', () => {
   for (const lens of ['conventions-lens', 'reader-lens']) {
     const flat = read(join(REPO, 'claude', 'agents', `${lens}.md`)).replace(/\s+/g, ' ');
-    for (const words of ["Never write a secret's value or a person's personal data anywhere in your report.", 'Name where a secret is, never what it is: by its path in the repo and its line.', 'Name every file by its path inside the working folder.', 'You may read the files the main session hands you and any file in the working folder, and nothing else.', 'A file the diff adds or changes as a link (the diff marks its mode as one) counts as outside the working folder: do not read it, and name it in `notChecked`.']) {
+    for (const words of ["Never write a secret's value or a person's personal data anywhere in your report.", 'Name where a secret is, never what it is: by its path in the repo and its line.', 'Name every file by its path inside the working folder.', 'You may read the files the main session hands you and any file in the working folder, and nothing else.', 'A file the diff adds or changes as a link (the diff marks its mode as one) counts as outside the working folder: do not read it, and name it in `Not checked:`.']) {
       assert.ok(flat.includes(words), `${lens}: "${words}"`);
     }
   }
   const flat = read(join(REPO, 'claude', 'agents', 'conventions-lens.md')).replace(/\s+/g, ' ');
-  for (const words of ['Follow a pointer from a rules file at most one step.', 'A pointer that leads outside the working folder is not read: name it in `notChecked` as outside the working folder, by the rules file and line that hold it, never by where it leads.', 'the verdict is `inconclusive`, with `notChecked` holding `no written rules found`', 'list that edit as its own row, and check the rest of the change against the rule as it stood before the change']) {
+  for (const words of ['Follow a pointer from a rules file at most one step.', 'A pointer that leads outside the working folder is not read: name it in `Not checked:` as outside the working folder, by the rules file and line that hold it, never by where it leads.', 'the verdict is `inconclusive`, with `Not checked:` holding `no written rules found`', 'list that edit as its own row, and check the rest of the change against the rule as it stood before the change']) {
     assert.ok(flat.includes(words), `conventions-lens: "${words}"`);
   }
   // reader-lens names a secret's place inline where it asks for quoted evidence (#101, move 4 round 2, data-lens F1).

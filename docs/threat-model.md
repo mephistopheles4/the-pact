@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R28, so other work can point at it. A
+Each accepted risk has a label, R1 to R29, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -26,8 +26,6 @@ Claude home folder, `~/.claude`:
   session to read before it runs a lens.
 - **Ten agents:** nine lenses and `scout`. A lens is a reviewer agent that
   asks one question from one angle. Most only read.
-- **The cross script,** `pact/cross.mjs`, which sessions run under Node to
-  check and join lens reports.
 - **Settings,** merged into `settings.json`. They turn on auto mode and skip
   its opt-in prompt, keep sessions going when a usage limit is reached, turn
   on an experimental agent-teams flag. Since #265 they set no ask rules (an
@@ -86,7 +84,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R28
+  title Residual risk, R1 to R29
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -120,6 +118,7 @@ quadrantChart
   R26 Test files unscanned: [0.15, 0.30]
   R27 Scan edits its own guard: [0.20, 0.55]
   R28 Scan token writes alerts: [0.12, 0.52]
+  R29 Hidden characters in reports: [0.20, 0.30]
 ```
 
 How to read it:
@@ -132,7 +131,7 @@ How to read it:
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
-  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), and the code-scanning workflow's write token (R27, R28) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), and the code-scanning workflow's write token (R27, R28) sit here. Hidden characters in posted reports (R29) sit lower, guarded by a rule until the poster installs. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
 - **Accept (bottom left): R17, R21, R26.** R17 needs your own edits, and the dry
@@ -144,7 +143,7 @@ How to read it:
 | --- | --- | --- | --- |
 | R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `AGENTS.md`; elsewhere, judgment (#261) | Rule, judgment |
 | R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment | Rule, judgment |
-| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value | Rule |
+| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264) | Rule |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
 | R5 Refusal untested | Outside pull request | Here, this repo's tracker rule; elsewhere, judgment | Rule, judgment |
 | R6 Container built wrong | Outside pull request | Here, the five conditions in `AGENTS.md` and your typed OK; elsewhere, judgment | Rule, then a boundary; judgment |
@@ -154,7 +153,7 @@ How to read it:
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Tool allow-list; the override mark for a setting off the reviewed default, from the gate's fixed security-set list | Boundary, rule |
-| R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; elsewhere, judgment | Rule, judgment |
+| R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); elsewhere, judgment | Rule, judgment |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
@@ -164,12 +163,13 @@ How to read it:
 | R20 Lens untested | Text a lens reads | The defaults sentence, and this repo's security route for a lens change | Rule |
 | R21 Test code ordinary | A careless or fooled edit | The defaults sentence: the QA pair reads every result | Rule |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the pinned install go-ahead | Outside the pact, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default; here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
+| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default; the review procedure's written no-secret read before posting a report (#264); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
+| R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; the poster's hidden-text scan once it installs (#246) | Rule |
 
 ## Strangers on the tracker
 
@@ -211,7 +211,11 @@ months.
 - **R3. Review reports are public, and stay public.** Sessions post every
   lens report on the tracker word for word, security findings included. A
   comment stays readable after the fix. Security reports name where a secret
-  lives, never its value, so they can still map where secrets are kept.
+  lives, never its value, so they can still map where secrets are kept. Since
+  #264 the review procedure writes the read-before-posting as a rule: the
+  session reads each report for a secret or a personal detail and keeps one
+  that holds either local. The cross script never scanned for secrets; the
+  checks it dropped were shape and character checks.
 - **R4. Your GitHub account is the root of trust.** Anyone who controls it
   counts as you.
 
@@ -347,7 +351,9 @@ session can act before you see it.
   your account can, and its report goes on the tracker word for word. Since
   #261 the session-level rule "never post a secret" is accepted as judgment
   in the pact (this repo's `AGENTS.md` keeps it), and four lenses don't carry
-  it in their own files; #192's lens half is the follow-up. A word test checks
+  it in their own files; #192's lens half is the follow-up. Since #264 the
+  review procedure's posting section also asks the session to read every
+  report for a secret before it posts one. A word test checks
   that the security pair's files hold the carried rules, but since #189 no
   test has checked that a lens keeps them after a model change.
 - **R14. A fooled session can leave something behind.** It can write files
@@ -529,8 +535,8 @@ safe, and a change made months ago is easy to forget.
 
 - **R17. The gate guards the install path, not your machine.** Since #261 the
   gate guards what can run and with what power: committed files only, the
-  payload's kinds, each agent's tools, the settings guard, the cross script's
-  imports, the character scan, a file import in the rules file, hidden text in
+  payload's kinds, each agent's tools, the settings guard, the character
+  scan, a file import in the rules file, hidden text in
   the review file, the two pinned blocks, and the install's bookkeeping. It no
   longer checks the rules file's wording or shape. You can edit the rules file
   in your clone, and the install takes any edit outside a pinned block. A
@@ -604,6 +610,18 @@ because they plant bad cases on purpose and raised alerts that were noise.
   a new version first runs after your merge. Your review of any SHA change
   is the control, since the guard can't tell a release commit from one that
   lives only in a fork of the action's repo.
+- **R29. Hidden characters in a posted report are caught by a rule, not by
+  code.** Until #264 the cross script counted control, invisible and
+  direction-changing characters in each lens report and refused one that
+  held them. It is gone, and the shape and character checks on posted reports
+  moved from a boundary to a rule: each lens file keeps the line that forbids
+  such characters, the session searches each report file for them before
+  posting and names any it finds in the report's fold summary, and verbatim
+  reports sit in a fenced block with every string it lays out in a code span.
+  A lens fooled into writing one still gets it into a posted report, where it
+  can mislead a reader. The poster (`cross/poster.mjs`, #246) holds a
+  hidden-text scan and is the planned code check; it takes this over once it
+  installs.
 ## What you may tweak, and what it costs
 
 Each tweak below is yours to make. The cost is what you give up.

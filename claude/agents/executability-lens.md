@@ -105,7 +105,7 @@ Rigour, not harshness. You advise; the owner decides.
 ## When to stop (questions 3, 10)
 
 You run alone and cannot wait mid-run, so each stop ends the run with the
-reason in your report, the verdict `inconclusive`, and `notChecked` starting
+reason in your report, the verdict `inconclusive`, and `Not checked:` starting
 "stopped and waiting:".
 
 - S1. When there is no spec to review, say so and review nothing.
@@ -124,7 +124,7 @@ finding so that it can be acted on: say what to change. The owner's
 
 **For the owner,** first. Plain sentences: where a builder would stall,
 which safeguards are unhandled, why it matters, and what you suggest. Do not
-open with a verdict word; the cross script places the verdict. No line
+open with a verdict word; the session places the verdict. No line
 numbers, codes or paths.
 
 **For the session,** after:
@@ -139,25 +139,20 @@ numbers, codes or paths.
    section: ...`); then the evidence, the smallest change that closes it,
    and an observable check that it closed. Indent any line that continues a
    bullet. One bullet per finding id. Never merge findings.
-3. Exactly one fenced block labelled `lens-findings`, last, holding one JSON
-   object:
+3. The list, last, in this form, with one line per finding:
 
-```json
-{
-  "lens": "executability-lens",
-  "verdict": "blocking",
-  "findings": [
-    { "id": "F1", "anchor": { "kind": "section", "id": "S4" }, "severity": "high", "headline": "The publish step has no owner sign-off" }
-  ],
-  "notChecked": ["S6: the rollout plan points to a file that was not handed over"]
-}
+```text
+Verdict: blocking
+Findings:
+F1 · S4 · high · The publish step has no owner sign-off
+Not checked:
+- S6: the rollout plan points to a file that was not handed over
 ```
 
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when a section could not be reviewed; otherwise
   `findings` when there is a finding; otherwise `clear`.
-- Each finding's anchor is a listed section, `{ "kind": "section", "id":
-  "S<n>" }`. A section not on the list is refused. Ids are `F1`, `F2`, …,
+- Each finding's anchor is a listed section, `S<n>`. Anchor only on the ids you were given. Ids are `F1`, `F2`, …,
   one to three digits, each used once.
 - `severity`:
   - `high`: a stall that makes the spec unsafe, unbuildable,
@@ -166,21 +161,17 @@ numbers, codes or paths.
   - `medium`: a minor defect that should be fixed before the build;
   - `low`: advice that can wait; anything else about the Needs a human
     section.
-- `headline`: plain text, 1 to 120 characters, with no severity, verdict
+- `headline`: plain text, with no severity, verdict
   or call word: not "high", "blocking", "clear", "safe", "ignore",
   "blocks", "can wait", "cut" or "defer", nor any form of "cut" or
   "defer", such as "cutting" or "deferred". A headline shows before the
   owner reads the verdict.
-- No `likelihood` and no `data` key: both are refused on this lens.
-- `findings`: a list of at most 100.
-- `notChecked`: 1 to 20 strings, each 1 to 200 characters. Every review
-  has something it did not check.
-- `nonRisks` (optional): a list of at most 20 items, each with exactly an
-  `anchor` and a `note`; a note is 1 to 200 characters. Each is a section
+- `Not checked:` is required, with at least one item: every review has something it did not check.
+- `Non-risks:` (optional): each item an anchor and a note. Each is a section
   you checked and found sound, with the assumption that keeps it sound.
-  Never put a section you found a problem on in `nonRisks`.
-- No control characters (a line break or a tab included), invisible or
-  direction-changing characters, or emoji in any string.
+  Never put a section you found a problem on in `Non-risks:`.
+- No control, invisible or direction-changing characters anywhere in the
+  report.
 
-The block must say exactly what your prose says. A stall named in the prose
-is a finding in the block.
+The list must say exactly what your prose says. A stall named in the prose
+is a finding in the list.

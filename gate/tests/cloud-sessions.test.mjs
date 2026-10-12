@@ -31,7 +31,7 @@ import { OLD_REVIEWERS } from '../pact-text.mjs';
 import { REPO, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
-const PAYLOAD = ['claude', 'familiars', 'cross/cross.mjs', 'AGENTS.md'];
+const PAYLOAD = ['claude', 'familiars', 'AGENTS.md'];
 // The retired agents: the gate's own list of old reviewers, and the old builder.
 const RETIRED = [...OLD_REVIEWERS, 'builder'];
 const RLO = '‮';
@@ -144,8 +144,8 @@ test('cloud copy: an overlay seam A refuses fails the generator with seam A\'s r
 
 test('cloud copy: a link-mode entry in the index is refused', t => {
   const root = baseRoot(t);
-  const blob = git(root, ['hash-object', '-w', '--stdin'], 'cross.mjs').trim();
-  git(root, ['update-index', '--cacheinfo', `120000,${blob},cross/cross.mjs`]);
+  const blob = git(root, ['hash-object', '-w', '--stdin'], 'review.md').trim();
+  git(root, ['update-index', '--cacheinfo', `120000,${blob},claude/review.md`]);
   refuses(() => generate(root), 'cloud/not-plain');
 });
 
@@ -179,8 +179,8 @@ test('cloud copy: a payload path that is not a regular file on disk is refused',
   const root = baseRoot(t);
   // A folder where the index has a plain file: the same branch a link takes,
   // and no link privilege is needed to plant it.
-  rmSync(join(root, 'cross', 'cross.mjs'));
-  mkdirSync(join(root, 'cross', 'cross.mjs'));
+  rmSync(join(root, 'claude', 'review.md'));
+  mkdirSync(join(root, 'claude', 'review.md'));
   refuses(() => listPayload(root), 'cloud/not-plain', /link or not a regular file/);
 });
 
@@ -256,7 +256,7 @@ function inputs(change = {}) {
     files: change.files ?? [
       { dest: 'CLAUDE.md', buf: Buffer.from('# Rules\n') },
       { dest: 'agents/a-lens.md', buf: Buffer.from('---\nname: a-lens\n---\n\nBody.\n') },
-      { dest: 'pact/cross.mjs', buf: Buffer.from('export {};\n') },
+      { dest: 'pact/review.md', buf: Buffer.from('# Review\n') },
     ],
     overlay: change.overlay ?? OVERLAY,
     templates,
@@ -375,11 +375,11 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   const setup = repoText(OUTPUTS.setup);
   const blocks = [...setup.matchAll(new RegExp(`^write_config '([^']+)' <<'${CONFIG_DELIM}'\\n([\\s\\S]*?)^${CONFIG_DELIM}$`, 'gm'))];
   const source = dest =>
-    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/cross.mjs' ? 'cross/cross.mjs' : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'agents/scout.md' ? 'familiars/scout.md' : `claude/${dest}`;
+    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'agents/scout.md' ? 'familiars/scout.md' : `claude/${dest}`;
   // The whole set, from the repo apart from seam A: the rules file, every
-  // shipped lens, scout, the cross script and the review file.
+  // shipped lens, scout and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
-  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'agents/scout.md', 'pact/cross.mjs', 'pact/review.md'].sort();
+  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'agents/scout.md', 'pact/review.md'].sort();
   assert.ok(lenses.length >= 9, lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {

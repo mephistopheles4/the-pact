@@ -1,7 +1,6 @@
 # Install the pact
 
-This how-to installs the pact's rules file, review procedure, agents and cross
-script into your
+This how-to installs the pact's rules file, review procedure and agents into your
 Claude Code home folder (`~/.claude`), and merges its settings into yours. It
 takes about five minutes.
 
@@ -206,7 +205,6 @@ It installs these files under `~/.claude`:
 
 - `CLAUDE.md`, the rules;
 - `agents/`, ten agents: the nine lenses and `scout`;
-- `pact/cross.mjs`, the cross script;
 - `pact/review.md`, the review procedure the rules file points to before any
   lens runs. If a `pact/review.md` the install record doesn't list is already
   there, the install refuses and changes nothing: move your file out of the way;
@@ -357,7 +355,7 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    set `permissions.defaultMode` back to what you use, so you are not left
    in auto mode.
 2. **Delete the pact's files:** the ten agents listed in step 6 from
-   `agents/`, `pact/cross.mjs`, `pact/review.md`, each pact command in `commands/` that the
+   `agents/`, `pact/review.md`, each pact command in `commands/` that the
    record lists, and `.pact-install.json`.
 3. **Put back your own agents** from your copy of the `agents/` folder.
 

@@ -45,12 +45,14 @@ test('the roster list holds thirteen names: the four of today and the nine lense
   assert.ok(Object.isFrozen(ROSTER) && Object.isFrozen(LENSES) && Object.isFrozen(OLD_REVIEWERS));
 });
 
-test("the roster's nine lenses are the cross script's lenses", () => {
-  const src = read(join(REPO, 'cross', 'cross.mjs'));
-  const areas = src.slice(src.indexOf('const AREAS'), src.indexOf(']);', src.indexOf('const AREAS')));
-  const names = [...areas.matchAll(/lenses: \[([^\]]*)\]/g)].flatMap(m => [...m[1].matchAll(/'([a-z-]+)'/g)].map(x => x[1]));
-  assert.equal(names.length, 9);
-  assert.deepEqual(names.sort(), [...LENSES].sort());
+// #264: the review file's table of pairs names every lens the roster does, and no other.
+test("the roster's nine lenses are the lenses in the review file's table of pairs", () => {
+  const src = read(join(REPO, 'claude', 'review.md'));
+  const from = src.indexOf('**The pairs.**');
+  const table = src.slice(from, src.indexOf('**The template.**', from));
+  assert.ok(from >= 0 && table.includes('| --- |'), 'the table of pairs is missing');
+  const names = new Set([...table.matchAll(/`([a-z][a-z-]*-lens)`/g)].map(m => m[1]));
+  assert.deepEqual([...names].sort(), [...LENSES].sort());
 });
 
 // ------------------------------------------------------------ a retired reviewer's tools

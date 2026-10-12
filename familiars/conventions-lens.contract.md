@@ -1,6 +1,6 @@
 # Contract: conventions-lens
 
-Version: 0.1.3
+Version: 0.1.4
 
 - **Type:** agent
 - **Level:** Thorough
@@ -42,7 +42,7 @@ Red step: rules files AGENTS.md and docs/agents/; expected to touch the ADR rule
 - AGENTS.md, "Add a line there with every new ADR": docs/adr/0031-cache.md has none.
 ```
 
-Each sample ends with its `lens-findings` block.
+Each sample ends with its plain findings list.
 
 **Target:** **Confirmed** (2026-10-08, the owner's "go") — Sample A. Listing every rule that applies shows what was checked, not only what failed, so a missing rule is visible as a missing row. It is a compliance matrix narrowed to one change.
 
@@ -50,7 +50,7 @@ Each sample ends with its `lens-findings` block.
 
 ### 1. What is it for?
 
-**Name:** `conventions-lens`. **Confirmed** (2026-10-08) (the working name from #35; the cross script and the gate's roster list already hold it).
+**Name:** `conventions-lens`. **Confirmed** (2026-10-08) (the working name from #35; the gate's roster list already hold it).
 
 **Confirmed** (2026-10-08): At move 4, at the standard and thorough tiers, it checks the diff against the repo's written rules. It is one lens of the standards pair, a joining pair; its partner asks whether the owner can act on the text. Where a line breaks a written rule and also loses the reader, the two meet on the same lines: a crossing, which shows first.
 
@@ -79,24 +79,24 @@ The owner's words widen the draft's reach to how code is written and split into 
   Held by: review at move 4; the practice cases were retired by #189.
 - C6. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
-- C7. Ends with exactly one `lens-findings` block, inside the cross script's limits, written into the lens in exact words.
-  Held by: Enforced — the cross script.
+- C7. Ends with a plain findings list, written into the lens in exact words.
+  Held by: the review template, by judgment.
 - C8. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore".
   Held by: review at move 4; the practice cases were retired by #189.
 - C9. Its artifact sits under the fixed heading `### Rules that apply`.
   Held by: review at move 4; the practice cases were retired by #189.
 - C10. **Carried rules name roles, never agents.** It names its partner as "your partner lens".
   Held by: Enforced — seam A.
-- C11. **It reads the files it is handed and the working folder, nothing else.** A file the diff adds or changes as a link counts as outside. It follows a pointer from a rules file at most one step, and names a pointer that leads outside the working folder in `notChecked`, by the rules file and line that hold it, never by where it leads, instead of reading it.
+- C11. **It reads the files it is handed and the working folder, nothing else.** A file the diff adds or changes as a link counts as outside. It follows a pointer from a rules file at most one step, and names a pointer that leads outside the working folder in `Not checked:`, by the rules file and line that hold it, never by where it leads, instead of reading it.
   Held by: a word test holds the words, and review at move 4; the practice cases were retired by #189.
 - C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report, and names every file by its path inside the working folder.
   Held by: a word test holds the words, and review at move 4; the practice cases were retired by #189.
 - C13. **Rules the change edits.** When the change adds, removes or loosens a written rule, it lists the edit as its own row and checks the rest of the change against the rule as it stood before.
   Held by: review at move 4; the practice cases were retired by #189.
-- C14. **No written rules.** When the working folder holds none, the verdict is `inconclusive`, with `notChecked` holding `no written rules found`.
+- C14. **No written rules.** When the working folder holds none, the verdict is `inconclusive`, with `Not checked:` holding `no written rules found`.
   Held by: review at move 4; the practice cases were retired by #189.
 
-**Automatic checks** **Confirmed** (2026-10-08): seam A; the cross script, which takes it with its partner at `--point diff`, `lines` anchors, any tier.
+**Automatic checks** **Confirmed** (2026-10-08): seam A; the review template, which crosses it with its partner, by judgment, `lines` anchors.
 
 **You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87), within the pact's listed exceptions: never a gated clause, a stop, the risk floor or anything else the pact's auto-take rule leaves to you. A drifted copy of a gated clause, the kind K1 replays, is yours to decide. Accepting the work, closing the ticket and merging stay yours.
 
@@ -118,7 +118,7 @@ The owner's words widen the draft's reach to how code is written and split into 
 **Confirmed** (2026-10-08): one report in two sections, posted word for word.
 
 - **For the owner:** which written rule the change breaks, why it matters here, and what it suggests. No verdict word, codes or paths.
-- **For the session:** `### Rules that apply` (the red step, then one row per rule: Rule, as written; Where it is written; Lines in the change; Kept?); one bullet per finding; one `lens-findings` block with `lines` anchors.
+- **For the session:** `### Rules that apply` (the red step, then one row per rule: Rule, as written; Where it is written; Lines in the change; Kept?); one bullet per finding; a plain findings list with `lines` anchors.
 
 **Severity mapping** **Confirmed** (2026-10-08):
 - `high`: a break of a rule the repo writes as a must or a never, where the break changes what the repo does or means, such as two copies of one rule that now say different things.
@@ -145,7 +145,8 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
-| 0.1.3 | 2026-10-08 | C11: the handed files may be read; a link counts as outside; an outside pointer is named by its rules file and line. The example `notChecked` line matches the words K11 scores. | Move 4 round 2: `behaviour-lens` F1, F2; `data-lens` F2; `adversarial-lens` F1; `integrity-lens` F1 | 3, 4 |
+| 0.1.4 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
+| 0.1.3 | 2026-10-08 | C11: the handed files may be read; a link counts as outside; an outside pointer is named by its rules file and line. The example `Not checked:` line matches the words K11 scores. | Move 4 round 2: `behaviour-lens` F1, F2; `data-lens` F2; `adversarial-lens` F1; `integrity-lens` F1 | 3, 4 |
 | 0.1.2 | 2026-10-08 | C11 to C14: reads inside the working folder, a pointer at most one step; a secret by its place; rules the change edits; no written rules gives `inconclusive`; the auto-take exceptions named. | Move 4 on the swap: `adversarial-lens` F1, F3, F4; `data-lens` F2; `unstated-lens` F3, F4 | 3 |
 | 0.1.1 | 2026-10-08 | Question 2 in the owner's words; how code is written and split into modules, as far as the repo writes it down; configs that enforce a rule count; every answer Confirmed. | The owner's answers and "go" on #101 | 1, 2, 3 |
 | 0.1.0 | 2026-10-08 | Contract drafted. | #35 revision 7, #101 | all |

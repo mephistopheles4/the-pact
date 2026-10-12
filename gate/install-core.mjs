@@ -19,7 +19,7 @@ const KIT_DEST = 'pact/builder/';
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 export const RULES_REL = 'claude/CLAUDE.md';
 export const OVERLAY_REL = 'claude/settings.overlay.json';
-// The review procedure file (#261): staged here, installed beside the cross script.
+// The review procedure file (#261): staged here, installed to one fixed live path.
 export const REVIEW_REL = 'claude/review.md';
 export const REVIEW_DEST = 'pact/review.md';
 export const CONFIG_REL = 'pact/config.json';
@@ -210,8 +210,8 @@ export function applyLine(paths, commit, renderedHash, platform) {
 
 // ------------------------------------------------------------ the commit's tree
 
-/** True for a path the install stages: claude/, familiars/ and gate/ but its tests, AGENTS.md, and the cross script. */
-export const isStaged = rel => rel === 'AGENTS.md' || rel === 'cross/cross.mjs' || (/^(claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
+/** True for a path the install stages: claude/, familiars/ and gate/ but its tests, and AGENTS.md. Nothing under cross/ is staged. */
+export const isStaged = rel => rel === 'AGENTS.md' || (/^(claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
 
 /**
  * The commit's tree from `ls-tree -r -z` bytes (S6, G7), checked again from
@@ -633,7 +633,6 @@ export function expectedCopySet(stagedRels, commands = []) {
     } else if (rel === REVIEW_REL) out.push([rel, REVIEW_DEST]);
     else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
     else if ((m = /^familiars\/([^/]+\.md)$/.exec(rel))) out.push([rel, `agents/${m[1]}`]);
-    else if (rel === 'cross/cross.mjs') out.push([rel, 'pact/cross.mjs']);
     else out.push([rel, null]);
   }
   return out;

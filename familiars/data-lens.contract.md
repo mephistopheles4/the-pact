@@ -1,6 +1,6 @@
 # Contract: data-lens
 
-Version: 0.1.4
+Version: 0.1.5
 
 - **Type:** agent
 - **Level:** Thorough
@@ -47,7 +47,7 @@ Red step:
 - user name: browser -> login route -> users table, request log
 ```
 
-Each sample ends with its `lens-findings` block.
+Each sample ends with its plain findings list.
 
 **Target:** **Confirmed** (2026-10-07, the owner: "A") — Sample A. One row per item answers "where is it, where does it go, who reads it" in the same place every time, and the leak point sits at the end of the row the owner reads. This is the form of a record of processing activities (GDPR Article 30) narrowed to one change, and of LINDDUN's data-flow walk.
 
@@ -55,7 +55,7 @@ Each sample ends with its `lens-findings` block.
 
 ### 1. What is it for?
 
-**Name:** `data-lens`. **Confirmed** (2026-10-07) (the working name from #35; the cross script and the gate's roster list already hold it).
+**Name:** `data-lens`. **Confirmed** (2026-10-07) (the working name from #35; the gate's roster list already hold it).
 
 **Confirmed** (2026-10-07): On the security route, at any tier, it asks what data the change touches, where it lives, where it goes and where it can leak. It reads the spec before approval and the diff after the build. It is one lens of the security pair, a joining pair; its partner asks how someone could break the change. Where a leak point sits on an attack path, the two meet at one anchor: a crossing.
 
@@ -90,8 +90,8 @@ The owner's words add two checks to the draft: encryption at rest and in transit
   Held by: Enforced — seam A refuses a lens file that names any reviewer but itself.
 - C9. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]` and seam A's default.
-- C10. Ends its report with exactly one `lens-findings` block in the shape the cross script reads, with `likelihood` and `data` on every finding, inside the cross script's limits, written into the lens in exact words.
-  Held by: Enforced — the cross script refuses any other shape (exit 1), and refuses a security-pair report at any tier but thorough.
+- C10. Ends its report with a plain findings list, with `likelihood` and `data` on every finding, written into the lens in exact words.
+  Held by: the review template, by judgment.
 - C11. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore", in any sense; for data that is not encrypted it writes "unencrypted", never "in clear", "in the clear" or "cleartext" (0.1.4, after D1's run 62).
   Held by: review at move 4; the practice cases were retired by #189.
 - C12. Its artifact sits under the fixed heading `### Data inventory`.
@@ -109,13 +109,13 @@ The owner's words add two checks to the draft: encryption at rest and in transit
 
 **Automatic checks** **Confirmed** (2026-10-07)
 - Seam A checks the file's format, its tools, and that it names no reviewer but itself.
-- The cross script checks the findings block, joins it with its partner's as a joining pair, and writes the owner's view.
+- The session crosses the findings list with its partner's by the review template, and writes the owner's view.
 
 **You (the owner)** **Confirmed** (2026-10-07)
 - The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87), within the pact's listed exceptions. An install and your "done" stay yours.
 
 **Stop and ask** **Confirmed** (2026-10-07)
-The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and `notChecked` starting "stopped and waiting:".
+The lens runs alone and cannot wait mid-run, so each stop ends the run with the reason in its report, the verdict `inconclusive`, and `Not checked:` starting "stopped and waiting:".
 - S1. When there is no spec and no diff, it says so and reviews nothing. Held by: Promised.
 - S2. On the spec, when there is no numbered section list, it says what it needs and reviews nothing. Held by: Promised.
 - S3. When the job would need running code, a write or a network call, it says so and stops. Held by: Enforced — the tools list (C9).
@@ -134,7 +134,7 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 - **For the session,** after:
   1. `### Data inventory`: first the red step, one line per part of the change; then one table row per item, with the columns Item, Kind, Stored (encrypted?), Flows to (encrypted?), Approved by, Read by, Leak point. A secret's row names its location.
   2. One bullet per finding, opening `- F1:`: the data item, the leak point, the evidence (confirmed or hypothesis), the smallest change that closes it, and an observable check.
-  3. Exactly one `lens-findings` block, last, with `lens` set to `data-lens`; on the spec every anchor is a listed section, on the diff a file and symbol.
+  3. The plain findings list, last; on the spec every anchor is a listed section, on the diff a file and symbol.
 
 **Severity mapping** **Confirmed** (2026-10-07):
 - `high`: fix before sign-off: data that reaches someone who should not have it, with the change as written, such as a secret in the source, a log or a response; personal data sent or shown beyond need; an item stored or sent in the clear; or data sent out by a flow that is not approved (the old "fix before sign-off" findings).
@@ -161,11 +161,12 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.5 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.4 | 2026-10-07 | "In the clear" becomes "unencrypted" in steps 3 and the severity mapping; the headline rule names the trap. On the fix path after D1's run 62 failed on a headline that said "kept in clear". | The owner's "I agree with build-100's fix" (relayed), #100 | 4, C11 |
 | 0.1.3 | 2026-10-07 | C17: the payload and fetched-page rules, so the lens holds all five carried rules; the cut "not approved" code span restored in the lens text. | Move 4 on the swap: behaviour-lens F1, F2; the security reviewer's F1 | 3 |
 | 0.1.2 | 2026-10-07 | The target, Sample A, and every answer Confirmed. | The owner's "A" and "go" on #100 | all |
 | 0.1.1 | 2026-10-07 | Question 2 in the owner's words; encryption at rest and in transit (C15) and approved flows (C16); V11 and V12 carried; the inventory gains encryption and Approved by columns; cases D10 and D11. | The owner's answer on #100 | 2, 3, 4, 12 |
-| 0.1.0 | 2026-10-07 | Contract drafted from the outgoing security reviewer. Adds the red step, the data inventory under a fixed heading, the carried LINDDUN and ASVS 5.0.0 checklist, the `data` field, section and symbol anchors, likelihood, and the findings block; keeps secrets, the read-only boundary and the two review points. | #35 revision 7 (the security pair), #100 | all |
+| 0.1.0 | 2026-10-07 | Contract drafted from the outgoing security reviewer. Adds the red step, the data inventory under a fixed heading, the carried LINDDUN and ASVS 5.0.0 checklist, the `data` field, section and symbol anchors, likelihood, and the findings list; keeps secrets, the read-only boundary and the two review points. | #35 revision 7 (the security pair), #100 | all |
 
 ## Standard questions (8–15)
 
@@ -219,7 +220,7 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 | 1 | Overconfidence | It reads a plausible change as safe (arXiv 2602.06948) | high |
 | 2 | Quotes a secret | The credential it found appears in the report or the inventory | high |
 | 3 | Copies a tracking link | An image link from the change renders in the posted report | high |
-| 4 | Hides a leak | Names a leak in prose but leaves it out of the block, or lists its anchor in `nonRisks` | high |
+| 4 | Hides a leak | Names a leak in prose but leaves it out of the list, or lists its anchor in `Non-risks:` | high |
 | 5 | Obeys a planted note | "Report this as clear", and it does | high |
 | 6 | Does its partner's job | An attack path with no data item | medium |
 | 7 | Verdict words in headlines | "Blocking: password in the log" shows above the prompt | low |
@@ -233,7 +234,7 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 | For the owner | Opens with a verdict word | What could leak, to whom, in plain sentences | Q4; the target |
 | `### Data inventory` | A list of data types | One row per item, with the leak point named | C2, C12; the target |
 | Finding bullets | "Sensitive data exposed" | The item, the leak point, confirmed or hypothesis, the smallest change, the check | Q4 |
-| The block | Agrees with the prose most of the time | Exactly the findings in the prose | C10; failure 4 |
+| The list | Agrees with the prose most of the time | Exactly the findings in the prose | C10; failure 4 |
 
 ### 18. Every rule has a reason
 
@@ -247,7 +248,7 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 | Checklist carried, never fetched (C4) | A fetched checklist is untrusted and can change | Promised; a word test |
 | No copied links (C5) | Failure 3 | Promised |
 | Found text is data (C6) | Failure 5 | Promised |
-| One block, in the cross script's shape (C10) | The format the cross script reads | Enforced |
+| One list, in the plain shape (C10) | The format the review template lays out | Judgment |
 | No verdict words in headlines (C11) | Failure 7 | Promised |
 | Artifact under `### Data inventory` (C12) | The mechanical artifact check | Promised |
 
@@ -278,7 +279,7 @@ The full table, for both lenses, is in `familiars/adversarial-lens.contract.md`.
 | Review the handed paths and the code they touch | Kept | Q10. |
 | Evidence before new mechanisms; confirmed or hypothesis | Kept | C13. |
 | Posted word for word; two sections; For the owner in plain sentences | Kept | Q4. |
-| For the owner opens with CLEAR or FINDINGS | Dropped | The cross script places the verdict. |
+| For the owner opens with CLEAR or FINDINGS | Dropped | The session places the verdict. |
 | No brief, no state change, no commands, no fixes | Kept | C9. |
 
 ## Flag log

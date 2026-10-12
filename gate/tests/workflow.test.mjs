@@ -437,7 +437,7 @@ const realSources = () => {
 test('nothing outside gate/tests/ loads a file inside it', () => {
   const sources = realSources();
   // A listing that came back empty or cut short would pass everything below.
-  assert.ok(sources.size > 20 && sources.has('gate/install.mjs') && sources.has('cross/cross.mjs'), `the listing holds ${sources.size} files`);
+  assert.ok(sources.size > 20 && sources.has('gate/install.mjs') && sources.has('cross/poster.mjs'), `the listing holds ${sources.size} files`);
   assert.deepEqual(premiseProblems(sources), []);
 });
 
