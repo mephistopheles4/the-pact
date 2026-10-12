@@ -109,11 +109,15 @@ how every session in every repo behaves. So:
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists or the example blocks, run
   `node builder/build.mjs` to refresh it; a gate test fails until you do. A
-  person's own builder comes from the `scriptorium` skill in
-  `.claude/skills/`. It reads their skills, commands, agents and
+  person's own builder comes from the `/scriptorium` command
+  ([`claude/commands/scriptorium.md`](claude/commands/scriptorium.md)),
+  which every install puts in place with the builder kit under
+  `~/.claude/pact/builder/`. It reads their skills, commands, agents and
   configuration, keeps the result in `~/.claude/pact/builder.json`, and
   renders a page that carries those lists in plain text. Such a page belongs
-  outside any repo; `build.mjs` refuses to write one inside this clone.
+  outside any repo: `build.mjs` refuses to write one inside this clone or
+  any git work tree, the kit, the Claude home folder, any `.claude` folder,
+  or over a file.
 - **Review output.** To read what a configuration does before installing it,
   add `--review-folder <full path>`. Once every check for the run has passed, the
   script writes `rendered-rules.txt` and `config.diff` (the change from the
@@ -196,7 +200,7 @@ how every session in every repo behaves. So:
     - **What an agent-file change picks.** The test helpers are split by
       what they touch (ADR 0034), so an agent file picks only the tests that
       read agents: those that import `payload.mjs` or read them themselves.
-      Of the install files, that's the smoke set and seven others, 8 of 13.
+      Of the install files, that's the smoke set and eight others, 9 of 14.
     - **Some changes still cost about a full suite.** The pact's rules file,
       `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
       deleted or renamed test file, is named by the copy list's entry for the

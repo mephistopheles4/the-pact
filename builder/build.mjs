@@ -5,6 +5,7 @@
 //   node builder/build.mjs --check                         check the example builder file, and that the page is up to date
 //   node builder/build.mjs --builder <file> --check        check a builder file: refusals and findings
 //   node builder/build.mjs --builder <file> --out <page>   check it, then write a page from it
+//   node builder/build.mjs --builder <file> --texts        check it, then print each part it changes as the page saves it
 //
 // The page runs from disk with no network, so everything it shows is carried
 // inside it, as one JSON object in its script between the pact-data marks.
@@ -16,7 +17,7 @@
 //     modules, and the pact's agents (claude/agents/). A builder file cannot
 //     change any of it.
 //   - A builder file (schema below): the person's own parts, models, skills,
-//     commands and agents. The scriptorium skill writes one from
+//     commands and agents. The /scriptorium command writes one from
 //     the person's own workflow and revises it over time;
 //     examples/pact-config/builder.json is the shipped one.
 //
@@ -347,11 +348,15 @@ export function loadBuilder(file, pact) {
  * renderer refuses, carrying its FAIL lines.
  */
 export function partsThroughRenderer(root, parts) {
+  return renderEdits(root, changedParts(root, parts).map(([m, text]) => ({ id: m, mark: m, op: 'replace', text }))).map(p => `${p.id}: the installer's renderer refuses the compiled part${p.fails}`);
+}
+
+/** Each part `parts` changes from the pact's text, as [mark, its compiled text]: the replace edits a save writes. */
+export function changedParts(root, parts) {
   if (!parts) return [];
   const pact = readFileSync(rulesPath(root), 'utf8');
   const compiled = compileParts(parts);
-  const changed = PART_MARKS.filter(m => !pact.includes(`<!-- pact:begin ${m} -->\n${compiled[m]}\n<!-- pact:end ${m} -->`));
-  return renderEdits(root, changed.map(m => ({ id: m, mark: m, op: 'replace', text: compiled[m] }))).map(p => `${p.id}: the installer's renderer refuses the compiled part${p.fails}`);
+  return PART_MARKS.filter(m => !pact.includes(`<!-- pact:begin ${m} -->\n${compiled[m]}\n<!-- pact:end ${m} -->`)).map(m => [m, compiled[m]]);
 }
 
 /** Each { id, mark, op, text } rendered alone through the installer's renderer: [{ id, fails }] for each it refuses. */
@@ -518,7 +523,7 @@ function main(argv) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const page = join(root, PAGE_REL);
   const usage = () => {
-    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> [--check | --out <page>]\n');
+    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> [--check | --out <page> | --texts]\n');
     process.exitCode = 2;
   };
   const major = Number(process.versions.node.split('.')[0]);
@@ -527,16 +532,17 @@ function main(argv) {
     process.exitCode = 1;
     return;
   }
-  const opts = { check: false, builder: null, out: null };
+  const opts = { check: false, builder: null, out: null, texts: false };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--check') opts.check = true;
+    else if (argv[i] === '--texts') opts.texts = true;
     else if (argv[i] === '--builder' && argv[i + 1]) opts.builder = argv[(i += 1)];
     else if (argv[i] === '--out' && argv[i + 1]) opts.out = argv[(i += 1)];
     else return usage();
   }
 
   if (!opts.builder) {
-    if (opts.out) return usage();
+    if (opts.out || opts.texts) return usage();
     if (isKit(root)) {
       process.stdout.write('REFUSE the builder kit never rebuilds its own page: give --builder <file>, with --check or --out <page>\n');
       process.exitCode = 1;
@@ -563,9 +569,9 @@ function main(argv) {
     return;
   }
 
-  if (opts.check && opts.out) return usage();
+  if ([opts.check, opts.out, opts.texts].filter(Boolean).length > 1) return usage();
   // With no --out, the page goes in a new folder under the system's temporary folder (#203, S6).
-  if (!opts.check && !opts.out) opts.out = join(mkdtempSync(join(tmpdir(), 'scriptorium-')), 'scriptorium.html');
+  if (!opts.check && !opts.out && !opts.texts) opts.out = join(mkdtempSync(join(tmpdir(), 'scriptorium-')), 'scriptorium.html');
   const r = checkBuilder(root, opts.builder);
   printCheck('builder file', r);
   if (!r.builder) {
@@ -573,6 +579,13 @@ function main(argv) {
     return;
   }
   if (opts.check) return;
+  // Each part the file changes, as the page saves it: the block a save writes is this text and a line break (#203, S6).
+  if (opts.texts) {
+    const changed = changedParts(root, r.builder.ownParts);
+    if (!changed.length) process.stdout.write('TEXTS none: the file changes no part\n');
+    for (const [m, text] of changed) process.stdout.write(`TEXT ${m}\n${text}\nEND ${m}\n`);
+    return;
+  }
   const why = outProblem(root, opts.out, opts.builder);
   if (why) {
     process.stdout.write(`REFUSE --out ${why}\n`);

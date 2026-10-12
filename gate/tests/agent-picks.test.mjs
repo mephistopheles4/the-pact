@@ -21,6 +21,7 @@ const INSTALL_PICKS = Object.freeze([
   'agent-settings-install.test.mjs', // reads integrity-lens.md from the repo and the copy
   'agents-yours-install.test.mjs', // edits scout in place, and names the repo's copy
   'builder-install.test.mjs', // saves an edited scout prompt and names its agent path
+  'builder-kit-install.test.mjs', // lists the kit's agents against the repo's
   'install-edits.test.mjs', // lists the copy's agents for move 2
   'install-project.test.mjs', // names the live folder's agents in its own text
   'install-smoke.test.mjs', // the smoke set; compares every installed agent

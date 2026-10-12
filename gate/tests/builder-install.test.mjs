@@ -68,8 +68,8 @@ function installSaved(t, state) {
   assert.match(r.stdout, /^Installed commit [0-9a-f]{40} with configuration [0-9a-f]{12}; all files verified\.\r?$/m, r.out);
   const rules = readFileSync(join(h, 'CLAUDE.md'), 'utf8');
   assert.match(rules, /^\*\*Configuration in effect\.\*\*/m);
-  // The page is never installed.
-  assert.ok(!listTree(h).some(p => p.toLowerCase().endsWith(PAGE_NAME.toLowerCase())), 'the page was installed');
+  // The page installs only as the builder kit's copy (#203, S6).
+  assert.deepEqual(listTree(h).filter(p => p.toLowerCase().endsWith(PAGE_NAME.toLowerCase())).map(p => p.split('\\').join('/')), ['pact/builder/builder/scriptorium.html'], 'the page installed outside the kit');
   return { rules, files, h };
 }
 

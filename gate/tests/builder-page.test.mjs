@@ -6,7 +6,7 @@
 // install script is in builder-install.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
@@ -539,14 +539,34 @@ test('stub page: Add agent in the Agents panel saves agents/<name>.md, and the s
   assert.match(P.ids.output.text, /a save deletes nothing/);
 });
 
-test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
+// #203 S6: the builder is the /scriptorium command, which only the owner starts; the repo skill is gone.
+test('the page is named scriptorium, and the docs and the command name it so; the old names and the repo skill are gone', () => {
   assert.equal(PAGE_REL, 'builder/scriptorium.html');
-  for (const f of ['README.md', 'AGENTS.md', join('.claude', 'skills', 'scriptorium', 'SKILL.md'), join('builder', 'build.mjs')]) {
+  const command = join('claude', 'commands', 'scriptorium.md');
+  for (const f of ['README.md', 'AGENTS.md', command, join('builder', 'build.mjs')]) {
     const text = readFileSync(join(REPO, f), 'utf8');
     assert.match(text, /scriptorium\.html/, `${f} does not name the page`);
     assert.doesNotMatch(text, /pact-config\.html|pact-builder/, `${f} still names the old page or skill`);
   }
-  assert.match(readFileSync(join(REPO, '.claude', 'skills', 'scriptorium', 'SKILL.md'), 'utf8'), /^name: scriptorium$/m);
+  assert.match(readFileSync(join(REPO, command), 'utf8'), /^---\n(?:[^\n]*\n)*?disable-model-invocation: true\n(?:[^\n]*\n)*?---\n/);
+  assert.equal(existsSync(join(REPO, '.claude', 'skills', 'scriptorium')), false, 'the repo skill is gone');
+});
+
+// #203 S6: /scriptorium compares a part it carries with the person's block through --texts.
+test('--texts prints each part a builder file changes, as the page saves it, and nothing for a file that changes none', t => {
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const cli = args => spawnSync(process.execPath, [join(REPO, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env });
+  const tiers = copyParts(DEFAULT_PARTS.tiers);
+  tiers[0].fits = 'Tiny work';
+  const f = builderFile(t, { schema: 1, tiers });
+  const r = cli(['--builder', f, '--texts']);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const parts = upgradeParts({ ...copyParts(DEFAULT_PARTS), tiers });
+  assert.equal(r.stdout.slice(r.stdout.indexOf('TEXT ')), `TEXT tiers\n${compileParts(parts).tiers}\nEND tiers\n`);
+  const none = cli(['--builder', builderFile(t, { schema: 1 }), '--texts']);
+  assert.match(none.stdout, /^TEXTS none/m);
+  assert.equal(cli(['--builder', f, '--texts', '--check']).status, 2);
 });
 
 test('the command line writes a page from a builder file, and refuses to write over the shipped page or without a builder', t => {

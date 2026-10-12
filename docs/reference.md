@@ -11,13 +11,13 @@ effort, and what never goes in. For what the pact is and why, read the
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
 | `claude/review.md` | The review procedure: how to give lenses their input, cross their reports by its template, post them and log each finding's fate. The rules file tells a session to read it before it runs a lens | `~/.claude/pact/review.md` |
 | `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text; and `unstated-lens`, which looks for needs nobody wrote down. Each runs on Opus by default. And `scout`, the one search helper, on Haiku at medium effort. A configuration may set any agent's model and effort, to any model Claude Code takes (ADRs 0027 and 0067). Their contracts are in `familiars/` | `~/.claude/agents/` |
-| `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`, only when the configuration's `commands` list names it |
+| `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`: `/scriptorium` always, the others only when the configuration's `commands` list names them |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
 | `familiars/` | Each agent's grimoire contract, the record of what its file in `claude/agents/` should be: every lens's and `scout`'s (#262). No contract installs, and no agent here is sealed | Never installed |
 | `cross/poster.mjs` | The poster's core (#246, #253): posts free text to GitHub through one fixed call per surface and reads back what landed. Not installed yet. Nothing under `cross/` installs | Never installed |
 | `gate/` | The install gate: the pact's own check (seam A), the renderer and the install. Since ADR 0069 it checks install mechanics only; the pact is vetted like any skill | Never installed |
 | `examples/pact-config/` | An example user configuration: the values a person may set, such as the usage pause line. Copy it to `~/.claude/pact/config.json` to use it; the installer reads that file and never writes it | Never installed |
-| `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. The four moves show by name, with the fixed block; open slots take presets, your own text, your skills and commands, and your own agents. It fetches nothing, and the installer checks what it saves like any other file. `scriptorium.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, ask your agent to run the `scriptorium` skill (`.claude/skills/scriptorium/`) in this clone: it writes a builder file from your own workflow and renders your page with `node builder/build.mjs --builder <file> --out <page>` | Never installed |
+| `builder/` | The config builder: a page you open from disk to build a configuration without writing JSON. The four moves show by name, with the fixed block; open slots take presets, your own text, your skills and commands, and your own agents. It fetches nothing, and the installer checks what it saves like any other file. `scriptorium.html` is the shipped page, built from `examples/pact-config/builder.json`. For a builder of your own, type `/scriptorium` in any session: it writes a builder file from your own workflow and renders your page with the installed kit's `build.mjs` | The kit `build.mjs` reads, with `/scriptorium`: `~/.claude/pact/builder/` |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 | `docs/img/` | The README's figures, and `build.mjs`, which renders them from their sources in `docs/img/src/` | Never installed |
 
@@ -29,12 +29,14 @@ often, meant to be typed by the owner. Each sets
 Text sent in as a prompt can still start one, as with any slash command;
 Claude Code's own handling of such text is the guard (threat model, R25). A
 command is installed only when its name is in the `commands` list of
-`~/.claude/pact/config.json`. The cloud copy installs none yet.
+`~/.claude/pact/config.json`, but `/scriptorium`, which every install puts in
+place with the builder kit. The cloud copy installs none yet.
 
 | Command | What it stands for |
 | --- | --- |
 | `/make-it-so` | "Accept all recommendations": the session carries out every recommendation in its last message. |
 | `/finis` | "We're done, archive this session": the session checks for anything outstanding, says what it is if there is, and archives the session if there isn't. |
+| `/scriptorium` | "Build my Scriptorium page": the session writes the builder file from your own skills, commands, agents and configuration, checks it, and renders your page with the installed kit. Always installed. |
 ## The familiars, by effort
 
 - **Medium:** `scout`, on Haiku; the pact ships no `Explore`, so skills that call it get Claude Code's built-in. The QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.

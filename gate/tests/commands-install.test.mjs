@@ -4,7 +4,7 @@
 // depend on the shipped text. One case per new refusal, each
 // checking that a refused install changed nothing. Never touches ~/.claude.
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { WIN, home, install, listTree, makeRepo, passed, refused, wrapCheck } from './install-harness.mjs';
@@ -50,7 +50,7 @@ test('a listed command installs to commands/<name>.md, and dropping it from the 
   const h = homeWith(t, ['finis']);
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: off \(not in this commit\)\r?$/m, dry.out);
+  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: on, always: part of the pact, with the builder kit under pact\/builder\/\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}To turn one on, list its name in pact\/config\.json, for example: "commands": \["make-it-so"\]\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact command \/finis; it installs to commands\/finis\.md\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}commands\/finis\.md\r?$/m, dry.out);
@@ -68,13 +68,14 @@ test('a listed command installs to commands/<name>.md, and dropping it from the 
   assert.ok(!existsSync(join(h, 'commands', 'finis.md')), 'the dropped command is deleted');
 });
 
-test('with no list, no command installs, and the dry run still lists the pact commands', t => {
+// #203 C2; #262: with no list, only /scriptorium installs: the builder is part of the pact.
+test('with no list, no opt-in command installs, only /scriptorium, and the dry run still lists the pact commands', t => {
   const repo = repoWithFinis(t);
   const h = home(t);
   const r = install(repo, h, { apply: true });
   passed(r);
   assert.match(r.stdout, /^ {2}\/finis: off\r?$/m, r.out);
-  assert.ok(!existsSync(join(h, 'commands')), 'no commands folder');
+  assert.deepEqual(readdirSync(join(h, 'commands')), ['scriptorium.md'], 'only /scriptorium');
 });
 
 // ------------------------------------------------------------ refusals against the live home folder (S8)
