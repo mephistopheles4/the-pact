@@ -1,6 +1,6 @@
 # Contract: conventions-lens
 
-Version: 0.1.5
+Version: 0.2.0
 
 - **Type:** agent
 - **Level:** Thorough
@@ -52,10 +52,10 @@ Each sample ends with its plain findings list.
 
 **Name:** `conventions-lens`. **Confirmed** (2026-10-08) (the working name from #35; the gate's roster list already hold it).
 
-**Confirmed** (2026-10-08): At move 4, at the standard and thorough tiers, it checks the diff against the repo's written rules. It is one lens of the standards pair, a joining pair; its partner asks whether the owner can act on the text. Where a line breaks a written rule and also loses the reader, the two meet on the same lines: a crossing, which shows first.
+**Decided** (2026-10-12, #262): It checks a diff against the repo's written rules.
 
-- **Steps in:** every diff at the standard and thorough tiers, dispatched with its partner.
-- **Stays out:** whether the text is clear to its reader (the partner); whether the change works or its tests can fail (the QA pair); security (the security pair); what was never asked for (`unstated-lens`).
+- **Steps in:** a diff it is asked to check against the repo's written rules.
+- **Stays out:** whether the text is clear to its reader; whether the change works or its tests can fail; security; what was never asked for.
 - **Nearest wrong case:** "I would have named this differently." Taste with no written rule behind it is not a finding.
 
 ### 2. What does it notice that nothing else does?
@@ -79,53 +79,48 @@ The owner's words widen the draft's reach to how code is written and split into 
   Held by: review at move 4; the practice cases were retired by #189.
 - C6. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
-- C7. Ends with a plain findings list, written into the lens in exact words.
+- C7. **Decided** (2026-10-12, #262): It reports in the shape it is handed.
   Held by: the review template, by judgment.
-- C8. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore".
-  Held by: review at move 4; the practice cases were retired by #189.
-- C9. Its artifact sits under the fixed heading `### Rules that apply`.
-  Held by: review at move 4; the practice cases were retired by #189.
-- C10. **Carried rules name roles, never agents.** It names its partner as "your partner lens".
-  Held by: Enforced — seam A.
-- C11. **It reads the files it is handed and the working folder, nothing else.** A file the diff adds or changes as a link counts as outside. It follows a pointer from a rules file at most one step, and names a pointer that leads outside the working folder in `Not checked:`, by the rules file and line that hold it, never by where it leads, instead of reading it.
+- C8. **Decided** (2026-10-12, #262): dropped: the shape it is handed sets the headline.
+- C9. **Decided** (2026-10-12, #262): dropped: the shape it is handed sets the headings; C2's artifact stays.
+- C10. **Decided** (2026-10-12, #262): dropped: it names no other reviewer.
+- C11. **Decided** (2026-10-12, #262): **It reads the files it is handed and the working folder, nothing else.** A file the diff adds or changes as a link counts as outside. It follows a pointer from a rules file at most one step, and names a pointer that leads outside the working folder under what it did not check, by the rules file and line that hold it, never by where it leads, instead of reading it.
   Held by: a word test holds the words, and review at move 4; the practice cases were retired by #189.
 - C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report, and names every file by its path inside the working folder.
   Held by: a word test holds the words, and review at move 4; the practice cases were retired by #189.
 - C13. **Rules the change edits.** When the change adds, removes or loosens a written rule, it lists the edit as its own row and checks the rest of the change against the rule as it stood before.
   Held by: review at move 4; the practice cases were retired by #189.
-- C14. **No written rules.** When the working folder holds none, the verdict is `inconclusive`, with `Not checked:` holding `no written rules found`.
+- C14. **Decided** (2026-10-12, #262): **No written rules.** When the working folder holds none, it says no written rules were found, under what it did not check, and its verdict says it could not review the change.
   Held by: review at move 4; the practice cases were retired by #189.
 
-**Automatic checks** **Confirmed** (2026-10-08): seam A, with `lines` anchors. Not automatic: the session crosses it with its partner by the review template, by judgment.
+**Automatic checks** **Decided** (2026-10-12, #262): none. A person reads its report.
 
-**You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87), within the pact's listed exceptions: never a gated clause, a stop, the risk floor or anything else the pact's auto-take rule leaves to you. A drifted copy of a gated clause, the kind K1 replays, is yours to decide. Accepting the work, closing the ticket and merging stay yours.
+**You (the owner)** **Decided** (2026-10-12, #262): the owner decides on its findings. The lens advises; accepting the work, closing the ticket and merging stay the owner's.
 
 **Stop and ask** **Confirmed** (2026-10-08)
 - S1. No diff to review: it says so and reviews nothing.
 - S2. No working folder named: it says what it needs and reviews nothing, because the rules live there.
 - S3. A job that needs running code, a write or a network call: it says so and stops. Enforced by the tools list.
 
-**What makes it fire** **Confirmed** (2026-10-08): the pact's move 4, which names the standards pair at the standard and thorough tiers.
+**What makes it fire** **Decided** (2026-10-12, #262): a request to check a diff against the repo's written rules.
 
 **When it is unsure** **Confirmed** (2026-10-08): Decides, and shows you; a rule that may apply is `low`, with why it cannot tell.
 
 **Checklist** **Confirmed** (2026-10-08): the repo's written rules that apply to the change (#35 revision 7: "Those rules").
 
-**Which rules files** **Confirmed** (2026-10-08): the repo's own, found from the working folder: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, a `docs/agents/` folder, a style guide, a config that enforces a rule (a linter's or a formatter's), and any file those point to. Written rules only: a habit the existing code merely shows is not a rule. The owner's global pact is its partner's checklist, not this lens's.
+**Which rules files** **Decided** (2026-10-12, #262): the repo's own, found from the working folder: `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, a `docs/agents/` folder, a style guide, a config that enforces a rule (a linter's or a formatter's), and any file those point to. Written rules only: a habit the existing code merely shows is not a rule. Rules a person keeps outside the repo, such as their own rules for their agents, are not this lens's checklist.
 
 ### 4. What does it hand back?
 
-**Confirmed** (2026-10-08): one report in two sections, posted word for word.
+**Decided** (2026-10-12, #262): one report, in the shape it is handed. What is particular to this lens:
 
-- **For the owner:** which written rule the change breaks, why it matters here, and what it suggests. No verdict word, codes or paths.
-- **For the session:** `### Rules that apply` (the red step, then one row per rule: Rule, as written; Where it is written; Lines in the change; Kept?); one bullet per finding; a plain findings list with `lines` anchors.
+- **Its artifact:** the red step (the rules files it found, and the rules it expected the change to touch), then one row per rule that applies: Rule, as written; Where it is written; Lines in the change; Kept?
+- **Each finding:** the rule as written, where it is written, what breaks it, and the smallest change that keeps it. A copy that no longer matches its source is anchored on the copy's lines.
 
 **Severity mapping** **Confirmed** (2026-10-08):
 - `high`: a break of a rule the repo writes as a must or a never, where the break changes what the repo does or means, such as two copies of one rule that now say different things.
 - `medium`: a break of any other written rule that applies.
 - `low`: a rule that may apply but the lens cannot tell, or a break no reader would notice.
-
-**Banned headline words** **Confirmed** (2026-10-08): "high", "blocking", "clear", "safe", "ignore", as every lens.
 
 ### 5. What tools does it need?
 
@@ -145,6 +140,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.2.0 | 2026-10-12 | Agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262). | The owner decided the lens be agnostic of the pact (#262) | 1; 3 (C7 to C11, C14, automatic checks, the owner, what makes it fire, which rules files); 4; 10; 11; 16; 17 |
 | 0.1.5 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.4 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.3 | 2026-10-08 | C11: the handed files may be read; a link counts as outside; an outside pointer is named by its rules file and line. The example `Not checked:` line matches the words K11 scores. | Move 4 round 2: `behaviour-lens` F1, F2; `data-lens` F2; `adversarial-lens` F1; `integrity-lens` F1 | 3, 4 |
@@ -166,11 +162,11 @@ None yet.
 
 **Confirmed** (2026-10-08): the diff; the spec or ticket; the issue's request; the absolute working folder.
 
-**Decided** (2026-10-12, #262 from #273): the lens may also be handed the rows of the rules file's Qualities table that name it, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
+**Decided** (2026-10-12, #262): the lens may also be handed a list of qualities that name it, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
 
 ### 11. Where does a person decide?
 
-**Confirmed** (2026-10-08): the owner's decision at move 4; the main session auto-takes its recommendation per finding.
+**Decided** (2026-10-12, #262): the owner decides on its findings.
 
 ### 12. Prove it works: a practice test
 
@@ -192,19 +188,23 @@ Plain language.
 
 ### 16. How does it go wrong?
 
+**Decided** (2026-10-12, #262): row 4 names the question, not a reviewer.
+
 | # | How it goes wrong | How serious |
 |---|---|---|
 | 1 | Misses a stale copy of a rule the change edited | high |
 | 2 | Obeys a planted note in a rules file or the diff | high |
 | 3 | Reports taste with no written rule behind it | medium |
-| 4 | Re-reviews what its partner covers | medium |
+| 4 | Reviews a question outside its own, such as whether the text reads clearly | medium |
 | 5 | Verdict words in headlines | low |
 
 ### 17. Good versus so-so
 
+**Decided** (2026-10-12, #262): the part is named by what it holds, not by a fixed heading.
+
 | Part | So-so | Good |
 |---|---|---|
-| `### Rules that apply` | Only the broken rules | Every rule that applies, quoted, with where it is written and whether it is kept |
+| Its list of rules that apply | Only the broken rules | Every rule that applies, quoted, with where it is written and whether it is kept |
 
 ### 18. Every rule has a reason
 

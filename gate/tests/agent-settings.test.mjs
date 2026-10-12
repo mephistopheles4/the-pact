@@ -281,7 +281,7 @@ test('bad case: each sign alone marks integrity-lens security-set; with none it 
   assert.equal(classify(t, 'integrity-lens', { agent: floor }).words, 'security-set override local');
   // On the doubt list.
   const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
-  const doubt = "  'unstated-lens': 'it reports work that should have taken the security route',";
+  const doubt = "  'unstated-lens': 'it asks whether security-sensitive work should have had a security review',";
   plantModule(gate, 'render', doubt, `${doubt}\n  'integrity-lens': 'planted',`);
   assert.equal(classify(t, 'integrity-lens', { renderer: join(gate, 'render.mjs') }).words, 'security-set override local');
 });
@@ -297,12 +297,11 @@ test('bad case: a renderer whose output would change another line refuses by its
 });
 
 // #261 S5: the fixed list carries the class. data-lens has no other sign, and
-// executability-lens none once its risk-floor block is gone; each turns plain
-// when the list loses it. Since #262 the class shows only on the AGENT line.
+// executability-lens none since #262 took its risk-floor block out; each turns
+// plain when the list loses it. Since #262 the class shows only on the AGENT line.
 test('bad case: the fixed security-set list alone marks data-lens and executability-lens; a list that loses one leaves it plain', t => {
-  const exAgent = readFileSync(join(AGENTS_DIR, 'executability-lens.md'), 'utf8');
-  const exBare = exAgent.replace(/<!-- pact:begin risk-floor -->\n[\s\S]*?<!-- pact:end risk-floor -->\n/, '');
-  assert.notEqual(exBare, exAgent);
+  const exBare = readFileSync(join(AGENTS_DIR, 'executability-lens.md'), 'utf8');
+  assert.ok(!exBare.includes('pact:begin'), 'executability-lens carries no pact block (#262)');
   assert.equal(classify(t, 'data-lens').words, 'security-set override local');
   assert.equal(classify(t, 'executability-lens', { agent: exBare }).words, 'security-set override local');
   const gate = copyGate(tempDir(t, 'pact-agents-gate-'));

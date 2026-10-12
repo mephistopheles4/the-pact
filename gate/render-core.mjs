@@ -192,18 +192,19 @@ const agentModel = v => (typeof v === 'string' && AGENT_MODEL_RE.test(v) ? v : u
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
 // The lenses the security route names, as a fixed list (#261, S4): the
-// security pair, and executability-lens, which carries the sensitive-work list in its own block. The rules
+// security pair, and executability-lens, which checks that security-sensitive work has a security review planned. The rules
 // file names no route any more, so the renderer reads none from it. Without
 // this list data-lens, which has no other sign, would print as plain on its
 // AGENT line with no error.
 const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);
-// The sign of a security-set agent read from its own file: the risk-floor block.
+// The sign of a security-set agent read from its own file: a risk-floor block.
+// No pact lens carries one since #262; the sign stays for an agent that does.
 const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
 // Security-set lenses by doubt (AGENTS.md: when in doubt, a change takes the
 // security route), each with its reason. No sign in their files says so.
 const SECURITY_DOUBT = Object.freeze({
-  'good-enough-lens': 'it never defers a risk-floor item',
-  'unstated-lens': 'it reports work that should have taken the security route',
+  'good-enough-lens': 'it never suggests deferring work that guards security or data',
+  'unstated-lens': 'it asks whether security-sensitive work should have had a security review',
 });
 
 // Each setting: the open part it fills, its whole-number range, its default

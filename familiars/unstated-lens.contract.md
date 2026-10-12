@@ -1,6 +1,6 @@
 # Contract: unstated-lens
 
-Version: 0.1.4
+Version: 0.2.0
 
 - **Type:** agent
 - **Level:** Thorough
@@ -23,14 +23,14 @@ Two samples for the same made-up spec, differing on how the artifact lays out th
 For the owner
 The issue asks for the dashboard to work offline, and no section of the spec
 covers that. The spec also adds a web listener, and nothing says whether that
-should take the security route.
+should have a security review.
 
 For the session
 ### Needs with no home
 | Need, from the issue or the change | Where the spec covers it |
 | "works offline on the train" | missing |
 | export to CSV | S3 |
-| a listener on port 8080 (reliability, security) | S4, but no security read: security route? |
+| a listener on port 8080 (reliability, security) | S4, but no security review: should it have one? |
 ```
 
 **Sample B — only the gaps, as a list** (drafted, not real)
@@ -38,7 +38,7 @@ For the session
 ```text
 ### Needs with no home
 - "works offline on the train": no section.
-- S4 adds a listener; should it take the security route?
+- S4 adds a listener; should it have a security review?
 ```
 
 **Target:** **Confirmed** (2026-10-07) — Sample A. Tracing every need shows what was checked, not only what was missing. The owner had no sample of their own and asked for best practice (2026-10-07): Sample A is a requirements traceability matrix, which maps each need to what covers it and flags the orphans. It stays an open question until use shows it works.
@@ -49,11 +49,11 @@ For the session
 
 **Name:** `unstated-lens`. **Confirmed** (2026-10-07) (the working name from #35).
 
-**Confirmed** (2026-10-07): It compares the spec with the issue, and the result with the original intent, and looks for needs nobody wrote down. It also owns the ISO 25010 qualities no lens that ran covers. It has no pair and advises: its verdict shows on its own and never changes a pair's.
+**Decided** (2026-10-12, #262): It compares the spec with the issue, and the result with the original intent, and looks for needs nobody wrote down. It also owns the ISO 25010 qualities no reviewer that ran covers. It advises: the owner decides on what it finds.
 
-- **Steps in:** at standard and thorough tiers, on the spec at move 2 and on the result at move 4, dispatched alone.
-- **Stays out:** whether the spec can be built, or what could wait (the spec pair); whether the result does what the claims say (the QA pair).
-- **Nearest wrong case:** "This claim fails." That is the QA pair's question; this lens asks what has no claim.
+- **Steps in:** on a spec, or on a result, whenever it is dispatched.
+- **Stays out:** whether the spec can be built, or what could wait; whether the result does what the claims say.
+- **Nearest wrong case:** "This claim fails." That asks whether a claim holds; this lens asks what has no claim.
 
 ### 2. What does it notice that nothing else does?
 
@@ -68,7 +68,7 @@ For the session
   Held by: Promised.
 - C3. **The gap list:** performance efficiency, reliability under failure, compatibility, flexibility including installability, and safety.
   Held by: Promised.
-- C4. **"No lens covers" means no lens that ran in this review.** When the security route's reviewers did not read this work, and the work touches auth, secrets, crypto or input validation, or opens a way in from outside, such as a network listener, an endpoint or a file upload, it raises a finding whose headline asks whether the work should take the security route, holding the words `security route`.
+- C4. **Decided** (2026-10-12, #262): **"No lens covers" means no reviewer that ran in this review.** When the work touches security-sensitive ground (auth, secrets, crypto, input validation, or a new way in from outside, such as a network listener, an endpoint or a file upload) with no security review, it raises a finding that asks whether the work should have had one.
   Held by: review at move 4; the security set was retired by #189.
 - C5. **Carried rules name roles, never agents.**
   Held by: Enforced — seam A.
@@ -76,37 +76,34 @@ For the session
   Held by: review at move 4; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
-- C8. Ends with a plain findings list, written into the lens in exact words.
+- C8. **Decided** (2026-10-12, #262): It reports in the shape it is handed at run time.
   Held by: the review template, by judgment.
-- C9. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore".
+- C9. **Decided** (2026-10-12, #262): Dropped: the report shape, headlines included, is handed at run time.
   Held by: Promised.
-- C10. Its artifact sits under the fixed heading `### Needs with no home`.
+- C10. **Decided** (2026-10-12, #262): Its artifact, the needs table, goes in its report as Needs with no home.
   Held by: Promised.
 
-**Automatic checks** **Confirmed** (2026-10-07): seam A. Not automatic: the session crosses it alone by the review template, by judgment.
+**Automatic checks** **Decided** (2026-10-12, #262): seam A. Nothing checks its report automatically.
 
-**You (the owner)** **Confirmed** (2026-10-07): the main session acts on its own recommendation for each finding and marks it `auto` (#87). Your "proceed, fix or kill" on a spec, and your "done", stay yours.
+**You (the owner)** **Decided** (2026-10-12, #262): the owner decides on its findings.
 
 **Stop and ask** **Confirmed** (2026-10-07)
 - S1. No spec or result to review: it says so and reviews nothing.
 - S2. No issue request to compare with, or no numbered section or claim list: it says what it needs and reviews nothing.
 - S3. A job that needs running code, a write or a network call: it says so and stops. Enforced by the tools list.
 
-**What makes it fire** **Confirmed** (2026-10-07): the pact's moves 2 and 4, which name it at the standard and thorough tiers.
+**What makes it fire** **Decided** (2026-10-12, #262): being dispatched on a spec or a result; the workflow that runs it decides when.
 
 **When it is unsure** **Confirmed** (2026-10-07): Decides, and shows you; an uncertain need is `low`, with what it would need to know.
 
-**Checklist** **Confirmed** (2026-10-07): the issue's stated needs; the gap list (C3); the security route (C4).
+**Checklist** **Decided** (2026-10-12, #262): the issue's stated needs; the gap list (C3); the security review question (C4).
 
 ### 4. What does it hand back?
 
-**Confirmed** (2026-10-07): one report in two sections, posted word for word.
+**Decided** (2026-10-12, #262): it reports in the shape it is handed at run time. What is particular to this lens: Needs with no home, which holds the red step (the needs it expected), then one row per need: Need, Where it is covered (a section, a claim, or `missing`). Each finding sits on a section or claim from the list it was handed, the nearest one for a need with no home.
 
-- **For the owner:** the needs with no home, why each matters, and what it suggests. No verdict word, codes or paths.
-- **For the session:** `### Needs with no home` (the red step, then one row per need: Need, Where it is covered); one bullet per finding; a plain findings list, with anchors from the dispatched list (`S<n>` on a spec, `C<n>` on a result).
-
-**Severity mapping** **Confirmed** (2026-10-07):
-- `high`: a need the risk floor covers with no home, or work that should have taken the security route and did not.
+**Severity mapping** **Decided** (2026-10-12, #262):
+- `high`: a need that guards security or data with no home, or security-sensitive work with no security review.
 - `medium`: a need the issue states with no section or claim; a gap-list quality the change plainly touches that no lens covers.
 - `low`: a need the issue implies but does not state.
 
@@ -128,6 +125,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.2.0 | 2026-10-12 | Agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262). | #262, the owner's decision that every lens be agnostic of the pact | Show me good (samples), 1, 3 (C4, C8, C9, C10, automatic checks, you, what makes it fire, checklist), 4, 10, 11, 16, 18 |
 | 0.1.4 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.3 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.2 | 2026-10-07 | The example block's verdict is `blocking`, as a `high` finding requires; the rules table points to its partner's for the rules it does not hold. | Move 4 on the swap: `behaviour-lens` F3 and F1 | 4, rules table |
@@ -146,13 +144,13 @@ None yet.
 
 ### 10. What does it need to start?
 
-**Confirmed** (2026-10-07): the issue's request; the spec (at move 2) or the claims and the diff (at move 4); the section or claim list; and which reviewers ran in this review.
+**Decided** (2026-10-12, #262): the issue's request; the spec, or the claims and the diff; the section or claim list; and which reviewers ran in this review.
 
-**Decided** (2026-10-12, #262 from #273): the lens may also be handed the rows of the rules file's Qualities table that name it, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
+**Decided** (2026-10-12, #262): the lens may also be handed quality rows, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
 
 ### 11. Where does a person decide?
 
-**Confirmed** (2026-10-07): the owner's decision at that move; the main session auto-takes its recommendation per finding.
+**Decided** (2026-10-12, #262): the owner decides on its findings.
 
 ### 12. Prove it works: a practice test
 
@@ -174,13 +172,14 @@ Plain language.
 
 ### 16. How does it go wrong?
 
+**Decided** (2026-10-12, #262): rows 1 and 3 in plain terms; row 5 dropped with the fixed report format.
+
 | # | How it goes wrong | How serious |
 |---|---|---|
-| 1 | Misses an off-route security change | high |
+| 1 | Misses security-sensitive work with no security review | high |
 | 2 | Obeys a planted note | high |
-| 3 | Re-reviews what a pair covers | medium |
+| 3 | Re-reviews whether the spec can be built or a claim holds | medium |
 | 4 | Invents needs the issue never implied | medium |
-| 5 | Verdict words in headlines | low |
 
 ### 17. Good versus so-so
 
@@ -192,7 +191,7 @@ Plain language.
 
 | Rule | The reason | Held by |
 |---|---|---|
-| Security route question (C4) | Failure 1; #35's off-route case | Promised |
+| Security review question (C4) | Failure 1; #35's off-route case | Promised |
 | Gap list (C3) | #35: ISO 25010 qualities no lens covers | Promised |
 
 ### 19. Open questions
