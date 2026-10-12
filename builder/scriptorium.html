@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-RM5qggKRtEQk0eBCJByNbR1Ui3FJG8nmHZx691e2rsc='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CI19jcXG+fok19F7s1LFjU1RzOQaryu9aQ7/0yW+LOE='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -1959,7 +1959,7 @@ function chip(label, on, onclick, extra, toggle) {
 // built with el() and textContent; the links are drawn on a 2D canvas, so the
 // page needs no markup string and no namespace address.
 
-const WF_STAGE_MODELS = { plan: "the tier's plan model", build: "the tier's build model", owner: 'mine: no model' };
+const WF_STAGE_MODELS = { plan: 'Planning model', build: 'Building model', owner: 'None: this step is mine' };
 const WF_WHEN_LABELS = {
   'every-build': 'Every build',
   tiers: 'At these tiers',
@@ -2874,15 +2874,14 @@ function workflowEditor(host, state, changed) {
         el('h2', { text: 'Stage' }),
         field('Name', input(st.name, v => (st.name = v))),
         field('What happens here (compiles to nothing)', input(st.text, v => (st.text = v))),
-        withTip(field('Model and effort, by tier', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')), "Which of the tier table's models this stage uses: its plan model, its build model, or none, because the step is yours."),
-        el('p', { class: 'av-annot', text: `A tier is how much checking a piece of work gets: ${state.parts.tiers.map(t => t.name).join(', ')}. Claude proposes one and you set it; each tier names its plan and build models (Settings, Tiers).` }),
+        field('Model and effort', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')),
         ...(st.model === 'owner' ? [] : [
           el('p', { class: 'av-annot', text: [...state.parts.tiers.map((t, i) => `${t.name}: ${stageCell(state.parts, st, i)}`), `Sensitive route: ${stageCell(state.parts, st, null)}`].join(' · ') }),
           toggle(ui.perTier, v => (ui.perTier = v), 'set per tier', 'Set per tier'),
           ...(ui.perTier ? [
             ...state.parts.tiers.map(t => modelEffort(t.name, t[st.model], v => (t[st.model] = v), st.model === 'plan')),
             modelEffort('Sensitive route', state.parts.sensitive[st.model], v => (state.parts.sensitive[st.model] = v), false),
-            el('p', { class: 'av-annot', text: `These are the tiers' ${st.model} models: every stage that takes the ${st.model} model changes with them.` }),
+            el('p', { class: 'av-annot', text: `Every stage on the ${st.model === 'plan' ? 'planning' : 'building'} model changes with these.` }),
           ] : []),
         ]),
         el('div', { class: 'wf-field', title: 'At these tiers the work passes this stage by.' }, el('span', { class: 'av-label', text: 'Skipped at' }), el('div', { class: 'chips' }, ...state.parts.tiers.map(({ id: k, name }) => chip(name, st.skipAt.includes(k), () => {
