@@ -433,9 +433,11 @@ test('bad builder file: agent files with a bad name, no text, or a web address a
   }
 });
 
-test('reset puts the usage value, every part and every agent back to the plain pact, and undo puts it all back', () => {
+// #262: Reset comes back to where the page started, Level 3 · Full, not the plain pact.
+test('reset puts the usage value, every part and every agent back to where the page started, Level 3 · Full, and undo puts it all back', () => {
   const s = L.initialState();
   assert.equal(L.atDefaults(s), true);
+  assert.equal(L.atStart(s), false, 'the plain pact is not where the page starts');
   assert.equal(L.buildFiles(s).length, 1);
   s.usage = 90;
   s.parts.moves[1].text = 'Mine.';
@@ -447,10 +449,12 @@ test('reset puts the usage value, every part and every agent back to the plain p
   const changed = JSON.stringify(s);
   const before = L.resetAll(s);
   assert.equal(before, changed);
-  assert.equal(L.atDefaults(s), true);
-  assert.deepEqual(JSON.parse(JSON.stringify(s)), L.initialState());
-  // A reset page saves the plain configuration: no settings, no edits, no agents.
-  assert.deepEqual(L.buildFiles(s), [{ path: 'pact/config.json', text: '{\n  "schema": 1\n}\n' }]);
+  assert.equal(L.atStart(s), true);
+  const start = L.initialState();
+  L.takePreset(start, L.PACT.presets.find(p => p.id === 'level-3-full'), L.presetPicks(L.PACT.presets.find(p => p.id === 'level-3-full')));
+  assert.deepEqual(JSON.parse(JSON.stringify(s)), JSON.parse(JSON.stringify(start)));
+  // A reset page saves Level 3 · Full: its workflow edit, no settings, no agents.
+  assert.deepEqual(JSON.parse(L.buildFiles(s).find(f => f.path === 'pact/config.json').text), { schema: 1, edits: [{ mark: 'workflow', op: 'replace', file: 'workflow.md' }] });
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
@@ -590,7 +594,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));

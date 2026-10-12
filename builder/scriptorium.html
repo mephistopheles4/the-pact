@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6JvdK6xE3YtI7Kt+pccFkh3b3w6UMuzHxlmIpN8pTTw='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hvuWjUddiVRypP7ooWUHhgPquICQEiqU2Eknc60fZO4='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3651,13 +3651,29 @@ function atDefaults(state) {
   return JSON.stringify(state) === JSON.stringify(initialState());
 }
 
+// The preset the page starts from when the builder file brings no parts of its own; Reset comes back to it.
+const LANDING_PRESET = 'level-3-full';
+
+/** Where the page starts, and where Reset puts it: the plain pact with the landing preset taken, unless the builder file brings parts of its own. */
+function startState() {
+  const state = initialState();
+  const landing = !PACT.ownParts && PACT.presets.find(p => p.id === LANDING_PRESET);
+  if (landing) takePreset(state, landing, presetPicks(landing));
+  return state;
+}
+
+/** Whether the page is where it started. */
+function atStart(state) {
+  return JSON.stringify(state) === JSON.stringify(startState());
+}
+
 /**
- * Put everything back to the plain pact: the limits, every part and every
- * agent setting. Returns what was there, to put back with restoreAll.
+ * Put everything back to where the page started: the limits, every part and
+ * every agent setting. Returns what was there, to put back with restoreAll.
  */
 function resetAll(state) {
   const before = JSON.stringify(state);
-  Object.assign(state, initialState());
+  Object.assign(state, startState());
   return before;
 }
 
@@ -5088,13 +5104,8 @@ function workflowEditor(host, state, changed) {
   };
 }
 
-// The preset the page starts from when the builder file brings no parts of its own. Reset still gives the plain pact.
-const LANDING_PRESET = 'level-3-full';
-
 function boot() {
-  const state = initialState();
-  const landing = !PACT.ownParts && PACT.presets.find(p => p.id === LANDING_PRESET);
-  if (landing) takePreset(state, landing, presetPicks(landing));
+  const state = startState();
   const $ = id => document.getElementById(id);
   const root = document.documentElement;
   let status = { text: '', level: '' };
@@ -5351,12 +5362,14 @@ function boot() {
   let hotFuse = null;
   let undoFuse = null;
   const resetBtn = el('button', { type: 'button', class: 'av-tool-chip av-tool-chip--ghost reset-btn' }, 'Reset');
+  const landed = !PACT.ownParts && PACT.presets.find(p => p.id === LANDING_PRESET);
+  const startHelp = `The limits, the moves, the agents and the canvas back to ${landed ? landed.title : 'where the page started'}`;
   function paintReset() {
     const offering = resetBefore !== null && resetHot;
     resetBtn.textContent = offering ? 'Undo' : 'Reset';
     resetBtn.classList.toggle('armed', offering);
-    resetBtn.dataset.help = offering ? 'Put back what you had before the reset' : resetBefore !== null ? 'Reset. Hover to take the last reset back' : 'The limits, the moves, the agents and the canvas back to the plain pact';
-    resetBtn.disabled = resetBefore === null && atDefaults(state);
+    resetBtn.dataset.help = offering ? 'Put back what you had before the reset' : resetBefore !== null ? 'Reset. Hover to take the last reset back' : startHelp;
+    resetBtn.disabled = resetBefore === null && atStart(state);
   }
   function disarmUndo() {
     clearTimeout(undoFuse);
