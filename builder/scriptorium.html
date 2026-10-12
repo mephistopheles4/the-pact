@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iCFgC717AswwFLU5KGu98hX8fTT8HMc/G9osHGcsuzw='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-y1/6TDiBrukaNewAE7ExvLaT3IFHlpzp/LmQPqsfc+4='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -5326,8 +5326,8 @@ function boot() {
     else d.setAttribute('open', '');
     // Focus starts on the dialog's title, as the ARIA dialog pattern advises for a dialog with much to read:
     // a screen reader starts at the top, Tab goes on to the first control, and no control's note pops up.
-    const title = d.querySelector('.av-tool-title');
-    if (title) {
+    const title = typeof d.querySelector === 'function' && d.querySelector('.av-tool-title');
+    if (title && typeof title.focus === 'function') {
       title.tabIndex = -1;
       title.focus();
     }
