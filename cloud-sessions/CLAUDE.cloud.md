@@ -90,8 +90,7 @@ open, in one line, in every hand-off and in the result. If you find it later,
 say so in one line at the next hand-off or result, and keep saying it until I
 answer.
 
-Small work that touches nothing sensitive is quick. Keep one model for a
-whole session.
+Keep one model for a whole session.
 
 ## Workflow
 

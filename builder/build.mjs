@@ -43,7 +43,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
-import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts } from './parts.mjs';
+import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
@@ -277,6 +277,7 @@ export function loadBuilder(file, pact) {
   if (PART_KEYS.some(k => Object.hasOwn(doc, k))) {
     parts = copyParts(DEFAULT_PARTS);
     for (const k of PART_KEYS) if (Object.hasOwn(doc, k)) parts[k] = doc[k];
+    upgradeParts(parts);
     for (const f of partsProblems(parts)) (f.level === 'error' ? refusals : findings).push(`${f.part}: ${f.text}`);
   }
   // The Models list (#262 S19): each entry one model of the gate's shape.

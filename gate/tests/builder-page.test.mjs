@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
-import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts } from '../../builder/parts.mjs';
+import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, upgradeParts } from '../../builder/parts.mjs';
 import { isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -289,7 +289,7 @@ test('the default parts compile byte for byte to the four parts in the rules fil
   const got = compileParts(DEFAULT_PARTS);
   for (const m of PART_MARKS) assert.equal(got[m], between(src, m), m);
   const p = copyParts(DEFAULT_PARTS);
-  p.workflowGraph.offers[0].when = 'thorough';
+  p.workflowGraph.offers[0].tiers = ['thorough'];
   assert.notEqual(compileParts(p).workflow, between(src, 'workflow'), 'a cell changed in the data');
   assert.notEqual(got.workflow, between(src.replace('| Deploy | I decide |', '| Deploy | I choose |'), 'workflow'), 'a cell changed in the rules file');
 });
@@ -299,6 +299,53 @@ const graphWith = f => {
   f(g);
   return { ...GOOD, workflowGraph: g };
 };
+
+// #262, owner decision in chat: any number of tiers, each with an id; an offer at
+// these tiers compiles to their names, and the route names its tier.
+test('a fourth tier compiles into its own column, and offers and the route name tiers by their names', () => {
+  const p = copyParts(DEFAULT_PARTS);
+  p.tiers.push({ id: 'expert', name: 'Expert', fits: 'Work only I can judge', plan: 'Opus, max', build: 'Opus, high' });
+  p.sensitive.tier = 'expert';
+  assert.deepEqual(partsProblems(p), []);
+  const out = compileParts(p);
+  assert.match(out.tiers, /^\| \*\*Expert\*\* \| Work only I can judge \| Opus, max \| Opus, high \|$/m);
+  assert.match(out.workflow.split('\n')[0], /^\| Stage \| Quick \| Standard \| Thorough \| Expert \| Sensitive route \|/);
+  assert.match(out.workflow, /`executability-lens`, `good-enough-lens`: at standard and thorough;/);
+  assert.match(out.sensitive.replace(/\s+/g, " "), /data migrations: expert, planned/);
+  p.workflowGraph.offers[0].tiers = ['thorough', 'expert'];
+  assert.match(compileParts(p).workflow, /`good-enough-lens`: thorough and above;/);
+});
+
+// #262: a builder file from before tier ids keeps working, and compiles as it did.
+test('a builder file with three tiers and no ids, and the retired conditions, is brought up to date', () => {
+  const p = copyParts(DEFAULT_PARTS);
+  p.tiers = p.tiers.map(({ id, ...t }) => t);
+  for (const o of p.workflowGraph.offers) if (o.when === 'tiers') {
+    o.when = 'standard-up';
+    delete o.tiers;
+  }
+  assert.ok(partsProblems(p).length > 0, 'refused before the upgrade');
+  assert.deepEqual(partsProblems(upgradeParts(p)), []);
+  assert.deepEqual(compileParts(p), compileParts(DEFAULT_PARTS));
+});
+
+// #262: the builder refuses a tier list it can't compile, and a pointer at a tier that isn't there.
+test('bad parts: no tiers or seven, an id twice, a skip, an offer or a route at a missing tier', () => {
+  const bad = f => {
+    const p = copyParts(DEFAULT_PARTS);
+    f(p);
+    return partsProblems(p).filter(x => x.level === 'error').map(x => x.text).join(' / ');
+  };
+  assert.match(bad(p => (p.tiers = [])), /1 to 6 tiers/);
+  assert.match(bad(p => (p.tiers = Array.from({ length: 7 }, (_, i) => ({ ...p.tiers[0], id: `t${i}`, name: `T${i}` })))), /1 to 6 tiers/);
+  assert.match(bad(p => (p.tiers[1].id = 'quick')), /tier quick: the id is used twice/);
+  assert.match(bad(p => (p.tiers[1].name = 'quick')), /two tiers have one name/);
+  assert.match(bad(p => (p.workflowGraph.stages[0].skipAt = ['gone'])), /stage plan: skipAt must list tiers/);
+  assert.match(bad(p => (p.workflowGraph.offers[0].tiers = [])), /offer design-spec-pair: tiers, a list of the tiers/);
+  assert.match(bad(p => (p.workflowGraph.offers[0].tiers = ['gone'])), /offer design-spec-pair: tiers, a list of the tiers/);
+  assert.match(bad(p => (p.workflowGraph.offers[2].tiers = ['quick'])), /offer design-security-pair: tiers, a list of the tiers, only and always with when "tiers"/);
+  assert.match(bad(p => (p.sensitive.tier = 'gone')), /the route's tier must be one of the tiers/);
+});
 
 // #262, the owner's skill node: a skill on a stage compiles into a Skills column; the default table has none.
 test('a skill on the graph compiles into a Skills column, offered or used and when; the default table has no such column', () => {

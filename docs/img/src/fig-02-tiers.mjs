@@ -19,8 +19,7 @@ const ROUTE = [
   'The agent recommends the route, with its why, in its tier proposal,',
   "and I take it or not. If I don't, the security pair is offered once",
   "more at Test on a list match, and a flag I haven't answered stays",
-  'open in the result. Small work that touches nothing sensitive is',
-  'quick. Keep one model for a whole session.',
+  'open in the result. Keep one model for a whole session.',
 ];
 const MODELS = [
   ['Plans', 'Opus'],

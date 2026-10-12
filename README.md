@@ -61,7 +61,7 @@ Not every change needs a spec. Each piece of work gets a tier (quick, standard o
 | Standard | Needs a short spec | Opus, medium | Sonnet, medium |
 | Thorough | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
 
-**Sensitive work · when I choose it.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations. The sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. If I don't, the security pair is offered once more at Test on a list match, and a flag I haven't answered stays open in the result. Small work that touches nothing sensitive is quick. Keep one model for a whole session.
+**Sensitive work · when I choose it.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations. The sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. If I don't, the security pair is offered once more at Test on a list match, and a flag I haven't answered stays open in the result. Keep one model for a whole session.
 
 **Models.** Opus plans. Sonnet builds, and Opus builds quick work. The sensitive route runs on Opus at high effort.
 

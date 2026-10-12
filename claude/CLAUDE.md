@@ -98,8 +98,7 @@ say so in one line at the next hand-off or result, and keep saying it until I
 answer.
 <!-- pact:end sensitive -->
 
-Small work that touches nothing sensitive is quick. Keep one model for a
-whole session.
+Keep one model for a whole session.
 
 ## Workflow
 

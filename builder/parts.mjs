@@ -9,12 +9,12 @@
 // touches nothing: plain functions over plain data, safe in the page.
 //
 // The data, in a builder file (and in the page's state):
-//   tiers:         [{ name, fits, plan, build }]            three, in TIER_KEYS order; plan may be 'none'
-//   sensitive:     { items: [..], tier, plan, build }       the list Claude looks for, and the route it recommends
-//   workflowGraph: { stages: [{ id, name, text, model: 'plan' | 'build' | 'owner', skipAt: [tier keys] }],
-//                    offers: [{ id, stage, when, words, agents: [names], on }],
+//   tiers:         [{ id, name, fits, plan, build }]        1 to 6, lightest first; plan may be 'none'
+//   sensitive:     { items: [..], tier, plan, build }       the list Claude looks for, and the route it recommends; tier is a tier id
+//   workflowGraph: { stages: [{ id, name, text, model: 'plan' | 'build' | 'owner', skipAt: [tier ids] }],
+//                    offers: [{ id, stage, when, words, agents: [names], on, tiers? }],   tiers: [tier ids], only with when 'tiers'
 //                    links:  [{ from, to, when, on }],        an empty when is the stage's default way on
-//                    skills: [{ id, stage, skill, mode: 'offered' | 'used', when, words, on }],   optional
+//                    skills: [{ id, stage, skill, mode: 'offered' | 'used', when, words, on, tiers? }],   optional
 //                                                             a skill or command at a stage: offered to me, or used
 //                    layout: { <node id>: { x, y } } }        the canvas's positions; compiles to nothing
 //   lenses:        [{ agents: [names], label, asks }]       the roster, one row each
@@ -27,8 +27,11 @@
 // claude/CLAUDE.md, byte for byte; a builder test holds them together.
 
 export const PART_MARKS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+// The tiers (#262): any number from 1 to TIERS_MAX, lightest first, each with
+// an id the stages, offers and the route point at. A builder file from before
+// carries three tiers with no ids; upgradeParts gives them these.
 export const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
-export const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
+export const TIERS_MAX = 6;
 // A model and its effort, as the tables write them: "Opus, medium". The
 // builder offers them as two dropdowns, the models from the person's Models
 // list, which starts as MODEL_NAMES (#262 S19).
@@ -68,11 +71,11 @@ export function modelsProblems(list) {
   return out;
 }
 export const STAGE_MODELS = Object.freeze(['plan', 'build', 'owner']);
-// Each offer condition and the words it compiles to. 'words' compiles to the offer's own words.
+// Each offer condition and the words it compiles to. 'words' compiles to the
+// offer's own words, and 'tiers' to its tiers' names (tiersWords).
 export const OFFER_WHENS = Object.freeze({
   'every-build': 'every build',
-  'standard-up': 'standard and above',
-  thorough: 'thorough only',
+  tiers: '',
   sensitive: 'on the sensitive route',
   'sensitive-declined': "once, when the change matches the list and the sensitive route wasn't taken",
   words: '',
@@ -95,9 +98,9 @@ export const DEFAULT_PARTS = Object.freeze({
     { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
   ],
   tiers: [
-    { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
-    { name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
-    { name: 'Thorough', fits: 'Too big for one session, or risky; cut into tickets, each its own session', plan: 'Opus, high', build: 'Sonnet, medium' },
+    { id: 'quick', name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
+    { id: 'standard', name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
+    { id: 'thorough', name: 'Thorough', fits: 'Too big for one session, or risky; cut into tickets, each its own session', plan: 'Opus, high', build: 'Sonnet, medium' },
   ],
   sensitive: { items: ['auth', 'secrets', 'crypto', 'input validation', 'data migrations'], tier: 'thorough', plan: 'Opus, high', build: 'Opus, high' },
   workflowGraph: {
@@ -110,12 +113,12 @@ export const DEFAULT_PARTS = Object.freeze({
       { id: 'maintain', name: 'Maintain', text: 'What escaped, and what to change.', model: 'plan', skipAt: [] },
     ],
     offers: [
-      { id: 'design-spec-pair', stage: 'design', when: 'standard-up', words: '', agents: ['executability-lens', 'good-enough-lens'], on: true },
-      { id: 'design-unstated', stage: 'design', when: 'standard-up', words: '', agents: ['unstated-lens'], on: true },
+      { id: 'design-spec-pair', stage: 'design', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['executability-lens', 'good-enough-lens'], on: true },
+      { id: 'design-unstated', stage: 'design', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['unstated-lens'], on: true },
       { id: 'design-security-pair', stage: 'design', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
       { id: 'test-qa-pair', stage: 'test', when: 'every-build', words: '', agents: ['behaviour-lens', 'integrity-lens'], on: true },
-      { id: 'test-standards-pair', stage: 'test', when: 'standard-up', words: '', agents: ['conventions-lens', 'reader-lens'], on: true },
-      { id: 'test-unstated', stage: 'test', when: 'standard-up', words: '', agents: ['unstated-lens'], on: true },
+      { id: 'test-standards-pair', stage: 'test', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['conventions-lens', 'reader-lens'], on: true },
+      { id: 'test-unstated', stage: 'test', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['unstated-lens'], on: true },
       { id: 'test-security-pair', stage: 'test', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
       { id: 'test-security-backstop', stage: 'test', when: 'sensitive-declined', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
     ],
@@ -156,6 +159,39 @@ export function copyParts(p) {
   return JSON.parse(JSON.stringify(p));
 }
 
+/**
+ * A builder file from before tiers took ids (#262), brought up to date in
+ * place: three tiers with no ids take TIER_KEYS, and the retired conditions
+ * "standard and above" and "thorough only" become their tiers. Anything else
+ * is left for partsProblems to judge.
+ */
+export function upgradeParts(p) {
+  if (Array.isArray(p.tiers) && p.tiers.length === TIER_KEYS.length && p.tiers.every(t => isObj(t) && !Object.hasOwn(t, 'id'))) p.tiers = p.tiers.map((t, i) => ({ id: TIER_KEYS[i], ...t }));
+  const old = { 'standard-up': ['standard', 'thorough'], thorough: ['thorough'] };
+  const g = isObj(p.workflowGraph) ? p.workflowGraph : {};
+  for (const o of [...(Array.isArray(g.offers) ? g.offers : []), ...(Array.isArray(g.skills) ? g.skills : [])])
+    if (isObj(o) && Object.hasOwn(old, o.when)) {
+      o.tiers = [...old[o.when]];
+      o.when = 'tiers';
+    }
+  return p;
+}
+
+/**
+ * An offer's tiers in words, lightest first: "standard and above" when they
+ * run from one tier to the heaviest, "thorough only" for the heaviest alone,
+ * "at every tier" for all of them, and otherwise "at quick and thorough".
+ */
+export function tiersWords(p, ids) {
+  const names = p.tiers.map(t => t.name.toLowerCase());
+  const at = p.tiers.map((t, i) => (ids.includes(t.id) ? i : -1)).filter(i => i >= 0);
+  const last = p.tiers.length - 1;
+  if (at.length === p.tiers.length) return 'at every tier';
+  if (at.length === 1 && at[0] === last && last > 0) return `${names[last]} only`;
+  if (at.length > 1 && at[at.length - 1] === last && at.length === last - at[0] + 1 && at[0] > 0) return `${names[at[0]]} and above`;
+  return `at ${listJoin(at.map(i => names[i]))}`;
+}
+
 const tick = n => `\`${n}\``;
 /** "a", "a and b", "a, b and c". */
 export function listJoin(xs) {
@@ -187,6 +223,8 @@ function compileMoves(p) {
   return p.moves.map(m => [`- **${m.lead}.**`, ...wrap(m.text, 75).split('\n').map(l => `  ${l}`)].join('\n')).join('\n');
 }
 
+const tierName = (p, id) => (p.tiers.find(t => t.id === id) || { name: id }).name.toLowerCase();
+
 function compileTiers(p) {
   return [row(['Tier', 'Fits', 'Plan', 'Build']), rule(4), ...p.tiers.map(t => row([`**${t.name}**`, t.fits, t.plan, t.build]))].join('\n');
 }
@@ -195,7 +233,7 @@ export function compileSensitive(p) {
   const s = p.sensitive;
   const models = s.plan === s.build ? `planned and built on ${modelWords(s.plan)}` : `planned on ${modelWords(s.plan)} and built on ${modelWords(s.build)}`;
   return wrap([
-    `Sensitive work gets more checking when I choose it. By default, sensitive work is ${listJoin(s.items)}: ${s.tier}, ${models}, with the security pair, ${tick(SECURITY_PAIR[0])} and ${tick(SECURITY_PAIR[1])}, on the spec and the diff. That is the sensitive route.`,
+    `Sensitive work gets more checking when I choose it. By default, sensitive work is ${listJoin(s.items)}: ${tierName(p, s.tier)}, ${models}, with the security pair, ${tick(SECURITY_PAIR[0])} and ${tick(SECURITY_PAIR[1])}, on the spec and the diff. That is the sensitive route.`,
     'When the work matches that list, or you think it sensitive otherwise, say why in one line in your tier proposal and recommend the route; I take it or not.',
     "If I didn't take the route, offer the security pair once more at Test when the change matches the list. Beyond that one offer, sensitivity doesn't stop the run.",
     "A flag or an offer I haven't answered stays open, in one line, in every hand-off and in the result.",
@@ -223,19 +261,24 @@ export function stagesInOrder(g) {
 export function stageCell(p, st, tierIndex) {
   if (st.model === 'owner') return 'I decide';
   if (tierIndex === null) return p.sensitive[st.model];
-  if (st.skipAt.includes(TIER_KEYS[tierIndex])) return 'skipped';
+  if (st.skipAt.includes(p.tiers[tierIndex].id)) return 'skipped';
   const v = p.tiers[tierIndex][st.model];
   return v === 'none' ? 'in the session, no plan' : v;
 }
 
+/** When an offer or a skill comes, in words. */
+export function whenWords(p, o) {
+  return o.when === 'words' ? o.words : o.when === 'tiers' ? tiersWords(p, o.tiers) : OFFER_WHENS[o.when];
+}
+
 /** An offer's words: its lenses and when. */
-export function offerText(o) {
-  return `${o.agents.map(tick).join(', ')}: ${o.when === 'words' ? o.words : OFFER_WHENS[o.when]}`;
+export function offerText(p, o) {
+  return `${o.agents.map(tick).join(', ')}: ${whenWords(p, o)}`;
 }
 
 /** A skill's words: its name, offered or used, and when. */
-export function skillText(k) {
-  return `${tick(k.skill)}: ${k.mode}, ${k.when === 'words' ? k.words : OFFER_WHENS[k.when]}`;
+export function skillText(p, k) {
+  return `${tick(k.skill)}: ${k.mode}, ${whenWords(p, k)}`;
 }
 
 /** A link's words: back, on or ahead, by the order the work takes the stages. */
@@ -256,8 +299,8 @@ export function compileWorkflow(p) {
     st.name,
     ...p.tiers.map((_, i) => stageCell(p, st, i)),
     stageCell(p, st, null),
-    g.offers.filter(o => o.stage === st.id && o.on !== false).map(offerText).join('; ') || 'none',
-    ...(skills.length ? [skills.filter(k => k.stage === st.id).map(skillText).join('; ') || 'none'] : []),
+    g.offers.filter(o => o.stage === st.id && o.on !== false).map(o => offerText(p, o)).join('; ') || 'none',
+    ...(skills.length ? [skills.filter(k => k.stage === st.id).map(k => skillText(p, k)).join('; ') || 'none'] : []),
     g.links.filter(l => l.from === st.id && l.when && l.on !== false).map(l => linkText(g, l, order)).join('; '),
   ]));
   return [head, rule(p.tiers.length + 4 + (skills.length ? 1 : 0)), ...rows].join('\n');
@@ -312,20 +355,28 @@ export function partsProblems(p) {
       if (typeof m.text !== 'string' || !m.text.trim() || /[\r\n]/.test(m.text)) err('moves', `move ${i + 1}: the text must be one paragraph, on one line`);
     });
 
-  if (!Array.isArray(p.tiers) || p.tiers.length !== TIER_KEYS.length) err('tiers', `tiers must list ${TIER_NAMES.join(', ')}, in that order`);
+  const tierIds = new Set();
+  if (!Array.isArray(p.tiers) || !p.tiers.length || p.tiers.length > TIERS_MAX) err('tiers', `tiers must list 1 to ${TIERS_MAX} tiers`);
   else
     p.tiers.forEach((t, i) => {
-      if (!isObj(t) || !keysIn(t, ['name', 'fits', 'plan', 'build']) || t.name !== TIER_NAMES[i]) return err('tiers', `tier ${i + 1} must be ${TIER_NAMES[i]}, with only name, fits, plan and build`);
-      if (!lineOk(t.fits, C.line) || !t.fits.trim()) err('tiers', `${TIER_NAMES[i]}: fits must be one line of 1 to ${C.line} characters, with no bar`);
-      if (!(t.plan === 'none' || modelChoiceOk(t.plan))) err('tiers', `${TIER_NAMES[i]}: plan must be none or a model and an effort`);
-      if (!modelChoiceOk(t.build)) err('tiers', `${TIER_NAMES[i]}: build must be a model and an effort`);
+      if (!isObj(t) || !keysIn(t, ['id', 'name', 'fits', 'plan', 'build']) || typeof t.id !== 'string' || !ID_RE.test(t.id)) return err('tiers', `tier ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only name, fits, plan and build beside it`);
+      if (tierIds.has(t.id)) err('tiers', `tier ${t.id}: the id is used twice`);
+      tierIds.add(t.id);
+      if (!lineOk(t.name, C.short) || !t.name.trim() || /\*/.test(t.name)) err('tiers', `tier ${t.id}: name must be one line of 1 to ${C.short} characters, with no bar or asterisk`);
+      if (!lineOk(t.fits, C.line) || !t.fits.trim()) err('tiers', `tier ${t.id}: fits must be one line of 1 to ${C.line} characters, with no bar`);
+      if (!(t.plan === 'none' || modelChoiceOk(t.plan))) err('tiers', `tier ${t.id}: plan must be none or a model and an effort`);
+      if (!modelChoiceOk(t.build)) err('tiers', `tier ${t.id}: build must be a model and an effort`);
     });
+  const names = (Array.isArray(p.tiers) ? p.tiers : []).filter(t => isObj(t) && typeof t.name === 'string').map(t => t.name.trim().toLowerCase());
+  if (new Set(names).size !== names.length) err('tiers', 'two tiers have one name');
+  // A list of tier ids: at least one, each a tier, none twice.
+  const tiersOk = v => Array.isArray(v) && v.length > 0 && v.every(k => tierIds.has(k)) && new Set(v).size === v.length;
 
   const s = p.sensitive;
   if (!isObj(s) || !keysIn(s, ['items', 'tier', 'plan', 'build'])) err('sensitive', 'sensitive must hold only items, tier, plan and build');
   else {
     if (!Array.isArray(s.items) || !s.items.length || s.items.length > C.items || s.items.some(x => !lineOk(x, C.short) || !x.trim() || /[,:]/.test(x))) err('sensitive', `the list must hold 1 to ${C.items} items, each one line of at most ${C.short} characters, with no comma, colon or bar`);
-    if (!TIER_KEYS.includes(s.tier)) err('sensitive', `the route's tier must be one of ${TIER_KEYS.join(', ')}`);
+    if (!tierIds.has(s.tier)) err('sensitive', "the route's tier must be one of the tiers");
     if (!modelChoiceOk(s.plan) || !modelChoiceOk(s.build)) err('sensitive', "the route's plan and build must each be a model and an effort");
   }
 
@@ -342,17 +393,18 @@ export function partsProblems(p) {
       if (!lineOk(st.name, C.short) || !st.name.trim()) err('workflow', `stage ${st.id}: name must be one line of 1 to ${C.short} characters, with no bar`);
       if (!lineOk(st.text, C.line)) err('workflow', `stage ${st.id}: text must be one line of at most ${C.line} characters`);
       if (!STAGE_MODELS.includes(st.model)) err('workflow', `stage ${st.id}: model must be plan, build or owner`);
-      if (!Array.isArray(st.skipAt) || st.skipAt.some(k => !TIER_KEYS.includes(k))) err('workflow', `stage ${st.id}: skipAt must list tier keys`);
+      if (!Array.isArray(st.skipAt) || st.skipAt.some(k => !tierIds.has(k)) || new Set(st.skipAt).size !== st.skipAt.length) err('workflow', `stage ${st.id}: skipAt must list tiers, each once`);
     });
     const oids = new Set();
     if (g.offers.length > C.offers) err('workflow', `at most ${C.offers} offers`);
     g.offers.forEach((o, i) => {
-      if (!isObj(o) || !keysIn(o, ['id', 'stage', 'when', 'words', 'agents', 'on']) || typeof o.id !== 'string' || !ID_RE.test(o.id)) return err('workflow', `offer ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, when, words, agents and on beside it`);
+      if (!isObj(o) || !keysIn(o, ['id', 'stage', 'when', 'words', 'agents', 'on', 'tiers']) || typeof o.id !== 'string' || !ID_RE.test(o.id)) return err('workflow', `offer ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, when, words, agents, on and tiers beside it`);
       if (oids.has(o.id) || ids.has(o.id)) err('workflow', `offer ${o.id}: the id is used twice`);
       oids.add(o.id);
       if (!ids.has(o.stage)) err('workflow', `offer ${o.id}: its stage is not in the graph`);
       if (!Object.hasOwn(OFFER_WHENS, o.when)) err('workflow', `offer ${o.id}: when must be one of ${Object.keys(OFFER_WHENS).join(', ')}`);
       if (o.when === 'words' ? !lineOk(o.words, C.line) || !String(o.words).trim() : Object.hasOwn(o, 'words') && o.words !== '') err('workflow', `offer ${o.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);
+      if (o.when === 'tiers' ? !tiersOk(o.tiers) : Object.hasOwn(o, 'tiers')) err('workflow', `offer ${o.id}: tiers, a list of the tiers, only and always with when "tiers"`);
       if (!Array.isArray(o.agents) || !o.agents.length || o.agents.length > C.agents || o.agents.some(a => typeof a !== 'string' || !AGENT_RE.test(a)) || new Set(o.agents).size !== o.agents.length) err('workflow', `offer ${o.id}: 1 to ${C.agents} different agents, each a name of lowercase letters, digits and hyphens`);
       if (typeof o.on !== 'boolean') err('workflow', `offer ${o.id}: on must be true or false`);
     });
@@ -360,7 +412,7 @@ export function partsProblems(p) {
     const skills = g.skills || [];
     if (skills.length > C.skills) err('workflow', `at most ${C.skills} skills`);
     skills.forEach((k, i) => {
-      if (!isObj(k) || !keysIn(k, ['id', 'stage', 'skill', 'mode', 'when', 'words', 'on']) || typeof k.id !== 'string' || !ID_RE.test(k.id)) return err('workflow', `skill ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, skill, mode, when, words and on beside it`);
+      if (!isObj(k) || !keysIn(k, ['id', 'stage', 'skill', 'mode', 'when', 'words', 'on', 'tiers']) || typeof k.id !== 'string' || !ID_RE.test(k.id)) return err('workflow', `skill ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, skill, mode, when, words, on and tiers beside it`);
       if (kids.has(k.id) || oids.has(k.id) || ids.has(k.id)) err('workflow', `skill ${k.id}: the id is used twice`);
       kids.add(k.id);
       if (!ids.has(k.stage)) err('workflow', `skill ${k.id}: its stage is not in the graph`);
@@ -368,6 +420,7 @@ export function partsProblems(p) {
       if (!SKILL_MODES.includes(k.mode)) err('workflow', `skill ${k.id}: mode must be offered or used`);
       if (!Object.hasOwn(OFFER_WHENS, k.when)) err('workflow', `skill ${k.id}: when must be one of ${Object.keys(OFFER_WHENS).join(', ')}`);
       if (k.when === 'words' ? !lineOk(k.words, C.line) || !String(k.words).trim() : Object.hasOwn(k, 'words') && k.words !== '') err('workflow', `skill ${k.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);
+      if (k.when === 'tiers' ? !tiersOk(k.tiers) : Object.hasOwn(k, 'tiers')) err('workflow', `skill ${k.id}: tiers, a list of the tiers, only and always with when "tiers"`);
       if (typeof k.on !== 'boolean') err('workflow', `skill ${k.id}: on must be true or false`);
     });
     if (g.links.length > C.links) err('workflow', `at most ${C.links} links`);
@@ -441,7 +494,7 @@ export function partsTexts(p) {
     if (typeof v === 'string') out.push([where, v]);
   };
   (Array.isArray(p.moves) ? p.moves : []).forEach((m, i) => isObj(m) && ['lead', 'text'].forEach(k => add(`move ${i + 1}`, m[k])));
-  (Array.isArray(p.tiers) ? p.tiers : []).forEach((t, i) => isObj(t) && ['name', 'fits', 'plan', 'build'].forEach(k => add(`tiers ${i + 1}`, t[k])));
+  (Array.isArray(p.tiers) ? p.tiers : []).forEach((t, i) => isObj(t) && ['id', 'name', 'fits', 'plan', 'build'].forEach(k => add(`tiers ${i + 1}`, t[k])));
   if (isObj(p.sensitive)) {
     (Array.isArray(p.sensitive.items) ? p.sensitive.items : []).forEach((x, i) => add(`sensitive item ${i + 1}`, x));
     ['tier', 'plan', 'build'].forEach(k => add('sensitive', p.sensitive[k]));
