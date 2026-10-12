@@ -82,6 +82,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lib .ic.cond span { transform: rotate(-45deg); }
 .lib b { font-size: var(--av-t-annot); font-weight: 600; display: block; }
 .lib small { font-size: var(--av-t-micro); color: var(--av-ink-70); display: block; }
+.libpair { border-left: var(--av-rule-bold) solid var(--av-ink-30); padding-left: var(--av-s1); display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.libpair-h { display: flex; gap: var(--av-s1); justify-content: space-between; align-items: center; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; }
+.libpair .lib { padding: 3px var(--av-s1); }
 .practices { margin-top: var(--av-s2); padding-top: var(--av-s2); border-top: var(--av-rule-hair) dashed var(--av-ink-30); }
 .practice { padding: var(--av-s1) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
 .practice b { font-size: var(--av-t-annot); font-weight: 600; }
@@ -313,7 +316,10 @@ function renderLibrary(){
     item('stage','', '▭', 'Stage', 'a step of the work\'s own lifecycle') +
     item('cond','always', '?', 'Condition', 'when its agents fire; switch on or off', 'cond') +
     `<div class="av-label" style="margin-top:6px">Agents</div>` +
-    LENSES.map(l => item('agent', l, '◇', l, 'a pact lens')).join('') +
+    PAIRS.map(([x, y, l]) => `<div class="libpair"><div class="libpair-h"><span>${esc(l)}</span>${DEFAULT_PAIRS.includes(l) ? '<span class="tag tfix">default</span>' : ''}</div>` +
+      item('pair', x + '+' + y, '⧉', 'Both, on one condition', 'they fire together') + item('agent', x, '◇', x, 'one lens') + item('agent', y, '◇', y, 'one lens') + `</div>`).join('') +
+    `<div class="libpair"><div class="libpair-h"><span>On its own</span></div>` +
+    LENSES.filter(l => !PAIRS.some(([x, y]) => x === l || y === l)).map(l => item('agent', l, '◇', l, 'a pact lens')).join('') + `</div>` +
     item('own', 'my-reviewer', '◆', 'Your own agent', 'a reviewer of yours') +
     `<div class="practices"><div class="av-label">Beside the work · my practices</div><p class="av-annot" style="font-size:var(--av-t-micro)">No order and no arrows. I take each up as the work needs it; they never go on the canvas. <span class="tag tfix">fixed</span></p>` +
     PRACTICES.map(([n, d]) => `<div class="practice"><b>${n}</b><p>${d}</p></div>`).join('') + `</div>`;
@@ -327,6 +333,14 @@ function addNode(type, val, p){
   if (type === 'stage') n = { id: nid('s'), kind: 'stage', name: 'New stage', text: 'What happens here.', model: 'build', skipOn: '' };
   else if (type === 'cond') n = { id: nid('c'), kind: 'cond', cond: 'always', custom: '', on: true, def: false };
   else if (type === 'loop') n = { id: nid('l'), kind: 'loop', when: 'your words', on: true };
+  else if (type === 'pair') {
+    // A pair drops as one condition with both lenses wired to it.
+    const c = { id: nid('c'), kind: 'cond', cond: 'always', custom: '', on: true, def: false, x: Math.round(p.x - 80), y: Math.round(p.y - 20) };
+    S.nodes.push(c);
+    val.split('+').forEach((name, k) => { const g = { id: nid('a'), kind: 'agent', name, own: false, x: c.x + 200, y: c.y - 4 + k * 40 };
+      S.nodes.push(g); S.edges.push({ id: nid('e'), from: c.id, fp: 'out', to: g.id }); });
+    S.sel = { node: c.id }; S.tab = 'inspect'; renderAll(); toast('A pair on one condition. Wire a stage to the condition.'); return;
+  }
   else n = { id: nid('a'), kind: 'agent', name: val, own: type === 'own' };
   n.x = Math.round(p.x - 80); n.y = Math.round(p.y - 20);
   S.nodes.push(n); S.sel = { node: n.id }; S.tab = 'inspect'; renderAll();
