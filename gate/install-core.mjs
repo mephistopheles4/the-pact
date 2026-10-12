@@ -28,6 +28,7 @@ export const REVIEW_REL = 'claude/review.md';
 export const REVIEW_DEST = 'pact/review.md';
 export const CONFIG_REL = 'pact/config.json';
 export const BLOCKS_REL = 'pact/blocks';
+export const OWN_AGENTS_REL = 'pact/agents';
 export const PROJECT_CONFIG_REL = '.claude/pact-config.json';
 export const PROJECT_RULES_REL = '.claude/rules/pact-project.md';
 export const PROJECT_RECORD_REL = '.claude/rules/pact-project.record.json';
@@ -285,6 +286,7 @@ export function parseRecord(text) {
     if (typeof kind !== 'string' || typeof sha !== 'string') continue;
     if (kind === 'user') config.set('user', sha);
     else if (kind === 'block' && typeof ci(c, 'path') === 'string') config.set(`block ${ci(c, 'path')}`, sha);
+    else if (kind === 'agent' && typeof ci(c, 'name') === 'string') config.set(`agent ${ci(c, 'name')}`, sha);
   }
   const digest = ci(doc, 'digest');
   return {
@@ -297,11 +299,11 @@ export function parseRecord(text) {
 }
 
 /** The record the install writes (S6, X6): commit, digest, config, files, gate, in today's shape. */
-export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow }) {
+export function recordText({ commit, digest, userHash, blockHashes, ownAgents = new Map(), repoFiles, gateNow }) {
   const doc = {
     commit,
     digest: digest ?? null,
-    config: [...(userHash ? [{ kind: 'user', sha256: userHash }] : []), ...[...blockHashes].map(([path, sha256]) => ({ kind: 'block', path, sha256 }))],
+    config: [...(userHash ? [{ kind: 'user', sha256: userHash }] : []), ...[...blockHashes].map(([path, sha256]) => ({ kind: 'block', path, sha256 })), ...[...ownAgents].map(([name, sha256]) => ({ kind: 'agent', name, sha256 }))],
     files: [...repoFiles].map(([path, sha256]) => ({ path, sha256 })),
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
   };
@@ -352,6 +354,8 @@ const EDIT_RE = /^EDIT (moves|tiers|sensitive|workflow|lenses|qualities) (?:(rem
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
+// #262 addendum 3: one of the owner's own agent files, left unchanged.
+const OWN_RE = /^OWN ([a-z0-9][a-z0-9-]{0,63}) ([0-9a-f]{64})$/;
 
 /**
  * The renderer's lines (S6, R5 to R8), every one before RESULT matched to one
@@ -371,6 +375,7 @@ export function parseRenderLines(lines, { project, hash }) {
   const edits = new Map();
   const blockHashes = new Map();
   const agentSets = new Map();
+  const ownAgents = new Map();
   let commands = null;
   for (const l of lines.slice(0, -1)) {
     let m;
@@ -402,6 +407,9 @@ export function parseRenderLines(lines, { project, hash }) {
       if (!name || !modelOk || !AGENT_EFFORTS.includes(m[3])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
+    } else if ((m = OWN_RE.exec(l))) {
+      if (ownAgents.has(m[1])) refuse('render-own-twice', 'the renderer reported one own agent twice.');
+      ownAgents.set(m[1], m[2]);
     } else if ((m = VALUE_RE.exec(l))) {
       if (values.has(m[1])) refuse('render-value-twice', 'the renderer reported one setting twice.');
       values.set(m[1], m[2]);
@@ -418,14 +426,16 @@ export function parseRenderLines(lines, { project, hash }) {
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
   if (config.kind === 'none') {
-    if (digest || values.size || edits.size || agentSets.size) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit or an agent setting with no configuration.');
+    if (digest || values.size || edits.size || agentSets.size || ownAgents.size) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit or an agent setting with no configuration.');
     if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
   } else {
     let text = `user ${config.sha256}\n`;
     for (const e of edits.values()) if (e.path) text += `block ${e.path} ${e.sha256}\n`;
+    for (const [name, sha] of ownAgents) text += `agent ${name} ${sha}\n`;
     if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('render-digest', "the renderer's configuration digest is missing or does not match the configuration hashes it reported.");
   }
-  return { renderHash, diffHash, config, digest, values, edits, blockHashes, agentSets, commands };
+  if ([...ownAgents.keys()].some(n => agentSets.has(n))) refuse('render-own-and-set', 'the renderer reported a setting for an agent whose own file it also reported.');
+  return { renderHash, diffHash, config, digest, values, edits, blockHashes, agentSets, ownAgents, commands };
 }
 
 /**
@@ -433,12 +443,18 @@ export function parseRenderLines(lines, { project, hash }) {
  * plus one agent file per AGENT line, each a plain file within its cap.
  * `entries` are { name, file, link, size }.
  */
-export function checkRenderOutput(entries, agentNames) {
-  const want = ['CLAUDE.md', 'config.diff', ...[...agentNames].map(n => `agent-${n}.md`)];
+export function checkRenderOutput(entries, agentNames, ownNames = []) {
+  const want = ['CLAUDE.md', 'config.diff', ...[...agentNames].map(n => `agent-${n}.md`), ...[...ownNames].map(n => `own-${n}.md`)];
   let ok = entries.length === want.length && want.every(n => entries.filter(e => e.name === n).length === 1);
   if (entries.some(e => !e.file || e.link || e.size > OUT_CAP)) ok = false;
   const rules = entries.find(e => e.name === 'CLAUDE.md');
   if (!ok || rules.size > RULES_CAP) refuse('render-output', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported.');
+}
+
+/** An own agent file the renderer left (#262 addendum 3): within its cap, with the hash it reported. */
+export function checkOwnAgentFile(reported, bytes, bytesHash) {
+  if (bytes.length > RULES_CAP) refuse('own-too-big', 'an own agent file is larger than 1 MiB.');
+  if (bytesHash !== reported) refuse('own-hash', "an own agent file's hash does not match the one the renderer reported.");
 }
 
 /** The hashes the renderer reported against the bytes it left (R9, R10). */
@@ -693,11 +709,12 @@ export function checkSkillClash(commands, present) {
  * record does not list (#203 S8, #261 S5): refused, never overwritten. Agents
  * keep today's first-install behaviour. `live(rel)` is the plan's live state.
  */
-export function checkNewPaths(repoFiles, record, live) {
+export function checkNewPaths(repoFiles, record, live, ownNew = new Set()) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
-    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
-    const remedy = rel.startsWith(KIT_DEST) ? 'take scriptorium, which installs the builder kit, out of the commands list' : 'take its name out of the commands list';
+    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel === REVIEW_DEST || ownNew.has(rel)) || listed.has(rel)) continue;
+    // #262 addendum 3: an own agent the repo doesn't ship never lands on an agent file the pact didn't write.
+    const remedy = ownNew.has(rel) ? `give your own agent file in ${OWN_AGENTS_REL} another name` : rel.startsWith(KIT_DEST) ? 'take scriptorium, which installs the builder kit, out of the commands list' : 'take its name out of the commands list';
     const next = rel === REVIEW_DEST ? 'Move it out of the way, then install again.' : `Move it, or ${remedy}.`;
     if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
   }
@@ -1020,6 +1037,7 @@ export function configNow(parsed) {
   const now = new Map();
   if (parsed.config.kind === 'user') now.set('user', parsed.config.sha256);
   for (const [bp, sha] of parsed.blockHashes) now.set(`block ${bp}`, sha);
+  for (const [name, sha] of parsed.ownAgents ?? []) now.set(`agent ${name}`, sha);
   return now;
 }
 
@@ -1063,11 +1081,13 @@ export function configBlock(parsed, rulesHash, record) {
   for (const [bp, sha] of parsed.blockHashes) out.push(`  block file ${BLOCKS_REL}/${bp}: sha256 ${sha}, ${since(`block ${bp}`)}`);
   const removed = [...last.keys()].filter(k => k.startsWith('block ') && !now.has(k)).length;
   if (removed) out.push(`  ${removed} block file(s) the last install read are no longer used`);
+  for (const [name, sha] of parsed.ownAgents) out.push(`  agent file ${OWN_AGENTS_REL}/${name}.md: sha256 ${sha}, ${since(`agent ${name}`)}`);
   out.push(`  configuration digest: ${parsed.digest}`);
   out.push(`  rendered rules file: sha256 ${rulesHash}`);
   for (const [k, v] of parsed.values) out.push(`  WARN: the user configuration sets ${k} to ${v}.`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
   for (const [name, a] of parsed.agentSets) out.push(`  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`);
+  for (const name of parsed.ownAgents.keys()) out.push(`  WARN: the user configuration ${AGENT_NAMES.includes(name) ? `replaces the pact agent ${name} with its own file` : `adds its own agent ${name}`}.`);
   out.push('  Edited text is checked for its form, its characters and file imports, not for wording or meaning.');
   return out;
 }
