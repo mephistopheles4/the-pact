@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-UHnhOdVm8fdBwTI+FBtiMk8Puyx5Om5CO/6crdMzKSs='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-RM5qggKRtEQk0eBCJByNbR1Ui3FJG8nmHZx691e2rsc='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -2937,7 +2937,9 @@ function workflowEditor(host, state, changed) {
       renderSettings();
     };
     const move = (i, d) => {
-      p.tiers.splice(i + d, 0, ...p.tiers.splice(i, 1));
+      const j = i + d;
+      if (j < 0 || j >= p.tiers.length) return;
+      [p.tiers[i], p.tiers[j]] = [p.tiers[j], p.tiers[i]];
       redo();
     };
     // A tier removed leaves every stage, offer and skill that named it; one left with no tier, and the route, take the heaviest tier left.
@@ -2963,16 +2965,15 @@ function workflowEditor(host, state, changed) {
     };
     return [
       el('p', { class: 'av-annot', text: `How much checking, lightest first: 1 to ${TIERS_MAX} tiers. A stage skipped at a tier is passed by there.` }),
-      ...p.tiers.map((t, i) => el('div', { class: 'wf-group' },
-        field('Name', input(t.name, v => (t.name = v))),
+      ...p.tiers.map((t, i) => el('div', { class: 'wf-group lens-row' },
+        el('div', { class: 'row-line' }, el('span', { class: 'av-num', text: String(i + 1).padStart(2, '0') }), input(t.name, v => (t.name = v), { 'aria-label': `Tier ${i + 1} name` }),
+          el('button', { type: 'button', class: 'row-x', title: 'Make it lighter', 'aria-label': `Move ${t.name} up`, onclick: () => move(i, -1) }, '↑'),
+          el('button', { type: 'button', class: 'row-x', title: 'Make it heavier', 'aria-label': `Move ${t.name} down`, onclick: () => move(i, 1) }, '↓'),
+          ...(p.tiers.length > 1 ? [el('button', { type: 'button', class: 'row-x', title: 'Remove this tier', 'aria-label': `Remove the tier ${t.name}`, onclick: () => remove(i) }, '×')] : [])),
         field('Fits', input(t.fits, v => (t.fits = v))),
         modelEffort('Plan', t.plan, v => (t.plan = v), true),
-        modelEffort('Build', t.build, v => (t.build = v), false),
-        el('div', { class: 'chips' },
-          ...(i > 0 ? [chip('Lighter', false, () => move(i, -1), 'av-tool-chip--ghost')] : []),
-          ...(i < p.tiers.length - 1 ? [chip('Heavier', false, () => move(i, 1), 'av-tool-chip--ghost')] : []),
-          ...(p.tiers.length > 1 ? [chip('Remove tier', false, () => remove(i), 'av-tool-chip--ghost')] : [])))),
-      ...(p.tiers.length < TIERS_MAX ? [chip('Add tier', false, add)] : []),
+        modelEffort('Build', t.build, v => (t.build = v), false))),
+      ...(p.tiers.length < TIERS_MAX ? [el('div', { class: 'chips' }, chip('Add a tier', false, add, 'av-tool-chip--ghost'))] : []),
     ];
   }
   function sensitiveTab() {
@@ -3111,6 +3112,7 @@ function workflowEditor(host, state, changed) {
 
   /** After an edit: redraw what shows it, and tell the page. `full` false keeps the panel, so a field keeps its focus. */
   function edited(full = true) {
+    renderSim();
     renderNodes();
     if (full) {
       renderLibrary();
