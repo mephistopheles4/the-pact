@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-y1/6TDiBrukaNewAE7ExvLaT3IFHlpzp/LmQPqsfc+4='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-yXgM5qamPWEFQ2V4lnp2UGS8eekQDKceKAzhkgBENIw='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -5088,8 +5088,13 @@ function workflowEditor(host, state, changed) {
   };
 }
 
+// The preset the page starts from when the builder file brings no parts of its own. Reset still gives the plain pact.
+const LANDING_PRESET = 'level-3-full';
+
 function boot() {
   const state = initialState();
+  const landing = !PACT.ownParts && PACT.presets.find(p => p.id === LANDING_PRESET);
+  if (landing) takePreset(state, landing, presetPicks(landing));
   const $ = id => document.getElementById(id);
   const root = document.documentElement;
   let status = { text: '', level: '' };

@@ -688,10 +688,12 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
     for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 0));
     return folder.written;
   };
+  // The page starts from Level 3 · Full, so even an untouched save carries its workflow.
+  const edits = [{ mark: 'workflow', op: 'replace', file: 'workflow.md' }];
   const kept = await save(fakeFolder({ 'config.json': '{"schema":1,"commands":["finis"]}' }));
-  assert.deepEqual(JSON.parse(kept['config.json']), { schema: 1, commands: ['finis'] });
+  assert.deepEqual(JSON.parse(kept['config.json']), { schema: 1, edits, commands: ['finis'] });
   assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
-  assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), { schema: 1 }, 'no file there: the save goes as built');
+  assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), { schema: 1, edits }, 'no file there: the save goes as built');
 });
 // #262: a moves edit saves the whole part as one replace; an empty move stops a save.
 test('an edited move saves the moves part as one replace, and an empty move stops a save', () => {
