@@ -97,8 +97,11 @@ test('bad case: an inline mcpServers as a flow map fails the reader', t => {
   expectFail(t, { [A]: plainAgent('probe', ['mcpServers: {a: b}']) }, 'value');
 });
 
-test('bad case: a comma-form tools list', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], 'tools: Read, Glob, Grep') }, 'flow-form');
+// #262: how the tools line is written is not the gate's question; Claude Code takes a comma list, a quoted one or brackets.
+test('a tools line in any form Claude Code takes passes: a comma list, a quoted list, and brackets with a scoped Bash and an MCP tool', t => {
+  for (const line of ['tools: Read, Glob, Grep', 'tools: "Read, Grep"', "tools: '[Read, Glob, Grep]'", 'tools: [Read, Bash(git:*), mcp__github__get_issue]']) {
+    expectPass(t, { [A]: plainAgent('probe', [], line) });
+  }
 });
 
 test('bad case: a duplicate tools key', t => {
@@ -173,14 +176,6 @@ test('reader: a list item at column zero', t => {
 
 test('reader: an indented line', t => {
   expectFail(t, { [A]: plainAgent('probe', ['  model: opus']) }, 'indented');
-});
-
-test('reader: a quoted list', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], 'tools: "[Read, Glob, Grep]"') }, 'quoted-list');
-});
-
-test('reader: a single-quoted list', t => {
-  expectFail(t, { [A]: plainAgent('probe', [], "tools: '[Read, Glob, Grep]'") }, 'quoted-list');
 });
 
 test('reader: an invisible character', t => {

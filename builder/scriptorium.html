@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-vxkMSTWXtZDLU2Wqq21BoBDfs98LBhNc7LbpnbzjIoo='; style-src 'sha256-YClA1lP5yMjqr4A5zrJrB+Xi8SOPRFptc49MyAUl17E='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hRcctp/RmR9HoH6pQCy9xAlg3k1V7QzD2syJu+9pLPg='; style-src 'sha256-YClA1lP5yMjqr4A5zrJrB+Xi8SOPRFptc49MyAUl17E='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -1545,7 +1545,7 @@ function initialState() {
 
 // #262 addendum 3: the agents a person writes. A file in the pact folder's agents/ replaces the pact agent of its name, or adds one.
 const AGENT_FILE_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
-const AGENT_TEMPLATE = name => `---\nname: ${name}\ndescription: What it does, and when to use it, in one line.\ntools: [Read, Glob, Grep]\nmodel: sonnet\neffort: medium\n---\n\nWhat this agent does, step by step.\n`;
+const AGENT_TEMPLATE = name => `---\nname: ${name}\ndescription: What it does, and when to use it, in one line.\ntools: Read, Glob, Grep\nmodel: sonnet\neffort: medium\n---\n\nWhat this agent does, step by step.\n`;
 
 /** Start a new agent from the template: null, or why the name is refused. */
 function addAgent(state, name) {
@@ -1554,6 +1554,30 @@ function addAgent(state, name) {
   state.own[name] = AGENT_TEMPLATE(name);
   state.agents[name] = { model: 'sonnet', effort: 'medium' };
   return null;
+}
+
+/** The value of an agent file's tools line, '' when it has none (every tool). */
+function fileTools(text) {
+  const close = text.indexOf('\n---\n', 4);
+  const m = /^tools:[ \t]*(.*)$/m.exec(close < 0 ? '' : text.slice(0, close));
+  return m ? m[1] : '';
+}
+
+/** `text` with its tools line set to `tools`, added after the description when it has none, or dropped when `tools` is empty. */
+function withTools(text, tools) {
+  const close = text.indexOf('\n---\n', 4);
+  if (!text.startsWith('---\n') || close < 0) return text;
+  const lines = text.slice(0, close).split('\n');
+  const v = tools.replace(/\s+/g, ' ').trim();
+  const at = lines.findIndex(l => /^tools:/.test(l));
+  if (at >= 0) {
+    if (v) lines[at] = `tools: ${v}`;
+    else lines.splice(at, 1);
+  } else if (v) {
+    const d = lines.findIndex(l => /^description:/.test(l));
+    lines.splice(d >= 0 ? d + 1 : lines.length, 0, `tools: ${v}`);
+  }
+  return `${lines.join('\n')}${text.slice(close)}`;
 }
 
 /** Put an agent's prompt back: a pact agent returns to its file, a new agent goes. */
@@ -3384,6 +3408,17 @@ function boot() {
       renderOutput();
     });
     prompt.addEventListener('change', () => renderAgents());
+    // The tools line, as a plain field: what the agent may use. Empty means every tool.
+    const toolsBox = el('input', { type: 'text', 'aria-label': `${a.name} tools`, placeholder: 'every tool' });
+    toolsBox.value = fileTools(mine ? state.own[a.name] : a.file);
+    toolsBox.addEventListener('input', () => {
+      const next = withTools(state.own[a.name] ?? a.file, toolsBox.value);
+      if (!a.added && next === a.file) delete state.own[a.name];
+      else state.own[a.name] = next;
+      prompt.value = state.own[a.name] ?? a.file;
+      renderOutput();
+    });
+    toolsBox.addEventListener('change', () => renderAgents());
     const row = state.parts.lenses.find(r => r.agents.includes(a.name));
     const qs = state.parts.qualities;
     const listItem = x => el('button', { type: 'button', class: `agent-pick${x.name === agentSel ? ' on' : ''}`, 'aria-pressed': String(x.name === agentSel), onclick: () => {
@@ -3405,6 +3440,7 @@ function boot() {
         }
         partsTouched();
       })),
+      el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Tools' }), toolsBox, el('span', { class: 'av-annot', text: 'Comma-separated, as Claude Code writes them. Empty gives it every tool.' })),
       el('span', { class: 'av-label', text: 'Where it runs' }),
       offered(a),
       agentsSection(`prompt-${a.name}`, 'Prompt', el('p', { class: 'av-annot', text: 'The whole agent file: frontmatter, then the prompt. The model and effort above write its model and effort lines. A save writes it to agents/ in your pact folder.' }), prompt, el('div', { class: 'chips' }, ...(a.added ? [chip('Remove this agent', true, () => {

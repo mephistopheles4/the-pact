@@ -514,7 +514,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -646,6 +646,16 @@ test('an edited prompt saves the agent\'s whole file into agents/, its model and
   assert.equal(L.buildFiles(s).some(x => x.path.startsWith('agents/')), false);
 });
 
+// #262: the Tools field reads and writes the file's tools line; empty drops it, so the agent gets every tool.
+test('the Tools field sets an agent file\'s tools line, adds one after the description, and drops it when empty', () => {
+  const scout = L.PACT.agents.find(a => a.name === 'scout').file;
+  assert.equal(L.fileTools(scout), '[Read, Glob, Grep]');
+  assert.match(L.withTools(scout, 'Read, Grep'), /^tools: Read, Grep$/m);
+  assert.equal(L.fileTools(L.withTools(scout, '')), '');
+  const bare = '---\nname: x\ndescription: D.\n---\n\nBody.\n';
+  assert.equal(L.withTools(bare, 'Read'), '---\nname: x\ndescription: D.\ntools: Read\n---\n\nBody.\n');
+});
+
 // #262 addendum 3: Add agent starts from a template the gate takes; a bad or taken name is refused.
 test('Add agent starts a new agent from the template, and refuses a taken or malformed name; a broken file is the page\'s error', () => {
   const s = L.initialState();
@@ -653,7 +663,7 @@ test('Add agent starts a new agent from the template, and refuses a taken or mal
   assert.match(L.addAgent(s, 'My Agent'), /lowercase/);
   assert.equal(L.addAgent(s, 'my-reviewer'), null);
   assert.match(s.own['my-reviewer'], /^---\nname: my-reviewer\n/);
-  assert.match(s.own['my-reviewer'], /^tools: \[Read, Glob, Grep\]$/m);
+  assert.match(s.own['my-reviewer'], /^tools: Read, Glob, Grep$/m);
   assert.deepEqual(L.ownProblems(s), []);
   assert.ok(L.buildFiles(s).some(x => x.path === 'agents/my-reviewer.md'));
   s.own['my-reviewer'] = s.own['my-reviewer'].replace('name: my-reviewer', 'name: other');

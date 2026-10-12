@@ -82,7 +82,7 @@ const SETTINGS_KEY_RE = /^[A-Za-z0-9_]+$/;
 const SETTINGS_PATH_RE = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)?$/;
 // A flow-list item YAML reads as plain text: a letter first, then no flow
 // punctuation, quote or comment sign.
-const TOOL_ITEM_RE = /^[A-Za-z][^,[\]{}#'"&*!|>%@`]*\*?$/;
+const TOOL_ITEM_RE = /^[A-Za-z][^,[\]{}#'"&!|>%@`]*$/;
 // An agent's name: letters and digits in hyphen-joined runs, as the files use.
 const AGENT_NAME_RE = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
 const NAME_MAX = 64;
@@ -169,7 +169,11 @@ function parsePlain(v) {
   return v;
 }
 
-/** `[A, B]`: the tool names, in order. Which tools an agent holds is not the gate's question; only that the list reads as plain text. */
+/**
+ * `[A, B]`: the tool names, in order. Which tools an agent holds, and how the
+ * list is written (`A, B` or `[A, B]`, as Claude Code takes either), is not
+ * the gate's question (#262): only that the line reads as plain text.
+ */
 function parseFlow(raw) {
   if (!raw.endsWith(']')) throw new Refused('value', 'a flow list that does not close on its line');
   const inner = raw.slice(1, -1);
@@ -187,17 +191,11 @@ function parseFlow(raw) {
 function parseValue(raw, key) {
   if (raw.startsWith(' ')) throw new Refused('value', 'more than one space after the colon');
   if (raw[0] === '"' || raw[0] === "'") {
-    const value = parseQuoted(raw);
-    if (key === 'tools') throw new Refused('quoted-list', 'tools must be a flow list, not a quoted value');
-    return { kind: 'text', value };
+    return { kind: 'text', value: parseQuoted(raw) };
   }
   if (raw[0] === '[') {
     if (key !== 'tools') throw new Refused('value', 'a flow list for a key that takes text');
     return { kind: 'flow', items: parseFlow(raw) };
-  }
-  if (key === 'tools') {
-    // Checked before the plain rules so a comma list is named for what it is.
-    throw new Refused('flow-form', 'tools must be a flow list in brackets, [A, B]');
   }
   return { kind: 'text', value: parsePlain(raw) };
 }
