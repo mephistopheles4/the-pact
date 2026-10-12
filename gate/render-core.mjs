@@ -147,10 +147,10 @@ import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, Refused, Report, SEGMENT_RE, readS
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, on the
 // security route like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
-const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+const EDITABLE = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);
 const EDIT_KEYS = Object.freeze(['mark', 'op', 'file']);
 const EDITS_MAX = 16;

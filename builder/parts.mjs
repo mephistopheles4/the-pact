@@ -26,7 +26,7 @@
 // The compiled default of each part is the text between its marks in
 // claude/CLAUDE.md, byte for byte; a builder test holds them together.
 
-export const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+export const PART_MARKS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 export const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
 export const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
 // A model and its effort, as the tables write them: "Opus, medium". The
@@ -61,7 +61,7 @@ export function modelsProblems(list) {
   if (!Array.isArray(list) || !list.length || list.length > MODELS_CAP) return [`the models list must hold 1 to ${MODELS_CAP} models`];
   const out = [];
   list.forEach((m, i) => {
-    if (!modelOk(m)) out.push(`model ${i + 1} must be a letter, then letters, digits, '.', '_', ':', '/' or '-', up to 128 characters, with no '---' and no double slash, not ending in ':', and not a YAML word such as true or null`);
+    if (!modelOk(m)) out.push(`model ${i + 1} must be one word, with no space or line break, up to 128 characters`);
   });
   const lower = list.filter(m => typeof m === 'string').map(m => m.toLowerCase());
   if (new Set(lower).size !== lower.length) out.push('the models list names one model twice');
@@ -78,7 +78,7 @@ export const OFFER_WHENS = Object.freeze({
   words: '',
 });
 // Caps on the data, so no builder file can make a part too long to read.
-export const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, measure: 160, line: 300, short: 60, layout: 400 });
+export const PARTS_CAPS = Object.freeze({ moves: 12, stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, measure: 160, line: 300, short: 60, layout: 400 });
 // The ISO/IEC 25010:2023 qualities (#273): the names a project's own list takes, and the builder offers.
 export const QUALITY_NAMES = Object.freeze(['Functional suitability', 'Performance efficiency', 'Compatibility', 'Interaction capability', 'Reliability', 'Security', 'Maintainability', 'Flexibility', 'Safety']);
 // A skill node's two modes: offered (Claude offers it, I answer) or used (Claude runs it).
@@ -87,6 +87,13 @@ export const SKILL_MODES = Object.freeze(['offered', 'used']);
 const SECURITY_PAIR = ['adversarial-lens', 'data-lens'];
 
 export const DEFAULT_PARTS = Object.freeze({
+  // The moves (#262): how I work, upheld at all times. Each is a lead-in and its text, one paragraph.
+  moves: [
+    { lead: 'Sense the work', text: 'What kind of work is it, how big, how risky, and do I know enough to plan it? Size sets how much checking it needs. A target I can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it.' },
+    { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right. When the intent is still forming, a prototype finds it.' },
+    { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly waits for a checkpoint. A light checkpoint is a check of mine that runs without me, such as a test. A heavy one is my decision before the work moves. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy." },
+    { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
+  ],
   tiers: [
     { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
     { name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
@@ -175,7 +182,12 @@ export function wrap(text, width = 77) {
 const row = cells => `|${cells.map(c => (c ? ` ${c} ` : ' ')).join('|')}|`;
 const rule = n => row(Array.from({ length: n }, () => '---'));
 
-export function compileTiers(p) {
+export /** The moves: each a bullet with its lead-in in bold, its text wrapped under it. */
+function compileMoves(p) {
+  return p.moves.map(m => [`- **${m.lead}.**`, ...wrap(m.text, 75).split('\n').map(l => `  ${l}`)].join('\n')).join('\n');
+}
+
+function compileTiers(p) {
   return [row(['Tier', 'Fits', 'Plan', 'Build']), rule(4), ...p.tiers.map(t => row([`**${t.name}**`, t.fits, t.plan, t.build]))].join('\n');
 }
 
@@ -260,9 +272,9 @@ export function compileQualities(p) {
   return [row(['Quality', 'Measure', 'Lens']), rule(3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', ')]))].join('\n');
 }
 
-/** Each part's text: { tiers, sensitive, workflow, lenses, qualities }. */
+/** Each part's text: { moves, tiers, sensitive, workflow, lenses, qualities }. */
 export function compileParts(p) {
-  return { tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p) };
+  return { moves: compileMoves(p), tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p) };
 }
 
 // ------------------------------------------------------------ the builder's checks
@@ -291,6 +303,14 @@ export function partsProblems(p) {
   const out = [];
   const err = (part, text) => out.push({ part, level: 'error', text });
   const C = PARTS_CAPS;
+
+  if (!Array.isArray(p.moves) || !p.moves.length || p.moves.length > C.moves) err('moves', `the moves must hold 1 to ${C.moves} moves`);
+  else
+    p.moves.forEach((m, i) => {
+      if (!isObj(m) || !keysIn(m, ['lead', 'text'])) return err('moves', `move ${i + 1}: only lead and text`);
+      if (!lineOk(m.lead, C.short) || !m.lead.trim() || /\*/.test(m.lead)) err('moves', `move ${i + 1}: the lead-in must be one line of 1 to ${C.short} characters, with no asterisk`);
+      if (typeof m.text !== 'string' || !m.text.trim() || /[\r\n]/.test(m.text)) err('moves', `move ${i + 1}: the text must be one paragraph, on one line`);
+    });
 
   if (!Array.isArray(p.tiers) || p.tiers.length !== TIER_KEYS.length) err('tiers', `tiers must list ${TIER_NAMES.join(', ')}, in that order`);
   else
@@ -420,6 +440,7 @@ export function partsTexts(p) {
   const add = (where, v) => {
     if (typeof v === 'string') out.push([where, v]);
   };
+  (Array.isArray(p.moves) ? p.moves : []).forEach((m, i) => isObj(m) && ['lead', 'text'].forEach(k => add(`move ${i + 1}`, m[k])));
   (Array.isArray(p.tiers) ? p.tiers : []).forEach((t, i) => isObj(t) && ['name', 'fits', 'plan', 'build'].forEach(k => add(`tiers ${i + 1}`, t[k])));
   if (isObj(p.sensitive)) {
     (Array.isArray(p.sensitive.items) ? p.sensitive.items : []).forEach((x, i) => add(`sensitive item ${i + 1}`, x));

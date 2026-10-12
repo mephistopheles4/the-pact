@@ -1,9 +1,10 @@
-// #127: the "Matt Pocock's skills" preset set. Three example blocks, one each for
-// moves 1 to 3, added after the default text. Applied through the renderer, the
-// result must pass seam A, and each skill must appear in its intended form: a
-// command (`/name`) for a skill only the owner starts, a code span (`name`) for
-// a skill the agent uses. The skill-flag check that read the render went with
-// the thin gate (#261).
+// #127, moved by #262: the "Matt Pocock's skills" set. The moves are upheld at
+// all times, so the set binds no skill to a move: it is one example block for
+// the workflow part, with a Skills column binding each skill to a stage, as the
+// builder's skill nodes compile it. Applied through the renderer, the result
+// must pass seam A, and each skill must appear in its intended form: a command
+// (`/name`), offered, for a skill only the owner starts; a code span (`name`),
+// used, for a skill the agent uses.
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,14 +20,10 @@ const BLOCKS = join(REPO, 'examples', 'pact-config', 'blocks');
 const CONFIG = join(REPO, 'examples', 'pact-config', 'config-matt-pocock-skills.json');
 const SET = JSON.parse(readFileSync(CONFIG, 'utf8')).edits;
 
-test('the shipped set configuration binds exactly the three blocks, each add-after, to its own move', () => {
-  assert.deepEqual(SET, [
-    { mark: 'move-1', op: 'add-after', file: 'move-1-matt-pocock.md' },
-    { mark: 'move-2', op: 'add-after', file: 'move-2-matt-pocock.md' },
-    { mark: 'move-3', op: 'add-after', file: 'move-3-matt-pocock.md' },
-  ]);
+test('the shipped set configuration replaces the workflow part with the one block', () => {
+  assert.deepEqual(SET, [{ mark: 'workflow', op: 'replace', file: 'workflow-matt-pocock-skills.md' }]);
 });
-const COMMANDS = ['triage', 'to-spec', 'to-tickets', 'wayfinder', 'implement'];
+const COMMANDS = ['triage', 'to-spec', 'to-tickets', 'wayfinder'];
 const SPANS = ['diagnosing-bugs', 'grilling', 'domain-modeling', 'codebase-design', 'prototype', 'tdd'];
 
 /** A Claude home folder that binds the set, as the owner's configuration would. */
@@ -53,50 +50,23 @@ test('the set renders with seam A passing', t => {
   assert.equal(lastLine(r.stdout), 'RESULT: pass', r.stdout + r.stderr);
 });
 
-// #261 C15
-test('each block is added after the default text, in its own move', t => {
-  const { md } = renderedWith(t, homeWithSet(t));
-  const m1 = md.indexOf('What kind of work is it');
-  const b1 = md.indexOf('Skills I bind to this move. Triage');
-  const m2 = md.indexOf('I get the intent clear');
-  const b2 = md.indexOf('Skills I bind to this move. Questioning');
-  const m3 = md.indexOf('Where work is handed on');
-  const b3 = md.indexOf('Skills I bind to this move. Cutting');
-  assert.ok(m1 >= 0 && b1 > m1 && b1 < m2, 'move 1 block follows the move 1 text');
-  assert.ok(m2 > b1 && b2 > m2 && b2 < m3, 'move 2 block follows the move 2 text');
-  assert.ok(m3 > b2 && b3 > m3, 'move 3 block follows the move 3 text');
-});
-
-// Which skills each block binds, checked against the block's own text.
-const PER_BLOCK = {
-  'move-1-matt-pocock.md': { commands: ['triage', 'wayfinder'], spans: ['diagnosing-bugs'] },
-  'move-2-matt-pocock.md': { commands: ['to-spec'], spans: ['grilling', 'domain-modeling', 'codebase-design', 'prototype'] },
-  'move-3-matt-pocock.md': { commands: ['to-tickets', 'implement'], spans: ['tdd', 'codebase-design'] },
+const BLOCK = readFileSync(join(BLOCKS, 'workflow-matt-pocock-skills.md'), 'utf8');
+/** The Skills cell of the stage row `stage` in the block's table. */
+const skillsAt = stage => {
+  const head = BLOCK.split('\n')[0].split('|').map(c => c.trim());
+  const row = BLOCK.split('\n').find(l => l.startsWith(`| ${stage} |`));
+  return row.split('|').map(c => c.trim())[head.indexOf('Skills, and when')];
 };
 
-test('each skill appears in its intended form, in its own move\'s block', () => {
-  const all = { commands: new Set(), spans: new Set() };
-  for (const [file, want] of Object.entries(PER_BLOCK)) {
-    const text = readFileSync(join(BLOCKS, file), 'utf8');
-    for (const n of want.commands) {
-      assert.ok(text.includes(`\`/${n}\``), `${file}: ${n} is not written as a command`);
-      assert.ok(!text.includes(`\`${n}\``), `${file}: ${n} is also written as a code span`);
-      all.commands.add(n);
-    }
-    for (const n of want.spans) {
-      assert.ok(text.includes(`\`${n}\``), `${file}: ${n} is not written as a code span`);
-      assert.ok(!text.includes(`\`/${n}\``), `${file}: ${n} is also written as a command`);
-      all.spans.add(n);
-    }
-  }
-  assert.deepEqual([...all.commands].sort(), [...COMMANDS].sort());
-  assert.deepEqual([...all.spans].sort(), [...SPANS].sort());
+test('each skill appears in its intended form, at its stage: a command offered, a code span used', () => {
+  const cells = ['Plan', 'Design', 'Build'].map(skillsAt).join('; ');
+  for (const n of COMMANDS) assert.match(cells, new RegExp(`\`/${n}\`: offered`), n);
+  for (const n of SPANS) assert.match(cells, new RegExp(`(?<!/)\`${n}\`: used`), n);
+  assert.match(skillsAt('Build'), /`tdd`: used, every build/);
+  assert.equal(skillsAt('Test'), 'none');
 });
 
-test('the render carries each block\'s text', t => {
+test('the render carries the block as the workflow part', t => {
   const { md } = renderedWith(t, homeWithSet(t));
-  for (const file of Object.keys(PER_BLOCK)) {
-    const first = readFileSync(join(BLOCKS, file), 'utf8').split('\n')[0];
-    assert.ok(md.includes(first), `${file} is not in the render`);
-  }
+  assert.ok(md.includes(BLOCK), 'the block is not in the render');
 });

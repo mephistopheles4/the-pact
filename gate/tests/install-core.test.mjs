@@ -219,7 +219,7 @@ for (const c of table('check verdict', {
 const U = H('7');
 const digestOf = text => sha256(Buffer.from(text, 'ascii')).slice(0, 12);
 const D = digestOf(`user ${U}\nblock a.md ${H('e')}\n`);
-const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG user ${U}`, `EDIT move-2 replace ${H('e')} a.md`, `DIGEST ${D}`, 'VALUE usage-pause 90', `AGENT data-lens sonnet high ${H('f')} security-set override local`, 'COMMANDS finis', 'RESULT: pass'].join('\n') });
+const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG user ${U}`, `EDIT moves replace ${H('e')} a.md`, `DIGEST ${D}`, 'VALUE usage-pause 90', `AGENT data-lens sonnet high ${H('f')} security-set override local`, 'COMMANDS finis', 'RESULT: pass'].join('\n') });
 const renderRun = (project = false) => t => decided(() => core.parseRenderLines(t.in.split('\n'), { project, hash: sha256 }));
 const noConfig = t => ({ in: t.in.replace(`CONFIG user ${U}`, 'CONFIG none').replace('COMMANDS finis', 'COMMANDS none') });
 const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG none', 'COMMANDS none', 'RESULT: pass'].join('\n') });
@@ -237,12 +237,12 @@ for (const c of table('renderer lines', {
     { id: 'no-config-line', plant: rep(`CONFIG user ${U}\n`, ''), fails: ['render-counts'], why: 'no configuration line' },
     { id: 'two-config-lines', plant: rep('DIGEST', 'CONFIG none\nDIGEST'), fails: ['render-counts'], why: 'a user and a none configuration line' },
     { id: 'unknown-line', plant: rep('VALUE', 'INSTALL x y z\nVALUE'), fails: ['render-unknown-line'], why: 'a line that could feed another parse' },
-    { id: 'edit-twice', plant: rep('DIGEST', 'EDIT move-2 remove\nDIGEST'), fails: ['render-edit-twice'], why: 'one open part edited twice' },
+    { id: 'edit-twice', plant: rep('DIGEST', 'EDIT moves remove\nDIGEST'), fails: ['render-edit-twice'], why: 'one open part edited twice' },
     { id: 'block-dot-dot', plant: rep(' a.md', ' ../a.md'), fails: ['render-block-path'], why: 'a block path with a .. segment' },
     { id: 'block-trailing-dot', plant: rep(' a.md', ' a.md.'), fails: ['render-block-path'], why: 'a block path ending in a dot' },
-    { id: 'block-two-hashes', plant: rep('DIGEST', `EDIT move-3 replace ${H('9')} a.md\nDIGEST`), fails: ['render-block-changed'], why: 'a block that changed while it was read' },
-    { id: 'part-not-open', plant: rep('EDIT move-2', 'EDIT move-5'), fails: ['render-unknown-line'], why: 'an edit to a part that is not open' },
-    { id: 'gated-clause', plant: rep('EDIT move-2', 'EDIT stop-and-escalate'), fails: ['render-unknown-line'], why: 'an edit to a pinned block' },
+    { id: 'block-two-hashes', plant: rep('DIGEST', `EDIT tiers replace ${H('9')} a.md\nDIGEST`), fails: ['render-block-changed'], why: 'a block that changed while it was read' },
+    { id: 'part-not-open', plant: rep('EDIT moves', 'EDIT move-5'), fails: ['render-unknown-line'], why: 'an edit to a part that is not open' },
+    { id: 'gated-clause', plant: rep('EDIT moves', 'EDIT stop-and-escalate'), fails: ['render-unknown-line'], why: 'an edit to a pinned block' },
     { id: 'remove-names-file', plant: rep(`replace ${H('e')} a.md`, 'remove a.md'), fails: ['render-unknown-line'], why: 'a remove that names a file' },
     { id: 'block-left-out-of-digest', plant: rep(`DIGEST ${D}`, `DIGEST ${digestOf(`user ${U}\n`)}`), fails: ['render-digest'], why: 'a digest that leaves a block out' },
     { id: 'digest-not-the-hashes', plant: rep(`DIGEST ${D}`, 'DIGEST 0123456789ab'), fails: ['render-digest'], why: "a digest that is not the reported hashes'" },
@@ -276,7 +276,7 @@ for (const c of table('renderer lines with no configuration', {
   rows: [
     { id: 'digest', plant: rep('RESULT', `DIGEST ${D}\nRESULT`), fails: ['render-none-extras'], why: 'a digest with no configuration' },
     { id: 'value', plant: rep('RESULT', 'VALUE usage-pause 90\nRESULT'), fails: ['render-none-extras'], why: 'a value with no configuration' },
-    { id: 'edit', plant: rep('RESULT', 'EDIT move-1 remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
+    { id: 'edit', plant: rep('RESULT', 'EDIT moves remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
     { id: 'agent', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-none-extras'], why: 'an agent setting with no configuration' },
     { id: 'no-config-line', plant: rep('CONFIG none\n', ''), fails: ['render-counts'], why: 'no configuration line at all' },
     { id: 'two-none-lines', plant: rep('CONFIG none', 'CONFIG none\nCONFIG none'), fails: ['render-counts'], why: 'two configuration lines, both none' },
@@ -884,15 +884,15 @@ test('the configuration block: a removed configuration, changed and new files, a
   assert.ok(!core.configStale(new Map([['user', H('0')]]), new Map([['user', H('0')]])));
 });
 
-// #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for a move.
-test('the security-defaults line: each part Scriptorium builds alone shows it, a move edit does not, and it says whether the configuration changed', () => {
-  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT move-2', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
+// #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for the moves.
+test('the security-defaults line: each part Scriptorium builds alone shows it, a moves edit does not, and it says whether the configuration changed', () => {
+  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT moves', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
   for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']) {
     const line = core.securityDefaultsLine(withEdit(mark), null);
     assert.match(line, new RegExp(`^WARN: SECURITY DEFAULTS: the user configuration edits ${mark}, which changes the pact's security defaults;`));
     assert.doesNotMatch(line, /a\.md|blocks/, 'it names no block file');
   }
-  assert.equal(core.securityDefaultsLine(withEdit('move-2'), null), null);
+  assert.equal(core.securityDefaultsLine(withEdit('moves'), null), null);
   const p = withEdit('lenses');
   const same = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('e') }] }));
   const changed = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] }));
@@ -903,6 +903,5 @@ test('the security-defaults line: each part Scriptorium builds alone shows it, a
 // #262: an agent setting never shows the security-defaults line; a person may run any agent on any model.
 test('the security-defaults line: a security-set lens off its default alone does not show it, and does not change the parts\' line', () => {
   const lines = (from, to) => core.parseRenderLines(renderBase().in.replace(from, to).split('\n'), { project: false, hash: sha256 });
-  assert.equal(core.securityDefaultsLine(lines('EDIT move-2', 'EDIT move-3'), null), null);
-  assert.match(core.securityDefaultsLine(lines('EDIT move-2', 'EDIT tiers'), null), /^WARN: SECURITY DEFAULTS: the user configuration edits tiers, which changes the pact's security defaults; read those parts in the rendered rules file before you install\. No install is recorded to compare with\.$/);
+  assert.match(core.securityDefaultsLine(lines('EDIT moves', 'EDIT tiers'), null), /^WARN: SECURITY DEFAULTS: the user configuration edits tiers, which changes the pact's security defaults; read those parts in the rendered rules file before you install\. No install is recorded to compare with\.$/);
 });

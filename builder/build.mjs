@@ -10,53 +10,45 @@
 // inside it, as one JSON object in its script between the pact-data marks.
 // That object has two sources, and they never mix:
 //
-//   - The pact itself, always from this clone: the moves and their open and
-//     locked parts (claude/CLAUDE.md), the renderer's lists (gate/render-core.mjs)
-//     and the pinned blocks (gate/shared.mjs), both read as text, never run as
+//   - The pact itself, always from this clone: its parts and locked clauses
+//     (claude/CLAUDE.md), the renderer's lists (gate/render-core.mjs) and the
+//     fixed blocks (gate/shared.mjs), both read as text, never run as
 //     modules, and the pact's agents (claude/agents/). A builder file cannot
 //     change any of it.
-//   - A builder file (schema below): the person's presets, workflows and their
-//     own skills, commands and agents. The scriptorium skill writes one from
+//   - A builder file (schema below): the person's own parts, models, skills,
+//     commands and agents. The scriptorium skill writes one from
 //     the person's own workflow and revises it over time;
 //     examples/pact-config/builder.json is the shipped one.
 //
 // The builder file:
 //   { "schema": 1, "title": <text, optional>,
-//     "presets": [ { "id", "title", "slot": <open part>,
-//                    "text": <lines> | "file": <path beside the builder file>,
-//                    "standsIn": <true when written to replace the slot's text, optional>,
-//                    "why": <one line, optional> } ],
-//     "workflows": [ { "id", "title", "about", "presets": [<preset id>] } ],
 //     "yours": { "skills" | "commands" | "agents": [ { "name", "description" } ] },
-//     "tiers", "sensitive", "workflowGraph", "lenses": the four parts Scriptorium
-//       builds, each optional, in the shapes builder/parts.mjs describes (#262),
+//     "moves", "tiers", "sensitive", "workflowGraph", "lenses", "qualities": the
+//       parts Scriptorium builds, each optional, in the shapes builder/parts.mjs
+//       describes (#262),
 //     "models": [<model>]: the Models list every dropdown offers, optional (#262 S19) }
-// The page labels the workflows list "Setups": named sets of presets, not the
-// workflow part.
+// Skills bind to the workflow's stages as skill nodes, never to a move: the
+// moves are upheld at all times (#262).
 //
 // A check refuses what the page could not use (exit 1) and reports findings,
 // which never refuse (exit 0): a finding is answered by fixing the file or by
-// saying why it is meant. Each preset's text is run through the installer's
-// own renderer, so a preset the install would refuse never reaches a page.
+// saying why it is meant. Each changed part is run through the installer's
+// own renderer, so a part the install would refuse never reaches a page.
 // The page's own checks are for usability only; the installer stays the
 // authority on what the page saves.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readStrictJson, Refused, Report, scanText, SEGMENT_RE } from '../gate/shared.mjs';
+import { readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
 
 const MARK_RE = /^( *)<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
-// A move's bullet: its bold lead-in, which titles the move on the page (#261).
-const LEAD_RE = /^- \*\*([^*]+?)\.?\*\*/;
-// The moves' open parts, in move order: each move is found by its part.
-const MOVE_PARTS = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra']);
 const DATA_RE = /\/\* pact-data:begin \*\/[\s\S]*?\/\* pact-data:end \*\//;
 // The parts' compiler and checks, copied in from builder/parts.mjs (#262), so the page and the check share one compiler.
 const PARTS_CODE_RE = /\/\* parts-code:begin \*\/[\s\S]*?\/\* parts-code:end \*\//;
@@ -140,8 +132,7 @@ function parseSource(src) {
       cur.lines.push(line);
       continue;
     }
-    const l = LEAD_RE.exec(line);
-    seq.push(l ? { lead: l[1] } : { text: true });
+    seq.push({ text: true });
   }
   if (cur) fail(`${cur.name} never closes`);
   return { parts, seq };
@@ -149,7 +140,7 @@ function parseSource(src) {
 
 const codeSpans = text => [...text.matchAll(/`([^`\n]+)`/g)].map(m => m[1]);
 
-/** The pact's half of the page data, always from the clone at `root`: moves, locked clauses, the usage setting and the pact's agents. */
+/** The pact's half of the page data, always from the clone at `root`: the parts, locked clauses, the usage setting and the pact's agents. */
 export function pactData(root) {
   const src = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
   const renderSrc = readFileSync(join(root, 'gate', 'render-core.mjs'), 'utf8');
@@ -162,37 +153,9 @@ export function pactData(root) {
   const agents = agentFiles.map(f => f.slice(0, -3));
   const { parts, seq } = parseSource(src);
 
-  const part = name => {
-    const text = parts.get(name);
-    if (text === undefined) fail(`claude/CLAUDE.md has no ${name} part`);
-    if (open.includes(name)) {
-      if (!editable.includes(name)) fail(`${name} sits inside a move but is not editable`);
-      return { kind: 'open', mark: name, text, agents: [...new Set(codeSpans(text))].filter(a => agents.includes(a)) };
-    }
-    if (!gated.includes(name)) fail(`${name} is neither an open nor a gated mark`);
-    return { kind: 'gated', mark: name, text };
-  };
-
-  // Each move is found by its open part, in MOVE_PARTS order, and titled by
-  // the bold lead-in of the bullet before it. The parts after it, up to the
-  // next text line, are the move's.
-  const moves = [];
-  MOVE_PARTS.forEach((name, k) => {
-    const at = seq.findIndex(s => s.mark === name);
-    if (at < 0) fail(`claude/CLAUDE.md has no ${name} part`);
-    let lead = null;
-    for (let j = at - 1; j >= 0 && !lead; j -= 1) if (seq[j].lead) lead = seq[j].lead;
-    if (!lead) fail(`the ${name} part has no bulleted move before it`);
-    let first = at;
-    while (first > 0 && seq[first - 1].mark) first -= 1;
-    const ps = [];
-    for (let j = first; j < seq.length && seq[j].mark; j += 1) ps.push(part(seq[j].mark));
-    moves.push({ n: k + 1, lead, parts: ps });
-  });
-  if (new Set(moves.map(m => m.lead)).size !== moves.length) fail('claude/CLAUDE.md has two move parts under one move');
-  const inMoves = moves.flatMap(m => m.parts.map(p => p.mark));
-  // The parts Scriptorium builds (#262) sit outside the moves; every other editable part is in one.
-  for (const m of editable) if (!inMoves.includes(m) && !PART_MARKS.includes(m)) fail(`the editable part ${m} is not in moves 1 to 4`);
+  // Every editable part is one Scriptorium builds (#262): the moves are one of them.
+  for (const m of editable) if (!PART_MARKS.includes(m)) fail(`the editable part ${m} is not a part Scriptorium builds`);
+  for (const m of open) if (parts.get(m) === undefined) fail(`claude/CLAUDE.md has no ${m} part`);
   const partText = {};
   for (const m of PART_MARKS) {
     if (!editable.includes(m) || parts.get(m) === undefined) fail(`claude/CLAUDE.md has no editable ${m} part`);
@@ -201,7 +164,8 @@ export function pactData(root) {
   const compiled = compileParts(DEFAULT_PARTS);
   for (const m of PART_MARKS) if (compiled[m] !== partText[m]) fail(`builder/parts.mjs's default ${m} no longer compiles to the ${m} part in claude/CLAUDE.md`);
 
-  const always = seq.filter(s => s.mark && gated.includes(s.mark) && !inMoves.includes(s.mark)).map(s => ({ mark: s.mark, text: parts.get(s.mark) }));
+  for (const s of seq) if (s.mark && !open.includes(s.mark) && !gated.includes(s.mark)) fail(`${s.mark} is neither an open nor a fixed mark`);
+  const always = seq.filter(s => s.mark && gated.includes(s.mark)).map(s => ({ mark: s.mark, text: parts.get(s.mark) }));
 
   const setting = settingFrom(renderSrc);
   const usage = parts.get(setting.name);
@@ -221,58 +185,33 @@ export function pactData(root) {
     if (!head) fail(`${rel} has no frontmatter`);
     const field = k => (new RegExp(`^${k}:[ \\t]*([A-Za-z0-9._-]+)[ \\t]*$`, 'm').exec(head[1]) ?? [])[1] ?? null;
     const runs = [
-      ...moves.flatMap(m => m.parts.filter(p => named(p.text, name)).map(p => ({ move: m.n, mark: p.mark, kind: p.kind }))),
       ...always.filter(a => named(a.text, name)).map(a => ({ move: null, mark: a.mark, kind: 'gated' })),
       // #262 S8: its offers in the workflow and its row in the roster. The page counts them from the person's own parts.
-      ...['workflow', 'lenses'].filter(m => named(partText[m], name)).map(m => ({ move: null, mark: m, kind: 'part' })),
+      ...['moves', 'workflow', 'lenses'].filter(m => named(partText[m], name)).map(m => ({ move: null, mark: m, kind: 'part' })),
     ];
     return { name, model: field('model'), effort: field('effort'), runs, configurable: configurable.includes(name) };
   };
   const classes = agentClassesThroughRenderer(root, agentFiles.map(f => info(join('claude', 'agents', f), f.slice(0, -3))).filter(a => a.configurable));
   const agentInfo = agentFiles.map(f => ({ ...info(join('claude', 'agents', f), f.slice(0, -3)), ...(classes[f.slice(0, -3)] ?? { security: null, egress: null }) }));
 
-  // Skills the pact's own text names, so a preset naming one is not a finding.
-  const pactNames = [...new Set([...parts.values()].flatMap(codeSpans))];
   const session = sessionFrom(renderSrc);
-  return { moves, always, editable, setting, session, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactNames };
+  return { always, editable, setting, session, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices };
 }
 
 // ------------------------------------------------------------ the builder file
 
 const BUILDER_MAX = 1024 * 1024;
-const PRESET_TEXT_MAX = 16 * 1024;
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const SKILL_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
 const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const LINE_RE = /^[^\n\r]{0,300}$/;
 const YOURS_RE = { skills: SKILL_NAME_RE, commands: SKILL_NAME_RE, agents: AGENT_NAME_RE };
 const YOURS_MAX = 2000;
-// The builder file's keys for the five parts (#262), in PART_MARKS order: workflowGraph holds the workflow part's graph.
-const PART_KEYS = Object.freeze(['tiers', 'sensitive', 'workflowGraph', 'lenses', 'qualities']);
+// The builder file's keys for the parts (#262), in PART_MARKS order: workflowGraph holds the workflow part's graph.
+const PART_KEYS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflowGraph', 'lenses', 'qualities']);
 
 const isObject = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysOnly = (o, allowed) => Object.keys(o).every(k => allowed.includes(k));
-
-/** Why a preset's file path is refused, or null. Checked on its text before any file is opened. */
-function presetPathProblem(p) {
-  if (typeof p !== 'string' || p === '' || p.length > 200) return 'the file path is empty, not text or longer than 200 characters';
-  if (isAbsolute(p) || p.startsWith('/') || p.includes('\\') || p.includes(':')) return 'the file path must be relative, with / separators and no colon';
-  const segs = p.split('/');
-  if (segs.length > 8 || segs.some(s => s === '' || s === '.' || s === '..' || s.endsWith('.') || !SEGMENT_RE.test(s))) return "the file path's segments must be letters, digits, '.', '_' and '-', with no . or .. segment";
-  return null;
-}
-
-/** A preset file beside the builder file: a regular file, not a link, inside the builder's folder, read once. */
-function readPresetFile(base, rel) {
-  const file = resolve(base, ...rel.split('/'));
-  const st = lstatSync(file);
-  if (!st.isFile()) throw new Refused('preset', 'is not a regular file');
-  const inside = relative(realpathSync.native(base), realpathSync.native(file));
-  if (!inside || inside.startsWith('..') || isAbsolute(inside)) throw new Refused('preset', "resolves outside the builder file's folder");
-  const buf = readFileSync(file);
-  if (buf.length > PRESET_TEXT_MAX) throw new Refused('preset', 'is larger than 16 KiB');
-  return buf.toString('utf8');
-}
 
 /**
  * Read and check a builder file against the pact data `pact`. Returns
@@ -303,67 +242,10 @@ export function loadBuilder(file, pact) {
     return { builder: null, refusals: [`the builder file is not strict JSON: ${e.reason}`], findings };
   }
   if (!isObject(doc)) return { builder: null, refusals: ['the builder file is not a JSON object'], findings };
-  if (!keysOnly(doc, ['schema', 'title', 'presets', 'workflows', 'yours', ...PART_KEYS, 'models'])) refuse(`a top-level key that is not schema, title, presets, workflows, yours, ${PART_KEYS.join(', ')} or models; the pact's own text is never part of a builder file`);
+  if (Object.hasOwn(doc, 'presets') || Object.hasOwn(doc, 'workflows')) refuse('presets and workflows left the builder (#262): bind a skill to a stage as a skill node in workflowGraph instead');
+  else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')} or models; the pact's own text is never part of a builder file`);
   if (doc.schema !== 1) refuse('schema must be 1');
   if (Object.hasOwn(doc, 'title') && (typeof doc.title !== 'string' || !LINE_RE.test(doc.title) || doc.title.length > 80)) refuse('title must be one line of at most 80 characters');
-
-  const base = dirname(resolve(file));
-  const presets = [];
-  const ids = new Set();
-  const list = Object.hasOwn(doc, 'presets') ? doc.presets : [];
-  if (!Array.isArray(list)) refuse('presets must be a list');
-  else
-    list.forEach((p, i) => {
-      const at = `preset ${i + 1}`;
-      if (!isObject(p) || !keysOnly(p, ['id', 'title', 'slot', 'text', 'file', 'standsIn', 'why'])) return refuse(`${at}: not an object with only id, title, slot, text, file, standsIn and why`);
-      if (typeof p.id !== 'string' || !ID_RE.test(p.id)) return refuse(`${at}: id must be lowercase letters, digits and hyphens`);
-      const name = `preset ${p.id}`;
-      if (ids.has(p.id)) return refuse(`${name}: the id is used twice`);
-      ids.add(p.id);
-      if (typeof p.title !== 'string' || !LINE_RE.test(p.title) || p.title.length > 80 || p.title.trim() === '') return refuse(`${name}: title must be one line of 1 to 80 characters`);
-      const slot = pact.editable.find(m => m === p.slot);
-      if (!slot) return refuse(`${name}: slot must be one of ${pact.editable.join(', ')}`);
-      if (Object.hasOwn(p, 'standsIn') && typeof p.standsIn !== 'boolean') return refuse(`${name}: standsIn must be true or false`);
-      if (Object.hasOwn(p, 'why') && (typeof p.why !== 'string' || !LINE_RE.test(p.why))) return refuse(`${name}: why must be one line of at most 300 characters`);
-      const hasText = Object.hasOwn(p, 'text');
-      if (hasText === Object.hasOwn(p, 'file')) return refuse(`${name}: give exactly one of text and file`);
-      let text;
-      if (hasText) {
-        if (typeof p.text !== 'string' || p.text.length > PRESET_TEXT_MAX) return refuse(`${name}: text must be at most 16 KiB of text`);
-        text = p.text.replace(/\n$/, '');
-      } else {
-        const why = presetPathProblem(p.file);
-        if (why) return refuse(`${name}: ${why}`);
-        try {
-          const raw = readPresetFile(base, p.file);
-          if (!raw.endsWith('\n')) return refuse(`${name}: its file must end with a line feed`);
-          text = raw.slice(0, -1);
-        } catch (e) {
-          return refuse(`${name}: its file ${e instanceof Refused ? e.reason : 'could not be read'}`);
-        }
-      }
-      presets.push({ id: p.id, title: p.title, mark: slot, text, standsIn: p.standsIn === true, why: p.why ?? '' });
-      if (!p.why) findings.push(`${name}: no "why"; the page shows a preset's why on its card`);
-    });
-
-  const workflows = [];
-  const wids = new Set();
-  const wl = Object.hasOwn(doc, 'workflows') ? doc.workflows : [];
-  if (!Array.isArray(wl)) refuse('workflows must be a list');
-  else
-    wl.forEach((w, i) => {
-      const at = `workflow ${i + 1}`;
-      if (!isObject(w) || !keysOnly(w, ['id', 'title', 'about', 'presets'])) return refuse(`${at}: not an object with only id, title, about and presets`);
-      if (typeof w.id !== 'string' || !ID_RE.test(w.id)) return refuse(`${at}: id must be lowercase letters, digits and hyphens`);
-      if (wids.has(w.id)) return refuse(`workflow ${w.id}: the id is used twice`);
-      wids.add(w.id);
-      if (typeof w.title !== 'string' || !LINE_RE.test(w.title) || w.title.length > 80 || w.title.trim() === '') return refuse(`workflow ${w.id}: title must be one line of 1 to 80 characters`);
-      if (typeof w.about !== 'string' || !LINE_RE.test(w.about)) return refuse(`workflow ${w.id}: about must be one line of at most 300 characters`);
-      if (!Array.isArray(w.presets) || w.presets.some(x => typeof x !== 'string')) return refuse(`workflow ${w.id}: presets must be a list of preset ids`);
-      const missing = w.presets.filter(x => !ids.has(x));
-      if (missing.length) return refuse(`workflow ${w.id}: names ${missing.length} preset id${missing.length === 1 ? '' : 's'} the file does not define`);
-      workflows.push({ id: w.id, title: w.title, about: w.about, presets: [...w.presets] });
-    });
 
   const yours = { skills: [], commands: [], agents: [] };
   if (Object.hasOwn(doc, 'yours')) {
@@ -405,35 +287,15 @@ export function loadBuilder(file, pact) {
   const texts = [
     ...(parts ? partsTexts(parts).map(([where, text]) => [where, '', text]) : []),
     ...(Array.isArray(models) ? models.filter(m => typeof m === 'string').map(m => ['models', '', m]) : []),
-    ...presets.flatMap(p => [['preset', p.id, p.title], ['preset', p.id, p.text], ['preset', p.id, p.why]]),
-    ...workflows.flatMap(w => [['workflow', w.id, w.title], ['workflow', w.id, w.about]]),
     ...['skills', 'commands', 'agents'].flatMap(k => yours[k].map(x => [`yours.${k}`, x.name, x.description])),
     ['title', '', typeof doc.title === 'string' ? doc.title : ''],
   ];
   for (const [kind, id, text] of texts) if (POLICY_RE.test(text)) refuse(`${kind}${id ? ` ${id}` : ''}: holds text the page's content policy refuses (a URL, fetch(, import(, innerHTML or a document write)`);
-  // A workflow may not stand two presets for one slot in for its text.
-  for (const w of workflows) {
-    const standing = w.presets.map(id => presets.find(p => p.id === id)).filter(p => p && p.standsIn);
-    const slots = standing.map(p => p.mark);
-    if (new Set(slots).size !== slots.length) refuse(`workflow ${w.id}: two presets stand in for one slot's text`);
-  }
-
-  // Findings: what is legal but probably not meant.
-  const known = new Set([...pact.pactNames, ...pact.agents.map(a => a.name), ...yours.skills.map(x => x.name), ...yours.commands.map(x => x.name), ...yours.commands.map(x => `/${x.name}`), ...yours.agents.map(x => x.name)]);
   const listed = yours.skills.length + yours.commands.length + yours.agents.length;
-  for (const p of presets) {
-    const unknown = codeSpans(p.text).filter(n => /^\/?[A-Za-z0-9][A-Za-z0-9:._-]*$/.test(n) && n.includes('-') && !known.has(n));
-    if (listed && unknown.length) findings.push(`preset ${p.id}: names ${unknown.length} skill or agent${unknown.length === 1 ? '' : 's'} not in yours; check ${unknown.length === 1 ? 'it is' : 'they are'} installed`);
-    if (p.standsIn) {
-      const routed = pact.moves.flatMap(m => m.parts).find(q => q.mark === p.mark).agents;
-      const lost = routed.filter(a => !codeSpans(p.text).includes(a));
-      if (lost.length) findings.push(`preset ${p.id}: it stands in for ${p.mark}'s text but drops ${lost.length} agent${lost.length === 1 ? '' : 's'} that text names`);
-    }
-  }
   if (!listed) findings.push('yours lists no skills, commands or agents; the page\'s "Yours" section will say so');
 
   if (refusals.length) return { builder: null, refusals, findings };
-  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', presets, workflows, yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}) }, refusals, findings };
+  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}) }, refusals, findings };
 }
 
 /**
@@ -447,15 +309,6 @@ export function partsThroughRenderer(root, parts) {
   const compiled = compileParts(parts);
   const changed = PART_MARKS.filter(m => !pact.includes(`<!-- pact:begin ${m} -->\n${compiled[m]}\n<!-- pact:end ${m} -->`));
   return renderEdits(root, changed.map(m => ({ id: m, mark: m, op: 'replace', text: compiled[m] }))).map(p => `${p.id}: the installer's renderer refuses the compiled part${p.fails}`);
-}
-
-/**
- * Run every preset's text through the installer's renderer, as an add-after
- * edit to its slot in a throwaway Claude home. Returns one refusal per preset
- * the renderer refuses, carrying the renderer's own FAIL lines (fixed text).
- */
-export function presetsThroughRenderer(root, presets) {
-  return renderEdits(root, presets.map(p => ({ id: p.id, mark: p.mark, op: 'add-after', text: p.text }))).map(p => `preset ${p.id}: the installer's renderer refuses its text${p.fails}`);
 }
 
 /** Each { id, mark, op, text } rendered alone through the installer's renderer: [{ id, fails }] for each it refuses. */
@@ -510,11 +363,11 @@ function agentClassesThroughRenderer(root, agents) {
   }
 }
 
-/** Check a builder file fully: its own rules, then every preset through the renderer. */
+/** Check a builder file fully: its own rules, then every changed part through the renderer. */
 export function checkBuilder(root, file) {
   const pact = pactData(root);
   const r = loadBuilder(file, pact);
-  if (r.builder) r.refusals.push(...presetsThroughRenderer(root, r.builder.presets), ...partsThroughRenderer(root, r.builder.ownParts));
+  if (r.builder) r.refusals.push(...partsThroughRenderer(root, r.builder.ownParts));
   if (r.refusals.length) r.builder = null;
   return { ...r, pact };
 }
@@ -528,9 +381,8 @@ export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_R
   const pact = pactData(root);
   const { builder, refusals } = loadBuilder(builderFile, pact);
   if (!builder) fail(`the builder file is refused: ${refusals.join('; ')}`);
-  const { pactNames, ...shown } = pact;
   // JSON inside a script: "<" is escaped, so no text can close the script or open a comment.
-  const json = JSON.stringify({ ...shown, ...builder }, null, 1).replaceAll('<', ESC_LT);
+  const json = JSON.stringify({ ...pact, ...builder }, null, 1).replaceAll('<', ESC_LT);
   let out = html.replace(DATA_RE, () => `/* pact-data:begin */ ${json} /* pact-data:end */`);
   if (!PARTS_CODE_RE.test(out)) fail('the page has no parts-code marks');
   out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);
@@ -567,7 +419,7 @@ function canonical(p) {
 
 /**
  * Why a page may not be written at `out`, or null. A page carries the person's
- * own presets and lists, so it is never written inside this clone, where a
+ * own parts and lists, so it is never written inside this clone, where a
  * commit would publish it, and never over the builder file. Paths compare in
  * canonical form, so a different spelling of the same file is caught.
  */
@@ -575,7 +427,7 @@ export function outProblem(root, out, builder) {
   const o = canonical(out);
   if (o === canonical(builder)) return 'must not be the builder file';
   const r = canonical(join(root, 'x')).slice(0, -1);
-  if (o.startsWith(r)) return 'must be outside this clone: a page carries your own presets and lists, so keep it out of any repo';
+  if (o.startsWith(r)) return 'must be outside this clone: a page carries your own parts and lists, so keep it out of any repo';
   return null;
 }
 

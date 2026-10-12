@@ -348,7 +348,7 @@ export function checkVerdict(report, what) {
 
 // ------------------------------------------------------------ the renderer's lines
 
-const EDIT_RE = /^EDIT (move-1|move-2|move-3|move-4-extra|tiers|sensitive|workflow|lenses|qualities) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
+const EDIT_RE = /^EDIT (moves|tiers|sensitive|workflow|lenses|qualities) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;

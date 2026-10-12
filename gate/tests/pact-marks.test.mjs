@@ -13,8 +13,6 @@ import { read, tempDir } from './tree.mjs';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
 const LINES = read(SOURCE).split('\n');
 const MOVES_AT = LINES.indexOf('## The moves');
-// The moves' parts, in move order (#261): each sits under its move's bullet.
-const MOVE_PARTS = ['move-1', 'move-2', 'move-3', 'move-4-extra'];
 
 /** Every mark line in the source: { line, kind, name, indent }. */
 function marks(lines) {
@@ -59,18 +57,15 @@ test('no open mark encloses or overlaps a gated mark', () => {
   }
 });
 
-// #261 C1
-// #262: each move's body is its part, so the whole move text is editable and its lead-in is not.
-test('each move is a bullet with a bold lead-in alone on its line, and its part holds the move\'s whole body, indented under it', () => {
-  const bullets = LINES.map((l, i) => (i > MOVES_AT && /^- \*\*[^*]+\.\*\*$/.test(l) ? i : -1)).filter(i => i >= 0);
-  assert.ok(bullets.length >= 4, 'four move bullets');
-  MOVE_PARTS.forEach((name, k) => {
-    const b = at(`  <!-- pact:begin ${name} -->`);
-    const e = at(`  <!-- pact:end ${name} -->`);
-    assert.equal(b, bullets[k] + 1, `${name} opens right under move ${k + 1}'s lead-in`);
-    assert.ok(e > b + 1 && LINES.slice(b + 1, e).every(l => /^ {2}\S/.test(l)), `${name} holds the body, at the bullet's indent, with no blank line`);
-    assert.ok(k === 3 || e + 1 === bullets[k + 1], `${name} ends where the next move starts`);
-  });
+// #262: the moves are one part, every move in it: a bullet with its bold lead-in alone on its line, its body indented under it.
+test('the moves part holds every move, each a bold lead-in with its body indented under it', () => {
+  const b = at('<!-- pact:begin moves -->');
+  const e = at('<!-- pact:end moves -->');
+  assert.ok(b > MOVES_AT && e > b, 'the moves part sits in the moves section');
+  const body = LINES.slice(b + 1, e);
+  assert.ok(body.filter(l => /^- \*\*[^*]+\.\*\*$/.test(l)).length >= 4, 'four move bullets');
+  assert.ok(body.every(l => /^- \*\*[^*]+\.\*\*$/.test(l) || /^ {2}\S/.test(l)), 'every line is a lead-in or its indented body');
+  assert.ok(LINES.slice(MOVES_AT, e).filter(l => /^- \*\*/.test(l)).every(l => body.includes(l)), 'no move outside the part');
 });
 
 // #261 C1; #262 S8: the line under the title names the parts Scriptorium builds.

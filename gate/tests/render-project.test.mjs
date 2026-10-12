@@ -132,7 +132,7 @@ test('with no user session value, a project session value installs its lower-of 
 });
 
 test('bad case: a project file with an edit refuses, even an empty edit list', t => {
-  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": [{"mark": "move-2", "op": "remove"}]}\n')), 'project-edit');
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": [{"mark": "moves", "op": "remove"}]}\n')), 'project-edit');
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": []}\n')), 'project-edit');
 });
 

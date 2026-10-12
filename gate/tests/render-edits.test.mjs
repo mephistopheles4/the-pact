@@ -122,9 +122,9 @@ test('the shipped example edits install-ready: each block re-indented into its p
   const blocks = exampleBlocks();
   const doc = JSON.parse(config);
   const edits = doc.edits.map(e => ({ ...e, path: e.file, bytes: e.file ? blocks[e.file] : null }));
-  assert.ok(edits.length >= 3 && edits.every(e => e.bytes), 'every example edit names a shipped block');
-  // #127: move 1 takes the preset set's block, added after the default text (the expected render below is built from the file, so pin it here).
-  assert.deepEqual(doc.edits.find(e => e.mark === 'move-1'), { mark: 'move-1', op: 'add-after', file: 'move-1-matt-pocock.md' });
+  assert.ok(edits.length >= 2 && edits.every(e => e.bytes), 'every example edit names a shipped block');
+  // #262: a move of your own, added after the pact's (the expected render below is built from the file, so pin it here).
+  assert.deepEqual(doc.edits.find(e => e.mark === 'moves'), { mark: 'moves', op: 'add-after', file: 'moves-leave-it-better.md' });
   const r = render(t, homeWith(t, config, blocks));
   assert.equal(r.code, 0, r.out);
   const digest = digestOf(config, edits);
@@ -148,33 +148,35 @@ test('the shipped example edits install-ready: each block re-indented into its p
 test('each shipped example block is known-good on its own, under each operation that takes a file', t => {
   for (const [path, bytes] of Object.entries(exampleBlocks())) {
     for (const op of ['replace', 'add-after']) {
-      const r = render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op, file: path }]), { [path]: bytes }));
+      const r = render(t, homeWith(t, cfg([{ mark: 'moves', op, file: path }]), { [path]: bytes }));
       assert.equal(r.code, 0, `${path} ${op}\n${r.out}`);
     }
   }
 });
 
 // #261 C14
-// #262: a move's body is its part, so a remove leaves its lead-in alone.
-test('a remove takes out the move\'s text and keeps its bullet and lead-in', t => {
-  const config = JSON.stringify(cfg([{ mark: 'move-1', op: 'remove' }]));
+// #262: the moves are one part, so a remove takes out every move and keeps the section's intro.
+test('a remove takes out every move and keeps the section\'s intro', t => {
+  const config = JSON.stringify(cfg([{ mark: 'moves', op: 'remove' }]));
   const r = render(t, homeWith(t, config));
   assert.equal(r.code, 0, r.out);
-  const edits = [{ mark: 'move-1', op: 'remove' }];
+  const edits = [{ mark: 'moves', op: 'remove' }];
   assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), { digest: digestOf(Buffer.from(config), edits), edits }));
-  assert.match(r.stdout, /^EDIT move-1 remove$/m);
-  assert.match(r.bytes.toString('utf8'), /^- \*\*Sense the work\.\*\*\n- \*\*Think before doing\.\*\*\n/m);
+  assert.match(r.stdout, /^EDIT moves remove$/m);
+  assert.doesNotMatch(r.bytes.toString('utf8'), /Sense the work/);
+  assert.match(r.bytes.toString('utf8'), /^## The moves\n/m);
 });
 
 // #261 C14
-// #262: a replace takes the move's whole text, under its lead-in.
-test('a replace keeps the move\'s bullet and lead-in, and the digest changes when only a block changes', t => {
-  const config = JSON.stringify(cfg([{ mark: 'move-3', op: 'replace', file: 'm3.md' }]));
+// #262: a replace takes the place of every move.
+test('a replace takes the place of every move, and the digest changes when only a block changes', t => {
+  const config = JSON.stringify(cfg([{ mark: 'moves', op: 'replace', file: 'm3.md' }]));
   const a = render(t, homeWith(t, config, { 'm3.md': 'First text.\n' }));
   const b = render(t, homeWith(t, config, { 'm3.md': 'Second text.\n' }));
   assert.equal(a.code, 0, a.out);
   assert.equal(b.code, 0, b.out);
-  assert.match(a.bytes.toString('utf8'), /^- \*\*Checkpoint the seams\.\*\*\n {2}First text\.\n- \*\*Stay the owner\.\*\*\n/m);
+  assert.match(a.bytes.toString('utf8'), /^First text\.\n\n## How Claude helps$/m);
+  assert.doesNotMatch(a.bytes.toString('utf8'), /Sense the work/);
   const dA = /^DIGEST (\S+)$/m.exec(a.stdout)[1];
   const dB = /^DIGEST (\S+)$/m.exec(b.stdout)[1];
   assert.notEqual(dA, dB, 'a block change must show in the digest');
@@ -189,9 +191,9 @@ test('with no edits, the digest is slice 3\'s: the user file\'s hash alone', t =
 });
 
 test('a block in a sub-folder of the blocks folder is read', t => {
-  const r = render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'team/extra.md' }]), { 'team/extra.md': 'Extra step.\n' }));
+  const r = render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'team/extra.md' }]), { 'team/extra.md': 'Extra step.\n' }));
   assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^EDIT move-4-extra add-after [0-9a-f]{64} team\/extra\.md$/m);
+  assert.match(r.stdout, /^EDIT moves add-after [0-9a-f]{64} team\/extra\.md$/m);
 });
 
 // #261 C10
@@ -219,11 +221,11 @@ test('with no configuration the diff is empty, and with a values-only one it sho
 // ------------------------------------------------------------ re-indenting is load-bearing (seam 2)
 
 // #261 C14
-test('re-indented block text stays inside its move: a move-4-extra block lands at the bullet\'s indent, and seam A passes', t => {
+test('an added move lands after the last one, at the part\'s indent, and seam A passes', t => {
   const root = stage(t, { 'claude/agents/extra-agent.md': plainAgent('extra-agent') });
-  const block = 'Then run `extra-agent` on the diff.\n';
-  renderStage(root, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'x.md' }]), { 'x.md': block }));
-  assert.match(read(join(root, 'claude', 'CLAUDE.md')), /^ {2}when to stop it\. Checks that could have failed are the evidence\.\n {2}Then run `extra-agent` on the diff\.$/m);
+  const block = '- **Leave it better.**\n  Then run `extra-agent` on the diff.\n';
+  renderStage(root, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'x.md' }]), { 'x.md': block }));
+  assert.match(read(join(root, 'claude', 'CLAUDE.md')), /^ {2}when to stop it\. Checks that could have failed are the evidence\.\n- \*\*Leave it better\.\*\*\n {2}Then run `extra-agent` on the diff\.$/m);
   const r = runSeamA(root);
   assert.equal(r.code, 0, r.out);
 });
@@ -232,7 +234,7 @@ test('re-indented block text stays inside its move: a move-4-extra block lands a
 
 test('seam A: a block naming the user\'s own agent, not on the roster and not installed, passes', t => {
   const root = stage(t, {});
-  renderStage(root, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'own.md' }]), { 'own.md': 'Then run `my-reviewer`, my own agent, on the diff.\n' }));
+  renderStage(root, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'own.md' }]), { 'own.md': 'Then run `my-reviewer`, my own agent, on the diff.\n' }));
   const r = runSeamA(root);
   assert.equal(r.code, 0, r.out);
 });
@@ -255,8 +257,8 @@ for (const op of OPS) {
 // ------------------------------------------------------------ the must-refuse tables (#140, T5)
 
 // Both tables share a base: a Claude home whose configuration adds one good
-// block after move-4-extra, which renders. A row plants one configuration.
-const OK_EDIT = { mark: 'move-4-extra', op: 'add-after', file: 'ok.md' };
+// block after moves, which renders. A row plants one configuration.
+const OK_EDIT = { mark: 'moves', op: 'add-after', file: 'ok.md' };
 const editHome = () => ({ 'pact/config.json': JSON.stringify(cfg([OK_EDIT])), 'pact/blocks/ok.md': 'Text.\n' });
 const withEdits = edits => home => ({ ...home, 'pact/config.json': JSON.stringify(cfg(edits)) });
 const withPath = path => withEdits([{ ...OK_EDIT, file: path }]);
@@ -292,7 +294,7 @@ for (const c of table('render edit list', {
   everyRow: refusedOnly,
   rows: [
     { id: 'unknown-mark', plant: withEdits([{ mark: 'move-9', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'an unknown mark' },
-    { id: 'mark-in-another-case', plant: withEdits([{ mark: 'Move-2', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a mark in another case' },
+    { id: 'mark-in-another-case', plant: withEdits([{ mark: 'Moves', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a mark in another case' },
     // A fixed block is no open part, so no edit can target it.
     { id: 'fixed-block', plant: withEdits([{ mark: 'stop-and-escalate', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'the fixed stop-and-ask block' },
     { id: 'gated-mark-in-another-case', plant: withEdits([{ mark: 'Stop-And-Escalate', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a pinned mark in another case' },
@@ -300,21 +302,21 @@ for (const c of table('render edit list', {
     { id: 'retired-gated-mark', plant: withEdits([{ mark: 'risk-floor', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a retired gated clause, now an unknown mark' },
     { id: 'mark-not-text', plant: withEdits([{ mark: 2, op: 'remove' }]), fails: ['edit-shape'], says: /edit 1: mark must be text/, why: 'a mark that is not text' },
     { id: 'no-mark', plant: withEdits([{ op: 'remove' }]), fails: ['edit-shape'], says: /edit 1: mark must be text/, why: 'no mark' },
-    { id: 'unknown-op', plant: withEdits([{ mark: 'move-2', op: 'append', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an unknown operation' },
-    { id: 'op-in-another-case', plant: withEdits([{ mark: 'move-2', op: 'Replace', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an operation in another case' },
-    { id: 'no-op', plant: withEdits([{ mark: 'move-2', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'no operation' },
-    { id: 'op-not-text', plant: withEdits([{ mark: 'move-2', op: ['replace'], file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an operation that is not text' },
-    { id: 'same-mark-twice', plant: withEdits([{ mark: 'move-2', op: 'remove' }, { mark: 'move-2', op: 'replace', file: 'ok.md' }]), fails: ['edit-twice'], says: /edit 2: move-2 is edited twice/, why: 'the same mark twice' },
-    { id: 'edit-not-object', plant: withEdits(['move-2']), fails: ['edit-shape'], says: /edit 1: not an object/, why: 'an edit that is not an object' },
+    { id: 'unknown-op', plant: withEdits([{ mark: 'moves', op: 'append', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an unknown operation' },
+    { id: 'op-in-another-case', plant: withEdits([{ mark: 'moves', op: 'Replace', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an operation in another case' },
+    { id: 'no-op', plant: withEdits([{ mark: 'moves', file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'no operation' },
+    { id: 'op-not-text', plant: withEdits([{ mark: 'moves', op: ['replace'], file: 'ok.md' }]), fails: ['edit-op'], says: /edit 1: an unknown operation/, why: 'an operation that is not text' },
+    { id: 'same-mark-twice', plant: withEdits([{ mark: 'moves', op: 'remove' }, { mark: 'moves', op: 'replace', file: 'ok.md' }]), fails: ['edit-twice'], says: /edit 2: moves is edited twice/, why: 'the same mark twice' },
+    { id: 'edit-not-object', plant: withEdits(['moves']), fails: ['edit-shape'], says: /edit 1: not an object/, why: 'an edit that is not an object' },
     { id: 'edit-null', plant: withEdits([null]), fails: ['edit-shape'], says: /edit 1: not an object/, why: 'an edit that is null' },
-    { id: 'unknown-key', plant: withEdits([{ mark: 'move-2', op: 'remove', when: 'always' }]), fails: ['edit-shape'], says: /edit 1: a key that is not mark, op or file/, why: 'an unknown key in an edit' },
-    { id: 'proto-key', plant: withEdits(JSON.parse('[{"mark": "move-2", "op": "remove", "__proto__": {"file": "x"}}]')), fails: ['edit-shape'], says: /edit 1: a key that is not mark, op or file/, why: 'a __proto__ key in an edit' },
-    { id: 'remove-with-file', plant: withEdits([{ mark: 'move-2', op: 'remove', file: 'ok.md' }]), fails: ['edit-shape'], says: /edit 1: remove takes no file/, why: 'remove with a file' },
-    { id: 'replace-without-file', plant: withEdits([{ mark: 'move-2', op: 'replace' }]), fails: ['edit-shape'], says: /edit 1: replace needs a file/, why: 'replace with no file' },
-    { id: 'add-after-without-file', plant: withEdits([{ mark: 'move-2', op: 'add-after' }]), fails: ['edit-shape'], says: /edit 1: add-after needs a file/, why: 'add-after with no file' },
-    { id: 'over-16-edits', plant: withEdits(Array.from({ length: 17 }, () => ({ mark: 'move-1', op: 'remove' }))), fails: ['edit-count'], says: /more than 16 edits/, why: 'over 16 edits' },
+    { id: 'unknown-key', plant: withEdits([{ mark: 'moves', op: 'remove', when: 'always' }]), fails: ['edit-shape'], says: /edit 1: a key that is not mark, op or file/, why: 'an unknown key in an edit' },
+    { id: 'proto-key', plant: withEdits(JSON.parse('[{"mark": "moves", "op": "remove", "__proto__": {"file": "x"}}]')), fails: ['edit-shape'], says: /edit 1: a key that is not mark, op or file/, why: 'a __proto__ key in an edit' },
+    { id: 'remove-with-file', plant: withEdits([{ mark: 'moves', op: 'remove', file: 'ok.md' }]), fails: ['edit-shape'], says: /edit 1: remove takes no file/, why: 'remove with a file' },
+    { id: 'replace-without-file', plant: withEdits([{ mark: 'moves', op: 'replace' }]), fails: ['edit-shape'], says: /edit 1: replace needs a file/, why: 'replace with no file' },
+    { id: 'add-after-without-file', plant: withEdits([{ mark: 'moves', op: 'add-after' }]), fails: ['edit-shape'], says: /edit 1: add-after needs a file/, why: 'add-after with no file' },
+    { id: 'over-16-edits', plant: withEdits(Array.from({ length: 17 }, () => ({ mark: 'moves', op: 'remove' }))), fails: ['edit-count'], says: /more than 16 edits/, why: 'over 16 edits' },
     { id: 'edits-as-object', plant: withEdits({}), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as an object' },
-    { id: 'edits-as-string', plant: withEdits('move-2'), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as a string' },
+    { id: 'edits-as-string', plant: withEdits('moves'), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as a string' },
     // #142: the session setting's part, like the weekly one's, is filled only from its setting.
     { id: 'session-setting-part', plant: withEdits([{ mark: 'usage-pause-session', op: 'replace', file: 'ok.md' }]), fails: ['edit-setting'], says: /edit 1: usage-pause-session is set only through its setting/, why: 'an edit to the session setting\'s part' },
     // block-text on the parts Scriptorium builds (#262, S9): each part, and each of the two refusals.
@@ -322,14 +324,14 @@ for (const c of table('render edit list', {
 })) test(c.name, c.fn);
 
 test('16 edits are not refused by the count: the same list refuses only for a mark edited twice', t => {
-  const r = render(t, homeWith(t, cfg(Array.from({ length: 16 }, () => ({ mark: 'move-1', op: 'remove' })))));
+  const r = render(t, homeWith(t, cfg(Array.from({ length: 16 }, () => ({ mark: 'moves', op: 'remove' })))));
   assert.doesNotMatch(r.stdout, /^FAIL edit-count/m, r.out);
-  refusedWith(r, 'edit-twice', /edit 2: move-1 is edited twice/);
+  refusedWith(r, 'edit-twice', /edit 2: moves is edited twice/);
 });
 
 // edit-gated
 test('a refusal reports every bad edit, each by its position', t => {
-  const r = render(t, homeWith(t, cfg([{ mark: 'stop-and-escalate', op: 'remove' }, { mark: 'move-1', op: 'remove' }, { mark: 'nope', op: 'remove' }])));
+  const r = render(t, homeWith(t, cfg([{ mark: 'stop-and-escalate', op: 'remove' }, { mark: 'moves', op: 'remove' }, { mark: 'nope', op: 'remove' }])));
   refusedWith(r, 'edit-mark', /edit 1: an unknown mark/);
   assert.match(r.stdout, /^FAIL edit-mark: pact\/config\.json: edit 3: an unknown mark$/m, r.out);
 });
@@ -377,7 +379,7 @@ for (const c of table('render block path', {
 })) test(c.name, c.fn);
 
 test('a path refused on its text is refused before any file is opened, even when the file it names is there and good', t => {
-  const h = homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: '../outside.md' }]));
+  const h = homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: '../outside.md' }]));
   writeFileSync(join(h, 'pact', 'outside.md'), 'Good text.\n');
   const r = render(t, h, SOURCE, { fault: 'count', faultFile: 'block' });
   refusedWith(r, 'block-path', /a \. or \.\. segment/);
@@ -385,7 +387,7 @@ test('a path refused on its text is refused before any file is opened, even when
 });
 
 test('a console name a reserved-name check must not catch reads as a normal block', t => {
-  const r = render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'console.md' }]), { 'console.md': 'Text.\n' }));
+  const r = render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'console.md' }]), { 'console.md': 'Text.\n' }));
   assert.equal(r.code, 0, r.out);
 });
 
@@ -407,7 +409,7 @@ const TEXT_BAD = [
 
 for (const [label, text, rule, reason] of TEXT_BAD) {
   test(`bad case: a block with ${label} refuses`, t => {
-    const r = render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': text }));
+    const r = render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': text }));
     refusedWith(r, rule, reason);
     assert.match(r.stdout, new RegExp(`^FAIL ${rule}: pact/blocks/b\\.md`, 'm'), 'the refusal names the block file');
   });
@@ -415,19 +417,19 @@ for (const [label, text, rule, reason] of TEXT_BAD) {
 
 test('bad case: a block that is not valid UTF-8 refuses', t => {
   const bytes = Buffer.concat([Buffer.from('Text '), Buffer.from([0xff, 0xfe]), Buffer.from('.\n')]);
-  refusedWith(render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': bytes })), 'encoding', /not valid UTF-8/);
+  refusedWith(render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': bytes })), 'encoding', /not valid UTF-8/);
 });
 
 // The pact is vetted like a skill: what a block says, and its Markdown, are the owner's to judge.
 test('a block with a heading, a fence, a comment, an @ import, a numbered line and a blank line renders', t => {
   const block = '## Extra steps\n\n1. Do this first.\n```\ncode\n```\nSee @notes.md. <!-- a note -->\n';
-  const r = render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': block }));
+  const r = render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': block }));
   assert.equal(r.code, 0, r.out);
 });
 
 test('the block-text rules leave ordinary text alone: an @ before a space, a bullet, a number mid-line, a hash mid-line', t => {
   const block = 'Meet @ noon, then:\n- run the checks;\n- note step 1. in the log;\nTag it #done when it passes.\n';
-  const r = render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': block }));
+  const r = render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': block }));
   assert.equal(r.code, 0, r.out);
 });
 
@@ -435,31 +437,31 @@ test('a block of exactly 16 KiB is read; one byte more refuses, by the cap', t =
   const line = `${'a'.repeat(79)}\n`;
   const at = Buffer.from(line.repeat(204) + 'b'.repeat(16 * 1024 - 80 * 204 - 1) + '\n');
   assert.equal(at.length, 16 * 1024);
-  const ok = render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': at }));
+  const ok = render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': at }));
   assert.equal(ok.code, 0, ok.out);
   const over = Buffer.concat([Buffer.from('c'), at]);
-  refusedWith(render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': over })), 'block-size', /larger than 16 KiB/);
+  refusedWith(render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': over })), 'block-size', /larger than 16 KiB/);
 });
 
 test('bad case: a render that blocks push past 1 MiB refuses, though every block is within its cap', t => {
   const parts = [
     '<!-- pact:begin config-notice -->',
     '<!-- pact:end config-notice -->',
-    '<!-- pact:begin move-4-extra -->',
-    '<!-- pact:end move-4-extra -->',
+    '<!-- pact:begin moves -->',
+    '<!-- pact:end moves -->',
     '',
   ].join('\n');
   const pad = 1024 * 1024 - 1000 - Buffer.byteLength(parts);
   const src = Buffer.concat([Buffer.from(parts), Buffer.alloc(pad - 1, 0x61), Buffer.from('\n')]);
   const block = 'x'.repeat(2000) + '\n';
-  refusedWith(render(t, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': block }), sourceFile(t, src)), 'size', /would be larger than 1 MiB/);
+  refusedWith(render(t, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': block }), sourceFile(t, src)), 'size', /would be larger than 1 MiB/);
   const none = render(t, tempDir(t), sourceFile(t, src));
   assert.equal(none.code, 0, none.out);
 });
 
 // ------------------------------------------------------------ block files on disk: the per-file checks, in Node
 
-const edit1 = cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]);
+const edit1 = cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]);
 
 test('bad case: a block file that does not exist refuses', t => {
   refusedWith(render(t, homeWith(t, edit1)), 'block-file', /edit 1: the block file, or a folder on its path, does not exist/);
@@ -518,7 +520,7 @@ test('bad case: a blocks folder that is a link to a folder of good blocks refuse
 test('bad case: a block reached through a linked parent folder refuses', t => {
   const elsewhere = tempDir(t);
   writeFileSync(join(elsewhere, 'b.md'), 'Good text.\n');
-  const h = homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'team/b.md' }]));
+  const h = homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'team/b.md' }]));
   symlinkSync(elsewhere, join(h, 'pact', 'blocks', 'team'), 'junction');
   refusedWith(render(t, h), 'block-file', /a folder on the block path is a link/);
 });
@@ -576,7 +578,7 @@ const SHARE = [
 // placement
 for (const [label, change] of SHARE) {
   for (const [withConfig, home] of [
-    ['with a configuration', t => homeWith(t, cfg([{ mark: 'move-1', op: 'remove' }]))],
+    ['with a configuration', t => homeWith(t, cfg([{ mark: 'moves', op: 'remove' }]))],
     ['with no configuration', t => tempDir(t)],
   ]) {
     test(`bad case: ${label} refuses, ${withConfig}`, t => {
@@ -594,12 +596,12 @@ test('refusals name only the renderer\'s own names and positions: no mark, op, p
   const C = 'CANARYedit';
   const cases = [
     [cfg([{ mark: C, op: 'remove' }]), {}],
-    [cfg([{ mark: 'move-2', op: C, file: 'ok.md' }]), { 'ok.md': 'Text.\n' }],
-    [cfg([{ mark: 'move-2', op: 'replace', file: `${C}/../x.md` }]), {}],
-    [cfg([{ mark: 'move-2', op: 'replace', file: `${C} x.md` }]), {}],
-    [cfg([{ mark: 'move-2', op: 'replace', file: `/${C}.md` }]), {}],
-    [cfg([{ mark: 'move-2', op: 'replace', [C]: 1 }]), {}],
-    [cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'b.md' }]), { 'b.md': `${C}\r\n` }],
+    [cfg([{ mark: 'moves', op: C, file: 'ok.md' }]), { 'ok.md': 'Text.\n' }],
+    [cfg([{ mark: 'moves', op: 'replace', file: `${C}/../x.md` }]), {}],
+    [cfg([{ mark: 'moves', op: 'replace', file: `${C} x.md` }]), {}],
+    [cfg([{ mark: 'moves', op: 'replace', file: `/${C}.md` }]), {}],
+    [cfg([{ mark: 'moves', op: 'replace', [C]: 1 }]), {}],
+    [cfg([{ mark: 'moves', op: 'add-after', file: 'b.md' }]), { 'b.md': `${C}\r\n` }],
   ];
   for (const [config, blocks] of cases) {
     const r = render(t, homeWith(t, config, blocks));
@@ -614,5 +616,5 @@ test('a block\'s text never reaches the renderer\'s output lines on a pass', t =
   const r = render(t, homeWith(t, edit1, { 'b.md': `${C} text.\n` }));
   assert.equal(r.code, 0, r.out);
   assert.ok(!r.stdout.includes(C), r.stdout);
-  assert.ok(r.bytes.toString('utf8').includes(`  ${C} text.`));
+  assert.ok(r.bytes.toString('utf8').includes(`\n${C} text.`));
 });

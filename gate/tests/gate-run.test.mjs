@@ -195,7 +195,7 @@ const run = (tree, t) => {
 };
 for (const c of table('shared state', {
   module: 'gate/render.mjs',
-  base: () => ({ 'pact/config.json': edits([{ mark: 'move-4-extra', op: 'add-after', file: 'ok.md' }]), 'pact/blocks/ok.md': 'Text.\\n' }),
+  base: () => ({ 'pact/config.json': edits([{ mark: 'moves', op: 'add-after', file: 'ok.md' }]), 'pact/blocks/ok.md': 'Text.\\n' }),
   run,
   rows: [{ id: 'unknown-mark', plant: h => ({ ...h, 'pact/config.json': edits([{ mark: 'move-9', op: 'remove' }]) }), fails: ['edit-mark'], why: 'a row between the two bases' }],
 })) test(c.name, c.fn);

@@ -11,32 +11,28 @@ The moves are how I work, with or without AI. They are my practices, and I
 take each up as the work needs it. They keep human judgment above everything
 else: the stages, the tools and the agents of working with AI.
 
+*Scriptorium builds this.*
+
+<!-- pact:begin moves -->
 - **Sense the work.**
-  <!-- pact:begin move-1 -->
   What kind of work is it, how big, how risky, and do I know enough to plan
   it? Size sets how much checking it needs. A target I can know gets a plan;
   an unknown one gets an experiment first. A bug is reproduced and traced to
   its start before anyone fixes it.
-  <!-- pact:end move-1 -->
 - **Think before doing.**
-  <!-- pact:begin move-2 -->
   I get the intent clear enough to defend: what it is for, how it can go
   wrong, and why each decision is right. When the intent is still forming, a
   prototype finds it.
-  <!-- pact:end move-2 -->
 - **Checkpoint the seams.**
-  <!-- pact:begin move-3 -->
   Where work is handed on, published or decided, anything costly waits for a
   checkpoint. A light checkpoint is a check of mine that runs without me,
   such as a test. A heavy one is my decision before the work moves. The
   harder a step is to undo, the heavier its checkpoint. When in doubt, it's
   heavy.
-  <!-- pact:end move-3 -->
 - **Stay the owner.**
-  <!-- pact:begin move-4-extra -->
   I own a result when I can verify it, reconstruct why it is right, and know
   when to stop it. Checks that could have failed are the evidence.
-  <!-- pact:end move-4-extra -->
+<!-- pact:end moves -->
 
 ## How Claude helps
 

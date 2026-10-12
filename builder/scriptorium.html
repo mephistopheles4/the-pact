@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-lK7NN6rBjq4c0xKadnSSg2ppdl0gqi7bhoJwJLOZnOI='; style-src 'sha256-zZ32ss0RY1r0MQQyAoOFJzZ1atjzVNL3gchbftxM1eE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6gefvTkKlZqhbcOPjFBKAf/vjjl0eRRWDrVHiqo0zO8='; style-src 'sha256-zZ32ss0RY1r0MQQyAoOFJzZ1atjzVNL3gchbftxM1eE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -500,56 +500,6 @@ dialog.settings .acc[open] > summary { border-bottom: var(--av-rule-hair) solid 
 <script>
 'use strict';
 const PACT = /* pact-data:begin */ {
- "moves": [
-  {
-   "n": 1,
-   "lead": "Sense the work",
-   "parts": [
-    {
-     "kind": "open",
-     "mark": "move-1",
-     "text": "What kind of work is it, how big, how risky, and do I know enough to plan\nit? Size sets how much checking it needs. A target I can know gets a plan;\nan unknown one gets an experiment first. A bug is reproduced and traced to\nits start before anyone fixes it.",
-     "agents": []
-    }
-   ]
-  },
-  {
-   "n": 2,
-   "lead": "Think before doing",
-   "parts": [
-    {
-     "kind": "open",
-     "mark": "move-2",
-     "text": "I get the intent clear enough to defend: what it is for, how it can go\nwrong, and why each decision is right. When the intent is still forming, a\nprototype finds it.",
-     "agents": []
-    }
-   ]
-  },
-  {
-   "n": 3,
-   "lead": "Checkpoint the seams",
-   "parts": [
-    {
-     "kind": "open",
-     "mark": "move-3",
-     "text": "Where work is handed on, published or decided, anything costly waits for a\ncheckpoint. A light checkpoint is a check of mine that runs without me,\nsuch as a test. A heavy one is my decision before the work moves. The\nharder a step is to undo, the heavier its checkpoint. When in doubt, it's\nheavy.",
-     "agents": []
-    }
-   ]
-  },
-  {
-   "n": 4,
-   "lead": "Stay the owner",
-   "parts": [
-    {
-     "kind": "open",
-     "mark": "move-4-extra",
-     "text": "I own a result when I can verify it, reconstruct why it is right, and know\nwhen to stop it. Checks that could have failed are the evidence.",
-     "agents": []
-    }
-   ]
-  }
- ],
  "always": [
   {
    "mark": "stop-and-escalate",
@@ -557,10 +507,7 @@ const PACT = /* pact-data:begin */ {
   }
  ],
  "editable": [
-  "move-1",
-  "move-2",
-  "move-3",
-  "move-4-extra",
+  "moves",
   "tiers",
   "sensitive",
   "workflow",
@@ -581,6 +528,7 @@ const PACT = /* pact-data:begin */ {
  },
  "parts": {
   "marks": [
+   "moves",
    "tiers",
    "sensitive",
    "workflow",
@@ -588,6 +536,7 @@ const PACT = /* pact-data:begin */ {
    "qualities"
   ],
   "text": {
+   "moves": "- **Sense the work.**\n  What kind of work is it, how big, how risky, and do I know enough to plan\n  it? Size sets how much checking it needs. A target I can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it.\n- **Think before doing.**\n  I get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right. When the intent is still forming, a\n  prototype finds it.\n- **Checkpoint the seams.**\n  Where work is handed on, published or decided, anything costly waits for a\n  checkpoint. A light checkpoint is a check of mine that runs without me,\n  such as a test. A heavy one is my decision before the work moves. The\n  harder a step is to undo, the heavier its checkpoint. When in doubt, it's\n  heavy.\n- **Stay the owner.**\n  I own a result when I can verify it, reconstruct why it is right, and know\n  when to stop it. Checks that could have failed are the evidence.",
    "tiers": "| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small, one session, no plan needed | none | Opus, low |\n| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |\n| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |",
    "sensitive": "Sensitive work gets more checking when I choose it. By default, sensitive\nwork is auth, secrets, crypto, input validation and data migrations:\nthorough, planned and built on Opus at high, with the security pair,\n`adversarial-lens` and `data-lens`, on the spec and the diff. That is the\nsensitive route. When the work matches that list, or you think it sensitive\notherwise, say why in one line in your tier proposal and recommend the route;\nI take it or not. If I didn't take the route, offer the security pair once\nmore at Test when the change matches the list. Beyond that one offer,\nsensitivity doesn't stop the run. A flag or an offer I haven't answered stays\nopen, in one line, in every hand-off and in the result. If you find it later,\nsay so in one line at the next hand-off or result, and keep saying it until I\nanswer.",
    "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `good-enough-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
@@ -595,6 +544,24 @@ const PACT = /* pact-data:begin */ {
    "qualities": "| Quality | Measure | Lens |\n| --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens` |\n| Performance efficiency | a budget: time, memory, size | `behaviour-lens` |\n| Reliability | a failure, and the recovery accepted | `behaviour-lens` |\n| Compatibility | named interfaces that stay stable: formats, flags, config keys, APIs | `conventions-lens` |\n| Interaction capability | a task a new user completes | `reader-lens`, `behaviour-lens` |\n| Security | an ASVS 5.0 level or chapters | `adversarial-lens`, `data-lens` |\n| Maintainability | the repo's written rules | `conventions-lens`, `reader-lens` |\n| Flexibility | the environments it must install and run on | `executability-lens`, `behaviour-lens` |\n| Safety | the risky actions, the warning, the safe state on failure | `executability-lens` |"
   },
   "defaults": {
+   "moves": [
+    {
+     "lead": "Sense the work",
+     "text": "What kind of work is it, how big, how risky, and do I know enough to plan it? Size sets how much checking it needs. A target I can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it."
+    },
+    {
+     "lead": "Think before doing",
+     "text": "I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right. When the intent is still forming, a prototype finds it."
+    },
+    {
+     "lead": "Checkpoint the seams",
+     "text": "Where work is handed on, published or decided, anything costly waits for a checkpoint. A light checkpoint is a check of mine that runs without me, such as a test. A heavy one is my decision before the work moves. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy."
+    },
+    {
+     "lead": "Stay the owner",
+     "text": "I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence."
+    }
+   ],
    "tiers": [
     {
      "name": "Quick",
@@ -1127,75 +1094,6 @@ const PACT = /* pact-data:begin */ {
   ]
  },
  "title": "Example builder",
- "presets": [
-  {
-   "id": "move-1-matt-pocock",
-   "title": "Matt Pocock's skills: triage",
-   "mark": "move-1",
-   "text": "Skills I bind to this move. Triage is mine to start: when you reach the\ntriage step, hand me `/triage` and stop. For a bug, use\n`diagnosing-bugs` at the step where it is reproduced and traced, before any\nfix. Work too big for one session is charted with `/wayfinder`, which is mine\nto start: when you reach the charting step, hand it to me.",
-   "standsIn": false,
-   "why": "Binds triage, diagnosing-bugs and wayfinder from mattpocock/skills to move 1's steps."
-  },
-  {
-   "id": "move-2-matt-pocock",
-   "title": "Matt Pocock's skills: think first",
-   "mark": "move-2",
-   "text": "Skills I bind to this move. Questioning: use `grilling` at the step where you\nquestion me until the idea is clear, and `domain-modeling` when terms need\npinning down. The spec is written with `/to-spec`, which is mine to\nstart: when the questioning is done, hand it to me and stop. Use\n`codebase-design` at the step where you set the design, modules, interfaces\nand seams. Use `prototype` at the step where a question needs running code.",
-   "standsIn": false,
-   "why": "Binds grilling, domain-modeling, to-spec, codebase-design and prototype to move 2."
-  },
-  {
-   "id": "move-3-matt-pocock",
-   "title": "Matt Pocock's skills: build",
-   "mark": "move-3",
-   "text": "Skills I bind to this move. Cutting the approved spec into tickets is\n`/to-tickets`, which is mine to start: when the spec is approved and\nthe tier is thorough, hand it to me and stop. Use `tdd` and `codebase-design`\nat the step where a session builds test-first at the agreed seams. A session\nopened on an approved spec or ticket starts building directly; it doesn't\nhand me `/implement` first, though I may still type it.",
-   "standsIn": false,
-   "why": "Binds to-tickets, tdd and codebase-design to move 3."
-  },
-  {
-   "id": "move-3-done-criteria",
-   "title": "Done criteria",
-   "mark": "move-3",
-   "text": "Before the build starts, read me each ticket's done-criteria back in one\nline each, so we agree on what done means.",
-   "standsIn": false,
-   "why": "Agree on what done means before the build starts."
-  },
-  {
-   "id": "move-4-docs-check",
-   "title": "Docs check",
-   "mark": "move-4-extra",
-   "text": "After the checks, list each public interface the change touched, and say\nwhether its docs were updated.",
-   "standsIn": false,
-   "why": "Catch public interfaces whose docs fell behind the change."
-  }
- ],
- "workflows": [
-  {
-   "id": "pact-default",
-   "title": "Pact default",
-   "about": "The pact as it ships: nothing added to any move.",
-   "presets": []
-  },
-  {
-   "id": "close-the-loop",
-   "title": "Close the loop",
-   "about": "Agree on done before the build, and say which docs the change touched after it.",
-   "presets": [
-    "move-3-done-criteria",
-    "move-4-docs-check"
-   ]
-  },
-  {
-   "id": "matt-pocock-skills",
-   "title": "Matt Pocock's skills",
-   "about": "Chains the mattpocock/skills set onto moves 1 to 3, after each move's default text. Matches examples/pact-config/config-matt-pocock-skills.json.",
-   "presets": [
-    "move-1-matt-pocock",
-    "move-2-matt-pocock",
-    "move-3-matt-pocock"
-   ]
-  }
- ],
  "yours": {
   "skills": [],
   "commands": [],
@@ -1204,7 +1102,7 @@ const PACT = /* pact-data:begin */ {
 } /* pact-data:end */;
 
 /* parts-code:begin */
-const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+const PART_MARKS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
 const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
 // A model and its effort, as the tables write them: "Opus, medium". The
@@ -1239,7 +1137,7 @@ function modelsProblems(list) {
   if (!Array.isArray(list) || !list.length || list.length > MODELS_CAP) return [`the models list must hold 1 to ${MODELS_CAP} models`];
   const out = [];
   list.forEach((m, i) => {
-    if (!modelOk(m)) out.push(`model ${i + 1} must be a letter, then letters, digits, '.', '_', ':', '/' or '-', up to 128 characters, with no '---' and no double slash, not ending in ':', and not a YAML word such as true or null`);
+    if (!modelOk(m)) out.push(`model ${i + 1} must be one word, with no space or line break, up to 128 characters`);
   });
   const lower = list.filter(m => typeof m === 'string').map(m => m.toLowerCase());
   if (new Set(lower).size !== lower.length) out.push('the models list names one model twice');
@@ -1256,7 +1154,7 @@ const OFFER_WHENS = Object.freeze({
   words: '',
 });
 // Caps on the data, so no builder file can make a part too long to read.
-const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, measure: 160, line: 300, short: 60, layout: 400 });
+const PARTS_CAPS = Object.freeze({ moves: 12, stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, measure: 160, line: 300, short: 60, layout: 400 });
 // The ISO/IEC 25010:2023 qualities (#273): the names a project's own list takes, and the builder offers.
 const QUALITY_NAMES = Object.freeze(['Functional suitability', 'Performance efficiency', 'Compatibility', 'Interaction capability', 'Reliability', 'Security', 'Maintainability', 'Flexibility', 'Safety']);
 // A skill node's two modes: offered (Claude offers it, I answer) or used (Claude runs it).
@@ -1265,6 +1163,13 @@ const SKILL_MODES = Object.freeze(['offered', 'used']);
 const SECURITY_PAIR = ['adversarial-lens', 'data-lens'];
 
 const DEFAULT_PARTS = Object.freeze({
+  // The moves (#262): how I work, upheld at all times. Each is a lead-in and its text, one paragraph.
+  moves: [
+    { lead: 'Sense the work', text: 'What kind of work is it, how big, how risky, and do I know enough to plan it? Size sets how much checking it needs. A target I can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it.' },
+    { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right. When the intent is still forming, a prototype finds it.' },
+    { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly waits for a checkpoint. A light checkpoint is a check of mine that runs without me, such as a test. A heavy one is my decision before the work moves. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy." },
+    { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
+  ],
   tiers: [
     { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
     { name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
@@ -1353,6 +1258,11 @@ function wrap(text, width = 77) {
 const row = cells => `|${cells.map(c => (c ? ` ${c} ` : ' ')).join('|')}|`;
 const rule = n => row(Array.from({ length: n }, () => '---'));
 
+/** The moves: each a bullet with its lead-in in bold, its text wrapped under it. */
+function compileMoves(p) {
+  return p.moves.map(m => [`- **${m.lead}.**`, ...wrap(m.text, 75).split('\n').map(l => `  ${l}`)].join('\n')).join('\n');
+}
+
 function compileTiers(p) {
   return [row(['Tier', 'Fits', 'Plan', 'Build']), rule(4), ...p.tiers.map(t => row([`**${t.name}**`, t.fits, t.plan, t.build]))].join('\n');
 }
@@ -1438,9 +1348,9 @@ function compileQualities(p) {
   return [row(['Quality', 'Measure', 'Lens']), rule(3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', ')]))].join('\n');
 }
 
-/** Each part's text: { tiers, sensitive, workflow, lenses, qualities }. */
+/** Each part's text: { moves, tiers, sensitive, workflow, lenses, qualities }. */
 function compileParts(p) {
-  return { tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p) };
+  return { moves: compileMoves(p), tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p) };
 }
 
 // ------------------------------------------------------------ the builder's checks
@@ -1469,6 +1379,14 @@ function partsProblems(p) {
   const out = [];
   const err = (part, text) => out.push({ part, level: 'error', text });
   const C = PARTS_CAPS;
+
+  if (!Array.isArray(p.moves) || !p.moves.length || p.moves.length > C.moves) err('moves', `the moves must hold 1 to ${C.moves} moves`);
+  else
+    p.moves.forEach((m, i) => {
+      if (!isObj(m) || !keysIn(m, ['lead', 'text'])) return err('moves', `move ${i + 1}: only lead and text`);
+      if (!lineOk(m.lead, C.short) || !m.lead.trim() || /\*/.test(m.lead)) err('moves', `move ${i + 1}: the lead-in must be one line of 1 to ${C.short} characters, with no asterisk`);
+      if (typeof m.text !== 'string' || !m.text.trim() || /[\r\n]/.test(m.text)) err('moves', `move ${i + 1}: the text must be one paragraph, on one line`);
+    });
 
   if (!Array.isArray(p.tiers) || p.tiers.length !== TIER_KEYS.length) err('tiers', `tiers must list ${TIER_NAMES.join(', ')}, in that order`);
   else
@@ -1598,6 +1516,7 @@ function partsTexts(p) {
   const add = (where, v) => {
     if (typeof v === 'string') out.push([where, v]);
   };
+  (Array.isArray(p.moves) ? p.moves : []).forEach((m, i) => isObj(m) && ['lead', 'text'].forEach(k => add(`move ${i + 1}`, m[k])));
   (Array.isArray(p.tiers) ? p.tiers : []).forEach((t, i) => isObj(t) && ['name', 'fits', 'plan', 'build'].forEach(k => add(`tiers ${i + 1}`, t[k])));
   if (isObj(p.sensitive)) {
     (Array.isArray(p.sensitive.items) ? p.sensitive.items : []).forEach((x, i) => add(`sensitive item ${i + 1}`, x));
@@ -1613,9 +1532,6 @@ function partsTexts(p) {
   return out;
 }
 /* parts-code:end */
-
-// The open parts that are slots for cards: every editable part but the four Scriptorium builds (#262).
-const SLOT_MARKS = PACT.editable.filter(m => !PACT.parts.marks.includes(m));
 
 // The block rules, mirrored from gate/render-core.mjs for usability only: the
 // size cap and the characters. What a block says is the owner's to judge. The
@@ -1650,11 +1566,6 @@ function utf8Length(text) {
   return n;
 }
 
-/** Card text with Windows line endings made plain and trailing line breaks dropped. */
-function normalize(text) {
-  return String(text).replace(/\r\n?/g, '\n').replace(/\n+$/, '');
-}
-
 /** What the page finds wrong in a block file's text, as plain sentences. */
 function blockProblems(text) {
   const out = [];
@@ -1675,68 +1586,13 @@ function blockProblems(text) {
   return out;
 }
 
-const presetById = id => PACT.presets.find(p => p.id === id);
-const openPart = mark => PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === mark);
-// The mark a security-set lens carries off its default: the renderer's words.
-
-// What a "Your agent" card can hand its agent.
-const READS = ['the diff', 'the spec', 'the ticket'];
-const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
-const agentCardText = c => `Then run \`${c.name}\`, an agent from your own agents folder, on ${c.reads}, and post its report on the issue.`;
-// Cards from the person's own Claude folder: a skill to use, or a command to hand back.
-const SKILL_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
-const skillCardText = c => `Use the \`${c.name}\` skill${c.when ? ` when ${c.when}` : ''}.`;
-const commandCardText = c => `At this step, hand me the trigger: type \`/${c.name}\`.`;
-const cardText = card =>
-  card.kind === 'preset' ? presetById(card.id).text
-    : card.kind === 'agent' ? agentCardText(card)
-    : card.kind === 'skill' ? skillCardText(card)
-    : card.kind === 'command' ? commandCardText(card)
-    : card.text;
-
-/** What the page finds wrong in a skill or command card. */
-function skillProblems(c) {
-  if (!SKILL_NAME_RE.test(c.name)) return [`the ${c.kind} name must be letters, digits, '.', '_', '-' or ':'`];
-  if (c.kind === 'skill' && /[\r\n]/.test(c.when || '')) return ['the "when" text must be one line'];
-  return [];
-}
-
-/** What the page finds wrong in a "Your agent" card. */
-function agentProblems(c) {
-  if (!AGENT_NAME_RE.test(c.name)) return ['the agent name must be lowercase letters, digits and hyphens, like my-reviewer'];
-  if (PACT.agents.some(a => a.name === c.name)) return [`${c.name} is one of the pact's own agents; it already runs where the pact names it`];
-  if (!READS.includes(c.reads)) return ['the agent needs something to read: the diff, the spec or the ticket'];
-  return [];
-}
-
-/**
- * Each slot holds two things: whether its default text is replaced, and the
- * cards added to it. Cards always come after whatever stays; the edit the
- * renderer sees follows from the pair (see slotOp).
- */
+/** The page's state: the limits, each agent's setting, the parts Scriptorium builds and the Models list. */
 function initialState() {
-  const slots = {};
-  for (const mark of SLOT_MARKS) slots[mark] = { replaced: false, cards: [] };
   // Each agent starts at its file's own model and effort.
   const agents = {};
   for (const a of PACT.agents) agents[a.name] = { model: a.model, effort: a.effort };
-  // The session limit (#142) starts unset; the four parts (#262) and the Models list (#262 S19) start as the builder file holds them, else the pact's defaults.
-  return { usage: PACT.setting.def, session: null, slots, agents, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)] };
-}
-
-/**
- * The renderer's operation for a slot: keep (no edit), add-after (cards after
- * the default), replace (cards instead of the default) or remove (the default
- * replaced with nothing).
- */
-function slotOp(slot) {
-  if (slot.replaced) return slot.cards.length ? 'replace' : 'remove';
-  return slot.cards.length ? 'add-after' : 'keep';
-}
-
-/** A slot's block file text: its cards joined, ending in one line feed. */
-function slotText(slot) {
-  return `${slot.cards.map(c => normalize(cardText(c))).join('\n')}\n`;
+  // The session limit (#142) starts unset; the parts (#262) and the Models list (#262 S19) start as the builder file holds them, else the pact's defaults.
+  return { usage: PACT.setting.def, session: null, agents, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)] };
 }
 
 /** Everything the page finds: [{ where, level: 'error' | 'warn', text }]. Errors stop a save. */
@@ -1751,35 +1607,11 @@ function problems(state) {
     out.push({ where: ss.name, level: 'error', text: `must be a whole number from ${ss.min} to ${ss.max}, or unset` });
   }
   for (const t of modelsProblems(state.models)) out.push({ where: 'models', level: 'error', text: t });
-  // The four parts: the builder's own checks, then each changed part's text against the block rules.
+  // The parts: the builder's own checks, then each changed part's text against the block rules.
   for (const f of partsProblems(state.parts)) out.push({ where: f.part, level: f.level, text: f.text });
   if (!out.some(f => PACT.parts.marks.includes(f.where) && f.level === 'error')) {
     const compiled = compileParts(state.parts);
     for (const m of PACT.parts.marks) if (compiled[m] !== PACT.parts.text[m]) for (const p of blockProblems(`${compiled[m]}\n`)) out.push({ where: m, level: 'error', text: p });
-  }
-  for (const mark of SLOT_MARKS) {
-    const slot = state.slots[mark];
-    const op = slotOp(slot);
-    if (op === 'keep') continue;
-    if (op !== 'remove') {
-      slot.cards.forEach((c, i) => {
-        if (c.kind === 'agent') for (const t of agentProblems(c)) out.push({ where: mark, level: 'error', text: `card ${i + 1}: ${t}` });
-        else if (c.kind === 'skill' || c.kind === 'command') for (const t of skillProblems(c)) out.push({ where: mark, level: 'error', text: `card ${i + 1}: ${t}` });
-        else if (normalize(cardText(c)).trim() === '') out.push({ where: mark, level: 'error', text: `card ${i + 1} is empty` });
-      });
-      for (const p of blockProblems(slotText(slot))) out.push({ where: mark, level: 'error', text: p });
-    }
-    if (op === 'replace' || op === 'remove') {
-      const named = op === 'remove' ? [] : slotText(slot).match(/`[^`\n]+`/g) || [];
-      const lost = openPart(mark).agents.filter(a => !named.includes(`\`${a}\``));
-      if (lost.length) {
-        out.push({
-          where: mark,
-          level: 'warn',
-          text: `the default text names ${lost.map(a => `\`${a}\``).join(', ')}, and this edit drops ${lost.length === 1 ? 'it' : 'them'}. The install refuses a pact that leaves an installed agent unnamed where it is routed.`,
-        });
-      }
-    }
   }
   return out;
 }
@@ -1802,18 +1634,6 @@ function buildFiles(state) {
   if (Object.keys(agents).length) config.agents = agents;
   const edits = [];
   const blocks = [];
-  for (const mark of SLOT_MARKS) {
-    const slot = state.slots[mark];
-    const op = slotOp(slot);
-    if (op === 'keep') continue;
-    if (op === 'remove') {
-      edits.push({ mark, op });
-      continue;
-    }
-    const file = `${mark}.md`;
-    edits.push({ mark, op, file });
-    blocks.push({ path: `blocks/${file}`, text: slotText(slot) });
-  }
   // A part Scriptorium builds is saved only when its text differs from the pact's: an untouched part raises no security-defaults line.
   for (const [mark, text] of Object.entries(partsChanged(state))) {
     edits.push({ mark, op: 'replace', file: `${mark}.md` });
@@ -1840,7 +1660,7 @@ function partsChanged(state) {
 function builderWith(existing, state) {
   const modelsAtPact = JSON.stringify(state.models) === JSON.stringify(MODEL_NAMES);
   const hasModels = existing !== null && /"models"\s*:/.test(existing);
-  const keys = { tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, ...(modelsAtPact && !hasModels ? {} : { models: state.models }) };
+  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, ...(modelsAtPact && !hasModels ? {} : { models: state.models }) };
   const atPact = !Object.keys(partsChanged(state)).length && modelsAtPact;
   if (existing === null) return atPact ? { skip: true } : { text: `${JSON.stringify({ schema: 1, ...keys }, null, 2)}\n` };
   let doc;
@@ -1918,49 +1738,13 @@ async function keepCommandsIn(dir, files) {
 // Shown wherever the config.json download button is, with or without a folder picker.
 const DOWNLOAD_NOTE = 'A downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands.';
 
-/** Add a preset after its slot's text. Returns a message when it doesn't belong there. */
-function addPreset(state, mark, id) {
-  const p = presetById(id);
-  if (!p) return 'That card is not in the library.';
-  if (p.mark !== mark) return `"${p.title}" belongs in the ${p.mark} slot.`;
-  state.slots[mark].cards.push({ kind: 'preset', id });
-  return null;
-}
-
-/**
- * Apply a workflow: every slot back to its default, then the workflow's
- * presets added. A preset written to stand in for its slot's text turns that
- * slot's Replace on, as the workflow's author meant. The usage value and the
- * agent settings are kept.
- */
-function applyWorkflow(state, id) {
-  const w = PACT.workflows.find(x => x.id === id);
-  if (!w) return 'That workflow is not on this page.';
-  for (const mark of SLOT_MARKS) state.slots[mark] = { replaced: false, cards: [] };
-  for (const pid of w.presets) {
-    const p = presetById(pid);
-    addPreset(state, p.mark, pid);
-    if (p.standsIn) state.slots[p.mark].replaced = true;
-  }
-  return null;
-}
-
-/** The slots as they are now, to put back with restoreSlots. */
-function snapshotSlots(state) {
-  return JSON.stringify(state.slots);
-}
-
-function restoreSlots(state, snap) {
-  state.slots = JSON.parse(snap);
-}
-
-/** Whether every value, slot and agent setting is at its default. */
+/** Whether every value, part and agent setting is at its default. */
 function atDefaults(state) {
   return JSON.stringify(state) === JSON.stringify(initialState());
 }
 
 /**
- * Put everything back to the plain pact: the usage value, every slot and every
+ * Put everything back to the plain pact: the limits, every part and every
  * agent setting. Returns what was there, to put back with restoreAll.
  */
 function resetAll(state) {
@@ -3040,7 +2824,7 @@ function workflowEditor(host, state, changed) {
       el('p', { class: 'av-annot', text: 'The text each part becomes in your rules file.' }),
       ...PACT.parts.marks.flatMap(m => [el('div', { class: 'file-head' }, el('span', { class: 'section-title', text: m }), el('span', { class: 'av-annot', text: out[m] === PACT.parts.text[m] ? 'the default' : 'edited: saved as a replace edit' })), el('pre', { class: 'av-tool-code', text: out[m] })]),
       el('h2', { text: 'What compiles to nothing' }),
-      el('p', { class: 'av-annot', text: 'Where nodes sit, each stage\'s own note, and lenses not yet on a condition. The moves: the pact already says them.' }),
+      el('p', { class: 'av-annot', text: 'Where nodes sit, each stage\'s own note, and lenses not yet on a condition.' }),
     ];
   }
   /** The panel beside the canvas: what is selected, and anything to fix. */
@@ -3205,8 +2989,6 @@ function boot() {
   const $ = id => document.getElementById(id);
   const root = document.documentElement;
   let status = { text: '', level: '' };
-  // The sections Settings holds, kept as nodes so a redraw lands wherever they sit.
-  const spineBox = el('div', { class: 'moves' });
 
   function setStatus(text, level) {
     status = { text, level: level || '' };
@@ -3243,7 +3025,8 @@ function boot() {
   function renderAll() {
     renderAgents();
     if (editor) editor.reset();
-    renderSpine();
+    renderSettings();
+    renderOutput();
   }
 
   let editor = null; // the workflow canvas: the page itself
@@ -3308,9 +3091,74 @@ function boot() {
         limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v)),
         el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
       ),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('moves', 'Moves', spineBox), section('models', 'Models', modelsTab()), box)),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('moves', 'Moves', movesTab()), section('models', 'Models', modelsTab()), box)),
     ));
   }
+  /**
+   * The moves (#262): how I work, upheld at all times, one part. Each is a
+   * lead-in and its text; add, rename, reorder or remove them. A skill binds
+   * to a workflow stage, never to a move.
+   */
+  function movesTab() {
+    const ms = state.parts.moves;
+    const touched = (redraw = true) => {
+      if (editor) editor.partsEdited(false);
+      else renderOutput();
+      if (redraw) renderSettings();
+    };
+    const move = (i, d) => {
+      const j = i + d;
+      if (j < 0 || j >= ms.length) return;
+      [ms[i], ms[j]] = [ms[j], ms[i]];
+      touched();
+    };
+    const text = (m, i) => {
+      const t = el('textarea', { 'aria-label': `Move ${i + 1} text`, rows: '3' });
+      t.value = m.text;
+      t.addEventListener('input', () => {
+        m.text = t.value.replace(/\s*\n\s*/g, ' ');
+        touched(false);
+      });
+      return t;
+    };
+    const lead = (m, i) => {
+      const box = el('input', { type: 'text', 'aria-label': `Move ${i + 1} lead-in`, title: 'The move in a few words, shown in bold' });
+      box.value = m.lead;
+      box.addEventListener('input', () => {
+        m.lead = box.value;
+        touched(false);
+      });
+      box.addEventListener('change', () => renderSettings());
+      return box;
+    };
+    const changed = JSON.stringify(ms) !== JSON.stringify(PACT.parts.defaults.moves);
+    return el(
+      'div',
+      { class: 'acc-stack' },
+      el('p', { class: 'av-annot', text: 'How you work, with or without AI: upheld at all times, whatever the workflow. Bind a skill to a workflow stage on the canvas, not to a move.' }),
+      ...ms.map((m, i) => el(
+        'div',
+        { class: 'wf-group lens-row' },
+        el('div', { class: 'row-line' }, el('span', { class: 'av-num', text: String(i + 1).padStart(2, '0') }), lead(m, i),
+          el('button', { type: 'button', class: 'row-x', title: 'Move it up', 'aria-label': `Move ${m.lead} up`, onclick: () => move(i, -1) }, '↑'),
+          el('button', { type: 'button', class: 'row-x', title: 'Move it down', 'aria-label': `Move ${m.lead} down`, onclick: () => move(i, 1) }, '↓'),
+          el('button', { type: 'button', class: 'row-x', title: 'Remove this move', 'aria-label': `Remove the move ${m.lead}`, onclick: () => {
+            ms.splice(i, 1);
+            touched();
+          } }, '×')),
+        text(m, i),
+      )),
+      el('div', { class: 'chips' }, chip('Add a move', false, () => {
+        ms.push({ lead: 'A new move', text: 'What I do, and why.' });
+        touched();
+      }, 'av-tool-chip--ghost'), chip('Back to the default', false, () => {
+        state.parts.moves = copyParts(PACT.parts.defaults.moves);
+        touched();
+      }, 'av-tool-chip--ghost')),
+      el('span', { class: 'av-label', text: changed ? 'Edited: saved as a replace edit' : 'The default' }),
+    );
+  }
+
   /**
    * The Models list (#262 S19): every model dropdown on the page offers it.
    * It starts as the four Claude models; a model ID of the gate's shape can be
@@ -3442,7 +3290,7 @@ function boot() {
 
   function renderSummary() {
     const found = problems(state);
-    const edits = SLOT_MARKS.filter(m => slotOp(state.slots[m]) !== 'keep').length + Object.keys(partsChanged(state)).length;
+    const edits = Object.keys(partsChanged(state)).length;
     const errors = found.filter(f => f.level === 'error').length;
     const warns = found.length - errors;
     const stateText = errors ? `${errors} to fix` : warns ? `${warns} to check` : 'Ready';
@@ -3498,7 +3346,7 @@ function boot() {
    * and the ranked Qualities list.
    */
   function renderAgents() {
-    const where = r => (r.move ? `${PACT.moves.find(m => m.n === r.move).lead} · ${r.mark}` : `Always on · ${r.mark}`);
+    const where = r => `Always on · ${r.mark}`;
     const offered = a => {
       const offers = state.parts.workflowGraph.offers.filter(o => o.agents.includes(a.name));
       const stages = [...new Set(offers.map(o => (state.parts.workflowGraph.stages.find(x => x.id === o.stage) || { name: '?' }).name))];
@@ -3639,58 +3487,12 @@ function boot() {
 
 
 
-  /**
-   * A move as one text box: its text as the configuration would install it,
-   * the pact's own by default. Edited, it saves as a replace edit; emptied, a
-   * remove; back to the default, no edit at all.
-   */
-  function moveBox(p) {
-    const slot = state.slots[p.mark];
-    const op = slotOp(slot);
-    const now = op === 'keep' ? p.text : op === 'remove' ? '' : op === 'replace' ? slotText(slot).slice(0, -1) : `${p.text}\n${slotText(slot).slice(0, -1)}`;
-    const area = el('div', { class: 'move-area', contenteditable: 'plaintext-only', role: 'textbox', 'aria-multiline': 'true', 'aria-label': `The text of ${p.mark}`, spellcheck: 'true' });
-    area.textContent = now;
-    const tag = el('span', { class: 'av-label' });
-    const reset = chip('Back to the default', false, () => {
-      state.slots[p.mark] = { replaced: false, cards: [] };
-      renderSpine();
-    }, 'av-tool-chip--ghost');
-    const show = () => {
-      const op2 = slotOp(state.slots[p.mark]);
-      tag.textContent = op2 === 'keep' ? 'The default' : op2 === 'remove' ? 'Removed: this move has no text' : 'Edited';
-      reset.disabled = op2 === 'keep';
-    };
-    area.addEventListener('input', () => {
-      const v = normalize(area.innerText ?? area.textContent).replace(/\n+$/, '');
-      state.slots[p.mark] = v === p.text ? { replaced: false, cards: [] } : v.trim() === '' ? { replaced: true, cards: [] } : { replaced: true, cards: [{ kind: 'custom', text: v }] };
-      show();
-      renderOutput();
-    });
-    show();
-    return el('div', { class: 'move-box', 'data-mark': p.mark }, area, el('div', { class: 'slot-bar' }, tag, reset));
-  }
-
-  /** Redraw the spine. A structural change clears the last status message unless the caller just set it. */
-  function renderSpine(clearStatus = true) {
-    if (clearStatus) status = { text: '', level: '' };
-    const moves = PACT.moves.map(m =>
-      el(
-        'article',
-        { class: 'move', id: `move-${m.n}` },
-        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: String(m.n).padStart(2, '0') }), el('h3', { class: 'av-h3', text: m.lead })),
-        ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : moveBox(p))),
-      ),
-    );
-    spineBox.replaceChildren(...moves);
-    renderOutput();
-  }
-
   function renderAlways() {
     $('always').replaceChildren(
       el(
         'article',
         { class: 'move' },
-        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: 'Always on' }), el('h2', { class: 'av-h3', text: 'Pinned blocks outside the four moves' })),
+        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: 'Always on' }), el('h2', { class: 'av-h3', text: 'Fixed clauses no configuration edits' })),
         ...PACT.always.map(lockedPart),
       ),
     );
@@ -3857,7 +3659,7 @@ function boot() {
   helpNotes();
   renderAgents();
   renderAlways();
-  renderSpine();
+  renderOutput();
   // The canvas is the page; Settings and Export open from the head.
   $('export-close').replaceChildren(closeX('export'));
   editor = workflowEditor($('wf'), state, () => renderOutput());
