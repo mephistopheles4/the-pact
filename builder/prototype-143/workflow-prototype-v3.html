@@ -40,7 +40,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.5; }
+body { box-sizing: border-box; padding: var(--av-s1); background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.5; }
 button, input, select, textarea { font: inherit; color: inherit; }
 .av-label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; color: var(--av-ink-70); }
 .av-annot { font-size: var(--av-t-annot); line-height: 1.5; color: var(--av-ink-70); margin: 0; }
@@ -55,14 +55,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; }
 
 /* SHELL: the sheet, head, library | canvas | panel. */
-.sheet { height: 100vh; display: grid; grid-template-rows: auto auto 1fr; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-surface); }
-.head { display: flex; align-items: center; gap: var(--av-s2); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
+/* As groundtrack does it: the graph is the drafting surface, paper with the grid coming through raw;
+   the chrome panels are sheets laid on it, surface fill and a soft shadow (groundtrack's local exception
+   to the no-shadow rule, a literal so it stays a shadow in the dark scheme). Green and amber marks on
+   the ground fill fall below 4.5:1; on paper and surface they clear it. */
+.sheet { --pf-panel-shadow: 0 2px 6px rgb(34 38 43 / 0.16); height: 100%; display: grid; grid-template-rows: auto auto 1fr; border: var(--av-rule-bold) solid var(--av-ink); background-color: var(--av-paper); overflow: hidden; }
+@media screen { [data-aviation-scheme="dark"] .sheet { --pf-panel-shadow: 0 2px 6px rgb(0 0 0 / 0.45); } }
+.head, .bar, .side, #panel, #wtable { background: var(--av-surface); box-shadow: var(--pf-panel-shadow); position: relative; z-index: 2; }
+.head { display: flex; align-items: center; gap: var(--av-s2); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-hair) solid var(--av-ink); z-index: 3; }
 .head h1 { font-size: var(--av-t-lead); margin: 0; font-weight: 600; }
 .head .sp { flex: 1; }
 .bar { display: flex; align-items: center; gap: var(--av-s1); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
 .bar .note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
 .cols { display: grid; grid-template-columns: 250px 1fr 7px var(--panel-w, 330px); min-height: 0; }
-.resizer { cursor: col-resize; background: var(--av-ink-12); border-left: var(--av-rule-hair) solid var(--av-ink-30); touch-action: none; transition: background .15s; }
+.resizer { cursor: col-resize; background: var(--av-surface); position: relative; z-index: 2; border-left: var(--av-rule-hair) solid var(--av-ink-30); touch-action: none; transition: background .15s; }
 .resizer:hover, .resizer.on { background: var(--av-caution); }
 @media (max-width: 1000px) { .cols { grid-template-columns: 200px 1fr; } .resizer { display: none; } #panel { grid-column: 1 / -1; max-height: 40vh; } }
 .side { overflow: auto; padding: var(--av-s2); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s1); }
@@ -83,7 +89,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* CANVAS: the drafting grid, panned and zoomed. */
 #canvas { position: relative; overflow: hidden; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
-  background-color: var(--av-ground);
+  background-color: var(--av-paper);
   background-image:
     linear-gradient(to right, var(--av-grid-major) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-major) 1px, transparent 1px),
     linear-gradient(to right, var(--av-grid-minor) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-minor) 1px, transparent 1px); }
@@ -99,7 +105,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 #edges path.e.loop { stroke: var(--av-caution); stroke-dasharray: 8 5; animation: flow 1.6s linear infinite; }
 #edges path.e.sel { stroke-width: 3.5; }
 #edges path.temp { fill: none; stroke: var(--av-caution); stroke-width: 2; stroke-dasharray: 4 4; }
-#edges text { font-family: var(--av-font); font-size: 11px; fill: var(--av-caution); pointer-events: all; cursor: pointer; paint-order: stroke; stroke: var(--av-ground); stroke-width: 4px; }
+#edges text { font-family: var(--av-font); font-size: 11px; fill: var(--av-caution); pointer-events: all; cursor: pointer; paint-order: stroke; stroke: var(--av-paper); stroke-width: 4px; }
 #edges circle.pulse { fill: var(--av-normal); filter: drop-shadow(0 0 4px var(--av-normal)); }
 @keyframes flow { to { stroke-dashoffset: -24; } }
 .zoom { position: absolute; left: var(--av-s2); bottom: var(--av-s2); display: flex; gap: 2px; background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); }
@@ -149,7 +155,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* WORKFLOW TABLE: the part the canvas edits, live under it. */
 .centre { display: grid; grid-template-rows: 1fr auto; min-height: 0; min-width: 0; }
-#wtable { max-height: 40vh; overflow: auto; border-top: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper); padding: var(--av-s1) var(--av-s2) var(--av-s2); }
+#wtable { max-height: 40vh; overflow: auto; border-top: var(--av-rule-hair) solid var(--av-ink); padding: var(--av-s1) var(--av-s2) var(--av-s2); }
 #wtable .whead { display: flex; gap: var(--av-s2); align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
 #wtable h2 { font-size: var(--av-t-body); margin: 0; font-weight: 600; }
 table.wf { width: 100%; border-collapse: collapse; font-size: var(--av-t-micro); }
