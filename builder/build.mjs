@@ -186,13 +186,7 @@ export function pactData(root) {
     while (first > 0 && seq[first - 1].mark) first -= 1;
     const ps = [];
     for (let j = first; j < seq.length && seq[j].mark; j += 1) ps.push(part(seq[j].mark));
-    // The move's own text: its bullet, from the bold lead-in to its first part, shown read-only on the page.
-    const srcLines = src.split('\n');
-    const markAt = srcLines.findIndex(l => l.trim() === `<!-- pact:begin ${name} -->`);
-    let from = markAt;
-    while (from > 0 && !LEAD_RE.test(srcLines[from])) from -= 1;
-    const text = srcLines.slice(from, markAt).map(l => l.replace(/^- /, '').replace(/^ {2}/, '')).join('\n');
-    moves.push({ n: k + 1, lead, text, parts: ps });
+    moves.push({ n: k + 1, lead, parts: ps });
   });
   if (new Set(moves.map(m => m.lead)).size !== moves.length) fail('claude/CLAUDE.md has two move parts under one move');
   const inMoves = moves.flatMap(m => m.parts.map(p => p.mark));

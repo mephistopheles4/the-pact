@@ -11,6 +11,8 @@ The rules file gains four open parts a home configuration may edit: `tiers`, `se
 - **The builder file** gains `tiers`, `sensitive`, `workflowGraph` and `lenses`, each optional. The roster's key is the owner's q13 (A): without it a roster edit could not be saved and reloaded. The `workflows` key stays for schema 1, labelled "Setups" on the page.
 - **The builder's checks:** a stage with two default ways on, and default ways on in a circle, are refused; one lens of a pair alone on an offer is a finding; the content policy and the one-line and length caps cover every text field of the four parts. These are builder checks, not install-time controls: a block written by hand skips them.
 - **The page** keeps v3's canvas, its run-it-through pulse and its tour, as a Workflow step after the moves. It is rendered through the page's text-only helper, and the links are drawn on a 2D canvas, because the page's content check refuses the address an SVG element needs. A part is saved as a `replace` edit only when its compiled text differs from the pact's, so an untouched page raises no security-defaults line. A save to a folder also writes the four keys into that folder's `builder.json`.
+- **Each move's body is its part** (the owner, from chat, in the page rework). A move's open mark wraps the text under its bold lead-in, where it was an empty slot after it. A configuration can now replace or remove a move's whole text, which the page edits in place as one box per move; the lead-in stays. Such an edit shows as that part's ordinary dry-run warning, not the security-defaults line (R30).
+- **Skill nodes** (the owner, from chat): the graph may hold skills, each at a stage, offered or used, with its own when. The workflow table gains a "Skills, and when" column only once a skill is wired, so the default text is unchanged.
 - **`usage-pause-session`** (#142): a whole number from 0 to 100, filled from a fixed template into an empty part after the weekly line. Unset, the render is byte for byte what it was. A project may only set it tighter, and with no user value any project value is tighter. The builder's Settings dialog holds both limits.
 
 ## Why
@@ -23,5 +25,5 @@ The rules file gains four open parts a home configuration may edit: `tiers`, `se
 ## What it leaves open
 
 - A part edited by hand, or a builder file edited outside the page, skips the builder's checks. The dry run's line and the owner's reading of the rendered parts are the control.
-- Any part, moves included, can carry narrowing prose; only an edit to the four raises the security-defaults line (R30).
+- Any part, moves included, can carry narrowing prose, and a move's whole text can now be replaced; only an edit to the four raises the security-defaults line (R30).
 - The QA pair at every build is no longer in the protected set: it is the default workflow's, editable behind the line (adversarial F7, R21).

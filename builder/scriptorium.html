@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hA4NJEfReEyheqT7UnXcrbzCIgiNuV5KuFzFWQyfZAc='; style-src 'sha256-8RVDShZAh9TYPbWZNMOyQudNNgRIqEFuRu89Lb4EfV4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-D88GA1KEffiDG2yT+vNiXfPbogwsCwg4IGE4JgRCc0M='; style-src 'sha256-ZAMj0SIpkxYpUdxfi3J8r4KUXiqVHcrUSGAPfv8wIAs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -125,7 +125,10 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-tool-detail { min-width: 0; padding: var(--av-s3) var(--av-s4); }
 .moves .move { padding: var(--av-s2) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
 .moves .move:first-child { padding-top: 0; }
-.move-text { margin-bottom: var(--av-s1); }
+.move-area { min-height: 5em; padding: var(--av-s1) var(--av-s2); white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-thin) dashed var(--av-ink-30); cursor: text; }
+.move-area:hover { border-color: var(--av-ink-55); }
+.move-area:focus { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; border-style: solid; border-color: var(--av-ink); }
+.move-box { display: flex; flex-direction: column; gap: var(--av-s1); }
 @media (max-width: 900px) { .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); } }
 /* TYPE */
 .av-label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; color: var(--av-ink-70); }
@@ -409,12 +412,11 @@ const PACT = /* pact-data:begin */ {
   {
    "n": 1,
    "lead": "Sense the work",
-   "text": "**Sense the work.** What kind of work is it, how big, how risky, and do I\nknow enough to plan it? Size sets how much checking it needs. A target I can\nknow gets a plan; an unknown one gets an experiment first. A bug is\nreproduced and traced to its start before anyone fixes it.",
    "parts": [
     {
      "kind": "open",
      "mark": "move-1",
-     "text": "",
+     "text": "What kind of work is it, how big, how risky, and do I know enough to plan\nit? Size sets how much checking it needs. A target I can know gets a plan;\nan unknown one gets an experiment first. A bug is reproduced and traced to\nits start before anyone fixes it.",
      "agents": []
     }
    ]
@@ -422,12 +424,11 @@ const PACT = /* pact-data:begin */ {
   {
    "n": 2,
    "lead": "Think before doing",
-   "text": "**Think before doing.** I get the intent clear enough to defend: what it is\nfor, how it can go wrong, and why each decision is right. When the intent is\nstill forming, a prototype finds it.",
    "parts": [
     {
      "kind": "open",
      "mark": "move-2",
-     "text": "",
+     "text": "I get the intent clear enough to defend: what it is for, how it can go\nwrong, and why each decision is right. When the intent is still forming, a\nprototype finds it.",
      "agents": []
     }
    ]
@@ -435,12 +436,11 @@ const PACT = /* pact-data:begin */ {
   {
    "n": 3,
    "lead": "Checkpoint the seams",
-   "text": "**Checkpoint the seams.** Where work is handed on, published or decided,\nanything costly waits for a checkpoint. A light checkpoint is a check of\nmine that runs without me, such as a test. A heavy one is my decision\nbefore the work moves. The harder a step is to undo, the heavier its\ncheckpoint. When in doubt, it's heavy.",
    "parts": [
     {
      "kind": "open",
      "mark": "move-3",
-     "text": "",
+     "text": "Where work is handed on, published or decided, anything costly waits for a\ncheckpoint. A light checkpoint is a check of mine that runs without me,\nsuch as a test. A heavy one is my decision before the work moves. The\nharder a step is to undo, the heavier its checkpoint. When in doubt, it's\nheavy.",
      "agents": []
     }
    ]
@@ -448,12 +448,11 @@ const PACT = /* pact-data:begin */ {
   {
    "n": 4,
    "lead": "Stay the owner",
-   "text": "**Stay the owner.** I own a result when I can verify it, reconstruct why it\nis right, and know when to stop it. Checks that could have failed are the\nevidence.",
    "parts": [
     {
      "kind": "open",
      "mark": "move-4-extra",
-     "text": "",
+     "text": "I own a result when I can verify it, reconstruct why it is right, and know\nwhen to stop it. Checks that could have failed are the evidence.",
      "agents": []
     }
    ]
@@ -3119,10 +3118,6 @@ function boot() {
   }
 
 
-  /** A new "Your agent" card: a move-2 slot hands it the spec, every other slot the diff. */
-  function newAgentCard(mark) {
-    return { kind: 'agent', name: '', reads: mark === 'move-2' ? 'the spec' : 'the diff' };
-  }
 
   let applied = null; // { id, before }: the last workflow applied, and the slots before it, for undo
 
@@ -3214,11 +3209,6 @@ function boot() {
 
 
 
-  function drop(mark, id) {
-    const msg = addPreset(state, mark, id);
-    status = { text: msg || '', level: msg ? 'error' : '' };
-    renderSpine(false);
-  }
 
   function lockedPart(p) {
     return el(
@@ -3229,143 +3219,37 @@ function boot() {
     );
   }
 
-  function openSlot(p) {
+
+
+  /**
+   * A move as one text box: its text as the configuration would install it,
+   * the pact's own by default. Edited, it saves as a replace edit; emptied, a
+   * remove; back to the default, no edit at all.
+   */
+  function moveBox(p) {
     const slot = state.slots[p.mark];
-    const empty = p.text.trim() === '';
     const op = slotOp(slot);
-    // An empty slot has no default to replace.
-    const replace = empty
-      ? null
-      : chip('Replace default text', slot.replaced, () => {
-          slot.replaced = !slot.replaced;
-          renderSpine();
-        }, '', true);
-
-    const cards = slot.cards.map((c, i) => {
-      const remove = chip('Remove card', false, () => {
-        slot.cards.splice(i, 1);
-        renderSpine();
-      }, 'av-tool-chip--ghost');
-      if (c.kind === 'preset') {
-        const pre = presetById(c.id);
-        return el('div', { class: 'card' }, el('span', { class: 'card-tab', text: `Preset · ${pre.title}` }), prose(pre.text), el('div', { class: 'card-foot' }, el('span'), remove));
-      }
-      if (c.kind === 'skill' || c.kind === 'command') {
-        const preview = el('div');
-        const show = () => preview.replaceChildren(prose(cardText(c)));
-        const rows = [];
-        if (c.kind === 'skill') {
-          const when = el('input', { type: 'text', 'aria-label': `When to use ${c.name}`, placeholder: 'optional: the work touches the database', spellcheck: 'true' });
-          when.value = c.when || '';
-          when.addEventListener('input', () => {
-            c.when = when.value.replace(/[\r\n]+/g, ' ').trim().replace(/\.$/, '');
-            show();
-            renderOutput();
-          });
-          rows.push(el('div', { class: 'field-row' }, el('label', { text: 'When' }), when));
-        }
-        show();
-        return el(
-          'div',
-          { class: 'card' },
-          el('span', { class: 'card-tab', text: c.kind === 'skill' ? `Your skill · ${c.name}` : `Your command · /${c.name}` }),
-          ...rows,
-          preview,
-          el('div', { class: 'card-foot' }, el('span'), remove),
-        );
-      }
-      if (c.kind === 'agent') {
-        const name = el('input', { type: 'text', 'aria-label': `Your agent's name for ${p.mark}`, placeholder: 'my-reviewer', spellcheck: 'false', autocomplete: 'off' });
-        name.value = c.name;
-        const reads = el('select', { 'aria-label': `What your agent reads in ${p.mark}` }, ...READS.map(r => el('option', { value: r, text: r })));
-        reads.value = c.reads;
-        const preview = el('div');
-        const show = () => preview.replaceChildren(prose(agentCardText(c)));
-        name.addEventListener('input', () => {
-          c.name = name.value.trim();
-          show();
-          renderOutput();
-        });
-        reads.addEventListener('change', () => {
-          c.reads = reads.value;
-          show();
-          renderOutput();
-        });
-        show();
-        return el(
-          'div',
-          { class: 'card' },
-          el('span', { class: 'card-tab', text: 'Your agent' }),
-          el('div', { class: 'field-row' }, el('label', { text: 'Agent' }), name, el('label', { text: 'Reads' }), reads),
-          preview,
-          el('div', { class: 'card-foot' }, el('span', { class: 'av-annot', text: 'Install the agent in your own agents folder; the pact never installs it.' }), remove),
-        );
-      }
-      const area = el('textarea', { 'aria-label': `Your text for ${p.mark}`, spellcheck: 'true', placeholder: 'Plain lines. No blank lines, headings, lists or leading spaces.' });
-      area.value = c.text;
-      area.addEventListener('input', () => {
-        c.text = area.value;
-        renderOutput();
-      });
-      return el('div', { class: 'card' }, el('span', { class: 'card-tab', text: 'Your text' }), area, el('div', { class: 'card-foot' }, el('span'), remove));
-    });
-
-    const addOwn = chip('Add your own text', false, () => {
-      slot.cards.push({ kind: 'custom', text: '' });
+    const now = op === 'keep' ? p.text : op === 'remove' ? '' : op === 'replace' ? slotText(slot).slice(0, -1) : `${p.text}\n${slotText(slot).slice(0, -1)}`;
+    const area = el('div', { class: 'move-area', contenteditable: 'plaintext-only', role: 'textbox', 'aria-multiline': 'true', 'aria-label': `The text of ${p.mark}`, spellcheck: 'true' });
+    area.textContent = now;
+    const tag = el('span', { class: 'av-label' });
+    const reset = chip('Back to the default', false, () => {
+      state.slots[p.mark] = { replaced: false, cards: [] };
       renderSpine();
     }, 'av-tool-chip--ghost');
-
-    const addAgent = chip('Add your agent', false, () => {
-      slot.cards.push(newAgentCard(p.mark));
-      renderSpine();
-    }, 'av-tool-chip--ghost');
-
-    const SAYS = {
-      keep: empty ? 'Empty' : 'Default',
-      'add-after': empty ? 'Text added' : 'Default + added',
-      replace: 'Replaced',
-      remove: 'Removed',
+    const show = () => {
+      const op2 = slotOp(state.slots[p.mark]);
+      tag.textContent = op2 === 'keep' ? 'The default' : op2 === 'remove' ? 'Removed: this move has no text' : 'Edited';
+      reset.disabled = op2 === 'keep';
     };
-    const edited = op !== 'keep';
-    const box = el(
-      'div',
-      { class: `part part--open${edited ? ' part--edited' : ''}`, 'data-mark': p.mark },
-      el('span', { class: 'part-tag' }, el('b', { text: 'Open' }), el('span', { text: p.mark })),
-      el('div', { class: 'slot-bar' }, replace || el('span'), el('span', { class: 'av-label', text: SAYS[op] })),
-      empty ? el('p', { class: 'av-annot', text: 'Your additions to this move go here, after its text.' }) : prose(p.text, slot.replaced ? 'prose prose--struck' : 'prose'),
-      op === 'remove' ? el('p', { class: 'av-annot', text: 'The default text is removed and nothing takes its place. Add a card to put text here instead.' }) : null,
-      ...cards,
-      el('div', { class: 'card-foot' }, el('div', { class: 'chips' }, addOwn, addAgent, ...presetPick(p.mark))),
-    );
-    box.addEventListener('dragover', e => {
-      e.preventDefault();
-      box.classList.add('part--over');
+    area.addEventListener('input', () => {
+      const v = normalize(area.innerText ?? area.textContent).replace(/\n+$/, '');
+      state.slots[p.mark] = v === p.text ? { replaced: false, cards: [] } : v.trim() === '' ? { replaced: true, cards: [] } : { replaced: true, cards: [{ kind: 'custom', text: v }] };
+      show();
+      renderOutput();
     });
-    box.addEventListener('dragleave', () => box.classList.remove('part--over'));
-    box.addEventListener('drop', e => {
-      e.preventDefault();
-      box.classList.remove('part--over');
-      const data = e.dataTransfer.getData('text/plain');
-      if (data.startsWith('preset:')) drop(p.mark, data.slice('preset:'.length));
-      else if (data === 'agent:new') {
-        slot.cards.push(newAgentCard(p.mark));
-        renderSpine();
-      } else if (/^(skill|command|agent):/.test(data)) {
-        const kind = data.slice(0, data.indexOf(':'));
-        const name = data.slice(kind.length + 1);
-        slot.cards.push(kind === 'agent' ? { ...newAgentCard(p.mark), name } : kind === 'skill' ? { kind, name, when: '' } : { kind, name });
-        renderSpine();
-      }
-    });
-    return box;
-  }
-
-  /** The presets for one slot, as a list and an Add chip; none when the builder has none for it. */
-  function presetPick(mark) {
-    const items = PACT.presets.filter(x => x.mark === mark);
-    if (!items.length) return [];
-    const pick = el('select', { 'aria-label': `A preset for ${mark}` }, ...items.map(x => el('option', { value: x.id, text: x.title })));
-    return [pick, chip('Add preset', false, () => drop(mark, pick.value), 'av-tool-chip--ghost')];
+    show();
+    return el('div', { class: 'move-box', 'data-mark': p.mark }, area, el('div', { class: 'slot-bar' }, tag, reset));
   }
 
   /** Redraw the spine. A structural change clears the last status message unless the caller just set it. */
@@ -3376,8 +3260,7 @@ function boot() {
         'article',
         { class: 'move', id: `move-${m.n}` },
         el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: String(m.n).padStart(2, '0') }), el('h3', { class: 'av-h3', text: m.lead })),
-        prose(m.text, 'prose move-text'),
-        ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p))),
+        ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : moveBox(p))),
       ),
     );
     spineBox.replaceChildren(...moves);

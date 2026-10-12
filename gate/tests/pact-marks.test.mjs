@@ -73,14 +73,16 @@ test('no open mark encloses or overlaps a gated mark', () => {
 });
 
 // #261 C1
-test('each move is a bullet with a bold lead-in, and its part is an empty slot at the end of it, indented under it', () => {
-  const bullets = LINES.map((l, i) => (i > MOVES_AT && /^- \*\*[^*]+\.\*\* /.test(l) ? i : -1)).filter(i => i >= 0);
+// #262: each move's body is its part, so the whole move text is editable and its lead-in is not.
+test('each move is a bullet with a bold lead-in alone on its line, and its part holds the move\'s whole body, indented under it', () => {
+  const bullets = LINES.map((l, i) => (i > MOVES_AT && /^- \*\*[^*]+\.\*\*$/.test(l) ? i : -1)).filter(i => i >= 0);
   assert.ok(bullets.length >= 4, 'four move bullets');
   MOVE_PARTS.forEach((name, k) => {
     const b = at(`  <!-- pact:begin ${name} -->`);
-    assert.ok(b > bullets[k] && (k === 3 || b < bullets[k + 1]), `${name} sits under move ${k + 1}`);
-    assert.ok(LINES.slice(bullets[k] + 1, b).every(l => l.startsWith('  ') && l.trim() !== ''), `${name} follows its move's text with no break`);
-    assert.equal(LINES[b + 1], `  <!-- pact:end ${name} -->`, `${name} is an empty slot`);
+    const e = at(`  <!-- pact:end ${name} -->`);
+    assert.equal(b, bullets[k] + 1, `${name} opens right under move ${k + 1}'s lead-in`);
+    assert.ok(e > b + 1 && LINES.slice(b + 1, e).every(l => /^ {2}\S/.test(l)), `${name} holds the body, at the bullet's indent, with no blank line`);
+    assert.ok(k === 3 || e + 1 === bullets[k + 1], `${name} ends where the next move starts`);
   });
 });
 

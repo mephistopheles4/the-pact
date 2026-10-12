@@ -159,24 +159,26 @@ test('each shipped example block is known-good on its own, under each operation 
 });
 
 // #261 C14
-test('a remove takes out the part\'s text and keeps the move\'s bullet', t => {
+// #262: a move's body is its part, so a remove leaves its lead-in alone.
+test('a remove takes out the move\'s text and keeps its bullet and lead-in', t => {
   const config = JSON.stringify(cfg([{ mark: 'move-1', op: 'remove' }]));
   const r = render(t, homeWith(t, config));
   assert.equal(r.code, 0, r.out);
   const edits = [{ mark: 'move-1', op: 'remove' }];
   assert.equal(r.bytes.toString('utf8'), expected(read(SOURCE), { digest: digestOf(Buffer.from(config), edits), edits }));
   assert.match(r.stdout, /^EDIT move-1 remove$/m);
-  assert.match(r.bytes.toString('utf8'), /^ {2}reproduced and traced to its start before anyone fixes it\.\n- \*\*Think before doing\.\*\* /m);
+  assert.match(r.bytes.toString('utf8'), /^- \*\*Sense the work\.\*\*\n- \*\*Think before doing\.\*\*\n/m);
 });
 
 // #261 C14
+// #262: a replace takes the move's whole text, under its lead-in.
 test('a replace keeps the move\'s bullet and lead-in, and the digest changes when only a block changes', t => {
   const config = JSON.stringify(cfg([{ mark: 'move-3', op: 'replace', file: 'm3.md' }]));
   const a = render(t, homeWith(t, config, { 'm3.md': 'First text.\n' }));
   const b = render(t, homeWith(t, config, { 'm3.md': 'Second text.\n' }));
   assert.equal(a.code, 0, a.out);
   assert.equal(b.code, 0, b.out);
-  assert.match(a.bytes.toString('utf8'), /^ {2}checkpoint\. When in doubt, it's heavy\.\n {2}First text\.\n- \*\*Stay the owner\.\*\* /m);
+  assert.match(a.bytes.toString('utf8'), /^- \*\*Checkpoint the seams\.\*\*\n {2}First text\.\n- \*\*Stay the owner\.\*\*\n/m);
   const dA = /^DIGEST (\S+)$/m.exec(a.stdout)[1];
   const dB = /^DIGEST (\S+)$/m.exec(b.stdout)[1];
   assert.notEqual(dA, dB, 'a block change must show in the digest');
@@ -225,7 +227,7 @@ test('re-indented block text stays inside its move: a move-4-extra block lands a
   const root = stage(t, { 'claude/agents/extra-agent.md': plainAgent('extra-agent') });
   const block = 'Then run `extra-agent` on the diff.\n';
   renderStage(root, homeWith(t, cfg([{ mark: 'move-4-extra', op: 'add-after', file: 'x.md' }]), { 'x.md': block }));
-  assert.match(read(join(root, 'claude', 'CLAUDE.md')), /^ {2}evidence\.\n {2}Then run `extra-agent` on the diff\.$/m);
+  assert.match(read(join(root, 'claude', 'CLAUDE.md')), /^ {2}when to stop it\. Checks that could have failed are the evidence\.\n {2}Then run `extra-agent` on the diff\.$/m);
   const r = runSeamA(root);
   assert.equal(r.code, 0, r.out);
 });

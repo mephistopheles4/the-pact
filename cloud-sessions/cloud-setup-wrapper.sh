@@ -201,21 +201,24 @@ The moves are how I work, with or without AI. They are my practices, and I
 take each up as the work needs it. They keep human judgment above everything
 else: the stages, the tools and the agents of working with AI.
 
-- **Sense the work.** What kind of work is it, how big, how risky, and do I
-  know enough to plan it? Size sets how much checking it needs. A target I can
-  know gets a plan; an unknown one gets an experiment first. A bug is
-  reproduced and traced to its start before anyone fixes it.
-- **Think before doing.** I get the intent clear enough to defend: what it is
-  for, how it can go wrong, and why each decision is right. When the intent is
-  still forming, a prototype finds it.
-- **Checkpoint the seams.** Where work is handed on, published or decided,
-  anything costly waits for a checkpoint. A light checkpoint is a check of
-  mine that runs without me, such as a test. A heavy one is my decision
-  before the work moves. The harder a step is to undo, the heavier its
-  checkpoint. When in doubt, it's heavy.
-- **Stay the owner.** I own a result when I can verify it, reconstruct why it
-  is right, and know when to stop it. Checks that could have failed are the
-  evidence.
+- **Sense the work.**
+  What kind of work is it, how big, how risky, and do I know enough to plan
+  it? Size sets how much checking it needs. A target I can know gets a plan;
+  an unknown one gets an experiment first. A bug is reproduced and traced to
+  its start before anyone fixes it.
+- **Think before doing.**
+  I get the intent clear enough to defend: what it is for, how it can go
+  wrong, and why each decision is right. When the intent is still forming, a
+  prototype finds it.
+- **Checkpoint the seams.**
+  Where work is handed on, published or decided, anything costly waits for a
+  checkpoint. A light checkpoint is a check of mine that runs without me,
+  such as a test. A heavy one is my decision before the work moves. The
+  harder a step is to undo, the heavier its checkpoint. When in doubt, it's
+  heavy.
+- **Stay the owner.**
+  I own a result when I can verify it, reconstruct why it is right, and know
+  when to stop it. Checks that could have failed are the evidence.
 
 ## How Claude helps
 
@@ -2269,7 +2272,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 23cce1e23a8b0d3128a7fc5f20b7405993e9ff22a8f96073b6f2257957bf8873 'CLAUDE.md'
+check_hash 291f257438ae69d99f10bef19cbc8aab2d0762088252a1ba3e0eb4f72fd42611 'CLAUDE.md'
 check_hash b7f32609e682b95f0f4b76afdfdbde87749c41cba240a029a385c48f79a30807 'agents/adversarial-lens.md'
 check_hash 3bb7d5996df6cfb32cab6ecee4a00186ff5e736f11b1e95f6c56e14bc5cefc27 'agents/behaviour-lens.md'
 check_hash ae2297a24909f710c061a145dc3fdaa80198f7f76da06875af57070d2061ae60 'agents/conventions-lens.md'
@@ -2300,7 +2303,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy adc9a36ac0da"
+  echo "pact cloud copy d9e16bf71b18"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

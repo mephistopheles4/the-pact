@@ -9,21 +9,24 @@ The moves are how I work, with or without AI. They are my practices, and I
 take each up as the work needs it. They keep human judgment above everything
 else: the stages, the tools and the agents of working with AI.
 
-- **Sense the work.** What kind of work is it, how big, how risky, and do I
-  know enough to plan it? Size sets how much checking it needs. A target I can
-  know gets a plan; an unknown one gets an experiment first. A bug is
-  reproduced and traced to its start before anyone fixes it.
-- **Think before doing.** I get the intent clear enough to defend: what it is
-  for, how it can go wrong, and why each decision is right. When the intent is
-  still forming, a prototype finds it.
-- **Checkpoint the seams.** Where work is handed on, published or decided,
-  anything costly waits for a checkpoint. A light checkpoint is a check of
-  mine that runs without me, such as a test. A heavy one is my decision
-  before the work moves. The harder a step is to undo, the heavier its
-  checkpoint. When in doubt, it's heavy.
-- **Stay the owner.** I own a result when I can verify it, reconstruct why it
-  is right, and know when to stop it. Checks that could have failed are the
-  evidence.
+- **Sense the work.**
+  What kind of work is it, how big, how risky, and do I know enough to plan
+  it? Size sets how much checking it needs. A target I can know gets a plan;
+  an unknown one gets an experiment first. A bug is reproduced and traced to
+  its start before anyone fixes it.
+- **Think before doing.**
+  I get the intent clear enough to defend: what it is for, how it can go
+  wrong, and why each decision is right. When the intent is still forming, a
+  prototype finds it.
+- **Checkpoint the seams.**
+  Where work is handed on, published or decided, anything costly waits for a
+  checkpoint. A light checkpoint is a check of mine that runs without me,
+  such as a test. A heavy one is my decision before the work moves. The
+  harder a step is to undo, the heavier its checkpoint. When in doubt, it's
+  heavy.
+- **Stay the owner.**
+  I own a result when I can verify it, reconstruct why it is right, and know
+  when to stop it. Checks that could have failed are the evidence.
 
 ## How Claude helps
 

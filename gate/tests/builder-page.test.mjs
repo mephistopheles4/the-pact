@@ -479,7 +479,7 @@ const openSettings = P => {
 };
 
 // #262: the canvas is the page; Settings holds the moves, the setups, the agents and the canvas's other parts; Export holds the save.
-test('stub page: the canvas is the page, and the head opens Settings and Export; Settings holds each move with its own text', () => {
+test('stub page: the canvas is the page, and the head opens Settings and Export; Settings holds each move as a text box with its default', () => {
   const P = bootPage();
   assert.equal(P.find(P.ids.wf, n => n.attrs && n.attrs['aria-label'] === 'The workflow canvas').length, 1);
   assert.deepEqual(P.find(P.ids.actions, n => n.tag === 'button').map(b => b.text), ['Settings', 'Dark', 'Export']);
@@ -487,25 +487,33 @@ test('stub page: the canvas is the page, and the head opens Settings and Export;
   const box = openSettings(P);
   assert.deepEqual(P.find(box, n => n.tag === 'summary').map(n => n.text), ['Moves', 'Setups', 'Agents', 'Tiers', 'Sensitive work', 'Lenses', 'Results']);
   assert.deepEqual(P.find(box, n => n.tag === 'article').map(a => a.attrs.id), ['move-1', 'move-2', 'move-3', 'move-4']);
-  // #262: each move shows its own text, not "empty by default".
-  for (const m of L.PACT.moves) assert.ok(m.text.startsWith(`**${m.lead}.**`), m.lead);
-  assert.match(box.text, /What kind of work is it, how big, how risky/);
+  // #262: each move is a text box holding its own text, the default, to edit in place.
+  const areas = P.find(box, n => n.attrs.role === 'textbox');
+  assert.deepEqual(areas.map(a => a.textContent), L.PACT.moves.map(m => m.parts.find(p => p.kind === 'open').text));
+  assert.match(areas[0].textContent, /^What kind of work is it, how big, how risky/);
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /Save/);
 });
 
-test('stub page: reset all puts the moves back, and undo puts the edits back', () => {
+/** Type `text` into a move's box on a stub page, as the input event would. */
+const typeInto = (area, text) => {
+  area.textContent = text;
+  area.listeners.input.forEach(f => f({}));
+};
+
+test('stub page: an edited move saves as a replace edit; reset all puts the default back, and undo puts the edit back', () => {
   const P = bootPage();
-  const box = openSettings(P);
-  P.button(box, 'Add your own text').click();
+  typeInto(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0], 'I sense the work my own way.');
   assert.match(P.ids.summary.text, /1 of/);
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /"mark": "move-1",\s*"op": "replace"/);
   P.button(P.ids.reset, 'Reset all').click();
-  assert.equal(P.find(openSettings(P), n => n.tag === 'textarea').length, 0);
+  assert.match(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0].textContent, /^What kind of work/);
   P.button(P.ids.reset, 'Undo reset').click();
-  assert.equal(P.find(openSettings(P), n => n.tag === 'textarea').length, 1);
+  assert.equal(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0].textContent, 'I sense the work my own way.');
 });
 
-test('stub page: an override shows in Agents and in Export, and a slot\'s problem shows in Export', () => {
+test('stub page: an override shows in Agents and in Export, and a move\'s problem shows in Export', () => {
   const P = bootPage();
   const box = openSettings(P);
   const pick = P.find(box, n => n.tag === 'select' && n.attrs['aria-label'] === 'data-lens model')[0];
@@ -513,8 +521,9 @@ test('stub page: an override shows in Agents and in Export, and a slot\'s proble
   pick.listeners.change.forEach(f => f({}));
   assert.match(openSettings(P).text, /override, not security-tested/);
   assert.match(P.ids.output.text, /data-lens · override, not security-tested/);
-  P.button(openSettings(P), 'Add your own text').click();
-  assert.match(P.ids.output.text, /Fix · move-1 · card 1 is empty/);
+  typeInto(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0], '# A heading');
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /Fix · move-1 · /);
 });
 
 test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
