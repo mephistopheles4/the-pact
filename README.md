@@ -45,47 +45,47 @@ The moves name no skills. You bind your own tools to them through a configuratio
 
 ## How much checking
 
-Not every change needs a spec. Each piece of work gets a tier (quick, standard or thorough), and the tier says how much checking it needs. Sensitive work, by default auth, secrets, crypto, input validation and data migrations, gets more: thorough, built on Opus at high.
+Not every change needs a spec. Each piece of work gets a tier (quick, standard or thorough), and the tier says how much checking it needs. Sensitive work, by default auth, secrets, crypto, input validation and data migrations, gets more when I choose it. The agent says why in one line in its tier proposal and recommends the sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. If I decline it, or nobody answers, the security pair is offered once more at Test. The rules file's Workflow table says what each tier sets at each stage, from Plan to Maintain, and which lenses to offer there.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-02-tiers-dark.svg">
-  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. Quick, standard and thorough work gets more checking as the tier rises. By default, auth, secrets, crypto, input validation and data migrations are sensitive work: thorough, built on Opus at high." width="800">
+  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. What quick, standard and thorough work each fits, and the models that plan and build it. By default, auth, secrets, crypto, input validation and data migrations are sensitive work; the agent recommends the sensitive route, thorough and on Opus at high, and I take it or not." width="800">
 </picture>
 
 <details>
 <summary>Text of FIG. 02</summary>
 
-| Tier | Fits | Checking | Plan | Build |
-|---|---|---|---|---|
-| Quick | Small, one session, no plan needed | Tests, then the QA pair | — | Opus, low |
-| Standard | Needs a short spec | The spec read for what is unstated; tests, the QA pair, and the lenses the diff calls for | Opus, medium | Sonnet, medium |
-| Thorough | Too big for one session, or risky | The spec read before I approve it; tickets, each its own session; per ticket, tests, the QA pair and the lenses the diff calls for | Opus, high | Sonnet, medium |
+| Tier | Fits | Plan | Build |
+|---|---|---|---|
+| Quick | Small, one session, no plan needed | — | Opus, low |
+| Standard | Needs a short spec | Opus, medium | Sonnet, medium |
+| Thorough | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
 
-**Sensitive work · more checking.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations: thorough, built on Opus at high. The security pair reads its spec and its diff. Small work that touches nothing sensitive is quick. Keep one model for a whole session.
+**Sensitive work · when I choose it.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations. The sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. Declined or unanswered, the security pair is offered once more at Test on a list match. Small work that touches nothing sensitive is quick. Keep one model for a whole session.
 
-**Models.** Opus plans. Sonnet builds, and Opus builds quick work. Sensitive work runs on Opus at high effort.
+**Models.** Opus plans. Sonnet builds, and Opus builds quick work. The sensitive route runs on Opus at high effort.
 
 </details>
 
 ## Review lenses
 
-A lens is a reviewer agent that asks one question from one angle. Lenses are tools that help you through a stage faster. Two pairs are defaults: the QA pair reads every result, and the security pair reads sensitive work. The rest run where they pay, and the agent says which it left out and why. Each lens starts fresh and never sees its partner's report. They read and report, and none of them builds anything.
+A lens is a reviewer agent that asks one question from one angle. Lenses are tools that help you through a stage faster, and they are offers: when the work calls for one, the agent says why in one line and offers it, and I answer. The security pair comes with the sensitive route. On a change of about one line that isn't flagged sensitive, the agent may judge that no lens is needed, and says so. A skill I typed runs its own lenses without asking again. Each lens starts fresh and never sees its partner's report. They read and report, and none of them builds anything.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
-  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question; the QA pair and the security pair are defaults. Their reports are crossed by a template and posted in the work's record, and I decide." width="800">
+  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question, and each is offered with a one-line why; the security pair comes with the sensitive route. Their reports are crossed by a template and posted in the work's record, and I decide." width="800">
 </picture>
 
 <details>
 <summary>Text of FIG. 03</summary>
 
-- **Spec lenses, on a spec before a build.** `executability-lens`: would the spec, built as written, run end to end? `good-enough-lens`, when scope feels heavy: what could be cut or deferred, and what would it save?
-- **QA pair, on every result, by default.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail?
-- **Standards lenses, on diffs that call for them.** `conventions-lens`, in a repo with written rules: does the diff keep them? `reader-lens`, on diffs that add prose or docs: can the next reader act on what it says?
-- **Security pair, on sensitive work, by default.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
-- **Alone, on specs and results above quick.** `unstated-lens`: what need did nobody write down?
+- **Spec pair, offered on a spec, standard and up.** `executability-lens`: would the spec, built as written, run end to end? `good-enough-lens`: what could be cut or deferred, and what would it save?
+- **QA pair, offered at every build.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail?
+- **Standards pair, offered on a diff, standard and up.** `conventions-lens`: does the diff keep the repo's written rules? `reader-lens`: can the next reader act on what it says?
+- **Security pair, with the sensitive route.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
+- **Alone, offered on a spec and a result, standard and up.** `unstated-lens`: what need did nobody write down?
 
-Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The session crosses the pair by a template; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
+Each lens is offered with a one-line why, and I say yes or no. Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The session crosses the pair by a template; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
 
 </details>
 

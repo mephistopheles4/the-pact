@@ -53,10 +53,10 @@ The pact defends itself in two ways, and they are not equally strong.
   Examples: the install gate, which refuses an install whose checks fail; and
   each agent's tool list, which Claude Code enforces.
 - **A rule is text the model is asked to follow.** It holds only while the
-  model reads it right. Most of the pact is rules. Examples: the defaults,
-  which send every result to the QA pair and sensitive work to the security
-  pair; and "Stop and ask me", the points where a session must stop and ask
-  you.
+  model reads it right. Most of the pact is rules. Examples: the offers
+  paragraph, which has a session offer each lens with a reason, and the
+  sensitive route, which a session recommends with its why when it sets out;
+  and "Stop and ask me", the points where a session must stop and ask you.
 - **Judgment.** Since #261 the rules file states the owner's practices and
   leaves much to the model's judgment, as any shared `CLAUDE.md` does. Rules
   it used to carry, such as whose tracker text counts, are accepted as
@@ -145,7 +145,7 @@ How to read it:
 | --- | --- | --- | --- |
 | R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `AGENTS.md`; elsewhere, judgment (#261) | Rule, judgment |
 | R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment | Rule, judgment |
-| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264) | Rule |
+| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262) | Rule |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
 | R5 Refusal untested | Outside pull request | Here, this repo's tracker rule; elsewhere, judgment | Rule, judgment |
 | R6 Container built wrong | Outside pull request | Here, the five conditions in `AGENTS.md` and your typed OK; elsewhere, judgment | Rule, then a boundary; judgment |
@@ -155,17 +155,17 @@ How to read it:
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Tool allow-list; the override mark for a setting off the reviewed default, from the gate's fixed security-set list | Boundary, rule |
-| R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); elsewhere, judgment | Rule, judgment |
+| R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); elsewhere, judgment | Rule, judgment |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on what can run and with what power; the dry run | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
 | R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
-| R20 Lens untested | Text a lens reads | The defaults sentence, and this repo's security route for a lens change | Rule |
-| R21 Test code ordinary | A careless or fooled edit | The defaults sentence: the QA pair reads every result | Rule |
+| R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test when the route was declined or unanswered on a list match, the flag never dropped; this repo's security route for a lens change; a change Claude doesn't see as sensitive, judgment | Rule, judgment |
+| R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build; here, a reviewer reads every change to the gate's tests at move 4, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the pinned install go-ahead | Outside the pact, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default; the review procedure's written no-secret read before posting a report (#264); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
+| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262); the one-line exception, which never covers work flagged sensitive but does cover personal data the list doesn't name; the review procedure's written no-secret read before posting a report (#264); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
@@ -266,11 +266,14 @@ once you install it.
 
 - **For skills, judgment.** Until #261 a gated clause, `no-skill-overrides`,
   said no skill may override certain rules. It is retired, and accepted as
-  judgment. The rules file's defaults still name the reviews every result and
-  every piece of sensitive work gets. Sensitive work is, by default, auth,
-  secrets, crypto, input validation and data migrations: thorough, built on
-  Opus at high. Publishing is not on that list: work that publishes can run at
-  a lower tier, guarded by rules alone (R23).
+  judgment. Since #262 the rules file's offers paragraph has a session offer
+  each lens with a one-line reason, and a skill you typed runs its own lenses
+  unasked, which never lifts the sensitive-route flag. Sensitive work is, by
+  default, auth, secrets, crypto, input validation and data migrations; a
+  session that sees it recommends the sensitive route, thorough, planned and
+  built on Opus at high with the security pair, and you take it or not.
+  Publishing is not on that list: work that publishes can run at a lower
+  tier, guarded by rules alone (R23).
 - **For its own install, a dry run and a gate.** The install shows what it
   would change before it changes anything. It installs only committed files,
   and only those its checks passed: a small bootstrap stages them, and every
@@ -303,7 +306,10 @@ once you install it.
   detail in a committed file, can be built at the quick tier with no spec
   read. Two rules are left in the pact: the pinned "Stop and ask me", which
   has a session ask you before something hard to reverse; and "secrets" in the
-  sensitive-work default, for keys and tokens. "Never post a secret or a
+  sensitive-work default, for keys and tokens, which since #262 a session
+  flags and recommends the sensitive route for, rather than forcing it; the
+  one-line exception never covers work flagged sensitive, but does cover
+  personal data the list doesn't name. "Never post a secret or a
   personal detail" left the pact in #261, accepted as judgment; this repo's
   `AGENTS.md` keeps it. Text that frames such a change as quick work can steer
   past the reviews, and your answer at the stop is then the only check. The
@@ -334,12 +340,15 @@ session can act before you see it.
   no test runs a lens on any setting (R20). For the two lenses with a shell or
   web tools, the install warns that a weaker setting may follow instructions
   planted in the code it reviews, or send a secret out.
-- **Sensitive work gets a second read.** The rules file's defaults sentence
-  sends sensitive work to the security pair, `adversarial-lens` and
-  `data-lens`, which read the plan and then the diff. Since #261 it is a rule,
-  not a pinned block, and only the owner skips it. The gate keeps a fixed list
-  of the security-set lenses, so the override mark never depends on the
-  rules file's text.
+- **Sensitive work gets a second read when you take the route.** Since #262
+  a session that sees sensitive work says why in one line in its tier
+  proposal and recommends the sensitive route, which brings the security
+  pair, `adversarial-lens` and `data-lens`, to read the plan and then the
+  diff. If you decline it, or nobody answers, the pair is offered once more
+  at Test when the change matches the list. A flag found later is said at the
+  next hand-off and never dropped until you answer. It is a rule, not a
+  pinned block. The gate keeps a fixed list of the security-set lenses, so
+  the override mark never depends on the rules file's text.
 
 **What is accepted.**
 
@@ -381,8 +390,8 @@ session can act before you see it.
   practice cases ran the security lenses for real after each model change.
   They found defects only in their own cases and wording, so the owner
   retired them. Now a change to a lens takes this repo's security route, and the
-  pair reads its text; in use, the defaults sentence runs the QA pair on every
-  result and the security pair on sensitive work, but nothing runs the lens to show it still follows
+  pair reads its text; in use, the offers paragraph offers the QA pair at
+  every build and the security pair with the sensitive route, but nothing runs the lens to show it still follows
   its carried rules or resists planted text. A lens that reads well and
   behaves badly shows up only in use.
 - **R21. The test runner and its helpers are ordinary test code.** The
@@ -393,7 +402,7 @@ session can act before you see it.
   the CI check runs, or weaken record mode's scrub, which keeps local paths
   and names out of posted test output. The required CI check can't catch
   that, because it runs the runner the edit narrowed. Only the review at the
-  end of the build does: the QA pair, by the defaults sentence. The owner accepted this risk by name (#189).
+  end of the build does: here, a reviewer at move 4, which the pact's one-line exception never covers (#262); elsewhere, the QA pair when you take its offer. The owner accepted this risk by name (#189).
 - **R22. The install's apply is unprompted.** Since #265 the pact sets no ask
   rules, so nothing prompts you before `--apply`, in any spelling. Before it,
   ask rules looked for an apply's spelling, and some spellings already got
