@@ -20,6 +20,7 @@ The owner, from chat on #238: the rules text caused the misreading. Its words sa
   - An agent file the pact didn't write is the person's, left as is (ADR 0071), after addendum 3's `pact/agents/` folder was reverted.
   - Presets and shared results are builder files, taken through a per-section checklist; six presets ship, and the page starts from Level 3 · Full (ADR 0070).
 - **T2, #262 phase 3 (this PR): the command.** The builder became part of the pact: `/scriptorium` installs for everyone with the builder kit under `~/.claude/pact/builder/`, the repo skill is gone, and the page sets the opt-in pact commands, finishing #203's T3 (ADR 0070).
+- **After the end-of-PR review,** the owner dropped this repo's own security route: work here takes the pact's tiers and sensitive route from the workflow (ADR 0072). A shared file's agent files start unticked in the Presets checklist.
 
 ## What the build found
 

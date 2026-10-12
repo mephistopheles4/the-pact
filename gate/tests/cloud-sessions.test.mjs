@@ -4,8 +4,8 @@
 // to its refusals. They never install. The full pipeline runs four times at
 // most; every other case calls one step directly.
 //
-// Every change to cloud-sessions/ and to this file takes the security route
-// (AGENTS.md).
+// Every change to cloud-sessions/ and to this file is read closely: the
+// script is published and runs as root (AGENTS.md).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

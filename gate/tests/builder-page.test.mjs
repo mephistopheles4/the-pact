@@ -731,6 +731,20 @@ test('a commands list set on the page is saved in the installer\'s order without
   assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"]}').files[0].text).commands, [], 'the page\'s empty list wins');
 });
 
+// #262, owner decision after adversarial-lens F1: a shared file's agent files start unticked; its parts start ticked.
+test('stub page: a shared file opened in Presets starts its agent file rows unticked and its parts ticked', async () => {
+  const P = bootPage();
+  P.button(P.ids.actions, 'Presets').click();
+  const input = P.find(P.ids.presets, n => n.tag === 'input' && n.attrs['aria-label'] === 'Open a builder file')[0];
+  const doc = { schema: 1, title: 'Shared', moves: L.PACT.parts.defaults.moves, agentFiles: { scout: '---\nname: scout\ndescription: Looks.\n---\n\nBody.\n' } };
+  input.files = [{ name: 'shared.json', text: async () => JSON.stringify(doc) }];
+  input.listeners.change.forEach(f => f({}));
+  for (let i = 0; i < 10; i++) await new Promise(r => setTimeout(r, 0));
+  const box = label => P.find(P.ids.presets, n => n.tag === 'input' && n.attrs['aria-label'] === `Take ${label}`)[0];
+  assert.equal(box('Agent file: scout').checked, false);
+  assert.equal(box('The moves').checked, true);
+});
+
 // #203 S10: one checkbox per opt-in command, /scriptorium on and locked, and Leave as is.
 test('stub page: ticking /finis under Settings saves it; Leave as is drops the list again', () => {
   const P = bootPage();

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1Hp+F5cznTsXQMkz5pzgWs4dwUmGr5BjfHDbLvO+68E='; style-src 'sha256-H4ccihSyX7930j2oS6HVB/xa+OaTlz2Z6QgE/TJwKlA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-eQZNBbFhYbaYTDuq7dSLAWFwm1T/V6bcP5EtgIlisoY='; style-src 'sha256-H4ccihSyX7930j2oS6HVB/xa+OaTlz2Z6QgE/TJwKlA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -5723,7 +5723,8 @@ function boot() {
           ...(why ? [el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: why })] : []))));
       return showDialog('presets');
     }
-    const picks = new Set(presetPicks(chosen));
+    // A shared file's agent files start unticked: one can replace scout or a security lens (#262, owner decision). A shipped preset's start ticked.
+    const picks = new Set(presetPicks(chosen).filter(k => chosen.id !== 'file' || !k.startsWith('agent:')));
     // One accordion row per section the preset carries: a checkbox where a tier's number sits, its name and a count, and inside, what it holds.
     const lines = xs => el('ul', { class: 'runs' }, ...xs.map(x => el('li', { text: x.replaceAll('`', '') })));
     const all = { ...copyParts(state.parts), ...copyParts(chosen.parts) };
@@ -5766,7 +5767,7 @@ function boot() {
     };
     const kept = Object.keys(PRESET_PARTS).filter(k => !Object.hasOwn(chosen.parts, k)).map(k => PRESET_PARTS[k]);
     $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
-      head(`Take from ${chosen.title}. Each ticked section replaces yours; open one to see what it holds, and read its agent files before you save.`),
+      head(`Take from ${chosen.title}. Each ticked section replaces yours; open one to see what it holds, and read its agent files before you save.${chosen.id === 'file' ? ' A shared file\'s agent files start unticked: tick each one you mean to take.' : ''}`),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' },
         el('div', { class: 'accs' },
           ...Object.keys(chosen.parts).map(k => {

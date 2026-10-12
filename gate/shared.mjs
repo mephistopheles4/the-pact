@@ -13,7 +13,7 @@ const CHARACTER_HITS_MAX = 20;
 // installs to commands/<name>.md only when the configuration's commands list
 // names it. Seam A and the renderer read this one list; the install keeps its
 // own copy (install-core.mjs), held to this one by a test. Adding a name is a
-// change to gate code, so it takes the security route.
+// change to gate code, so it needs a bad case (AGENTS.md).
 const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
 // The builder kit (#203 S6; #262): what the builder reads, installed under
 // pact/builder/ in the repo's own layout whenever /scriptorium installs. Seam

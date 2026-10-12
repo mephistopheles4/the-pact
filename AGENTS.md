@@ -176,9 +176,9 @@ how every session in every repo behaves. So:
   `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup
   field again and checks the first session's setup log for the generator's
   `pact cloud copy <marker>` line; the generator prints that reminder.
-  **Every change to `cloud-sessions/` and to that test takes the
-  security route:** the script is published, runs as root, and carries the
-  pact's rules and a settings overlay (ADR 0038).
+  Read every change to `cloud-sessions/` and to that test closely: the
+  script is published, runs as root, and carries the pact's rules and a
+  settings overlay (ADR 0038).
 
 ## Running the gate's tests
 
@@ -313,9 +313,9 @@ how every session in every repo behaves. So:
   fails loudly, with an error the owner sees and can recover from, needs no
   test of its own. A gate check's bad case is not covered by this: a refusal
   test catches the check itself vanishing, and a vanished check passes
-  everything in silence. The rule in "Which changes take the security route",
-  that each check a change adds or tightens needs a bad case it is seen to
-  catch, stands unchanged.
+  everything in silence. The rule in "What every change here needs", that
+  each check a change adds or tightens needs a bad case it is seen to catch,
+  stands unchanged.
 - **Minus-one.** A test whose assertions another test already makes, on the
   same function and the same class of input, is a cut candidate. Cut one only
   in a file the change is already editing. List each cut, with the test that
@@ -332,8 +332,8 @@ how every session in every repo behaves. So:
   - the last bad case for a gate check;
   - an install case: ADR 0047 and "Cutting an install case" govern those cuts;
   - a test that guards the settings guard;
-  - any test in `gate/tests/cloud-sessions.test.mjs`, whose changes take the
-    security route.
+  - any test in `gate/tests/cloud-sessions.test.mjs`, which guards a
+    published script that runs as root.
 
   When it is unclear whether a test falls under this list, it does.
 
@@ -467,61 +467,39 @@ apply to a session that resolves a ticket in such a chain.
 Size the evidence to the cost of being wrong. When a session misbehaves after a
 rule change, the usual cost is one wasted session that the owner restarts. So a
 change to an agent or a rule is proved by review and by use. It needs a
-planted probe only when the owner asks for one by name. The changes listed below, where a miss is expensive or silent, take the
-security route.
+planted probe only when the owner asks for one by name. This repo has no
+security route of its own (ADR 0072): work here takes the pact's tiers, and
+its sensitive route where the work matches the sensitive-work list, from the
+workflow, as work in any project does.
 
 A lens is a reviewer agent that asks one question from one angle. A lens review
 is one run of lenses on real work. A security-set lens is either lens of the
-security pair, the reviewers this repo's security route names, or any other
-lens that holds a shell or network tools, or guards the security route or the
-sensitive-work default. The gate finds most of them by signs in their own files;
+security pair, or any other lens that holds a shell or network tools, or
+guards the sensitive route or the sensitive-work default. The gate finds most of them by signs in their own files;
 it keeps a fixed list of those it can find by no other sign (`SECURITY_SET` in
 `gate/render-core.mjs`). The name outlived the security set of practice cases,
 which #189 retired. Since ADR 0069 the gate holds no text word for word: a rule
-in the pact's files holds by review and by use. This repo's security route is
-defined in this section. The pact's sensitive-work default, and the offers paragraph in
-its Lenses section, sit in [`claude/CLAUDE.md`](claude/CLAUDE.md).
+in the pact's files holds by review and by use. The pact's sensitive-work
+default, and the offers paragraph in its Lenses section, sit in
+[`claude/CLAUDE.md`](claude/CLAUDE.md).
 
-### Which changes take the security route
+### What every change here needs
 
-Where two bullets apply, the stricter one holds.
-
-- **A change to any of these takes the security route,** so the security pair
-  reads its spec and its diff:
-  - the sensitive-work default or the offers paragraph;
-  - the whole of `claude/CLAUDE.md` and `claude/review.md`;
-  - anything in the protected set below;
-  - any security-set lens;
-  - any agent that is not a lens, when it holds a shell or network tools, or
-    guards the security route or the sensitive-work default;
-  - the pact commands, every file in `claude/commands/`: each is a prompt
-    the owner's word starts, and a merge or a push can follow from it;
-  - the settings guard, `gate/settings-allowlist.json` and
-    `claude/settings.overlay.json`;
-  - [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md), which
-    holds this repo's tracker rule and the reads that show authors;
-  - this section itself: any edit to it that does more than tighten or
-    clarify it.
-- **The gate's code also needs its own tests.** The gate's code is every file
-  in `gate/` but its tests, every file in `.github/workflows/`, and
-  `.github/dependabot.yml`. Every change to it takes the security route. Each
-  check a change adds or tightens needs a bad case in the gate's tests that it
-  is seen to catch. Deleting or loosening a check, or changing a built-in
-  default that bounds anything above, counts as a change to what it bounds.
-  One example is the renderer's list of agents a configuration may set:
-  adding an agent to it is a spec change, and takes the security route.
-- **Everything else is proved by use.** That means the repo's tests and gates
+- **The gate's code needs its own tests.** The gate's code is every file in
+  `gate/` but its tests, every file in `.github/workflows/`, and
+  `.github/dependabot.yml`. Each check a change adds or tightens needs a bad
+  case in the gate's tests that it is seen to catch. Deleting or loosening a
+  check, or changing a built-in default that bounds anything, such as the
+  renderer's list of agents a configuration may set, is a spec change.
+- **Everything is proved by use.** That means the repo's tests and gates
   pass, and a reviewer reads the change at move 4. The gate's tests are
-  ordinary test code, the test runner and its helpers included. An edit to
-  this section that only tightens or clarifies it is also proved by use.
+  ordinary test code, the test runner and its helpers included.
 - **The gate's tests are never a one-line change here.** The pact's one-line
   exception doesn't reach a change to the gate's tests, the test runner and
   its helpers included: the QA pair reads it at move 4.
 - **Depth is the owner's dial.** The owner may ask for a planted probe by
-  name, or a closer look, on any change, at triage or in chat. Silence means
-  the default above. Nobody can take a listed change off the security route.
-- **Doubt.** When it is unclear whether a change takes the security route, it
-  does. Doubt about anything else falls to the default.
+  name, a security pair read, or a closer look, on any change, at triage or
+  in chat. Silence means the default above.
 
 ### A probe the owner asks for
 

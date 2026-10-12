@@ -107,7 +107,7 @@
 // own values, egress when the tools line holds more than the read tools. The
 // notice gains an "Agents set:" line. Since #262 no setting is marked: a
 // person may run any agent on any model, and the pact does not test them.
-// Adding an agent to CONFIGURABLE_AGENTS takes the security route (AGENTS.md).
+// Adding an agent to CONFIGURABLE_AGENTS is a spec change (AGENTS.md).
 //
 // The project mode (#53, slice 5) renders the project rules file for a
 // project install. It reads the user file, for the user's effective values and
@@ -145,8 +145,8 @@ import { dirname, join } from 'node:path';
 import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, Refused, Report, SEGMENT_RE, readStrictJson, scanText } from './shared.mjs';
 
 // The open marks this version knows. Hard-coded, so no file can add one.
-// Adding a mark is a change to this list and to the pact source, on the
-// security route like any other change here.
+// Adding a mark is a change to this list and to the pact source, a spec
+// change like any other change here.
 const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
@@ -191,7 +191,7 @@ const AGENT_FIELDS = Object.freeze(['model', 'effort']);
 const agentModel = v => (typeof v === 'string' && AGENT_MODEL_RE.test(v) ? v : undefined);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
-// The lenses the security route names, as a fixed list (#261, S4): the
+// The security-set lenses no file sign shows, as a fixed list (#261, S4): the
 // security pair, and executability-lens, which checks that security-sensitive work has a security review planned. The rules
 // file names no route any more, so the renderer reads none from it. Without
 // this list data-lens, which has no other sign, would print as plain on its
@@ -200,8 +200,8 @@ const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executabil
 // The sign of a security-set agent read from its own file: a risk-floor block.
 // No pact lens carries one since #262; the sign stays for an agent that does.
 const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
-// Security-set lenses by doubt (AGENTS.md: when in doubt, a change takes the
-// security route), each with its reason. No sign in their files says so.
+// Security-set lenses by doubt, each with its reason: each guards security
+// or data work. No sign in their files says so.
 const SECURITY_DOUBT = Object.freeze({
   'good-enough-lens': 'it never suggests deferring work that guards security or data',
   'unstated-lens': 'it asks whether security-sensitive work should have had a security review',
