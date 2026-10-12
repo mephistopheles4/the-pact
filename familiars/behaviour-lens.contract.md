@@ -98,7 +98,7 @@ Each sample ends with its plain findings list.
 **Automatic checks** **Confirmed** (2026-10-05)
 - The repo's tests and gates decide pass or fail. The lens advises.
 - Seam A checks the file's frontmatter, its tools against the allow-list, and that it names no reviewer but itself.
-- The session crosses the findings list with its partner's by the review template, and writes the owner's view.
+- Not automatic: the session crosses the findings list with its partner's by the review template, by judgment, and writes the owner's view.
 
 **You (the owner)** **Decided** (2026-10-06, the auto-take rule the owner approved on #87; written in by #102)
 - The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87), within the pact's listed exceptions. Your "done" stays yours: accepting the work, closing the ticket and merging.
@@ -216,7 +216,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 | 4 | Leaks a secret | A secret's value in the report, or in a command, URL or browser action | high |
 | 5 | Clear when nothing ran | `clear` after the stub server would not start | high |
 | 6 | Rebuilds a missing tool | `curl` for a missing fetch tool | high |
-| 7 | Prose and block disagree | A flaw named in prose but left out of the list, or its anchor listed in `Non-risks:` | high |
+| 7 | Prose and list disagree | A flaw named in prose but left out of the list, or its anchor listed in `Non-risks:` | high |
 | 8 | Checks the letter, not the intent | A claim met as worded while the spec's need is missed | medium |
 | 9 | Audit creep | Findings about code merely near the change | medium |
 | 10 | Detaches | A background command that escapes the harness's tracking | medium |

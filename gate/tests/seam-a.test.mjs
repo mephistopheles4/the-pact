@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { copyGate, plantModule } from './gate-files.mjs';
 import { childSeamA, runSeamA, sealedFamiliar } from './gate-run.mjs';
-import { realPayload, stage } from './payload.mjs';
+import { realOverlay, realPayload, stage } from './payload.mjs';
 import { moduleResult, table } from './tables.mjs';
 import { GATE, PINNED, READ_ONLY, agent, contractText, failRules, lastLine, plainAgent } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -606,3 +606,43 @@ test('canary: no value, key, metadata key or duplicate key is echoed', t => {
   assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
   assert.ok(!r.out.includes(C) && !r.out.includes(C.toLowerCase()), r.out);
 });
+
+// ------------------------------------------------------------ the strict reader and the character rules, through seam A
+// The cases the cut parity file held for seam A's own side (#264, the cross script is gone): each gate rule keeps its bad case.
+
+const READER = [
+  ['a key twice', 'settings-duplicate', (json, key) => json.replace('{', `{"${key}": 1,`)],
+  ['a key twice, case-folded', 'settings-duplicate', (json, key) => json.replace('{', `{"${key[0].toUpperCase()}${key.slice(1)}": 1,`)],
+  ['a key twice, written with an escape', 'settings-duplicate', (json, key) => json.replace('{', `{"${key.slice(0, -1)}\\u00${key.charCodeAt(key.length - 1).toString(16)}": 1,`)],
+  ['nesting 66 deep', 'settings-read', json => json.replace('{', `{"deep": ${'['.repeat(66)}${']'.repeat(66)},`)],
+  ['nesting 60 deep (passes the reader)', null, json => json.replace('{', `{"deep": ${'['.repeat(60)}${']'.repeat(60)},`)],
+  ['a trailing comma', 'settings-read', json => json.replace(/}\s*$/, ',}')],
+  ['text after the value', 'settings-read', json => `${json} x`],
+  ['a byte-order mark', 'settings-read', json => `﻿${json}`],
+  ['a single-quoted string', 'settings-read', json => json.replace('{', "{'q': 1,")],
+];
+
+for (const [name, rule, defect] of READER) {
+  test(`reader: ${name} is ${rule ? `refused as ${rule}` : 'read'}`, t => {
+    const r = runSeamA(stage(t, { 'claude/settings.overlay.json': defect(realOverlay(), 'outputStyle') }));
+    const rules = failRules(r.stdout);
+    if (rule) assert.ok(rules.includes(rule), r.out);
+    else assert.ok(!rules.includes('settings-read') && !rules.includes('settings-duplicate'), r.out);
+  });
+}
+
+const CHARACTERS = [
+  [0x0000, 'characters'], [0x0007, 'characters'], [0x000d, 'characters'], [0x007f, 'characters'], [0x0085, 'characters'],
+  [0x009b, 'characters'], [0x2028, 'characters'], [0x2029, 'characters'], [0xfffe, 'characters'],
+  [0x00ad, 'invisible'], [0x061c, 'invisible'], [0x200b, 'invisible'], [0x200d, 'invisible'], [0x202e, 'invisible'],
+  [0x2066, 'invisible'], [0x2060, 'invisible'], [0xfeff, 'invisible'], [0xe0041, 'invisible'],
+  [0x00e9, null], [0x00a0, null], [0x4e2d, null],
+];
+
+for (const [cp, rule] of CHARACTERS) {
+  test(`characters: U+${cp.toString(16).toUpperCase().padStart(4, '0')} is ${rule ? `refused as ${rule}` : 'allowed'}`, t => {
+    const r = runSeamA(stage(t, { 'claude/agents/parity-agent.md': agent(['name: parity-agent', 'description: A test agent.', 'tools: [Read, Glob, Grep]'], `Body ${String.fromCodePoint(cp)} here.\n`) }));
+    if (rule) assert.ok(failRules(r.stdout).includes(rule), r.out);
+    else assert.equal(r.code, 0, r.out);
+  });
+}

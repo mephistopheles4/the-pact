@@ -163,6 +163,8 @@ Not checked:
 - The command's own help output is not in the diff
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -184,8 +186,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a part you
   walked through and found the reader can follow. Never put lines you found
   a tell on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A tell named in the prose
 is a finding in the list.

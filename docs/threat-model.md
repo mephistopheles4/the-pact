@@ -131,13 +131,15 @@ How to read it:
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
-  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), and the code-scanning workflow's write token (R27, R28) sit here. Hidden characters in posted reports (R29) sit lower, guarded by a rule until the poster installs. Their guards are mostly rules, so cutting one moves its risk right.
+  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), and the code-scanning workflow's write token (R27, R28) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21, R26.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
-  that refuses it.
+  that refuses it. R29 needs a steered lens to carry hidden characters into
+  a posted report; a rule and a search before posting guard it until the
+  poster installs.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -215,7 +217,9 @@ months.
   #264 the review procedure writes the read-before-posting as a rule: the
   session reads each report for a secret or a personal detail and keeps one
   that holds either local. The cross script never scanned for secrets; the
-  checks it dropped were shape and character checks.
+  checks it dropped were shape and character checks. One of them, the
+  anchor-path check, kept full local paths, and the user name in them, out of
+  posted anchors; it is now the lens files' rule and the read.
 - **R4. Your GitHub account is the root of trust.** Anyone who controls it
   counts as you.
 

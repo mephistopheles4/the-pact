@@ -180,6 +180,8 @@ Not checked:
 - Log retention was not handed over, so how long the log is kept was not checked
 ```
 
+   Each finding line is `F<n> · anchor · severity · likelihood · data · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when a part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -213,8 +215,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a part you
   checked and found sound, with the assumption that keeps it sound. Never
   put an anchor you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A leak point nothing
 guards, named in the prose, is a finding in the list.

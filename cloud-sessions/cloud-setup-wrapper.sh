@@ -471,6 +471,8 @@ Not checked:
 - The session store was not handed over, so session fixation was not checked
 ```
 
+   Each finding line is `F<n> · anchor · severity · likelihood · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when a part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -498,8 +500,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a part you
   checked and found sound, with the assumption that keeps it sound. Never
   put an anchor you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A path no control stops,
 named in the prose, is a finding in the list.
@@ -650,6 +652,8 @@ Not checked:
 - C3: no browser tool was available
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when any claim went unrun; otherwise `findings`
   when there is a finding; otherwise `clear`. Never `clear` when a claim was
@@ -669,8 +673,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is what you
   checked and found sound, with the assumption that keeps it sound. Never
   put a claim you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A flaw named in the prose
 is a finding in the list.
@@ -811,6 +815,8 @@ Not checked:
 - A pointer in CONTRIBUTING.md, line 4, leads outside the working folder; it was not read
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -833,8 +839,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a rule you
   checked and found kept. Never put lines you found a break on in
   `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A break named in the prose
 is a finding in the list.
@@ -1023,6 +1029,8 @@ Not checked:
 - Log retention was not handed over, so how long the log is kept was not checked
 ```
 
+   Each finding line is `F<n> · anchor · severity · likelihood · data · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when a part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -1056,8 +1064,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a part you
   checked and found sound, with the assumption that keeps it sound. Never
   put an anchor you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A leak point nothing
 guards, named in the prose, is a finding in the list.
@@ -1215,6 +1223,8 @@ Not checked:
 - S6: the rollout plan points to a file that was not handed over
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when a section could not be reviewed; otherwise
   `findings` when there is a finding; otherwise `clear`.
@@ -1236,8 +1246,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a section
   you checked and found sound, with the assumption that keeps it sound.
   Never put a section you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A stall named in the prose
 is a finding in the list.
@@ -1361,6 +1371,8 @@ Not checked:
 - S6: whether the theme picker has a user was not asked
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `inconclusive` when a section could not be
   reviewed, whatever your findings; otherwise `findings` when there is a
   finding; otherwise `clear`. You never report `high`, so you never return
@@ -1379,8 +1391,8 @@ Not checked:
 - `Not checked:` is required, with at least one item.
 - `Non-risks:` (optional): each item an anchor and a note. Each is a section
   you checked where nothing can wait, with the reason.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A cut named in the prose is
 a finding in the list.
@@ -1517,6 +1529,8 @@ Not checked:
 - No mutation run happened; tests were judged by reading
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when the tests behind any claim could not be
   reviewed; otherwise `findings` when there is a finding; otherwise `clear`.
@@ -1538,8 +1552,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is what you
   checked and found sound, with the assumption that keeps it sound. Never
   put a claim you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A flaw named in the prose
 is a finding in the list.
@@ -1711,6 +1725,8 @@ Not checked:
 - The command's own help output is not in the diff
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -1732,8 +1748,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a part you
   walked through and found the reader can follow. Never put lines you found
   a tell on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A tell named in the prose
 is a finding in the list.
@@ -1928,6 +1944,8 @@ Not checked:
 - Performance under load: the issue gives no numbers to check against
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the work could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -1947,8 +1965,8 @@ Not checked:
 - `Not checked:` is required, with at least one item.
 - `Non-risks:` (optional): each item an anchor and a note. Never put a section
   or claim you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A need named in the prose
 is a finding in the list.
@@ -2028,10 +2046,11 @@ item, then a headline), `Not checked:` and an optional `Non-risks:`.
 The security pair runs at the work's tier. The security route adds the pair;
 it doesn't by itself make work thorough.
 
-**The template.** One comment per review, in this order:
+**The template.** One comment per review, the review comment, in this order:
 
 1. A heading: `### Area pair: lens-a and lens-b`, with the area's name
-   and the two lens names, or `### unstated-lens` for a lens crossed alone.
+   and the two lens names, or `### lens-name` with the lens's own name for a
+   lens crossed alone, such as `### unstated-lens`.
 2. **Pair verdict.** The stricter of the two lenses' own `Verdict:` lines:
    blocking, then inconclusive, then findings, then clear. Show each lens's
    verdict beside it. A lens whose verdict is inconclusive is marked "not
@@ -2054,23 +2073,27 @@ it doesn't by itself make work thorough.
 - **Quick tier:** one line with the verdict, any "not verified" mark, and the
   count of not-checked items per lens, followed by the folds.
 - **Size:** one comment holds at most 65,536 characters. Split a longer
-  section into parts, and repeat a table's header where it continues. A report
-  that alone is over the limit stays a local file; name its path to me in
-  chat, never in the record.
-- **With no record,** show the section in chat.
+  review comment into parts, and repeat a table's header where it continues.
+  A report that alone is over the limit stays a local file; name its path to
+  me in chat, never in the record.
 
 ## Posting
 
-- **Read before you post.** Before posting any report, section, Lens
+- **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
   or a personal detail: a user name, a host name, a home or temp folder path,
-  or an email address. If you find one, keep that report local, name where the
-  value sits, and tell me in chat.
+  or an email address. If you find one, keep whatever holds it local, name
+  where the value sits, and tell me in chat. A report kept local stays out of
+  the review comment too: leave its rows and strings out, write "withheld, see
+  chat" in their place, and give me its path in chat, never in the record.
 - **Verbatim reports go in a fold,** an HTML details element whose summary
   names the lens and its verdict, holding the report in a fenced block. The
   fence is at least three backticks, one more than the report's longest run of
-  backticks, and carries the info string `text`. In such a fence a lens's text
-  can't render as a mention, an issue link, an image, a link or maths.
+  backticks, and carries the info string `text`. Leave a blank line between
+  the summary line and the opening fence, and between the closing fence and
+  the end of the details element, so the fence is read as a fence. In such a
+  fence a lens's text can't render as a mention, an issue link, an image, a
+  link or maths.
 - **Text you lay out stays inert.** Put every string you take from a report in
   a code span longer than its longest run of backticks: the headline, the
   anchor, the data item, each not-checked item and each non-risk note. Escape
@@ -2079,12 +2102,15 @@ it doesn't by itself make work thorough.
 - **Hidden characters.** Before posting, search each report file for control,
   invisible and direction-changing characters with your search tool, for
   example with the pattern
-  `[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2069}\x{FEFF}]`.
-  Name any you find in the report's fold summary. Don't block on them.
+  `[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\xAD\x{61C}\x{180E}\x{200B}-\x{200F}\x{2028}-\x{202E}\x{2060}-\x{2069}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFF0}-\x{FFFF}\x{E0000}-\x{E0FFF}]`.
+  Tab, line feed and carriage return are fine. Name any you find in the
+  report's fold summary and don't block on them, but a hit in the tag or
+  variation-selector ranges can spell hidden text: decode it and put it
+  through the read above before you post.
 - **A report's "For the owner" section holds no line numbers, codes or
   paths.**
 - **Where to post.** In the work's record, where the project keeps it. With no
-  record, show the section in chat.
+  record, show the review comment in chat.
 
 ## Lens dispositions
 
@@ -2196,17 +2222,17 @@ check_hash() {
   fi
 }
 check_hash 6a5502d4c3b85efbf971a6d5c10a99fe47c99c2b97439473344e2ebd1a09be92 'CLAUDE.md'
-check_hash 0be20de665acce3637cc09b5c6d91390a762abd8d8556c9cb3e35ab68cf76306 'agents/adversarial-lens.md'
-check_hash 906800318ae4eee031ee1358b22f4dce9bcc840e7c87eba08e8d83434b42d782 'agents/behaviour-lens.md'
-check_hash 5d4088562b1deb5a0e0cb1d1334d249b567b2d84c2bb3746078846952282f2c2 'agents/conventions-lens.md'
-check_hash 755585f8b1ddebaf76c2a46e273171347d1d65e109dcd37e25afe7bf83e81745 'agents/data-lens.md'
-check_hash ef73043d31e8d8e9fabd432c4f7c7edf08e19529ee689f475b6808ce4df9595b 'agents/executability-lens.md'
-check_hash d8aa4f37fde61734a008bb5d5e9c4139a4299af493fe1db229c652afe3ac79c8 'agents/good-enough-lens.md'
-check_hash 4ed7496a9d67d9dc14444ec12b0a4ab4dbcd772c6d37c1524c61d1b6f60ed64d 'agents/integrity-lens.md'
-check_hash d414ad9ad5ecd986fd8180e6993bd5ab55bc096c77c0fdd26644277e453e1cd6 'agents/reader-lens.md'
+check_hash b7f32609e682b95f0f4b76afdfdbde87749c41cba240a029a385c48f79a30807 'agents/adversarial-lens.md'
+check_hash 3bb7d5996df6cfb32cab6ecee4a00186ff5e736f11b1e95f6c56e14bc5cefc27 'agents/behaviour-lens.md'
+check_hash ae2297a24909f710c061a145dc3fdaa80198f7f76da06875af57070d2061ae60 'agents/conventions-lens.md'
+check_hash 0f03343b605b5ceb96c90802560e39093a1a64b8c032d1696fbad9ffffc47af6 'agents/data-lens.md'
+check_hash dcb8cefab1cdf81c1882e8a01935c76665e67c8e123d83eff9badda44bfb4d6c 'agents/executability-lens.md'
+check_hash 5800276d07d2adcaf97d6821c46f610dc0b57c7785f419fcd2b67ae31c7139fd 'agents/good-enough-lens.md'
+check_hash b6828b0788291bd748d3cb083906c2b692e28b4e06d5e1d990fcd02f3ab3fa16 'agents/integrity-lens.md'
+check_hash 617f2f3c5a6b2f400bcab46d17c09a60487c06a04eb0c7ce3ce42fac771315f2 'agents/reader-lens.md'
 check_hash 0c076132eb156b317641144b984f7b05d324881ccb3f05633589cb366f754f40 'agents/scout.md'
-check_hash 0dd5ea47a8706e08b2bd1e1bddbb6d23cbdf330196d40e57f281a4e8e2da75f9 'agents/unstated-lens.md'
-check_hash d7cce7fed7bf4771ee694bbdeacc8f951b05c0d86026902bee2f4dad6908975f 'pact/review.md'
+check_hash 51c28996d83b946efe29cf5501f733c02cbf9d2dc9e29b80bea5b5f8f372a89a 'agents/unstated-lens.md'
+check_hash 37376ebc6d0e79928d21c20d9f9291daf368169d883039037a1a6c22cb636fed 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -2226,7 +2252,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 6c5c592cd78f"
+  echo "pact cloud copy 1fbd3f63a6df"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

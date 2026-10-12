@@ -73,7 +73,7 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
-  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question; the QA pair and the security pair are defaults. Their reports are checked, joined and posted in the work's record, and I decide." width="800">
+  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question; the QA pair and the security pair are defaults. Their reports are crossed by a template and posted in the work's record, and I decide." width="800">
 </picture>
 
 <details>

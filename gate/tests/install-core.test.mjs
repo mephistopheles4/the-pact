@@ -140,6 +140,7 @@ for (const c of table('commit tree', {
   ],
 })) test(c.name, c.fn);
 
+// #264 S7: nothing under cross/ stages, the poster included (the isStaged case retargeted from the removed script).
 test('the commit tree: only the staged set is checked, and gate/tests is dropped', () => {
   const staged = core.parseTree(Buffer.from(treeBase().in));
   assert.deepEqual([...staged.keys()], ['AGENTS.md', 'claude/CLAUDE.md', 'gate/seam-a.mjs']);

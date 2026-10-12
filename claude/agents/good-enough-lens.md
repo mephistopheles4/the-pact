@@ -115,6 +115,8 @@ Not checked:
 - S6: whether the theme picker has a user was not asked
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `inconclusive` when a section could not be
   reviewed, whatever your findings; otherwise `findings` when there is a
   finding; otherwise `clear`. You never report `high`, so you never return
@@ -133,8 +135,8 @@ Not checked:
 - `Not checked:` is required, with at least one item.
 - `Non-risks:` (optional): each item an anchor and a note. Each is a section
   you checked where nothing can wait, with the reason.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A cut named in the prose is
 a finding in the list.

@@ -90,7 +90,7 @@ C11 carries the likelihood and impact comparison.
 
 **Automatic checks** **Confirmed** (2026-10-07)
 - Seam A checks the file's format, its tools, and that it names no reviewer but itself.
-- The session crosses the findings list with its partner's by the review template, and writes the owner's view.
+- Not automatic: the session crosses the findings list with its partner's by the review template, by judgment, and writes the owner's view.
 
 **You (the owner)** **Confirmed** (2026-10-07)
 - The main session acts on its own recommendation for each finding and marks it `auto` (the auto-take rule, #87). Your "proceed, fix or kill" on the spec, a disagreement for you to settle and your "done" stay yours.

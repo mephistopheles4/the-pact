@@ -142,6 +142,7 @@ test('cloud copy: an overlay seam A refuses fails the generator with seam A\'s r
   refuses(() => generate(root), 'cloud/seam-a');
 });
 
+// Gate rule cloud/not-plain; #264 S7 moved the plant to a payload file that survives.
 test('cloud copy: a link-mode entry in the index is refused', t => {
   const root = baseRoot(t);
   const blob = git(root, ['hash-object', '-w', '--stdin'], 'review.md').trim();
@@ -175,6 +176,7 @@ test('cloud copy: a force-added file in a private folder is refused at the listi
   refuses(() => listPayload(root), 'cloud/private');
 });
 
+// Gate rule cloud/not-plain; #264 S7 moved the plant to a payload file that survives.
 test('cloud copy: a payload path that is not a regular file on disk is refused', t => {
   const root = baseRoot(t);
   // A folder where the index has a plain file: the same branch a link takes,

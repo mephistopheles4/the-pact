@@ -149,6 +149,8 @@ Not checked:
 - S6: the rollout plan points to a file that was not handed over
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when a section could not be reviewed; otherwise
   `findings` when there is a finding; otherwise `clear`.
@@ -170,8 +172,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a section
   you checked and found sound, with the assumption that keeps it sound.
   Never put a section you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A stall named in the prose
 is a finding in the list.

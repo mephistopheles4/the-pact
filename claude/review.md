@@ -71,10 +71,11 @@ item, then a headline), `Not checked:` and an optional `Non-risks:`.
 The security pair runs at the work's tier. The security route adds the pair;
 it doesn't by itself make work thorough.
 
-**The template.** One comment per review, in this order:
+**The template.** One comment per review, the review comment, in this order:
 
 1. A heading: `### Area pair: lens-a and lens-b`, with the area's name
-   and the two lens names, or `### unstated-lens` for a lens crossed alone.
+   and the two lens names, or `### lens-name` with the lens's own name for a
+   lens crossed alone, such as `### unstated-lens`.
 2. **Pair verdict.** The stricter of the two lenses' own `Verdict:` lines:
    blocking, then inconclusive, then findings, then clear. Show each lens's
    verdict beside it. A lens whose verdict is inconclusive is marked "not
@@ -97,23 +98,27 @@ it doesn't by itself make work thorough.
 - **Quick tier:** one line with the verdict, any "not verified" mark, and the
   count of not-checked items per lens, followed by the folds.
 - **Size:** one comment holds at most 65,536 characters. Split a longer
-  section into parts, and repeat a table's header where it continues. A report
-  that alone is over the limit stays a local file; name its path to me in
-  chat, never in the record.
-- **With no record,** show the section in chat.
+  review comment into parts, and repeat a table's header where it continues.
+  A report that alone is over the limit stays a local file; name its path to
+  me in chat, never in the record.
 
 ## Posting
 
-- **Read before you post.** Before posting any report, section, Lens
+- **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
   or a personal detail: a user name, a host name, a home or temp folder path,
-  or an email address. If you find one, keep that report local, name where the
-  value sits, and tell me in chat.
+  or an email address. If you find one, keep whatever holds it local, name
+  where the value sits, and tell me in chat. A report kept local stays out of
+  the review comment too: leave its rows and strings out, write "withheld, see
+  chat" in their place, and give me its path in chat, never in the record.
 - **Verbatim reports go in a fold,** an HTML details element whose summary
   names the lens and its verdict, holding the report in a fenced block. The
   fence is at least three backticks, one more than the report's longest run of
-  backticks, and carries the info string `text`. In such a fence a lens's text
-  can't render as a mention, an issue link, an image, a link or maths.
+  backticks, and carries the info string `text`. Leave a blank line between
+  the summary line and the opening fence, and between the closing fence and
+  the end of the details element, so the fence is read as a fence. In such a
+  fence a lens's text can't render as a mention, an issue link, an image, a
+  link or maths.
 - **Text you lay out stays inert.** Put every string you take from a report in
   a code span longer than its longest run of backticks: the headline, the
   anchor, the data item, each not-checked item and each non-risk note. Escape
@@ -122,12 +127,15 @@ it doesn't by itself make work thorough.
 - **Hidden characters.** Before posting, search each report file for control,
   invisible and direction-changing characters with your search tool, for
   example with the pattern
-  `[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2069}\x{FEFF}]`.
-  Name any you find in the report's fold summary. Don't block on them.
+  `[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\xAD\x{61C}\x{180E}\x{200B}-\x{200F}\x{2028}-\x{202E}\x{2060}-\x{2069}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFF0}-\x{FFFF}\x{E0000}-\x{E0FFF}]`.
+  Tab, line feed and carriage return are fine. Name any you find in the
+  report's fold summary and don't block on them, but a hit in the tag or
+  variation-selector ranges can spell hidden text: decode it and put it
+  through the read above before you post.
 - **A report's "For the owner" section holds no line numbers, codes or
   paths.**
 - **Where to post.** In the work's record, where the project keeps it. With no
-  record, show the section in chat.
+  record, show the review comment in chat.
 
 ## Lens dispositions
 

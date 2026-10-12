@@ -101,6 +101,8 @@ Not checked:
 - Performance under load: the issue gives no numbers to check against
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the work could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -120,8 +122,8 @@ Not checked:
 - `Not checked:` is required, with at least one item.
 - `Non-risks:` (optional): each item an anchor and a note. Never put a section
   or claim you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A need named in the prose
 is a finding in the list.

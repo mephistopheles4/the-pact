@@ -98,7 +98,7 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
 - C13. **The catalogue holds ten tells, in order.**
   Held by: Enforced — a word test counts them.
 
-**Automatic checks** **Confirmed** (2026-10-08): seam A; the review template, which crosses it with its partner, by judgment, `lines` anchors.
+**Automatic checks** **Confirmed** (2026-10-08): seam A, with `lines` anchors. Not automatic: the session crosses it with its partner by the review template, by judgment.
 
 **You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87), within the pact's listed exceptions: never a gated clause, a stop, the risk floor or anything else the pact's auto-take rule leaves to you. Accepting the work, closing the ticket and merging stay yours.
 

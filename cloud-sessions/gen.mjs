@@ -5,7 +5,7 @@
 //   node cloud-sessions/gen.mjs            regenerate the three outputs
 //   node cloud-sessions/gen.mjs --check    write nothing; exit 1 naming each stale output
 //
-// Run it with NODE_OPTIONS cleared, as for the gate's other scripts: it refuses to run
+// Run it with NODE_OPTIONS cleared, as for the install script: it refuses to run
 // while NODE_OPTIONS is set, so seam A's pinned grimoire child inherits no Node
 // options.
 //

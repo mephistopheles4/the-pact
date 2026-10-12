@@ -128,6 +128,8 @@ Not checked:
 - No mutation run happened; tests were judged by reading
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when the tests behind any claim could not be
   reviewed; otherwise `findings` when there is a finding; otherwise `clear`.
@@ -149,8 +151,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is what you
   checked and found sound, with the assumption that keeps it sound. Never
   put a claim you found a problem on in `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A flaw named in the prose
 is a finding in the list.

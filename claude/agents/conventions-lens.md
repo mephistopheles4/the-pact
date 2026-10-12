@@ -132,6 +132,8 @@ Not checked:
 - A pointer in CONTRIBUTING.md, line 4, leads outside the working folder; it was not read
 ```
 
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
+
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
@@ -154,8 +156,8 @@ Not checked:
 - `Non-risks:` (optional): each item an anchor and a note. Each is a rule you
   checked and found kept. Never put lines you found a break on in
   `Non-risks:`.
-- No control, invisible or direction-changing characters anywhere in the
-  report.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
 The list must say exactly what your prose says. A break named in the prose
 is a finding in the list.

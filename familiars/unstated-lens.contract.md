@@ -83,7 +83,7 @@ For the session
 - C10. Its artifact sits under the fixed heading `### Needs with no home`.
   Held by: Promised.
 
-**Automatic checks** **Confirmed** (2026-10-07): seam A; the review template, which crosses it alone, by judgment.
+**Automatic checks** **Confirmed** (2026-10-07): seam A. Not automatic: the session crosses it alone by the review template, by judgment.
 
 **You (the owner)** **Confirmed** (2026-10-07): the main session acts on its own recommendation for each finding and marks it `auto` (#87). Your "proceed, fix or kill" on a spec, and your "done", stay yours.
 

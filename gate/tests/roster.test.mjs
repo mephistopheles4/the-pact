@@ -51,6 +51,8 @@ test("the roster's nine lenses are the lenses in the review file's table of pair
   const from = src.indexOf('**The pairs.**');
   const table = src.slice(from, src.indexOf('**The template.**', from));
   assert.ok(from >= 0 && table.includes('| --- |'), 'the table of pairs is missing');
+  // Nine reviews, one row each: a deleted row changes the count even when its lenses appear in another row.
+  assert.equal(table.split('\n').filter(l => /^\| .+ \| `[a-z-]+-lens`/.test(l)).length, 9);
   const names = new Set([...table.matchAll(/`([a-z][a-z-]*-lens)`/g)].map(m => m[1]));
   assert.deepEqual([...names].sort(), [...LENSES].sort());
 });

@@ -96,7 +96,7 @@ The owner's words widen the draft's reach to how code is written and split into 
 - C14. **No written rules.** When the working folder holds none, the verdict is `inconclusive`, with `Not checked:` holding `no written rules found`.
   Held by: review at move 4; the practice cases were retired by #189.
 
-**Automatic checks** **Confirmed** (2026-10-08): seam A; the review template, which crosses it with its partner, by judgment, `lines` anchors.
+**Automatic checks** **Confirmed** (2026-10-08): seam A, with `lines` anchors. Not automatic: the session crosses it with its partner by the review template, by judgment.
 
 **You (the owner)** **Confirmed** (2026-10-08): the main session acts on its own recommendation for each finding and marks it `auto` (#87), within the pact's listed exceptions: never a gated clause, a stop, the risk floor or anything else the pact's auto-take rule leaves to you. A drifted copy of a gated clause, the kind K1 replays, is yours to decide. Accepting the work, closing the ticket and merging stay yours.
 

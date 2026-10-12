@@ -91,7 +91,7 @@ Each sample ends with its plain findings list.
 **Automatic checks** **Confirmed** (2026-10-05)
 - The repo's tests and gates decide pass or fail. The lens advises.
 - Seam A checks the file's format, its tools, and that it names no reviewer but itself.
-- The session crosses the findings list with its partner's by the review template, and writes the owner's view.
+- Not automatic: the session crosses the findings list with its partner's by the review template, by judgment, and writes the owner's view.
 - A mutation tool, where the repo has one installed, produces the mutation results; the main session runs it (see "The mutation step" below).
 
 **You (the owner)** **Decided** (2026-10-06, the auto-take rule the owner approved on #87; written in by #102)

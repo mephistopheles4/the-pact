@@ -256,3 +256,13 @@ test('the standards pair names a secret by its place, and conventions-lens reads
   const reader = read(join(REPO, 'claude', 'agents', 'reader-lens.md')).replace(/\s+/g, ' ');
   for (const words of ['with the evidence quoted, unless the line holds a secret or personal data; then name its place.', 'the evidence, quoted unless the line holds a secret or personal data,']) assert.ok(reader.includes(words), `reader-lens: "${words}"`);
 });
+// #264: each of the nine lenses ends its report in the plain list, with no findings block left.
+test('every lens file ends its report in the plain list', () => {
+  const files = readdirSync(join(REPO, 'claude', 'agents')).filter(f => /-lens\.md$/.test(f));
+  assert.equal(files.length, 9);
+  for (const f of files) {
+    const text = read(join(REPO, 'claude', 'agents', f));
+    for (const words of ['Verdict:', 'Findings:', 'Not checked:']) assert.ok(text.includes(words), `${f}: ${words}`);
+    assert.ok(!text.includes('lens-findings'), `${f} still names the findings block`);
+  }
+});
