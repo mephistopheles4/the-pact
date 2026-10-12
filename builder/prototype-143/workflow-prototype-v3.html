@@ -84,7 +84,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .lib small { font-size: var(--av-t-micro); color: var(--av-ink-70); display: block; }
 .libpair { border-left: var(--av-rule-bold) solid var(--av-ink-30); padding-left: var(--av-s1); display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
 .libpair-h { display: flex; gap: var(--av-s1); align-items: center; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; }
-.libpair-h.lib { border: 0; background: none; padding: 2px 0; }
+.libpair-h.lib { border: 0; background: none; padding: 2px 0; cursor: grab; }
 .libpair-h > span:first-child { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .libpair-h .defmark { color: var(--av-caution); font-weight: 500; letter-spacing: 0.04em; }
 .libpair-h .tag, .libpair-h .both { white-space: nowrap; flex: none; }
@@ -325,8 +325,8 @@ function renderLibrary(){
     item('stage','', '▭', 'Stage', 'a step of the work\'s own lifecycle') +
     item('cond','always', '?', 'Condition', 'when its agents fire; switch on or off', 'cond') +
     `<div class="av-label" style="margin-top:6px">Agents</div>` +
-    PAIRS.map(([x, y, l]) => `<div class="libpair"><button class="lib libpair-h" draggable="true" data-type="pair" data-val="${esc(x + '+' + y)}" title="drag or click: both on one condition">` +
-      `<span>${esc(l.replace(/^the /, ''))}${DEFAULT_PAIRS.includes(l) ? ' <span class="defmark" title="a default: the defaults sentence names it">✱</span>' : ''}</span><span class="both">⧉ both</span></button>` +
+    PAIRS.map(([x, y, l]) => `<div class="libpair"><button class="lib libpair-h" draggable="true" data-type="pair" data-val="${esc(x + '+' + y)}" title="drag the pair: both lenses on one condition">` +
+      `<span>${esc(l.replace(/^the /, ''))}${DEFAULT_PAIRS.includes(l) ? ' <span class="defmark" title="a default: the defaults sentence names it">✱</span>' : ''}</span></button>` +
       item('agent', x, '◇', x, 'one lens') + item('agent', y, '◇', y, 'one lens') + `</div>`).join('') +
     `<div class="libpair"><div class="libpair-h"><span>On its own</span></div>` +
     LENSES.filter(l => !PAIRS.some(([x, y]) => x === l || y === l)).map(l => item('agent', l, '◇', l, 'a pact lens')).join('') + `</div>` +
