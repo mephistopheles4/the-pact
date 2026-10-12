@@ -417,10 +417,10 @@ export function partsProblems(p) {
     });
     const names = p.qualities.filter(isObj).map(q => String(q.quality).toLowerCase());
     if (new Set(names).size !== names.length) err('qualities', 'the list names one quality twice');
-    // A finding: a lens the roster does not hold.
+    // A finding: an agent with no roster row.
     if (Array.isArray(p.lenses)) {
       const roster = new Set(p.lenses.flatMap(r => (isObj(r) && Array.isArray(r.agents) ? r.agents : [])));
-      p.qualities.forEach((q, i) => isObj(q) && Array.isArray(q.lenses) && q.lenses.filter(a => !roster.has(a)).forEach(a => out.push({ part: 'qualities', level: 'warn', text: `row ${i + 1}: ${a} is not in the lens roster` })));
+      p.qualities.forEach((q, i) => isObj(q) && Array.isArray(q.lenses) && q.lenses.filter(a => !roster.has(a)).forEach(a => out.push({ part: 'qualities', level: 'warn', text: `row ${i + 1}: ${a} has no roster row` })));
     }
   }
 

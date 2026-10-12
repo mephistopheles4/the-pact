@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-m7+24C7XZwBRRORaHGqFyX1dkOqWgdNrMdxKg0EPQtI='; style-src 'sha256-zZ32ss0RY1r0MQQyAoOFJzZ1atjzVNL3gchbftxM1eE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-T/R4wrgVnxiWxfYkC0OybVEt5JPZopz/3pUroQK2T/I='; style-src 'sha256-zZ32ss0RY1r0MQQyAoOFJzZ1atjzVNL3gchbftxM1eE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -1493,10 +1493,10 @@ function partsProblems(p) {
     });
     const names = p.qualities.filter(isObj).map(q => String(q.quality).toLowerCase());
     if (new Set(names).size !== names.length) err('qualities', 'the list names one quality twice');
-    // A finding: a lens the roster does not hold.
+    // A finding: an agent with no roster row.
     if (Array.isArray(p.lenses)) {
       const roster = new Set(p.lenses.flatMap(r => (isObj(r) && Array.isArray(r.agents) ? r.agents : [])));
-      p.qualities.forEach((q, i) => isObj(q) && Array.isArray(q.lenses) && q.lenses.filter(a => !roster.has(a)).forEach(a => out.push({ part: 'qualities', level: 'warn', text: `row ${i + 1}: ${a} is not in the lens roster` })));
+      p.qualities.forEach((q, i) => isObj(q) && Array.isArray(q.lenses) && q.lenses.filter(a => !roster.has(a)).forEach(a => out.push({ part: 'qualities', level: 'warn', text: `row ${i + 1}: ${a} has no roster row` })));
     }
   }
 
@@ -1846,7 +1846,7 @@ const WF_TOUR = [
   ['canvas', 'A condition sits between a stage and its lenses and says when they are offered. Lenses on one condition are offered together: that is all a pair is.'],
   ['table', 'The workflow table, the part this canvas edits. One row per stage: what each tier sets there, the lenses offered and when, and the other ways out.'],
   ['sim', 'Describe a piece of work and press Run it through: a pulse travels the stages and lights the lenses that would be offered.'],
-  ['panel', 'Edit whatever you select here. Tiers, sensitive work, the lens roster and the results are in Settings, in the head.'],
+  ['panel', 'Edit whatever you select here. Tiers, sensitive work, the lens and agent roster and the results are in Settings, in the head.'],
 ];
 
 /** Mount the editor in `host`, editing state.parts in place. `changed` runs after every edit. */
@@ -2028,9 +2028,9 @@ function workflowEditor(host, state, changed) {
       item('stage', '', '▭', 'Stage', "a step of the work's own lifecycle"),
       item('cond', '', '?', 'Condition', 'when its lenses are offered'),
       item('skill', '', '✦', 'Skill', 'a skill or command, offered or used'),
-      el('div', { class: 'av-label', text: 'Lenses' }),
+      el('div', { class: 'av-label', text: 'Agents' }),
       ...rows.map(r => el('div', { class: 'wf-libpair' }, r.agents.length > 1 ? item('pair', r.agents.join('+'), '◇◇', heading(r), 'all on one condition') : el('div', { class: 'av-label', text: heading(r) }), ...r.agents.map(a => item('agent', a, '◇', a, r.agents.length > 1 ? 'one lens' : r.asks)))),
-      ...(lenses.some(n => !inRoster(n)) ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Not in the roster' }), ...lenses.filter(n => !inRoster(n)).map(n => item('agent', n, '◇', n, 'a pact lens')))] : []),
+      ...(lenses.some(n => !inRoster(n)) ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'No roster' }), ...lenses.filter(n => !inRoster(n)).map(n => item('agent', n, '◇', n, 'a pact agent')))] : []),
       ...(PACT.yours.agents.length ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Yours' }), ...PACT.yours.agents.map(a => item('agent', a.name, '◆', a.name, a.description || 'your agent')))] : []),
     );
   }
@@ -3081,7 +3081,7 @@ function boot() {
     $('settings').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
-      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your moves and models, and the parts the canvas builds: tiers, sensitive work, and what they compile to. The agents, the lens roster and the qualities are under Agents.' })), closeX('settings')),
+      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your moves and models, and the parts the canvas builds: tiers, sensitive work, and what they compile to. The agents, the lens and agent roster and the qualities are under Agents.' })), closeX('settings')),
       el(
         'section',
         { class: 'av-tool-bar av-tool-bar--stack' },
@@ -3319,9 +3319,7 @@ function boot() {
     d.addEventListener('toggle', () => (d.open ? agentsOpen.add(key) : agentsOpen.delete(key)));
     return d;
   };
-  /** The lens names a roster row or a quality can take: the pact's lenses, your own agents, and any name already there. */
-  const lensNames = (...more) => [...new Set([...PACT.agents.filter(a => a.name.endsWith('-lens')).map(a => a.name), ...PACT.yours.agents.map(a => a.name), ...more])];
-  // Any agent may check a quality, a helper such as scout included; it simply starts with none.
+  /** The agent names a roster row or a quality can take: the pact's agents, scout included, your own, and any name already there. */
   const agentNames = (...more) => [...new Set([...PACT.agents.map(a => a.name), ...PACT.yours.agents.map(a => a.name), ...more])];
   /** The parts changed in the Agents dialog: the editor records it, and the dialog redraws unless the change came from typing. */
   const partsTouched = (redraw = true) => {
@@ -3395,12 +3393,12 @@ function boot() {
     );
     const roster = agentsSection(
       'roster',
-      'Lens roster',
-      el('p', { class: 'av-annot', text: 'Each row a lens or a pair, and the question it asks. A row of two is a pair the library offers as one.' }),
+      'Lens and agent roster',
+      el('p', { class: 'av-annot', text: 'Each row an agent or a pair, and the question it asks. A row of two is a pair the library offers as one. An agent in no row is listed under No roster.' }),
       ...state.parts.lenses.map((r, i) => el(
         'div',
         { class: 'wf-group lens-row' },
-        el('div', { class: 'row-line' }, tagPicker(`Row ${i + 1} lenses`, r.agents, lensNames(...r.agents), names => {
+        el('div', { class: 'row-line' }, tagPicker(`Row ${i + 1} agents`, r.agents, agentNames(...r.agents), names => {
           r.agents = names;
           partsTouched();
         }), el('button', { type: 'button', class: 'row-x', title: 'Remove this row from the roster (undo brings it back)', 'aria-label': `Remove the row ${r.label || r.agents.join(', ')}`, onclick: () => {
