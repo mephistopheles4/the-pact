@@ -174,7 +174,7 @@ test('the page carries what builder/build.mjs builds from the repo now: the move
 /** A throwaway root holding the files builder/build.mjs reads, with `mutate` applied. */
 function buildRoot(t, mutate) {
   const root = tempDir(t, 'pact-builder-root-');
-  for (const d of ['claude', 'examples', 'familiars']) cpSync(join(REPO, d), join(root, d), { recursive: true });
+  for (const d of ['claude', 'examples', 'familiars', join('docs', 'brand')]) cpSync(join(REPO, d), join(root, d), { recursive: true });
   // The renderer and what it reads: build.mjs runs it for the agents' classes.
   cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: s => !s.includes(`${join('gate', 'tests')}`) });
   mutate(root);
@@ -408,12 +408,11 @@ test('reset puts the usage value, every slot and every agent back to the plain p
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
-// #262 S8: the Workflow step holds the four parts Scriptorium builds; the move steps hold every other editable part.
-test('the wizard walks Start, each move, Workflow, Agents, then Review and save; each move step holds exactly that move\'s open parts', () => {
+// #262 S8: the four parts Scriptorium builds are the canvas's, which is the page; the move steps hold every other editable part.
+test('the wizard walks Start, each move, Agents, then Review and save; each move step holds exactly that move\'s open parts', () => {
   const steps = L.wizardSteps();
-  assert.deepEqual(steps.map(s => s.id), ['start', 'move-1', 'move-2', 'move-3', 'move-4', 'workflow', 'agents', 'review']);
+  assert.deepEqual(steps.map(s => s.id), ['start', 'move-1', 'move-2', 'move-3', 'move-4', 'agents', 'review']);
   assert.deepEqual(steps.filter(s => s.move).flatMap(s => s.marks).sort(), L.PACT.editable.filter(m => !L.PACT.parts.marks.includes(m)).sort());
-  assert.deepEqual(steps.find(s => s.id === 'workflow').marks, ['tiers', 'sensitive', 'workflow', 'lenses']);
   for (const s of steps.filter(s => s.move)) assert.ok(s.marks.every(m => m.startsWith(s.id)), s.id);
 });
 
@@ -496,7 +495,6 @@ test('stub page: each step shows only its own sections; a move step shows only i
   const view = () => ({
     start: !P.ids.values.hidden && !P.ids.workflows.hidden,
     agents: !P.ids.agents.hidden,
-    workflow: !P.ids.wf.hidden,
     workspace: !P.ids.workspace.hidden,
     review: !P.ids.output.hidden && !P.ids.always.hidden,
     moves: P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id),
@@ -504,21 +502,20 @@ test('stub page: each step shows only its own sections; a move step shows only i
     nav: P.find(P.ids['step-nav'], n => n.tag === 'button').map(b => b.text),
   });
   const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
-  assert.equal(steps().length, 8);
+  assert.equal(steps().length, 7);
   // #261: the move steps are named after the moves, where they said Move 1 to Move 4.
-  assert.deepEqual(view(), { start: true, agents: false, workflow: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Next: Sense the work'] });
-  const want = { 1: ['Back: Start', 'Next: Think before doing'], 2: ['Back: Sense the work', 'Next: Checkpoint the seams'], 3: ['Back: Think before doing', 'Next: Stay the owner'], 4: ['Back: Checkpoint the seams', 'Next: Workflow'] };
+  assert.deepEqual(view(), { start: true, agents: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Next: Sense the work'] });
+  const want = { 1: ['Back: Start', 'Next: Think before doing'], 2: ['Back: Sense the work', 'Next: Checkpoint the seams'], 3: ['Back: Think before doing', 'Next: Stay the owner'], 4: ['Back: Checkpoint the seams', 'Next: Agents'] };
   for (const n of [1, 2, 3, 4]) {
     P.button(P.ids['step-nav'], 'Next').click();
-    assert.deepEqual(view(), { start: false, agents: false, workflow: false, workspace: true, review: false, moves: [`move-${n}`], tabs: ['Presets', 'Yours'], nav: want[n] }, `move ${n}`);
+    assert.deepEqual(view(), { start: false, agents: false, workspace: true, review: false, moves: [`move-${n}`], tabs: ['Presets', 'Yours'], nav: want[n] }, `move ${n}`);
   }
-  // #262 S7: the Workflow step shows the canvas alone.
   P.button(P.ids['step-nav'], 'Next').click();
-  assert.deepEqual(view(), { start: false, agents: false, workflow: true, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Stay the owner', 'Next: Agents'] });
-  P.button(P.ids['step-nav'], 'Next').click();
-  assert.deepEqual(view(), { start: false, agents: true, workflow: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Workflow', 'Next: Review and save'] });
-  steps()[7].click();
-  assert.deepEqual(view(), { start: false, agents: false, workflow: false, workspace: false, review: true, moves: [], tabs: [], nav: ['Back: Agents'] });
+  assert.deepEqual(view(), { start: false, agents: true, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Stay the owner', 'Next: Review and save'] });
+  steps()[6].click();
+  assert.deepEqual(view(), { start: false, agents: false, workspace: false, review: true, moves: [], tabs: [], nav: ['Back: Agents'] });
+  // #262: the canvas is the page itself, mounted at boot, and never a step.
+  assert.ok(P.find(P.ids.wf, n => n.attrs && n.attrs['aria-label'] === 'The workflow canvas').length === 1);
 });
 
 test('stub page: on each move, Add from Yours defaults to that move\'s slot', () => {
@@ -549,13 +546,13 @@ test('stub page: reset from a move keeps that step, and undo puts the edits back
 test('stub page: an override shows on the Agents step and on Review, and a step lists its own problems', () => {
   const P = bootPage();
   const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
-  steps()[6].click();
+  steps()[5].click();
   const pick = P.find(P.ids.agents, n => n.tag === 'select' && n.attrs['aria-label'] === 'data-lens model')[0];
   pick.value = 'sonnet';
   pick.listeners.change.forEach(f => f({}));
-  assert.match(steps()[6].text, /1 override, not security-tested/);
+  assert.match(steps()[5].text, /1 override, not security-tested/);
   assert.match(P.ids.here.text, /data-lens · override, not security-tested/);
-  steps()[7].click();
+  steps()[6].click();
   assert.match(P.ids.output.text, /data-lens · override, not security-tested/);
   // An empty card on move 2: its problem shows on move 2's own step.
   steps()[2].click();

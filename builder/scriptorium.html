@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-PI7VHSclc8MNjx4xabso0mpKtCohKZy2+MunbbzH3qE='; style-src 'sha256-KBhc1ZETlMKd8qQSLIPZpF9i+g0epLiT/sIPqpmeyfg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-08mYsdlnCM6hYF7K1Q1IDu5AxU7zKWvqLuyZbaif9WA='; style-src 'sha256-LZQEUDat0K+pk6g5iMd7MVaCaJyDaMjauQCYkbEeOQQ='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -353,6 +353,20 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-tour p { margin: var(--av-s1) 0; }
 .wf-tourhl { outline: 3px solid var(--av-caution) !important; outline-offset: 2px; }
 
+/* PAGE: Scriptorium's head, then the canvas, the whole height. */
+html, body { height: 100%; }
+.page { height: 100vh; display: flex; flex-direction: column; background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.5; }
+.brand-head { display: flex; align-items: center; justify-content: space-between; gap: var(--av-s3); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-bold) solid var(--av-ink); background: var(--av-surface); }
+.brand { display: flex; align-items: center; gap: var(--av-s2); min-width: 0; }
+.brand-mark { display: flex; flex: none; }
+.brand-text { display: flex; flex-direction: column; min-width: 0; }
+.brand-name { margin: 0; font-size: var(--av-t-lead); font-weight: 600; letter-spacing: var(--av-track-title); line-height: 1.2; }
+.page .wf { flex: 1; min-height: 0; border-top: 0; }
+.page .wf-cols { flex: 1; height: auto; min-height: 0; }
+dialog.classic { width: min(1400px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 0; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.6; }
+dialog.classic::backdrop { background: rgb(0 0 0 / 0.35); }
+dialog.classic .av-tool-sheet { border: 0; max-width: none; }
+
 /* SETTINGS: both usage limits, in one dialog. */
 dialog.settings { max-width: 560px; width: calc(100% - 32px); padding: 0; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper); color: var(--av-ink); font-family: var(--av-font); }
 dialog.settings::backdrop { background: rgb(0 0 0 / 0.35); }
@@ -360,16 +374,44 @@ dialog.settings::backdrop { background: rgb(0 0 0 / 0.35); }
 </style>
 </head>
 <body>
-<div class="av-tool">
-  <div class="av-tool-sheet">
-    <header class="av-tool-head">
-      <div class="av-tool-head-text">
+<div class="page">
+  <header class="brand-head">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="34" height="34">
+  <rect x="0.8" y="0.8" width="22.4" height="22.4" fill="#22262B"></rect>
+  <g stroke="#FAFAF7" stroke-width="0.22">
+    <line x1="9.6" y1="4.6" x2="9.6" y2="19.4"></line>
+    <line x1="14.4" y1="4.6" x2="14.4" y2="19.4"></line>
+    <line x1="4.6" y1="9.6" x2="19.4" y2="9.6"></line>
+    <line x1="4.6" y1="14.4" x2="19.4" y2="14.4"></line>
+  </g>
+  <g fill="none" stroke="#FAFAF7" stroke-width="1.4">
+    <path d="M4.6 8 V4.6 H8"></path>
+    <path d="M16 4.6 H19.4 V8"></path>
+    <path d="M19.4 16 V19.4 H16"></path>
+    <path d="M8 19.4 H4.6 V16"></path>
+  </g>
+  <path d="M9.6 14.4 H12 V9.6 H14.4" fill="none" stroke="#FAFAF7" stroke-width="1.0"></path>
+  <rect x="8.2" y="13" width="2.8" height="2.8" fill="#FAFAF7"></rect>
+  <rect x="13" y="8.2" width="2.8" height="2.8" fill="#B45309"></rect></svg></span>
+      <div class="brand-text">
+        <h1 class="brand-name">Scriptorium</h1>
         <span class="av-label" id="builder-title">The pact · configuration · schema 1</span>
-        <h1 class="av-tool-title">Config builder</h1>
+      </div>
+    </div>
+    <div class="av-tool-actions" id="actions"></div>
+  </header>
+  <section class="wf" id="wf"></section>
+</div>
+<dialog class="classic" id="classic" aria-label="Moves, agents and save">
+  <div class="av-tool-sheet">
+    <div class="av-tool-bar classic-head">
+      <div class="av-tool-head-text">
+        <h2 class="av-tool-title">Moves, agents and save</h2>
         <p class="av-tool-blurb">The four moves are a fixed spine. Pinned blocks are locked. Open slots take presets from the library, or your own text. Nothing leaves this page until you save, and the installer checks what you save exactly as it checks a file written by hand.</p>
       </div>
-      <div class="av-tool-actions" id="actions"></div>
-    </header>
+      <span id="classic-close"></span>
+    </div>
     <div class="av-tool-bar" id="summary"></div>
     <nav class="stepper" id="stepper" aria-label="Steps"></nav>
     <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
@@ -381,13 +423,12 @@ dialog.settings::backdrop { background: rgb(0 0 0 / 0.35); }
         <section id="spine"></section>
       </div>
     </div>
-    <section class="wf" id="wf" hidden></section>
     <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
     <section class="av-tool-detail" id="always"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="here" hidden></section>
     <nav class="step-nav" id="step-nav" aria-label="Back and next"></nav>
   </div>
-</div>
+</dialog>
 <dialog class="settings" id="settings" aria-label="Settings"></dialog>
 <script>
 'use strict';
@@ -1719,7 +1760,6 @@ function wizardSteps() {
   return [
     { id: 'start', title: 'Start', marks: [PACT.setting.name, PACT.session.name] },
     ...PACT.moves.map(m => ({ id: `move-${m.n}`, title: m.lead, move: m.n, marks: m.parts.filter(p => p.kind === 'open').map(p => p.mark) })),
-    { id: 'workflow', title: 'Workflow', marks: PACT.parts.marks },
     { id: 'agents', title: 'Agents', marks: [] },
     { id: 'review', title: 'Review and save', marks: null },
   ];
@@ -1740,12 +1780,12 @@ function stepSummary(state) {
     const here = found.filter(f => s.marks.includes(f.where));
     const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0) + (state.session !== null ? 1 : 0)
       : s.id === 'agents' ? agentsOff
-      : s.id === 'workflow' ? Object.keys(partsChanged(state)).length
       : s.marks.filter(m => slotOp(state.slots[m]) !== 'keep').length;
     return { id: s.id, title: s.title, changes, errors: count(here, 'error'), warns: count(here, 'warn'), overrides: s.id === 'agents' ? over : 0 };
   });
   const review = rows[rows.length - 1];
-  review.changes = rows.slice(0, -1).reduce((n, r) => n + r.changes, 0);
+  // The canvas's parts count on Review too: the canvas is the page, not a step.
+  review.changes = rows.slice(0, -1).reduce((n, r) => n + r.changes, 0) + Object.keys(partsChanged(state)).length;
   return rows;
 }
 
@@ -1909,7 +1949,7 @@ function workflowEditor(host, state, changed) {
     el(
       'div',
       { class: 'slot-bar wf-head' },
-      el('div', {}, el('h2', { class: 'section-title', text: 'Workflow · the parts Scriptorium builds' }), el('p', { class: 'av-annot', text: 'Tiers, sensitive work, the workflow and the lens roster. The canvas edits the workflow; the panel edits the other three. Any change here shows a security-defaults line first in the install\'s dry run.' })),
+      el('p', { class: 'av-annot', text: 'The canvas edits the workflow; the panel edits tiers, sensitive work and the lens roster. Any change to these four shows a security-defaults line first in the install\'s dry run.' }),
       el('div', { class: 'chips' }, chip('Take the tour', true, () => tour(0)), chip('Reset these parts', false, () => {
         state.parts = copyParts(PACT.ownParts || PACT.parts.defaults);
         ui.sel = null;
@@ -2780,7 +2820,12 @@ function boot() {
     const apply = () => {
       if (dark) root.setAttribute('data-aviation-scheme', 'dark');
       else root.removeAttribute('data-aviation-scheme');
-      $('actions').replaceChildren(el('span', { id: 'reset', class: 'chips' }), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
+      const classic = chip('Moves, agents and save', false, () => {
+        const d = $('classic');
+        if (typeof d.showModal === 'function') d.showModal();
+        else d.setAttribute('open', '');
+      }, 'av-tool-chip--ghost');
+      $('actions').replaceChildren(classic, el('span', { id: 'reset', class: 'chips' }), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
         dark = !dark;
         try {
           window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
@@ -3327,11 +3372,6 @@ function boot() {
     $('values').hidden = $('workflows').hidden = id !== 'start';
     $('agents').hidden = id !== 'agents';
     $('workspace').hidden = !stepMove();
-    $('wf').hidden = id !== 'workflow';
-    if (id === 'workflow') {
-      if (!editor) editor = workflowEditor($('wf'), state, () => renderOutput());
-      editor.show();
-    }
     $('output').hidden = $('always').hidden = id !== 'review';
     renderSidebar();
     renderSpine();
@@ -3425,6 +3465,10 @@ function boot() {
   renderAgents();
   renderAlways();
   showStep('start');
+  // The canvas is the page; the moves, agents and save sit in a dialog behind the head.
+  $('classic-close').replaceChildren(chip('Close', false, () => $('classic').close(), 'av-tool-chip--ghost'));
+  editor = workflowEditor($('wf'), state, () => renderOutput());
+  editor.show();
 }
 
 if (typeof document !== 'undefined') boot();

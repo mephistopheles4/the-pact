@@ -60,6 +60,31 @@ const DATA_RE = /\/\* pact-data:begin \*\/[\s\S]*?\/\* pact-data:end \*\//;
 // The parts' compiler and checks, copied in from builder/parts.mjs (#262), so the page and the check share one compiler.
 const PARTS_CODE_RE = /\/\* parts-code:begin \*\/[\s\S]*?\/\* parts-code:end \*\//;
 const PARTS_FILE = join(dirname(fileURLToPath(import.meta.url)), 'parts.mjs');
+// The Scriptorium mark (#275), copied into the page's head as plain markup.
+const MARK_REL = 'docs/brand/scriptorium/scriptorium-mark.svg';
+const MARK_SLOT_RE = /(<span class="brand-mark" aria-hidden="true">)[\s\S]*?(<\/span>)/;
+const MARK_TAGS = new Set(['svg', 'g', 'rect', 'line', 'path']);
+const MARK_ATTRS = new Set(['viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'd', 'fill', 'stroke', 'stroke-width']);
+/**
+ * The mark as markup the page may carry: its namespace attribute dropped (the
+ * HTML parser puts an svg element in its namespace), and every element and
+ * attribute on a short list, so it holds no script, link, style or address.
+ */
+function markMarkup(root) {
+  const svg = readFileSync(join(root, MARK_REL), 'utf8').replace(/ xmlns="[^"]*"/, '').trim();
+  for (const m of svg.matchAll(/<\/?([a-zA-Z][\w-]*)([^>]*)>/g)) {
+    if (!MARK_TAGS.has(m[1])) fail(`${MARK_REL} holds a ${m[1]} element the page does not carry`);
+    const attrs = m[2].replace(/\/$/, '').trim();
+    if (!attrs) continue;
+    for (const a of attrs.matchAll(/([^\s=]+)="([^"]*)"/g)) {
+      if (!MARK_ATTRS.has(a[1])) fail(`${MARK_REL} holds a ${a[1]} attribute the page does not carry`);
+      if (/[<>:()]/.test(a[2])) fail(`${MARK_REL} holds an attribute value the page does not carry`);
+    }
+    if (attrs.replace(/([^\s=]+)="([^"]*)"/g, '').trim()) fail(`${MARK_REL} holds an attribute the page cannot read`);
+  }
+  return svg.replace(/ width="24" height="24"/, ' width="34" height="34"');
+}
+
 /** builder/parts.mjs as page script: its header comment and every "export " taken off. */
 const partsCode = () => readFileSync(PARTS_FILE, 'utf8').replace(/^(?:\/\/.*\n)+\n/, '').replace(/^export /gm, '');
 const SCRIPT_RE = /<script>([\s\S]*?)<\/script>/;
@@ -508,6 +533,8 @@ export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_R
   let out = html.replace(DATA_RE, () => `/* pact-data:begin */ ${json} /* pact-data:end */`);
   if (!PARTS_CODE_RE.test(out)) fail('the page has no parts-code marks');
   out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);
+  if (!MARK_SLOT_RE.test(out)) fail('the page has no brand-mark slot');
+  out = out.replace(MARK_SLOT_RE, (_, a, b) => `${a}${markMarkup(root)}${b}`);
   const script = SCRIPT_RE.exec(out);
   const style = STYLE_RE.exec(out);
   if (!script || !style || !CSP_RE.test(out)) fail('the page has no inline script, style or policy meta tag');
