@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6gefvTkKlZqhbcOPjFBKAf/vjjl0eRRWDrVHiqo0zO8='; style-src 'sha256-zZ32ss0RY1r0MQQyAoOFJzZ1atjzVNL3gchbftxM1eE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-m7+24C7XZwBRRORaHGqFyX1dkOqWgdNrMdxKg0EPQtI='; style-src 'sha256-zZ32ss0RY1r0MQQyAoOFJzZ1atjzVNL3gchbftxM1eE='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3321,6 +3321,8 @@ function boot() {
   };
   /** The lens names a roster row or a quality can take: the pact's lenses, your own agents, and any name already there. */
   const lensNames = (...more) => [...new Set([...PACT.agents.filter(a => a.name.endsWith('-lens')).map(a => a.name), ...PACT.yours.agents.map(a => a.name), ...more])];
+  // Any agent may check a quality, a helper such as scout included; it simply starts with none.
+  const agentNames = (...more) => [...new Set([...PACT.agents.map(a => a.name), ...PACT.yours.agents.map(a => a.name), ...more])];
   /** The parts changed in the Agents dialog: the editor records it, and the dialog redraws unless the change came from typing. */
   const partsTouched = (redraw = true) => {
     if (editor) editor.partsEdited(redraw);
@@ -3367,7 +3369,6 @@ function boot() {
     const a = PACT.agents.find(x => x.name === agentSel);
     const now = state.agents[a.name];
     const changed = now.model !== a.model || now.effort !== a.effort;
-    const isLens = a.name.endsWith('-lens');
     const row = state.parts.lenses.find(r => r.agents.includes(a.name));
     const qs = state.parts.qualities;
     const listItem = x => el('button', { type: 'button', class: `agent-pick${x.name === agentSel ? ' on' : ''}`, 'aria-pressed': String(x.name === agentSel), onclick: () => {
@@ -3379,18 +3380,16 @@ function boot() {
       { class: 'agent-detail' },
       el('h3', { class: 'section-title', text: a.name }),
       el('div', { class: 'field-row model-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, [...new Set([...state.models.map(agentModelOf), now.model])], now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
-      el('span', { class: 'av-label', text: changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not a security lens'}` }),
-      ...(isLens ? [
-        el('p', { class: 'av-annot', text: row ? `Roster: ${row.label || row.agents.join(', ')}${row.agents.length > 1 ? ` (with ${row.agents.filter(n => n !== a.name).join(', ')})` : ''}. Asks: ${row.asks}` : 'Not in the roster: add it to a row below.' }),
-        el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Qualities it checks' }), tagPicker(`${a.name} qualities`, qs.filter(q => q.lenses.includes(a.name)).map(q => q.quality), qs.map(q => q.quality), names => {
-          for (const q of qs) {
-            const has = q.lenses.includes(a.name);
-            if (names.includes(q.quality) && !has) q.lenses.push(a.name);
-            if (!names.includes(q.quality) && has) q.lenses = q.lenses.filter(n => n !== a.name);
-          }
-          partsTouched();
-        })),
-      ] : [el('p', { class: 'av-annot', text: 'A helper, not a lens: it has no roster row and checks no quality.' })]),
+      el('span', { class: 'av-label', text: changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not security-set'}` }),
+      ...(row ? [el('p', { class: 'av-annot', text: `Roster: ${row.label || row.agents.join(', ')}${row.agents.length > 1 ? ` (with ${row.agents.filter(n => n !== a.name).join(', ')})` : ''}. Asks: ${row.asks}` })] : []),
+      el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Qualities it checks' }), tagPicker(`${a.name} qualities`, qs.filter(q => q.lenses.includes(a.name)).map(q => q.quality), qs.map(q => q.quality), names => {
+        for (const q of qs) {
+          const has = q.lenses.includes(a.name);
+          if (names.includes(q.quality) && !has) q.lenses.push(a.name);
+          if (!names.includes(q.quality) && has) q.lenses = q.lenses.filter(n => n !== a.name);
+        }
+        partsTouched();
+      })),
       el('span', { class: 'av-label', text: 'Where it runs' }),
       offered(a),
     );
@@ -3442,7 +3441,7 @@ function boot() {
           partsTouched();
         } }, '×')),
         el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Measure' }), dialogInput(q.measure, v => (q.measure = v), { title: 'How it is measured: a budget, a level, the interfaces that stay stable. Empty when none is known yet.', placeholder: 'none yet' })),
-        el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Checked by' }), tagPicker(`${q.quality} lenses`, q.lenses, lensNames(...q.lenses), names => {
+        el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Checked by' }), tagPicker(`${q.quality} agents`, q.lenses, agentNames(...q.lenses), names => {
           q.lenses = names;
           partsTouched();
         })),
@@ -3457,9 +3456,9 @@ function boot() {
     $('agents').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
-      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Agents' }), el('p', { class: 'av-tool-blurb', text: 'Each agent takes your model and effort, and starts at its file\'s own: the pact suggests, you decide. The lens roster and the qualities each lens checks are here too.' })), closeX('agents')),
+      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Agents' }), el('p', { class: 'av-tool-blurb', text: 'An agent can be a plain helper, like scout, or a lens that checks qualities. Each takes your model and effort, and starts at its file\'s own: the pact suggests, you decide.' })), closeX('agents')),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'agents-grid' },
-        el('nav', { class: 'agent-list', 'aria-label': 'Agents' }, el('span', { class: 'av-label', text: 'Lenses' }), ...PACT.agents.filter(x => x.name.endsWith('-lens')).map(listItem), el('span', { class: 'av-label', text: 'Helpers' }), ...PACT.agents.filter(x => !x.name.endsWith('-lens')).map(listItem)),
+        el('nav', { class: 'agent-list', 'aria-label': 'Agents' }, ...PACT.agents.map(listItem)),
         detail,
       )),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, roster, qualities)),
