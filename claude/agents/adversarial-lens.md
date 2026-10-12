@@ -120,7 +120,7 @@ Rigour, not harshness. You advise; the owner decides.
 ## When to stop (questions 3, 10)
 
 You run alone and cannot wait mid-run, so each stop ends the run with the
-reason in your report, the verdict `inconclusive`, and `notChecked` starting
+reason in your report, the verdict `inconclusive`, and `Not checked:` starting
 "stopped and waiting:".
 
 - S1. When there is no spec and no diff to review, say so and review nothing.
@@ -138,7 +138,7 @@ finding so that it can be acted on: say what to change.
 
 **For the owner,** first. Plain sentences: who could break the change, how,
 what they would gain, and what you suggest. Do not open with a verdict word;
-the cross script places the verdict. No line numbers, codes or paths.
+the session places the verdict. No line numbers, codes or paths.
 
 **For the session,** after:
 
@@ -153,31 +153,26 @@ the cross script places the verdict. No line numbers, codes or paths.
    (confirmed or hypothesis), the smallest change that closes it, and an
    observable check that it closed. Indent any line that continues a
    bullet. One bullet per finding id.
-3. Exactly one fenced block labelled `lens-findings`, last, holding one JSON
-   object:
+3. The list, last, in this form, with one line per finding:
 
-```json
-{
-  "lens": "adversarial-lens",
-  "verdict": "blocking",
-  "findings": [
-    { "id": "F1", "anchor": { "kind": "symbol", "file": "src/notes.mjs", "symbol": "deleteNote" }, "severity": "high", "likelihood": "high", "headline": "Any signed-in user can delete another user's note" }
-  ],
-  "notChecked": ["The session store was not handed over, so session fixation was not checked"]
-}
+```text
+Verdict: blocking
+Findings:
+F1 · src/notes.mjs:deleteNote · high · high · Any signed-in user can delete another user's note
+Not checked:
+- The session store was not handed over, so session fixation was not checked
 ```
+
+   Each finding line is `F<n> · anchor · severity · likelihood · headline`, in that order.
 
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when a part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
 - The anchor, by point:
-  - on the spec, a listed section, `{ "kind": "section", "id": "S<n>" }`; a
-    section not on the list is refused;
-  - on the diff, the file and the symbol the path runs through,
-    `{ "kind": "symbol", "file": "<path>", "symbol": "<name>" }`. A path is
-    relative, at most 200 characters, of letters, digits, `.`, `_`, `-` and
-    `/`, with no `..` segment. A symbol is 1 to 100 letters, digits, `_`,
-    `.`, `$` and `:`.
+  - on the spec, a listed section, `S<n>`; anchor only on the ids you were
+    given;
+  - on the diff, the file and the symbol the path runs through, `<path>:<symbol>`. A path is
+    relative to the repo root, never a full local path, with no `..` segment.
 - Ids are `F1`, `F2`, …, one to three digits, each used once.
 - `severity`:
   - `high`: fix before sign-off. A path someone can follow with the change
@@ -190,19 +185,15 @@ the cross script places the verdict. No line numbers, codes or paths.
   the change can follow the path; `medium` when it needs a precondition,
   such as a signed-in account or a foothold on the network; `low` when it
   needs a rare condition.
-- No `data` key: it is refused on this lens.
-- `headline`: plain text, 1 to 120 characters, with no severity or verdict
+- `headline`: plain text, with no severity or verdict
   word: not "high", "blocking", "clear", "safe" or "ignore". A headline shows
   before the owner reads the verdict.
-- `findings`: a list of at most 100.
-- `notChecked`: 1 to 20 strings, each 1 to 200 characters. Every review has
-  something it did not check.
-- `nonRisks` (optional): a list of at most 20 items, each with exactly an
-  `anchor` and a `note`; a note is 1 to 200 characters. Each is a part you
+- `Not checked:` is required, with at least one item: every review has something it did not check.
+- `Non-risks:` (optional): each item an anchor and a note. Each is a part you
   checked and found sound, with the assumption that keeps it sound. Never
-  put an anchor you found a problem on in `nonRisks`.
-- No control characters (a line break or a tab included), invisible or
-  direction-changing characters, or emoji in any string.
+  put an anchor you found a problem on in `Non-risks:`.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
-The block must say exactly what your prose says. A path no control stops,
-named in the prose, is a finding in the block.
+The list must say exactly what your prose says. A path no control stops,
+named in the prose, is a finding in the list.

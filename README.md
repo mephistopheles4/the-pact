@@ -73,7 +73,7 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
-  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question; the QA pair and the security pair are defaults. Their reports are checked, joined and posted in the work's record, and I decide." width="800">
+  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question; the QA pair and the security pair are defaults. Their reports are crossed by a template and posted in the work's record, and I decide." width="800">
 </picture>
 
 <details>
@@ -85,7 +85,7 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 - **Security pair, on sensitive work, by default.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
 - **Alone, on specs and results above quick.** `unstated-lens`: what need did nobody write down?
 
-Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The cross script checks and joins the pair; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
+Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The session crosses the pair by a template; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
 
 </details>
 
@@ -105,7 +105,7 @@ Their reports go into the work's record word for word. The agent sorts the findi
 | `claude/review.md` | The review procedure a session reads before it runs a lens |
 | `claude/agents/` | The lenses, in pairs |
 | `familiars/` | `scout`, and the lenses' contracts |
-| `cross/cross.mjs` | Checks and joins a lens pair's findings |
+| `cross/poster.mjs` | The poster's core: posts free text to GitHub and reads it back. Not installed yet |
 | `gate/` | The install gate: the pact checks itself before it installs |
 | `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON |
 | `cloud-sessions/` | Setup for Claude Code cloud sessions |

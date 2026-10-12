@@ -3,10 +3,10 @@
 // cases moved here, unchanged, from install.test.mjs, so a payload change can
 // run them without the whole install tier. Never touches ~/.claude.
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo } from './install-harness.mjs';
+import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 // #261 C7
 test('dry run on a clean tree passes and shows Node, the pin, the check and the gate', t => {
@@ -63,10 +63,12 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
     'gate/tool-allowlist.json',
   ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
-  // #261 S5: the review file installs beside the cross script, byte for byte, and the manifest lists it.
+  // #261 S5: the review file installs byte for byte, and the manifest lists it.
   assert.deepEqual(readFileSync(join(h, 'pact', 'review.md')), readFileSync(join(repo, 'claude', 'review.md')));
   assert.ok(manifest.files.some(f => f.path === 'pact/review.md'), JSON.stringify(manifest.files));
   assert.ok(!existsSync(join(h, 'review.md')), 'the review file is never at the top of the Claude folder');
+  // #264: the bootstrap filter stages nothing under cross/, so nothing of it reaches the home folder.
+  assert.ok(!existsSync(join(h, 'cross')) && !listTree(h).some(f => /cross|poster/.test(f)), listTree(h).join('\n'));
   // A sealed familiar installs as agents/<stem>.md; its contract never reaches the home folder (#210, move 4).
   assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'familiars', 'scout.md')));
   assert.ok(existsSync(join(repo, 'familiars', 'scout.contract.md')), 'the control: the repo holds a contract that could have installed');
@@ -75,4 +77,32 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^Gate: unchanged since the last install$/m);
   assert.match(again.stdout, /^Nothing to do\.$/m);
+});
+
+// #264: the cut drift cases, retargeted to a live file that still installs. A refused apply changes nothing (the repo's rule on cutting install cases).
+test('bad case: a tampered live review file is drift, and --apply refuses and changes nothing', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true }).code, 0);
+  const live = join(h, 'pact', 'review.md');
+  writeFileSync(live, `${readFileSync(live, 'utf8')}\n// tampered\n`);
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^Drift: 1\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}pact\/review\.md \(changed since the install\)\r?$/m, dry.out);
+  refused(install(repo, h, { apply: true }));
+  assert.match(readFileSync(live, 'utf8'), /tampered/, 'a refused apply changes nothing');
+});
+
+test('bad case: a deleted live review file is drift, and --apply refuses and changes nothing', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  assert.equal(install(repo, h, { apply: true }).code, 0);
+  rmSync(join(h, 'pact', 'review.md'));
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.match(dry.stdout, /^Drift: 1\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}pact\/review\.md \(deleted since the install\)\r?$/m, dry.out);
+  refused(install(repo, h, { apply: true }));
+  assert.ok(!existsSync(join(h, 'pact', 'review.md')), 'a refused apply changes nothing');
 });

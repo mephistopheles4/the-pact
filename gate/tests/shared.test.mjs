@@ -1,8 +1,7 @@
 // The shared gate module (#91): the strict JSON reader, the text scanner, the
 // safe-path test, the name filter, the report and refusal types, the structure
 // patterns and the marker parser live in gate/shared.mjs, and seam A and its
-// pact-text checks hold no copy of their own. The cross script keeps its copy
-// (it installs standalone); cross-parity.test.mjs holds that copy to this one.
+// pact-text checks hold no copy of their own.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

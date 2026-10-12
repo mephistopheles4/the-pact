@@ -2,7 +2,7 @@
 # Runs inside a throwaway ubuntu:24.04 container. /s = a scratch folder,
 # mounted read-only, holding the generated scripts, CLAUDE.cloud.md and repo/:
 # an export of tracked files only, made with
-#   git archive HEAD claude/agents familiars/scout.md cross/cross.mjs | tar -x -C <scratch>/repo
+#   git archive HEAD claude/agents claude/review.md familiars/scout.md | tar -x -C <scratch>/repo
 # Never mount the working clone or your home folder: the setup runs fetched
 # code as root, with the network on. Start the container with that one mount,
 # read-only (-v <scratch>:/s:ro), and nothing else: no Docker socket, no
@@ -34,7 +34,7 @@ snapshot() {
     diff -u "$f" "/root/.claude/agents/$(basename "$f")" || echo "DIFFERS: $(basename "$f")"
   done
   echo "### agents written: $(ls /root/.claude/agents | wc -l) (expect $(( $(ls /s/repo/claude/agents/*.md | wc -l) + 1 )))"
-  echo "### diff: written pact/cross.mjs vs cross/cross.mjs (expect empty)"; diff -u /s/repo/cross/cross.mjs /root/.claude/pact/cross.mjs && echo "(identical)"
+  echo "### diff: written pact/review.md vs claude/review.md (expect empty)"; diff -u /s/repo/claude/review.md /root/.claude/pact/review.md && echo "(identical)"
 }
 
 echo "################ PASS 1"; bash /s/cloud-setup.sh; echo "exit: $?"

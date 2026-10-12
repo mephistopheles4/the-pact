@@ -55,10 +55,10 @@
 <line x1="664" y1="176" x2="664" y2="187" stroke="#ece5df" stroke-width="1.5"/>
 <path d="M660 186L668 186L664 192Z" fill="#ece5df"/>
 <rect x="572" y="196" width="184" height="128" fill="#1a1614" stroke="#ece5df" stroke-width="2"/>
-<text x="584" y="219.2" font-size="12" font-weight="600" fill="#ece5df">Cross script</text>
-<text x="584" y="237.2" font-size="12" fill="#ece5df">checks and joins</text>
-<text x="584" y="255.2" font-size="12" fill="#ece5df">the pair. Where</text>
-<text x="584" y="273.2" font-size="12" fill="#ece5df">both lenses hit</text>
+<text x="584" y="219.2" font-size="12" font-weight="600" fill="#ece5df">The session</text>
+<text x="584" y="237.2" font-size="12" fill="#ece5df">crosses the pair</text>
+<text x="584" y="255.2" font-size="12" fill="#ece5df">by a template.</text>
+<text x="584" y="273.2" font-size="12" fill="#ece5df">Where both hit</text>
 <text x="584" y="291.2" font-size="12" fill="#ece5df">one spot, it</text>
 <text x="584" y="309.2" font-size="12" fill="#ece5df">shows first.</text>
 <line x1="664" y1="328" x2="664" y2="339" stroke="#ece5df" stroke-width="1.5"/>

@@ -1,5 +1,7 @@
 # Review is nine lenses in pairs, joined by the cross script
 
+Superseded in part by [ADR 0064](0064-review-crossings-by-template-and-judgment.md) (2026-10-11): the pairs stand, but the cross script that joined them is gone; the session crosses a pair's reports by a template in the review procedure.
+
 The pact's reviewers are nine lenses. A lens is a reviewer agent that asks one question from one angle. Eight of them run in four pairs, and `unstated-lens` runs alone.
 
 - **The QA pair, at move 4 at every tier:** `behaviour-lens` runs the change against the claims; `integrity-lens` asks whether the tests behind a pass can fail.

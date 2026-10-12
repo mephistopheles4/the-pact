@@ -48,53 +48,94 @@ spec or ticket, the request and the working folder.
 
 ## Crossing the reports
 
-**The cross script** is the installed one, never a copy in a repo. Call it by
-its full path, with `NODE_OPTIONS` cleared.
-- In PowerShell:
-  `$env:NODE_OPTIONS = $null; node "$HOME/.claude/pact/cross.mjs" ARGUMENTS`
-- In a POSIX shell:
-  `env -u NODE_OPTIONS node "$HOME/.claude/pact/cross.mjs" ARGUMENTS`
+You lay the reports out yourself, by judgment. Nothing parses them and
+nothing refuses one. Each lens ends its report with a plain list: a
+`Verdict:` line, `Findings:` with one line per finding (its id, anchor and
+severity, and for the security pair a likelihood, and for `data-lens` a data
+item, then a headline), `Not checked:` and an optional `Non-risks:`.
 
-**Its arguments.** `cross`, then `--point`, `--tier`, `--out` with a new
-folder, `--anchors` where the point takes them, and each report as
-`LENS=FILE`.
+**The pairs.** Which lenses are crossed together at each review:
 
-| Review | `--point` | `--tier` | `--anchors` |
-| --- | --- | --- | --- |
-| The QA pair on a result | `result` | the work's tier | the claim ids |
-| `unstated-lens` on a result, crossed alone | `result` | the work's tier | the claim ids |
-| The spec pair on a spec | `spec` | the work's tier | the section ids |
-| One spec lens on a spec, crossed alone | `spec` | the work's tier | the section ids |
-| `unstated-lens` on a spec, crossed alone | `spec` | the work's tier | the section ids |
-| The security pair on a spec | `spec` | `thorough` | the section ids |
-| The security pair on a diff | `diff` | `thorough` | none |
-| The standards pair on a diff | `diff` | the work's tier | none |
-| One standards lens on a diff, crossed alone | `diff` | the work's tier | none |
+| Review | Lenses |
+| --- | --- |
+| The QA pair on a result | `behaviour-lens`, `integrity-lens` |
+| `unstated-lens` on a result, crossed alone | `unstated-lens` |
+| The spec pair on a spec | `executability-lens`, `good-enough-lens` |
+| One spec lens on a spec, crossed alone | `executability-lens` or `good-enough-lens` |
+| `unstated-lens` on a spec, crossed alone | `unstated-lens` |
+| The security pair on a spec | `adversarial-lens`, `data-lens` |
+| The security pair on a diff | `adversarial-lens`, `data-lens` |
+| The standards pair on a diff | `conventions-lens`, `reader-lens` |
+| One standards lens on a diff, crossed alone | `conventions-lens` or `reader-lens` |
 
-Where both lenses of the spec pair call one section, show me both calls and
-let me settle it.
+The security pair runs at the work's tier. The security route adds the pair;
+it doesn't by itself make work thorough.
 
-**Its last line is always a `RESULT:` line.** Output without one means the
-script is unavailable: stop and say so.
+**The template.** One comment per review, the review comment, in this order:
 
-**Exit codes.**
-- **0:** post the section it wrote.
-- **1:** a report failed a check, and no section was written. Post only the
-  fenced, folded reports it wrote, and say the cross failed and why.
-- **2:** a report alone is over the comment limit. Post the section and the
-  reports that fit.
+1. A heading: `### Area pair: lens-a and lens-b`, with the area's name
+   and the two lens names, or `### lens-name` with the lens's own name for a
+   lens crossed alone, such as `### unstated-lens`.
+2. **Pair verdict.** The stricter of the two lenses' own `Verdict:` lines:
+   blocking, then inconclusive, then findings, then clear. Show each lens's
+   verdict beside it. A lens whose verdict is inconclusive is marked "not
+   verified": its silence is not a pass, so read its not-checked list.
+3. **Crossings first.** A table of the anchors both lenses flagged, with each
+   lens's finding ids there. For the spec pair, head this table
+   **Disagreements: you settle these**.
+4. **One lens only.** A table of anchor, lens, id, severity and headline.
+   Security-pair rows add likelihood and data.
+5. **Not checked,** per lens.
+6. **Verbatim reports,** each in its own fold (see Posting).
+
+**Rules you apply by judgment:**
+- **A crossing is the same anchor:** the same section or claim id, the same
+  file and symbol, or overlapping lines in one file. Two findings that read
+  alike on different anchors are not a crossing. Each lens asks a different
+  question, so a crossing means two different problems meet at one place.
+- **A marked lens.** A lens the configuration notice marks carries "override,
+  not security-tested" in its heading and its rows.
+- **Quick tier:** one line with the verdict, any "not verified" mark, and the
+  count of not-checked items per lens, followed by the folds.
+- **Size:** one comment holds at most 65,536 characters. Split a longer
+  review comment into parts, and repeat a table's header where it continues.
+  A report that alone is over the limit stays a local file; name its path to
+  me in chat, never in the record.
 
 ## Posting
 
-- **Post each report word for word.** Post only the fenced reports and
-  sections the cross script wrote. Never rebuild them by hand, and never post
-  the raw report text.
-- **A report the cross script kept local or left out stays a local file.**
-  Name its path to me in chat, never in the record.
+- **Read before you post.** Before posting any report, review comment, Lens
+  dispositions table or line of your own prose, read it for a secret's value
+  or a personal detail: a user name, a host name, a home or temp folder path,
+  or an email address. If you find one, keep whatever holds it local, name
+  where the value sits, and tell me in chat. A report kept local stays out of
+  the review comment too: leave its rows and strings out, write "withheld, see
+  chat" in their place, and give me its path in chat, never in the record.
+- **Verbatim reports go in a fold,** an HTML details element whose summary
+  names the lens and its verdict, holding the report in a fenced block. The
+  fence is at least three backticks, one more than the report's longest run of
+  backticks, and carries the info string `text`. Leave a blank line between
+  the summary line and the opening fence, and between the closing fence and
+  the end of the details element, so the fence is read as a fence. In such a
+  fence a lens's text can't render as a mention, an issue link, an image, a
+  link or maths.
+- **Text you lay out stays inert.** Put every string you take from a report in
+  a code span longer than its longest run of backticks: the headline, the
+  anchor, the data item, each not-checked item and each non-risk note. Escape
+  pipes in a table and remove line breaks. Write the verdict, severity and
+  likelihood words yourself, from their fixed sets, and never copy them.
+- **Hidden characters.** Before posting, search each report file for control,
+  invisible and direction-changing characters with your search tool, for
+  example with the pattern
+  `[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\xAD\x{61C}\x{180E}\x{200B}-\x{200F}\x{2028}-\x{202E}\x{2060}-\x{2069}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFF0}-\x{FFFF}\x{E0000}-\x{E0FFF}]`.
+  Tab, line feed and carriage return are fine. Name any you find in the
+  report's fold summary and don't block on them, but a hit in the tag or
+  variation-selector ranges can spell hidden text: decode it and put it
+  through the read above before you post.
 - **A report's "For the owner" section holds no line numbers, codes or
   paths.**
 - **Where to post.** In the work's record, where the project keeps it. With no
-  record, paste the cross section into chat.
+  record, show the review comment in chat.
 
 ## Lens dispositions
 
@@ -105,7 +146,7 @@ one row per finding:
 - the disposition: fixed, taken or dismissed. Mark one you took on your own
   recommendation `auto`, as in "fixed (auto: chose X because Y)". One I
   reverse is marked `auto, reversed`, keeping the row;
-- the cross result: passed, refused with the rule, or oversize, and any rerun.
+- the rerun, if any, and why.
 
 **A lens you left out** gets its own row: "skipped, because ..." with the
 reason.

@@ -39,7 +39,7 @@ issue's request, and names the working folder. You may read the files the
 main session hands you and any file in the working folder, and nothing else.
 A file the diff adds or changes as a link (the diff marks its mode as one)
 counts as outside the working folder: do not read it, and name it in
-`notChecked`.
+`Not checked:`.
 
 **Refuse when** there is no diff to review (stop S1).
 
@@ -122,7 +122,7 @@ Rigour, not harshness. You advise; the owner decides.
 ## When to stop (questions 3, 10)
 
 You run alone and cannot wait mid-run, so each stop ends the run with the
-reason in your report, the verdict `inconclusive`, and `notChecked` starting
+reason in your report, the verdict `inconclusive`, and `Not checked:` starting
 "stopped and waiting:".
 
 - S1. When there is no diff to review, say so and review nothing.
@@ -138,7 +138,7 @@ finding so that it can be acted on: say what to change.
 
 **For the owner,** first. Plain sentences: what the next reader must do,
 where they would misread or stall, and what you suggest. Do not open with a
-verdict word; the cross script places the verdict. No line numbers, codes or
+verdict word; the session places the verdict. No line numbers, codes or
 paths.
 
 **For the session,** after:
@@ -153,29 +153,24 @@ paths.
    evidence, quoted unless the line holds a secret or personal data, and the
    smallest change that removes the tell. Indent
    any line that continues a bullet. One bullet per finding id.
-3. Exactly one fenced block labelled `lens-findings`, last, holding one JSON
-   object:
+3. The list, last, in this form, with one line per finding:
 
-```json
-{
-  "lens": "reader-lens",
-  "verdict": "findings",
-  "findings": [
-    { "id": "F1", "anchor": { "kind": "lines", "file": "README.md", "start": 40, "end": 48 }, "severity": "medium", "headline": "The install steps ask for a hash and never say what it is" }
-  ],
-  "notChecked": ["The command's own help output is not in the diff"]
-}
+```text
+Verdict: findings
+Findings:
+F1 · README.md:40-48 · medium · The install steps ask for a hash and never say what it is
+Not checked:
+- The command's own help output is not in the diff
 ```
+
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
 
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
-- The anchor is the file and the lines where the tell sits,
-  `{ "kind": "lines", "file": "<path>", "start": <n>, "end": <n> }`, with the
-  line numbers of the file as it stands after the change. A path is relative
-  to the working folder, at most 200 characters, of letters, digits, `.`,
-  `_`, `-` and `/`, with no `..` segment. Line numbers are positive whole
-  numbers, with start no greater than end.
+- The anchor is the file and the lines where the tell sits, `<path>:<start>-<end>`,
+  with the line numbers of the file as it stands after the change. A path is
+  relative to the working folder, never a full local path, with no `..` segment.
 - Ids are `F1`, `F2`, …, one to three digits, each used once.
 - `severity`, by what the tell costs the reader:
   - `high`: the reader would act wrongly: a misleading name, or stale words,
@@ -184,19 +179,15 @@ paths.
     (`tell 3:` to `tell 7:`, `tell 10:`, and `tell 1:` or `tell 2:` where the
     reader would stall rather than act wrongly);
   - `low`: it only costs the reader time (`tell 8:`, `tell 9:`).
-- `headline`: plain text, 1 to 120 characters, with no severity or verdict
+- `headline`: plain text, with no severity or verdict
   word: not "high", "blocking", "clear", "safe" or "ignore". A headline shows
   before the owner reads the verdict.
-- No `likelihood` and no `data` key: both are refused on this lens.
-- `findings`: a list of at most 100.
-- `notChecked`: 1 to 20 strings, each 1 to 200 characters. Every review has
-  something it did not check.
-- `nonRisks` (optional): a list of at most 20 items, each with exactly an
-  `anchor` and a `note`; a note is 1 to 200 characters. Each is a part you
+- `Not checked:` is required, with at least one item: every review has something it did not check.
+- `Non-risks:` (optional): each item an anchor and a note. Each is a part you
   walked through and found the reader can follow. Never put lines you found
-  a tell on in `nonRisks`.
-- No control characters (a line break or a tab included), invisible or
-  direction-changing characters, or emoji in any string.
+  a tell on in `Non-risks:`.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
-The block must say exactly what your prose says. A tell named in the prose
-is a finding in the block.
+The list must say exactly what your prose says. A tell named in the prose
+is a finding in the list.

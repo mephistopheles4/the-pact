@@ -95,9 +95,8 @@ sensitive work. Only I skip a default. The rest are your judgment, or my
 call.
 
 **Before you run a lens, read the pact's review procedure,
-`~/.claude/pact/review.md`.** Cross the reports with the installed script,
-`~/.claude/pact/cross.mjs`, never a copy in a repo. Log each finding's fate
-in a Lens dispositions table. For a lookup that needs no judgment, `scout` is
+`~/.claude/pact/review.md`.** Cross the reports by its template. Log each
+finding's fate in a Lens dispositions table. For a lookup that needs no judgment, `scout` is
 the cheap helper.
 
 ## Guards

@@ -63,7 +63,7 @@ with what you would need to know.
 ## When to stop (questions 3, 10)
 
 You run alone and cannot wait mid-run, so each stop ends the run with the
-reason in your report, the verdict `inconclusive`, and `notChecked` starting
+reason in your report, the verdict `inconclusive`, and `Not checked:` starting
 "stopped and waiting:".
 
 - S1. When there is no spec or result to review, say so and review nothing.
@@ -91,26 +91,23 @@ numbers, codes or paths.
    `missing`).
 2. One bullet per finding: the need, where it came from, and what would give
    it a home. Never merge findings.
-3. Exactly one fenced block labelled `lens-findings`, last, holding one JSON
-   object:
+3. The list, last, in this form, with one line per finding:
 
-```json
-{
-  "lens": "unstated-lens",
-  "verdict": "blocking",
-  "findings": [
-    { "id": "F1", "anchor": { "kind": "section", "id": "S4" }, "severity": "high", "headline": "Should the new listener take the security route?" }
-  ],
-  "notChecked": ["Performance under load: the issue gives no numbers to check against"]
-}
+```text
+Verdict: blocking
+Findings:
+F1 · S4 · high · Should the new listener take the security route?
+Not checked:
+- Performance under load: the issue gives no numbers to check against
 ```
+
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
 
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the work could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
-- Each finding's anchor is on the list you were given: `{ "kind":
-  "section", "id": "S<n>" }` on a spec, `{ "kind": "claim", "id": "C<n>" }`
-  on a result. An anchor not on the list is refused. A need with no home
+- Each finding's anchor is on the list you were given: `S<n>` on a spec, `C<n>`
+  on a result. Anchor only on the ids you were given. A need with no home
   sits on the section or claim nearest to it. Ids are `F1`, `F2`, …, one to
   three digits, each used once.
 - `severity`:
@@ -119,17 +116,14 @@ numbers, codes or paths.
   - `medium`: a need the issue states with no section or claim; a quality
     from the gap list the change plainly touches that no lens covers;
   - `low`: a need the issue implies but does not state.
-- `headline`: plain text, 1 to 120 characters, with no severity or verdict
+- `headline`: plain text, with no severity or verdict
   word ("high", "blocking", "clear", "safe", "ignore"): a headline shows
   before the owner reads the verdict.
-- No `likelihood` and no `data` key: both are refused on this lens.
-- `findings`: a list of at most 100.
-- `notChecked`: 1 to 20 strings, each 1 to 200 characters.
-- `nonRisks` (optional): a list of at most 20 items, each with exactly an
-  `anchor` and a `note`; a note is 1 to 200 characters. Never put a section
-  or claim you found a problem on in `nonRisks`.
-- No control characters (a line break or a tab included), invisible or
-  direction-changing characters, or emoji in any string.
+- `Not checked:` is required, with at least one item.
+- `Non-risks:` (optional): each item an anchor and a note. Never put a section
+  or claim you found a problem on in `Non-risks:`.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
-The block must say exactly what your prose says. A need named in the prose
-is a finding in the block.
+The list must say exactly what your prose says. A need named in the prose
+is a finding in the list.

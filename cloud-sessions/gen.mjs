@@ -5,7 +5,7 @@
 //   node cloud-sessions/gen.mjs            regenerate the three outputs
 //   node cloud-sessions/gen.mjs --check    write nothing; exit 1 naming each stale output
 //
-// Run it with NODE_OPTIONS cleared, as for the cross script: it refuses to run
+// Run it with NODE_OPTIONS cleared, as for the install script: it refuses to run
 // while NODE_OPTIONS is set, so seam A's pinned grimoire child inherits no Node
 // options.
 //
@@ -16,7 +16,7 @@
 // generate(root, options) builds all three in memory:
 //
 //   1. List the payload: the files `git ls-files` lists under claude/,
-//      familiars/, cross/cross.mjs and AGENTS.md in `root`, so untracked and
+//      familiars/ and AGENTS.md in `root`, so untracked and
 //      ignored files are never read. It reads their working-tree bytes once.
 //      It refuses a link, a non-plain index entry or a case clash
 //      (cloud/not-plain), and a private path (cloud/private).
@@ -77,7 +77,7 @@ export const TEMPLATES = Object.freeze({
   setupTail: 'tpl-setup-tail.sh',
 });
 
-const PAYLOAD = Object.freeze(['claude', 'familiars', 'cross/cross.mjs', 'AGENTS.md']);
+const PAYLOAD = Object.freeze(['claude', 'familiars', 'AGENTS.md']);
 const RULES_SOURCE = 'claude/CLAUDE.md';
 const OVERLAY = 'claude/settings.overlay.json';
 const RENDER_NAME = 'CLAUDE.md';

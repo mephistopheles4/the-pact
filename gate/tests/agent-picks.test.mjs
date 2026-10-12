@@ -28,17 +28,12 @@ const INSTALL_PICKS = Object.freeze([
 ]);
 
 /** The install-tier files that reach the agents only through makeRepo's copy, which the smoke set covers (S5 rule 4). */
-const INSTALL_NOT_PICKED = Object.freeze(['builder-install.test.mjs', 'commands-install.test.mjs', 'config-install.test.mjs', 'cross-script-install.test.mjs', 'install-node-project.test.mjs']);
+const INSTALL_NOT_PICKED = Object.freeze(['builder-install.test.mjs', 'commands-install.test.mjs', 'config-install.test.mjs', 'install-node-project.test.mjs']);
 
 /** The fast-tier files that read no agent file (#151's audit). */
 const FAST_NOT_PICKED = Object.freeze([
   'contained.test.mjs',
   'cores.test.mjs',
-  'cross-checks.test.mjs',
-  'cross-join.test.mjs',
-  'cross-mutation.test.mjs',
-  'cross-page.test.mjs',
-  'cross-views.test.mjs',
   'docs-index.test.mjs',
   'fault-fixtures.test.mjs',
   'gate-run.test.mjs',

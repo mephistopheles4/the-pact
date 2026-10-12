@@ -140,10 +140,12 @@ for (const c of table('commit tree', {
   ],
 })) test(c.name, c.fn);
 
+// #264 S7: nothing under cross/ stages, the poster included (the isStaged case retargeted from the removed script).
 test('the commit tree: only the staged set is checked, and gate/tests is dropped', () => {
   const staged = core.parseTree(Buffer.from(treeBase().in));
   assert.deepEqual([...staged.keys()], ['AGENTS.md', 'claude/CLAUDE.md', 'gate/seam-a.mjs']);
-  assert.ok(core.isStaged('cross/cross.mjs') && !core.isStaged('cross/other.mjs') && !core.isStaged('gate/tests/a.mjs'));
+  // Nothing under cross/ stages or installs, the poster included.
+  assert.ok(!core.isStaged('cross/cross.mjs') && !core.isStaged('cross/poster.mjs') && !core.isStaged('cross/other.mjs') && !core.isStaged('gate/tests/a.mjs') && core.isStaged('gate/seam-a.mjs'));
 });
 
 for (const c of table('staged blob', {
@@ -454,8 +456,8 @@ for (const c of table('agent file', {
 
 // ------------------------------------------------------------ seam A's copy set and overlay (S-2, S-3)
 
-const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['familiars/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['cross/cross.mjs', H('5')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
-const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} familiars/scout.md agents/scout.md`, `INSTALL ${H('5')} cross/cross.mjs pact/cross.mjs`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
+const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['familiars/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
+const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} familiars/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
 // #261 C3
 for (const c of table('copy set', {
   module: 'gate/install-core.mjs',
@@ -465,11 +467,11 @@ for (const c of table('copy set', {
     { id: 'listed-twice', plant: rep('RESULT', `INSTALL ${H('2')} claude/agents/a.md agents/a.md\nRESULT`), fails: ['copy-set-twice'], why: 'one file listed twice' },
     { id: 'file-left-off', plant: rep(`INSTALL ${H('2')} claude/agents/a.md agents/a.md\n`, ''), fails: ['copy-set-mismatch'], why: 'a seam A that leaves a file off its list' },
     { id: 'file-added', plant: rep('RESULT', `INSTALL ${H('7')} AGENTS.md AGENTS.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'a file that never installs' },
-    { id: 'other-destination', plant: rep('pact/cross.mjs', 'agents/cross.mjs'), fails: ['copy-set-mismatch'], why: 'the cross script sent to another live path' },
+    { id: 'other-destination', plant: rep('pact/review.md', 'agents/review.md'), fails: ['copy-set-mismatch'], why: 'the review file sent to another live path' },
     { id: 'other-hash', plant: rep(`INSTALL ${H('1')}`, `INSTALL ${H('0')}`), fails: ['copy-set-mismatch'], why: 'bytes other than the staged ones' },
     { id: 'case-differs', plant: rep('claude/agents/a.md agents/a.md', 'claude/agents/A.md agents/a.md'), fails: ['copy-set-mismatch'], why: 'matched case-sensitively, as seam A matches' },
     { id: 'gate-file', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/builder/gate/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'a gate file installs only as a builder kit entry (#203)' },
-    // #261 C3: both readings map the review file beside the cross script; a seam A that sends it anywhere else disagrees.
+    // #261 C3: both readings map the review file to one fixed live path; a seam A that sends it anywhere else disagrees.
     { id: 'review-elsewhere', plant: rep('claude/review.md pact/review.md', 'claude/review.md review.md'), fails: ['copy-set-mismatch'], why: 'the review file at the top of the Claude folder, where the general rule would put it' },
     { id: 'gate-file-elsewhere', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'nor anywhere else' },
   ],
@@ -504,9 +506,9 @@ test('the copy set with commands: a listed command pairs, an unlisted pact comma
 });
 
 // #261 C3
-test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes beside the cross script', () => {
-  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md', 'cross/cross.mjs']);
-  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', 'agents/x.md'], ['cross/cross.mjs', 'pact/cross.mjs']]);
+test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate files and .gitkeep never install; the review file goes to its one fixed path', () => {
+  const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/review.md', 'claude/settings.overlay.json', 'familiars/.gitkeep', 'familiars/x.practice-test.md', 'familiars/x.contract.md', 'familiars/x.md', 'gate/a.mjs', 'AGENTS.md']);
+  assert.deepEqual([...e], [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/review.md', 'pact/review.md'], ['familiars/x.md', 'agents/x.md']]);
 });
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
@@ -576,6 +578,16 @@ test('the plan: a record holding command and kit entries, under a payload withou
   assert.deepEqual(p.delete, ['commands/finis.md', 'pact/builder/builder/build.mjs']);
   assert.deepEqual(p.drift, []);
   assert.ok(!p.delete.includes('commands/mine.md'), "the owner's own command is never deleted");
+});
+
+// #264 done-criterion: an install over the current pact deletes the live cross script, which the payload no longer holds.
+test('the plan: a record listing the retired cross script, under a payload without it, deletes it', () => {
+  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/cross.mjs', H('2')]]);
+  const live = rel => (liveFiles.has(rel) ? { exists: true, file: true, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }, { path: 'pact/cross.mjs', sha256: H('2') }] }));
+  const p = core.plan(record, new Map([['CLAUDE.md', H('1')]]), live, noLink);
+  assert.deepEqual(p.delete, ['pact/cross.mjs']);
+  assert.deepEqual(p.drift, []);
 });
 
 // ------------------------------------------------------------ pact commands against the live home folder (#203, S8)

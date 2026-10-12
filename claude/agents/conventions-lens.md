@@ -35,7 +35,7 @@ issue's request, and names the working folder. You may read the files the
 main session hands you and any file in the working folder, and nothing else.
 A file the diff adds or changes as a link (the diff marks its mode as one)
 counts as outside the working folder: do not read it, and name it in
-`notChecked`.
+`Not checked:`.
 
 **Refuse when** there is no diff to review (stop S1), or no working folder to
 find the rules in (stop S2).
@@ -51,10 +51,10 @@ on it.
    enforces a rule (a linter's or a formatter's), and any file those point
    to, inside the working folder. Follow a pointer from a rules file at most
    one step. A pointer that leads outside the working folder is not read:
-   name it in `notChecked` as outside the working folder, by the rules file
+   name it in `Not checked:` as outside the working folder, by the rules file
    and line that hold it, never by where it leads. When the working
    folder holds no written rules, say so: the verdict is `inconclusive`, with
-   `notChecked` holding `no written rules found`. From the request alone,
+   `Not checked:` holding `no written rules found`. From the request alone,
    write which of their rules you expect the change to touch.
 2. **The rules that apply.** Read the diff. List every written rule that
    applies to it: the rule quoted as written, where it is written, the lines
@@ -90,7 +90,7 @@ Rigour, not harshness. You advise; the owner decides.
 ## When to stop (questions 3, 10)
 
 You run alone and cannot wait mid-run, so each stop ends the run with the
-reason in your report, the verdict `inconclusive`, and `notChecked` starting
+reason in your report, the verdict `inconclusive`, and `Not checked:` starting
 "stopped and waiting:".
 
 - S1. When there is no diff to review, say so and review nothing.
@@ -108,7 +108,7 @@ finding so that it can be acted on: say what to change.
 
 **For the owner,** first. Plain sentences: which written rule the change
 breaks, why the rule matters here, and what you suggest. Do not open with a
-verdict word; the cross script places the verdict. No line numbers, codes or
+verdict word; the session places the verdict. No line numbers, codes or
 paths.
 
 **For the session,** after:
@@ -122,30 +122,25 @@ paths.
    finding id, exactly as `- F1:`. Then the rule as written, where it is
    written, what breaks it, and the smallest change that keeps it. Indent any
    line that continues a bullet. One bullet per finding id.
-3. Exactly one fenced block labelled `lens-findings`, last, holding one JSON
-   object:
+3. The list, last, in this form, with one line per finding:
 
-```json
-{
-  "lens": "conventions-lens",
-  "verdict": "findings",
-  "findings": [
-    { "id": "F1", "anchor": { "kind": "lines", "file": "docs/adr/0031-cache.md", "start": 1, "end": 30 }, "severity": "medium", "headline": "The new ADR has no line in the ADR index" }
-  ],
-  "notChecked": ["A pointer in CONTRIBUTING.md, line 4, leads outside the working folder; it was not read"]
-}
+```text
+Verdict: findings
+Findings:
+F1 · docs/adr/0031-cache.md:1-30 · medium · The new ADR has no line in the ADR index
+Not checked:
+- A pointer in CONTRIBUTING.md, line 4, leads outside the working folder; it was not read
 ```
+
+   Each finding line is `F<n> · anchor · severity · headline`, in that order.
 
 - `verdict`, in this order: `blocking` when any finding is `high`;
   otherwise `inconclusive` when part of the change could not be reviewed;
   otherwise `findings` when there is a finding; otherwise `clear`.
-- The anchor is the file and the lines the break sits on,
-  `{ "kind": "lines", "file": "<path>", "start": <n>, "end": <n> }`, with the
-  line numbers of the file as it stands after the change. For a copy that no
-  longer matches its source, anchor on the copy's lines. A path is relative to
-  the working folder, at most 200 characters, of letters, digits, `.`, `_`,
-  `-` and `/`, with no `..` segment. Line numbers are positive whole numbers,
-  with start no greater than end.
+- The anchor is the file and the lines the break sits on, `<path>:<start>-<end>`,
+  with the line numbers of the file as it stands after the change. For a copy that no
+  longer matches its source, anchor on the copy's lines. A path is
+  relative to the working folder, never a full local path, with no `..` segment.
 - Ids are `F1`, `F2`, …, one to three digits, each used once.
 - `severity`:
   - `high`: a break of a rule the repo writes as a must or a never, where the
@@ -154,19 +149,15 @@ paths.
   - `medium`: a break of any other written rule that applies to the change;
   - `low`: a rule that may apply but you cannot tell, or a break no reader
     would notice.
-- `headline`: plain text, 1 to 120 characters, with no severity or verdict
+- `headline`: plain text, with no severity or verdict
   word: not "high", "blocking", "clear", "safe" or "ignore". A headline shows
   before the owner reads the verdict.
-- No `likelihood` and no `data` key: both are refused on this lens.
-- `findings`: a list of at most 100.
-- `notChecked`: 1 to 20 strings, each 1 to 200 characters. Every review has
-  something it did not check.
-- `nonRisks` (optional): a list of at most 20 items, each with exactly an
-  `anchor` and a `note`; a note is 1 to 200 characters. Each is a rule you
+- `Not checked:` is required, with at least one item: every review has something it did not check.
+- `Non-risks:` (optional): each item an anchor and a note. Each is a rule you
   checked and found kept. Never put lines you found a break on in
-  `nonRisks`.
-- No control characters (a line break or a tab included), invisible or
-  direction-changing characters, or emoji in any string.
+  `Non-risks:`.
+- No control characters other than tab and line break, and no invisible or
+  direction-changing characters, anywhere in the report.
 
-The block must say exactly what your prose says. A break named in the prose
-is a finding in the block.
+The list must say exactly what your prose says. A break named in the prose
+is a finding in the list.

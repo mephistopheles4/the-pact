@@ -109,8 +109,8 @@ function realTree() {
 // The larger part of each mixed file kept its name and never installs; the
 // install cases went to the new files. Two strays went to settings and
 // project-home.
-const FAST = ['settings.test.mjs', 'builder-page.test.mjs', 'agent-settings.test.mjs', 'cross-install.test.mjs', 'project-home.test.mjs'];
-const INSTALL = ['settings-install.test.mjs', 'builder-install.test.mjs', 'agent-settings-install.test.mjs', 'cross-script-install.test.mjs'];
+const FAST = ['settings.test.mjs', 'builder-page.test.mjs', 'agent-settings.test.mjs', 'project-home.test.mjs'];
+const INSTALL = ['settings-install.test.mjs', 'builder-install.test.mjs', 'agent-settings-install.test.mjs'];
 
 // Writing a gate test: each test file holds one layer.
 test('one layer per file: the files T6 split run in fast, never reaching the harness; their install halves stay in the install tier', () => {

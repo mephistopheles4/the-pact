@@ -145,7 +145,7 @@ test('not a home path: a URL, a $HOME path, a dot folder and a name that only st
   for (const text of [
     `https://api.github.com${['', 'users', FAKE].join('/')}`,
     `https://example.com${['', 'c', 'Users', FAKE].join('/')}`,
-    '"$HOME/.claude/pact/cross.mjs"',
+    '"$HOME/.claude/pact/review.md"',
     `<tmp>${['', 'home', '.claude'].join('/')}`,
     `${['', 'homework', FAKE].join('/')}`,
     `pact-sandbox-${['home', FAKE, 'x'].join('-')}`,

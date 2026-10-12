@@ -25,10 +25,7 @@ if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
     || echo "WARN: node is older than 24, the pact's Node floor"
-else
-  echo "WARN: node not found; the cross script cannot run"
 fi
-[ -f "$CLAUDE_HOME/pact/cross.mjs" ] || echo "WARN: ~/.claude/pact/cross.mjs is missing; lens reviews will stop"
 
 # Whether a GitHub token was in the environment during setup. Never its value.
 # Under the cloud's GitHub proxy the token variables hold a stand-in, so

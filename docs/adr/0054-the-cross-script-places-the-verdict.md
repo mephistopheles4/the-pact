@@ -1,5 +1,7 @@
 # The cross script places the verdict, so a lens report opens without one
 
+Superseded in part by [ADR 0064](0064-review-crossings-by-template-and-judgment.md) (2026-10-11): the session places the verdict now, as the stricter of the two lenses' own `Verdict:` lines. A report's **For the owner** still opens without a verdict word.
+
 A lens report keeps [ADR 0012](0012-reports-for-two-readers.md)'s two sections, **For the owner** first and **For the session** second. But **For the owner** no longer opens with the verdict word. It opens with what is wrong, why it matters and what it suggests, and holds no verdict word at all. The verdict lives only in the report's findings block, as its `verdict` field.
 
 - **The cross script places the verdict.** It reads each lens's `verdict`, checks that it agrees with the findings, and joins a pair's two into the stricter one, in the order `blocking`, `inconclusive`, `findings`, `clear`. `unstated-lens`'s verdict shows on its own and never changes a pair's.

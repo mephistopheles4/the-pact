@@ -1,6 +1,6 @@
 # Contract: unstated-lens
 
-Version: 0.1.2
+Version: 0.1.3
 
 - **Type:** agent
 - **Level:** Thorough
@@ -76,14 +76,14 @@ For the session
   Held by: review at move 4; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
-- C8. Ends with exactly one `lens-findings` block, inside the cross script's limits, written into the lens in exact words.
-  Held by: Enforced — the cross script.
+- C8. Ends with a plain findings list, written into the lens in exact words.
+  Held by: the review template, by judgment.
 - C9. No severity or verdict word in a headline: "high", "blocking", "clear", "safe", "ignore".
   Held by: Promised.
 - C10. Its artifact sits under the fixed heading `### Needs with no home`.
   Held by: Promised.
 
-**Automatic checks** **Confirmed** (2026-10-07): seam A; the cross script, which takes it alone.
+**Automatic checks** **Confirmed** (2026-10-07): seam A. Not automatic: the session crosses it alone by the review template, by judgment.
 
 **You (the owner)** **Confirmed** (2026-10-07): the main session acts on its own recommendation for each finding and marks it `auto` (#87). Your "proceed, fix or kill" on a spec, and your "done", stay yours.
 
@@ -103,7 +103,7 @@ For the session
 **Confirmed** (2026-10-07): one report in two sections, posted word for word.
 
 - **For the owner:** the needs with no home, why each matters, and what it suggests. No verdict word, codes or paths.
-- **For the session:** `### Needs with no home` (the red step, then one row per need: Need, Where it is covered); one bullet per finding; one `lens-findings` block, with anchors from the dispatched list (`S<n>` on a spec, `C<n>` on a result).
+- **For the session:** `### Needs with no home` (the red step, then one row per need: Need, Where it is covered); one bullet per finding; a plain findings list, with anchors from the dispatched list (`S<n>` on a spec, `C<n>` on a result).
 
 **Severity mapping** **Confirmed** (2026-10-07):
 - `high`: a need the risk floor covers with no home, or work that should have taken the security route and did not.
@@ -128,6 +128,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.3 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.2 | 2026-10-07 | The example block's verdict is `blocking`, as a `high` finding requires; the rules table points to its partner's for the rules it does not hold. | Move 4 on the swap: `behaviour-lens` F3 and F1 | 4, rules table |
 | 0.1.1 | 2026-10-07 | Question 2 in the owner's words; the target as a traceability matrix; every answer Confirmed. | The owner's answers and "go" on #99 | 2 |
 | 0.1.0 | 2026-10-06 | Contract drafted from the outgoing plan reviewer. | #35 revision 7, #99 | all |
