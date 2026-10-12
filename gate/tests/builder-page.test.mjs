@@ -482,14 +482,21 @@ const openSettings = P => {
   return P.ids.settings;
 };
 
-// #262: the canvas is the page; Settings holds the moves, the agents, the models and the canvas's other parts; Export holds the save. Setups left the page (#262 S19).
+/** Open Agents on a stub page, pick `name` when given, and return the dialog's node. */
+const openAgents = (P, name) => {
+  P.button(P.ids.actions, 'Agents').click();
+  if (name) P.find(P.ids.agents, n => n.tag === 'button' && n.text === name)[0].click();
+  return P.ids.agents;
+};
+
+// #262: the canvas is the page; Settings holds the moves, the models and the canvas's other parts; Agents holds the agents, the roster and the qualities (S26); Export holds the save. Setups left the page (S19).
 test('stub page: the canvas is the page, and the head opens Settings and Export; Settings holds each move as a text box with its default', () => {
   const P = bootPage();
   assert.equal(P.find(P.ids.wf, n => n.attrs && n.attrs['aria-label'] === 'The workflow canvas').length, 1);
-  assert.deepEqual(P.find(P.ids.actions, n => n.tag === 'button').map(b => b.text), ['Take the tour', 'Settings', 'Dark', 'Export']);
+  assert.deepEqual(P.find(P.ids.actions, n => n.tag === 'button').map(b => b.text), ['Take the tour', 'Settings', 'Agents', 'Dark', 'Export']);
   assert.ok(P.button(P.ids.reset, 'Reset'));
   const box = openSettings(P);
-  assert.deepEqual(P.find(box, n => n.tag === 'summary').map(n => n.text), ['Moves', 'Agents', 'Models', 'Tiers', 'Sensitive work', 'Lenses', 'Results']);
+  assert.deepEqual(P.find(box, n => n.tag === 'summary').map(n => n.text), ['Moves', 'Models', 'Tiers', 'Sensitive work', 'Results']);
   assert.deepEqual(P.find(box, n => n.tag === 'article').map(a => a.attrs.id), ['move-1', 'move-2', 'move-3', 'move-4']);
   // #262: each move is a text box holding its own text, the default, to edit in place.
   const areas = P.find(box, n => n.attrs.role === 'textbox');
@@ -523,17 +530,33 @@ test('stub page: an edited move saves as a replace edit; reset all puts the defa
 
 test('stub page: a lens set off its default shows as set by you, with no mark anywhere, and a move\'s problem shows in Export', () => {
   const P = bootPage();
-  const box = openSettings(P);
+  const box = openAgents(P, 'data-lens');
   const pick = P.find(box, n => n.tag === 'select' && n.attrs['aria-label'] === 'data-lens model')[0];
   pick.value = 'sonnet';
   pick.listeners.change.forEach(f => f({}));
   // #262: no setting is marked.
-  assert.doesNotMatch(openSettings(P).text, /not security-tested/);
+  assert.doesNotMatch(openAgents(P).text, /not security-tested/);
   assert.doesNotMatch(P.ids.output.text, /not security-tested/);
-  assert.match(openSettings(P).text, /set by you · default opus, high/);
+  assert.match(openAgents(P).text, /set by you · default opus, high/);
   typeInto(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0], '# A heading');
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /Fix · move-1 · /);
+});
+
+// #262 C23
+test('stub page: in Agents, a lens takes a quality by its tags and a roster row loses a lens by its ×; both reach the saved parts', () => {
+  const P = bootPage();
+  const box = openAgents(P, 'data-lens');
+  const tags = P.find(box, n => n.attrs.role === 'group' && n.attrs['aria-label'] === 'data-lens qualities')[0];
+  assert.deepEqual(P.find(tags, n => n.tag === 'span').map(t => t.text.replace(/×$/, '').trim()), ['Security']);
+  const add = P.find(tags, n => n.tag === 'select')[0];
+  add.value = 'Safety';
+  add.listeners.change.forEach(f => f({}));
+  const row = P.find(openAgents(P), n => n.attrs.role === 'group' && n.attrs['aria-label'] === 'Row 5 lenses')[0];
+  P.find(row, n => n.tag === 'button' && n.attrs['aria-label'] === 'Remove data-lens from Row 5 lenses')[0].click();
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /\| Safety \| the risky actions, the warning, the safe state on failure \| `executability-lens`, `data-lens` \|/);
+  assert.match(P.ids.output.text, /\| `adversarial-lens` \(the security pair\) \|/);
 });
 
 test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
