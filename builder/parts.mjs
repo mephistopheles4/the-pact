@@ -251,13 +251,21 @@ function compileTiers(p) {
   return [row(['Tier', 'Fits', 'Plan', 'Build']), rule(4), ...p.tiers.map(t => row([`**${t.name}**`, t.fits, t.plan, t.build]))].join('\n');
 }
 
+/** The stage that holds the offer made when the sensitive route wasn't taken, by name; Test when none does. */
+function backstopStage(p) {
+  const g = p.workflowGraph;
+  const o = g && Array.isArray(g.offers) ? g.offers.find(x => x && x.when === 'sensitive-declined') : null;
+  const st = o && Array.isArray(g.stages) ? g.stages.find(x => x && x.id === o.stage) : null;
+  return st && typeof st.name === 'string' && st.name.trim() ? st.name : 'Test';
+}
+
 export function compileSensitive(p) {
   const s = p.sensitive;
   const models = s.plan === s.build ? `planned and built on ${modelWords(s.plan)}` : `planned on ${modelWords(s.plan)} and built on ${modelWords(s.build)}`;
   return wrap([
     `Sensitive work gets more checking when I choose it. By default, sensitive work is ${listJoin(s.items)}: ${tierName(p, s.tier)}, ${models}, with the security pair, ${tick(SECURITY_PAIR[0])} and ${tick(SECURITY_PAIR[1])}, on the spec and the diff. That is the sensitive route.`,
     'When the work matches that list, or you think it sensitive otherwise, say why in one line in your tier proposal and recommend the route; I take it or not.',
-    "If I didn't take the route, offer the security pair once more at Test when the change matches the list. Beyond that one offer, sensitivity doesn't stop the run.",
+    `If I didn't take the route, offer the security pair once more at ${backstopStage(p)} when the change matches the list. Beyond that one offer, sensitivity doesn't stop the run.`,
     "A flag or an offer I haven't answered stays open, in one line, in every hand-off and in the result.",
     'If you find it later, say so in one line at the next hand-off or result, and keep saying it until I answer.',
   ].join(' '));

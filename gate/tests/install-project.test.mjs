@@ -157,7 +157,7 @@ test('a project with only a qualities list installs its table, and the dry run n
   assert.equal(dry.code, 0, dry.out);
   const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
   const at = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
-  assert.equal(lines[at], 'WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (1 row), which takes the place of yours in this project; read it in the rendered project rules file before you install.', dry.out);
+  assert.equal(lines[at], "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (1 row), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.", dry.out);
   assert.equal(lines.findIndex(l => l.includes('WARN')), at, 'no warning comes before it');
   const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', projectHash(dry)] });
   assert.equal(r.code, 0, r.out);

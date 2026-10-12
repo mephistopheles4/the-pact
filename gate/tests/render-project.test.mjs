@@ -194,6 +194,13 @@ test('a project qualities list, alone, renders its table from its fields under f
   assert.match(both.bytes.toString('utf8'), /% or above the line in my user rules, whichever is lower\.\n\n## Qualities for this project\n/);
 });
 
+// #262 C21: a bar in a field is escaped, so the table stays three columns.
+test('a bar in a project quality field is escaped in the table, so the row keeps three cells', t => {
+  const r = render(t, userHome(t), project(t, qRow({ measure: 'p95 | p99 under 1 s' })));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.bytes.toString('utf8'), /^\| Performance efficiency \| p95 \\\| p99 under 1 s \| `behaviour-lens` \|$/m);
+});
+
 const qRow = (over, base = Q_ROWS[0]) => qFile([{ ...base, ...over }]);
 // #262 C21, thinned by the gate's install-mechanics cut: a row's shape, each field one line.
 for (const c of table('render project qualities', {
@@ -209,6 +216,7 @@ for (const c of table('render project qualities', {
     { id: 'measure-not-text', plant: () => ({ project: qRow({ measure: 5 }) }), fails: ['project-qualities'], why: 'a measure is text' },
     { id: 'lenses-none', plant: () => ({ project: qRow({ lenses: [] }) }), fails: ['project-qualities'], why: 'at least one' },
     { id: 'rows-none', plant: () => ({ project: qFile([]) }), fails: ['project-qualities'], why: 'a list holds a row' },
+    { id: 'rows-too-many', plant: () => ({ project: qFile(Array.from({ length: 10 }, (_, i) => ({ ...Q_ROWS[0], quality: `Q${i}` }))) }), fails: ['project-qualities'], why: 'at most nine, as the install reads the count' },
     { id: 'row-extra-field', plant: () => ({ project: qRow({ note: 'x' }) }), fails: ['project-qualities'], why: 'only the three fields' },
     { id: 'row-missing-field', plant: () => ({ project: qFile([{ quality: 'Security', lenses: ['data-lens'] }]) }), fails: ['project-qualities'], why: 'all three fields' },
     { id: 'qualities-not-list', plant: () => ({ project: `${JSON.stringify({ schema: 1, qualities: { Security: 'x' } })}\n` }), fails: ['project-qualities'], why: 'a list' },

@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R31, so other work can point at it. A
+Each accepted risk has a label, R1 to R32, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -91,7 +91,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R31
+  title Residual risk, R1 to R32
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -128,6 +128,7 @@ quadrantChart
   R29: [0.20, 0.30]
   R30: [0.26, 0.60]
   R31: [0.14, 0.42]
+  R32: [0.18, 0.62]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -142,7 +143,7 @@ How to read it:
   you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
-  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), and the security defaults rewritten in a configuration (R30) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), and agent files taken from a shared builder file (R32) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
 - **Accept (bottom left): R17, R21, R26, R29, R31.** R17 needs your own edits, and the dry
@@ -185,7 +186,8 @@ How to read it:
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; the poster's hidden-text scan once it installs (#246) | Rule |
 | R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the five parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
-| R31 A project's qualities list | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list | You run each project install and read its dry run, which leads with a security-defaults line for the list; the renderer builds the table from three one-line fields under fixed text, taking no prose (#262, ADR 0068) | Boundary (a pointer), judgment |
+| R31 A project's qualities list | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list | You run each project install, and its dry run leads with a security-defaults line pointing you at the list in that file; the renderer builds the table from three one-line fields, at most nine rows, with bars escaped, under fixed text (#262, ADR 0068) | Boundary (a pointer), judgment |
+| R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is" (#262, ADR 0071) | Judgment |
 
 ## Strangers on the tracker
 
@@ -613,8 +615,19 @@ safe, and a change made months ago is easy to forget.
   `.claude/pact-config.json` may hold a list that drops the Security row, or
   any other, in that repo, the one way a project may loosen. A cloned repo
   can't install it by itself: you run the project install, and its dry run
-  leads with a security-defaults line for the list. The table is compiled
-  from three one-line fields under fixed text, so no prose rides in.
+  leads with a security-defaults line pointing at the list in the project's
+  config file. The table is compiled from three one-line fields, at most
+  nine rows, with bars escaped, under fixed text; a field is the project's
+  own one-line text, as its own rules file could already be.
+- **R32. A shared builder file can carry agent files.** A builder file
+  someone hands you may hold whole agent files: one named like a pact agent
+  replaces it, `scout`, which sessions call for every lookup, included, and
+  any other name adds an agent. A file with no tools line gets every tool.
+  The Presets checklist shows each file's tools, model and description, and
+  names a replaced `scout` or security-set lens, before you take it; every
+  row starts ticked, so untick what you don't want. Once saved, the install
+  lists a pact-named file under "Yours, left as is" and never mentions a
+  new-named one.
 - **R18. Retired by #189.** The rules no longer have sessions collect review
   totals into an issue on this repo. A session that reads several projects'
   records copies nothing from one project into another.

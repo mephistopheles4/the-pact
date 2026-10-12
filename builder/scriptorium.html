@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3eY8UtpBCLQRRzrrr+LHu8MFtLNMAtybyGy3dQqJOgo='; style-src 'sha256-H4ccihSyX7930j2oS6HVB/xa+OaTlz2Z6QgE/TJwKlA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1Hp+F5cznTsXQMkz5pzgWs4dwUmGr5BjfHDbLvO+68E='; style-src 'sha256-H4ccihSyX7930j2oS6HVB/xa+OaTlz2Z6QgE/TJwKlA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3067,13 +3067,21 @@ function compileTiers(p) {
   return [row(['Tier', 'Fits', 'Plan', 'Build']), rule(4), ...p.tiers.map(t => row([`**${t.name}**`, t.fits, t.plan, t.build]))].join('\n');
 }
 
+/** The stage that holds the offer made when the sensitive route wasn't taken, by name; Test when none does. */
+function backstopStage(p) {
+  const g = p.workflowGraph;
+  const o = g && Array.isArray(g.offers) ? g.offers.find(x => x && x.when === 'sensitive-declined') : null;
+  const st = o && Array.isArray(g.stages) ? g.stages.find(x => x && x.id === o.stage) : null;
+  return st && typeof st.name === 'string' && st.name.trim() ? st.name : 'Test';
+}
+
 function compileSensitive(p) {
   const s = p.sensitive;
   const models = s.plan === s.build ? `planned and built on ${modelWords(s.plan)}` : `planned on ${modelWords(s.plan)} and built on ${modelWords(s.build)}`;
   return wrap([
     `Sensitive work gets more checking when I choose it. By default, sensitive work is ${listJoin(s.items)}: ${tierName(p, s.tier)}, ${models}, with the security pair, ${tick(SECURITY_PAIR[0])} and ${tick(SECURITY_PAIR[1])}, on the spec and the diff. That is the sensitive route.`,
     'When the work matches that list, or you think it sensitive otherwise, say why in one line in your tier proposal and recommend the route; I take it or not.',
-    "If I didn't take the route, offer the security pair once more at Test when the change matches the list. Beyond that one offer, sensitivity doesn't stop the run.",
+    `If I didn't take the route, offer the security pair once more at ${backstopStage(p)} when the change matches the list. Beyond that one offer, sensitivity doesn't stop the run.`,
     "A flag or an offer I haven't answered stays open, in one line, in every hand-off and in the result.",
     'If you find it later, say so in one line at the next hand-off or result, and keep saying it until I answer.',
   ].join(' '));
@@ -5722,14 +5730,14 @@ function boot() {
     reconcileTiers(all);
     const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
     const holds = {
-      moves: m => [plural(m.length, 'move'), lines(m.map(x => x.lead))],
+      moves: m => [plural(m.length, 'move'), lines(m.map(x => `${x.lead}. ${x.text}`))],
       tiers: ts => [plural(ts.length, 'tier'), lines(ts.map(x => `${x.name}: ${x.fits}. Plan ${x.plan}; build ${x.build}.`))],
       sensitive: s => [plural(s.items.length, 'item'), lines([`The list: ${s.items.join(', ')}.`, `The route: plan ${s.plan}, build ${s.build}.`])],
       workflowGraph: g => {
         const on = xs => (xs || []).filter(x => x.on !== false);
         const order = stagesInOrder(g);
         return [[plural(g.stages.length, 'stage'), plural(on(g.offers).length, 'lens offer'), plural(on(g.skills).length, 'skill')].join(' · '),
-          ...order.map(st => el('div', { class: 'preset-stage' }, el('span', { class: 'av-label', text: st.name }),
+          ...order.map(st => el('div', { class: 'preset-stage' }, el('span', { class: 'av-label', text: st.name }), ...(st.text ? [el('p', { class: 'av-annot', text: st.text })] : []),
             lines([...on(g.offers).filter(o => o.stage === st.id).map(o => `Lens: ${offerText(all, o)}`), ...on(g.skills).filter(k => k.stage === st.id).map(k => `Skill: ${skillText(all, k)}`), ...on(g.links).filter(l => l.from === st.id && l.when).map(l => `Out: ${linkText(g, l, order)}`)])))];
       },
       lenses: rs => [plural(rs.length, 'row'), lines(rs.map(r => `${r.agents.join(', ')}${r.label ? ` (${r.label})` : ''}: ${r.asks}`))],
@@ -5741,7 +5749,21 @@ function boot() {
       box.addEventListener('change', () => (box.checked ? picks.add(key) : picks.delete(key)));
       return el('details', { class: 'acc preset-row' }, el('summary', {}, box, el('span', { text: label }), el('span', { class: 'av-annot preset-count', text: count })), el('div', { class: 'acc-body' }, ...body));
     };
-    const pactAgent = n => PACT.agents.some(a => a.name === n);
+    const pactAgent = n => PACT.agents.find(a => a.name === n);
+    // What an agent file would run with, shown on its row, outside the collapsed text: a shared file can carry any agent (#262, adversarial-lens F1).
+    const agentSays = (n, text) => {
+      const pact = pactAgent(n);
+      const head = text.slice(0, Math.max(0, text.indexOf('\n---\n', 4)));
+      const desc = (/^description:[ \t]*(.*)$/m.exec(head) || [])[1] || '';
+      const set = fileModel(text, { model: 'inherit', effort: 'default' });
+      const tools = fileTools(text).trim();
+      // A key given twice can read one way here and another to Claude Code, so it is named, never guessed at.
+      const twice = ['tools', 'model', 'effort'].filter(k => (head.match(new RegExp(`^${k}[ \\t]*:`, 'gm')) || []).length > 1);
+      return {
+        count: `${pact ? `replaces the pact's ${n}${pact.security || n === 'scout' ? `, ${pact.security ? 'a security-set lens' : 'called for every lookup'}` : ''}` : 'a new agent'} · ${twice.length ? `${twice.join(', ')} given twice: read the file` : tools ? `tools: ${tools}` : 'every tool'}`,
+        lines: [...(twice.length ? [`${twice.join(', ')} given twice, which Claude Code may read differently from this summary: read the file below.`] : []), `Tools: ${twice.includes('tools') ? 'given twice' : tools || 'none named, so every tool'}.`, `Model: ${twice.includes('model') ? 'given twice' : set.model}, effort ${twice.includes('effort') ? 'given twice' : set.effort}.`, ...(desc ? [`Description: ${desc}`] : [])],
+      };
+    };
     const kept = Object.keys(PRESET_PARTS).filter(k => !Object.hasOwn(chosen.parts, k)).map(k => PRESET_PARTS[k]);
     $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
       head(`Take from ${chosen.title}. Each ticked section replaces yours; open one to see what it holds, and read its agent files before you save.`),
@@ -5752,7 +5774,10 @@ function boot() {
             return row(`part:${k}`, PRESET_PARTS[k], count, ...body);
           }),
           ...(chosen.models ? [row('models', 'Models', plural(chosen.models.length, 'model'), lines(chosen.models))] : []),
-          ...(chosen.agentFiles ? Object.keys(chosen.agentFiles).sort().map(n => row(`agent:${n}`, `Agent file: ${n}`, pactAgent(n) ? `replaces the pact's ${n}` : 'a new agent', el('pre', { class: 'preset-file', text: chosen.agentFiles[n] }))) : [])),
+          ...(chosen.agentFiles ? Object.keys(chosen.agentFiles).sort().map(n => {
+            const says = agentSays(n, chosen.agentFiles[n]);
+            return row(`agent:${n}`, `Agent file: ${n}`, says.count, lines(says.lines), el('pre', { class: 'preset-file', text: chosen.agentFiles[n] }));
+          }) : [])),
         ...(kept.length ? [el('p', { class: 'av-annot', text: `Not in this preset, so yours stays: ${kept.join(', ')}.` })] : []),
         el('div', { class: 'chips' },
           chip('Take these', true, () => {

@@ -292,6 +292,14 @@ for (const c of table('renderer lines on a project install', {
   rows: [{ id: 'stage-render-read-config', plant: () => renderBase(), fails: ['render-project-config'], why: "the stage's render must read no configuration" }],
 })) test(c.name, c.fn);
 
+// #262 C4 (#142): the session limit's value line reaches both parses, home and project.
+test('the renderer lines: a usage-pause-session value parses beside the weekly one, in a home and a project render', () => {
+  const home = core.parseRenderLines(renderBase().in.replace('VALUE usage-pause 90', 'VALUE usage-pause 90\nVALUE usage-pause-session 80').split('\n'), { project: false, hash: sha256 });
+  assert.deepEqual([...home.values], [['usage-pause', '90'], ['usage-pause-session', '80']]);
+  const proj = core.parseProjectRenderLines(projRenderBase().in.replace('VALUE usage-pause 60', 'VALUE usage-pause-session 70').split('\n'), sha256);
+  assert.deepEqual([...proj.values], [['usage-pause-session', '70']]);
+});
+
 test('the renderer lines: the parse gives the hashes, the configuration, the edits, the values and the agent settings', () => {
   const p = core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 });
   assert.equal(p.renderHash, H('a'));
@@ -357,7 +365,7 @@ for (const c of table('project render lines', {
 test('the project render with a qualities list and no value passes, and the project security-defaults line names it; with no list there is none', () => {
   const p = core.parseProjectRenderLines([`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, 'QUALITIES 3', 'RESULT: pass'], sha256);
   assert.equal(p.qualities, 3);
-  assert.equal(core.projectSecurityLine(p), "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (3 rows), which takes the place of yours in this project; read it in the rendered project rules file before you install.");
+  assert.equal(core.projectSecurityLine(p), "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (3 rows), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.");
   assert.equal(core.projectSecurityLine(core.parseProjectRenderLines(projRenderBase().in.split('\n'), sha256)), null);
 });
 

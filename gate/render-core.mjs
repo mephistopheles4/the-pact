@@ -252,6 +252,10 @@ const PROJECT_OUTPUT_NAME = 'pact-project.md';
 const QUALITY_FIELDS = Object.freeze(['quality', 'measure', 'lenses']);
 const oneLine = v => typeof v === 'string' && !/[\r\n]/.test(v);
 const named = v => oneLine(v) && v.trim() !== '';
+// A bar in a field would start a new cell, so it is escaped: the table stays three columns.
+const cell = v => v.replace(/\|/g, '\\|');
+// At most one row per quality: the install reads the count as one digit.
+const QUALITIES_MAX = 9;
 const PROJECT_TEMPLATE = (lines, qualities = null) => [
   '# Pact settings for this project',
   '',
@@ -269,7 +273,7 @@ const PROJECT_TEMPLATE = (lines, qualities = null) => [
         '',
         '| Quality | Measure | Lens |',
         '| --- | --- | --- |',
-        ...qualities.map(q => `| ${q.quality} | ${q.measure} | ${q.lenses.map(n => `\`${n}\``).join(', ')} |`),
+        ...qualities.map(q => `| ${cell(q.quality)} | ${cell(q.measure)} | ${q.lenses.map(n => `\`${cell(n)}\``).join(', ')} |`),
       ]
     : []),
   '',
@@ -277,8 +281,8 @@ const PROJECT_TEMPLATE = (lines, qualities = null) => [
 
 /** A project's qualities list (#262 S25): [{ quality, measure, lenses }], or null after recording each refusal. */
 function checkProjectQualities(v, fail) {
-  if (!Array.isArray(v) || !v.length) {
-    fail('project-qualities', 'qualities must be a list of one or more rows');
+  if (!Array.isArray(v) || !v.length || v.length > QUALITIES_MAX) {
+    fail('project-qualities', `qualities must be a list of 1 to ${QUALITIES_MAX} rows`);
     return null;
   }
   let ok = true;
@@ -1065,9 +1069,9 @@ function runProject(out, home, projectFolder, report) {
   if (checked === null) return;
   const { values, qualities } = checked;
   const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v)), qualities).join('\n'), 'utf8');
-  // The output holds only constant text and checked numbers; the scanner runs
-  // on it anyway, before its hash is reported, so a template change that
-  // brings in a refused character can never be installed.
+  // The output holds constant text, checked numbers and, with a qualities
+  // list, the project's own one-line fields; the scanner runs on it before
+  // its hash is reported, so a refused character can never be installed.
   if (scanText(output, PROJECT_OUTPUT_NAME, report) === null) return;
   const userHash = user === NONE ? null : sha256(user.buf);
   const projHash = sha256(proj.buf);

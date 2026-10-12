@@ -597,7 +597,7 @@ export function parseProjectRenderLines(lines, hash) {
  */
 export function projectSecurityLine(parsed) {
   if (!parsed.qualities) return null;
-  return `WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (${parsed.qualities} row${parsed.qualities === 1 ? '' : 's'}), which takes the place of yours in this project; read it in the rendered project rules file before you install.`;
+  return `WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (${parsed.qualities} row${parsed.qualities === 1 ? '' : 's'}), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.`;
 }
 
 /** The project render's output (J3): exactly its rules file, a plain file of at most 64 KiB, holding the reported hash. */
@@ -1127,7 +1127,7 @@ export function configBlock(parsed, rulesHash, record) {
   for (const [k, v] of parsed.values) out.push(`  WARN: the user configuration sets ${k} to ${v}.`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
   for (const [name, a] of parsed.agentSets) out.push(`  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`);
-  out.push('  Edited text is checked for its form, its characters and file imports, not for wording or meaning.');
+  out.push('  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.');
   return out;
 }
 

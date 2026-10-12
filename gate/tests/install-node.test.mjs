@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { commitAll, git, home, install, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
+import { withoutOpenMarks } from './text.mjs';
 
 const edit = (root, rel, from, to) => {
   const p = join(root, ...rel.split('/'));
@@ -87,7 +88,7 @@ test('node: an installed file that is a hard link loses only its own name; the o
   linkSync(outside, join(h, 'CLAUDE.md'));
   passed(install(repo, h, { apply: true }));
   assert.equal(readFileSync(outside, 'utf8'), 'victim\n');
-  assert.notEqual(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), 'victim\n');
+  assert.equal(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')), 'the rules file holds the no-configuration render');
 });
 
 for (const [name, dirty] of [

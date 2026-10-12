@@ -216,10 +216,13 @@ test('bad case: a live agents folder that is a link refuses', t => {
   assert.deepEqual(listTree(elsewhere), []);
 });
 
+// ADR 0069: a planted name that doesn't match its file, which seam A refuses, passes because only the commit is checked.
 test('the check runs on the commit, not on uncommitted edits, and says so', t => {
   const repo = makeRepo(t);
   const p = join(repo, 'claude', 'agents', 'executability-lens.md');
-  writeFileSync(p, readFileSync(p, 'utf8').replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep, Bash]'));
+  const text = readFileSync(p, 'utf8');
+  assert.match(text, /^name: executability-lens$/m);
+  writeFileSync(p, text.replace(/^name: executability-lens$/m, 'name: other-lens'));
   const r = install(repo, home(t));
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /uncommitted edits are not checked/);

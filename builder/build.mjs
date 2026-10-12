@@ -335,6 +335,9 @@ export function loadBuilder(file, pact) {
     ...(isObject(agentFiles) ? Object.entries(agentFiles).filter(([, t]) => typeof t === 'string').map(([n, t]) => ['agentFiles', n, t]) : []),
   ];
   for (const [kind, id, text] of texts) if (POLICY_RE.test(text)) refuse(`${kind}${id ? ` ${id}` : ''}: holds text the page's content policy refuses (a URL, fetch(, import(, innerHTML or a document write)`);
+  // In a part or an agent file, an @ followed by a path is a file import to Claude Code, which pulls that file into every session. The gate no longer refuses one (ADR 0069), so it is a finding here, never a refusal.
+  const IMPORT_RE = /(^|\s)@[^\s@]/;
+  for (const [kind, id, text] of texts) if (!kind.startsWith('yours') && kind !== 'models' && kind !== 'title' && IMPORT_RE.test(text)) findings.push(`${kind}${id ? ` ${id}` : ''}: holds an @ followed by a path, which Claude Code reads as a file import and loads into every session; make sure that is meant`);
   const listed = yours.skills.length + yours.commands.length + yours.agents.length;
   if (!listed) findings.push('yours lists no skills, commands or agents; the page\'s "Yours" section will say so');
 
@@ -594,6 +597,7 @@ function main(argv) {
   }
   writeFileSync(resolve(opts.out), buildPage(root, readFileSync(page, 'utf8'), opts.builder), { flag: 'wx' });
   process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
+  process.stdout.write('NOTE the page holds your lists and any agent files in plain text: delete its folder once you are done with it\n');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv.slice(2));

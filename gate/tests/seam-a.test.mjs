@@ -8,7 +8,6 @@ import { test } from 'node:test';
 import { copyGate, plantModule } from './gate-files.mjs';
 import { childSeamA, runSeamA } from './gate-run.mjs';
 import { realOverlay, realPayload, stage } from './payload.mjs';
-import { moduleResult, table } from './tables.mjs';
 import { GATE, READ_ONLY, agent, contractText, failRules, lastLine, plainAgent } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -102,6 +101,11 @@ test('a tools line in any form Claude Code takes passes: a comma list, a quoted 
   for (const line of ['tools: Read, Glob, Grep', 'tools: "Read, Grep"', "tools: '[Read, Glob, Grep]'", 'tools: [Read, Bash(git:*), mcp__github__get_issue]']) {
     expectPass(t, { [A]: plainAgent('probe', [], line) });
   }
+});
+
+// ADR 0069 keeps "each agent file still parses": a bracket list YAML can't read as plain names, or one left open, fails the reader.
+test('bad case: a tools bracket list with a quoted item, or one that never closes', t => {
+  for (const line of ['tools: [Read, "Grep"]', 'tools: [Read, Grep']) expectFail(t, { [A]: plainAgent('probe', [], line) }, 'value');
 });
 
 test('bad case: a duplicate tools key', t => {
@@ -329,14 +333,23 @@ test('bad case: a second unknown file beside the review file is still refused', 
   expectFail(t, { 'claude/review2.md': review('More procedure.') }, 'unclassified');
 });
 
-// The review file's refusals (#261 C3): one row per hidden-text form, each where a container puts it, and the size cap.
-const REVIEW_BASE = () => ({ [RV]: review('Read this, and cross the reports.') });
-/** Seam A on the real payload with `tree`'s review file, in-process through its core. */
-function seamAReview(tree, t) {
-  const r = runSeamA(stage(t, tree));
-  return { ...moduleResult(r.code, r.stdout), stdout: r.stdout };
-}
-const withReview = body => () => ({ [RV]: review(body) });
+// ADR 0069 keeps the text scanner on every installed file: a bad case for each kind beyond agents, the builder kit's included (#262 C27).
+const ZWSP = String.fromCodePoint(0x200b);
+test('bad case: an invisible character in the review file', t => {
+  expectFail(t, { [RV]: review(`Read this, and cross${ZWSP} the reports.`) }, 'invisible');
+});
+test('bad case: an invisible character in a pact command', t => {
+  expectFail(t, { 'claude/commands/finis.md': `---\ndescription: Wrap up.\ndisable-model-invocation: true\n---\n\nWrap${ZWSP} up.\n` }, 'invisible');
+});
+test('bad case: an invisible character in the rules file, which the renderer does not scan', t => {
+  expectFail(t, {}, 'invisible', root => {
+    const p = join(root, 'claude', 'CLAUDE.md');
+    writeFileSync(p, readFileSync(p, 'utf8').replace('# The pact', `# The${ZWSP} pact`));
+  });
+});
+test('bad case: an invisible character in a builder kit file', t => {
+  expectFail(t, { 'builder/parts.mjs': `export const X = 1;${ZWSP}\n` }, 'invisible');
+});
 
 // ------------------------------------------------------------ familiars
 

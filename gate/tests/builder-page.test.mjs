@@ -231,6 +231,17 @@ test('the example builder file passes the check, with one finding: it lists none
   assert.deepEqual(r.findings, ['yours lists no skills, commands or agents; the page\'s "Yours" section will say so']);
 });
 
+// #262, data-lens F1: an @ path in a part or an agent file is a finding, never a refusal (ADR 0069); one in a description is not.
+test('an @ path in a move or an agent file is a finding, and the file still passes; one in a skill description is not', t => {
+  const moves = DEFAULT_PARTS.moves.map((m, i) => (i ? m : { ...m, text: 'Read @notes/creds.md first.' }));
+  const agentFiles = { 'my-reviewer': '---\nname: my-reviewer\ndescription: Reviews.\n---\n\nSee @~/.ssh/config.\n' };
+  const r = checkBuilder(REPO, builderFile(t, { ...GOOD, moves, agentFiles }, GOOD_BLOCKS));
+  assert.deepEqual(r.refusals, []);
+  assert.deepEqual(r.findings.filter(f => /file import/.test(f)).map(f => f.split(':')[0]), ['move 1', 'agentFiles my-reviewer']);
+  const mention = checkBuilder(REPO, builderFile(t, { ...GOOD, yours: { skills: [{ name: 'mail', description: 'Writes to @team' }] } }, GOOD_BLOCKS));
+  assert.deepEqual(mention.findings.filter(f => /file import/.test(f)), []);
+});
+
 test('a person\'s builder file passes, and its page carries their own skills beside the pact\'s own text', t => {
   const f = builderFile(t, GOOD, GOOD_BLOCKS);
   const r = checkBuilder(REPO, f);
@@ -347,6 +358,30 @@ test('bad parts: no tiers or seven, an id twice, a skip, an offer or a route at 
   assert.match(bad(p => (p.workflowGraph.offers[0].tiers = ['gone'])), /offer design-spec-pair: tiers, a list of the tiers/);
   assert.match(bad(p => (p.workflowGraph.offers[2].tiers = ['quick'])), /offer design-security-pair: tiers, a list of the tiers, only and always with when "tiers"/);
   assert.match(bad(p => (p.sensitive.tier = 'gone')), /the route's tier must be one of the tiers/);
+});
+
+// #262 C23: the builder's qualities checks, each with a bad case.
+test('bad qualities: none or too many, a quality twice, a bar in a measure, no lens or five', () => {
+  const bad = f => {
+    const p = copyParts(DEFAULT_PARTS);
+    f(p);
+    return partsProblems(p).filter(x => x.level === 'error' && x.part === 'qualities').map(x => x.text).join(' / ');
+  };
+  assert.match(bad(p => (p.qualities = [])), /the list must hold 1 to 16 qualities/);
+  assert.match(bad(p => (p.qualities = Array.from({ length: 17 }, (_, i) => ({ ...p.qualities[0], quality: `Q${i}` })))), /the list must hold 1 to 16 qualities/);
+  assert.match(bad(p => (p.qualities[1].quality = p.qualities[0].quality)), /names one quality twice/);
+  assert.match(bad(p => (p.qualities[0].measure = 'fast | cheap')), /row 1: the measure must be one line/);
+  assert.match(bad(p => (p.qualities[0].lenses = [])), /row 1: 1 to 4 lenses/);
+  assert.match(bad(p => (p.qualities[0].lenses = ['a-lens', 'b-lens', 'c-lens', 'd-lens', 'e-lens'])), /row 1: 1 to 4 lenses/);
+});
+
+// #262 C23: a lens added to a quality reaches its row in the compiled qualities part.
+test('a lens added to a quality reaches its row in the compiled qualities part', () => {
+  const p = copyParts(DEFAULT_PARTS);
+  p.qualities[0].lenses = [...p.qualities[0].lenses, 'reader-lens'];
+  const rowOf = parts => compileParts(parts).qualities.split('\n').find(l => l.startsWith(`| ${p.qualities[0].quality} |`));
+  assert.match(rowOf(p), /`reader-lens` \|$/);
+  assert.doesNotMatch(rowOf(DEFAULT_PARTS), /reader-lens/);
 });
 
 // #262, the owner's skill node: a skill on a stage compiles into a Skills column; the default table has none.
@@ -1005,6 +1040,11 @@ test('every shipped preset carries its tiers and a workflow that offers the secu
     assert.ok(p.parts.tiers && p.parts.workflowGraph, p.id);
     const whens = p.parts.workflowGraph.offers.filter(o => o.on && ['adversarial-lens', 'data-lens'].every(a => o.agents.includes(a))).map(o => o.when);
     assert.ok(whens.includes('sensitive') && whens.includes('sensitive-declined'), p.id);
+    // #262, behaviour-lens F4: the sensitive text names the stage that holds that one offer.
+    const all = upgradeParts({ ...copyParts(DEFAULT_PARTS), ...copyParts(p.parts) });
+    const declined = all.workflowGraph.offers.find(o => o.when === 'sensitive-declined');
+    const stage = all.workflowGraph.stages.find(st => st.id === declined.stage).name;
+    assert.match(compileParts(all).sensitive.replace(/\s+/g, ' '), new RegExp(`once more at ${stage} when`), p.id);
   }
 });
 

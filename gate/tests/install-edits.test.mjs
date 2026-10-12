@@ -95,7 +95,7 @@ test('a configuration that adds a move installs: the edit is a warning in the dr
     `  rendered rules file: sha256 ${sha256(want)}`,
     '  WARN: the user configuration sets usage-pause to 90.',
     '  WARN: the user configuration edits moves (add-after).',
-    '  Edited text is checked for its form, its characters and file imports, not for wording or meaning.',
+    '  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.',
   ]);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
   // #262 S9: edits to the moves alone show no security-defaults line.

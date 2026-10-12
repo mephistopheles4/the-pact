@@ -23,7 +23,9 @@ The builder file's shape is in the header of the kit's `builder/build.mjs`,
 and the parts' shapes in the header of its `builder/parts.mjs`. The kit's
 `examples/pact-config/builder.json` is the smallest legal file, and the
 presets in its `builder/presets/` are full ones. Run the builder on Node 24 or
-later.
+later, with `NODE_OPTIONS` cleared so no preload runs inside it: each command
+below is the POSIX form; in PowerShell, run `$env:NODE_OPTIONS = $null; node
+<the same arguments>`.
 
 ## Steps
 
@@ -59,7 +61,7 @@ later.
    - Print what the file compiles to:
 
      ```
-     node ~/.claude/pact/builder/builder/build.mjs --builder <file> --texts
+     env -u NODE_OPTIONS node ~/.claude/pact/builder/builder/build.mjs --builder <file> --texts
      ```
 
      Each part comes between its `TEXT <part>` and `END <part>` lines. With a
@@ -76,7 +78,7 @@ later.
 4. **Check, then answer every finding.**
 
    ```
-   node ~/.claude/pact/builder/builder/build.mjs --builder <file> --check
+   env -u NODE_OPTIONS node ~/.claude/pact/builder/builder/build.mjs --builder <file> --check
    ```
 
    A `REFUSE` line is a rule the page or the installer would break: fix it
@@ -92,7 +94,7 @@ later.
    agree. Then render:
 
    ```
-   node ~/.claude/pact/builder/builder/build.mjs --builder ~/.claude/pact/builder.json
+   env -u NODE_OPTIONS node ~/.claude/pact/builder/builder/build.mjs --builder ~/.claude/pact/builder.json
    ```
 
    It writes `scriptorium.html` into a new folder under the system's
@@ -105,7 +107,9 @@ later.
    added to and dropped from the `yours` lists, each part the file now
    carries or no longer carries, and the findings you kept with their lines.
    Then state the limit: the page's checks are for usability, and the
-   install's dry run is the authority on what the page saves.
+   install's dry run is the authority on what the page saves. Say too that
+   the page holds my lists and any agent files in plain text: delete its
+   folder once I am done with it.
 
 ## What never goes in a builder file
 
