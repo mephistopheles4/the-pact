@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-7lUy5ahWJjACH1f1LYMMbD8qVz3muT2XpJfPBPkgYGk='; style-src 'sha256-iHqjElAyTNwUphdzdzR/SlhBZxkeWxUKPEKTCALdsSo='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-7lUy5ahWJjACH1f1LYMMbD8qVz3muT2XpJfPBPkgYGk='; style-src 'sha256-hVcrp+aKDmZLB6xODyTLuBoz+OWHgA3+50hB9SNCWBw='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -351,7 +351,31 @@ dialog.classic .av-tool-sheet { border: 0; max-width: none; }
 /* SETTINGS: both usage limits, in one dialog. */
 dialog.settings { width: min(960px, calc(100% - 32px)); max-height: calc(100vh - 32px); padding: 0; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-ground); color: var(--av-ink); font-family: var(--av-font); font-size: var(--av-t-body); line-height: 1.6; }
 dialog.settings::backdrop { background: rgb(0 0 0 / 0.35); }
-dialog.settings, dialog.classic { box-shadow: 5px 5px 0 -1px var(--av-paper), 5px 5px 0 0 var(--av-ink-55), 10px 10px 0 -1px var(--av-paper), 10px 10px 0 0 var(--av-ink-30), 14px 18px 28px rgb(0 0 0 / 0.25); }
+dialog.settings, dialog.classic {
+  --sheets-flat: 0 0 0 -1px var(--av-paper), 0 0 0 0 var(--av-ink-55), 0 0 0 -1px var(--av-paper), 0 0 0 0 var(--av-ink-30), 0 4px 8px rgb(0 0 0 / 0);
+  --sheets-fanned: 5px 5px 0 -1px var(--av-paper), 5px 5px 0 0 var(--av-ink-55), 10px 10px 0 -1px var(--av-paper), 10px 10px 0 0 var(--av-ink-30), 14px 18px 28px rgb(0 0 0 / 0.25);
+  box-shadow: var(--sheets-flat);
+  opacity: 0;
+  translate: 0 12px;
+  transition: opacity .2s ease, translate .24s cubic-bezier(.2, .8, .2, 1), box-shadow .32s cubic-bezier(.2, .8, .2, 1) .06s, overlay .24s allow-discrete, display .24s allow-discrete;
+}
+dialog.settings[open], dialog.classic[open] { opacity: 1; translate: 0 0; box-shadow: var(--sheets-fanned); }
+@starting-style {
+  dialog.settings[open], dialog.classic[open] { opacity: 0; translate: 0 12px; box-shadow: var(--sheets-flat); }
+}
+dialog.settings::backdrop, dialog.classic::backdrop { background: rgb(0 0 0 / 0); transition: background .24s ease, overlay .24s allow-discrete, display .24s allow-discrete; }
+dialog.settings[open]::backdrop, dialog.classic[open]::backdrop { background: rgb(0 0 0 / 0.35); }
+@starting-style {
+  dialog.settings[open]::backdrop, dialog.classic[open]::backdrop { background: rgb(0 0 0 / 0); }
+}
+.acc { interpolate-size: allow-keywords; }
+.acc::details-content { height: 0; overflow: clip; transition: height .22s cubic-bezier(.2, .8, .2, 1), content-visibility .22s allow-discrete; }
+.acc[open]::details-content { height: auto; }
+.acc-body { opacity: 0; transition: opacity .18s ease; }
+.acc[open] .acc-body { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  dialog.settings, dialog.classic, dialog.settings::backdrop, dialog.classic::backdrop, .acc::details-content, .acc-body, .acc summary::before { transition: none; }
+}
 dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .limit-label { min-width: 12rem; font-size: var(--av-t-annot); font-weight: 600; }
 .accs { display: flex; flex-direction: column; }
