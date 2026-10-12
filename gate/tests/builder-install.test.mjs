@@ -26,7 +26,7 @@ const sha256 = b => createHash('sha256').update(b).digest('hex');
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, addAgent });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -113,4 +113,14 @@ test('bad case: text the page flags is refused by the install too, since the pag
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', sha256('x')] });
   refused(r);
   assert.ok(!existsSync(join(h, 'CLAUDE.md')), 'the refused configuration installed a rules file');
+});
+
+// #262 addendum 3: what the page saves for an added agent and an edited prompt installs as the page wrote it.
+test('an added agent and an edited prompt the page saves install through the dry run and -Apply', t => {
+  const s = L.initialState();
+  assert.equal(L.addAgent(s, 'my-reviewer'), null);
+  s.own.scout = L.PACT.agents.find(a => a.name === 'scout').file.replace(/\n---\n\n[\s\S]*$/, '\n---\n\nFind things, briefly.\n');
+  const { rules, files, h } = installSaved(t, s);
+  for (const name of ['my-reviewer', 'scout']) assert.equal(readFileSync(join(h, 'agents', `${name}.md`), 'utf8'), files.find(f => f.path === `agents/${name}.md`).text);
+  assert.match(rules, /^Own agents: my-reviewer \(added\), scout \(replaces the pact's\)\.$/m);
 });

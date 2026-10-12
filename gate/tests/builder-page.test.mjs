@@ -448,6 +448,17 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.doesNotMatch(P.ids.output.text, /\r/);
 });
 
+// #262 addendum 3: Add agent in the Agents panel reaches the saved files, and the save note says a save never deletes.
+test('stub page: Add agent in the Agents panel saves agents/<name>.md, and the save says it deletes nothing', () => {
+  const P = bootPage();
+  const panel = openAgents(P);
+  P.find(panel, n => n.tag === 'input' && n.attrs['aria-label'] === 'New agent name')[0].value = 'my-reviewer';
+  P.button(P.ids.agents, 'Add agent').click();
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /agents\/my-reviewer\.md/);
+  assert.match(P.ids.output.text, /A save never deletes/);
+});
+
 test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
   assert.equal(PAGE_REL, 'builder/scriptorium.html');
   for (const f of ['README.md', 'AGENTS.md', join('.claude', 'skills', 'scriptorium', 'SKILL.md'), join('builder', 'build.mjs')]) {
@@ -503,7 +514,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -616,6 +627,41 @@ test('an edited move saves the moves part as one replace, and an empty move stop
   assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'moves'), JSON.stringify(L.problems(s)));
   s.usage = 101;
   assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'usage-pause'));
+});
+
+// #262 addendum 3: a prompt edited on the page saves the agent's whole file, its model and effort lines from the pickers, and no setting.
+test('an edited prompt saves the agent\'s whole file into agents/, its model and effort from the pickers, and no agents setting for it', () => {
+  const s = L.initialState();
+  const scout = L.PACT.agents.find(a => a.name === 'scout');
+  s.own.scout = scout.file.replace(/\n---\n\n[\s\S]*$/, '\n---\n\nFind things, briefly.\n');
+  s.agents.scout.model = 'haiku';
+  assert.deepEqual(L.ownProblems(s), []);
+  const files = L.buildFiles(s);
+  assert.equal(JSON.parse(files[0].text).agents, undefined, 'an own file sets its own model; the renderer refuses both');
+  const f = files.find(x => x.path === 'agents/scout.md');
+  assert.match(f.text, /^model: haiku$/m);
+  assert.match(f.text, /\n---\n\nFind things, briefly\.\n$/);
+  // Back to default: no file, no setting beyond the picker's.
+  L.resetPrompt(s, 'scout');
+  assert.equal(L.buildFiles(s).some(x => x.path.startsWith('agents/')), false);
+});
+
+// #262 addendum 3: Add agent starts from a template the gate takes; a bad or taken name is refused.
+test('Add agent starts a new agent from the template, and refuses a taken or malformed name; a broken file is the page\'s error', () => {
+  const s = L.initialState();
+  assert.match(L.addAgent(s, 'scout'), /already/);
+  assert.match(L.addAgent(s, 'My Agent'), /lowercase/);
+  assert.equal(L.addAgent(s, 'my-reviewer'), null);
+  assert.match(s.own['my-reviewer'], /^---\nname: my-reviewer\n/);
+  assert.match(s.own['my-reviewer'], /^tools: \[Read, Glob, Grep\]$/m);
+  assert.deepEqual(L.ownProblems(s), []);
+  assert.ok(L.buildFiles(s).some(x => x.path === 'agents/my-reviewer.md'));
+  s.own['my-reviewer'] = s.own['my-reviewer'].replace('name: my-reviewer', 'name: other');
+  assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'my-reviewer'), JSON.stringify(L.problems(s)));
+  // Removing a new agent drops its file and its picker.
+  L.resetPrompt(s, 'my-reviewer');
+  assert.equal(s.agents['my-reviewer'], undefined);
+  assert.equal(L.atDefaults(s), true);
 });
 
 // #262 C13: scout is set like any lens.

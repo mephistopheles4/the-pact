@@ -181,7 +181,8 @@ export function pactData(root) {
   // The efforts are the renderer's; a model is any the person's Models list holds (#262 S16, S19).
   const agentChoices = { efforts: listFrom(renderSrc, 'AGENT_EFFORTS') };
   const info = (rel, name) => {
-    const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(join(root, rel), 'utf8'));
+    const file = readFileSync(join(root, rel), 'utf8');
+    const head = /^---\n([\s\S]*?)\n---\n/.exec(file);
     if (!head) fail(`${rel} has no frontmatter`);
     const field = k => (new RegExp(`^${k}:[ \\t]*([A-Za-z0-9._-]+)[ \\t]*$`, 'm').exec(head[1]) ?? [])[1] ?? null;
     const runs = [
@@ -189,7 +190,8 @@ export function pactData(root) {
       // #262 S8: its offers in the workflow and its row in the roster. The page counts them from the person's own parts.
       ...['moves', 'workflow', 'lenses'].filter(m => named(partText[m], name)).map(m => ({ mark: m, kind: 'part' })),
     ];
-    return { name, model: field('model'), effort: field('effort'), runs, configurable: configurable.includes(name) };
+    // #262 addendum 3: the whole file, the default the page's prompt editor starts from.
+    return { name, model: field('model'), effort: field('effort'), runs, configurable: configurable.includes(name), file };
   };
   const classes = agentClassesThroughRenderer(root, agentFiles.map(f => info(join('claude', 'agents', f), f.slice(0, -3))).filter(a => a.configurable));
   const agentInfo = agentFiles.map(f => ({ ...info(join('claude', 'agents', f), f.slice(0, -3)), ...(classes[f.slice(0, -3)] ?? { security: null, egress: null }) }));
