@@ -27,3 +27,5 @@ The rules file gains four open parts a home configuration may edit: `tiers`, `se
 - A part edited by hand, or a builder file edited outside the page, skips the builder's checks. The dry run's line and the owner's reading of the rendered parts are the control.
 - Any part, moves included, can carry narrowing prose, and a move's whole text can now be replaced; only an edit to the four raises the security-defaults line (R30).
 - The QA pair at every build is no longer in the protected set: it is the default workflow's, editable behind the line (adversarial F7, R21).
+
+Superseded in part by [ADR 0068](0068-qualities-a-ranked-list-each-lens-checks-against.md) (a fifth part, `qualities`), [ADR 0069](0069-the-pact-is-vetted-like-a-skill.md) (the block-text and import checks go) and [ADR 0070](0070-the-builder-is-part-of-the-pact.md) (the builder file's presets and setups go; skills bind to stages).

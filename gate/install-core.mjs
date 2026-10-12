@@ -1049,7 +1049,8 @@ export function plan(record, repoFiles, live, throughLink) {
       const s = live(e.path);
       // A deleted agent file comes back as an add, not as drift.
       if (isAgent(e.path) && !s.exists) continue;
-      if (isAgent(e.path) && (!s.file || s.sha256 !== e.sha256.toLowerCase())) yours.push(e.path);
+      // A changed regular file is the person's; anything else at the path (a folder, say) is drift, so the install stops.
+      if (isAgent(e.path) && s.file && s.sha256 !== e.sha256.toLowerCase()) yours.push(e.path);
       else if (!s.file) drift.push(`${e.path} (deleted since the install)`);
       else if (s.sha256 !== e.sha256.toLowerCase()) drift.push(`${e.path} (changed since the install)`);
     }

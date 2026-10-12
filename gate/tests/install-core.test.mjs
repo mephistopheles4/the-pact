@@ -614,6 +614,15 @@ test('the plan: drift, overwrite, add, delete, yours and unchanged; a record has
   assert.deepEqual(core.plan(null, repoFiles, live, noLink).delete, ['agents/builder.md']);
 });
 
+// #262 C25, from CodeRabbit's review: a recorded agent path that is now a folder is drift, never the person's file.
+test('the plan: a recorded agent path that is no longer a file is drift, not yours', () => {
+  const live = rel => (rel === 'agents/a.md' ? { exists: true, file: false, sha256: null } : { exists: false, file: false, sha256: null });
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'agents/a.md', sha256: H('2') }] }));
+  const p = core.plan(record, new Map([['agents/a.md', H('2')]]), live, noLink);
+  assert.deepEqual(p.yours, []);
+  assert.deepEqual(p.drift, ['agents/a.md (deleted since the install)']);
+});
+
 test('the plan: a record holding command and kit entries, under a payload without them, deletes them (#203, the rollback row)', () => {
   const liveFiles = new Map([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')], ['pact/builder/builder/build.mjs', H('3')], ['commands/mine.md', H('4')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: true, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
