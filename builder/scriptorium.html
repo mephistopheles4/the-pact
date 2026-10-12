@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-eq5A63KThl2BXurUIq11FGoGHBfcpdM/V0dh6nBa4r4='; style-src 'sha256-r3CZ1eEHxHpE61HLbZ3deMRsb8slCe2QBoep84XCRQM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-iCFgC717AswwFLU5KGu98hX8fTT8HMc/G9osHGcsuzw='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -337,10 +337,15 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .acc summary { min-height: 2.6rem; display: flex; align-items: center; gap: var(--av-s1); }
 .classic-head { position: relative; padding-right: var(--av-s5); }
 .close-x { position: absolute; top: var(--av-s1); right: var(--av-s2); font: inherit; font-size: var(--av-t-lead); line-height: 1; padding: 4px 8px; border: 0; background: transparent; color: var(--av-ink-70); cursor: pointer; }
+.av-tool-title:focus { outline: none; }
 .close-x:hover { color: var(--av-caution); }
 /* The Agents dialog: the agents on the left, the one picked beside them. */
 .preset-row summary input[type="checkbox"] { margin: 0 var(--av-s1) 0 0; accent-color: var(--av-ink); }
 .preset-count { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.combo { position: relative; }
+.combo-list { position: absolute; z-index: 5; top: 100%; left: 0; right: 0; margin: 2px 0 0; padding: 0; list-style: none; max-height: 14rem; overflow: auto; background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); }
+.combo-list li { padding: 4px var(--av-s1); font-size: var(--av-t-annot); cursor: pointer; }
+.combo-list li:hover, .combo-list li[aria-selected="true"] { background: rgb(180 83 9 / 0.10); color: var(--av-caution); }
 .preset-stage { display: flex; flex-direction: column; gap: 2px; }
 .preset-file { margin: 0; max-height: 18rem; overflow: auto; font-size: var(--av-t-micro); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-12); padding: var(--av-s1) var(--av-s2); }
 .agents-grid { display: grid; grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr); gap: var(--av-s3); align-items: start; }
@@ -367,7 +372,7 @@ textarea.agent-file { font-size: var(--av-t-micro); white-space: pre; }
    leads to the middle of the thing it describes. */
 .tip { position: fixed; z-index: 40; max-width: min(38ch, calc(100vw - 2 * var(--av-s2))); padding: var(--av-s1) var(--av-s2);
   background: var(--av-paper); color: var(--av-ink-80); border: var(--av-rule-thin) solid var(--av-ink);
-  font-size: var(--av-t-annot); line-height: 1.45; text-transform: none; letter-spacing: normal; font-weight: 400; pointer-events: none; }
+  font-family: var(--av-font); font-size: var(--av-t-annot); line-height: 1.45; text-transform: none; letter-spacing: normal; font-weight: 400; pointer-events: none; }
 .tip[hidden] { display: none; }
 .tip::before { content: ''; position: absolute; left: var(--tip-lead, var(--av-s2)); top: -7px; width: 5px; height: 5px; border-radius: 50%; background: var(--av-ink); transform: translateX(-50%); }
 .tip--above::before { top: auto; bottom: -7px; }
@@ -3891,19 +3896,82 @@ function workflowEditor(host, state, changed) {
 
   /** The skills and commands this builder lists, as a skill node names them: commands with a leading /. */
   const skillChoices = () => [...PACT.yours.skills.map(x => x.name), ...PACT.yours.commands.map(x => `/${x.name}`)];
-  /** The skill field: a dropdown of yours, and a name of your own when it isn't listed. */
+  /**
+   * The skill field: one box for a skill or a command (a command with a
+   * leading /). As you type, a list under it shows yours that match; with no
+   * match it shows nothing, since a name of your own is fine. When the page
+   * lists yours and the name isn't among them, a note says so.
+   */
   function skillPicker(k) {
-    const OWN = '__own'; // no skill name starts with an underscore
     const listed = skillChoices();
-    const own = !listed.includes(k.skill);
-    const pick = el('select', { 'aria-label': 'Skill or command' }, ...listed.map(n => el('option', { value: n, text: n })), el('option', { value: OWN, text: listed.length ? 'Another skill, by name…' : 'A skill, by name…' }));
-    pick.value = own ? OWN : k.skill;
-    pick.addEventListener('change', () => {
-      if (pick.value !== OWN) k.skill = pick.value;
-      else if (listed.includes(k.skill)) k.skill = 'my-skill';
-      edited();
+    const id = `skill-list-${k.id}`;
+    const box = el('input', { type: 'text', role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': id, autocomplete: 'off', spellcheck: 'false', placeholder: 'e.g. tdd, or /grill-with-docs', 'aria-label': 'Skill or command' });
+    box.value = k.skill;
+    const list = el('ul', { class: 'combo-list', role: 'listbox', id, hidden: '' });
+    const note = el('p', { class: 'av-annot' });
+    let at = -1;
+    const paintNote = () => {
+      const missing = listed.length > 0 && k.skill && !listed.includes(k.skill);
+      note.hidden = !missing;
+      note.textContent = missing ? 'Not among your skills and commands: check the name, or install it.' : '';
+    };
+    const close = () => {
+      list.hidden = true;
+      box.setAttribute('aria-expanded', 'false');
+      box.removeAttribute('aria-activedescendant');
+      at = -1;
+    };
+    const set = v => {
+      k.skill = v.trim();
+      paintNote();
+      edited(false);
+    };
+    const choose = v => {
+      box.value = v;
+      set(v);
+      close();
+      renderLibrary();
+    };
+    const paint = () => {
+      const q = box.value.trim().toLowerCase();
+      const hits = q ? listed.filter(n => n.toLowerCase().includes(q) && n !== box.value.trim()).slice(0, 8) : [];
+      list.replaceChildren(...hits.map((n, i) => {
+        const li = el('li', { role: 'option', id: `${id}-${i}`, text: n, 'aria-selected': String(i === at) });
+        li.addEventListener('mousedown', e => {
+          e.preventDefault();
+          choose(n);
+        });
+        return li;
+      }));
+      if (!hits.length) return close();
+      at = Math.min(at, hits.length - 1);
+      list.hidden = false;
+      box.setAttribute('aria-expanded', 'true');
+      if (at >= 0) box.setAttribute('aria-activedescendant', `${id}-${at}`);
+      else box.removeAttribute('aria-activedescendant');
+    };
+    box.addEventListener('input', () => {
+      at = -1;
+      set(box.value);
+      paint();
     });
-    return [field('Skill or command', pick), ...(own ? [field('Its name', input(k.skill, v => (k.skill = v.trim()), { placeholder: 'e.g. tdd, or /grill-with-docs' }))] : [])];
+    box.addEventListener('focus', paint);
+    box.addEventListener('blur', () => {
+      close();
+      renderLibrary();
+    });
+    box.addEventListener('keydown', e => {
+      const n = list.children.length;
+      if (e.key === 'ArrowDown' && n) at = (at + 1) % n;
+      else if (e.key === 'ArrowUp' && n) at = (at - 1 + n) % n;
+      else if (e.key === 'Enter' && !list.hidden && at >= 0) return (e.preventDefault(), choose(list.children[at].textContent));
+      else if (e.key === 'Escape' && !list.hidden) return (e.preventDefault(), e.stopPropagation(), close());
+      else return;
+      e.preventDefault();
+      paint();
+    });
+    paintNote();
+    return [el('div', { class: 'wf-field combo' }, el('span', { class: 'av-label', text: 'Skill or command' }), box, list), note];
   }
 
   // ---- the run: a piece of work, and what it is offered
@@ -5256,6 +5324,13 @@ function boot() {
     }
     if (typeof d.showModal === 'function') d.showModal();
     else d.setAttribute('open', '');
+    // Focus starts on the dialog's title, as the ARIA dialog pattern advises for a dialog with much to read:
+    // a screen reader starts at the top, Tab goes on to the first control, and no control's note pops up.
+    const title = d.querySelector('.av-tool-title');
+    if (title) {
+      title.tabIndex = -1;
+      title.focus();
+    }
   }
   /** The × in a dialog's top right corner. */
   function closeX(id) {
