@@ -247,7 +247,7 @@ function fresh(){
     ['Test','Each claim checked against the ask.','build'],['Deploy','I accept and ship; nothing promotes itself.','owner'],['Maintain','What escaped, and what to change.','plan']];
   const X = [40, 300, 660, 920, 1330, 1590];
   STG.forEach(([name, text, model], i) => { const n = { id: nid('s'), kind: 'stage', name, text, model, x: X[i], y: 60, skipOn: name === 'Design' ? 'quick' : '' }; st[name] = n; nodes.push(n); });
-  for (let i = 0; i < STG.length - 1; i++) edges.push({ id: nid('e'), from: st[STG[i][0]].id, fp: 'out', to: st[STG[i+1][0]].id });
+  for (let i = 0; i < STG.length - 1; i++) edges.push({ id: nid('e'), from: st[STG[i][0]].id, fp: 'out', to: st[STG[i+1][0]].id, tp: 'in', when: '', on: true });
   const cond = (stage, c, y, agents, def) => {
     const n = { id: nid('c'), kind: 'cond', cond: c, custom: '', on: true, def: !!def, x: stage.x, y };
     nodes.push(n); edges.push({ id: nid('e'), from: stage.id, fp: 'down', to: n.id });
@@ -264,11 +264,10 @@ function fresh(){
   cond(T, 'prose', 400, ['reader-lens']);
   cond(T, 'rules', 490, ['conventions-lens']);
   cond(T, 'sensitive', 580, ['adversarial-lens','data-lens'], true);
-  const loop = (stage, when, target) => { const n = { id: nid('l'), kind: 'loop', when, on: true, x: 0, y: 0 };
-    nodes.push(n); edges.push({ id: nid('e'), from: stage.id, fp: 'down', to: n.id }); edges.push({ id: nid('e'), from: n.id, fp: 'back', to: target.id }); };
-  loop(T, 'a claim fails', st.Build);
-  loop(T, 'the intent changed', D);
-  loop(st.Maintain, 'the next change', st.Plan);
+  const link = (a, b, when) => edges.push({ id: nid('e'), from: a.id, fp: 'top', to: b.id, tp: 'top', when, on: true });
+  link(T, st.Build, 'a claim fails');
+  link(T, D, 'the intent changed');
+  link(st.Maintain, st.Plan, 'the next change');
   return { nodes, edges,
     tiers: [
       { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
@@ -286,11 +285,14 @@ const N = id => S.nodes.find(n => n.id === id);
 const nodeEl = id => document.querySelector(`.node[data-id="${id}"]`);
 const effTier = () => S.work.sensitive ? 'thorough' : S.work.tier;
 const condText = c => c.cond === 'custom' ? (c.custom || '(your words)') : CONDS[c.cond].label;
-const isLoop = e => N(e.from)?.kind === 'loop';
-const parentStage = c => { const e = S.edges.find(e => e.to === c.id && e.fp === 'down'); return e && N(e.from); };
+const stageLink = e => N(e.from)?.kind === 'stage' && N(e.to)?.kind === 'stage';
+const isDefault = e => stageLink(e) && !e.when;
+const isLoop = e => stageLink(e) && !!e.when; // a conditioned link: back, ahead or across
+const defaultExits = st => S.edges.filter(e => e.from === st.id && isDefault(e));
+const parentStage = c => { const e = S.edges.find(e => e.to === c.id && N(e.from)?.kind === 'stage'); return e && N(e.from); };
 const children = c => S.edges.filter(e => e.from === c.id && N(e.to)?.kind === 'agent').map(e => N(e.to));
-const conds = st => S.edges.filter(e => e.from === st.id && e.fp === 'down').map(e => N(e.to)).filter(n => n && n.kind === 'cond');
-const loopsUnder = st => S.edges.filter(e => e.from === st.id && e.fp === 'down').map(e => N(e.to)).filter(n => n && n.kind === 'loop');
+const conds = st => S.edges.filter(e => e.from === st.id).map(e => N(e.to)).filter(n => n && n.kind === 'cond');
+const loopsUnder = st => [];
 const loopTarget = l => { const e = S.edges.find(e => e.from === l.id); return e && N(e.to); };
 function skipped(st){ return st.skipOn && st.skipOn === effTier(); }
 function passes(c){ const st = parentStage(c); return !!(c.on && st && !skipped(st) && CONDS[c.cond].test({ ...S.work, tier: effTier() })); }
@@ -306,7 +308,6 @@ function renderLibrary(){
   $('library').innerHTML = `<div class="av-label">Nodes library · drag onto the canvas</div>` +
     item('stage','', '▭', 'Stage', 'a step of the work\'s own lifecycle') +
     item('cond','always', '?', 'Condition', 'when its agents fire; switch on or off', 'cond') +
-    item('loop','', '↺', 'Loop back', 'when the work goes back to an earlier stage', 'cond') +
     `<div class="av-label" style="margin-top:6px">Agents</div>` +
     LENSES.map(l => item('agent', l, '◇', l, 'a pact lens')).join('') +
     item('own', 'my-reviewer', '◆', 'Your own agent', 'a reviewer of yours') +
@@ -325,7 +326,7 @@ function addNode(type, val, p){
   else n = { id: nid('a'), kind: 'agent', name: val, own: type === 'own' };
   n.x = Math.round(p.x - 80); n.y = Math.round(p.y - 20);
   S.nodes.push(n); S.sel = { node: n.id }; S.tab = 'inspect'; renderAll();
-  toast(type === 'stage' ? 'Drag from its right port to the next stage; from its bottom port to a condition.' : type === 'cond' ? 'Wire a stage\'s bottom port to it, then its right port to agents.' : type === 'loop' ? 'Wire a stage\'s bottom port to it, then its left port back to an earlier stage.' : 'Wire a condition\'s right port to it.');
+  toast(type === 'stage' ? 'Drag from any side of a stage to another stage, or to a condition.' : type === 'cond' ? 'Wire a stage\'s bottom port to it, then its right port to agents.' : type === 'loop' ? 'Wire a stage\'s bottom port to it, then its left port back to an earlier stage.' : 'Wire a condition\'s right port to it.');
 }
 
 // ---- Work bar
@@ -351,7 +352,7 @@ function renderNodes(){
     const el = document.createElement('div');
     el.className = n.kind === 'loop' ? 'node cond loop' : `node ${n.kind}`; el.dataset.id = n.id; el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; el.tabIndex = 0;
     if (n.kind === 'stage') el.innerHTML = `<div class="kind"><span class="av-label">Stage</span><span class="tag tgraph">workflow</span></div><h3>${esc(n.name)}</h3><p>${esc(n.text)}</p>` +
-      `<span class="port in" data-port="in"></span><span class="port out" data-port="out" title="drag to the next stage, or back to loop"></span><span class="port down" data-port="down" title="drag to a condition"></span>`;
+      `<span class="port in" data-port="in"></span><span class="port out" data-port="out"></span><span class="port top" data-port="top"></span><span class="port down" data-port="down"></span>`;
     else if (n.kind === 'cond') { const ag = children(n).map(a => a.name);
       el.innerHTML = `<div class="row1"><span class="q"><b>when</b>${esc(condText(n))}</span><button class="sw" role="switch" aria-checked="${n.on}" aria-label="condition on or off"></button></div>` +
       `<div class="pair">${esc(pairLabel(ag))}</div><span class="port top" data-port="top"></span><span class="port out" data-port="out" title="drag to an agent"></span>`; }
@@ -384,9 +385,9 @@ const TIERS = ['quick','standard','thorough'];
 const MODELS = { plan: 'the tier\'s plan model', build: 'the tier\'s build model', owner: 'mine: no model' };
 function stagesInOrder(){
   const stages = S.nodes.filter(n => n.kind === 'stage');
-  const nextOf = s => S.edges.find(e => e.from === s.id && e.fp === 'out' && !isLoop(e) && N(e.to)?.kind === 'stage');
+  const nextOf = s => defaultExits(s)[0];
   const out = [], seen = new Set();
-  let cur = stages.filter(s => !S.edges.some(e => e.to === s.id && !isLoop(e) && N(e.from)?.kind === 'stage')).sort((a, b) => a.x - b.x)[0];
+  let cur = stages.filter(s => !S.edges.some(e => e.to === s.id && isDefault(e))).sort((a, b) => a.x - b.x)[0];
   while (cur && !seen.has(cur.id)) { seen.add(cur.id); out.push(cur); const nx = nextOf(cur); cur = nx && N(nx.to); }
   return out.concat(stages.filter(s => !seen.has(s.id)).sort((a, b) => a.x - b.x)); // unwired stages trail, in canvas order
 }
@@ -396,11 +397,12 @@ function tierCell(st, i){
   return S.tiers[i][st.model] === 'none' ? 'in the session, no plan' : S.tiers[i][st.model];
 }
 function agentsAt(st){ return conds(st).filter(c => children(c).length).map(c => ({ c, names: children(c).map(a => a.name) })); }
-function loopsFrom(st){ return loopsUnder(st).filter(l => l.on && loopTarget(l)).map(l => `back to ${loopTarget(l).name} when ${l.when || '…'}`); }
+function linkWord(e){ const o = stagesInOrder(), i = o.indexOf(N(e.from)), j = o.indexOf(N(e.to)); return j <= i ? 'back to' : j === i + 1 ? 'on to' : 'ahead to'; }
+function loopsFrom(st){ return S.edges.filter(e => e.from === st.id && isLoop(e) && e.on !== false).map(e => `${linkWord(e)} ${N(e.to).name} when ${e.when}`); }
 function renderTable(){
   const ti = TIERS.indexOf(effTier()), stages = stagesInOrder();
   let h = `<div class="whead"><h2>Workflow</h2><span class="tag tgraph">workflow part · new</span><span class="av-annot">The part that joins the tiers and the lenses. Edit the canvas and this table follows; click a row to select its stage.</span></div>
-    <table class="wf"><thead><tr><th>Stage</th>${S.tiers.map((t, i) => `<th class="${i === ti ? 'cur' : ''}">${t.name}</th>`).join('')}<th>Agents, and when they fire</th><th>Loops back</th></tr></thead><tbody>`;
+    <table class="wf"><thead><tr><th>Stage</th>${S.tiers.map((t, i) => `<th class="${i === ti ? 'cur' : ''}">${t.name}</th>`).join('')}<th>Agents, and when they fire</th><th>Other ways out</th></tr></thead><tbody>`;
   h += stages.map(st => `<tr data-st="${st.id}" class="${S.sel && S.sel.node === st.id ? 'sel' : ''}"><td><b>${esc(st.name)}</b><br><span class="idle">${esc(st.text)}</span></td>` +
     TIERS.map((t, i) => `<td class="${i === ti ? 'cur' : ''}">${esc(tierCell(st, i))}</td>`).join('') +
     `<td>${agentsAt(st).map(({ c, names }) => `<span class="${passes(c) ? 'fire' : 'idle'}">${esc(names.join(' + '))}</span> <span class="idle">· ${esc(condText(c))}${c.on ? '' : ' (off)'}</span>`).join('<br>') || '<span class="idle">none</span>'}</td>` +
@@ -411,7 +413,7 @@ function renderTable(){
 }
 function workflowPart(){
   const stages = stagesInOrder();
-  return '| Stage | ' + S.tiers.map(t => t.name).join(' | ') + ' | Agents, when | Loops back |\n| --- | --- | --- | --- | --- | --- |\n' +
+  return '| Stage | ' + S.tiers.map(t => t.name).join(' | ') + ' | Agents, when | Other ways out |\n| --- | --- | --- | --- | --- | --- |\n' +
     stages.map(st => `| ${st.name} | ` + TIERS.map((t, i) => tierCell(st, i)).join(' | ') + ' | ' +
       (agentsAt(st).filter(x => x.c.on).map(({ c, names }) => names.map(n => '`' + n + '`').join(', ') + ': ' + condText(c).toLowerCase()).join('; ') || 'none') + ' | ' +
       (loopsFrom(st).join('; ') || '') + ' |').join('\n');
@@ -430,13 +432,13 @@ function portPos(n, port){
 }
 function curve(a, b, lift){
   if (lift) return `M${a.x},${a.y} C${a.x},${a.y - lift} ${b.x},${b.y - lift} ${b.x},${b.y}`;
-  const d = Math.max(40, Math.hypot(b.x - a.x, b.y - a.y) / 2.2);
+  const dist = Math.hypot(b.x - a.x, b.y - a.y), d = Math.max(40, Math.min(dist / 2.2, 70 + dist * 0.1));
   return `M${a.x},${a.y} C${a.x + a.nx * d},${a.y + a.ny * d} ${b.x + b.nx * d},${b.y + b.ny * d} ${b.x},${b.y}`;
 }
 function edgeGeom(e){
   const a = N(e.from), b = N(e.to); if (!a || !b) return null;
-  if (isLoop(e)) return { d: curve(portPos(a, 'back'), portPos(b, 'down')), kind: 'loop' };
-  const tp = b.kind === 'cond' || b.kind === 'loop' ? 'top' : 'in';
+  const tp = e.tp || (b.kind === 'cond' ? 'top' : 'in');
+  if (isLoop(e)) return { d: curve(portPos(a, e.fp), portPos(b, tp)), kind: 'loop' };
   const kind = a.kind === 'stage' && b.kind === 'stage' ? 'next' : a.kind === 'stage' ? 'check' : 'fire';
   return { d: curve(portPos(a, e.fp), portPos(b, tp)), kind };
 }
@@ -447,13 +449,18 @@ function renderEdges(){
   S.edges.forEach(e => {
     const g = edgeGeom(e); if (!g) return;
     let cls = g.kind;
-    const ln = isLoop(e) ? N(e.from) : N(e.to)?.kind === 'loop' ? N(e.to) : null;
-    if (ln) cls += ln.on ? '' : ' off';
+    if (isLoop(e)) cls += e.on === false ? ' off' : '';
     else if (g.kind === 'check' || g.kind === 'fire') { const c = g.kind === 'check' ? N(e.to) : N(e.from); cls += passes(c) ? ' flow' : c.on ? '' : ' off'; }
     const sel = S.sel && S.sel.edge === e.id ? ' sel' : '';
     h += `<path class="hit" data-e="${e.id}" d="${g.d}"/><path class="e ${cls}${sel}" id="p_${e.id}" d="${g.d}" marker-end="url(#${g.kind === 'loop' ? 'ahc' : 'ah'})"/>`;
   });
   svg.innerHTML = h;
+  S.edges.filter(isLoop).forEach(e => {
+    const p = $('p_' + e.id); if (!p) return; const m = p.getPointAtLength(p.getTotalLength() / 2);
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.setAttribute('x', m.x); t.setAttribute('y', m.y - 6); t.setAttribute('text-anchor', 'middle'); t.dataset.e = e.id;
+    t.textContent = (e.on === false ? '(off) ' : '') + 'when ' + e.when; svg.appendChild(t);
+  });
   svg.querySelectorAll('[data-e]').forEach(x => x.onpointerdown = ev => { ev.stopPropagation(); S.sel = { edge: x.dataset.e }; S.tab = 'inspect'; refreshState(); renderPanel(); });
 }
 
@@ -467,7 +474,7 @@ let drag = null;
 canvas.addEventListener('pointerdown', e => {
   if (e.button !== 0) return;
   const port = e.target.closest('.port'), node = e.target.closest('.node');
-  if (port && ['out','down','back'].includes(port.dataset.port)) {
+  if (port && (node.classList.contains('stage') || port.dataset.port === 'out')) {
     const n = N(node.dataset.id); drag = { mode: 'link', from: n, fp: port.dataset.port }; e.preventDefault(); return;
   }
   e.preventDefault();
@@ -489,7 +496,7 @@ window.addEventListener('pointermove', e => {
     t.setAttribute('d', curve(a, { x: b.x, y: b.y, nx: 0, ny: 0 }));
     document.querySelectorAll('.port.hot').forEach(p => p.classList.remove('hot'));
     const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node');
-    if (over) over.querySelector('.port.in, .port.top')?.classList.add('hot');
+    if (over) (over.classList.contains('stage') ? over.querySelector('.port.' + sideAt(N(over.dataset.id), b)) : over.querySelector('.port.in, .port.top'))?.classList.add('hot');
   }
 });
 window.addEventListener('pointerup', e => {
@@ -498,28 +505,32 @@ window.addEventListener('pointerup', e => {
   if (d.mode === 'node') { d.el.classList.remove('dragging'); if (d.moved) renderEdges(); }
   if (d.mode === 'link') { document.querySelectorAll('.port.hot').forEach(p => p.classList.remove('hot'));
     const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node');
-    if (over) connect(d.from, d.fp, N(over.dataset.id)); else renderEdges(); }
+    if (over) { const b = N(over.dataset.id); connect(d.from, d.fp, b, b.kind === 'stage' ? sideAt(b, toWorld(e.clientX, e.clientY)) : null); } else renderEdges(); }
 });
-function connect(a, fp, b){
+function sideAt(n, p){
+  const el = nodeEl(n.id), w = el.offsetWidth, h = el.offsetHeight, dx = (p.x - n.x - w / 2) / w, dy = (p.y - n.y - h / 2) / h;
+  return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'in' : 'out') : (dy < 0 ? 'top' : 'down');
+}
+function connect(a, fp, b, tp){
   if (!b || a.id === b.id) { renderEdges(); return; }
-  if (fp === 'out' && a.kind === 'stage' && b.kind === 'stage' && b.x < a.x) { toast('To send work back, use a Loop back node from the library.'); renderEdges(); return; }
-  const ok = (fp === 'out' && a.kind === 'stage' && b.kind === 'stage') || (fp === 'down' && a.kind === 'stage' && (b.kind === 'cond' || b.kind === 'loop')) || (fp === 'out' && a.kind === 'cond' && b.kind === 'agent') || (fp === 'back' && a.kind === 'loop' && b.kind === 'stage');
-  if (!ok) { toast('A stage hands on to a stage, or hangs a condition or a loop below it; a condition fires agents; a loop goes back to a stage.'); renderEdges(); return; }
-  if (a.kind === 'loop') S.edges = S.edges.filter(e => e.from !== a.id); // one target each
+  const ok = (a.kind === 'stage' && (b.kind === 'stage' || b.kind === 'cond')) || (a.kind === 'cond' && b.kind === 'agent');
+  if (!ok) { toast('A stage links to a stage or a condition; a condition fires agents.'); renderEdges(); return; }
   if (S.edges.some(e => e.from === a.id && e.to === b.id)) { renderEdges(); return; }
-  if (b.kind === 'cond' || b.kind === 'agent' || b.kind === 'loop') S.edges = S.edges.filter(e => !(e.to === b.id && N(e.from)?.kind === a.kind)); // one parent each
+  if (b.kind === 'cond' || b.kind === 'agent') S.edges = S.edges.filter(e => !(e.to === b.id && N(e.from)?.kind === a.kind)); // one parent each
   const e = { id: nid('e'), from: a.id, fp, to: b.id };
-  if (a.kind === 'stage' && b.kind === 'stage' && b.x < a.x) e.when = 'your words';
+  if (tp) e.tp = tp;
+  // The rule: one default way on per stage. A second link out of a stage needs a condition.
+  if (a.kind === 'stage' && b.kind === 'stage') { e.on = true; e.when = defaultExits(a).length ? 'your words' : ''; }
   S.edges.push(e); S.sel = { edge: e.id }; S.tab = 'inspect';
   renderNodes(); renderPanel();
-  toast(isLoop(e) ? 'Looped back. Say when in the panel.' : b.kind === 'agent' ? 'Wired. Agents on one condition fire together.' : 'Wired.');
+  toast(isLoop(e) ? `${a.name} already has its default way on, so this link needs a condition. Say when in the panel.` : stageLink(e) ? `The default way on from ${a.name}.` : b.kind === 'agent' ? 'Wired. Agents on one condition fire together.' : 'Wired.');
 }
 canvas.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX, e.clientY); }, { passive: false });
 function zoomAt(f, cx, cy){ const r = canvas.getBoundingClientRect(); cx = cx ?? r.left + r.width / 2; cy = cy ?? r.top + r.height / 2;
   const v = S.view, k = Math.min(1.8, Math.max(0.3, v.k * f)), wx = (cx - r.left - v.x) / v.k, wy = (cy - r.top - v.y) / v.k;
   v.k = k; v.x = cx - r.left - wx * k; v.y = cy - r.top - wy * k; applyView(); }
 function fit(){ if (!S.nodes.length) return; const r = canvas.getBoundingClientRect();
-  const xs = S.nodes.map(n => n.x), ys = S.nodes.map(n => n.y), x0 = Math.min(...xs) - 20, y0 = Math.min(...ys) - 150, x1 = Math.max(...xs) + 240, y1 = Math.max(...ys) + 80;
+  const xs = S.nodes.map(n => n.x), ys = S.nodes.map(n => n.y), x0 = Math.min(...xs) - 20, y0 = Math.min(...ys) - 230, x1 = Math.max(...xs) + 240, y1 = Math.max(...ys) + 80;
   const k = Math.min(1.2, Math.max(0.3, Math.min(r.width / (x1 - x0), r.height / (y1 - y0))));
   S.view = { k, x: -x0 * k + (r.width - (x1 - x0) * k) / 2, y: -y0 * k }; applyView(); }
 // Stages left to right in spine order; under each, its conditions with their agents to the right, then its loops.
@@ -572,8 +583,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function run(){
   if (running) return; running = true;
   const stages = S.nodes.filter(n => n.kind === 'stage');
-  const nextOf = s => S.edges.find(e => e.from === s.id && e.fp === 'out' && !isLoop(e) && N(e.to)?.kind === 'stage');
-  let cur = stages.find(s => !S.edges.some(e => e.to === s.id && !isLoop(e) && N(e.from)?.kind === 'stage')) || stages[0];
+  const nextOf = s => defaultExits(s)[0];
+  let cur = stages.find(s => !S.edges.some(e => e.to === s.id && isDefault(e))) || stages[0];
   const seen = new Set();
   while (cur && !seen.has(cur.id)) {
     seen.add(cur.id); const el = nodeEl(cur.id); el?.classList.add('active');
@@ -612,7 +623,12 @@ function inspectHTML(){
   const x = S.sel;
   if (x && x.edge) { const e = S.edges.find(e => e.id === x.edge); if (!e) return '';
     const a = N(e.from), b = N(e.to);
-    if (isLoop(e)) return `<h2>Link</h2><p class="av-annot">Loop back to ${esc(b.name)}. Select the loop node to say when.</p><button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete link</button>`;
+    if (stageLink(e)) { const kind = e.when ? linkWord(e).replace(' to', '') : 'the default way on';
+      return `<h2>${esc(a.name)} → ${esc(b.name)} <span class="tag tgraph">workflow part</span></h2>
+      <p class="av-annot">${e.when ? `A conditioned way out: ${esc(kind)}, by the default order.` : 'The default way on: what happens when no condition fires.'} Each stage has at most one default; every other way out needs a condition.</p>
+      <label><span class="av-label">When (leave empty for the default)</span><input id="iEWhen" value="${esc(e.when || '')}" placeholder="e.g. a claim fails"></label>
+      ${e.when ? `<label style="flex-direction:row;align-items:center;gap:8px"><button class="sw" id="iEOn" role="switch" aria-checked="${e.on !== false}"></button><span>${e.on !== false ? 'On' : 'Off'}</span></label><p class="av-annot">A condition on a link is judgment: the run never takes it.</p>` : ''}
+      <button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete link</button>`; }
     return `<h2>Link</h2><p class="av-annot">${esc(a.name || condText(a))} → ${esc(b.name || condText(b))}</p><button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete link</button>`; }
   const n = x && x.node && N(x.node);
   if (!n) return `<h2>Nothing selected</h2><p class="av-annot">Drag nodes from the library, drag between ports to wire them, and click anything to edit it here. Drag the grid to pan; scroll to zoom. Delete removes what is selected.</p>`;
@@ -656,13 +672,20 @@ function bindPanel(){
     on('iCustom', 'oninput', ev => { n.custom = ev.target.value; soft(); });
     on('iOn', 'onclick', () => { n.on = !n.on; renderNodes(); renderPanel(); });
   }
-  if (n && n.kind === 'loop') on('iWhen', 'oninput', ev => { n.when = ev.target.value; soft(); });
+  if (e) { on('iEWhen', 'onchange', ev => { e.when = ev.target.value.trim(); renderNodes(); renderPanel(); });
+    on('iEWhen', 'oninput', ev => { e.when = ev.target.value.trim(); renderEdges(); renderTable(); });
+    on('iEOn', 'onclick', () => { e.on = e.on === false; refreshState(); renderPanel(); }); }
   $('panel').querySelectorAll('[data-t]').forEach(x => x.onchange = x.oninput = ev => { S.tiers[+x.dataset.t][x.dataset.f] = ev.target.value; renderTable(); });
   $('panel').querySelectorAll('[data-rs]').forEach(b => b.onclick = () => { S.sensitive.splice(+b.dataset.rs, 1); renderPanel(); });
   on('sAdd', 'onkeydown', ev => { if (ev.key === 'Enter' && ev.target.value.trim()) { S.sensitive.push(ev.target.value.trim()); renderPanel(); $('sAdd').focus(); } });
 }
 function warnings(){
   const out = [];
+  S.nodes.filter(n => n.kind === 'stage').forEach(st => { const d = defaultExits(st);
+    if (d.length > 1) out.push(`${st.name} has ${d.length} default ways on (${d.map(e => N(e.to).name).join(', ')}): give all but one a condition.`); });
+  { const seen = new Set(); let cur = S.nodes.find(n => n.kind === 'stage' && !S.edges.some(e => e.to === n.id && isDefault(e)));
+    if (!cur && S.nodes.some(n => n.kind === 'stage' && defaultExits(n).length)) out.push('The default ways on go round in a circle: one of them needs a condition, or the work never ends.');
+    while (cur && !seen.has(cur.id)) { seen.add(cur.id); const nx = defaultExits(cur)[0]; cur = nx && N(nx.to); if (cur && seen.has(cur.id)) out.push('The default ways on go round in a circle: one of them needs a condition, or the work never ends.'); } }
   S.nodes.filter(n => n.kind === 'cond' && n.def && !n.on).forEach(c => { const st = parentStage(c);
     out.push(`A default is off at ${st ? st.name : '?'}: ${children(c).map(a => a.name).join(' and ')}. The defaults sentence still says it runs. Should the builder refuse this?`); });
   S.nodes.filter(n => n.kind === 'cond').forEach(c => { const names = children(c).map(a => a.name);
@@ -701,7 +724,7 @@ function nothing(){
 const TOUR = [
   ['library', 'The nodes library. Drag a stage, a condition or an agent onto the canvas, or click one to drop it in the middle.'],
   ['canvas', 'The canvas holds the work\'s own lifecycle: Plan, Design, Build, Test, Deploy, Maintain. Drag nodes about; drag the grid to pan; scroll to zoom.'],
-  ['canvas', 'Wire by dragging from a port: a stage\'s right port to the next stage (or back to an earlier one, which makes a loop), its bottom port to a condition or a Loop back node. A condition\'s right port goes to agents; a loop\'s left port goes back to an earlier stage.'],
+  ['canvas', 'Wire by dragging from a port: a stage\'s right port to the next stage (or back to an earlier one, which makes a loop), a condition. Any side of a stage links to any other stage. A stage has one default way on; every other link out of it carries a condition, which is how work goes back, or skips ahead.'],
   ['canvas', 'A condition sits between a stage and its agents and switches on and off. Agents on one condition fire together: that is all a pair is.'],
   ['wtable', 'The workflow table, the new part. One row per stage: what each tier sets there, the agents that fire and when, and any loop back. It joins the tier table and the lens table; the canvas is its editor.'],
   ['sim', 'Describe a piece of work and press Run it through: a pulse travels the stages and lights the agents that would fire.'],
