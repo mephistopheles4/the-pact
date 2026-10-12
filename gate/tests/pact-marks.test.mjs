@@ -84,9 +84,29 @@ test('each move is a bullet with a bold lead-in, and its part is an empty slot a
   });
 });
 
-// #261 C1
-test('config-notice is an empty slot right after the line under the title', () => {
-  assert.deepEqual(LINES.slice(0, 6), ['# The pact', '', 'To change the pact, edit its repo and install it.', '<!-- pact:begin config-notice -->', '<!-- pact:end config-notice -->', '']);
+// #261 C1; #262 S8: the line under the title names the parts Scriptorium builds.
+test('config-notice is an empty slot right after the lines under the title', () => {
+  assert.deepEqual(LINES.slice(0, 7), [
+    '# The pact',
+    '',
+    'To change the pact, edit its repo and install it. Parts marked *Scriptorium',
+    'builds this* come from my configuration; the text under them is the default.',
+    '<!-- pact:begin config-notice -->',
+    '<!-- pact:end config-notice -->',
+    '',
+  ]);
+});
+
+// #262 S8: each part Scriptorium builds wraps its whole default, with the italic mark above it.
+test('each part Scriptorium builds sits under its mark, flush against its text, with no blank line inside', () => {
+  for (const n of ['tiers', 'sensitive', 'workflow', 'lenses']) {
+    const b = at(`<!-- pact:begin ${n} -->`);
+    const e = at(`<!-- pact:end ${n} -->`);
+    assert.ok(b > 0 && e > b + 1, n);
+    assert.deepEqual(LINES.slice(b - 2, b), ['*Scriptorium builds this.*', ''], n);
+    assert.ok(LINES.slice(b + 1, e).every(l => l.trim() !== '' && !/^\s/.test(l)), `${n}: a block may hold no blank line and no leading space`);
+    assert.equal(LINES[e + 1], '', n);
+  }
 });
 
 // #261 C1
@@ -98,5 +118,6 @@ test('usage-pause wraps the usage bullet in "Guards", right after the pinned sto
   assert.equal(at('<!-- pact:end stop-and-escalate -->') + 1, b);
   assert.ok(LINES.slice(b + 1, e).every(l => l !== ''));
   assert.ok(LINES.slice(b + 1, e).join(' ').includes('When it is above 75%, wait for my'));
-  assert.equal(LINES[e + 1], '');
+  // #142: the session limit's part follows, empty, so an unset session limit renders nothing.
+  assert.deepEqual(LINES.slice(e + 1, e + 4), ['<!-- pact:begin usage-pause-session -->', '<!-- pact:end usage-pause-session -->', '']);
 });

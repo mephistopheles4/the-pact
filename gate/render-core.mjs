@@ -151,11 +151,10 @@ import { ANY_FENCE_RE, AT_IMPORT_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, PACT
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, on the
 // security route like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'move-1', 'move-2', 'move-3', 'move-4-extra']);
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses']);
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
-const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra']);
-// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/)
+const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses']);// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/)
 // are refused to every edit, with any operation. install-go-ahead lives in
 // AGENTS.md, which is never installed, and is refused like the other.
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);
@@ -206,7 +205,8 @@ const TOOL_ALLOWLIST = join(dirname(fileURLToPath(import.meta.url)), 'tool-allow
 
 // Each setting: the open part it fills, its whole-number range, its default
 // and its fixed template. The template at the default must equal the source's
-// text between the part's marks, or the render refuses.
+// text between the part's marks (an empty part, for a setting with no
+// default), or the render refuses.
 const USAGE_TEMPLATE = n => [
   '- **Usage.** Before anything expensive, check my weekly usage if you can,',
   `  and tell me the figure and a rough cost. When it is above ${n}%, wait for my`,
@@ -217,8 +217,20 @@ const USAGE_TEMPLATE = n => [
 // may move it: 'lower' means a smaller number is stricter.
 const USAGE_PROJECT_LINE = n =>
   `- **Usage pause.** In this project, wait for my go-ahead when the weekly limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+// The 5-hour session limit (#142). It has no default: unset, its part stays
+// empty, so the render is byte-for-byte what it is without the setting.
+const SESSION_TEMPLATE = n => [
+  '- **Session usage.** Before anything expensive, also give my 5-hour session',
+  `  figure. When it is above ${n}%, wait for my go-ahead. If you can't see the`,
+  '  figure, say so in one line and carry on under the weekly rule.',
+];
+const SESSION_PROJECT_LINE = n =>
+  `- **Session usage pause.** In this project, wait for my go-ahead when the 5-hour session limit is above ${n}% or above the line in my user rules, whichever is lower.`;
+// `def: null` marks a setting with no default: its part is empty in the
+// source, and a project may set it whatever the user's file says.
 const SETTINGS = new Map([
   ['usage-pause', Object.freeze({ mark: 'usage-pause', min: 0, max: 100, def: 75, template: USAGE_TEMPLATE, tighter: 'lower', projectLine: USAGE_PROJECT_LINE })],
+  ['usage-pause-session', Object.freeze({ mark: 'usage-pause-session', min: 0, max: 100, def: null, template: SESSION_TEMPLATE, tighter: 'lower', projectLine: SESSION_PROJECT_LINE })],
 ]);
 
 // The project file, in the project folder, and the project rules file this
@@ -511,7 +523,8 @@ function checkEdits(edits, fail) {
     // Matched exactly against constant lists, and only the constant is printed.
     const pinned = PINNED.find(g => g === e.mark);
     if (pinned) return bad('edit-gated', `${pinned} is a pinned block; no edit may target it`);
-    if (e.mark === 'usage-pause') return bad('edit-setting', 'usage-pause is set only through its setting; no edit may target it');
+    const setting = [...SETTINGS.keys()].find(k => k === e.mark);
+    if (setting) return bad('edit-setting', `${setting} is set only through its setting; no edit may target it`);
     if (e.mark === NOTICE_MARK) return bad('edit-notice', 'config-notice is filled by the renderer; no edit may target it');
     const mark = EDITABLE.find(m => m === e.mark);
     if (!mark) return bad('edit-mark', 'an unknown mark');
@@ -858,7 +871,7 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = []) {
     const p = pairs.get(spec.mark);
     if (!p) return fail(spec.mark, 'the part is not in the source');
     const now = lines.slice(p.begin + 1, p.end);
-    const def = toLines(spec.template(spec.def));
+    const def = spec.def === null ? [] : toLines(spec.template(spec.def));
     if (now.length !== def.length || now.some((l, i) => !l.equals(def[i]))) return fail(spec.mark, 'the template at its default no longer matches the source');
     swaps.push({ ...p, with: toLines(spec.template(value)) });
   }
@@ -1011,7 +1024,7 @@ function checkProject(buf, effective, report) {
     } else if (spec.tighter !== 'lower') {
       fail('project-direction', `${name} has no tightening direction, so a project may not set it`);
       ok = false;
-    } else if (!(v < effective.get(name))) {
+    } else if (effective.get(name) !== null && !(v < effective.get(name))) {
       fail('project-looser', `${name} ${v} is not tighter than the user's effective value, ${effective.get(name)}`);
       ok = false;
     } else values.push([name, v]);

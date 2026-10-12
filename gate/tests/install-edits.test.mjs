@@ -102,6 +102,8 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
     '  Edited text is checked for its form, its characters and file imports, not for wording or meaning.',
   ]);
   assert.match(dry.stdout, /^seam-a\| RESULT: pass\r?$/m, dry.out);
+  // #262 S9: edits to the moves alone show no security-defaults line.
+  assert.doesNotMatch(dry.stdout, /SECURITY DEFAULTS/, dry.out);
 
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
@@ -122,6 +124,27 @@ test('a configuration that replaces move-2, removes move-1 and adds to move-4-ex
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^ {2}block file pact\/blocks\/m2\.md: sha256 [0-9a-f]{64}, unchanged since the last install\r?$/m, again.out);
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
+});
+
+// #262 S8: the security-defaults line, before every other warning in the dry run.
+test('an edit to each part Scriptorium builds shows the security-defaults line first, naming the four parts and no block file', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const blocks = {
+    't.md': '| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small | none | Opus, low |\n',
+    's.md': 'Sensitive work is auth and secrets. Say why in one line in your tier proposal.\n',
+    'w.md': '| Stage | Lenses offered, and when |\n| --- | --- |\n| Test | `behaviour-lens`, `integrity-lens`: every build |\n',
+    'l.md': '| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does it work? |\n',
+  };
+  const edits = [['tiers', 't.md'], ['sensitive', 's.md'], ['workflow', 'w.md'], ['lenses', 'l.md']].map(([mark, file]) => ({ mark, op: 'replace', file }));
+  configure(h, `${JSON.stringify({ schema: 1, settings: { 'usage-pause': 90 }, edits })}\n`, blocks);
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
+  const at = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
+  assert.equal(lines[at], "WARN: SECURITY DEFAULTS: the user configuration edits tiers, sensitive, workflow, lenses, which changes the pact's security defaults; read those parts in the rendered rules file before you install. No install is recorded to compare with.", dry.out);
+  assert.equal(lines.findIndex(l => l.includes('WARN')), at, 'no warning comes before it');
+  assert.ok(!/blocks\//.test(lines[at]));
 });
 
 // #261 C14

@@ -356,6 +356,13 @@ for (const c of table('render edit list', {
     { id: 'over-16-edits', plant: withEdits(Array.from({ length: 17 }, () => ({ mark: 'move-1', op: 'remove' }))), fails: ['edit-count'], says: /more than 16 edits/, why: 'over 16 edits' },
     { id: 'edits-as-object', plant: withEdits({}), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as an object' },
     { id: 'edits-as-string', plant: withEdits('move-2'), fails: ['config-edits'], says: /edits must be a list/, why: 'edits as a string' },
+    // #142: the session setting's part, like the weekly one's, is filled only from its setting.
+    { id: 'session-setting-part', plant: withEdits([{ mark: 'usage-pause-session', op: 'replace', file: 'ok.md' }]), fails: ['edit-setting'], says: /edit 1: usage-pause-session is set only through its setting/, why: 'an edit to the session setting\'s part' },
+    // block-text on the parts Scriptorium builds (#262, S9): each part, and each of the two refusals.
+    { id: 'tiers-comment-opener', plant: h => ({ ...withEdits([{ mark: 'tiers', op: 'replace', file: 'ok.md' }])(h), 'pact/blocks/ok.md': '| Tier | <!-- x --> |\n' }), fails: ['block-text'], says: /an HTML comment opener/, why: 'a comment opener in a tiers block' },
+    { id: 'sensitive-at-import', plant: h => ({ ...withEdits([{ mark: 'sensitive', op: 'replace', file: 'ok.md' }])(h), 'pact/blocks/ok.md': 'Read @notes.md first.\n' }), fails: ['block-text'], says: /an @ followed by text/, why: 'an @ import in a sensitive block' },
+    { id: 'workflow-comment-opener', plant: h => ({ ...withEdits([{ mark: 'workflow', op: 'add-after', file: 'ok.md' }])(h), 'pact/blocks/ok.md': '<!-- pact:end workflow -->\n' }), fails: ['block-text'], says: /an HTML comment opener/, why: 'a forged mark in a workflow block' },
+    { id: 'lenses-at-import', plant: h => ({ ...withEdits([{ mark: 'lenses', op: 'replace', file: 'ok.md' }])(h), 'pact/blocks/ok.md': '| `my-lens` | See @rules.md |\n' }), fails: ['block-text'], says: /an @ followed by text/, why: 'an @ import in a lenses block' },
   ],
 })) test(c.name, c.fn);
 

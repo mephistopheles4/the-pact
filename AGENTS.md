@@ -73,6 +73,15 @@ how every session in every repo behaves. So:
   handed back as `--rendered-hash <hash>`, and refuses if it does not match this
   run's render. A pact from before edits (#94) refuses a file that has any, so
   to install such a commit, empty the edit list first.
+- **The parts Scriptorium builds.** Four open parts, `tiers`, `sensitive`,
+  `workflow` and `lenses`, can be edited in the home configuration only; a
+  project configuration may edit no part (#262). An edit to any of them gets
+  the dry run's security-defaults line, before every other warning: it names
+  the parts and says whether the configuration changed since the last
+  install. A pact from before #262 refuses an edit to these parts, so to roll
+  back past it, remove those edits first. The `usage-pause-session` setting
+  (#142) sets the 5-hour session limit beside the weekly `usage-pause`; unset,
+  the rules file has no session line.
 - **Agent settings.** The file's `agents` key may set any pact lens's
   `model` (`opus` or `sonnet`) and `effort` (`low`, `medium` or `high`); each
   lens's own file holds its default. `scout` is sealed and refused by name.

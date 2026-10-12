@@ -1,6 +1,7 @@
 # The pact
 
-To change the pact, edit its repo and install it.
+To change the pact, edit its repo and install it. Parts marked *Scriptorium
+builds this* come from my configuration; the text under them is the default.
 
 ## The moves
 
@@ -61,11 +62,15 @@ and help with what it needs.
 A tier says how much checking the work needs. You propose one with a line of
 why; I set it, and can change it any time.
 
+*Scriptorium builds this.*
+
 | Tier | Fits | Plan | Build |
 | --- | --- | --- | --- |
 | **Quick** | Small, one session, no plan needed | none | Opus, low |
 | **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |
 | **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
+
+*Scriptorium builds this.*
 
 Sensitive work gets more checking when I choose it. By default, sensitive
 work is auth, secrets, crypto, input validation and data migrations:
@@ -89,6 +94,8 @@ The stages of a piece of work: what each tier sets at each, the lenses to
 offer there, and where the work goes next. Each stage has one default way on;
 every other way out has its condition.
 
+*Scriptorium builds this.*
+
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
 | Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
@@ -103,6 +110,8 @@ every other way out has its condition.
 A lens is a reviewer that asks one question from one angle. Lenses are tools:
 they help me through a stage faster while my judgment stays on top. Lean on
 judgment more than rules here, more so as models improve.
+
+*Scriptorium builds this.*
 
 | Lens | Asks |
 | --- | --- |

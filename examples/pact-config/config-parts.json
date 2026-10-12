@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "settings": {
+    "usage-pause": 90,
+    "usage-pause-session": 80
+  },
+  "edits": [
+    { "mark": "tiers", "op": "replace", "file": "tiers-plan-standard-on-high.md" },
+    { "mark": "sensitive", "op": "replace", "file": "sensitive-payments.md" },
+    { "mark": "workflow", "op": "replace", "file": "workflow-qa-pair-from-standard.md" },
+    { "mark": "lenses", "op": "replace", "file": "lenses-own-reviewer.md" }
+  ]
+}

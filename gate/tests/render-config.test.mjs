@@ -9,10 +9,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { renderStage } from './gate-run.mjs';
+import { renderStage, runCore } from './gate-run.mjs';
 import { stage } from './payload.mjs';
+import { moduleResult, table } from './tables.mjs';
 import { RENDER, REPO, SEAM_A, lastLine, withoutOpenMarks } from './text.mjs';
-import { read, tempDir } from './tree.mjs';
+import { read, tempDir, writeTree } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
@@ -126,6 +127,42 @@ test('a configuration with no values still applies: the notice names it, and the
   assert.deepEqual(r.stdout.split('\n').slice(2, 4), [`CONFIG user ${sha256(bytes)}`, `DIGEST ${digestOf(bytes)}`]);
   assert.doesNotMatch(r.stdout, /^VALUE /m);
 });
+
+// #142: the session limit's line, from its fixed template, right after the weekly one.
+test('a session value renders the session line after the weekly one, and the notice names it', t => {
+  const bytes = Buffer.from('{"schema": 1, "settings": {"usage-pause-session": 80}}\n');
+  const r = render(t, homeWith(t, bytes));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^VALUE usage-pause-session 80$/m, r.out);
+  const session = [
+    '- **Session usage.** Before anything expensive, also give my 5-hour session',
+    "  figure. When it is above 80%, wait for my go-ahead. If you can't see the",
+    '  figure, say so in one line and carry on under the weekly rule.',
+    '',
+  ].join('\n');
+  const text = r.bytes.toString('utf8');
+  assert.equal(text.split(session).length, 2, 'the session line appears once');
+  assert.ok(text.indexOf(session) > text.indexOf('When it is above 75%'), 'after the weekly line');
+  const without = text.replace(session, '').replace('Values set: usage-pause-session 80.', 'Values set: none.');
+  assert.equal(without, expected(read(SOURCE), digestOf(bytes)));
+});
+
+for (const c of table('render session setting', {
+  module: 'gate/render.mjs',
+  base: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80}}\n' }),
+  run: (tree, t) => {
+    const h = tempDir(t, 'pact-render-home-');
+    writeTree(h, tree);
+    const r = runCore('render', [SOURCE, tempDir(t, 'pact-render-out-'), h]);
+    return moduleResult(r.code, r.stdout);
+  },
+  rows: [
+    // #142: the same range and checks as the weekly value, refused naming only constants.
+    { id: 'over-the-range', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 101}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number from 0 to 100/, why: 'a value out of range' },
+    { id: 'a-fraction', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80.5}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number/, why: 'a non-integer' },
+    { id: 'a-string', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": "80"}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number/, why: 'a string' },
+  ],
+})) test(c.name, c.fn);
 
 test('a configured render of the real source passes seam A', t => {
   const root = stage(t, {});

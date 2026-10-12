@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
+import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts } from '../../builder/parts.mjs';
 import { isStaged } from '../install-core.mjs';
 import { RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -292,6 +293,66 @@ test('bad case: builder text the page\'s content policy refuses is refused by th
   }
 });
 
+// ------------------------------------------------------------ the four parts Scriptorium builds (#262)
+
+const between = (text, m) => (new RegExp(`<!-- pact:begin ${m} -->\\n([\\s\\S]*?)\\n<!-- pact:end ${m} -->`).exec(text) || [])[1];
+
+// #262 S9: the default graph, and the other three parts, compile byte for byte to the rules file's text.
+test('the default parts compile byte for byte to the four parts in the rules file; one cell changed on either side fails', () => {
+  const src = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
+  const got = compileParts(DEFAULT_PARTS);
+  for (const m of PART_MARKS) assert.equal(got[m], between(src, m), m);
+  const p = copyParts(DEFAULT_PARTS);
+  p.workflowGraph.offers[0].when = 'thorough';
+  assert.notEqual(compileParts(p).workflow, between(src, 'workflow'), 'a cell changed in the data');
+  assert.notEqual(got.workflow, between(src.replace('| Deploy | I decide |', '| Deploy | I choose |'), 'workflow'), 'a cell changed in the rules file');
+});
+
+const graphWith = f => {
+  const g = copyParts(DEFAULT_PARTS).workflowGraph;
+  f(g);
+  return { ...GOOD, workflowGraph: g };
+};
+
+// #262 S2, S9: the builder refuses a stage with two default ways on.
+test('bad builder file: a stage with two default ways on is refused', t => {
+  const r = checkBuilder(REPO, builderFile(t, graphWith(g => g.links.push({ from: 'test', to: 'maintain', when: '', on: true })), GOOD_BLOCKS));
+  assert.equal(r.builder, null);
+  assert.ok(r.refusals.some(m => /stage test has two default ways on/.test(m)), JSON.stringify(r.refusals));
+});
+
+// #262 S2, S9: the builder refuses default ways on that go round in a circle.
+test('bad builder file: default ways on in a circle are refused', t => {
+  const r = checkBuilder(REPO, builderFile(t, graphWith(g => (g.links.find(l => l.from === 'maintain').when = '')), GOOD_BLOCKS));
+  assert.equal(r.builder, null);
+  assert.ok(r.refusals.some(m => /go round in a circle/.test(m)), JSON.stringify(r.refusals));
+});
+
+// #262 S9, data F2: the content policy covers the graph's text.
+test('bad builder file: a web address in a link condition is refused by the content policy', t => {
+  const r = checkBuilder(REPO, builderFile(t, graphWith(g => (g.links.find(l => l.when).when = 'the spec at https://example.invalid/x changes')), GOOD_BLOCKS));
+  assert.equal(r.builder, null);
+  assert.ok(r.refusals.some(m => /^link \d+: holds text the page's content policy refuses/.test(m)), JSON.stringify(r.refusals));
+});
+
+// #262 S2, D9: a person's parts load into the page, and the page saves each changed part as a replace edit.
+test('a builder file\'s parts load into its page; the page saves only the parts whose text changed, and keeps the rest of builder.json', t => {
+  const doc = { ...GOOD, sensitive: { ...copyParts(DEFAULT_PARTS).sensitive, items: ['auth', 'payments'] } };
+  const file = builderFile(t, doc, GOOD_BLOCKS);
+  assert.deepEqual(checkBuilder(REPO, file).refusals, []);
+  const page = buildPage(REPO, PAGE, file);
+  const files = vm.runInContext(`${[...page.matchAll(SCRIPT_RE)][0][2]}\n;JSON.stringify(buildFiles(initialState()))`, vm.createContext({}));
+  const [config, ...blocks] = JSON.parse(files);
+  assert.deepEqual(JSON.parse(config.text).edits, [{ mark: 'sensitive', op: 'replace', file: 'sensitive.md' }]);
+  assert.match(blocks[0].text, /sensitive\nwork is auth and payments: thorough/);
+  // The shipped page at its defaults saves no part, so it raises no security-defaults line.
+  assert.deepEqual(L.partsChanged(L.initialState()), {});
+  const s = L.initialState();
+  s.parts.lenses[2].asks = 'Who needs what, unsaid?';
+  const kept = JSON.parse(L.builderWith('{"schema": 1, "title": "Mine", "presets": []}', s).text);
+  assert.deepEqual([kept.title, kept.lenses[2].asks, Object.keys(kept).sort()], ['Mine', 'Who needs what, unsaid?', ['lenses', 'presets', 'schema', 'sensitive', 'tiers', 'title', 'workflowGraph']]);
+});
+
 /** The logic of a page built from builder file `f`, run in vm as for the shipped page. */
 function logicOf(page) {
   const script = [...page.matchAll(SCRIPT_RE)][0][2];
@@ -347,10 +408,12 @@ test('reset puts the usage value, every slot and every agent back to the plain p
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
-test('the wizard walks Start, each move, Agents, then Review and save; each move step holds exactly that move\'s open parts', () => {
+// #262 S8: the Workflow step holds the four parts Scriptorium builds; the move steps hold every other editable part.
+test('the wizard walks Start, each move, Workflow, Agents, then Review and save; each move step holds exactly that move\'s open parts', () => {
   const steps = L.wizardSteps();
-  assert.deepEqual(steps.map(s => s.id), ['start', 'move-1', 'move-2', 'move-3', 'move-4', 'agents', 'review']);
-  assert.deepEqual(steps.filter(s => s.move).flatMap(s => s.marks).sort(), [...L.PACT.editable].sort());
+  assert.deepEqual(steps.map(s => s.id), ['start', 'move-1', 'move-2', 'move-3', 'move-4', 'workflow', 'agents', 'review']);
+  assert.deepEqual(steps.filter(s => s.move).flatMap(s => s.marks).sort(), L.PACT.editable.filter(m => !L.PACT.parts.marks.includes(m)).sort());
+  assert.deepEqual(steps.find(s => s.id === 'workflow').marks, ['tiers', 'sensitive', 'workflow', 'lenses']);
   for (const s of steps.filter(s => s.move)) assert.ok(s.marks.every(m => m.startsWith(s.id)), s.id);
 });
 
@@ -419,9 +482,9 @@ function bootPage({ picker = false, folder = null } = {}) {
     get text() { return [this.textContent, ...this.children.map(c => c.text)].join(' ').replace(/\s+/g, ' ').trim(); }
   }
   const ids = {};
-  const document = { createElement: t => new N(t), createTextNode: t => Object.assign(new N('#text'), { textContent: t }), getElementById: id => (ids[id] ||= new N('div')), documentElement: new N('html'), body: new N('body') };
-  const window = { localStorage: { getItem: () => null, setItem() {} }, scrollTo() {}, isSecureContext: picker, ...(picker ? { showDirectoryPicker: async () => { if (folder) return folder; throw Object.assign(new Error('x'), { name: 'AbortError' }); } } : {}) };
-  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout }));
+  const document = { createElement: t => new N(t), createTextNode: t => Object.assign(new N('#text'), { textContent: t }), getElementById: id => (ids[id] ||= new N('div')), documentElement: new N('html'), body: new N('body'), addEventListener() {} };
+  const window = { localStorage: { getItem: () => null, setItem() {} }, scrollTo() {}, addEventListener() {}, isSecureContext: picker, ...(picker ? { showDirectoryPicker: async () => { if (folder) return folder; throw Object.assign(new Error('x'), { name: 'AbortError' }); } } : {}) };
+  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout, requestAnimationFrame: () => 0 }));
   const find = (n, pred, out = []) => { if (pred(n)) out.push(n); n.children.forEach(c => find(c, pred, out)); return out; };
   const button = (root, label) => find(root, n => n.tag === 'button' && n.text.startsWith(label))[0];
   return { ids, find, button };
@@ -433,6 +496,7 @@ test('stub page: each step shows only its own sections; a move step shows only i
   const view = () => ({
     start: !P.ids.values.hidden && !P.ids.workflows.hidden,
     agents: !P.ids.agents.hidden,
+    workflow: !P.ids.wf.hidden,
     workspace: !P.ids.workspace.hidden,
     review: !P.ids.output.hidden && !P.ids.always.hidden,
     moves: P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id),
@@ -440,18 +504,21 @@ test('stub page: each step shows only its own sections; a move step shows only i
     nav: P.find(P.ids['step-nav'], n => n.tag === 'button').map(b => b.text),
   });
   const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
-  assert.equal(steps().length, 7);
+  assert.equal(steps().length, 8);
   // #261: the move steps are named after the moves, where they said Move 1 to Move 4.
-  assert.deepEqual(view(), { start: true, agents: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Next: Sense the work'] });
-  const want = { 1: ['Back: Start', 'Next: Think before doing'], 2: ['Back: Sense the work', 'Next: Checkpoint the seams'], 3: ['Back: Think before doing', 'Next: Stay the owner'], 4: ['Back: Checkpoint the seams', 'Next: Agents'] };
+  assert.deepEqual(view(), { start: true, agents: false, workflow: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Next: Sense the work'] });
+  const want = { 1: ['Back: Start', 'Next: Think before doing'], 2: ['Back: Sense the work', 'Next: Checkpoint the seams'], 3: ['Back: Think before doing', 'Next: Stay the owner'], 4: ['Back: Checkpoint the seams', 'Next: Workflow'] };
   for (const n of [1, 2, 3, 4]) {
     P.button(P.ids['step-nav'], 'Next').click();
-    assert.deepEqual(view(), { start: false, agents: false, workspace: true, review: false, moves: [`move-${n}`], tabs: ['Presets', 'Yours'], nav: want[n] }, `move ${n}`);
+    assert.deepEqual(view(), { start: false, agents: false, workflow: false, workspace: true, review: false, moves: [`move-${n}`], tabs: ['Presets', 'Yours'], nav: want[n] }, `move ${n}`);
   }
+  // #262 S7: the Workflow step shows the canvas alone.
   P.button(P.ids['step-nav'], 'Next').click();
-  assert.deepEqual(view(), { start: false, agents: true, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Stay the owner', 'Next: Review and save'] });
-  steps()[6].click();
-  assert.deepEqual(view(), { start: false, agents: false, workspace: false, review: true, moves: [], tabs: [], nav: ['Back: Agents'] });
+  assert.deepEqual(view(), { start: false, agents: false, workflow: true, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Stay the owner', 'Next: Agents'] });
+  P.button(P.ids['step-nav'], 'Next').click();
+  assert.deepEqual(view(), { start: false, agents: true, workflow: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Workflow', 'Next: Review and save'] });
+  steps()[7].click();
+  assert.deepEqual(view(), { start: false, agents: false, workflow: false, workspace: false, review: true, moves: [], tabs: [], nav: ['Back: Agents'] });
 });
 
 test('stub page: on each move, Add from Yours defaults to that move\'s slot', () => {
@@ -482,13 +549,13 @@ test('stub page: reset from a move keeps that step, and undo puts the edits back
 test('stub page: an override shows on the Agents step and on Review, and a step lists its own problems', () => {
   const P = bootPage();
   const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
-  steps()[5].click();
+  steps()[6].click();
   const pick = P.find(P.ids.agents, n => n.tag === 'select' && n.attrs['aria-label'] === 'data-lens model')[0];
   pick.value = 'sonnet';
   pick.listeners.change.forEach(f => f({}));
-  assert.match(steps()[5].text, /1 override, not security-tested/);
+  assert.match(steps()[6].text, /1 override, not security-tested/);
   assert.match(P.ids.here.text, /data-lens · override, not security-tested/);
-  steps()[6].click();
+  steps()[7].click();
   assert.match(P.ids.output.text, /data-lens · override, not security-tested/);
   // An empty card on move 2: its problem shows on move 2's own step.
   steps()[2].click();
@@ -593,7 +660,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides, keepCommands });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides, keepCommands, partsChanged, builderWith });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -615,7 +682,8 @@ test('the page shows the four moves as a fixed spine, named by their lead-ins: t
   }
   assert.deepEqual(L.PACT.always.map(a => a.mark), ['stop-and-escalate']);
   assert.deepEqual(parts.filter(p => p.kind === 'open').map(p => p.mark), ['move-1', 'move-2', 'move-3', 'move-4-extra']);
-  assert.deepEqual([...L.PACT.editable], ['move-1', 'move-2', 'move-3', 'move-4-extra']);
+  // #262 S8: the four parts Scriptorium builds are editable too, outside the moves.
+  assert.deepEqual([...L.PACT.editable], ['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses']);
 });
 
 test('the shipped page\'s presets are the example builder file\'s, each from its example block, in an editable slot', () => {
@@ -832,8 +900,8 @@ test('the page shows each pact agent with its model and effort, as its file sets
     assert.match(head, new RegExp(`^model: ${a.model}$`, 'm'));
     assert.match(head, new RegExp(`^effort: ${a.effort}$`, 'm'));
   }
-  // #261: no part of the pact's text names a lens; the lens table sits outside the parts.
-  assert.ok(L.PACT.agents.every(a => a.runs.length === 0), JSON.stringify(L.PACT.agents.map(a => [a.name, a.runs])));
+  // #262 S8: the moves name no lens; each lens is named by its offers in the workflow and its row in the roster, and scout by neither.
+  for (const a of L.PACT.agents) assert.deepEqual(a.runs.map(r => r.mark), a.name === 'scout' ? [] : ['workflow', 'lenses'], a.name);
 });
 // ------------------------------------------------------------ the page's checks against the renderer's
 

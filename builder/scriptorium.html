@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-PhHhFHBT+E0DerO2PYeloRXpS3kREMpEfhXYeJMmk2E='; style-src 'sha256-dhk9YWiNgoh2bmTWm9+0fn9c4OdNM1m0ZarqXw+mOSw='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-PI7VHSclc8MNjx4xabso0mpKtCohKZy2+MunbbzH3qE='; style-src 'sha256-KBhc1ZETlMKd8qQSLIPZpF9i+g0epLiT/sIPqpmeyfg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pact config builder</title>
 <style>
@@ -244,6 +244,119 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .file-head > button { margin-left: auto; }
 .av-tool-code { margin: var(--av-s1) 0 0; padding: var(--av-s2); background: var(--av-paper-tech); border: var(--av-rule-hair) solid var(--av-ink-12); border-left: var(--av-rule-bold) solid var(--av-ink-30); font-family: var(--av-font); font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-wrap; overflow-wrap: anywhere; }
 .section-title { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; color: var(--av-ink); margin: 0; }
+/* WORKFLOW (#262): #143's prototype v3, kept. The canvas is the drafting
+   surface, paper with the grid coming through; the library, the bar, the
+   table and the panel are sheets laid on it. */
+.wf { --wf-shadow: 0 2px 6px rgb(34 38 43 / 0.16); display: flex; flex-direction: column; border-top: var(--av-rule-hair) solid var(--av-ink-30); }
+@media screen { [data-aviation-scheme="dark"] .wf { --wf-shadow: 0 2px 6px rgb(0 0 0 / 0.45); } }
+.wf-head { padding: var(--av-s2) var(--av-s4); }
+.wf-bar { display: flex; align-items: center; gap: var(--av-s1); flex-wrap: wrap; padding: var(--av-s1) var(--av-s4); border-top: var(--av-rule-hair) solid var(--av-ink-12); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); background: var(--av-surface); }
+.wf-note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
+.wf-cols { display: grid; grid-template-columns: 240px minmax(0, 1fr) 330px; height: 78vh; min-height: 480px; }
+@media (max-width: 1000px) { .wf-cols { grid-template-columns: minmax(0, 1fr); height: auto; } .wf-side { max-height: 14rem; } .wf-canvas { height: 60vh; } }
+.wf-side, .wf-panel, .wf-table { background: var(--av-surface); box-shadow: var(--wf-shadow); position: relative; z-index: 2; }
+.wf-side { overflow: auto; padding: var(--av-s2); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s1); }
+.wf-panel { overflow: auto; border-left: var(--av-rule-hair) solid var(--av-ink-30); }
+.wf-centre { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
+
+.wf-lib { font: inherit; color: inherit; display: flex; align-items: center; gap: var(--av-s1); width: 100%; text-align: left; padding: var(--av-s1); border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-paper); cursor: grab; transition: transform .12s, border-color .12s; }
+.wf-lib:hover { border-color: var(--av-ink); transform: translateX(2px); }
+.wf-ic { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: var(--av-rule-hair) solid currentColor; font-size: 11px; }
+.wf-ic--cond { transform: rotate(45deg) scale(.8); }
+.wf-ic--cond span { transform: rotate(-45deg); }
+.wf-lib b { font-size: var(--av-t-annot); font-weight: 600; display: block; }
+.wf-lib small { font-size: var(--av-t-micro); color: var(--av-ink-70); display: block; }
+.wf-libpair { border-left: var(--av-rule-bold) solid var(--av-ink-30); padding-left: var(--av-s1); display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.wf-libpair .wf-lib { padding: 3px var(--av-s1); }
+.wf-libpair .wf-lib small { display: none; }
+.wf-libpair .wf-lib:first-child small { display: block; }
+.wf-practices { margin-top: var(--av-s2); padding-top: var(--av-s2); border-top: var(--av-rule-hair) dashed var(--av-ink-30); display: flex; flex-direction: column; gap: 4px; }
+.wf-practice { padding: 4px 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); font-size: var(--av-t-annot); }
+
+.wf-canvas { position: relative; overflow: hidden; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; min-height: 0;
+  background-color: var(--av-paper);
+  background-image:
+    linear-gradient(to right, var(--av-grid-major) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-major) 1px, transparent 1px),
+    linear-gradient(to right, var(--av-grid-minor) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-minor) 1px, transparent 1px); }
+.wf-canvas.wf-panning { cursor: grabbing; }
+.wf-canvas.wf-dropping { box-shadow: inset 0 0 0 var(--av-rule-bold) var(--av-caution); }
+.wf-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.wf-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 1; }
+.wf-zoom { position: absolute; left: var(--av-s2); bottom: var(--av-s2); z-index: 3; display: flex; gap: 2px; background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); }
+.wf-zoom button { font: inherit; color: inherit; border: 0; background: none; padding: 4px 9px; cursor: pointer; font-size: var(--av-t-annot); }
+.wf-zoom span { padding: 4px 6px; font-size: var(--av-t-micro); min-width: 44px; text-align: center; align-self: center; }
+.wf-toast { position: absolute; left: 50%; bottom: var(--av-s2); z-index: 3; transform: translateX(-50%); background: var(--av-ink); color: var(--av-paper); padding: 5px 12px; font-size: var(--av-t-annot); opacity: 0; transition: opacity .25s; pointer-events: none; }
+.wf-toast.on { opacity: 1; }
+
+.wf-node { position: absolute; background: var(--av-paper); border: var(--av-rule-thin) solid var(--av-ink); cursor: move; user-select: none; animation: wf-pop .22s ease-out; transition: box-shadow .15s, opacity .2s; }
+.wf-node:hover { box-shadow: 3px 3px 0 var(--av-ink-12); }
+.wf-node.wf-sel { box-shadow: 0 0 0 var(--av-rule-bold) var(--av-caution); }
+.wf-node.wf-dragging { box-shadow: 6px 6px 0 var(--av-ink-12); z-index: 5; }
+@keyframes wf-pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.wf-stage { width: 200px; padding: var(--av-s1) var(--av-s2); border-width: var(--av-rule-bold); }
+.wf-stage h3 { margin: 0; font-size: var(--av-t-body); font-weight: 600; }
+.wf-stage p { margin: 0; font-size: var(--av-t-micro); color: var(--av-ink-70); }
+.wf-stage.wf-skipped { opacity: .45; }
+.wf-stage.wf-active { box-shadow: 0 0 0 4px var(--av-normal); }
+.wf-cond { width: 168px; padding: var(--av-s1) var(--av-s1) var(--av-s1) var(--av-s2); border-style: dashed; }
+.wf-row1 { display: flex; align-items: center; gap: var(--av-s1); }
+.wf-q { flex: 1; font-size: var(--av-t-micro); line-height: 1.3; }
+.wf-q b { display: block; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); font-weight: 500; }
+.wf-cond.wf-pass { border-color: var(--av-normal); border-style: solid; }
+.wf-cond.wf-off { opacity: .55; }
+.wf-pair { font-size: 10px; color: var(--av-ink-70); margin-top: 2px; }
+.wf-agent { width: 168px; padding: 4px var(--av-s2); font-size: var(--av-t-annot); border-width: var(--av-rule-hair); }
+.wf-agent--loose { border-style: dashed; font-style: italic; }
+.wf-agent.wf-fires { border-color: var(--av-normal); color: var(--av-normal); }
+.wf-agent.wf-fired { animation: wf-fire .7s ease-out; }
+@keyframes wf-fire { 0% { box-shadow: 0 0 0 0 var(--av-normal); } 100% { box-shadow: 0 0 0 14px transparent; } }
+.wf-sw { position: relative; width: 30px; height: 16px; flex: none; border: var(--av-rule-hair) solid var(--av-ink); background: transparent; cursor: pointer; padding: 0; }
+.wf-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: var(--av-ink-55); transition: left .18s, background .18s; }
+.wf-sw[aria-checked="true"] { background: var(--av-normal); border-color: var(--av-normal); }
+.wf-sw[aria-checked="true"]::after { left: 16px; background: var(--av-paper); }
+.wf-port { position: absolute; width: 12px; height: 12px; border: var(--av-rule-thin) solid var(--av-ink); background: var(--av-paper); border-radius: 50%; cursor: crosshair; transition: transform .12s, background .12s; }
+.wf-port:hover { transform: scale(1.5); background: var(--av-caution); border-color: var(--av-caution); }
+.wf-port--in { left: -7px; top: calc(50% - 6px); }
+.wf-port--out { right: -7px; top: calc(50% - 6px); }
+.wf-port--down { left: calc(50% - 6px); bottom: -7px; }
+.wf-port--top { left: calc(50% - 6px); top: -7px; }
+
+.wf-table { max-height: 34vh; overflow: auto; border-top: var(--av-rule-hair) solid var(--av-ink); padding: var(--av-s1) var(--av-s2) var(--av-s2); }
+.wf-whead { display: flex; gap: var(--av-s2); align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+.wf-whead h2 { font-size: var(--av-t-body); margin: 0; font-weight: 600; }
+.wf-tbl { width: 100%; border-collapse: collapse; font-size: var(--av-t-micro); }
+.wf-tbl th { text-align: left; font-weight: 500; text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); border-bottom: var(--av-rule-thin) solid var(--av-ink); padding: 3px 6px; }
+.wf-tbl td { padding: 4px 6px; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); vertical-align: top; }
+.wf-tbl tbody tr { cursor: pointer; transition: background .15s; }
+.wf-tbl tbody tr:hover { background: var(--av-ink-12); }
+.wf-tbl tr.wf-sel { box-shadow: inset 3px 0 0 var(--av-caution); }
+.wf-tbl .wf-cur { background: rgb(21 128 61 / 0.09); }
+.wf-tbl th.wf-cur { color: var(--av-normal); }
+.wf-tbl .wf-fire { color: var(--av-normal); font-weight: 600; }
+.wf-tbl .wf-idle { color: var(--av-ink-55); }
+.wf-tbl .wf-loop { color: var(--av-caution); }
+.wf-tbl td b { font-weight: 600; font-size: var(--av-t-annot); }
+
+.wf-tabs { display: flex; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); position: sticky; top: 0; background: var(--av-paper); z-index: 1; }
+.wf-tab { flex: 1; font: inherit; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); padding: var(--av-s1) 2px; border: 0; border-bottom: var(--av-rule-bold) solid transparent; background: none; color: var(--av-ink-70); cursor: pointer; }
+.wf-tab--on { color: var(--av-ink); border-bottom-color: var(--av-ink); font-weight: 600; }
+.wf-body { padding: var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
+.wf-body h2 { font-size: var(--av-t-body); margin: var(--av-s1) 0 0; font-weight: 600; }
+.wf-field { display: flex; flex-direction: column; gap: 2px; }
+.wf-field--row { flex-direction: row; align-items: center; gap: var(--av-s1); }
+.wf-body input[type="text"], .wf-body select { width: 100%; min-width: 0; }
+.wf-group { display: flex; flex-direction: column; gap: 4px; padding: var(--av-s1) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.wf-chip { border: var(--av-rule-hair) solid var(--av-ink-30); padding: 0 6px; font-size: var(--av-t-annot); }
+.wf-chip button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0 0 0 4px; }
+
+.wf-tour { position: fixed; z-index: 30; max-width: 320px; background: var(--av-paper); border: var(--av-rule-bold) solid var(--av-ink); padding: var(--av-s2); box-shadow: 6px 6px 0 var(--av-ink-12); font-size: var(--av-t-annot); animation: wf-pop .2s ease-out; }
+.wf-tour p { margin: var(--av-s1) 0; }
+.wf-tourhl { outline: 3px solid var(--av-caution) !important; outline-offset: 2px; }
+
+/* SETTINGS: both usage limits, in one dialog. */
+dialog.settings { max-width: 560px; width: calc(100% - 32px); padding: 0; border: var(--av-rule-bold) solid var(--av-ink); background: var(--av-paper); color: var(--av-ink); font-family: var(--av-font); }
+dialog.settings::backdrop { background: rgb(0 0 0 / 0.35); }
+.settings-body { padding: var(--av-s3); display: flex; flex-direction: column; gap: var(--av-s2); }
 </style>
 </head>
 <body>
@@ -268,12 +381,14 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
         <section id="spine"></section>
       </div>
     </div>
+    <section class="wf" id="wf" hidden></section>
     <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
     <section class="av-tool-detail" id="always"></section>
     <section class="av-tool-bar av-tool-bar--stack" id="here" hidden></section>
     <nav class="step-nav" id="step-nav" aria-label="Back and next"></nav>
   </div>
 </div>
+<dialog class="settings" id="settings" aria-label="Settings"></dialog>
 <script>
 'use strict';
 const PACT = /* pact-data:begin */ {
@@ -337,7 +452,11 @@ const PACT = /* pact-data:begin */ {
   "move-1",
   "move-2",
   "move-3",
-  "move-4-extra"
+  "move-4-extra",
+  "tiers",
+  "sensitive",
+  "workflow",
+  "lenses"
  ],
  "setting": {
   "name": "usage-pause",
@@ -346,12 +465,304 @@ const PACT = /* pact-data:begin */ {
   "def": 75,
   "text": "- **Usage.** Before anything expensive, check my weekly usage if you can,\n  and tell me the figure and a rough cost. When it is above 75%, wait for my\n  go-ahead. The call to cut or stop work over usage is mine."
  },
+ "session": {
+  "name": "usage-pause-session",
+  "min": 0,
+  "max": 100
+ },
+ "parts": {
+  "marks": [
+   "tiers",
+   "sensitive",
+   "workflow",
+   "lenses"
+  ],
+  "text": {
+   "tiers": "| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small, one session, no plan needed | none | Opus, low |\n| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |\n| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |",
+   "sensitive": "Sensitive work gets more checking when I choose it. By default, sensitive\nwork is auth, secrets, crypto, input validation and data migrations:\nthorough, planned and built on Opus at high, with the security pair,\n`adversarial-lens` and `data-lens`, on the spec and the diff. That is the\nsensitive route. When the work matches that list, or you think it sensitive\notherwise, say why in one line in your tier proposal and recommend the route;\nI take it or not. If I didn't take the route, offer the security pair once\nmore at Test when the change matches the list. Beyond that one offer,\nsensitivity doesn't stop the run. A flag or an offer I haven't answered stays\nopen, in one line, in every hand-off and in the result. If you find it later,\nsay so in one line at the next hand-off or result, and keep saying it until I\nanswer.",
+   "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `good-enough-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
+   "lenses": "| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail? |\n| `executability-lens`, `good-enough-lens` (the spec pair) | Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save? |\n| `unstated-lens` | What need did nobody write down? |\n| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |\n| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |"
+  },
+  "defaults": {
+   "tiers": [
+    {
+     "name": "Quick",
+     "fits": "Small, one session, no plan needed",
+     "plan": "none",
+     "build": "Opus, low"
+    },
+    {
+     "name": "Standard",
+     "fits": "Needs a short spec",
+     "plan": "Opus, medium",
+     "build": "Sonnet, medium"
+    },
+    {
+     "name": "Thorough",
+     "fits": "Too big for one session, or risky; cut into tickets, each its own session",
+     "plan": "Opus, high",
+     "build": "Sonnet, medium"
+    }
+   ],
+   "sensitive": {
+    "items": [
+     "auth",
+     "secrets",
+     "crypto",
+     "input validation",
+     "data migrations"
+    ],
+    "tier": "thorough",
+    "plan": "Opus, high",
+    "build": "Opus, high"
+   },
+   "workflowGraph": {
+    "stages": [
+     {
+      "id": "plan",
+      "name": "Plan",
+      "text": "Kind, size and risk; a tier proposed.",
+      "model": "plan",
+      "skipAt": []
+     },
+     {
+      "id": "design",
+      "name": "Design",
+      "text": "The spec: intent, unhappy paths, decisions.",
+      "model": "plan",
+      "skipAt": [
+       "quick"
+      ]
+     },
+     {
+      "id": "build",
+      "name": "Build",
+      "text": "Test-first; tests and gates decide.",
+      "model": "build",
+      "skipAt": []
+     },
+     {
+      "id": "test",
+      "name": "Test",
+      "text": "Each claim checked against the ask.",
+      "model": "build",
+      "skipAt": []
+     },
+     {
+      "id": "deploy",
+      "name": "Deploy",
+      "text": "I accept and ship; nothing promotes itself.",
+      "model": "owner",
+      "skipAt": []
+     },
+     {
+      "id": "maintain",
+      "name": "Maintain",
+      "text": "What escaped, and what to change.",
+      "model": "plan",
+      "skipAt": []
+     }
+    ],
+    "offers": [
+     {
+      "id": "design-spec-pair",
+      "stage": "design",
+      "when": "standard-up",
+      "words": "",
+      "agents": [
+       "executability-lens",
+       "good-enough-lens"
+      ],
+      "on": true
+     },
+     {
+      "id": "design-unstated",
+      "stage": "design",
+      "when": "standard-up",
+      "words": "",
+      "agents": [
+       "unstated-lens"
+      ],
+      "on": true
+     },
+     {
+      "id": "design-security-pair",
+      "stage": "design",
+      "when": "sensitive",
+      "words": "",
+      "agents": [
+       "adversarial-lens",
+       "data-lens"
+      ],
+      "on": true
+     },
+     {
+      "id": "test-qa-pair",
+      "stage": "test",
+      "when": "every-build",
+      "words": "",
+      "agents": [
+       "behaviour-lens",
+       "integrity-lens"
+      ],
+      "on": true
+     },
+     {
+      "id": "test-standards-pair",
+      "stage": "test",
+      "when": "standard-up",
+      "words": "",
+      "agents": [
+       "conventions-lens",
+       "reader-lens"
+      ],
+      "on": true
+     },
+     {
+      "id": "test-unstated",
+      "stage": "test",
+      "when": "standard-up",
+      "words": "",
+      "agents": [
+       "unstated-lens"
+      ],
+      "on": true
+     },
+     {
+      "id": "test-security-pair",
+      "stage": "test",
+      "when": "sensitive",
+      "words": "",
+      "agents": [
+       "adversarial-lens",
+       "data-lens"
+      ],
+      "on": true
+     },
+     {
+      "id": "test-security-backstop",
+      "stage": "test",
+      "when": "sensitive-declined",
+      "words": "",
+      "agents": [
+       "adversarial-lens",
+       "data-lens"
+      ],
+      "on": true
+     }
+    ],
+    "links": [
+     {
+      "from": "plan",
+      "to": "design",
+      "when": "",
+      "on": true
+     },
+     {
+      "from": "design",
+      "to": "build",
+      "when": "",
+      "on": true
+     },
+     {
+      "from": "build",
+      "to": "test",
+      "when": "",
+      "on": true
+     },
+     {
+      "from": "test",
+      "to": "deploy",
+      "when": "",
+      "on": true
+     },
+     {
+      "from": "deploy",
+      "to": "maintain",
+      "when": "",
+      "on": true
+     },
+     {
+      "from": "test",
+      "to": "build",
+      "when": "a claim fails",
+      "on": true
+     },
+     {
+      "from": "test",
+      "to": "design",
+      "when": "the intent has changed",
+      "on": true
+     },
+     {
+      "from": "maintain",
+      "to": "plan",
+      "when": "a new change starts",
+      "on": true
+     }
+    ],
+    "layout": {}
+   },
+   "lenses": [
+    {
+     "agents": [
+      "behaviour-lens",
+      "integrity-lens"
+     ],
+     "label": "the QA pair",
+     "asks": "Does the change do what was asked? Can the tests behind the pass actually fail?"
+    },
+    {
+     "agents": [
+      "executability-lens",
+      "good-enough-lens"
+     ],
+     "label": "the spec pair",
+     "asks": "Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save?"
+    },
+    {
+     "agents": [
+      "unstated-lens"
+     ],
+     "label": "",
+     "asks": "What need did nobody write down?"
+    },
+    {
+     "agents": [
+      "conventions-lens",
+      "reader-lens"
+     ],
+     "label": "the standards pair",
+     "asks": "Does the diff keep the repo's written rules? Can the next reader act on what it says?"
+    },
+    {
+     "agents": [
+      "adversarial-lens",
+      "data-lens"
+     ],
+     "label": "the security pair",
+     "asks": "Which attack paths does no control stop? Where can the data leak?"
+    }
+   ]
+  }
+ },
  "agents": [
   {
    "name": "adversarial-lens",
    "model": "opus",
    "effort": "high",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": true,
    "egress": true
@@ -360,7 +771,18 @@ const PACT = /* pact-data:begin */ {
    "name": "behaviour-lens",
    "model": "opus",
    "effort": "medium",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": true,
    "egress": true
@@ -369,7 +791,18 @@ const PACT = /* pact-data:begin */ {
    "name": "conventions-lens",
    "model": "opus",
    "effort": "medium",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": false,
    "egress": false
@@ -378,7 +811,18 @@ const PACT = /* pact-data:begin */ {
    "name": "data-lens",
    "model": "opus",
    "effort": "high",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": true,
    "egress": false
@@ -387,7 +831,18 @@ const PACT = /* pact-data:begin */ {
    "name": "executability-lens",
    "model": "opus",
    "effort": "medium",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": true,
    "egress": false
@@ -396,7 +851,18 @@ const PACT = /* pact-data:begin */ {
    "name": "good-enough-lens",
    "model": "opus",
    "effort": "medium",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": true,
    "egress": false
@@ -405,7 +871,18 @@ const PACT = /* pact-data:begin */ {
    "name": "integrity-lens",
    "model": "opus",
    "effort": "medium",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": false,
    "egress": false
@@ -414,7 +891,18 @@ const PACT = /* pact-data:begin */ {
    "name": "reader-lens",
    "model": "opus",
    "effort": "medium",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": false,
    "egress": false
@@ -423,7 +911,18 @@ const PACT = /* pact-data:begin */ {
    "name": "unstated-lens",
    "model": "opus",
    "effort": "medium",
-   "runs": [],
+   "runs": [
+    {
+     "move": null,
+     "mark": "workflow",
+     "kind": "part"
+    },
+    {
+     "move": null,
+     "mark": "lenses",
+     "kind": "part"
+    }
+   ],
    "configurable": true,
    "security": true,
    "egress": false
@@ -526,6 +1025,319 @@ const PACT = /* pact-data:begin */ {
   "agents": []
  }
 } /* pact-data:end */;
+
+/* parts-code:begin */
+const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses']);
+const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
+const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
+const MODEL_CHOICES = Object.freeze(['Opus, low', 'Opus, medium', 'Opus, high', 'Sonnet, low', 'Sonnet, medium', 'Sonnet, high']);
+const STAGE_MODELS = Object.freeze(['plan', 'build', 'owner']);
+// Each offer condition and the words it compiles to. 'words' compiles to the offer's own words.
+const OFFER_WHENS = Object.freeze({
+  'every-build': 'every build',
+  'standard-up': 'standard and above',
+  thorough: 'thorough only',
+  sensitive: 'on the sensitive route',
+  'sensitive-declined': "once, when the change matches the list and the sensitive route wasn't taken",
+  words: '',
+});
+// Caps on the data, so no builder file can make a part too long to read.
+const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, agents: 4, items: 20, lenses: 20, line: 300, short: 60, layout: 400 });
+
+const SECURITY_PAIR = ['adversarial-lens', 'data-lens'];
+
+const DEFAULT_PARTS = Object.freeze({
+  tiers: [
+    { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
+    { name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
+    { name: 'Thorough', fits: 'Too big for one session, or risky; cut into tickets, each its own session', plan: 'Opus, high', build: 'Sonnet, medium' },
+  ],
+  sensitive: { items: ['auth', 'secrets', 'crypto', 'input validation', 'data migrations'], tier: 'thorough', plan: 'Opus, high', build: 'Opus, high' },
+  workflowGraph: {
+    stages: [
+      { id: 'plan', name: 'Plan', text: 'Kind, size and risk; a tier proposed.', model: 'plan', skipAt: [] },
+      { id: 'design', name: 'Design', text: 'The spec: intent, unhappy paths, decisions.', model: 'plan', skipAt: ['quick'] },
+      { id: 'build', name: 'Build', text: 'Test-first; tests and gates decide.', model: 'build', skipAt: [] },
+      { id: 'test', name: 'Test', text: 'Each claim checked against the ask.', model: 'build', skipAt: [] },
+      { id: 'deploy', name: 'Deploy', text: 'I accept and ship; nothing promotes itself.', model: 'owner', skipAt: [] },
+      { id: 'maintain', name: 'Maintain', text: 'What escaped, and what to change.', model: 'plan', skipAt: [] },
+    ],
+    offers: [
+      { id: 'design-spec-pair', stage: 'design', when: 'standard-up', words: '', agents: ['executability-lens', 'good-enough-lens'], on: true },
+      { id: 'design-unstated', stage: 'design', when: 'standard-up', words: '', agents: ['unstated-lens'], on: true },
+      { id: 'design-security-pair', stage: 'design', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
+      { id: 'test-qa-pair', stage: 'test', when: 'every-build', words: '', agents: ['behaviour-lens', 'integrity-lens'], on: true },
+      { id: 'test-standards-pair', stage: 'test', when: 'standard-up', words: '', agents: ['conventions-lens', 'reader-lens'], on: true },
+      { id: 'test-unstated', stage: 'test', when: 'standard-up', words: '', agents: ['unstated-lens'], on: true },
+      { id: 'test-security-pair', stage: 'test', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
+      { id: 'test-security-backstop', stage: 'test', when: 'sensitive-declined', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
+    ],
+    links: [
+      { from: 'plan', to: 'design', when: '', on: true },
+      { from: 'design', to: 'build', when: '', on: true },
+      { from: 'build', to: 'test', when: '', on: true },
+      { from: 'test', to: 'deploy', when: '', on: true },
+      { from: 'deploy', to: 'maintain', when: '', on: true },
+      { from: 'test', to: 'build', when: 'a claim fails', on: true },
+      { from: 'test', to: 'design', when: 'the intent has changed', on: true },
+      { from: 'maintain', to: 'plan', when: 'a new change starts', on: true },
+    ],
+    layout: {},
+  },
+  lenses: [
+    { agents: ['behaviour-lens', 'integrity-lens'], label: 'the QA pair', asks: 'Does the change do what was asked? Can the tests behind the pass actually fail?' },
+    { agents: ['executability-lens', 'good-enough-lens'], label: 'the spec pair', asks: 'Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save?' },
+    { agents: ['unstated-lens'], label: '', asks: 'What need did nobody write down?' },
+    { agents: ['conventions-lens', 'reader-lens'], label: 'the standards pair', asks: "Does the diff keep the repo's written rules? Can the next reader act on what it says?" },
+    { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
+  ],
+});
+
+/** A deep copy of plain data. */
+function copyParts(p) {
+  return JSON.parse(JSON.stringify(p));
+}
+
+const tick = n => `\`${n}\``;
+/** "a", "a and b", "a, b and c". */
+function listJoin(xs) {
+  return xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+}
+/** "Opus, high" read as "Opus at high". */
+const modelWords = m => m.replace(', ', ' at ');
+
+/** Prose wrapped at 77 columns, as the rules file is: words kept whole, single spaces. */
+function wrap(text, width = 77) {
+  const out = [];
+  let line = '';
+  for (const w of text.split(' ')) {
+    if (line && line.length + 1 + w.length > width) {
+      out.push(line);
+      line = w;
+    } else line = line ? `${line} ${w}` : w;
+  }
+  if (line) out.push(line);
+  return out.join('\n');
+}
+
+/** A table row from its cells: an empty cell is one space between its bars. */
+const row = cells => `|${cells.map(c => (c ? ` ${c} ` : ' ')).join('|')}|`;
+const rule = n => row(Array.from({ length: n }, () => '---'));
+
+function compileTiers(p) {
+  return [row(['Tier', 'Fits', 'Plan', 'Build']), rule(4), ...p.tiers.map(t => row([`**${t.name}**`, t.fits, t.plan, t.build]))].join('\n');
+}
+
+function compileSensitive(p) {
+  const s = p.sensitive;
+  const models = s.plan === s.build ? `planned and built on ${modelWords(s.plan)}` : `planned on ${modelWords(s.plan)} and built on ${modelWords(s.build)}`;
+  return wrap([
+    `Sensitive work gets more checking when I choose it. By default, sensitive work is ${listJoin(s.items)}: ${s.tier}, ${models}, with the security pair, ${tick(SECURITY_PAIR[0])} and ${tick(SECURITY_PAIR[1])}, on the spec and the diff. That is the sensitive route.`,
+    'When the work matches that list, or you think it sensitive otherwise, say why in one line in your tier proposal and recommend the route; I take it or not.',
+    "If I didn't take the route, offer the security pair once more at Test when the change matches the list. Beyond that one offer, sensitivity doesn't stop the run.",
+    "A flag or an offer I haven't answered stays open, in one line, in every hand-off and in the result.",
+    'If you find it later, say so in one line at the next hand-off or result, and keep saying it until I answer.',
+  ].join(' '));
+}
+
+/** The stages in the order the work takes them: along the default ways on from the first, then any not reached, in list order. */
+function stagesInOrder(g) {
+  const byId = new Map(g.stages.map(s => [s.id, s]));
+  const defaults = g.links.filter(l => !l.when && l.on !== false && byId.has(l.from) && byId.has(l.to));
+  const out = [];
+  const seen = new Set();
+  let cur = g.stages.find(s => !defaults.some(l => l.to === s.id)) || g.stages[0];
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    out.push(cur);
+    const next = defaults.find(l => l.from === cur.id);
+    cur = next && byId.get(next.to);
+  }
+  return out.concat(g.stages.filter(s => !seen.has(s.id)));
+}
+
+/** What a tier, or the sensitive route, sets at a stage. */
+function stageCell(p, st, tierIndex) {
+  if (st.model === 'owner') return 'I decide';
+  if (tierIndex === null) return p.sensitive[st.model];
+  if (st.skipAt.includes(TIER_KEYS[tierIndex])) return 'skipped';
+  const v = p.tiers[tierIndex][st.model];
+  return v === 'none' ? 'in the session, no plan' : v;
+}
+
+/** An offer's words: its lenses and when. */
+function offerText(o) {
+  return `${o.agents.map(tick).join(', ')}: ${o.when === 'words' ? o.words : OFFER_WHENS[o.when]}`;
+}
+
+/** A link's words: back, on or ahead, by the order the work takes the stages. */
+function linkText(g, l, order = stagesInOrder(g)) {
+  const i = order.findIndex(s => s.id === l.from);
+  const j = order.findIndex(s => s.id === l.to);
+  const to = order[j];
+  return `${j <= i ? 'back to' : j === i + 1 ? 'on to' : 'ahead to'} ${to ? to.name : '?'} when ${l.when}`;
+}
+
+function compileWorkflow(p) {
+  const g = p.workflowGraph;
+  const order = stagesInOrder(g);
+  const head = row(['Stage', ...p.tiers.map(t => t.name), 'Sensitive route', 'Lenses offered, and when', 'Other ways out']);
+  const rows = order.map(st => row([
+    st.name,
+    ...p.tiers.map((_, i) => stageCell(p, st, i)),
+    stageCell(p, st, null),
+    g.offers.filter(o => o.stage === st.id && o.on !== false).map(offerText).join('; ') || 'none',
+    g.links.filter(l => l.from === st.id && l.when && l.on !== false).map(l => linkText(g, l, order)).join('; '),
+  ]));
+  return [head, rule(p.tiers.length + 4), ...rows].join('\n');
+}
+
+function compileLenses(p) {
+  return [row(['Lens', 'Asks']), rule(2), ...p.lenses.map(r => row([`${r.agents.map(tick).join(', ')}${r.label ? ` (${r.label})` : ''}`, r.asks]))].join('\n');
+}
+
+/** Each part's text: { tiers, sensitive, workflow, lenses }. */
+function compileParts(p) {
+  return { tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p) };
+}
+
+// ------------------------------------------------------------ the builder's checks
+
+const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const AGENT_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v);
+const keysIn = (o, ks) => Object.keys(o).every(k => ks.includes(k));
+// One line of text that keeps a table cell whole: no line break and no bar.
+const lineOk = (v, max) => typeof v === 'string' && v.length <= max && !/[\n\r|]/.test(v);
+
+/** The pairs the roster names: rows of two lenses. */
+function rosterPairs(p) {
+  return (Array.isArray(p.lenses) ? p.lenses : []).filter(r => Array.isArray(r.agents) && r.agents.length === 2).map(r => ({ agents: r.agents, label: r.label || r.agents.join(' and ') }));
+}
+
+/**
+ * What is wrong with the four parts' data: [{ part, level: 'error' | 'warn', text }].
+ * An error is a builder refusal (the page won't save; build.mjs refuses the
+ * file). A warn is a finding. Messages are fixed text, ids and lens names
+ * that passed their patterns, never a field's own words.
+ */
+function partsProblems(p) {
+  const out = [];
+  const err = (part, text) => out.push({ part, level: 'error', text });
+  const C = PARTS_CAPS;
+
+  if (!Array.isArray(p.tiers) || p.tiers.length !== TIER_KEYS.length) err('tiers', `tiers must list ${TIER_NAMES.join(', ')}, in that order`);
+  else
+    p.tiers.forEach((t, i) => {
+      if (!isObj(t) || !keysIn(t, ['name', 'fits', 'plan', 'build']) || t.name !== TIER_NAMES[i]) return err('tiers', `tier ${i + 1} must be ${TIER_NAMES[i]}, with only name, fits, plan and build`);
+      if (!lineOk(t.fits, C.line) || !t.fits.trim()) err('tiers', `${TIER_NAMES[i]}: fits must be one line of 1 to ${C.line} characters, with no bar`);
+      if (!(t.plan === 'none' || MODEL_CHOICES.includes(t.plan))) err('tiers', `${TIER_NAMES[i]}: plan must be none or one of the model choices`);
+      if (!MODEL_CHOICES.includes(t.build)) err('tiers', `${TIER_NAMES[i]}: build must be one of the model choices`);
+    });
+
+  const s = p.sensitive;
+  if (!isObj(s) || !keysIn(s, ['items', 'tier', 'plan', 'build'])) err('sensitive', 'sensitive must hold only items, tier, plan and build');
+  else {
+    if (!Array.isArray(s.items) || !s.items.length || s.items.length > C.items || s.items.some(x => !lineOk(x, C.short) || !x.trim() || /[,:]/.test(x))) err('sensitive', `the list must hold 1 to ${C.items} items, each one line of at most ${C.short} characters, with no comma, colon or bar`);
+    if (!TIER_KEYS.includes(s.tier)) err('sensitive', `the route's tier must be one of ${TIER_KEYS.join(', ')}`);
+    if (!MODEL_CHOICES.includes(s.plan) || !MODEL_CHOICES.includes(s.build)) err('sensitive', "the route's plan and build must be model choices");
+  }
+
+  const g = p.workflowGraph;
+  if (!isObj(g) || !keysIn(g, ['stages', 'offers', 'links', 'layout']) || !Array.isArray(g.stages) || !Array.isArray(g.offers) || !Array.isArray(g.links)) {
+    err('workflow', 'workflowGraph must hold stages, offers and links lists, and a layout');
+  } else {
+    const ids = new Set();
+    if (!g.stages.length || g.stages.length > C.stages) err('workflow', `1 to ${C.stages} stages`);
+    g.stages.forEach((st, i) => {
+      if (!isObj(st) || !keysIn(st, ['id', 'name', 'text', 'model', 'skipAt']) || typeof st.id !== 'string' || !ID_RE.test(st.id)) return err('workflow', `stage ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only name, text, model and skipAt beside it`);
+      if (ids.has(st.id)) err('workflow', `stage ${st.id}: the id is used twice`);
+      ids.add(st.id);
+      if (!lineOk(st.name, C.short) || !st.name.trim()) err('workflow', `stage ${st.id}: name must be one line of 1 to ${C.short} characters, with no bar`);
+      if (!lineOk(st.text, C.line)) err('workflow', `stage ${st.id}: text must be one line of at most ${C.line} characters`);
+      if (!STAGE_MODELS.includes(st.model)) err('workflow', `stage ${st.id}: model must be plan, build or owner`);
+      if (!Array.isArray(st.skipAt) || st.skipAt.some(k => !TIER_KEYS.includes(k))) err('workflow', `stage ${st.id}: skipAt must list tier keys`);
+    });
+    const oids = new Set();
+    if (g.offers.length > C.offers) err('workflow', `at most ${C.offers} offers`);
+    g.offers.forEach((o, i) => {
+      if (!isObj(o) || !keysIn(o, ['id', 'stage', 'when', 'words', 'agents', 'on']) || typeof o.id !== 'string' || !ID_RE.test(o.id)) return err('workflow', `offer ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, when, words, agents and on beside it`);
+      if (oids.has(o.id) || ids.has(o.id)) err('workflow', `offer ${o.id}: the id is used twice`);
+      oids.add(o.id);
+      if (!ids.has(o.stage)) err('workflow', `offer ${o.id}: its stage is not in the graph`);
+      if (!Object.hasOwn(OFFER_WHENS, o.when)) err('workflow', `offer ${o.id}: when must be one of ${Object.keys(OFFER_WHENS).join(', ')}`);
+      if (o.when === 'words' ? !lineOk(o.words, C.line) || !String(o.words).trim() : Object.hasOwn(o, 'words') && o.words !== '') err('workflow', `offer ${o.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);
+      if (!Array.isArray(o.agents) || !o.agents.length || o.agents.length > C.agents || o.agents.some(a => typeof a !== 'string' || !AGENT_RE.test(a)) || new Set(o.agents).size !== o.agents.length) err('workflow', `offer ${o.id}: 1 to ${C.agents} different agents, each a name of lowercase letters, digits and hyphens`);
+      if (typeof o.on !== 'boolean') err('workflow', `offer ${o.id}: on must be true or false`);
+    });
+    if (g.links.length > C.links) err('workflow', `at most ${C.links} links`);
+    g.links.forEach((l, i) => {
+      if (!isObj(l) || !keysIn(l, ['from', 'to', 'when', 'on']) || !ids.has(l.from) || !ids.has(l.to) || l.from === l.to) return err('workflow', `link ${i + 1}: must join two different stages of the graph, with only from, to, when and on`);
+      if (!lineOk(l.when, C.line)) err('workflow', `link ${i + 1}: when must be one line of at most ${C.line} characters`);
+      if (typeof l.on !== 'boolean') err('workflow', `link ${i + 1}: on must be true or false`);
+    });
+    if (!isObj(g.layout) || Object.keys(g.layout).length > C.layout || Object.values(g.layout).some(v => !isObj(v) || !keysIn(v, ['x', 'y']) || ![v.x, v.y].every(n => Number.isFinite(n) && Math.abs(n) <= 100000))) err('workflow', `layout must map at most ${C.layout} node ids to { x, y } numbers`);
+    // S2: the builder refuses a stage with two default ways on, and default ways on in a circle.
+    if (!out.some(f => f.part === 'workflow')) {
+      const defaults = g.links.filter(l => !l.when && l.on !== false);
+      for (const st of g.stages) if (defaults.filter(l => l.from === st.id).length > 1) err('workflow', `stage ${st.id} has two default ways on: give all but one a condition`);
+      const next = new Map(defaults.map(l => [l.from, l.to]));
+      for (const st of g.stages) {
+        const seen = new Set();
+        let cur = st.id;
+        while (cur && !seen.has(cur)) {
+          seen.add(cur);
+          cur = next.get(cur);
+        }
+        if (cur === st.id) {
+          err('workflow', 'the default ways on go round in a circle: one of them needs a condition, or the work never ends');
+          break;
+        }
+      }
+    }
+  }
+
+  if (!Array.isArray(p.lenses) || !p.lenses.length || p.lenses.length > C.lenses) err('lenses', `the roster must hold 1 to ${C.lenses} rows`);
+  else
+    p.lenses.forEach((r, i) => {
+      if (!isObj(r) || !keysIn(r, ['agents', 'label', 'asks'])) return err('lenses', `row ${i + 1}: only agents, label and asks`);
+      if (!Array.isArray(r.agents) || !r.agents.length || r.agents.length > C.agents || r.agents.some(a => typeof a !== 'string' || !AGENT_RE.test(a))) err('lenses', `row ${i + 1}: 1 to ${C.agents} agents, each a name of lowercase letters, digits and hyphens`);
+      if (!lineOk(r.label, C.short)) err('lenses', `row ${i + 1}: label must be one line of at most ${C.short} characters`);
+      if (!lineOk(r.asks, C.line) || !r.asks.trim()) err('lenses', `row ${i + 1}: asks must be one line of 1 to ${C.line} characters, with no bar`);
+    });
+
+  // A finding, never a refusal: one lens of a pair alone on an offer.
+  if (!out.some(f => f.level === 'error'))
+    for (const o of g.offers)
+      for (const pair of rosterPairs(p)) {
+        const has = pair.agents.filter(a => o.agents.includes(a)).length;
+        if (has === 1) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.label} on its own; a pair's reports are crossed, so run both or neither` });
+      }
+  return out;
+}
+
+/** Every text field of the parts, for the content-policy scan: [where, text]. */
+function partsTexts(p) {
+  const out = [];
+  const add = (where, v) => {
+    if (typeof v === 'string') out.push([where, v]);
+  };
+  (Array.isArray(p.tiers) ? p.tiers : []).forEach((t, i) => isObj(t) && ['name', 'fits', 'plan', 'build'].forEach(k => add(`tiers ${i + 1}`, t[k])));
+  if (isObj(p.sensitive)) {
+    (Array.isArray(p.sensitive.items) ? p.sensitive.items : []).forEach((x, i) => add(`sensitive item ${i + 1}`, x));
+    ['tier', 'plan', 'build'].forEach(k => add('sensitive', p.sensitive[k]));
+  }
+  const g = isObj(p.workflowGraph) ? p.workflowGraph : {};
+  (Array.isArray(g.stages) ? g.stages : []).forEach((s, i) => isObj(s) && ['id', 'name', 'text'].forEach(k => add(`stage ${i + 1}`, s[k])));
+  (Array.isArray(g.offers) ? g.offers : []).forEach((o, i) => isObj(o) && ['id', 'words'].forEach(k => add(`offer ${i + 1}`, o[k])));
+  (Array.isArray(g.links) ? g.links : []).forEach((l, i) => isObj(l) && add(`link ${i + 1}`, l.when));
+  (Array.isArray(p.lenses) ? p.lenses : []).forEach((r, i) => isObj(r) && ['label', 'asks'].forEach(k => add(`lenses row ${i + 1}`, r[k])));
+  return out;
+}
+/* parts-code:end */
+
+// The open parts that are slots for cards: every editable part but the four Scriptorium builds (#262).
+const SLOT_MARKS = PACT.editable.filter(m => !PACT.parts.marks.includes(m));
 
 // The block-text rules, mirrored from gate/render-core.mjs for usability only.
 // The renderer at install is the authority; a block that passes here can
@@ -643,11 +1455,12 @@ function agentProblems(c) {
  */
 function initialState() {
   const slots = {};
-  for (const mark of PACT.editable) slots[mark] = { replaced: false, cards: [] };
+  for (const mark of SLOT_MARKS) slots[mark] = { replaced: false, cards: [] };
   // Each configurable agent starts at its file's own model and effort.
   const agents = {};
   for (const a of PACT.agents) if (a.configurable) agents[a.name] = { model: a.model, effort: a.effort };
-  return { usage: PACT.setting.def, slots, agents };
+  // The session limit (#142) starts unset; the four parts (#262) start as the builder file holds them, else the pact's defaults.
+  return { usage: PACT.setting.def, session: null, slots, agents, parts: copyParts(PACT.ownParts || PACT.parts.defaults) };
 }
 
 /**
@@ -672,7 +1485,17 @@ function problems(state) {
   if (!Number.isInteger(state.usage) || state.usage < s.min || state.usage > s.max) {
     out.push({ where: s.name, level: 'error', text: `must be a whole number from ${s.min} to ${s.max}` });
   }
-  for (const mark of PACT.editable) {
+  const ss = PACT.session;
+  if (state.session !== null && (!Number.isInteger(state.session) || state.session < ss.min || state.session > ss.max)) {
+    out.push({ where: ss.name, level: 'error', text: `must be a whole number from ${ss.min} to ${ss.max}, or unset` });
+  }
+  // The four parts: the builder's own checks, then each changed part's text against the block rules.
+  for (const f of partsProblems(state.parts)) out.push({ where: f.part, level: f.level, text: f.text });
+  if (!out.some(f => PACT.parts.marks.includes(f.where) && f.level === 'error')) {
+    const compiled = compileParts(state.parts);
+    for (const m of PACT.parts.marks) if (compiled[m] !== PACT.parts.text[m]) for (const p of blockProblems(`${compiled[m]}\n`)) out.push({ where: m, level: 'error', text: p });
+  }
+  for (const mark of SLOT_MARKS) {
     const slot = state.slots[mark];
     const op = slotOp(slot);
     if (op === 'keep') continue;
@@ -703,6 +1526,7 @@ function problems(state) {
 function buildFiles(state) {
   const config = { schema: 1 };
   if (state.usage !== PACT.setting.def) config.settings = { [PACT.setting.name]: state.usage };
+  if (state.session !== null) config.settings = { ...config.settings, [PACT.session.name]: state.session };
   // Only the fields that differ from the agent file's own are written.
   const agents = {};
   for (const a of PACT.agents) {
@@ -716,7 +1540,7 @@ function buildFiles(state) {
   if (Object.keys(agents).length) config.agents = agents;
   const edits = [];
   const blocks = [];
-  for (const mark of PACT.editable) {
+  for (const mark of SLOT_MARKS) {
     const slot = state.slots[mark];
     const op = slotOp(slot);
     if (op === 'keep') continue;
@@ -728,8 +1552,44 @@ function buildFiles(state) {
     edits.push({ mark, op, file });
     blocks.push({ path: `blocks/${file}`, text: slotText(slot) });
   }
+  // A part Scriptorium builds is saved only when its text differs from the pact's: an untouched part raises no security-defaults line.
+  for (const [mark, text] of Object.entries(partsChanged(state))) {
+    edits.push({ mark, op: 'replace', file: `${mark}.md` });
+    blocks.push({ path: `blocks/${mark}.md`, text: `${text}\n` });
+  }
   if (edits.length) config.edits = edits;
   return [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks];
+}
+
+/** The parts Scriptorium builds whose compiled text differs from the pact's: { mark: text }. */
+function partsChanged(state) {
+  const compiled = compileParts(state.parts);
+  const out = {};
+  for (const m of PACT.parts.marks) if (compiled[m] !== PACT.parts.text[m]) out[m] = compiled[m];
+  return out;
+}
+
+/**
+ * The builder file to save over `existing`, the text of the builder.json in
+ * the folder or null (#262, D9): the file kept as it is, with the four parts'
+ * keys set from the page, so a rebuilt page reloads the person's parts.
+ * Returns { text }, { skip } when there is nothing to keep, or { refuse }.
+ */
+function builderWith(existing, state) {
+  const keys = { tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses };
+  const atPact = !Object.keys(partsChanged(state)).length;
+  if (existing === null) return atPact ? { skip: true } : { text: `${JSON.stringify({ schema: 1, ...keys }, null, 2)}\n` };
+  let doc;
+  try {
+    doc = JSON.parse(existing);
+  } catch {
+    return { refuse: 'The folder already holds a builder.json that is not valid JSON, so nothing was written. Fix or move that file, then save again.' };
+  }
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { refuse: 'The folder already holds a builder.json that is not a JSON object, so nothing was written.' };
+  const lower = topKeys(existing).map(k => k.toLowerCase());
+  if (new Set(lower).size !== lower.length) return { refuse: 'The folder already holds a builder.json that gives a key twice, so nothing was written. Fix that file, then save again.' };
+  if (atPact && !Object.keys(keys).some(k => Object.hasOwn(doc, k))) return { skip: true };
+  return { text: `${JSON.stringify({ ...doc, ...keys }, null, 2)}\n` };
 }
 
 /** The top-level keys of `text`, a JSON object JSON.parse accepted, in order, repeats kept. */
@@ -812,7 +1672,7 @@ function addPreset(state, mark, id) {
 function applyWorkflow(state, id) {
   const w = PACT.workflows.find(x => x.id === id);
   if (!w) return 'That workflow is not on this page.';
-  for (const mark of PACT.editable) state.slots[mark] = { replaced: false, cards: [] };
+  for (const mark of SLOT_MARKS) state.slots[mark] = { replaced: false, cards: [] };
   for (const pid of w.presets) {
     const p = presetById(pid);
     addPreset(state, p.mark, pid);
@@ -857,8 +1717,9 @@ function overrides(state) {
 /** The wizard's steps, in order: Start, each move with its open parts, Agents, Review and save. */
 function wizardSteps() {
   return [
-    { id: 'start', title: 'Start', marks: [PACT.setting.name] },
+    { id: 'start', title: 'Start', marks: [PACT.setting.name, PACT.session.name] },
     ...PACT.moves.map(m => ({ id: `move-${m.n}`, title: m.lead, move: m.n, marks: m.parts.filter(p => p.kind === 'open').map(p => p.mark) })),
+    { id: 'workflow', title: 'Workflow', marks: PACT.parts.marks },
     { id: 'agents', title: 'Agents', marks: [] },
     { id: 'review', title: 'Review and save', marks: null },
   ];
@@ -877,8 +1738,9 @@ function stepSummary(state) {
   const rows = wizardSteps().map(s => {
     if (s.marks === null) return { id: s.id, title: s.title, changes: 0, errors: count(found, 'error'), warns: count(found, 'warn'), overrides: over };
     const here = found.filter(f => s.marks.includes(f.where));
-    const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0)
+    const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0) + (state.session !== null ? 1 : 0)
       : s.id === 'agents' ? agentsOff
+      : s.id === 'workflow' ? Object.keys(partsChanged(state)).length
       : s.marks.filter(m => slotOp(state.slots[m]) !== 'keep').length;
     return { id: s.id, title: s.title, changes, errors: count(here, 'error'), warns: count(here, 'warn'), overrides: s.id === 'agents' ? over : 0 };
   });
@@ -935,6 +1797,968 @@ function chip(label, on, onclick, extra, toggle) {
   return b;
 }
 
+// ------------------------------------------------------------ the workflow canvas (#262)
+
+// The editor for the four parts Scriptorium builds: #143's prototype v3, its
+// canvas, its run-through pulse and its tour, kept. Everything it shows is
+// built with el() and textContent; the links are drawn on a 2D canvas, so the
+// page needs no markup string and no namespace address.
+
+const WF_STAGE_MODELS = { plan: "the tier's plan model", build: "the tier's build model", owner: 'mine: no model' };
+const WF_WHEN_LABELS = {
+  'every-build': 'Every build',
+  'standard-up': 'Standard and above',
+  thorough: 'Thorough only',
+  sensitive: 'On the sensitive route',
+  'sensitive-declined': 'Once, when the list matches and the route was not taken',
+  words: 'In your own words',
+};
+const WF_TOUR = [
+  ['library', 'The nodes library. Drag a stage, a condition or a lens onto the canvas, or click one to drop it in the middle. A pair drops as one condition with both lenses on it.'],
+  ['canvas', "The canvas holds the work's own stages: Plan, Design, Build, Test, Deploy, Maintain. Drag nodes about; drag the grid to pan; scroll to zoom."],
+  ['canvas', 'Wire by dragging from a port: a stage to the next stage, back to an earlier one, or down to a condition. A stage has one default way on; every other way out carries a condition, which is how work goes back, or skips ahead.'],
+  ['canvas', 'A condition sits between a stage and its lenses and says when they are offered. Lenses on one condition are offered together: that is all a pair is.'],
+  ['table', 'The workflow table, the part this canvas edits. One row per stage: what each tier sets there, the lenses offered and when, and the other ways out.'],
+  ['sim', 'Describe a piece of work and press Run it through: a pulse travels the stages and lights the lenses that would be offered.'],
+  ['panel', 'Edit whatever you select here. Tiers, Sensitive and Lenses are the other three parts; Compiles to shows the text each part becomes.'],
+  ['library', 'The moves sit beside the work, below the library: no order, no arrows, never on the canvas.'],
+];
+
+/** Mount the editor in `host`, editing state.parts in place. `changed` runs after every edit. */
+function workflowEditor(host, state, changed) {
+  const G = () => state.parts.workflowGraph;
+  const ui = { sel: null, tab: 'inspect', view: { x: 20, y: 10, k: 0.62 }, work: { tier: 'standard', route: false, declined: false }, loose: [], pulses: [], temp: null };
+  let uid = 0;
+  let running = false;
+  let raf = 0;
+  let drag = null;
+
+  // ---- the graph, read as nodes and links
+  const stageById = id => G().stages.find(s => s.id === id);
+  const offerById = id => G().offers.find(o => o.id === id);
+  const taken = id => G().stages.some(s => s.id === id) || G().offers.some(o => o.id === id) || ui.loose.some(l => l.id === id);
+  const freshId = prefix => {
+    let id;
+    do id = `${prefix}-${++uid}`;
+    while (taken(id));
+    return id;
+  };
+  function nodes() {
+    const g = G();
+    return [
+      ...g.stages.map(s => ({ id: s.id, kind: 'stage', s })),
+      ...g.offers.map(o => ({ id: o.id, kind: 'cond', o })),
+      ...g.offers.flatMap(o => o.agents.map(a => ({ id: `${o.id}/${a}`, kind: 'agent', name: a, o }))),
+      ...ui.loose.map(l => ({ id: l.id, kind: 'agent', name: l.name, loose: l })),
+    ];
+  }
+  const nodeById = id => nodes().find(n => n.id === id);
+  function pos(id) {
+    const l = ui.loose.find(x => x.id === id);
+    if (l) return l;
+    const g = G();
+    if (!g.layout[id]) g.layout[id] = { x: 0, y: 0 };
+    return g.layout[id];
+  }
+  function links() {
+    const g = G();
+    return [
+      ...g.links.map((l, i) => ({ id: `link-${i}`, kind: l.when ? 'loop' : 'next', from: l.from, to: l.to, link: l })),
+      ...g.offers.filter(o => stageById(o.stage)).map(o => ({ id: `check-${o.id}`, kind: 'check', from: o.stage, to: o.id, o })),
+      ...g.offers.flatMap(o => o.agents.map(a => ({ id: `fire-${o.id}/${a}`, kind: 'fire', from: o.id, to: `${o.id}/${a}`, o, name: a }))),
+    ];
+  }
+  const hasDefault = st => G().links.some(l => l.from === st.id && !l.when && l.on !== false);
+
+  // ---- the run: a piece of work, and what it is offered
+  const effTier = () => (ui.work.route ? state.parts.sensitive.tier : ui.work.tier);
+  const skipped = st => st.skipAt.includes(effTier());
+  function passes(o) {
+    const st = stageById(o.stage);
+    if (!o.on || !st || skipped(st) || !o.agents.length) return false;
+    const t = effTier();
+    if (o.when === 'every-build') return true;
+    if (o.when === 'standard-up') return t !== 'quick';
+    if (o.when === 'thorough') return t === 'thorough';
+    if (o.when === 'sensitive') return ui.work.route;
+    if (o.when === 'sensitive-declined') return ui.work.declined;
+    return false;
+  }
+  const whenText = o => (o.when === 'words' ? o.words || '(your words)' : WF_WHEN_LABELS[o.when] || o.when);
+
+  // ---- the frame
+  const button = (label, onclick, extra) => el('button', { type: 'button', class: extra || '', onclick }, label);
+  const sim = el('div', { class: 'wf-bar' });
+  const library = el('div', { class: 'wf-side' });
+  const world = el('div', { class: 'wf-world' });
+  const edgesCv = el('canvas', { class: 'wf-edges', 'aria-hidden': 'true' });
+  const zoomPct = el('span', { class: 'av-num' });
+  const toastEl = el('div', { class: 'wf-toast', role: 'status' });
+  const canvas = el(
+    'div',
+    { class: 'wf-canvas', tabindex: '0', 'aria-label': 'The workflow canvas' },
+    edgesCv,
+    world,
+    el('div', { class: 'wf-zoom' }, button('−', () => zoomAt(1 / 1.15)), zoomPct, button('+', () => zoomAt(1.15)), button('Fit', () => fit()), button('Arrange', () => arrange(true))),
+    toastEl,
+  );
+  const table = el('div', { class: 'wf-table' });
+  const panel = el('div', { class: 'wf-panel' });
+  const parts = { library, canvas, table, sim, panel };
+  host.replaceChildren(
+    el(
+      'div',
+      { class: 'slot-bar wf-head' },
+      el('div', {}, el('h2', { class: 'section-title', text: 'Workflow · the parts Scriptorium builds' }), el('p', { class: 'av-annot', text: 'Tiers, sensitive work, the workflow and the lens roster. The canvas edits the workflow; the panel edits the other three. Any change here shows a security-defaults line first in the install\'s dry run.' })),
+      el('div', { class: 'chips' }, chip('Take the tour', true, () => tour(0)), chip('Reset these parts', false, () => {
+        state.parts = copyParts(PACT.ownParts || PACT.parts.defaults);
+        ui.sel = null;
+        ui.loose = [];
+        arrange(false);
+        all();
+        fit();
+        changed();
+      }, 'av-tool-chip--ghost')),
+    ),
+    sim,
+    el('div', { class: 'wf-cols' }, library, el('div', { class: 'wf-centre' }, canvas, table), panel),
+  );
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toast.h);
+    toast.h = setTimeout(() => toastEl.classList.remove('on'), 2400);
+  }
+
+  // ---- library
+  function renderLibrary() {
+    const item = (type, val, ic, title, sub) => {
+      const b = el('button', { type: 'button', class: 'wf-lib', draggable: 'true' }, el('span', { class: `wf-ic${type === 'cond' ? ' wf-ic--cond' : ''}` }, el('span', { text: ic })), el('span', {}, el('b', { text: title }), el('small', { text: sub })));
+      b.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', JSON.stringify({ type, val }));
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+      b.addEventListener('click', () => {
+        const r = canvas.getBoundingClientRect();
+        addNode(type, val, toWorld(r.left + r.width / 2, r.top + r.height / 2));
+      });
+      return b;
+    };
+    const pairs = rosterPairs(state.parts);
+    const inPair = n => pairs.some(p => p.agents.includes(n));
+    const lenses = PACT.agents.filter(a => a.configurable).map(a => a.name);
+    library.replaceChildren(
+      el('div', { class: 'av-label', text: 'Nodes library · drag onto the canvas' }),
+      item('stage', '', '▭', 'Stage', "a step of the work's own lifecycle"),
+      item('cond', '', '?', 'Condition', 'when its lenses are offered'),
+      el('div', { class: 'av-label', text: 'Lenses' }),
+      ...pairs.map(p => el('div', { class: 'wf-libpair' }, item('pair', p.agents.join('+'), '◇◇', p.label, 'both on one condition'), ...p.agents.map(a => item('agent', a, '◇', a, 'one lens')))),
+      el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'On its own' }), ...lenses.filter(n => !inPair(n)).map(n => item('agent', n, '◇', n, 'a pact lens'))),
+      ...(PACT.yours.agents.length ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Yours' }), ...PACT.yours.agents.map(a => item('agent', a.name, '◆', a.name, a.description || 'your agent')))] : []),
+      el(
+        'div',
+        { class: 'wf-practices' },
+        el('div', { class: 'av-label', text: 'Beside the work · the moves' }),
+        el('p', { class: 'av-annot', text: 'No order and no arrows. I take each up as the work needs it; they never go on the canvas.' }),
+        ...PACT.moves.map(m => el('div', { class: 'wf-practice' }, el('b', { text: m.lead }))),
+      ),
+    );
+  }
+
+  function addNode(type, val, p) {
+    const at = { x: Math.round(p.x - 80), y: Math.round(p.y - 20) };
+    const g = G();
+    let msg;
+    if (type === 'stage') {
+      const id = freshId('stage');
+      g.stages.push({ id, name: 'New stage', text: 'What happens here.', model: 'build', skipAt: [] });
+      g.layout[id] = at;
+      ui.sel = { node: id };
+      msg = 'Drag from a side of a stage to another stage, or from its bottom to a condition.';
+    } else if (type === 'cond' || type === 'pair') {
+      const id = freshId('offer');
+      const agents = type === 'pair' ? String(val).split('+') : [];
+      g.offers.push({ id, stage: '', when: 'every-build', words: '', agents, on: true });
+      g.layout[id] = at;
+      agents.forEach((a, k) => (g.layout[`${id}/${a}`] = { x: at.x + 200, y: at.y - 4 + k * 40 }));
+      ui.sel = { node: id };
+      msg = type === 'pair' ? 'A pair on one condition. Wire a stage to the condition.' : "Wire a stage's bottom port to it, then its right port to lenses.";
+    } else {
+      const id = freshId('loose');
+      ui.loose.push({ id, name: String(val), x: at.x, y: at.y });
+      ui.sel = { node: id };
+      msg = "Wire a condition's right port to it.";
+    }
+    ui.tab = 'inspect';
+    edited();
+    toast(msg);
+  }
+
+  // ---- the run bar
+  function renderSim() {
+    const w = ui.work;
+    const pick = (label, on, fn) => chip(label, on, () => {
+      fn();
+      renderSim();
+      refresh();
+    }, on ? '' : 'av-tool-chip--ghost', true);
+    sim.replaceChildren(
+      el('span', { class: 'av-label', text: 'A piece of work' }),
+      ...TIER_KEYS.map(k => pick(k, w.tier === k, () => (w.tier = k))),
+      el('span', { class: 'wf-note', text: '·' }),
+      pick('on the sensitive route', w.route, () => {
+        w.route = !w.route;
+        if (w.route) w.declined = false;
+      }),
+      pick('matches the list, route not taken', w.declined, () => {
+        w.declined = !w.declined;
+        if (w.declined) w.route = false;
+      }),
+      chip('▶ Run it through', true, run),
+      el('span', { class: 'wf-note', text: `${w.route ? `On the route the tier is ${state.parts.sensitive.tier}. ` : ''}Green: offered for this work.${effTier() === 'quick' ? ' At quick, a stage skipped at quick is passed by.' : ''}` }),
+    );
+  }
+
+  // ---- nodes
+  function renderNodes() {
+    const own = nodes();
+    world.replaceChildren(...own.map(n => {
+      const p = pos(n.id);
+      const port = name => el('span', { class: `wf-port wf-port--${name}`, 'data-port': name });
+      let box;
+      if (n.kind === 'stage') {
+        box = el('div', { class: 'wf-node wf-stage' }, el('div', { class: 'wf-kind' }, el('span', { class: 'av-label', text: 'Stage' })), el('h3', { text: n.s.name }), el('p', { text: n.s.text }), port('in'), port('out'), port('top'), port('down'));
+      } else if (n.kind === 'cond') {
+        const sw = el('button', { type: 'button', class: 'wf-sw', role: 'switch', 'aria-checked': String(n.o.on), 'aria-label': 'condition on or off' });
+        sw.addEventListener('pointerdown', e => e.stopPropagation());
+        sw.addEventListener('click', e => {
+          e.stopPropagation();
+          n.o.on = !n.o.on;
+          edited(false);
+          toast(n.o.on ? 'Condition on.' : 'Condition off: its lenses are never offered.');
+        });
+        const pair = rosterPairs(state.parts).find(p => p.agents.length === n.o.agents.length && p.agents.every(a => n.o.agents.includes(a)));
+        box = el('div', { class: 'wf-node wf-cond' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: 'offered' }), whenText(n.o)), sw), el('div', { class: 'wf-pair', text: pair ? pair.label : n.o.agents.length > 1 ? `offered together (${n.o.agents.length})` : '' }), port('top'), port('out'));
+      } else box = el('div', { class: `wf-node wf-agent${n.loose ? ' wf-agent--loose' : ''}` }, n.name, port('in'));
+      box.dataset.id = n.id;
+      box.tabIndex = 0;
+      box.style.left = `${p.x}px`;
+      box.style.top = `${p.y}px`;
+      box.addEventListener('keydown', e => {
+        if ((e.key === 'Delete' || e.key === 'Backspace') && e.target === box) delSel();
+        if (e.key === 'Enter') select({ node: n.id });
+      });
+      return box;
+    }));
+    refresh();
+  }
+  const nodeEl = id => [...world.children].find(x => x.dataset.id === id);
+
+  /** Classes that follow from state, then the links, the table and the zoom. */
+  function refresh() {
+    for (const n of nodes()) {
+      const box = nodeEl(n.id);
+      if (!box) continue;
+      box.classList.toggle('wf-sel', !!ui.sel && ui.sel.node === n.id);
+      if (n.kind === 'stage') box.classList.toggle('wf-skipped', skipped(n.s));
+      if (n.kind === 'cond') {
+        box.classList.toggle('wf-pass', passes(n.o));
+        box.classList.toggle('wf-off', !n.o.on);
+      }
+      if (n.kind === 'agent') box.classList.toggle('wf-fires', !!(n.o && passes(n.o)));
+    }
+    renderTable();
+    zoomPct.textContent = `${Math.round(ui.view.k * 100)}%`;
+    world.style.transform = `translate(${ui.view.x}px, ${ui.view.y}px) scale(${ui.view.k})`;
+    canvas.style.backgroundPosition = `${ui.view.x}px ${ui.view.y}px`;
+    const k = ui.view.k;
+    canvas.style.backgroundSize = `${120 * k}px ${120 * k}px, ${120 * k}px ${120 * k}px, ${24 * k}px ${24 * k}px, ${24 * k}px ${24 * k}px`;
+  }
+
+  // ---- the workflow table, live under the canvas
+  function renderTable() {
+    const p = state.parts;
+    const g = G();
+    const ti = TIER_KEYS.indexOf(effTier());
+    const order = stagesInOrder(g);
+    const head = el('tr', {}, el('th', { text: 'Stage' }), ...p.tiers.map((t, i) => el('th', { class: i === ti ? 'wf-cur' : '', text: t.name })), el('th', { class: ui.work.route ? 'wf-cur' : '', text: 'Sensitive route' }), el('th', { text: 'Lenses offered, and when' }), el('th', { text: 'Other ways out' }));
+    const rows = order.map(st => {
+      const offers = g.offers.filter(o => o.stage === st.id && o.on !== false);
+      const outs = g.links.filter(l => l.from === st.id && l.when && l.on !== false).map(l => linkText(g, l, order));
+      const tr = el(
+        'tr',
+        { class: ui.sel && ui.sel.node === st.id ? 'wf-sel' : '' },
+        el('td', {}, el('b', { text: st.name }), el('br'), el('span', { class: 'wf-idle', text: st.text })),
+        ...p.tiers.map((_, i) => el('td', { class: !ui.work.route && i === ti ? 'wf-cur' : '', text: stageCell(p, st, i) })),
+        el('td', { class: ui.work.route ? 'wf-cur' : '', text: stageCell(p, st, null) }),
+        el('td', {}, ...(offers.length ? offers.flatMap((o, k) => [...(k ? [el('br')] : []), el('span', { class: passes(o) ? 'wf-fire' : 'wf-idle', text: offerText(o) })]) : [el('span', { class: 'wf-idle', text: 'none' })])),
+        el('td', { class: 'wf-loop' }, ...outs.flatMap((t, k) => [...(k ? [el('br')] : []), t])),
+      );
+      tr.addEventListener('click', () => select({ node: st.id }));
+      return tr;
+    });
+    table.replaceChildren(
+      el('div', { class: 'wf-whead' }, el('h2', { text: 'Workflow' }), el('span', { class: 'av-annot', text: 'The part the canvas edits. Click a row to select its stage.' })),
+      el('table', { class: 'wf-tbl' }, el('thead', {}, head), el('tbody', {}, ...rows)),
+    );
+  }
+
+  // ---- links, drawn on the 2D canvas
+  function portPos(id, port) {
+    const n = pos(id);
+    const box = nodeEl(id);
+    const w = box ? box.offsetWidth : 160;
+    const h = box ? box.offsetHeight : 40;
+    if (port === 'in') return { x: n.x, y: n.y + h / 2, nx: -1, ny: 0 };
+    if (port === 'out') return { x: n.x + w, y: n.y + h / 2, nx: 1, ny: 0 };
+    if (port === 'down') return { x: n.x + w / 2, y: n.y + h, nx: 0, ny: 1 };
+    return { x: n.x + w / 2, y: n.y, nx: 0, ny: -1 };
+  }
+  function curve(a, b) {
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    const d = Math.max(40, Math.min(dist / 2.2, 70 + dist * 0.1));
+    return { a, c1: { x: a.x + a.nx * d, y: a.y + a.ny * d }, c2: { x: b.x + b.nx * d, y: b.y + b.ny * d }, b };
+  }
+  function geom(e) {
+    if (e.kind === 'loop') return curve(portPos(e.from, 'top'), portPos(e.to, 'top'));
+    if (e.kind === 'next') return curve(portPos(e.from, 'out'), portPos(e.to, 'in'));
+    if (e.kind === 'check') return curve(portPos(e.from, 'down'), portPos(e.to, 'top'));
+    return curve(portPos(e.from, 'out'), portPos(e.to, 'in'));
+  }
+  const at = (q, t) => {
+    const u = 1 - t;
+    return {
+      x: u * u * u * q.a.x + 3 * u * u * t * q.c1.x + 3 * u * t * t * q.c2.x + t * t * t * q.b.x,
+      y: u * u * u * q.a.y + 3 * u * u * t * q.c1.y + 3 * u * t * t * q.c2.y + t * t * t * q.b.y,
+    };
+  };
+  function pathOf(q) {
+    const p = new Path2D();
+    p.moveTo(q.a.x, q.a.y);
+    p.bezierCurveTo(q.c1.x, q.c1.y, q.c2.x, q.c2.y, q.b.x, q.b.y);
+    return p;
+  }
+  function draw(t) {
+    const ctx = edgesCv.getContext && edgesCv.getContext('2d');
+    if (!ctx) return;
+    const r = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const W = Math.max(1, Math.round(r.width * dpr));
+    const H = Math.max(1, Math.round(r.height * dpr));
+    if (edgesCv.width !== W || edgesCv.height !== H) {
+      edgesCv.width = W;
+      edgesCv.height = H;
+    }
+    const css = getComputedStyle(document.documentElement);
+    const color = n => css.getPropertyValue(n).trim();
+    const v = ui.view;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.setTransform(dpr * v.k, 0, 0, dpr * v.k, dpr * v.x, dpr * v.y);
+    const dash = ((t / 1000) * 26.7) % 24;
+    for (const e of links()) {
+      const q = geom(e);
+      let stroke = color('--av-ink-55');
+      let width = 1.5;
+      let pattern = [];
+      let offset = 0;
+      if (e.kind === 'next') {
+        stroke = color('--av-ink');
+        width = 2;
+        if (e.link.on === false) pattern = [2, 5];
+      } else if (e.kind === 'loop') {
+        stroke = color('--av-caution');
+        pattern = e.link.on === false ? [2, 5] : [8, 5];
+        offset = e.link.on === false ? 0 : -dash * 0.6;
+      } else if (passes(e.o)) {
+        stroke = color('--av-normal');
+        pattern = [6, 6];
+        offset = -dash;
+      } else if (!e.o.on) {
+        stroke = color('--av-ink-30');
+        pattern = [2, 5];
+      }
+      if (ui.sel && ui.sel.edge === e.id) width += 2;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = width;
+      ctx.setLineDash(pattern);
+      ctx.lineDashOffset = offset;
+      ctx.stroke(pathOf(q));
+      // The arrow head, along the curve's last tangent.
+      const ang = Math.atan2(q.b.y - q.c2.y, q.b.x - q.c2.x);
+      ctx.setLineDash([]);
+      ctx.fillStyle = stroke;
+      ctx.beginPath();
+      ctx.moveTo(q.b.x, q.b.y);
+      ctx.lineTo(q.b.x - 9 * Math.cos(ang - 0.4), q.b.y - 9 * Math.sin(ang - 0.4));
+      ctx.lineTo(q.b.x - 9 * Math.cos(ang + 0.4), q.b.y - 9 * Math.sin(ang + 0.4));
+      ctx.closePath();
+      ctx.fill();
+      if (e.kind === 'loop') {
+        const m = at(q, 0.5);
+        ctx.font = `11px ${color('--av-font')}`;
+        ctx.textAlign = 'center';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = color('--av-paper');
+        const label = `${e.link.on === false ? '(off) ' : ''}when ${e.link.when}`;
+        ctx.strokeText(label, m.x, m.y - 6);
+        ctx.fillStyle = color('--av-caution');
+        ctx.fillText(label, m.x, m.y - 6);
+      }
+    }
+    if (ui.temp) {
+      ctx.strokeStyle = color('--av-caution');
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke(pathOf(curve(ui.temp.a, { ...ui.temp.b, nx: 0, ny: 0 })));
+    }
+    ctx.setLineDash([]);
+    for (const p of ui.pulses) {
+      const e = links().find(x => x.id === p.edge);
+      if (!e) continue;
+      const m = at(geom(e), Math.min(1, (t - p.t0) / p.ms));
+      ctx.fillStyle = color('--av-normal');
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function loop(t) {
+    raf = 0;
+    if (host.hidden || !host.isConnected) return;
+    draw(t);
+    raf = requestAnimationFrame(loop);
+  }
+  function hitEdge(cx, cy) {
+    const ctx = edgesCv.getContext && edgesCv.getContext('2d');
+    if (!ctx) return null;
+    const p = toWorld(cx, cy);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.lineWidth = 12 / ui.view.k;
+    const hit = links().find(e => ctx.isPointInStroke(pathOf(geom(e)), p.x, p.y));
+    ctx.restore();
+    return hit || null;
+  }
+
+  // ---- pointer: pan, drag nodes, draw links
+  function toWorld(cx, cy) {
+    const r = canvas.getBoundingClientRect();
+    const v = ui.view;
+    return { x: (cx - r.left - v.x) / v.k, y: (cy - r.top - v.y) / v.k };
+  }
+  function select(sel) {
+    ui.sel = sel;
+    ui.tab = 'inspect';
+    refresh();
+    renderPanel();
+  }
+  canvas.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const port = e.target.closest('.wf-port');
+    const box = e.target.closest('.wf-node');
+    if (port && box && (box.classList.contains('wf-stage') || port.dataset.port === 'out')) {
+      drag = { mode: 'link', from: box.dataset.id, fp: port.dataset.port };
+      e.preventDefault();
+      return;
+    }
+    e.preventDefault();
+    if (box) {
+      const id = box.dataset.id;
+      const p = toWorld(e.clientX, e.clientY);
+      const n = pos(id);
+      drag = { mode: 'node', id, box, dx: p.x - n.x, dy: p.y - n.y, moved: false };
+      select({ node: id });
+      return;
+    }
+    const hit = hitEdge(e.clientX, e.clientY);
+    if (hit) return select({ edge: hit.id });
+    drag = { mode: 'pan', sx: e.clientX - ui.view.x, sy: e.clientY - ui.view.y };
+    canvas.classList.add('wf-panning');
+    if (ui.sel) select(null);
+  });
+  window.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (drag.mode === 'pan') {
+      ui.view.x = e.clientX - drag.sx;
+      ui.view.y = e.clientY - drag.sy;
+      refresh();
+    } else if (drag.mode === 'node') {
+      const p = toWorld(e.clientX, e.clientY);
+      const n = pos(drag.id);
+      n.x = Math.round((p.x - drag.dx) / 6) * 6;
+      n.y = Math.round((p.y - drag.dy) / 6) * 6;
+      drag.box.style.left = `${n.x}px`;
+      drag.box.style.top = `${n.y}px`;
+      drag.box.classList.add('wf-dragging');
+      drag.moved = true;
+    } else if (drag.mode === 'link') {
+      ui.temp = { a: portPos(drag.from, drag.fp), b: toWorld(e.clientX, e.clientY) };
+    }
+  });
+  window.addEventListener('pointerup', e => {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    canvas.classList.remove('wf-panning');
+    ui.temp = null;
+    if (d.mode === 'node') {
+      d.box.classList.remove('wf-dragging');
+      if (d.moved) changed();
+    }
+    if (d.mode === 'link') {
+      const over = document.elementFromPoint(e.clientX, e.clientY);
+      const box = over && over.closest('.wf-node');
+      if (box) connect(d.from, box.dataset.id);
+    }
+  });
+  function connect(fromId, toId) {
+    const a = nodeById(fromId);
+    const b = nodeById(toId);
+    if (!a || !b || a.id === b.id) return;
+    const g = G();
+    if (a.kind === 'stage' && b.kind === 'stage') {
+      if (g.links.some(l => l.from === a.id && l.to === b.id)) return;
+      const when = hasDefault(a.s) ? 'your words' : '';
+      g.links.push({ from: a.id, to: b.id, when, on: true });
+      ui.sel = { edge: `link-${g.links.length - 1}` };
+      edited();
+      return toast(when ? `${a.s.name} already has its default way on, so this link needs a condition. Say when in the panel.` : `The default way on from ${a.s.name}.`);
+    }
+    if (a.kind === 'stage' && b.kind === 'cond') {
+      b.o.stage = a.id;
+      ui.sel = { node: b.id };
+      edited();
+      return toast('Wired. The condition is offered at this stage.');
+    }
+    if (a.kind === 'cond' && b.kind === 'agent') {
+      if (a.o.agents.includes(b.name)) return toast('That lens is on this condition already.');
+      const was = pos(b.id);
+      if (b.loose) ui.loose = ui.loose.filter(l => l !== b.loose);
+      else {
+        b.o.agents = b.o.agents.filter(x => x !== b.name);
+        delete g.layout[b.id];
+      }
+      a.o.agents.push(b.name);
+      g.layout[`${a.id}/${b.name}`] = { x: was.x, y: was.y };
+      ui.sel = { node: `${a.id}/${b.name}` };
+      edited();
+      return toast('Wired. Lenses on one condition are offered together.');
+    }
+    toast('A stage links to a stage or a condition; a condition offers lenses.');
+  }
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX, e.clientY);
+  }, { passive: false });
+  function zoomAt(f, cx, cy) {
+    const r = canvas.getBoundingClientRect();
+    const x = cx ?? r.left + r.width / 2;
+    const y = cy ?? r.top + r.height / 2;
+    const v = ui.view;
+    const k = Math.min(1.8, Math.max(0.3, v.k * f));
+    const wx = (x - r.left - v.x) / v.k;
+    const wy = (y - r.top - v.y) / v.k;
+    v.k = k;
+    v.x = x - r.left - wx * k;
+    v.y = y - r.top - wy * k;
+    refresh();
+  }
+  function fit() {
+    const all = nodes();
+    if (!all.length) return;
+    const r = canvas.getBoundingClientRect();
+    if (!r.width) return;
+    const xs = all.map(n => pos(n.id).x);
+    const ys = all.map(n => pos(n.id).y);
+    const x0 = Math.min(...xs) - 20;
+    const y0 = Math.min(...ys) - 120;
+    const x1 = Math.max(...xs) + 240;
+    const y1 = Math.max(...ys) + 80;
+    const k = Math.min(1.2, Math.max(0.3, Math.min(r.width / (x1 - x0), r.height / (y1 - y0))));
+    ui.view = { k, x: -x0 * k + (r.width - (x1 - x0) * k) / 2, y: -y0 * k };
+    refresh();
+  }
+  /** Stages left to right in the order the work takes them; under each, its conditions with their lenses to the right. */
+  function arrange(animate) {
+    const g = G();
+    const moves = [];
+    const placed = new Set();
+    const put = (id, x, y) => {
+      moves.push([id, x, y]);
+      placed.add(id);
+    };
+    let x = 40;
+    for (const st of stagesInOrder(g)) {
+      put(st.id, x, 60);
+      let y = 200;
+      const offers = g.offers.filter(o => o.stage === st.id);
+      for (const o of offers) {
+        put(o.id, x, y);
+        o.agents.forEach((a, k) => put(`${o.id}/${a}`, x + 200, y + k * 40 - (o.agents.length > 1 ? 4 : -8)));
+        y += Math.max(1, o.agents.length) * 40 + 30;
+      }
+      x += offers.length ? 420 : 260;
+    }
+    let fx = 40;
+    for (const n of nodes()) if (!placed.has(n.id)) {
+      put(n.id, fx, -140);
+      fx += 200;
+    }
+    const finish = () => {
+      for (const [id, nx, ny] of moves) Object.assign(pos(id), { x: nx, y: ny });
+      for (const k of Object.keys(g.layout)) if (!placed.has(k)) delete g.layout[k];
+    };
+    if (!animate) return finish();
+    const from = moves.map(([id]) => [pos(id).x, pos(id).y]);
+    const t0 = performance.now();
+    const step = t => {
+      const f = Math.min(1, (t - t0) / 450);
+      const ease = 1 - Math.pow(1 - f, 3);
+      moves.forEach(([id, nx, ny], i) => {
+        const n = pos(id);
+        n.x = Math.round(from[i][0] + (nx - from[i][0]) * ease);
+        n.y = Math.round(from[i][1] + (ny - from[i][1]) * ease);
+        const box = nodeEl(id);
+        if (box) {
+          box.style.left = `${n.x}px`;
+          box.style.top = `${n.y}px`;
+        }
+      });
+      if (f < 1) requestAnimationFrame(step);
+      else {
+        finish();
+        fit();
+        changed();
+      }
+    };
+    requestAnimationFrame(step);
+  }
+  canvas.addEventListener('dragover', e => {
+    e.preventDefault();
+    canvas.classList.add('wf-dropping');
+  });
+  canvas.addEventListener('dragleave', () => canvas.classList.remove('wf-dropping'));
+  canvas.addEventListener('drop', e => {
+    e.preventDefault();
+    canvas.classList.remove('wf-dropping');
+    let d;
+    try {
+      d = JSON.parse(e.dataTransfer.getData('text/plain'));
+    } catch {
+      return;
+    }
+    if (d && d.type) addNode(d.type, d.val, toWorld(e.clientX, e.clientY));
+  });
+  canvas.addEventListener('keydown', e => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && ui.sel && ui.sel.edge) delSel();
+  });
+  function delSel() {
+    const s = ui.sel;
+    if (!s) return;
+    const g = G();
+    if (s.edge) {
+      const e = links().find(x => x.id === s.edge);
+      if (e && e.link) g.links.splice(g.links.indexOf(e.link), 1);
+      if (e && e.kind === 'check') e.o.stage = '';
+      if (e && e.kind === 'fire') {
+        e.o.agents = e.o.agents.filter(a => a !== e.name);
+        delete g.layout[e.to];
+      }
+    }
+    if (s.node) {
+      const n = nodeById(s.node);
+      if (n && n.kind === 'stage') {
+        g.stages = g.stages.filter(x => x !== n.s);
+        g.links = g.links.filter(l => l.from !== n.id && l.to !== n.id);
+        for (const o of g.offers) if (o.stage === n.id) o.stage = '';
+      }
+      if (n && n.kind === 'cond') {
+        g.offers = g.offers.filter(o => o !== n.o);
+        for (const a of n.o.agents) delete g.layout[`${n.id}/${a}`];
+      }
+      if (n && n.kind === 'agent') {
+        if (n.loose) ui.loose = ui.loose.filter(l => l !== n.loose);
+        else n.o.agents = n.o.agents.filter(a => a !== n.name);
+      }
+      if (n) delete g.layout[n.id];
+    }
+    ui.sel = null;
+    edited();
+  }
+
+  // ---- run it through: a pulse travels the stages and out to what is offered
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  async function pulse(edge, ms) {
+    const p = { edge, t0: performance.now(), ms };
+    ui.pulses.push(p);
+    await wait(ms);
+    ui.pulses = ui.pulses.filter(x => x !== p);
+  }
+  async function run() {
+    if (running) return;
+    running = true;
+    const g = G();
+    const seen = new Set();
+    let cur = stagesInOrder(g)[0];
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      const box = nodeEl(cur.id);
+      if (box) box.classList.add('wf-active');
+      const st = cur;
+      if (!skipped(st)) {
+        await Promise.all(g.offers.filter(o => o.stage === st.id).map(async o => {
+          await pulse(`check-${o.id}`, 380);
+          if (!passes(o)) return;
+          await Promise.all(o.agents.map(async a => {
+            await pulse(`fire-${o.id}/${a}`, 320);
+            const ab = nodeEl(`${o.id}/${a}`);
+            if (ab) {
+              ab.classList.remove('wf-fired');
+              void ab.offsetWidth;
+              ab.classList.add('wf-fired');
+            }
+          }));
+        }));
+      } else await wait(250);
+      if (box) box.classList.remove('wf-active');
+      const i = g.links.findIndex(l => l.from === st.id && !l.when && l.on !== false);
+      if (i < 0) break;
+      await pulse(`link-${i}`, 420);
+      cur = stageById(g.links[i].to);
+    }
+    running = false;
+  }
+
+  // ---- the panel
+  const field = (label, control) => el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: label }), control);
+  const input = (value, set, extra = {}) => {
+    const i = el('input', { type: 'text', ...extra });
+    i.value = value;
+    i.addEventListener('input', () => {
+      set(i.value);
+      edited(false);
+    });
+    return i;
+  };
+  const pickList = (options, value, set, label) => {
+    const s = el('select', { 'aria-label': label }, ...options.map(([v, t]) => el('option', { value: v, text: t })));
+    s.value = value;
+    s.addEventListener('change', () => {
+      set(s.value);
+      edited();
+    });
+    return s;
+  };
+  const toggle = (on, set, label) => {
+    const b = el('button', { type: 'button', class: 'wf-sw', role: 'switch', 'aria-checked': String(on), 'aria-label': label });
+    b.addEventListener('click', () => {
+      set(!on);
+      edited();
+    });
+    return el('label', { class: 'wf-field wf-field--row' }, b, el('span', { text: on ? 'On' : 'Off' }));
+  };
+  const models = none => [...(none ? [['none', 'none']] : []), ...MODEL_CHOICES.map(m => [m, m])];
+
+  function inspect() {
+    const s = ui.sel;
+    const g = G();
+    if (s && s.edge) {
+      const e = links().find(x => x.id === s.edge);
+      if (!e) return [];
+      if (e.link) {
+        const l = e.link;
+        const a = stageById(l.from);
+        const b = stageById(l.to);
+        return [
+          el('h2', { text: `${a ? a.name : '?'} → ${b ? b.name : '?'}` }),
+          el('p', { class: 'av-annot', text: l.when ? `A way out with a condition: ${linkText(g, l)}.` : 'The default way on: where the work goes when no condition holds. Each stage has at most one.' }),
+          field('When (empty for the default way on); it finishes "when …"', input(l.when, v => (l.when = v.trim()), { placeholder: 'e.g. a claim fails' })),
+          ...(l.when ? [toggle(l.on !== false, v => (l.on = v), 'link on or off'), el('p', { class: 'av-annot', text: 'A condition on a link is judgment: the run never takes it.' })] : []),
+          chip('Delete link', false, delSel, 'av-tool-chip--ghost'),
+        ];
+      }
+      return [el('h2', { text: 'Link' }), chip('Delete link', false, delSel, 'av-tool-chip--ghost')];
+    }
+    const n = s && s.node && nodeById(s.node);
+    if (!n) return [el('h2', { text: 'Nothing selected' }), el('p', { class: 'av-annot', text: 'Drag nodes from the library, drag between ports to wire them, and click anything to edit it here. Drag the grid to pan; scroll to zoom. Delete removes what is selected.' })];
+    if (n.kind === 'stage') {
+      const st = n.s;
+      return [
+        el('h2', { text: 'Stage' }),
+        field('Name', input(st.name, v => (st.name = v))),
+        field('What happens here (compiles to nothing)', input(st.text, v => (st.text = v))),
+        field('Model and effort here', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')),
+        el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Skipped at' }), el('div', { class: 'chips' }, ...TIER_KEYS.map(k => chip(k, st.skipAt.includes(k), () => {
+          st.skipAt = st.skipAt.includes(k) ? st.skipAt.filter(x => x !== k) : TIER_KEYS.filter(x => x === k || st.skipAt.includes(x));
+          edited();
+        }, '', true)))),
+        el('p', { class: 'av-annot', text: `Offered here: ${g.offers.filter(o => o.stage === st.id).map(offerText).join('; ') || 'nothing'}.` }),
+        chip('Delete stage', false, delSel, 'av-tool-chip--ghost'),
+      ];
+    }
+    if (n.kind === 'cond') {
+      const o = n.o;
+      const st = stageById(o.stage);
+      return [
+        el('h2', { text: 'Condition' }),
+        el('p', { class: 'av-annot', text: `At ${st ? st.name : 'no stage yet: wire a stage\'s bottom port here'}. Offers ${o.agents.length ? o.agents.join(' and ') : 'nothing yet'}${o.agents.length > 1 ? ', together' : ''}.` }),
+        field('When they are offered', pickList(Object.entries(WF_WHEN_LABELS), o.when, v => {
+          o.when = v;
+          if (v !== 'words') o.words = '';
+        }, 'when')),
+        ...(o.when === 'words' ? [field('In your words', input(o.words, v => (o.words = v), { placeholder: 'e.g. the change touches billing' })), el('p', { class: 'av-annot', text: 'Your own words are judgment: the run never lights them.' })] : []),
+        toggle(o.on, v => (o.on = v), 'condition on or off'),
+        el('p', { class: 'av-annot', text: `For this work: ${passes(o) ? 'offered' : 'idle'}.` }),
+        chip('Delete condition', false, delSel, 'av-tool-chip--ghost'),
+      ];
+    }
+    return [
+      el('h2', { text: 'Lens' }),
+      ...(n.loose ? [field('Name', input(n.name, v => (n.loose.name = v.trim())))] : []),
+      el('p', { class: 'av-annot', text: n.loose ? 'Not on a condition yet: drag a condition\'s right port to it.' : `${n.name}, offered ${whenText(n.o).toLowerCase()}. Its model and effort stay in its own file or the Agents step.` }),
+      chip('Remove from the canvas', false, delSel, 'av-tool-chip--ghost'),
+    ];
+  }
+  function tiersTab() {
+    const p = state.parts;
+    return [
+      el('h2', { text: 'Tiers' }),
+      el('p', { class: 'av-annot', text: 'How much checking. A stage skipped at a tier is passed by there.' }),
+      ...p.tiers.map(t => el('div', { class: 'wf-group' }, el('b', { text: t.name }), field('Fits', input(t.fits, v => (t.fits = v))), field('Plan', pickList(models(true), t.plan, v => (t.plan = v), `${t.name} plan`)), field('Build', pickList(models(false), t.build, v => (t.build = v), `${t.name} build`)))),
+    ];
+  }
+  function sensitiveTab() {
+    const s = state.parts.sensitive;
+    const add = el('input', { type: 'text', placeholder: 'e.g. payments, then Enter', 'aria-label': 'Add to the list' });
+    add.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && add.value.trim()) {
+        s.items.push(add.value.trim());
+        edited();
+        renderPanel();
+      }
+    });
+    return [
+      el('h2', { text: 'Sensitive work' }),
+      el('p', { class: 'av-annot', text: 'What Claude looks for, and the sensitive route it recommends with a one-line why. I take the route or not.' }),
+      el('div', { class: 'chips' }, ...s.items.map((x, i) => el('span', { class: 'wf-chip' }, x, button('×', () => {
+        s.items.splice(i, 1);
+        edited();
+        renderPanel();
+      })))),
+      field('Add', add),
+      field("The route's tier", pickList(TIER_KEYS.map(k => [k, k]), s.tier, v => (s.tier = v), 'route tier')),
+      field('Planned on', pickList(models(false), s.plan, v => (s.plan = v), 'route plan')),
+      field('Built on', pickList(models(false), s.build, v => (s.build = v), 'route build')),
+    ];
+  }
+  function lensesTab() {
+    const rows = state.parts.lenses;
+    return [
+      el('h2', { text: 'Lenses' }),
+      el('p', { class: 'av-annot', text: 'The roster: each row a lens or a pair, and the question it asks. A row of two is a pair the library offers as one.' }),
+      ...rows.map((r, i) => el(
+        'div',
+        { class: 'wf-group' },
+        field('Lenses, comma-separated', input(r.agents.join(', '), v => (r.agents = v.split(',').map(x => x.trim()).filter(Boolean)))),
+        field('Label (optional)', input(r.label, v => (r.label = v))),
+        field('Asks', input(r.asks, v => (r.asks = v))),
+        chip('Remove row', false, () => {
+          rows.splice(i, 1);
+          edited();
+          renderPanel();
+        }, 'av-tool-chip--ghost'),
+      )),
+      chip('Add a row', false, () => {
+        rows.push({ agents: ['my-lens'], label: '', asks: 'What does it ask?' });
+        edited();
+        renderPanel();
+      }, 'av-tool-chip--ghost'),
+    ];
+  }
+  function compiledTab() {
+    const out = compileParts(state.parts);
+    return [
+      el('h2', { text: 'What the parts compile to' }),
+      ...PACT.parts.marks.flatMap(m => [el('div', { class: 'file-head' }, el('span', { class: 'section-title', text: m }), el('span', { class: 'av-annot', text: out[m] === PACT.parts.text[m] ? 'the default' : 'edited: saved as a replace edit' })), el('pre', { class: 'av-tool-code', text: out[m] })]),
+      el('h2', { text: 'What compiles to nothing' }),
+      el('p', { class: 'av-annot', text: 'Where nodes sit, each stage\'s own note, and lenses not yet on a condition. The moves: the pact already says them.' }),
+    ];
+  }
+  function renderPanel() {
+    const tabs = [['inspect', 'Inspect'], ['tiers', 'Tiers'], ['sensitive', 'Sensitive'], ['lenses', 'Lenses'], ['compiled', 'Compiles to']];
+    const body = ui.tab === 'tiers' ? tiersTab() : ui.tab === 'sensitive' ? sensitiveTab() : ui.tab === 'lenses' ? lensesTab() : ui.tab === 'compiled' ? compiledTab() : inspect();
+    const found = partsProblems(state.parts);
+    panel.replaceChildren(
+      el('div', { class: 'wf-tabs' }, ...tabs.map(([k, l]) => button(l, () => {
+        ui.tab = k;
+        renderPanel();
+      }, `wf-tab${ui.tab === k ? ' wf-tab--on' : ''}`))),
+      el('div', { class: 'wf-body' }, ...body, ...(found.length ? [el('ul', { class: 'callouts' }, ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.part} · ${f.text}` })))] : [])),
+    );
+  }
+
+  // ---- the tour
+  let tourEl = null;
+  function tour(i) {
+    for (const x of Object.values(parts)) x.classList.remove('wf-tourhl');
+    if (tourEl) tourEl.remove();
+    tourEl = null;
+    if (i < 0 || i >= WF_TOUR.length) return;
+    const [where, text] = WF_TOUR[i];
+    const target = parts[where];
+    target.classList.add('wf-tourhl');
+    const r = target.getBoundingClientRect();
+    const next = chip(i === WF_TOUR.length - 1 ? 'Done' : 'Next', true, () => tour(i + 1));
+    tourEl = el('div', { class: 'wf-tour', role: 'dialog', 'aria-label': 'Tour' }, el('span', { class: 'av-label', text: `${i + 1} of ${WF_TOUR.length}` }), el('p', { text }), el('div', { class: 'chips' }, chip('Back', false, () => tour(i - 1), 'av-tool-chip--ghost'), next, chip('Skip', false, () => tour(-1), 'av-tool-chip--ghost')));
+    document.body.append(tourEl);
+    tourEl.style.left = `${Math.min(window.innerWidth - tourEl.offsetWidth - 12, Math.max(12, r.left + 16))}px`;
+    tourEl.style.top = `${Math.min(window.innerHeight - tourEl.offsetHeight - 12, Math.max(12, r.top + 16))}px`;
+    next.focus();
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') tour(-1);
+  });
+
+  /** After an edit: redraw what shows it, and tell the page. `full` false keeps the panel, so a field keeps its focus. */
+  function edited(full = true) {
+    renderNodes();
+    if (full) {
+      renderLibrary();
+      renderPanel();
+    }
+    changed();
+  }
+  function all() {
+    renderSim();
+    renderLibrary();
+    renderNodes();
+    renderPanel();
+  }
+
+  if (!Object.keys(G().layout).length) arrange(false);
+  all();
+  return {
+    show() {
+      all();
+      requestAnimationFrame(() => {
+        if (!ui.fitted) {
+          ui.fitted = true;
+          fit();
+        }
+        if (!raf) raf = requestAnimationFrame(loop);
+      });
+    },
+    reset() {
+      ui.sel = null;
+      ui.loose = [];
+      if (!Object.keys(G().layout).length) arrange(false);
+      all();
+    },
+  };
+}
+
 function boot() {
   const state = initialState();
   const $ = id => document.getElementById(id);
@@ -956,7 +2780,7 @@ function boot() {
     const apply = () => {
       if (dark) root.setAttribute('data-aviation-scheme', 'dark');
       else root.removeAttribute('data-aviation-scheme');
-      $('actions').replaceChildren(el('span', { id: 'reset', class: 'chips' }), chip('Dark', dark, () => {
+      $('actions').replaceChildren(el('span', { id: 'reset', class: 'chips' }), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
         dark = !dark;
         try {
           window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
@@ -975,7 +2799,43 @@ function boot() {
     renderValues();
     renderWorkflows();
     renderAgents();
+    if (editor) editor.reset();
     renderSpine();
+  }
+
+  let editor = null; // the workflow canvas, mounted the first time its step shows
+
+  /** The settings dialog: both usage limits, the weekly one and the 5-hour session one (#142). */
+  function renderSettings() {
+    const s = PACT.setting;
+    const ss = PACT.session;
+    const num = (label, value, min, max, set) => {
+      const n = el('input', { type: 'number', min: String(min), max: String(max), step: '1', 'aria-label': label });
+      n.value = value === null ? '' : String(value);
+      n.addEventListener('input', () => {
+        set(n.value);
+        renderValues();
+        renderOutput();
+      });
+      return n;
+    };
+    const weekly = num('Weekly usage pause line, percent', state.usage, s.min, s.max, v => (state.usage = v === '' ? NaN : Number(v)));
+    const session = num('Session usage pause line, percent', state.session, ss.min, ss.max, v => (state.session = v === '' ? null : Number(v)));
+    $('settings').replaceChildren(el(
+      'div',
+      { class: 'settings-body' },
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Settings · usage limits' }), chip('Close', false, () => $('settings').close(), 'av-tool-chip--ghost')),
+      el('div', { class: 'field-row' }, el('label', { text: 'Weekly limit' }), weekly, el('span', { class: 'av-num', text: '%' }), el('span', { class: 'av-annot', text: `Default ${s.def}% · allowed ${s.min} to ${s.max}` })),
+      el('p', { class: 'av-annot', text: 'Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead.' }),
+      el('div', { class: 'field-row' }, el('label', { text: '5-hour session limit' }), session, el('span', { class: 'av-num', text: '%' }), el('span', { class: 'av-annot', text: `Unset by default · allowed ${ss.min} to ${ss.max}` })),
+      el('p', { class: 'av-annot', text: 'Leave it empty for no session line. Set, Claude also gives the session figure and waits above this line; a session that cannot see the figure says so and carries on under the weekly rule.' }),
+    ));
+  }
+  function openSettings() {
+    renderSettings();
+    const d = $('settings');
+    if (typeof d.showModal === 'function') d.showModal();
+    else d.setAttribute('open', '');
   }
 
   function renderReset() {
@@ -997,7 +2857,7 @@ function boot() {
 
   function renderSummary() {
     const found = problems(state);
-    const edits = PACT.editable.filter(m => slotOp(state.slots[m]) !== 'keep').length;
+    const edits = SLOT_MARKS.filter(m => slotOp(state.slots[m]) !== 'keep').length + Object.keys(partsChanged(state)).length;
     const errors = found.filter(f => f.level === 'error').length;
     const warns = found.length - errors;
     const stateText = errors ? `${errors} to fix` : warns ? `${warns} to check` : 'Ready';
@@ -1036,6 +2896,7 @@ function boot() {
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Value · usage pause line' }), el('span', { class: 'av-annot', text: `Default ${s.def}% · allowed ${s.min} to ${s.max}` })),
       el('div', { class: 'value-row' }, range, num, el('span', { class: 'av-num', text: '%' }), chip(`Reset to ${s.def}%`, false, () => take(String(s.def)), 'av-tool-chip--ghost')),
       para,
+      el('div', { class: 'slot-bar' }, el('span', { class: 'av-annot', text: `5-hour session limit: ${state.session === null ? 'unset, so no session line' : `${state.session}%`}.` }), chip('Both limits in Settings', false, openSettings, 'av-tool-chip--ghost')),
     );
     show();
   }
@@ -1073,14 +2934,24 @@ function boot() {
       renderSpine();
     }, 'av-tool-chip--ghost') : null;
     $('workflows').replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Workflows' }), el('div', { class: 'chips' }, el('span', { class: 'av-annot', text: 'One click sets every move\'s slots. Tweak each move on its own step after.' }), undo)),
+      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Setups' }), el('div', { class: 'chips' }, el('span', { class: 'av-annot', text: 'A setup is a named set of presets: one click sets every move\'s slots. Tweak each move on its own step after. The workflow itself has its own step.' }), undo)),
       el('div', { class: 'tiles' }, ...tiles),
     );
   }
 
   function renderAgents() {
     const where = r => (r.move ? `${PACT.moves.find(m => m.n === r.move).lead} · ${r.mark}` : `Always on · ${r.mark}`);
-    const runs = a => el('ul', { class: 'runs' }, ...(a.runs.length ? a.runs.map(r => el('li', { text: where(r) })) : [el('li', { text: 'Not named in moves 1 to 4' })]));
+    // #262 S8: each agent's offers in the workflow and its row in the roster, counted from the parts as they stand on this page.
+    const inParts = a => {
+      const offers = state.parts.workflowGraph.offers.filter(o => o.agents.includes(a.name));
+      const stages = [...new Set(offers.map(o => (state.parts.workflowGraph.stages.find(s => s.id === o.stage) || { name: '?' }).name))];
+      const row = state.parts.lenses.some(r => r.agents.includes(a.name));
+      return [...(offers.length ? [`Workflow · ${offers.length} offer${offers.length === 1 ? '' : 's'}, at ${stages.join(', ')}`] : []), ...(row ? ['Lenses · a row in the roster'] : [])];
+    };
+    const runs = a => {
+      const lines = [...a.runs.filter(r => r.kind !== 'part').map(where), ...inParts(a)];
+      return el('ul', { class: 'runs' }, ...(lines.length ? lines.map(t => el('li', { text: t })) : [el('li', { text: 'Not named in the moves or the workflow' })]));
+    };
     const pick = (label, list, value, set) => {
       const s = el('select', { 'aria-label': label }, ...list.map(v => el('option', { value: v, text: v })));
       s.value = value;
@@ -1160,8 +3031,8 @@ function boot() {
 
   /** A slot picker and an Add button, for a card that fits any open slot. */
   function addTo(make, label) {
-    const slot = el('select', { 'aria-label': `Slot for ${label}` }, ...PACT.editable.map(m => el('option', { value: m, text: m })));
-    slot.value = (stepMove() && PACT.editable.find(m => m.startsWith(step))) || PACT.editable[0];
+    const slot = el('select', { 'aria-label': `Slot for ${label}` }, ...SLOT_MARKS.map(m => el('option', { value: m, text: m })));
+    slot.value = (stepMove() && SLOT_MARKS.find(m => m.startsWith(step))) || SLOT_MARKS[0];
     return el('div', { class: 'card-foot' }, slot, chip('Add', false, () => {
       state.slots[slot.value].cards.push(make(slot.value));
       setStatus('', '');
@@ -1412,6 +3283,16 @@ function boot() {
     const kept = await keepCommandsIn(dir, files);
     if (kept.refuse) return setStatus(kept.refuse, 'error');
     files = kept.files;
+    // The four parts' keys go into the folder's builder.json, so a rebuilt page reloads them (#262, D9).
+    let existing = null;
+    try {
+      existing = await (await (await dir.getFileHandle('builder.json')).getFile()).text();
+    } catch (e) {
+      if (!e || e.name !== 'NotFoundError') return setStatus('The folder\'s builder.json could not be read, so nothing was written.', 'error');
+    }
+    const b = builderWith(existing, state);
+    if (b.refuse) return setStatus(b.refuse, 'error');
+    if (b.text) files = [...files, { path: 'builder.json', text: b.text }];
     try {
       for (const f of files) {
         const segs = f.path.split('/');
@@ -1446,6 +3327,11 @@ function boot() {
     $('values').hidden = $('workflows').hidden = id !== 'start';
     $('agents').hidden = id !== 'agents';
     $('workspace').hidden = !stepMove();
+    $('wf').hidden = id !== 'workflow';
+    if (id === 'workflow') {
+      if (!editor) editor = workflowEditor($('wf'), state, () => renderOutput());
+      editor.show();
+    }
     $('output').hidden = $('always').hidden = id !== 'review';
     renderSidebar();
     renderSpine();

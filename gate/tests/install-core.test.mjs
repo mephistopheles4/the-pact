@@ -880,3 +880,19 @@ test('the configuration block: a removed configuration, changed and new files, w
   assert.ok(core.configStale(core.configNow(p), record.config));
   assert.ok(!core.configStale(new Map([['user', H('0')]]), new Map([['user', H('0')]])));
 });
+
+// #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for a move.
+test('the security-defaults line: each part Scriptorium builds alone shows it, a move edit does not, and it says whether the configuration changed', () => {
+  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT move-2', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
+  for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses']) {
+    const line = core.securityDefaultsLine(withEdit(mark), null);
+    assert.match(line, new RegExp(`^WARN: SECURITY DEFAULTS: the user configuration edits ${mark}, which changes the pact's security defaults;`));
+    assert.doesNotMatch(line, /a\.md|blocks/, 'it names no block file');
+  }
+  assert.equal(core.securityDefaultsLine(withEdit('move-2'), null), null);
+  const p = withEdit('lenses');
+  const same = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('e') }] }));
+  const changed = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] }));
+  assert.match(core.securityDefaultsLine(p, same), / The configuration is unchanged since the last install\.$/);
+  assert.match(core.securityDefaultsLine(p, changed), / The configuration CHANGED since the last install\.$/);
+});

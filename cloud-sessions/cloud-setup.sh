@@ -190,7 +190,8 @@ write_config() {
 write_config 'CLAUDE.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact
 
-To change the pact, edit its repo and install it.
+To change the pact, edit its repo and install it. Parts marked *Scriptorium
+builds this* come from my configuration; the text under them is the default.
 
 ## The moves
 
@@ -251,11 +252,15 @@ and help with what it needs.
 A tier says how much checking the work needs. You propose one with a line of
 why; I set it, and can change it any time.
 
+*Scriptorium builds this.*
+
 | Tier | Fits | Plan | Build |
 | --- | --- | --- | --- |
 | **Quick** | Small, one session, no plan needed | none | Opus, low |
 | **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |
 | **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
+
+*Scriptorium builds this.*
 
 Sensitive work gets more checking when I choose it. By default, sensitive
 work is auth, secrets, crypto, input validation and data migrations:
@@ -279,6 +284,8 @@ The stages of a piece of work: what each tier sets at each, the lenses to
 offer there, and where the work goes next. Each stage has one default way on;
 every other way out has its condition.
 
+*Scriptorium builds this.*
+
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
 | Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
@@ -293,6 +300,8 @@ every other way out has its condition.
 A lens is a reviewer that asks one question from one angle. Lenses are tools:
 they help me through a stage faster while my judgment stays on top. Lean on
 judgment more than rules here, more so as models improve.
+
+*Scriptorium builds this.*
 
 | Lens | Asks |
 | --- | --- |
@@ -2258,7 +2267,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 0f93664d5acffe0bbcedf5018538cab3fbc661faac3f448f6b2bcaf555c4b685 'CLAUDE.md'
+check_hash 23cce1e23a8b0d3128a7fc5f20b7405993e9ff22a8f96073b6f2257957bf8873 'CLAUDE.md'
 check_hash b7f32609e682b95f0f4b76afdfdbde87749c41cba240a029a385c48f79a30807 'agents/adversarial-lens.md'
 check_hash 3bb7d5996df6cfb32cab6ecee4a00186ff5e736f11b1e95f6c56e14bc5cefc27 'agents/behaviour-lens.md'
 check_hash ae2297a24909f710c061a145dc3fdaa80198f7f76da06875af57070d2061ae60 'agents/conventions-lens.md'
@@ -2289,7 +2298,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 7037c4782363"
+  echo "pact cloud copy adc9a36ac0da"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

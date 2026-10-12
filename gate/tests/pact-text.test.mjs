@@ -201,13 +201,13 @@ test('bad case: a block name used twice in one file', t => {
 
 // marker
 test('bad case: an unclosed block', t => {
-  // usage-pause's marks go too: the renderer refuses an open mark inside an
+  // The usage parts' marks go too: the renderer refuses an open mark inside an
   // unclosed pinned block before seam A runs, and this case is about seam A's
   // own marker check.
   expectFail(t, 'marker', {
     prep: root =>
       edit(root, MD, s =>
-        s.replace('<!-- pact:end stop-and-escalate -->\n', '').replace('<!-- pact:begin usage-pause -->\n', '').replace('<!-- pact:end usage-pause -->\n', ''),
+        ['<!-- pact:end stop-and-escalate -->\n', '<!-- pact:begin usage-pause -->\n', '<!-- pact:end usage-pause -->\n', '<!-- pact:begin usage-pause-session -->\n', '<!-- pact:end usage-pause-session -->\n'].reduce((t, m) => t.replace(m, ''), s),
       ),
   });
 });

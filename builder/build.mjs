@@ -27,7 +27,11 @@
 //                    "standsIn": <true when written to replace the slot's text, optional>,
 //                    "why": <one line, optional> } ],
 //     "workflows": [ { "id", "title", "about", "presets": [<preset id>] } ],
-//     "yours": { "skills" | "commands" | "agents": [ { "name", "description" } ] } }
+//     "yours": { "skills" | "commands" | "agents": [ { "name", "description" } ] },
+//     "tiers", "sensitive", "workflowGraph", "lenses": the four parts Scriptorium
+//       builds, each optional, in the shapes builder/parts.mjs describes (#262) }
+// The page labels the workflows list "Setups": named sets of presets, not the
+// workflow part.
 //
 // A check refuses what the page could not use (exit 1) and reports findings,
 // which never refuse (exit 0): a finding is answered by fixing the file or by
@@ -42,6 +46,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readStrictJson, Refused, Report, scanText, SEGMENT_RE } from '../gate/shared.mjs';
+import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
@@ -52,6 +57,11 @@ const LEAD_RE = /^- \*\*([^*]+?)\.?\*\*/;
 // The moves' open parts, in move order: each move is found by its part.
 const MOVE_PARTS = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra']);
 const DATA_RE = /\/\* pact-data:begin \*\/[\s\S]*?\/\* pact-data:end \*\//;
+// The parts' compiler and checks, copied in from builder/parts.mjs (#262), so the page and the check share one compiler.
+const PARTS_CODE_RE = /\/\* parts-code:begin \*\/[\s\S]*?\/\* parts-code:end \*\//;
+const PARTS_FILE = join(dirname(fileURLToPath(import.meta.url)), 'parts.mjs');
+/** builder/parts.mjs as page script: its header comment and every "export " taken off. */
+const partsCode = () => readFileSync(PARTS_FILE, 'utf8').replace(/^(?:\/\/.*\n)+\n/, '').replace(/^export /gm, '');
 const SCRIPT_RE = /<script>([\s\S]*?)<\/script>/;
 const STYLE_RE = /<style>([\s\S]*?)<\/style>/;
 const CSP_RE = /(<meta http-equiv="Content-Security-Policy" content=")([^"]*)(">)/;
@@ -72,6 +82,13 @@ function settingFrom(renderSrc) {
   const m = /\['usage-pause', Object\.freeze\(\{ mark: 'usage-pause', min: (\d+), max: (\d+), def: (\d+),/.exec(renderSrc);
   if (!m) fail('gate/render-core.mjs no longer declares the usage-pause setting in the expected form');
   return { name: 'usage-pause', min: Number(m[1]), max: Number(m[2]), def: Number(m[3]) };
+}
+
+/** The session limit's range (#142): a setting with no default, read from gate/render-core.mjs's text. */
+function sessionFrom(renderSrc) {
+  const m = /\['usage-pause-session', Object\.freeze\(\{ mark: 'usage-pause-session', min: (\d+), max: (\d+), def: null,/.exec(renderSrc);
+  if (!m) fail('gate/render-core.mjs no longer declares the usage-pause-session setting in the expected form');
+  return { name: 'usage-pause-session', min: Number(m[1]), max: Number(m[2]) };
 }
 
 /** The source's marked parts (name -> dedented text) and its sequence of lead-ins and marks. */
@@ -148,7 +165,15 @@ export function pactData(root) {
   });
   if (new Set(moves.map(m => m.lead)).size !== moves.length) fail('claude/CLAUDE.md has two move parts under one move');
   const inMoves = moves.flatMap(m => m.parts.map(p => p.mark));
-  for (const m of editable) if (!inMoves.includes(m)) fail(`the editable part ${m} is not in moves 1 to 4`);
+  // The parts Scriptorium builds (#262) sit outside the moves; every other editable part is in one.
+  for (const m of editable) if (!inMoves.includes(m) && !PART_MARKS.includes(m)) fail(`the editable part ${m} is not in moves 1 to 4`);
+  const partText = {};
+  for (const m of PART_MARKS) {
+    if (!editable.includes(m) || parts.get(m) === undefined) fail(`claude/CLAUDE.md has no editable ${m} part`);
+    partText[m] = parts.get(m);
+  }
+  const compiled = compileParts(DEFAULT_PARTS);
+  for (const m of PART_MARKS) if (compiled[m] !== partText[m]) fail(`builder/parts.mjs's default ${m} no longer compiles to the ${m} part in claude/CLAUDE.md`);
 
   const always = seq.filter(s => s.mark && gated.includes(s.mark) && !inMoves.includes(s.mark)).map(s => ({ mark: s.mark, text: parts.get(s.mark) }));
 
@@ -173,6 +198,8 @@ export function pactData(root) {
     const runs = [
       ...moves.flatMap(m => m.parts.filter(p => named(p.text, name)).map(p => ({ move: m.n, mark: p.mark, kind: p.kind }))),
       ...always.filter(a => named(a.text, name)).map(a => ({ move: null, mark: a.mark, kind: 'gated' })),
+      // #262 S8: its offers in the workflow and its row in the roster. The page counts them from the person's own parts.
+      ...['workflow', 'lenses'].filter(m => named(partText[m], name)).map(m => ({ move: null, mark: m, kind: 'part' })),
     ];
     return { name, model: field('model'), effort: field('effort'), runs, configurable: configurable.includes(name) };
   };
@@ -184,7 +211,8 @@ export function pactData(root) {
 
   // Skills the pact's own text names, so a preset naming one is not a finding.
   const pactNames = [...new Set([...parts.values()].flatMap(codeSpans))];
-  return { moves, always, editable, setting, agents: agentInfo, agentChoices, pactNames };
+  const session = sessionFrom(renderSrc);
+  return { moves, always, editable, setting, session, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactNames };
 }
 
 // ------------------------------------------------------------ the builder file
@@ -197,6 +225,8 @@ const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const LINE_RE = /^[^\n\r]{0,300}$/;
 const YOURS_RE = { skills: SKILL_NAME_RE, commands: SKILL_NAME_RE, agents: AGENT_NAME_RE };
 const YOURS_MAX = 2000;
+// The builder file's keys for the four parts (#262), in PART_MARKS order: workflowGraph holds the workflow part's graph.
+const PART_KEYS = Object.freeze(['tiers', 'sensitive', 'workflowGraph', 'lenses']);
 
 const isObject = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysOnly = (o, allowed) => Object.keys(o).every(k => allowed.includes(k));
@@ -251,7 +281,7 @@ export function loadBuilder(file, pact) {
     return { builder: null, refusals: [`the builder file is not strict JSON: ${e.reason}`], findings };
   }
   if (!isObject(doc)) return { builder: null, refusals: ['the builder file is not a JSON object'], findings };
-  if (!keysOnly(doc, ['schema', 'title', 'presets', 'workflows', 'yours'])) refuse('a top-level key that is not schema, title, presets, workflows or yours; the pact\'s own text is never part of a builder file');
+  if (!keysOnly(doc, ['schema', 'title', 'presets', 'workflows', 'yours', ...PART_KEYS])) refuse(`a top-level key that is not schema, title, presets, workflows, yours or ${PART_KEYS.join(', ')}; the pact's own text is never part of a builder file`);
   if (doc.schema !== 1) refuse('schema must be 1');
   if (Object.hasOwn(doc, 'title') && (typeof doc.title !== 'string' || !LINE_RE.test(doc.title) || doc.title.length > 80)) refuse('title must be one line of at most 80 characters');
 
@@ -337,9 +367,18 @@ export function loadBuilder(file, pact) {
       }
   }
 
+  // The four parts (#262): a key the file leaves out keeps the pact's default.
+  let parts = null;
+  if (PART_KEYS.some(k => Object.hasOwn(doc, k))) {
+    parts = copyParts(DEFAULT_PARTS);
+    for (const k of PART_KEYS) if (Object.hasOwn(doc, k)) parts[k] = doc[k];
+    for (const f of partsProblems(parts)) (f.level === 'error' ? refusals : findings).push(`${f.part}: ${f.text}`);
+  }
+
   // Text the page's content-policy test refuses never reaches a page.
   const POLICY_RE = /[a-z][a-z0-9+.-]*:\/\/|\bfetch\s*\(|\bimport\s*\(|\binnerHTML\b|\bouterHTML\b|\binsertAdjacentHTML\b|\bdocument\s*\.\s*write/i;
   const texts = [
+    ...(parts ? partsTexts(parts).map(([where, text]) => [where, '', text]) : []),
     ...presets.flatMap(p => [['preset', p.id, p.title], ['preset', p.id, p.text], ['preset', p.id, p.why]]),
     ...workflows.flatMap(w => [['workflow', w.id, w.title], ['workflow', w.id, w.about]]),
     ...['skills', 'commands', 'agents'].flatMap(k => yours[k].map(x => [`yours.${k}`, x.name, x.description])),
@@ -368,7 +407,20 @@ export function loadBuilder(file, pact) {
   if (!listed) findings.push('yours lists no skills, commands or agents; the page\'s "Yours" section will say so');
 
   if (refusals.length) return { builder: null, refusals, findings };
-  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', presets, workflows, yours }, refusals, findings };
+  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', presets, workflows, yours, ...(parts ? { ownParts: parts } : {}) }, refusals, findings };
+}
+
+/**
+ * Run each part a builder file changes through the installer's renderer, as
+ * a replace edit, in a throwaway Claude home. Returns one refusal per part the
+ * renderer refuses, carrying its FAIL lines.
+ */
+export function partsThroughRenderer(root, parts) {
+  if (!parts) return [];
+  const pact = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
+  const compiled = compileParts(parts);
+  const changed = PART_MARKS.filter(m => !pact.includes(`<!-- pact:begin ${m} -->\n${compiled[m]}\n<!-- pact:end ${m} -->`));
+  return renderEdits(root, changed.map(m => ({ id: m, mark: m, op: 'replace', text: compiled[m] }))).map(p => `${p.id}: the installer's renderer refuses the compiled part${p.fails}`);
 }
 
 /**
@@ -377,20 +429,25 @@ export function loadBuilder(file, pact) {
  * the renderer refuses, carrying the renderer's own FAIL lines (fixed text).
  */
 export function presetsThroughRenderer(root, presets) {
+  return renderEdits(root, presets.map(p => ({ id: p.id, mark: p.mark, op: 'add-after', text: p.text }))).map(p => `preset ${p.id}: the installer's renderer refuses its text${p.fails}`);
+}
+
+/** Each { id, mark, op, text } rendered alone through the installer's renderer: [{ id, fails }] for each it refuses. */
+function renderEdits(root, edits) {
   const out = [];
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  for (const p of presets) {
+  for (const e of edits) {
     const home = mkdtempSync(join(tmpdir(), 'scriptorium-check-'));
     const dest = mkdtempSync(join(tmpdir(), 'scriptorium-out-'));
     try {
       mkdirSync(join(home, 'pact', 'blocks'), { recursive: true });
-      writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: p.mark, op: 'add-after', file: 'b.md' }] })}\n`);
-      writeFileSync(join(home, 'pact', 'blocks', 'b.md'), `${p.text}\n`);
+      writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: e.mark, op: e.op, file: 'b.md' }] })}\n`);
+      writeFileSync(join(home, 'pact', 'blocks', 'b.md'), `${e.text}\n`);
       const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), join(root, 'claude', 'CLAUDE.md'), dest, home], { encoding: 'utf8', env });
       if (r.status !== 0) {
         const fails = (r.stdout || '').split('\n').filter(l => l.startsWith('FAIL '));
-        out.push(`preset ${p.id}: the installer's renderer refuses its text${fails.length ? ` (${fails.join('; ')})` : ''}`);
+        out.push({ id: e.id, fails: fails.length ? ` (${fails.join('; ')})` : '' });
       }
     } finally {
       rmSync(home, { recursive: true, force: true });
@@ -431,7 +488,7 @@ function agentClassesThroughRenderer(root, agents) {
 export function checkBuilder(root, file) {
   const pact = pactData(root);
   const r = loadBuilder(file, pact);
-  if (r.builder) r.refusals.push(...presetsThroughRenderer(root, r.builder.presets));
+  if (r.builder) r.refusals.push(...presetsThroughRenderer(root, r.builder.presets), ...partsThroughRenderer(root, r.builder.ownParts));
   if (r.refusals.length) r.builder = null;
   return { ...r, pact };
 }
@@ -449,6 +506,8 @@ export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_R
   // JSON inside a script: "<" is escaped, so no text can close the script or open a comment.
   const json = JSON.stringify({ ...shown, ...builder }, null, 1).replaceAll('<', ESC_LT);
   let out = html.replace(DATA_RE, () => `/* pact-data:begin */ ${json} /* pact-data:end */`);
+  if (!PARTS_CODE_RE.test(out)) fail('the page has no parts-code marks');
+  out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);
   const script = SCRIPT_RE.exec(out);
   const style = STYLE_RE.exec(out);
   if (!script || !style || !CSP_RE.test(out)) fail('the page has no inline script, style or policy meta tag');

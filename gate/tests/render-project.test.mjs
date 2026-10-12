@@ -116,6 +116,20 @@ test('bad case: a project value looser than the default refuses', t => {
   refusedWith(render(t, userHome(t), project(t, projectFile(80))), 'project-looser');
 });
 
+// #142: the session limit layers like the weekly one: a project may only set it tighter.
+test('bad case: a project session value looser than the user\'s refuses', t => {
+  const user = '{"schema": 1, "settings": {"usage-pause-session": 50}}\n';
+  refusedWith(render(t, userHome(t, user), project(t, '{"schema": 1, "settings": {"usage-pause-session": 60}}\n')), 'project-looser', /usage-pause-session 60 is not tighter than the user's effective value, 50/);
+});
+
+// #142: with no session value in the user file there is no session line to loosen, so a project's is tighter.
+test('with no user session value, a project session value installs its lower-of line', t => {
+  const r = render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause-session": 60}}\n'));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^VALUE usage-pause-session 60$/m, r.out);
+  assert.match(r.bytes.toString('utf8'), /^- \*\*Session usage pause\.\*\* In this project, wait for my go-ahead when the 5-hour session limit is above 60% or above the line in my user rules, whichever is lower\.$/m);
+});
+
 test('bad case: a project file with an edit refuses, even an empty edit list', t => {
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": [{"mark": "move-2", "op": "remove"}]}\n')), 'project-edit');
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": []}\n')), 'project-edit');

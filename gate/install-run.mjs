@@ -174,6 +174,9 @@ async function main() {
   const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   say(`Check: passed on commit ${commit}`);
   say("Partly checked: the gate checks the rendered CLAUDE.md's pinned block word for word, its markers, its characters and that it imports no file, not its wording or meaning; line numbers in seam A's lines count the rendered file.");
+  // Before every other warning (#262, S8). A project install never edits a part.
+  const securityLine = project ? null : core.securityDefaultsLine(parsed, record);
+  if (securityLine) say(securityLine);
 
   // A project install ends here, never reaching the home copy, delete,
   // settings merge or record. The renderer runs again in project mode, the

@@ -139,6 +139,16 @@ parts:
 - **`Configuration:`.** `no configuration`, unless you have a
   `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
   a rendered hash the apply command carries.
+- **`WARN: SECURITY DEFAULTS:`.** Shown before every other warning when your
+  configuration edits any of the four parts Scriptorium builds: `tiers`,
+  `sensitive`, `workflow` or `lenses`. They hold the tier table, what
+  Claude looks for as sensitive work and the route it recommends, the
+  workflow table with the lenses offered at each stage, and the lens roster.
+  The line names the parts you edit and says whether your configuration
+  changed since the last install. Read those parts in the rendered rules file
+  (`--review-folder` writes it out) before you install. Only your home
+  configuration may edit them; a project's `.claude/pact-config.json` may
+  edit no part.
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and
   `/scriptorium`, each `on` or `off`, and `(not in this commit)` for one the
   commit doesn't hold yet. None is on until you turn it on: list its name in
@@ -295,8 +305,13 @@ first install, with no drift, and lists the files `--apply` will overwrite.
 After the apply, bring your edits back by hand, or carry them as a
 configuration (see below).
 
-To change the pact's settings, such as the usage pause line or a lens's model,
-see `examples/pact-config/` and the config builder in `builder/`.
+To change the pact's settings, such as the usage pause lines or a lens's
+model, see `examples/pact-config/` and the config builder in `builder/`. Two
+usage settings exist: `usage-pause`, the weekly line (75% by default), and
+`usage-pause-session`, the 5-hour session line, unset by default (#142). The
+builder's Settings dialog holds both. Its Workflow step edits the four parts
+above on #143's canvas; `examples/pact-config/config-parts.json` edits all
+four, with the session line set.
 
 ## Roll back to an older version
 
@@ -325,6 +340,10 @@ that id and run only `gate/install.mjs`, dry run first.
 deletes `pact/review.md`, which its payload lacks, and overwrites `CLAUDE.md`
 with the rules it held. Run its dry run first and check that it lists exactly
 those two.
+
+A pact from before #262 and #142 refuses a configuration that edits `tiers`,
+`sensitive`, `workflow` or `lenses`, or sets `usage-pause-session`, so
+take those out first.
 
 A pact from before the pact commands (#203) refuses a configuration with a
 `commands` key, so take the key out first. Its install then deletes the

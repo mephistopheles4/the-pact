@@ -354,9 +354,9 @@ export function checkVerdict(report, what) {
 
 // ------------------------------------------------------------ the renderer's lines
 
-const EDIT_RE = /^EDIT (move-1|move-2|move-3|move-4-extra) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
+const EDIT_RE = /^EDIT (move-1|move-2|move-3|move-4-extra|tiers|sensitive|workflow|lenses) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (opus|sonnet) (low|medium|high) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
-const VALUE_RE = /^VALUE (usage-pause) (0|[1-9][0-9]?|100)$/;
+const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 
 /**
@@ -1018,6 +1018,23 @@ export function configStale(now, last) {
   if (now.size !== last.size) return true;
   for (const [k, v] of now) if (!last.has(k) || last.get(k) !== v) return true;
   return false;
+}
+
+// The parts Scriptorium builds (#262). An edit to any of them changes the
+// security defaults: what Claude looks for as sensitive, the route it
+// recommends, and which lenses are offered when.
+export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses']);
+
+/**
+ * The security-defaults line (#262, S8), or null when no edit reaches one of
+ * SECURITY_PARTS. The dry run prints it before every other warning. It points
+ * by part name and never names a block file.
+ */
+export function securityDefaultsLine(parsed, record) {
+  const parts = SECURITY_PARTS.filter(p => parsed.edits.has(p));
+  if (!parts.length) return null;
+  const since = !record ? 'no install is recorded to compare with' : configStale(configNow(parsed), record.config) ? 'the configuration CHANGED since the last install' : 'the configuration is unchanged since the last install';
+  return `WARN: SECURITY DEFAULTS: the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install. ${since[0].toUpperCase()}${since.slice(1)}.`;
 }
 
 /** The Configuration block, built from the renderer's parsed lines alone. */

@@ -123,6 +123,10 @@ test('bad case: a planted copy of the offers paragraph inside a part is caught',
   assert.ok(problems.includes('the offers paragraph sits outside the Lenses section'), problems.join('\n'));
   // A second copy, kept in place, is caught too.
   assert.ok(offersProblems(SOURCE.replace('  <!-- pact:end move-1 -->', `${para}\n  <!-- pact:end move-1 -->`)).includes('the offers paragraph occurs 2 times, not once'));
+  // #262 S9, phase 2: moved into the `lenses` part, right above it in the Lenses section, it is caught by the mark alone.
+  const intoLenses = SOURCE.replace(`${para}\n`, '').replace('<!-- pact:end lenses -->', `${para}\n<!-- pact:end lenses -->`);
+  assert.notEqual(intoLenses, SOURCE);
+  assert.deepEqual(offersProblems(intoLenses), ['the offers paragraph sits inside an open mark']);
 });
 
 // #262 C2, C3
