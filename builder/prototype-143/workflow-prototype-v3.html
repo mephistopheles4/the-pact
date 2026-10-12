@@ -235,14 +235,14 @@ const PRACTICES = [
 const LENSES = ['behaviour-lens','integrity-lens','executability-lens','unstated-lens','reader-lens','conventions-lens','adversarial-lens','data-lens','good-enough-lens'];
 const CONDS = {
   always:    { label: 'Every build', test: w => true },
-  spec:      { label: 'There is a spec (above quick)', test: w => w.tier !== 'quick' },
+  spec:      { label: 'Standard and above', test: w => w.tier !== 'quick' },
+  thorough:  { label: 'Thorough only', test: w => w.tier === 'thorough' },
   sensitive: { label: 'Sensitive work', test: w => w.sensitive },
-  prose:     { label: 'The diff adds prose or docs', test: w => w.prose },
-  rules:     { label: 'The repo has written rules', test: w => w.rules },
-  heavy:     { label: 'Scope feels heavy', test: w => w.heavy },
   custom:    { label: 'In your own words', test: w => false },
 };
-const PAIRS = [['behaviour-lens','integrity-lens','the QA pair'],['adversarial-lens','data-lens','the security pair']];
+const PAIRS = [['behaviour-lens','integrity-lens','the QA pair'],['adversarial-lens','data-lens','the security pair'],
+  ['unstated-lens','good-enough-lens','the spec pair'],['conventions-lens','reader-lens','the standards pair']];
+const DEFAULT_PAIRS = ['the QA pair','the security pair']; // the defaults sentence names these two
 
 let S, uid = 0;
 const nid = p => p + (++uid);
@@ -261,15 +261,13 @@ function fresh(){
       nodes.push(g); edges.push({ id: nid('e'), from: n.id, fp: 'out', to: g.id }); });
   };
   const D = st.Design, T = st.Test;
-  cond(D, 'spec', 200, ['executability-lens']);
-  cond(D, 'spec', 290, ['unstated-lens']);
+  cond(D, 'spec', 200, ['unstated-lens','good-enough-lens']);
+  cond(D, 'spec', 290, ['executability-lens']);
   cond(D, 'sensitive', 380, ['adversarial-lens','data-lens'], true);
-  cond(D, 'heavy', 490, ['good-enough-lens']);
   cond(T, 'always', 200, ['behaviour-lens','integrity-lens'], true);
-  cond(T, 'spec', 310, ['unstated-lens']);
-  cond(T, 'prose', 400, ['reader-lens']);
-  cond(T, 'rules', 490, ['conventions-lens']);
-  cond(T, 'sensitive', 580, ['adversarial-lens','data-lens'], true);
+  cond(T, 'spec', 310, ['conventions-lens','reader-lens']);
+  cond(T, 'spec', 400, ['unstated-lens']);
+  cond(T, 'sensitive', 490, ['adversarial-lens','data-lens'], true);
   const link = (a, b, when) => edges.push({ id: nid('e'), from: a.id, fp: 'top', to: b.id, tp: 'top', when, on: true });
   link(T, st.Build, 'a claim fails');
   link(T, D, 'the intent changed');
@@ -280,7 +278,7 @@ function fresh(){
       { name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
       { name: 'Thorough', fits: 'Too big for one session, or risky', plan: 'Opus, high', build: 'Sonnet, medium' }],
     sensitive: ['auth','secrets','crypto','input validation','data migrations'],
-    work: { tier: 'standard', sensitive: false, prose: false, rules: true, heavy: false },
+    work: { tier: 'standard', sensitive: false },
     sel: null, tab: 'inspect', view: { x: 20, y: 10, k: 0.62 } };
 }
 
@@ -341,7 +339,7 @@ function renderSim(){
   const chip = (id, label, on) => `<button class="av-tool-chip ${on?'av-tool-chip--on':'av-tool-chip--ghost'}" data-w="${id}" aria-pressed="${on}">${label}</button>`;
   $('sim').innerHTML = `<span class="av-label">A piece of work</span>` +
     ['quick','standard','thorough'].map(x => chip('tier:'+x, x, w.tier === x)).join('') + `<span class="note">·</span>` +
-    chip('sensitive','sensitive', w.sensitive) + chip('prose','adds docs', w.prose) + chip('rules','written rules', w.rules) + chip('heavy','heavy scope', w.heavy) +
+    chip('sensitive','sensitive', w.sensitive) +
     `<button class="av-tool-chip av-tool-chip--on" id="runBtn">▶ Run it through</button>` +
     `<span class="note">${w.sensitive && w.tier !== 'thorough' ? 'Sensitive work runs thorough, whatever the tier. ' : ''}Green: fires for this work.${t === 'quick' ? ' No plan at quick: Design is skipped.' : ''}</span>`;
   document.querySelectorAll('[data-w]').forEach(b => b.onclick = () => {
@@ -695,7 +693,7 @@ function warnings(){
   S.nodes.filter(n => n.kind === 'cond' && n.def && !n.on).forEach(c => { const st = parentStage(c);
     out.push(`A default is off at ${st ? st.name : '?'}: ${children(c).map(a => a.name).join(' and ')}. The defaults sentence still says it runs. Should the builder refuse this?`); });
   S.nodes.filter(n => n.kind === 'cond').forEach(c => { const names = children(c).map(a => a.name);
-    PAIRS.forEach(([x, y, l]) => { if (names.includes(x) !== names.includes(y)) out.push(`Half of ${l} on one condition at ${parentStage(c)?.name || '?'}: a crossing would be lost.`); }); });
+    PAIRS.filter(x => DEFAULT_PAIRS.includes(x[2])).forEach(([x, y, l]) => { if (names.includes(x) !== names.includes(y)) out.push(`Half of ${l} on one condition at ${parentStage(c)?.name || '?'}: a crossing would be lost.`); }); });
   return out;
 }
 
