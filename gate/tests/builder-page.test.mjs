@@ -466,7 +466,7 @@ function bootPage({ picker = false, folder = null } = {}) {
   const ids = {};
   const document = { createElement: t => new N(t), createTextNode: t => Object.assign(new N('#text'), { textContent: t }), getElementById: id => (ids[id] ||= new N('div')), documentElement: new N('html'), body: new N('body'), addEventListener() {} };
   const window = { localStorage: { getItem: () => null, setItem() {} }, scrollTo() {}, addEventListener() {}, isSecureContext: picker, ...(picker ? { showDirectoryPicker: async () => { if (folder) return folder; throw Object.assign(new Error('x'), { name: 'AbortError' }); } } : {}) };
-  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout, requestAnimationFrame: () => 0 }));
+  vm.runInContext(script, vm.createContext({ document, window, Node: N, URL, Blob: class {}, setTimeout, clearTimeout, requestAnimationFrame: () => 0 }));
   const find = (n, pred, out = []) => { if (pred(n)) out.push(n); n.children.forEach(c => find(c, pred, out)); return out; };
   const button = (root, label) => find(root, n => n.tag === 'button' && n.text.startsWith(label))[0];
   return { ids, find, button };
@@ -483,7 +483,7 @@ test('stub page: the canvas is the page, and the head opens Settings and Export;
   const P = bootPage();
   assert.equal(P.find(P.ids.wf, n => n.attrs && n.attrs['aria-label'] === 'The workflow canvas').length, 1);
   assert.deepEqual(P.find(P.ids.actions, n => n.tag === 'button').map(b => b.text), ['Take the tour', 'Settings', 'Dark', 'Export']);
-  assert.ok(P.button(P.ids.reset, 'Reset all'));
+  assert.ok(P.button(P.ids.reset, 'Reset'));
   const box = openSettings(P);
   assert.deepEqual(P.find(box, n => n.tag === 'summary').map(n => n.text), ['Moves', 'Setups', 'Agents', 'Tiers', 'Sensitive work', 'Lenses', 'Results']);
   assert.deepEqual(P.find(box, n => n.tag === 'article').map(a => a.attrs.id), ['move-1', 'move-2', 'move-3', 'move-4']);
@@ -507,11 +507,12 @@ test('stub page: an edited move saves as a replace edit; reset all puts the defa
   assert.match(P.ids.summary.text, /1 of/);
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /"mark": "move-1",\s*"op": "replace"/);
-  P.button(P.ids.reset, 'Reset all').click();
+  P.button(P.ids.reset, 'Reset').click();
   assert.match(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0].textContent, /^What kind of work/);
-  // The one reset button, right after a reset, is its undo (it reads Undo reset on hover).
+  // The one reset button, right after a reset, offers its undo on hover, as eagle-eye's does.
   const undo = P.find(P.ids.reset, n => n.tag === 'button')[0];
-  assert.equal(undo.text, 'Reset');
+  undo.listeners.mouseenter.forEach(f => f({}));
+  assert.equal(undo.textContent, 'Undo');
   undo.click();
   assert.equal(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0].textContent, 'I sense the work my own way.');
 });

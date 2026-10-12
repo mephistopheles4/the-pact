@@ -28,7 +28,10 @@
 export const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses']);
 export const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
 export const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
-export const MODEL_CHOICES = Object.freeze(['Opus, low', 'Opus, medium', 'Opus, high', 'Sonnet, low', 'Sonnet, medium', 'Sonnet, high']);
+// A model and its effort, as the tables write them. The builder offers them as two dropdowns.
+export const MODEL_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku']);
+export const EFFORTS = Object.freeze(['low', 'medium', 'high']);
+export const MODEL_CHOICES = Object.freeze(MODEL_NAMES.flatMap(m => EFFORTS.map(e => `${m}, ${e}`)));
 export const STAGE_MODELS = Object.freeze(['plan', 'build', 'owner']);
 // Each offer condition and the words it compiles to. 'words' compiles to the offer's own words.
 export const OFFER_WHENS = Object.freeze({

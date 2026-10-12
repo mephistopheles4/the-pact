@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-cl7sV2jRx9GxY01boiaWPYgpSqt9kCEgTiih3pajK3U='; style-src 'sha256-lsiDyWhGhMusu0qkOljIkQiON3w1IitOTazWocHAauw='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CNDeZmEw3q8Cd/CZe1RSNf3xtVKBZDANAFqge+5tBKc='; style-src 'sha256-wq9tA6DF8DJOKD29ahrS7s/Ohux+wRW8ibZpFSb6344='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -217,12 +217,12 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-head { padding: var(--av-s2) var(--av-s4); }
 .wf-bar { display: flex; align-items: center; gap: var(--av-s1); flex-wrap: wrap; padding: var(--av-s1) var(--av-s4); border-top: var(--av-rule-hair) solid var(--av-ink-12); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); background: var(--av-surface); }
 .wf-note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
-.wf-cols { display: grid; grid-template-columns: 240px minmax(0, 1fr) 7px var(--panel-w, 330px); height: 78vh; min-height: 480px; }
+.wf-cols { display: grid; grid-template-columns: var(--side-w, 240px) 7px minmax(0, 1fr) 7px var(--panel-w, 330px); height: 78vh; min-height: 480px; }
 @media (max-width: 1000px) { .wf-cols { grid-template-columns: minmax(0, 1fr); height: auto; } .wf-side { max-height: 14rem; } .wf-canvas { height: 60vh; } }
 .wf-side, .wf-panel, .wf-table { background: var(--av-surface); box-shadow: var(--wf-shadow); position: relative; z-index: 2; }
 .wf-side { overflow: auto; padding: var(--av-s2); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s1); }
 .wf-panel { overflow: auto; border-left: var(--av-rule-hair) solid var(--av-ink-30); }
-.wf-centre { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
+.wf-centre { display: grid; grid-template-rows: minmax(0, 1fr) 7px var(--table-h, 220px); min-height: 0; min-width: 0; }
 
 .wf-lib { font: inherit; color: inherit; display: flex; align-items: center; gap: var(--av-s1); width: 100%; text-align: left; padding: var(--av-s1); border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-paper); cursor: grab; transition: transform .12s, border-color .12s; }
 .wf-lib:hover { border-color: var(--av-ink); transform: translateX(2px); }
@@ -247,7 +247,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-canvas.wf-dropping { box-shadow: inset 0 0 0 var(--av-rule-bold) var(--av-caution); }
 .wf-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
 .wf-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; z-index: 1; }
-.wf-zoom { position: absolute; left: var(--av-s2); bottom: var(--av-s2); z-index: 3; display: flex; gap: 2px; background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); }
+.wf-zoom { position: absolute; right: var(--av-s2); top: var(--av-s2); z-index: 3; display: flex; gap: 2px; background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); }
 .wf-zoom button { font: inherit; color: inherit; border: 0; background: none; padding: 4px 9px; cursor: pointer; font-size: var(--av-t-annot); }
 .wf-zoom span { padding: 4px 6px; font-size: var(--av-t-micro); min-width: 44px; text-align: center; align-self: center; }
 .wf-toast { position: absolute; left: 50%; bottom: var(--av-s2); z-index: 3; transform: translateX(-50%); background: var(--av-ink); color: var(--av-paper); padding: 5px 12px; font-size: var(--av-t-annot); opacity: 0; transition: opacity .25s; pointer-events: none; }
@@ -298,7 +298,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-port--down { left: calc(50% - 6px); bottom: -7px; }
 .wf-port--top { left: calc(50% - 6px); top: -7px; }
 
-.wf-table { max-height: 34vh; overflow: auto; border-top: var(--av-rule-hair) solid var(--av-ink); padding: var(--av-s1) var(--av-s2) var(--av-s2); }
+.wf-table { min-height: 0; overflow: auto; border-top: var(--av-rule-hair) solid var(--av-ink); padding: var(--av-s1) var(--av-s2) var(--av-s2); }
 .wf-whead { display: flex; gap: var(--av-s2); align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
 .wf-whead h2 { font-size: var(--av-t-body); margin: 0; font-weight: 600; }
 .wf-tbl { width: 100%; border-collapse: collapse; font-size: var(--av-t-micro); }
@@ -329,6 +329,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-tour { font-family: var(--av-font); color: var(--av-ink); line-height: 1.5; position: fixed; z-index: 30; max-width: 320px; background: var(--av-paper); border: var(--av-rule-bold) solid var(--av-ink); padding: var(--av-s2); box-shadow: 6px 6px 0 var(--av-ink-12); font-size: var(--av-t-annot); animation: wf-pop .2s ease-out; }
 .wf-tour p { margin: var(--av-s1) 0; }
 .wf-tourhl { outline: 3px solid var(--av-caution) !important; outline-offset: 2px; }
+.wf-spot { position: fixed; z-index: 29; pointer-events: none; box-shadow: 0 0 0 200vmax rgb(0 0 0 / 0.5); transition: left .25s, top .25s, width .25s, height .25s; }
 
 /* PAGE: Scriptorium's head, then the canvas, the whole height. */
 html, body { height: 100%; }
@@ -358,11 +359,16 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .classic-head { position: relative; padding-right: var(--av-s5); }
 .close-x { position: absolute; top: var(--av-s1); right: var(--av-s2); font: inherit; font-size: var(--av-t-lead); line-height: 1; padding: 4px 8px; border: 0; background: transparent; color: var(--av-ink-70); cursor: pointer; }
 .close-x:hover { color: var(--av-caution); }
+.reset-btn { min-width: 9ch; text-align: center; }
+.reset-btn.armed { background: var(--av-caution); border-color: var(--av-caution); color: var(--av-paper); }
+.model-row label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); }
+.model-row select { width: auto; flex: 1 1 6em; }
 .acc summary { cursor: pointer; padding: var(--av-s1) 0; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; }
 .acc-body { display: flex; flex-direction: column; gap: var(--av-s1); padding: 0 0 var(--av-s2); }
 .acc-body input[type="text"], .acc-body select { width: 100%; min-width: 0; }
 .wf-resizer { cursor: col-resize; background: var(--av-surface); position: relative; z-index: 2; border-left: var(--av-rule-hair) solid var(--av-ink-30); touch-action: none; transition: background .15s; }
 .wf-resizer:hover, .wf-resizer.on { background: var(--av-caution); }
+.wf-resizer--y { cursor: row-resize; border-left: 0; border-top: var(--av-rule-hair) solid var(--av-ink-30); }
 @media (max-width: 1000px) { .wf-resizer { display: none; } }
 </style>
 </head>
@@ -1052,7 +1058,10 @@ const PACT = /* pact-data:begin */ {
 const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses']);
 const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
 const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
-const MODEL_CHOICES = Object.freeze(['Opus, low', 'Opus, medium', 'Opus, high', 'Sonnet, low', 'Sonnet, medium', 'Sonnet, high']);
+// A model and its effort, as the tables write them. The builder offers them as two dropdowns.
+const MODEL_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku']);
+const EFFORTS = Object.freeze(['low', 'medium', 'high']);
+const MODEL_CHOICES = Object.freeze(MODEL_NAMES.flatMap(m => EFFORTS.map(e => `${m}, ${e}`)));
 const STAGE_MODELS = Object.freeze(['plan', 'build', 'owner']);
 // Each offer condition and the words it compiles to. 'words' compiles to the offer's own words.
 const OFFER_WHENS = Object.freeze({
@@ -1941,40 +1950,52 @@ function workflowEditor(host, state, changed) {
   );
   const table = el('div', { class: 'wf-table' });
   const panel = el('div', { class: 'wf-panel' });
-  const resizer = el('div', { class: 'wf-resizer', role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize the panel', tabindex: '0' });
-  const cols = el('div', { class: 'wf-cols' }, library, el('div', { class: 'wf-centre' }, canvas, table), resizer, panel);
+  const bar = (axis, label) => el('div', { class: `wf-resizer wf-resizer--${axis}`, role: 'separator', 'aria-orientation': axis === 'x' ? 'vertical' : 'horizontal', 'aria-label': label, tabindex: '0' });
+  const sideBar = bar('x', 'Resize the library');
+  const panelBar = bar('x', 'Resize the panel');
+  const tableBar = bar('y', 'Resize the table');
+  const cols = el('div', { class: 'wf-cols' }, library, sideBar, el('div', { class: 'wf-centre' }, canvas, tableBar, table), panelBar, panel);
   const parts = { library, canvas, table, sim, panel };
   host.replaceChildren(sim, cols);
 
-  // The panel's width: drag the bar, or arrow keys on it; remembered in this browser when storage allows.
-  const setPanel = w => {
-    const width = Math.max(240, Math.min(Math.round(w), window.innerWidth * 0.6));
-    cols.style.setProperty('--panel-w', `${width}px`);
+  /**
+   * One resize bar: drag it, or arrow keys on it, or double-click it back to
+   * `def`; the size is a CSS property on the columns, remembered in this
+   * browser when storage allows. `measure` gives the size from a pointer.
+   */
+  function sizer(handle, prop, key, def, min, maxOf, measure, now, step) {
+    const set = v => {
+      const size = Math.max(min, Math.min(Math.round(v), maxOf()));
+      cols.style.setProperty(prop, `${size}px`);
+      try {
+        window.localStorage.setItem(key, String(size));
+      } catch {}
+    };
     try {
-      window.localStorage.setItem('scriptorium-panel', String(width));
+      const v = Number(window.localStorage.getItem(key));
+      if (v) set(v);
     } catch {}
-  };
-  try {
-    const w = Number(window.localStorage.getItem('scriptorium-panel'));
-    if (w) setPanel(w);
-  } catch {}
-  resizer.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    resizer.setPointerCapture(e.pointerId);
-    resizer.classList.add('on');
-  });
-  resizer.addEventListener('pointermove', e => {
-    if (resizer.hasPointerCapture(e.pointerId)) setPanel(cols.getBoundingClientRect().right - e.clientX);
-  });
-  resizer.addEventListener('pointerup', e => {
-    resizer.releasePointerCapture(e.pointerId);
-    resizer.classList.remove('on');
-  });
-  resizer.addEventListener('dblclick', () => setPanel(330));
-  resizer.addEventListener('keydown', e => {
-    if (e.key === 'ArrowLeft') setPanel(panel.offsetWidth + 24);
-    if (e.key === 'ArrowRight') setPanel(panel.offsetWidth - 24);
-  });
+    handle.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      handle.classList.add('on');
+    });
+    handle.addEventListener('pointermove', e => {
+      if (handle.hasPointerCapture(e.pointerId)) set(measure(e));
+    });
+    handle.addEventListener('pointerup', e => {
+      handle.releasePointerCapture(e.pointerId);
+      handle.classList.remove('on');
+    });
+    handle.addEventListener('dblclick', () => set(def));
+    handle.addEventListener('keydown', e => {
+      const d = step[e.key];
+      if (d) set(now() + d);
+    });
+  }
+  sizer(sideBar, '--side-w', 'scriptorium-side', 240, 160, () => window.innerWidth * 0.4, e => e.clientX - cols.getBoundingClientRect().left, () => library.offsetWidth, { ArrowLeft: -24, ArrowRight: 24 });
+  sizer(panelBar, '--panel-w', 'scriptorium-panel', 330, 240, () => window.innerWidth * 0.6, e => cols.getBoundingClientRect().right - e.clientX, () => panel.offsetWidth, { ArrowLeft: 24, ArrowRight: -24 });
+  sizer(tableBar, '--table-h', 'scriptorium-table', 220, 60, () => window.innerHeight * 0.7, e => cols.getBoundingClientRect().bottom - e.clientY, () => table.offsetHeight, { ArrowUp: 24, ArrowDown: -24 });
 
   function toast(msg) {
     toastEl.textContent = msg;
@@ -2652,7 +2673,22 @@ function workflowEditor(host, state, changed) {
     });
     return el('label', { class: 'wf-field wf-field--row' }, b, el('span', { text: on ? 'On' : 'Off' }));
   };
-  const models = none => [...(none ? [['none', 'none']] : []), ...MODEL_CHOICES.map(m => [m, m])];
+  /** A model and its effort as two dropdowns, as the agents take them; `none` adds "none" for a tier with no plan. */
+  function modelEffort(label, value, set, none) {
+    const [m0, e0] = value === 'none' ? ['none', 'high'] : value.split(', ');
+    const model = el('select', { 'aria-label': `${label} model` }, ...(none ? [el('option', { value: 'none', text: 'none' })] : []), ...MODEL_NAMES.map(m => el('option', { value: m, text: m })));
+    const effort = el('select', { 'aria-label': `${label} effort` }, ...EFFORTS.map(e => el('option', { value: e, text: e })));
+    model.value = m0;
+    effort.value = e0;
+    effort.disabled = m0 === 'none';
+    const take = () => {
+      set(model.value === 'none' ? 'none' : `${model.value}, ${effort.value}`);
+      edited();
+    };
+    model.addEventListener('change', take);
+    effort.addEventListener('change', take);
+    return el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: label }), el('div', { class: 'field-row model-row' }, el('label', { text: 'Model' }), model, el('label', { text: 'Effort' }), effort));
+  }
 
   function inspect() {
     const s = ui.sel;
@@ -2682,7 +2718,12 @@ function workflowEditor(host, state, changed) {
         el('h2', { text: 'Stage' }),
         field('Name', input(st.name, v => (st.name = v))),
         field('What happens here (compiles to nothing)', input(st.text, v => (st.text = v))),
-        field('Model and effort here', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')),
+        field('Model and effort from', pickList(Object.entries(WF_STAGE_MODELS), st.model, v => (st.model = v), 'model')),
+        ...(st.model === 'owner' ? [] : [
+          ...state.parts.tiers.map(t => modelEffort(t.name, t[st.model], v => (t[st.model] = v), st.model === 'plan')),
+          modelEffort('Sensitive route', state.parts.sensitive[st.model], v => (state.parts.sensitive[st.model] = v), false),
+          el('p', { class: 'av-annot', text: `These are the tiers' ${st.model} models: every stage that takes the ${st.model} model changes with them.` }),
+        ]),
         el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Skipped at' }), el('div', { class: 'chips' }, ...TIER_KEYS.map(k => chip(k, st.skipAt.includes(k), () => {
           st.skipAt = st.skipAt.includes(k) ? st.skipAt.filter(x => x !== k) : TIER_KEYS.filter(x => x === k || st.skipAt.includes(x));
           edited();
@@ -2736,7 +2777,7 @@ function workflowEditor(host, state, changed) {
     const p = state.parts;
     return [
       el('p', { class: 'av-annot', text: 'How much checking. A stage skipped at a tier is passed by there.' }),
-      ...p.tiers.map(t => el('div', { class: 'wf-group' }, el('b', { text: t.name }), field('Fits', input(t.fits, v => (t.fits = v))), field('Plan', pickList(models(true), t.plan, v => (t.plan = v), `${t.name} plan`)), field('Build', pickList(models(false), t.build, v => (t.build = v), `${t.name} build`)))),
+      ...p.tiers.map(t => el('div', { class: 'wf-group' }, el('b', { text: t.name }), field('Fits', input(t.fits, v => (t.fits = v))), modelEffort('Plan', t.plan, v => (t.plan = v), true), modelEffort('Build', t.build, v => (t.build = v), false))),
     ];
   }
   function sensitiveTab() {
@@ -2758,8 +2799,8 @@ function workflowEditor(host, state, changed) {
       })))),
       field('Add', add),
       field("The route's tier", pickList(TIER_KEYS.map(k => [k, k]), s.tier, v => (s.tier = v), 'route tier')),
-      field('Planned on', pickList(models(false), s.plan, v => (s.plan = v), 'route plan')),
-      field('Built on', pickList(models(false), s.build, v => (s.build = v), 'route build')),
+      modelEffort('Planned on', s.plan, v => (s.plan = v), false),
+      modelEffort('Built on', s.build, v => (s.build = v), false),
     ];
   }
   function lensesTab() {
@@ -2820,16 +2861,27 @@ function workflowEditor(host, state, changed) {
   }
 
   // ---- the tour
+  // The page dims; a spotlight over the part being described leaves it lit. The spotlight's shadow
+  // is the dimming, so the lit part is exactly the target's box, and it lets clicks through.
   let tourEl = null;
+  let spotEl = null;
   function tour(i) {
     for (const x of Object.values(parts)) x.classList.remove('wf-tourhl');
     if (tourEl) tourEl.remove();
+    if (spotEl) spotEl.remove();
     tourEl = null;
+    spotEl = null;
     if (i < 0 || i >= WF_TOUR.length) return;
     const [where, text] = WF_TOUR[i];
     const target = parts[where];
     target.classList.add('wf-tourhl');
     const r = target.getBoundingClientRect();
+    spotEl = el('div', { class: 'wf-spot', 'aria-hidden': 'true' });
+    spotEl.style.left = `${r.left}px`;
+    spotEl.style.top = `${r.top}px`;
+    spotEl.style.width = `${r.width}px`;
+    spotEl.style.height = `${r.height}px`;
+    document.body.append(spotEl);
     const next = chip(i === WF_TOUR.length - 1 ? 'Done' : 'Next', true, () => tour(i + 1));
     tourEl = el('div', { class: 'wf-tour', role: 'dialog', 'aria-label': 'Tour' }, el('span', { class: 'av-label', text: `${i + 1} of ${WF_TOUR.length}` }), el('p', { text }), el('div', { class: 'chips' }, chip('Back', false, () => tour(i - 1), 'av-tool-chip--ghost'), next, chip('Skip', false, () => tour(-1), 'av-tool-chip--ghost')));
     document.body.append(tourEl);
@@ -3073,34 +3125,67 @@ function boot() {
     return el('button', { type: 'button', class: 'close-x', 'aria-label': 'Close', title: 'Close', onclick: () => $(id).close() }, '×');
   }
 
-  /**
-   * Reset all: one button. It puts the limits, the moves, the agents and the
-   * canvas back to the plain pact; right after, it reads "Reset", and on hover
-   * or focus offers "Undo reset" in its place.
-   */
+  // Reset all, as eagle-eye has it: one button. Right after a reset it holds the state before, and offers
+  // it back as an amber Undo while the pointer rests on it; the pointer leaving starts a ten-second fuse,
+  // and the label waits a moment before it turns back, so a slip of the mouse costs nothing.
+  const UNDO_GRACE_MS = 10000;
+  const HOT_SETTLE_MS = 260;
+  let resetHot = false;
+  let hotFuse = null;
+  let undoFuse = null;
+  const resetBtn = el('button', { type: 'button', class: 'av-tool-chip av-tool-chip--ghost reset-btn' }, 'Reset');
+  function paintReset() {
+    const offering = resetBefore !== null && resetHot;
+    resetBtn.textContent = offering ? 'Undo' : 'Reset';
+    resetBtn.classList.toggle('armed', offering);
+    resetBtn.title = offering ? 'Put back what you had before the reset' : resetBefore !== null ? 'Reset. Hover to take the last reset back' : 'The limits, the moves, the agents and the canvas back to the plain pact';
+    resetBtn.disabled = resetBefore === null && atDefaults(state);
+  }
+  function disarmUndo() {
+    clearTimeout(undoFuse);
+    undoFuse = null;
+    resetBefore = null;
+    paintReset();
+  }
+  function resetHover(on) {
+    clearTimeout(hotFuse);
+    hotFuse = null;
+    if (on) {
+      resetHot = true;
+      clearTimeout(undoFuse);
+      undoFuse = null;
+      return paintReset();
+    }
+    hotFuse = setTimeout(() => {
+      resetHot = false;
+      paintReset();
+    }, HOT_SETTLE_MS);
+    if (resetBefore !== null) {
+      clearTimeout(undoFuse);
+      undoFuse = setTimeout(disarmUndo, UNDO_GRACE_MS);
+    }
+  }
+  resetBtn.addEventListener('mouseenter', () => resetHover(true));
+  resetBtn.addEventListener('focus', () => resetHover(true));
+  resetBtn.addEventListener('mouseleave', () => resetHover(false));
+  resetBtn.addEventListener('blur', () => resetHover(false));
+  resetBtn.addEventListener('click', () => {
+    if (resetBefore !== null && resetHot) {
+      const before = resetBefore;
+      disarmUndo();
+      restoreAll(state, before);
+      return renderAll();
+    }
+    const before = resetAll(state);
+    applied = null;
+    renderAll();
+    resetBefore = before;
+    paintReset();
+  });
   function renderReset() {
-    const undoable = resetBefore !== null;
-    const label = undoable ? 'Reset' : 'Reset all to defaults';
-    const reset = chip(label, false, () => {
-      if (undoable) {
-        restoreAll(state, resetBefore);
-        resetBefore = null;
-      } else {
-        resetBefore = resetAll(state);
-        applied = null;
-      }
-      renderAll();
-    }, 'av-tool-chip--ghost');
-    reset.title = undoable ? 'Undo the reset' : 'The limits, the moves, the agents and the canvas back to the plain pact';
-    if (undoable) {
-      const swap = to => () => (reset.textContent = to);
-      reset.addEventListener('mouseenter', swap('Undo reset'));
-      reset.addEventListener('focus', swap('Undo reset'));
-      reset.addEventListener('mouseleave', swap(label));
-      reset.addEventListener('blur', swap(label));
-    } else if (atDefaults(state)) reset.disabled = true;
     const slot = $('reset');
-    if (slot) slot.replaceChildren(reset);
+    if (slot && resetBtn.parentNode !== slot) slot.replaceChildren(resetBtn);
+    paintReset();
   }
 
   function renderSummary() {
