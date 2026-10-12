@@ -61,10 +61,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .head .sp { flex: 1; }
 .bar { display: flex; align-items: center; gap: var(--av-s1); flex-wrap: wrap; padding: var(--av-s1) var(--av-s3); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
 .bar .note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
-.cols { display: grid; grid-template-columns: 250px 1fr 330px; min-height: 0; }
-@media (max-width: 1000px) { .cols { grid-template-columns: 200px 1fr; } #panel { grid-column: 1 / -1; max-height: 40vh; } }
+.cols { display: grid; grid-template-columns: 250px 1fr 7px var(--panel-w, 330px); min-height: 0; }
+.resizer { cursor: col-resize; background: var(--av-ink-12); border-left: var(--av-rule-hair) solid var(--av-ink-30); touch-action: none; transition: background .15s; }
+.resizer:hover, .resizer.on { background: var(--av-caution); }
+@media (max-width: 1000px) { .cols { grid-template-columns: 200px 1fr; } .resizer { display: none; } #panel { grid-column: 1 / -1; max-height: 40vh; } }
 .side { overflow: auto; padding: var(--av-s2); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s1); }
-#panel { overflow: auto; border-left: var(--av-rule-hair) solid var(--av-ink-30); }
+#panel { overflow: auto; }
 
 /* LIBRARY */
 .lib { display: flex; align-items: center; gap: var(--av-s1); width: 100%; text-align: left; padding: var(--av-s1); border: var(--av-rule-hair) solid var(--av-ink-30); background: var(--av-paper); cursor: grab; transition: transform .12s, border-color .12s; }
@@ -211,6 +213,7 @@ pre.out { margin: 0; white-space: pre-wrap; font-size: var(--av-t-micro); line-h
     </div>
     <div id="wtable"></div>
     </div>
+    <div class="resizer" id="pResize" role="separator" aria-orientation="vertical" aria-label="resize the panel" tabindex="0"></div>
     <div id="panel"></div>
   </div>
 </div>
@@ -727,6 +730,17 @@ function applyTheme(){ if (dark) document.documentElement.setAttribute('data-avi
 $('darkBtn').onclick = () => { dark = !dark; try { localStorage.setItem('proto143-scheme', dark ? 'dark' : 'light'); } catch {} applyTheme(); };
 $('resetBtn').onclick = () => { S = fresh(); renderAll(); arrange(false); renderNodes(); fit(); };
 
+// Panel width: drag the bar, or arrow keys on it; remembered per viewer when storage allows.
+(() => {
+  const cols = document.querySelector('.cols'), bar = $('pResize');
+  const set = w => { w = Math.max(240, Math.min(Math.round(w), innerWidth * 0.6)); cols.style.setProperty('--panel-w', w + 'px'); try { localStorage.setItem('proto143-panel', w); } catch {} };
+  try { const w = +localStorage.getItem('proto143-panel'); if (w) set(w); } catch {}
+  bar.addEventListener('pointerdown', e => { e.preventDefault(); bar.setPointerCapture(e.pointerId); bar.classList.add('on'); });
+  bar.addEventListener('pointermove', e => { if (bar.hasPointerCapture(e.pointerId)) set(cols.getBoundingClientRect().right - e.clientX); });
+  bar.addEventListener('pointerup', e => { bar.releasePointerCapture(e.pointerId); bar.classList.remove('on'); });
+  bar.addEventListener('dblclick', () => set(330));
+  bar.addEventListener('keydown', e => { const w = $('panel').offsetWidth; if (e.key === 'ArrowLeft') set(w + 24); if (e.key === 'ArrowRight') set(w - 24); });
+})();
 function renderAll(){ renderSim(); renderNodes(); renderPanel(); applyView(); }
 S = fresh(); applyTheme(); renderLibrary(); renderAll(); arrange(false); renderNodes(); requestAnimationFrame(fit);
 </script>
