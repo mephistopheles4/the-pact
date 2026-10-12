@@ -6,7 +6,7 @@
 // install script is in builder-install.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
@@ -897,6 +897,47 @@ test('a shipped preset is carried with only the parts, models and agent files it
   assert.deepEqual([p.id, p.title, Object.keys(p.parts), Object.keys(p.agentFiles)], ['level-1', 'Level 1', ['tiers'], ['mine']]);
   writeFileSync(join(dir, 'z-bad.json'), JSON.stringify({ schema: 1, tiers: [] }));
   assert.throws(() => shippedPresets(REPO, pactData(REPO), dir), /the preset z-bad\.json is refused: .*1 to 6 tiers/);
+});
+
+// #203 S6, C5: the builder runs as the installed kit, from the rules source, and writes its page only somewhere new, outside any repo or Claude folder.
+test('the builder kit builds a page from a builder file, refuses to rebuild itself, and refuses an output in the kit, the Claude home, a .claude folder, a git work tree or over a file', t => {
+  const home = join(tempDir(t, 'pact-kit-'), 'claude-home');
+  const kit = join(home, 'pact', 'builder');
+  for (const rel of ['builder/build.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'builder/presets', 'gate/shared.mjs', 'gate/render.mjs', 'gate/render-core.mjs', 'claude/agents', 'examples/pact-config/builder.json', 'docs/brand/scriptorium/scriptorium-mark.svg']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
+  cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  delete env.CLAUDE_CONFIG_DIR;
+  const cli = args => spawnSync(process.execPath, [join(kit, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env, cwd: dirname(home) });
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  const ok = cli(['--builder', f]);
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  const wrote = /^WROTE (.+)$/m.exec(ok.stdout)[1];
+  t.after(() => rmSync(dirname(wrote), { recursive: true, force: true }));
+  assert.deepEqual(pageProblems(readFileSync(wrote, 'utf8')), [], 'the page is written, by default in a new temporary folder');
+  const self = cli([]);
+  assert.equal(self.status, 1);
+  assert.match(self.stdout, /never rebuilds its own page/);
+  const repo = tempDir(t, 'pact-kit-repo-');
+  mkdirSync(join(repo, '.git'));
+  mkdirSync(join(repo, 'deep'));
+  const dotClaude = join(tempDir(t, 'pact-kit-dot-'), '.claude');
+  mkdirSync(dotClaude);
+  for (const [out, why] of [
+    [join(kit, 'mine.html'), /outside the builder kit/],
+    [join(home, 'mine.html'), /outside the Claude home folder/],
+    [join(dotClaude, 'mine.html'), /any \.claude folder/],
+    [join(repo, 'deep', 'mine.html'), /outside any git work tree/],
+    [wrote, /must be a new file/],
+  ]) {
+    const r = cli(['--builder', f, '--out', out]);
+    assert.equal(r.status, 1, `${out}: ${r.stdout}`);
+    assert.match(r.stdout, why);
+  }
+  cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'CLAUDE.md'));
+  const both = cli(['--builder', f, '--check']);
+  assert.notEqual(both.status, 0);
+  assert.match(both.stdout + both.stderr, /both claude\/CLAUDE\.md and claude\/rules\.source\.md/);
 });
 
 // The protected set, item 2: a shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken.

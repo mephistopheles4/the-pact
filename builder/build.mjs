@@ -42,8 +42,8 @@
 // authority on what the page saves.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
@@ -53,6 +53,25 @@ export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
 // The presets the pact ships (#262 addendum 4): builder files, each checked as any is.
 export const PRESETS_REL = 'builder/presets';
+// The rules source: claude/CLAUDE.md in a clone, claude/rules.source.md in the
+// installed builder kit, which holds no file named CLAUDE.md (#203, S6).
+export const RULES_REL = 'claude/CLAUDE.md';
+export const KIT_RULES_REL = 'claude/rules.source.md';
+// The oldest Node the kit runs on: the pact's floor.
+export const NODE_FLOOR = 24;
+
+/** Whether `root` is the installed builder kit rather than a clone. */
+export function isKit(root) {
+  return existsSync(join(root, KIT_RULES_REL));
+}
+
+/** The rules source under `root`; refused when it holds both or neither. */
+export function rulesPath(root) {
+  const clone = existsSync(join(root, RULES_REL));
+  const kit = isKit(root);
+  if (clone === kit) fail(clone ? `both ${RULES_REL} and ${KIT_RULES_REL} are here: a kit holds only the second` : `neither ${RULES_REL} nor ${KIT_RULES_REL} is here`);
+  return join(root, kit ? KIT_RULES_REL : RULES_REL);
+}
 
 const MARK_RE = /^( *)<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 const DATA_RE = /\/\* pact-data:begin \*\/[\s\S]*?\/\* pact-data:end \*\//;
@@ -148,7 +167,7 @@ const codeSpans = text => [...text.matchAll(/`([^`\n]+)`/g)].map(m => m[1]);
 
 /** The pact's half of the page data, always from the clone at `root`: the parts, locked clauses, the usage setting and the pact's agents. */
 export function pactData(root) {
-  const src = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
+  const src = readFileSync(rulesPath(root), 'utf8');
   const renderSrc = readFileSync(join(root, 'gate', 'render-core.mjs'), 'utf8');
   const open = listFrom(renderSrc, 'OPEN_MARKS');
   const editable = listFrom(renderSrc, 'EDITABLE');
@@ -329,7 +348,7 @@ export function loadBuilder(file, pact) {
  */
 export function partsThroughRenderer(root, parts) {
   if (!parts) return [];
-  const pact = readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8');
+  const pact = readFileSync(rulesPath(root), 'utf8');
   const compiled = compileParts(parts);
   const changed = PART_MARKS.filter(m => !pact.includes(`<!-- pact:begin ${m} -->\n${compiled[m]}\n<!-- pact:end ${m} -->`));
   return renderEdits(root, changed.map(m => ({ id: m, mark: m, op: 'replace', text: compiled[m] }))).map(p => `${p.id}: the installer's renderer refuses the compiled part${p.fails}`);
@@ -347,7 +366,7 @@ function renderEdits(root, edits) {
       mkdirSync(join(home, 'pact', 'blocks'), { recursive: true });
       writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, edits: [{ mark: e.mark, op: e.op, file: 'b.md' }] })}\n`);
       writeFileSync(join(home, 'pact', 'blocks', 'b.md'), `${e.text}\n`);
-      const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), join(root, 'claude', 'CLAUDE.md'), dest, home], { encoding: 'utf8', env });
+      const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesPath(root), dest, home], { encoding: 'utf8', env });
       if (r.status !== 0) {
         const fails = (r.stdout || '').split('\n').filter(l => l.startsWith('FAIL '));
         out.push({ id: e.id, fails: fails.length ? ` (${fails.join('; ')})` : '' });
@@ -375,7 +394,7 @@ function agentClassesThroughRenderer(root, agents) {
     mkdirSync(join(home, 'pact'), { recursive: true });
     const set = Object.fromEntries(agents.map(a => [a.name, { model: a.model === 'opus' ? 'sonnet' : 'opus' }]));
     writeFileSync(join(home, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, agents: set })}\n`);
-    const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), join(root, 'claude', 'CLAUDE.md'), dest, home], { encoding: 'utf8', env });
+    const r = spawnSync(process.execPath, [join(root, 'gate', 'render.mjs'), rulesPath(root), dest, home], { encoding: 'utf8', env });
     if (r.status !== 0) fail(`the installer's renderer refuses to set the configurable agents (${(r.stdout || '').split('\n').filter(l => l.startsWith('FAIL ')).join('; ')})`);
     const out = {};
     for (const m of (r.stdout || '').matchAll(/^AGENT ([a-z-]+) \S+ \S+ [0-9a-f]{64} (plain|security-set) override (local|egress)$/gm)) out[m[1]] = { security: m[2] === 'security-set', egress: m[3] === 'egress' };
@@ -475,7 +494,17 @@ export function outProblem(root, out, builder) {
   const o = canonical(out);
   if (o === canonical(builder)) return 'must not be the builder file';
   const r = canonical(join(root, 'x')).slice(0, -1);
-  if (o.startsWith(r)) return 'must be outside this clone: a page carries your own parts and lists, so keep it out of any repo';
+  if (o.startsWith(r)) return isKit(root) ? 'must be outside the builder kit' : 'must be outside this clone: a page carries your own parts and lists, so keep it out of any repo';
+  // The Claude home folder, as each of its spellings, and any .claude folder (#203, S6).
+  const homes = [process.env.CLAUDE_CONFIG_DIR, join(homedir(), '.claude'), ...(isKit(root) ? [join(root, '..', '..')] : [])].filter(Boolean).map(h => canonical(join(h, 'x')).slice(0, -1));
+  const sep = r.slice(-1);
+  if (homes.some(h => o.startsWith(h)) || o.split(sep).slice(0, -1).some(seg => seg === '.claude')) return 'must be outside the Claude home folder and any .claude folder';
+  // A git work tree: the page's folder, or one above it, holds a .git entry. Walked from the real path, so a link into a repo is caught.
+  for (let d = dirname(o); ; d = dirname(d)) {
+    if (existsSync(join(d, '.git'))) return 'must be outside any git work tree: a page carries your own parts and lists, so keep it out of any repo';
+    if (dirname(d) === d) break;
+  }
+  if (existsSync(out)) return 'must be a new file: the page is never written over an existing one';
   return null;
 }
 
@@ -489,9 +518,15 @@ function main(argv) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const page = join(root, PAGE_REL);
   const usage = () => {
-    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> (--check | --out <page>)\n');
+    process.stdout.write('usage: node builder/build.mjs [--check] | --builder <file> [--check | --out <page>]\n');
     process.exitCode = 2;
   };
+  const major = Number(process.versions.node.split('.')[0]);
+  if (major < NODE_FLOOR) {
+    process.stdout.write(`REFUSE this is Node ${process.versions.node}; the builder needs Node ${NODE_FLOOR} or later\n`);
+    process.exitCode = 1;
+    return;
+  }
   const opts = { check: false, builder: null, out: null };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--check') opts.check = true;
@@ -502,6 +537,11 @@ function main(argv) {
 
   if (!opts.builder) {
     if (opts.out) return usage();
+    if (isKit(root)) {
+      process.stdout.write('REFUSE the builder kit never rebuilds its own page: give --builder <file>, with --check or --out <page>\n');
+      process.exitCode = 1;
+      return;
+    }
     const r = checkBuilder(root, join(root, EXAMPLE_BUILDER_REL));
     if (opts.check) printCheck(EXAMPLE_BUILDER_REL, r);
     if (!r.builder) {
@@ -523,7 +563,9 @@ function main(argv) {
     return;
   }
 
-  if (opts.check === Boolean(opts.out)) return usage();
+  if (opts.check && opts.out) return usage();
+  // With no --out, the page goes in a new folder under the system's temporary folder (#203, S6).
+  if (!opts.check && !opts.out) opts.out = join(mkdtempSync(join(tmpdir(), 'scriptorium-')), 'scriptorium.html');
   const r = checkBuilder(root, opts.builder);
   printCheck('builder file', r);
   if (!r.builder) {
@@ -537,7 +579,7 @@ function main(argv) {
     process.exitCode = 1;
     return;
   }
-  writeFileSync(resolve(opts.out), buildPage(root, readFileSync(page, 'utf8'), opts.builder));
+  writeFileSync(resolve(opts.out), buildPage(root, readFileSync(page, 'utf8'), opts.builder), { flag: 'wx' });
   process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
 }
 
