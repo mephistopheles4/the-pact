@@ -7,7 +7,11 @@
 //
 // Nothing here runs on import. Imports nothing.
 
-export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
+export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+// The renderer's model shape and efforts (#262 S15, S16), copied: a test holds them equal.
+export const AGENT_MODEL_RE = /^[A-Za-z][A-Za-z0-9._:/-]{0,127}$/;
+export const AGENT_MODEL_WORDS = Object.freeze(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n']);
+export const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md']);
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
 // gate/shared.mjs, so it works out its copy set without seam A's list.
@@ -355,7 +359,7 @@ export function checkVerdict(report, what) {
 // ------------------------------------------------------------ the renderer's lines
 
 const EDIT_RE = /^EDIT (move-1|move-2|move-3|move-4-extra|tiers|sensitive|workflow|lenses) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
-const AGENT_RE = /^AGENT ([a-z-]+) (opus|sonnet) (low|medium|high) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
+const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 
@@ -404,7 +408,8 @@ export function parseRenderLines(lines, { project, hash }) {
       digest = m[1];
     } else if ((m = AGENT_RE.exec(l))) {
       const name = AGENT_NAMES.find(a => a === m[1]);
-      if (!name) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
+      const modelOk = AGENT_MODEL_RE.test(m[2]) && !m[2].endsWith(':') && !m[2].includes('---') && !m[2].includes('//') && !AGENT_MODEL_WORDS.includes(m[2].toLowerCase());
+      if (!name || !modelOk || !AGENT_EFFORTS.includes(m[3])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
     } else if ((m = VALUE_RE.exec(l))) {
@@ -1027,14 +1032,18 @@ export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', '
 
 /**
  * The security-defaults line (#262, S8), or null when no edit reaches one of
- * SECURITY_PARTS. The dry run prints it before every other warning. It points
- * by part name and never names a block file.
+ * SECURITY_PARTS and no security-set lens is set off its default (#262 S17).
+ * The dry run prints it before every other warning. It points by part and
+ * lens name, never names a block file, and never prints a model.
  */
 export function securityDefaultsLine(parsed, record) {
   const parts = SECURITY_PARTS.filter(p => parsed.edits.has(p));
-  if (!parts.length) return null;
+  const lenses = [...parsed.agentSets].filter(([, a]) => a.security && a.override).map(([n]) => n);
+  if (!parts.length && !lenses.length) return null;
   const since = !record ? 'no install is recorded to compare with' : configStale(configNow(parsed), record.config) ? 'the configuration CHANGED since the last install' : 'the configuration is unchanged since the last install';
-  return `WARN: SECURITY DEFAULTS: the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install. ${since[0].toUpperCase()}${since.slice(1)}.`;
+  const edits = parts.length ? `the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install.` : "the user configuration changes the pact's security defaults.";
+  const set = lenses.length ? ` It sets the security-set ${lenses.length > 1 ? 'lenses' : 'lens'} ${lenses.join(', ')} off ${lenses.length > 1 ? 'their defaults' : 'its default'}: an override, not security-tested.` : '';
+  return `WARN: SECURITY DEFAULTS: ${edits}${set} ${since[0].toUpperCase()}${since.slice(1)}.`;
 }
 
 /** The Configuration block, built from the renderer's parsed lines alone. */
@@ -1057,7 +1066,7 @@ export function configBlock(parsed, rulesHash, record) {
   for (const [k, v] of parsed.values) out.push(`  WARN: the user configuration sets ${k} to ${v}.`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
   for (const [name, a] of parsed.agentSets) {
-    let warn = `  WARN: the user configuration sets ${name} to ${a.model}, ${a.effort} effort.`;
+    let warn = `  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`;
     if (a.security && a.override) {
       warn += ` ${name} is a security-set lens, so this is an override, not security-tested: the pact reviews only its default.`;
       if (a.egress) warn += ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.';

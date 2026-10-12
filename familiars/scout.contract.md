@@ -1,6 +1,6 @@
 # Contract: scout
 
-Version: 0.1.2
+Version: 0.2.0
 
 - **Type:** agent
 - **Level:** Standard
@@ -8,6 +8,7 @@ Version: 0.1.2
 - **Go to build:** the owner, 2026-10-05: "I think it's a great start. Let's generate the real scout." Every remaining draft became Confirmed.
 - **Marks:** *Proposed* = drafted, not yet confirmed by the owner. **Confirmed** = the owner accepted the draft unchanged. **Decided** (date) = the owner's own words, or a draft they rewrote.
 - **Source:** migrated from `claude/agents/scout.md` (pact issue #70). That file leaves `claude/agents/` in the same commit that adds this one.
+- **Placement:** **Decided** (2026-10-12, #262): the agent file lives in `claude/agents/scout.md` again, unsealed, so a configuration can set its model and effort as it can any lens's. This contract stays in `familiars/` as its record, as each lens's does (ADR 0017). Without a seal, nothing checks that the file still matches this contract.
 
 Target: claude
 **Decided** (2026-10-05, #70: the familiar installs to the same live path as today)
@@ -114,6 +115,7 @@ Extra keys: tools, model, effort
 | 0.1.0 | 2026-10-05 | Contract written; migrated from `claude/agents/scout.md`. scout becomes the pact's one search helper and the Explore override is retired. | #70, cut on #59 | all |
 | 0.1.1 | 2026-10-05 | Question 8 names the neighbours by role, not by agent name. The familiar's text is unchanged; only its mark is rewritten. | #47's QA swap retires two of the four reviewers it named; the name search after the swap may find only installed reviewers. Owner's go: the defaults at #47's first checkpoint | 8 |
 | 0.1.2 | 2026-10-12 | scout runs on Haiku at medium effort, not Sonnet at low. | Cost is scout's reason to exist (question 2). The owner's decision in chat, on #262 | 5, 14 |
+| 0.2.0 | 2026-10-12 | The agent file moves to `claude/agents/scout.md`, unsealed; this contract stays as its record. Its model and effort are defaults a configuration can set. | Nothing in the agents is locked: the pact suggests, and people bring their own expertise. The owner's decision in chat, on #262 | placement, 5, 14 |
 
 ## Standard questions (8–15)
 

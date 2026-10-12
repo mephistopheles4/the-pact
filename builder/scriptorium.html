@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-7lUy5ahWJjACH1f1LYMMbD8qVz3muT2XpJfPBPkgYGk='; style-src 'sha256-hVcrp+aKDmZLB6xODyTLuBoz+OWHgA3+50hB9SNCWBw='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Kp6Mpg5G2L2b9D/u3AKSkW8s9iLDzVLNC/DM9n39gf0='; style-src 'sha256-hVcrp+aKDmZLB6xODyTLuBoz+OWHgA3+50hB9SNCWBw='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -973,6 +973,15 @@ const PACT = /* pact-data:begin */ {
    "egress": false
   },
   {
+   "name": "scout",
+   "model": "haiku",
+   "effort": "medium",
+   "runs": [],
+   "configurable": true,
+   "security": false,
+   "egress": false
+  },
+  {
    "name": "unstated-lens",
    "model": "opus",
    "effort": "medium",
@@ -991,27 +1000,15 @@ const PACT = /* pact-data:begin */ {
    "configurable": true,
    "security": true,
    "egress": false
-  },
-  {
-   "name": "scout",
-   "model": "haiku",
-   "effort": "medium",
-   "runs": [],
-   "configurable": false,
-   "security": null,
-   "egress": null,
-   "locked": "sealed: its digest covers its own file"
   }
  ],
  "agentChoices": {
-  "models": [
-   "opus",
-   "sonnet"
-  ],
   "efforts": [
    "low",
    "medium",
-   "high"
+   "high",
+   "xhigh",
+   "max"
   ]
  },
  "title": "Example builder",
@@ -1095,10 +1092,44 @@ const PACT = /* pact-data:begin */ {
 const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses']);
 const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
 const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
-// A model and its effort, as the tables write them. The builder offers them as two dropdowns.
-const MODEL_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku']);
-const EFFORTS = Object.freeze(['low', 'medium', 'high']);
-const MODEL_CHOICES = Object.freeze(MODEL_NAMES.flatMap(m => EFFORTS.map(e => `${m}, ${e}`)));
+// A model and its effort, as the tables write them: "Opus, medium". The
+// builder offers them as two dropdowns, the models from the person's Models
+// list, which starts as MODEL_NAMES (#262 S19).
+const MODEL_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku', 'Fable']);
+const EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+// A model the person adds takes the renderer's agent model shape (#262 S15);
+// the renderer keeps its own copy, and a builder test holds them equal.
+const MODEL_RE = /^[A-Za-z][A-Za-z0-9._:/-]{0,127}$/;
+const MODEL_WORDS = Object.freeze(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n']);
+const MODELS_CAP = 32;
+
+/** Whether `m` is a model the gate takes: one plain word of the shape. */
+function modelOk(m) {
+  return typeof m === 'string' && MODEL_RE.test(m) && !m.endsWith(':') && !m.includes('---') && !/\/{2}/.test(m) && !MODEL_WORDS.includes(m.toLowerCase());
+}
+
+/** Whether `v` is "<model>, <effort>", as a tier or the route takes it. */
+function modelChoiceOk(v) {
+  const m = typeof v === 'string' ? /^([^,]+), ([a-z]+)$/.exec(v) : null;
+  return !!m && modelOk(m[1]) && EFFORTS.includes(m[2]);
+}
+
+/** An agent's model line for a Models-list entry: a built-in name in lower case, anything else as typed. */
+function agentModelOf(name) {
+  return MODEL_NAMES.includes(name) ? name.toLowerCase() : name;
+}
+
+/** The Models list's problems, as text: a list of 1 to MODELS_CAP models of the shape, none twice. */
+function modelsProblems(list) {
+  if (!Array.isArray(list) || !list.length || list.length > MODELS_CAP) return [`the models list must hold 1 to ${MODELS_CAP} models`];
+  const out = [];
+  list.forEach((m, i) => {
+    if (!modelOk(m)) out.push(`model ${i + 1} must be a letter, then letters, digits, '.', '_', ':', '/' or '-', up to 128 characters, with no '---' and no double slash, not ending in ':', and not a YAML word such as true or null`);
+  });
+  const lower = list.filter(m => typeof m === 'string').map(m => m.toLowerCase());
+  if (new Set(lower).size !== lower.length) out.push('the models list names one model twice');
+  return out;
+}
 const STAGE_MODELS = Object.freeze(['plan', 'build', 'owner']);
 // Each offer condition and the words it compiles to. 'words' compiles to the offer's own words.
 const OFFER_WHENS = Object.freeze({
@@ -1311,8 +1342,8 @@ function partsProblems(p) {
     p.tiers.forEach((t, i) => {
       if (!isObj(t) || !keysIn(t, ['name', 'fits', 'plan', 'build']) || t.name !== TIER_NAMES[i]) return err('tiers', `tier ${i + 1} must be ${TIER_NAMES[i]}, with only name, fits, plan and build`);
       if (!lineOk(t.fits, C.line) || !t.fits.trim()) err('tiers', `${TIER_NAMES[i]}: fits must be one line of 1 to ${C.line} characters, with no bar`);
-      if (!(t.plan === 'none' || MODEL_CHOICES.includes(t.plan))) err('tiers', `${TIER_NAMES[i]}: plan must be none or one of the model choices`);
-      if (!MODEL_CHOICES.includes(t.build)) err('tiers', `${TIER_NAMES[i]}: build must be one of the model choices`);
+      if (!(t.plan === 'none' || modelChoiceOk(t.plan))) err('tiers', `${TIER_NAMES[i]}: plan must be none or a model and an effort`);
+      if (!modelChoiceOk(t.build)) err('tiers', `${TIER_NAMES[i]}: build must be a model and an effort`);
     });
 
   const s = p.sensitive;
@@ -1320,7 +1351,7 @@ function partsProblems(p) {
   else {
     if (!Array.isArray(s.items) || !s.items.length || s.items.length > C.items || s.items.some(x => !lineOk(x, C.short) || !x.trim() || /[,:]/.test(x))) err('sensitive', `the list must hold 1 to ${C.items} items, each one line of at most ${C.short} characters, with no comma, colon or bar`);
     if (!TIER_KEYS.includes(s.tier)) err('sensitive', `the route's tier must be one of ${TIER_KEYS.join(', ')}`);
-    if (!MODEL_CHOICES.includes(s.plan) || !MODEL_CHOICES.includes(s.build)) err('sensitive', "the route's plan and build must be model choices");
+    if (!modelChoiceOk(s.plan) || !modelChoiceOk(s.build)) err('sensitive', "the route's plan and build must each be a model and an effort");
   }
 
   const g = p.workflowGraph;
@@ -1551,11 +1582,11 @@ function agentProblems(c) {
 function initialState() {
   const slots = {};
   for (const mark of SLOT_MARKS) slots[mark] = { replaced: false, cards: [] };
-  // Each configurable agent starts at its file's own model and effort.
+  // Each agent starts at its file's own model and effort.
   const agents = {};
-  for (const a of PACT.agents) if (a.configurable) agents[a.name] = { model: a.model, effort: a.effort };
-  // The session limit (#142) starts unset; the four parts (#262) start as the builder file holds them, else the pact's defaults.
-  return { usage: PACT.setting.def, session: null, slots, agents, parts: copyParts(PACT.ownParts || PACT.parts.defaults) };
+  for (const a of PACT.agents) agents[a.name] = { model: a.model, effort: a.effort };
+  // The session limit (#142) starts unset; the four parts (#262) and the Models list (#262 S19) start as the builder file holds them, else the pact's defaults.
+  return { usage: PACT.setting.def, session: null, slots, agents, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)] };
 }
 
 /**
@@ -1584,6 +1615,7 @@ function problems(state) {
   if (state.session !== null && (!Number.isInteger(state.session) || state.session < ss.min || state.session > ss.max)) {
     out.push({ where: ss.name, level: 'error', text: `must be a whole number from ${ss.min} to ${ss.max}, or unset` });
   }
+  for (const t of modelsProblems(state.models)) out.push({ where: 'models', level: 'error', text: t });
   // The four parts: the builder's own checks, then each changed part's text against the block rules.
   for (const f of partsProblems(state.parts)) out.push({ where: f.part, level: f.level, text: f.text });
   if (!out.some(f => PACT.parts.marks.includes(f.where) && f.level === 'error')) {
@@ -1625,7 +1657,7 @@ function buildFiles(state) {
   // Only the fields that differ from the agent file's own are written.
   const agents = {};
   for (const a of PACT.agents) {
-    const want = a.configurable && state.agents && state.agents[a.name];
+    const want = state.agents && state.agents[a.name];
     if (!want) continue;
     const set = {};
     if (want.model !== a.model) set.model = want.model;
@@ -1671,8 +1703,10 @@ function partsChanged(state) {
  * Returns { text }, { skip } when there is nothing to keep, or { refuse }.
  */
 function builderWith(existing, state) {
-  const keys = { tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses };
-  const atPact = !Object.keys(partsChanged(state)).length;
+  const modelsAtPact = JSON.stringify(state.models) === JSON.stringify(MODEL_NAMES);
+  const hasModels = existing !== null && /"models"\s*:/.test(existing);
+  const keys = { tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, ...(modelsAtPact && !hasModels ? {} : { models: state.models }) };
+  const atPact = !Object.keys(partsChanged(state)).length && modelsAtPact;
   if (existing === null) return atPact ? { skip: true } : { text: `${JSON.stringify({ schema: 1, ...keys }, null, 2)}\n` };
   let doc;
   try {
@@ -1806,7 +1840,7 @@ function restoreAll(state, snap) {
 
 /** The security-set lenses set off their file's model or effort: each one is an override, not security-tested. */
 function overrides(state) {
-  return PACT.agents.filter(a => a.configurable && a.security && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).map(a => a.name);
+  return PACT.agents.filter(a => a.security && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).map(a => a.name);
 }
 
 
@@ -2721,7 +2755,8 @@ function workflowEditor(host, state, changed) {
   /** A model and its effort as two dropdowns, as the agents take them; `none` adds "none" for a tier with no plan. */
   function modelEffort(label, value, set, none) {
     const [m0, e0] = value === 'none' ? ['none', 'high'] : value.split(', ');
-    const model = el('select', { 'aria-label': `${label} model` }, ...(none ? [el('option', { value: 'none', text: 'none' })] : []), ...MODEL_NAMES.map(m => el('option', { value: m, text: m })));
+    const names = [...state.models, ...(m0 !== 'none' && !state.models.includes(m0) ? [m0] : [])];
+    const model = el('select', { 'aria-label': `${label} model` }, ...(none ? [el('option', { value: 'none', text: 'none' })] : []), ...names.map(m => el('option', { value: m, text: m })));
     const effort = el('select', { 'aria-label': `${label} effort` }, ...EFFORTS.map(e => el('option', { value: e, text: e })));
     model.value = m0;
     effort.value = e0;
@@ -3044,7 +3079,6 @@ function boot() {
   let status = { text: '', level: '' };
   // The sections Settings holds, kept as nodes so a redraw lands wherever they sit.
   const spineBox = el('div', { class: 'moves' });
-  const setupsBox = el('div');
   const agentsBox = el('div');
 
   function setStatus(text, level) {
@@ -3080,7 +3114,6 @@ function boot() {
 
   /** Put the whole page back on screen after its state changed underneath it. */
   function renderAll() {
-    renderWorkflows();
     renderAgents();
     if (editor) editor.reset();
     renderSpine();
@@ -3138,7 +3171,7 @@ function boot() {
     $('settings').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
-      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your moves, setups and agents, and the parts the canvas builds: tiers, sensitive work, the lens roster, and what they compile to.' })), closeX('settings')),
+      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your moves, your agents and models, and the parts the canvas builds: tiers, sensitive work, the lens roster, and what they compile to.' })), closeX('settings')),
       el(
         'section',
         { class: 'av-tool-bar av-tool-bar--stack' },
@@ -3148,8 +3181,52 @@ function boot() {
         limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v)),
         el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
       ),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('moves', 'Moves', spineBox), section('setups', 'Setups', setupsBox), section('agents', 'Agents', agentsBox), box)),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('moves', 'Moves', spineBox), section('agents', 'Agents', agentsBox), section('models', 'Models', modelsTab()), box)),
     ));
+  }
+  /**
+   * The Models list (#262 S19): every model dropdown on the page offers it.
+   * It starts as the four Claude models; a model ID of the gate's shape can be
+   * added. A model leaves no dropdown that uses it: the value stays until
+   * changed.
+   */
+  function modelsTab() {
+    const take = () => {
+      renderAgents();
+      if (editor) editor.reset();
+      renderSettings();
+      renderOutput();
+    };
+    const bad = modelsProblems(state.models);
+    // A name applies as you type; leaving the field redraws every dropdown with it.
+    const nameBox = (m, i) => {
+      const box = el('input', { type: 'text', 'aria-label': `Model ${i + 1}`, title: 'A model name or ID: letters, digits and . _ : / - only' });
+      box.value = m;
+      box.addEventListener('input', () => {
+        state.models[i] = box.value.trim();
+        renderOutput();
+      });
+      box.addEventListener('change', take);
+      return box;
+    };
+    return el(
+      'div',
+      { class: 'acc-stack' },
+      el('p', { class: 'av-annot', text: 'The models every dropdown offers: the tiers, the sensitive route, the stages and the agents. Add any model Claude Code takes, such as a full model ID; an agent takes Opus, Sonnet, Haiku and Fable by their short names, and anything else as you type it.' }),
+      ...state.models.map((m, i) => el(
+        'div',
+        { class: 'wf-group lens-row' },
+        el('div', { class: 'row-line' }, nameBox(m, i), el('button', { type: 'button', class: 'row-x', title: 'Remove this model from the list', 'aria-label': `Remove the model ${m}`, onclick: () => {
+          state.models.splice(i, 1);
+          take();
+        } }, '×')),
+      )),
+      ...(bad.length ? [el('p', { class: 'av-callout av-callout--caution', text: bad.join('. ') })] : []),
+      el('div', { class: 'chips' }, chip('Add a model', false, () => {
+        state.models.push('claude-model-id');
+        take();
+      }, 'av-tool-chip--ghost')),
+    );
   }
   function openSettings() {
     openSections.clear();
@@ -3226,7 +3303,6 @@ function boot() {
       return renderAll();
     }
     const before = resetAll(state);
-    applied = null;
     renderAll();
     resetBefore = before;
     paintReset();
@@ -3259,39 +3335,6 @@ function boot() {
 
 
 
-  let applied = null; // { id, before }: the last workflow applied, and the slots before it, for undo
-
-  function renderWorkflows() {
-    const tiles = PACT.workflows.map(w => {
-      const on = applied && applied.id === w.id;
-      const names = w.presets.map(id => `${presetById(id).title} (${presetById(id).mark})`);
-      return el(
-        'div',
-        { class: `tile${on ? ' tile--on' : ''}` },
-        el('span', { class: 'card-tab', text: w.title }),
-        el('p', { class: 'av-annot', text: w.about }),
-        el('p', { class: 'av-label', text: names.length ? names.join(' · ') : 'No presets' }),
-        el('div', { class: 'card-foot' }, chip(on ? 'Applied' : 'Apply', on, () => {
-          const before = snapshotSlots(state);
-          applyWorkflow(state, w.id);
-          applied = { id: w.id, before };
-          renderWorkflows();
-          renderSpine();
-        })),
-      );
-    });
-    const undo = applied ? chip('Undo', false, () => {
-      restoreSlots(state, applied.before);
-      applied = null;
-      renderWorkflows();
-      renderSpine();
-    }, 'av-tool-chip--ghost') : null;
-    setupsBox.replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Setups' }), el('div', { class: 'chips' }, el('span', { class: 'av-annot', text: 'A setup is a named set of presets: one click sets every move\'s slots. Tweak each move on its own step after. The workflow itself has its own step.' }), undo)),
-      el('div', { class: 'tiles' }, ...tiles),
-    );
-  }
-
   function renderAgents() {
     const where = r => (r.move ? `${PACT.moves.find(m => m.n === r.move).lead} · ${r.mark}` : `Always on · ${r.mark}`);
     // #262 S8: each agent's offers in the workflow and its row in the roster, counted from the parts as they stand on this page.
@@ -3316,30 +3359,21 @@ function boot() {
       return s;
     };
     const tiles = PACT.agents.map(a => {
-      if (!a.configurable) {
-        return el(
-          'div',
-          { class: 'tile tile--locked' },
-          el('span', { class: 'card-tab', text: a.name }),
-          el('span', { class: 'av-label', text: `${a.model || '?'} · ${a.effort || '?'} effort · locked` }),
-          ...(a.locked ? [el('p', { class: 'av-annot', text: `Not configurable: ${a.locked}.` })] : []),
-          runs(a),
-        );
-      }
       const now = state.agents[a.name];
+      const models = [...new Set([...state.models.map(agentModelOf), now.model])];
       const changed = now.model !== a.model || now.effort !== a.effort;
       return el(
         'div',
         { class: `tile${changed ? ' tile--on' : ''}` },
         el('span', { class: 'card-tab', text: a.name }),
-        el('div', { class: 'field-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, PACT.agentChoices.models, now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
+        el('div', { class: 'field-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, models, now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
         el('span', { class: 'av-label', text: changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not a security lens'}` }),
         ...(changed && a.security ? [el('p', { class: 'av-callout av-callout--caution', text: `${OVERRIDE_MARK}. The pact reviews only its default.${a.egress ? ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.' : ''}` })] : []),
         runs(a),
       );
     });
     agentsBox.replaceChildren(
-      el('p', { class: 'av-annot', text: 'Each lens takes your model and effort, and starts at its file\'s own, its default. A security-set lens set off its default is an override, not security-tested. An agent of your own goes in a move\'s slot, under Moves.' }),
+      el('p', { class: 'av-annot', text: 'Each agent takes your model and effort, and starts at its file\'s own, its default: the pact suggests, you decide. The models come from Models. A security-set lens set off its default is an override, not security-tested. An agent of your own goes in a move\'s slot, under Moves.' }),
       el('div', { class: 'tiles' }, ...tiles),
     );
   }
@@ -3502,7 +3536,6 @@ function boot() {
 
   if (PACT.title) $('builder-title').textContent = `The pact · configuration · ${PACT.title}`;
   renderActions();
-  renderWorkflows();
   renderAgents();
   renderAlways();
   renderSpine();

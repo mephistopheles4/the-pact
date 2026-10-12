@@ -4,10 +4,6 @@ description: Read-only search helper, and the cheapest way to answer a lookup. U
 tools: [Read, Glob, Grep]
 model: haiku
 effort: medium
-metadata:
-  contract-version: 0.1.2
-  familiar-digest: "sha256:55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587"
-  contract-digest: "sha256:f13553001a6e6b9f81e8e48ed26019259c8857a54bd35d9e55c3f643f1c408ed"
 ---
 
 # scout

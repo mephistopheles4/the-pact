@@ -265,7 +265,14 @@ for (const c of table('renderer lines', {
     { id: 'value-unknown-setting', plant: rep('VALUE usage-pause', 'VALUE other-thing'), fails: ['render-unknown-line'], why: 'a value for no known setting' },
     { id: 'value-out-of-range', plant: rep('usage-pause 90', 'usage-pause 101'), fails: ['render-unknown-line'], why: 'a value out of range' },
     { id: 'agent-twice', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-agent-twice'], why: 'one agent setting twice' },
-    { id: 'agent-not-configurable', plant: rep('AGENT data-lens', 'AGENT scout'), fails: ['render-unknown-line'], why: 'an agent the configuration cannot set' },
+    { id: 'agent-not-configurable', plant: rep('AGENT data-lens', 'AGENT my-reviewer'), fails: ['render-unknown-line'], why: 'an agent the configuration cannot set' },
+    // #262 C14: the install's AGENT parser takes the renderer's model shape and five efforts, and nothing else.
+    { id: 'agent-model-off-shape', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens son#net'), fails: ['render-unknown-line'], why: 'a model outside the shape' },
+    { id: 'agent-model-yaml-word', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens Null'), fails: ['render-unknown-line'], why: 'a word YAML reads as null' },
+    { id: 'agent-model-trailing-colon', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens sonnet:'), fails: ['render-unknown-line'], why: 'YAML reads a trailing colon as a key' },
+    { id: 'agent-effort-unknown', plant: rep('sonnet high', 'sonnet ultra'), fails: ['render-unknown-line'], why: 'an effort outside the five' },
+    { id: 'agent-model-three-dashes', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens son---net'), fails: ['render-unknown-line'], why: 'a frontmatter fence' },
+    { id: 'agent-model-web-address', plant: rep('AGENT data-lens sonnet', 'AGENT data-lens https://x.example'), fails: ['render-unknown-line'], why: 'a web address' },
     { id: 'agent-in-capitals', plant: rep('AGENT data-lens', 'AGENT Data-lens'), fails: ['render-unknown-line'], why: 'names are matched case-sensitively' },
     { id: 'digest-with-no-config', plant: t => noConfig(t), fails: ['render-none-extras'], why: 'a digest, value, edit or agent with no configuration' },
     { id: 'no-commands-line', plant: rep('COMMANDS finis\n', ''), fails: ['render-commands-missing'], why: 'the renderer must say which commands are on (#203)' },
@@ -883,7 +890,8 @@ test('the configuration block: a removed configuration, changed and new files, w
 
 // #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for a move.
 test('the security-defaults line: each part Scriptorium builds alone shows it, a move edit does not, and it says whether the configuration changed', () => {
-  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT move-2', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
+  // The base's data-lens setting is made plain here; the lens case is the next test.
+  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT move-2', `EDIT ${mark}`).replace('security-set override', 'plain override').split('\n'), { project: false, hash: sha256 });
   for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses']) {
     const line = core.securityDefaultsLine(withEdit(mark), null);
     assert.match(line, new RegExp(`^WARN: SECURITY DEFAULTS: the user configuration edits ${mark}, which changes the pact's security defaults;`));
@@ -895,4 +903,15 @@ test('the security-defaults line: each part Scriptorium builds alone shows it, a
   const changed = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] }));
   assert.match(core.securityDefaultsLine(p, same), / The configuration is unchanged since the last install\.$/);
   assert.match(core.securityDefaultsLine(p, changed), / The configuration CHANGED since the last install\.$/);
+});
+
+// #262 C13: a security-set lens set off its default leads the warnings too (adversarial-lens F1 on the S15 to S20 addendum).
+test('the security-defaults line: a security-set lens off its default shows it, by name and never by model; a plain override or a default does not', () => {
+  const lines = (from, to) => core.parseRenderLines(renderBase().in.replace(from, to).split('\n'), { project: false, hash: sha256 });
+  const line = core.securityDefaultsLine(lines('EDIT move-2', 'EDIT move-3'), null);
+  assert.match(line, /^WARN: SECURITY DEFAULTS: the user configuration changes the pact's security defaults\. It sets the security-set lens data-lens off its default: an override, not security-tested\. No install is recorded/);
+  assert.doesNotMatch(line, /sonnet/, 'it never prints a model');
+  assert.equal(core.securityDefaultsLine(lines('security-set override', 'plain override'), null), null);
+  assert.equal(core.securityDefaultsLine(lines('security-set override', 'security-set default'), null), null);
+  assert.match(core.securityDefaultsLine(lines('EDIT move-2', 'EDIT tiers'), null), /edits tiers, .* It sets the security-set lens data-lens off its default/);
 });

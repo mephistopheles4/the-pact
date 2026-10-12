@@ -89,14 +89,16 @@
 // has passed the path-text check, so it holds only letters, digits, '.', '_',
 // '-' and '/'.
 //
-// Agent settings (#97). A user file may set the model and effort of every lens
-// in CONFIGURABLE_AGENTS; each file's own values are its default. A sealed
-// agent (scout) is refused by name. Only when a setting is given, the renderer
+// Agent settings (#97). A user file may set the model and effort of every
+// agent in CONFIGURABLE_AGENTS, the nine lenses and scout (#262 S17); each
+// file's own values are its default. A model is any value of AGENT_MODEL_RE's
+// shape that is not a YAML word (#262 S15): one plain word, which can never
+// add a key, a comment or a line. Only when a setting is given, the renderer
 // reads that agent's file from the staged claude/agents/ folder beside the
 // source rules file, under the source's read rules. It refuses an agent that
 // carries a metadata (seal) key. It rewrites only the frontmatter's column-0
-// model and effort lines, from the allow-list constants; an unset field keeps
-// the file's value, which must be on the allow-list too; and it refuses if the
+// model and effort lines, to checked values; an unset field keeps the file's
+// value, which must pass the same checks; and it refuses if the
 // result would differ from the file anywhere else, so no setting adds a tool.
 // It classifies the agent as security-set when any sign holds: its tools line
 // is not DEFAULT_AGENT_TOOLS, the tool allow-list has an entry for it, it is on
@@ -176,14 +178,27 @@ const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
 const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands']);
 
-// Agent settings: who may be set, to what. Matched exactly; only these
-// constants are ever printed or written.
-const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
-// scout is a sealed familiar: its digest covers its own file.
-const LOCKED_AGENTS = Object.freeze(['scout']);
-const AGENT_MODELS = Object.freeze(['opus', 'sonnet']);
-const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high']);
+// Agent settings: who may be set, to what. Names and efforts are matched
+// exactly against these constants; a model is the user's own text, printed
+// and written only once agentModel() has passed it. The install keeps its own
+// copy of the names, the shape and the efforts; a test holds them equal.
+const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+// Any Claude Code model: an alias (opus, sonnet, haiku, fable, inherit) or a
+// full or provider model ID. No space, '#', quote or line break can appear.
+const AGENT_MODEL_RE = /^[A-Za-z][A-Za-z0-9._:/-]{0,127}$/;
+// Words YAML reads as something other than a string; a trailing ':', which
+// YAML reads as a key; '---', a frontmatter fence; and '//', a web address.
+const AGENT_MODEL_WORDS = Object.freeze(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n']);
+const AGENT_MODEL_SHAPE = "a letter, then letters, digits, '.', '_', ':', '/' or '-', up to 128 characters, with no '---' or '//', not ending in ':', and not a YAML word such as true or null";
+const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+// The models the rules file's notice names as they are. Every session reads
+// the notice and may quote it, so any other model, which can hold a provider
+// account or project, is "a custom model" there (#262 S15, data-lens F1).
+const NOTICE_MODELS = Object.freeze(['opus', 'sonnet', 'haiku', 'fable', 'inherit']);
+const noticeModel = m => (NOTICE_MODELS.includes(m) ? m : 'a custom model');
 const AGENT_FIELDS = Object.freeze(['model', 'effort']);
+/** `v` when it is a model the renderer may write, else undefined. */
+const agentModel = v => (typeof v === 'string' && AGENT_MODEL_RE.test(v) && !v.endsWith(':') && !v.includes('---') && !v.includes('//') && !AGENT_MODEL_WORDS.includes(v.toLowerCase()) ? v : undefined);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
 // The lenses the security route names, as a fixed list (#261, S4): the
@@ -255,7 +270,7 @@ const NOTICE_TEMPLATE = (digest, values, edits, agents = []) => [
   '',
   `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`,
   `Values set: ${values.length ? values.map(([k, v]) => `${k} ${v}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
-  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${a.model}, ${a.effort} effort${a.security && a.override ? `; ${OVERRIDE_MARK}` : ''})`).join(', ')}.`] : []),
+  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${noticeModel(a.model)}, ${a.effort} effort${a.security && a.override ? `; ${OVERRIDE_MARK}` : ''})`).join(', ')}.`] : []),
   ...(agents.some(a => a.security && a.override)
     ? [`Put "${OVERRIDE_MARK}" beside every report you post from these lenses, and in their rows of the Lens dispositions table: ${agents.filter(a => a.security && a.override).map(a => a.name).join(', ')}.`]
     : []),
@@ -652,8 +667,7 @@ function checkAgentSettings(v, fail) {
   for (const k of Object.keys(v)) {
     const name = CONFIGURABLE_AGENTS.find(a => a === k);
     if (!name) {
-      const locked = LOCKED_AGENTS.find(a => a === k);
-      fail('config-agents', locked ? `${locked} is locked: it is sealed, so its model and effort are not configurable` : `agents names an agent this configuration cannot set; only ${CONFIGURABLE_AGENTS.join(', ')} can be set`);
+      fail('config-agents', `agents names an agent this configuration cannot set; only ${CONFIGURABLE_AGENTS.join(', ')} can be set`);
       ok = false;
       continue;
     }
@@ -663,10 +677,10 @@ function checkAgentSettings(v, fail) {
       ok = false;
       continue;
     }
-    const model = Object.hasOwn(e, 'model') ? AGENT_MODELS.find(m => m === e.model) : null;
+    const model = Object.hasOwn(e, 'model') ? agentModel(e.model) : null;
     const effort = Object.hasOwn(e, 'effort') ? AGENT_EFFORTS.find(m => m === e.effort) : null;
     if (model === undefined) {
-      fail('config-agents', `${name}: model must be one of ${AGENT_MODELS.join(', ')}`);
+      fail('config-agents', `${name}: model must be ${AGENT_MODEL_SHAPE}`);
       ok = false;
     }
     if (effort === undefined) {
@@ -762,9 +776,9 @@ function renderAgent(source, a, report) {
     || SECURITY_SET.includes(a.name)
     || lines.includes(RISK_FLOOR_BLOCK)
     || Object.hasOwn(SECURITY_DOUBT, a.name);
-  const nowModel = AGENT_MODELS.find(m => lines[modelAt[0]] === `model: ${m}`);
+  const nowModel = lines[modelAt[0]].startsWith('model: ') ? agentModel(lines[modelAt[0]].slice('model: '.length)) : undefined;
   const nowEffort = AGENT_EFFORTS.find(e => lines[effortAt[0]] === `effort: ${e}`);
-  if (!nowModel) return fail(`the file's model line is not one of ${AGENT_MODELS.join(', ')}`);
+  if (!nowModel) return fail(`the file's model line is not ${AGENT_MODEL_SHAPE}`);
   if (!nowEffort) return fail(`the file's effort line is not one of ${AGENT_EFFORTS.join(', ')}`);
   const model = a.model ?? nowModel;
   const effort = a.effort ?? nowEffort;

@@ -12,9 +12,9 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
-import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts } from '../../builder/parts.mjs';
+import { DEFAULT_PARTS, MODEL_RE, MODEL_WORDS, PART_MARKS, compileParts, copyParts } from '../../builder/parts.mjs';
 import { isStaged } from '../install-core.mjs';
-import { RENDER, REPO, lastLine } from './text.mjs';
+import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
@@ -271,6 +271,10 @@ const BAD_BUILDERS = [
   ['a two-line why', () => ({ ...GOOD, presets: [{ ...GOOD.presets[0], why: 'a\nb' }], workflows: [] }), /why must be one line/],
   ['a preset the renderer refuses (an import)', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: 'Read @notes.md first.' }], workflows: [] }), /renderer refuses its text \(FAIL block-text/],
   ['a preset the renderer refuses (a heading)', () => ({ ...GOOD, presets: [{ id: 'x', title: 'X', slot: 'move-3', text: '# Heading' }], workflows: [] }), /renderer refuses its text/],
+  // #262 C16: the Models list holds models of the gate's shape, each once.
+  ['a model that is a web address', () => ({ ...GOOD, models: ['Opus', 'https:/x.example/m'.replace(':/', ':/' + '/')] }), /models: model 2 must be/],
+  ['one model twice', () => ({ ...GOOD, models: ['Opus', 'opus'] }), /models: the models list names one model twice/],
+  ['an empty models list', () => ({ ...GOOD, models: [] }), /models: the models list must hold 1 to 32/],
 ];
 
 for (const [name, make, rule] of BAD_BUILDERS) {
@@ -412,9 +416,10 @@ test('reset puts the usage value, every slot and every agent back to the plain p
   L.applyWorkflow(s, 'close-the-loop');
   s.usage = 90;
   s.slots['move-2'] = { replaced: true, cards: [{ kind: 'custom', text: 'Mine.' }] };
-  // Every lens off its default, so a reset that misses one fails.
+  // Every agent off its default, and a model added, so a reset that misses one fails.
   for (const a of Object.keys(s.agents)) s.agents[a].model = s.agents[a].model === 'opus' ? 'sonnet' : 'opus';
-  assert.equal(Object.keys(s.agents).length, 9);
+  assert.equal(Object.keys(s.agents).length, 10);
+  s.models.push('claude-opus-5-5');
   assert.equal(L.atDefaults(s), false);
   const changed = JSON.stringify(s);
   const before = L.resetAll(s);
@@ -478,14 +483,14 @@ const openSettings = P => {
   return P.ids.settings;
 };
 
-// #262: the canvas is the page; Settings holds the moves, the setups, the agents and the canvas's other parts; Export holds the save.
+// #262: the canvas is the page; Settings holds the moves, the agents, the models and the canvas's other parts; Export holds the save. Setups left the page (#262 S19).
 test('stub page: the canvas is the page, and the head opens Settings and Export; Settings holds each move as a text box with its default', () => {
   const P = bootPage();
   assert.equal(P.find(P.ids.wf, n => n.attrs && n.attrs['aria-label'] === 'The workflow canvas').length, 1);
   assert.deepEqual(P.find(P.ids.actions, n => n.tag === 'button').map(b => b.text), ['Take the tour', 'Settings', 'Dark', 'Export']);
   assert.ok(P.button(P.ids.reset, 'Reset'));
   const box = openSettings(P);
-  assert.deepEqual(P.find(box, n => n.tag === 'summary').map(n => n.text), ['Moves', 'Setups', 'Agents', 'Tiers', 'Sensitive work', 'Lenses', 'Results']);
+  assert.deepEqual(P.find(box, n => n.tag === 'summary').map(n => n.text), ['Moves', 'Agents', 'Models', 'Tiers', 'Sensitive work', 'Lenses', 'Results']);
   assert.deepEqual(P.find(box, n => n.tag === 'article').map(a => a.attrs.id), ['move-1', 'move-2', 'move-3', 'move-4']);
   // #262: each move is a text box holding its own text, the default, to edit in place.
   const areas = P.find(box, n => n.attrs.role === 'textbox');
@@ -807,18 +812,47 @@ test('a "Your agent" card writes one plain line naming the agent, and refuses a 
   assert.ok(L.problems(s).some(p => p.level === 'error' && /card 1: the agent name/.test(p.text)));
 });
 
-test('every pact lens takes a model and effort, scout is locked as sealed, and only a change from the file is written', () => {
-  assert.deepEqual(L.PACT.agents.filter(a => a.configurable).map(a => a.name), ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'unstated-lens']);
-  assert.deepEqual(L.PACT.agents.filter(a => !a.configurable).map(a => [a.name, a.locked]), [['scout', 'sealed: its digest covers its own file']]);
+// #262 C13: scout is set like any lens.
+test('every pact agent takes a model and effort, scout included, and only a change from the file is written', () => {
+  assert.deepEqual(L.PACT.agents.map(a => a.name), ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+  assert.ok(L.PACT.agents.every(a => a.configurable));
   const s = L.initialState();
-  assert.deepEqual(Object.keys(s.agents).sort(), L.PACT.agents.filter(a => a.configurable).map(a => a.name));
+  assert.deepEqual(Object.keys(s.agents).sort(), L.PACT.agents.map(a => a.name));
   assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text), { schema: 1 });
   s.agents['integrity-lens'].effort = 'low';
   assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents, { 'integrity-lens': { effort: 'low' } });
   s.agents['integrity-lens'].model = 'sonnet';
   s.agents['data-lens'].model = 'sonnet';
   assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents, { 'data-lens': { model: 'sonnet' }, 'integrity-lens': { model: 'sonnet', effort: 'low' } });
-  assert.deepEqual(L.PACT.agentChoices, { models: ['opus', 'sonnet'], efforts: ['low', 'medium', 'high'] });
+  assert.deepEqual(L.PACT.agentChoices, { efforts: ['low', 'medium', 'high', 'xhigh', 'max'] });
+  s.agents.scout.effort = 'low';
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents.scout, { effort: 'low' });
+});
+
+// #262 C16
+test('the Models list feeds the agents and the tiers: a model ID reaches config.json and the tier text exactly as typed', () => {
+  const s = L.initialState();
+  assert.deepEqual(s.models, ['Opus', 'Sonnet', 'Haiku', 'Fable']);
+  s.models.push('claude-opus-5-5');
+  s.agents['integrity-lens'].model = 'claude-opus-5-5';
+  s.agents['integrity-lens'].effort = 'xhigh';
+  s.agents.scout.model = 'fable';
+  s.parts.tiers[2].build = 'claude-opus-5-5, xhigh';
+  assert.deepEqual(L.problems(s).filter(p => p.level === 'error'), []);
+  const config = JSON.parse(L.buildFiles(s)[0].text);
+  assert.deepEqual(config.agents['integrity-lens'], { model: 'claude-opus-5-5', effort: 'xhigh' });
+  assert.deepEqual(config.agents.scout, { model: 'fable' });
+  assert.match(L.buildFiles(s).find(f => f.path === 'blocks/tiers.md').text, /claude-opus-5-5, xhigh/);
+  // A model the gate would refuse is the page's error too.
+  s.models.push('sonnet:');
+  assert.ok(L.problems(s).some(p => p.where === 'models' && p.level === 'error'));
+});
+
+// #262 S15, S19: the builder's model shape is the renderer's.
+test('the builder takes the renderer\'s model shape and YAML words', () => {
+  const render = readFileSync(join(GATE, 'render-core.mjs'), 'utf8');
+  assert.equal(/const AGENT_MODEL_RE = (.*);/.exec(render)[1], String(MODEL_RE));
+  assert.equal(/const AGENT_MODEL_WORDS = Object\.freeze\((\[.*\])\);/.exec(render)[1], JSON.stringify(MODEL_WORDS).replace(/"/g, "'").replace(/,/g, ', '));
 });
 
 test('the page takes each lens\'s class from the renderer: six security-set, two of them egress, integrity-lens plain', () => {
@@ -832,6 +866,7 @@ test('the page takes each lens\'s class from the renderer: six security-set, two
     'good-enough-lens': 'security-set local',
     'integrity-lens': 'plain local',
     'reader-lens': 'plain local',
+    scout: 'plain local',
     'unstated-lens': 'security-set local',
   });
 });
@@ -839,9 +874,9 @@ test('the page takes each lens\'s class from the renderer: six security-set, two
 // #261 C12
 test('the page shows each pact agent with its model and effort, as its file sets them, and where the pact names it', () => {
   const names = readdirSync(join(REPO, 'claude', 'agents')).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3)).sort();
-  assert.deepEqual(L.PACT.agents.map(a => a.name), [...names, 'scout']);
+  assert.deepEqual(L.PACT.agents.map(a => a.name), names);
   for (const a of L.PACT.agents) {
-    const file = a.name === 'scout' ? join(REPO, 'familiars', 'scout.md') : join(REPO, 'claude', 'agents', `${a.name}.md`);
+    const file = join(REPO, 'claude', 'agents', `${a.name}.md`);
     const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(file, 'utf8'))[1];
     assert.match(head, new RegExp(`^model: ${a.model}$`, 'm'));
     assert.match(head, new RegExp(`^effort: ${a.effort}$`, 'm'));

@@ -44,7 +44,7 @@ test('node: --apply installs the files byte for byte, writes the record and the 
   const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.equal(record.commit, git(repo, 'rev-parse', 'HEAD').trim());
   assert.deepEqual(Object.keys(record), ['commit', 'digest', 'config', 'files', 'gate']);
-  for (const f of record.files.filter(f => f.path.startsWith('agents/') && f.path !== 'agents/scout.md')) {
+  for (const f of record.files.filter(f => f.path.startsWith('agents/'))) {
     assert.deepEqual(readFileSync(join(h, ...f.path.split('/'))), readFileSync(join(repo, 'claude', ...f.path.split('/'))), f.path);
   }
   assert.ok(record.gate.some(g => g.path === 'gate/install.mjs'));
@@ -88,7 +88,7 @@ test('node: an installed file that is a hard link loses only its own name; the o
   linkSync(outside, join(h, 'agents', 'scout.md'));
   passed(install(repo, h, { apply: true }));
   assert.equal(readFileSync(outside, 'utf8'), 'victim\n');
-  assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'familiars', 'scout.md')));
+  assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'claude', 'agents', 'scout.md')));
 });
 
 for (const [name, dirty] of [

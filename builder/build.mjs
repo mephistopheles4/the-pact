@@ -29,7 +29,8 @@
 //     "workflows": [ { "id", "title", "about", "presets": [<preset id>] } ],
 //     "yours": { "skills" | "commands" | "agents": [ { "name", "description" } ] },
 //     "tiers", "sensitive", "workflowGraph", "lenses": the four parts Scriptorium
-//       builds, each optional, in the shapes builder/parts.mjs describes (#262) }
+//       builds, each optional, in the shapes builder/parts.mjs describes (#262),
+//     "models": [<model>]: the Models list every dropdown offers, optional (#262 S19) }
 // The page labels the workflows list "Setups": named sets of presets, not the
 // workflow part.
 //
@@ -46,7 +47,7 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readStrictJson, Refused, Report, scanText, SEGMENT_RE } from '../gate/shared.mjs';
-import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts } from './parts.mjs';
+import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
@@ -213,9 +214,8 @@ export function pactData(root) {
   const named = (text, a) => codeSpans(text).includes(a);
   // The agents a configuration may set, and to what: the renderer's own lists.
   const configurable = listFrom(renderSrc, 'CONFIGURABLE_AGENTS');
-  const agentChoices = { models: listFrom(renderSrc, 'AGENT_MODELS'), efforts: listFrom(renderSrc, 'AGENT_EFFORTS') };
-  // The locked agents the pact installs from familiars/ (scout: sealed).
-  const locked = listFrom(renderSrc, 'LOCKED_AGENTS').filter(n => SEGMENT_RE.test(n) && readdirSync(join(root, 'familiars')).includes(`${n}.md`));
+  // The efforts are the renderer's; a model is any the person's Models list holds (#262 S16, S19).
+  const agentChoices = { efforts: listFrom(renderSrc, 'AGENT_EFFORTS') };
   const info = (rel, name) => {
     const head = /^---\n([\s\S]*?)\n---\n/.exec(readFileSync(join(root, rel), 'utf8'));
     if (!head) fail(`${rel} has no frontmatter`);
@@ -229,10 +229,7 @@ export function pactData(root) {
     return { name, model: field('model'), effort: field('effort'), runs, configurable: configurable.includes(name) };
   };
   const classes = agentClassesThroughRenderer(root, agentFiles.map(f => info(join('claude', 'agents', f), f.slice(0, -3))).filter(a => a.configurable));
-  const agentInfo = [
-    ...agentFiles.map(f => ({ ...info(join('claude', 'agents', f), f.slice(0, -3)), ...(classes[f.slice(0, -3)] ?? { security: null, egress: null }) })),
-    ...locked.map(n => ({ ...info(join('familiars', `${n}.md`), n), security: null, egress: null, locked: 'sealed: its digest covers its own file' })),
-  ];
+  const agentInfo = agentFiles.map(f => ({ ...info(join('claude', 'agents', f), f.slice(0, -3)), ...(classes[f.slice(0, -3)] ?? { security: null, egress: null }) }));
 
   // Skills the pact's own text names, so a preset naming one is not a finding.
   const pactNames = [...new Set([...parts.values()].flatMap(codeSpans))];
@@ -306,7 +303,7 @@ export function loadBuilder(file, pact) {
     return { builder: null, refusals: [`the builder file is not strict JSON: ${e.reason}`], findings };
   }
   if (!isObject(doc)) return { builder: null, refusals: ['the builder file is not a JSON object'], findings };
-  if (!keysOnly(doc, ['schema', 'title', 'presets', 'workflows', 'yours', ...PART_KEYS])) refuse(`a top-level key that is not schema, title, presets, workflows, yours or ${PART_KEYS.join(', ')}; the pact's own text is never part of a builder file`);
+  if (!keysOnly(doc, ['schema', 'title', 'presets', 'workflows', 'yours', ...PART_KEYS, 'models'])) refuse(`a top-level key that is not schema, title, presets, workflows, yours, ${PART_KEYS.join(', ')} or models; the pact's own text is never part of a builder file`);
   if (doc.schema !== 1) refuse('schema must be 1');
   if (Object.hasOwn(doc, 'title') && (typeof doc.title !== 'string' || !LINE_RE.test(doc.title) || doc.title.length > 80)) refuse('title must be one line of at most 80 characters');
 
@@ -399,11 +396,15 @@ export function loadBuilder(file, pact) {
     for (const k of PART_KEYS) if (Object.hasOwn(doc, k)) parts[k] = doc[k];
     for (const f of partsProblems(parts)) (f.level === 'error' ? refusals : findings).push(`${f.part}: ${f.text}`);
   }
+  // The Models list (#262 S19): each entry one model of the gate's shape.
+  const models = Object.hasOwn(doc, 'models') ? doc.models : null;
+  if (models !== null) for (const p of modelsProblems(models)) refusals.push(`models: ${p}`);
 
   // Text the page's content-policy test refuses never reaches a page.
   const POLICY_RE = /[a-z][a-z0-9+.-]*:\/\/|\bfetch\s*\(|\bimport\s*\(|\binnerHTML\b|\bouterHTML\b|\binsertAdjacentHTML\b|\bdocument\s*\.\s*write/i;
   const texts = [
     ...(parts ? partsTexts(parts).map(([where, text]) => [where, '', text]) : []),
+    ...(Array.isArray(models) ? models.filter(m => typeof m === 'string').map(m => ['models', '', m]) : []),
     ...presets.flatMap(p => [['preset', p.id, p.title], ['preset', p.id, p.text], ['preset', p.id, p.why]]),
     ...workflows.flatMap(w => [['workflow', w.id, w.title], ['workflow', w.id, w.about]]),
     ...['skills', 'commands', 'agents'].flatMap(k => yours[k].map(x => [`yours.${k}`, x.name, x.description])),
@@ -432,7 +433,7 @@ export function loadBuilder(file, pact) {
   if (!listed) findings.push('yours lists no skills, commands or agents; the page\'s "Yours" section will say so');
 
   if (refusals.length) return { builder: null, refusals, findings };
-  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', presets, workflows, yours, ...(parts ? { ownParts: parts } : {}) }, refusals, findings };
+  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', presets, workflows, yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}) }, refusals, findings };
 }
 
 /**

@@ -28,10 +28,44 @@
 export const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses']);
 export const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
 export const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
-// A model and its effort, as the tables write them. The builder offers them as two dropdowns.
-export const MODEL_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku']);
-export const EFFORTS = Object.freeze(['low', 'medium', 'high']);
-export const MODEL_CHOICES = Object.freeze(MODEL_NAMES.flatMap(m => EFFORTS.map(e => `${m}, ${e}`)));
+// A model and its effort, as the tables write them: "Opus, medium". The
+// builder offers them as two dropdowns, the models from the person's Models
+// list, which starts as MODEL_NAMES (#262 S19).
+export const MODEL_NAMES = Object.freeze(['Opus', 'Sonnet', 'Haiku', 'Fable']);
+export const EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+// A model the person adds takes the renderer's agent model shape (#262 S15);
+// the renderer keeps its own copy, and a builder test holds them equal.
+export const MODEL_RE = /^[A-Za-z][A-Za-z0-9._:/-]{0,127}$/;
+export const MODEL_WORDS = Object.freeze(['true', 'false', 'null', 'yes', 'no', 'on', 'off', 'y', 'n']);
+export const MODELS_CAP = 32;
+
+/** Whether `m` is a model the gate takes: one plain word of the shape. */
+export function modelOk(m) {
+  return typeof m === 'string' && MODEL_RE.test(m) && !m.endsWith(':') && !m.includes('---') && !/\/{2}/.test(m) && !MODEL_WORDS.includes(m.toLowerCase());
+}
+
+/** Whether `v` is "<model>, <effort>", as a tier or the route takes it. */
+export function modelChoiceOk(v) {
+  const m = typeof v === 'string' ? /^([^,]+), ([a-z]+)$/.exec(v) : null;
+  return !!m && modelOk(m[1]) && EFFORTS.includes(m[2]);
+}
+
+/** An agent's model line for a Models-list entry: a built-in name in lower case, anything else as typed. */
+export function agentModelOf(name) {
+  return MODEL_NAMES.includes(name) ? name.toLowerCase() : name;
+}
+
+/** The Models list's problems, as text: a list of 1 to MODELS_CAP models of the shape, none twice. */
+export function modelsProblems(list) {
+  if (!Array.isArray(list) || !list.length || list.length > MODELS_CAP) return [`the models list must hold 1 to ${MODELS_CAP} models`];
+  const out = [];
+  list.forEach((m, i) => {
+    if (!modelOk(m)) out.push(`model ${i + 1} must be a letter, then letters, digits, '.', '_', ':', '/' or '-', up to 128 characters, with no '---' and no double slash, not ending in ':', and not a YAML word such as true or null`);
+  });
+  const lower = list.filter(m => typeof m === 'string').map(m => m.toLowerCase());
+  if (new Set(lower).size !== lower.length) out.push('the models list names one model twice');
+  return out;
+}
 export const STAGE_MODELS = Object.freeze(['plan', 'build', 'owner']);
 // Each offer condition and the words it compiles to. 'words' compiles to the offer's own words.
 export const OFFER_WHENS = Object.freeze({
@@ -244,8 +278,8 @@ export function partsProblems(p) {
     p.tiers.forEach((t, i) => {
       if (!isObj(t) || !keysIn(t, ['name', 'fits', 'plan', 'build']) || t.name !== TIER_NAMES[i]) return err('tiers', `tier ${i + 1} must be ${TIER_NAMES[i]}, with only name, fits, plan and build`);
       if (!lineOk(t.fits, C.line) || !t.fits.trim()) err('tiers', `${TIER_NAMES[i]}: fits must be one line of 1 to ${C.line} characters, with no bar`);
-      if (!(t.plan === 'none' || MODEL_CHOICES.includes(t.plan))) err('tiers', `${TIER_NAMES[i]}: plan must be none or one of the model choices`);
-      if (!MODEL_CHOICES.includes(t.build)) err('tiers', `${TIER_NAMES[i]}: build must be one of the model choices`);
+      if (!(t.plan === 'none' || modelChoiceOk(t.plan))) err('tiers', `${TIER_NAMES[i]}: plan must be none or a model and an effort`);
+      if (!modelChoiceOk(t.build)) err('tiers', `${TIER_NAMES[i]}: build must be a model and an effort`);
     });
 
   const s = p.sensitive;
@@ -253,7 +287,7 @@ export function partsProblems(p) {
   else {
     if (!Array.isArray(s.items) || !s.items.length || s.items.length > C.items || s.items.some(x => !lineOk(x, C.short) || !x.trim() || /[,:]/.test(x))) err('sensitive', `the list must hold 1 to ${C.items} items, each one line of at most ${C.short} characters, with no comma, colon or bar`);
     if (!TIER_KEYS.includes(s.tier)) err('sensitive', `the route's tier must be one of ${TIER_KEYS.join(', ')}`);
-    if (!MODEL_CHOICES.includes(s.plan) || !MODEL_CHOICES.includes(s.build)) err('sensitive', "the route's plan and build must be model choices");
+    if (!modelChoiceOk(s.plan) || !modelChoiceOk(s.build)) err('sensitive', "the route's plan and build must each be a model and an effort");
   }
 
   const g = p.workflowGraph;

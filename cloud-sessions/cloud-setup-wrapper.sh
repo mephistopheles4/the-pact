@@ -1810,10 +1810,6 @@ description: Read-only search helper, and the cheapest way to answer a lookup. U
 tools: [Read, Glob, Grep]
 model: haiku
 effort: medium
-metadata:
-  contract-version: 0.1.2
-  familiar-digest: "sha256:55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587"
-  contract-digest: "sha256:f13553001a6e6b9f81e8e48ed26019259c8857a54bd35d9e55c3f643f1c408ed"
 ---
 
 # scout
@@ -2281,7 +2277,7 @@ check_hash dcb8cefab1cdf81c1882e8a01935c76665e67c8e123d83eff9badda44bfb4d6c 'age
 check_hash 5800276d07d2adcaf97d6821c46f610dc0b57c7785f419fcd2b67ae31c7139fd 'agents/good-enough-lens.md'
 check_hash b6828b0788291bd748d3cb083906c2b692e28b4e06d5e1d990fcd02f3ab3fa16 'agents/integrity-lens.md'
 check_hash 617f2f3c5a6b2f400bcab46d17c09a60487c06a04eb0c7ce3ce42fac771315f2 'agents/reader-lens.md'
-check_hash ccd848d37470e83783311b5ff616d2aee5d922b0c97e84455e0491b82590c1b6 'agents/scout.md'
+check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 51c28996d83b946efe29cf5501f733c02cbf9d2dc9e29b80bea5b5f8f372a89a 'agents/unstated-lens.md'
 check_hash 1881501fa62ccbd7af37985a06e70964b12286ff199b83180a84bac6e4628383 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
@@ -2303,7 +2299,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 87664c526192"
+  echo "pact cloud copy 37802502674f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

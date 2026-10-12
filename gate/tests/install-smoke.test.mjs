@@ -69,8 +69,8 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   assert.ok(!existsSync(join(h, 'review.md')), 'the review file is never at the top of the Claude folder');
   // #264: the bootstrap filter stages nothing under cross/, so nothing of it reaches the home folder.
   assert.ok(!existsSync(join(h, 'cross')) && !listTree(h).some(f => /cross|poster/.test(f)), listTree(h).join('\n'));
-  // A sealed familiar installs as agents/<stem>.md; its contract never reaches the home folder (#210, move 4).
-  assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'familiars', 'scout.md')));
+  // scout installs as agents/scout.md from claude/agents/ (#262 S18); no contract ever reaches the home folder (#210, move 4).
+  assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'claude', 'agents', 'scout.md')));
   assert.ok(existsSync(join(repo, 'familiars', 'scout.contract.md')), 'the control: the repo holds a contract that could have installed');
   assert.ok(!listTree(h).some(f => /contract/i.test(f)), listTree(h).join('\n'));
   const again = install(repo, h);
