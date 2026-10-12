@@ -178,6 +178,28 @@ export function upgradeParts(p) {
 }
 
 /**
+ * The parts made to agree with their tiers, in place: a stage skips only
+ * tiers that exist, an offer or a skill at tiers keeps those that exist, or
+ * else takes the heaviest, and the route's tier, when gone, is the heaviest.
+ * Run after a tier is removed, or after tiers and a workflow from different
+ * sources meet, such as a preset's tiers taken without its workflow.
+ */
+export function reconcileTiers(p) {
+  if (!Array.isArray(p.tiers) || !p.tiers.length || !isObj(p.workflowGraph)) return p;
+  const ids = p.tiers.map(t => t.id);
+  const heaviest = ids[ids.length - 1];
+  const g = p.workflowGraph;
+  for (const st of Array.isArray(g.stages) ? g.stages : []) if (isObj(st) && Array.isArray(st.skipAt)) st.skipAt = st.skipAt.filter(k => ids.includes(k));
+  for (const o of [...(Array.isArray(g.offers) ? g.offers : []), ...(Array.isArray(g.skills) ? g.skills : [])])
+    if (isObj(o) && o.when === 'tiers' && Array.isArray(o.tiers)) {
+      o.tiers = o.tiers.filter(k => ids.includes(k));
+      if (!o.tiers.length) o.tiers = [heaviest];
+    }
+  if (isObj(p.sensitive) && !ids.includes(p.sensitive.tier)) p.sensitive.tier = heaviest;
+  return p;
+}
+
+/**
  * An offer's tiers in words, lightest first: "standard and above" when they
  * run from one tier to the heaviest, "thorough only" for the heaviest alone,
  * "at every tier" for all of them, and otherwise "at quick and thorough".

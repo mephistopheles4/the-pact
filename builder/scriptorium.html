@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-9gmhVRYoLVm3uC8W+/wKoqQrgQkm3lw+LOaIr7GAoq8='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hPI7BFmNGWKmt2Lz7UalykZBsJea7oRTaOZ+sWxj3nU='; style-src 'sha256-it6taEzsfcqrGm7fNqC1Sm3S0lDwf90Ljl+U0pCt5Jk='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -339,6 +339,7 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .close-x { position: absolute; top: var(--av-s1); right: var(--av-s2); font: inherit; font-size: var(--av-t-lead); line-height: 1; padding: 4px 8px; border: 0; background: transparent; color: var(--av-ink-70); cursor: pointer; }
 .close-x:hover { color: var(--av-caution); }
 /* The Agents dialog: the agents on the left, the one picked beside them. */
+.preset-pick { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: baseline; }
 .agents-grid { display: grid; grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr); gap: var(--av-s3); align-items: start; }
 .agent-list { display: flex; flex-direction: column; gap: 2px; }
 .agent-list .av-label { margin-top: var(--av-s1); }
@@ -456,6 +457,7 @@ dialog.settings .acc[open] > summary { border-bottom: var(--av-rule-hair) solid 
 </dialog>
 <dialog class="settings" id="settings" aria-label="Settings"></dialog>
 <dialog class="settings" id="agents" aria-label="Agents"></dialog>
+<dialog class="settings" id="presets" aria-label="Start from"></dialog>
 <script>
 'use strict';
 const PACT = /* pact-data:begin */ {
@@ -1063,6 +1065,7 @@ const PACT = /* pact-data:begin */ {
    "max"
   ]
  },
+ "presets": [],
  "title": "Example builder",
  "yours": {
   "skills": [],
@@ -1220,6 +1223,28 @@ function upgradeParts(p) {
       o.tiers = [...old[o.when]];
       o.when = 'tiers';
     }
+  return p;
+}
+
+/**
+ * The parts made to agree with their tiers, in place: a stage skips only
+ * tiers that exist, an offer or a skill at tiers keeps those that exist, or
+ * else takes the heaviest, and the route's tier, when gone, is the heaviest.
+ * Run after a tier is removed, or after tiers and a workflow from different
+ * sources meet, such as a preset's tiers taken without its workflow.
+ */
+function reconcileTiers(p) {
+  if (!Array.isArray(p.tiers) || !p.tiers.length || !isObj(p.workflowGraph)) return p;
+  const ids = p.tiers.map(t => t.id);
+  const heaviest = ids[ids.length - 1];
+  const g = p.workflowGraph;
+  for (const st of Array.isArray(g.stages) ? g.stages : []) if (isObj(st) && Array.isArray(st.skipAt)) st.skipAt = st.skipAt.filter(k => ids.includes(k));
+  for (const o of [...(Array.isArray(g.offers) ? g.offers : []), ...(Array.isArray(g.skills) ? g.skills : [])])
+    if (isObj(o) && o.when === 'tiers' && Array.isArray(o.tiers)) {
+      o.tiers = o.tiers.filter(k => ids.includes(k));
+      if (!o.tiers.length) o.tiers = [heaviest];
+    }
+  if (isObj(p.sensitive) && !ids.includes(p.sensitive.tier)) p.sensitive.tier = heaviest;
   return p;
 }
 
@@ -1868,6 +1893,71 @@ function resetAll(state) {
   const before = JSON.stringify(state);
   Object.assign(state, initialState());
   return before;
+}
+
+// #262 addendum 4: presets and shared results. A preset is a builder file: the
+// parts it gives, its models and its agent files. The person ticks what to take.
+const PRESET_PARTS = Object.freeze({ moves: 'The moves', tiers: 'Tiers', sensitive: 'Sensitive work', workflowGraph: 'Workflow', lenses: 'Lens and agent roster', qualities: 'Qualities' });
+const PRESET_AGENT_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+/**
+ * A shared builder file's text as a preset, checked as the page can: { preset }
+ * or { refuse } with why. The parts it gives must pass the builder's checks
+ * with the pact's defaults for the rest; a key the page doesn't know refuses.
+ */
+function presetFromText(text, title = 'A shared file') {
+  let doc;
+  try {
+    doc = JSON.parse(text);
+  } catch {
+    return { refuse: 'it is not valid JSON' };
+  }
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { refuse: 'it is not a JSON object' };
+  const known = ['schema', 'title', 'yours', ...Object.keys(PRESET_PARTS), 'models', 'agentFiles'];
+  const extra = Object.keys(doc).filter(k => !known.includes(k));
+  if (extra.length) return { refuse: `it holds keys a builder file doesn't: ${extra.slice(0, 3).join(', ')}` };
+  if (doc.schema !== 1) return { refuse: 'its schema is not 1' };
+  const all = upgradeParts({ ...copyParts(PACT.parts.defaults), ...copyParts(Object.fromEntries(Object.keys(PRESET_PARTS).filter(k => Object.hasOwn(doc, k)).map(k => [k, doc[k]]))) });
+  // Its tiers meet the pact's workflow when it carries no workflow of its own, as they would on the page.
+  reconcileTiers(all);
+  const bad = partsProblems(all).filter(f => f.level === 'error');
+  if (bad.length) return { refuse: bad.slice(0, 3).map(f => `${f.part}: ${f.text}`).join('; ') };
+  const preset = { id: 'file', title: typeof doc.title === 'string' && doc.title.trim() ? doc.title.trim().slice(0, 80) : title, parts: Object.fromEntries(Object.keys(PRESET_PARTS).filter(k => Object.hasOwn(doc, k)).map(k => [k, all[k]])) };
+  if (Object.hasOwn(doc, 'models')) {
+    const m = modelsProblems(doc.models);
+    if (m.length) return { refuse: `models: ${m[0]}` };
+    preset.models = [...doc.models];
+  }
+  if (Object.hasOwn(doc, 'agentFiles')) {
+    const f = doc.agentFiles;
+    if (!f || typeof f !== 'object' || Array.isArray(f) || Object.keys(f).length > 32) return { refuse: 'agentFiles must map at most 32 agent names to their files' };
+    for (const [name, t] of Object.entries(f)) if (!PRESET_AGENT_RE.test(name) || typeof t !== 'string' || !t.trim() || t.length > 65536) return { refuse: `agentFiles: ${name.slice(0, 64)} is not an agent name with a file` };
+    preset.agentFiles = { ...f };
+  }
+  if (!Object.keys(preset.parts).length && !preset.models && !preset.agentFiles) return { refuse: 'it gives no part, models or agent files' };
+  return { preset };
+}
+
+/** What a preset offers to take, each ticked: ['part:<key>' | 'models' | 'agent:<name>']. */
+function presetPicks(preset) {
+  return [...Object.keys(preset.parts).map(k => `part:${k}`), ...(preset.models ? ['models'] : []), ...Object.keys(preset.agentFiles || {}).map(n => `agent:${n}`)];
+}
+
+/** Take the ticked `picks` of `preset` into `state`, each replacing the person's own. Returns the agent names taken. */
+function takePreset(state, preset, picks) {
+  const taken = [];
+  for (const pick of picks) {
+    const [kind, key] = pick.split(/:(.*)/s);
+    if (kind === 'part' && Object.hasOwn(preset.parts, key)) state.parts[key] = copyParts(preset.parts[key]);
+    else if (kind === 'models' && preset.models) state.models = [...preset.models];
+    else if (kind === 'agent' && preset.agentFiles && Object.hasOwn(preset.agentFiles, key)) {
+      state.own[key] = preset.agentFiles[key];
+      if (state.agents[key]) state.agents[key] = fileModel(preset.agentFiles[key], state.agents[key]);
+      taken.push(key);
+    }
+  }
+  reconcileTiers(state.parts);
+  return taken;
 }
 
 function restoreAll(state, snap) {
@@ -2955,16 +3045,8 @@ function workflowEditor(host, state, changed) {
     };
     // A tier removed leaves every stage, offer and skill that named it; one left with no tier, and the route, take the heaviest tier left.
     const remove = i => {
-      const [gone] = p.tiers.splice(i, 1);
-      const heaviest = p.tiers[p.tiers.length - 1].id;
-      const g = p.workflowGraph;
-      for (const st of g.stages) st.skipAt = st.skipAt.filter(k => k !== gone.id);
-      for (const o of [...g.offers, ...(g.skills || [])])
-        if (o.when === 'tiers') {
-          o.tiers = o.tiers.filter(k => k !== gone.id);
-          if (!o.tiers.length) o.tiers = [heaviest];
-        }
-      if (p.sensitive.tier === gone.id) p.sensitive.tier = heaviest;
+      p.tiers.splice(i, 1);
+      reconcileTiers(p);
       redo();
     };
     const add = () => {
@@ -3200,7 +3282,7 @@ function boot() {
         renderOutput();
         showDialog('export');
       });
-      $('actions').replaceChildren(chip('Take the tour', false, () => editor && editor.tour(), 'av-tool-chip--ghost'), el('span', { id: 'reset', class: 'chips' }), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Agents', false, openAgents, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
+      $('actions').replaceChildren(chip('Take the tour', false, () => editor && editor.tour(), 'av-tool-chip--ghost'), el('span', { id: 'reset', class: 'chips' }), chip('Start from…', false, () => openPresets(), 'av-tool-chip--ghost'), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Agents', false, openAgents, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
         dark = !dark;
         try {
           window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
@@ -3471,6 +3553,7 @@ function boot() {
       return renderAll();
     }
     const before = resetAll(state);
+    fromPreset.clear();
     renderAll();
     resetBefore = before;
     paintReset();
@@ -3593,7 +3676,7 @@ function boot() {
       { class: 'agent-detail' },
       el('h3', { class: 'section-title', text: a.name }),
       el('div', { class: 'field-row model-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, [...new Set([...state.models.map(agentModelOf), now.model])], now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
-      el('span', { class: 'av-label', text: a.added ? 'your agent · its own file' : mine ? `your file · replaces the pact's ${a.name}` : changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not security-set'}` }),
+      el('span', { class: 'av-label', text: fromPreset.has(a.name) ? (a.added ? 'from the preset · a new agent' : `from the preset · replaces the pact's ${a.name}`) : a.added ? 'your agent · its own file' : mine ? `your file · replaces the pact's ${a.name}` : changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not security-set'}` }),
       ...(row ? [el('p', { class: 'av-annot', text: `Roster: ${row.label || row.agents.join(', ')}${row.agents.length > 1 ? ` (with ${row.agents.filter(n => n !== a.name).join(', ')})` : ''}. Asks: ${row.asks}` })] : []),
       el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Qualities it checks' }), tagPicker(`${a.name} qualities`, qs.filter(q => q.lenses.includes(a.name)).map(q => q.quality), qs.map(q => q.quality), names => {
         for (const q of qs) {
@@ -3704,6 +3787,57 @@ function boot() {
   function openAgents() {
     renderAgents();
     showDialog('agents');
+  }
+
+  // #262 addendum 4: start from a shipped preset or a shared file. Nothing is
+  // taken until the person has seen, and ticked, what it carries.
+  const fromPreset = new Set(); // agent files taken from a preset, marked in the Agents panel until a reset
+  function openPresets(chosen = null, why = '') {
+    const head = (blurb) => el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Start from…' }), el('p', { class: 'av-tool-blurb', text: blurb })), closeX('presets'));
+    if (!chosen) {
+      const file = el('input', { type: 'file', accept: '.json,application/json', 'aria-label': 'Open a builder file' });
+      file.addEventListener('change', async () => {
+        const f = file.files && file.files[0];
+        if (!f) return;
+        const r = presetFromText(await f.text(), f.name);
+        openPresets(r.preset || null, r.refuse ? `${f.name} can't be opened: ${r.refuse}.` : '');
+      });
+      $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
+        head('A preset or a shared result is a saved Scriptorium builder file. You see what it carries and tick what to take before anything changes; Reset takes it back.'),
+        el('section', { class: 'av-tool-bar av-tool-bar--stack' },
+          el('h3', { class: 'section-title', text: 'Presets' }),
+          ...(PACT.presets.length ? PACT.presets.map(p => el('div', { class: 'chips' }, chip(p.title, false, () => openPresets(p), 'av-tool-chip--ghost'))) : [el('p', { class: 'av-annot', text: 'No presets ship with this page yet.' })]),
+          el('h3', { class: 'section-title', text: 'A shared file' }),
+          el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Open a builder file' }), file),
+          ...(why ? [el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: why })] : []))));
+      return showDialog('presets');
+    }
+    const picks = new Set(presetPicks(chosen));
+    const tick = (key, label, note) => {
+      const box = el('input', { type: 'checkbox', 'aria-label': label });
+      box.checked = picks.has(key);
+      box.addEventListener('change', () => (box.checked ? picks.add(key) : picks.delete(key)));
+      return el('label', { class: 'preset-pick' }, box, el('span', { text: label }), ...(note ? [el('span', { class: 'av-annot', text: note })] : []));
+    };
+    const pactAgent = n => PACT.agents.some(a => a.name === n);
+    $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
+      head(`Take from ${chosen.title}. Each ticked item replaces yours; read its agent files in the Agents panel before you save.`),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' },
+        ...(Object.keys(chosen.parts).length ? [el('h3', { class: 'section-title', text: 'Parts' }), ...Object.keys(chosen.parts).map(k => tick(`part:${k}`, PRESET_PARTS[k]))] : []),
+        ...(chosen.models ? [el('h3', { class: 'section-title', text: 'Models' }), tick('models', 'The Models list', chosen.models.join(', '))] : []),
+        ...(chosen.agentFiles ? [el('h3', { class: 'section-title', text: 'Agent files' }), ...Object.keys(chosen.agentFiles).sort().map(n => tick(`agent:${n}`, n, pactAgent(n) ? `replaces the pact's ${n}` : 'a new agent'))] : []),
+        el('div', { class: 'chips' },
+          chip('Take these', true, () => {
+            const before = JSON.stringify(state);
+            for (const n of takePreset(state, chosen, [...picks])) fromPreset.add(n);
+            $('presets').close();
+            renderAll();
+            resetBefore = before;
+            paintReset();
+            setStatus(`Taken from ${chosen.title}. To put yours back, point at Reset: it offers Undo.`);
+          }),
+          chip('Back', false, () => openPresets(), 'av-tool-chip--ghost')))));
+    showDialog('presets');
   }
 
 

@@ -47,10 +47,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
-import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, upgradeParts } from './parts.mjs';
+import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, reconcileTiers, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
+// The presets the pact ships (#262 addendum 4): builder files, each checked as any is.
+export const PRESETS_REL = 'builder/presets';
 
 const MARK_RE = /^( *)<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 const DATA_RE = /\/\* pact-data:begin \*\/[\s\S]*?\/\* pact-data:end \*\//;
@@ -284,6 +286,8 @@ export function loadBuilder(file, pact) {
     parts = copyParts(DEFAULT_PARTS);
     for (const k of PART_KEYS) if (Object.hasOwn(doc, k)) parts[k] = doc[k];
     upgradeParts(parts);
+    // Tiers from the file meet the pact's workflow when it gives none, as on the page.
+    reconcileTiers(parts);
     for (const f of partsProblems(parts)) (f.level === 'error' ? refusals : findings).push(`${f.part}: ${f.text}`);
   }
   // The Models list (#262 S19): each entry one model of the gate's shape.
@@ -395,14 +399,38 @@ export function checkBuilder(root, file) {
 const sha256b64 = s => createHash('sha256').update(s, 'utf8').digest('base64');
 const ESC_LT = `${String.fromCharCode(92)}u003c`;
 
+/**
+ * The shipped presets, by file name: each checked as a builder file, and
+ * carried with only what it holds: the parts it gives, its models and its
+ * agent files. The page lists what each carries before anything is taken.
+ */
+export function shippedPresets(root, pact, dir = join(root, PRESETS_REL)) {
+  let names;
+  try {
+    names = readdirSync(dir).filter(n => n.endsWith('.json')).sort();
+  } catch (e) {
+    if (e.code === 'ENOENT') return [];
+    throw e;
+  }
+  return names.map(name => {
+    const file = join(dir, name);
+    const { builder, refusals } = loadBuilder(file, pact);
+    if (!builder) fail(`the preset ${name} is refused: ${refusals.join('; ')}`);
+    const doc = JSON.parse(readFileSync(file, 'utf8'));
+    const parts = Object.fromEntries(PART_KEYS.filter(k => Object.hasOwn(doc, k)).map(k => [k, builder.ownParts[k]]));
+    return { id: name.slice(0, -'.json'.length), title: builder.title || name, parts, ...(builder.ownModels ? { models: builder.ownModels } : {}), ...(builder.ownAgentFiles ? { agentFiles: builder.ownAgentFiles } : {}) };
+  });
+}
+
 /** The page `html` with its data object rebuilt from the pact and the builder file, and its policy hashes recomputed. */
 export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_REL)) {
   if (!DATA_RE.test(html)) fail('the page has no pact-data marks');
   const pact = pactData(root);
   const { builder, refusals } = loadBuilder(builderFile, pact);
   if (!builder) fail(`the builder file is refused: ${refusals.join('; ')}`);
+  const presets = shippedPresets(root, pact);
   // JSON inside a script: "<" is escaped, so no text can close the script or open a comment.
-  const json = JSON.stringify({ ...pact, ...builder }, null, 1).replaceAll('<', ESC_LT);
+  const json = JSON.stringify({ ...pact, presets, ...builder }, null, 1).replaceAll('<', ESC_LT);
   let out = html.replace(DATA_RE, () => `/* pact-data:begin */ ${json} /* pact-data:end */`);
   if (!PARTS_CODE_RE.test(out)) fail('the page has no parts-code marks');
   out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);

@@ -11,7 +11,7 @@ import { basename, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
-import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder } from '../../builder/build.mjs';
+import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, upgradeParts } from '../../builder/parts.mjs';
 import { isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
@@ -588,7 +588,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -886,3 +886,38 @@ for (const [name, block, refusedByPage] of BLOCKS) {
     assert.equal(rendererRefuses(t, block), refusedByPage);
   });
 }
+
+// #262 addendum 4: a shipped preset carries only what its file gives; a refused one stops the build.
+test('a shipped preset is carried with only the parts, models and agent files it gives; a refused preset stops the build', t => {
+  const dir = tempDir(t, 'pact-presets-');
+  writeFileSync(join(dir, 'level-1.json'), JSON.stringify({ schema: 1, title: 'Level 1', tiers: [{ id: 'only', name: 'Only', fits: 'All work', plan: 'none', build: 'Sonnet, medium' }], agentFiles: { mine: '---\nname: mine\n---\n' } }));
+  const [p] = shippedPresets(REPO, pactData(REPO), dir);
+  assert.deepEqual([p.id, p.title, Object.keys(p.parts), Object.keys(p.agentFiles)], ['level-1', 'Level 1', ['tiers'], ['mine']]);
+  writeFileSync(join(dir, 'z-bad.json'), JSON.stringify({ schema: 1, tiers: [] }));
+  assert.throws(() => shippedPresets(REPO, pactData(REPO), dir), /the preset z-bad\.json is refused: .*1 to 6 tiers/);
+});
+
+// #262 addendum 4: a shared file is checked as the page can, and refused with why.
+test('a shared file opens as a preset only when the page can use it, and says why when not', () => {
+  assert.match(L.presetFromText('{').refuse, /not valid JSON/);
+  assert.match(L.presetFromText('{"schema": 1, "presets": []}').refuse, /keys a builder file doesn't: presets/);
+  assert.match(L.presetFromText('{"schema": 1, "tiers": []}').refuse, /tiers: tiers must list 1 to 6 tiers/);
+  assert.match(L.presetFromText('{"schema": 1, "agentFiles": {"Bad": "x"}}').refuse, /agentFiles: Bad is not an agent name/);
+  assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, models or agent files/);
+  // Tiers without a workflow meet the pact's workflow: its offers take the tiers that exist.
+  const r = L.presetFromText(JSON.stringify({ schema: 1, title: 'Two tiers', tiers: [{ id: 'light', name: 'Light', fits: 'Small', plan: 'none', build: 'Sonnet, medium' }, { id: 'full', name: 'Full', fits: 'The rest', plan: 'Opus, high', build: 'Sonnet, medium' }] }));
+  assert.equal(r.refuse, undefined);
+  assert.deepEqual(L.presetPicks(r.preset), ['part:tiers']);
+});
+
+// #262 addendum 4: only what is ticked is taken; the rest stays the person's, and the parts agree with the tiers taken.
+test('taking a preset replaces only the ticked parts and agent files, and the workflow follows the tiers taken', () => {
+  const { preset } = L.presetFromText(JSON.stringify({ schema: 1, tiers: [{ id: 'light', name: 'Light', fits: 'Small', plan: 'none', build: 'Sonnet, medium' }, { id: 'full', name: 'Full', fits: 'The rest', plan: 'Opus, high', build: 'Sonnet, medium' }], moves: [{ lead: 'Theirs', text: 'Their move.' }], agentFiles: { scout: '---\nname: scout\nmodel: opus\neffort: low\n---\n', mine: '---\nname: mine\n---\n' } }));
+  const s = L.initialState();
+  const out = L.takePreset(s, preset, ['part:tiers', 'agent:scout']);
+  assert.deepEqual(out, ['scout']);
+  const got = JSON.parse(JSON.stringify(s));
+  assert.deepEqual([got.parts.tiers.map(t => t.id), got.parts.moves[0].lead, Object.keys(got.own), got.agents.scout.model], [['light', 'full'], 'Sense the work', ['scout'], 'opus']);
+  assert.equal(got.parts.sensitive.tier, 'full');
+  assert.deepEqual(got.parts.workflowGraph.stages.find(x => x.id === 'design').skipAt, []);
+});
