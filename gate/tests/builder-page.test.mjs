@@ -898,10 +898,12 @@ test('a shipped preset is carried with only the parts, models and agent files it
 });
 
 // The protected set, item 2: a shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken.
-test('every shipped preset with a workflow offers the security pair on the sensitive route and once more when it was not taken', () => {
+// A preset's workflow names its own tiers, so it carries them: taken after another preset, it never keeps that one's tiers.
+test('every shipped preset carries its tiers and a workflow that offers the security pair on the sensitive route and once more when it was not taken', () => {
   const presets = shippedPresets(REPO, pactData(REPO));
   assert.ok(presets.length >= 6, 'the six presets ship');
-  for (const p of presets.filter(x => x.parts.workflowGraph)) {
+  for (const p of presets) {
+    assert.ok(p.parts.tiers && p.parts.workflowGraph, p.id);
     const whens = p.parts.workflowGraph.offers.filter(o => o.on && ['adversarial-lens', 'data-lens'].every(a => o.agents.includes(a))).map(o => o.when);
     assert.ok(whens.includes('sensitive') && whens.includes('sensitive-declined'), p.id);
   }

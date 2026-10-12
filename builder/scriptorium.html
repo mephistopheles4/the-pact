@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-5N4XlU269F9phqIpZlArTvBJVAPlHsWYQysPpfxYSgA='; style-src 'sha256-it6taEzsfcqrGm7fNqC1Sm3S0lDwf90Ljl+U0pCt5Jk='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-eq5A63KThl2BXurUIq11FGoGHBfcpdM/V0dh6nBa4r4='; style-src 'sha256-r3CZ1eEHxHpE61HLbZ3deMRsb8slCe2QBoep84XCRQM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -339,7 +339,10 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .close-x { position: absolute; top: var(--av-s1); right: var(--av-s2); font: inherit; font-size: var(--av-t-lead); line-height: 1; padding: 4px 8px; border: 0; background: transparent; color: var(--av-ink-70); cursor: pointer; }
 .close-x:hover { color: var(--av-caution); }
 /* The Agents dialog: the agents on the left, the one picked beside them. */
-.preset-pick { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: baseline; }
+.preset-row summary input[type="checkbox"] { margin: 0 var(--av-s1) 0 0; accent-color: var(--av-ink); }
+.preset-count { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.preset-stage { display: flex; flex-direction: column; gap: 2px; }
+.preset-file { margin: 0; max-height: 18rem; overflow: auto; font-size: var(--av-t-micro); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-12); padding: var(--av-s1) var(--av-s2); }
 .agents-grid { display: grid; grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr); gap: var(--av-s3); align-items: start; }
 .agent-list { display: flex; flex-direction: column; gap: 2px; }
 .agent-list .av-label { margin-top: var(--av-s1); }
@@ -457,7 +460,7 @@ dialog.settings .acc[open] > summary { border-bottom: var(--av-rule-hair) solid 
 </dialog>
 <dialog class="settings" id="settings" aria-label="Settings"></dialog>
 <dialog class="settings" id="agents" aria-label="Agents"></dialog>
-<dialog class="settings" id="presets" aria-label="Start from"></dialog>
+<dialog class="settings" id="presets" aria-label="Presets"></dialog>
 <script>
 'use strict';
 const PACT = /* pact-data:begin */ {
@@ -1390,6 +1393,29 @@ const PACT = /* pact-data:begin */ {
    "id": "level-3-full",
    "title": "Level 3 · Full",
    "parts": {
+    "tiers": [
+     {
+      "id": "quick",
+      "name": "Quick",
+      "fits": "Small, one session, no plan needed",
+      "plan": "none",
+      "build": "Opus, low"
+     },
+     {
+      "id": "standard",
+      "name": "Standard",
+      "fits": "Needs a short spec",
+      "plan": "Opus, medium",
+      "build": "Sonnet, medium"
+     },
+     {
+      "id": "thorough",
+      "name": "Thorough",
+      "fits": "Too big for one session, or risky; cut into tickets, each its own session",
+      "plan": "Opus, high",
+      "build": "Sonnet, medium"
+     }
+    ],
     "workflowGraph": {
      "stages": [
       {
@@ -1682,6 +1708,29 @@ const PACT = /* pact-data:begin */ {
    "id": "level-3-matt-pocock",
    "title": "Level 3 · Matt Pocock skills",
    "parts": {
+    "tiers": [
+     {
+      "id": "quick",
+      "name": "Quick",
+      "fits": "Small, one session, no plan needed",
+      "plan": "none",
+      "build": "Opus, low"
+     },
+     {
+      "id": "standard",
+      "name": "Standard",
+      "fits": "Needs a short spec",
+      "plan": "Opus, medium",
+      "build": "Sonnet, medium"
+     },
+     {
+      "id": "thorough",
+      "name": "Thorough",
+      "fits": "Too big for one session, or risky; cut into tickets, each its own session",
+      "plan": "Opus, high",
+      "build": "Sonnet, medium"
+     }
+    ],
     "workflowGraph": {
      "stages": [
       {
@@ -2022,6 +2071,29 @@ const PACT = /* pact-data:begin */ {
    "id": "level-3-superpowers",
    "title": "Level 3 · Superpowers skills",
    "parts": {
+    "tiers": [
+     {
+      "id": "quick",
+      "name": "Quick",
+      "fits": "Small, one session, no plan needed",
+      "plan": "none",
+      "build": "Opus, low"
+     },
+     {
+      "id": "standard",
+      "name": "Standard",
+      "fits": "Needs a short spec",
+      "plan": "Opus, medium",
+      "build": "Sonnet, medium"
+     },
+     {
+      "id": "thorough",
+      "name": "Thorough",
+      "fits": "Too big for one session, or risky; cut into tickets, each its own session",
+      "plan": "Opus, high",
+      "build": "Sonnet, medium"
+     }
+    ],
     "workflowGraph": {
      "stages": [
       {
@@ -2336,6 +2408,29 @@ const PACT = /* pact-data:begin */ {
    "id": "ultra-code",
    "title": "Ultra Code",
    "parts": {
+    "tiers": [
+     {
+      "id": "quick",
+      "name": "Quick",
+      "fits": "Small, one session, no plan needed",
+      "plan": "none",
+      "build": "Opus, low"
+     },
+     {
+      "id": "standard",
+      "name": "Standard",
+      "fits": "Needs a short spec",
+      "plan": "Opus, medium",
+      "build": "Sonnet, medium"
+     },
+     {
+      "id": "thorough",
+      "name": "Thorough",
+      "fits": "Too big for one session, or risky; cut into tickets, each its own session",
+      "plan": "Opus, high",
+      "build": "Sonnet, medium"
+     }
+    ],
     "workflowGraph": {
      "stages": [
       {
@@ -4948,7 +5043,7 @@ function boot() {
         renderOutput();
         showDialog('export');
       });
-      $('actions').replaceChildren(chip('Take the tour', false, () => editor && editor.tour(), 'av-tool-chip--ghost'), el('span', { id: 'reset', class: 'chips' }), chip('Start from…', false, () => openPresets(), 'av-tool-chip--ghost'), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Agents', false, openAgents, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
+      $('actions').replaceChildren(chip('Take the tour', false, () => editor && editor.tour(), 'av-tool-chip--ghost'), el('span', { id: 'reset', class: 'chips' }), chip('Presets', false, () => openPresets(), 'av-tool-chip--ghost'), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Agents', false, openAgents, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
         dark = !dark;
         try {
           window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
@@ -5459,7 +5554,7 @@ function boot() {
   // taken until the person has seen, and ticked, what it carries.
   const fromPreset = new Set(); // agent files taken from a preset, marked in the Agents panel until a reset
   function openPresets(chosen = null, why = '') {
-    const head = (blurb) => el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Start from…' }), el('p', { class: 'av-tool-blurb', text: blurb })), closeX('presets'));
+    const head = (blurb) => el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Presets' }), el('p', { class: 'av-tool-blurb', text: blurb })), closeX('presets'));
     if (!chosen) {
       const file = el('input', { type: 'file', accept: '.json,application/json', 'aria-label': 'Open a builder file' });
       file.addEventListener('change', async () => {
@@ -5479,19 +5574,44 @@ function boot() {
       return showDialog('presets');
     }
     const picks = new Set(presetPicks(chosen));
-    const tick = (key, label, note) => {
-      const box = el('input', { type: 'checkbox', 'aria-label': label });
+    // One accordion row per section the preset carries: a checkbox where a tier's number sits, its name and a count, and inside, what it holds.
+    const lines = xs => el('ul', { class: 'runs' }, ...xs.map(x => el('li', { text: x.replaceAll('`', '') })));
+    const all = { ...copyParts(state.parts), ...copyParts(chosen.parts) };
+    reconcileTiers(all);
+    const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+    const holds = {
+      moves: m => [plural(m.length, 'move'), lines(m.map(x => x.lead))],
+      tiers: ts => [plural(ts.length, 'tier'), lines(ts.map(x => `${x.name}: ${x.fits}. Plan ${x.plan}; build ${x.build}.`))],
+      sensitive: s => [plural(s.items.length, 'item'), lines([`The list: ${s.items.join(', ')}.`, `The route: plan ${s.plan}, build ${s.build}.`])],
+      workflowGraph: g => {
+        const on = xs => (xs || []).filter(x => x.on !== false);
+        const order = stagesInOrder(g);
+        return [[plural(g.stages.length, 'stage'), plural(on(g.offers).length, 'lens offer'), plural(on(g.skills).length, 'skill')].join(' · '),
+          ...order.map(st => el('div', { class: 'preset-stage' }, el('span', { class: 'av-label', text: st.name }),
+            lines([...on(g.offers).filter(o => o.stage === st.id).map(o => `Lens: ${offerText(all, o)}`), ...on(g.skills).filter(k => k.stage === st.id).map(k => `Skill: ${skillText(all, k)}`), ...on(g.links).filter(l => l.from === st.id && l.when).map(l => `Out: ${linkText(g, l, order)}`)])))];
+      },
+      lenses: rs => [plural(rs.length, 'row'), lines(rs.map(r => `${r.agents.join(', ')}${r.label ? ` (${r.label})` : ''}: ${r.asks}`))],
+      qualities: qs => [plural(qs.length, 'quality', 'qualities'), lines(qs.map(q => `${q.quality}: ${q.measure || 'no measure yet'} (${q.lenses.join(', ')})`))],
+    };
+    const row = (key, label, count, ...body) => {
+      const box = el('input', { type: 'checkbox', 'aria-label': `Take ${label}` });
       box.checked = picks.has(key);
       box.addEventListener('change', () => (box.checked ? picks.add(key) : picks.delete(key)));
-      return el('label', { class: 'preset-pick' }, box, el('span', { text: label }), ...(note ? [el('span', { class: 'av-annot', text: note })] : []));
+      return el('details', { class: 'acc preset-row' }, el('summary', {}, box, el('span', { text: label }), el('span', { class: 'av-annot preset-count', text: count })), el('div', { class: 'acc-body' }, ...body));
     };
     const pactAgent = n => PACT.agents.some(a => a.name === n);
+    const kept = Object.keys(PRESET_PARTS).filter(k => !Object.hasOwn(chosen.parts, k)).map(k => PRESET_PARTS[k]);
     $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
-      head(`Take from ${chosen.title}. Each ticked item replaces yours; read its agent files in the Agents panel before you save.`),
+      head(`Take from ${chosen.title}. Each ticked section replaces yours; open one to see what it holds, and read its agent files before you save.`),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' },
-        ...(Object.keys(chosen.parts).length ? [el('h3', { class: 'section-title', text: 'Parts' }), ...Object.keys(chosen.parts).map(k => tick(`part:${k}`, PRESET_PARTS[k]))] : []),
-        ...(chosen.models ? [el('h3', { class: 'section-title', text: 'Models' }), tick('models', 'The Models list', chosen.models.join(', '))] : []),
-        ...(chosen.agentFiles ? [el('h3', { class: 'section-title', text: 'Agent files' }), ...Object.keys(chosen.agentFiles).sort().map(n => tick(`agent:${n}`, n, pactAgent(n) ? `replaces the pact's ${n}` : 'a new agent'))] : []),
+        el('div', { class: 'accs' },
+          ...Object.keys(chosen.parts).map(k => {
+            const [count, ...body] = holds[k](chosen.parts[k]);
+            return row(`part:${k}`, PRESET_PARTS[k], count, ...body);
+          }),
+          ...(chosen.models ? [row('models', 'Models', plural(chosen.models.length, 'model'), lines(chosen.models))] : []),
+          ...(chosen.agentFiles ? Object.keys(chosen.agentFiles).sort().map(n => row(`agent:${n}`, `Agent file: ${n}`, pactAgent(n) ? `replaces the pact's ${n}` : 'a new agent', el('pre', { class: 'preset-file', text: chosen.agentFiles[n] }))) : [])),
+        ...(kept.length ? [el('p', { class: 'av-annot', text: `Not in this preset, so yours stays: ${kept.join(', ')}.` })] : []),
         el('div', { class: 'chips' },
           chip('Take these', true, () => {
             const before = JSON.stringify(state);

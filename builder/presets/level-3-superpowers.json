@@ -1,6 +1,29 @@
 {
   "schema": 1,
   "title": "Level 3 · Superpowers skills",
+  "tiers": [
+    {
+      "id": "quick",
+      "name": "Quick",
+      "fits": "Small, one session, no plan needed",
+      "plan": "none",
+      "build": "Opus, low"
+    },
+    {
+      "id": "standard",
+      "name": "Standard",
+      "fits": "Needs a short spec",
+      "plan": "Opus, medium",
+      "build": "Sonnet, medium"
+    },
+    {
+      "id": "thorough",
+      "name": "Thorough",
+      "fits": "Too big for one session, or risky; cut into tickets, each its own session",
+      "plan": "Opus, high",
+      "build": "Sonnet, medium"
+    }
+  ],
   "workflowGraph": {
     "stages": [
       {
