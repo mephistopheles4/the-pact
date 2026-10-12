@@ -482,7 +482,7 @@ const openSettings = P => {
 test('stub page: the canvas is the page, and the head opens Settings and Export; Settings holds each move as a text box with its default', () => {
   const P = bootPage();
   assert.equal(P.find(P.ids.wf, n => n.attrs && n.attrs['aria-label'] === 'The workflow canvas').length, 1);
-  assert.deepEqual(P.find(P.ids.actions, n => n.tag === 'button').map(b => b.text), ['Settings', 'Dark', 'Export']);
+  assert.deepEqual(P.find(P.ids.actions, n => n.tag === 'button').map(b => b.text), ['Take the tour', 'Settings', 'Dark', 'Export']);
   assert.ok(P.button(P.ids.reset, 'Reset all'));
   const box = openSettings(P);
   assert.deepEqual(P.find(box, n => n.tag === 'summary').map(n => n.text), ['Moves', 'Setups', 'Agents', 'Tiers', 'Sensitive work', 'Lenses', 'Results']);
@@ -509,7 +509,10 @@ test('stub page: an edited move saves as a replace edit; reset all puts the defa
   assert.match(P.ids.output.text, /"mark": "move-1",\s*"op": "replace"/);
   P.button(P.ids.reset, 'Reset all').click();
   assert.match(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0].textContent, /^What kind of work/);
-  P.button(P.ids.reset, 'Undo reset').click();
+  // The one reset button, right after a reset, is its undo (it reads Undo reset on hover).
+  const undo = P.find(P.ids.reset, n => n.tag === 'button')[0];
+  assert.equal(undo.text, 'Reset');
+  undo.click();
   assert.equal(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0].textContent, 'I sense the work my own way.');
 });
 

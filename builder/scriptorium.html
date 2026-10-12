@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-D88GA1KEffiDG2yT+vNiXfPbogwsCwg4IGE4JgRCc0M='; style-src 'sha256-ZAMj0SIpkxYpUdxfi3J8r4KUXiqVHcrUSGAPfv8wIAs='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-cl7sV2jRx9GxY01boiaWPYgpSqt9kCEgTiih3pajK3U='; style-src 'sha256-lsiDyWhGhMusu0qkOljIkQiON3w1IitOTazWocHAauw='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -326,7 +326,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-chip { border: var(--av-rule-hair) solid var(--av-ink-30); padding: 0 6px; font-size: var(--av-t-annot); }
 .wf-chip button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0 0 0 4px; }
 
-.wf-tour { position: fixed; z-index: 30; max-width: 320px; background: var(--av-paper); border: var(--av-rule-bold) solid var(--av-ink); padding: var(--av-s2); box-shadow: 6px 6px 0 var(--av-ink-12); font-size: var(--av-t-annot); animation: wf-pop .2s ease-out; }
+.wf-tour { font-family: var(--av-font); color: var(--av-ink); line-height: 1.5; position: fixed; z-index: 30; max-width: 320px; background: var(--av-paper); border: var(--av-rule-bold) solid var(--av-ink); padding: var(--av-s2); box-shadow: 6px 6px 0 var(--av-ink-12); font-size: var(--av-t-annot); animation: wf-pop .2s ease-out; }
 .wf-tour p { margin: var(--av-s1) 0; }
 .wf-tourhl { outline: 3px solid var(--av-caution) !important; outline-offset: 2px; }
 
@@ -351,7 +351,13 @@ dialog.settings { width: min(960px, calc(100% - 32px)); max-height: calc(100vh -
 dialog.settings::backdrop { background: rgb(0 0 0 / 0.35); }
 dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .limit-label { min-width: 12rem; font-size: var(--av-t-annot); font-weight: 600; }
+.accs { display: flex; flex-direction: column; }
+.settings-parts { display: contents; }
 .acc { border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.acc summary { min-height: 2.6rem; display: flex; align-items: center; gap: var(--av-s1); }
+.classic-head { position: relative; padding-right: var(--av-s5); }
+.close-x { position: absolute; top: var(--av-s1); right: var(--av-s2); font: inherit; font-size: var(--av-t-lead); line-height: 1; padding: 4px 8px; border: 0; background: transparent; color: var(--av-ink-70); cursor: pointer; }
+.close-x:hover { color: var(--av-caution); }
 .acc summary { cursor: pointer; padding: var(--av-s1) 0; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; }
 .acc-body { display: flex; flex-direction: column; gap: var(--av-s1); padding: 0 0 var(--av-s2); }
 .acc-body input[type="text"], .acc-body select { width: 100%; min-width: 0; }
@@ -1831,7 +1837,6 @@ const WF_TOUR = [
   ['table', 'The workflow table, the part this canvas edits. One row per stage: what each tier sets there, the lenses offered and when, and the other ways out.'],
   ['sim', 'Describe a piece of work and press Run it through: a pulse travels the stages and lights the lenses that would be offered.'],
   ['panel', 'Edit whatever you select here. Tiers, sensitive work, the lens roster and the results are in Settings, in the head.'],
-  ['library', 'The moves sit beside the work, below the library: no order, no arrows, never on the canvas.'],
 ];
 
 /** Mount the editor in `host`, editing state.parts in place. `changed` runs after every edit. */
@@ -1939,25 +1944,7 @@ function workflowEditor(host, state, changed) {
   const resizer = el('div', { class: 'wf-resizer', role: 'separator', 'aria-orientation': 'vertical', 'aria-label': 'Resize the panel', tabindex: '0' });
   const cols = el('div', { class: 'wf-cols' }, library, el('div', { class: 'wf-centre' }, canvas, table), resizer, panel);
   const parts = { library, canvas, table, sim, panel };
-  host.replaceChildren(
-    el(
-      'div',
-      { class: 'slot-bar wf-head' },
-      el('p', { class: 'av-annot', text: 'The canvas edits the workflow; the panel edits tiers, sensitive work and the lens roster. Any change to these four shows a security-defaults line first in the install\'s dry run.' }),
-      el('div', { class: 'chips' }, chip('Take the tour', true, () => tour(0)), chip('Reset these parts', false, () => {
-        state.parts = copyParts(PACT.ownParts || PACT.parts.defaults);
-        ui.sel = null;
-        ui.loose = [];
-        arrange(false);
-        all();
-        fit();
-        record();
-        changed();
-      }, 'av-tool-chip--ghost')),
-    ),
-    sim,
-    cols,
-  );
+  host.replaceChildren(sim, cols);
 
   // The panel's width: drag the bar, or arrow keys on it; remembered in this browser when storage allows.
   const setPanel = w => {
@@ -2022,13 +2009,6 @@ function workflowEditor(host, state, changed) {
       ...pairs.map(p => el('div', { class: 'wf-libpair' }, item('pair', p.agents.join('+'), '◇◇', p.label, 'both on one condition'), ...p.agents.map(a => item('agent', a, '◇', a, 'one lens')))),
       el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'The gatekeeper' }), ...lenses.filter(n => !inPair(n)).map(n => item('agent', n, '◇', n, 'a pact lens'))),
       ...(PACT.yours.agents.length ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Yours' }), ...PACT.yours.agents.map(a => item('agent', a.name, '◆', a.name, a.description || 'your agent')))] : []),
-      el(
-        'div',
-        { class: 'wf-practices' },
-        el('div', { class: 'av-label', text: 'Beside the work · the moves' }),
-        el('p', { class: 'av-annot', text: 'No order and no arrows. I take each up as the work needs it; they never go on the canvas.' }),
-        ...PACT.moves.map(m => el('div', { class: 'wf-practice' }, el('b', { text: m.lead }))),
-      ),
     );
   }
 
@@ -2079,14 +2059,7 @@ function workflowEditor(host, state, changed) {
       el('span', { class: 'av-label', text: 'A piece of work' }),
       ...TIER_KEYS.map(k => pick(k, w.tier === k, () => (w.tier = k))),
       el('span', { class: 'wf-note', text: '·' }),
-      pick('on the sensitive route', w.route, () => {
-        w.route = !w.route;
-        if (w.route) w.declined = false;
-      }),
-      pick('sensitive, route declined', w.declined, () => {
-        w.declined = !w.declined;
-        if (w.declined) w.route = false;
-      }),
+      pick('on the sensitive route', w.route, () => (w.route = !w.route)),
       el('span', { class: 'wf-run' }, chip('▶ Run it through', true, run)),
     );
   }
@@ -2832,7 +2805,7 @@ function workflowEditor(host, state, changed) {
   }
 
   // ---- the other three parts and the results, as accordions in the Settings dialog
-  const openSections = new Set(['tiers']);
+  const openSections = new Set();
   let settingsBox = null;
   function renderSettings(box = settingsBox) {
     if (!box) return;
@@ -2947,6 +2920,12 @@ function workflowEditor(host, state, changed) {
     settings(box) {
       renderSettings(box);
     },
+    collapse() {
+      openSections.clear();
+    },
+    tour() {
+      tour(0);
+    },
     reset() {
       ui.sel = null;
       ui.loose = [];
@@ -2982,11 +2961,9 @@ function boot() {
       else root.removeAttribute('data-aviation-scheme');
       const exporter = chip('Export', true, () => {
         renderOutput();
-        const d = $('export');
-        if (typeof d.showModal === 'function') d.showModal();
-        else d.setAttribute('open', '');
+        showDialog('export');
       });
-      $('actions').replaceChildren(el('span', { id: 'reset', class: 'chips' }), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
+      $('actions').replaceChildren(chip('Take the tour', false, () => editor && editor.tour(), 'av-tool-chip--ghost'), el('span', { id: 'reset', class: 'chips' }), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
         dark = !dark;
         try {
           window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
@@ -3009,7 +2986,7 @@ function boot() {
   }
 
   let editor = null; // the workflow canvas: the page itself
-  const openSections = new Set(['moves']);
+  const openSections = new Set();
 
   /** The settings dialog: both usage limits, the weekly one and the 5-hour session one (#142). */
   /**
@@ -3060,7 +3037,7 @@ function boot() {
     $('settings').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
-      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, and the parts the canvas builds that live off it: tiers, sensitive work, the lens roster, and what they compile to.' })), chip('Close', false, () => $('settings').close(), 'av-tool-chip--ghost')),
+      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your moves, setups and agents, and the parts the canvas builds: tiers, sensitive work, the lens roster, and what they compile to.' })), closeX('settings')),
       el(
         'section',
         { class: 'av-tool-bar av-tool-bar--stack' },
@@ -3070,31 +3047,60 @@ function boot() {
         limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v)),
         el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
       ),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, section('moves', 'Moves', spineBox), section('setups', 'Setups', setupsBox), section('agents', 'Agents', agentsBox), box),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('moves', 'Moves', spineBox), section('setups', 'Setups', setupsBox), section('agents', 'Agents', agentsBox), box)),
     ));
   }
   function openSettings() {
+    openSections.clear();
+    if (editor) editor.collapse();
     renderSettings();
-    const d = $('settings');
+    showDialog('settings');
+  }
+  /** Open a dialog; a click on its backdrop, outside the sheet, closes it. */
+  function showDialog(id) {
+    const d = $(id);
+    if (!d.dataset.outside) {
+      d.dataset.outside = 'yes';
+      d.addEventListener('click', e => {
+        if (e.target === d) d.close();
+      });
+    }
     if (typeof d.showModal === 'function') d.showModal();
     else d.setAttribute('open', '');
   }
+  /** The × in a dialog's top right corner. */
+  function closeX(id) {
+    return el('button', { type: 'button', class: 'close-x', 'aria-label': 'Close', title: 'Close', onclick: () => $(id).close() }, '×');
+  }
 
+  /**
+   * Reset all: one button. It puts the limits, the moves, the agents and the
+   * canvas back to the plain pact; right after, it reads "Reset", and on hover
+   * or focus offers "Undo reset" in its place.
+   */
   function renderReset() {
-    const reset = chip('Reset all to defaults', false, () => {
-      resetBefore = resetAll(state);
-      applied = null;
+    const undoable = resetBefore !== null;
+    const label = undoable ? 'Reset' : 'Reset all to defaults';
+    const reset = chip(label, false, () => {
+      if (undoable) {
+        restoreAll(state, resetBefore);
+        resetBefore = null;
+      } else {
+        resetBefore = resetAll(state);
+        applied = null;
+      }
       renderAll();
     }, 'av-tool-chip--ghost');
-    reset.title = 'The usage value, every slot and every agent back to the plain pact';
-    if (atDefaults(state)) reset.disabled = true;
-    const undo = resetBefore ? chip('Undo reset', false, () => {
-      restoreAll(state, resetBefore);
-      resetBefore = null;
-      renderAll();
-    }, 'av-tool-chip--ghost') : null;
+    reset.title = undoable ? 'Undo the reset' : 'The limits, the moves, the agents and the canvas back to the plain pact';
+    if (undoable) {
+      const swap = to => () => (reset.textContent = to);
+      reset.addEventListener('mouseenter', swap('Undo reset'));
+      reset.addEventListener('focus', swap('Undo reset'));
+      reset.addEventListener('mouseleave', swap(label));
+      reset.addEventListener('blur', swap(label));
+    } else if (atDefaults(state)) reset.disabled = true;
     const slot = $('reset');
-    if (slot) slot.replaceChildren(...(undo ? [reset, undo] : [reset]));
+    if (slot) slot.replaceChildren(reset);
   }
 
   function renderSummary() {
@@ -3367,7 +3373,7 @@ function boot() {
   renderAlways();
   renderSpine();
   // The canvas is the page; Settings and Export open from the head.
-  $('export-close').replaceChildren(chip('Close', false, () => $('export').close(), 'av-tool-chip--ghost'));
+  $('export-close').replaceChildren(closeX('export'));
   editor = workflowEditor($('wf'), state, () => renderOutput());
   editor.show();
 }
