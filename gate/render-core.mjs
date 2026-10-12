@@ -251,16 +251,73 @@ const SETTINGS = new Map([
 const PROJECT_REL = Object.freeze(['.claude', 'pact-config.json']);
 const PROJECT_SHOWN = '.claude/pact-config.json';
 const PROJECT_NAMES = Object.freeze(["the project's .claude folder", 'the project configuration file']);
-const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings']);
+const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings', 'qualities']);
 const PROJECT_OUTPUT_NAME = 'pact-project.md';
-const PROJECT_TEMPLATE = lines => [
+// A project's own qualities list (#262 S25, from #273): the one thing a
+// project may set that is not a tighter value. Its table is compiled here from
+// checked fields alone, under fixed text; nothing else from the file is
+// written. The quality names are ISO/IEC 25010:2023's; the lenses, the pact's.
+const QUALITY_NAMES = Object.freeze(['Functional suitability', 'Performance efficiency', 'Compatibility', 'Interaction capability', 'Reliability', 'Security', 'Maintainability', 'Flexibility', 'Safety']);
+const QUALITY_LENSES = Object.freeze(CONFIGURABLE_AGENTS.filter(n => n.endsWith('-lens')));
+const QUALITY_FIELDS = Object.freeze(['quality', 'measure', 'lenses']);
+const QUALITY_LENSES_MAX = 4;
+const MEASURE_MAX = 160;
+// A measure is one line of plain words: no table bar, no code, no markup, no
+// import, no address. The text scanner then checks every character.
+const MEASURE_BAD_RE = /[|`<>@\r\n]|[a-z][a-z0-9+.-]*:\/\//i;
+const PROJECT_TEMPLATE = (lines, qualities = null) => [
   '# Pact settings for this project',
   '',
-  "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
+  qualities
+    ? "The pact's installer wrote this file from this project's pact configuration. Each setting line can only make the pact stricter here, and the qualities list takes the place of the one in my user rules."
+    : "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
   '',
   ...lines,
+  ...(qualities
+    ? [
+        ...(lines.length ? [''] : []),
+        '## Qualities for this project',
+        '',
+        "In this project, this list takes the place of the Qualities table in my user rules: the qualities that matter here, ranked, each with its measure and the lenses that check it.",
+        '',
+        '| Quality | Measure | Lens |',
+        '| --- | --- | --- |',
+        ...qualities.map(q => `| ${q.quality} | ${q.measure} | ${q.lenses.map(n => `\`${n}\``).join(', ')} |`),
+      ]
+    : []),
   '',
 ];
+
+/** A project's qualities list, checked (#262 S25): [{ quality, measure, lenses }], or null after recording each refusal. */
+function checkProjectQualities(v, fail) {
+  // Each quality once, so a list holds at most as many rows as there are names.
+  if (!Array.isArray(v) || !v.length) {
+    fail('project-qualities', 'qualities must be a list of one or more rows');
+    return null;
+  }
+  let ok = true;
+  const out = [];
+  const bad = (i, why) => {
+    fail('project-qualities', `row ${i + 1}: ${why}`);
+    ok = false;
+  };
+  v.forEach((r, i) => {
+    if (!isObject(r) || Object.keys(r).length !== QUALITY_FIELDS.length || !QUALITY_FIELDS.every(k => Object.hasOwn(r, k))) return bad(i, 'a row holds quality, measure and lenses, and nothing else');
+    const quality = QUALITY_NAMES.find(n => n === r.quality);
+    if (!quality) bad(i, 'the quality must be one of the ISO/IEC 25010:2023 names, matched exactly');
+    const measureOk = typeof r.measure === 'string' && r.measure.length <= MEASURE_MAX && r.measure === r.measure.trim() && !MEASURE_BAD_RE.test(r.measure);
+    if (!measureOk) bad(i, `the measure must be one line of at most ${MEASURE_MAX} characters, with no bar, backtick, angle bracket, at sign or address`);
+    const lenses = Array.isArray(r.lenses) ? r.lenses.map(n => QUALITY_LENSES.find(l => l === n)) : null;
+    if (!lenses || !lenses.length || lenses.length > QUALITY_LENSES_MAX || lenses.some(n => !n) || new Set(lenses).size !== lenses.length) bad(i, `lenses must name 1 to ${QUALITY_LENSES_MAX} of the pact's lenses, each once`);
+    else if (quality && measureOk) out.push({ quality, measure: r.measure, lenses });
+  });
+  const names = v.filter(isObject).map(r => r.quality);
+  if (new Set(names).size !== names.length) {
+    fail('project-qualities', 'the list names one quality twice');
+    ok = false;
+  }
+  return ok ? out : null;
+}
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.
 const NOTICE_MARK = 'config-notice';
@@ -1007,7 +1064,7 @@ function checkProject(buf, effective, report) {
     ok = false;
   }
   if (Object.keys(doc).some(k => k !== 'edits' && !PROJECT_TOP_KEYS.includes(k))) {
-    fail('project-key', 'a key that is not schema or settings');
+    fail('project-key', 'a key that is not schema, settings or qualities');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -1038,11 +1095,13 @@ function checkProject(buf, effective, report) {
       ok = false;
     } else values.push([name, v]);
   }
-  if (ok && !values.length) {
-    fail('project-empty', 'the project configuration sets no value, so there is nothing to install');
+  const qualities = Object.hasOwn(doc, 'qualities') ? checkProjectQualities(doc.qualities, fail) : null;
+  if (Object.hasOwn(doc, 'qualities') && qualities === null) ok = false;
+  if (ok && !values.length && !qualities) {
+    fail('project-empty', 'the project configuration sets no value and no qualities, so there is nothing to install');
     ok = false;
   }
-  return ok ? values : null;
+  return ok ? { values, qualities } : null;
 }
 
 /** The project mode: see the header. */
@@ -1067,9 +1126,10 @@ function runProject(out, home, projectFolder, report) {
     report.fail('project-none', PROJECT_SHOWN, null, 'there is no project configuration in the project folder, so there is nothing to install');
     return;
   }
-  const values = checkProject(proj.buf, effective, report);
-  if (values === null) return;
-  const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v))).join('\n'), 'utf8');
+  const checked = checkProject(proj.buf, effective, report);
+  if (checked === null) return;
+  const { values, qualities } = checked;
+  const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v)), qualities).join('\n'), 'utf8');
   // The output holds only constant text and checked numbers; the scanner runs
   // on it anyway, before its hash is reported, so a template change that
   // brings in a refused character can never be installed.
@@ -1084,6 +1144,7 @@ function runProject(out, home, projectFolder, report) {
     `PROJECT ${projHash}`,
     `DIGEST ${digest}`,
     ...values.map(([k, v]) => `VALUE ${k} ${v}`),
+    ...(qualities ? [`QUALITIES ${qualities.length}`] : []),
   );
 }
 

@@ -558,6 +558,7 @@ export function parseProjectRenderLines(lines, hash) {
   let user = null;
   let userSeen = false;
   const values = new Map();
+  let qualities = 0;
   for (const l of lines.slice(0, -1)) {
     let m;
     if ((m = /^RENDERED ([0-9a-f]{64})$/.exec(l))) {
@@ -576,12 +577,27 @@ export function parseProjectRenderLines(lines, hash) {
     } else if ((m = VALUE_RE.exec(l))) {
       if (values.has(m[1])) refuse('project-render-value-twice', 'the project render reported one setting twice.');
       values.set(m[1], m[2]);
+    } else if ((m = /^QUALITIES ([1-9])$/.exec(l))) {
+      // A project's own qualities list (#262 S25): its row count, one row per ISO/IEC 25010:2023 quality at most.
+      if (qualities) refuse('project-render-two-qualities', 'the project render reported two qualities lines.');
+      qualities = Number(m[1]);
     } else refuse('project-render-unknown-line', 'the project render printed a line the install does not read.');
   }
-  if (!projectHash || !userSeen || !fileHash || !values.size) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash and a value.');
+  if (!projectHash || !userSeen || !fileHash || (!values.size && !qualities)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value or a qualities list.');
   const text = `${user ? `user ${user}\n` : ''}project ${fileHash}\n`;
   if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('project-render-digest', "the project render's configuration digest is missing or does not match the hashes it reported.");
-  return { projectHash, fileHash, digest, user, values };
+  return { projectHash, fileHash, digest, user, values, qualities };
+}
+
+/**
+ * The project dry run's security-defaults line (#262 S25), or null: a
+ * project's own qualities list takes the place of the person's in that repo,
+ * so it is the one project setting that can loosen a default. Printed before
+ * every other warning.
+ */
+export function projectSecurityLine(parsed) {
+  if (!parsed.qualities) return null;
+  return `WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (${parsed.qualities} row${parsed.qualities === 1 ? '' : 's'}), which takes the place of yours in this project; read it in the rendered project rules file before you install.`;
 }
 
 /** The project render's output (J3): exactly its rules file, a plain file of at most 64 KiB, holding the reported hash. */

@@ -362,8 +362,20 @@ for (const c of table('project render lines', {
     { id: 'no-project-hash', plant: rep(`PROJECT ${PF}\n`, ''), fails: ['project-render-counts'], why: 'the project file is named' },
     { id: 'digest-wrong', plant: rep(`DIGEST ${PD}`, `DIGEST ${digestOf(`project ${PF}\n`)}`), fails: ['project-render-digest'], why: 'the digest leaves the user file out' },
     { id: 'no-digest', plant: rep(`DIGEST ${PD}\n`, ''), fails: ['project-render-digest'], why: 'a digest is required' },
+    // #262 C21: a project's own qualities list is reported once, as a row count of 1 to 9.
+    { id: 'qualities-twice', plant: rep('RESULT', 'QUALITIES 3\nQUALITIES 3\nRESULT'), fails: ['project-render-two-qualities'], why: 'one qualities list' },
+    { id: 'qualities-zero', plant: rep('RESULT', 'QUALITIES 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'a list holds a row' },
+    { id: 'qualities-too-many', plant: rep('RESULT', 'QUALITIES 10\nRESULT'), fails: ['project-render-unknown-line'], why: 'at most nine rows, one per quality' },
   ],
 })) test(c.name, c.fn);
+
+// #262 C21, C22: a project with only a qualities list renders, and its dry run leads with the security-defaults line.
+test('the project render with a qualities list and no value passes, and the project security-defaults line names it; with no list there is none', () => {
+  const p = core.parseProjectRenderLines([`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, 'QUALITIES 3', 'RESULT: pass'], sha256);
+  assert.equal(p.qualities, 3);
+  assert.equal(core.projectSecurityLine(p), "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (3 rows), which takes the place of yours in this project; read it in the rendered project rules file before you install.");
+  assert.equal(core.projectSecurityLine(core.parseProjectRenderLines(projRenderBase().in.split('\n'), sha256)), null);
+});
 
 test('the project render with no user file: the digest is the project file\'s alone', () => {
   const p = core.parseProjectRenderLines([`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, 'VALUE usage-pause 60', 'RESULT: pass'], sha256);
