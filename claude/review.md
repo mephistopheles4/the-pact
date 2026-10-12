@@ -8,6 +8,12 @@ offer, and when; this file says how to run them.
 **Inputs.** A lens reads; it doesn't build. Give each lens its input as local
 files, with the absolute working folder when it reads the repo.
 
+**Quality rows.** Hand each lens, as a local file, the rows of the rules
+file's Qualities table that name it, from the project's own list where the
+project has one. Batch the missing measures the lenses report into one
+question for me: add each as a claim, or skip it. Record a skip once, in the
+Lens dispositions table, as "skipped, because ...".
+
 **Fresh and alone.** Dispatch each lens of a pair fresh and on its own, never
 shown its partner's report. Never resume a lens.
 

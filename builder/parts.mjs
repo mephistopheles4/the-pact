@@ -1,5 +1,5 @@
-// The four parts Scriptorium builds (#262): tiers, sensitive, workflow and
-// lenses. This module is their one source: the default data, the compiler
+// The five parts Scriptorium builds (#262): tiers, sensitive, workflow, lenses
+// and qualities (#273). This module is their one source: the default data, the compiler
 // that turns data into each part's text, and the builder's checks on it.
 //
 // build.mjs imports it to check a builder file and to run the compiled parts
@@ -18,6 +18,7 @@
 //                                                             a skill or command at a stage: offered to me, or used
 //                    layout: { <node id>: { x, y } } }        the canvas's positions; compiles to nothing
 //   lenses:        [{ agents: [names], label, asks }]       the roster, one row each
+//   qualities:     [{ quality, measure, lenses: [names] }]  ranked in row order; a measure may be empty
 //
 // An offer with two agents is a pair; nothing else marks one. An offer on
 // 'sensitive' runs on the sensitive route, once I take it.
@@ -25,7 +26,7 @@
 // The compiled default of each part is the text between its marks in
 // claude/CLAUDE.md, byte for byte; a builder test holds them together.
 
-export const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses']);
+export const PART_MARKS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 export const TIER_KEYS = Object.freeze(['quick', 'standard', 'thorough']);
 export const TIER_NAMES = Object.freeze(['Quick', 'Standard', 'Thorough']);
 // A model and its effort, as the tables write them: "Opus, medium". The
@@ -77,7 +78,9 @@ export const OFFER_WHENS = Object.freeze({
   words: '',
 });
 // Caps on the data, so no builder file can make a part too long to read.
-export const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, line: 300, short: 60, layout: 400 });
+export const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, measure: 160, line: 300, short: 60, layout: 400 });
+// The ISO/IEC 25010:2023 qualities (#273): the names a project's own list takes, and the builder offers.
+export const QUALITY_NAMES = Object.freeze(['Functional suitability', 'Performance efficiency', 'Compatibility', 'Interaction capability', 'Reliability', 'Security', 'Maintainability', 'Flexibility', 'Safety']);
 // A skill node's two modes: offered (Claude offers it, I answer) or used (Claude runs it).
 export const SKILL_MODES = Object.freeze(['offered', 'used']);
 
@@ -127,6 +130,17 @@ export const DEFAULT_PARTS = Object.freeze({
     { agents: ['unstated-lens'], label: 'the gatekeeper', asks: 'What need did nobody write down?' },
     { agents: ['conventions-lens', 'reader-lens'], label: 'the standards pair', asks: "Does the diff keep the repo's written rules? Can the next reader act on what it says?" },
     { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
+  ],
+  qualities: [
+    { quality: 'Functional suitability', measure: 'the acceptance claims', lenses: ['behaviour-lens'] },
+    { quality: 'Performance efficiency', measure: 'a budget: time, memory, size', lenses: ['behaviour-lens'] },
+    { quality: 'Reliability', measure: 'a failure, and the recovery accepted', lenses: ['behaviour-lens'] },
+    { quality: 'Compatibility', measure: 'named interfaces that stay stable: formats, flags, config keys, APIs', lenses: ['conventions-lens'] },
+    { quality: 'Interaction capability', measure: 'a task a new user completes', lenses: ['reader-lens', 'behaviour-lens'] },
+    { quality: 'Security', measure: 'an ASVS 5.0 level or chapters', lenses: ['adversarial-lens', 'data-lens'] },
+    { quality: 'Maintainability', measure: "the repo's written rules", lenses: ['conventions-lens', 'reader-lens'] },
+    { quality: 'Flexibility', measure: 'the environments it must install and run on', lenses: ['executability-lens', 'behaviour-lens'] },
+    { quality: 'Safety', measure: 'the risky actions, the warning, the safe state on failure', lenses: ['executability-lens'] },
   ],
 });
 
@@ -241,9 +255,14 @@ export function compileLenses(p) {
   return [row(['Lens', 'Asks']), rule(2), ...p.lenses.map(r => row([`${r.agents.map(tick).join(', ')}${r.label ? ` (${r.label})` : ''}`, r.asks]))].join('\n');
 }
 
-/** Each part's text: { tiers, sensitive, workflow, lenses }. */
+/** The qualities part (#273): the ranked list, each quality with its measure and the lenses that check it. */
+export function compileQualities(p) {
+  return [row(['Quality', 'Measure', 'Lens']), rule(3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', ')]))].join('\n');
+}
+
+/** Each part's text: { tiers, sensitive, workflow, lenses, qualities }. */
 export function compileParts(p) {
-  return { tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p) };
+  return { tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p) };
 }
 
 // ------------------------------------------------------------ the builder's checks
@@ -367,6 +386,24 @@ export function partsProblems(p) {
       if (!lineOk(r.asks, C.line) || !r.asks.trim()) err('lenses', `row ${i + 1}: asks must be one line of 1 to ${C.line} characters, with no bar`);
     });
 
+  // The qualities (#273): ranked rows, each a quality, its measure (empty when none is known yet) and 1 to 4 lenses.
+  if (!Array.isArray(p.qualities) || !p.qualities.length || p.qualities.length > C.qualities) err('qualities', `the list must hold 1 to ${C.qualities} qualities`);
+  else {
+    p.qualities.forEach((q, i) => {
+      if (!isObj(q) || !keysIn(q, ['quality', 'measure', 'lenses'])) return err('qualities', `row ${i + 1}: only quality, measure and lenses`);
+      if (!lineOk(q.quality, C.short) || !q.quality.trim()) err('qualities', `row ${i + 1}: the quality must be one line of 1 to ${C.short} characters, with no bar`);
+      if (!lineOk(q.measure, C.measure)) err('qualities', `row ${i + 1}: the measure must be one line of at most ${C.measure} characters, with no bar`);
+      if (!Array.isArray(q.lenses) || !q.lenses.length || q.lenses.length > C.agents || q.lenses.some(a => typeof a !== 'string' || !AGENT_RE.test(a))) err('qualities', `row ${i + 1}: 1 to ${C.agents} lenses, each a name of lowercase letters, digits and hyphens`);
+    });
+    const names = p.qualities.filter(isObj).map(q => String(q.quality).toLowerCase());
+    if (new Set(names).size !== names.length) err('qualities', 'the list names one quality twice');
+    // A finding: a lens the roster does not hold.
+    if (Array.isArray(p.lenses)) {
+      const roster = new Set(p.lenses.flatMap(r => (isObj(r) && Array.isArray(r.agents) ? r.agents : [])));
+      p.qualities.forEach((q, i) => isObj(q) && Array.isArray(q.lenses) && q.lenses.filter(a => !roster.has(a)).forEach(a => out.push({ part: 'qualities', level: 'warn', text: `row ${i + 1}: ${a} is not in the lens roster` })));
+    }
+  }
+
   // A finding, never a refusal: one lens of a pair alone on an offer.
   if (!out.some(f => f.level === 'error'))
     for (const o of g.offers)
@@ -394,5 +431,6 @@ export function partsTexts(p) {
   (Array.isArray(g.skills) ? g.skills : []).forEach((s, i) => isObj(s) && ['id', 'skill', 'words'].forEach(k => add(`skill ${i + 1}`, s[k])));
   (Array.isArray(g.links) ? g.links : []).forEach((l, i) => isObj(l) && add(`link ${i + 1}`, l.when));
   (Array.isArray(p.lenses) ? p.lenses : []).forEach((r, i) => isObj(r) && ['label', 'asks'].forEach(k => add(`lenses row ${i + 1}`, r[k])));
+  (Array.isArray(p.qualities) ? p.qualities : []).forEach((q, i) => isObj(q) && ['quality', 'measure'].forEach(k => add(`qualities row ${i + 1}`, q[k])));
   return out;
 }

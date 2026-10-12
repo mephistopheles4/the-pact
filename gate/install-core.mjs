@@ -358,7 +358,7 @@ export function checkVerdict(report, what) {
 
 // ------------------------------------------------------------ the renderer's lines
 
-const EDIT_RE = /^EDIT (move-1|move-2|move-3|move-4-extra|tiers|sensitive|workflow|lenses) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
+const EDIT_RE = /^EDIT (move-1|move-2|move-3|move-4-extra|tiers|sensitive|workflow|lenses|qualities) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
@@ -1028,7 +1028,7 @@ export function configStale(now, last) {
 // The parts Scriptorium builds (#262). An edit to any of them changes the
 // security defaults: what Claude looks for as sensitive, the route it
 // recommends, and which lenses are offered when.
-export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses']);
+export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 
 /**
  * The security-defaults line (#262, S8), or null when no edit reaches one of

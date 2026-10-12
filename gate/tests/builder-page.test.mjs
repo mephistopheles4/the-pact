@@ -635,7 +635,7 @@ test('the page shows the four moves as a fixed spine, named by their lead-ins: t
   assert.deepEqual(L.PACT.always.map(a => a.mark), ['stop-and-escalate']);
   assert.deepEqual(parts.filter(p => p.kind === 'open').map(p => p.mark), ['move-1', 'move-2', 'move-3', 'move-4-extra']);
   // #262 S8: the four parts Scriptorium builds are editable too, outside the moves.
-  assert.deepEqual([...L.PACT.editable], ['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses']);
+  assert.deepEqual([...L.PACT.editable], ['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 });
 
 test('the shipped page\'s presets are the example builder file\'s, each from its example block, in an editable slot', () => {

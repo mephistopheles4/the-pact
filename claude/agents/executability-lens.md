@@ -37,6 +37,13 @@ The main session hands you local files: the numbered section list, `S1` to
 When the main session hands back a choice, repeat it in words before you act
 on it.
 
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
+
 ## The risk floor, in the pact's words ("I" is the owner)
 
 <!-- pact:begin risk-floor -->

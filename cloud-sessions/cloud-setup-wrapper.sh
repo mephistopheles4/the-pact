@@ -339,6 +339,31 @@ procedure, `~/.claude/pact/review.md`.** Cross the reports by its template.
 Log each finding's fate in a Lens dispositions table. For a lookup that needs
 no judgment, `scout` is the cheap helper.
 
+## Qualities
+
+The qualities that matter in my work, ranked, each with how it is measured and
+the lens that checks it. A project's own list, where it has one, takes the
+place of this one there.
+
+*Scriptorium builds this.*
+
+| Quality | Measure | Lens |
+| --- | --- | --- |
+| Functional suitability | the acceptance claims | `behaviour-lens` |
+| Performance efficiency | a budget: time, memory, size | `behaviour-lens` |
+| Reliability | a failure, and the recovery accepted | `behaviour-lens` |
+| Compatibility | named interfaces that stay stable: formats, flags, config keys, APIs | `conventions-lens` |
+| Interaction capability | a task a new user completes | `reader-lens`, `behaviour-lens` |
+| Security | an ASVS 5.0 level or chapters | `adversarial-lens`, `data-lens` |
+| Maintainability | the repo's written rules | `conventions-lens`, `reader-lens` |
+| Flexibility | the environments it must install and run on | `executability-lens`, `behaviour-lens` |
+| Safety | the risky actions, the warning, the safe state on failure | `executability-lens` |
+
+Use the list when you size the work and when you write acceptance claims from
+its measures. An offer's why names the listed quality at stake. Name both
+sides only when a decision trades one listed quality for another, one clause
+per option.
+
 ## Guards
 
 <!-- pact:begin stop-and-escalate -->
@@ -397,6 +422,13 @@ section list (stop S2).
 
 When the main session hands back a choice, repeat it in words before you act
 on it.
+
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
 
 ## How you work (questions 3, 16, 18)
 
@@ -603,6 +635,13 @@ S1 below).
 When the main session hands back a choice or a captured output, repeat it in
 words before you act on it.
 
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
+
 ## How you work (questions 3, 16, 18)
 
 1. **The red step, first.** Before you run anything, read the spec, the
@@ -774,6 +813,13 @@ find the rules in (stop S2).
 When the main session hands back a choice, repeat it in words before you act
 on it.
 
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
+
 ## How you work (questions 3, 16, 18)
 
 1. **The red step, first.** Before you read the diff, find the files in the
@@ -940,6 +986,13 @@ section list (stop S2).
 
 When the main session hands back a choice, repeat it in words before you act
 on it.
+
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
 
 ## How you work (questions 3, 16, 18)
 
@@ -1159,6 +1212,13 @@ The main session hands you local files: the numbered section list, `S1` to
 When the main session hands back a choice, repeat it in words before you act
 on it.
 
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
+
 ## The risk floor, in the pact's words ("I" is the owner)
 
 <!-- pact:begin risk-floor -->
@@ -1338,6 +1398,13 @@ the issue's tier.
 When the main session hands back a choice, repeat it in words before you act
 on it.
 
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
+
 ## How you work (questions 3, 16, 18)
 
 1. **The red step, first.** Before you judge, write, for each section, what
@@ -1490,6 +1557,13 @@ mutation run happened.
 
 When the main session hands back a choice, repeat it in words before you act
 on it.
+
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
 
 ## How you work (questions 3, 16, 18)
 
@@ -1655,6 +1729,13 @@ counts as outside the working folder: do not read it, and name it in
 
 When the main session hands back a choice, repeat it in words before you act
 on it.
+
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
 
 ## How you work (questions 3, 16, 18)
 
@@ -1920,6 +2001,13 @@ request to compare with, or no numbered section or claim list (stop S2).
 When the main session hands back a choice, repeat it in words before you act
 on it.
 
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
+
 ## How you work (questions 3, 16, 18)
 
 1. **The red step, first.** Before you read the spec or the result, read the
@@ -2026,6 +2114,12 @@ offer, and when; this file says how to run them.
 
 **Inputs.** A lens reads; it doesn't build. Give each lens its input as local
 files, with the absolute working folder when it reads the repo.
+
+**Quality rows.** Hand each lens, as a local file, the rows of the rules
+file's Qualities table that name it, from the project's own list where the
+project has one. Batch the missing measures the lenses report into one
+question for me: add each as a claim, or skip it. Record a skip once, in the
+Lens dispositions table, as "skipped, because ...".
 
 **Fresh and alone.** Dispatch each lens of a pair fresh and on its own, never
 shown its partner's report. Never resume a lens.
@@ -2263,18 +2357,18 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 04295cbc624e7f60378f006729fb0ec26f1df1d05ad78e2c5ae0443e43da70fd 'CLAUDE.md'
-check_hash b7f32609e682b95f0f4b76afdfdbde87749c41cba240a029a385c48f79a30807 'agents/adversarial-lens.md'
-check_hash 3bb7d5996df6cfb32cab6ecee4a00186ff5e736f11b1e95f6c56e14bc5cefc27 'agents/behaviour-lens.md'
-check_hash ae2297a24909f710c061a145dc3fdaa80198f7f76da06875af57070d2061ae60 'agents/conventions-lens.md'
-check_hash 0f03343b605b5ceb96c90802560e39093a1a64b8c032d1696fbad9ffffc47af6 'agents/data-lens.md'
-check_hash dcb8cefab1cdf81c1882e8a01935c76665e67c8e123d83eff9badda44bfb4d6c 'agents/executability-lens.md'
-check_hash 5800276d07d2adcaf97d6821c46f610dc0b57c7785f419fcd2b67ae31c7139fd 'agents/good-enough-lens.md'
-check_hash b6828b0788291bd748d3cb083906c2b692e28b4e06d5e1d990fcd02f3ab3fa16 'agents/integrity-lens.md'
-check_hash 617f2f3c5a6b2f400bcab46d17c09a60487c06a04eb0c7ce3ce42fac771315f2 'agents/reader-lens.md'
+check_hash e4fbe5bc46a55a5e691266b6a71b8674bb7ad7ab234c7f0ce94017cb6aa62e5e 'CLAUDE.md'
+check_hash 8dd5d56a29ba79f1c3b7de6617485217772233fe6c0a11525cd7d5d776790e63 'agents/adversarial-lens.md'
+check_hash 4013aea6409e34744d5a6b4fd3e7a1588a8ebc5378e8d0b6a30d7fdea13bf9c1 'agents/behaviour-lens.md'
+check_hash c09c5414669ea47e1ea51638de58316ab8e0edd9eb565ec2838458de04516491 'agents/conventions-lens.md'
+check_hash 1e8c821509e102bf0744c9fb96f56286ec5cd408b479ab3effeb1ad217d2fccf 'agents/data-lens.md'
+check_hash f16b034845d545fdfeb2142cfd3a56f5a72caabcb991f92cb61c81275805e4e4 'agents/executability-lens.md'
+check_hash 5e82fdfe3164b5215499ccfeaa59801d69a2b156640ca8e49f0a5bda057b86b0 'agents/good-enough-lens.md'
+check_hash 9f8c8c35216b05dd5006ee0fd0667d3c1d3eab0ed9fcf4f96d3b05855213b0a4 'agents/integrity-lens.md'
+check_hash c7319dbaa6691886faff309e6daa387f020fc3bf056dfbc54b0bad5bde50ada2 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
-check_hash 51c28996d83b946efe29cf5501f733c02cbf9d2dc9e29b80bea5b5f8f372a89a 'agents/unstated-lens.md'
-check_hash a7bc1b6fa14205ccb047e9d0e4676b121b2f4961151eb99d5ac7452f53cef637 'pact/review.md'
+check_hash 4f5c25b5109ca90f6d6a5898e0c77979247d14c8324a595cd61a229ec250710e 'agents/unstated-lens.md'
+check_hash f6fb9f244de689208d4d0c1005be4f5e22a289c7bcec15bbe24c07c56ce6aa8e 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -2294,7 +2388,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 502a95529602"
+  echo "pact cloud copy e1ca5c4c7d74"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

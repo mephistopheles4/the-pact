@@ -1,6 +1,6 @@
 # Contract: reader-lens
 
-Version: 0.1.4
+Version: 0.1.5
 
 - **Type:** agent
 - **Level:** Thorough
@@ -144,6 +144,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.5 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.4 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.3 | 2026-10-08 | C12: the handed files may be read; a link counts as outside; the secret exception written where evidence is quoted. | Move 4 round 2: `behaviour-lens` F2; `data-lens` F1; `adversarial-lens` F2 | 3 |
 | 0.1.2 | 2026-10-08 | C12: a secret by its place, inside the working folder; C13: the catalogue counted; the tell scored on every case with a finding; the auto-take exceptions named. | Move 4 on the swap: `data-lens` F1, `adversarial-lens` F2, `integrity-lens` F1 to F3, `unstated-lens` F4 | 3 |
@@ -163,6 +164,8 @@ None yet.
 ### 10. What does it need to start?
 
 **Confirmed** (2026-10-08): the diff; the spec or ticket; the issue's request; the absolute working folder.
+
+**Decided** (2026-10-12, #262 from #273): the lens may also be handed the rows of the rules file's Qualities table that name it, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
 
 ### 11. Where does a person decide?
 

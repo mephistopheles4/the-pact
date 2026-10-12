@@ -1,6 +1,6 @@
 # Contract: integrity-lens
 
-Version: 0.1.3
+Version: 0.1.4
 
 - **Type:** agent
 - **Level:** Thorough
@@ -144,6 +144,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.4 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.3 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.2 | 2026-10-10 | The owner's part and question 11 follow the auto-take rule: the main session acts on its recommendation per finding and marks it `auto`; the owner's "done" is unchanged; the lens text's hand-back paragraph says so, as the other lenses' do. The lens text names every cross-script limit on the findings list in exact words, as the newer lenses do. | #102, which bundles #87's wording into the QA pair's contracts; #47's first periodic review, after a non-risk note over 200 characters was refused on #87 (the owner's "add them", 2026-10-10) | 3, 4, 11 |
 | 0.1.1 | 2026-10-05 | The red step shows in the artifact, one line per claim; the spec is an input; the checklist is labelled. | Move 4 before install on #47: the result check found the red step invisible, the spec named but not handed over, and the checklist unlabelled | 3, 4, 10 |
@@ -178,6 +179,8 @@ Against its neighbours: it asks "can these checks fail?". Its partner asks "does
 - **Refuse when:** no diff (S1), or no claim list (S2).
 - **The plan rules for a changed expected value:** no plan → report every changed expected value as "intent unchecked"; a plan that is silent on it → "changed and unexplained"; a plan that explains it → noted as explained, not a finding.
 - **Point out:** evidence that cites no test for a claim goes in `Not checked:` as "no test cited for C<n>".
+
+**Decided** (2026-10-12, #262 from #273): the lens may also be handed the rows of the rules file's Qualities table that name it, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
 
 ### 11. Where does a person decide?
 

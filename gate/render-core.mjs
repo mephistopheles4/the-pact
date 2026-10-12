@@ -152,10 +152,10 @@ import { ANY_FENCE_RE, AT_IMPORT_RE, HEADING_LIKE_RE, MARKER_RE, MAX_BYTES, PACT
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, on the
 // security route like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses']);
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
-const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses']);// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/)
+const EDITABLE = Object.freeze(['move-1', 'move-2', 'move-3', 'move-4-extra', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);// The pinned blocks (PINNED in shared.mjs, canonical text in gate/clauses/)
 // are refused to every edit, with any operation. install-go-ahead lives in
 // AGENTS.md, which is never installed, and is refused like the other.
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);

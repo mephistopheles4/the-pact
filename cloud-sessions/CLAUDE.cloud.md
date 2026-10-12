@@ -147,6 +147,31 @@ procedure, `~/.claude/pact/review.md`.** Cross the reports by its template.
 Log each finding's fate in a Lens dispositions table. For a lookup that needs
 no judgment, `scout` is the cheap helper.
 
+## Qualities
+
+The qualities that matter in my work, ranked, each with how it is measured and
+the lens that checks it. A project's own list, where it has one, takes the
+place of this one there.
+
+*Scriptorium builds this.*
+
+| Quality | Measure | Lens |
+| --- | --- | --- |
+| Functional suitability | the acceptance claims | `behaviour-lens` |
+| Performance efficiency | a budget: time, memory, size | `behaviour-lens` |
+| Reliability | a failure, and the recovery accepted | `behaviour-lens` |
+| Compatibility | named interfaces that stay stable: formats, flags, config keys, APIs | `conventions-lens` |
+| Interaction capability | a task a new user completes | `reader-lens`, `behaviour-lens` |
+| Security | an ASVS 5.0 level or chapters | `adversarial-lens`, `data-lens` |
+| Maintainability | the repo's written rules | `conventions-lens`, `reader-lens` |
+| Flexibility | the environments it must install and run on | `executability-lens`, `behaviour-lens` |
+| Safety | the risky actions, the warning, the safe state on failure | `executability-lens` |
+
+Use the list when you size the work and when you write acceptance claims from
+its measures. An offer's why names the listed quality at stake. Name both
+sides only when a decision trades one listed quality for another, one clause
+per option.
+
 ## Guards
 
 <!-- pact:begin stop-and-escalate -->

@@ -44,6 +44,13 @@ section list (stop S2).
 When the main session hands back a choice, repeat it in words before you act
 on it.
 
+**Quality rows.** You may be handed rows of the rules file's Qualities table
+that name you, each a quality and its measure. Check each against its measure,
+within your own question. When a row has no measure and the work plainly
+touches that quality, list it under Not checked with the claim that would
+measure it, never as a finding; on a spec, say this is the cheap moment to add
+it.
+
 ## How you work (questions 3, 16, 18)
 
 1. **The red step, first.** Before you list any item, read what you were

@@ -1,6 +1,6 @@
 # Contract: good-enough-lens
 
-Version: 0.1.2
+Version: 0.1.3
 
 - **Type:** agent
 - **Level:** Thorough
@@ -140,6 +140,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.3 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.2 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.1 | 2026-10-07 | Question 2 in the owner's words; likelihood and impact (C11) and two artifact columns; no finding at all on a risk-floor section (C3); every answer Confirmed. | The owner's answers and "go" on #99; a case defect found before any run | 2, 3, 4 |
 | 0.1.0 | 2026-10-06 | Contract drafted. | #35 revision 7, #99 | all |
@@ -157,6 +158,8 @@ Extra keys: tools, model, effort
 ### 10. What does it need to start?
 
 **Confirmed** (2026-10-07): the numbered section list, the spec, the issue's request, and the issue's tier.
+
+**Decided** (2026-10-12, #262 from #273): the lens may also be handed the rows of the rules file's Qualities table that name it, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
 
 ### 11. Where does a person decide?
 

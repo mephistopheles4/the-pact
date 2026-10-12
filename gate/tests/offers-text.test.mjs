@@ -127,6 +127,10 @@ test('bad case: a planted copy of the offers paragraph inside a part is caught',
   const intoLenses = SOURCE.replace(`${para}\n`, '').replace('<!-- pact:end lenses -->', `${para}\n<!-- pact:end lenses -->`);
   assert.notEqual(intoLenses, SOURCE);
   assert.deepEqual(offersProblems(intoLenses), ['the offers paragraph sits inside an open mark']);
+  // #262 C18: a copy planted inside the `qualities` part, the original kept, is caught.
+  const intoQualities = SOURCE.replace('<!-- pact:end qualities -->', `${para}\n<!-- pact:end qualities -->`);
+  assert.notEqual(intoQualities, SOURCE);
+  assert.ok(offersProblems(intoQualities).includes('the offers paragraph sits inside an open mark'), offersProblems(intoQualities).join('\n'));
 });
 
 // #262 C2, C3

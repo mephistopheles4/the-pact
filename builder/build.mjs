@@ -247,8 +247,8 @@ const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const LINE_RE = /^[^\n\r]{0,300}$/;
 const YOURS_RE = { skills: SKILL_NAME_RE, commands: SKILL_NAME_RE, agents: AGENT_NAME_RE };
 const YOURS_MAX = 2000;
-// The builder file's keys for the four parts (#262), in PART_MARKS order: workflowGraph holds the workflow part's graph.
-const PART_KEYS = Object.freeze(['tiers', 'sensitive', 'workflowGraph', 'lenses']);
+// The builder file's keys for the five parts (#262), in PART_MARKS order: workflowGraph holds the workflow part's graph.
+const PART_KEYS = Object.freeze(['tiers', 'sensitive', 'workflowGraph', 'lenses', 'qualities']);
 
 const isObject = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysOnly = (o, allowed) => Object.keys(o).every(k => allowed.includes(k));

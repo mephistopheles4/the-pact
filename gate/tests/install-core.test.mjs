@@ -891,7 +891,7 @@ test('the configuration block: a removed configuration, changed and new files, a
 // #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for a move.
 test('the security-defaults line: each part Scriptorium builds alone shows it, a move edit does not, and it says whether the configuration changed', () => {
   const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT move-2', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
-  for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses']) {
+  for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']) {
     const line = core.securityDefaultsLine(withEdit(mark), null);
     assert.match(line, new RegExp(`^WARN: SECURITY DEFAULTS: the user configuration edits ${mark}, which changes the pact's security defaults;`));
     assert.doesNotMatch(line, /a\.md|blocks/, 'it names no block file');

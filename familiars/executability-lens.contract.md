@@ -1,6 +1,6 @@
 # Contract: executability-lens
 
-Version: 0.1.6
+Version: 0.1.7
 
 - **Type:** agent
 - **Level:** Thorough
@@ -154,6 +154,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.7 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.6 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.5 | 2026-10-07 | The rows and C14 added after the go are confirmed. | The owner's "sounds good" on #99 | rules table, 3 |
 | 0.1.4 | 2026-10-07 | The finding bullet is pinned: a `- ` bullet at the start of its line, opening `- S3 (F1):` and then the sign first; continuation lines indented; one bullet per finding id. The quiet-sections rule is dropped from the sign cases (owner, 2026-10-07, before any run); a sign must open its bullet with `sign 3:`, the colon included. | Move 4 rounds 3 and 4: the security reviewer's N1, N3; the owner's choice to drop the quiet-sections rule and tighten the bullet rule | 4 |
@@ -179,6 +180,8 @@ Against its neighbours: it asks "can this be built as written, with the owner's 
 **Confirmed** (2026-10-07): as local files, from the main session: the numbered section list (`S1` to `Sn`, from the spec's headings); the spec; the issue's request.
 
 - **Refuse when:** no spec (S1), or no section list (S2).
+
+**Decided** (2026-10-12, #262 from #273): the lens may also be handed the rows of the rules file's Qualities table that name it, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
 
 ### 11. Where does a person decide?
 

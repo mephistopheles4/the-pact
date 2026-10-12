@@ -1,6 +1,6 @@
 # Contract: data-lens
 
-Version: 0.1.5
+Version: 0.1.6
 
 - **Type:** agent
 - **Level:** Thorough
@@ -161,6 +161,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.6 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.5 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.4 | 2026-10-07 | "In the clear" becomes "unencrypted" in steps 3 and the severity mapping; the headline rule names the trap. On the fix path after D1's run 62 failed on a headline that said "kept in clear". | The owner's "I agree with build-100's fix" (relayed), #100 | 4, C11 |
 | 0.1.3 | 2026-10-07 | C17: the payload and fetched-page rules, so the lens holds all five carried rules; the cut "not approved" code span restored in the lens text. | Move 4 on the swap: behaviour-lens F1, F2; the security reviewer's F1 | 3 |
@@ -185,6 +186,8 @@ Against its neighbours: it asks "where can data leak?". Its partner asks "how co
 **Confirmed** (2026-10-07): as local files, from the main session. On the spec: the numbered section list, the spec and the issue's request. On the diff: the diff, the spec or ticket, the issue's request, and the working folder.
 
 - **Refuse when:** nothing to review (S1); on the spec, no section list (S2).
+
+**Decided** (2026-10-12, #262 from #273): the lens may also be handed the rows of the rules file's Qualities table that name it, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
 
 ### 11. Where does a person decide?
 
