@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CNDeZmEw3q8Cd/CZe1RSNf3xtVKBZDANAFqge+5tBKc='; style-src 'sha256-wq9tA6DF8DJOKD29ahrS7s/Ohux+wRW8ibZpFSb6344='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-FuDyq6j7A/6yYxrSbI6EVH4zrCTb7ct4VE9MaTpzPvI='; style-src 'sha256-wq9tA6DF8DJOKD29ahrS7s/Ohux+wRW8ibZpFSb6344='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -2093,7 +2093,7 @@ function workflowEditor(host, state, changed) {
       const port = name => el('span', { class: `wf-port wf-port--${name}`, 'data-port': name });
       let box;
       if (n.kind === 'stage') {
-        box = el('div', { class: 'wf-node wf-stage' }, el('div', { class: 'wf-kind' }, el('span', { class: 'av-label', text: 'Stage' })), el('h3', { text: n.s.name }), el('p', { text: n.s.text }), port('in'), port('out'), port('top'), port('down'));
+        box = el('div', { class: 'wf-node wf-stage' }, el('div', { class: 'wf-kind' }, el('span', { class: 'av-label', text: 'Stage' })), el('h3', { text: n.s.name }), el('p', { text: n.s.text }), port('in'), port('out'), port('top'), port('down'), dismiss(n, n.s.name));
       } else if (n.kind === 'cond') {
         const sw = el('button', { type: 'button', class: 'wf-sw', role: 'switch', 'aria-checked': String(n.o.on), 'aria-label': 'condition on or off' });
         sw.addEventListener('pointerdown', e => e.stopPropagation());
@@ -2128,7 +2128,7 @@ function workflowEditor(host, state, changed) {
     refresh();
   }
   const nodeEl = id => [...world.children].find(x => x.dataset.id === id);
-  /** The small × on a condition or a lens: removes it at once; undo brings it back. */
+  /** The small × on a stage, a condition, a skill or a lens: removes it at once; undo brings it back. */
   function dismiss(n, label) {
     const x = el('span', { class: 'wf-x', role: 'button', title: 'Remove (undo brings it back)', 'aria-label': `Remove ${label}` }, '×');
     x.addEventListener('pointerdown', e => e.stopPropagation());
