@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hRcctp/RmR9HoH6pQCy9xAlg3k1V7QzD2syJu+9pLPg='; style-src 'sha256-YClA1lP5yMjqr4A5zrJrB+Xi8SOPRFptc49MyAUl17E='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KtWJ2V1lVnKUf4Z8fIZ9K1zBPXdtTXBZ/V5wAWK8LLE='; style-src 'sha256-Tq3WMOr5v9/BdYBlsJJNdTL7HnFrpxdtW+sHRXCnC5I='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -94,7 +94,8 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .av-tool-chip--ghost { border-color: var(--av-ink-30); color: var(--av-ink-80); }
 .av-tool-chip:disabled { border-color: var(--av-ink-12); color: var(--av-ink-30); cursor: not-allowed; }
 .av-tool-chip:disabled:hover { color: var(--av-ink-30); border-color: var(--av-ink-12); }
-.av-tool-chip:focus-visible, button:focus-visible, textarea:focus-visible, input:focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; }
+/* FOCUS: one look for every control, a caution rule above and below it. */
+:is(.av-tool-chip, button, textarea, input, select, summary):focus-visible { outline: none; box-shadow: 0 calc(-1 * var(--av-rule-bold)) 0 var(--av-caution), 0 var(--av-rule-bold) 0 var(--av-caution); }
 .chips { display: flex; flex-wrap: wrap; gap: var(--av-s1); }
 [hidden] { display: none !important; }
 
@@ -341,8 +342,10 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .agents-grid { display: grid; grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr); gap: var(--av-s3); align-items: start; }
 .agent-list { display: flex; flex-direction: column; gap: 2px; }
 .agent-list .av-label { margin-top: var(--av-s1); }
-.agent-add { display: flex; flex-direction: column; gap: var(--av-s1); margin-top: var(--av-s2); }
-.agent-add input { font: inherit; min-width: 0; }
+.agent-add { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; margin-top: var(--av-s2); }
+.agent-add input[type="text"] { flex: 1 1 8em; width: auto; min-width: 0; }
+.tag-input { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; }
+.tag-input input[type="text"] { flex: 1 1 8em; width: auto; min-width: 6em; }
 textarea.agent-file { font-size: var(--av-t-micro); white-space: pre; }
 .agent-pick { font: inherit; text-align: left; padding: 4px var(--av-s1); border: 0; border-left: 3px solid transparent; background: transparent; color: var(--av-ink); cursor: pointer; }
 .agent-pick:hover { background: rgb(180 83 9 / 0.08); }
@@ -1843,6 +1846,31 @@ function tagPicker(label, values, options, onChange) {
   });
   return el('div', { class: 'tags', role: 'group', 'aria-label': label }, ...values.map(v => el('span', { class: 'wf-chip tag' }, v, el('button', { type: 'button', title: `Remove ${v}`, 'aria-label': `Remove ${v} from ${label}`, onclick: () => onChange(values.filter(x => x !== v)) }, '×'))), ...(left.length ? [add] : []));
 }
+
+/**
+ * A free-form tag list: each value a tag with a remove button, and a box where
+ * typing a name and pressing Enter or a comma adds it; Backspace in an empty
+ * box removes the last tag.
+ */
+function tagInput(label, values, onChange, placeholder = '') {
+  const box = el('input', { type: 'text', 'aria-label': `Add to ${label}`, placeholder });
+  const take = () => {
+    const add = box.value.split(',').map(v => v.trim()).filter(v => v && !values.includes(v));
+    box.value = '';
+    if (add.length) onChange([...values, ...add]);
+  };
+  box.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      take();
+    } else if (e.key === 'Backspace' && box.value === '' && values.length) onChange(values.slice(0, -1));
+  });
+  box.addEventListener('change', take);
+  return el('div', { class: 'tags tag-input', role: 'group', 'aria-label': label }, ...values.map(v => el('span', { class: 'wf-chip tag' }, v, el('button', { type: 'button', title: `Remove ${v}`, 'aria-label': `Remove ${v} from ${label}`, onclick: () => onChange(values.filter(x => x !== v)) }, '×'))), box);
+}
+
+/** The tool names in a tools line's value, `A, B` or `[A, B]`. */
+const toolList = v => v.replace(/^\[|\]$/g, '').split(',').map(t => t.trim()).filter(Boolean);
 
 /** A chip button. A toggle (a mode, the scheme) says whether it is pressed; an action doesn't. */
 function chip(label, on, onclick, extra, toggle) {
@@ -3408,17 +3436,14 @@ function boot() {
       renderOutput();
     });
     prompt.addEventListener('change', () => renderAgents());
-    // The tools line, as a plain field: what the agent may use. Empty means every tool.
-    const toolsBox = el('input', { type: 'text', 'aria-label': `${a.name} tools`, placeholder: 'every tool' });
-    toolsBox.value = fileTools(mine ? state.own[a.name] : a.file);
-    toolsBox.addEventListener('input', () => {
-      const next = withTools(state.own[a.name] ?? a.file, toolsBox.value);
+    // The tools line, as tags: what the agent may use. None means every tool.
+    const toolsBox = tagInput(`${a.name} tools`, toolList(fileTools(state.own[a.name] ?? a.file)), names => {
+      const next = withTools(state.own[a.name] ?? a.file, names.join(', '));
       if (!a.added && next === a.file) delete state.own[a.name];
       else state.own[a.name] = next;
-      prompt.value = state.own[a.name] ?? a.file;
+      renderAgents();
       renderOutput();
-    });
-    toolsBox.addEventListener('change', () => renderAgents());
+    }, 'type a tool, then Enter');
     const row = state.parts.lenses.find(r => r.agents.includes(a.name));
     const qs = state.parts.qualities;
     const listItem = x => el('button', { type: 'button', class: `agent-pick${x.name === agentSel ? ' on' : ''}`, 'aria-pressed': String(x.name === agentSel), onclick: () => {
@@ -3440,15 +3465,15 @@ function boot() {
         }
         partsTouched();
       })),
-      el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Tools' }), toolsBox, el('span', { class: 'av-annot', text: 'Comma-separated, as Claude Code writes them. Empty gives it every tool.' })),
+      el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Tools' }), toolsBox, el('span', { class: 'av-annot', text: 'Type a tool and press Enter. With none, it gets every tool.' })),
       el('span', { class: 'av-label', text: 'Where it runs' }),
       offered(a),
-      agentsSection(`prompt-${a.name}`, 'Prompt', el('p', { class: 'av-annot', text: 'The whole agent file: frontmatter, then the prompt. The model and effort above write its model and effort lines. A save writes it to agents/ in your pact folder.' }), prompt, el('div', { class: 'chips' }, ...(a.added ? [chip('Remove this agent', true, () => {
+      agentsSection(`prompt-${a.name}`, 'Prompt', el('p', { class: 'av-annot', text: 'The whole agent file: frontmatter, then the prompt. The model and effort above write its model and effort lines. A save writes it to agents/ in your pact folder.' }), prompt, el('div', { class: 'chips' }, ...(a.added ? [chip('Remove this agent', false, () => {
         resetPrompt(state, a.name);
         agentSel = PACT.agents[0].name;
         renderAgents();
         renderOutput();
-      }, 'av-tool-chip--ghost')] : mine ? [chip('Back to the default prompt', true, () => {
+      }, 'av-tool-chip--ghost')] : mine ? [chip('Back to the default prompt', false, () => {
         resetPrompt(state, a.name);
         renderAgents();
         renderOutput();
@@ -3531,7 +3556,7 @@ function boot() {
             renderOutput();
           };
           box.addEventListener('keydown', e => e.key === 'Enter' && add());
-          return el('div', { class: 'agent-add' }, box, chip('Add agent', true, add, 'av-tool-chip--ghost'), ...(addWhy ? [el('p', { class: 'av-annot', role: 'alert', text: `Not added: ${addWhy}.` })] : []));
+          return el('div', { class: 'agent-add' }, box, chip('Add agent', false, add, 'av-tool-chip--ghost'), ...(addWhy ? [el('p', { class: 'av-annot', role: 'alert', text: `Not added: ${addWhy}.` })] : []));
         })()),
         detail,
       )),
