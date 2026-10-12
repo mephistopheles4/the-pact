@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-yXgM5qamPWEFQ2V4lnp2UGS8eekQDKceKAzhkgBENIw='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6JvdK6xE3YtI7Kt+pccFkh3b3w6UMuzHxlmIpN8pTTw='; style-src 'sha256-CG5eNkZQi0+UORrVScmxQ0/Tgt628K59r2LKYZDReC4='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3908,7 +3908,7 @@ function workflowEditor(host, state, changed) {
     const box = el('input', { type: 'text', role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': id, autocomplete: 'off', spellcheck: 'false', placeholder: 'e.g. tdd, or /grill-with-docs', 'aria-label': 'Skill or command' });
     box.value = k.skill;
     const list = el('ul', { class: 'combo-list', role: 'listbox', id, hidden: '' });
-    const note = el('p', { class: 'av-annot' });
+    const note = el('p', { class: 'av-callout av-callout--caution', role: 'status' });
     let at = -1;
     const paintNote = () => {
       const missing = listed.length > 0 && k.skill && !listed.includes(k.skill);
