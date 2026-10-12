@@ -2,9 +2,9 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-08mYsdlnCM6hYF7K1Q1IDu5AxU7zKWvqLuyZbaif9WA='; style-src 'sha256-LZQEUDat0K+pk6g5iMd7MVaCaJyDaMjauQCYkbEeOQQ='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kt9fRRonpDZOqYZMsyw4zAPWrtugD5tJGNqG3c66UYg='; style-src 'sha256-8pSVwkwrkqU0OwxuuGisMvEMXskeGRxWoPqI/FM+T9M='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pact config builder</title>
+<title>Scriptorium</title>
 <style>
 /* Aviation design system, deck theme, tool chrome: the tokens and classes this
    page uses, carried inline because the page loads nothing. Light is the
@@ -314,6 +314,11 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: var(--av-ink-55); transition: left .18s, background .18s; }
 .wf-sw[aria-checked="true"] { background: var(--av-normal); border-color: var(--av-normal); }
 .wf-sw[aria-checked="true"]::after { left: 16px; background: var(--av-paper); }
+.wf-x { position: absolute; top: 1px; right: 4px; font-size: 12px; line-height: 1; color: var(--av-ink-30); cursor: pointer; user-select: none; }
+.wf-x:hover { color: var(--av-caution); }
+.wf-cond .wf-row1 { padding-right: 10px; }
+.wf-agent { padding-right: 18px; }
+.wf-zoom button:disabled { color: var(--av-ink-30); cursor: default; }
 .wf-port { position: absolute; width: 12px; height: 12px; border: var(--av-rule-thin) solid var(--av-ink); background: var(--av-paper); border-radius: 50%; cursor: crosshair; transition: transform .12s, background .12s; }
 .wf-port:hover { transform: scale(1.5); background: var(--av-caution); border-color: var(--av-caution); }
 .wf-port--in { left: -7px; top: calc(50% - 6px); }
@@ -1933,13 +1938,15 @@ function workflowEditor(host, state, changed) {
   const world = el('div', { class: 'wf-world' });
   const edgesCv = el('canvas', { class: 'wf-edges', 'aria-hidden': 'true' });
   const zoomPct = el('span', { class: 'av-num' });
+  const undoBtn = el('button', { type: 'button', title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo', onclick: () => travel(history.past, history.future) }, '↶');
+  const redoBtn = el('button', { type: 'button', title: 'Redo (Ctrl+Shift+Z)', 'aria-label': 'Redo', onclick: () => travel(history.future, history.past) }, '↷');
   const toastEl = el('div', { class: 'wf-toast', role: 'status' });
   const canvas = el(
     'div',
     { class: 'wf-canvas', tabindex: '0', 'aria-label': 'The workflow canvas' },
     edgesCv,
     world,
-    el('div', { class: 'wf-zoom' }, button('−', () => zoomAt(1 / 1.15)), zoomPct, button('+', () => zoomAt(1.15)), button('Fit', () => fit()), button('Arrange', () => arrange(true))),
+    el('div', { class: 'wf-zoom' }, button('−', () => zoomAt(1 / 1.15)), zoomPct, button('+', () => zoomAt(1.15)), button('Fit', () => fit()), button('Arrange', () => arrange(true)), undoBtn, redoBtn),
     toastEl,
   );
   const table = el('div', { class: 'wf-table' });
@@ -1957,6 +1964,7 @@ function workflowEditor(host, state, changed) {
         arrange(false);
         all();
         fit();
+        record();
         changed();
       }, 'av-tool-chip--ghost')),
     ),
@@ -2079,8 +2087,8 @@ function workflowEditor(host, state, changed) {
           toast(n.o.on ? 'Condition on.' : 'Condition off: its lenses are never offered.');
         });
         const pair = rosterPairs(state.parts).find(p => p.agents.length === n.o.agents.length && p.agents.every(a => n.o.agents.includes(a)));
-        box = el('div', { class: 'wf-node wf-cond' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: 'offered' }), whenText(n.o)), sw), el('div', { class: 'wf-pair', text: pair ? pair.label : n.o.agents.length > 1 ? `offered together (${n.o.agents.length})` : '' }), port('top'), port('out'));
-      } else box = el('div', { class: `wf-node wf-agent${n.loose ? ' wf-agent--loose' : ''}` }, n.name, port('in'));
+        box = el('div', { class: 'wf-node wf-cond' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: 'offered' }), whenText(n.o)), sw), el('div', { class: 'wf-pair', text: pair ? pair.label : n.o.agents.length > 1 ? `offered together (${n.o.agents.length})` : '' }), port('top'), port('out'), dismiss(n, 'this condition'));
+      } else box = el('div', { class: `wf-node wf-agent${n.loose ? ' wf-agent--loose' : ''}` }, n.name, port('in'), dismiss(n, n.name));
       box.dataset.id = n.id;
       box.tabIndex = 0;
       box.style.left = `${p.x}px`;
@@ -2094,6 +2102,18 @@ function workflowEditor(host, state, changed) {
     refresh();
   }
   const nodeEl = id => [...world.children].find(x => x.dataset.id === id);
+  /** The small × on a condition or a lens: removes it at once; undo brings it back. */
+  function dismiss(n, label) {
+    const x = el('span', { class: 'wf-x', role: 'button', title: 'Remove (undo brings it back)', 'aria-label': `Remove ${label}` }, '×');
+    x.addEventListener('pointerdown', e => e.stopPropagation());
+    x.addEventListener('click', e => {
+      e.stopPropagation();
+      ui.sel = { node: n.id };
+      delSel();
+      toast('Removed. Undo brings it back.');
+    });
+    return x;
+  }
 
   /** Classes that follow from state, then the links, the table and the zoom. */
   function refresh() {
@@ -2345,7 +2365,10 @@ function workflowEditor(host, state, changed) {
     ui.temp = null;
     if (d.mode === 'node') {
       d.box.classList.remove('wf-dragging');
-      if (d.moved) changed();
+      if (d.moved) {
+        record();
+        changed();
+      }
     }
     if (d.mode === 'link') {
       const over = document.elementFromPoint(e.clientX, e.clientY);
@@ -2470,6 +2493,7 @@ function workflowEditor(host, state, changed) {
       else {
         finish();
         fit();
+        record();
         changed();
       }
     };
@@ -2761,6 +2785,50 @@ function workflowEditor(host, state, changed) {
     if (e.key === 'Escape') tour(-1);
   });
 
+  // ---- undo and redo: each edit is one step; a run of typing in one field is one step.
+  const history = { past: [], future: [], now: null, at: 0, typing: false };
+  const snapshot = () => JSON.stringify({ parts: state.parts, loose: ui.loose });
+  function record(typing = false) {
+    const next = snapshot();
+    if (history.now === null || next === history.now) {
+      history.now = next;
+      return;
+    }
+    const t = Date.now();
+    if (!(typing && history.typing && t - history.at < 1000)) history.past.push(history.now);
+    if (history.past.length > 100) history.past.shift();
+    history.future = [];
+    history.now = next;
+    history.at = t;
+    history.typing = typing;
+    renderHistory();
+  }
+  function travel(from, to) {
+    if (!from.length) return;
+    to.push(history.now);
+    history.now = from.pop();
+    const s = JSON.parse(history.now);
+    state.parts = s.parts;
+    ui.loose = s.loose;
+    ui.sel = null;
+    history.typing = false;
+    all();
+    changed();
+    renderHistory();
+  }
+  function renderHistory() {
+    undoBtn.disabled = !history.past.length;
+    redoBtn.disabled = !history.future.length;
+  }
+  document.addEventListener('keydown', e => {
+    if (host.hidden || !(e.ctrlKey || e.metaKey) || /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) travel(history.past, history.future);
+    else if (k === 'y' || (k === 'z' && e.shiftKey)) travel(history.future, history.past);
+    else return;
+    e.preventDefault();
+  });
+
   /** After an edit: redraw what shows it, and tell the page. `full` false keeps the panel, so a field keeps its focus. */
   function edited(full = true) {
     renderNodes();
@@ -2768,6 +2836,7 @@ function workflowEditor(host, state, changed) {
       renderLibrary();
       renderPanel();
     }
+    record(!full);
     changed();
   }
   function all() {
@@ -2779,6 +2848,8 @@ function workflowEditor(host, state, changed) {
 
   if (!Object.keys(G().layout).length) arrange(false);
   all();
+  record();
+  renderHistory();
   return {
     show() {
       all();
@@ -2795,6 +2866,7 @@ function workflowEditor(host, state, changed) {
       ui.loose = [];
       if (!Object.keys(G().layout).length) arrange(false);
       all();
+      record();
     },
   };
 }
