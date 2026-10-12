@@ -314,6 +314,24 @@ const graphWith = f => {
   return { ...GOOD, workflowGraph: g };
 };
 
+// #262, the owner's skill node: a skill on a stage compiles into a Skills column; the default table has none.
+test('a skill on the graph compiles into a Skills column, offered or used and when; the default table has no such column', () => {
+  assert.doesNotMatch(compileParts(DEFAULT_PARTS).workflow, /Skills, and when/);
+  const p = copyParts(DEFAULT_PARTS);
+  p.workflowGraph.skills = [{ id: 'build-tdd', stage: 'build', skill: 'tdd', mode: 'used', when: 'every-build', words: '', on: true }];
+  const lines = compileParts(p).workflow.split('\n');
+  assert.match(lines[0], /\| Lenses offered, and when \| Skills, and when \| Other ways out \|$/);
+  assert.match(lines.find(l => l.startsWith('| Build |')), /\| none \| `tdd`: used, every build \| \|$/);
+  assert.match(lines.find(l => l.startsWith('| Plan |')), /\| none \| none \| \|$/);
+});
+
+// #262: the builder's skill check refuses a skill name that is no skill or command name.
+test('bad builder file: a skill whose name is no skill or command name is refused', t => {
+  const r = checkBuilder(REPO, builderFile(t, graphWith(g => (g.skills = [{ id: 'k', stage: 'build', skill: 'run this; rm', mode: 'used', when: 'every-build', words: '', on: true }])), GOOD_BLOCKS));
+  assert.equal(r.builder, null);
+  assert.ok(r.refusals.some(m => /skill k: the skill's name must be/.test(m)), JSON.stringify(r.refusals));
+});
+
 // #262 S2, S9: the builder refuses a stage with two default ways on.
 test('bad builder file: a stage with two default ways on is refused', t => {
   const r = checkBuilder(REPO, builderFile(t, graphWith(g => g.links.push({ from: 'test', to: 'maintain', when: '', on: true })), GOOD_BLOCKS));
@@ -408,48 +426,15 @@ test('reset puts the usage value, every slot and every agent back to the plain p
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
-// #262 S8: the four parts Scriptorium builds are the canvas's, which is the page; the move steps hold every other editable part.
-test('the wizard walks Start, each move, Agents, then Review and save; each move step holds exactly that move\'s open parts', () => {
-  const steps = L.wizardSteps();
-  assert.deepEqual(steps.map(s => s.id), ['start', 'move-1', 'move-2', 'move-3', 'move-4', 'agents', 'review']);
-  assert.deepEqual(steps.filter(s => s.move).flatMap(s => s.marks).sort(), L.PACT.editable.filter(m => !L.PACT.parts.marks.includes(m)).sort());
-  for (const s of steps.filter(s => s.move)) assert.ok(s.marks.every(m => m.startsWith(s.id)), s.id);
+// #261 C12: a removed default left empty is an edit of its own, and raises no warning.
+test('a removed default left empty saves a remove edit, and raises no warning', () => {
+  const s = L.initialState();
+  s.slots['move-2'] = { replaced: true, cards: [] };
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).edits, [{ mark: 'move-2', op: 'remove' }]);
+  assert.deepEqual(L.problems(s).filter(f => f.level === 'warn'), []);
 });
 
-test('each step counts its own changes and problems, and Review counts them all', () => {
-  const s = L.initialState();
-  const zero = L.stepSummary(s);
-  assert.ok(zero.every(r => r.changes === 0 && r.errors === 0 && r.warns === 0), JSON.stringify(zero));
-  s.usage = 90;
-  s.slots['move-3'] = { replaced: false, cards: [{ kind: 'custom', text: '' }] };
-  s.agents['data-lens'].model = 'sonnet';
-  s.agents['integrity-lens'].effort = 'low';
-  const by = Object.fromEntries(L.stepSummary(s).map(r => [r.id, r]));
-  assert.deepEqual([by.start.changes, by['move-3'].changes, by.agents.changes, by['move-1'].changes], [1, 1, 2, 0]);
-  assert.ok(by['move-3'].errors >= 1, 'the empty card is move 3\'s to fix');
-  assert.equal(by['move-1'].errors + by.start.errors + by.agents.errors, 0);
-  assert.deepEqual([by.review.changes, by.review.errors], [4, by['move-3'].errors]);
-  // A usage value out of range is Start's to fix.
-  s.usage = 101;
-  assert.equal(Object.fromEntries(L.stepSummary(s).map(r => [r.id, r])).start.errors, 1);
-});
-// The moves' parts are empty by default, so they name no agent an edit could drop, and no edit warns.
-// #261 C12
-test('a removed default left empty counts as an edit on its own step, and Review counts every problem', () => {
-  const s = L.initialState();
-  const part = L.PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === 'move-2');
-  assert.ok(part);
-  s.slots[part.mark] = { replaced: true, cards: [] };
-  const step = 'move-2';
-  const by = Object.fromEntries(L.stepSummary(s).map(r => [r.id, r]));
-  assert.deepEqual([by[step].changes, by[step].warns], [1, 0]);
-  const found = L.problems(s);
-  assert.equal(by.review.warns, found.filter(f => f.level === 'warn').length);
-  assert.equal(by.review.errors, found.filter(f => f.level === 'error').length);
-  assert.ok(Object.values(by).filter(r => r.id !== step && r.id !== 'review').every(r => r.warns === 0));
-});
-
-test('a security-set lens off its default counts as an override on Agents and Review; a plain one does not', () => {
+test('a security-set lens off its default counts as an override; a plain one does not', () => {
   const s = L.initialState();
   s.agents['integrity-lens'].effort = 'low';
   assert.deepEqual(L.overrides(s), []);
@@ -458,11 +443,9 @@ test('a security-set lens off its default counts as an override on Agents and Re
   s.agents['behaviour-lens'].effort = L.PACT.agents.find(a => a.name === 'behaviour-lens').effort;
   s.agents['data-lens'].model = 'sonnet';
   assert.deepEqual(L.overrides(s), ['data-lens']);
-  const by = Object.fromEntries(L.stepSummary(s).map(r => [r.id, r]));
-  assert.deepEqual([by.agents.overrides, by.review.overrides, by['move-1'].overrides], [1, 1, 0]);
 });
 
-// ------------------------------------------------------------ the wizard on a stub page
+// ------------------------------------------------------------ the page on a stub DOM
 
 /** Boot the page's script against a small stand-in for the DOM; returns the elements by id and helpers. */
 function bootPage({ picker = false, folder = null } = {}) {
@@ -489,98 +472,51 @@ function bootPage({ picker = false, folder = null } = {}) {
   return { ids, find, button };
 }
 
-// #261 C12
-test('stub page: each step shows only its own sections; a move step shows only its move, two sidebar tabs, and Back and Next', () => {
+/** Open Settings on a stub page and return the dialog's node. */
+const openSettings = P => {
+  P.button(P.ids.actions, 'Settings').click();
+  return P.ids.settings;
+};
+
+// #262: the canvas is the page; Settings holds the moves, the setups, the agents and the canvas's other parts; Export holds the save.
+test('stub page: the canvas is the page, and the head opens Settings and Export; Settings holds each move with its own text', () => {
   const P = bootPage();
-  const view = () => ({
-    start: !P.ids.values.hidden && !P.ids.workflows.hidden,
-    agents: !P.ids.agents.hidden,
-    workspace: !P.ids.workspace.hidden,
-    review: !P.ids.output.hidden && !P.ids.always.hidden,
-    moves: P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id),
-    tabs: P.find(P.ids.sidebar, n => n.attrs.role === 'tab').map(t => t.text),
-    nav: P.find(P.ids['step-nav'], n => n.tag === 'button').map(b => b.text),
-  });
-  const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
-  assert.equal(steps().length, 7);
-  // #261: the move steps are named after the moves, where they said Move 1 to Move 4.
-  assert.deepEqual(view(), { start: true, agents: false, workspace: false, review: false, moves: [], tabs: [], nav: ['Next: Sense the work'] });
-  const want = { 1: ['Back: Start', 'Next: Think before doing'], 2: ['Back: Sense the work', 'Next: Checkpoint the seams'], 3: ['Back: Think before doing', 'Next: Stay the owner'], 4: ['Back: Checkpoint the seams', 'Next: Agents'] };
-  for (const n of [1, 2, 3, 4]) {
-    P.button(P.ids['step-nav'], 'Next').click();
-    assert.deepEqual(view(), { start: false, agents: false, workspace: true, review: false, moves: [`move-${n}`], tabs: ['Presets', 'Yours'], nav: want[n] }, `move ${n}`);
-  }
-  P.button(P.ids['step-nav'], 'Next').click();
-  assert.deepEqual(view(), { start: false, agents: true, workspace: false, review: false, moves: [], tabs: [], nav: ['Back: Stay the owner', 'Next: Review and save'] });
-  steps()[6].click();
-  assert.deepEqual(view(), { start: false, agents: false, workspace: false, review: true, moves: [], tabs: [], nav: ['Back: Agents'] });
-  // #262: the canvas is the page itself, mounted at boot, and never a step.
-  assert.ok(P.find(P.ids.wf, n => n.attrs && n.attrs['aria-label'] === 'The workflow canvas').length === 1);
+  assert.equal(P.find(P.ids.wf, n => n.attrs && n.attrs['aria-label'] === 'The workflow canvas').length, 1);
+  assert.deepEqual(P.find(P.ids.actions, n => n.tag === 'button').map(b => b.text), ['Settings', 'Dark', 'Export']);
+  assert.ok(P.button(P.ids.reset, 'Reset all'));
+  const box = openSettings(P);
+  assert.deepEqual(P.find(box, n => n.tag === 'summary').map(n => n.text), ['Moves', 'Setups', 'Agents', 'Tiers', 'Sensitive work', 'Lenses', 'Results']);
+  assert.deepEqual(P.find(box, n => n.tag === 'article').map(a => a.attrs.id), ['move-1', 'move-2', 'move-3', 'move-4']);
+  // #262: each move shows its own text, not "empty by default".
+  for (const m of L.PACT.moves) assert.ok(m.text.startsWith(`**${m.lead}.**`), m.lead);
+  assert.match(box.text, /What kind of work is it, how big, how risky/);
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /Save/);
 });
 
-test('stub page: on each move, Add from Yours defaults to that move\'s slot', () => {
+test('stub page: reset all puts the moves back, and undo puts the edits back', () => {
   const P = bootPage();
-  const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
-  for (const n of [1, 2, 3, 4]) {
-    steps()[n].click();
-    P.find(P.ids.sidebar, t => t.attrs.role === 'tab' && t.text === 'Yours')[0].click();
-    P.button(P.ids.sidebar, 'A new agent of yours').click();
-    const pick = P.find(P.ids.sidebar, x => x.tag === 'select')[0];
-    assert.ok(pick.value.startsWith(`move-${n}`), `move ${n}: ${pick.value}`);
-  }
-});
-
-test('stub page: reset from a move keeps that step, and undo puts the edits back', () => {
-  const P = bootPage();
-  const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
-  steps()[3].click();
-  P.button(P.ids.spine, 'Add your own text').click();
-  assert.match(steps()[3].text, /1 edited/);
+  const box = openSettings(P);
+  P.button(box, 'Add your own text').click();
+  assert.match(P.ids.summary.text, /1 of/);
   P.button(P.ids.reset, 'Reset all').click();
-  assert.deepEqual(P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id), ['move-3']);
-  assert.match(steps()[3].text, /default/);
+  assert.equal(P.find(openSettings(P), n => n.tag === 'textarea').length, 0);
   P.button(P.ids.reset, 'Undo reset').click();
-  assert.match(steps()[3].text, /1 edited/);
+  assert.equal(P.find(openSettings(P), n => n.tag === 'textarea').length, 1);
 });
 
-test('stub page: an override shows on the Agents step and on Review, and a step lists its own problems', () => {
+test('stub page: an override shows in Agents and in Export, and a slot\'s problem shows in Export', () => {
   const P = bootPage();
-  const steps = () => P.find(P.ids.stepper, n => n.tag === 'button');
-  steps()[5].click();
-  const pick = P.find(P.ids.agents, n => n.tag === 'select' && n.attrs['aria-label'] === 'data-lens model')[0];
+  const box = openSettings(P);
+  const pick = P.find(box, n => n.tag === 'select' && n.attrs['aria-label'] === 'data-lens model')[0];
   pick.value = 'sonnet';
   pick.listeners.change.forEach(f => f({}));
-  assert.match(steps()[5].text, /1 override, not security-tested/);
-  assert.match(P.ids.here.text, /data-lens · override, not security-tested/);
-  steps()[6].click();
+  assert.match(openSettings(P).text, /override, not security-tested/);
   assert.match(P.ids.output.text, /data-lens · override, not security-tested/);
-  // An empty card on move 2: its problem shows on move 2's own step.
-  steps()[2].click();
-  P.button(P.ids.spine, 'Add your own text').click();
-  assert.equal(P.ids.here.hidden, false);
-  assert.match(P.ids.here.text, /Fix · move-2 · card 1 is empty/);
-  // A second problem on move 3: each step lists only its own.
-  steps()[3].click();
-  P.button(P.ids.spine, 'Add your own text').click();
-  assert.match(P.ids.here.text, /move-3 · card 1 is empty/);
-  assert.doesNotMatch(P.ids.here.text, /move-2/);
-  steps()[2].click();
-  assert.doesNotMatch(P.ids.here.text, /move-3/);
+  P.button(openSettings(P), 'Add your own text').click();
+  assert.match(P.ids.output.text, /Fix · move-1 · card 1 is empty/);
 });
 
-// #261 C12
-test('stub page: the Agents step\'s own-agent card opens the last move on its Yours tab, and does not drag', () => {
-  const P = bootPage();
-  P.find(P.ids.stepper, n => n.tag === 'button')[5].click();
-  const tile = P.find(P.ids.agents, n => n.className === 'tile tile--yours')[0];
-  assert.ok(tile, 'no own-agent tile');
-  assert.ok(tile.attrs.draggable === undefined && !tile.listeners.dragstart, 'the own-agent tile still drags');
-  P.button(tile, "Open Stay the owner's Yours tab").click();
-  assert.deepEqual(P.find(P.ids.spine, n => n.tag === 'article').map(a => a.attrs.id), ['move-4']);
-  assert.deepEqual(P.find(P.ids.sidebar, n => n.attrs.role === 'tab' && n.attrs['aria-selected'] === 'true').map(n => n.text), ['Yours']);
-  // The workflows text fits the wizard.
-  assert.match(P.ids.workflows.text, /Tweak each move on its own step after/);
-});
 test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
   assert.equal(PAGE_REL, 'builder/scriptorium.html');
   for (const f of ['README.md', 'AGENTS.md', join('.claude', 'skills', 'scriptorium', 'SKILL.md'), join('builder', 'build.mjs')]) {
@@ -657,7 +593,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, wizardSteps, stepSummary, overrides, keepCommands, partsChanged, builderWith });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, overrides, keepCommands, partsChanged, builderWith });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -742,7 +678,7 @@ test('a save reads the folder\'s config.json through keepCommands: none there, a
 test('stub page: the review step warns that a downloaded config.json holds no commands list, with or without a folder picker (#203, T2)', () => {
   for (const picker of [false, true]) {
     const P = bootPage({ picker });
-    P.find(P.ids.stepper, n => n.tag === 'button')[6].click();
+    P.button(P.ids.actions, 'Export').click();
     const text = P.ids.output.text;
     assert.ok(P.find(P.ids.output, n => n.tag === 'button' && n.text === 'Download config.json').length, `picker ${picker}: a download button`);
     assert.match(text, /A downloaded config\.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands\./, `picker ${picker}`);
@@ -766,7 +702,7 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
   };
   const save = async folder => {
     const P = bootPage({ picker: true, folder });
-    P.find(P.ids.stepper, n => n.tag === 'button')[6].click();
+    P.button(P.ids.actions, 'Export').click();
     P.button(P.ids.output, 'Save to a folder').click();
     for (let i = 0; i < 20; i++) await new Promise(r => setTimeout(r, 0));
     return folder.written;

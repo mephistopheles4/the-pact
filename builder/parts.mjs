@@ -14,6 +14,8 @@
 //   workflowGraph: { stages: [{ id, name, text, model: 'plan' | 'build' | 'owner', skipAt: [tier keys] }],
 //                    offers: [{ id, stage, when, words, agents: [names], on }],
 //                    links:  [{ from, to, when, on }],        an empty when is the stage's default way on
+//                    skills: [{ id, stage, skill, mode: 'offered' | 'used', when, words, on }],   optional
+//                                                             a skill or command at a stage: offered to me, or used
 //                    layout: { <node id>: { x, y } } }        the canvas's positions; compiles to nothing
 //   lenses:        [{ agents: [names], label, asks }]       the roster, one row each
 //
@@ -38,7 +40,9 @@ export const OFFER_WHENS = Object.freeze({
   words: '',
 });
 // Caps on the data, so no builder file can make a part too long to read.
-export const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, agents: 4, items: 20, lenses: 20, line: 300, short: 60, layout: 400 });
+export const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, line: 300, short: 60, layout: 400 });
+// A skill node's two modes: offered (Claude offers it, I answer) or used (Claude runs it).
+export const SKILL_MODES = Object.freeze(['offered', 'used']);
 
 const SECURITY_PAIR = ['adversarial-lens', 'data-lens'];
 
@@ -166,6 +170,11 @@ export function offerText(o) {
   return `${o.agents.map(tick).join(', ')}: ${o.when === 'words' ? o.words : OFFER_WHENS[o.when]}`;
 }
 
+/** A skill's words: its name, offered or used, and when. */
+export function skillText(k) {
+  return `${tick(k.skill)}: ${k.mode}, ${k.when === 'words' ? k.words : OFFER_WHENS[k.when]}`;
+}
+
 /** A link's words: back, on or ahead, by the order the work takes the stages. */
 export function linkText(g, l, order = stagesInOrder(g)) {
   const i = order.findIndex(s => s.id === l.from);
@@ -177,15 +186,18 @@ export function linkText(g, l, order = stagesInOrder(g)) {
 export function compileWorkflow(p) {
   const g = p.workflowGraph;
   const order = stagesInOrder(g);
-  const head = row(['Stage', ...p.tiers.map(t => t.name), 'Sensitive route', 'Lenses offered, and when', 'Other ways out']);
+  // A Skills column only when a skill is on the graph, so the pact's default table stays as it is.
+  const skills = (g.skills || []).filter(k => k.on !== false && g.stages.some(st => st.id === k.stage));
+  const head = row(['Stage', ...p.tiers.map(t => t.name), 'Sensitive route', 'Lenses offered, and when', ...(skills.length ? ['Skills, and when'] : []), 'Other ways out']);
   const rows = order.map(st => row([
     st.name,
     ...p.tiers.map((_, i) => stageCell(p, st, i)),
     stageCell(p, st, null),
     g.offers.filter(o => o.stage === st.id && o.on !== false).map(offerText).join('; ') || 'none',
+    ...(skills.length ? [skills.filter(k => k.stage === st.id).map(skillText).join('; ') || 'none'] : []),
     g.links.filter(l => l.from === st.id && l.when && l.on !== false).map(l => linkText(g, l, order)).join('; '),
   ]));
-  return [head, rule(p.tiers.length + 4), ...rows].join('\n');
+  return [head, rule(p.tiers.length + 4 + (skills.length ? 1 : 0)), ...rows].join('\n');
 }
 
 export function compileLenses(p) {
@@ -201,6 +213,8 @@ export function compileParts(p) {
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const AGENT_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+// A skill or a command, as the builder file's own lists name them: a command may lead with a /.
+const SKILL_RE = /^\/?[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
 const isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysIn = (o, ks) => Object.keys(o).every(k => ks.includes(k));
 // One line of text that keeps a table cell whole: no line break and no bar.
@@ -240,7 +254,7 @@ export function partsProblems(p) {
   }
 
   const g = p.workflowGraph;
-  if (!isObj(g) || !keysIn(g, ['stages', 'offers', 'links', 'layout']) || !Array.isArray(g.stages) || !Array.isArray(g.offers) || !Array.isArray(g.links)) {
+  if (!isObj(g) || !keysIn(g, ['stages', 'offers', 'links', 'skills', 'layout']) || (Object.hasOwn(g, 'skills') && !Array.isArray(g.skills)) || !Array.isArray(g.stages) || !Array.isArray(g.offers) || !Array.isArray(g.links)) {
     err('workflow', 'workflowGraph must hold stages, offers and links lists, and a layout');
   } else {
     const ids = new Set();
@@ -265,6 +279,20 @@ export function partsProblems(p) {
       if (o.when === 'words' ? !lineOk(o.words, C.line) || !String(o.words).trim() : Object.hasOwn(o, 'words') && o.words !== '') err('workflow', `offer ${o.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);
       if (!Array.isArray(o.agents) || !o.agents.length || o.agents.length > C.agents || o.agents.some(a => typeof a !== 'string' || !AGENT_RE.test(a)) || new Set(o.agents).size !== o.agents.length) err('workflow', `offer ${o.id}: 1 to ${C.agents} different agents, each a name of lowercase letters, digits and hyphens`);
       if (typeof o.on !== 'boolean') err('workflow', `offer ${o.id}: on must be true or false`);
+    });
+    const kids = new Set();
+    const skills = g.skills || [];
+    if (skills.length > C.skills) err('workflow', `at most ${C.skills} skills`);
+    skills.forEach((k, i) => {
+      if (!isObj(k) || !keysIn(k, ['id', 'stage', 'skill', 'mode', 'when', 'words', 'on']) || typeof k.id !== 'string' || !ID_RE.test(k.id)) return err('workflow', `skill ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, skill, mode, when, words and on beside it`);
+      if (kids.has(k.id) || oids.has(k.id) || ids.has(k.id)) err('workflow', `skill ${k.id}: the id is used twice`);
+      kids.add(k.id);
+      if (!ids.has(k.stage)) err('workflow', `skill ${k.id}: its stage is not in the graph`);
+      if (typeof k.skill !== 'string' || !SKILL_RE.test(k.skill)) err('workflow', `skill ${k.id}: the skill's name must be letters, digits, '.', '_', '-' or ':', with an optional leading /`);
+      if (!SKILL_MODES.includes(k.mode)) err('workflow', `skill ${k.id}: mode must be offered or used`);
+      if (!Object.hasOwn(OFFER_WHENS, k.when)) err('workflow', `skill ${k.id}: when must be one of ${Object.keys(OFFER_WHENS).join(', ')}`);
+      if (k.when === 'words' ? !lineOk(k.words, C.line) || !String(k.words).trim() : Object.hasOwn(k, 'words') && k.words !== '') err('workflow', `skill ${k.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);
+      if (typeof k.on !== 'boolean') err('workflow', `skill ${k.id}: on must be true or false`);
     });
     if (g.links.length > C.links) err('workflow', `at most ${C.links} links`);
     g.links.forEach((l, i) => {
@@ -326,6 +354,7 @@ export function partsTexts(p) {
   const g = isObj(p.workflowGraph) ? p.workflowGraph : {};
   (Array.isArray(g.stages) ? g.stages : []).forEach((s, i) => isObj(s) && ['id', 'name', 'text'].forEach(k => add(`stage ${i + 1}`, s[k])));
   (Array.isArray(g.offers) ? g.offers : []).forEach((o, i) => isObj(o) && ['id', 'words'].forEach(k => add(`offer ${i + 1}`, o[k])));
+  (Array.isArray(g.skills) ? g.skills : []).forEach((s, i) => isObj(s) && ['id', 'skill', 'words'].forEach(k => add(`skill ${i + 1}`, s[k])));
   (Array.isArray(g.links) ? g.links : []).forEach((l, i) => isObj(l) && add(`link ${i + 1}`, l.when));
   (Array.isArray(p.lenses) ? p.lenses : []).forEach((r, i) => isObj(r) && ['label', 'asks'].forEach(k => add(`lenses row ${i + 1}`, r[k])));
   return out;

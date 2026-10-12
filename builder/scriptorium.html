@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-lkg4YErnWm/PvL8TdYohbbKrLuZsZCvz07RMPIqqt84='; style-src 'sha256-YdmQ+zAWnGFsDb8TmhXgv1XSsqabGFy1phbH7wKMECM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6NzhpDLA2akKJ2BcyP9h5LOrcZdpJs8jVN9wEthiGCg='; style-src 'sha256-QGPJzVArVBtw60znlxxFQE4XGzOJ8Lm04wWG1n/tD+Y='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -122,49 +122,11 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .chips { display: flex; flex-wrap: wrap; gap: var(--av-s1); }
 [hidden] { display: none !important; }
 
-/* STEPPER: the page is a wizard. One step shows at a time: Start, each move,
-   Agents, then Review and save. Every step stays one click away. */
-.stepper { display: flex; flex-wrap: wrap; padding: 0 var(--av-s4); border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
-.step { font: inherit; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: var(--av-s2) var(--av-s3); border: 0; border-bottom: var(--av-rule-bold) solid transparent; background: transparent; color: var(--av-ink-70); cursor: pointer; text-align: left; }
-.step:hover { color: var(--av-ink); }
-.step--on { color: var(--av-ink); border-bottom-color: var(--av-ink); }
-.step-n { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); }
-.step-title { font-size: var(--av-t-annot); font-weight: 600; }
-.step-note { font-size: var(--av-t-micro); color: var(--av-ink-70); }
-.step-note--fix { color: var(--av-caution); font-weight: 600; }
-.step-nav { display: flex; justify-content: space-between; gap: var(--av-s2); padding: var(--av-s3) var(--av-s4); border-top: var(--av-rule-hair) solid var(--av-ink-30); }
-.overview { display: flex; flex-direction: column; }
-.overview-row { display: flex; align-items: center; gap: var(--av-s2); padding: var(--av-s1) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
-.overview-row > :first-child { min-width: 9rem; font-weight: 600; font-size: var(--av-t-annot); }
-.overview-row > :last-child { margin-left: auto; }
-
-/* WORKSPACE: on a move's step, a pinned sidebar (that move's presets, and
-   yours) beside that move, so the library never scrolls away from its slots. */
-.workspace { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: start; }
 .av-tool-detail { min-width: 0; padding: var(--av-s3) var(--av-s4); }
-#sidebar { position: sticky; top: 0; max-height: 100vh; overflow-y: auto; padding: var(--av-s3) var(--av-s2) var(--av-s3) var(--av-s3); border-right: var(--av-rule-hair) solid var(--av-ink-30); display: flex; flex-direction: column; gap: var(--av-s2); }
-.tabs { display: flex; flex-wrap: wrap; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
-.tab { font: inherit; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); padding: var(--av-s1) var(--av-s2); border: 0; border-bottom: var(--av-rule-bold) solid transparent; background: transparent; color: var(--av-ink-70); cursor: pointer; }
-.tab:hover { color: var(--av-ink); }
-.tab--on { color: var(--av-ink); border-bottom-color: var(--av-ink); font-weight: 600; }
-.list { display: flex; flex-direction: column; }
-.list-row { border-bottom: var(--av-rule-hair) solid var(--av-ink-12); cursor: grab; }
-.list-row:hover { background: var(--av-ink-12); }
-.list-row--open { background: var(--av-surface); box-shadow: inset 3px 0 0 var(--av-ink); }
-.list-head { display: flex; flex-direction: column; width: 100%; min-width: 0; text-align: left; background: transparent; border: 0; padding: var(--av-s1) var(--av-s1) var(--av-s1) var(--av-s2); color: inherit; font: inherit; cursor: pointer; }
-.list-title, .list-line { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.list-title { font-size: var(--av-t-annot); font-weight: 600; }
-.list-line { font-size: var(--av-t-micro); color: var(--av-ink-70); }
-.list-details { padding: 0 var(--av-s2) var(--av-s2); display: flex; flex-direction: column; gap: var(--av-s1); }
-#spine .move { padding: var(--av-s3) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
-#spine .move:first-child { padding-top: 0; }
-@media (max-width: 900px) {
-  .workspace { grid-template-columns: minmax(0, 1fr); }
-  #sidebar { position: static; max-height: 22rem; border-right: 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-30); }
-  .stepper, .step-nav { padding-left: var(--av-s2); padding-right: var(--av-s2); }
-  .step { padding: var(--av-s1) var(--av-s2); }
-  .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); }
-}
+.moves .move { padding: var(--av-s2) 0; border-bottom: var(--av-rule-hair) solid var(--av-ink-12); }
+.moves .move:first-child { padding-top: 0; }
+.move-text { margin-bottom: var(--av-s1); }
+@media (max-width: 900px) { .av-tool-head, .av-tool-bar, .av-tool-detail { padding-left: var(--av-s2); padding-right: var(--av-s2); } }
 /* TYPE */
 .av-label { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 500; color: var(--av-ink-70); }
 .av-annot { font-size: var(--av-t-annot); line-height: 1.5; color: var(--av-ink-70); margin: 0; }
@@ -314,6 +276,13 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: var(--av-ink-55); transition: left .18s, background .18s; }
 .wf-sw[aria-checked="true"] { background: var(--av-normal); border-color: var(--av-normal); }
 .wf-sw[aria-checked="true"]::after { left: 16px; background: var(--av-paper); }
+.wf-skill { width: 188px; padding: var(--av-s1) var(--av-s1) var(--av-s1) var(--av-s2); border-style: dotted; border-width: var(--av-rule-bold); }
+.wf-skill .wf-q b { color: var(--av-caution); }
+.wf-skill-name { font-size: var(--av-t-annot); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.wf-skill.wf-pass { border-color: var(--av-normal); border-style: solid; }
+.wf-skill.wf-off { opacity: .55; }
+.wf-skill.wf-fired { animation: wf-fire .7s ease-out; }
+.wf-run { margin-left: auto; }
 .wf-x { position: absolute; top: 1px; right: 4px; font-size: 12px; line-height: 1; color: var(--av-ink-30); cursor: pointer; user-select: none; }
 .wf-x:hover { color: var(--av-caution); }
 .wf-cond .wf-row1 { padding-right: 10px; }
@@ -418,30 +387,18 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
   </header>
   <section class="wf" id="wf"></section>
 </div>
-<dialog class="classic" id="classic" aria-label="Moves, agents and save">
+<dialog class="classic" id="export" aria-label="Export">
   <div class="av-tool-sheet">
     <div class="av-tool-bar classic-head">
       <div class="av-tool-head-text">
-        <h2 class="av-tool-title">Moves, agents and save</h2>
-        <p class="av-tool-blurb">The four moves are a fixed spine. Pinned blocks are locked. Open slots take presets from the library, or your own text. Nothing leaves this page until you save, and the installer checks what you save exactly as it checks a file written by hand.</p>
+        <h2 class="av-tool-title">Export</h2>
+        <p class="av-tool-blurb">The files your configuration saves, and anything to fix first. Nothing leaves this page until you save, and the installer checks what you save exactly as it checks a file written by hand.</p>
       </div>
-      <span id="classic-close"></span>
+      <span id="export-close"></span>
     </div>
     <div class="av-tool-bar" id="summary"></div>
-    <nav class="stepper" id="stepper" aria-label="Steps"></nav>
-    <section class="av-tool-bar av-tool-bar--stack" id="values"></section>
-    <section class="av-tool-bar av-tool-bar--stack" id="workflows"></section>
-    <section class="av-tool-bar av-tool-bar--stack" id="agents"></section>
-    <div class="workspace" id="workspace">
-      <aside id="sidebar" aria-label="Presets and your own skills, commands and agents"></aside>
-      <div class="av-tool-detail">
-        <section id="spine"></section>
-      </div>
-    </div>
     <section class="av-tool-bar av-tool-bar--stack" id="output"></section>
     <section class="av-tool-detail" id="always"></section>
-    <section class="av-tool-bar av-tool-bar--stack" id="here" hidden></section>
-    <nav class="step-nav" id="step-nav" aria-label="Back and next"></nav>
   </div>
 </dialog>
 <dialog class="settings" id="settings" aria-label="Settings"></dialog>
@@ -452,6 +409,7 @@ const PACT = /* pact-data:begin */ {
   {
    "n": 1,
    "lead": "Sense the work",
+   "text": "**Sense the work.** What kind of work is it, how big, how risky, and do I\nknow enough to plan it? Size sets how much checking it needs. A target I can\nknow gets a plan; an unknown one gets an experiment first. A bug is\nreproduced and traced to its start before anyone fixes it.",
    "parts": [
     {
      "kind": "open",
@@ -464,6 +422,7 @@ const PACT = /* pact-data:begin */ {
   {
    "n": 2,
    "lead": "Think before doing",
+   "text": "**Think before doing.** I get the intent clear enough to defend: what it is\nfor, how it can go wrong, and why each decision is right. When the intent is\nstill forming, a prototype finds it.",
    "parts": [
     {
      "kind": "open",
@@ -476,6 +435,7 @@ const PACT = /* pact-data:begin */ {
   {
    "n": 3,
    "lead": "Checkpoint the seams",
+   "text": "**Checkpoint the seams.** Where work is handed on, published or decided,\nanything costly waits for a checkpoint. A light checkpoint is a check of\nmine that runs without me, such as a test. A heavy one is my decision\nbefore the work moves. The harder a step is to undo, the heavier its\ncheckpoint. When in doubt, it's heavy.",
    "parts": [
     {
      "kind": "open",
@@ -488,6 +448,7 @@ const PACT = /* pact-data:begin */ {
   {
    "n": 4,
    "lead": "Stay the owner",
+   "text": "**Stay the owner.** I own a result when I can verify it, reconstruct why it\nis right, and know when to stop it. Checks that could have failed are the\nevidence.",
    "parts": [
     {
      "kind": "open",
@@ -1098,7 +1059,9 @@ const OFFER_WHENS = Object.freeze({
   words: '',
 });
 // Caps on the data, so no builder file can make a part too long to read.
-const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, agents: 4, items: 20, lenses: 20, line: 300, short: 60, layout: 400 });
+const PARTS_CAPS = Object.freeze({ stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, line: 300, short: 60, layout: 400 });
+// A skill node's two modes: offered (Claude offers it, I answer) or used (Claude runs it).
+const SKILL_MODES = Object.freeze(['offered', 'used']);
 
 const SECURITY_PAIR = ['adversarial-lens', 'data-lens'];
 
@@ -1226,6 +1189,11 @@ function offerText(o) {
   return `${o.agents.map(tick).join(', ')}: ${o.when === 'words' ? o.words : OFFER_WHENS[o.when]}`;
 }
 
+/** A skill's words: its name, offered or used, and when. */
+function skillText(k) {
+  return `${tick(k.skill)}: ${k.mode}, ${k.when === 'words' ? k.words : OFFER_WHENS[k.when]}`;
+}
+
 /** A link's words: back, on or ahead, by the order the work takes the stages. */
 function linkText(g, l, order = stagesInOrder(g)) {
   const i = order.findIndex(s => s.id === l.from);
@@ -1237,15 +1205,18 @@ function linkText(g, l, order = stagesInOrder(g)) {
 function compileWorkflow(p) {
   const g = p.workflowGraph;
   const order = stagesInOrder(g);
-  const head = row(['Stage', ...p.tiers.map(t => t.name), 'Sensitive route', 'Lenses offered, and when', 'Other ways out']);
+  // A Skills column only when a skill is on the graph, so the pact's default table stays as it is.
+  const skills = (g.skills || []).filter(k => k.on !== false && g.stages.some(st => st.id === k.stage));
+  const head = row(['Stage', ...p.tiers.map(t => t.name), 'Sensitive route', 'Lenses offered, and when', ...(skills.length ? ['Skills, and when'] : []), 'Other ways out']);
   const rows = order.map(st => row([
     st.name,
     ...p.tiers.map((_, i) => stageCell(p, st, i)),
     stageCell(p, st, null),
     g.offers.filter(o => o.stage === st.id && o.on !== false).map(offerText).join('; ') || 'none',
+    ...(skills.length ? [skills.filter(k => k.stage === st.id).map(skillText).join('; ') || 'none'] : []),
     g.links.filter(l => l.from === st.id && l.when && l.on !== false).map(l => linkText(g, l, order)).join('; '),
   ]));
-  return [head, rule(p.tiers.length + 4), ...rows].join('\n');
+  return [head, rule(p.tiers.length + 4 + (skills.length ? 1 : 0)), ...rows].join('\n');
 }
 
 function compileLenses(p) {
@@ -1261,6 +1232,8 @@ function compileParts(p) {
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const AGENT_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+// A skill or a command, as the builder file's own lists name them: a command may lead with a /.
+const SKILL_RE = /^\/?[A-Za-z0-9][A-Za-z0-9:._-]{0,79}$/;
 const isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysIn = (o, ks) => Object.keys(o).every(k => ks.includes(k));
 // One line of text that keeps a table cell whole: no line break and no bar.
@@ -1300,7 +1273,7 @@ function partsProblems(p) {
   }
 
   const g = p.workflowGraph;
-  if (!isObj(g) || !keysIn(g, ['stages', 'offers', 'links', 'layout']) || !Array.isArray(g.stages) || !Array.isArray(g.offers) || !Array.isArray(g.links)) {
+  if (!isObj(g) || !keysIn(g, ['stages', 'offers', 'links', 'skills', 'layout']) || (Object.hasOwn(g, 'skills') && !Array.isArray(g.skills)) || !Array.isArray(g.stages) || !Array.isArray(g.offers) || !Array.isArray(g.links)) {
     err('workflow', 'workflowGraph must hold stages, offers and links lists, and a layout');
   } else {
     const ids = new Set();
@@ -1325,6 +1298,20 @@ function partsProblems(p) {
       if (o.when === 'words' ? !lineOk(o.words, C.line) || !String(o.words).trim() : Object.hasOwn(o, 'words') && o.words !== '') err('workflow', `offer ${o.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);
       if (!Array.isArray(o.agents) || !o.agents.length || o.agents.length > C.agents || o.agents.some(a => typeof a !== 'string' || !AGENT_RE.test(a)) || new Set(o.agents).size !== o.agents.length) err('workflow', `offer ${o.id}: 1 to ${C.agents} different agents, each a name of lowercase letters, digits and hyphens`);
       if (typeof o.on !== 'boolean') err('workflow', `offer ${o.id}: on must be true or false`);
+    });
+    const kids = new Set();
+    const skills = g.skills || [];
+    if (skills.length > C.skills) err('workflow', `at most ${C.skills} skills`);
+    skills.forEach((k, i) => {
+      if (!isObj(k) || !keysIn(k, ['id', 'stage', 'skill', 'mode', 'when', 'words', 'on']) || typeof k.id !== 'string' || !ID_RE.test(k.id)) return err('workflow', `skill ${i + 1}: needs an id of lowercase letters, digits and hyphens, and only stage, skill, mode, when, words and on beside it`);
+      if (kids.has(k.id) || oids.has(k.id) || ids.has(k.id)) err('workflow', `skill ${k.id}: the id is used twice`);
+      kids.add(k.id);
+      if (!ids.has(k.stage)) err('workflow', `skill ${k.id}: its stage is not in the graph`);
+      if (typeof k.skill !== 'string' || !SKILL_RE.test(k.skill)) err('workflow', `skill ${k.id}: the skill's name must be letters, digits, '.', '_', '-' or ':', with an optional leading /`);
+      if (!SKILL_MODES.includes(k.mode)) err('workflow', `skill ${k.id}: mode must be offered or used`);
+      if (!Object.hasOwn(OFFER_WHENS, k.when)) err('workflow', `skill ${k.id}: when must be one of ${Object.keys(OFFER_WHENS).join(', ')}`);
+      if (k.when === 'words' ? !lineOk(k.words, C.line) || !String(k.words).trim() : Object.hasOwn(k, 'words') && k.words !== '') err('workflow', `skill ${k.id}: words, one line of at most ${C.line} characters, only and always with when "words"`);
+      if (typeof k.on !== 'boolean') err('workflow', `skill ${k.id}: on must be true or false`);
     });
     if (g.links.length > C.links) err('workflow', `at most ${C.links} links`);
     g.links.forEach((l, i) => {
@@ -1386,6 +1373,7 @@ function partsTexts(p) {
   const g = isObj(p.workflowGraph) ? p.workflowGraph : {};
   (Array.isArray(g.stages) ? g.stages : []).forEach((s, i) => isObj(s) && ['id', 'name', 'text'].forEach(k => add(`stage ${i + 1}`, s[k])));
   (Array.isArray(g.offers) ? g.offers : []).forEach((o, i) => isObj(o) && ['id', 'words'].forEach(k => add(`offer ${i + 1}`, o[k])));
+  (Array.isArray(g.skills) ? g.skills : []).forEach((s, i) => isObj(s) && ['id', 'skill', 'words'].forEach(k => add(`skill ${i + 1}`, s[k])));
   (Array.isArray(g.links) ? g.links : []).forEach((l, i) => isObj(l) && add(`link ${i + 1}`, l.when));
   (Array.isArray(p.lenses) ? p.lenses : []).forEach((r, i) => isObj(r) && ['label', 'asks'].forEach(k => add(`lenses row ${i + 1}`, r[k])));
   return out;
@@ -1770,39 +1758,7 @@ function overrides(state) {
   return PACT.agents.filter(a => a.configurable && a.security && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).map(a => a.name);
 }
 
-/** The wizard's steps, in order: Start, each move with its open parts, Agents, Review and save. */
-function wizardSteps() {
-  return [
-    { id: 'start', title: 'Start', marks: [PACT.setting.name, PACT.session.name] },
-    ...PACT.moves.map(m => ({ id: `move-${m.n}`, title: m.lead, move: m.n, marks: m.parts.filter(p => p.kind === 'open').map(p => p.mark) })),
-    { id: 'agents', title: 'Agents', marks: [] },
-    { id: 'review', title: 'Review and save', marks: null },
-  ];
-}
 
-/**
- * Per step: { id, title, changes, errors, warns }. A move step counts its
- * edited slots, Start the usage value, Agents the lenses off their default;
- * Review counts everything.
- */
-function stepSummary(state) {
-  const found = problems(state);
-  const count = (list, level) => list.filter(f => f.level === level).length;
-  const agentsOff = PACT.agents.filter(a => a.configurable && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).length;
-  const over = overrides(state).length;
-  const rows = wizardSteps().map(s => {
-    if (s.marks === null) return { id: s.id, title: s.title, changes: 0, errors: count(found, 'error'), warns: count(found, 'warn'), overrides: over };
-    const here = found.filter(f => s.marks.includes(f.where));
-    const changes = s.id === 'start' ? (state.usage !== PACT.setting.def ? 1 : 0) + (state.session !== null ? 1 : 0)
-      : s.id === 'agents' ? agentsOff
-      : s.marks.filter(m => slotOp(state.slots[m]) !== 'keep').length;
-    return { id: s.id, title: s.title, changes, errors: count(here, 'error'), warns: count(here, 'warn'), overrides: s.id === 'agents' ? over : 0 };
-  });
-  const review = rows[rows.length - 1];
-  // The canvas's parts count on Review too: the canvas is the page, not a step.
-  review.changes = rows.slice(0, -1).reduce((n, r) => n + r.changes, 0) + Object.keys(partsChanged(state)).length;
-  return rows;
-}
 
 /**
  * The pact's text laid out for reading: its hard line breaks joined back into
@@ -1891,7 +1847,8 @@ function workflowEditor(host, state, changed) {
   // ---- the graph, read as nodes and links
   const stageById = id => G().stages.find(s => s.id === id);
   const offerById = id => G().offers.find(o => o.id === id);
-  const taken = id => G().stages.some(s => s.id === id) || G().offers.some(o => o.id === id) || ui.loose.some(l => l.id === id);
+  const skillList = () => G().skills || (G().skills = []);
+  const taken = id => G().stages.some(s => s.id === id) || G().offers.some(o => o.id === id) || skillList().some(k => k.id === id) || ui.loose.some(l => l.id === id);
   const freshId = prefix => {
     let id;
     do id = `${prefix}-${++uid}`;
@@ -1904,6 +1861,7 @@ function workflowEditor(host, state, changed) {
       ...g.stages.map(s => ({ id: s.id, kind: 'stage', s })),
       ...g.offers.map(o => ({ id: o.id, kind: 'cond', o })),
       ...g.offers.flatMap(o => o.agents.map(a => ({ id: `${o.id}/${a}`, kind: 'agent', name: a, o }))),
+      ...(g.skills || []).map(k => ({ id: k.id, kind: 'skill', k })),
       ...ui.loose.map(l => ({ id: l.id, kind: 'agent', name: l.name, loose: l })),
     ];
   }
@@ -1921,6 +1879,7 @@ function workflowEditor(host, state, changed) {
       ...g.links.map((l, i) => ({ id: `link-${i}`, kind: l.when ? 'loop' : 'next', from: l.from, to: l.to, link: l })),
       ...g.offers.filter(o => stageById(o.stage)).map(o => ({ id: `check-${o.id}`, kind: 'check', from: o.stage, to: o.id, o })),
       ...g.offers.flatMap(o => o.agents.map(a => ({ id: `fire-${o.id}/${a}`, kind: 'fire', from: o.id, to: `${o.id}/${a}`, o, name: a }))),
+      ...(g.skills || []).filter(k => stageById(k.stage)).map(k => ({ id: `use-${k.id}`, kind: 'use', from: k.stage, to: k.id, o: k })),
     ];
   }
   const hasDefault = st => G().links.some(l => l.from === st.id && !l.when && l.on !== false);
@@ -1930,7 +1889,7 @@ function workflowEditor(host, state, changed) {
   const skipped = st => st.skipAt.includes(effTier());
   function passes(o) {
     const st = stageById(o.stage);
-    if (!o.on || !st || skipped(st) || !o.agents.length) return false;
+    if (!o.on || !st || skipped(st) || (o.agents && !o.agents.length)) return false;
     const t = effTier();
     if (o.when === 'every-build') return true;
     if (o.when === 'standard-up') return t !== 'quick';
@@ -2045,6 +2004,8 @@ function workflowEditor(host, state, changed) {
       el('div', { class: 'av-label', text: 'Lenses' }),
       ...pairs.map(p => el('div', { class: 'wf-libpair' }, item('pair', p.agents.join('+'), '◇◇', p.label, 'both on one condition'), ...p.agents.map(a => item('agent', a, '◇', a, 'one lens')))),
       el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'The gatekeeper' }), ...lenses.filter(n => !inPair(n)).map(n => item('agent', n, '◇', n, 'a pact lens'))),
+      el('div', { class: 'av-label', text: 'Skills' }),
+      el('div', { class: 'wf-libpair' }, ...PACT.yours.skills.map(x => item('skill', x.name, '✦', x.name, x.description || 'your skill')), ...PACT.yours.commands.map(x => item('skill', `/${x.name}`, '✦', `/${x.name}`, x.description || 'your command')), item('skill', 'my-skill', '✦', 'A skill of yours', 'name it in the panel')),
       ...(PACT.yours.agents.length ? [el('div', { class: 'wf-libpair' }, el('div', { class: 'av-label', text: 'Yours' }), ...PACT.yours.agents.map(a => item('agent', a.name, '◆', a.name, a.description || 'your agent')))] : []),
       el(
         'div',
@@ -2074,6 +2035,12 @@ function workflowEditor(host, state, changed) {
       agents.forEach((a, k) => (g.layout[`${id}/${a}`] = { x: at.x + 200, y: at.y - 4 + k * 40 }));
       ui.sel = { node: id };
       msg = type === 'pair' ? 'A pair on one condition. Wire a stage to the condition.' : "Wire a stage's bottom port to it, then its right port to lenses.";
+    } else if (type === 'skill') {
+      const id = freshId('skill');
+      skillList().push({ id, stage: '', skill: String(val), mode: 'offered', when: 'every-build', words: '', on: true });
+      g.layout[id] = at;
+      ui.sel = { node: id };
+      msg = "Wire a stage's bottom port to it; say in the panel whether it is offered or used, and when.";
     } else {
       const id = freshId('loose');
       ui.loose.push({ id, name: String(val), x: at.x, y: at.y });
@@ -2101,12 +2068,11 @@ function workflowEditor(host, state, changed) {
         w.route = !w.route;
         if (w.route) w.declined = false;
       }),
-      pick('matches the list, route not taken', w.declined, () => {
+      pick('sensitive, route declined', w.declined, () => {
         w.declined = !w.declined;
         if (w.declined) w.route = false;
       }),
-      chip('▶ Run it through', true, run),
-      el('span', { class: 'wf-note', text: `${w.route ? `On the route the tier is ${state.parts.sensitive.tier}. ` : ''}Green: offered for this work.${effTier() === 'quick' ? ' At quick, a stage skipped at quick is passed by.' : ''}` }),
+      el('span', { class: 'wf-run' }, chip('▶ Run it through', true, run)),
     );
   }
 
@@ -2130,6 +2096,15 @@ function workflowEditor(host, state, changed) {
         });
         const pair = rosterPairs(state.parts).find(p => p.agents.length === n.o.agents.length && p.agents.every(a => n.o.agents.includes(a)));
         box = el('div', { class: 'wf-node wf-cond' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: 'offered' }), whenText(n.o)), sw), el('div', { class: 'wf-pair', text: pair ? pair.label : n.o.agents.length > 1 ? `offered together (${n.o.agents.length})` : '' }), port('top'), port('out'), dismiss(n, 'this condition'));
+      } else if (n.kind === 'skill') {
+        const sw = el('button', { type: 'button', class: 'wf-sw', role: 'switch', 'aria-checked': String(n.k.on), 'aria-label': 'skill on or off' });
+        sw.addEventListener('pointerdown', e => e.stopPropagation());
+        sw.addEventListener('click', e => {
+          e.stopPropagation();
+          n.k.on = !n.k.on;
+          edited(false);
+        });
+        box = el('div', { class: 'wf-node wf-skill' }, el('div', { class: 'wf-row1' }, el('span', { class: 'wf-q' }, el('b', { text: `skill · ${n.k.mode}` }), whenText(n.k)), sw), el('div', { class: 'wf-skill-name', text: n.k.skill }), port('top'), dismiss(n, n.k.skill));
       } else box = el('div', { class: `wf-node wf-agent${n.loose ? ' wf-agent--loose' : ''}` }, n.name, port('in'), dismiss(n, n.name));
       box.dataset.id = n.id;
       box.tabIndex = 0;
@@ -2164,9 +2139,10 @@ function workflowEditor(host, state, changed) {
       if (!box) continue;
       box.classList.toggle('wf-sel', !!ui.sel && ui.sel.node === n.id);
       if (n.kind === 'stage') box.classList.toggle('wf-skipped', skipped(n.s));
-      if (n.kind === 'cond') {
-        box.classList.toggle('wf-pass', passes(n.o));
-        box.classList.toggle('wf-off', !n.o.on);
+      if (n.kind === 'cond' || n.kind === 'skill') {
+        const it = n.o || n.k;
+        box.classList.toggle('wf-pass', passes(it));
+        box.classList.toggle('wf-off', !it.on);
       }
       if (n.kind === 'agent') box.classList.toggle('wf-fires', !!(n.o && passes(n.o)));
     }
@@ -2184,7 +2160,8 @@ function workflowEditor(host, state, changed) {
     const g = G();
     const ti = TIER_KEYS.indexOf(effTier());
     const order = stagesInOrder(g);
-    const head = el('tr', {}, el('th', { text: 'Stage' }), ...p.tiers.map((t, i) => el('th', { class: i === ti ? 'wf-cur' : '', text: t.name })), el('th', { class: ui.work.route ? 'wf-cur' : '', text: 'Sensitive route' }), el('th', { text: 'Lenses offered, and when' }), el('th', { text: 'Other ways out' }));
+    const anySkills = (g.skills || []).some(k => k.on !== false && stageById(k.stage));
+    const head = el('tr', {}, el('th', { text: 'Stage' }), ...p.tiers.map((t, i) => el('th', { class: i === ti ? 'wf-cur' : '', text: t.name })), el('th', { class: ui.work.route ? 'wf-cur' : '', text: 'Sensitive route' }), el('th', { text: 'Lenses offered, and when' }), ...(anySkills ? [el('th', { text: 'Skills, and when' })] : []), el('th', { text: 'Other ways out' }));
     const rows = order.map(st => {
       const offers = g.offers.filter(o => o.stage === st.id && o.on !== false);
       const outs = g.links.filter(l => l.from === st.id && l.when && l.on !== false).map(l => linkText(g, l, order));
@@ -2195,6 +2172,7 @@ function workflowEditor(host, state, changed) {
         ...p.tiers.map((_, i) => el('td', { class: !ui.work.route && i === ti ? 'wf-cur' : '', text: stageCell(p, st, i) })),
         el('td', { class: ui.work.route ? 'wf-cur' : '', text: stageCell(p, st, null) }),
         el('td', {}, ...(offers.length ? offers.flatMap((o, k) => [...(k ? [el('br')] : []), el('span', { class: passes(o) ? 'wf-fire' : 'wf-idle', text: offerText(o) })]) : [el('span', { class: 'wf-idle', text: 'none' })])),
+        ...(anySkills ? [el('td', {}, ...((g.skills || []).filter(k => k.stage === st.id && k.on !== false).flatMap((k, i) => [...(i ? [el('br')] : []), el('span', { class: passes(k) ? 'wf-fire' : 'wf-idle', text: skillText(k) })])))] : []),
         el('td', { class: 'wf-loop' }, ...outs.flatMap((t, k) => [...(k ? [el('br')] : []), t])),
       );
       tr.addEventListener('click', () => select({ node: st.id }));
@@ -2225,7 +2203,7 @@ function workflowEditor(host, state, changed) {
   function geom(e) {
     if (e.kind === 'loop') return curve(portPos(e.from, 'top'), portPos(e.to, 'top'));
     if (e.kind === 'next') return curve(portPos(e.from, 'out'), portPos(e.to, 'in'));
-    if (e.kind === 'check') return curve(portPos(e.from, 'down'), portPos(e.to, 'top'));
+    if (e.kind === 'check' || e.kind === 'use') return curve(portPos(e.from, 'down'), portPos(e.to, 'top'));
     return curve(portPos(e.from, 'out'), portPos(e.to, 'in'));
   }
   const at = (q, t) => {
@@ -2431,6 +2409,12 @@ function workflowEditor(host, state, changed) {
       edited();
       return toast(when ? `${a.s.name} already has its default way on, so this link needs a condition. Say when in the panel.` : `The default way on from ${a.s.name}.`);
     }
+    if (a.kind === 'stage' && b.kind === 'skill') {
+      b.k.stage = a.id;
+      ui.sel = { node: b.id };
+      edited();
+      return toast('Wired. The skill is offered or used at this stage.');
+    }
     if (a.kind === 'stage' && b.kind === 'cond') {
       b.o.stage = a.id;
       ui.sel = { node: b.id };
@@ -2451,7 +2435,7 @@ function workflowEditor(host, state, changed) {
       edited();
       return toast('Wired. Lenses on one condition are offered together.');
     }
-    toast('A stage links to a stage or a condition; a condition offers lenses.');
+    toast('A stage links to a stage, a condition or a skill; a condition offers lenses.');
   }
   canvas.addEventListener('wheel', e => {
     e.preventDefault();
@@ -2503,6 +2487,10 @@ function workflowEditor(host, state, changed) {
         put(o.id, x, y);
         o.agents.forEach((a, k) => put(`${o.id}/${a}`, x + 200, y + k * 40 - (o.agents.length > 1 ? 4 : -8)));
         y += Math.max(1, o.agents.length) * 40 + 30;
+      }
+      for (const k of (g.skills || []).filter(k => k.stage === st.id)) {
+        put(k.id, x, y);
+        y += 90;
       }
       x += offers.length ? 420 : 260;
     }
@@ -2567,7 +2555,7 @@ function workflowEditor(host, state, changed) {
     if (s.edge) {
       const e = links().find(x => x.id === s.edge);
       if (e && e.link) g.links.splice(g.links.indexOf(e.link), 1);
-      if (e && e.kind === 'check') e.o.stage = '';
+      if (e && (e.kind === 'check' || e.kind === 'use')) e.o.stage = '';
       if (e && e.kind === 'fire') {
         e.o.agents = e.o.agents.filter(a => a !== e.name);
         delete g.layout[e.to];
@@ -2579,11 +2567,13 @@ function workflowEditor(host, state, changed) {
         g.stages = g.stages.filter(x => x !== n.s);
         g.links = g.links.filter(l => l.from !== n.id && l.to !== n.id);
         for (const o of g.offers) if (o.stage === n.id) o.stage = '';
+        for (const k of g.skills || []) if (k.stage === n.id) k.stage = '';
       }
       if (n && n.kind === 'cond') {
         g.offers = g.offers.filter(o => o !== n.o);
         for (const a of n.o.agents) delete g.layout[`${n.id}/${a}`];
       }
+      if (n && n.kind === 'skill') g.skills = g.skills.filter(k => k !== n.k);
       if (n && n.kind === 'agent') {
         if (n.loose) ui.loose = ui.loose.filter(l => l !== n.loose);
         else n.o.agents = n.o.agents.filter(a => a !== n.name);
@@ -2626,6 +2616,15 @@ function workflowEditor(host, state, changed) {
               ab.classList.add('wf-fired');
             }
           }));
+        }));
+        await Promise.all((g.skills || []).filter(k => k.stage === st.id).map(async k => {
+          await pulse(`use-${k.id}`, 380);
+          const kb = nodeEl(k.id);
+          if (kb && passes(k)) {
+            kb.classList.remove('wf-fired');
+            void kb.offsetWidth;
+            kb.classList.add('wf-fired');
+          }
         }));
       } else await wait(250);
       if (box) box.classList.remove('wf-active');
@@ -2718,6 +2717,24 @@ function workflowEditor(host, state, changed) {
         toggle(o.on, v => (o.on = v), 'condition on or off'),
         el('p', { class: 'av-annot', text: `For this work: ${passes(o) ? 'offered' : 'idle'}.` }),
         chip('Delete condition', false, delSel, 'av-tool-chip--ghost'),
+      ];
+    }
+    if (n.kind === 'skill') {
+      const k = n.k;
+      const st = stageById(k.stage);
+      return [
+        el('h2', { text: 'Skill' }),
+        el('p', { class: 'av-annot', text: `At ${st ? st.name : "no stage yet: wire a stage's bottom port here"}.` }),
+        field('Skill or command', input(k.skill, v => (k.skill = v.trim()), { placeholder: 'e.g. tdd, or /grill-with-docs' })),
+        field('Offered or used', pickList([['offered', 'Offered: Claude offers it, I answer'], ['used', 'Used: Claude runs it']], k.mode, v => (k.mode = v), 'mode')),
+        field('When', pickList(Object.entries(WF_WHEN_LABELS), k.when, v => {
+          k.when = v;
+          if (v !== 'words') k.words = '';
+        }, 'when')),
+        ...(k.when === 'words' ? [field('In your words', input(k.words, v => (k.words = v), { placeholder: 'e.g. the change touches billing' }))] : []),
+        toggle(k.on, v => (k.on = v), 'skill on or off'),
+        el('p', { class: 'av-annot', text: `For this work: ${passes(k) ? k.mode : 'idle'}.` }),
+        chip('Delete skill', false, delSel, 'av-tool-chip--ghost'),
       ];
     }
     return [
@@ -2930,8 +2947,10 @@ function boot() {
   const $ = id => document.getElementById(id);
   const root = document.documentElement;
   let status = { text: '', level: '' };
-  let step = 'start'; // the wizard's step shown: an id from wizardSteps()
-  const stepMove = () => PACT.moves.find(m => `move-${m.n}` === step) || null;
+  // The sections Settings holds, kept as nodes so a redraw lands wherever they sit.
+  const spineBox = el('div', { class: 'moves' });
+  const setupsBox = el('div');
+  const agentsBox = el('div');
 
   function setStatus(text, level) {
     status = { text, level: level || '' };
@@ -2946,18 +2965,19 @@ function boot() {
     const apply = () => {
       if (dark) root.setAttribute('data-aviation-scheme', 'dark');
       else root.removeAttribute('data-aviation-scheme');
-      const classic = chip('Moves, agents and save', false, () => {
-        const d = $('classic');
+      const exporter = chip('Export', true, () => {
+        renderOutput();
+        const d = $('export');
         if (typeof d.showModal === 'function') d.showModal();
         else d.setAttribute('open', '');
-      }, 'av-tool-chip--ghost');
-      $('actions').replaceChildren(classic, el('span', { id: 'reset', class: 'chips' }), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
+      });
+      $('actions').replaceChildren(el('span', { id: 'reset', class: 'chips' }), chip('Settings', false, openSettings, 'av-tool-chip--ghost'), chip('Dark', dark, () => {
         dark = !dark;
         try {
           window.localStorage.setItem('pact-config-scheme', dark ? 'dark' : 'light');
         } catch {}
         apply();
-      }, '', true));
+      }, '', true), exporter);
       renderReset();
     };
     apply();
@@ -2967,14 +2987,14 @@ function boot() {
 
   /** Put the whole page back on screen after its state changed underneath it. */
   function renderAll() {
-    renderValues();
     renderWorkflows();
     renderAgents();
     if (editor) editor.reset();
     renderSpine();
   }
 
-  let editor = null; // the workflow canvas, mounted the first time its step shows
+  let editor = null; // the workflow canvas: the page itself
+  const openSections = new Set(['moves']);
 
   /** The settings dialog: both usage limits, the weekly one and the 5-hour session one (#142). */
   /**
@@ -2996,7 +3016,6 @@ function boot() {
       };
       const take = v => {
         set(v);
-        renderValues();
         renderOutput();
       };
       range.addEventListener('input', () => {
@@ -3011,13 +3030,18 @@ function boot() {
       const unset = off ? chip(value === null ? 'Off' : 'On', value !== null, () => {
         off(value === null ? def : null);
         renderSettings();
-        renderValues();
         renderOutput();
       }, value === null ? 'av-tool-chip--ghost' : '', true) : null;
       return el('div', { class: 'value-row' }, el('label', { class: 'limit-label', text: label }), range, num, el('span', { class: 'av-num', text: '%' }), unset);
     };
     const box = el('div', { class: 'settings-parts' });
     if (editor) editor.settings(box);
+    const section = (key, title, node) => {
+      const d = el('details', { class: 'acc' }, el('summary', { text: title }), el('div', { class: 'acc-body' }, node));
+      d.open = openSections.has(key);
+      d.addEventListener('toggle', () => (d.open ? openSections.add(key) : openSections.delete(key)));
+      return d;
+    };
     $('settings').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
@@ -3031,7 +3055,7 @@ function boot() {
         limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v)),
         el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
       ),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, box),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, section('moves', 'Moves', spineBox), section('setups', 'Setups', setupsBox), section('agents', 'Agents', agentsBox), box),
     ));
   }
   function openSettings() {
@@ -3078,31 +3102,6 @@ function boot() {
     );
   }
 
-  function renderValues() {
-    const s = PACT.setting;
-    const para = el('div');
-    const range = el('input', { type: 'range', min: String(s.min), max: String(s.max), step: '1', 'aria-label': 'Usage pause line, percent' });
-    const num = el('input', { type: 'number', min: String(s.min), max: String(s.max), step: '1', 'aria-label': 'Usage pause line, percent' });
-    const show = () => {
-      range.value = String(state.usage);
-      num.value = String(state.usage);
-      para.replaceChildren(prose(s.text.replace(`above ${s.def}%`, `above ${state.usage}%`)));
-    };
-    const take = v => {
-      state.usage = v === '' ? NaN : Number(v);
-      if (Number.isInteger(state.usage)) show();
-      renderOutput();
-    };
-    range.addEventListener('input', () => take(range.value));
-    num.addEventListener('input', () => take(num.value));
-    $('values').replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Value · usage pause line' }), el('span', { class: 'av-annot', text: `Default ${s.def}% · allowed ${s.min} to ${s.max}` })),
-      el('div', { class: 'value-row' }, range, num, el('span', { class: 'av-num', text: '%' }), chip(`Reset to ${s.def}%`, false, () => take(String(s.def)), 'av-tool-chip--ghost')),
-      para,
-      el('div', { class: 'slot-bar' }, el('span', { class: 'av-annot', text: `5-hour session limit: ${state.session === null ? 'unset, so no session line' : `${state.session}%`}.` }), chip('Both limits in Settings', false, openSettings, 'av-tool-chip--ghost')),
-    );
-    show();
-  }
 
   /** A new "Your agent" card: a move-2 slot hands it the spec, every other slot the diff. */
   function newAgentCard(mark) {
@@ -3136,7 +3135,7 @@ function boot() {
       renderWorkflows();
       renderSpine();
     }, 'av-tool-chip--ghost') : null;
-    $('workflows').replaceChildren(
+    setupsBox.replaceChildren(
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Setups' }), el('div', { class: 'chips' }, el('span', { class: 'av-annot', text: 'A setup is a named set of presets: one click sets every move\'s slots. Tweak each move on its own step after. The workflow itself has its own step.' }), undo)),
       el('div', { class: 'tiles' }, ...tiles),
     );
@@ -3188,121 +3187,17 @@ function boot() {
         runs(a),
       );
     });
-    // On this step there is no slot to drop on, so the tile opens a move's Yours tab instead.
-    const yours = el(
-      'div',
-      { class: 'tile tile--yours' },
-      el('span', { class: 'card-tab', text: 'Your agent' }),
-      el('p', { class: 'av-annot', text: 'An agent of your own runs in a move\'s slot, after its text. Add one from a move\'s Yours tab, then name it and what it reads.' }),
-      el('div', { class: 'card-foot' }, chip(`Open ${PACT.moves[PACT.moves.length - 1].lead}'s Yours tab`, false, () => {
-        tab = 'yours';
-        showStep('move-4');
-      }, 'av-tool-chip--ghost')),
-    );
-    $('agents').replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Agents' }), el('span', { class: 'av-annot', text: 'The pact\'s agents run where its locked clauses name them. Each lens takes your model and effort, and starts at its file\'s own, its default. A security-set lens set off its default is an override, not security-tested. Add your own agent on a move\'s step, from its Yours tab.' })),
-      el('div', { class: 'tiles' }, yours, ...tiles),
+    agentsBox.replaceChildren(
+      el('p', { class: 'av-annot', text: 'Each lens takes your model and effort, and starts at its file\'s own, its default. A security-set lens set off its default is an override, not security-tested. An agent of your own goes in a move\'s slot, under Moves.' }),
+      el('div', { class: 'tiles' }, ...tiles),
     );
   }
 
-  let tab = 'move'; // the sidebar's tab: this step's move presets, or yours
-  let openKey = null; // the row opened for its details
-  let filter = '';
 
-  const firstLine = text => reflow(text).split('\n')[0];
 
-  /** One compact row: a title and a one-line summary, cut with an ellipsis. A click opens its details in place; it drags onto a slot. */
-  function listRow(key, title, line, dragData, details) {
-    const open = openKey === key;
-    const row = el('div', { class: `list-row${open ? ' list-row--open' : ''}`, draggable: 'true' });
-    row.append(el(
-      'button',
-      { type: 'button', class: 'list-head', 'aria-expanded': open ? 'true' : 'false', title: line || title, onclick: () => {
-        openKey = open ? null : key;
-        renderSidebar();
-      } },
-      el('span', { class: 'list-title', text: title }),
-      el('span', { class: 'list-line', text: line || 'No description.' }),
-    ));
-    if (open) row.append(el('div', { class: 'list-details' }, ...details()));
-    row.addEventListener('dragstart', e => {
-      e.dataTransfer.setData('text/plain', dragData);
-      e.dataTransfer.effectAllowed = 'copy';
-    });
-    return row;
-  }
 
-  /** A slot picker and an Add button, for a card that fits any open slot. */
-  function addTo(make, label) {
-    const slot = el('select', { 'aria-label': `Slot for ${label}` }, ...SLOT_MARKS.map(m => el('option', { value: m, text: m })));
-    slot.value = (stepMove() && SLOT_MARKS.find(m => m.startsWith(step))) || SLOT_MARKS[0];
-    return el('div', { class: 'card-foot' }, slot, chip('Add', false, () => {
-      state.slots[slot.value].cards.push(make(slot.value));
-      setStatus('', '');
-      renderSpine();
-    }));
-  }
 
-  function presetList(m) {
-    const marks = m.parts.filter(p => p.kind === 'open').map(p => p.mark);
-    const items = PACT.presets.filter(p => marks.includes(p.mark));
-    return [
-      el('p', { class: 'av-annot', text: items.length ? `Presets for ${m.lead}. Drag one onto its slot, or open it to add it. It goes after the slot's text.` : `No presets for ${m.lead} in this builder. Use "Add your own text" in its slot.` }),
-      el('div', { class: 'list' }, ...items.map(p => listRow(`preset:${p.id}`, p.title, p.why || firstLine(p.text), `preset:${p.id}`, () => [
-        el('span', { class: 'av-label', text: p.standsIn ? `${p.mark} · written to stand in for the default` : p.mark }),
-        prose(p.text),
-        el('div', { class: 'card-foot' }, chip(`Add to ${p.mark}`, false, () => drop(p.mark, p.id))),
-      ]))),
-    ];
-  }
 
-  function yoursList() {
-    const y = PACT.yours;
-    const total = y.skills.length + y.commands.length + y.agents.length;
-    const newAgent = listRow('agent:new', 'A new agent of yours', 'Name it and pick what it reads once it is in a slot.', 'agent:new', () => [addTo(mark => newAgentCard(mark), 'a new agent')]);
-    if (!total) {
-      return [el('p', { class: 'av-annot', text: 'This builder lists none of your own skills, commands or agents. Ask your agent to regenerate it with the scriptorium skill.' }), el('div', { class: 'list' }, newAgent)];
-    }
-    const search = el('input', { type: 'text', 'aria-label': 'Filter by name or description', placeholder: 'Filter', spellcheck: 'false' });
-    search.value = filter;
-    const groups = el('div');
-    const draw = () => {
-      const f = filter.toLowerCase();
-      const pick = list => list.filter(x => !f || x.name.toLowerCase().includes(f) || x.description.toLowerCase().includes(f));
-      const make = (kind, name) => mark => (kind === 'agent' ? { ...newAgentCard(mark), name } : kind === 'skill' ? { kind, name, when: '' } : { kind, name });
-      const group = (title, kind, list) => {
-        if (!list.length) return [];
-        const shown = pick(list);
-        return [
-          el('h3', { class: 'group-title', text: `${title} · ${shown.length} of ${list.length}` }),
-          el('div', { class: 'list' }, ...shown.slice(0, 200).map(x => listRow(`${kind}:${x.name}`, kind === 'command' ? `/${x.name}` : x.name, x.description, `${kind}:${x.name}`, () => [
-            el('p', { class: 'av-annot', text: x.description || 'No description.' }),
-            addTo(make(kind, x.name), x.name),
-          ]))),
-        ];
-      };
-      groups.replaceChildren(...group('Skills', 'skill', y.skills), ...group('Commands', 'command', y.commands), ...group('Agents', 'agent', y.agents), el('div', { class: 'list' }, newAgent));
-    };
-    search.addEventListener('input', () => {
-      filter = search.value;
-      draw();
-    });
-    draw();
-    return [el('div', { class: 'field-row' }, el('label', { text: 'Filter' }), search), groups];
-  }
-
-  function renderSidebar() {
-    const m = stepMove();
-    if (!m) return $('sidebar').replaceChildren();
-    const tabs = [['move', `Presets`], ['yours', 'Yours']];
-    const bar = el('div', { class: 'tabs', role: 'tablist' }, ...tabs.map(([k, label]) => el('button', { type: 'button', role: 'tab', class: `tab${tab === k ? ' tab--on' : ''}`, 'aria-selected': tab === k ? 'true' : 'false', onclick: () => {
-      tab = k;
-      openKey = null;
-      renderSidebar();
-    } }, label)));
-    const body = tab === 'yours' ? yoursList() : presetList(m);
-    $('sidebar').replaceChildren(bar, ...body);
-  }
   function drop(mark, id) {
     const msg = addPreset(state, mark, id);
     status = { text: msg || '', level: msg ? 'error' : '' };
@@ -3421,10 +3316,10 @@ function boot() {
       { class: `part part--open${edited ? ' part--edited' : ''}`, 'data-mark': p.mark },
       el('span', { class: 'part-tag' }, el('b', { text: 'Open' }), el('span', { text: p.mark })),
       el('div', { class: 'slot-bar' }, replace || el('span'), el('span', { class: 'av-label', text: SAYS[op] })),
-      empty ? el('p', { class: 'av-annot', text: 'Empty by default: a place for extra steps.' }) : prose(p.text, slot.replaced ? 'prose prose--struck' : 'prose'),
+      empty ? el('p', { class: 'av-annot', text: 'Your additions to this move go here, after its text.' }) : prose(p.text, slot.replaced ? 'prose prose--struck' : 'prose'),
       op === 'remove' ? el('p', { class: 'av-annot', text: 'The default text is removed and nothing takes its place. Add a card to put text here instead.' }) : null,
       ...cards,
-      el('div', { class: 'card-foot' }, el('div', { class: 'chips' }, addOwn, addAgent), el('span', { class: 'av-annot', text: 'or drop a preset or your agent here' })),
+      el('div', { class: 'card-foot' }, el('div', { class: 'chips' }, addOwn, addAgent, ...presetPick(p.mark))),
     );
     box.addEventListener('dragover', e => {
       e.preventDefault();
@@ -3449,18 +3344,27 @@ function boot() {
     return box;
   }
 
+  /** The presets for one slot, as a list and an Add chip; none when the builder has none for it. */
+  function presetPick(mark) {
+    const items = PACT.presets.filter(x => x.mark === mark);
+    if (!items.length) return [];
+    const pick = el('select', { 'aria-label': `A preset for ${mark}` }, ...items.map(x => el('option', { value: x.id, text: x.title })));
+    return [pick, chip('Add preset', false, () => drop(mark, pick.value), 'av-tool-chip--ghost')];
+  }
+
   /** Redraw the spine. A structural change clears the last status message unless the caller just set it. */
   function renderSpine(clearStatus = true) {
     if (clearStatus) status = { text: '', level: '' };
-    const moves = PACT.moves.filter(m => `move-${m.n}` === step).map(m =>
+    const moves = PACT.moves.map(m =>
       el(
         'article',
         { class: 'move', id: `move-${m.n}` },
-        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: String(m.n).padStart(2, '0') }), el('h2', { class: 'av-h3', text: m.lead })),
+        el('div', { class: 'move-head' }, el('span', { class: 'av-label', text: String(m.n).padStart(2, '0') }), el('h3', { class: 'av-h3', text: m.lead })),
+        prose(m.text, 'prose move-text'),
         ...m.parts.map(p => (p.kind === 'gated' ? lockedPart(p) : openSlot(p))),
       ),
     );
-    $('spine').replaceChildren(...moves);
+    spineBox.replaceChildren(...moves);
     renderOutput();
   }
 
@@ -3523,59 +3427,9 @@ function boot() {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
-  /** Show one step: its sections, its move and its sidebar, and the stepper and Back/Next for it. */
-  function showStep(id) {
-    step = id;
-    openKey = null;
-    $('values').hidden = $('workflows').hidden = id !== 'start';
-    $('agents').hidden = id !== 'agents';
-    $('workspace').hidden = !stepMove();
-    $('output').hidden = $('always').hidden = id !== 'review';
-    renderSidebar();
-    renderSpine();
-    renderStepNav();
-    if (typeof window.scrollTo === 'function') window.scrollTo(0, 0);
-  }
-
-  const stepNote = s => [s.changes ? `${s.changes} ${s.id === 'agents' ? 'set' : 'edited'}` : '', s.overrides ? `${s.overrides} ${OVERRIDE_MARK}` : '', s.errors ? `${s.errors} to fix` : s.warns ? `${s.warns} to check` : ''].filter(Boolean).join(' · ');
-
-  function renderStepper() {
-    const rows = stepSummary(state);
-    $('stepper').replaceChildren(...rows.map((s, i) => el(
-      'button',
-      { type: 'button', class: `step${s.id === step ? ' step--on' : ''}`, 'aria-current': s.id === step ? 'step' : 'false', onclick: () => showStep(s.id) },
-      el('span', { class: 'step-n', text: `Step ${i + 1}` }),
-      el('span', { class: 'step-title', text: s.title }),
-      el('span', { class: `step-note${s.errors ? ' step-note--fix' : ''}`, text: stepNote(s) || (s.id === 'review' ? 'nothing changed yet' : 'default') }),
-    )));
-  }
-
-  function renderStepNav() {
-    const steps = wizardSteps();
-    const i = steps.findIndex(s => s.id === step);
-    const back = i > 0 ? chip(`Back: ${steps[i - 1].title}`, false, () => showStep(steps[i - 1].id), 'av-tool-chip--ghost') : el('span');
-    const next = i < steps.length - 1 ? chip(`Next: ${steps[i + 1].title}`, false, () => showStep(steps[i + 1].id)) : el('span');
-    $('step-nav').replaceChildren(back, next);
-  }
-
-  /** This step's own problems, shown on the step where they are fixed. Review shows them all. */
-  function renderHere() {
-    const s = wizardSteps().find(x => x.id === step);
-    const found = s && s.marks ? problems(state).filter(f => s.marks.includes(f.where)) : [];
-    const over = step === 'agents' ? overrides(state) : [];
-    const notes = [
-      ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
-      ...over.map(n => el('li', { class: 'av-callout av-callout--caution', text: `${n} · ${OVERRIDE_MARK}` })),
-    ];
-    $('here').hidden = !notes.length;
-    $('here').replaceChildren(el('h2', { class: 'section-title', text: 'On this step' }), el('ul', { class: 'callouts' }, ...notes));
-  }
-
   function renderOutput() {
     renderSummary();
     renderReset();
-    renderStepper();
-    renderHere();
     const found = problems(state);
     const errors = found.filter(f => f.level === 'error');
     const files = buildFiles(state);
@@ -3597,16 +3451,7 @@ function boot() {
       return el('div', {}, el('div', { class: 'file-head' }, el('span', { class: 'section-title', text: f.path }), el('span', { class: 'av-annot', text: `goes in ${into}` }), btn), el('pre', { class: 'av-tool-code', text: f.text }));
     });
 
-    const overview = el('div', { class: 'overview' }, ...stepSummary(state).filter(s => s.id !== 'review').map(s => el(
-      'div',
-      { class: 'overview-row' },
-      el('span', { text: s.title }),
-      el('span', { class: `step-note${s.errors ? ' step-note--fix' : ''}`, text: stepNote(s) || 'default' }),
-      chip('Open', false, () => showStep(s.id), 'av-tool-chip--ghost'),
-    )));
     $('output').replaceChildren(
-      el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Review' }), el('span', { class: 'av-annot', text: 'Each step, what you changed there, and what to fix.' })),
-      overview,
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
       el('p', { class: 'av-annot', text: canPick
         ? `Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there, keeping a commands list config.json already holds. ${DOWNLOAD_NOTE} Then run the install script\'s dry run and read its Configuration block.`
@@ -3618,13 +3463,12 @@ function boot() {
 
   if (PACT.title) $('builder-title').textContent = `The pact · configuration · ${PACT.title}`;
   renderActions();
-  renderValues();
   renderWorkflows();
   renderAgents();
   renderAlways();
-  showStep('start');
-  // The canvas is the page; the moves, agents and save sit in a dialog behind the head.
-  $('classic-close').replaceChildren(chip('Close', false, () => $('classic').close(), 'av-tool-chip--ghost'));
+  renderSpine();
+  // The canvas is the page; Settings and Export open from the head.
+  $('export-close').replaceChildren(chip('Close', false, () => $('export').close(), 'av-tool-chip--ghost'));
   editor = workflowEditor($('wf'), state, () => renderOutput());
   editor.show();
 }
