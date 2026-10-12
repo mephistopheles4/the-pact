@@ -60,7 +60,10 @@ how every session in every repo behaves. So:
   rules file, and the repo copy for every other file. It exits non-zero on a
   mismatch. Check that it exited zero.
 - **It deletes only pact files:** those the last manifest lists that the repo
-  dropped. Your own agents and skills are never touched.
+  dropped. Your own agents and skills are never touched. An agent file the
+  pact didn't write, or one changed since it wrote it, is yours: the dry run
+  lists it under "Yours, left as is", and the install never overwrites,
+  deletes or records it (#262). Delete your file to get the pact's back.
 - **Configuration.** The owner's settings live in `~/.claude/pact/config.json`
   (an example is [`examples/pact-config/config.json`](examples/pact-config/config.json)).
   Its edits to open parts take their text from block files in

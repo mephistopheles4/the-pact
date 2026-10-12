@@ -558,15 +558,17 @@ test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
   assert.equal(core.skipReason('agents/a.md', noLink), null);
 });
 
-test('the plan: drift, overwrite, add, delete and unchanged; a record hash in capitals is not drift; a first install deletes only the retired agents', () => {
-  const liveFiles = new Map([['CLAUDE.md', H('1')], ['agents/a.md', H('9')], ['agents/old.md', H('3')], ['agents/builder.md', H('4')], ['agents/gone.md', null]]);
+// #262: an agent file changed since the install, or one the record never listed, is the person's: in yours, never drift, overwrite or delete.
+test('the plan: drift, overwrite, add, delete, yours and unchanged; a record hash in capitals is not drift; a first install deletes only the retired agents', () => {
+  const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('9')], ['agents/a.md', H('9')], ['agents/old.md', H('3')], ['agents/edited-old.md', H('6')], ['agents/builder.md', H('4')], ['agents/mine.md', H('5')]]);
   const live = rel => (liveFiles.has(rel) ? { exists: true, file: liveFiles.get(rel) !== null, sha256: liveFiles.get(rel) } : { exists: false, file: false, sha256: null });
-  const repoFiles = new Map([['CLAUDE.md', H('1')], ['agents/a.md', H('2')], ['agents/new.md', H('5')]]);
-  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1').toUpperCase() }, { path: 'agents/old.md', sha256: H('3') }, { path: 'agents/a.md', sha256: H('8') }, { path: 'settings.json', sha256: H('0') }, { path: 'agents/missing.md', sha256: H('7') }] }));
+  const repoFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('2')], ['agents/a.md', H('2')], ['agents/new.md', H('5')], ['agents/mine.md', H('4')], ['agents/missing.md', H('7')]]);
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1').toUpperCase() }, { path: 'pact/review.md', sha256: H('8') }, { path: 'commands/finis.md', sha256: H('7') }, { path: 'agents/old.md', sha256: H('3') }, { path: 'agents/edited-old.md', sha256: H('3') }, { path: 'agents/a.md', sha256: H('8') }, { path: 'settings.json', sha256: H('0') }, { path: 'agents/missing.md', sha256: H('7') }] }));
   const p = core.plan(record, repoFiles, live, noLink);
-  assert.deepEqual(p.drift, ['agents/a.md (changed since the install)', 'agents/missing.md (deleted since the install)']);
-  assert.deepEqual(p.overwrite, ['agents/a.md']);
-  assert.deepEqual(p.add, ['agents/new.md']);
+  assert.deepEqual(p.drift, ['pact/review.md (changed since the install)', 'commands/finis.md (deleted since the install)']);
+  assert.deepEqual(p.yours, ['agents/edited-old.md', 'agents/a.md', 'agents/mine.md']);
+  assert.deepEqual(p.overwrite, ['pact/review.md']);
+  assert.deepEqual(p.add, ['agents/new.md', 'agents/missing.md']);
   assert.deepEqual(p.delete, ['agents/old.md']);
   assert.deepEqual(p.warnings, ['protected path in the install record, skipped: settings.json']);
   assert.equal(p.same, 1);

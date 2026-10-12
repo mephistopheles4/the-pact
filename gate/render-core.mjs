@@ -191,15 +191,6 @@ const AGENT_FIELDS = Object.freeze(['model', 'effort']);
 const agentModel = v => (typeof v === 'string' && AGENT_MODEL_RE.test(v) ? v : undefined);
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
-// #262 addendum 3: the owner's own agent files, whole, in the pact folder's
-// agents/. One named like a pact agent replaces it; any other name adds one.
-// The folder is listed (the blocks folder never is); each entry must be a
-// regular <name>.md file. Each file is left unchanged, as own-<name>.md, and
-// its hash joins the digest.
-const OWN_SHOWN = 'pact/agents';
-const OWN_OUTPUT_PREFIX = 'own-';
-const OWN_MAX = 64;
-const OWN_FILE_RE = /^([a-z0-9][a-z0-9-]{0,63})\.md$/;
 // The lenses the security route names, as a fixed list (#261, S4): the
 // security pair, and executability-lens, which carries the sensitive-work list in its own block. The rules
 // file names no route any more, so the renderer reads none from it. Without
@@ -304,12 +295,11 @@ function checkProjectQualities(v, fail) {
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.
 const NOTICE_MARK = 'config-notice';
-const NOTICE_TEMPLATE = (digest, values, edits, agents = [], own = []) => [
+const NOTICE_TEMPLATE = (digest, values, edits, agents = []) => [
   '',
   `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`,
   `Values set: ${values.length ? values.map(([k, v]) => `${k} ${v}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
   ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${noticeModel(a.model)}, ${a.effort} effort)`).join(', ')}.`] : []),
-  ...(own.length ? [`Own agents: ${own.map(o => `${o.name} (${CONFIGURABLE_AGENTS.includes(o.name) ? "replaces the pact's" : 'added'})`).join(', ')}.`] : []),
 ];
 
 const LF = 0x0a;
@@ -805,43 +795,6 @@ function renderAgent(source, a, report) {
 }
 
 /**
- * The owner's own agent files: [{ name, buf, hash }] in name order, [] when
- * the folder is absent, or null after recording the refusal.
- */
-function readOwnAgents(home, report) {
-  const dir = join(home, 'pact', 'agents');
-  const fail = reason => {
-    report.fail('own-agents', OWN_SHOWN, null, reason);
-    return null;
-  };
-  let st;
-  try {
-    st = lstatSync(dir);
-  } catch {
-    return [];
-  }
-  if (!st.isDirectory()) return fail('not a folder: a link or a file stands where the agents folder goes');
-  let names;
-  try {
-    names = readdirSync(dir).sort();
-  } catch {
-    return fail('the folder could not be listed');
-  }
-  if (names.length > OWN_MAX) return fail(`more than ${OWN_MAX} files`);
-  const out = [];
-  for (const f of names) {
-    const m = OWN_FILE_RE.exec(f);
-    if (!m) return fail('every entry must be an agent file: a lowercase name of letters, digits and hyphens, ending in .md');
-    const shown = `${OWN_SHOWN}/${f}`;
-    const buf = readCapped(join(dir, f), MAX_BYTES, 'own-agents', shown, report);
-    if (buf === null) return null;
-    if (scanText(buf, shown, report) === null) return null;
-    out.push({ name: m[1], buf, hash: sha256(buf) });
-  }
-  return out;
-}
-
-/**
  * A block file's lines: LF-only text, not empty, ending in one line feed; or
  * null after recording the failure. `file` is the block's shown name.
  */
@@ -907,7 +860,7 @@ const toLines = texts => texts.map(s => Buffer.from(s, 'utf8'));
  * lines strictly between an open part's two mark lines; or null after
  * recording a refusal.
  */
-function swapsFor(lines, pairs, values, edits, digest, report, agents = [], own = []) {
+function swapsFor(lines, pairs, values, edits, digest, report, agents = []) {
   const fail = (name, reason) => {
     report.fail('render', 'claude/CLAUDE.md', null, `${name}: ${reason}`);
     return null;
@@ -935,7 +888,7 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], own 
   const n = pairs.get(NOTICE_MARK);
   if (!n) return fail(NOTICE_MARK, 'the slot is not in the source');
   if (n.end !== n.begin + 1) return fail(NOTICE_MARK, 'the slot is not empty in the source');
-  swaps.push({ ...n, with: toLines(NOTICE_TEMPLATE(digest, values, edits, agents, own)) });
+  swaps.push({ ...n, with: toLines(NOTICE_TEMPLATE(digest, values, edits, agents)) });
   return swaps;
 }
 
@@ -1160,16 +1113,10 @@ function run(argv, report) {
 
   const config = readUserConfig(home, report);
   if (config === null) return;
-  const own = readOwnAgents(home, report);
-  if (own === null) return;
   const head = [];
   let swaps = [];
   let agents = [];
   let commands = [];
-  if (config === NONE && own.length) {
-    report.fail('own-agents', OWN_SHOWN, null, 'own agent files are configuration, and there is no config.json beside them');
-    return;
-  }
   if (config === NONE) head.push('CONFIG none');
   else {
     const checked = checkConfig(config.buf, report);
@@ -1178,16 +1125,11 @@ function run(argv, report) {
     const edits = readBlocks(home, checked.edits, report);
     if (edits === null) return;
     // An agent file is read only when a setting names its agent.
-    const both = checked.agents.find(a => own.some(o => o.name === a.name));
-    if (both) {
-      report.fail('own-agents', OWN_SHOWN, null, `${both.name}: the configuration sets a model or effort for an agent whose own file sets its own`);
-      return;
-    }
     agents = checked.agents.map(a => renderAgent(source, a, report));
     if (agents.some(a => a === null)) return;
     const hash = sha256(config.buf);
-    const digest = sha256(`user ${hash}\n${edits.filter(e => e.path).map(e => `block ${e.path} ${e.hash}\n`).join('')}${own.map(o => `agent ${o.name} ${o.hash}\n`).join('')}`).slice(0, 12);
-    swaps = swapsFor(lines, pairs, values, edits, digest, report, agents, own);
+    const digest = sha256(`user ${hash}\n${edits.filter(e => e.path).map(e => `block ${e.path} ${e.hash}\n`).join('')}`).slice(0, 12);
+    swaps = swapsFor(lines, pairs, values, edits, digest, report, agents);
     if (swaps === null) return;
     const editLines = edits.map(e => (e.path ? `EDIT ${e.mark} ${e.op} ${e.hash} ${e.path}` : `EDIT ${e.mark} ${e.op}`));
     head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines);
@@ -1206,8 +1148,6 @@ function run(argv, report) {
   for (const a of agents) writeFileSync(join(out, `${AGENT_OUTPUT_PREFIX}${a.name}.md`), a.buf, { flag: 'wx' });
   report.lines.push(`RENDERED ${sha256(rendered)}`, `DIFF ${sha256(diff)}`, ...head);
   for (const a of agents) report.lines.push(`AGENT ${a.name} ${a.model} ${a.effort} ${sha256(a.buf)} ${a.security ? 'security-set' : 'plain'} ${a.override ? 'override' : 'default'} ${a.egress ? 'egress' : 'local'}`);
-  for (const o of own) writeFileSync(join(out, `${OWN_OUTPUT_PREFIX}${o.name}.md`), o.buf, { flag: 'wx' });
-  for (const o of own) report.lines.push(`OWN ${o.name} ${o.hash}`);
 }
 
 /**

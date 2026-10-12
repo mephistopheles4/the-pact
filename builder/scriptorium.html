@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KtWJ2V1lVnKUf4Z8fIZ9K1zBPXdtTXBZ/V5wAWK8LLE='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1yFm6KcYF/bKHlBsQbn6i1TpMEFtylHu9veugUZin1s='; style-src 'sha256-vRi5kQJapI6cYbIjzJLWQKoI0gdtNG7O1rumzXBjMVg='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -1547,7 +1547,7 @@ function initialState() {
   return { usage: PACT.setting.def, session: null, agents, own: {}, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)] };
 }
 
-// #262 addendum 3: the agents a person writes. A file in the pact folder's agents/ replaces the pact agent of its name, or adds one.
+// #262: the agents a person writes or edits here. A save writes each as a standard agent file in agents/; the pact never manages it.
 const AGENT_FILE_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const AGENT_TEMPLATE = name => `---\nname: ${name}\ndescription: What it does, and when to use it, in one line.\ntools: Read, Glob, Grep\nmodel: sonnet\neffort: medium\n---\n\nWhat this agent does, step by step.\n`;
 
@@ -1644,7 +1644,7 @@ function problems(state) {
   return out;
 }
 
-/** The files a save writes: [{ path, text }], the configuration first, paths relative to the pact folder. */
+/** The files a save writes: [{ path, text }], the configuration first, paths relative to the Claude folder. */
 function buildFiles(state) {
   const config = { schema: 1 };
   if (state.usage !== PACT.setting.def) config.settings = { [PACT.setting.name]: state.usage };
@@ -1666,11 +1666,11 @@ function buildFiles(state) {
   // A part Scriptorium builds is saved only when its text differs from the pact's: an untouched part raises no security-defaults line.
   for (const [mark, text] of Object.entries(partsChanged(state))) {
     edits.push({ mark, op: 'replace', file: `${mark}.md` });
-    blocks.push({ path: `blocks/${mark}.md`, text: `${text}\n` });
+    blocks.push({ path: `pact/blocks/${mark}.md`, text: `${text}\n` });
   }
   if (edits.length) config.edits = edits;
   const own = Object.keys(state.own).sort().map(name => ({ path: `agents/${name}.md`, text: ownFile(state, name) }));
-  return [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks, ...own];
+  return [{ path: 'pact/config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks, ...own];
 }
 
 /** The parts Scriptorium builds whose compiled text differs from the pact's: { mark: text }. */
@@ -1747,7 +1747,7 @@ function keepCommands(files, existing) {
   if (new Set(keys).size !== keys.length) return { refuse: 'The folder already holds a config.json that gives a key twice, which the installer refuses, so nothing was written. Fix that file, then save again.' };
   const config = JSON.parse(files[0].text);
   config.commands = doc.commands;
-  return { files: [{ path: 'config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...files.slice(1)] };
+  return { files: [{ path: 'pact/config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...files.slice(1)] };
 }
 
 /**
@@ -1758,7 +1758,7 @@ function keepCommands(files, existing) {
 async function keepCommandsIn(dir, files) {
   let existing = null;
   try {
-    existing = await (await (await dir.getFileHandle('config.json')).getFile()).text();
+    existing = await (await (await (await dir.getDirectoryHandle('pact')).getFileHandle('config.json')).getFile()).text();
   } catch (e) {
     if (!e || e.name !== 'NotFoundError') return { refuse: 'The folder\'s config.json could not be read, so nothing was written.' };
   }
@@ -1768,7 +1768,7 @@ async function keepCommandsIn(dir, files) {
 // Shown wherever the config.json download button is, with or without a folder picker.
 const DOWNLOAD_NOTE = 'A downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands.';
 // #262 addendum 3: a save writes agent files and never deletes one, and every file in agents/ installs.
-const AGENTS_NOTE = 'A save never deletes: an agent file already in the pact folder\'s agents/ that this save does not write still installs, so delete it there to drop it.';
+const AGENTS_NOTE = 'An agent file a save writes is yours: an install never writes over it, and a save deletes nothing.';
 
 /** Whether every value, part and agent setting is at its default. */
 function atDefaults(state) {
@@ -3469,7 +3469,7 @@ function boot() {
       el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Tools' }), toolsBox, el('span', { class: 'av-annot', text: 'Type a tool and press Enter. With none, it gets every tool.' })),
       el('span', { class: 'av-label', text: 'Where it runs' }),
       offered(a),
-      agentsSection(`prompt-${a.name}`, 'Prompt', el('p', { class: 'av-annot', text: 'The whole agent file: frontmatter, then the prompt. The model and effort above write its model and effort lines. A save writes it to agents/ in your pact folder.' }), prompt, el('div', { class: 'chips' }, ...(a.added ? [chip('Remove this agent', false, () => {
+      agentsSection(`prompt-${a.name}`, 'Prompt', el('p', { class: 'av-annot', text: 'The whole agent file: frontmatter, then the prompt. The model and effort above write its model and effort lines. A save writes it to ~/.claude/agents/ as your own agent, which the pact never overwrites.' }), prompt, el('div', { class: 'chips' }, ...(a.added ? [chip('Remove this agent', false, () => {
         resetPrompt(state, a.name);
         agentSel = PACT.agents[0].name;
         renderAgents();
@@ -3611,13 +3611,13 @@ function boot() {
     // The four parts' keys go into the folder's builder.json, so a rebuilt page reloads them (#262, D9).
     let existing = null;
     try {
-      existing = await (await (await dir.getFileHandle('builder.json')).getFile()).text();
+      existing = await (await (await (await dir.getDirectoryHandle('pact')).getFileHandle('builder.json')).getFile()).text();
     } catch (e) {
       if (!e || e.name !== 'NotFoundError') return setStatus('The folder\'s builder.json could not be read, so nothing was written.', 'error');
     }
     const b = builderWith(existing, state);
     if (b.refuse) return setStatus(b.refuse, 'error');
-    if (b.text) files = [...files, { path: 'builder.json', text: b.text }];
+    if (b.text) files = [...files, { path: 'pact/builder.json', text: b.text }];
     try {
       for (const f of files) {
         const segs = f.path.split('/');
@@ -3662,7 +3662,7 @@ function boot() {
     if (!notes.length) notes.push(el('li', { class: 'av-callout av-callout--normal', text: 'Nothing to fix here. The installer still checks everything.' }));
 
     const fileViews = files.map(f => {
-      const into = f.path.startsWith('blocks/') ? '~/.claude/pact/blocks/' : '~/.claude/pact/';
+      const into = `~/.claude/${f.path.split('/').slice(0, -1).join('/')}${f.path.includes('/') ? '/' : ''}`;
       const btn = chip(`Download ${f.path.split('/').pop()}`, false, () => download(f), 'av-tool-chip--ghost');
       if (errors.length) btn.disabled = true;
       return el('div', {}, el('div', { class: 'file-head' }, el('span', { class: 'section-title', text: f.path }), el('span', { class: 'av-annot', text: `goes in ${into}` }), btn), el('pre', { class: 'av-tool-code', text: f.text }));
@@ -3671,7 +3671,7 @@ function boot() {
     $('output').replaceChildren(
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
       el('p', { class: 'av-annot', text: canPick
-        ? `Save writes these files into the folder you pick: choose the pact folder in your Claude folder (~/.claude/pact). It replaces config.json and any block file of the same name there, keeping a commands list config.json already holds. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.`
+        ? `Save writes these files into the folder you pick: choose your Claude folder (~/.claude). It replaces pact/config.json, any block file of the same name, and any agent file it writes, keeping a commands list config.json already holds. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.`
         : `This browser has no folder picker, so save each file with its download button and put it where it says. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.` }),
       el('ul', { class: 'callouts' }, ...notes),
       el('div', { class: 'files' }, ...fileViews),

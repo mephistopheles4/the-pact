@@ -374,7 +374,7 @@ test('reset puts the usage value, every part and every agent back to the plain p
   assert.equal(L.atDefaults(s), true);
   assert.deepEqual(JSON.parse(JSON.stringify(s)), L.initialState());
   // A reset page saves the plain configuration: no settings, no edits, no agents.
-  assert.deepEqual(L.buildFiles(s), [{ path: 'config.json', text: '{\n  "schema": 1\n}\n' }]);
+  assert.deepEqual(L.buildFiles(s), [{ path: 'pact/config.json', text: '{\n  "schema": 1\n}\n' }]);
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
@@ -456,7 +456,7 @@ test('stub page: Add agent in the Agents panel saves agents/<name>.md, and the s
   P.button(P.ids.agents, 'Add agent').click();
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /agents\/my-reviewer\.md/);
-  assert.match(P.ids.output.text, /A save never deletes/);
+  assert.match(P.ids.output.text, /a save deletes nothing/);
 });
 
 test('the page is named scriptorium, and the docs and the skill name it so; the old name and the old skill name are gone', () => {
@@ -538,7 +538,7 @@ test('the page holds the moves as one part, named by their lead-ins, beside the 
 test('with nothing changed, the page saves a configuration that sets nothing', () => {
   const s = L.initialState();
   assert.deepEqual(L.problems(s), []);
-  assert.deepEqual(JSON.parse(JSON.stringify(L.buildFiles(s))), [{ path: 'config.json', text: '{\n  "schema": 1\n}\n' }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(L.buildFiles(s))), [{ path: 'pact/config.json', text: '{\n  "schema": 1\n}\n' }]);
 });
 
 test('a save keeps a commands list already in the folder\'s config.json, and won\'t replace one it can\'t read (#203, T2)', () => {
@@ -551,7 +551,7 @@ test('a save keeps a commands list already in the folder\'s config.json, and won
   assert.deepEqual(L.keepCommands(files, '[]'), { files }, 'JSON that is not an object holds no list to keep');
   const kept = L.keepCommands(files, '{"schema":1,"settings":{"usage-pause":80},"commands":["make-it-so","finis"]}');
   assert.deepEqual(JSON.parse(kept.files[0].text), { ...JSON.parse(files[0].text), commands: ['make-it-so', 'finis'] });
-  assert.equal(kept.files[0].path, 'config.json');
+  assert.equal(kept.files[0].path, 'pact/config.json');
   assert.deepEqual(kept.files.slice(1), files.slice(1), 'block files pass through unchanged');
   assert.deepEqual(JSON.parse(L.keepCommands(files, '{"commands":[]}').files[0].text).commands, [], 'an empty list is kept too');
   const twice = L.keepCommands(files, '{"schema":1,"commands":["finis"],"Commands":["make-it-so"]}');
@@ -568,8 +568,10 @@ test('a save reads the folder\'s config.json through keepCommands: none there, a
   const ctx = vm.createContext({});
   const { keepCommandsIn, buildFiles, initialState } = vm.runInContext(`${script}\n;({ keepCommandsIn, buildFiles, initialState });`, ctx);
   const files = buildFiles(initialState());
-  const fail = name => ({ getFileHandle: async () => { throw Object.assign(new Error('x'), { name }); } });
-  const holding = text => ({ getFileHandle: async () => ({ getFile: async () => ({ text: async () => text }) }) });
+  // The Claude folder: its pact folder holds config.json.
+  const inPact = d => ({ getDirectoryHandle: async () => d });
+  const fail = name => inPact({ getFileHandle: async () => { throw Object.assign(new Error('x'), { name }); } });
+  const holding = text => inPact({ getFileHandle: async () => ({ getFile: async () => ({ text: async () => text }) }) });
   const none = await keepCommandsIn(fail('NotFoundError'), files);
   assert.equal(none.files, files, 'no config.json there: the files go as built');
   const unreadable = await keepCommandsIn(fail('NotReadableError'), files);
@@ -704,7 +706,7 @@ test('the Models list feeds the agents and the tiers: a model ID reaches config.
   const config = JSON.parse(L.buildFiles(s)[0].text);
   assert.deepEqual(config.agents['integrity-lens'], { model: 'claude-opus-5-5', effort: 'xhigh' });
   assert.deepEqual(config.agents.scout, { model: 'fable' });
-  assert.match(L.buildFiles(s).find(f => f.path === 'blocks/tiers.md').text, /claude-opus-5-5, xhigh/);
+  assert.match(L.buildFiles(s).find(f => f.path === 'pact/blocks/tiers.md').text, /claude-opus-5-5, xhigh/);
   // A model the gate would refuse is the page's error too.
   s.models.push('claude opus');
   assert.ok(L.problems(s).some(p => p.where === 'models' && p.level === 'error'));
@@ -764,7 +766,7 @@ function rendererRefuses(t, block) {
 function renderSaved(t, state) {
   const h = tempDir(t, 'pact-builder-home-');
   for (const f of JSON.parse(JSON.stringify(L.buildFiles(state)))) {
-    const p = join(h, 'pact', ...f.path.split('/'));
+    const p = join(h, ...f.path.split('/'));
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, f.text);
   }

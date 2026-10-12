@@ -83,11 +83,11 @@ test('node: an installed file that is a hard link loses only its own name; the o
   const h = home(t);
   const outside = join(tempDir(t, 'pact-outside-'), 'victim.md');
   writeFileSync(outside, 'victim\n');
-  mkdirSync(join(h, 'agents'));
-  linkSync(outside, join(h, 'agents', 'scout.md'));
+  // #262: the rules file, which the pact always writes; an agent file it didn't write is the person's and left alone.
+  linkSync(outside, join(h, 'CLAUDE.md'));
   passed(install(repo, h, { apply: true }));
   assert.equal(readFileSync(outside, 'utf8'), 'victim\n');
-  assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'claude', 'agents', 'scout.md')));
+  assert.notEqual(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), 'victim\n');
 });
 
 for (const [name, dirty] of [

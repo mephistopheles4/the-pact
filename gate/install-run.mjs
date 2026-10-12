@@ -142,7 +142,7 @@ async function main() {
   const { lines: renderLines } = runCheck(render, [rulesStaged, renderOut, renderHome], 'render', 'the renderer');
   const parsed = core.parseRenderLines(renderLines, { project, hash: io.sha256 });
   if (stateOf(stage) !== before) core.stops.renderChangedStage();
-  core.checkRenderOutput(io.folderEntries(renderOut), parsed.agentSets.keys(), parsed.ownAgents.keys());
+  core.checkRenderOutput(io.folderEntries(renderOut), parsed.agentSets.keys());
   const rendered = readFileSync(join(renderOut, 'CLAUDE.md'));
   const rulesHash = io.sha256(rendered);
   const diffFile = join(renderOut, 'config.diff');
@@ -154,18 +154,6 @@ async function main() {
     core.checkAgentFile(name, set, staged.has(rel) ? readFileSync(live(stage, rel)) : null, bytes, io.sha256(bytes));
     writeFileSync(live(stage, rel), bytes);
     staged.set(rel, set.sha256);
-    unlinkSync(out);
-  }
-  // #262 addendum 3: each own agent file takes a rendered agent's path into the stage, so seam A, the plan, the record and the re-hash cover it.
-  const ownNew = new Set();
-  for (const [name, sha] of parsed.ownAgents) {
-    const rel = `claude/agents/${name}.md`;
-    const out = join(renderOut, `own-${name}.md`);
-    const bytes = readFileSync(out);
-    core.checkOwnAgentFile(sha, bytes, io.sha256(bytes));
-    if (!staged.has(rel)) ownNew.add(`agents/${name}.md`);
-    writeFileSync(live(stage, rel), bytes);
-    staged.set(rel, sha);
     unlinkSync(out);
   }
   writeFileSync(rulesStaged, rendered);
@@ -249,9 +237,11 @@ async function main() {
   const linkIn = rel => io.throughLink(home, rel);
   const { repoFiles, sourceOf } = core.installDestinations(checked, linkIn);
   const p = core.plan(record, repoFiles, rel => io.liveState(live(home, rel)), linkIn);
+  // #262: the person's agents are not the pact's to write, check or record.
+  for (const rel of p.yours) repoFiles.delete(rel);
   // A pact command never shadowed by a same-named skill, nor laid over a file the pact didn't write (#203, S8).
   core.checkSkillClash(parsed.commands, rel => io.present(live(home, rel)));
-  core.checkNewPaths(repoFiles, record, rel => io.liveState(live(home, rel)), ownNew);
+  core.checkNewPaths(repoFiles, record, rel => io.liveState(live(home, rel)));
 
   // Settings (L4 to L9).
   const settingsFile = join(home, 'settings.json');
@@ -276,9 +266,11 @@ async function main() {
   const settingsWill = settings.startsWith('would');
   const lastConfig = record ? record.config : new Map();
   const stale = (record && record.commit.toLowerCase() !== commit) || gateLines[0] !== 'Gate: unchanged since the last install' || core.configStale(core.configNow(parsed), lastConfig);
-  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || stale || !record);
+  // An agent the record lists that is now yours needs the record rewritten without it.
+  const yoursListed = record ? p.yours.some(rel => record.files.some(e => e.path === rel)) : false;
+  const nothing = !(p.overwrite.length || p.add.length || p.delete.length || settingsWill || stale || yoursListed || !record);
 
-  for (const [title, items] of [['Drift', p.drift], ['Overwrite', p.overwrite], ['Add', p.add], ['Delete', p.delete]]) {
+  for (const [title, items] of [['Drift', p.drift], ['Overwrite', p.overwrite], ['Add', p.add], ['Delete', p.delete], ['Yours, left as is', p.yours]]) {
     say(`${title}: ${items.length}`);
     for (const i of items) say(`  ${core.formatPlain(i)}`);
   }
@@ -352,7 +344,7 @@ async function main() {
     io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.blockHashes, ownAgents: parsed.ownAgents, repoFiles, gateNow }), 0o600);
+  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.blockHashes, repoFiles, gateNow }), 0o600);
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;

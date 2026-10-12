@@ -69,8 +69,10 @@ gone, and no session collects totals now (#189).
 
 Copy your `~/.claude/CLAUDE.md`, `~/.claude/settings.json` and
 `~/.claude/agents/` folder, if you have them. A first install replaces your
-rules file with no backup of its own, and does the same to an agent of yours
-that shares a name with a pact agent or an old pact agent (step 4).
+rules file with no backup of its own. An agent of yours that shares a pact
+agent's name is left as it is, and so is a pact agent you edit after an
+install: the pact manages only the agent files it wrote and still holds as it
+wrote them.
 [Undo the install](#undo-the-install) restores from these copies. Your
 settings file can hold API keys, so keep the copies outside the clone and any
 synced or shared folder, readable only by you, and delete them once you are

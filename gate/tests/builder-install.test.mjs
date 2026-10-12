@@ -41,7 +41,7 @@ const L = pageLogic();
 function saveInto(h, state) {
   const files = JSON.parse(JSON.stringify(L.buildFiles(state)));
   for (const f of files) {
-    const p = join(h, 'pact', ...f.path.split('/'));
+    const p = join(h, ...f.path.split('/'));
     mkdirSync(dirname(p), { recursive: true });
     writeFileSync(p, f.text);
   }
@@ -79,7 +79,7 @@ test('a configuration the page saves with a value and an added move installs thr
   s.usage = 90;
   s.parts.moves.push({ lead: 'Leave it better', text: 'I leave the code a little better than I found it.' });
   const { rules, files } = installSaved(t, s);
-  assert.deepEqual(files.map(f => f.path), ['config.json', 'blocks/moves.md']);
+  assert.deepEqual(files.map(f => f.path), ['pact/config.json', 'pact/blocks/moves.md']);
   assert.match(rules, /When it is above 90%/);
   assert.match(rules, /^- \*\*Stay the owner\.\*\*\n(?: {2}.*\n)+- \*\*Leave it better\.\*\*\n {2}I leave the code a little better than I found it\.$/m);
   assert.match(rules, /Values set: usage-pause 90\. Parts edited: moves \(replace\)\./);
@@ -115,12 +115,14 @@ test('bad case: text the page flags is refused by the install too, since the pag
   assert.ok(!existsSync(join(h, 'CLAUDE.md')), 'the refused configuration installed a rules file');
 });
 
-// #262 addendum 3: what the page saves for an added agent and an edited prompt installs as the page wrote it.
-test('an added agent and an edited prompt the page saves install through the dry run and -Apply', t => {
+// #262: the agent files the page saves are the person's: an install leaves them as written and never records them.
+test('an added agent and an edited prompt the page saves are yours: the install leaves them as the page wrote them, and records neither', t => {
   const s = L.initialState();
   assert.equal(L.addAgent(s, 'my-reviewer'), null);
   s.own.scout = L.PACT.agents.find(a => a.name === 'scout').file.replace(/\n---\n\n[\s\S]*$/, '\n---\n\nFind things, briefly.\n');
-  const { rules, files, h } = installSaved(t, s);
+  s.usage = 90;
+  const { files, h } = installSaved(t, s);
   for (const name of ['my-reviewer', 'scout']) assert.equal(readFileSync(join(h, 'agents', `${name}.md`), 'utf8'), files.find(f => f.path === `agents/${name}.md`).text);
-  assert.match(rules, /^Own agents: my-reviewer \(added\), scout \(replaces the pact's\)\.$/m);
+  const recorded = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).files.map(f => f.path);
+  assert.ok(!recorded.includes('agents/my-reviewer.md') && !recorded.includes('agents/scout.md'), recorded.join(', '));
 });

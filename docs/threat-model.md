@@ -397,6 +397,11 @@ session can act before you see it.
   foothold can rewrite the install record the drift check compares with, so
   a planted pact file may show only as an ordinary overwrite line, which
   `--apply` then replaces without refusing.
+  Since #262 an agent file changed after the install is the person's: the
+  dry run lists it under "Yours, left as is" rather than as drift, and the
+  install no longer puts the pact's back. A foothold that rewrites a pact
+  agent, a security lens included, so stays until the person reads that list
+  and deletes the file.
 - **R15. A repo's instruction files are instructions.** A cloned repo's
   `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. Since #261
   the pact holds no rule barring them from anything: `no-skill-overrides` and

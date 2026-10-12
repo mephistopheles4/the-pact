@@ -32,7 +32,7 @@ const PACT_AGENTS = readdirSync(AGENTS_DIR).filter(f => f.endsWith('.md')).map(f
  * holding `agent` (or none when null), with a user file holding `config`.
  * `renderer` defaults to the repo's.
  */
-function render(t, config, { agent = AGENT, name = 'integrity-lens', renderer = RENDER, noConfig = false, source = SOURCE, own = null } = {}) {
+function render(t, config, { agent = AGENT, name = 'integrity-lens', renderer = RENDER, noConfig = false, source = SOURCE } = {}) {
   const stage = tempDir(t, 'pact-agents-stage-');
   mkdirSync(join(stage, 'claude', 'agents'), { recursive: true });
   writeFileSync(join(stage, 'claude', 'CLAUDE.md'), source);
@@ -46,27 +46,13 @@ function render(t, config, { agent = AGENT, name = 'integrity-lens', renderer = 
     mkdirSync(join(h, 'pact'), { recursive: true });
     writeFileSync(join(h, 'pact', 'config.json'), typeof config === 'string' ? config : `${JSON.stringify(config)}\n`);
   }
-  // #262 addendum 3: the owner's own agent files, in the pact folder's agents/; a function plants the folder itself.
-  if (own) {
-    const dir = join(h, 'pact', 'agents');
-    if (typeof own === 'function') {
-      mkdirSync(join(h, 'pact'), { recursive: true });
-      own(dir);
-    } else {
-      mkdirSync(dir, { recursive: true });
-      for (const [f, v] of Object.entries(own)) {
-        if (typeof v === 'function') v(join(dir, f));
-        else writeFileSync(join(dir, f), v);
-      }
-    }
-  }
   const out = tempDir(t, 'pact-agents-out-');
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
   const r = spawnSync(process.execPath, [renderer, join(stage, 'claude', 'CLAUDE.md'), out, h], { encoding: 'utf8', env });
   const outFiles = readdirSync(out).sort();
   const agentOut = join(out, `agent-${name}.md`);
-  return { outDir: out, code: r.status, stdout: r.stdout, out: r.stdout + r.stderr, outFiles, agentBytes: existsSync(agentOut) ? readFileSync(agentOut) : null, rules: existsSync(join(out, 'CLAUDE.md')) ? readFileSync(join(out, 'CLAUDE.md'), 'utf8') : null };
+  return { code: r.status, stdout: r.stdout, out: r.stdout + r.stderr, outFiles, agentBytes: existsSync(agentOut) ? readFileSync(agentOut) : null, rules: existsSync(join(out, 'CLAUDE.md')) ? readFileSync(join(out, 'CLAUDE.md'), 'utf8') : null };
 }
 
 function refusedWith(r, rule, reason) {
@@ -336,54 +322,4 @@ test('the install script\'s list of agents equals the renderer\'s configurable l
   // #262: the install's copy of the model shape and the efforts.
   assert.equal(moduleMatch(GATE, 'render', /const AGENT_MODEL_RE = (.*);/)[1], String(AGENT_MODEL_RE));
   assert.equal(moduleMatch(GATE, 'render', /const AGENT_EFFORTS = Object\.freeze\((\[.*\])\);/)[1], JSON.stringify(AGENT_EFFORTS).replace(/"/g, "'").replace(/,/g, ', '));
-});
-
-// ------------------------------------------------------------ the owner's own agent files (#262 addendum 3)
-
-const MINE = '---\nname: my-reviewer\ndescription: Reviews my diffs.\ntools: [Read, Grep]\nmodel: sonnet\n---\n\nRead the diff and say what you see.\n';
-const SCOUT = '---\nname: scout\ndescription: My own scout.\nmodel: haiku\n---\n\nFind things, briefly.\n';
-
-// #262 addendum 3: an own agent file renders byte for byte, its hash on an OWN line and in the digest, named in the notice.
-test('own agent files render unchanged: an OWN line with each hash, the digest moves with a file, and the notice names them', t => {
-  const r = render(t, { schema: 1 }, { own: { 'my-reviewer.md': MINE, 'scout.md': SCOUT } });
-  assert.equal(r.code, 0, r.out);
-  assert.deepEqual(r.outFiles, ['CLAUDE.md', 'config.diff', 'own-my-reviewer.md', 'own-scout.md']);
-  assert.deepEqual(readFileSync(join(r.outDir, 'own-my-reviewer.md'), 'utf8'), MINE);
-  assert.match(r.stdout, new RegExp(`^OWN my-reviewer ${sha256(MINE)}$`, 'm'));
-  assert.match(r.stdout, new RegExp(`^OWN scout ${sha256(SCOUT)}$`, 'm'));
-  assert.match(r.rules, /^Own agents: my-reviewer \(added\), scout \(replaces the pact's\)\.$/m);
-  const other = render(t, { schema: 1 }, { own: { 'my-reviewer.md': MINE.replace('see.', 'saw.'), 'scout.md': SCOUT } });
-  const digest = x => /^DIGEST (\S+)$/m.exec(x.stdout)[1];
-  assert.notEqual(digest(other), digest(r), 'a changed own agent file must change the digest');
-});
-
-// A tree: `config` is config.json's text (absent: none); `own/<file>` is an own agent file, `<folder>` for a folder;
-// `own-is-file` puts a file where the agents folder goes.
-const FOLDER = '<folder>';
-for (const c of table('render own agents', {
-  module: 'gate/render.mjs',
-  base: () => ({ config: '{ "schema": 1 }\n', 'own/my-reviewer.md': MINE }),
-  run: (tree, t) => {
-    const files = Object.entries(tree).filter(([k]) => k.startsWith('own/')).map(([k, v]) => [k.slice(4), v === FOLDER ? p => mkdirSync(p) : v]);
-    const own = Object.hasOwn(tree, 'own-is-file') ? p => writeFileSync(p, 'x') : Object.fromEntries(files);
-    const r = render(t, tree.config ?? null, { own, noConfig: !Object.hasOwn(tree, 'config') });
-    return { ...moduleResult(r.code, r.stdout, r.stderr), outFiles: r.outFiles };
-  },
-  everyRow: r => assert.deepEqual(r.outFiles, [], 'a refused render left output files'),
-  rows: [
-    { id: 'own-without-config', plant: ({ config, ...rest }) => rest, fails: ['own-agents'], says: /no config\.json/, why: 'own agents are configuration: read only beside a configuration file' },
-    { id: 'own-name-capitals', plant: () => ({ config: '{ "schema": 1 }\n', 'own/My-reviewer.md': MINE }), fails: ['own-agents'], says: /lowercase/, why: 'a name the agents folder takes' },
-    { id: 'own-not-md', plant: () => ({ config: '{ "schema": 1 }\n', 'own/my-reviewer.txt': MINE }), fails: ['own-agents'], says: /lowercase/, why: 'only agent files' },
-    { id: 'own-subfolder', plant: b => ({ ...b, 'own/sub.md': FOLDER }), fails: ['own-agents'], says: /not a regular file/, why: 'only regular files' },
-    { id: 'own-invisible', plant: b => ({ ...b, 'own/my-reviewer.md': MINE.replace('see', 's\u200bee') }), fails: ['invisible'], why: 'the text scanner reads every own agent file' },
-    { id: 'own-and-setting', plant: () => ({ config: agentsKey({ scout: { model: 'sonnet' } }), 'own/scout.md': SCOUT }), fails: ['own-agents'], says: /sets its own/, why: 'one source for an agent file' },
-    { id: 'own-folder-is-file', plant: b => ({ config: b.config, 'own-is-file': 'x' }), fails: ['own-agents'], says: /not a folder/, why: 'the agents folder is a folder' },
-  ],
-})) test(c.name, c.fn);
-
-test('bad case: an own agents folder that is a link is refused', { skip: WIN && 'not run: planting a symbolic link needs privileges on Windows' }, t => {
-  const target = tempDir(t, 'pact-own-target-');
-  writeFileSync(join(target, 'my-reviewer.md'), MINE);
-  const r = render(t, { schema: 1 }, { own: p => symlinkSync(target, p, 'dir') });
-  refusedWith(r, 'own-agents', /not a folder/);
 });
