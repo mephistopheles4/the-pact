@@ -1,33 +1,31 @@
-// FIG. 02: how much checking. What each tier fits, its checking, its models,
-// and sensitive work. Words from claude/CLAUDE.md's "How much checking".
+// FIG. 02: how much checking. What each tier fits, its models, and the
+// sensitive route. Words from claude/CLAUDE.md's "How much checking".
 import { LEFT, PAD, RIGHT, block, label, notched, sheet } from './draw.mjs';
 
-const COLS = [100, 150, 230, 116, 116];
-const HEAD = [['Tier'], ['Fits'], ['Checking'], ['Plan'], ['Build']];
+const COLS = [120, 360, 116, 116];
+const HEAD = [['Tier'], ['Fits'], ['Plan'], ['Build']];
 const DASH = ['—'];
 const ROWS = [
-  ['Quick', ['Small, one', 'session, no', 'plan needed'], ['Tests, then the', 'QA pair'], DASH, ['Opus, low']],
-  ['Standard', ['Needs a', 'short spec'], ['The spec read for what', 'is unstated; tests, the', 'QA pair, and the lenses', 'the diff calls for'], ['Opus, medium'], ['Sonnet,', 'medium']],
-  [
-    'Thorough',
-    ['Too big for', 'one session,', 'or risky'],
-    ['The spec read before', 'I approve it;', 'tickets, each its own', 'session; per ticket,', 'tests, the QA pair and', 'the lenses the diff', 'calls for'],
-    ['Opus, high'],
-    ['Sonnet,', 'medium'],
-  ],
+  ['Quick', ['Small, one session, no plan needed'], DASH, ['Opus, low']],
+  ['Standard', ['Needs a short spec'], ['Opus, medium'], ['Sonnet,', 'medium']],
+  ['Thorough', ['Too big for one session, or risky;', 'cut into tickets, each its own', 'session'], ['Opus, high'], ['Sonnet,', 'medium']],
 ];
 const FLOOR = [
   'By default, sensitive work is auth, secrets, crypto, input validation',
-  'and data migrations: thorough, built on Opus at high.',
+  'and data migrations. The sensitive route: thorough, planned and built',
+  'on Opus at high, with the security pair on the spec and the diff.',
 ];
 const ROUTE = [
-  'The security pair reads its spec and its diff. Small work that touches',
-  'nothing sensitive is quick. Keep one model for a whole session.',
+  'The agent recommends the route, with its why, in its tier proposal,',
+  "and I take it or not. If I don't, the security pair is offered once",
+  "more at Test on a list match, and a flag I haven't answered stays",
+  'open in the result. Small work that touches nothing sensitive is',
+  'quick. Keep one model for a whole session.',
 ];
 const MODELS = [
   ['Plans', 'Opus'],
   ['Builds', 'Sonnet · Opus for quick'],
-  ['Sensitive work', 'Opus, high effort'],
+  ['Sensitive route', 'Opus, high effort'],
 ];
 
 const CONTENT_W = RIGHT - LEFT;
@@ -62,7 +60,7 @@ y += tableH + 24;
 
 // Sensitive work.
 const floorH = 22 + FLOOR.length * 21 + 6 + ROUTE.length * 20 + 14;
-els.push(...notched({ x: LEFT, y, w: CONTENT_W, h: floorH, text: 'Sensitive work · more checking', stroke: 'caution', sw: 2, color: 'caution' }));
+els.push(...notched({ x: LEFT, y, w: CONTENT_W, h: floorH, text: 'Sensitive work · when I choose it', stroke: 'caution', sw: 2, color: 'caution' }));
 const f = block({ top: y + 22, x: LEFT + 16, size: 14, lh: 21, lines: FLOOR, max: CONTENT_W - 32 });
 els.push(f.el);
 els.push(block({ top: y + 22 + f.height + 6, x: LEFT + 16, size: 13, lh: 20, color: 'ink80', lines: ROUTE, max: CONTENT_W - 32 }).el);

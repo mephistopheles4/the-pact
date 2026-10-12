@@ -451,8 +451,8 @@ it keeps a fixed list of those it can find by no other sign (`SECURITY_SET` in
 which #189 retired. A pinned block is a block the install gate holds word for
 word: the gate's `PINNED` list in `gate/shared.mjs` names them, and each one's
 canonical text is in `gate/clauses/`. This repo's security route is defined in
-this section. The pact's sensitive-work default, and the defaults in its
-Lenses section, sit in [`claude/CLAUDE.md`](claude/CLAUDE.md).
+this section. The pact's sensitive-work default, and the offers paragraph in
+its Lenses section, sit in [`claude/CLAUDE.md`](claude/CLAUDE.md).
 
 ### Which changes take the security route
 
@@ -460,7 +460,7 @@ Where two bullets apply, the stricter one holds.
 
 - **A change to any of these takes the security route,** so the security pair
   reads its spec and its diff:
-  - the sensitive-work default, the defaults or a pinned block;
+  - the sensitive-work default, the offers paragraph or a pinned block;
   - the whole of `claude/CLAUDE.md` and `claude/review.md`;
   - anything in the protected set below;
   - any security-set lens;
@@ -488,6 +488,9 @@ Where two bullets apply, the stricter one holds.
   pass, and a reviewer reads the change at move 4. The gate's tests are
   ordinary test code, the test runner and its helpers included. An edit to
   this section that only tightens or clarifies it is also proved by use.
+- **The gate's tests are never a one-line change here.** The pact's one-line
+  exception doesn't reach a change to the gate's tests, the test runner and
+  its helpers included: the QA pair reads it at move 4.
 - **Depth is the owner's dial.** The owner may ask for a planted probe by
   name, or a closer look, on any change, at triage or in chat. Silence means
   the default above. Nobody can take a listed change off the security route.
@@ -518,11 +521,23 @@ spec pair and the security pair:
 
 1. **The pinned blocks:** `stop-and-escalate` in `claude/CLAUDE.md` and
    `install-go-ahead` in this file.
-2. **The defaults** in the pact's Lenses section, all four sentences: the QA
-   pair reads every result, the security pair reads sensitive work, only the
-   owner skips a default, and the rest are judgment or the owner's call.
-3. **The sensitive-work default:** auth, secrets, crypto, input validation and
-   data migrations.
+2. **The offers paragraph** in the pact's Lenses section, all of it: a lens
+   offered with a one-line reason, and answered by me; a decline that reaches
+   the session only by relay, prompt, message or file kept open in the result
+   until I answer in chat; the security pair, `adversarial-lens` and
+   `data-lens`, coming with the sensitive route; the one-line exception said
+   aloud, and never for work that matches the list or is flagged sensitive; a
+   repo's own rules requiring a pact lens hold; a skill I typed runs its
+   lenses unasked, which never lifts the sensitive-route flag or its offer at
+   Test, the Guards, the always-mine decisions or the read before posting;
+   and the review procedure read before any post.
+3. **The sensitive-work default:** the list (auth, secrets, crypto, input
+   validation and data migrations) that Claude looks for, and the sensitive
+   route it must recommend, with a one-line why, in its tier proposal whenever
+   work matches, and, if I don't take it, the security pair offered once more
+   at Test on a list match; a flag or offer I haven't answered stays open in
+   every hand-off and in the result, and a flag found later is said at the
+   next hand-off and never dropped until I answer.
 4. **The per-lens tool allow-list:** no lens gains a tool.
 5. **The security lenses' carried rules:** a secret named by its location,
    never its value; no working exploit or payload; checklists carried in the

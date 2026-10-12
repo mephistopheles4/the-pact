@@ -1,70 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="715" viewBox="0 0 800 715" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img">
-<rect width="800" height="715" fill="#1a1614"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="652" viewBox="0 0 800 652" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img">
+<rect width="800" height="652" fill="#1a1614"/>
 <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#ece5df" stroke-opacity="0.045" stroke-width="1"/></pattern></defs>
-<rect width="800" height="715" fill="url(#grid)"/>
-<rect x="17" y="17" width="766" height="681" fill="#201b18" fill-opacity="0.72" stroke="#ece5df" stroke-width="2"/>
+<rect width="800" height="652" fill="url(#grid)"/>
+<rect x="17" y="17" width="766" height="618" fill="#201b18" fill-opacity="0.72" stroke="#ece5df" stroke-width="2"/>
 <text x="44" y="39.2" font-size="12" font-weight="600" letter-spacing="1.92" fill="#ece5df">FIG. 02 — RIGOUR FOLLOWS RISK</text>
 <text x="756" y="39.2" font-size="12" letter-spacing="1.92" text-anchor="end" fill="#ece5df" fill-opacity="0.7">HOW MUCH CHECKING</text>
 <line x1="18" y1="58" x2="782" y2="58" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
-<rect x="44" y="80" width="712" height="378" fill="#1a1614" stroke="#ece5df" stroke-width="2"/>
+<rect x="44" y="80" width="712" height="234" fill="#1a1614" stroke="#ece5df" stroke-width="2"/>
 <text x="52" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">TIER</text>
-<text x="152" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">FITS</text>
-<text x="302" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">CHECKING</text>
+<text x="172" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">FITS</text>
 <text x="532" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">PLAN</text>
 <text x="648" y="102.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">BUILD</text>
 <line x1="44" y1="134" x2="756" y2="134" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
 <text x="52" y="160.25" font-size="15" font-weight="600" fill="#ece5df">Quick</text>
-<text x="152" y="159.2" font-size="12" fill="#ece5df">Small, one</text>
-<text x="152" y="177.2" font-size="12" fill="#ece5df">session, no</text>
-<text x="152" y="195.2" font-size="12" fill="#ece5df">plan needed</text>
-<text x="302" y="159.2" font-size="12" fill="#ece5df">Tests, then the</text>
-<text x="302" y="177.2" font-size="12" fill="#ece5df">QA pair</text>
+<text x="172" y="159.2" font-size="12" fill="#ece5df">Small, one session, no plan needed</text>
 <text x="532" y="159.2" font-size="12" fill="#ece5df" fill-opacity="0.7">—</text>
 <text x="648" y="159.2" font-size="12" fill="#ece5df">Opus, low</text>
-<line x1="44" y1="212" x2="756" y2="212" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<text x="52" y="238.25" font-size="15" font-weight="600" fill="#ece5df">Standard</text>
-<text x="152" y="237.2" font-size="12" fill="#ece5df">Needs a</text>
-<text x="152" y="255.2" font-size="12" fill="#ece5df">short spec</text>
-<text x="302" y="237.2" font-size="12" fill="#ece5df">The spec read for what</text>
-<text x="302" y="255.2" font-size="12" fill="#ece5df">is unstated; tests, the</text>
-<text x="302" y="273.2" font-size="12" fill="#ece5df">QA pair, and the lenses</text>
-<text x="302" y="291.2" font-size="12" fill="#ece5df">the diff calls for</text>
-<text x="532" y="237.2" font-size="12" fill="#ece5df">Opus, medium</text>
-<text x="648" y="237.2" font-size="12" fill="#ece5df">Sonnet,</text>
-<text x="648" y="255.2" font-size="12" fill="#ece5df">medium</text>
-<line x1="44" y1="308" x2="756" y2="308" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<text x="52" y="334.25" font-size="15" font-weight="600" fill="#ece5df">Thorough</text>
-<text x="152" y="333.2" font-size="12" fill="#ece5df">Too big for</text>
-<text x="152" y="351.2" font-size="12" fill="#ece5df">one session,</text>
-<text x="152" y="369.2" font-size="12" fill="#ece5df">or risky</text>
-<text x="302" y="333.2" font-size="12" fill="#ece5df">The spec read before</text>
-<text x="302" y="351.2" font-size="12" fill="#ece5df">I approve it;</text>
-<text x="302" y="369.2" font-size="12" fill="#ece5df">tickets, each its own</text>
-<text x="302" y="387.2" font-size="12" fill="#ece5df">session; per ticket,</text>
-<text x="302" y="405.2" font-size="12" fill="#ece5df">tests, the QA pair and</text>
-<text x="302" y="423.2" font-size="12" fill="#ece5df">the lenses the diff</text>
-<text x="302" y="441.2" font-size="12" fill="#ece5df">calls for</text>
-<text x="532" y="333.2" font-size="12" fill="#ece5df">Opus, high</text>
-<text x="648" y="333.2" font-size="12" fill="#ece5df">Sonnet,</text>
-<text x="648" y="351.2" font-size="12" fill="#ece5df">medium</text>
-<line x1="144" y1="81" x2="144" y2="457" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
-<line x1="294" y1="81" x2="294" y2="457" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<line x1="524" y1="81" x2="524" y2="457" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<line x1="640" y1="81" x2="640" y2="457" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<rect x="44" y="482" width="712" height="124" fill="#1a1614" stroke="#d98a3c" stroke-width="2"/>
-<rect x="54" y="479" width="292.5" height="6" fill="#1a1614"/>
-<text x="60" y="486" font-size="11" font-weight="600" letter-spacing="1.76" fill="#d98a3c">SENSITIVE WORK · MORE CHECKING</text>
-<text x="60" y="519.4" font-size="14" fill="#ece5df">By default, sensitive work is auth, secrets, crypto, input validation</text>
-<text x="60" y="540.4" font-size="14" fill="#ece5df">and data migrations: thorough, built on Opus at high.</text>
-<text x="60" y="566.55" font-size="13" fill="#ece5df" fill-opacity="0.8">The security pair reads its spec and its diff. Small work that touches</text>
-<text x="60" y="586.55" font-size="13" fill="#ece5df" fill-opacity="0.8">nothing sensitive is quick. Keep one model for a whole session.</text>
-<line x1="44" y1="628" x2="756" y2="628" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
-<text x="44" y="650.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">PLANS</text>
-<text x="44" y="669.55" font-size="13" font-weight="500" fill="#ece5df">Opus</text>
-<line x1="281.33" y1="628" x2="281.33" y2="675" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<text x="293.33" y="650.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">BUILDS</text>
-<text x="293.33" y="669.55" font-size="13" font-weight="500" fill="#ece5df">Sonnet · Opus for quick</text>
-<line x1="518.67" y1="628" x2="518.67" y2="675" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
-<text x="530.67" y="650.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">SENSITIVE WORK</text>
-<text x="530.67" y="669.55" font-size="13" font-weight="500" fill="#ece5df">Opus, high effort</text>
+<line x1="44" y1="176" x2="756" y2="176" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="52" y="202.25" font-size="15" font-weight="600" fill="#ece5df">Standard</text>
+<text x="172" y="201.2" font-size="12" fill="#ece5df">Needs a short spec</text>
+<text x="532" y="201.2" font-size="12" fill="#ece5df">Opus, medium</text>
+<text x="648" y="201.2" font-size="12" fill="#ece5df">Sonnet,</text>
+<text x="648" y="219.2" font-size="12" fill="#ece5df">medium</text>
+<line x1="44" y1="236" x2="756" y2="236" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="52" y="262.25" font-size="15" font-weight="600" fill="#ece5df">Thorough</text>
+<text x="172" y="261.2" font-size="12" fill="#ece5df">Too big for one session, or risky;</text>
+<text x="172" y="279.2" font-size="12" fill="#ece5df">cut into tickets, each its own</text>
+<text x="172" y="297.2" font-size="12" fill="#ece5df">session</text>
+<text x="532" y="261.2" font-size="12" fill="#ece5df">Opus, high</text>
+<text x="648" y="261.2" font-size="12" fill="#ece5df">Sonnet,</text>
+<text x="648" y="279.2" font-size="12" fill="#ece5df">medium</text>
+<line x1="164" y1="81" x2="164" y2="313" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<line x1="524" y1="81" x2="524" y2="313" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<line x1="640" y1="81" x2="640" y2="313" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<rect x="44" y="338" width="712" height="205" fill="#1a1614" stroke="#d98a3c" stroke-width="2"/>
+<rect x="54" y="335" width="320.55" height="6" fill="#1a1614"/>
+<text x="60" y="342" font-size="11" font-weight="600" letter-spacing="1.76" fill="#d98a3c">SENSITIVE WORK · WHEN I CHOOSE IT</text>
+<text x="60" y="375.4" font-size="14" fill="#ece5df">By default, sensitive work is auth, secrets, crypto, input validation</text>
+<text x="60" y="396.4" font-size="14" fill="#ece5df">and data migrations. The sensitive route: thorough, planned and built</text>
+<text x="60" y="417.4" font-size="14" fill="#ece5df">on Opus at high, with the security pair on the spec and the diff.</text>
+<text x="60" y="443.55" font-size="13" fill="#ece5df" fill-opacity="0.8">The agent recommends the route, with its why, in its tier proposal,</text>
+<text x="60" y="463.55" font-size="13" fill="#ece5df" fill-opacity="0.8">and I take it or not. If I don't, the security pair is offered once</text>
+<text x="60" y="483.55" font-size="13" fill="#ece5df" fill-opacity="0.8">more at Test on a list match, and a flag I haven't answered stays</text>
+<text x="60" y="503.55" font-size="13" fill="#ece5df" fill-opacity="0.8">open in the result. Small work that touches nothing sensitive is</text>
+<text x="60" y="523.55" font-size="13" fill="#ece5df" fill-opacity="0.8">quick. Keep one model for a whole session.</text>
+<line x1="44" y1="565" x2="756" y2="565" stroke="#ece5df" stroke-opacity="0.28" stroke-width="1"/>
+<text x="44" y="587.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">PLANS</text>
+<text x="44" y="606.55" font-size="13" font-weight="500" fill="#ece5df">Opus</text>
+<line x1="281.33" y1="565" x2="281.33" y2="612" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="293.33" y="587.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">BUILDS</text>
+<text x="293.33" y="606.55" font-size="13" font-weight="500" fill="#ece5df">Sonnet · Opus for quick</text>
+<line x1="518.67" y1="565" x2="518.67" y2="612" stroke="#ece5df" stroke-opacity="0.11" stroke-width="1"/>
+<text x="530.67" y="587.35" font-size="11" letter-spacing="1.76" fill="#ece5df" fill-opacity="0.7">SENSITIVE ROUTE</text>
+<text x="530.67" y="606.55" font-size="13" font-weight="500" fill="#ece5df">Opus, high effort</text>
 </svg>

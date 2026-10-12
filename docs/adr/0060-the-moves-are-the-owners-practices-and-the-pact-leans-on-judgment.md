@@ -1,5 +1,7 @@
 # The moves are the owner's practices, and the pact leans on judgment
 
+Superseded in part by [ADR 0065](0065-lenses-are-offers-and-the-sensitive-route-is-recommended.md) (2026-10-12): the defaults sentence and the lens table give way to the offers paragraph and the lens roster, and sensitive work is recommended the sensitive route rather than forced to it.
+
 The rules file, `claude/CLAUDE.md`, is now the owner's practices, stated once, and how Claude helps with them. It replaced a 5,247-word file of moves, floor, software preset and six gated clauses with about 1,100 words (#238, built in #261). Two guards stay: "Stop and ask me", which the gate pins, and the usage pause. Every other guard the old file carried is accepted as judgment, as in any shared `CLAUDE.md`. This supersedes [ADR 0056](0056-the-rules-keep-only-what-judgment-and-the-harness-cannot-cover.md) in part: its floor, its "data rules are never cut on the harness's word", and its gated `move-4` clause.
 
 ## What the file holds

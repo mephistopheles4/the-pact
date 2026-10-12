@@ -38,7 +38,7 @@ command is installed only when its name is in the `commands` list of
 ## The familiars, by effort
 
 - **Low:** `scout`. The pact ships no `Explore`; skills that call it get Claude Code's built-in.
-- **Medium:** the QA pair, `behaviour-lens` and `integrity-lens`; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.
+- **Medium:** the QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.
 - **High:** the security pair, `adversarial-lens` and `data-lens`.
 
 Builds run in a main session the owner watches, not in agents.
@@ -53,12 +53,12 @@ most of its work:
 
 | Move | Anthropic stage | What the pact does |
 |---|---|---|
-| Sense the work | Plan | Size and risk the work; propose a tier with a line of why; an experiment first for an unknown target |
-| Think before doing | Plan, Design | Get the intent clear enough to defend; a quick prototype while it is still forming; `executability-lens` on a spec before a build, `good-enough-lens` when scope feels heavy, and `unstated-lens` above quick |
+| Sense the work | Plan | Size and risk the work; propose a tier with a line of why, and for sensitive work the sensitive route with its why; an experiment first for an unknown target |
+| Think before doing | Plan, Design | Get the intent clear enough to defend; a quick prototype while it is still forming; the spec pair, `executability-lens` and `good-enough-lens`, and `unstated-lens` offered on a spec, standard and up |
 | Checkpoint the seams | Build, Test | Costly work waits for a checkpoint, heavier the harder it is to undo; an approved spec or ticket is built test-first, straight away |
-| Stay the owner | Test, Deploy | By default the QA pair, `behaviour-lens` and `integrity-lens`, reads every result, and the security pair, `adversarial-lens` and `data-lens`, reads sensitive work; the other lenses where the diff calls for them; the human decides |
+| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, offered at every build; the security pair, `adversarial-lens` and `data-lens`, with the sensitive route, and offered once more at Test on a list match when the route wasn't taken; the standards pair and `unstated-lens` offered, standard and up; the human decides |
 
-The pact does not cover Anthropic's Maintain stage yet.
+The rules file's Workflow table runs the same six stages, Plan to Maintain: what each tier sets at each, the lenses to offer there, and where the work goes next.
 
 **Built on:**
 

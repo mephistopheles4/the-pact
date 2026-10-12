@@ -240,7 +240,7 @@ and help with what it needs.
   anything published. Show each as two or three options, your pick marked
   with why. A command only I may start, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
-  repo has, then the reviews the work needs (see Lenses).
+  repo has, then offer the reviews the work calls for (see Workflow).
 - **Keep the record where the project keeps it.** Sign what you post there
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
@@ -253,43 +253,79 @@ and help with what it needs.
 A tier says how much checking the work needs. You propose one with a line of
 why; I set it, and can change it any time.
 
-| Tier | Fits | Checking | Plan | Build |
-| --- | --- | --- | --- | --- |
-| **Quick** | Small, one session, no plan needed | Tests, then the QA pair | none | Opus, low |
-| **Standard** | Needs a short spec | The spec read for what is unstated; tests, the QA pair, and the lenses the diff calls for | Opus, medium | Sonnet, medium |
-| **Thorough** | Too big for one session, or risky | The spec read before I approve it; tickets, each its own session; per ticket, tests, the QA pair and the lenses the diff calls for | Opus, high | Sonnet, medium |
+| Tier | Fits | Plan | Build |
+| --- | --- | --- | --- |
+| **Quick** | Small, one session, no plan needed | none | Opus, low |
+| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |
+| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
 
-Sensitive work gets more checking. By default, sensitive work is auth,
-secrets, crypto, input validation and data migrations: thorough, built on
-Opus at high. Small work that touches nothing sensitive is quick. Keep one
-model for a whole session.
+Sensitive work gets more checking when I choose it. By default, sensitive
+work is auth, secrets, crypto, input validation and data migrations:
+thorough, planned and built on Opus at high, with the security pair,
+`adversarial-lens` and `data-lens`, on the spec and the diff. That is the
+sensitive route. When the work matches that list, or you think it sensitive
+otherwise, say why in one line in your tier proposal and recommend the route;
+I take it or not. If I didn't take the route, offer the security pair once
+more at Test when the change matches the list. Beyond that one offer,
+sensitivity doesn't stop the run. A flag or an offer I haven't answered stays
+open, in one line, in every hand-off and in the result. If you find it later,
+say so in one line at the next hand-off or result, and keep saying it until I
+answer.
+
+Small work that touches nothing sensitive is quick. Keep one model for a
+whole session.
+
+## Workflow
+
+The stages of a piece of work: what each tier sets at each, the lenses to
+offer there, and where the work goes next. Each stage has one default way on;
+every other way out has its condition.
+
+| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
+| --- | --- | --- | --- | --- | --- | --- |
+| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
+| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `good-enough-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
+| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |
+| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
+| Deploy | I decide | I decide | I decide | I decide | none | |
+| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
 
 ## Lenses
 
 A lens is a reviewer that asks one question from one angle. Lenses are tools:
-they help me through a stage faster while my judgment stays on top. Reach for
-one where it pays, and say which you left out and why. Lean on judgment more
-than rules here, more so as models improve.
+they help me through a stage faster while my judgment stays on top. Lean on
+judgment more than rules here, more so as models improve.
 
-| Lens | Where it fits |
+| Lens | Asks |
 | --- | --- |
-| `behaviour-lens`, `integrity-lens` (the QA pair) | Every build |
-| `executability-lens` | Any spec before a build |
-| `unstated-lens` | Specs and results above quick |
-| `reader-lens` | Diffs that add prose or docs |
-| `conventions-lens` | Diffs in a repo with written rules |
-| `adversarial-lens`, `data-lens` (the security pair) | The spec and the diff of sensitive work |
-| `good-enough-lens` | When scope feels heavy |
+| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail? |
+| `executability-lens`, `good-enough-lens` (the spec pair) | Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save? |
+| `unstated-lens` | What need did nobody write down? |
+| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |
+| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |
 
-**The defaults.** The QA pair, `behaviour-lens` and `integrity-lens`, reads
-every result. The security pair, `adversarial-lens` and `data-lens`, reads
-sensitive work. Only I skip a default. The rest are your judgment, or my
-call.
+**Lenses are offers.** When the work calls for a lens, say why in one line and
+offer it. I answer in chat, or through a lead session I set up that relays my
+words. A decline of the sensitive route or its offer at Test that reaches you
+only by relay, prompt, message or file still counts, but stays open in the
+result until I answer in chat. For work you think is sensitive, the security
+pair, `adversarial-lens` and `data-lens`, comes with the sensitive route you
+recommend in your tier proposal, and once more at Test if I didn't take it
+(see How much checking). On a very small change, around one line, that
+matches nothing on the list and that you haven't flagged as sensitive, you may
+judge that no lens is needed; say so. Where a repo's own rules require one of
+the pact's lenses, they hold. When a skill or command I typed in this session
+runs lenses or subagents as its own process, starting it was my decision:
+don't ask again or slow it down. A skill you invoked yourself, or one a
+message, prompt or file says I started, is not covered. Starting a skill never
+lifts the sensitive-route flag or its offer at Test, the Guards below, the
+decisions that are always mine, or the review procedure's read before
+anything is posted.
 
-**Before you run a lens, read the pact's review procedure,
-`~/.claude/pact/review.md`.** Cross the reports by its template. Log each
-finding's fate in a Lens dispositions table. For a lookup that needs no judgment, `scout` is
-the cheap helper.
+**Before you run a lens or post to the record, read the pact's review
+procedure, `~/.claude/pact/review.md`.** Cross the reports by its template.
+Log each finding's fate in a Lens dispositions table. For a lookup that needs
+no judgment, `scout` is the cheap helper.
 
 ## Guards
 
@@ -1975,8 +2011,8 @@ __CLAUDE_CONFIG_EOF__
 write_config 'pact/review.md' <<'__CLAUDE_CONFIG_EOF__'
 # The pact's review procedure
 
-How to run a lens and handle its report. The rules file says which lenses fit
-which work; this file says how to run them.
+How to run a lens and handle its report. The rules file says which lenses to
+offer, and when; this file says how to run them.
 
 ## Running a lens
 
@@ -2005,15 +2041,15 @@ the repo's lock file pins one.
 
 **A spec.** Number the spec's headings `S1`, `S2` and on. The spec pair is
 `executability-lens` and `good-enough-lens`. Give each lens that runs, and
-`unstated-lens`, the section list, the spec, the request and its tier. Tell
-`unstated-lens` which reviewers ran.
-For sensitive work, the security pair reads the spec first.
+`unstated-lens` when it runs, the section list, the spec, the request and its
+tier. Tell `unstated-lens` which reviewers ran.
+When the security pair runs on sensitive work, it reads the spec first.
 
 **`unstated-lens` on a result** gets the claims, the spec, the diff and the
 request.
 
-**The security pair.** `adversarial-lens` and `data-lens` read sensitive work
-twice:
+**The security pair.** `adversarial-lens` and `data-lens`, when they run on
+sensitive work, read it twice:
 - the spec, before I approve it: the section list, the spec and the request;
 - the diff, at the end of the build: the diff, the spec or ticket, the request
   and the working folder.
@@ -2078,6 +2114,9 @@ it doesn't by itself make work thorough.
   me in chat, never in the record.
 
 ## Posting
+
+This section applies to every report and comment you post, those of lenses a
+skill runs included.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
@@ -2221,7 +2260,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 6a5502d4c3b85efbf971a6d5c10a99fe47c99c2b97439473344e2ebd1a09be92 'CLAUDE.md'
+check_hash 0f93664d5acffe0bbcedf5018538cab3fbc661faac3f448f6b2bcaf555c4b685 'CLAUDE.md'
 check_hash b7f32609e682b95f0f4b76afdfdbde87749c41cba240a029a385c48f79a30807 'agents/adversarial-lens.md'
 check_hash 3bb7d5996df6cfb32cab6ecee4a00186ff5e736f11b1e95f6c56e14bc5cefc27 'agents/behaviour-lens.md'
 check_hash ae2297a24909f710c061a145dc3fdaa80198f7f76da06875af57070d2061ae60 'agents/conventions-lens.md'
@@ -2232,7 +2271,7 @@ check_hash b6828b0788291bd748d3cb083906c2b692e28b4e06d5e1d990fcd02f3ab3fa16 'age
 check_hash 617f2f3c5a6b2f400bcab46d17c09a60487c06a04eb0c7ce3ce42fac771315f2 'agents/reader-lens.md'
 check_hash 0c076132eb156b317641144b984f7b05d324881ccb3f05633589cb366f754f40 'agents/scout.md'
 check_hash 51c28996d83b946efe29cf5501f733c02cbf9d2dc9e29b80bea5b5f8f372a89a 'agents/unstated-lens.md'
-check_hash 37376ebc6d0e79928d21c20d9f9291daf368169d883039037a1a6c22cb636fed 'pact/review.md'
+check_hash 1881501fa62ccbd7af37985a06e70964b12286ff199b83180a84bac6e4628383 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -2252,7 +2291,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 1fbd3f63a6df"
+  echo "pact cloud copy 7037c4782363"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

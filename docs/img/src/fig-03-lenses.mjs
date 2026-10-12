@@ -1,33 +1,33 @@
-// FIG. 03: the review lenses. Each pair with where it fits and each lens's
-// question, unstated-lens alone, and the path a report takes to my
+// FIG. 03: the review lenses. Each pair with when it is offered and each
+// lens's question, unstated-lens alone, and the path from an offer to my
 // decision. Words from claude/CLAUDE.md's Lenses section and each lens's
 // description in claude/agents/.
 import { LEFT, PAD, RIGHT, block, label, notched, sheet } from './draw.mjs';
 
 const PAIRS = [
   {
-    text: 'Spec lenses · a spec, before a build',
+    text: 'Spec pair · a spec, standard and up',
     lenses: [
       ['executability-lens', ['Would the spec, built as', 'written, run end to end?']],
       ['good-enough-lens', ['What could be cut or', 'deferred, and what would', 'it save?']],
     ],
   },
   {
-    text: 'QA pair · every result, by default',
+    text: 'QA pair · every build',
     lenses: [
       ['behaviour-lens', ['Runs the change. Does it', 'do what was asked?']],
       ['integrity-lens', ['Can the tests behind the', 'pass actually fail?']],
     ],
   },
   {
-    text: 'Standards lenses · diffs that call for them',
+    text: 'Standards pair · a diff, standard and up',
     lenses: [
       ['conventions-lens', ['Does the diff keep the', "repo's written rules?"]],
       ['reader-lens', ['Can the next reader act', 'on what it says?']],
     ],
   },
   {
-    text: 'Security pair · sensitive work, by default',
+    text: 'Security pair · sensitive route, then Test',
     stroke: 'ink',
     sw: 2,
     lenses: [
@@ -36,7 +36,7 @@ const PAIRS = [
     ],
   },
 ];
-const ALONE = { text: 'Alone · specs and results above quick', name: 'unstated-lens', question: 'What need did nobody write down?' };
+const ALONE = { text: 'Alone · standard and up', name: 'unstated-lens', question: 'What need did nobody write down?' };
 
 const FLOW_W = 184;
 const LEFT_W = RIGHT - LEFT - FLOW_W - 28;
@@ -79,7 +79,10 @@ const arrow = () => {
   fy += 24;
 };
 
-let at = step(20 + 4 * 18, { fill: 'paper', stroke: 'ink30', sw: 1 });
+let at = step(20 + 3 * 18, { fill: 'paper', stroke: 'ink30', sw: 1 });
+els.push(block({ top: at + 10, x: fx + 12, size: 12, lh: 18, lines: ['Offered with a', 'one-line why.', 'I say yes or no.'], max: FMAX }).el);
+arrow();
+at = step(20 + 4 * 18, { fill: 'paper', stroke: 'ink30', sw: 1 });
 els.push(block({ top: at + 10, x: fx + 12, size: 12, lh: 18, lines: ['Each lens runs', 'fresh, alone.', 'Neither sees the', "other's report."], max: FMAX }).el);
 arrow();
 at = step(20 + 6 * 18, { fill: 'paper', stroke: 'ink', sw: 2 });

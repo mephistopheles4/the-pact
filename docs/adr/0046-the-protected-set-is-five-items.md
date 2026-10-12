@@ -1,5 +1,7 @@
 # The protected set is five items
 
+Superseded in part by [ADR 0065](0065-lenses-are-offers-and-the-sensitive-route-is-recommended.md) (2026-10-12): items 2 and 3 are now the offers paragraph and the sensitive-work default as a list Claude looks for, with the route it must recommend.
+
 AGENTS.md's protected set now holds five items. No change may cut or weaken them, except by a spec change read by the spec pair and the security pair:
 
 1. the gated clauses;

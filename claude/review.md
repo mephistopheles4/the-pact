@@ -1,7 +1,7 @@
 # The pact's review procedure
 
-How to run a lens and handle its report. The rules file says which lenses fit
-which work; this file says how to run them.
+How to run a lens and handle its report. The rules file says which lenses to
+offer, and when; this file says how to run them.
 
 ## Running a lens
 
@@ -30,15 +30,15 @@ the repo's lock file pins one.
 
 **A spec.** Number the spec's headings `S1`, `S2` and on. The spec pair is
 `executability-lens` and `good-enough-lens`. Give each lens that runs, and
-`unstated-lens`, the section list, the spec, the request and its tier. Tell
-`unstated-lens` which reviewers ran.
-For sensitive work, the security pair reads the spec first.
+`unstated-lens` when it runs, the section list, the spec, the request and its
+tier. Tell `unstated-lens` which reviewers ran.
+When the security pair runs on sensitive work, it reads the spec first.
 
 **`unstated-lens` on a result** gets the claims, the spec, the diff and the
 request.
 
-**The security pair.** `adversarial-lens` and `data-lens` read sensitive work
-twice:
+**The security pair.** `adversarial-lens` and `data-lens`, when they run on
+sensitive work, read it twice:
 - the spec, before I approve it: the section list, the spec and the request;
 - the diff, at the end of the build: the diff, the spec or ticket, the request
   and the working folder.
@@ -103,6 +103,9 @@ it doesn't by itself make work thorough.
   me in chat, never in the record.
 
 ## Posting
+
+This section applies to every report and comment you post, those of lenses a
+skill runs included.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
