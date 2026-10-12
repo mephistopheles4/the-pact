@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hPI7BFmNGWKmt2Lz7UalykZBsJea7oRTaOZ+sWxj3nU='; style-src 'sha256-it6taEzsfcqrGm7fNqC1Sm3S0lDwf90Ljl+U0pCt5Jk='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-5N4XlU269F9phqIpZlArTvBJVAPlHsWYQysPpfxYSgA='; style-src 'sha256-it6taEzsfcqrGm7fNqC1Sm3S0lDwf90Ljl+U0pCt5Jk='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -1065,7 +1065,1673 @@ const PACT = /* pact-data:begin */ {
    "max"
   ]
  },
- "presets": [],
+ "presets": [
+  {
+   "id": "level-1-beginner",
+   "title": "Level 1 · Beginner",
+   "parts": {
+    "tiers": [
+     {
+      "id": "light",
+      "name": "Light",
+      "fits": "Small, one session, no plan needed",
+      "plan": "none",
+      "build": "Opus, low"
+     },
+     {
+      "id": "full",
+      "name": "Full",
+      "fits": "Needs a plan, or too big for one session",
+      "plan": "Opus, medium",
+      "build": "Sonnet, medium"
+     }
+    ],
+    "workflowGraph": {
+     "stages": [
+      {
+       "id": "plan",
+       "name": "Plan",
+       "text": "What it is for, how big, how risky; a tier proposed.",
+       "model": "plan",
+       "skipAt": []
+      },
+      {
+       "id": "build",
+       "name": "Build",
+       "text": "Small steps, each checked before the next.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "ship",
+       "name": "Ship",
+       "text": "I accept and ship; nothing promotes itself.",
+       "model": "owner",
+       "skipAt": []
+      }
+     ],
+     "offers": [
+      {
+       "id": "plan-security-pair",
+       "stage": "plan",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-security-pair",
+       "stage": "build",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-security-backstop",
+       "stage": "build",
+       "when": "sensitive-declined",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      }
+     ],
+     "skills": [
+      {
+       "id": "plan-interview-me",
+       "stage": "plan",
+       "skill": "interview-me",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "light",
+        "full"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-incremental",
+       "stage": "build",
+       "skill": "incremental-implementation",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "light",
+        "full"
+       ],
+       "on": true
+      }
+     ],
+     "links": [
+      {
+       "from": "plan",
+       "to": "build",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "build",
+       "to": "ship",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "build",
+       "to": "plan",
+       "when": "the intent has changed",
+       "on": true
+      }
+     ],
+     "layout": {}
+    }
+   }
+  },
+  {
+   "id": "level-2-intermediate",
+   "title": "Level 2 · Intermediate",
+   "parts": {
+    "tiers": [
+     {
+      "id": "light",
+      "name": "Light",
+      "fits": "Small, one session, no plan needed",
+      "plan": "none",
+      "build": "Opus, low"
+     },
+     {
+      "id": "full",
+      "name": "Full",
+      "fits": "Needs a plan, or too big for one session",
+      "plan": "Opus, medium",
+      "build": "Sonnet, medium"
+     }
+    ],
+    "workflowGraph": {
+     "stages": [
+      {
+       "id": "plan",
+       "name": "Plan",
+       "text": "What it is for, how big, how risky; a tier proposed.",
+       "model": "plan",
+       "skipAt": []
+      },
+      {
+       "id": "build",
+       "name": "Build",
+       "text": "Small steps, each checked before the next.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "ship",
+       "name": "Ship",
+       "text": "I accept and ship; nothing promotes itself.",
+       "model": "owner",
+       "skipAt": []
+      }
+     ],
+     "offers": [
+      {
+       "id": "plan-spec-pair",
+       "stage": "plan",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "full"
+       ],
+       "agents": [
+        "executability-lens",
+        "good-enough-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "plan-security-pair",
+       "stage": "plan",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-qa-pair",
+       "stage": "build",
+       "when": "every-build",
+       "words": "",
+       "agents": [
+        "behaviour-lens",
+        "integrity-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-security-pair",
+       "stage": "build",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-security-backstop",
+       "stage": "build",
+       "when": "sensitive-declined",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      }
+     ],
+     "skills": [
+      {
+       "id": "plan-spec",
+       "stage": "plan",
+       "skill": "spec-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "full"
+       ],
+       "on": true
+      },
+      {
+       "id": "plan-breakdown",
+       "stage": "plan",
+       "skill": "planning-and-task-breakdown",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "full"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-tdd",
+       "stage": "build",
+       "skill": "test-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "light",
+        "full"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-debugging",
+       "stage": "build",
+       "skill": "debugging-and-error-recovery",
+       "mode": "offered",
+       "when": "words",
+       "words": "when a test fails or a bug comes in",
+       "on": true
+      },
+      {
+       "id": "ship-git",
+       "stage": "ship",
+       "skill": "git-workflow-and-versioning",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "light",
+        "full"
+       ],
+       "on": true
+      }
+     ],
+     "links": [
+      {
+       "from": "plan",
+       "to": "build",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "build",
+       "to": "ship",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "build",
+       "to": "plan",
+       "when": "the intent has changed",
+       "on": true
+      }
+     ],
+     "layout": {}
+    }
+   }
+  },
+  {
+   "id": "level-3-full",
+   "title": "Level 3 · Full",
+   "parts": {
+    "workflowGraph": {
+     "stages": [
+      {
+       "id": "plan",
+       "name": "Plan",
+       "text": "Kind, size and risk; a tier proposed.",
+       "model": "plan",
+       "skipAt": []
+      },
+      {
+       "id": "design",
+       "name": "Design",
+       "text": "The spec: intent, unhappy paths, decisions.",
+       "model": "plan",
+       "skipAt": [
+        "quick"
+       ]
+      },
+      {
+       "id": "build",
+       "name": "Build",
+       "text": "Test-first; tests and gates decide.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "test",
+       "name": "Test",
+       "text": "Each claim checked against the ask.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "deploy",
+       "name": "Deploy",
+       "text": "I accept and ship; nothing promotes itself.",
+       "model": "owner",
+       "skipAt": []
+      },
+      {
+       "id": "maintain",
+       "name": "Maintain",
+       "text": "What escaped, and what to change.",
+       "model": "plan",
+       "skipAt": []
+      }
+     ],
+     "offers": [
+      {
+       "id": "design-spec-pair",
+       "stage": "design",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "executability-lens",
+        "good-enough-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-unstated",
+       "stage": "design",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "unstated-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-security-pair",
+       "stage": "design",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-qa-pair",
+       "stage": "test",
+       "when": "every-build",
+       "words": "",
+       "agents": [
+        "behaviour-lens",
+        "integrity-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-standards-pair",
+       "stage": "test",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "conventions-lens",
+        "reader-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-unstated",
+       "stage": "test",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "unstated-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-pair",
+       "stage": "test",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-backstop",
+       "stage": "test",
+       "when": "sensitive-declined",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      }
+     ],
+     "links": [
+      {
+       "from": "plan",
+       "to": "design",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "design",
+       "to": "build",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "build",
+       "to": "test",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "deploy",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "deploy",
+       "to": "maintain",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "build",
+       "when": "a claim fails",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "design",
+       "when": "the intent has changed",
+       "on": true
+      },
+      {
+       "from": "maintain",
+       "to": "plan",
+       "when": "a new change starts",
+       "on": true
+      }
+     ],
+     "layout": {},
+     "skills": [
+      {
+       "id": "design-spec",
+       "stage": "design",
+       "skill": "spec-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-incremental",
+       "stage": "build",
+       "skill": "incremental-implementation",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-tdd",
+       "stage": "build",
+       "skill": "test-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-review",
+       "stage": "test",
+       "skill": "code-review-and-quality",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "deploy-launch",
+       "stage": "deploy",
+       "skill": "shipping-and-launch",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "maintain-docs",
+       "stage": "maintain",
+       "skill": "documentation-and-adrs",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "level-3-matt-pocock",
+   "title": "Level 3 · Matt Pocock skills",
+   "parts": {
+    "workflowGraph": {
+     "stages": [
+      {
+       "id": "plan",
+       "name": "Plan",
+       "text": "Kind, size and risk; a tier proposed.",
+       "model": "plan",
+       "skipAt": []
+      },
+      {
+       "id": "design",
+       "name": "Design",
+       "text": "The spec: intent, unhappy paths, decisions.",
+       "model": "plan",
+       "skipAt": [
+        "quick"
+       ]
+      },
+      {
+       "id": "build",
+       "name": "Build",
+       "text": "Test-first; tests and gates decide.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "test",
+       "name": "Test",
+       "text": "Each claim checked against the ask.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "deploy",
+       "name": "Deploy",
+       "text": "I accept and ship; nothing promotes itself.",
+       "model": "owner",
+       "skipAt": []
+      },
+      {
+       "id": "maintain",
+       "name": "Maintain",
+       "text": "What escaped, and what to change.",
+       "model": "plan",
+       "skipAt": []
+      }
+     ],
+     "offers": [
+      {
+       "id": "design-spec-pair",
+       "stage": "design",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "executability-lens",
+        "good-enough-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-unstated",
+       "stage": "design",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "unstated-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-security-pair",
+       "stage": "design",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-qa-pair",
+       "stage": "test",
+       "when": "every-build",
+       "words": "",
+       "agents": [
+        "behaviour-lens",
+        "integrity-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-standards-pair",
+       "stage": "test",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "conventions-lens",
+        "reader-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-unstated",
+       "stage": "test",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "unstated-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-pair",
+       "stage": "test",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-backstop",
+       "stage": "test",
+       "when": "sensitive-declined",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      }
+     ],
+     "links": [
+      {
+       "from": "plan",
+       "to": "design",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "design",
+       "to": "build",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "build",
+       "to": "test",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "deploy",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "deploy",
+       "to": "maintain",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "build",
+       "when": "a claim fails",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "design",
+       "when": "the intent has changed",
+       "on": true
+      },
+      {
+       "from": "maintain",
+       "to": "plan",
+       "when": "a new change starts",
+       "on": true
+      }
+     ],
+     "layout": {},
+     "skills": [
+      {
+       "id": "plan-grill",
+       "stage": "plan",
+       "skill": "grill-me",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-grill-docs",
+       "stage": "design",
+       "skill": "grill-with-docs",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-to-spec",
+       "stage": "design",
+       "skill": "to-spec",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-to-tickets",
+       "stage": "design",
+       "skill": "to-tickets",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-implement",
+       "stage": "build",
+       "skill": "implement",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-tdd",
+       "stage": "build",
+       "skill": "tdd",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-review",
+       "stage": "test",
+       "skill": "code-review",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "deploy-pr",
+       "stage": "deploy",
+       "skill": "pr",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "maintain-retro",
+       "stage": "maintain",
+       "skill": "retro",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "maintain-diagnose",
+       "stage": "maintain",
+       "skill": "diagnosing-bugs",
+       "mode": "offered",
+       "when": "words",
+       "words": "when a bug comes in",
+       "on": true
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "level-3-superpowers",
+   "title": "Level 3 · Superpowers skills",
+   "parts": {
+    "workflowGraph": {
+     "stages": [
+      {
+       "id": "plan",
+       "name": "Plan",
+       "text": "Kind, size and risk; a tier proposed.",
+       "model": "plan",
+       "skipAt": []
+      },
+      {
+       "id": "design",
+       "name": "Design",
+       "text": "The spec: intent, unhappy paths, decisions.",
+       "model": "plan",
+       "skipAt": [
+        "quick"
+       ]
+      },
+      {
+       "id": "build",
+       "name": "Build",
+       "text": "Test-first; tests and gates decide.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "test",
+       "name": "Test",
+       "text": "Each claim checked against the ask.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "deploy",
+       "name": "Deploy",
+       "text": "I accept and ship; nothing promotes itself.",
+       "model": "owner",
+       "skipAt": []
+      },
+      {
+       "id": "maintain",
+       "name": "Maintain",
+       "text": "What escaped, and what to change.",
+       "model": "plan",
+       "skipAt": []
+      }
+     ],
+     "offers": [
+      {
+       "id": "design-spec-pair",
+       "stage": "design",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "executability-lens",
+        "good-enough-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-unstated",
+       "stage": "design",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "unstated-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-security-pair",
+       "stage": "design",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-qa-pair",
+       "stage": "test",
+       "when": "every-build",
+       "words": "",
+       "agents": [
+        "behaviour-lens",
+        "integrity-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-standards-pair",
+       "stage": "test",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "conventions-lens",
+        "reader-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-unstated",
+       "stage": "test",
+       "when": "tiers",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "unstated-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-pair",
+       "stage": "test",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-backstop",
+       "stage": "test",
+       "when": "sensitive-declined",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      }
+     ],
+     "links": [
+      {
+       "from": "plan",
+       "to": "design",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "design",
+       "to": "build",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "build",
+       "to": "test",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "deploy",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "deploy",
+       "to": "maintain",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "build",
+       "when": "a claim fails",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "design",
+       "when": "the intent has changed",
+       "on": true
+      },
+      {
+       "from": "maintain",
+       "to": "plan",
+       "when": "a new change starts",
+       "on": true
+      }
+     ],
+     "layout": {},
+     "skills": [
+      {
+       "id": "design-brainstorm",
+       "stage": "design",
+       "skill": "superpowers:brainstorming",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-plans",
+       "stage": "design",
+       "skill": "superpowers:writing-plans",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-execute",
+       "stage": "build",
+       "skill": "superpowers:executing-plans",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-tdd",
+       "stage": "build",
+       "skill": "superpowers:test-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-verify",
+       "stage": "test",
+       "skill": "superpowers:verification-before-completion",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-review",
+       "stage": "test",
+       "skill": "superpowers:requesting-code-review",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "deploy-finish",
+       "stage": "deploy",
+       "skill": "superpowers:finishing-a-development-branch",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "maintain-debug",
+       "stage": "maintain",
+       "skill": "superpowers:systematic-debugging",
+       "mode": "offered",
+       "when": "words",
+       "words": "when a bug comes in",
+       "on": true
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "ultra-code",
+   "title": "Ultra Code",
+   "parts": {
+    "workflowGraph": {
+     "stages": [
+      {
+       "id": "plan",
+       "name": "Plan",
+       "text": "Kind, size and risk; a tier proposed.",
+       "model": "plan",
+       "skipAt": []
+      },
+      {
+       "id": "design",
+       "name": "Design",
+       "text": "The spec: intent, unhappy paths, decisions.",
+       "model": "plan",
+       "skipAt": []
+      },
+      {
+       "id": "build",
+       "name": "Build",
+       "text": "Test-first; tests and gates decide.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "test",
+       "name": "Test",
+       "text": "Each claim checked against the ask.",
+       "model": "build",
+       "skipAt": []
+      },
+      {
+       "id": "deploy",
+       "name": "Deploy",
+       "text": "I accept and ship; nothing promotes itself.",
+       "model": "owner",
+       "skipAt": []
+      },
+      {
+       "id": "maintain",
+       "name": "Maintain",
+       "text": "What escaped, and what to change.",
+       "model": "plan",
+       "skipAt": []
+      }
+     ],
+     "offers": [
+      {
+       "id": "design-spec-pair",
+       "stage": "design",
+       "when": "tiers",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "executability-lens",
+        "good-enough-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-unstated",
+       "stage": "design",
+       "when": "tiers",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "unstated-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-security-every",
+       "stage": "design",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-security-pair",
+       "stage": "design",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-qa-pair",
+       "stage": "test",
+       "when": "every-build",
+       "words": "",
+       "agents": [
+        "behaviour-lens",
+        "integrity-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-standards-pair",
+       "stage": "test",
+       "when": "tiers",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "conventions-lens",
+        "reader-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-unstated",
+       "stage": "test",
+       "when": "tiers",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "words": "",
+       "agents": [
+        "unstated-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-every",
+       "stage": "test",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-pair",
+       "stage": "test",
+       "when": "sensitive",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-security-backstop",
+       "stage": "test",
+       "when": "sensitive-declined",
+       "words": "",
+       "agents": [
+        "adversarial-lens",
+        "data-lens"
+       ],
+       "on": true
+      }
+     ],
+     "links": [
+      {
+       "from": "plan",
+       "to": "design",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "design",
+       "to": "build",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "build",
+       "to": "test",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "deploy",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "deploy",
+       "to": "maintain",
+       "when": "",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "build",
+       "when": "a claim fails",
+       "on": true
+      },
+      {
+       "from": "test",
+       "to": "design",
+       "when": "the intent has changed",
+       "on": true
+      },
+      {
+       "from": "maintain",
+       "to": "plan",
+       "when": "a new change starts",
+       "on": true
+      }
+     ],
+     "layout": {},
+     "skills": [
+      {
+       "id": "design-spec",
+       "stage": "design",
+       "skill": "spec-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "design-doubt",
+       "stage": "design",
+       "skill": "doubt-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-incremental",
+       "stage": "build",
+       "skill": "incremental-implementation",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-tdd",
+       "stage": "build",
+       "skill": "test-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-doubt",
+       "stage": "build",
+       "skill": "doubt-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "build-subagents",
+       "stage": "build",
+       "skill": "superpowers:subagent-driven-development",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-review",
+       "stage": "test",
+       "skill": "code-review-and-quality",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-hardening",
+       "stage": "test",
+       "skill": "security-and-hardening",
+       "mode": "used",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "test-performance",
+       "stage": "test",
+       "skill": "performance-optimization",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "deploy-launch",
+       "stage": "deploy",
+       "skill": "shipping-and-launch",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      },
+      {
+       "id": "maintain-docs",
+       "stage": "maintain",
+       "skill": "documentation-and-adrs",
+       "mode": "offered",
+       "when": "tiers",
+       "words": "",
+       "tiers": [
+        "quick",
+        "standard",
+        "thorough"
+       ],
+       "on": true
+      }
+     ]
+    }
+   }
+  }
+ ],
  "title": "Example builder",
  "yours": {
   "skills": [],

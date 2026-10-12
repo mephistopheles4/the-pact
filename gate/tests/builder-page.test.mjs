@@ -174,7 +174,7 @@ test('the page carries what builder/build.mjs builds from the repo now: the part
 /** A throwaway root holding the files builder/build.mjs reads, with `mutate` applied. */
 function buildRoot(t, mutate) {
   const root = tempDir(t, 'pact-builder-root-');
-  for (const d of ['claude', 'examples', 'familiars', join('docs', 'brand')]) cpSync(join(REPO, d), join(root, d), { recursive: true });
+  for (const d of ['claude', 'examples', 'familiars', join('docs', 'brand'), join('builder', 'presets')]) cpSync(join(REPO, d), join(root, d), { recursive: true });
   // The renderer and what it reads: build.mjs runs it for the agents' classes.
   cpSync(join(REPO, 'gate'), join(root, 'gate'), { recursive: true, filter: s => !s.includes(`${join('gate', 'tests')}`) });
   mutate(root);
@@ -895,6 +895,16 @@ test('a shipped preset is carried with only the parts, models and agent files it
   assert.deepEqual([p.id, p.title, Object.keys(p.parts), Object.keys(p.agentFiles)], ['level-1', 'Level 1', ['tiers'], ['mine']]);
   writeFileSync(join(dir, 'z-bad.json'), JSON.stringify({ schema: 1, tiers: [] }));
   assert.throws(() => shippedPresets(REPO, pactData(REPO), dir), /the preset z-bad\.json is refused: .*1 to 6 tiers/);
+});
+
+// The protected set, item 2: a shipped preset never drops the security pair on the sensitive route, or its one offer when the route wasn't taken.
+test('every shipped preset with a workflow offers the security pair on the sensitive route and once more when it was not taken', () => {
+  const presets = shippedPresets(REPO, pactData(REPO));
+  assert.ok(presets.length >= 6, 'the six presets ship');
+  for (const p of presets.filter(x => x.parts.workflowGraph)) {
+    const whens = p.parts.workflowGraph.offers.filter(o => o.on && ['adversarial-lens', 'data-lens'].every(a => o.agents.includes(a))).map(o => o.when);
+    assert.ok(whens.includes('sensitive') && whens.includes('sensitive-declined'), p.id);
+  }
 });
 
 // #262 addendum 4: a shared file is checked as the page can, and refused with why.
