@@ -80,7 +80,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .practice p { margin: 0; font-size: var(--av-t-micro); color: var(--av-ink-70); }
 
 /* CANVAS: the drafting grid, panned and zoomed. */
-#canvas { position: relative; overflow: hidden; cursor: grab; touch-action: none;
+#canvas { position: relative; overflow: hidden; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
   background-color: var(--av-ground);
   background-image:
     linear-gradient(to right, var(--av-grid-major) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-major) 1px, transparent 1px),
@@ -94,7 +94,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 #edges path.e.next { stroke: var(--av-ink); stroke-width: 2; }
 #edges path.e.flow { stroke: var(--av-normal); stroke-dasharray: 6 6; animation: flow 0.9s linear infinite; }
 #edges path.e.off { stroke: var(--av-ink-30); stroke-dasharray: 2 5; }
-#edges path.e.loop { stroke: var(--av-caution); stroke-dasharray: 8 5; animation: flow 1.6s linear infinite reverse; }
+#edges path.e.loop { stroke: var(--av-caution); stroke-dasharray: 8 5; animation: flow 1.6s linear infinite; }
 #edges path.e.sel { stroke-width: 3.5; }
 #edges path.temp { fill: none; stroke: var(--av-caution); stroke-width: 2; stroke-dasharray: 4 4; }
 #edges text { font-family: var(--av-font); font-size: 11px; fill: var(--av-caution); pointer-events: all; cursor: pointer; paint-order: stroke; stroke: var(--av-ground); stroke-width: 4px; }
@@ -122,6 +122,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .node.cond .row1 { display: flex; align-items: center; gap: var(--av-s1); }
 .node.cond .q { flex: 1; font-size: var(--av-t-micro); line-height: 1.3; }
 .node.cond .q b { display: block; font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); color: var(--av-ink-70); font-weight: 500; }
+.node.loop { border-color: var(--av-caution); }
+.node.loop .q b { color: var(--av-caution); }
 .node.cond.pass { border-color: var(--av-normal); border-style: solid; }
 .node.cond.off { opacity: .55; }
 .node.cond.def::after { content: "default"; position: absolute; top: -9px; right: 6px; background: var(--av-paper); padding: 0 4px; font-size: 10px; letter-spacing: var(--av-track-label); text-transform: uppercase; color: var(--av-caution); }
@@ -138,6 +140,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .port { position: absolute; width: 12px; height: 12px; border: var(--av-rule-thin) solid var(--av-ink); background: var(--av-paper); border-radius: 50%; cursor: crosshair; transition: transform .12s, background .12s; }
 .port:hover, .port.hot { transform: scale(1.5); background: var(--av-caution); border-color: var(--av-caution); }
 .port.in { left: -7px; top: calc(50% - 6px); }
+.port.back { left: -7px; top: calc(50% - 6px); border-color: var(--av-caution); }
 .port.out { right: -7px; top: calc(50% - 6px); }
 .port.down { left: calc(50% - 6px); bottom: -7px; }
 .port.top { left: calc(50% - 6px); top: -7px; }
@@ -203,7 +206,7 @@ pre.out { margin: 0; white-space: pre-wrap; font-size: var(--av-t-micro); line-h
     <div class="centre">
     <div id="canvas">
       <div id="world"><svg id="edges"></svg></div>
-      <div class="zoom"><button id="zOut" aria-label="zoom out">−</button><span id="zPct">100%</span><button id="zIn" aria-label="zoom in">+</button><button id="zFit">Fit</button></div>
+      <div class="zoom"><button id="zOut" aria-label="zoom out">−</button><span id="zPct">100%</span><button id="zIn" aria-label="zoom in">+</button><button id="zFit">Fit</button><button id="zArr" title="lay the graph out again">Arrange</button></div>
       <div id="toast" role="status"></div>
     </div>
     <div id="wtable"></div>
@@ -258,9 +261,11 @@ function fresh(){
   cond(T, 'prose', 400, ['reader-lens']);
   cond(T, 'rules', 490, ['conventions-lens']);
   cond(T, 'sensitive', 580, ['adversarial-lens','data-lens'], true);
-  edges.push({ id: nid('e'), from: T.id, fp: 'out', to: st.Build.id, when: 'a claim fails' });
-  edges.push({ id: nid('e'), from: T.id, fp: 'out', to: D.id, when: 'the intent changed' });
-  edges.push({ id: nid('e'), from: st.Maintain.id, fp: 'out', to: st.Plan.id, when: 'the next change' });
+  const loop = (stage, when, target) => { const n = { id: nid('l'), kind: 'loop', when, on: true, x: 0, y: 0 };
+    nodes.push(n); edges.push({ id: nid('e'), from: stage.id, fp: 'down', to: n.id }); edges.push({ id: nid('e'), from: n.id, fp: 'back', to: target.id }); };
+  loop(T, 'a claim fails', st.Build);
+  loop(T, 'the intent changed', D);
+  loop(st.Maintain, 'the next change', st.Plan);
   return { nodes, edges,
     tiers: [
       { name: 'Quick', fits: 'Small, one session, no plan needed', plan: 'none', build: 'Opus, low' },
@@ -278,10 +283,12 @@ const N = id => S.nodes.find(n => n.id === id);
 const nodeEl = id => document.querySelector(`.node[data-id="${id}"]`);
 const effTier = () => S.work.sensitive ? 'thorough' : S.work.tier;
 const condText = c => c.cond === 'custom' ? (c.custom || '(your words)') : CONDS[c.cond].label;
-const isLoop = e => { const a = N(e.from), b = N(e.to); return a && b && a.kind === 'stage' && b.kind === 'stage' && b.x < a.x; };
+const isLoop = e => N(e.from)?.kind === 'loop';
 const parentStage = c => { const e = S.edges.find(e => e.to === c.id && e.fp === 'down'); return e && N(e.from); };
 const children = c => S.edges.filter(e => e.from === c.id && N(e.to)?.kind === 'agent').map(e => N(e.to));
-const conds = st => S.edges.filter(e => e.from === st.id && e.fp === 'down').map(e => N(e.to)).filter(Boolean);
+const conds = st => S.edges.filter(e => e.from === st.id && e.fp === 'down').map(e => N(e.to)).filter(n => n && n.kind === 'cond');
+const loopsUnder = st => S.edges.filter(e => e.from === st.id && e.fp === 'down').map(e => N(e.to)).filter(n => n && n.kind === 'loop');
+const loopTarget = l => { const e = S.edges.find(e => e.from === l.id); return e && N(e.to); };
 function skipped(st){ return st.skipOn && st.skipOn === effTier(); }
 function passes(c){ const st = parentStage(c); return !!(c.on && st && !skipped(st) && CONDS[c.cond].test({ ...S.work, tier: effTier() })); }
 function pairLabel(names){
@@ -296,6 +303,7 @@ function renderLibrary(){
   $('library').innerHTML = `<div class="av-label">Nodes library · drag onto the canvas</div>` +
     item('stage','', '▭', 'Stage', 'a step of the work\'s own lifecycle') +
     item('cond','always', '?', 'Condition', 'when its agents fire; switch on or off', 'cond') +
+    item('loop','', '↺', 'Loop back', 'when the work goes back to an earlier stage', 'cond') +
     `<div class="av-label" style="margin-top:6px">Agents</div>` +
     LENSES.map(l => item('agent', l, '◇', l, 'a pact lens')).join('') +
     item('own', 'my-reviewer', '◆', 'Your own agent', 'a reviewer of yours') +
@@ -310,10 +318,11 @@ function addNode(type, val, p){
   let n;
   if (type === 'stage') n = { id: nid('s'), kind: 'stage', name: 'New stage', text: 'What happens here.', model: 'build', skipOn: '' };
   else if (type === 'cond') n = { id: nid('c'), kind: 'cond', cond: 'always', custom: '', on: true, def: false };
+  else if (type === 'loop') n = { id: nid('l'), kind: 'loop', when: 'your words', on: true };
   else n = { id: nid('a'), kind: 'agent', name: val, own: type === 'own' };
   n.x = Math.round(p.x - 80); n.y = Math.round(p.y - 20);
   S.nodes.push(n); S.sel = { node: n.id }; S.tab = 'inspect'; renderAll();
-  toast(type === 'stage' ? 'Drag from its right port to the next stage; from its bottom port to a condition.' : type === 'cond' ? 'Wire a stage\'s bottom port to it, then its right port to agents.' : 'Wire a condition\'s right port to it.');
+  toast(type === 'stage' ? 'Drag from its right port to the next stage; from its bottom port to a condition.' : type === 'cond' ? 'Wire a stage\'s bottom port to it, then its right port to agents.' : type === 'loop' ? 'Wire a stage\'s bottom port to it, then its left port back to an earlier stage.' : 'Wire a condition\'s right port to it.');
 }
 
 // ---- Work bar
@@ -337,16 +346,19 @@ function renderNodes(){
   const world = $('world');
   S.nodes.forEach(n => {
     const el = document.createElement('div');
-    el.className = `node ${n.kind}`; el.dataset.id = n.id; el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; el.tabIndex = 0;
+    el.className = n.kind === 'loop' ? 'node cond loop' : `node ${n.kind}`; el.dataset.id = n.id; el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; el.tabIndex = 0;
     if (n.kind === 'stage') el.innerHTML = `<div class="kind"><span class="av-label">Stage</span><span class="tag tgraph">workflow</span></div><h3>${esc(n.name)}</h3><p>${esc(n.text)}</p>` +
       `<span class="port in" data-port="in"></span><span class="port out" data-port="out" title="drag to the next stage, or back to loop"></span><span class="port down" data-port="down" title="drag to a condition"></span>`;
     else if (n.kind === 'cond') { const ag = children(n).map(a => a.name);
       el.innerHTML = `<div class="row1"><span class="q"><b>when</b>${esc(condText(n))}</span><button class="sw" role="switch" aria-checked="${n.on}" aria-label="condition on or off"></button></div>` +
       `<div class="pair">${esc(pairLabel(ag))}</div><span class="port top" data-port="top"></span><span class="port out" data-port="out" title="drag to an agent"></span>`; }
+    else if (n.kind === 'loop') { const t = loopTarget(n);
+      el.innerHTML = `<div class="row1"><span class="q"><b>↺ loop back</b>when ${esc(n.when)}</span><button class="sw" role="switch" aria-checked="${n.on}" aria-label="loop on or off"></button></div>` +
+      `<div class="pair">${t ? 'back to ' + esc(t.name) : 'drag the left port to a stage'}</div><span class="port top" data-port="top"></span><span class="port back" data-port="back" title="drag back to an earlier stage"></span>`; }
     else el.innerHTML = `${esc(n.name)}<span class="port in" data-port="in"></span>`;
     world.appendChild(el);
     const sw = el.querySelector('.sw');
-    if (sw) { sw.onpointerdown = e => e.stopPropagation(); sw.onclick = e => { e.stopPropagation(); n.on = !n.on; sw.setAttribute('aria-checked', n.on); refreshState(); renderPanel(); toast(n.on ? 'Condition on.' : n.def ? 'A default switched off: only I skip a default.' : 'Condition off: its agents stay idle.'); }; }
+    if (sw) { sw.onpointerdown = e => e.stopPropagation(); sw.onclick = e => { e.stopPropagation(); n.on = !n.on; sw.setAttribute('aria-checked', n.on); refreshState(); renderPanel(); toast(n.kind === 'loop' ? (n.on ? 'Loop on.' : 'Loop off: the work never goes back this way.') : n.on ? 'Condition on.' : n.def ? 'A default switched off: only I skip a default.' : 'Condition off: its agents stay idle.'); }; }
     el.onkeydown = e => { if (e.key === 'Delete' || e.key === 'Backspace') { if (e.target === el) delSel(); } if (e.key === 'Enter') { S.sel = { node: n.id }; S.tab = 'inspect'; refreshState(); renderPanel(); } };
   });
   refreshState();
@@ -357,6 +369,7 @@ function refreshState(){
     const el = nodeEl(n.id); if (!el) return;
     el.classList.toggle('sel', !!S.sel && S.sel.node === n.id);
     if (n.kind === 'stage') el.classList.toggle('skipped', !!skipped(n));
+    if (n.kind === 'loop') el.classList.toggle('off', !n.on);
     if (n.kind === 'cond') { el.classList.toggle('pass', passes(n)); el.classList.toggle('off', !n.on); el.classList.toggle('def', n.def); }
     if (n.kind === 'agent') { const p = S.edges.find(e => e.to === n.id && N(e.from)?.kind === 'cond'); el.classList.toggle('fires', !!(p && passes(N(p.from)))); }
   });
@@ -380,7 +393,7 @@ function tierCell(st, i){
   return S.tiers[i][st.model] === 'none' ? 'in the session, no plan' : S.tiers[i][st.model];
 }
 function agentsAt(st){ return conds(st).filter(c => children(c).length).map(c => ({ c, names: children(c).map(a => a.name) })); }
-function loopsFrom(st){ return S.edges.filter(e => isLoop(e) && e.from === st.id).map(e => `back to ${N(e.to).name} when ${e.when || '…'}`); }
+function loopsFrom(st){ return loopsUnder(st).filter(l => l.on && loopTarget(l)).map(l => `back to ${loopTarget(l).name} when ${l.when || '…'}`); }
 function renderTable(){
   const ti = TIERS.indexOf(effTier()), stages = stagesInOrder();
   let h = `<div class="whead"><h2>Workflow</h2><span class="tag tgraph">workflow part · new</span><span class="av-annot">The part that joins the tiers and the lenses. Edit the canvas and this table follows; click a row to select its stage.</span></div>
@@ -409,7 +422,7 @@ function portPos(n, port){
     case 'out': return { x: n.x + w, y: n.y + h / 2, nx: 1, ny: 0 };
     case 'down': return { x: n.x + w / 2, y: n.y + h, nx: 0, ny: 1 };
     case 'top': return { x: n.x + w / 2, y: n.y, nx: 0, ny: -1 };
-    case 'ltop': return { x: n.x + w / 2, y: n.y, nx: 0, ny: -1 };
+    case 'back': return { x: n.x, y: n.y + h / 2, nx: -1, ny: 0 };
   }
 }
 function curve(a, b, lift){
@@ -419,8 +432,8 @@ function curve(a, b, lift){
 }
 function edgeGeom(e){
   const a = N(e.from), b = N(e.to); if (!a || !b) return null;
-  if (isLoop(e)) { const i = S.edges.filter(isLoop).indexOf(e); return { d: curve(portPos(a,'ltop'), portPos(b,'ltop'), 60 + 34 * i), kind: 'loop' }; }
-  const tp = b.kind === 'cond' ? 'top' : 'in';
+  if (isLoop(e)) return { d: curve(portPos(a, 'back'), portPos(b, 'down')), kind: 'loop' };
+  const tp = b.kind === 'cond' || b.kind === 'loop' ? 'top' : 'in';
   const kind = a.kind === 'stage' && b.kind === 'stage' ? 'next' : a.kind === 'stage' ? 'check' : 'fire';
   return { d: curve(portPos(a, e.fp), portPos(b, tp)), kind };
 }
@@ -428,22 +441,16 @@ function renderEdges(){
   const svg = $('edges');
   let h = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--av-ink-70)"/></marker>
     <marker id="ahc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" style="fill:var(--av-caution)"/></marker></defs>`;
-  const labels = [];
   S.edges.forEach(e => {
     const g = edgeGeom(e); if (!g) return;
     let cls = g.kind;
-    if (g.kind === 'check' || g.kind === 'fire') { const c = g.kind === 'check' ? N(e.to) : N(e.from); cls += passes(c) ? ' flow' : c.on ? '' : ' off'; }
+    const ln = isLoop(e) ? N(e.from) : N(e.to)?.kind === 'loop' ? N(e.to) : null;
+    if (ln) cls += ln.on ? '' : ' off';
+    else if (g.kind === 'check' || g.kind === 'fire') { const c = g.kind === 'check' ? N(e.to) : N(e.from); cls += passes(c) ? ' flow' : c.on ? '' : ' off'; }
     const sel = S.sel && S.sel.edge === e.id ? ' sel' : '';
     h += `<path class="hit" data-e="${e.id}" d="${g.d}"/><path class="e ${cls}${sel}" id="p_${e.id}" d="${g.d}" marker-end="url(#${g.kind === 'loop' ? 'ahc' : 'ah'})"/>`;
-    if (g.kind === 'loop') labels.push(e);
   });
   svg.innerHTML = h;
-  labels.forEach(e => {
-    const p = $('p_' + e.id), L = p.getTotalLength(), m = p.getPointAtLength(L / 2);
-    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t.setAttribute('x', m.x); t.setAttribute('y', m.y - 6); t.setAttribute('text-anchor', 'middle'); t.dataset.e = e.id; t.textContent = '↺ ' + (e.when || 'loops back');
-    svg.appendChild(t);
-  });
   svg.querySelectorAll('[data-e]').forEach(x => x.onpointerdown = ev => { ev.stopPropagation(); S.sel = { edge: x.dataset.e }; S.tab = 'inspect'; refreshState(); renderPanel(); });
 }
 
@@ -457,9 +464,10 @@ let drag = null;
 canvas.addEventListener('pointerdown', e => {
   if (e.button !== 0) return;
   const port = e.target.closest('.port'), node = e.target.closest('.node');
-  if (port && (port.dataset.port === 'out' || port.dataset.port === 'down')) {
+  if (port && ['out','down','back'].includes(port.dataset.port)) {
     const n = N(node.dataset.id); drag = { mode: 'link', from: n, fp: port.dataset.port }; e.preventDefault(); return;
   }
+  e.preventDefault();
   if (node) { const n = N(node.dataset.id), p = toWorld(e.clientX, e.clientY);
     drag = { mode: 'node', n, el: node, dx: p.x - n.x, dy: p.y - n.y, moved: false };
     S.sel = { node: n.id }; S.tab = 'inspect'; refreshState(); renderPanel(); return; }
@@ -491,15 +499,17 @@ window.addEventListener('pointerup', e => {
 });
 function connect(a, fp, b){
   if (!b || a.id === b.id) { renderEdges(); return; }
-  const ok = (fp === 'out' && a.kind === 'stage' && b.kind === 'stage') || (fp === 'down' && a.kind === 'stage' && b.kind === 'cond') || (fp === 'out' && a.kind === 'cond' && b.kind === 'agent');
-  if (!ok) { toast('A stage hands on to a stage, or checks through a condition; a condition fires agents.'); renderEdges(); return; }
+  if (fp === 'out' && a.kind === 'stage' && b.kind === 'stage' && b.x < a.x) { toast('To send work back, use a Loop back node from the library.'); renderEdges(); return; }
+  const ok = (fp === 'out' && a.kind === 'stage' && b.kind === 'stage') || (fp === 'down' && a.kind === 'stage' && (b.kind === 'cond' || b.kind === 'loop')) || (fp === 'out' && a.kind === 'cond' && b.kind === 'agent') || (fp === 'back' && a.kind === 'loop' && b.kind === 'stage');
+  if (!ok) { toast('A stage hands on to a stage, or hangs a condition or a loop below it; a condition fires agents; a loop goes back to a stage.'); renderEdges(); return; }
+  if (a.kind === 'loop') S.edges = S.edges.filter(e => e.from !== a.id); // one target each
   if (S.edges.some(e => e.from === a.id && e.to === b.id)) { renderEdges(); return; }
-  if (b.kind === 'cond' || b.kind === 'agent') S.edges = S.edges.filter(e => !(e.to === b.id && N(e.from)?.kind === a.kind)); // one parent each
+  if (b.kind === 'cond' || b.kind === 'agent' || b.kind === 'loop') S.edges = S.edges.filter(e => !(e.to === b.id && N(e.from)?.kind === a.kind)); // one parent each
   const e = { id: nid('e'), from: a.id, fp, to: b.id };
   if (a.kind === 'stage' && b.kind === 'stage' && b.x < a.x) e.when = 'your words';
   S.edges.push(e); S.sel = { edge: e.id }; S.tab = 'inspect';
   renderNodes(); renderPanel();
-  toast(isLoop(e) ? 'A loop back: name when it happens in the panel.' : b.kind === 'agent' ? 'Wired. Agents on one condition fire together.' : 'Wired.');
+  toast(isLoop(e) ? 'Looped back. Say when in the panel.' : b.kind === 'agent' ? 'Wired. Agents on one condition fire together.' : 'Wired.');
 }
 canvas.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX, e.clientY); }, { passive: false });
 function zoomAt(f, cx, cy){ const r = canvas.getBoundingClientRect(); cx = cx ?? r.left + r.width / 2; cy = cy ?? r.top + r.height / 2;
@@ -509,6 +519,29 @@ function fit(){ if (!S.nodes.length) return; const r = canvas.getBoundingClientR
   const xs = S.nodes.map(n => n.x), ys = S.nodes.map(n => n.y), x0 = Math.min(...xs) - 20, y0 = Math.min(...ys) - 150, x1 = Math.max(...xs) + 240, y1 = Math.max(...ys) + 80;
   const k = Math.min(1.2, Math.max(0.3, Math.min(r.width / (x1 - x0), r.height / (y1 - y0))));
   S.view = { k, x: -x0 * k + (r.width - (x1 - x0) * k) / 2, y: -y0 * k }; applyView(); }
+// Stages left to right in spine order; under each, its conditions with their agents to the right, then its loops.
+function arrange(animate = true){
+  let x = 40;
+  const placed = new Set(), moves = [];
+  const put = (n, nx, ny) => { moves.push([n, nx, ny]); placed.add(n.id); };
+  stagesInOrder().forEach(st => {
+    put(st, x, 60); let y = 200;
+    const cs = conds(st), ls = loopsUnder(st);
+    cs.forEach(c => { put(c, x, y); const ag = children(c); ag.forEach((a, k) => put(a, x + 200, y + k * 40 - (ag.length > 1 ? 4 : -8))); y += Math.max(1, ag.length) * 40 + 30; });
+    ls.forEach(l => { put(l, x, y); y += 90; });
+    x += cs.length ? 420 : 260;
+  });
+  let fx = 40;
+  S.nodes.filter(n => !placed.has(n.id)).forEach(n => { put(n, fx, -140); fx += 200; }); // unwired nodes wait in a row above
+  if (!animate) { moves.forEach(([n, nx, ny]) => { n.x = nx; n.y = ny; }); return; }
+  const from = moves.map(([n]) => [n.x, n.y]), t0 = performance.now();
+  const step = t => { const f = Math.min(1, (t - t0) / 450), e = 1 - Math.pow(1 - f, 3);
+    moves.forEach(([n, nx, ny], i) => { n.x = Math.round(from[i][0] + (nx - from[i][0]) * e); n.y = Math.round(from[i][1] + (ny - from[i][1]) * e);
+      const el = nodeEl(n.id); if (el) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; } });
+    renderEdges(); if (f < 1) requestAnimationFrame(step); else fit(); };
+  requestAnimationFrame(step);
+}
+$('zArr').onclick = () => arrange(true);
 $('zIn').onclick = () => zoomAt(1.15); $('zOut').onclick = () => zoomAt(1 / 1.15); $('zFit').onclick = fit;
 canvas.addEventListener('dragover', e => { e.preventDefault(); canvas.classList.add('dropping'); });
 canvas.addEventListener('dragleave', () => canvas.classList.remove('dropping'));
@@ -576,7 +609,7 @@ function inspectHTML(){
   const x = S.sel;
   if (x && x.edge) { const e = S.edges.find(e => e.id === x.edge); if (!e) return '';
     const a = N(e.from), b = N(e.to);
-    if (isLoop(e)) return `<h2>Loop back <span class="tag tgraph">workflow part</span></h2><p class="av-annot">${esc(a.name)} ↺ ${esc(b.name)}. The work's own loop: it goes back when this happens.</p><label><span class="av-label">When</span><input id="iWhen" value="${esc(e.when||'')}"></label><button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete link</button>`;
+    if (isLoop(e)) return `<h2>Link</h2><p class="av-annot">Loop back to ${esc(b.name)}. Select the loop node to say when.</p><button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete link</button>`;
     return `<h2>Link</h2><p class="av-annot">${esc(a.name || condText(a))} → ${esc(b.name || condText(b))}</p><button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete link</button>`; }
   const n = x && x.node && N(x.node);
   if (!n) return `<h2>Nothing selected</h2><p class="av-annot">Drag nodes from the library, drag between ports to wire them, and click anything to edit it here. Drag the grid to pan; scroll to zoom. Delete removes what is selected.</p>`;
@@ -587,6 +620,13 @@ function inspectHTML(){
     <label><span class="av-label">Skipped at</span><select id="iSkip"><option value="">never</option>${['quick','standard','thorough'].map(t => `<option ${n.skipOn===t?'selected':''}>${t}</option>`).join('')}</select></label>
     <p class="av-annot">Checks here: ${conds(n).length ? conds(n).map(c => `${condText(c)} → ${children(c).map(a => a.name).join(', ') || 'no agent'}`).map(esc).join('; ') : 'none'}.</p>
     <button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete stage</button>`;
+  if (n.kind === 'loop') { const st = parentStage(n), t = loopTarget(n);
+    return `<h2>Loop back <span class="tag tgraph">workflow part</span></h2>
+    <p class="av-annot">From ${st ? esc(st.name) : '<b>no stage yet</b>'} back to ${t ? esc(t.name) : '<b>no stage yet</b>: drag its left port to one'}. The work's own loop.</p>
+    <label><span class="av-label">When it goes back</span><input id="iWhen" value="${esc(n.when)}"></label>
+    <label style="flex-direction:row;align-items:center;gap:8px"><button class="sw" id="iOn" role="switch" aria-checked="${n.on}"></button><span>${n.on ? 'On' : 'Off'}</span></label>
+    <p class="av-annot">A loop is judgment: the run never takes it.</p>
+    <button class="av-tool-chip av-tool-chip--ghost" id="iDel">Delete loop</button>`; }
   if (n.kind === 'cond') { const st = parentStage(n), ag = children(n);
     return `<h2>Condition <span class="tag t262">#262 builds</span></h2>
     <p class="av-annot">At ${st ? esc(st.name) : '<b>no stage yet</b>: wire a stage\'s bottom port here'}. Fires ${ag.length ? esc(ag.map(a => a.name).join(' and ')) : 'nothing yet'}${ag.length > 1 ? ', together' : ''}.</p>
@@ -613,7 +653,7 @@ function bindPanel(){
     on('iCustom', 'oninput', ev => { n.custom = ev.target.value; soft(); });
     on('iOn', 'onclick', () => { n.on = !n.on; renderNodes(); renderPanel(); });
   }
-  if (e) on('iWhen', 'oninput', ev => { e.when = ev.target.value; renderEdges(); });
+  if (n && n.kind === 'loop') on('iWhen', 'oninput', ev => { n.when = ev.target.value; soft(); });
   $('panel').querySelectorAll('[data-t]').forEach(x => x.onchange = x.oninput = ev => { S.tiers[+x.dataset.t][x.dataset.f] = ev.target.value; renderTable(); });
   $('panel').querySelectorAll('[data-rs]').forEach(b => b.onclick = () => { S.sensitive.splice(+b.dataset.rs, 1); renderPanel(); });
   on('sAdd', 'onkeydown', ev => { if (ev.key === 'Enter' && ev.target.value.trim()) { S.sensitive.push(ev.target.value.trim()); renderPanel(); $('sAdd').focus(); } });
@@ -658,7 +698,7 @@ function nothing(){
 const TOUR = [
   ['library', 'The nodes library. Drag a stage, a condition or an agent onto the canvas, or click one to drop it in the middle.'],
   ['canvas', 'The canvas holds the work\'s own lifecycle: Plan, Design, Build, Test, Deploy, Maintain. Drag nodes about; drag the grid to pan; scroll to zoom.'],
-  ['canvas', 'Wire by dragging from a port: a stage\'s right port to the next stage (or back to an earlier one, which makes a loop), its bottom port to a condition, a condition\'s right port to agents.'],
+  ['canvas', 'Wire by dragging from a port: a stage\'s right port to the next stage (or back to an earlier one, which makes a loop), its bottom port to a condition or a Loop back node. A condition\'s right port goes to agents; a loop\'s left port goes back to an earlier stage.'],
   ['canvas', 'A condition sits between a stage and its agents and switches on and off. Agents on one condition fire together: that is all a pair is.'],
   ['wtable', 'The workflow table, the new part. One row per stage: what each tier sets there, the agents that fire and when, and any loop back. It joins the tier table and the lens table; the canvas is its editor.'],
   ['sim', 'Describe a piece of work and press Run it through: a pulse travels the stages and lights the agents that would fire.'],
@@ -685,10 +725,10 @@ let dark = false; try { dark = localStorage.getItem('proto143-scheme') === 'dark
 function applyTheme(){ if (dark) document.documentElement.setAttribute('data-aviation-scheme', 'dark'); else document.documentElement.removeAttribute('data-aviation-scheme');
   const b = $('darkBtn'); b.setAttribute('aria-pressed', dark); b.className = 'av-tool-chip ' + (dark ? 'av-tool-chip--on' : 'av-tool-chip--ghost'); }
 $('darkBtn').onclick = () => { dark = !dark; try { localStorage.setItem('proto143-scheme', dark ? 'dark' : 'light'); } catch {} applyTheme(); };
-$('resetBtn').onclick = () => { S = fresh(); renderAll(); fit(); };
+$('resetBtn').onclick = () => { S = fresh(); renderAll(); arrange(false); renderNodes(); fit(); };
 
 function renderAll(){ renderSim(); renderNodes(); renderPanel(); applyView(); }
-S = fresh(); applyTheme(); renderLibrary(); renderAll(); requestAnimationFrame(fit);
+S = fresh(); applyTheme(); renderLibrary(); renderAll(); arrange(false); renderNodes(); requestAnimationFrame(fit);
 </script>
 </body>
 </html>
