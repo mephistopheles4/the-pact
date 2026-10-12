@@ -263,14 +263,16 @@ test('a lens set to its own values is not an override: no mark, and the AGENT li
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, /^AGENT data-lens opus high [0-9a-f]{64} security-set default local$/m);
   assert.match(r.rules, /^Agents set: data-lens \(opus, high effort\)\.$/m);
-  assert.doesNotMatch(notice(r.rules), /override, not security-tested/);
+  assert.doesNotMatch(notice(r.rules), /override/);
 });
 
-test('a security-set override carries its own mark in the notice, and the sentence that carries it to every posted report; a plain one does not', t => {
+// #262: no setting is marked; a person may run any agent on any model.
+test('a security-set lens off its default is listed like any other: no mark in the notice, and no sentence carrying one to reports', t => {
   const r = render(t, cfg({ 'data-lens': { model: 'sonnet' }, 'integrity-lens': { effort: 'low' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
   assert.equal(r.code, 0, r.out);
-  assert.match(r.rules, /^Agents set: data-lens \(sonnet, high effort; override, not security-tested\), integrity-lens \(opus, low effort\)\.$/m);
-  assert.match(r.rules, /^Put "override, not security-tested" beside every report you post from these lenses, and in their rows of the Lens dispositions table: data-lens\.$/m);
+  assert.match(r.stdout, /^AGENT data-lens sonnet high [0-9a-f]{64} security-set override local$/m);
+  assert.match(r.rules, /^Agents set: data-lens \(sonnet, high effort\), integrity-lens \(opus, low effort\)\.$/m);
+  assert.doesNotMatch(r.rules, /not security-tested|beside every report/);
   // The review template's "not verified" keeps its one meaning.
   assert.doesNotMatch(notice(r.rules), /not verified/);
 });
@@ -310,23 +312,20 @@ test('bad case: a renderer whose output would change another line refuses by its
   assert.deepEqual(r.outFiles, []);
 });
 
-// #261 S5: the rules file names no route any more, so the fixed list carries
-// the mark. data-lens has no other sign, and executability-lens none once its
-// risk-floor block is gone; each turns plain when the list loses it.
+// #261 S5: the fixed list carries the class. data-lens has no other sign, and
+// executability-lens none once its risk-floor block is gone; each turns plain
+// when the list loses it. Since #262 the class shows only on the AGENT line.
 test('bad case: the fixed security-set list alone marks data-lens and executability-lens; a list that loses one leaves it plain', t => {
   const exAgent = readFileSync(join(AGENTS_DIR, 'executability-lens.md'), 'utf8');
   const exBare = exAgent.replace(/<!-- pact:begin risk-floor -->\n[\s\S]*?<!-- pact:end risk-floor -->\n/, '');
   assert.notEqual(exBare, exAgent);
-  const r = render(t, cfg({ 'data-lens': { model: 'sonnet' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8') });
-  assert.match(notice(r.rules), /data-lens \(sonnet, high effort; override, not security-tested\)/);
+  assert.equal(classify(t, 'data-lens').words, 'security-set override local');
   assert.equal(classify(t, 'executability-lens', { agent: exBare }).words, 'security-set override local');
   const gate = copyGate(tempDir(t, 'pact-agents-gate-'));
   plantModule(gate, 'render', "const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);", "const SECURITY_SET = Object.freeze(['adversarial-lens']);");
   const renderer = join(gate, 'render.mjs');
   assert.equal(classify(t, 'data-lens', { renderer }).words, 'plain override local');
   assert.equal(classify(t, 'executability-lens', { agent: exBare, renderer }).words, 'plain override local');
-  const dropped = render(t, cfg({ 'data-lens': { model: 'sonnet' } }), { name: 'data-lens', agent: readFileSync(join(AGENTS_DIR, 'data-lens.md'), 'utf8'), renderer });
-  assert.doesNotMatch(notice(dropped.rules), /override, not security-tested/);
 });
 
 test('the install script\'s list of agents equals the renderer\'s configurable list', () => {

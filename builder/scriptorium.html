@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-A+cGfT/vEAf2nSegM1VQ0ZD+HI6diBvbynyCpXnXpWw='; style-src 'sha256-Obn5K/k/BS8UX1btA4skS2l6nOM9KQzChJ+pKbVPttY='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-b5os8JuMQeC4RxyjADqvG3fue5+8B1SqRtwK1h2l7Jk='; style-src 'sha256-Obn5K/k/BS8UX1btA4skS2l6nOM9KQzChJ+pKbVPttY='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -1552,7 +1552,6 @@ function blockProblems(text) {
 const presetById = id => PACT.presets.find(p => p.id === id);
 const openPart = mark => PACT.moves.flatMap(m => m.parts).find(p => p.kind === 'open' && p.mark === mark);
 // The mark a security-set lens carries off its default: the renderer's words.
-const OVERRIDE_MARK = 'override, not security-tested';
 
 // What a "Your agent" card can hand its agent.
 const READS = ['the diff', 'the spec', 'the ticket'];
@@ -1848,10 +1847,6 @@ function restoreAll(state, snap) {
   Object.assign(state, JSON.parse(snap));
 }
 
-/** The security-set lenses set off their file's model or effort: each one is an override, not security-tested. */
-function overrides(state) {
-  return PACT.agents.filter(a => a.security && state.agents[a.name] && (state.agents[a.name].model !== a.model || state.agents[a.name].effort !== a.effort)).map(a => a.name);
-}
 
 
 
@@ -3380,12 +3375,11 @@ function boot() {
         el('span', { class: 'card-tab', text: a.name }),
         el('div', { class: 'field-row' }, el('label', { text: 'Model' }), pick(`${a.name} model`, models, now.model, v => (now.model = v)), el('label', { text: 'Effort' }), pick(`${a.name} effort`, PACT.agentChoices.efforts, now.effort, v => (now.effort = v))),
         el('span', { class: 'av-label', text: changed ? `set by you · default ${a.model}, ${a.effort}` : `default · ${a.security ? 'security-set' : 'not a security lens'}` }),
-        ...(changed && a.security ? [el('p', { class: 'av-callout av-callout--caution', text: `${OVERRIDE_MARK}. The pact reviews only its default.${a.egress ? ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.' : ''}` })] : []),
         runs(a),
       );
     });
     agentsBox.replaceChildren(
-      el('p', { class: 'av-annot', text: 'Each agent takes your model and effort, and starts at its file\'s own, its default: the pact suggests, you decide. The models come from Models. A security-set lens set off its default is an override, not security-tested. An agent of your own goes in a move\'s slot, under Moves.' }),
+      el('p', { class: 'av-annot', text: 'Each agent takes your model and effort, and starts at its file\'s own, its default: the pact suggests, you decide. The models come from Models. An agent of your own goes in a move\'s slot, under Moves.' }),
       el('div', { class: 'tiles' }, ...tiles),
     );
   }
@@ -3523,7 +3517,6 @@ function boot() {
     if (errors.length || !canPick) save.disabled = true;
 
     const notes = [
-      ...overrides(state).map(n => el('li', { class: 'av-callout av-callout--caution', text: `Agents · ${n} · ${OVERRIDE_MARK}: the pact reviews only its default.` })),
       ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
     ];
     if (status.text) notes.push(el('li', { class: `av-callout${status.level === 'error' ? ' av-callout--caution' : status.level === 'ok' ? ' av-callout--normal' : ''}`, text: status.text }));

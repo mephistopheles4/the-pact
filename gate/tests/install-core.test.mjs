@@ -871,7 +871,7 @@ test('the configurable agents and the banned settings are the renderer\'s and se
   assert.deepEqual([...core.BANNED_SETTINGS], list('seam-a-core.mjs', 'BANNED_SETTINGS'));
 });
 
-test('the configuration block: a removed configuration, changed and new files, warnings, and the security override sentence', () => {
+test('the configuration block: a removed configuration, changed and new files, and warnings, a security-set lens\'s as plain as any (#262)', () => {
   const record = core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: H('0') }, { kind: 'block', path: 'gone.md', sha256: H('9') }] }));
   const none = core.parseRenderLines(noneBase().in.split('\n'), { project: false, hash: sha256 });
   assert.deepEqual(core.configBlock(none, H('a'), record), ['  no configuration', '  the last install had a configuration; this install removes it from the rules file']);
@@ -880,7 +880,7 @@ test('the configuration block: a removed configuration, changed and new files, w
   assert.equal(b[0], `  user file pact/config.json: sha256 ${U}, CHANGED since the last install`);
   assert.equal(b[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, new since the last install`);
   assert.equal(b[2], '  1 block file(s) the last install read are no longer used');
-  assert.match(b.find(l => l.includes('data-lens')), /data-lens is a security-set lens, so this is an override, not security-tested: the pact reviews only its default\.$/);
+  assert.equal(b.find(l => l.includes('data-lens')), '  WARN: the user configuration sets data-lens to `sonnet`, high effort.');
   const blockChanged = core.configBlock(p, H('a'), core.parseRecord(json({ commit: 'x', files: ['f'], config: [{ kind: 'user', sha256: U }, { kind: 'block', path: 'a.md', sha256: H('9') }] })));
   assert.equal(blockChanged[0], `  user file pact/config.json: sha256 ${U}, unchanged since the last install`);
   assert.equal(blockChanged[1], `  block file pact/blocks/a.md: sha256 ${H('e')}, CHANGED since the last install`);
@@ -890,8 +890,7 @@ test('the configuration block: a removed configuration, changed and new files, w
 
 // #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for a move.
 test('the security-defaults line: each part Scriptorium builds alone shows it, a move edit does not, and it says whether the configuration changed', () => {
-  // The base's data-lens setting is made plain here; the lens case is the next test.
-  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT move-2', `EDIT ${mark}`).replace('security-set override', 'plain override').split('\n'), { project: false, hash: sha256 });
+  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT move-2', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
   for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses']) {
     const line = core.securityDefaultsLine(withEdit(mark), null);
     assert.match(line, new RegExp(`^WARN: SECURITY DEFAULTS: the user configuration edits ${mark}, which changes the pact's security defaults;`));
@@ -905,13 +904,9 @@ test('the security-defaults line: each part Scriptorium builds alone shows it, a
   assert.match(core.securityDefaultsLine(p, changed), / The configuration CHANGED since the last install\.$/);
 });
 
-// #262 C13: a security-set lens set off its default leads the warnings too (adversarial-lens F1 on the S15 to S20 addendum).
-test('the security-defaults line: a security-set lens off its default shows it, by name and never by model; a plain override or a default does not', () => {
+// #262: an agent setting never shows the security-defaults line; a person may run any agent on any model.
+test('the security-defaults line: a security-set lens off its default alone does not show it, and does not change the parts\' line', () => {
   const lines = (from, to) => core.parseRenderLines(renderBase().in.replace(from, to).split('\n'), { project: false, hash: sha256 });
-  const line = core.securityDefaultsLine(lines('EDIT move-2', 'EDIT move-3'), null);
-  assert.match(line, /^WARN: SECURITY DEFAULTS: the user configuration changes the pact's security defaults\. It sets the security-set lens data-lens off its default: an override, not security-tested\. No install is recorded/);
-  assert.doesNotMatch(line, /sonnet/, 'it never prints a model');
-  assert.equal(core.securityDefaultsLine(lines('security-set override', 'plain override'), null), null);
-  assert.equal(core.securityDefaultsLine(lines('security-set override', 'security-set default'), null), null);
-  assert.match(core.securityDefaultsLine(lines('EDIT move-2', 'EDIT tiers'), null), /edits tiers, .* It sets the security-set lens data-lens off its default/);
+  assert.equal(core.securityDefaultsLine(lines('EDIT move-2', 'EDIT move-3'), null), null);
+  assert.match(core.securityDefaultsLine(lines('EDIT move-2', 'EDIT tiers'), null), /^WARN: SECURITY DEFAULTS: the user configuration edits tiers, which changes the pact's security defaults; read those parts in the rendered rules file before you install\. No install is recorded to compare with\.$/);
 });

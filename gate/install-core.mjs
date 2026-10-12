@@ -1032,18 +1032,15 @@ export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', '
 
 /**
  * The security-defaults line (#262, S8), or null when no edit reaches one of
- * SECURITY_PARTS and no security-set lens is set off its default (#262 S17).
- * The dry run prints it before every other warning. It points by part and
- * lens name, never names a block file, and never prints a model.
+ * SECURITY_PARTS. The dry run prints it before every other warning. It points
+ * by part name and never names a block file. An agent setting never shows it:
+ * a person may run any agent on any model (#262).
  */
 export function securityDefaultsLine(parsed, record) {
   const parts = SECURITY_PARTS.filter(p => parsed.edits.has(p));
-  const lenses = [...parsed.agentSets].filter(([, a]) => a.security && a.override).map(([n]) => n);
-  if (!parts.length && !lenses.length) return null;
+  if (!parts.length) return null;
   const since = !record ? 'no install is recorded to compare with' : configStale(configNow(parsed), record.config) ? 'the configuration CHANGED since the last install' : 'the configuration is unchanged since the last install';
-  const edits = parts.length ? `the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install.` : "the user configuration changes the pact's security defaults.";
-  const set = lenses.length ? ` It sets the security-set ${lenses.length > 1 ? 'lenses' : 'lens'} ${lenses.join(', ')} off ${lenses.length > 1 ? 'their defaults' : 'its default'}: an override, not security-tested.` : '';
-  return `WARN: SECURITY DEFAULTS: ${edits}${set} ${since[0].toUpperCase()}${since.slice(1)}.`;
+  return `WARN: SECURITY DEFAULTS: the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install. ${since[0].toUpperCase()}${since.slice(1)}.`;
 }
 
 /** The Configuration block, built from the renderer's parsed lines alone. */
@@ -1065,14 +1062,7 @@ export function configBlock(parsed, rulesHash, record) {
   out.push(`  rendered rules file: sha256 ${rulesHash}`);
   for (const [k, v] of parsed.values) out.push(`  WARN: the user configuration sets ${k} to ${v}.`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
-  for (const [name, a] of parsed.agentSets) {
-    let warn = `  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`;
-    if (a.security && a.override) {
-      warn += ` ${name} is a security-set lens, so this is an override, not security-tested: the pact reviews only its default.`;
-      if (a.egress) warn += ' On a weaker setting it may follow instructions planted in the code it reviews, or send a secret out through a command, a browser address or a search query.';
-    }
-    out.push(warn);
-  }
+  for (const [name, a] of parsed.agentSets) out.push(`  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`);
   out.push('  Edited text is checked for its form, its characters and file imports, not for wording or meaning.');
   return out;
 }

@@ -140,9 +140,8 @@ parts:
   `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
   a rendered hash the apply command carries.
 - **`WARN: SECURITY DEFAULTS:`.** Shown before every other warning when your
-  configuration edits any of the four parts Scriptorium builds, `tiers`,
-  `sensitive`, `workflow` or `lenses`, or sets a security-set lens off its
-  default model or effort (#262); it names that lens, never the model. They hold the tier table, what
+  configuration edits any of the four parts Scriptorium builds: `tiers`,
+  `sensitive`, `workflow` or `lenses`. They hold the tier table, what
   Claude looks for as sensitive work and the route it recommends, the
   workflow table with the lenses offered at each stage, and the lens roster.
   The line names the parts you edit and says whether your configuration

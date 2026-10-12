@@ -157,7 +157,7 @@ How to read it:
 | R9 Installed code | Plugin or skill author | None | — |
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
-| R12 Lens steered | Text a lens reads | Tool allow-list; the override mark for a setting off the reviewed default, from the gate's fixed security-set list | Boundary, rule |
+| R12 Lens steered | Text a lens reads | Tool allow-list; the dry run lists a setting off the default, with no mark since #262 | Boundary |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); elsewhere, judgment | Rule, judgment |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
@@ -175,7 +175,7 @@ How to read it:
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; the poster's hidden-text scan once it installs (#246) | Rule |
-| R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the four parts Scriptorium builds (`tiers`, `sensitive`, `workflow`, `lenses`) or a security-set lens set off its default; it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's graph checks are not install-time controls (#262) | Boundary (a pointer), judgment |
+| R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the four parts Scriptorium builds (`tiers`, `sensitive`, `workflow`, `lenses`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's graph checks are not install-time controls (#262) | Boundary (a pointer), judgment |
 
 ## Strangers on the tracker
 
@@ -341,11 +341,10 @@ session can act before you see it.
   install against an allow-list. Seven only read. `behaviour-lens` has a shell
   and a browser, because it runs the change. `adversarial-lens` can search and
   fetch the web.
-- **A weaker model is flagged.** If you move a security lens off its default
-  model or effort, to any model Claude Code takes since #262, Haiku, `inherit`
-  and a provider's own model ID included, the dry run's security-defaults line
-  names it before every other warning, and its reports say "override, not
-  security-tested". The mark
+- **Any model is yours to choose.** Since #262 you may move any agent, a
+  security lens included, to any model Claude Code takes, Haiku, `inherit`
+  and a provider's own model ID among them. The dry run lists each setting;
+  nothing marks it, and the pact tests only the defaults it ships. The mark
   means the lens runs off the default the pact ships and reviews; since #189
   no test runs a lens on any setting (R20). For the two lenses with a shell or
   web tools, the install warns that a weaker setting may follow instructions
@@ -361,7 +360,7 @@ session can act before you see it.
   you answer in chat, and a flag found later is said at the next hand-off
   until you answer. It is a rule, not a
   pinned block. The gate keeps a fixed list of the security-set lenses, so
-  the override mark never depends on the rules file's text.
+  the class it prints on each agent setting never depends on the rules file's text.
 
 **What is accepted.**
 
@@ -371,11 +370,12 @@ session can act before you see it.
 - **R12. A lens can be steered.** A lens that runs code or fetches pages can
   be steered by what it reads, like any session. The main session then acts
   on a lens's recommendations without waiting for you, except at the stops,
-  installs and the decisions the rules file names as yours. The override mark tells you a lens runs off
-  its reviewed default; it does not show the default resists steering (R20).
-  Since #262 a lens can be set to any model, so the shell and web lenses have
-  no floor at Sonnet: the mark and the dry run's security-defaults line are
-  the control, by your choice of a warning over a floor.
+  installs and the decisions the rules file names as yours. The pact reviews
+  each lens only at its default; that does not show the default resists
+  steering (R20).
+  Since #262 a lens can be set to any model with no mark, so the shell and
+  web lenses have no floor at Sonnet: the dry run's list of settings is all
+  that names a weaker one, by your choice.
 - **R13. A lens can quote a secret.** A read-only lens can still read any file
   your account can, and its report goes on the tracker word for word. Since
   #261 the session-level rule "never post a secret" is accepted as judgment
@@ -577,7 +577,7 @@ safe, and a change made months ago is easy to forget.
   too; the dry run shows only that the gate changed. An open part's text can
   contradict any rule in meaning. A rules file copied by hand, or shipped in a repo, skips
   the gate. So does a direct edit to an installed lens file, such as a weaker
-  model line: it carries no override mark, and since #189 the Lens
+  model line: nothing marks it, and since #189 the Lens
   dispositions table no longer records the model a lens ran on, so only the
   next dry run's drift check shows it.
 - **R18. Retired by #189.** The rules no longer have sessions collect review
@@ -665,9 +665,9 @@ Each tweak below is yours to make. The cost is what you give up.
   `permissions.defaultMode` in `settings.json` back to the mode you use. This
   is the strongest single guard against R11. You get more prompts. Every later
   install turns it on again; its dry run warns you first.
-- **Set a lens's model or effort.** Cheaper and faster. A security lens's
-  reports then carry "override, not security-tested", and a shell or web lens
-  may be easier to steer (R12).
+- **Set an agent's model or effort.** Cheaper and faster. Nothing marks a
+  security lens's reports since #262, and a shell or web lens on a weaker
+  model may be easier to steer (R12).
 - **Edit the open parts of the moves** to bind your own skills. You own what
   those blocks say (R17).
 - **Set the usage pause** anywhere from 0 to 100 percent. At 100, sessions

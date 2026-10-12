@@ -89,10 +89,9 @@ how every session in every repo behaves. So:
   checks. The effort is `low`, `medium`, `high`, `xhigh` or `max`. Each
   agent's own file holds its default. The installer renders and installs each
   set agent's file with those two lines changed, and warns about each setting
-  in the dry run. A security-set lens set off its default is marked
-  "override, not security-tested" in the dry run, where the security-defaults
-  line names it first, the installed notice, every report posted from it and
-  its Lens dispositions row (ADRs 0027 and 0067). The model is the person's
+  in the dry run. No setting is marked, a security-set lens's included: a
+  person may run any agent on any model, and the pact does not test the
+  settings it doesn't ship (ADR 0067). The model is the person's
   own text: the dry run's warnings and the review folder's files carry it, so
   share them by verdict and counts only; the installed notice names a model
   other than those five aliases only as "a custom model". A pact from before

@@ -439,15 +439,14 @@ test('a removed default left empty saves a remove edit, and raises no warning', 
   assert.deepEqual(L.problems(s).filter(f => f.level === 'warn'), []);
 });
 
-test('a security-set lens off its default counts as an override; a plain one does not', () => {
+// #262: no setting is marked; a security-set lens off its default saves like a plain one, and no problem is found.
+test('a security-set lens off its default saves like a plain one, with no warning', () => {
   const s = L.initialState();
   s.agents['integrity-lens'].effort = 'low';
-  assert.deepEqual(L.overrides(s), []);
   s.agents['behaviour-lens'].effort = 'low';
-  assert.deepEqual(L.overrides(s), ['behaviour-lens'], 'an effort change alone is an override');
-  s.agents['behaviour-lens'].effort = L.PACT.agents.find(a => a.name === 'behaviour-lens').effort;
-  s.agents['data-lens'].model = 'sonnet';
-  assert.deepEqual(L.overrides(s), ['data-lens']);
+  s.agents['data-lens'].model = 'haiku';
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).agents, { 'behaviour-lens': { effort: 'low' }, 'data-lens': { model: 'haiku' }, 'integrity-lens': { effort: 'low' } });
+  assert.deepEqual(L.problems(s), []);
 });
 
 // ------------------------------------------------------------ the page on a stub DOM
@@ -522,14 +521,16 @@ test('stub page: an edited move saves as a replace edit; reset all puts the defa
   assert.equal(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0].textContent, 'I sense the work my own way.');
 });
 
-test('stub page: an override shows in Agents and in Export, and a move\'s problem shows in Export', () => {
+test('stub page: a lens set off its default shows as set by you, with no mark anywhere, and a move\'s problem shows in Export', () => {
   const P = bootPage();
   const box = openSettings(P);
   const pick = P.find(box, n => n.tag === 'select' && n.attrs['aria-label'] === 'data-lens model')[0];
   pick.value = 'sonnet';
   pick.listeners.change.forEach(f => f({}));
-  assert.match(openSettings(P).text, /override, not security-tested/);
-  assert.match(P.ids.output.text, /data-lens · override, not security-tested/);
+  // #262: no setting is marked.
+  assert.doesNotMatch(openSettings(P).text, /not security-tested/);
+  assert.doesNotMatch(P.ids.output.text, /not security-tested/);
+  assert.match(openSettings(P).text, /set by you · default opus, high/);
   typeInto(P.find(openSettings(P), n => n.attrs.role === 'textbox')[0], '# A heading');
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /Fix · move-1 · /);
@@ -611,7 +612,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, overrides, keepCommands, partsChanged, builderWith });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, addPreset, blockProblems, slotText, slotOp, applyWorkflow, agentProblems, skillProblems, snapshotSlots, restoreSlots, atDefaults, resetAll, restoreAll, keepCommands, partsChanged, builderWith });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));

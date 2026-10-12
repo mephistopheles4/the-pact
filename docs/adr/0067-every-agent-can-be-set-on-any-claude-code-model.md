@@ -8,7 +8,7 @@ A configuration's `agents` key may set the model and effort of every agent the p
 - **Five efforts:** `low`, `medium`, `high`, `xhigh` and `max`, the set Claude Code's subagent docs list.
 - **`scout` ships unsealed from `claude/agents/`.** Its file leaves `familiars/` and loses its seal; its contract stays in `familiars/` as its record, as each lens's does (ADR 0017). It installs to the same live path. The renderer still refuses to set an agent that carries a seal, and none does now. The cost is the one the lenses already carry: no seal checks that the file still matches its contract.
 - **The model is the person's own text.** The dry run's warnings and the review files carry it, and the dry run shows it in backticks. The installed rules file, which every session reads and may quote, names a model other than the five aliases only as "a custom model" (data-lens F1). A refusal names the agent and the rule broken, never the value (data-lens F3, adversarial-lens F4).
-- **A security-set lens set off its default leads the warnings.** The dry run's security-defaults line, first before every other warning, now also names each security-set lens set off its default, by name and never by model (adversarial-lens F1). The override mark is unchanged. The owner chose a warning over a floor, so the shell and web lenses can run on any model.
+- **No setting is marked.** The "override, not security-tested" mark is gone: from the dry run's warnings, the rules file's notice and its sentence carrying the mark to reports, the review procedure and the builder page. The dry run lists each setting plainly, and the security-defaults line stays for the four parts only. The owner's decision in chat: the pact does not security-test settings it doesn't ship, and people may run what they want. This reverses the security pair's adversarial-lens F1 fix from the spec read, which had the security-defaults line name a lens off its default.
 - **The builder's Models list.** Settings holds a list, starting as Opus, Sonnet, Haiku and Fable, that every model dropdown offers: the tiers, the sensitive route, the stages and the agents. A built-in name reaches an agent's file in lower case; anything else reaches it as typed. The builder file keeps the list under a `models` key. The Setups accordion left the page.
 
 ## Why
@@ -19,8 +19,8 @@ A configuration's `agents` key may set the model and effort of every agent the p
 ## What was weighed
 
 - **Free text for any ecosystem.** Rejected: the install writes Claude Code agent files, so another ecosystem needs its own installer. The shape takes every value Claude Code accepts.
-- **A floor for the shell and web lenses.** Rejected, as before: a warning first in the dry run and the override mark, not a refusal.
+- **A floor for the shell and web lenses, or a mark on their reports.** Rejected: the dry run lists the setting, and nothing more.
 - **A seal that leaves out the model and effort lines.** Rejected for now: it is a grimoire change and changes what every familiar's seal promises. Moving `scout` beside the lenses needs neither.
 - **A token-shape scan on the model value** (data-lens F2). Dismissed: the scan lives in `cross/`, which the install never stages. With the notice fix, a key-shaped model reaches only the person's own files and the dry run, which is shared by verdict and counts only.
 
-Supersedes [ADR 0027](0027-every-pact-lens-is-configurable-with-opinionated-defaults.md) in part: `scout` is no longer locked, and models and efforts are no longer the two-by-three list.
+Supersedes [ADR 0027](0027-every-pact-lens-is-configurable-with-opinionated-defaults.md) in part: `scout` is no longer locked, models and efforts are no longer the two-by-three list, and a security-set lens's setting is no longer marked.

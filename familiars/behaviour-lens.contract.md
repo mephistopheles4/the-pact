@@ -1,6 +1,6 @@
 # Contract: behaviour-lens
 
-Version: 0.1.4
+Version: 0.1.5
 
 - **Type:** agent
 - **Level:** Thorough
@@ -151,6 +151,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.1.5 | 2026-10-12 | A run on a model or effort the configuration sets is no longer marked "override, not security-tested". | #262: the owner dropped the mark; people may run any agent on any model (ADR 0067) | 14 |
 | 0.1.4 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
 | 0.1.3 | 2026-10-10 | The owner's part and question 11 follow the auto-take rule: the main session acts on its recommendation per finding and marks it `auto`; the owner's "done" is unchanged; the lens text's hand-back paragraph says so, as the other lenses' do. Question 14 drops the security-set rerun #189 retired. The lens text names every cross-script limit on the findings list in exact words, as the newer lenses do. | #102, which bundles #87's wording into the QA pair's contracts; #189 (ADR 0045); #47's first periodic review, after a non-risk note over 200 characters was refused on #87 (the owner's "add them", 2026-10-10) | 3, 4, 11, 14 |
 | 0.1.2 | 2026-10-05 | C8 covers the whole report, not only the abuse-case description; question 19 records that the browser entry matches nothing in a terminal session. | Move 4 round 2 on #47: the security read found a payload could still land in What I ran, Evidence or Recheck; the owner kept the browser entry as is (2026-10-05, "go with your recommendations") | 3, 19 |
@@ -196,7 +197,7 @@ Against its neighbours: it asks "does the work do what was asked, when run?". It
 
 ### 14. How hard should it think?
 
-**Confirmed** (2026-10-05): Opus at medium effort, the same model as its partner by default; either lens may run on another model or effort when a user configuration sets one (#97, ADR 0027), and a run of this lens on such a setting is marked "override, not security-tested". A second opinion from another model is the owner's call. A change to its model or effort default takes the security route, since it is a security-set lens (#189 retired the security set it once reran).
+**Confirmed** (2026-10-05): Opus at medium effort, the same model as its partner by default; either lens may run on another model or effort when a user configuration sets one (#97, ADR 0027); since #262 such a run carries no mark (ADR 0067). A second opinion from another model is the owner's call. A change to its model or effort default takes the security route, since it is a security-set lens (#189 retired the security set it once reran).
 
 ### 15. How does it write?
 

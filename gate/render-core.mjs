@@ -109,10 +109,9 @@
 //   AGENT <name> <model> <effort> <sha256 of the agent file> <plain|security-set> <default|override> <local|egress>
 // after the CONFIG lines: override when the result differs from the file's
 // own values, egress when the tools line holds more than the read tools. The
-// notice gains an "Agents set:" line, and a security-set override carries
-// OVERRIDE_MARK there, with a sentence telling the session to put it beside
-// every report from that lens. Adding an agent to CONFIGURABLE_AGENTS takes
-// the security route (AGENTS.md).
+// notice gains an "Agents set:" line. Since #262 no setting is marked: a
+// person may run any agent on any model, and the pact does not test them.
+// Adding an agent to CONFIGURABLE_AGENTS takes the security route (AGENTS.md).
 //
 // The project mode (#53, slice 5) renders the project rules file for a
 // project install. It reads the user file, for the user's effective values and
@@ -204,8 +203,8 @@ const AGENT_OUTPUT_PREFIX = 'agent-';
 // The lenses the security route names, as a fixed list (#261, S4): the
 // security pair, and executability-lens, which carries the sensitive-work list in its own block. The rules
 // file names no route any more, so the renderer reads none from it. Without
-// this list the override mark would vanish with no error for data-lens, which
-// has no other sign.
+// this list data-lens, which has no other sign, would print as plain on its
+// AGENT line with no error.
 const SECURITY_SET = Object.freeze(['adversarial-lens', 'data-lens', 'executability-lens']);
 // The sign of a security-set agent read from its own file: the risk-floor block.
 const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
@@ -215,7 +214,6 @@ const SECURITY_DOUBT = Object.freeze({
   'good-enough-lens': 'it never defers a risk-floor item',
   'unstated-lens': 'it reports work that should have taken the security route',
 });
-const OVERRIDE_MARK = 'override, not security-tested';
 const TOOL_ALLOWLIST = join(dirname(fileURLToPath(import.meta.url)), 'tool-allowlist.json');
 
 // Each setting: the open part it fills, its whole-number range, its default
@@ -270,10 +268,7 @@ const NOTICE_TEMPLATE = (digest, values, edits, agents = []) => [
   '',
   `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`,
   `Values set: ${values.length ? values.map(([k, v]) => `${k} ${v}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
-  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${noticeModel(a.model)}, ${a.effort} effort${a.security && a.override ? `; ${OVERRIDE_MARK}` : ''})`).join(', ')}.`] : []),
-  ...(agents.some(a => a.security && a.override)
-    ? [`Put "${OVERRIDE_MARK}" beside every report you post from these lenses, and in their rows of the Lens dispositions table: ${agents.filter(a => a.security && a.override).map(a => a.name).join(', ')}.`]
-    : []),
+  ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${noticeModel(a.model)}, ${a.effort} effort)`).join(', ')}.`] : []),
 ];
 
 const LF = 0x0a;

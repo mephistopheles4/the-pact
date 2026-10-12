@@ -2110,8 +2110,6 @@ it doesn't by itself make work thorough.
   file and symbol, or overlapping lines in one file. Two findings that read
   alike on different anchors are not a crossing. Each lens asks a different
   question, so a crossing means two different problems meet at one place.
-- **A marked lens.** A lens the configuration notice marks carries "override,
-  not security-tested" in its heading and its rows.
 - **Quick tier:** one line with the verdict, any "not verified" mark, and the
   count of not-checked items per lens, followed by the folds.
 - **Size:** one comment holds at most 65,536 characters. Split a longer
@@ -2170,9 +2168,6 @@ one row per finding:
 
 **A lens you left out** gets its own row: "skipped, because ..." with the
 reason.
-
-**A lens the configuration notice marks** gets "override, not security-tested"
-in its rows.
 
 **With no lens review,** list the choices you took on your own recommendation
 under "Auto-takes".
@@ -2277,7 +2272,7 @@ check_hash b6828b0788291bd748d3cb083906c2b692e28b4e06d5e1d990fcd02f3ab3fa16 'age
 check_hash 617f2f3c5a6b2f400bcab46d17c09a60487c06a04eb0c7ce3ce42fac771315f2 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 51c28996d83b946efe29cf5501f733c02cbf9d2dc9e29b80bea5b5f8f372a89a 'agents/unstated-lens.md'
-check_hash 1881501fa62ccbd7af37985a06e70964b12286ff199b83180a84bac6e4628383 'pact/review.md'
+check_hash a7bc1b6fa14205ccb047e9d0e4676b121b2f4961151eb99d5ac7452f53cef637 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -2297,7 +2292,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 37802502674f"
+  echo "pact cloud copy 502a95529602"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

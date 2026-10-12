@@ -93,8 +93,6 @@ it doesn't by itself make work thorough.
   file and symbol, or overlapping lines in one file. Two findings that read
   alike on different anchors are not a crossing. Each lens asks a different
   question, so a crossing means two different problems meet at one place.
-- **A marked lens.** A lens the configuration notice marks carries "override,
-  not security-tested" in its heading and its rows.
 - **Quick tier:** one line with the verdict, any "not verified" mark, and the
   count of not-checked items per lens, followed by the folds.
 - **Size:** one comment holds at most 65,536 characters. Split a longer
@@ -153,9 +151,6 @@ one row per finding:
 
 **A lens you left out** gets its own row: "skipped, because ..." with the
 reason.
-
-**A lens the configuration notice marks** gets "override, not security-tested"
-in its rows.
 
 **With no lens review,** list the choices you took on your own recommendation
 under "Auto-takes".
