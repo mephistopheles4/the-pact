@@ -1676,8 +1676,39 @@ offer, and when; this file says how to run them.
 
 ## Running a lens
 
-**Inputs.** A lens reads; it doesn't build. Give each lens its input as local
-files, with the absolute working folder when it reads the repo.
+A lens is a reviewer that asks one question from one angle. It knows nothing
+of the pact: the rules file's Workflow says which lenses to offer, and when;
+this file says how to run them and handle what they report. A lens someone
+brought from elsewhere runs the same way as the pact's.
+
+**Inputs, by what is reviewed.** A lens reads; it doesn't build. Give each
+lens its input as local files, with the absolute working folder when it reads
+the repo.
+- **A spec:** number its headings `S1`, `S2` and on. Give the section list,
+  the spec and the request.
+- **A result:** number the acceptance claims `C1`, `C2` and on, from the
+  ticket's or the spec's criteria. Give the claims, the spec or ticket, the
+  request, the diff and the working folder; to a lens that reads the tests,
+  also the tests you cite for each claim and the plan if there is one. Check
+  `git status` after a lens that runs the change.
+- **A diff:** give the diff, the spec or ticket, the request and the working
+  folder.
+
+Tell each lens which other reviewers ran, by their questions.
+
+**The report template.** Hand every lens this template with its inputs, and
+ask it to report in it. Its own artifact, such as a drafted ticket or a data
+inventory, goes in the report too. The template is a shape, not a syntax: take
+what a lens writes by its meaning.
+- **For the owner:** plain sentences on what it found, why it matters and
+  what it suggests.
+- **Findings:** one per item, each with where it sits (a section or claim
+  from the list it was handed, or a file and symbol), how serious it is
+  (high, medium or low), a one-line headline, the evidence and the smallest
+  change that fixes it.
+- **Not checked:** what it didn't look at, and why.
+- **Verdict:** blocking when anything is high; inconclusive when it couldn't
+  review something it was handed; findings; or clear.
 
 **Quality rows.** Hand each lens, as a local file, the rows of the rules
 file's Qualities table that name it, from the project's own list where the
@@ -1685,92 +1716,50 @@ project has one. Batch the missing measures the lenses report into one
 question for me: add each as a claim, or skip it. Record a skip once, in the
 Lens dispositions table, as "skipped, because ...".
 
-**Fresh and alone.** Dispatch each lens of a pair fresh and on its own, never
-shown its partner's report. Never resume a lens.
+**Fresh and alone.** Dispatch each lens fresh and on its own, never shown
+another lens's report. Never resume a lens.
 
-**The QA pair, on a result.** Number the acceptance claims `C1`, `C2` and on,
-from the ticket's or the spec's criteria.
-- Give `behaviour-lens` the claims, the spec or ticket, the request, the diff
-  and the working folder. Check `git status` after it runs.
-- Give `integrity-lens` the claims, the spec or ticket, the diff, the tests
-  you cite for each claim, and the plan if there is one.
-
-**The mutation step.** Before `integrity-lens`, run a mutation-testing tool if
-the repo's lock file pins one.
+**The mutation step.** Before a lens that checks whether the tests can fail,
+run a mutation-testing tool if the repo's lock file pins one.
 - Run it as its local binary, never through a command that can fetch a
   package (`npx`, `pnpm dlx`, `bunx`).
 - Write its output to a new file in your scratch folder, and hand that file
-  to `integrity-lens`.
+  to the lens.
 - Snapshot the working tree, untracked files included, before and after, and
   check they match. A tool config in the diff runs code, like its tests.
 - With no tool, say so.
 
-**A spec.** Number the spec's headings `S1`, `S2` and on. The spec pair is
-`executability-lens` and `good-enough-lens`. Give each lens that runs, and
-`unstated-lens` when it runs, the section list, the spec, the request and its
-tier. Tell `unstated-lens` which reviewers ran.
-When the security pair runs on sensitive work, it reads the spec first.
-
-**`unstated-lens` on a result** gets the claims, the spec, the diff and the
-request.
-
-**The security pair.** `adversarial-lens` and `data-lens`, when they run on
-sensitive work, read it twice:
-- the spec, before I approve it: the section list, the spec and the request;
-- the diff, at the end of the build: the diff, the spec or ticket, the request
-  and the working folder.
-
-**The standards pair.** `conventions-lens` and `reader-lens` get the diff, the
-spec or ticket, the request and the working folder.
-
 ## Crossing the reports
 
 You lay the reports out yourself, by judgment. Nothing parses them and
-nothing refuses one. Each lens ends its report with a plain list: a
-`Verdict:` line, `Findings:` with one line per finding (its id, anchor and
-severity, and for the security pair a likelihood, and for `data-lens` a data
-item, then a headline), `Not checked:` and an optional `Non-risks:`.
+nothing refuses one.
 
-**The pairs.** Which lenses are crossed together at each review:
+**Pairs.** Lenses offered together in one offer of the Workflow are a pair,
+and their reports are crossed together. A lens offered alone, or run alone, is
+crossed alone.
 
-| Review | Lenses |
-| --- | --- |
-| The QA pair on a result | `behaviour-lens`, `integrity-lens` |
-| `unstated-lens` on a result, crossed alone | `unstated-lens` |
-| The spec pair on a spec | `executability-lens`, `good-enough-lens` |
-| One spec lens on a spec, crossed alone | `executability-lens` or `good-enough-lens` |
-| `unstated-lens` on a spec, crossed alone | `unstated-lens` |
-| The security pair on a spec | `adversarial-lens`, `data-lens` |
-| The security pair on a diff | `adversarial-lens`, `data-lens` |
-| The standards pair on a diff | `conventions-lens`, `reader-lens` |
-| One standards lens on a diff, crossed alone | `conventions-lens` or `reader-lens` |
+**The review comment.** One comment per review, in this order:
 
-The security pair runs at the work's tier. The security route adds the pair;
-it doesn't by itself make work thorough.
-
-**The template.** One comment per review, the review comment, in this order:
-
-1. A heading: `### Area pair: lens-a and lens-b`, with the area's name
-   and the two lens names, or `### lens-name` with the lens's own name for a
-   lens crossed alone, such as `### unstated-lens`.
-2. **Pair verdict.** The stricter of the two lenses' own `Verdict:` lines:
-   blocking, then inconclusive, then findings, then clear. Show each lens's
-   verdict beside it. A lens whose verdict is inconclusive is marked "not
-   verified": its silence is not a pass, so read its not-checked list.
-3. **Crossings first.** A table of the anchors both lenses flagged, with each
-   lens's finding ids there. For the spec pair, head this table
-   **Disagreements: you settle these**.
-4. **One lens only.** A table of anchor, lens, id, severity and headline.
-   Security-pair rows add likelihood and data.
+1. A heading naming the lenses: `### lens-a and lens-b`, or `### lens-name`.
+2. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
+   inconclusive, then findings, then clear. Show each lens's verdict beside
+   it. A lens whose verdict is inconclusive is marked "not verified": its
+   silence is not a pass, so read what it didn't check.
+3. **Crossings first.** A table of the places both lenses flagged, with each
+   lens's findings there. Where the two lenses pull opposite ways, such as
+   what blocks against what could wait, head it **Disagreements: you settle
+   these**.
+4. **One lens only.** A table of where, lens, severity and headline, and
+   anything else the lens gives each finding, such as a likelihood.
 5. **Not checked,** per lens.
 6. **Verbatim reports,** each in its own fold (see Posting).
 
 **Rules you apply by judgment:**
-- **A crossing is the same anchor:** the same section or claim id, the same
-  file and symbol, or overlapping lines in one file. Two findings that read
-  alike on different anchors are not a crossing. Each lens asks a different
+- **A crossing is the same place:** the same section or claim, the same file
+  and symbol, or overlapping lines in one file. Two findings that read alike
+  in different places are not a crossing. Each lens asks a different
   question, so a crossing means two different problems meet at one place.
-- **Quick tier:** one line with the verdict, any "not verified" mark, and the
+- **Small work:** one line with the verdict, any "not verified" mark, and the
   count of not-checked items per lens, followed by the folds.
 - **Size:** one comment holds at most 65,536 characters. Split a longer
   review comment into parts, and repeat a table's header where it continues.
@@ -1798,10 +1787,10 @@ skill runs included.
   fence a lens's text can't render as a mention, an issue link, an image, a
   link or maths.
 - **Text you lay out stays inert.** Put every string you take from a report in
-  a code span longer than its longest run of backticks: the headline, the
-  anchor, the data item, each not-checked item and each non-risk note. Escape
-  pipes in a table and remove line breaks. Write the verdict, severity and
-  likelihood words yourself, from their fixed sets, and never copy them.
+  a code span longer than its longest run of backticks: the headline, where it
+  sits, and each not-checked item. Escape pipes in a table and remove line
+  breaks. Write the verdict and severity words yourself, from the template,
+  and never copy them.
 - **Hidden characters.** Before posting, search each report file for control,
   invisible and direction-changing characters with your search tool, for
   example with the pattern
@@ -1932,7 +1921,7 @@ check_hash 662687608bd15f1da7624371c15cae5dadf224570c636553241c8f8317b63c95 'age
 check_hash a7e6926321fb26785776c4e0fb92636167d57b9a15d27f2a6bb3ef2506a43d5b 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 2d00a1bf1aa0c97ab2ee491c7f12819dbc4af327f5d03987f7825462faef6854 'agents/unstated-lens.md'
-check_hash f6fb9f244de689208d4d0c1005be4f5e22a289c7bcec15bbe24c07c56ce6aa8e 'pact/review.md'
+check_hash 600137044c284e693ae1172b19cee2cfd78e91eae7c3ff47fe578d9454e9a170 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -1952,7 +1941,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 3be3978be63c"
+  echo "pact cloud copy bbde25cbff16"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
