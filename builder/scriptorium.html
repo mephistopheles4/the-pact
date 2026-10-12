@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Kp6Mpg5G2L2b9D/u3AKSkW8s9iLDzVLNC/DM9n39gf0='; style-src 'sha256-hVcrp+aKDmZLB6xODyTLuBoz+OWHgA3+50hB9SNCWBw='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-A+cGfT/vEAf2nSegM1VQ0ZD+HI6diBvbynyCpXnXpWw='; style-src 'sha256-Obn5K/k/BS8UX1btA4skS2l6nOM9KQzChJ+pKbVPttY='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -359,7 +359,7 @@ dialog.settings, dialog.classic {
   translate: 0 12px;
   transition: opacity .2s ease, translate .24s cubic-bezier(.2, .8, .2, 1), box-shadow .32s cubic-bezier(.2, .8, .2, 1) .06s, overlay .24s allow-discrete, display .24s allow-discrete;
 }
-dialog.settings[open], dialog.classic[open] { opacity: 1; translate: 0 0; box-shadow: var(--sheets-fanned); }
+dialog.settings[open], dialog.classic[open] { opacity: 1; translate: none; box-shadow: var(--sheets-fanned); }
 @starting-style {
   dialog.settings[open], dialog.classic[open] { opacity: 0; translate: 0 12px; box-shadow: var(--sheets-flat); }
 }
@@ -385,6 +385,16 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .classic-head { position: relative; padding-right: var(--av-s5); }
 .close-x { position: absolute; top: var(--av-s1); right: var(--av-s2); font: inherit; font-size: var(--av-t-lead); line-height: 1; padding: 4px 8px; border: 0; background: transparent; color: var(--av-ink-70); cursor: pointer; }
 .close-x:hover { color: var(--av-caution); }
+/* The help note, as groundtrack draws it: one element, moved to whatever
+   carries a data-help when the pointer rests on it or focus lands on it. A thin
+   ink box at annotation size, no shadow, no radius, no colour, with a dot that
+   leads to the middle of the thing it describes. */
+.tip { position: fixed; z-index: 40; max-width: min(38ch, calc(100vw - 2 * var(--av-s2))); padding: var(--av-s1) var(--av-s2);
+  background: var(--av-paper); color: var(--av-ink-80); border: var(--av-rule-thin) solid var(--av-ink);
+  font-size: var(--av-t-annot); line-height: 1.45; text-transform: none; letter-spacing: normal; font-weight: 400; pointer-events: none; }
+.tip[hidden] { display: none; }
+.tip::before { content: ''; position: absolute; left: var(--tip-lead, var(--av-s2)); top: -7px; width: 5px; height: 5px; border-radius: 50%; background: var(--av-ink); transform: translateX(-50%); }
+.tip--above::before { top: auto; bottom: -7px; }
 .row-line { display: flex; align-items: center; gap: var(--av-s1); }
 .row-line input[type="text"] { flex: 1 1 auto; }
 .row-x { flex: none; font: inherit; font-size: var(--av-t-body); line-height: 1; padding: 2px 6px; border: 0; background: transparent; color: var(--av-ink-55); cursor: pointer; }
@@ -1868,6 +1878,8 @@ function el(tag, props, ...kids) {
     if (k === 'class') e.className = v;
     else if (k === 'text') e.textContent = v;
     else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    // A title is shown as the page's help note (groundtrack's), never the browser's tooltip.
+    else if (k === 'title') e.setAttribute('data-help', v);
     else e.setAttribute(k, v);
   }
   for (const c of kids) if (c !== null && c !== undefined && c !== false) e.append(c);
@@ -2749,7 +2761,7 @@ function workflowEditor(host, state, changed) {
   };
   /** `node` with a tooltip. */
   const withTip = (node, tip) => {
-    node.setAttribute('title', tip);
+    node.setAttribute('data-help', tip);
     return node;
   };
   /** A model and its effort as two dropdowns, as the agents take them; `none` adds "none" for a tier with no plan. */
@@ -3264,7 +3276,7 @@ function boot() {
     const offering = resetBefore !== null && resetHot;
     resetBtn.textContent = offering ? 'Undo' : 'Reset';
     resetBtn.classList.toggle('armed', offering);
-    resetBtn.title = offering ? 'Put back what you had before the reset' : resetBefore !== null ? 'Reset. Hover to take the last reset back' : 'The limits, the moves, the agents and the canvas back to the plain pact';
+    resetBtn.dataset.help = offering ? 'Put back what you had before the reset' : resetBefore !== null ? 'Reset. Hover to take the last reset back' : 'The limits, the moves, the agents and the canvas back to the plain pact';
     resetBtn.disabled = resetBefore === null && atDefaults(state);
   }
   function disarmUndo() {
@@ -3534,8 +3546,84 @@ function boot() {
     );
   }
 
+  /**
+   * The help note (groundtrack's): shown after a short rest on anything that
+   * carries a data-help, or at once when focus lands on it; hidden on leave,
+   * blur, a press, a scroll or a resize. Below the thing, centred on it and
+   * kept inside the window; above it when there is no room below.
+   */
+  function helpNotes() {
+    const EDGE = 12;
+    const GAP = 9;
+    const tip = el('div', { class: 'tip', id: 'tip', role: 'tooltip' });
+    tip.hidden = true;
+    document.body.append(tip);
+    let timer = null;
+    let shownFor = null;
+    const hide = () => {
+      clearTimeout(timer);
+      timer = null;
+      if (!shownFor) return;
+      tip.hidden = true;
+      shownFor.removeAttribute('aria-describedby');
+      shownFor = null;
+    };
+    const show = node => {
+      const text = node.getAttribute('data-help');
+      if (!text) return;
+      shownFor = node;
+      const host = node.closest('dialog[open]') || document.body;
+      if (tip.parentNode !== host) host.append(tip);
+      tip.textContent = text;
+      tip.className = 'tip';
+      tip.style.left = '0px';
+      tip.style.top = '0px';
+      tip.hidden = false;
+      node.setAttribute('aria-describedby', 'tip');
+      const box = node.getBoundingClientRect();
+      const note = tip.getBoundingClientRect();
+      const middle = (box.left + box.right) / 2;
+      const left = Math.max(EDGE, Math.min(middle - note.width / 2, window.innerWidth - note.width - EDGE));
+      let top = box.bottom + GAP;
+      if (top + note.height > window.innerHeight - EDGE) {
+        top = box.top - note.height - GAP;
+        tip.className = 'tip tip--above';
+      }
+      tip.style.left = `${left}px`;
+      tip.style.top = `${Math.max(EDGE, top)}px`;
+      tip.style.setProperty('--tip-lead', `${Math.max(EDGE, Math.min(middle - left, note.width - EDGE))}px`);
+    };
+    const helpOf = e => (e.target && e.target.closest ? e.target.closest('[data-help]') : null);
+    document.addEventListener('pointerover', e => {
+      const node = helpOf(e);
+      if (!node || node === shownFor) return;
+      hide();
+      timer = setTimeout(() => {
+        timer = null;
+        show(node);
+      }, 300);
+    });
+    document.addEventListener('pointerout', e => {
+      const node = helpOf(e);
+      if (!node || (e.relatedTarget && node.contains(e.relatedTarget))) return;
+      hide();
+    });
+    document.addEventListener('focusin', e => {
+      const node = helpOf(e);
+      if (node) {
+        hide();
+        show(node);
+      }
+    });
+    document.addEventListener('focusout', hide);
+    document.addEventListener('pointerdown', hide, true);
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+  }
+
   if (PACT.title) $('builder-title').textContent = `The pact · configuration · ${PACT.title}`;
   renderActions();
+  helpNotes();
   renderAgents();
   renderAlways();
   renderSpine();
