@@ -505,7 +505,38 @@ test('the copy set with commands: a listed command pairs, an unlisted pact comma
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/commands/finis.md', 'claude/commands/make-it-so.md', 'claude/commands/ship-it.md', 'claude/commands/sub/finis.md', 'gate/a.mjs'], ['finis']);
   assert.deepEqual(e, [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/commands/finis.md', 'commands/finis.md'], ['claude/commands/ship-it.md', null], ['claude/commands/sub/finis.md', null]]);
   assert.deepEqual(core.expectedCopySet(['claude/commands/finis.md']), [], 'no list installs no command');
-  assert.deepEqual([...core.BUILDER_KIT], [], 'no kit ships before T3');
+});
+
+// #203 S6, S8; #262: the builder kit pairs under pact/builder/ only with /scriptorium on; the rules source goes only there, and a builder file the kit doesn't list pairs with null.
+test('the copy set with the builder kit: each kit file pairs under pact/builder/ only with scriptorium on, the rules source only there, an unlisted builder file with null', () => {
+  const rels = ['claude/CLAUDE.md', 'claude/rules.source.md', 'claude/agents/a.md', 'builder/build.mjs', 'builder/presets/p.json', 'builder/notes.txt', 'gate/shared.mjs', 'gate/seam-a.mjs', 'examples/pact-config/builder.json', 'claude/commands/scriptorium.md'];
+  assert.deepEqual(core.expectedCopySet(rels, ['scriptorium']), [
+    ['claude/CLAUDE.md', 'CLAUDE.md'],
+    ['claude/rules.source.md', 'pact/builder/claude/rules.source.md'],
+    ['claude/agents/a.md', 'pact/builder/claude/agents/a.md'], ['claude/agents/a.md', 'agents/a.md'],
+    ['builder/build.mjs', 'pact/builder/builder/build.mjs'],
+    ['builder/presets/p.json', 'pact/builder/builder/presets/p.json'],
+    ['builder/notes.txt', null],
+    ['gate/shared.mjs', 'pact/builder/gate/shared.mjs'],
+    ['examples/pact-config/builder.json', 'pact/builder/examples/pact-config/builder.json'],
+    ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
+  ]);
+  assert.deepEqual(core.expectedCopySet(rels, []), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/agents/a.md', 'agents/a.md'], ['builder/notes.txt', null]], 'no kit without /scriptorium');
+});
+
+// #203 S6: with /scriptorium on, the kit is whole or the install refuses.
+test('the builder kit: with scriptorium on, a kit file the commit lacks refuses; with it off, nothing is asked', () => {
+  const whole = [...core.BUILDER_KIT];
+  assert.doesNotThrow(() => core.checkKit(['scriptorium'], whole));
+  assert.deepEqual(decided(() => core.checkKit(['scriptorium'], whole.filter(r => r !== 'builder/parts.mjs'))).fails, ['kit-incomplete']);
+  assert.doesNotThrow(() => core.checkKit(['finis'], []));
+});
+
+// #262: /scriptorium installs whenever its file is in the commit; the others only when listed.
+test('the commands on: the listed ones, and scriptorium whenever the commit holds it', () => {
+  assert.deepEqual(core.commandsOn([], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']), ['scriptorium']);
+  assert.deepEqual(core.commandsOn(['finis'], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']), ['finis', 'scriptorium']);
+  assert.deepEqual(core.commandsOn(['finis'], ['claude/commands/finis.md']), ['finis'], 'no file, no command');
 });
 
 // #261 C3
@@ -624,7 +655,7 @@ for (const c of table('new command paths', {
     { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
     // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
     { id: 'review-path', plant: t => ({ ...t, files: json([['pact/review.md', H('4')]]), live: json(['pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
-    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* take scriptorium, which installs the builder kit, out of the commands list\./, why: 'the same rule is ready for the kit, with its own remedy' },
+    { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
   ],
 })) test(c.name, c.fn);
 
@@ -644,8 +675,13 @@ test('the commands block lists every pact command, on or off, says which this co
     '  WARN: the user configuration turns on the pact command /finis; it installs to commands/finis.md.',
   ]);
   assert.equal(core.commandsBlock([], []).filter(l => l.startsWith('  WARN')).length, 0);
-  assert.equal(core.commandsBlock([], ['claude/CLAUDE.md']).at(-1), '  No pact command is in this commit yet, so none can be turned on.', 'never an example the commit lacks');
-  assert.match(core.commandsBlock([], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']).at(-1), /for example: "commands": \["finis"\]$/, 'the first staged command, in PACT_COMMANDS order');
+  assert.equal(core.commandsBlock([], ['claude/CLAUDE.md']).at(-1), '  No pact command that can be turned on is in this commit.', 'never an example the commit lacks');
+  assert.match(core.commandsBlock(['scriptorium'], ['claude/commands/scriptorium.md', 'claude/commands/finis.md']).at(-1), /for example: "commands": \["finis"\]$/, 'the first staged command that can be turned on, in PACT_COMMANDS order');
+  // #262: /scriptorium is always on, with no warning; a list that still names it is told to drop it.
+  const always = core.commandsBlock(['scriptorium'], ['claude/commands/scriptorium.md'], ['scriptorium']);
+  assert.ok(always.includes('  /scriptorium: on, always: part of the pact, with the builder kit under pact/builder/'));
+  assert.ok(!always.some(l => l.startsWith('  WARN')));
+  assert.match(always.at(-1), /^  NOTE: pact\/config\.json lists scriptorium, which now always installs; take it out of the list/);
 });
 
 // ------------------------------------------------------------ settings JSON and the merge (S8, L4 to L9)

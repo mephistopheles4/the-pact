@@ -15,6 +15,14 @@ const CHARACTER_HITS_MAX = 20;
 // own copy (install-core.mjs), held to this one by a test. Adding a name is a
 // change to gate code, so it takes the security route.
 const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+// The builder kit (#203 S6; #262): what the builder reads, installed under
+// pact/builder/ in the repo's own layout whenever /scriptorium installs. Seam
+// A reads this copy; the install keeps its own (install-core.mjs), held to
+// this one by a test. The rules source is the staged, unrendered rules file,
+// copied by the install; the agents and the presets go by pattern.
+const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
+const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^builder\/presets\/[^/]+\.json$/]);
+const inKit = rel => BUILDER_KIT.includes(rel) || BUILDER_KIT_PATTERNS.some(re => re.test(rel));
 // The fixed blocks: marked parts of the rules file that no configuration edit
 // can target, which the builder shows as locked clauses. Since #262 the gate
 // no longer holds their words; the pact is vetted like a skill.
@@ -228,6 +236,9 @@ const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 
 export {
   PACT_COMMANDS,
+  BUILDER_KIT,
+  BUILDER_KIT_PATTERNS,
+  inKit,
   PINNED,
   MAX_BYTES,
   CHARACTER_HITS_MAX,

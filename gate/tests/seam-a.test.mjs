@@ -281,6 +281,11 @@ test('classification: a subfolder in familiars', t => {
   expectFail(t, { 'familiars/sub/probe.md': plainAgent('probe') }, 'unclassified');
 });
 
+// unclassified, #203 S6: builder/ holds only what the builder kit lists.
+test('classification: a builder file the builder kit does not list', t => {
+  expectFail(t, { 'builder/notes.txt': 'x\n' }, 'unclassified');
+});
+
 test('classification: a path with unsafe characters', t => {
   expectFail(t, { 'claude/agents/pro be.md': plainAgent('pro be') }, 'path');
 });

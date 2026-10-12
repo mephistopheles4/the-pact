@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { PACT_COMMANDS as INSTALL_COMMANDS } from '../install-core.mjs';
-import { PACT_COMMANDS } from '../shared.mjs';
+import { BUILDER_KIT as INSTALL_KIT, BUILDER_KIT_PATTERNS as INSTALL_KIT_PATTERNS, PACT_COMMANDS as INSTALL_COMMANDS } from '../install-core.mjs';
+import { BUILDER_KIT, BUILDER_KIT_PATTERNS, PACT_COMMANDS } from '../shared.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
 import { moduleResult, table } from './tables.mjs';
@@ -91,6 +91,13 @@ test('the pact command list is one list: the install keeps the same names in the
   assert.deepEqual([...INSTALL_COMMANDS], [...PACT_COMMANDS]);
   assert.deepEqual([...PACT_COMMANDS], ['make-it-so', 'finis', 'scriptorium']);
   assert.ok(Object.isFrozen(PACT_COMMANDS) && Object.isFrozen(INSTALL_COMMANDS));
+});
+
+// #203 S8: seam A and the install each keep the builder kit's list; the two copies agree.
+test('the builder kit is one list: the install keeps the same files and patterns', () => {
+  assert.deepEqual([...INSTALL_KIT], [...BUILDER_KIT]);
+  assert.deepEqual(INSTALL_KIT_PATTERNS.map(String), BUILDER_KIT_PATTERNS.map(String));
+  assert.ok([BUILDER_KIT, INSTALL_KIT, BUILDER_KIT_PATTERNS, INSTALL_KIT_PATTERNS].every(Object.isFrozen));
 });
 
 // ------------------------------------------------------------ the renderer: the commands key (S7)

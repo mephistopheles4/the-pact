@@ -8,7 +8,7 @@
 // are shown, and the bootstrap's clock stops the whole run until CHECKS DONE.
 // Every decision is a function in install-core.mjs; every read and write is
 // in install-io.mjs. No error's own text is ever printed.
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -134,6 +134,12 @@ async function main() {
   const render = await loadCore('render-core.mjs');
   if (!staged.has(core.RULES_REL)) core.stops.rulesMissing();
   const rulesStaged = live(stage, core.RULES_REL);
+  // The builder kit's rules source (#203 S6): the unrendered rules, copied in the stage before the render, bound to the commit's hash.
+  if (staged.has(core.KIT_RULES_REL)) core.stops.rulesSourceInTree();
+  copyFileSync(rulesStaged, live(stage, core.KIT_RULES_REL));
+  const sourceHash = io.fileSha256(live(stage, core.KIT_RULES_REL));
+  if (sourceHash !== staged.get(core.RULES_REL)) core.stops.rulesSourceHash();
+  staged.set(core.KIT_RULES_REL, sourceHash);
   const before = stateOf(stage);
   const renderOut = mkdtempSync(join(work, 'render-'));
   // A project install gives the stage its no-file render, against a new empty
@@ -162,9 +168,12 @@ async function main() {
 
   // Seam A, in-process, on the staged and rendered copy (S-1 to S-3).
   const seamA = await loadCore('seam-a-core.mjs');
-  // The renderer's COMMANDS line reaches seam A as its --commands (#203, S8); each side works out the copy set on its own.
-  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', parsed.commands.length ? parsed.commands.join(',') : 'none'], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), parsed.commands), staged, commit);
+  // The commands that install: the renderer's COMMANDS line, and /scriptorium whenever it is in the commit (#262).
+  // They reach seam A as its --commands (#203, S8); each side works out the copy set on its own.
+  const on = project ? [] : core.commandsOn(parsed.commands, staged.keys());
+  core.checkKit(on, staged.keys());
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none'], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   say(`Check: passed on commit ${commit}`);
@@ -240,7 +249,7 @@ async function main() {
   // #262: the person's agents are not the pact's to write, check or record.
   for (const rel of p.yours) repoFiles.delete(rel);
   // A pact command never shadowed by a same-named skill, nor laid over a file the pact didn't write (#203, S8).
-  core.checkSkillClash(parsed.commands, rel => io.present(live(home, rel)));
+  core.checkSkillClash(on, rel => io.present(live(home, rel)));
   core.checkNewPaths(repoFiles, record, rel => io.liveState(live(home, rel)));
 
   // Settings (L4 to L9).
@@ -284,7 +293,7 @@ async function main() {
   }
   say('Configuration:');
   for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
-  for (const l of core.commandsBlock(parsed.commands, staged.keys())) say(l);
+  for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
   if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
   else say('Working tree: clean');
   if (nothing) say('Nothing to do.');

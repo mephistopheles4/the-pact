@@ -141,7 +141,7 @@ test('bad case: a listed command that is not in this pact refuses at seam A', t 
 
 // ------------------------------------------------------------ the seam between the renderer, seam A and the install (S8)
 
-const RUNNER_ARGS = "[stage, '--commands', parsed.commands.length ? parsed.commands.join(',') : 'none']";
+const RUNNER_ARGS = "[stage, '--commands', on.length ? on.join(',') : 'none']";
 /** Replace the runner's seam A arguments with `to`, in the repo's committed runner. */
 const plantRunnerArgs = to => root => {
   const p = join(root, 'gate', 'install-run.mjs');
@@ -189,7 +189,7 @@ test('bad case: an extra copy-set pair refuses', t => {
 });
 
 test('bad case: a gate file listed for install outside the builder kit refuses', t => {
-  const plant = "r.lines.splice(r.lines.findIndex(l => l.startsWith('SETTINGS ')), 0, 'INSTALL ' + 'a'.repeat(64) + ' gate/shared.mjs pact/builder/gate/shared.mjs');";
+  const plant = "r.lines.splice(r.lines.findIndex(l => l.startsWith('SETTINGS ')), 0, 'INSTALL ' + 'a'.repeat(64) + ' gate/seam-a-core.mjs pact/builder/gate/seam-a-core.mjs');";
   const repo = repoWithFinis(t, root => wrapCheck(root, 'seam-a-core', { after: plant }));
-  refusedUnchanged(repo, homeWith(t, ['finis']), /^REFUSED: the check listed a gate file for install outside the builder kit: gate\/shared\.mjs\./m);
+  refusedUnchanged(repo, homeWith(t, ['finis']), /^REFUSED: the check listed a gate file for install outside the builder kit: gate\/seam-a-core\.mjs\./m);
 });

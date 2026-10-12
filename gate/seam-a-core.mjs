@@ -40,7 +40,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACT_COMMANDS, Refused, Report, readStrictJson, safePath, scanText, shown } from './shared.mjs';
+import { BUILDER_KIT, PACT_COMMANDS, Refused, Report, inKit, readStrictJson, safePath, scanText, shown } from './shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SETTINGS_ALLOWLIST = join(HERE, 'settings-allowlist.json');
@@ -517,8 +517,15 @@ function classify(root, report) {
   const agents = [];
   const commands = [];
   const installs = [];
+  const kit = [];
   let overlay = false;
   const files = [...walk(root, 'claude', report), ...walk(root, 'familiars', report)];
+  // The builder kit (#203 S6): builder/ whole, and the kit's files elsewhere, each installed under pact/builder/ with /scriptorium.
+  for (const rel of [...walk(root, 'builder', report), ...BUILDER_KIT.filter(rel => !/^(builder|claude)\//.test(rel)).flatMap(rel => walk(root, rel, report))]) {
+    if (!safePath(rel)) report.fail('path', rel, null, "a path with characters outside letters, digits, '.', '_' and '-'");
+    else if (!inKit(rel)) report.fail('unclassified', rel, null, 'a builder file the builder kit does not list');
+    else kit.push({ file: rel, dest: `pact/builder/${rel}` });
+  }
   for (const rel of files) {
     if (!safePath(rel)) {
       report.fail('path', rel, null, "a path with characters outside letters, digits, '.', '_' and '-'");
@@ -526,8 +533,11 @@ function classify(root, report) {
     }
     const seg = rel.split('/');
     if (seg[0] === 'claude') {
+      if (inKit(rel)) kit.push({ file: rel, dest: `pact/builder/${rel}` });
       if (rel === 'claude/CLAUDE.md') {
         installs.push({ file: rel, dest: 'CLAUDE.md' });
+      } else if (rel === 'claude/rules.source.md') {
+        // The unrendered rules, copied by the install for the builder kit only.
       } else if (rel === REVIEW_FILE) {
         installs.push({ file: rel, dest: REVIEW_DEST, review: true });
       } else if (rel === OVERLAY) {
@@ -550,7 +560,7 @@ function classify(root, report) {
     else if (!(seg[1] === '.gitkeep' || seg[1].endsWith('.contract.md') || seg[1].endsWith('.practice-test.md'))) report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   if (!installs.some(i => i.review)) report.fail('review-file', REVIEW_FILE, null, 'the review procedure file is missing');
-  return { agents, commands, installs, overlay };
+  return { agents, commands, installs, kit, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
@@ -572,7 +582,7 @@ function checkAgent(a, parsed, report) {
 function run(root, listed, report) {
   // @@TEST-CRASH-HOOK@@
   const settingsAllow = loadSettingsAllowlist(report);
-  const { agents, commands, installs, overlay } = classify(root, report);
+  const { agents, commands, installs, kit, overlay } = classify(root, report);
   let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
@@ -580,11 +590,12 @@ function run(root, listed, report) {
     if (parsed) checkAgent(a, parsed, report);
   }
 
-  // Only those --commands names are installed.
+  // Only those --commands names are installed, and the builder kit with /scriptorium.
   for (const c of commands) if (listed.includes(c.stem)) installs.push(c);
+  if (listed.includes('scriptorium')) installs.push(...kit);
   // Every other installed text file passes the text scanner: valid UTF-8, no
   // hidden or control characters, so what a reader sees is what the model reads.
-  for (const i of [...installs, ...commands]) if (!agents.includes(i)) scanText(readFileSync(join(root, ...i.file.split('/'))), i.file, report);
+  for (const file of new Set([...installs, ...commands, ...kit].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
   for (const name of listed) {
     if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
   }

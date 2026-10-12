@@ -16,10 +16,20 @@ export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
 // gate/shared.mjs, so it works out its copy set without seam A's list.
 export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
-// The gate files the builder kit installs under pact/builder/, the only gate
-// files that ever install (#203, S8). Empty until the kit ships (T3).
-export const BUILDER_KIT = Object.freeze([]);
+// The builder kit (#203 S6; #262), the install's own copy of seam A's list in
+// gate/shared.mjs: installed under pact/builder/ in the repo's own layout
+// whenever /scriptorium installs. Its gate files are the only gate files that
+// ever install. The agents and the presets go by pattern.
+export const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
+export const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^builder\/presets\/[^/]+\.json$/]);
+export const inKit = rel => BUILDER_KIT.includes(rel) || BUILDER_KIT_PATTERNS.some(re => re.test(rel));
 const KIT_DEST = 'pact/builder/';
+// The unrendered rules file, which the install copies into the stage for the kit; never in a commit.
+export const KIT_RULES_REL = 'claude/rules.source.md';
+// The kit's files outside claude/, gate/ and builder/, staged by exact path.
+export const KIT_EXTRA = Object.freeze(['docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json']);
+// The command that brings the kit. It installs whenever its file is in the commit (#262: the builder is part of the pact).
+export const KIT_COMMAND = 'scriptorium';
 export const INSTALL_FILES = Object.freeze(['gate/install.mjs', 'gate/install-run.mjs', 'gate/install-core.mjs', 'gate/install-io.mjs']);
 export const RULES_REL = 'claude/CLAUDE.md';
 export const OVERLAY_REL = 'claude/settings.overlay.json';
@@ -215,7 +225,7 @@ export function applyLine(paths, commit, renderedHash, platform) {
 // ------------------------------------------------------------ the commit's tree
 
 /** True for a path the install stages: claude/, familiars/ and gate/ but its tests, and AGENTS.md. Nothing under cross/ is staged. */
-export const isStaged = rel => rel === 'AGENTS.md' || (/^(claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
+export const isStaged = rel => rel === 'AGENTS.md' || KIT_EXTRA.includes(rel) || (/^(builder|claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
 
 /**
  * The commit's tree from `ls-tree -r -z` bytes (S6, G7), checked again from
@@ -632,10 +642,16 @@ export function parseProjectWrite(report, projectHash) {
  */
 export function expectedCopySet(stagedRels, commands = []) {
   const out = [];
+  const kitOn = commands.includes(KIT_COMMAND);
   for (const rel of stagedRels) {
-    if (BUILDER_KIT.includes(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
-    if (rel.startsWith('gate/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep') continue;
+    if (kitOn && inKit(rel)) out.push([rel, `${KIT_DEST}${rel}`]);
+    if (rel.startsWith('gate/') || rel === 'AGENTS.md' || rel === OVERLAY_REL || rel === 'familiars/.gitkeep' || rel === KIT_RULES_REL) continue;
     if (/^familiars\/[^/]+\.(contract|practice-test)\.md$/.test(rel)) continue;
+    // A builder or kit file goes only to the kit; one the kit doesn't list pairs with null.
+    if (rel.startsWith('builder/') || KIT_EXTRA.includes(rel)) {
+      if (!inKit(rel)) out.push([rel, null]);
+      continue;
+    }
     let m;
     if ((m = /^claude\/commands\/(.*)$/.exec(rel))) {
       const name = /^([^/]+)\.md$/.exec(m[1])?.[1];
@@ -646,6 +662,28 @@ export function expectedCopySet(stagedRels, commands = []) {
     else out.push([rel, null]);
   }
   return out;
+}
+
+/**
+ * With /scriptorium on, every file the builder kit lists by name is staged, so
+ * the builder never installs half a kit (#203 S6). The rules source is the
+ * install's own copy, made before this runs.
+ */
+export function checkKit(on, stagedRels) {
+  if (!on.includes(KIT_COMMAND)) return;
+  const staged = new Set(stagedRels);
+  const missing = BUILDER_KIT.filter(rel => !staged.has(rel));
+  if (missing.length) refuse('kit-incomplete', `the commit holds /${KIT_COMMAND} but not all of its builder kit: ${missing.map(formatPlain).join(', ')}.`);
+}
+
+/**
+ * The pact commands that install: those the configuration lists, and the
+ * builder's command whenever its file is in the commit (#262), in
+ * PACT_COMMANDS order. A project install installs none.
+ */
+export function commandsOn(listed, stagedRels) {
+  const staged = new Set(stagedRels);
+  return PACT_COMMANDS.filter(c => listed.includes(c) || (c === KIT_COMMAND && staged.has(`claude/commands/${c}.md`)));
 }
 
 /**
@@ -662,7 +700,7 @@ export function matchCopySet(lines, expected, stagedHashes, commit) {
     if (!m) continue;
     const key = `${m[2]} ${m[3]}`;
     if (pairs.has(key)) refuse('copy-set-twice', 'the check listed one file twice.');
-    if (m[2].startsWith('gate/') && !(BUILDER_KIT.includes(m[2]) && m[3] === `${KIT_DEST}${m[2]}`)) refuse('copy-set-gate', `the check listed a gate file for install outside the builder kit: ${formatPlain(m[2])}.`);
+    if (m[2].startsWith('gate/') && !(inKit(m[2]) && m[3] === `${KIT_DEST}${m[2]}`)) refuse('copy-set-gate', `the check listed a gate file for install outside the builder kit: ${formatPlain(m[2])}.`);
     pairs.set(key, m[1]);
     checked.push([m[2], { dest: m[3], sha256: m[1] }]);
   }
@@ -684,7 +722,7 @@ export function matchCopySet(lines, expected, stagedHashes, commit) {
 export function checkSkillClash(commands, present) {
   for (const name of commands) {
     const rel = `skills/${name}`;
-    if (present(rel)) refuse('command-skill-clash', `${rel} exists in the Claude home folder, and Claude Code would run that skill in place of the pact command /${name}. Rename or move it, or take ${name} out of the commands list.`);
+    if (present(rel)) refuse('command-skill-clash', `${rel} exists in the Claude home folder, and Claude Code would run that skill in place of the pact command /${name}. Rename or move it${name === KIT_COMMAND ? '' : `, or take ${name} out of the commands list`}.`);
   }
 }
 
@@ -697,23 +735,30 @@ export function checkNewPaths(repoFiles, record, live) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
     if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
-    const remedy = rel.startsWith(KIT_DEST) ? 'take scriptorium, which installs the builder kit, out of the commands list' : 'take its name out of the commands list';
-    const next = rel === REVIEW_DEST ? 'Move it out of the way, then install again.' : `Move it, or ${remedy}.`;
+    const always = rel === REVIEW_DEST || rel.startsWith(KIT_DEST) || rel === `commands/${KIT_COMMAND}.md`;
+    const next = always ? 'Move it out of the way, then install again.' : 'Move it, or take its name out of the commands list.';
     if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
   }
 }
 
-/** The Commands block of a dry run (#203, S7): every pact command, on or off, and how to turn one on. */
-export function commandsBlock(commands, stagedRels) {
+/**
+ * The Commands block of a dry run (#203, S7): every pact command, on or off,
+ * and how to turn one on. /scriptorium installs whenever it is in the commit
+ * (#262); a list that still names it is told to drop the name, which an older
+ * pact would refuse on a rollback.
+ */
+export function commandsBlock(on, stagedRels, listed = []) {
   const staged = new Set(stagedRels);
   const out = ['Commands:'];
   for (const name of PACT_COMMANDS) {
     const here = staged.has(`claude/commands/${name}.md`);
-    out.push(`  /${name}: ${commands.includes(name) ? 'on' : 'off'}${here ? '' : ' (not in this commit)'}`);
+    const always = name === KIT_COMMAND && here;
+    out.push(`  /${name}: ${always ? 'on, always: part of the pact, with the builder kit under pact/builder/' : on.includes(name) ? 'on' : 'off'}${here ? '' : ' (not in this commit)'}`);
   }
-  const example = PACT_COMMANDS.find(name => staged.has(`claude/commands/${name}.md`));
-  out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command is in this commit yet, so none can be turned on.');
-  for (const name of commands) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
+  const example = PACT_COMMANDS.find(name => name !== KIT_COMMAND && staged.has(`claude/commands/${name}.md`));
+  out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command that can be turned on is in this commit.');
+  for (const name of on) if (!(name === KIT_COMMAND && staged.has(`claude/commands/${name}.md`))) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
+  if (listed.includes(KIT_COMMAND) && staged.has(`claude/commands/${KIT_COMMAND}.md`)) out.push(`  NOTE: ${CONFIG_REL} lists ${KIT_COMMAND}, which now always installs; take it out of the list, since an older pact refuses it.`);
   return out;
 }
 
@@ -1118,6 +1163,8 @@ export const stops = Object.freeze({
   blocksHoldLink: () => refuse('blocks-hold-link', 'the configuration blocks folder holds a link or other reparse point.'),
   moduleMissing: name => refuse('module-missing', `the commit's ${name} could not be loaded.`),
   rulesMissing: () => refuse('rules-missing', `the commit holds no ${RULES_REL}.`),
+  rulesSourceInTree: () => refuse('rules-source-in-tree', `the commit holds ${KIT_RULES_REL}, a file only the install makes, from ${RULES_REL}.`),
+  rulesSourceHash: () => refuse('rules-source-hash', `the copy of ${RULES_REL} made for the builder kit does not match the commit's.`),
   renderChangedStage: () => refuse('render-changed-stage', 'the renderer changed the stage.'),
   stageChanged: rel => refuse('stage-changed', `the staged copy of ${formatPlain(rel)} changed after the check.`),
   reviewRulesChanged: () => refuse('review-rules-changed', 'the staged rules file changed after the check.'),

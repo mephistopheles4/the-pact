@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, upgradeParts } from '../../builder/parts.mjs';
-import { isStaged } from '../install-core.mjs';
+import { BUILDER_KIT, KIT_RULES_REL, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -159,10 +159,12 @@ test('bad pages planted in the script fail only their own check, so each check i
 
 // ------------------------------------------------------------ where the page lives
 
-test('the page is outside claude/ and every path the install stages, so it is never installed', () => {
+// #262: the builder is part of the pact: the page is staged, and installs only into the builder kit, never to the Claude home folder's top.
+test('the page is staged, and installs only into the builder kit', () => {
   // The Node install stages the paths its core's isStaged names (#153, S3, step 7).
-  assert.ok(isStaged('claude/CLAUDE.md') && isStaged('gate/seam-a.mjs'), 'the install no longer stages claude/ and gate/');
-  assert.ok(!isStaged(PAGE_REL), `${PAGE_REL} is a path the install stages`);
+  assert.ok(isStaged('claude/CLAUDE.md') && isStaged('gate/seam-a.mjs') && isStaged(PAGE_REL), 'the install stages claude/, gate/ and the builder');
+  assert.deepEqual(expectedCopySet([PAGE_REL], ['scriptorium']), [[PAGE_REL, `pact/builder/${PAGE_REL}`]]);
+  assert.deepEqual(expectedCopySet([PAGE_REL], []), []);
 });
 
 // ------------------------------------------------------------ the carried pact text
@@ -903,7 +905,8 @@ test('a shipped preset is carried with only the parts, models and agent files it
 test('the builder kit builds a page from a builder file, refuses to rebuild itself, and refuses an output in the kit, the Claude home, a .claude folder, a git work tree or over a file', t => {
   const home = join(tempDir(t, 'pact-kit-'), 'claude-home');
   const kit = join(home, 'pact', 'builder');
-  for (const rel of ['builder/build.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'builder/presets', 'gate/shared.mjs', 'gate/render.mjs', 'gate/render-core.mjs', 'claude/agents', 'examples/pact-config/builder.json', 'docs/brand/scriptorium/scriptorium-mark.svg']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
+  // The gate's own kit list, the agents and presets by their folders, so the test runs the kit that installs.
+  for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
   cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
