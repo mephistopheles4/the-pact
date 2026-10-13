@@ -568,7 +568,7 @@ test('stub page: Add agent in the Agents panel saves agents/<name>.md, and the s
   const P = bootPage();
   const panel = openAgents(P);
   P.find(panel, n => n.tag === 'input' && n.attrs['aria-label'] === 'New agent name')[0].value = 'my-reviewer';
-  P.button(P.ids.agents, 'Add agent').click();
+  P.button(P.ids.agents, '+').click();
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /agents\/my-reviewer\.md/);
   assert.match(P.ids.output.text, /a save deletes nothing/);

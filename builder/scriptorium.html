@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-eQZNBbFhYbaYTDuq7dSLAWFwm1T/V6bcP5EtgIlisoY='; style-src 'sha256-H4ccihSyX7930j2oS6HVB/xa+OaTlz2Z6QgE/TJwKlA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6bHvytI/sW2gZOoTjXg6YcrSxnsaKw3tXVmHnq7RJOk='; style-src 'sha256-te9DdgW2s1Xntsx3WvNylADPs+Idgde+6dXFfP3N9xA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -352,8 +352,9 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .agents-grid { display: grid; grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr); gap: var(--av-s3); align-items: start; }
 .agent-list { display: flex; flex-direction: column; gap: 2px; }
 .agent-list .av-label { margin-top: var(--av-s1); }
-.agent-add { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; margin-top: var(--av-s2); }
+.agent-add { display: flex; flex-wrap: nowrap; gap: var(--av-s1); align-items: center; margin-top: var(--av-s2); }
 .agent-add input[type="text"] { flex: 1 1 8em; width: auto; min-width: 0; }
+.agent-add .add-square { flex: none; width: var(--control-h); padding: 0; font-size: var(--av-t-lead); line-height: 1; letter-spacing: 0; text-align: center; }
 .tag-input { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; }
 /* The tags on top, the box on its own line under them. */
 .tag-input input[type="text"] { flex: 1 1 100%; width: 100%; min-width: 0; }
@@ -365,6 +366,8 @@ textarea.agent-file { font-size: var(--av-t-micro); white-space: pre; }
 .acc-stack { display: flex; flex-direction: column; gap: var(--av-s1); }
 .tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: 1 1 auto; }
 .tags select { width: auto; }
+.tag-field { display: flex; flex-direction: column; gap: var(--av-s1); min-width: 0; }
+.tag-field > select { width: 100%; }
 .wf-chip.tag { display: inline-flex; align-items: center; }
 @media (max-width: 640px) { .agents-grid { grid-template-columns: 1fr; } }
 /* The help note, as groundtrack draws it: one element, moved to whatever
@@ -399,6 +402,11 @@ textarea.agent-file { font-size: var(--av-t-micro); white-space: pre; }
    roles, so the page names three and every dialog spaces by them: a section
    from the next, a row from the next, and the items inside a row. */
 :root { --space-section: var(--av-s3); --space-row: var(--av-s2); --space-item: var(--av-s1); }
+/* CONTROLS (#279). The design system has no input or select, so the page sets
+   one height, from the spacing scale, for every field, select and square button. */
+:root { --control-h: var(--av-s4); }
+input[type="text"], input[type="number"], select { box-sizing: border-box; height: var(--control-h); padding-top: 0; padding-bottom: 0; }
+.agent-add .add-square { height: var(--control-h); }
 dialog.settings .av-tool-bar--stack { gap: var(--space-row); padding-top: var(--space-section); padding-bottom: var(--space-section); }
 .acc summary { min-height: 3rem; }
 .acc-body { gap: var(--space-row); padding: var(--space-row) 0 var(--space-section); }
@@ -3819,11 +3827,14 @@ function prose(text, cls) {
  */
 function tagPicker(label, values, options, onChange) {
   const left = options.filter(o => !values.includes(o));
-  const add = el('select', { 'aria-label': `Add to ${label}` }, el('option', { value: '', text: '+ add' }), ...left.map(o => el('option', { value: o, text: o })));
+  const add = el('select', { 'aria-label': `Add to ${label}` }, el('option', { value: '', text: left.length ? '+ add' : 'nothing left to add' }), ...left.map(o => el('option', { value: o, text: o })));
+  add.disabled = !left.length;
   add.addEventListener('change', () => {
     if (add.value) onChange([...values, add.value]);
   });
-  return el('div', { class: 'tags', role: 'group', 'aria-label': label }, ...values.map(v => el('span', { class: 'wf-chip tag' }, v, el('button', { type: 'button', title: `Remove ${v}`, 'aria-label': `Remove ${v} from ${label}`, onclick: () => onChange(values.filter(x => x !== v)) }, '×'))), ...(left.length ? [add] : []));
+  // The chips above, the select below, as the Tools field lays them out; the select stays when nothing is left to add (#279).
+  const chips = values.map(v => el('span', { class: 'wf-chip tag' }, v, el('button', { type: 'button', title: `Remove ${v}`, 'aria-label': `Remove ${v} from ${label}`, onclick: () => onChange(values.filter(x => x !== v)) }, '×')));
+  return el('div', { class: 'tag-field', role: 'group', 'aria-label': label }, ...(chips.length ? [el('div', { class: 'tags' }, ...chips)] : []), add);
 }
 
 /**
@@ -5688,7 +5699,13 @@ function boot() {
             renderOutput();
           };
           box.addEventListener('keydown', e => e.key === 'Enter' && add());
-          return el('div', { class: 'agent-add' }, box, chip('Add agent', false, add, 'av-tool-chip--ghost'), ...(addWhy ? [el('p', { class: 'av-annot', role: 'alert', text: `Not added: ${addWhy}.` })] : []));
+          return el('div', { class: 'agent-add' }, box, (() => {
+            // A square + beside the name box (#279); its name stays "Add agent".
+            const b = chip('+', false, add, 'av-tool-chip--ghost add-square');
+            b.setAttribute('aria-label', 'Add agent');
+            b.setAttribute('data-help', 'Add an agent with this name');
+            return b;
+          })(), ...(addWhy ? [el('p', { class: 'av-annot', role: 'alert', text: `Not added: ${addWhy}.` })] : []));
         })()),
         detail,
       )),
