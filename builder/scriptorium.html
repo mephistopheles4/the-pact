@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6bHvytI/sW2gZOoTjXg6YcrSxnsaKw3tXVmHnq7RJOk='; style-src 'sha256-fjfHWXcQw4rBtfUuKBrfAWu0NvUqPgHY7cCGqV8j84k='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-0d2G4VTeNUevA/Gfn4eZv4HoUvQZnCX+Yahdss3OJig='; style-src 'sha256-fjfHWXcQw4rBtfUuKBrfAWu0NvUqPgHY7cCGqV8j84k='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3165,7 +3165,7 @@ function compileLenses(p) {
   return [row(['Lens', 'Asks']), rule(2), ...p.lenses.map(r => row([`${r.agents.map(tick).join(', ')}${r.label ? ` (${r.label})` : ''}`, r.asks]))].join('\n');
 }
 
-/** The qualities part (#273): the ranked list, each quality with its measure and the lenses that check it. */
+/** The qualities part (#273): the list, each quality with its measure and the lenses that check it. */
 function compileQualities(p) {
   return [row(['Quality', 'Measure', 'Lens']), rule(3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', ')]))].join('\n');
 }
@@ -3314,7 +3314,7 @@ function partsProblems(p) {
       if (!lineOk(r.asks, C.line) || !r.asks.trim()) err('lenses', `row ${i + 1}: asks must be one line of 1 to ${C.line} characters, with no bar`);
     });
 
-  // The qualities (#273): ranked rows, each a quality, its measure (empty when none is known yet) and 1 to 4 lenses.
+  // The qualities (#273): rows, each a quality, its measure (empty when none is known yet) and 1 to 4 lenses.
   if (!Array.isArray(p.qualities) || !p.qualities.length || p.qualities.length > C.qualities) err('qualities', `the list must hold 1 to ${C.qualities} qualities`);
   else {
     p.qualities.forEach((q, i) => {
@@ -5244,13 +5244,12 @@ function boot() {
         limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v)),
         el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
       ),
-      commandsSection(),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('moves', 'Moves', movesTab()), section('models', 'Models', modelsTab()), box)),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('commands', 'Pact commands', commandsSection()), section('moves', 'Moves', movesTab()), section('models', 'Models', modelsTab()), box)),
     ));
   }
   /**
-   * The pact commands (#203, S10): one checkbox per opt-in command, and
-   * /scriptorium shown on and locked. Until one is ticked or unticked, a save
+   * The pact commands (#203, S10), an accordion like the parts (#279): one
+   * checkbox per opt-in command, and /scriptorium shown on and locked. Until one is ticked or unticked, a save
    * leaves the folder's own commands list as it is.
    */
   function commandsSection() {
@@ -5274,9 +5273,8 @@ function boot() {
       renderOutput();
     }, set === null ? '' : 'av-tool-chip--ghost', true);
     return el(
-      'section',
-      { class: 'av-tool-bar av-tool-bar--stack' },
-      el('h3', { class: 'section-title', text: 'Pact commands' }),
+      'div',
+      { class: 'acc-stack' },
       ...OPT_COMMANDS.map(c => row(c, Array.isArray(set) && set.includes(c.name), false)),
       row(ALWAYS_COMMAND, true, true),
       el('div', { class: 'chips' }, leave),
@@ -5544,7 +5542,7 @@ function boot() {
    * The Agents dialog (#262 S26, from #273): the agents on the left, the one
    * picked on the right with its model and effort, its roster row, its
    * qualities and where the workflow offers it; under them, the lens roster
-   * and the ranked Qualities list.
+   * and the Qualities list.
    */
   function renderAgents() {
     const where = r => `Always on · ${r.mark}`;
@@ -5645,20 +5643,14 @@ function boot() {
         partsTouched();
       }, 'av-tool-chip--ghost')),
     );
-    const move = (i, d) => {
-      const j = i + d;
-      if (j < 0 || j >= qs.length) return;
-      [qs[i], qs[j]] = [qs[j], qs[i]];
-      partsTouched();
-    };
     const qualities = agentsSection(
       'qualities',
       'Qualities',
-      el('p', { class: 'av-annot', text: 'The qualities that matter, ranked: each with how it is measured and the lenses that check it. A lens is handed its rows; a row with no measure is a claim to add, not a defect.' }),
+      el('p', { class: 'av-annot', text: 'The qualities that matter: each with how it is measured and the lenses that check it. A lens is handed its rows; a row with no measure is a claim to add, not a defect.' }),
       ...qs.map((q, i) => el(
         'div',
         { class: 'wf-group lens-row' },
-        el('div', { class: 'row-line' }, el('span', { class: 'av-num', text: String(i + 1) }), (() => {
+        el('div', { class: 'row-line' }, (() => {
           const sel = el('select', { 'aria-label': `Quality ${i + 1}` }, ...[...new Set([q.quality, ...QUALITY_NAMES])].map(n => el('option', { value: n, text: n })));
           sel.value = q.quality;
           sel.addEventListener('change', () => {
@@ -5666,7 +5658,7 @@ function boot() {
             partsTouched();
           });
           return sel;
-        })(), el('button', { type: 'button', class: 'row-x', title: 'Rank it higher', 'aria-label': `Move ${q.quality} up`, onclick: () => move(i, -1) }, '↑'), el('button', { type: 'button', class: 'row-x', title: 'Rank it lower', 'aria-label': `Move ${q.quality} down`, onclick: () => move(i, 1) }, '↓'), el('button', { type: 'button', class: 'row-x', title: 'Remove this quality from the list', 'aria-label': `Remove the quality ${q.quality}`, onclick: () => {
+        })(), el('button', { type: 'button', class: 'row-x', title: 'Remove this quality from the list', 'aria-label': `Remove the quality ${q.quality}`, onclick: () => {
           qs.splice(i, 1);
           partsTouched();
         } }, '×')),

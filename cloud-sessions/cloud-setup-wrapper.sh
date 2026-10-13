@@ -342,9 +342,9 @@ no judgment, `scout` is the cheap helper.
 
 ## Qualities
 
-The qualities that matter in my work, ranked, each with how it is measured and
-the lens that checks it. A project's own list, where it has one, takes the
-place of this one there.
+The qualities that matter in my work, each with how it is measured and the
+lens that checks it. A project's own list, where it has one, takes the place
+of this one there.
 
 *Scriptorium builds this.*
 
@@ -1911,7 +1911,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 017883e6799a743c55268bd80906339197a6fb589a6038df315200f59656e79e 'CLAUDE.md'
+check_hash e693981f5316837ea7d6b9daee887976cc13347e4ced078b0918ed4fd8d0322a 'CLAUDE.md'
 check_hash b71afdae765527268729e86a3dc26367a541b3f176d2fa009d5df1db6d2ce3e1 'agents/adversarial-lens.md'
 check_hash 77b00ff390033f70744bb0b64bd8d5b2f1b37e88e4f5315152d19fa05fe124e5 'agents/behaviour-lens.md'
 check_hash c0ce7b65a2fb7112426edcecb6d456cadec546467cce0180fc6a9cace29268ed 'agents/conventions-lens.md'
@@ -1942,7 +1942,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy c2e68b9617b5"
+  echo "pact cloud copy b51f1c52d9d6"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

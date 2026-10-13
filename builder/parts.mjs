@@ -18,7 +18,7 @@
 //                                                             a skill or command at a stage: offered to me, or used
 //                    layout: { <node id>: { x, y } } }        the canvas's positions; compiles to nothing
 //   lenses:        [{ agents: [names], label, asks }]       the roster, one row each
-//   qualities:     [{ quality, measure, lenses: [names] }]  ranked in row order; a measure may be empty
+//   qualities:     [{ quality, measure, lenses: [names] }]  a measure may be empty
 //
 // An offer with two agents is a pair; nothing else marks one. An offer on
 // 'sensitive' runs on the sensitive route, once I take it.
@@ -340,7 +340,7 @@ export function compileLenses(p) {
   return [row(['Lens', 'Asks']), rule(2), ...p.lenses.map(r => row([`${r.agents.map(tick).join(', ')}${r.label ? ` (${r.label})` : ''}`, r.asks]))].join('\n');
 }
 
-/** The qualities part (#273): the ranked list, each quality with its measure and the lenses that check it. */
+/** The qualities part (#273): the list, each quality with its measure and the lenses that check it. */
 export function compileQualities(p) {
   return [row(['Quality', 'Measure', 'Lens']), rule(3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', ')]))].join('\n');
 }
@@ -489,7 +489,7 @@ export function partsProblems(p) {
       if (!lineOk(r.asks, C.line) || !r.asks.trim()) err('lenses', `row ${i + 1}: asks must be one line of 1 to ${C.line} characters, with no bar`);
     });
 
-  // The qualities (#273): ranked rows, each a quality, its measure (empty when none is known yet) and 1 to 4 lenses.
+  // The qualities (#273): rows, each a quality, its measure (empty when none is known yet) and 1 to 4 lenses.
   if (!Array.isArray(p.qualities) || !p.qualities.length || p.qualities.length > C.qualities) err('qualities', `the list must hold 1 to ${C.qualities} qualities`);
   else {
     p.qualities.forEach((q, i) => {

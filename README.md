@@ -89,7 +89,7 @@ Each lens is offered with a one-line why, and I say yes or no. Each lens runs fr
 
 </details>
 
-The rules file also ranks the qualities that matter in my work, each with how it is measured and the lenses that check it; a lens checks the rows it is handed against their measures, and a project may rank its own.
+The rules file also lists the qualities that matter in my work, each with how it is measured and the lenses that check it; a lens checks the rows it is handed against their measures, and a project may list its own.
 
 Their reports go into the work's record word for word. The agent sorts the findings and acts on its recommendation for each, and I can reverse any of them. Whether the work is done is my call.
 
