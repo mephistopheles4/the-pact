@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6bHvytI/sW2gZOoTjXg6YcrSxnsaKw3tXVmHnq7RJOk='; style-src 'sha256-te9DdgW2s1Xntsx3WvNylADPs+Idgde+6dXFfP3N9xA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-6bHvytI/sW2gZOoTjXg6YcrSxnsaKw3tXVmHnq7RJOk='; style-src 'sha256-fjfHWXcQw4rBtfUuKBrfAWu0NvUqPgHY7cCGqV8j84k='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -352,8 +352,9 @@ dialog.settings .av-tool-sheet { border: 0; max-width: none; }
 .agents-grid { display: grid; grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr); gap: var(--av-s3); align-items: start; }
 .agent-list { display: flex; flex-direction: column; gap: 2px; }
 .agent-list .av-label { margin-top: var(--av-s1); }
-.agent-add { display: flex; flex-wrap: nowrap; gap: var(--av-s1); align-items: center; margin-top: var(--av-s2); }
+.agent-add { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; margin-top: var(--av-s2); }
 .agent-add input[type="text"] { flex: 1 1 8em; width: auto; min-width: 0; }
+.agent-add > p { flex-basis: 100%; }
 .agent-add .add-square { flex: none; width: var(--control-h); padding: 0; font-size: var(--av-t-lead); line-height: 1; letter-spacing: 0; text-align: center; }
 .tag-input { display: flex; flex-wrap: wrap; gap: var(--av-s1); align-items: center; }
 /* The tags on top, the box on its own line under them. */
@@ -366,7 +367,7 @@ textarea.agent-file { font-size: var(--av-t-micro); white-space: pre; }
 .acc-stack { display: flex; flex-direction: column; gap: var(--av-s1); }
 .tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: 1 1 auto; }
 .tags select { width: auto; }
-.tag-field { display: flex; flex-direction: column; gap: var(--av-s1); min-width: 0; }
+.tag-field { display: flex; flex-direction: column; flex: 1 1 auto; gap: var(--av-s1); min-width: 0; }
 .tag-field > select { width: 100%; }
 .wf-chip.tag { display: inline-flex; align-items: center; }
 @media (max-width: 640px) { .agents-grid { grid-template-columns: 1fr; } }
