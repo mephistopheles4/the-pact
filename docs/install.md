@@ -153,7 +153,7 @@ parts:
   security defaults: `tiers`, `sensitive`, `workflow`, `lenses` or
   `qualities`. They hold the tier table, what Claude looks for as sensitive
   work and the route it recommends, the workflow table with the lenses
-  offered at each stage, the lens roster, and the ranked qualities with the
+  offered at each stage, the lens roster, and the qualities with the
   lenses that check them.
   The line names the parts you edit and says whether your configuration
   changed since the last install. Read those parts in the rendered rules file

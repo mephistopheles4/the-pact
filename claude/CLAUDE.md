@@ -162,9 +162,9 @@ no judgment, `scout` is the cheap helper.
 
 ## Qualities
 
-The qualities that matter in my work, ranked, each with how it is measured and
-the lens that checks it. A project's own list, where it has one, takes the
-place of this one there.
+The qualities that matter in my work, each with how it is measured and the
+lens that checks it. A project's own list, where it has one, takes the place
+of this one there.
 
 *Scriptorium builds this.*
 

@@ -177,7 +177,7 @@ test('a project qualities list, alone, renders its table from its fields under f
     '',
     '## Qualities for this project',
     '',
-    'In this project, this list takes the place of the Qualities table in my user rules: the qualities that matter here, ranked, each with its measure and the lenses that check it.',
+    'In this project, this list takes the place of the Qualities table in my user rules: the qualities that matter here, each with its measure and the lenses that check it.',
     '',
     '| Quality | Measure | Lens |',
     '| --- | --- | --- |',

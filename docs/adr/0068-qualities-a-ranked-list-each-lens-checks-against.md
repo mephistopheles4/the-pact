@@ -23,3 +23,5 @@ The rules file gains a `## Qualities` section: the qualities that matter in the 
 - **Strict checks on the project's fields** (the nine names exactly, a length cap, no URL, at most 16 rows), as #273's proposal had them. Dropped under [ADR 0069](0069-the-pact-is-vetted-like-a-skill.md): the gate checks install mechanics only, so each field only has to stay on one line, which keeps the table a table. Which qualities and measures a project lists is the owner's to judge.
 - **The same sentence word for word in every lens.** Dropped with the gate's word checks (ADR 0069): each lens says it in the words that fit its question.
 - **Putting the list in the offers paragraph.** Rejected: that paragraph is protected item 1, and the list is a part a person edits. It sits in its own section, outside every protected text.
+
+Amended by [ADR 0073](0073-the-qualities-are-a-list-not-a-ranking.md): the list is no longer ranked.
