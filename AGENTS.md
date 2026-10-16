@@ -46,9 +46,10 @@ how every session in every repo behaves. So:
   tests" below.
 - **Keep the how-to in step.** [`docs/install.md`](docs/install.md) quotes
   the script's output, lists what the settings merge sets, and names every
-  agent the install puts in place. A change to any of them updates the how-to
-  in the same change; `gate/tests/install-howto.test.mjs` checks the
-  settings and the agents.
+  agent the install puts in place, and the Tools block's WARN line. A change
+  to any of them updates the how-to in the same change;
+  `gate/tests/install-howto.test.mjs` checks the settings, the agents and the
+  Tools block's WARN line.
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `--apply` only after they say so in chat. `--apply` refuses on drift or
   a dirty working tree.
@@ -106,6 +107,15 @@ how every session in every repo behaves. So:
   file that has an `agents` key, and one from before #97's unlock refuses a
   setting for any lens but `integrity-lens`. To install such a commit, remove
   what it refuses first.
+- **Tools.** The pact's tools live in `claude/tools/`, one file each, on the
+  gate's list of tools, which the install core keeps a copy of (#280). A tool
+  is off unless the home configuration's `tools` list names it, as
+  `"tools": ["poster"]`; a project configuration may not hold the list, and
+  no preset or shared builder file turns one on. A tool that is on installs
+  to `pact/tools/<name>.mjs`, gets a `WARN` line in the dry run, and fills its
+  marked part of the rules file, which stays empty while it is off. The cloud
+  copy installs none. A pact from before #280 refuses a configuration with a
+  `tools` key, so to roll back past it, remove the key first (ADR 0074).
 - **The builder page.** [`builder/scriptorium.html`](builder/scriptorium.html)
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists, the example blocks or a preset in
@@ -206,7 +216,7 @@ how every session in every repo behaves. So:
     - **What an agent-file change picks.** The test helpers are split by
       what they touch (ADR 0034), so an agent file picks only the tests that
       read agents: those that import `payload.mjs` or read them themselves.
-      Of the install files, that's the smoke set and eight others, 9 of 14.
+      Of the install files, that's the smoke set and eight others, 9 of 15.
     - **Some changes still cost about a full suite.** The pact's rules file,
       `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
       deleted or renamed test file, is named by the copy list's entry for the

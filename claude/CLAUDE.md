@@ -63,6 +63,8 @@ and help with what it needs.
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
   propose a fresh session.
+<!-- pact:begin tool-poster -->
+<!-- pact:end tool-poster -->
 - **Say a mismatch first.** If the tier, model or effort doesn't fit the
   work, say so in the first line, before any work.
 

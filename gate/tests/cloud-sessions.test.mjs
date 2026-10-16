@@ -15,6 +15,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import {
   CLOUD_COMMANDS,
+  CLOUD_TOOLS,
   CONFIG_DELIM,
   CloudRefusal,
   OUTPUTS,
@@ -357,13 +358,23 @@ test('cloud copy: CLAUDE.cloud.md carries no configuration and the shipped usage
   for (const name of RETIRED) assert.doesNotMatch(cloud, new RegExp(`(?<![\\w-])${name}(?![\\w-])`), name);
 });
 
+// #280 C1: seam A gets the cloud copy's commands and tools constants.
 test('cloud copy: the command list is pinned, and empty until the cloud channels are tried (#203, S9)', () => {
   assert.deepEqual([...CLOUD_COMMANDS], []);
   assert.ok(Object.isFrozen(CLOUD_COMMANDS));
   assert.doesNotMatch(repoText(OUTPUTS.setup), /^write_config 'commands\//m, 'no command in the cloud copy');
   assert.equal(commandsArg([]), 'none');
   assert.equal(commandsArg(['make-it-so', 'finis']), 'make-it-so,finis');
-  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\)\]\)/, 'seam A gets the constant');
+  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\), '--tools', commandsArg\(CLOUD_TOOLS\)\]\)/, 'seam A gets the constants');
+});
+
+// #280 C1: the published root setup script never installs code that posts as the owner.
+test('cloud copy: the tools list is pinned empty, and the setup writes nothing under the tools path', () => {
+  assert.deepEqual([...CLOUD_TOOLS], []);
+  assert.ok(Object.isFrozen(CLOUD_TOOLS));
+  const setup = repoText(OUTPUTS.setup);
+  assert.doesNotMatch(setup, /^write_config '[^']*tools\//m, 'no tool in the cloud copy');
+  assert.doesNotMatch(setup, /poster/, 'nothing of the poster');
 });
 
 test('cloud copy: the wrapper embeds cloud-setup.sh byte for byte', () => {

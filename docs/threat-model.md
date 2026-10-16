@@ -150,8 +150,9 @@ How to read it:
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
-  a posted report; a rule and a search before posting guard it until the
-  poster installs. R31 needs you to run a project install and pass over the
+  a posted report; a rule and a search before posting guard it on every
+  install, and where the poster is on, its scan is a backstop behind them
+  (#280). R31 needs you to run a project install and pass over the
   warning that leads its dry run.
 
 | Risk | Attacker | What stops it today | Kind |
@@ -169,7 +170,7 @@ How to read it:
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); elsewhere, judgment | Rule, judgment |
-| R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071) | Outside the pact, boundary |
+| R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071); a rewritten pact tool shows as drift (#280) | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on install mechanics only since ADR 0069; the dry run; your review of the commit | Boundary |
@@ -184,7 +185,7 @@ How to read it:
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
-| R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; the poster's hidden-text scan once it installs (#246) | Rule |
+| R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; on an install with the poster on, its hidden-text scan as a backstop (#280) | Rule |
 | R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the five parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
 | R31 A project's qualities list | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list | You run each project install, and its dry run leads with a security-defaults line pointing you at the list in that file; the renderer builds the table from three one-line fields, at most nine rows, with bars escaped, under fixed text (#262, ADR 0068) | Boundary (a pointer), judgment |
 | R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is" (#262, ADR 0071) | Judgment |
@@ -401,7 +402,10 @@ session can act before you see it.
   test has checked that a lens keeps them after a model change.
 - **R14. A fooled session can leave something behind.** It can write files
   that later sessions or installs load: memory files, a repo's own Claude
-  settings or rules, its server list, or your configuration blocks. Claude
+  settings or rules, its server list, or your configuration blocks. With a
+  pact tool on, it can also rewrite the tool in `~/.claude/pact/tools/`
+  (#280): a planted poster runs with your `gh` login each time a session
+  posts through it. Claude
   Code's protected paths cover only some of these, and in auto mode send them
   to its classifier. The next dry run shows drift in pact files and warns on a
   command-running key in `settings.json`, but only afterwards. The same
@@ -412,7 +416,12 @@ session can act before you see it.
   dry run lists it under "Yours, left as is" rather than as drift, and the
   install no longer puts the pact's back. A foothold that rewrites a pact
   agent, a security lens included, so stays until the person reads that list
-  and deletes the file.
+  and deletes the file. A pact tool is not an agent: a changed live tool is
+  drift, and `--apply` refuses, unless the record was rewritten too. Nothing
+  checks the live poster before a session runs it, so a rewrite runs with
+  your `gh` login until the next dry run shows the drift. That is accepted as
+  this risk's residual (#284): whatever can rewrite the poster can also
+  rewrite the rules file and the install record beside it.
 - **R15. A repo's instruction files are instructions.** A cloned repo's
   `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. Since #261
   the pact holds no rule barring them from anything: `no-skill-overrides` and
@@ -577,10 +586,13 @@ safe, and a change made months ago is easy to forget.
   only, and the installed rules file names a model beyond the five aliases
   only as "a custom model". And a
   `commands` list turns on pact commands, by name from a fixed list in the
-  gate, which the install then copies into `commands/`. No configuration
-  edit can target the fixed "Stop and ask me" block; the renderer refuses.
+  gate, which the install then copies into `commands/`. A `tools` list turns
+  on pact tools the same way, each installed under `pact/tools/` with its
+  rule rendered into the rules file (#280). No configuration
+  edit can target the fixed "Stop and ask me" block, or a tool's rule part;
+  the renderer refuses.
 - **The install says what changed.** The dry run prints a warning for each
-  value set and each part edited. The installed rules file names the
+  value set, each part edited and each tool turned on. The installed rules file names the
   configuration in effect.
 - **A project can only tighten, but for its qualities.** A project's own
   configuration, installed through the install script, may only set values
@@ -700,9 +712,12 @@ because they plant bad cases on purpose and raised alerts that were noise.
   posting and names any it finds in the report's fold summary, and verbatim
   reports sit in a fenced block with every string it lays out in a code span.
   A lens fooled into writing one still gets it into a posted report, where it
-  can mislead a reader. The poster (`cross/poster.mjs`, #246) holds a
-  hidden-text scan and is the planned code check; it takes this over once it
-  installs.
+  can mislead a reader. The poster (`claude/tools/poster.mjs`, #246) holds a
+  hidden-text scan. Since #280 it is an opt-in tool, off by default, so the
+  rule stays the control for everyone: the session's search of each report
+  before posting, and the read before posting, come first on every install.
+  Where the owner turns the poster on, its scan is a backstop behind that
+  search, not a replacement for it.
 ## What you may tweak, and what it costs
 
 Each tweak below is yours to make. The cost is what you give up.

@@ -16,6 +16,15 @@ export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
 // gate/shared.mjs, so it works out its copy set without seam A's list.
 export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+// The pact's own tools (#280): the install's own copy of PACT_TOOLS in
+// gate/shared.mjs. A tool installs to TOOLS_DEST<name>.mjs only when the
+// configuration's tools list names it.
+export const PACT_TOOLS = Object.freeze(['poster']);
+const TOOLS_DEST = 'pact/tools/';
+// What each tool does, said in its dry run WARN line after where it installs.
+const TOOL_WARNS = Object.freeze({
+  poster: " and posts to GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
+});
 // The builder kit (#203 S6; #262), the install's own copy of seam A's list in
 // gate/shared.mjs: installed under pact/builder/ in the repo's own layout
 // whenever /scriptorium installs. Its gate files are the only gate files that
@@ -224,7 +233,7 @@ export function applyLine(paths, commit, renderedHash, platform) {
 
 // ------------------------------------------------------------ the commit's tree
 
-/** True for a path the install stages: claude/, familiars/ and gate/ but its tests, and AGENTS.md. Nothing under cross/ is staged. */
+/** True for a path the install stages: claude/ (the pact's tools in claude/tools/ among it, #280), familiars/ and gate/ but its tests, and AGENTS.md. */
 export const isStaged = rel => rel === 'AGENTS.md' || KIT_EXTRA.includes(rel) || (/^(builder|claude|familiars|gate)\//.test(rel) && !rel.startsWith('gate/tests/'));
 
 /**
@@ -362,6 +371,7 @@ const EDIT_RE = /^EDIT (moves|tiers|sensitive|workflow|lenses|qualities) (?:(rem
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
+const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 
 /**
  * The renderer's lines (S6, R5 to R8), every one before RESULT matched to one
@@ -370,6 +380,8 @@ const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
  * the reported hashes, at most one VALUE per setting, one EDIT per open part
  * and one AGENT per lens; with none, none of those, and COMMANDS none. The
  * COMMANDS line names pact commands, each once, in PACT_COMMANDS order (#203).
+ * One TOOLS line follows it straight after, naming pact tools the same way
+ * (#280), and none with no configuration.
  * `hash` is sha256 over bytes, as hex.
  */
 export function parseRenderLines(lines, { project, hash }) {
@@ -382,7 +394,10 @@ export function parseRenderLines(lines, { project, hash }) {
   const blockHashes = new Map();
   const agentSets = new Map();
   let commands = null;
-  for (const l of lines.slice(0, -1)) {
+  let tools = null;
+  let commandsAt = -1;
+  let toolsAt = -1;
+  for (const [at, l] of lines.slice(0, -1).entries()) {
     let m;
     if ((m = /^RENDERED ([0-9a-f]{64})$/.exec(l))) {
       if (renderHash) refuse('render-two-hashes', 'the renderer reported two output hashes.');
@@ -421,21 +436,32 @@ export function parseRenderLines(lines, { project, hash }) {
       const order = PACT_COMMANDS.filter(c => names.includes(c));
       if (order.length !== names.length || order.some((c, i) => c !== names[i])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       commands = order;
+      commandsAt = at;
+    } else if ((m = TOOLS_RE.exec(l))) {
+      if (tools) refuse('render-tools-twice', 'the renderer reported two tools lines.');
+      const names = m[1] === 'none' ? [] : m[1].split(',');
+      const order = PACT_TOOLS.filter(c => names.includes(c));
+      if (order.length !== names.length || order.some((c, i) => c !== names[i])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
+      tools = order;
+      toolsAt = at;
     } else refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
   }
   if (!renderHash || !diffHash || configs.length !== 1) refuse('render-counts', 'the renderer did not report exactly one output hash, one diff hash and one configuration line.');
   if (!commands) refuse('render-commands-missing', 'the renderer did not report which pact commands are on.');
+  if (!tools) refuse('render-tools-missing', 'the renderer did not report which pact tools are on.');
+  if (toolsAt !== commandsAt + 1) refuse('render-unknown-line', "the renderer's TOOLS line does not come straight after its COMMANDS line.");
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
   if (config.kind === 'none') {
     if (digest || values.size || edits.size || agentSets.size) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit or an agent setting with no configuration.');
     if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
+    if (tools.length) refuse('render-none-extras', 'the renderer reported a pact tool with no configuration.');
   } else {
     let text = `user ${config.sha256}\n`;
     for (const e of edits.values()) if (e.path) text += `block ${e.path} ${e.sha256}\n`;
     if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('render-digest', "the renderer's configuration digest is missing or does not match the configuration hashes it reported.");
   }
-  return { renderHash, diffHash, config, digest, values, edits, blockHashes, agentSets, commands };
+  return { renderHash, diffHash, config, digest, values, edits, blockHashes, agentSets, commands, tools };
 }
 
 /**
@@ -636,11 +662,12 @@ export function parseProjectWrite(report, projectHash) {
 /**
  * The copy set by the install's own reading of the stage (#203, S8): a list
  * of [staged path, live path] pairs, one source to one or more live paths. A
- * pact command installs only when `commands` names it, and a gate file only
- * as a BUILDER_KIT entry under pact/builder/. A staged file of no known kind
- * pairs with null, which no INSTALL line can match.
+ * pact command installs only when `commands` names it, a pact tool only when
+ * `tools` names it, and a gate file only as a BUILDER_KIT entry under
+ * pact/builder/. A staged file of no known kind pairs with null, which no
+ * INSTALL line can match.
  */
-export function expectedCopySet(stagedRels, commands = []) {
+export function expectedCopySet(stagedRels, commands = [], tools = []) {
   const out = [];
   const kitOn = commands.includes(KIT_COMMAND);
   for (const rel of stagedRels) {
@@ -657,6 +684,11 @@ export function expectedCopySet(stagedRels, commands = []) {
       const name = /^([^/]+)\.md$/.exec(m[1])?.[1];
       if (commands.includes(name)) out.push([rel, `commands/${name}.md`]);
       else if (!PACT_COMMANDS.includes(name)) out.push([rel, null]);
+    } else if ((m = /^claude\/tools\/(.*)$/.exec(rel))) {
+      // A pact tool (#280): claude/tools/<name>.mjs to pact/tools/<name>.mjs, never the general rule's tools/ at the home root.
+      const name = /^([^/]+)\.mjs$/.exec(m[1])?.[1];
+      if (tools.includes(name)) out.push([rel, `${TOOLS_DEST}${name}.mjs`]);
+      else if (!PACT_TOOLS.includes(name)) out.push([rel, null]);
     } else if (rel === REVIEW_REL) out.push([rel, REVIEW_DEST]);
     else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
     else out.push([rel, null]);
@@ -727,16 +759,16 @@ export function checkSkillClash(commands, present) {
 }
 
 /**
- * A command, kit or review file the install would add over a live file its
+ * A command, tool, kit or review file the install would add over a live file its
  * record does not list (#203 S8, #261 S5): refused, never overwritten. Agents
  * keep today's first-install behaviour. `live(rel)` is the plan's live state.
  */
 export function checkNewPaths(repoFiles, record, live) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
-    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
+    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel.startsWith(TOOLS_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
     const always = rel === REVIEW_DEST || rel.startsWith(KIT_DEST) || rel === `commands/${KIT_COMMAND}.md`;
-    const next = always ? 'Move it out of the way, then install again.' : 'Move it, or take its name out of the commands list.';
+    const next = always ? 'Move it out of the way, then install again.' : `Move it, or take its name out of the ${rel.startsWith(TOOLS_DEST) ? 'tools' : 'commands'} list.`;
     if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
   }
 }
@@ -759,6 +791,21 @@ export function commandsBlock(on, stagedRels, listed = []) {
   out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "commands": ["${example}"]` : '  No pact command that can be turned on is in this commit.');
   for (const name of on) if (!(name === KIT_COMMAND && staged.has(`claude/commands/${name}.md`))) out.push(`  WARN: the user configuration turns on the pact command /${name}; it installs to commands/${name}.md.`);
   if (listed.includes(KIT_COMMAND) && staged.has(`claude/commands/${KIT_COMMAND}.md`)) out.push(`  NOTE: ${CONFIG_REL} lists ${KIT_COMMAND}, which now always installs; take it out of the list, since an older pact refuses it.`);
+  return out;
+}
+
+/**
+ * The Tools block of a dry run (#280): every pact tool, on or off, how to turn
+ * one on, and a WARN line for each tool on, naming where it installs and what
+ * it does.
+ */
+export function toolsBlock(on, stagedRels) {
+  const staged = new Set(stagedRels);
+  const out = ['Tools:'];
+  for (const name of PACT_TOOLS) out.push(`  ${name}: ${on.includes(name) ? 'on' : 'off'}${staged.has(`claude/tools/${name}.mjs`) ? '' : ' (not in this commit)'}`);
+  const example = PACT_TOOLS.find(name => staged.has(`claude/tools/${name}.mjs`));
+  out.push(example ? `  To turn one on, list its name in ${CONFIG_REL}, for example: "tools": ["${example}"]` : '  No pact tool that can be turned on is in this commit.');
+  for (const name of on) out.push(`  WARN: the user configuration turns on the pact tool ${name}; it installs to ${TOOLS_DEST}${name}.mjs${TOOL_WARNS[name]}`);
   return out;
 }
 

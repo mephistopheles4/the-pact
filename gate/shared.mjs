@@ -15,6 +15,12 @@ const CHARACTER_HITS_MAX = 20;
 // own copy (install-core.mjs), held to this one by a test. Adding a name is a
 // change to gate code, so it needs a bad case (AGENTS.md).
 const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+// The pact's own tools (#280), each a file claude/tools/<name>.mjs that
+// installs to pact/tools/<name>.mjs only when the configuration's tools list
+// names it: off by default. Seam A and the renderer read this one list; the
+// install keeps its own copy (install-core.mjs), held to this one by a test.
+// Adding a name is a change to gate code, so it needs a bad case (AGENTS.md).
+const PACT_TOOLS = Object.freeze(['poster']);
 // The builder kit (#203 S6; #262): what the builder reads, installed under
 // pact/builder/ in the repo's own layout whenever /scriptorium installs. Seam
 // A reads this copy; the install keeps its own (install-core.mjs), held to
@@ -236,6 +242,7 @@ const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 
 export {
   PACT_COMMANDS,
+  PACT_TOOLS,
   BUILDER_KIT,
   BUILDER_KIT_PATTERNS,
   inKit,

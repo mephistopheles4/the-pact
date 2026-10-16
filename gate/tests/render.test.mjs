@@ -53,6 +53,7 @@ function treeState(root) {
 
 // ------------------------------------------------------------ the no-file render
 
+// #280 C1, C6: no configuration prints TOOLS none, and the rules file is unchanged.
 test('with no configuration, the output is the source with its open-mark lines removed, and its hash is reported', t => {
   const src = [
     '# Title',
@@ -74,7 +75,7 @@ test('with no configuration, the output is the source with its open-mark lines r
   assert.notEqual(want, src);
   assert.equal(r.bytes.toString('utf8'), want);
   // Since slice 4 the renderer also writes the diff from the no-configuration render, empty here.
-  assert.deepEqual(r.stdout.split('\n'), [`RENDERED ${sha256(r.bytes)}`, `DIFF ${sha256(Buffer.alloc(0))}`, 'CONFIG none', 'COMMANDS none', 'RESULT: pass', '']);
+  assert.deepEqual(r.stdout.split('\n'), [`RENDERED ${sha256(r.bytes)}`, `DIFF ${sha256(Buffer.alloc(0))}`, 'CONFIG none', 'COMMANDS none', 'TOOLS none', 'RESULT: pass', '']);
   assert.deepEqual(readdirSync(r.dir).sort(), ['CLAUDE.md', 'config.diff']);
   assert.equal(readFileSync(join(r.dir, 'config.diff')).length, 0);
 });

@@ -190,6 +190,34 @@ parts:
   - **A command this commit doesn't hold.** A name the block marks
     `(not in this commit)` refuses. Leave it out of the list until a commit
     ships it.
+- **`Tools:`.** The pact's own tools, today only the poster, each `on` or
+  `off`, and `(not in this commit)` for one the commit doesn't hold. A tool
+  is off unless you turn it on (ADR 0074): list its name in the `tools` key of
+  `~/.claude/pact/config.json`, as `"tools": ["poster"]`, or tick it under
+  Pact tools in the builder's Settings. A preset or a shared builder file
+  never turns one on. Each tool that is on gets a `WARN` line, word for word:
+
+  ```text
+    WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts to GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.
+  ```
+
+  The poster on also adds its rule to the rules file, so the rendered hash
+  changes; `--review-folder` shows the rule. Taking the name out of the list
+  deletes the poster and its rule at the next install. The rule names the
+  poster under the default Claude home folder, so with `--claude-home`
+  elsewhere, leave `tools` empty. Until the poster also asks GitHub who owns
+  a repo before it posts (T2 of #280), it checks the owner by name only, so a
+  repo you have transferred could still take a post: wait for that before you
+  turn it on. The install refuses:
+  - **Your own file at the tool's path.** A `~/.claude/pact/tools/<name>.mjs`
+    the last install's record doesn't list (`unlisted-live`). Move it, or take
+    the name out of the list. A live poster changed since the install is drift,
+    never yours: the dry run lists it, and `--apply` refuses.
+  - **A bad list.** A `tools` value that is not a list of pact tool names,
+    each once (`config-tools`). A project's `.claude/pact-config.json` may not
+    hold `tools` at all (`project-key`).
+  - **A tool this commit doesn't hold.** A name the block marks
+    `(not in this commit)` refuses at the check (`tools-not-in-pact`).
 - **`NOTE: … other pact-install-* folder(s) in the temp folder`.** An install
   stopped hard, by a power cut or a killed process, leaves its work folder in
   your temp folder. It may hold your configuration text. Delete those
@@ -239,6 +267,9 @@ It installs these files under `~/.claude`:
 - `commands/scriptorium.md`, always, and `commands/<name>.md` for each other
   pact command your `commands` list turns on. Taking a name out of the list
   deletes its file at the next install;
+- `pact/tools/poster.mjs`, only while your `tools` list turns the poster on.
+  It posts to GitHub as your `gh` account. Taking it out of the list deletes
+  it at the next install;
 - `pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the
@@ -376,6 +407,10 @@ sets an agent's model to anything but `opus` or `sonnet`, its effort above
 deletes `commands/scriptorium.md` and the builder kit, which its payload
 lacks; a configuration that lists `scriptorium` in `commands` refuses there.
 
+A pact from before the pact tools (#280) refuses a configuration with a
+`tools` key, so take the key out first. Its install then deletes the poster
+the record lists, as it does any file its own payload lacks.
+
 A pact from before the pact commands (#203) refuses a configuration with a
 `commands` key, so take the key out first. Its install then deletes the
 commands the record lists, as it does any file its own payload lacks.
@@ -406,8 +441,8 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    in auto mode.
 2. **Delete the pact's files:** the ten agents listed in step 6 from
    `agents/`, `pact/review.md`, the `pact/builder/` folder, each pact command
-   in `commands/` that the record lists, `/scriptorium` included, and
-   `.pact-install.json`.
+   in `commands/` that the record lists, `/scriptorium` included,
+   `pact/tools/poster.mjs` if the record lists it, and `.pact-install.json`.
 3. **Put back your own agents** from your copy of the `agents/` folder.
 
 Start a new session to load the change.

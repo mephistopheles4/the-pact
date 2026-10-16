@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, upgradeParts } from '../../builder/parts.mjs';
-import { BUILDER_KIT, KIT_RULES_REL, PACT_COMMANDS, expectedCopySet, isStaged } from '../install-core.mjs';
+import { BUILDER_KIT, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -651,9 +651,9 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic() {
   const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
-  const out = { PACT: clone(got.PACT), OPT_COMMANDS: clone(got.OPT_COMMANDS) };
+  const out = { PACT: clone(got.PACT), OPT_COMMANDS: clone(got.OPT_COMMANDS), OPT_TOOLS: clone(got.OPT_TOOLS) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
   return out;
 }
@@ -772,6 +772,81 @@ test('stub page: the review step warns that a downloaded config.json holds no co
     assert.equal(/keeping a commands list config\.json already holds unless you set the commands under Settings/.test(text), picker, `picker ${picker}: the save note says Save keeps the list only where Save exists`);
   }
 });
+// #280 C5: the tools list works as the commands list does: left as is until set on the page, then saved as set.
+test('a tools list set on the page is saved in the installer\'s order, and wins over the folder\'s; left as is, the folder\'s is kept', () => {
+  assert.deepEqual(L.OPT_TOOLS.map(c => c.name), PACT_TOOLS);
+  const s = L.startState();
+  assert.equal(s.tools, null, 'off by default: left as is');
+  const config = st => JSON.parse(L.buildFiles(st)[0].text);
+  assert.equal(Object.hasOwn(config(s), 'tools'), false, 'left as is, no list');
+  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, ['poster'], 'left as is keeps the folder\'s');
+  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"commands":["finis"],"tools":["poster"]}').files[0].text), { ...config(s), commands: ['finis'], tools: ['poster'] }, 'both lists kept');
+  s.tools = ['poster'];
+  assert.deepEqual(config(s).tools, ['poster']);
+  s.tools = [];
+  assert.deepEqual(JSON.parse(L.keepCommands(L.buildFiles(s), '{"schema":1,"tools":["poster"]}').files[0].text).tools, [], 'the page\'s empty list wins');
+});
+
+// #280 C5: no preset, and no shared builder file, turns a tool on.
+test('no shipped preset carries tools, and a builder file holding tools is refused, by the page and by the build', t => {
+  for (const f of readdirSync(join(REPO, 'builder', 'presets'))) assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(REPO, 'builder', 'presets', f), 'utf8')), 'tools'), false, f);
+  const doc = { schema: 1, moves: L.PACT.parts.defaults.moves, tools: ['poster'] };
+  assert.match(L.presetFromText(JSON.stringify(doc)).refuse, /a builder file never turns a tool on/);
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  const cli = args => spawnSync(process.execPath, [join(REPO, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env });
+  const r = cli(['--builder', builderFile(t, doc), '--check']);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /^REFUSE a top-level key that is not schema, title, yours, /m);
+});
+
+// #280 C5: a shared file holding tools leaves the page's own tools list as it was.
+test('stub page: the poster row is off by default and says what it does; a shared file holding tools leaves the list as set', async () => {
+  const P = bootPage();
+  openSettings(P);
+  const box = P.find(P.ids.settings, n => n.tag === 'input' && n.attrs['aria-label'] === 'poster')[0];
+  assert.equal(box.checked, false, 'off by default');
+  // The text as the row shows it on the page, beside its checkbox.
+  const row = P.find(P.ids.settings, n => n.tag === 'label' && n.children.some(c => c.attrs && c.attrs['aria-label'] === 'poster'))[0].text;
+  assert.match(row, /posts free text to GitHub as your gh account/i);
+  assert.match(row, /its scan is a backstop, not a guarantee/);
+  assert.match(row, /adds a rule to the rules file, which a dry run with --review-folder shows/);
+  box.checked = true;
+  box.listeners.change.forEach(f => f({}));
+  P.button(P.ids.actions, 'Presets').click();
+  const input = P.find(P.ids.presets, n => n.tag === 'input' && n.attrs['aria-label'] === 'Open a builder file')[0];
+  input.files = [{ name: 'shared.json', text: async () => JSON.stringify({ schema: 1, moves: L.PACT.parts.defaults.moves, tools: [] }) }];
+  input.listeners.change.forEach(f => f({}));
+  for (let i = 0; i < 10; i++) await new Promise(r => setTimeout(r, 0));
+  assert.match(P.ids.presets.text, /a builder file never turns a tool on/, 'the file was read and refused');
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /"tools": \[\s*"poster"\s*\]/);
+});
+
+// The owner's request on #284: every checkbox's label text toggles it, so each box sits inside a label.
+test('stub page: every checkbox under Settings and in a shared file\'s Presets sits inside a label', async () => {
+  const P = bootPage();
+  const boxes = root => P.find(root, n => n.tag === 'input' && n.attrs.type === 'checkbox');
+  const labelled = root => P.find(root, n => n.tag === 'label').flatMap(l => boxes(l));
+  openSettings(P);
+  assert.ok(boxes(P.ids.settings).length >= 4, 'the commands and the tools');
+  assert.equal(labelled(P.ids.settings).length, boxes(P.ids.settings).length);
+  P.button(P.ids.actions, 'Presets').click();
+  const input = P.find(P.ids.presets, n => n.tag === 'input' && n.attrs['aria-label'] === 'Open a builder file')[0];
+  input.files = [{ name: 'shared.json', text: async () => JSON.stringify({ schema: 1, moves: L.PACT.parts.defaults.moves }) }];
+  input.listeners.change.forEach(f => f({}));
+  for (let i = 0; i < 10; i++) await new Promise(r => setTimeout(r, 0));
+  assert.ok(boxes(P.ids.presets).length >= 1, 'a part to take');
+  assert.equal(labelled(P.ids.presets).length, boxes(P.ids.presets).length);
+});
+
+// #280 C5: the download note's tools twin.
+test('stub page: the review step warns that a downloaded config.json holds no tools list either', () => {
+  const P = bootPage();
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /Unless you set the tools under Settings, a downloaded config\.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools\./);
+});
+
 test('stub page: Save to a picked folder keeps its commands list, and writes nothing over a config.json that isn\'t JSON (#203, T2)', async () => {
   /** A stand-in folder holding `held` (name -> text); `written` collects what Save writes. */
   const fakeFolder = held => {

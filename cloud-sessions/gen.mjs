@@ -58,8 +58,12 @@ const REPO = dirname(HERE);
 // step 0's adversarial-lens F2). Turning /make-it-so and /finis on later is
 // this one list.
 export const CLOUD_COMMANDS = Object.freeze([]);
+// The pact tools the cloud copy installs, passed to seam A as its --tools
+// (#280). Empty, and frozen: the published root setup script never installs
+// code that posts as the owner. A cloud poster waits for its own trigger.
+export const CLOUD_TOOLS = Object.freeze([]);
 
-/** Seam A's --commands value for a list of pact commands: none, or the names joined by commas. */
+/** Seam A's --commands or --tools value for a list: none, or the names joined by commas. */
 export function commandsArg(list) {
   return list.length ? list.join(',') : 'none';
 }
@@ -239,7 +243,7 @@ function seamA(files) {
       mkdirSync(dirname(p), { recursive: true });
       writeFileSync(p, buf, { flag: 'wx' });
     }
-    const r = seamCheck([stage, '--commands', commandsArg(CLOUD_COMMANDS)]);
+    const r = seamCheck([stage, '--commands', commandsArg(CLOUD_COMMANDS), '--tools', commandsArg(CLOUD_TOOLS)]);
     if (r.failed || r.lines[r.lines.length - 1] !== 'RESULT: pass') {
       const rules = [...new Set(r.lines.map(l => /^FAIL ([a-z][a-z0-9-]*):/.exec(l)?.[1]).filter(Boolean))];
       refuse('cloud/seam-a', `seam A refused the stage (${rules.join(', ') || 'no rule named'})`);

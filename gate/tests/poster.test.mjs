@@ -8,13 +8,13 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { makeGh, post, scan } from '../../cross/poster.mjs';
+import { makeGh, post, scan } from '../../claude/tools/poster.mjs';
 import { childEnv } from './gate-run.mjs';
 import { table } from './tables.mjs';
 import { REPO } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
-const POSTER = join(REPO, 'cross', 'poster.mjs');
+const POSTER = join(REPO, 'claude', 'tools', 'poster.mjs');
 const ME = 'tester';
 const TARGET = `${ME}/sandbox`;
 const WEB = `https://github.com/${TARGET}`;
@@ -444,12 +444,14 @@ const ISSUE_ARGV = (...labels) => ['issue', '--repo', TARGET, '--title-file', '@
 
 // #246 C5, C6 (usage and input rows), C4 (the --head owner)
 for (const c of table('poster input', {
-  module: 'cross/poster.mjs',
+  module: 'claude/tools/poster.mjs',
   base: () => ({ 'argv.json': JSON.stringify(PR_ARGV), 'body.md': 'A plain body.\n', 'title.txt': 'A plain title\n' }),
   run: runTree,
   everyRow: refusedQuietly,
   rows: [
     { id: 'no-surface', plant: asSurface(PR_ARGV.slice(1)), fails: ['usage/surface'], why: 'the first word is an option' },
+    // #280 C2: the installed copy run with nothing refuses before any gh call.
+    { id: 'no-arguments', plant: asSurface([]), fails: ['usage/surface'], why: 'run with no arguments at all' },
     { id: 'unknown-surface', plant: asSurface(['issues', ...PR_ARGV.slice(1)]), fails: ['usage/surface'], why: 'a misspelled surface' },
     { id: 'misspelled-option', plant: addArgs('--lable', 'x'), fails: ['usage/unknown-option'], why: 'stacks posted unlabelled on --lable' },
     { id: 'other-surface-option', plant: addArgs('--issue', '5'), fails: ['usage/unknown-option'], why: 'an option another surface takes' },
@@ -530,7 +532,7 @@ const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n
 
 // #246 C7: each rule refuses a planted case in the body and in the title, and the output never holds it
 for (const c of table('poster scan', {
-  module: 'cross/poster.mjs',
+  module: 'claude/tools/poster.mjs',
   base: scanBase,
   run: runTree,
   everyRow: refusedQuietly,
@@ -605,7 +607,7 @@ for (const c of table('poster scan', {
 // #246 C7: what passes; the scan is not a word filter
 test('plain words that look like the rules pass the scan', t => {
   const body = [
-    'The repo root holds the rules; the poster writes to /tmp and reads ~/.claude/pact/poster.mjs.',
+    'The repo root holds the rules; the poster writes to /tmp and reads ~/.claude/pact/tools/poster.mjs.',
     'Mail goes to 12345+tester@users.noreply.github.com and Co-Authored-By: Claude <noreply@anthropic.com>.',
     'A session_id field, https://github.com/home/x, http://example.com/a and C# are fine.',
     'A key of seven, sk-short, and the PATH stay out of it.',
@@ -655,7 +657,7 @@ test('the trailer passes with an id of exactly 16 and of exactly 40 characters',
 // #246 C8: the harness trailer, only on a pull request, only at the end
 const PR_BODY = `A plain body.\n\n${TRAILER}`;
 for (const c of table('poster trailer', {
-  module: 'cross/poster.mjs',
+  module: 'claude/tools/poster.mjs',
   base: () => ({ 'argv.json': JSON.stringify(PR_ARGV), 'body.md': PR_BODY, 'title.txt': 'A plain title\n' }),
   run: runTree,
   everyRow: refusedQuietly,

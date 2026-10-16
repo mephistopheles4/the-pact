@@ -142,7 +142,7 @@ test('bad case: a listed command that is not in this pact refuses at seam A', t 
 
 // ------------------------------------------------------------ the seam between the renderer, seam A and the install (S8)
 
-const RUNNER_ARGS = "[stage, '--commands', on.length ? on.join(',') : 'none']";
+const RUNNER_ARGS = "[stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none']";
 /** Replace the runner's seam A arguments with `to`, in the repo's committed runner. */
 const plantRunnerArgs = to => root => {
   const p = join(root, 'gate', 'install-run.mjs');

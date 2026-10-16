@@ -151,10 +151,10 @@ test('control: the same table with a good row loads', t => {
 });
 
 // Writing a gate test: a table may name a script in the poster's folder; any other folder, and the tests folder, are still refused
-test("bad case: a module outside gate and cross, or in the tests folder, is refused", () => {
+test("bad case: a module outside gate and the tools folder, or in the tests folder, is refused", () => {
   const spec = module => ({ module, base: () => ({ 'in.txt': 'base' }), run: () => {}, rows: [{ id: 'one', plant: () => ({ 'in.txt': 'x' }), fails: ['x'], why: 'w' }] });
-  for (const module of ['docs/x.mjs', 'gate/tests/x.mjs', 'crossx/y.mjs']) assert.ok(problems('t', spec(module)).includes('module is not a gate or cross module path'), module);
-  assert.ok(!problems('t', spec('cross/x.mjs'), () => "const x = 'x';").includes('module is not a gate or cross module path'));
+  for (const module of ['docs/x.mjs', 'gate/tests/x.mjs', 'claude/x.mjs', 'claude/tools/sub/x.mjs', 'claude/toolsx/y.mjs']) assert.ok(problems('t', spec(module)).includes('module is not a gate module or pact tool path'), module);
+  assert.ok(!problems('t', spec('claude/tools/x.mjs'), () => "const x = 'x';").includes('module is not a gate module or pact tool path'));
 });
 
 // ------------------------------------------------------------ registration: each test file registers its tables' tests itself
