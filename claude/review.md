@@ -127,7 +127,9 @@ skill runs included.
   Tab, line feed and carriage return are fine. Name any you find in the
   report's fold summary and don't block on them, but a hit in the tag or
   variation-selector ranges can spell hidden text: decode it and put it
-  through the read above before you post.
+  through the read above before you post. Where a tool refuses a report for
+  hidden characters, keep the report local and tell me, as for a personal
+  detail; never strip them to post it.
 - **A report's "For the owner" section holds no line numbers, codes or
   paths.**
 - **Where to post.** In the work's record, where the project keeps it. With no
@@ -136,26 +138,41 @@ skill runs included.
 ## Lens dispositions
 
 At every lens review, post a "Lens dispositions" table where the reports went,
-one row per finding:
-- the finding;
-- the lens;
-- the disposition: fixed, taken or dismissed. Mark one you took on your own
-  recommendation `auto`, as in "fixed (auto: chose X because Y)". One I
-  reverse is marked `auto, reversed`, keeping the row;
-- the rerun, if any, and why.
+under a line naming "Lens dispositions", one row per finding. Its header row
+is exactly `| Finding | Lens | Disposition | Rerun |`, with no markup. Each
+row gives the finding, the lens, never left empty, the disposition, and the
+rerun, if any, and why.
 
-**A lens you left out** gets its own row: "skipped, because ..." with the
-reason.
+The Disposition cell starts with one of these words, in lower case and with
+no markup:
+- `fixed`
+- `taken`
+- `dismissed`
+- `skipped`, for a lens you left out, which gets its own row as
+  `skipped, because ...` with the reason.
+- `open`, for a finding I haven't settled yet. It needs nothing after it; a
+  later table gives the finding its final word.
+
+Mark one you took on your own recommendation `auto`, as in
+`fixed (auto: chose X because Y)`, or `fixed (auto)` with no reason. One I
+reverse is marked `(auto, reversed)`, keeping the row.
+
+A tool may check this table's shape before it posts; where none does, the
+table is unchecked. A retrospective that counts these tables reads each one
+tolerantly and counts the rows it can't read.
 
 **With no lens review,** list the choices you took on your own recommendation
 under "Auto-takes".
 
 ## Escapes and gaps
 
+Escape and gap rows go in a table of their own under that review's Lens
+dispositions table, with no Disposition column.
+
 - **An escape.** A defect found after a lens review passed the work, within a
-  question a lens there asked, gets a proposed escape row under that review's
-  table: the lens or lenses, and "after auto-take: yes" or "no". It is "yes"
-  when the escaped finding's row was `auto`.
+  question a lens there asked, gets a proposed escape row: the lens or
+  lenses, and "after auto-take: yes" or "no". It is "yes" when the escaped
+  finding's row was `auto`.
 - **A gap.** A defect no lens's question covers is a roster gap, logged the
   same way with its ISO 25010 quality.
 - **Only rows I confirm count.**

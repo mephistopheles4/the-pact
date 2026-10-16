@@ -165,28 +165,34 @@ test('a project configuration may not hold tools', t => {
 
 // ------------------------------------------------------------ the rules file: the poster's part (C6)
 
-// T1's approved text (#280, revision 5), byte for byte: it holds no table clause.
-const T1 = [
+// T2's approved text (#280, revision 5, with the three clauses #285 carries;
+// the owner approved it as q1 on #285), byte for byte.
+const T2 = [
   '- **Post through the poster.** On a repo your gh login owns, post to GitHub',
   '  with `node ~/.claude/pact/tools/poster.mjs` in a POSIX shell, or',
   '  `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell. Write each piece',
   '  of free text to a file in a scratch folder outside the repo, and run the',
   '  poster from that folder, never from the repo. Delete a file once its post',
-  '  is verified or once you drop it; keep one refused for a lens report until',
-  "  I have answered, then delete it. `verified` means what landed is what was",
+  '  ends, whatever the result (verified, failed, unverified or mismatch), or',
+  '  once you drop it; keep one refused for a lens report until I have',
+  '  answered, then delete it. Before the session ends, delete every such file',
+  '  still there, whatever my answer. `verified` means what landed is what was',
   "  sent: the scan is a backstop, and the review procedure's read before",
-  '  posting still comes first. When it refuses your own prose, fix it in',
-  '  place and post again. A lens report it refuses for a secret, a personal',
-  '  detail, a local path, a session id or hidden characters stays local: tell',
-  '  me where it is, and never post it or edit it to get past the scan. If it',
-  "  refuses for a reason no text fix clears, or twice for a reason you can't",
-  '  explain, stop and tell me.',
+  '  posting still comes first. When it refuses your own prose or a Lens',
+  '  dispositions table, fix it in place and post again; never fold, relabel',
+  '  or move a table to get past the check, and never rerun a lens for it. A',
+  '  refusal on a line inside a lens report means its fence is too short: fix',
+  '  the fence, never the report. A lens report it refuses for a secret, a',
+  '  personal detail, a local path, a session id or hidden characters stays',
+  '  local: tell me where it is, in chat only, and never post it or edit it to',
+  "  get past the scan. If it refuses for a reason no text fix clears, or twice",
+  "  for a reason you can't explain, stop and tell me.",
 ].join('\n');
 const KEEP_RECORD = '- **Keep the record where the project keeps it.**';
 const rendered = r => readFileSync(join(r.out, 'CLAUDE.md'), 'utf8');
 
-// #280 C6
-test('with the poster off, the rules file is the no-configuration render byte for byte; on, it gains T1 text after the record bullet', t => {
+// #280 C6, C7
+test('with the poster off, the rules file is the no-configuration render byte for byte; on, it gains T2 text after the record bullet', t => {
   const none = rendered(renderWith(t, null));
   const off = rendered(renderWith(t, '{"schema": 1, "tools": []}'));
   const on = renderWith(t, '{"schema": 1, "tools": ["poster"]}');
@@ -196,18 +202,18 @@ test('with the poster off, the rules file is the no-configuration render byte fo
   const noNotice = s => s.replace(/\n\*\*Configuration in effect\.\*\*[^\n]*\n[^\n]*\n/, '');
   assert.equal(noNotice(off), none);
   assert.ok(!none.includes('Post through the poster'), 'off, no rule names the poster');
-  assert.equal(noNotice(onText).replace(`${T1}\n`, ''), none, 'on, the render differs only by the part');
-  assert.equal(onText.split(T1).length, 2, 'the part holds T1 text once, byte for byte');
+  assert.equal(noNotice(onText).replace(`${T2}\n`, ''), none, 'on, the render differs only by the part');
+  assert.equal(onText.split(T2).length, 2, 'the part holds T2 text once, byte for byte');
   const after = onText.slice(onText.indexOf(KEEP_RECORD));
   assert.match(after, /^- \*\*Keep the record[^\n]*\n(?: {2}[^\n]*\n)+- \*\*Post through the poster\.\*\*/, 'straight after the record bullet');
-  assert.ok(!/Lens\s+dispositions/.test(T1) && !/fence/.test(T1), 'no table or fence clause before T2');
+  assert.ok(/Lens\s+dispositions\s+table/.test(T2) && /fix\s+the\s+fence/.test(T2), 'the table and fence clauses');
 });
 
 // #280 C6: each shell gets its own form; a $HOME form in POSIX or a tilde form in PowerShell would resolve under the folder it runs from.
 test("the rule gives the PowerShell form only through $HOME and the POSIX form only through a tilde", () => {
-  const forms = [...T1.replace(/\n {2}/g, ' ').matchAll(/`(node [^`]+)` in (a POSIX shell|PowerShell)/g)].map(m => [m[2], m[1]]);
+  const forms = [...T2.replace(/\n {2}/g, ' ').matchAll(/`(node [^`]+)` in (a POSIX shell|PowerShell)/g)].map(m => [m[2], m[1]]);
   assert.deepEqual(forms, [['a POSIX shell', 'node ~/.claude/pact/tools/poster.mjs'], ['PowerShell', 'node "$HOME/.claude/pact/tools/poster.mjs"']]);
-  assert.ok(!/[A-Za-z]:\\|\/Users\/|\/home\//.test(T1), 'no absolute path');
+  assert.ok(!/[A-Za-z]:\\|\/Users\/|\/home\//.test(T2), 'no absolute path');
 });
 
 // render, #280 C6: the renderer fills the part only where the source holds it, and holds it empty.
