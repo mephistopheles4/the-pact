@@ -18,9 +18,12 @@ Each shell gets its own command form, as the rules file gives them:
 - **PowerShell:** `node "$HOME/.claude/pact/tools/poster.mjs" <surface> [options]`
 
 Run it from a scratch folder outside the repo, never from the repo. A form
-typed in the wrong shell then looks for the poster under the scratch folder,
-finds nothing, and Node stops with its missing-module error. Nothing is
-posted.
+typed in the other shell either runs the installed poster from the home
+folder, or fails with Node's missing-module error and posts nothing: Windows
+PowerShell 5.1 passes the `~` on as it is, while PowerShell 7.6 and Git Bash
+expand the other shell's form to the home folder. A file planted in a repo
+can't run either way, because the poster runs from the scratch folder, never
+from the repo.
 
 Every piece of free text comes from a file, so no prose reaches a command
 line. Write the body and any title to files in the scratch folder. Delete
