@@ -60,8 +60,8 @@ run a mutation-testing tool if the repo's lock file pins one.
 
 ## Crossing the reports
 
-You lay the reports out yourself, by judgment. Nothing parses them and
-nothing refuses one.
+You lay the reports out yourself, by judgment. Nothing lays them out for
+you, and nothing refuses a report for its layout.
 
 **Pairs.** Lenses offered together in one offer of the Workflow are a pair,
 and their reports are crossed together. A lens offered alone, or run alone, is
@@ -140,16 +140,18 @@ skill runs included.
 At every lens review, post a "Lens dispositions" table where the reports went,
 under a line naming "Lens dispositions", one row per finding. Its header row
 is exactly `| Finding | Lens | Disposition | Rerun |`, with no markup. Each
-row gives the finding, the lens, never left empty, the disposition, and the
-rerun, if any, and why.
+row gives the finding, the lens (never empty), the disposition, and the
+rerun, if any, and why. A `skipped` row may leave the Finding cell empty. A
+row for a report kept local keeps its four cells, with "withheld, see chat"
+in the Finding cell.
 
 The Disposition cell starts with one of these words, in lower case and with
 no markup:
 - `fixed`
 - `taken`
 - `dismissed`
-- `skipped`, for a lens you left out, which gets its own row as
-  `skipped, because ...` with the reason.
+- `skipped`, for a lens you left out or a measure you chose not to check,
+  which gets its own row as `skipped, because ...` with the reason.
 - `open`, for a finding I haven't settled yet. It needs nothing after it; a
   later table gives the finding its final word.
 

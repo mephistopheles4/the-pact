@@ -40,7 +40,12 @@ const row = (i, text) => tree => ({ ...tree, 'body.md': tree['body.md'].replace(
 const swap = (from, to) => tree => ({ ...tree, 'body.md': tree['body.md'].replace(from, to) });
 const asBody = text => () => ({ 'body.md': text });
 
-/** A dry run of an issue comment carrying the tree's body, with a gh that records any call; in a table's shape. */
+/**
+ * A dry run of an issue comment carrying the tree's body, with a gh that
+ * records any call; in a table's shape. A table expects a gate module's exit 1
+ * and "RESULT: fail"; the poster refuses with exit 2, which `refusedQuietly`
+ * asserts on `real`.
+ */
 function runBody(tree, t) {
   const dir = tempDir(t, 'pact-poster-table-');
   writeTree(dir, tree);
@@ -95,6 +100,9 @@ for (const c of table('poster dispositions table', {
     { id: 'info-string-backtick', plant: asBody(body(LABEL, '', `${FENCE3}a${'`'}b`, '| Finding | Lens | Disposition | Rerun |', SEP, `| ${MARK} | x-lens | changed | none |`)), fails: ['table/disposition'], why: 'a backtick run whose info string holds a backtick opens no fence' },
     { id: 'title-case-label', plant: asBody(body('**Lens Dispositions**', '', HEADER, SEP, `| ${MARK} | x-lens | done | none |`)), fails: ['table/disposition'], why: 'the label is read in any case' },
     { id: 'crlf', plant: tree => ({ 'body.md': tree['body.md'].replace(ROWS[0], `| ${MARK} F1 | behaviour-lens | Fixed | none |`).replace(/\n/g, '\r\n') }), fails: ['table/disposition'], why: 'a body with Windows line ends' },
+    { id: 'lone-cr', plant: tree => ({ 'body.md': tree['body.md'].replace(ROWS[0], `| ${MARK} F1 | behaviour-lens | Fixed | none |`).replace(/\n/g, '\r') }), fails: ['table/disposition'], why: 'CommonMark ends a line at a lone carriage return' },
+    { id: 'pipe-line-above-header', plant: tree => ({ 'body.md': tree['body.md'].replace(HEADER, `| ${MARK} a stray line |\n${HEADER}`).replace(ROWS[0], `| ${MARK} F1 | behaviour-lens | Fixed | none |`) }), fails: ['table/disposition'], why: 'the header is the line before the delimiter row' },
+    { id: 'all-dash-row', plant: row(0, '| - | - | - | - |'), fails: ['table/disposition'], why: 'only the line after the header is the delimiter row' },
   ],
 })) test(c.name, c.fn);
 
@@ -104,6 +112,12 @@ const rules = text => tableCheck(text).map(r => r.rule);
 // #280 C7: what passes.
 test("the template's form passes, with fixed (auto), open, an empty Finding cell and an empty Rerun cell", () => {
   assert.deepEqual(tableCheck(BASE), []);
+});
+
+// #280 C7, with q3 on #285: " (auto" is the mark only where the word ends, so reason text that starts with it passes.
+test('reason text holding "(automatically)" or "(auto-take: ...)" passes', () => {
+  for (const cell of ['fixed (automatically)', 'fixed (auto-take: as asked)', 'fixed: moved to (automated) checks']) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| a | b | ${cell} | c |`)), [], cell);
+  assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, '| a | b | fixed (auto reversed) | c |')), ['table/auto'], 'the mark still needs its form');
 });
 
 // #280 C7: case and spacing aside, the header is the template's.
@@ -126,7 +140,31 @@ test('a table inside a fence is never read', () => {
   assert.deepEqual(rules(body(LABEL, '', FENCE3, ...bad, FENCE3)), []);
   assert.deepEqual(rules(body(LABEL, '', '~~~text', ...bad, '~~~')), []);
   assert.deepEqual(rules(body(LABEL, '', `   ${FENCE3}text`, ...bad)), [], 'a fence indented three spaces, never closed');
-  assert.deepEqual(rules(body(LABEL, '', `${FENCE3}text`, ...bad, '~~~', `${'`'.repeat(2)}`, `${FENCE3} x`)), [], 'none of these closes a backtick fence');
+  // Each line below would close the fence under a looser closing rule, and the broken table after it would then be read.
+  for (const closer of ['~~~', '`'.repeat(2), `${FENCE3} x`]) assert.deepEqual(rules(body(LABEL, '', `${FENCE3}text`, closer, ...bad)), [], `${JSON.stringify(closer)} closes no backtick fence`);
+  assert.deepEqual(rules(body(LABEL, '', '~~~~', '~~~', ...bad)), [], 'a shorter tilde run closes no longer one');
+  // A backtick in the info string bars only a backtick fence: a tilde fence still opens.
+  assert.deepEqual(rules(body(LABEL, '', `~~~a${'`'}b`, ...bad, '~~~')), []);
+});
+
+// #280 C7: the check holds on a real post, before any gh call, not only on a dry run.
+test('a real post with a broken table is refused before any gh call', t => {
+  const dir = tempDir(t, 'pact-poster-table-');
+  writeTree(dir, { 'body.md': body(LABEL, '', HEADER, SEP, '| a | b | changed | c |') });
+  const calls = [];
+  const r = post(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5'], { gh: (...a) => (calls.push(a), { ok: true, stdout: '{"login":"tester"}', stderr: '' }), env: {}, ...MACHINE });
+  assert.equal(r.code, 2, r.lines.join('\n'));
+  assert.deepEqual(r.lines, ['REFUSED table/disposition body 5:11', 'RESULT: refused 1']);
+  assert.equal(calls.length, 0);
+});
+
+// #280 C7, ADR 0076: a body full of broken rows names the first fifty and counts the rest, so the result line stays in view.
+test('table refusals past fifty are counted, not listed', t => {
+  const r = runBody({ 'body.md': body(LABEL, '', HEADER, SEP, ...Array(5000).fill('|')) }, t);
+  assert.equal(r.real.code, 2);
+  assert.equal(r.real.lines.length, 52, r.real.lines.slice(-3).join('\n'));
+  assert.equal(r.real.lines[50], 'NOTE: 4950 more table refusals not listed');
+  assert.equal(r.real.lines.at(-1), 'RESULT: refused 5000');
 });
 
 // #280 C7: the review procedure's fold, a four-backtick fence holding a three-backtick line, stays closed to the check.
@@ -165,14 +203,26 @@ test('a credential inside a fold or a fence is still refused by the secret scan'
 
 // #280 C7: the check is a line scan; a worst case at the size limit stays well inside its budget.
 test('a worst-case body at the 65,536-character limit finishes within two seconds', t => {
-  const unit = [`${FENCE3}a${'`'}b`, 'Lens dispositions', '| Finding | Lens | Disposition | Rerun |', '| a | b | c (auto (auto (auto | d |', '|'.repeat(40), '~~~~', '| x |', '~~~~'].join('\n') + '\n';
-  const text = unit.repeat(Math.ceil(65536 / unit.length)).slice(0, 65536);
-  assert.equal([...text].length, 65536);
-  const start = performance.now();
-  const r = runBody({ 'body.md': text }, t);
-  const ms = performance.now() - start;
-  assert.equal(r.real.code, 2, r.out.slice(0, 500));
-  assert.ok(ms < 2000, `${Math.round(ms)} ms`);
+  const unit = [`${FENCE3}a${'`'}b`, 'Lens dispositions', '| Finding | Lens | Disposition | Rerun |', SEP, '| a | b | c (auto (auto (auto | d |', '|'.repeat(40), '~~~~', '| x |', '~~~~'].join('\n') + '\n';
+  const fill = s => s.repeat(Math.ceil(65536 / s.length)).slice(0, 65536);
+  const head = body(LABEL, HEADER, SEP);
+  const bodies = {
+    'many short units': fill(unit),
+    // One line as long as the limit allows: a cost per cell that grows with the line would show here.
+    'one line of pipes under a template header': head + '|'.repeat(65536 - head.length),
+    'one line of backticks and a line separator': fill('`').slice(0, 65534) + String.fromCharCode(0x2028) + 'x',
+    'one line of backticks and a lone carriage return': fill('`').slice(0, 65534) + '\rx',
+  };
+  for (const [name, text] of Object.entries(bodies)) {
+    assert.equal([...text].length, 65536, name);
+    const start = performance.now();
+    const r = runBody({ 'body.md': text }, t);
+    const ms = performance.now() - start;
+    assert.ok(ms < 2000, `${name}: ${Math.round(ms)} ms`);
+    // Any refusal here is the table check's, so a size refusal can't stand in for it.
+    assert.ok(r.fails.every(f => f.startsWith('table/')), `${name}: ${r.out.slice(0, 300)}`);
+    if (name === 'many short units') assert.ok(r.fails.length > 0, 'the units are refused');
+  }
 });
 
 const REVIEW = () => readFileSync(join(REPO, 'claude', 'review.md'), 'utf8').replace(/\r\n/g, '\n');
@@ -185,7 +235,10 @@ test("the check's header and words are the review procedure's", () => {
   const words = [...section.matchAll(/^- `([a-z]+)`/gm)].map(m => m[1]);
   assert.deepEqual(words, [...DISPOSITIONS.words]);
   assert.ok(section.includes(`\`skipped${DISPOSITIONS.skipped}`), 'the skipped form');
-  for (const a of DISPOSITIONS.afterAuto) assert.ok(section.includes(a === ')' ? '(auto)' : `(auto${a}`), `the auto form ${a}`);
+  // Every "(auto" the section writes is one of the check's forms, and each form is written.
+  const forms = [...section.matchAll(/\(auto(:|\)|, reversed|[^]?)/g)].map(m => m[1]);
+  assert.deepEqual([...new Set(forms)].sort(), [...DISPOSITIONS.afterAuto].sort());
+  assert.equal(section.split('| Finding |').length, 2, 'one header row');
 });
 
 // #280 C9: the review procedure says what open means, where escapes and gaps go, that a table may be unchecked, and what a hidden-character refusal asks; it names no tool.
@@ -196,7 +249,7 @@ test('the review procedure carries open, the separate escape table, the unchecke
   assert.ok(flat.includes('Escape and gap rows go in a table of their own under that review\'s Lens dispositions table, with no Disposition column.'));
   assert.ok(flat.includes("A tool may check this table's shape before it posts; where none does, the table is unchecked. A retrospective that counts these tables reads each one tolerantly and counts the rows it can't read."));
   assert.ok(flat.includes('Where a tool refuses a report for hidden characters, keep the report local and tell me, as for a personal detail; never strip them to post it.'));
-  assert.doesNotMatch(review, /poster/i);
+  assert.doesNotMatch(review, /poster|tools\/|\.mjs/i);
 });
 
 // ---------------------------------------------------------------- the recorded tables (C8)
@@ -230,8 +283,9 @@ test('each fixture holds only its label line and table, with placeholders in eve
   const dispositionCell = /^(?:\*\*)?[a-z]*(?:, because|, for)?(?: x)?(?: \(auto(?:, reversed|.))?(?: x)?(?:\*\*)?$/;
   for (const name of Object.keys(RECORDED)) {
     const lines = fixture(name).split('\n').filter(l => l !== '');
-    assert.match(lines[0], /Lens dispositions/i, name);
-    assert.ok(lines.length >= 3 && lines.slice(1).every(l => l.startsWith('|')), `${name}: only table lines after the label`);
+    assert.match(lines[0], /^(?:#{1,6} |\*\*)?Lens dispositions(?:\*\*)?$/, `${name}: the label line is its markup and the label only`);
+    assert.ok(lines.length >= 3 && lines.slice(1).every(l => l.startsWith('|') && l.endsWith('|')), `${name}: only table lines after the label`);
+    assert.ok(lines[2].split('|').slice(1, -1).every(c => /^ ?:?-+:? ?$/.test(c)), `${name}: the delimiter row`);
     const head = lines[1].split('|').slice(1, -1).map(c => c.trim().toLowerCase());
     for (const l of lines.slice(3)) {
       const cells = l.split('|').slice(1, -1).map(c => c.trim());

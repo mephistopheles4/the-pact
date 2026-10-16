@@ -1732,8 +1732,8 @@ run a mutation-testing tool if the repo's lock file pins one.
 
 ## Crossing the reports
 
-You lay the reports out yourself, by judgment. Nothing parses them and
-nothing refuses one.
+You lay the reports out yourself, by judgment. Nothing lays them out for
+you, and nothing refuses a report for its layout.
 
 **Pairs.** Lenses offered together in one offer of the Workflow are a pair,
 and their reports are crossed together. A lens offered alone, or run alone, is
@@ -1812,16 +1812,18 @@ skill runs included.
 At every lens review, post a "Lens dispositions" table where the reports went,
 under a line naming "Lens dispositions", one row per finding. Its header row
 is exactly `| Finding | Lens | Disposition | Rerun |`, with no markup. Each
-row gives the finding, the lens, never left empty, the disposition, and the
-rerun, if any, and why.
+row gives the finding, the lens (never empty), the disposition, and the
+rerun, if any, and why. A `skipped` row may leave the Finding cell empty. A
+row for a report kept local keeps its four cells, with "withheld, see chat"
+in the Finding cell.
 
 The Disposition cell starts with one of these words, in lower case and with
 no markup:
 - `fixed`
 - `taken`
 - `dismissed`
-- `skipped`, for a lens you left out, which gets its own row as
-  `skipped, because ...` with the reason.
+- `skipped`, for a lens you left out or a measure you chose not to check,
+  which gets its own row as `skipped, because ...` with the reason.
 - `open`, for a finding I haven't settled yet. It needs nothing after it; a
   later table gives the finding its final word.
 
@@ -1939,7 +1941,7 @@ check_hash 662687608bd15f1da7624371c15cae5dadf224570c636553241c8f8317b63c95 'age
 check_hash a7e6926321fb26785776c4e0fb92636167d57b9a15d27f2a6bb3ef2506a43d5b 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 2d00a1bf1aa0c97ab2ee491c7f12819dbc4af327f5d03987f7825462faef6854 'agents/unstated-lens.md'
-check_hash e82e4bd4a162804c6d4b2b0b2f8a49d5617ee12b1b0f4bb109d08cb573f172f7 'pact/review.md'
+check_hash 0010e78ee43133e46fc44890e00c200fad003ca0ee3d18fa8f6aa24250a68ccd 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -1959,7 +1961,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 2753b9d97668"
+  echo "pact cloud copy a808010fa65c"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
