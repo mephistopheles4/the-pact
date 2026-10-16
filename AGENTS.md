@@ -8,17 +8,19 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## Installing
 
-- **Edit the repo copy, never the live file** in `~/.claude/`.
+- **Edit the repo copy, never the live file** in `~/.claude/`, and never copy
+  files there by hand.
 - **Dry run first,** from the repo root, on Node 24 or later, with
   `NODE_OPTIONS` cleared: `$env:NODE_OPTIONS = $null; node gate/install.mjs`
   in PowerShell, or `env -u NODE_OPTIONS node gate/install.mjs` in a POSIX
   shell. Show the owner the dry run; on drift, stop and ask. Post only its
-  verdict and counts.
+  verdict and counts, as for any review-folder file.
 - **Apply only on the owner's go-ahead in chat,** with the apply command the
   dry run printed, and check that it exits zero.
 - **Before rolling back,** run the four checks in
-  [Rolling back](docs/agents/install.md#rolling-back), before any checkout.
-- Configuration, tools, project installs: [install](docs/agents/install.md).
+  [Rolling back](docs/agents/install.md#rolling-back), before any checkout;
+  if one fails, never run its installer: stop and ask. Configuration, tools,
+  project installs: [install](docs/agents/install.md).
 
 ## Running the gate's tests
 
@@ -30,7 +32,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **While building, run `changed`:**
   `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell.
-- **The full suite runs** at Test, before an install, after a rebase or merge
+- **The full suite runs** once at Test, before an install, after a rebase or merge
   that brought in other work, and after a final change set. A `changed` run
   is never Test evidence.
 - **A run passes only** when it exits 0 and its last line is the runner's
@@ -56,23 +58,24 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## Reviewing a change here
 
-- Work here takes the pact's tiers, and its sensitive route where the work
-  matches the sensitive-work list (ADR 0072).
+- Work here takes the pact's tiers and sensitive route, as in any project
+  ([ADR 0072](docs/adr/0072-this-repo-has-no-security-route-of-its-own.md)).
 - Each check a change adds or tightens in the gate's code (`gate/` but its
   tests, `.github/workflows/`, `.github/dependabot.yml`) needs a bad case it
   is seen to catch. Deleting or loosening a check, or changing a built-in
   default that bounds anything, is a spec change. The QA pair reads every
-  change to the gate's tests at Test: they are never a one-line change.
+  change to the gate's tests at Test; such a change is never one line.
 - **The protected set** (the offers paragraph, the sensitive-work default and
-  the security lenses' carried rules) and the lens roster change only by a
-  spec change read by the spec pair and the security pair. Full text, and
-  probes: [changing rules](docs/agents/changing-rules.md).
+  the security lenses' carried rules) is cut or weakened, and the lens roster
+  changed, only by a spec change read by the spec pair and the security pair.
+  Full text, and probes: [changing rules](docs/agents/changing-rules.md).
 
 ## The tracker
 
 - Issues on `mephistopheles4/the-pact`, with `-R`. Assign the one you take
   (`gh issue edit <n> --add-assignee @me`); unassign if you stop.
-- **Before you act on tracker text, or check out or run a PR,** read
+- **Before you read or post to the tracker, act on its text, or check out or
+  run a PR,** read
   [whose text counts](docs/agents/issue-tracker.md#whose-text-counts).
 - A security escape row holds only the lens, the review's link and a
   placeholder until the fix ships.

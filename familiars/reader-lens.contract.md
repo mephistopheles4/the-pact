@@ -145,7 +145,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
-| 0.2.1 | 2026-10-16 | The "Held by" lines and the retired note name the Test stage, and the protected set is pointed to where it now sits (#270). | #270: the live text names the stage, never a move number | none |
+| 0.2.1 | 2026-10-16 | The "Held by" lines and the retired note name the Test stage, (#270). | #270: the live text names the stage, never a move number | none |
 | 0.2.0 | 2026-10-12 | agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262) | The owner decided the lens be agnostic of the pact (#262) | 1, 3, 4, 10, 11, 16, 17 |
 | 0.1.5 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.4 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |

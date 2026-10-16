@@ -398,7 +398,7 @@ session can act before you see it.
 - **R13. A lens can quote a secret.** A read-only lens can still read any file
   your account can, and its report goes on the tracker word for word. Since
   #261 the session-level rule "never post a secret" is accepted as judgment
-  in the pact (this repo's `docs/agents/issue-tracker.md` keeps it), and four lenses don't carry
+  in the pact (this repo's `docs/agents/issue-tracker.md` keeps it, one link from the loaded `AGENTS.md`, since #270), and four lenses don't carry
   it in their own files; #192's lens half is the follow-up. Since #264 the
   review procedure's posting section also asks the session to read every
   report for a secret before it posts one. A word test checks
@@ -532,7 +532,7 @@ session can act before you see it.
     branch lands on `main`.
   - **"Stop and ask me" still holds,** whoever asked, before anything hard
     to reverse. Here, so does this repo's "Never post a secret or a personal
-    detail"; elsewhere that is judgment. Both are rules, so a steered session
+    detail" (one link from the loaded `AGENTS.md`, since #270); elsewhere that is judgment. Both are rules, so a steered session
     could still break them.
   - **With auto mode off, or its lists edited,** Claude Code's own prompts
     govern.
@@ -563,7 +563,7 @@ session can act before you see it.
     permission mode; that card is the guard against a relayed `/finis`.
 
   What still holds whoever sent the command: "Stop and ask me", and here
-  this repo's "Never post a secret or a personal detail". `/scriptorium`,
+  this repo's "Never post a secret or a personal detail" (one link from the loaded `AGENTS.md`, since #270). `/scriptorium`,
   sent in, writes a builder file and renders a page outside any repo; it
   merges, pushes and posts nothing. The cloud copy ships no command. A project's own skill with the same name runs in place of a
   command, and the install's skill-clash check covers only your personal

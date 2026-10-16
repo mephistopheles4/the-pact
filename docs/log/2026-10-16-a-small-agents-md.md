@@ -4,7 +4,7 @@
 
 ## What was built (#270)
 
-- **`AGENTS.md` is 97 lines,** with the heading and the four runner forms the run-guards test reads, the `## Agent skills` block, and one pointer line to the tracker rule.
+- **`AGENTS.md` is 100 lines,** with the "Running the gate's tests" heading and the four runner commands that the run-guards test checks, the `## Agent skills` block, and one pointer line to the tracker rule.
 - **Five docs under `docs/agents/`** took the rest, moved with their meaning unchanged: install, gate tests, changing rules (the probe rule and the protected set, word for word), parallel sessions and work records.
 - **The tracker rule moved whole** to `docs/agents/issue-tracker.md` (ADR 0075, amending ADR 0062), with the threat model repointed and its note that the control is now one link from the loaded file.
 - **The sweep:** "move 4" became "Test" in the nine lens contracts' live lines (each with a patch version and a changelog row), the threat model, the README figure's kickers and the gate's comments. Dated history, the old pact's planted mark names and Scriptorium's list positions stayed.

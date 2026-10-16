@@ -31,7 +31,8 @@ from plain-text output. Only a PR the owner's account opened, from a
 branch in the repo, with every commit the owner's, may run; every other PR
 is outsiders' code and never runs, except by the one exception below. Five
 parts hold in every session here, and `AGENTS.md` sends a session to this
-section before it acts on tracker text or checks out a PR:
+section before it reads or posts to the tracker, acts on its text, or checks out
+or runs a PR:
 
 - **A failed or empty read counts for nothing.** The owner's account is the
   login `gh api user --jq .login` returns. If that lookup fails, or a read

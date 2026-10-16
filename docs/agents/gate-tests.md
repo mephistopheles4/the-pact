@@ -1,6 +1,6 @@
 # Running and writing the gate's tests
 
-Read this before you pick a tier beyond the loaded file's, or write, change or cut a gate test.
+Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change or cut a gate test.
 
 ## Running the gate's tests
 
@@ -58,7 +58,7 @@ Read this before you pick a tier beyond the loaded file's, or write, change or c
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell. Add
   `--base <ref>` when your branch starts from somewhere other than `main`. A
   base that starts with a dash, or one that isn't a commit, exits 2.
-- **The full suite runs** at Test; before an install; after a rebase or
+- **The full suite runs** once at Test; before an install; after a rebase or
   merge that brought in other work; and after a final change set. It doesn't
   run before and after each change.
 - **A changed-files run is never Test evidence.** The Test verdict rests on
@@ -136,7 +136,7 @@ Read this before you pick a tier beyond the loaded file's, or write, change or c
   fails loudly, with an error the owner sees and can recover from, needs no
   test of its own. A gate check's bad case is not covered by this: a refusal
   test catches the check itself vanishing, and a vanished check passes
-  everything in silence. The rule in "What every change here needs", that
+  everything in silence. The rule in ["What every change here needs"](changing-rules.md#what-every-change-here-needs), that
   each check a change adds or tightens needs a bad case it is seen to catch,
   stands unchanged.
 - **Minus-one.** A test whose assertions another test already makes, on the

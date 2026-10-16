@@ -17,7 +17,7 @@ When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the 
 These two say whether a session can start the issue's next move without the owner.
 
 - **`ready-for-agent`**: a session can start the issue's next move without asking.
-- **`ready-for-human`**: an owner decision or owner-only action is open that the issue doesn't settle.
+- **`ready-for-human`**: an owner decision or owner-only action is open that the issue doesn't settle. It is the tracker's form of the pact's "Needs a human" gate.
 
 ## Tier labels
 
