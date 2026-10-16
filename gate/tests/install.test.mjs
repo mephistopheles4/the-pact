@@ -62,7 +62,7 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
 
 // ------------------------------------------------------------ gate fingerprints
 
-// The one end-to-end case for the runner's gate block (#210, move 4): the
+// The one end-to-end case for the runner's gate block (#210, at Test): the
 // in-process rows check the block's lines, this one that the runner hands it
 // the last install's record and today's gate.
 test('bad case: an edited install script is flagged in the dry run', t => {
@@ -152,7 +152,7 @@ test('bad case: NODE_OPTIONS set refuses before any check runs', t => {
 });
 
 // The bootstrap's own case check, before anything is staged; the runner's
-// copy in parseTree is a row in install-core.test.mjs (#210, move 4). The
+// copy in parseTree is a row in install-core.test.mjs (#210, at Test). The
 // runner's copy refuses in the same words, so a marker the planted runner
 // prints first shows which one refused (#210, round 2).
 test('bad case: two paths in the commit that differ only in case refuse', t => {

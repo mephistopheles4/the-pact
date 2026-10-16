@@ -29,12 +29,12 @@ holds them:
   tracker. A session reads tiers, approvals and decisions there. Since #261 the pact carries no rule on whose
   text counts there: it leaves that to judgment. Before you use the rules on
   a tracker where others can comment, keep that tracker private, or write
-  your own rule into the repo's `AGENTS.md`, as this repo does.
+  your own rule into the repo's `AGENTS.md` or a doc it points to, as this repo does.
 - **They post every review report on the tracker, word for word,** security
   findings included. So choose: keep the tracker private, or accept that those
   findings are public until they are fixed. Since #261 the pact also leaves
   keeping secrets and personal details out of posts to judgment, unless the
-  repo's own `AGENTS.md` adds a rule, as this repo's does.
+  repo's own `AGENTS.md` or a doc it points to adds a rule, as this repo's does.
 
 [The threat model](threat-model.md) explains how the pact could break, the
 risks it accepts, and what each tweak costs. Read it before you decide.

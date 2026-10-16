@@ -20,6 +20,8 @@ The pact's gated `tracker-authors` clause is retired (ADR 0060), and the pact no
 - **The five parts stay loaded.** A rule in a doc a session must choose to read can be skipped. These parts fail closed or keep data private, so they sit in the file every session here loads.
 - **Not chosen: cutting the rule here too, as judgment.** The spec offered it as the alternative; the owner chose to keep it.
 
+Amended by [ADR 0075](0075-agents-md-holds-only-what-every-session-needs.md): the short form and the five always-on parts now sit in `docs/agents/issue-tracker.md`, behind a pointer line in `AGENTS.md`.
+
 ## How this was decided
 
 - **2026-10-11** in mephistopheles4/the-pact#238: on spec revision 9 the owner took the recommendation on q4, keeping this repo's own tracker rule in `AGENTS.md` with the fail-closed parts and the any-text no-secret line, and the rest in `docs/agents/issue-tracker.md`. The `data-lens` read of revision 8 asked for the no-secret line to stay loaded. Built in #261.

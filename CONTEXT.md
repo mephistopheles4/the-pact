@@ -52,7 +52,7 @@ real work selects it.
 
 - **Probe record:** the comments on an issue that hold one probe: its **expected result**, then every run, each verbatim. A finished work's log entry cites them in its **Record list**.
 - **Expected result:** what a probe must show for a pass, posted on the issue before the probe runs. It is never edited after a run; a correction is a new comment, so the issue's history shows the prediction came first.
-- **Plant:** the planted input a rule probe runs against, such as a sandbox issue or comment written to read as a real task. A probe runs only when the owner asks for one by name (see `AGENTS.md`). A plant a check can run is kept as a fixture beside that check.
+- **Plant:** the planted input a rule probe runs against, such as a sandbox issue or comment written to read as a real task. A probe runs only when the owner asks for one by name (see `docs/agents/changing-rules.md`). A plant a check can run is kept as a fixture beside that check.
 - **Record list:** the closing list of a log entry. It cites the issue comments that hold the work's verbatim plan, reviews and probe records. Entries for work finished before #52 cite commits instead.
 
 ## Pact commands

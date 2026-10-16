@@ -12,4 +12,5 @@ Every rule for working on this repo lives in the root [`AGENTS.md`](../../AGENTS
 
 - **2026-09-27** — The owner asked for both root files, as in stacks: `AGENTS.md` as the constitution, `CLAUDE.md` for what is specific to Claude Code. The first draft put the "Agent skills" block in `CLAUDE.md`, as the setup skill says to. The owner asked why, since those facts apply to any agent, and the block moved to `AGENTS.md`, leaving `CLAUDE.md` as just the import.
 - **2026-09-27** — Set up in `804e25a`, together with the tracker, triage-label and domain-doc config in `docs/agents/`. It ran under an owner-invoked setup skill, with no plan, review or probe. Told in [the repo rules and tracker log](../log/2026-09-27-repo-rules-and-tracker.md).
+- **Amended by [ADR 0075](0075-agents-md-holds-only-what-every-session-needs.md):** the rules for this repo live in `AGENTS.md` and the docs it links.
 - **Not decided here:** the planned vendor-neutral split of the pact itself. That goes in `claude/`, next to the file it replaces, and is listed under "Planned" in the README.

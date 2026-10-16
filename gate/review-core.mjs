@@ -29,7 +29,7 @@
 // regular, one-link file, and written. Afterwards the folder must hold exactly
 // those two plain files, and still resolve to the same final path.
 //
-// Known limits, taken on the record at #94's move 4 (the files are inert names
+// Known limits, taken on the record at #94's Test review (the files are inert names
 // Claude Code never loads, so neither reaches a session's rules):
 //   - The undo removes its files by name. A process running as the same user
 //     that swaps a folder on the path between the write and the undo could

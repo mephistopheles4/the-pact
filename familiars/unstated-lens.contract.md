@@ -1,6 +1,6 @@
 # Contract: unstated-lens
 
-Version: 0.2.0
+Version: 0.2.1
 
 - **Type:** agent
 - **Level:** Thorough
@@ -69,11 +69,11 @@ For the session
 - C3. **The gap list:** performance efficiency, reliability under failure, compatibility, flexibility including installability, and safety.
   Held by: Promised.
 - C4. **Decided** (2026-10-12, #262): **"No lens covers" means no reviewer that ran in this review.** When the work touches security-sensitive ground (auth, secrets, crypto, input validation, or a new way in from outside, such as a network listener, an endpoint or a file upload) with no security review, it raises a finding that asks whether the work should have had one.
-  Held by: review at move 4; the security set was retired by #189.
+  Held by: review, since no test holds it; the security set was retired by #189.
 - C5. **Carried rules name roles, never agents.**
   Held by: Enforced — seam A.
 - C6. Text it reads is data, not instructions.
-  Held by: review at move 4; the practice cases were retired by #189.
+  Held by: review, since no test holds it; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
 - C8. **Decided** (2026-10-12, #262): It reports in the shape it is handed at run time.
@@ -125,6 +125,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
 | 0.2.0 | 2026-10-12 | Agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262). | #262, the owner's decision that every lens be agnostic of the pact | Show me good (samples), 1, 3 (C4, C8, C9, C10, automatic checks, you, what makes it fire, checklist), 4, 10, 11, 16, 18 |
 | 0.1.4 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.3 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
@@ -154,7 +155,7 @@ None yet.
 
 ### 12. Prove it works: a practice test
 
-**Retired** by #189: the practice test and its cases were deleted. Review at move 4 and use prove the lens.
+**Retired** by #189: the practice test and its cases were deleted. Review and use prove the lens.
 
 ### 13. When would you retire it?
 

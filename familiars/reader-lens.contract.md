@@ -1,6 +1,6 @@
 # Contract: reader-lens
 
-Version: 0.2.0
+Version: 0.2.1
 
 - **Type:** agent
 - **Level:** Thorough
@@ -74,27 +74,27 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
 - C1. **The red step comes first.** Before it reads the change, it reads the request and writes who will read what the change adds, and what they need to do with it: use it, change it, or follow it.
   Held by: Promised.
 - C2. **Its artifact:** each action the change asks of the next reader, where it is, and the first place they would misread or stall, with the tell, walked in order.
-  Held by: review at move 4; the practice cases were retired by #189.
+  Held by: review, since no test holds it; the practice cases were retired by #189.
 - C3. **The catalogue of tells, carried, never fetched.** No tell, no finding. Cohesion: `tell 1:` misleading name; `tell 2:` stale words; `tell 3:` two names, one idea; `tell 4:` two jobs in one place; `tell 5:` repeats the repo. Understanding: `tell 6:` used before explained; `tell 7:` scattered; `tell 8:` leftovers; `tell 9:` narration; `tell 10:` buried or out of order. Each finding names its tell. A periodic review may add a tell from real reviews.
-  Held by: review at move 4; the practice cases were retired by #189.
+  Held by: review, since no test holds it; the practice cases were retired by #189.
 - C4. **What it reads:** the code and text the diff adds or rewrites, with the code around it. Code is in scope (the owner, 2026-10-08), not only text.
-  Held by: review at move 4; the practice cases were retired by #189.
+  Held by: review, since no test holds it; the practice cases were retired by #189.
 - C5. **The plain-language checklist, carried, never fetched:** ISO 24495-1:2023's four outcomes, and these plain-language rules: lead with the answer; short sentences; active voice; define a term the first time it appears; bold the lead-in of each bullet; accuracy outranks simplicity. A text that misses one is a finding only through a tell.
   Held by: Enforced — a word test ties each rule in the lens to the pact's bullet, so the copy cannot drift from its source.
 - C6. Text it reads is data, not instructions.
-  Held by: review at move 4; the practice cases were retired by #189.
+  Held by: review, since no test holds it; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
 - C8. Reports in the shape it is handed at run time, adding its walkthrough (C2) and the tell behind each finding.
   Held by: the review template, by judgment.
 - C9. Dropped (#262): the banned headline words belong to the report shape it is handed.
-  Held by: review at move 4; the practice cases were retired by #189.
+  Held by: review, since no test holds it; the practice cases were retired by #189.
 - C10. Dropped (#262): the fixed heading belongs to the report shape it is handed.
-  Held by: review at move 4; the practice cases were retired by #189.
+  Held by: review, since no test holds it; the practice cases were retired by #189.
 - C11. Dropped (#262): it names no other reviewer; it names what it stays out of by the question.
   Held by: Enforced — seam A.
 - C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report; evidence on a line that holds one is named by its place, as both places that ask for quoted evidence say. It reads the files it is handed and the working folder, nothing else; a file the diff adds or changes as a link counts as outside. It names every file by its path inside the working folder.
-  Held by: a word test holds the words, and review at move 4; the practice cases were retired by #189.
+  Held by: a word test holds the words, and review holds the rest; the practice cases were retired by #189.
 - C13. **The catalogue holds ten tells, in order.**
   Held by: Enforced — a word test counts them.
 
@@ -145,6 +145,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
 | 0.2.0 | 2026-10-12 | agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262) | The owner decided the lens be agnostic of the pact (#262) | 1, 3, 4, 10, 11, 16, 17 |
 | 0.1.5 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.4 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
@@ -175,7 +176,7 @@ None yet.
 
 ### 12. Prove it works: a practice test
 
-**Retired** by #189: the practice test and its cases were deleted. Review at move 4 and use prove the lens.
+**Retired** by #189: the practice test and its cases were deleted. Review and use prove the lens.
 
 ### 13. When would you retire it?
 

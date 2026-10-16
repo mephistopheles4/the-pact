@@ -113,7 +113,7 @@
 // own values, egress when the tools line holds more than the read tools. The
 // notice gains an "Agents set:" line. Since #262 no setting is marked: a
 // person may run any agent on any model, and the pact does not test them.
-// Adding an agent to CONFIGURABLE_AGENTS is a spec change (AGENTS.md).
+// Adding an agent to CONFIGURABLE_AGENTS is a spec change (docs/agents/changing-rules.md).
 //
 // The project mode (#53, slice 5) renders the project rules file for a
 // project install. It reads the user file, for the user's effective values and

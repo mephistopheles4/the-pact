@@ -66,7 +66,8 @@ The pact defends itself in two ways, and they are not equally strong.
 - **Judgment.** Since #261 the rules file states the owner's practices and
   leaves much to the model's judgment, as any shared `CLAUDE.md` does. Rules
   it used to carry, such as whose tracker text counts, are accepted as
-  judgment in the pact. This repo keeps its own tracker rule in `AGENTS.md`.
+  judgment in the pact. This repo keeps its own tracker rule in `docs/agents/issue-tracker.md`,
+  reached by a pointer in `AGENTS.md`.
 
 One rule is a fixed block: "Stop and ask me". No configuration edit can target
 it. Since ADR 0069 the gate holds no text word for word: the pact is vetted
@@ -157,12 +158,12 @@ How to read it:
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
-| R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `AGENTS.md`; elsewhere, judgment (#261) | Rule, judgment |
+| R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `docs/agents/issue-tracker.md`, one link from the loaded `AGENTS.md`; elsewhere, judgment (#261) | Rule, judgment |
 | R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment | Rule, judgment |
 | R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262) | Rule |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
 | R5 Refusal untested | Outside pull request | Here, this repo's tracker rule; elsewhere, judgment | Rule, judgment |
-| R6 Container built wrong | Outside pull request | Here, the five conditions in `AGENTS.md` and your typed OK; elsewhere, judgment | Rule, then a boundary; judgment |
+| R6 Container built wrong | Outside pull request | Here, the five conditions in `docs/agents/issue-tracker.md` and your typed OK; elsewhere, judgment | Rule, then a boundary; judgment |
 | R7 Teams blocked | None; a cost to you | None yet (#180) | — |
 | R8 Publisher compromised | This repo's publisher | Dry run, the diff you read | Rule |
 | R9 Installed code | Plugin or skill author | None | — |
@@ -177,7 +178,7 @@ How to read it:
 | R18 Totals to this repo | Retired by #189 | — | — |
 | R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
 | R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline that came only by relay kept open until you answer in chat; review of a lens change, with the security pair when you ask for it (ADR 0072); a change Claude doesn't see as sensitive, judgment | Rule, judgment |
-| R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build, in the default workflow, which a home configuration can change behind the security-defaults line (#262, R30); here, the QA pair reads every change to the gate's tests at move 4, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
+| R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build, in the default workflow, which a home configuration can change behind the security-defaults line (#262, R30); here, the QA pair reads every change to the gate's tests at Test, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
@@ -200,8 +201,9 @@ session could act on it.
 
 **What the pact does.** Since #261, nothing in the pact itself: the gated
 `tracker-authors` rule left the rules file, and whose text counts is accepted
-as judgment. This repo keeps the rule as its own, in `AGENTS.md` and
-`docs/agents/issue-tracker.md` (ADR 0062), because the repo is public and every
+as judgment. This repo keeps the rule as its own, in
+`docs/agents/issue-tracker.md`, behind a pointer line in `AGENTS.md` (ADR 0062,
+amended by ADR 0075), because the repo is public and every
 session here posts under the owner's account. There, only the owner's
 account's text counts. A session reads authors from GitHub's structured
 fields, never from text. It counts an item only if the owner's account also
@@ -263,8 +265,10 @@ machine.
   habit holds, not that the rule causes it.
 - **R6. A session builds the container.** Once built, the container is a real
   boundary. But building it right is a rule the session follows (here, the
-  five conditions in `AGENTS.md`; elsewhere, judgment); nothing in the pact
-  builds or checks it.
+  five conditions in `docs/agents/issue-tracker.md`; elsewhere, judgment); nothing in the pact
+  builds or checks it. Since #270 the conditions sit one link from the loaded
+  `AGENTS.md`, not in it: a session that skips the pointer line has only Claude
+  Code's own defaults.
 - **R7. Teams are blocked, not protected.** A teammate's text is data and
   their pull requests never run locally. There is no setting for trusted
   accounts yet (#180).
@@ -331,7 +335,7 @@ once you install it.
   backstop at Test doesn't reach that data either: the owner accepted this
   to keep the stop rare (#262). "Never post a secret or a
   personal detail" left the pact in #261, accepted as judgment; this repo's
-  `AGENTS.md` keeps it. Text that frames such a change as quick work can steer
+  `docs/agents/issue-tracker.md` keeps it. Text that frames such a change as quick work can steer
   past the reviews, and your answer at the stop is then the only check. The
   owner chose this over narrowing the phrase (#189, ADR 0050), accepted that
   personal data written into code or logs can ship below the thorough tier
@@ -394,7 +398,7 @@ session can act before you see it.
 - **R13. A lens can quote a secret.** A read-only lens can still read any file
   your account can, and its report goes on the tracker word for word. Since
   #261 the session-level rule "never post a secret" is accepted as judgment
-  in the pact (this repo's `AGENTS.md` keeps it), and four lenses don't carry
+  in the pact (this repo's `docs/agents/issue-tracker.md` keeps it, one link from the loaded `AGENTS.md`, since #270), and four lenses don't carry
   it in their own files; #192's lens half is the follow-up. Since #264 the
   review procedure's posting section also asks the session to read every
   report for a secret before it posts one. A word test checks
@@ -446,7 +450,7 @@ session can act before you see it.
   the CI check runs, or weaken record mode's scrub, which keeps local paths
   and names out of posted test output. The required CI check can't catch
   that, because it runs the runner the edit narrowed. Only the review at the
-  end of the build does: here, the QA pair at move 4, which the pact's one-line exception never covers (#262); elsewhere, the QA pair when you take its offer. The owner accepted this risk by name (#189).
+  end of the build does: here, the QA pair at Test, which the pact's one-line exception never covers (#262); elsewhere, the QA pair when you take its offer. The owner accepted this risk by name (#189).
 - **R22. The install's apply is unprompted.** Since #265 the pact sets no ask
   rules, so nothing prompts you before `--apply`, in any spelling. Before it,
   ask rules looked for an apply's spelling, and some spellings already got
@@ -528,7 +532,7 @@ session can act before you see it.
     branch lands on `main`.
   - **"Stop and ask me" still holds,** whoever asked, before anything hard
     to reverse. Here, so does this repo's "Never post a secret or a personal
-    detail"; elsewhere that is judgment. Both are rules, so a steered session
+    detail" (one link from the loaded `AGENTS.md`, since #270); elsewhere that is judgment. Both are rules, so a steered session
     could still break them.
   - **With auto mode off, or its lists edited,** Claude Code's own prompts
     govern.
@@ -559,7 +563,7 @@ session can act before you see it.
     permission mode; that card is the guard against a relayed `/finis`.
 
   What still holds whoever sent the command: "Stop and ask me", and here
-  this repo's "Never post a secret or a personal detail". `/scriptorium`,
+  this repo's "Never post a secret or a personal detail" (one link from the loaded `AGENTS.md`, since #270). `/scriptorium`,
   sent in, writes a builder file and renders a page outside any repo; it
   merges, pushes and posts nothing. The cloud copy ships no command. A project's own skill with the same name runs in place of a
   command, and the install's skill-clash check covers only your personal
@@ -761,7 +765,7 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
   whatever setup was pasted into it. Since #261 the current copy carries no
   tracker rule, no rule on outsiders' code and no rule against posting a
   secret either: the pact leaves them to judgment. In this repo, `AGENTS.md`
-  supplies them from the checkout. Elsewhere, keep cloud sessions off a
+  points to them, in `docs/agents/issue-tracker.md`, from the checkout. Elsewhere, keep cloud sessions off a
   public tracker, or write the rules into that repo's own `AGENTS.md`.
 - **#188:** with the current copy, a cloud session can't read authors. Since
   #261 the pact carries no tracker rule, so this applies to this repo's own

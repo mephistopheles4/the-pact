@@ -4,10 +4,10 @@
 import { LEFT, PAD, RIGHT, block, label, sheet } from './draw.mjs';
 
 const YOU = [
-  { move: 'Move 1', title: ['Sense the work'], body: ['How big, how', 'risky, and', 'ready to plan?'] },
-  { move: 'Move 2', title: ['Think before', 'doing'], body: ['Get the intent', 'clear enough', 'to defend.'] },
-  { move: 'Move 3', title: ['Checkpoint', 'the seams'], body: ['Costly work', 'waits for a', 'checkpoint.'] },
-  { move: 'Move 4', title: ['Stay the owner'], body: ['Verify it, and', 'know when to', 'stop it.'] },
+  { move: 'Move', title: ['Sense the work'], body: ['How big, how', 'risky, and', 'ready to plan?'] },
+  { move: 'Move', title: ['Think before', 'doing'], body: ['Get the intent', 'clear enough', 'to defend.'] },
+  { move: 'Move', title: ['Checkpoint', 'the seams'], body: ['Costly work', 'waits for a', 'checkpoint.'] },
+  { move: 'Move', title: ['Stay the owner'], body: ['Verify it, and', 'know when to', 'stop it.'] },
 ];
 const AGENT = [
   ['Proposes a', 'tier, with a', 'line of why.'],
