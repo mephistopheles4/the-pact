@@ -160,7 +160,7 @@ How to read it:
 | --- | --- | --- | --- |
 | R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `docs/agents/issue-tracker.md`, one link from the loaded `AGENTS.md`; elsewhere, judgment (#261) | Rule, judgment |
 | R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment | Rule, judgment |
-| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262) | Rule |
+| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its scan and its Lens dispositions table check as a backstop behind that read, which stays for everyone (#280) | Rule |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
 | R5 Refusal untested | Outside pull request | Here, this repo's tracker rule; elsewhere, judgment | Rule, judgment |
 | R6 Container built wrong | Outside pull request | Here, the five conditions in `docs/agents/issue-tracker.md` and your typed OK; elsewhere, judgment | Rule, then a boundary; judgment |
@@ -170,7 +170,7 @@ How to read it:
 | R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
-| R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); elsewhere, judgment | Rule, judgment |
+| R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its secret scan as a backstop behind that read, which stays for everyone (#280); elsewhere, judgment | Rule, judgment |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071); a rewritten pact tool shows as drift (#280) | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
@@ -238,7 +238,13 @@ months.
   that holds either local. The cross script never scanned for secrets; the
   checks it dropped were shape and character checks. One of them, the
   anchor-path check, kept full local paths, and the user name in them, out of
-  posted anchors; it is now the lens files' rule and the read.
+  posted anchors; it is now the lens files' rule and the read. Since #280,
+  an install with the poster on (`docs/poster.md`) also scans each post for
+  secrets, personal details, local paths and session ids, and checks the
+  shape of a Lens dispositions table, before anything is sent. Both are a
+  backstop that only some installs have: they catch accidents, cover fixed
+  shapes, and miss a secret with no known shape. The read before posting stays
+  the rule for everyone, with or without the poster.
 - **R4. Your GitHub account is the root of trust.** Anyone who controls it
   counts as you.
 
@@ -401,7 +407,11 @@ session can act before you see it.
   in the pact (this repo's `docs/agents/issue-tracker.md` keeps it, one link from the loaded `AGENTS.md`, since #270), and four lenses don't carry
   it in their own files; #192's lens half is the follow-up. Since #264 the
   review procedure's posting section also asks the session to read every
-  report for a secret before it posts one. A word test checks
+  report for a secret before it posts one. Since #280, where the poster is
+  on, its scan refuses a report holding a secret of a known shape or an
+  environment secret's value, and the session keeps that report local
+  rather than editing it to get past the scan. That is a backstop only some
+  installs have; the read before posting stays for everyone. A word test checks
   that the security pair's files hold the carried rules, but since #189 no
   test has checked that a lens keeps them after a model change.
 - **R14. A fooled session can leave something behind.** It can write files

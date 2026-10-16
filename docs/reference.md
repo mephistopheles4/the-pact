@@ -49,7 +49,8 @@ only while the tool is on. The cloud copy installs none.
 
 | Tool | What it does |
 | --- | --- |
-| `poster` | Posts free text to GitHub as the owner's `gh` account, through one fixed call per surface, and reads back what landed. Its scan for secrets, personal details and local paths is a backstop, not a guarantee. On, it installs to `~/.claude/pact/tools/poster.mjs`, and the rules file tells a session to post through it, from a scratch folder, on a repo the `gh` login owns. |
+| `poster` | Posts free text to GitHub as the owner's `gh` account, through one fixed call per surface, and reads back what landed. Its scan for secrets, personal details and local paths is a backstop, not a guarantee. On, it installs to `~/.claude/pact/tools/poster.mjs`, and the rules file tells a session to post through it, from a scratch folder, on a repo the `gh` login owns. Its surfaces, options, exit codes and rule ids, and what its scans cover and don't, are in [poster.md](poster.md). |
+
 ## The familiars, by effort
 
 - **Medium:** `scout`, on Haiku; the pact ships no `Explore`, so skills that call it get Claude Code's built-in. The QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.
