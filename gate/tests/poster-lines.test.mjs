@@ -2,7 +2,7 @@
 // tests left with the ask rules, and the file its old name (#265).
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { EXAMPLES, SURFACES, parseArgs } from '../../cross/poster.mjs';
+import { EXAMPLES, SURFACES, parseArgs } from '../../claude/tools/poster.mjs';
 
 // #246 C9: one documented line per surface, and each parses with no refusal
 test('every surface has one documented command line, and each parses cleanly', () => {

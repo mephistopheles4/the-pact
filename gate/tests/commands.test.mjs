@@ -70,20 +70,20 @@ function seamWith(t, tree, argv) {
 }
 for (const c of table('seam a commands argument', {
   module: 'gate/seam-a.mjs',
-  base: () => ({ [CMD]: GOOD, argv: JSON.stringify(['--commands', 'finis']) }),
+  base: () => ({ [CMD]: GOOD, argv: JSON.stringify(['--commands', 'finis', '--tools', 'none']) }),
   run: ({ argv, ...tree }, t) => seamWith(t, tree, JSON.parse(argv)),
   rows: [
-    { id: 'missing', plant: t => ({ ...t, argv: '[]' }), fails: ['commands-arg'], why: 'the list never defaults' },
-    { id: 'given-twice', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis', '--commands', 'finis']) }), fails: ['commands-arg'], why: 'given twice, even the same' },
-    { id: 'no-value', plant: t => ({ ...t, argv: JSON.stringify(['--commands']) }), fails: ['commands-arg'], why: 'a flag with nothing after it' },
-    { id: 'unknown-option', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis', '--kit', 'x']) }), fails: ['usage'], why: 'no other option' },
-    { id: 'unknown-name', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'ship-it']) }), fails: ['commands-name'], why: 'a name that is not a pact command' },
-    { id: 'name-in-capitals', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'Finis']) }), fails: ['commands-name'], why: 'matched exactly' },
-    { id: 'none-and-a-name', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'none,finis']) }), fails: ['commands-name'], why: 'none stands alone' },
-    { id: 'empty-value', plant: t => ({ ...t, argv: JSON.stringify(['--commands', '']) }), fails: ['commands-name'], why: 'an empty list is written none' },
-    { id: 'spaces', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis, make-it-so']) }), fails: ['commands-name'], why: 'names joined by commas alone' },
-    { id: 'repeat', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis,finis']) }), fails: ['commands-repeat'], why: 'one name twice' },
-    { id: 'not-in-this-pact', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis,make-it-so']) }), fails: ['commands-not-in-pact'], says: /make-it-so, but the stage holds no claude\/commands\/make-it-so\.md: it is not in this pact/, why: 'a listed name whose file is not in the stage' },
+    { id: 'missing', plant: t => ({ ...t, argv: JSON.stringify(['--tools', 'none']) }), fails: ['commands-arg'], why: 'the list never defaults' },
+    { id: 'given-twice', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis', '--commands', 'finis', '--tools', 'none']) }), fails: ['commands-arg'], why: 'given twice, even the same' },
+    { id: 'no-value', plant: t => ({ ...t, argv: JSON.stringify(['--tools', 'none', '--commands']) }), fails: ['commands-arg'], why: 'a flag with nothing after it' },
+    { id: 'unknown-option', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis', '--tools', 'none', '--kit', 'x']) }), fails: ['usage'], why: 'no other option' },
+    { id: 'unknown-name', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'ship-it', '--tools', 'none']) }), fails: ['commands-name'], why: 'a name that is not a pact command' },
+    { id: 'name-in-capitals', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'Finis', '--tools', 'none']) }), fails: ['commands-name'], why: 'matched exactly' },
+    { id: 'none-and-a-name', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'none,finis', '--tools', 'none']) }), fails: ['commands-name'], why: 'none stands alone' },
+    { id: 'empty-value', plant: t => ({ ...t, argv: JSON.stringify(['--commands', '', '--tools', 'none']) }), fails: ['commands-name'], why: 'an empty list is written none' },
+    { id: 'spaces', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis, make-it-so', '--tools', 'none']) }), fails: ['commands-name'], why: 'names joined by commas alone' },
+    { id: 'repeat', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis,finis', '--tools', 'none']) }), fails: ['commands-repeat'], why: 'one name twice' },
+    { id: 'not-in-this-pact', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis,make-it-so', '--tools', 'none']) }), fails: ['commands-not-in-pact'], says: /make-it-so, but the stage holds no claude\/commands\/make-it-so\.md: it is not in this pact/, why: 'a listed name whose file is not in the stage' },
   ],
 })) test(c.name, c.fn);
 
@@ -140,7 +140,7 @@ test('the renderer always prints one COMMANDS line: none, or the names on in PAC
   const both = renderWith(t, '{"schema": 1, "commands": ["scriptorium", "make-it-so"]}');
   assert.equal(both.code, 0, both.out);
   assert.deepEqual(commandsLines(both), ['COMMANDS make-it-so,scriptorium']);
-  assert.equal(both.lines.at(-2), 'COMMANDS make-it-so,scriptorium', 'the line comes last, before RESULT');
+  assert.equal(both.lines.at(-3), 'COMMANDS make-it-so,scriptorium', 'the line comes last but for TOOLS, before RESULT');
 });
 
 test('the commands list changes the digest, so a list changed after the dry run changes the rendered hash', t => {

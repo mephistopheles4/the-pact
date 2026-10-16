@@ -140,12 +140,11 @@ for (const c of table('commit tree', {
   ],
 })) test(c.name, c.fn);
 
-// #264 S7: nothing under cross/ stages, the poster included (the isStaged case retargeted from the removed script).
+// #280 C2: the poster stages from claude/tools/ like the rest of the payload; a folder outside the staged set stages nothing.
 test('the commit tree: only the staged set is checked, and gate/tests is dropped', () => {
   const staged = core.parseTree(Buffer.from(treeBase().in));
   assert.deepEqual([...staged.keys()], ['AGENTS.md', 'claude/CLAUDE.md', 'gate/seam-a.mjs']);
-  // Nothing under cross/ stages or installs, the poster included.
-  assert.ok(!core.isStaged('cross/cross.mjs') && !core.isStaged('cross/poster.mjs') && !core.isStaged('cross/other.mjs') && !core.isStaged('gate/tests/a.mjs') && core.isStaged('gate/seam-a.mjs'));
+  assert.ok(core.isStaged('claude/tools/poster.mjs') && !core.isStaged('tools/poster.mjs') && !core.isStaged('docs/x.mjs') && !core.isStaged('gate/tests/a.mjs') && core.isStaged('gate/seam-a.mjs'));
 });
 
 for (const c of table('staged blob', {
@@ -219,10 +218,10 @@ for (const c of table('check verdict', {
 const U = H('7');
 const digestOf = text => sha256(Buffer.from(text, 'ascii')).slice(0, 12);
 const D = digestOf(`user ${U}\nblock a.md ${H('e')}\n`);
-const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG user ${U}`, `EDIT moves replace ${H('e')} a.md`, `DIGEST ${D}`, 'VALUE usage-pause 90', `AGENT data-lens sonnet high ${H('f')} security-set override local`, 'COMMANDS finis', 'RESULT: pass'].join('\n') });
+const renderBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, `CONFIG user ${U}`, `EDIT moves replace ${H('e')} a.md`, `DIGEST ${D}`, 'VALUE usage-pause 90', `AGENT data-lens sonnet high ${H('f')} security-set override local`, 'COMMANDS finis', 'TOOLS poster', 'RESULT: pass'].join('\n') });
 const renderRun = (project = false) => t => decided(() => core.parseRenderLines(t.in.split('\n'), { project, hash: sha256 }));
-const noConfig = t => ({ in: t.in.replace(`CONFIG user ${U}`, 'CONFIG none').replace('COMMANDS finis', 'COMMANDS none') });
-const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG none', 'COMMANDS none', 'RESULT: pass'].join('\n') });
+const noConfig = t => ({ in: t.in.replace(`CONFIG user ${U}`, 'CONFIG none').replace('COMMANDS finis', 'COMMANDS none').replace('TOOLS poster', 'TOOLS none') });
+const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG none', 'COMMANDS none', 'TOOLS none', 'RESULT: pass'].join('\n') });
 // #261 C4
 for (const c of table('renderer lines', {
   module: 'gate/install-core.mjs',
@@ -266,6 +265,13 @@ for (const c of table('renderer lines', {
     { id: 'commands-out-of-order', plant: rep('COMMANDS finis', 'COMMANDS finis,make-it-so'), fails: ['render-unknown-line'], why: 'names in PACT_COMMANDS order only' },
     { id: 'commands-none-and-name', plant: rep('COMMANDS finis', 'COMMANDS none,finis'), fails: ['render-unknown-line'], why: 'none stands alone' },
     { id: 'commands-spaced', plant: rep('COMMANDS finis', 'COMMANDS make-it-so, finis'), fails: ['render-unknown-line'], why: 'commas alone between names' },
+    // #280 C3: the TOOLS line, as the COMMANDS line, and always straight after it.
+    { id: 'no-tools-line', plant: rep('TOOLS poster\n', ''), fails: ['render-tools-missing'], why: 'the renderer must say which tools are on' },
+    { id: 'two-tools-lines', plant: rep('TOOLS poster', 'TOOLS poster\nTOOLS none'), fails: ['render-tools-twice'], why: 'exactly one tools line' },
+    { id: 'tools-unknown-name', plant: rep('TOOLS poster', 'TOOLS sender'), fails: ['render-unknown-line'], why: 'a name that is not a pact tool' },
+    { id: 'tools-repeat', plant: rep('TOOLS poster', 'TOOLS poster,poster'), fails: ['render-unknown-line'], why: 'one name twice' },
+    { id: 'tools-none-and-name', plant: rep('TOOLS poster', 'TOOLS none,poster'), fails: ['render-unknown-line'], why: 'none stands alone' },
+    { id: 'tools-line-out-of-order', plant: t => ({ in: t.in.replace('COMMANDS finis\nTOOLS poster', 'TOOLS poster\nCOMMANDS finis') }), fails: ['render-unknown-line'], why: 'the TOOLS line comes straight after the COMMANDS line' },
   ],
 })) test(c.name, c.fn);
 
@@ -282,6 +288,9 @@ for (const c of table('renderer lines with no configuration', {
     { id: 'two-none-lines', plant: rep('CONFIG none', 'CONFIG none\nCONFIG none'), fails: ['render-counts'], why: 'two configuration lines, both none' },
     { id: 'command-on', plant: rep('COMMANDS none', 'COMMANDS finis'), fails: ['render-none-extras'], says: /a pact command with no configuration/, why: 'a named list with CONFIG none (#203)' },
     { id: 'no-commands-line', plant: rep('COMMANDS none\n', ''), fails: ['render-commands-missing'], why: 'COMMANDS none is still printed' },
+    // #280 C3
+    { id: 'tool-on', plant: rep('TOOLS none', 'TOOLS poster'), fails: ['render-none-extras'], says: /a pact tool with no configuration/, why: 'a named tool with CONFIG none' },
+    { id: 'no-tools-line', plant: rep('TOOLS none\n', ''), fails: ['render-tools-missing'], why: 'TOOLS none is still printed' },
   ],
 })) test(c.name, c.fn);
 
@@ -509,6 +518,28 @@ for (const c of table('copy set with commands', {
   ],
 })) test(c.name, c.fn);
 
+// The copy set with pact tools (#280 C2): a tool pairs to pact/tools/<name>.mjs only when on.
+const toolStaged = new Map([...staged, ['claude/tools/poster.mjs', H('9')]]);
+const toolCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/tools/poster.mjs pact/tools/poster.mjs\nRESULT`), list: 'poster' });
+// #280 C2
+for (const c of table('copy set with tools', {
+  module: 'gate/install-core.mjs',
+  base: toolCopyBase,
+  run: t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(toolStaged.keys(), [], t.list ? t.list.split(',') : []), toolStaged, ID('a'))),
+  rows: [
+    { id: 'listed-tool-left-off', plant: rep(`INSTALL ${H('9')} claude/tools/poster.mjs pact/tools/poster.mjs\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a tool the list names' },
+    { id: 'tool-off-but-listed', plant: t => ({ ...t, list: '' }), fails: ['copy-set-mismatch'], why: 'off, a tool never installs' },
+    { id: 'tool-at-home-root', plant: rep('pact/tools/poster.mjs', 'tools/poster.mjs'), fails: ['copy-set-mismatch'], why: "the general claude/ rule's path is not the tool's" },
+  ],
+})) test(c.name, c.fn);
+
+// #280 C2
+test('the copy set with tools: a listed tool pairs to pact/tools/, an unlisted one is left out, an unknown one or a subfolder pairs with null', () => {
+  const rels = ['claude/CLAUDE.md', 'claude/tools/poster.mjs', 'claude/tools/sender.mjs', 'claude/tools/sub/poster.mjs'];
+  assert.deepEqual(core.expectedCopySet(rels, [], ['poster']), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/tools/poster.mjs', 'pact/tools/poster.mjs'], ['claude/tools/sender.mjs', null], ['claude/tools/sub/poster.mjs', null]]);
+  assert.deepEqual(core.expectedCopySet(['claude/tools/poster.mjs']), [], 'no list installs no tool');
+});
+
 test('the copy set with commands: a listed command pairs, an unlisted pact command is left out, an unknown one pairs with null', () => {
   const e = core.expectedCopySet(['claude/CLAUDE.md', 'claude/commands/finis.md', 'claude/commands/make-it-so.md', 'claude/commands/ship-it.md', 'claude/commands/sub/finis.md', 'gate/a.mjs'], ['finis']);
   assert.deepEqual(e, [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/commands/finis.md', 'commands/finis.md'], ['claude/commands/ship-it.md', null], ['claude/commands/sub/finis.md', null]]);
@@ -673,6 +704,8 @@ for (const c of table('new command paths', {
     // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
     { id: 'review-path', plant: t => ({ ...t, files: json([['pact/review.md', H('4')]]), live: json(['pact/review.md']) }), fails: ['unlisted-live'], says: /pact\/review\.md already exists .* Move it out of the way, then install again\./, why: 'the review file has the commands rule, with its own remedy' },
     { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
+    // unlisted-live, #280 C2: a tool is never laid over a live file the pact did not put there.
+    { id: 'tool-path', plant: t => ({ ...t, files: json([['pact/tools/poster.mjs', H('5')]]), live: json(['pact/tools/poster.mjs']) }), fails: ['unlisted-live'], says: /pact\/tools\/poster\.mjs already exists .* Move it, or take its name out of the tools list\./, why: 'the remedy names the tools list' },
   ],
 })) test(c.name, c.fn);
 
@@ -699,6 +732,18 @@ test('the commands block lists every pact command, on or off, says which this co
   assert.ok(always.includes('  /scriptorium: on, always: part of the pact, with the builder kit under pact/builder/'));
   assert.ok(!always.some(l => l.startsWith('  WARN')));
   assert.match(always.at(-1), /^  NOTE: pact\/config\.json lists scriptorium, which now always installs; take it out of the list/);
+});
+
+// #280 C4: the Tools block, and its WARN line word for word.
+test('the tools block lists every pact tool, on or off, says which this commit lacks, how to turn one on, and warns for each tool on', () => {
+  assert.deepEqual(core.toolsBlock(['poster'], ['claude/tools/poster.mjs']), [
+    'Tools:',
+    '  poster: on',
+    '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]',
+    "  WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts to GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
+  ]);
+  assert.deepEqual(core.toolsBlock([], ['claude/tools/poster.mjs']).slice(1), ['  poster: off', '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]']);
+  assert.deepEqual(core.toolsBlock([], []).slice(1), ['  poster: off (not in this commit)', '  No pact tool that can be turned on is in this commit.']);
 });
 
 // ------------------------------------------------------------ settings JSON and the merge (S8, L4 to L9)

@@ -209,9 +209,9 @@ test('changed: an unmapped path runs the fast tier, plus the smoke set under the
   assert.deepEqual([...root.files.keys()], ['plain.test.mjs']);
   assert.equal(root.files.get('plain.test.mjs'), 'fast tier: a changed path is unmapped');
   assert.deepEqual(root.unmapped, ['CONTEXT.md']);
-  const payload = changedPicks(changedTree(), ['cross/unnamed.mjs']);
+  const payload = changedPicks(changedTree(), ['builder/unnamed.mjs']);
   assert.deepEqual([...payload.files.keys()].sort(), ['install-smoke.test.mjs', 'plain.test.mjs']);
-  assert.deepEqual(payload.unmapped, ['cross/unnamed.mjs']);
+  assert.deepEqual(payload.unmapped, ['builder/unnamed.mjs']);
 });
 
 test('changed: a test file or module in the tests folder maps by imports and its file name, not by a test naming its folder', () => {

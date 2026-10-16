@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-0d2G4VTeNUevA/Gfn4eZv4HoUvQZnCX+Yahdss3OJig='; style-src 'sha256-fjfHWXcQw4rBtfUuKBrfAWu0NvUqPgHY7cCGqV8j84k='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-py/tdDcaEZFJ6miqYQqXu0RsE3o/ZK2kN4xEWO9ceDQ='; style-src 'sha256-fjfHWXcQw4rBtfUuKBrfAWu0NvUqPgHY7cCGqV8j84k='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3428,8 +3428,8 @@ function initialState() {
   // #262 addendum 4: the builder file's agent files come back, and a pact agent's own file sets its model and effort.
   const own = { ...(PACT.ownAgentFiles || {}) };
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
-  // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here.
-  return { usage: PACT.setting.def, session: null, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null };
+  // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
+  return { usage: PACT.setting.def, session: null, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null };
 }
 
 /** The model and effort an agent file's frontmatter sets, each falling back to `def`'s. */
@@ -3556,6 +3556,8 @@ function buildFiles(state) {
   if (Object.keys(agents).length) config.agents = agents;
   // The opt-in commands the person set, in the installer's order; /scriptorium installs without a listing.
   if (Array.isArray(state.commands)) config.commands = OPT_COMMANDS.map(c => c.name).filter(n => state.commands.includes(n));
+  // The pact tools the person set (#280), in the installer's order; off unless listed.
+  if (Array.isArray(state.tools)) config.tools = OPT_TOOLS.map(c => c.name).filter(n => state.tools.includes(n));
   const edits = [];
   const blocks = [];
   // A part Scriptorium builds is saved only when its text differs from the pact's: an untouched part raises no security-defaults line.
@@ -3639,13 +3641,14 @@ function keepCommands(files, existing) {
   } catch {
     return { refuse: 'The folder already holds a config.json that is not valid JSON, so nothing was written. Fix or move that file, then save again.' };
   }
-  if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !Object.hasOwn(doc, 'commands')) return { files };
-  if (Object.hasOwn(JSON.parse(files[0].text), 'commands')) return { files };
+  const lists = ['commands', 'tools'];
+  const built = JSON.parse(files[0].text);
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc) || !lists.some(k => Object.hasOwn(doc, k) && !Object.hasOwn(built, k))) return { files };
   // The installer refuses a key given twice, case folded; JSON.parse would keep the last one.
   const keys = topKeys(existing).map(k => k.toLowerCase());
   if (new Set(keys).size !== keys.length) return { refuse: 'The folder already holds a config.json that gives a key twice, which the installer refuses, so nothing was written. Fix that file, then save again.' };
   const config = JSON.parse(files[0].text);
-  config.commands = doc.commands;
+  for (const k of lists) if (Object.hasOwn(doc, k) && !Object.hasOwn(built, k)) config[k] = doc[k];
   return { files: [{ path: 'pact/config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...files.slice(1)] };
 }
 
@@ -3665,7 +3668,7 @@ async function keepCommandsIn(dir, files) {
 }
 
 // Shown wherever the config.json download button is, with or without a folder picker.
-const DOWNLOAD_NOTE = 'Unless you set the commands under Settings, a downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands.';
+const DOWNLOAD_NOTE = 'Unless you set the commands under Settings, a downloaded config.json holds no commands list: if yours has one, copy its commands entry across, or the next install deletes those commands. Unless you set the tools under Settings, a downloaded config.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools.';
 // The pact commands a save may list (#203, S10), in the installer's order, each with what it stands for. /scriptorium is not
 // among them: every install puts it in place with the builder kit.
 const OPT_COMMANDS = Object.freeze([
@@ -3673,6 +3676,10 @@ const OPT_COMMANDS = Object.freeze([
   { name: 'finis', what: '"We\'re done, archive this session": the session checks for anything outstanding, and archives the session if there is none.' },
 ]);
 const ALWAYS_COMMAND = { name: 'scriptorium', what: 'Always installed: the builder is part of the pact.' };
+// The pact tools a save may list (#280), in the installer's order, each off unless ticked, with what it does.
+const OPT_TOOLS = Object.freeze([
+  { name: 'poster', what: "Posts free text to GitHub as your gh account, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which the dry run's review folder shows." },
+]);
 // #262 addendum 3: a save writes agent files and never deletes one, and every file in agents/ installs.
 const AGENTS_NOTE = 'An agent file a save writes is yours: an install never writes over it, and a save deletes nothing.';
 
@@ -3725,6 +3732,8 @@ function presetFromText(text, title = 'A shared file') {
     return { refuse: 'it is not valid JSON' };
   }
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { refuse: 'it is not a JSON object' };
+  // #280: no shared file turns on code that posts as the person.
+  if (Object.hasOwn(doc, 'tools')) return { refuse: 'it holds a tools list, and a builder file never turns a tool on: tick tools under Settings' };
   const known = ['schema', 'title', 'yours', ...Object.keys(PRESET_PARTS), 'models', 'agentFiles'];
   const extra = Object.keys(doc).filter(k => !known.includes(k));
   if (extra.length) return { refuse: `it holds keys a builder file doesn't: ${extra.slice(0, 3).join(', ')}` };
@@ -5234,7 +5243,7 @@ function boot() {
     $('settings').replaceChildren(el(
       'div',
       { class: 'av-tool-sheet' },
-      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your pact commands, your moves and models, and the parts the canvas builds: tiers, sensitive work, and what they compile to. The agents, the lens and agent roster and the qualities are under Agents.' })), closeX('settings')),
+      el('div', { class: 'av-tool-bar classic-head' }, el('div', { class: 'av-tool-head-text' }, el('h2', { class: 'av-tool-title', text: 'Settings' }), el('p', { class: 'av-tool-blurb', text: 'Your usage limits, your pact commands and tools, your moves and models, and the parts the canvas builds: tiers, sensitive work, and what they compile to. The agents, the lens and agent roster and the qualities are under Agents.' })), closeX('settings')),
       el(
         'section',
         { class: 'av-tool-bar av-tool-bar--stack' },
@@ -5244,7 +5253,7 @@ function boot() {
         limit('Weekly limit', state.usage, s.min, s.max, s.def, v => (state.usage = v)),
         el('p', { class: 'av-annot', text: `Before anything expensive, Claude gives the weekly figure; above this line, it waits for your go-ahead. Default ${s.def}%, allowed ${s.min} to ${s.max}.` }),
       ),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('commands', 'Pact commands', commandsSection()), section('moves', 'Moves', movesTab()), section('models', 'Models', modelsTab()), box)),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, section('commands', 'Pact commands', commandsSection()), section('tools', 'Pact tools', toolsSection()), section('moves', 'Moves', movesTab()), section('models', 'Models', modelsTab()), box)),
     ));
   }
   /**
@@ -5279,6 +5288,37 @@ function boot() {
       row(ALWAYS_COMMAND, true, true),
       el('div', { class: 'chips' }, leave),
       el('p', { class: 'av-annot', text: set === null ? 'Left as is: a save keeps the commands list already in your config.json. Tick or untick one to set the list here instead.' : 'Set here: a save writes this list, and the next install adds or deletes those commands. Leave as is keeps your config.json\'s own list instead.' }),
+    );
+  }
+  /**
+   * The pact tools (#280), built as the commands section is: one checkbox per
+   * tool, each off unless ticked. Until one is ticked or unticked, a save
+   * leaves the folder's own tools list as it is.
+   */
+  function toolsSection() {
+    const set = state.tools;
+    const row = c => {
+      const box = el('input', { type: 'checkbox', 'aria-label': c.name });
+      box.checked = Array.isArray(set) && set.includes(c.name);
+      box.addEventListener('change', () => {
+        const now = Array.isArray(state.tools) ? state.tools.filter(n => n !== c.name) : [];
+        state.tools = box.checked ? [...now, c.name] : now;
+        renderSettings();
+        renderOutput();
+      });
+      return el('label', { class: 'command-row' }, box, el('code', { text: c.name }), el('span', { class: 'av-annot', text: c.what }));
+    };
+    const leave = chip('Leave as is', set === null, () => {
+      state.tools = null;
+      renderSettings();
+      renderOutput();
+    }, set === null ? '' : 'av-tool-chip--ghost', true);
+    return el(
+      'div',
+      { class: 'acc-stack' },
+      ...OPT_TOOLS.map(row),
+      el('div', { class: 'chips' }, leave),
+      el('p', { class: 'av-annot', text: set === null ? 'Left as is: a save keeps the tools list already in your config.json. Tick or untick one to set the list here instead.' : 'Set here: a save writes this list, and the next install adds or deletes those tools. Leave as is keeps your config.json\'s own list instead.' }),
     );
   }
   /**

@@ -46,7 +46,7 @@ test('the set renders with seam A passing', t => {
   const { root } = renderedWith(t, homeWithSet(t));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none'], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none', '--tools', 'none'], { encoding: 'utf8', env });
   assert.equal(lastLine(r.stdout), 'RESULT: pass', r.stdout + r.stderr);
 });
 

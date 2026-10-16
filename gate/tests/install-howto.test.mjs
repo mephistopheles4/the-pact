@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { toolsBlock } from '../install-core.mjs';
 import { realAgents, realOverlay } from './payload.mjs';
 import { REPO } from './text.mjs';
 
@@ -86,4 +87,14 @@ test("ADR 0042 names the apply guard's four misses and supersedes ADR 0020", () 
   const adr = readFileSync(join(REPO, 'docs', 'adr', '0042-the-apply-guard-asks-on-any-command-naming-the-install.md'), 'utf8');
   for (const miss of ['- (a) a string built at run time', '- (b) the script named without its file name', '- (c) a session that imports the cores', '- (d) the file name in another letter case']) assert.ok(adr.includes(miss), miss);
   assert.match(adr, /^## Supersedes\n\n\[ADR 0020\]/m);
+});
+// #280 C4: the how-to quotes the Tools block's WARN line as the install prints it, and names the refusals a tools list can meet.
+test('docs/install.md quotes the poster WARN line word for word and names the tools refusals', () => {
+  const howto = readFileSync(join(REPO, 'docs', 'install.md'), 'utf8').replace(/\r\n/g, '\n');
+  const block = toolsBlock(['poster'], ['claude/tools/poster.mjs']);
+  assert.ok(howto.includes('**`Tools:`.**'), 'the block is named');
+  const warn = block.find(l => l.startsWith('  WARN: '));
+  assert.ok(howto.split('\n').includes(`  ${warn}`), 'the WARN line, as printed, in the fenced block');
+  for (const id of ['unlisted-live', 'config-tools', 'project-key', 'tools-not-in-pact']) assert.ok(howto.includes(`\`${id}\``), id);
+  assert.ok(howto.includes('`pact/tools/poster.mjs`'), 'the installed path');
 });

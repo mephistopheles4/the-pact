@@ -45,9 +45,14 @@
 //   { "schema": 1, "settings": { <setting>: <value> },
 //     "edits": [ { "mark": <open mark>, "op": "replace" | "remove" | "add-after",
 //                  "file": <block path, except for remove> } ],
-//     "commands": [ <pact command name>, ... ] }
+//     "commands": [ <pact command name>, ... ],
+//     "tools": [ <pact tool name>, ... ] }
 // The commands list (#203) turns on pact commands: unique names from
 // PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
+// The tools list (#280) does the same for pact tools, from PACT_TOOLS, off by
+// default. A tool that is on also fills its marked part of the rules file from
+// a fixed template (TOOL_PARTS); off, the part stays empty, so the render is
+// byte for byte what it is without the tool. No edit may target such a part.
 // A setting fills its open part from a fixed template with the checked number;
 // no text from the user file is ever spliced. An edit applies to an open part
 // only: the notice slot and a setting's part are refused by name.
@@ -78,6 +83,7 @@
 //                                          EDIT <mark> remove                        (one per edit,
 //                                          EDIT <mark> <op> <sha256> <block path>     in edit order)
 //   COMMANDS none, or the commands the configuration turns on, comma-joined, in PACT_COMMANDS order
+//   TOOLS none, or the tools the configuration turns on, comma-joined, in PACT_TOOLS order
 //   RESULT: pass
 //
 // or FAIL lines and "RESULT: fail", with exit 1. Like seam A, it never echoes a
@@ -142,12 +148,12 @@
 import { createHash } from 'node:crypto';
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, Refused, Report, SEGMENT_RE, readStrictJson, scanText } from './shared.mjs';
+import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, PACT_TOOLS, Refused, Report, SEGMENT_RE, readStrictJson, scanText } from './shared.mjs';
 
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, a spec
 // change like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 // The open marks an edit may target: every open mark but the notice slot and
 // a setting's part.
 const EDITABLE = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
@@ -168,7 +174,7 @@ const BLOCK_MAX = 16 * 1024;
 const BLOCK_PATH_MAX = 200;
 const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
-const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands']);
+const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands', 'tools']);
 
 // Agent settings: who may be set, to what. Names and efforts are matched
 // exactly against these constants; a model is the user's own text, printed
@@ -235,6 +241,32 @@ const SESSION_PROJECT_LINE = n =>
 const SETTINGS = new Map([
   ['usage-pause', Object.freeze({ mark: 'usage-pause', min: 0, max: 100, def: 75, template: USAGE_TEMPLATE, tighter: 'lower', projectLine: USAGE_PROJECT_LINE })],
   ['usage-pause-session', Object.freeze({ mark: 'usage-pause-session', min: 0, max: 100, def: null, template: SESSION_TEMPLATE, tighter: 'lower', projectLine: SESSION_PROJECT_LINE })],
+]);
+
+// Each pact tool's part of the rules file (#280): the open mark it fills, and
+// its fixed text. The text names the tool's installed path through the default
+// Claude home folder, in one form per shell, so the rules file holds no user
+// name. An install with --claude-home elsewhere is a test install.
+const TOOL_PARTS = new Map([
+  ['poster', Object.freeze({
+    mark: 'tool-poster',
+    template: Object.freeze([
+      '- **Post through the poster.** On a repo your gh login owns, post to GitHub',
+      '  with `node ~/.claude/pact/tools/poster.mjs` in a POSIX shell, or',
+      '  `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell. Write each piece',
+      '  of free text to a file in a scratch folder outside the repo, and run the',
+      '  poster from that folder, never from the repo. Delete a file once its post',
+      '  is verified or once you drop it; keep one refused for a lens report until',
+      '  I have answered, then delete it. `verified` means what landed is what was',
+      "  sent: the scan is a backstop, and the review procedure's read before",
+      '  posting still comes first. When it refuses your own prose, fix it in',
+      '  place and post again. A lens report it refuses for a secret, a personal',
+      '  detail, a local path, a session id or hidden characters stays local: tell',
+      '  me where it is, and never post it or edit it to get past the scan. If it',
+      "  refuses for a reason no text fix clears, or twice for a reason you can't",
+      '  explain, stop and tell me.',
+    ]),
+  })],
 ]);
 
 // The project file, in the project folder, and the project rules file this
@@ -604,7 +636,7 @@ function checkConfig(buf, report) {
   let ok = true;
   const keys = Object.keys(doc);
   if (keys.some(k => !TOP_KEYS.includes(k))) {
-    fail('config-key', 'a key that is not schema, settings, edits, agents or commands');
+    fail('config-key', 'a key that is not schema, settings, edits, agents, commands or tools');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -625,6 +657,11 @@ function checkConfig(buf, report) {
   if (Object.hasOwn(doc, 'commands')) {
     commands = checkCommands(doc.commands, fail);
     if (commands === null) ok = false;
+  }
+  let tools = [];
+  if (Object.hasOwn(doc, 'tools')) {
+    tools = checkTools(doc.tools, fail);
+    if (tools === null) ok = false;
   }
   const values = [];
   if (Object.hasOwn(doc, 'settings')) {
@@ -647,7 +684,27 @@ function checkConfig(buf, report) {
       }
     }
   }
-  return ok ? { values, edits, agents, commands } : null;
+  return ok ? { values, edits, agents, commands, tools } : null;
+}
+
+/**
+ * The tools list, checked as the commands list is: the names it turns on, in
+ * PACT_TOOLS order, or null after recording the refusal.
+ */
+function checkTools(v, fail) {
+  if (!Array.isArray(v)) {
+    fail('config-tools', 'tools must be a list of pact tool names');
+    return null;
+  }
+  if (v.some(n => !PACT_TOOLS.some(c => c === n))) {
+    fail('config-tools', `tools names a tool this pact does not have; only ${PACT_TOOLS.join(', ')} can be turned on`);
+    return null;
+  }
+  if (new Set(v).size !== v.length) {
+    fail('config-tools', 'tools names one tool twice');
+    return null;
+  }
+  return PACT_TOOLS.filter(c => v.includes(c));
 }
 
 /**
@@ -865,7 +922,7 @@ const toLines = texts => texts.map(s => Buffer.from(s, 'utf8'));
  * lines strictly between an open part's two mark lines; or null after
  * recording a refusal.
  */
-function swapsFor(lines, pairs, values, edits, digest, report, agents = []) {
+function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tools = []) {
   const fail = (name, reason) => {
     report.fail('render', 'claude/CLAUDE.md', null, `${name}: ${reason}`);
     return null;
@@ -889,6 +946,14 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = []) {
     const block = e.lines ? toLines(e.lines.map(l => `${indent}${l}`)) : [];
     const now = lines.slice(p.begin + 1, p.end);
     swaps.push({ ...p, with: e.op === 'replace' ? block : e.op === 'remove' ? [] : [...now, ...block] });
+  }
+  // A tool's part is empty in the source, and filled only while the tool is on.
+  for (const name of tools) {
+    const { mark, template } = TOOL_PARTS.get(name);
+    const p = pairs.get(mark);
+    if (!p) return fail(mark, 'the part is not in the source');
+    if (p.end !== p.begin + 1) return fail(mark, 'the part is not empty in the source');
+    swaps.push({ ...p, with: toLines(template) });
   }
   const n = pairs.get(NOTICE_MARK);
   if (!n) return fail(NOTICE_MARK, 'the slot is not in the source');
@@ -1122,6 +1187,7 @@ function run(argv, report) {
   let swaps = [];
   let agents = [];
   let commands = [];
+  let tools = [];
   if (config === NONE) head.push('CONFIG none');
   else {
     const checked = checkConfig(config.buf, report);
@@ -1134,14 +1200,17 @@ function run(argv, report) {
     if (agents.some(a => a === null)) return;
     const hash = sha256(config.buf);
     const digest = sha256(`user ${hash}\n${edits.filter(e => e.path).map(e => `block ${e.path} ${e.hash}\n`).join('')}`).slice(0, 12);
-    swaps = swapsFor(lines, pairs, values, edits, digest, report, agents);
+    swaps = swapsFor(lines, pairs, values, edits, digest, report, agents, checked.tools);
     if (swaps === null) return;
     const editLines = edits.map(e => (e.path ? `EDIT ${e.mark} ${e.op} ${e.hash} ${e.path}` : `EDIT ${e.mark} ${e.op}`));
     head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines);
     commands = checked.commands;
+    tools = checked.tools;
   }
-  // Exactly one COMMANDS line, from the buffer the digest hashes (#203, S8).
+  // Exactly one COMMANDS line, from the buffer the digest hashes (#203, S8),
+  // and one TOOLS line straight after it (#280).
   head.push(`COMMANDS ${commands.length ? commands.join(',') : 'none'}`);
+  head.push(`TOOLS ${tools.length ? tools.join(',') : 'none'}`);
 
   const { rendered, diff } = apply(lines, swaps);
   if (rendered.length > MAX_BYTES) {

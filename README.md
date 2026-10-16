@@ -107,8 +107,8 @@ Their reports go into the work's record word for word. The agent sorts the findi
 | `claude/review.md` | The review procedure a session reads before it runs a lens |
 | `claude/agents/` | The lenses, in pairs, and `scout`, the search helper |
 | `claude/commands/` | The pact commands: `/scriptorium`, always installed, and `/make-it-so` and `/finis`, when you list them |
+| `claude/tools/` | The pact tools, off unless you list them: today the poster, which posts free text to GitHub and reads it back |
 | `familiars/` | Each agent's contract |
-| `cross/poster.mjs` | The poster's core: posts free text to GitHub and reads it back. Not installed yet |
 | `gate/` | The install gate: the pact checks itself before it installs |
 | `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON, and its presets; it installs with `/scriptorium` |
 | `cloud-sessions/` | Setup for Claude Code cloud sessions |

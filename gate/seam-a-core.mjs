@@ -7,7 +7,7 @@
 // Seam A: the pact's own static check, run by the install (gate/install-run.mjs)
 // on a staged copy of what it is about to install. Zero dependencies.
 //
-//   node seam-a.mjs <stage root> --commands <none | name,name,...>
+//   node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...>
 //
 // The stage root holds claude/, familiars/ and AGENTS.md as the commit has
 // them. Seam A checks install mechanics only (#262, the pact is vetted like a
@@ -23,6 +23,9 @@
 // renderer's COMMANDS line gives them (#203). It is required, exactly once;
 // an unknown name, a repeat, and a name with no file in the stage refuse.
 // Only a named command is listed for install.
+// --tools does the same for the pact's tools (#280), claude/tools/<name>.mjs,
+// each listed for install at pact/tools/<name>.mjs only when named. It too is
+// required exactly once, and the two options may come in either order.
 // It also holds the settings overlay to gate/settings-allowlist.json, and
 // prints its hash as one SETTINGS line, which the install's merge must match.
 //
@@ -40,7 +43,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BUILDER_KIT, PACT_COMMANDS, Refused, Report, inKit, readStrictJson, safePath, scanText, shown } from './shared.mjs';
+import { BUILDER_KIT, PACT_COMMANDS, PACT_TOOLS, Refused, Report, inKit, readStrictJson, safePath, scanText, shown } from './shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SETTINGS_ALLOWLIST = join(HERE, 'settings-allowlist.json');
@@ -516,6 +519,7 @@ function walk(root, top, report) {
 function classify(root, report) {
   const agents = [];
   const commands = [];
+  const tools = [];
   const installs = [];
   const kit = [];
   let overlay = false;
@@ -552,6 +556,12 @@ function classify(root, report) {
         if (seg.length !== 3) report.fail('command-path', rel, null, 'a subfolder in claude/commands; a command is claude/commands/<name>.md');
         else if (!PACT_COMMANDS.some(c => c === stem)) report.fail('command-file-name', rel, null, 'a file in claude/commands that is not a pact command; the gate lists them');
         else commands.push({ file: rel, stem, dest: `commands/${seg[2]}` });
+      } else if (seg[1] === 'tools') {
+        // A pact tool (#280): exactly claude/tools/<name>.mjs, the name on PACT_TOOLS.
+        const stem = seg.length === 3 && seg[2].endsWith('.mjs') ? seg[2].slice(0, -4) : null;
+        if (seg.length !== 3) report.fail('tool-path', rel, null, 'a subfolder in claude/tools; a tool is claude/tools/<name>.mjs');
+        else if (!PACT_TOOLS.some(c => c === stem)) report.fail('tool-file-name', rel, null, 'a file in claude/tools that is not a pact tool; the gate lists them');
+        else tools.push({ file: rel, stem, dest: `pact/tools/${seg[2]}` });
       } else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       continue;
     }
@@ -560,7 +570,7 @@ function classify(root, report) {
     else if (!(seg[1] === '.gitkeep' || seg[1].endsWith('.contract.md') || seg[1].endsWith('.practice-test.md'))) report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   if (!installs.some(i => i.review)) report.fail('review-file', REVIEW_FILE, null, 'the review procedure file is missing');
-  return { agents, commands, installs, kit, overlay };
+  return { agents, commands, tools, installs, kit, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
@@ -579,10 +589,10 @@ function checkAgent(a, parsed, report) {
   else if (desc.kind === 'text' && desc.value.trim() === '') report.fail('description', a.file, desc.line, 'an empty description');
 }
 
-function run(root, listed, report) {
+function run(root, listed, listedTools, report) {
   // @@TEST-CRASH-HOOK@@
   const settingsAllow = loadSettingsAllowlist(report);
-  const { agents, commands, installs, kit, overlay } = classify(root, report);
+  const { agents, commands, tools, installs, kit, overlay } = classify(root, report);
   let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
@@ -593,11 +603,16 @@ function run(root, listed, report) {
   // Only those --commands names are installed, and the builder kit with /scriptorium.
   for (const c of commands) if (listed.includes(c.stem)) installs.push(c);
   if (listed.includes('scriptorium')) installs.push(...kit);
+  // Only those --tools names are installed (#280); a tool is off by default.
+  for (const c of tools) if (listedTools.includes(c.stem)) installs.push(c);
   // Every other installed text file passes the text scanner: valid UTF-8, no
   // hidden or control characters, so what a reader sees is what the model reads.
-  for (const file of new Set([...installs, ...commands, ...kit].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
+  for (const file of new Set([...installs, ...commands, ...tools, ...kit].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
   for (const name of listed) {
     if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
+  }
+  for (const name of listedTools) {
+    if (!tools.some(c => c.stem === name)) report.fail('tools-not-in-pact', null, null, `--tools names ${name}, but the stage holds no claude/tools/${name}.mjs: it is not in this pact`);
   }
 
   const names = new Map();
@@ -633,28 +648,36 @@ function run(root, listed, report) {
 }
 
 /**
- * The command line: the stage root, then --commands exactly once, with none
- * or pact command names joined by commas, each once. Returns { root,
- * commands }, or undefined after recording the refusal. A name it prints is
- * PACT_COMMANDS' own constant, never the argument's text.
+ * The command line: the stage root, then --commands and --tools, each exactly
+ * once and in either order, each with none or names joined by commas, each
+ * name once. Returns { root, commands, tools }, or undefined after recording
+ * every refusal. A name it prints is its list's own constant, never the
+ * argument's text.
  */
 function parseArgs(argv, report) {
-  const usage = () => report.fail('usage', null, null, 'usage: node seam-a.mjs <stage root> --commands <none | name,name,...>');
+  const usage = () => report.fail('usage', null, null, 'usage: node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...>');
   if (argv.length === 0 || argv[0] === '' || argv[0].startsWith('-')) return usage();
-  let given = 0;
-  let value;
+  const given = { '--commands': [], '--tools': [] };
   for (let i = 1; i < argv.length; i += 2) {
-    if (argv[i] !== '--commands') return usage();
-    given += 1;
-    value = argv[i + 1];
+    if (!Object.hasOwn(given, argv[i])) return usage();
+    given[argv[i]].push(argv[i + 1]);
   }
-  if (given !== 1) return report.fail('commands-arg', null, null, given ? '--commands is given more than once' : 'no --commands: give none, or the pact commands to install');
-  if (value === undefined) return report.fail('commands-arg', null, null, '--commands needs a value: none, or pact command names joined by commas');
-  if (value === 'none') return { root: argv[0], commands: [] };
-  const names = value.split(',');
-  if (names.some(n => !PACT_COMMANDS.some(c => c === n))) return report.fail('commands-name', null, null, `--commands names something that is not a pact command; only ${PACT_COMMANDS.join(', ')} are`);
-  if (new Set(names).size !== names.length) return report.fail('commands-repeat', null, null, '--commands names one command twice');
-  return { root: argv[0], commands: names };
+  // One list's option: its names, or undefined after recording the refusal.
+  const list = (flag, names, rules, what, plural) => {
+    const values = given[flag];
+    if (values.length !== 1) return report.fail(rules.arg, null, null, values.length ? `${flag} is given more than once` : `no ${flag}: give none, or the pact ${plural} to install`);
+    const value = values[0];
+    if (value === undefined) return report.fail(rules.arg, null, null, `${flag} needs a value: none, or pact ${what} names joined by commas`);
+    if (value === 'none') return [];
+    const out = value.split(',');
+    if (out.some(n => !names.some(c => c === n))) return report.fail(rules.name, null, null, `${flag} names something that is not a pact ${what}; only ${names.join(', ')} ${names.length === 1 ? 'is' : 'are'}`);
+    if (new Set(out).size !== out.length) return report.fail(rules.repeat, null, null, `${flag} names one ${what} twice`);
+    return out;
+  };
+  const commands = list('--commands', PACT_COMMANDS, { arg: 'commands-arg', name: 'commands-name', repeat: 'commands-repeat' }, 'command', 'commands');
+  const tools = list('--tools', PACT_TOOLS, { arg: 'tools-arg', name: 'tools-name', repeat: 'tools-repeat' }, 'tool', 'tools');
+  if (commands === undefined || tools === undefined) return undefined;
+  return { root: argv[0], commands, tools };
 }
 
 /**
@@ -665,7 +688,7 @@ export function check(argv) {
   const report = new Report();
   try {
     const args = parseArgs(argv, report);
-    if (args) run(args.root, args.commands, report);
+    if (args) run(args.root, args.commands, args.tools, report);
   } catch {
     // Never a pass, and never the error's text: it can quote a file.
     report.fail('internal', null, null, 'the check itself failed');

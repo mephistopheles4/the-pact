@@ -172,8 +172,10 @@ async function main() {
   // They reach seam A as its --commands (#203, S8); each side works out the copy set on its own.
   const on = project ? [] : core.commandsOn(parsed.commands, staged.keys());
   core.checkKit(on, staged.keys());
-  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none'], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on), staged, commit);
+  // The tools that install: the renderer's TOOLS line alone, off by default (#280). They reach seam A as its --tools.
+  const toolsOn = project ? [] : parsed.tools;
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none'], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
   const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
   say(`Check: passed on commit ${commit}`);
@@ -248,7 +250,7 @@ async function main() {
   const p = core.plan(record, repoFiles, rel => io.liveState(live(home, rel)), linkIn);
   // #262: the person's agents are not the pact's to write, check or record.
   for (const rel of p.yours) repoFiles.delete(rel);
-  // A pact command never shadowed by a same-named skill, nor laid over a file the pact didn't write (#203, S8).
+  // A pact command never shadowed by a same-named skill, nor a command or tool laid over a file the pact didn't write (#203, S8; #280).
   core.checkSkillClash(on, rel => io.present(live(home, rel)));
   core.checkNewPaths(repoFiles, record, rel => io.liveState(live(home, rel)));
 
@@ -294,6 +296,7 @@ async function main() {
   say('Configuration:');
   for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
   for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
+  for (const l of core.toolsBlock(toolsOn, staged.keys())) say(l);
   if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
   else say('Working tree: clean');
   if (nothing) say('Nothing to do.');

@@ -1,5 +1,5 @@
 // Tables of bad cases (#140, T5): the shape for a gate module's must-refuse
-// cases, or those of a script in cross/ (#253). A table has a base input that passes and rows; a row is one plant on
+// cases, or those of a pact tool in claude/tools/ (#253, #280). A table has a base input that passes and rows; a row is one plant on
 // the base and the exact rule ids it must fail with. A new bad case is a new
 // row, with no setup of its own.
 //
@@ -43,8 +43,8 @@ const TABLE_FN = 'table';
 export const TABLE_NAME = /^[a-z0-9]+(?: [a-z0-9]+)*$/;
 const ROW_KEYS = new Set(['id', 'plant', 'fails', 'says', 'why']);
 const SPEC_KEYS = new Set(['module', 'base', 'run', 'rows', 'everyRow']);
-// A gate module, or a script in cross/ (#253: the poster's refusals are rows too).
-const MODULE = /^(?:gate|cross)\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\.mjs$/;
+// A gate module, or a pact tool in claude/tools/ (#253, #280: the poster's refusals are rows too).
+const MODULE = /^(?:gate\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*|claude\/tools\/[A-Za-z0-9._-]+)\.mjs$/;
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 // ------------------------------------------------------------ inputs: pure
@@ -103,7 +103,7 @@ export function problems(name, spec, read) {
   if (typeof name !== 'string' || !TABLE_NAME.test(name)) out.push('the name is not lower-case words with single spaces');
   if (spec === null || typeof spec !== 'object') return [...out, 'no table given'];
   for (const k of Object.keys(spec)) if (!SPEC_KEYS.has(k)) out.push(`an unknown key ${JSON.stringify(k)}`);
-  if (typeof spec.module !== 'string' || !MODULE.test(spec.module) || spec.module.startsWith('gate/tests/')) out.push('module is not a gate or cross module path');
+  if (typeof spec.module !== 'string' || !MODULE.test(spec.module) || spec.module.startsWith('gate/tests/')) out.push('module is not a gate module or pact tool path');
   if (typeof spec.base !== 'function') out.push('base is not a function');
   if (typeof spec.run !== 'function') out.push('run is not a function');
   if (spec.everyRow !== undefined && typeof spec.everyRow !== 'function') out.push('everyRow is not a function');
