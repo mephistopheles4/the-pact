@@ -158,6 +158,13 @@ test('a real post with a broken table is refused before any gh call', t => {
   assert.equal(calls.length, 0);
 });
 
+// #280 C7: the scan and the table check number lines alike, so a body with lone carriage returns points to one line.
+test('with lone carriage returns, the scan and the table check name the same lines', t => {
+  const token = 'n' + 'pm_' + 'E5'.repeat(18);
+  const r = runBody({ 'body.md': [LABEL, '', token, HEADER, SEP, '| a | b | changed | c |', ''].join('\r') }, t);
+  assert.deepEqual(r.real.lines, ['REFUSED secret/token body 3:1', 'REFUSED table/disposition body 6:11', 'RESULT: refused 2']);
+});
+
 // #280 C7, ADR 0076: a body full of broken rows names the first fifty and counts the rest, so the result line stays in view.
 test('table refusals past fifty are counted, not listed', t => {
   const r = runBody({ 'body.md': body(LABEL, '', HEADER, SEP, ...Array(5000).fill('|')) }, t);

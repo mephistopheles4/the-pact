@@ -519,11 +519,14 @@ export function normalise(text, keepComments = false) {
   return s;
 }
 
-/** Line and column, from 1, of `index` in `text`; the column in characters. */
+/**
+ * Line and column, from 1, of `index` in `text`; the column in characters.
+ * A line ends at a line feed, a carriage return or both, as CommonMark and the
+ * table check end it.
+ */
 function lineCol(text, index) {
-  const before = text.slice(0, index);
-  const lineStart = before.lastIndexOf('\n') + 1;
-  return `${before.split('\n').length}:${chars(before.slice(lineStart)) + 1}`;
+  const lines = text.slice(0, index).split(/\r\n|\r|\n/);
+  return `${lines.length}:${chars(lines.at(-1)) + 1}`;
 }
 
 /**
