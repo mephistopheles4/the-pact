@@ -117,6 +117,7 @@ function digestOf(configBytes, edits) {
 
 // ------------------------------------------------------------ a configuration with edits
 
+// #280 C1: the TOOLS line is in the head.
 test('the shipped example edits install-ready: each block re-indented into its part, the notice names every edited part, the digest covers the blocks', t => {
   const config = readFileSync(EXAMPLE_EDITS);
   const blocks = exampleBlocks();

@@ -165,6 +165,7 @@ for (const c of table('render session setting', {
   ],
 })) test(c.name, c.fn);
 
+// #280 C3: seam A takes --tools beside --commands.
 test('a configured render of the real source passes seam A', t => {
   const root = stage(t, {});
   renderStage(root, homeWith(t, readFileSync(EXAMPLE)));
@@ -178,6 +179,7 @@ test('a configured render of the real source passes seam A', t => {
 
 // ------------------------------------------------------------ no configuration
 
+// #280 C1: the TOOLS line is printed with no configuration.
 test('no pact folder, an empty pact folder and a missing Claude home folder all mean no configuration', t => {
   const noPact = tempDir(t);
   const emptyPact = tempDir(t);

@@ -150,8 +150,9 @@ How to read it:
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
-  a posted report; a rule and a search before posting guard it until the
-  poster installs. R31 needs you to run a project install and pass over the
+  a posted report; a rule and a search before posting guard it on every
+  install, and where the poster is on, its scan is a backstop behind them
+  (#280). R31 needs you to run a project install and pass over the
   warning that leads its dry run.
 
 | Risk | Attacker | What stops it today | Kind |
@@ -581,10 +582,13 @@ safe, and a change made months ago is easy to forget.
   only, and the installed rules file names a model beyond the five aliases
   only as "a custom model". And a
   `commands` list turns on pact commands, by name from a fixed list in the
-  gate, which the install then copies into `commands/`. No configuration
-  edit can target the fixed "Stop and ask me" block; the renderer refuses.
+  gate, which the install then copies into `commands/`. A `tools` list turns
+  on pact tools the same way, each installed under `pact/tools/` with its
+  rule rendered into the rules file (#280). No configuration
+  edit can target the fixed "Stop and ask me" block, or a tool's rule part;
+  the renderer refuses.
 - **The install says what changed.** The dry run prints a warning for each
-  value set and each part edited. The installed rules file names the
+  value set, each part edited and each tool turned on. The installed rules file names the
   configuration in effect.
 - **A project can only tighten, but for its qualities.** A project's own
   configuration, installed through the install script, may only set values

@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-py/tdDcaEZFJ6miqYQqXu0RsE3o/ZK2kN4xEWO9ceDQ='; style-src 'sha256-fjfHWXcQw4rBtfUuKBrfAWu0NvUqPgHY7cCGqV8j84k='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/1MCkDVdgyLxwSKAjdzmRUpWQlisS2B3zItgSZCEgTk='; style-src 'sha256-fjfHWXcQw4rBtfUuKBrfAWu0NvUqPgHY7cCGqV8j84k='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3630,7 +3630,8 @@ function topKeys(text) {
  * in the folder, or null when there is none (#203). Until the person sets
  * the commands on the page (S10), a commands list already there is kept as it
  * stands; without this, a save would drop it and the next install would
- * delete the commands. A list set on the page is written as set.
+ * delete the commands. A tools list is kept the same way (#280). A list set
+ * on the page is written as set.
  * A file that isn't JSON is never replaced. Returns { files } or { refuse }.
  */
 function keepCommands(files, existing) {
@@ -3678,7 +3679,7 @@ const OPT_COMMANDS = Object.freeze([
 const ALWAYS_COMMAND = { name: 'scriptorium', what: 'Always installed: the builder is part of the pact.' };
 // The pact tools a save may list (#280), in the installer's order, each off unless ticked, with what it does.
 const OPT_TOOLS = Object.freeze([
-  { name: 'poster', what: "Posts free text to GitHub as your gh account, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which the dry run's review folder shows." },
+  { name: 'poster', what: "Posts free text to GitHub as your gh account, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which a dry run with --review-folder shows." },
 ]);
 // #262 addendum 3: a save writes agent files and never deletes one, and every file in agents/ installs.
 const AGENTS_NOTE = 'An agent file a save writes is yours: an install never writes over it, and a save deletes nothing.';
@@ -5946,7 +5947,7 @@ function boot() {
     $('output').replaceChildren(
       el('div', { class: 'slot-bar' }, el('h2', { class: 'section-title', text: 'Save' }), save),
       el('p', { class: 'av-annot', text: canPick
-        ? `Save writes these files into the folder you pick: choose your Claude folder (~/.claude). It replaces pact/config.json, any block file of the same name, and any agent file it writes, keeping a commands list config.json already holds unless you set the commands under Settings. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.`
+        ? `Save writes these files into the folder you pick: choose your Claude folder (~/.claude). It replaces pact/config.json, any block file of the same name, and any agent file it writes, keeping a commands list config.json already holds unless you set the commands under Settings, and a tools list the same way. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.`
         : `This browser has no folder picker, so save each file with its download button and put it where it says. ${DOWNLOAD_NOTE} ${AGENTS_NOTE} Then run the install script\'s dry run and read its Configuration block.` }),
       el('ul', { class: 'callouts' }, ...notes),
       el('div', { class: 'files' }, ...fileViews),

@@ -53,6 +53,7 @@ function treeState(root) {
 
 // ------------------------------------------------------------ the no-file render
 
+// #280 C1, C6: no configuration prints TOOLS none, and the rules file is unchanged.
 test('with no configuration, the output is the source with its open-mark lines removed, and its hash is reported', t => {
   const src = [
     '# Title',

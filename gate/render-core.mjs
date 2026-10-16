@@ -55,7 +55,7 @@
 // byte for byte what it is without the tool. No edit may target such a part.
 // A setting fills its open part from a fixed template with the checked number;
 // no text from the user file is ever spliced. An edit applies to an open part
-// only: the notice slot and a setting's part are refused by name.
+// only: the notice slot, a setting's part and a tool's part are refused by name.
 // Block text is re-indented to the part's mark line, so text inside a move
 // stays inside it. When a configuration applies, the config-notice slot is
 // filled with a fixed notice naming its digest, its values and its edited
@@ -154,8 +154,8 @@ import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, PACT_TOOLS, Refused, Report, SEGME
 // Adding a mark is a change to this list and to the pact source, a spec
 // change like any other change here.
 const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
-// The open marks an edit may target: every open mark but the notice slot and
-// a setting's part.
+// The open marks an edit may target: every open mark but the notice slot, a
+// setting's part and a tool's part.
 const EDITABLE = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
 const OPS = Object.freeze(['replace', 'remove', 'add-after']);
 const EDIT_KEYS = Object.freeze(['mark', 'op', 'file']);
@@ -592,6 +592,8 @@ function checkEdits(edits, fail) {
     const setting = [...SETTINGS.keys()].find(k => k === e.mark);
     if (setting) return bad('edit-setting', `${setting} is set only through its setting; no edit may target it`);
     if (e.mark === NOTICE_MARK) return bad('edit-notice', 'config-notice is filled by the renderer; no edit may target it');
+    const tool = [...TOOL_PARTS.values()].find(p => p.mark === e.mark);
+    if (tool) return bad('edit-mark', `${tool.mark} is filled while its tool is on; no edit may target it`);
     const mark = EDITABLE.find(m => m === e.mark);
     if (!mark) return bad('edit-mark', 'an unknown mark');
     if (seen.has(mark)) return bad('edit-twice', `${mark} is edited twice`);

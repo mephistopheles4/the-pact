@@ -204,6 +204,7 @@ test('changed: a new ADR picks docs-index, by the real docs-index source', () =>
   assert.deepEqual([...r.files.keys()], ['docs-index.test.mjs']);
 });
 
+// Running the gate's tests: an unmapped payload path runs the fast tier and the smoke set.
 test('changed: an unmapped path runs the fast tier, plus the smoke set under the copy list, and is listed', () => {
   const root = changedPicks(changedTree(), ['CONTEXT.md']);
   assert.deepEqual([...root.files.keys()], ['plain.test.mjs']);

@@ -203,7 +203,12 @@ parts:
 
   The poster on also adds its rule to the rules file, so the rendered hash
   changes; `--review-folder` shows the rule. Taking the name out of the list
-  deletes the poster and its rule at the next install. The install refuses:
+  deletes the poster and its rule at the next install. The rule names the
+  poster under the default Claude home folder, so with `--claude-home`
+  elsewhere, leave `tools` empty. Until the poster also asks GitHub who owns
+  a repo before it posts (T2 of #280), it checks the owner by name only, so a
+  repo you have transferred could still take a post: wait for that before you
+  turn it on. The install refuses:
   - **Your own file at the tool's path.** A `~/.claude/pact/tools/<name>.mjs`
     the last install's record doesn't list (`unlisted-live`). Move it, or take
     the name out of the list. A live poster changed since the install is drift,
@@ -436,8 +441,8 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    in auto mode.
 2. **Delete the pact's files:** the ten agents listed in step 6 from
    `agents/`, `pact/review.md`, the `pact/builder/` folder, each pact command
-   in `commands/` that the record lists, `/scriptorium` included, and
-   `.pact-install.json`.
+   in `commands/` that the record lists, `/scriptorium` included,
+   `pact/tools/poster.mjs` if the record lists it, and `.pact-install.json`.
 3. **Put back your own agents** from your copy of the `agents/` folder.
 
 Start a new session to load the change.

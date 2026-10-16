@@ -806,10 +806,11 @@ test('stub page: the poster row is off by default and says what it does; a share
   openSettings(P);
   const box = P.find(P.ids.settings, n => n.tag === 'input' && n.attrs['aria-label'] === 'poster')[0];
   assert.equal(box.checked, false, 'off by default');
-  const row = L.OPT_TOOLS.find(c => c.name === 'poster').what;
+  // The text as the row shows it on the page, beside its checkbox.
+  const row = P.find(P.ids.settings, n => n.tag === 'label' && n.children.some(c => c.attrs && c.attrs['aria-label'] === 'poster'))[0].text;
   assert.match(row, /posts free text to GitHub as your gh account/i);
   assert.match(row, /its scan is a backstop, not a guarantee/);
-  assert.match(row, /adds a rule to the rules file, which the dry run's review folder shows/);
+  assert.match(row, /adds a rule to the rules file, which a dry run with --review-folder shows/);
   box.checked = true;
   box.listeners.change.forEach(f => f({}));
   P.button(P.ids.actions, 'Presets').click();
@@ -817,6 +818,7 @@ test('stub page: the poster row is off by default and says what it does; a share
   input.files = [{ name: 'shared.json', text: async () => JSON.stringify({ schema: 1, moves: L.PACT.parts.defaults.moves, tools: [] }) }];
   input.listeners.change.forEach(f => f({}));
   for (let i = 0; i < 10; i++) await new Promise(r => setTimeout(r, 0));
+  assert.match(P.ids.presets.text, /a builder file never turns a tool on/, 'the file was read and refused');
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /"tools": \[\s*"poster"\s*\]/);
 });

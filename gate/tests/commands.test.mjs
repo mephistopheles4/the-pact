@@ -132,6 +132,7 @@ for (const c of table('render commands key', {
   ],
 })) test(c.name, c.fn);
 
+// #280 C1: the COMMANDS line comes last but for the TOOLS line.
 test('the renderer always prints one COMMANDS line: none, or the names on in PACT_COMMANDS order', t => {
   const commandsLines = r => r.lines.filter(l => l.startsWith('COMMANDS'));
   assert.deepEqual(commandsLines(renderWith(t, null)), ['COMMANDS none']);

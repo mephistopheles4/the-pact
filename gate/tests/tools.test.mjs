@@ -2,7 +2,7 @@
 // and the poster's rule part, and seam A's tool kind and its --tools argument.
 // Each bad case is a table row that must fail with its exact rule ids. Every
 // seam A case plants its own tool file. Nothing here installs;
-// tools-install.test.mjs runs the install script.
+// the install-tier tools file runs the install script.
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -129,7 +129,7 @@ for (const c of table('render tools key', {
     { id: 'none-as-a-name', plant: () => ({ config: '{"schema": 1, "tools": ["none"]}' }), fails: ['config-tools'], why: "none is the line's word, not a name" },
     { id: 'key-in-capitals', plant: () => ({ config: '{"schema": 1, "Tools": ["poster"]}' }), fails: ['config-key'], why: 'keys are matched exactly' },
     // #280 C6: the poster's part is filled only by the tools list.
-    { id: 'edit-tool-part', plant: () => ({ config: '{"schema": 1, "edits": [{"mark": "tool-poster", "op": "remove"}]}' }), fails: ['edit-mark'], why: 'no edit may target the part' },
+    { id: 'edit-tool-part', plant: () => ({ config: '{"schema": 1, "edits": [{"mark": "tool-poster", "op": "remove"}]}' }), fails: ['edit-mark'], says: /tool-poster is filled while its tool is on; no edit may target it/, why: 'no edit may target the part' },
   ],
 })) test(c.name, c.fn);
 
@@ -144,7 +144,7 @@ test('the renderer always prints one TOOLS line, straight after COMMANDS: none, 
   assert.deepEqual(on.lines.slice(-3), ['COMMANDS finis', 'TOOLS poster', 'RESULT: pass']);
 });
 
-// #280 C1, C6
+// #280 C1: the digest. The part's own effect on the hash is held by the byte-for-byte test below (C6).
 test('the tools list changes the digest and the rendered hash', t => {
   const line = (r, k) => r.lines.find(l => l.startsWith(`${k} `));
   const off = renderWith(t, '{"schema": 1, "tools": []}');
@@ -209,6 +209,22 @@ test("the rule gives the PowerShell form only through $HOME and the POSIX form o
   assert.deepEqual(forms, [['a POSIX shell', 'node ~/.claude/pact/tools/poster.mjs'], ['PowerShell', 'node "$HOME/.claude/pact/tools/poster.mjs"']]);
   assert.ok(!/[A-Za-z]:\\|\/Users\/|\/home\//.test(T1), 'no absolute path');
 });
+
+// render, #280 C6: the renderer fills the part only where the source holds it, and holds it empty.
+for (const c of table('render tool part', {
+  module: 'gate/render.mjs',
+  base: () => ({ source: readFileSync(SOURCE, 'utf8').replace(/\r\n/g, '\n') }),
+  run: ({ source }, t) => {
+    const dir = tempDir(t, 'pact-render-source-');
+    writeFileSync(join(dir, 'CLAUDE.md'), source);
+    const r = renderWith(t, '{"schema": 1, "tools": ["poster"]}', { source: join(dir, 'CLAUDE.md') });
+    return moduleResult(r.code, r.stdout, r.stderr);
+  },
+  rows: [
+    { id: 'part-missing', plant: t => ({ source: t.source.replace('<!-- pact:begin tool-poster -->\n<!-- pact:end tool-poster -->\n', '') }), fails: ['render'], says: /tool-poster: the part is not in the source/, why: 'a source with no part has nowhere to put the rule' },
+    { id: 'part-not-empty', plant: t => ({ source: t.source.replace('<!-- pact:begin tool-poster -->\n', '<!-- pact:begin tool-poster -->\n- A rule already here.\n') }), fails: ['render'], says: /tool-poster: the part is not empty in the source/, why: 'the rule replaces nothing' },
+  ],
+})) test(c.name, c.fn);
 
 // #280 C6: the source holds the part empty, among the open marks, outside the six parts an edit may target.
 test('the source holds the tool-poster part empty, after the record bullet', () => {

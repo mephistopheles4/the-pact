@@ -449,7 +449,7 @@ export function parseRenderLines(lines, { project, hash }) {
   if (!renderHash || !diffHash || configs.length !== 1) refuse('render-counts', 'the renderer did not report exactly one output hash, one diff hash and one configuration line.');
   if (!commands) refuse('render-commands-missing', 'the renderer did not report which pact commands are on.');
   if (!tools) refuse('render-tools-missing', 'the renderer did not report which pact tools are on.');
-  if (toolsAt !== commandsAt + 1) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
+  if (toolsAt !== commandsAt + 1) refuse('render-unknown-line', "the renderer's TOOLS line does not come straight after its COMMANDS line.");
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
   if (config.kind === 'none') {

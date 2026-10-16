@@ -450,6 +450,8 @@ for (const c of table('poster input', {
   everyRow: refusedQuietly,
   rows: [
     { id: 'no-surface', plant: asSurface(PR_ARGV.slice(1)), fails: ['usage/surface'], why: 'the first word is an option' },
+    // #280 C2: the installed copy run with nothing refuses before any gh call.
+    { id: 'no-arguments', plant: asSurface([]), fails: ['usage/surface'], why: 'run with no arguments at all' },
     { id: 'unknown-surface', plant: asSurface(['issues', ...PR_ARGV.slice(1)]), fails: ['usage/surface'], why: 'a misspelled surface' },
     { id: 'misspelled-option', plant: addArgs('--lable', 'x'), fails: ['usage/unknown-option'], why: 'stacks posted unlabelled on --lable' },
     { id: 'other-surface-option', plant: addArgs('--issue', '5'), fails: ['usage/unknown-option'], why: 'an option another surface takes' },

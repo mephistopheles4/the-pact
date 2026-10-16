@@ -42,6 +42,7 @@ function renderedWith(t, home) {
   return { root, md: readFileSync(join(root, 'claude', 'CLAUDE.md'), 'utf8') };
 }
 
+// #280 C3: seam A takes --tools beside --commands.
 test('the set renders with seam A passing', t => {
   const { root } = renderedWith(t, homeWithSet(t));
   const env = { ...process.env };

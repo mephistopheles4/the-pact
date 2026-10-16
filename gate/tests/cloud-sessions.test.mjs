@@ -358,6 +358,7 @@ test('cloud copy: CLAUDE.cloud.md carries no configuration and the shipped usage
   for (const name of RETIRED) assert.doesNotMatch(cloud, new RegExp(`(?<![\\w-])${name}(?![\\w-])`), name);
 });
 
+// #280 C1: seam A gets the cloud copy's commands and tools constants.
 test('cloud copy: the command list is pinned, and empty until the cloud channels are tried (#203, S9)', () => {
   assert.deepEqual([...CLOUD_COMMANDS], []);
   assert.ok(Object.isFrozen(CLOUD_COMMANDS));

@@ -15,7 +15,7 @@ The pact's tools are something the owner chooses, the way its commands are. A `t
 
 ## Why
 
-- **Not every person wants code that posts to GitHub on their machine.** #246 planned to install the poster like the cross script, on every install. Opt-in keeps it off unless the owner ticks it.
+- **Not every person wants code that posts to GitHub on their machine.** #246 planned to install the poster like the old cross script (ADR 0064), on every install. Opt-in keeps it off unless the owner ticks it.
 - **A session never meets a rule for a tool it doesn't have.** The rule is rendered only while its tool is on.
 - **The list mirrors one the owner already knows.** Commands work this way (#203, ADR 0070); a second shape would be one more thing to learn.
 
@@ -29,3 +29,5 @@ The pact's tools are something the owner chooses, the way its commands are. A `t
 ## Rolling back
 
 A pact from before #280 refuses a configuration with a `tools` key, so take the key out first. Its install then deletes the poster the record lists, as it does any file its own payload lacks.
+
+Amends [ADR 0064](0064-review-crossings-by-template-and-judgment.md), which says nothing under `cross/` installs and that the poster's scan takes R29 over, and [ADR 0067](0067-every-agent-can-be-set-on-any-claude-code-model.md), which rests on the poster never being staged: the poster now installs when the owner turns it on, and its scan is a backstop behind the search before posting.

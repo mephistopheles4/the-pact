@@ -114,5 +114,7 @@ below is the POSIX form; in PowerShell, run `$env:NODE_OPTIONS = $null; node
 ## What never goes in a builder file
 
 The pact's own text, its pinned blocks and its agents' settings come from the
-kit; the check refuses a builder file that carries them. Open the page from
+kit; the check refuses a builder file that carries them. So does a `tools`
+list: the pact's tools are ticked on the page or listed in `config.json`,
+never carried in a builder file. Open the page from
 disk as it is: it loads nothing over the network.

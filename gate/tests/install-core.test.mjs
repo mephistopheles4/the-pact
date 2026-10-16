@@ -140,7 +140,7 @@ for (const c of table('commit tree', {
   ],
 })) test(c.name, c.fn);
 
-// #280 C2: the poster stages from claude/tools/ like the rest of the payload; a folder outside the staged set stages nothing.
+// #280 C2: the poster stages with the rest of the payload; a folder outside the staged set stages nothing.
 test('the commit tree: only the staged set is checked, and gate/tests is dropped', () => {
   const staged = core.parseTree(Buffer.from(treeBase().in));
   assert.deepEqual([...staged.keys()], ['AGENTS.md', 'claude/CLAUDE.md', 'gate/seam-a.mjs']);
@@ -271,6 +271,7 @@ for (const c of table('renderer lines', {
     { id: 'tools-unknown-name', plant: rep('TOOLS poster', 'TOOLS sender'), fails: ['render-unknown-line'], why: 'a name that is not a pact tool' },
     { id: 'tools-repeat', plant: rep('TOOLS poster', 'TOOLS poster,poster'), fails: ['render-unknown-line'], why: 'one name twice' },
     { id: 'tools-none-and-name', plant: rep('TOOLS poster', 'TOOLS none,poster'), fails: ['render-unknown-line'], why: 'none stands alone' },
+    { id: 'line-between-commands-and-tools', plant: t => ({ in: t.in.replace(`AGENT data-lens sonnet high ${H('f')} security-set override local\n`, '').replace('COMMANDS finis\n', `COMMANDS finis\nAGENT data-lens sonnet high ${H('f')} security-set override local\n`) }), fails: ['render-unknown-line'], says: /TOOLS line does not come straight after its COMMANDS line/, why: 'straight after, not merely later' },
     { id: 'tools-line-out-of-order', plant: t => ({ in: t.in.replace('COMMANDS finis\nTOOLS poster', 'TOOLS poster\nCOMMANDS finis') }), fails: ['render-unknown-line'], why: 'the TOOLS line comes straight after the COMMANDS line' },
   ],
 })) test(c.name, c.fn);
@@ -518,7 +519,7 @@ for (const c of table('copy set with commands', {
   ],
 })) test(c.name, c.fn);
 
-// The copy set with pact tools (#280 C2): a tool pairs to pact/tools/<name>.mjs only when on.
+// The copy set with pact tools (#280 C2): a tool pairs to its own live path only when on.
 const toolStaged = new Map([...staged, ['claude/tools/poster.mjs', H('9')]]);
 const toolCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/tools/poster.mjs pact/tools/poster.mjs\nRESULT`), list: 'poster' });
 // #280 C2
