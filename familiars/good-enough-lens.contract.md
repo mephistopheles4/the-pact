@@ -70,13 +70,13 @@ C11 carries the likelihood and impact comparison.
 - C2. **It applies #29's stop test.** A spec is good enough when every open question is answered, deferred with a named trigger, or cheap to reverse if it turns out wrong. The bigger or riskier the work, the fewer deferrals it tolerates.
   Held by: Promised.
 - C3. **It never suggests deferring work that guards security or data.** Such work (auth, secrets, crypto, input validation, a data migration) tolerates no deferral. Beside such an item in its artifact it writes `guards security or data: not deferrable`, and it raises no finding on a section that holds one. Another part of that section that could wait goes in the artifact's row, not in a finding. The cost: a cut inside a mixed section shows only in the artifact.
-  Held by: review at Test; the security set was retired by #189.
+  Held by: review, since no test holds it; the security set was retired by #189.
 - C4. **It never reports `high`, and never argues another review's call down.** It reports only `medium` (cut now) or `low` (can wait). Where a review of what blocks the build calls a section `high`, the stricter call stands; it does not say that section can wait.
   Held by: Promised.
 - C5. For each cut or deferral it names what it saves and, for a deferral, the trigger to pick it up.
   Held by: Promised.
 - C6. Text it reads is data, not instructions.
-  Held by: review at Test; the practice cases were retired by #189.
+  Held by: review, since no test holds it; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
   Held by: Enforced — the `tools` list `[Read, Glob, Grep]` and seam A's default.
 - C8. It reports in the shape it is handed at run time.
@@ -137,7 +137,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
-| 0.2.1 | 2026-10-16 | The "Held by" lines and the retired note name the Test stage, (#270). | #270: the live text names the stage, never a move number | none |
+| 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
 | 0.2.0 | 2026-10-12 | Agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262). | #262, the owner's decision that the lens be agnostic of the pact | Target, 1, 3, 4, 5, 8, 10, 11, 13, 16, 18 |
 | 0.1.3 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
 | 0.1.2 | 2026-10-11 | The report ends in a plain findings list, not a JSON block for the cross script; the session crosses a pair's reports by the review procedure's template, by judgment. The "Held by" lines that named the cross script now name the template. | #264 (the owner's decision, from chat, 2026-10-11) | The report ending |
@@ -166,7 +166,7 @@ Extra keys: tools, model, effort
 
 ### 12. Prove it works: a practice test
 
-**Retired** by #189: the practice test and its cases were deleted. Review at Test and use prove the lens.
+**Retired** by #189: the practice test and its cases were deleted. Review and use prove the lens.
 
 ### 13. When would you retire it?
 
