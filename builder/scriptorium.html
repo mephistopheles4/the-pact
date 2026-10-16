@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/1MCkDVdgyLxwSKAjdzmRUpWQlisS2B3zItgSZCEgTk='; style-src 'sha256-fjfHWXcQw4rBtfUuKBrfAWu0NvUqPgHY7cCGqV8j84k='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/1MCkDVdgyLxwSKAjdzmRUpWQlisS2B3zItgSZCEgTk='; style-src 'sha256-COhUNSdkjBnGF0IMbHIpy6E7diL0HRaXASXDEOuH6IQ='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -124,6 +124,8 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 .value-row { display: flex; flex-wrap: wrap; gap: var(--av-s2); align-items: center; }
 .command-row { display: grid; grid-template-columns: 1.5rem 9.5rem 1fr; gap: var(--av-s2); align-items: baseline; }
 input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
+input[type="checkbox"] { accent-color: var(--av-ink); }
+input[type="checkbox"]:not(:disabled), label:has(> input[type="checkbox"]:not(:disabled)) { cursor: pointer; }
 input[type="text"], select { font: inherit; font-size: var(--av-t-annot); color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
 input[type="text"] { min-width: 14em; flex: 1 1 14em; }
 .wf-field > input, .wf-field > select, .wf-field input[type="text"] { flex: none; min-width: 0; }
