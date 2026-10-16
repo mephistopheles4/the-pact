@@ -1730,8 +1730,8 @@ run a mutation-testing tool if the repo's lock file pins one.
 
 ## Crossing the reports
 
-You lay the reports out yourself, by judgment. Nothing parses them and
-nothing refuses one.
+You lay the reports out yourself, by judgment. Nothing lays them out for
+you, and nothing refuses a report for its layout.
 
 **Pairs.** Lenses offered together in one offer of the Workflow are a pair,
 and their reports are crossed together. A lens offered alone, or run alone, is
@@ -1797,7 +1797,9 @@ skill runs included.
   Tab, line feed and carriage return are fine. Name any you find in the
   report's fold summary and don't block on them, but a hit in the tag or
   variation-selector ranges can spell hidden text: decode it and put it
-  through the read above before you post.
+  through the read above before you post. Where a tool refuses a report for
+  hidden characters, keep the report local and tell me, as for a personal
+  detail; never strip them to post it.
 - **A report's "For the owner" section holds no line numbers, codes or
   paths.**
 - **Where to post.** In the work's record, where the project keeps it. With no
@@ -1806,26 +1808,43 @@ skill runs included.
 ## Lens dispositions
 
 At every lens review, post a "Lens dispositions" table where the reports went,
-one row per finding:
-- the finding;
-- the lens;
-- the disposition: fixed, taken or dismissed. Mark one you took on your own
-  recommendation `auto`, as in "fixed (auto: chose X because Y)". One I
-  reverse is marked `auto, reversed`, keeping the row;
-- the rerun, if any, and why.
+under a line naming "Lens dispositions", one row per finding. Its header row
+is exactly `| Finding | Lens | Disposition | Rerun |`, with no markup. Each
+row gives the finding, the lens (never empty), the disposition, and the
+rerun, if any, and why. A `skipped` row may leave the Finding cell empty. A
+row for a report kept local keeps its four cells, with "withheld, see chat"
+in the Finding cell.
 
-**A lens you left out** gets its own row: "skipped, because ..." with the
-reason.
+The Disposition cell starts with one of these words, in lower case and with
+no markup:
+- `fixed`
+- `taken`
+- `dismissed`
+- `skipped`, for a lens you left out or a measure you chose not to check,
+  which gets its own row as `skipped, because ...` with the reason.
+- `open`, for a finding I haven't settled yet. It needs nothing after it; a
+  later table gives the finding its final word.
+
+Mark one you took on your own recommendation `auto`, as in
+`fixed (auto: chose X because Y)`, or `fixed (auto)` with no reason. One I
+reverse is marked `(auto, reversed)`, keeping the row.
+
+A tool may check this table's shape before it posts; where none does, the
+table is unchecked. A retrospective that counts these tables reads each one
+tolerantly and counts the rows it can't read.
 
 **With no lens review,** list the choices you took on your own recommendation
 under "Auto-takes".
 
 ## Escapes and gaps
 
+Escape and gap rows go in a table of their own under that review's Lens
+dispositions table, with no Disposition column.
+
 - **An escape.** A defect found after a lens review passed the work, within a
-  question a lens there asked, gets a proposed escape row under that review's
-  table: the lens or lenses, and "after auto-take: yes" or "no". It is "yes"
-  when the escaped finding's row was `auto`.
+  question a lens there asked, gets a proposed escape row: the lens or
+  lenses, and "after auto-take: yes" or "no". It is "yes" when the escaped
+  finding's row was `auto`.
 - **A gap.** A defect no lens's question covers is a roster gap, logged the
   same way with its ISO 25010 quality.
 - **Only rows I confirm count.**
@@ -1920,7 +1939,7 @@ check_hash 662687608bd15f1da7624371c15cae5dadf224570c636553241c8f8317b63c95 'age
 check_hash a7e6926321fb26785776c4e0fb92636167d57b9a15d27f2a6bb3ef2506a43d5b 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 2d00a1bf1aa0c97ab2ee491c7f12819dbc4af327f5d03987f7825462faef6854 'agents/unstated-lens.md'
-check_hash 600137044c284e693ae1172b19cee2cfd78e91eae7c3ff47fe578d9454e9a170 'pact/review.md'
+check_hash 0010e78ee43133e46fc44890e00c200fad003ca0ee3d18fa8f6aa24250a68ccd 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -1940,7 +1959,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy b51f1c52d9d6"
+  echo "pact cloud copy a808010fa65c"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

@@ -56,8 +56,8 @@ const TRAILER = `${ROBOT} Generated with [Claude Code](https://claude.com/claude
 
 // ---------------------------------------------------------------- the world: a fake GitHub behind an injected gh
 
-/** A gh that answers the login read, one post per surface, and the read-back, recording each call. `tamper` changes what the read-back returns. */
-function world({ login = ME, tamper = x => x, answer = x => x, fail = {} } = {}) {
+/** A gh that answers the login read, the repo read, one post per surface, and the read-back, recording each call. `tamper` changes what the read-back returns; `owner` is the owner the repo read names. */
+function world({ login = ME, owner = login, tamper = x => x, answer = x => x, fail = {} } = {}) {
   const calls = [];
   const stored = new Map();
   const user = { login };
@@ -81,6 +81,7 @@ function world({ login = ME, tamper = x => x, answer = x => x, fail = {} } = {})
     const key = `${method} ${path}`;
     if (fail[method]) return { ok: false, stdout: '', stderr: fail[method] };
     if (key === 'GET user') return { ok: true, stdout: JSON.stringify(user), stderr: '' };
+    if (method === 'GET' && /^repos\/[^/]+\/[^/]+$/.test(path)) return { ok: true, stdout: JSON.stringify({ full_name: `${owner}/${path.split('/')[2]}`, owner: { login: owner } }), stderr: '' };
     if (method === 'POST') {
       const made = create(path, JSON.parse(input));
       if (!made) return { ok: false, stdout: '', stderr: 'HTTP 404: Not Found' };
@@ -139,10 +140,11 @@ for (const [surface, [path, request, readPath, url]] of Object.entries(POSTS)) {
     assert.equal(last(r), `RESULT: verified ${surface} ${url} as ${ME}`);
     assert.deepEqual(w.calls.map(c => c.args), [
       ['api', '--hostname', 'github.com', '--method', 'GET', 'user'],
+      ['api', '--hostname', 'github.com', '--method', 'GET', 'repos/tester/sandbox'],
       ['api', '--hostname', 'github.com', '--method', 'POST', path, '--input', '-'],
       ['api', '--hostname', 'github.com', '--method', 'GET', readPath],
     ]);
-    assert.deepEqual(JSON.parse(w.calls[1].input), request);
+    assert.deepEqual(JSON.parse(w.calls[2].input), request);
     for (const c of w.calls) for (const a of c.args) assert.ok(!/plain/.test(a), `prose on the argument list: ${a}`);
   });
 }
@@ -152,7 +154,7 @@ test('pull-request --draft sends draft true and verifies it', t => {
   const w = world();
   const r = run(t, 'pull-request', w, { extra: ['--draft'] });
   assert.equal(r.code, 0, out(r));
-  assert.equal(JSON.parse(w.calls[1].input).draft, true);
+  assert.equal(JSON.parse(w.calls[2].input).draft, true);
 });
 
 for (const [id, bad] of [['a string', '9001'], ['a fraction', 1.5], ['zero', 0], ['a negative', -3], ['an unsafe integer', 2 ** 53], ['missing', undefined], ['null', null]]) {
@@ -162,7 +164,7 @@ for (const [id, bad] of [['a string', '9001'], ['a fraction', 1.5], ['zero', 0],
     const r = run(t, 'issue-comment', w);
     assert.equal(r.code, 1, out(r));
     assert.equal(last(r), `RESULT: unverified ${WEB}/issues/5`);
-    assert.equal(w.calls.length, 2);
+    assert.equal(w.calls.length, 3);
   });
 }
 
@@ -224,6 +226,39 @@ test("a repo another account owns is refused after the login read, with no post"
   assert.equal(last(r), 'RESULT: refused 1');
   assert.equal(w.calls.length, 1);
 });
+
+// #280 C7: a name the login once owned, now renamed or transferred, can never carry a post to its new owner.
+test('a repo GitHub says another account owns is refused after the repo read, with no post', t => {
+  const w = world({ owner: 'someone' });
+  const r = run(t, 'issue-comment', w);
+  assert.equal(r.code, 2, out(r));
+  assert.deepEqual(r.lines, ['REFUSED owner/github option --repo', 'RESULT: refused 1']);
+  assert.deepEqual(w.calls.map(c => c.args.at(-1)), ['user', 'repos/tester/sandbox']);
+});
+
+// #280 C7: GitHub's owner is compared exactly, as the name is.
+test("a repo whose owner GitHub writes in other capitals is refused", t => {
+  const w = world({ owner: 'Tester' });
+  const r = run(t, 'issue-comment', w);
+  assert.equal(r.code, 2, out(r));
+  assert.ok(r.lines.includes('REFUSED owner/github option --repo'), out(r));
+  assert.equal(w.calls.length, 2);
+});
+
+for (const [what, gh] of [
+  ['fails', w => (args, input) => (args.at(-1) === 'repos/tester/sandbox' ? { ok: false, stdout: '', stderr: 'HTTP 404: Not Found' } : w.gh(args, input))],
+  ['names no owner', w => (args, input) => (args.at(-1) === 'repos/tester/sandbox' ? { ok: true, stdout: '{"full_name":"tester/sandbox"}', stderr: '' } : w.gh(args, input))],
+]) {
+  // #280 C7: no owner from GitHub, no post.
+  test(`a repo read that ${what} ends unavailable, exit 4, with no post`, t => {
+    const w = world();
+    const argv = place(t, { 'body.md': 'b\n' }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']);
+    const r = post(argv, { gh: gh(w), env: {}, ...MACHINE });
+    assert.equal(r.code, 4, out(r));
+    assert.equal(last(r), 'RESULT: unavailable');
+    assert.equal(w.calls.filter(c => c.args.includes('POST')).length, 0);
+  });
+}
 
 for (const name of ['GH_TOKEN', 'GITHUB_TOKEN', 'gh_token']) {
   // #246 C4: the owner compares exactly, capitals included
@@ -294,7 +329,7 @@ test('a gh that cannot start, or exits non-zero, is a failed call', t => {
 });
 
 // #246 C10: a fault inside a run still ends with the result line its phase calls for
-for (const [where, method, code, result] of [['the login read', 'GET user', 4, 'RESULT: unavailable'], ['the post', 'POST', 3, 'RESULT: failed'], ['the read-back', 'GET repos', 1, `RESULT: unverified ${WEB}/issues/5#issuecomment-9001`]]) {
+for (const [where, method, code, result] of [['the login read', 'GET user', 4, 'RESULT: unavailable'], ['the repo read', 'GET repos/tester/sandbox', 4, 'RESULT: unavailable'], ['the post', 'POST', 3, 'RESULT: failed'], ['the read-back', 'GET repos/tester/sandbox/issues/comments', 1, `RESULT: unverified ${WEB}/issues/5#issuecomment-9001`]]) {
   // #246 C10
   test(`a gh that throws during ${where} ends ${result.split(' ')[1]}, exit ${code}`, t => {
     const w = world();

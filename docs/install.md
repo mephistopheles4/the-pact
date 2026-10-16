@@ -205,10 +205,10 @@ parts:
   changes; `--review-folder` shows the rule. Taking the name out of the list
   deletes the poster and its rule at the next install. The rule names the
   poster under the default Claude home folder, so with `--claude-home`
-  elsewhere, leave `tools` empty. Until the poster also asks GitHub who owns
-  a repo before it posts (T2 of #280), it checks the owner by name only, so a
-  repo you have transferred could still take a post: wait for that before you
-  turn it on. The install refuses:
+  elsewhere, leave `tools` empty. Before it posts, the poster checks that
+  your `gh` login owns the repo, by name and again by GitHub's answer for the
+  repo, so a repo you have transferred can't take a post. The install
+  refuses:
   - **Your own file at the tool's path.** A `~/.claude/pact/tools/<name>.mjs`
     the last install's record doesn't list (`unlisted-live`). Move it, or take
     the name out of the list. A live poster changed since the install is drift,

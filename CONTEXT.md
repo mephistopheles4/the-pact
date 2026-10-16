@@ -45,7 +45,7 @@ real work selects it.
 - **Escape:** a defect found after a lens review passed the work on, that falls within the question of a lens that ran at that review.
 - **Roster gap:** a defect found later that no lens's question covers.
 - **Auto-take:** a choice a session makes by acting on its own recommendation on a report finding, without waiting for the owner. It never covers a stop, the fixed block, a tier decision or the owner's "done". Each one gets an `auto` row.
-- **Lens dispositions:** the table posted at every lens review, one row per finding: the finding, the lens, the disposition with its `auto` mark, and the rerun if any. #189 cut its other columns; #262 dropped the override mark.
+- **Lens dispositions:** the table posted at every lens review, one row per finding: the finding, the lens, the disposition with its `auto` mark, and the rerun if any. #189 cut its other columns; #262 dropped the override mark. Since #285 its header is fixed as `| Finding | Lens | Disposition | Rerun |`, a disposition starts with `fixed`, `taken`, `dismissed`, `skipped` or `open`, where `open` marks a finding the owner hasn't settled yet, and escape and gap rows sit in a table of their own.
 - **Periodic review:** the owner reading the Lens dispositions tables, when they choose, which can add, merge, cut or retune lenses. Since #189 no session collects totals or proposes a lens review on a signal.
 
 ## Probes and records

@@ -18,8 +18,12 @@
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every option and file, and scans the
 // exact text it would send for credential shapes, environment secrets, local
-// paths, session ids, email addresses and hidden text. The scan is a backstop for
-// accidents, not a guard against a session that sets out to get past it.
+// paths, session ids, email addresses and hidden text. Then it checks the
+// shape of any Lens dispositions table in the body against the review
+// procedure's template (#280, T2). Before it posts, it checks that the repo's
+// owner is the gh login, by name and again by what GitHub returns for the repo
+// (owner/repo, owner/github). The scans are a backstop for accidents, not a
+// guard against a session that sets out to get past them.
 //
 // The last line is always a RESULT line on stdout:
 //   0  RESULT: verified <surface> <url> as <login>
@@ -515,11 +519,14 @@ export function normalise(text, keepComments = false) {
   return s;
 }
 
-/** Line and column, from 1, of `index` in `text`; the column in characters. */
+/**
+ * Line and column, from 1, of `index` in `text`; the column in characters.
+ * A line ends at a line feed, a carriage return or both, as CommonMark and the
+ * table check end it.
+ */
 function lineCol(text, index) {
-  const before = text.slice(0, index);
-  const lineStart = before.lastIndexOf('\n') + 1;
-  return `${before.split('\n').length}:${chars(before.slice(lineStart)) + 1}`;
+  const lines = text.slice(0, index).split(/\r\n|\r|\n/);
+  return `${lines.length}:${chars(lines.at(-1)) + 1}`;
 }
 
 /**
@@ -552,6 +559,175 @@ export function scan(fields, ctx) {
         out.push({ rule: h.rule, where: `${field} ${lineCol(norm, h.index)} in the normalised copy${h.note ? ` (${h.note})` : ''}` });
       }
     }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- the Lens dispositions table
+
+/**
+ * The Lens dispositions table's shape, as the review procedure gives it: the
+ * header row, the words a Disposition cell starts with, what follows
+ * `skipped`, and what may follow ` (auto`. A test holds them equal to the
+ * review procedure's.
+ */
+export const DISPOSITIONS = Object.freeze({
+  header: Object.freeze(['Finding', 'Lens', 'Disposition', 'Rerun']),
+  words: Object.freeze(['fixed', 'taken', 'dismissed', 'skipped', 'open']),
+  skipped: ', because',
+  auto: ' (auto',
+  afterAuto: Object.freeze([':', ')', ', reversed']),
+});
+
+/** How many table refusals one run lists; the rest are counted. */
+const TABLE_LISTED = 50;
+
+const TABLE = Object.freeze({
+  header: 'table/header',
+  cells: 'table/cells',
+  disposition: 'table/disposition',
+  skipped: 'table/skipped',
+  auto: 'table/auto',
+});
+
+// A fence as CommonMark reads it: a run of three or more backticks or tildes,
+// indented by at most three spaces. A backtick run whose info string holds a
+// backtick opens no fence. It closes on a run of the same character at least
+// as long, with nothing after it but spaces or tabs. The info string matches
+// any character, so the end of the line is always reached and a long run is
+// never tried again shorter.
+const FENCE_OPEN_RE = /^ {0,3}(`{3,}|~{3,})([^]*)$/;
+const FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+// A line ends at a line feed, a carriage return, or both, as CommonMark reads it.
+const LINE_END_RE = /\r\n|\r|\n/;
+const TABLE_LABEL_RE = /lens\s+dispositions/i;
+const DELIMITER_RE = /^[ \t]*:?-+:?[ \t]*$/;
+const LETTER_RE = /\p{L}/u;
+const AUTO_WORD_END_RE = /[\p{L}-]/u;
+
+/**
+ * A table line's cells, split at each pipe no backslash escapes, each as
+ * { text, col }: its column from 1, in characters, at its first character that
+ * is not a space, or at its start when it is empty. A closing pipe ends the
+ * last cell. Null for a line that doesn't start with a pipe after at most
+ * three spaces. The column is counted as the loop goes, so a line costs no
+ * more than its length.
+ */
+function tableCells(line) {
+  const lead = line.match(/^ {0,3}\|/);
+  if (!lead) return null;
+  const out = [];
+  let start = lead[0].length;
+  // Characters before index i, and before the current cell; everything before the first cell is one code unit each.
+  let before = start;
+  let cellBefore = start;
+  for (let i = start; i <= line.length; i += 1) {
+    if (i === line.length || (line[i] === '|' && line[i - 1] !== '\\')) {
+      const text = line.slice(start, i);
+      const trimmed = text.trim();
+      // Leading spaces are one code unit each, so their count is a count of characters.
+      const pad = trimmed === '' ? 0 : text.length - text.trimStart().length;
+      out.push({ text: trimmed, col: cellBefore + pad + 1 });
+      start = i + 1;
+      cellBefore = before + 1;
+    }
+    // A low surrogate ends a character its high surrogate already counted.
+    if (i < line.length && (line.charCodeAt(i) & 0xfc00) !== 0xdc00) before += 1;
+  }
+  // A line that ends with a pipe leaves an empty piece after it.
+  if (out.length > 1 && /(?:^|[^\\])\|[ \t]*$/.test(line)) out.pop();
+  return out;
+}
+
+/** Whether a table line's cells are a delimiter row, as `| --- | :-: |`. */
+const isDelimiter = cells => cells.every(c => DELIMITER_RE.test(c.text));
+
+/**
+ * The refusals one row's Disposition cell earns. ` (auto` is the auto mark
+ * only where the word ends there, so reason text such as "(automatically)" is
+ * left alone (q3 on #285).
+ */
+function dispositionRules(cell) {
+  const out = [];
+  const word = DISPOSITIONS.words.find(w => cell.startsWith(w) && !LETTER_RE.test(cell[w.length] ?? ''));
+  if (word === undefined) out.push(TABLE.disposition);
+  else if (word === 'skipped' && !cell.startsWith(DISPOSITIONS.skipped, word.length)) out.push(TABLE.skipped);
+  for (let i = cell.indexOf(DISPOSITIONS.auto); i >= 0; i = cell.indexOf(DISPOSITIONS.auto, i + 1)) {
+    const at = i + DISPOSITIONS.auto.length;
+    if (AUTO_WORD_END_RE.test(cell[at] ?? '')) continue;
+    if (!DISPOSITIONS.afterAuto.some(a => cell.startsWith(a, at))) {
+      out.push(TABLE.auto);
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Each place a Lens dispositions table in `body` breaks the review
+ * procedure's template, as [{ rule, where }]. It reads every line outside a
+ * fence, folds included, with lines ending as CommonMark ends them. A table's
+ * header is the pipe line straight before a delimiter row, as GitHub reads
+ * it, and only that line is the delimiter row. A table is checked when a
+ * header cell reads `Disposition`, ignoring case and `**`, under an earlier
+ * line naming "Lens dispositions". A header other than the template's is
+ * refused, and its rows are not read. It reads nothing else: not the reason
+ * text, not an empty Finding cell, not the Rerun cell, and no other table.
+ * `where` names the line and column, never a cell. One pass over the lines,
+ * with no pattern that can backtrack without bound.
+ */
+export function tableCheck(body) {
+  const out = [];
+  let fence = null;
+  let label = false;
+  let inTable = false;
+  let checking = false;
+  const lines = body.split(LINE_END_RE);
+  // Each line's cells are read once, though a line is looked at twice: as the next line, then as itself.
+  let peek = { n: -1, cells: null };
+  const cellsAt = k => (peek.n === k ? peek.cells : (peek = { n: k, cells: k < lines.length ? tableCells(lines[k]) : null }).cells);
+  for (let n = 0; n < lines.length; n += 1) {
+    const line = lines[n];
+    const refuse = (rule, col) => out.push({ rule, where: `body ${n + 1}:${col}` });
+    if (fence !== null) {
+      const close = line.match(FENCE_CLOSE_RE);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      continue;
+    }
+    const open = line.match(FENCE_OPEN_RE);
+    if (open && !(open[1][0] === '`' && open[2].includes('`'))) {
+      fence = open[1];
+      inTable = false;
+      continue;
+    }
+    const cells = cellsAt(n);
+    if (cells === null) {
+      inTable = false;
+      if (TABLE_LABEL_RE.test(line)) label = true;
+      continue;
+    }
+    if (!inTable) {
+      // A pipe line with no delimiter row after it is a paragraph line, not a table.
+      const next = cellsAt(n + 1);
+      if (next === null || !isDelimiter(next)) continue;
+      inTable = true;
+      n += 1;
+      checking = label && cells.some(c => c.text.replaceAll('**', '').trim().toLowerCase() === 'disposition');
+      if (!checking) continue;
+      const names = cells.map(c => c.text.replace(/[ \t]+/g, ' ').toLowerCase());
+      if (names.length !== DISPOSITIONS.header.length || names.some((x, i) => x !== DISPOSITIONS.header[i].toLowerCase())) {
+        refuse(TABLE.header, 1);
+        checking = false;
+      }
+      continue;
+    }
+    if (!checking) continue;
+    if (cells.length !== DISPOSITIONS.header.length) {
+      refuse(TABLE.cells, 1);
+      continue;
+    }
+    if (cells[1].text === '') refuse(TABLE.cells, cells[1].col);
+    for (const rule of dispositionRules(cells[2].text)) refuse(rule, cells[2].col);
   }
   return out;
 }
@@ -772,8 +948,16 @@ export function post(argv, io) {
     plan.labels.forEach((text, i) => fields.push({ field: `label ${i + 1}`, text }));
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env, home: io.home, tmp: io.tmp, user: io.user, host: io.host };
+    // The table check runs after the secret scan, on the body only. Past the
+    // first fifty, its refusals are counted, not listed, so the result line
+    // stays in view.
     const hits = scan(fields, { ...ctx, surface: plan.surface });
-    if (hits.length) return refused(hits);
+    const tables = tableCheck(plan.body);
+    if (tables.length > TABLE_LISTED) {
+      const r = refused([...hits, ...tables.slice(0, TABLE_LISTED)]);
+      return { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length}`] };
+    }
+    if (hits.length || tables.length) return refused([...hits, ...tables]);
 
     const p = postOf(plan);
     near = p.near;
@@ -790,6 +974,13 @@ export function post(argv, io) {
     if (plan.as !== undefined && plan.as !== login) wrong.push({ rule: 'as/differs', where: 'option --as' });
     if (plan.repo.owner !== login) wrong.push({ rule: 'owner/repo', where: 'option --repo' });
     if (wrong.length) return refused(wrong);
+
+    // The owner GitHub gives for the repo, which follows a rename or a
+    // transfer, so a name the login once owned can't carry a post elsewhere.
+    const repoRead = io.gh(ghArgs('GET', `repos/${plan.repo.owner}/${plan.repo.name}`, false));
+    const owner = repoRead.ok ? parseJson(repoRead.stdout)?.owner?.login : undefined;
+    if (!isLogin(owner)) return { code: 4, lines: [...(repoRead.ok ? ['the repo read gave no owner'] : [saidLine(repoRead.stderr, ctx)]), 'RESULT: unavailable'] };
+    if (owner !== login) return refused([{ rule: 'owner/github', where: 'option --repo' }]);
 
     phase = 'sending';
     const sent = io.gh(args, JSON.stringify(p.request));
