@@ -2,8 +2,8 @@
 // source in docs/img/src/ to a light and a dark SVG. These tests fail when a
 // committed SVG is stale, when the README points at an image that isn't
 // there, and when a figure's text line would overflow its box. They don't
-// check the figures' words against the rules: AGENTS.md's "Keep the README in
-// step with the rules" does that (owner decision on #202).
+// check the figures' words against the rules: the "Keep the README in step with
+// the rules" rule in docs/agents/work-records.md does that (owner decision on #202).
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

@@ -1,6 +1,6 @@
 // Keeps docs/install.md in step with what the install puts in place (#162):
 // every key the settings overlay sets, and every agent it installs, is named
-// in the how-to in backticks. AGENTS.md's "Keep the how-to in step" rule.
+// in the how-to in backticks. The "Keep the how-to in step" rule, in AGENTS.md and docs/agents/install.md.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

@@ -47,7 +47,7 @@ test('the source file names no skill either, in its open parts or outside them',
 });
 
 // #261 C1
-test('bad case: one skill name put back in move 3 is caught', () => {
+test('bad case: one skill name put back in the checkpoint move is caught', () => {
   const planted = MD.replace('such as a test.', 'such as a test (`tdd`).');
   assert.notEqual(planted, MD, 'the plant found nothing to replace');
   assert.deepEqual(namedSkills(withoutOpenMarks(planted)), ['tdd']);

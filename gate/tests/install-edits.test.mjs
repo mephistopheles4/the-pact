@@ -370,7 +370,7 @@ test('bad case: a stray full path after the named options refuses, and is never 
   assert.ok(!r.out.includes(stray), 'the stray word was printed');
 });
 
-// ------------------------------------------------------------ after the move-4 review (#94)
+// ------------------------------------------------------------ after the Test review (#94)
 
 // #262: the shipped example move installs, and lands in the rules file.
 test('the shipped example block that adds a move installs and passes seam A', t => {

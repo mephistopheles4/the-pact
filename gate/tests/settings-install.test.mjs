@@ -63,7 +63,7 @@ test('canary: the install never prints a live value, a live env name, a live per
   const repo = makeRepo(t);
   const h = home(t);
   writeLive(h, {
-    // A live env name is counted, never printed (#210, move 4): one name carries the canary too.
+    // A live env name is counted, never printed (#210, at Test): one name carries the canary too.
     env: { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: `${C}env`, OTHER: `${C}other`, [`${C}NAME`]: 'x' },
     permissions: { allow: [`Bash(echo ${C}allow)`, 'Bash(a *)'], deny: [`Bash(${C}deny)`], ask: [`Bash(${C}ask)`] },
     outputStyle: `${C}style`,

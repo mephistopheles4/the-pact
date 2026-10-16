@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const FLOOR = 24; // the current Node LTS (#153, D4 as amended at move 3)
+const FLOOR = 24; // the current Node LTS (#153, D4 as amended)
 const LIMIT_MS = 300000; // the runner's checks, until it prints CHECKS DONE (S5, control 3)
 const WIN = process.platform === 'win32';
 const FOLD = WIN || process.platform === 'darwin';

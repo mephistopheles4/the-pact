@@ -30,7 +30,7 @@ export function repeatedEntries(readme) {
   return entries.filter((f, i) => entries.indexOf(f) !== i);
 }
 
-// #211's move 4: a scripted insert left ADR 0049's line twice, and the gap
+// #211's Test review: a scripted insert left ADR 0049's line twice, and the gap
 // check above passed, since it asks only that each file is linked.
 for (const folder of ["docs/adr", "docs/log"]) {
   test(`${folder}/README.md lists each file as one entry`, () => {
