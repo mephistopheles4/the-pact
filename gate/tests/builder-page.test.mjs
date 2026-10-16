@@ -823,6 +823,23 @@ test('stub page: the poster row is off by default and says what it does; a share
   assert.match(P.ids.output.text, /"tools": \[\s*"poster"\s*\]/);
 });
 
+// The owner's request on #284: every checkbox's label text toggles it, so each box sits inside a label.
+test('stub page: every checkbox under Settings and in a shared file\'s Presets sits inside a label', async () => {
+  const P = bootPage();
+  const boxes = root => P.find(root, n => n.tag === 'input' && n.attrs.type === 'checkbox');
+  const labelled = root => P.find(root, n => n.tag === 'label').flatMap(l => boxes(l));
+  openSettings(P);
+  assert.ok(boxes(P.ids.settings).length >= 4, 'the commands and the tools');
+  assert.equal(labelled(P.ids.settings).length, boxes(P.ids.settings).length);
+  P.button(P.ids.actions, 'Presets').click();
+  const input = P.find(P.ids.presets, n => n.tag === 'input' && n.attrs['aria-label'] === 'Open a builder file')[0];
+  input.files = [{ name: 'shared.json', text: async () => JSON.stringify({ schema: 1, moves: L.PACT.parts.defaults.moves }) }];
+  input.listeners.change.forEach(f => f({}));
+  for (let i = 0; i < 10; i++) await new Promise(r => setTimeout(r, 0));
+  assert.ok(boxes(P.ids.presets).length >= 1, 'a part to take');
+  assert.equal(labelled(P.ids.presets).length, boxes(P.ids.presets).length);
+});
+
 // #280 C5: the download note's tools twin.
 test('stub page: the review step warns that a downloaded config.json holds no tools list either', () => {
   const P = bootPage();

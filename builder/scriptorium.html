@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/1MCkDVdgyLxwSKAjdzmRUpWQlisS2B3zItgSZCEgTk='; style-src 'sha256-COhUNSdkjBnGF0IMbHIpy6E7diL0HRaXASXDEOuH6IQ='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qo3oWlUdnk6eM1oeVdcsemkHQnBWvlX/YPU6cfw0rnc='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -126,6 +126,10 @@ body { background-color: var(--av-ground); color: var(--av-ink); }
 input[type="range"] { flex: 1 1 220px; accent-color: var(--av-ink); }
 input[type="checkbox"] { accent-color: var(--av-ink); }
 input[type="checkbox"]:not(:disabled), label:has(> input[type="checkbox"]:not(:disabled)) { cursor: pointer; }
+/* Every checkbox sits in a label that toggles it, at least 24px tall (WCAG 2.2 target size), and shows a ring when reached by keyboard. */
+label:has(> input[type="checkbox"]) { min-height: 24px; }
+.preset-take { display: inline-flex; align-items: center; }
+input[type="checkbox"]:focus-visible { outline: var(--av-rule-bold) solid var(--av-caution); outline-offset: 2px; box-shadow: none; }
 input[type="text"], select { font: inherit; font-size: var(--av-t-annot); color: var(--av-ink); background: var(--av-paper); border: var(--av-rule-hair) solid var(--av-ink-30); padding: 3px var(--av-s1); }
 input[type="text"] { min-width: 14em; flex: 1 1 14em; }
 .wf-field > input, .wf-field > select, .wf-field input[type="text"] { flex: none; min-width: 0; }
@@ -5801,7 +5805,8 @@ function boot() {
       const box = el('input', { type: 'checkbox', 'aria-label': `Take ${label}` });
       box.checked = picks.has(key);
       box.addEventListener('change', () => (box.checked ? picks.add(key) : picks.delete(key)));
-      return el('details', { class: 'acc preset-row' }, el('summary', {}, box, el('span', { text: label }), el('span', { class: 'av-annot preset-count', text: count })), el('div', { class: 'acc-body' }, ...body));
+      // The label takes its own clicks, so its text ticks the box without opening the row.
+      return el('details', { class: 'acc preset-row' }, el('summary', {}, el('label', { class: 'preset-take' }, box, el('span', { text: label })), el('span', { class: 'av-annot preset-count', text: count })), el('div', { class: 'acc-body' }, ...body));
     };
     const pactAgent = n => PACT.agents.find(a => a.name === n);
     // What an agent file would run with, shown on its row, outside the collapsed text: a shared file can carry any agent (#262, adversarial-lens F1).
