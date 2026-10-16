@@ -417,7 +417,11 @@ session can act before you see it.
   install no longer puts the pact's back. A foothold that rewrites a pact
   agent, a security lens included, so stays until the person reads that list
   and deletes the file. A pact tool is not an agent: a changed live tool is
-  drift, and `--apply` refuses, unless the record was rewritten too.
+  drift, and `--apply` refuses, unless the record was rewritten too. Nothing
+  checks the live poster before a session runs it, so a rewrite runs with
+  your `gh` login until the next dry run shows the drift. That is accepted as
+  this risk's residual (#284): whatever can rewrite the poster can also
+  rewrite the rules file and the install record beside it.
 - **R15. A repo's instruction files are instructions.** A cloned repo's
   `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. Since #261
   the pact holds no rule barring them from anything: `no-skill-overrides` and
