@@ -160,7 +160,7 @@ How to read it:
 | --- | --- | --- | --- |
 | R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `docs/agents/issue-tracker.md`, one link from the loaded `AGENTS.md`; elsewhere, judgment (#261) | Rule, judgment |
 | R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment | Rule, judgment |
-| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its scan and its Lens dispositions table check as a backstop behind that read, which stays for everyone (#280) | Rule |
+| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its scan as a backstop behind that read, which stays for everyone (#280) | Rule |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
 | R5 Refusal untested | Outside pull request | Here, this repo's tracker rule; elsewhere, judgment | Rule, judgment |
 | R6 Container built wrong | Outside pull request | Here, the five conditions in `docs/agents/issue-tracker.md` and your typed OK; elsewhere, judgment | Rule, then a boundary; judgment |
@@ -240,11 +240,12 @@ months.
   anchor-path check, kept full local paths, and the user name in them, out of
   posted anchors; it is now the lens files' rule and the read. Since #280,
   an install with the poster on (`docs/poster.md`) also scans each post for
-  secrets, personal details, local paths and session ids, and checks the
+  secrets, email addresses, local paths and session ids, and checks the
   shape of a Lens dispositions table, before anything is sent. Both are a
-  backstop that only some installs have: they catch accidents, cover fixed
-  shapes, and miss a secret with no known shape. The read before posting stays
-  the rule for everyone, with or without the poster.
+  backstop that only some installs have: they catch accidents and cover fixed
+  shapes, and they miss a secret with no known shape and every other personal
+  detail, such as names, phone numbers and postal addresses. The read before
+  posting stays the rule for everyone, with or without the poster.
 - **R4. Your GitHub account is the root of trust.** Anyone who controls it
   counts as you.
 

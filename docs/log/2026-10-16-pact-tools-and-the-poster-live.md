@@ -14,12 +14,12 @@ Every create surface posted and read back as sent from a scratch folder: an issu
 
 ## What was weighed
 
-- **The wrong shell's form runs on newer shells.** The spec expected a form typed in the other Windows shell to fail with Node's missing-module error. PowerShell 7.6 and Git Bash both expand the other shell's form to the home folder, so it runs the installed poster; only Windows PowerShell 5.1 keeps the tilde literal. The owner amended C10 (q9 A): safety rests on running the poster from the scratch folder, never the repo, so a planted file can't run either way.
+- **The wrong shell's form runs on newer shells.** The spec expected a form typed in the other Windows shell to fail with Node's missing-module error. PowerShell 7.6 and Git Bash both expand the other shell's form to the home folder, so it runs the installed poster; only Windows PowerShell 5.1 keeps the tilde literal. The owner amended C10, answering the build session's question 9 with option A by a message relayed through the head chef: safety rests on running the poster from the scratch folder, never the repo, so a planted file can't run either way. It amends one ticket's claim, not a lasting design, so it has no ADR of its own; the amendment is a comment on #280.
 - **Who turns the poster on.** The spec says sessions never write the home configuration. A relayed request to do so was held, and the owner gave the go in the build session's chat instead.
 
 ## Record
 
-The plans, reviews, decisions and proof are comments on #280 and #286:
+The plans, reviews, decisions and proof are comments on #280, #284, #285 and #286:
 
 - [The spec, revision 5](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205135610)
 - [The spec pair's review of revision 4](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205134752)
@@ -30,3 +30,5 @@ The plans, reviews, decisions and proof are comments on #280 and #286:
 - [The live proof's plan](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226412900)
 - [The install dry run](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226560275)
 - [The live proof, as run](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226627555)
+- T1's Test reviews on #284: [the QA pair](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215459335), [the standards pair](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215459725), [the security pair](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215460159), [unstated-lens](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215460544), [Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215461013) and [the open rows settled](https://github.com/mephistopheles4/the-pact/issues/284#issuecomment-6215562233)
+- T2's Test reviews on #285: [the QA pair](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225466935), [unstated-lens](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225467200), [the standards pair](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225467461), [the security pair](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225467769) and [behaviour-lens on the fix](https://github.com/mephistopheles4/the-pact/issues/285#issuecomment-6225694110)

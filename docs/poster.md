@@ -9,6 +9,14 @@ accidents, not a guard: the review procedure's read before posting still comes
 first, on every install, with or without the poster (threat model, R3, R13 and
 R29). It needs Node 24 or later and `gh`, signed in.
 
+Permission rules on `gh` commands don't see the poster's calls, because the
+poster starts `gh` itself; to gate posting, put a rule on the poster's own
+command. In auto mode, Claude Code's classifier does see the call, and may
+stop a post until the owner allows it.
+
+In this page, "a session" is the Claude Code session running the poster, and
+"the owner" is the person whose `gh` account it posts as.
+
 ## Running it
 
 Each shell gets its own command form, as the rules file gives them:
@@ -17,26 +25,35 @@ Each shell gets its own command form, as the rules file gives them:
   `node ~/.claude/pact/tools/poster.mjs <surface> [options]`
 - **PowerShell:** `node "$HOME/.claude/pact/tools/poster.mjs" <surface> [options]`
 
-Run it from a scratch folder outside the repo, never from the repo. A form
-typed in the other shell either runs the installed poster from the home
-folder, or fails with Node's missing-module error and posts nothing: Windows
-PowerShell 5.1 passes the `~` on as it is, while PowerShell 7.6 and Git Bash
-expand the other shell's form to the home folder. A file planted in a repo
-can't run either way, because the poster runs from the scratch folder, never
-from the repo.
+Run it from a scratch folder outside the repo: a new, empty folder the session
+made for its posts, never a repo, the temp folder's root or a folder other
+programs write to. A form typed in the other shell either runs the installed
+poster from the home folder, or fails with Node's missing-module error and
+posts nothing. Windows PowerShell 5.1, like PowerShell 7.4 and 7.5 without an experimental
+feature, passes the
+`~` on as it is, so the POSIX form looks under the scratch folder and finds
+nothing there; PowerShell 7.6 and Git Bash expand the other shell's form to
+the home folder. A file planted in a repo can't run either way, because the
+poster runs from the scratch folder, never from the repo. A repo you have
+trusted can still change the environment either form resolves through; that
+sits behind Claude Code's workspace trust, as a repo's hooks do (threat
+model, R14).
 
 Every piece of free text comes from a file, so no prose reaches a command
-line. Write the body and any title to files in the scratch folder. Delete
-each file once its post is verified, or once you drop it. Keep a file holding
-a lens report that the poster refused until the owner has answered, then
-delete it.
+line. Write the body and any title to files in the scratch folder. As the
+rules file says, delete a file once its post ends, whatever the result
+(verified, failed, unverified, mismatch or unavailable), or once you drop it.
+Keep a file holding a lens report that the poster refused until the owner has
+answered, then delete it. Before the session ends, delete every such file
+still there, whatever the owner's answer.
 
-**When a session dies, its files stay.** Nothing deletes a body file the
-session didn't. A lens report kept after a refusal for a secret or a personal
-detail is an ordinary, unencrypted file in that session's scratch folder, the
-folder the session ran the poster from and named to you in chat when it kept
-the report. If the session is killed before it cleans up, delete that file by
-hand.
+**When a session dies, its files stay.** Nothing deletes a file the session
+didn't. A lens report kept after a refusal for a secret, a personal detail, a
+local path, a session id or hidden characters is an ordinary, unencrypted file
+in that session's scratch folder, which the session named to the owner in chat
+when it kept the report. If the session is killed before it cleans up, delete
+that file by hand. The report may also stay in the session's saved
+transcript; for a secret, rotating it is the fix, as for posted text.
 
 ## Surfaces
 
@@ -62,17 +79,17 @@ node poster.mjs review-thread-reply --repo you/your-repo --body reply.md --pr 34
 ## Options
 
 Every surface takes `--repo` and `--body`, and may take `--as` and
-`--dry-run`. An option's value is checked against a pattern; only the title,
-each label and the body are scanned.
+`--dry-run`. An option's value is checked against a pattern. Of the options,
+only `--label`'s values are also scanned, with the title and the body.
 
 | Option | Value | Checked by |
 | --- | --- | --- |
 | `--repo` | `owner/name`; the owner must be the `gh` login, by name and by what GitHub returns for the repo | `input/repo`, `owner/repo`, `owner/github` |
 | `--body` | A file: a regular file, not a link, at most 256 KiB, valid UTF-8 with no byte-order mark, not empty; the body at most 65,536 characters | the `file/` rules, `text/body-length` |
 | `--as` | A login the `gh` login must equal; needed when `GH_TOKEN` or `GITHUB_TOKEN` is set | `input/login`, `as/differs`, `as/missing` |
-| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. Both scans run; `gh` doesn't, so the login and owner checks don't | none |
+| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. The content scan and the table check both run; `gh` doesn't, so the login and owner checks don't, and nor does the `--as` check: a dry run can pass where the real run is refused | none |
 | `--title-file` | A file read as `--body` is; one line, which may end with one line break, at most 256 characters | the `file/` rules, `text/title-lines`, `text/title-length` |
-| `--label` | A label name: letters, digits, spaces and `:._-`, at most 50 characters; once per label | `input/label` |
+| `--label` | A label name: letters, digits, spaces and `:._-`, at most 50 characters; once per label. A label the repo doesn't have is created by GitHub, and stays | `input/label` |
 | `--head` | A branch, or `owner:branch` with the repo's own owner | `input/branch`, `owner/head` |
 | `--base` | A branch | `input/branch` |
 | `--draft` | No value; opens the pull request as a draft | none |
@@ -89,11 +106,11 @@ the rule it trips named. The poster never retries.
 | --- | --- | --- | --- |
 | 0 | `RESULT: verified <surface> <url> as <login>` | What landed is what was sent | Deletes the body file |
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
-| 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field | Never posts again; tells the owner which field |
-| 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read | Never posts again; opens the URL, compares it, and tells the owner |
-| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose or table in place and posts again, as the rules file says |
-| 3 | `RESULT: failed` | The post call failed. The post may or may not have landed | Checks before any retry, as below |
-| 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Checks `gh auth status` and the network, and runs it once more; if it ends `unavailable` again, stops and tells the owner |
+| 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field | Never posts again; deletes the body file; tells the owner which field |
+| 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read | Never posts again; deletes the body file; opens the URL and tells the owner |
+| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose or table in place and posts again. A refused lens report stays local, unedited, and the owner is told where it is, in chat. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
+| 3 | `RESULT: failed` | The post call failed. The post may or may not have landed | Deletes the body file; checks whether it landed, as below; never posts again on its own |
+| 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
 
 A fault inside the poster ends as exit 4 before it sends, exit 3 while it
 sends, and exit 1 after. A label GitHub gives back in another capitalisation
@@ -101,19 +118,17 @@ is a `NOTE` line, not a mismatch.
 
 ### After exit 3: did it land?
 
-Before any retry, read the target's newest items by your own login, and
-compare the body with the file you sent:
+Read the target's newest items by your own login, and look for the post you
+meant to send:
 
 - **`issue`:** `gh issue list -R <owner/name> --author @me --state all --limit 5`
 - **`pull-request`:** `gh pr list -R <owner/name> --author @me --state all --limit 5`
-- **`issue-comment`:** `gh issue view <n> -R <owner/name> --comments`, its last comments
-- **`pull-request-review`:** `gh api repos/<owner/name>/pulls/<n>/reviews`, its last items
-- **`review-thread-reply`:** `gh api repos/<owner/name>/pulls/<n>/comments`, its last items
+- **`issue-comment`:** `gh issue view <n> -R <owner/name> --comments`, or `gh pr view <n> -R <owner/name> --comments` on a pull request's conversation; its last comments
+- **`pull-request-review`:** `gh api --paginate repos/<owner/name>/pulls/<n>/reviews`, its last items
+- **`review-thread-reply`:** `gh api --paginate repos/<owner/name>/pulls/<n>/comments`, its last items
 
-If the post is there, don't post again: treat it as unverified and give the
-owner its URL. If it isn't, run the poster once more; if it fails again, stop
-and tell the owner.
-
+If the post is there, don't post again: treat it as unverified, and give the
+owner its URL. If it isn't, tell the owner, and post again only on their word.
 ## Rule ids
 
 A `REFUSED` line names one of these. Every one ends the run with exit 2 and
@@ -139,7 +154,7 @@ nothing sent.
 | `as/differs` | `--as` isn't the `gh` login |
 | `file/unreadable` | The file can't be read |
 | `file/link` | The file is a link |
-| `file/not-regular` | The file isn't a regular file, or it changed while it was read |
+| `file/not-regular` | The file isn't a regular file, or it was replaced by another file while it was read |
 | `file/size` | The file is over 256 KiB |
 | `file/utf8` | The file isn't valid UTF-8 |
 | `file/bom` | The file starts with a byte-order mark |
@@ -166,7 +181,9 @@ nothing sent.
 The content scan reads the title, each label and the body three ways: as
 written, and as a reader would see it with its HTML comments dropped and with
 their contents kept. Seeing it as a reader means removing invisible characters,
-markdown escapes and inline tags, decoding entities, and applying NFKC.
+markdown escapes and inline tags, decoding entities, and applying NFKC. The
+lists of shapes and names below are kept by hand from the poster's source;
+no test holds them.
 
 - **`secret/token`:** a fixed list of shapes: GitHub's tokens, old and
   fine-grained; `sk-` keys; live Stripe keys; npm, GitLab and Google API keys;
@@ -194,7 +211,7 @@ markdown escapes and inline tags, decoding entities, and applying NFKC.
   joiners and selectors ordinary emoji use are let through.
 - **The table check (`table/`):** on the body only, after the content scan.
   It reads a table with a header cell reading `Disposition` under an earlier
-  line naming "Lens dispositions", outside any fence, folds included. A
+  line naming "Lens dispositions", outside any fence, folds (`<details>` blocks) included; the review procedure gives the table's template. A
   refusal on a line inside a lens report means the report's fence is too
   short: fix the fence, never the report (ADR 0076). Past 50 table refusals,
   the rest are counted, not listed. It is a backstop too.
@@ -205,7 +222,7 @@ markdown escapes and inline tags, decoding entities, and applying NFKC.
   user name in plain prose passes, since it is often the login in the owner's
   own links.
 - **A secret with no known shape** and no environment variable behind it.
-- **Option values,** which are checked against patterns, not scanned.
+- **Option values other than `--label`,** which are checked against patterns, not scanned.
 - **The rest of the table:** the reason text, an empty Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
   leading `|`, and any table inside a fence.
