@@ -14,7 +14,7 @@ Every create surface posted and read back as sent from a scratch folder: an issu
 
 ## What was weighed
 
-- **The wrong shell's form runs on newer shells.** The spec expected a form typed in the other Windows shell to fail with Node's missing-module error. PowerShell 7.6 and Git Bash both expand the other shell's form to the home folder, so it runs the installed poster; only Windows PowerShell 5.1 keeps the tilde literal. The owner amended C10, answering the build session's question 9 with option A by a message relayed through the head chef: safety rests on running the poster from the scratch folder, never the repo, so a planted file can't run either way. It amends one ticket's claim, not a lasting design, so it has no ADR of its own; the amendment is a comment on #280.
+- **The wrong shell's form runs on newer shells.** The spec expected a form typed in the other Windows shell to fail with Node's missing-module error. PowerShell 7.6 and Git Bash both expand the other shell's form to the home folder, so it runs the installed poster; only Windows PowerShell 5.1 keeps the tilde literal. The owner amended C10, answering the build session's question 9 with option A by a message relayed through the head chef, then confirmed in that session's chat: safety rests on running the poster from the scratch folder, never the repo, so a planted file can't run either way. It amends one ticket's claim, not a lasting design, so it has no ADR of its own; the amendment is a comment on #280.
 - **What a session elsewhere does after exit 1 or 3.** Only the rules file reaches other projects, and it says nothing about a post that may have landed, so a retry can duplicate one. The owner chose a new issue, a spec change (#294), over widening T3.
 - **Who turns the poster on.** The spec says sessions never write the home configuration. A relayed request to do so was held, and the owner gave the go in the build session's chat instead.
 
@@ -27,7 +27,7 @@ The plans, reviews, decisions and proof are comments on #280, #284, #285 and #28
 - [The security pair's review of revision 4](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205135009)
 - [Lens dispositions on revision 4](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205135302)
 - [Owner decision, from chat: proceed, and the ticket cut](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6205417857)
-- [C10 amended: the wrong-shell part](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6226401920)
+- [C10 amended: the wrong-shell part](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6226401920), and [the owner's confirmation, from chat](https://github.com/mephistopheles4/the-pact/issues/280#issuecomment-6227060692)
 - [The live proof's plan](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226412900)
 - [The install dry run](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226560275)
 - [The live proof, as run](https://github.com/mephistopheles4/the-pact/issues/286#issuecomment-6226627555)
