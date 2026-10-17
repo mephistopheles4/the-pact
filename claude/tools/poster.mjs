@@ -774,6 +774,9 @@ export function makeGh({ env, tmp, run }) {
 
 const ghArgs = (method, path, withInput) => ['api', '--hostname', 'github.com', '--method', method, path, ...(withInput ? ['--input', '-'] : [])];
 
+// The line breaks JSON leaves raw: next line, line separator, paragraph separator. Escaped, so gh's text can't frame a second line for a reader that splits on them.
+const LINE_BREAKS_RE = new RegExp(`[${cp(0x85)}${cp(0x2028)}${cp(0x2029)}]`, 'g');
+
 /**
  * gh's stderr as one line: its first line, JSON-escaped and capped. A line
  * that trips a scan rule, such as one naming a local config path, is withheld
@@ -782,7 +785,7 @@ const ghArgs = (method, path, withInput) => ['api', '--hostname', 'github.com', 
 export function saidLine(stderr, ctx) {
   const line = String(stderr ?? '').split(/\r?\n/)[0].slice(0, 300);
   const rules = [...new Set(scan([{ field: 'stderr', text: line }], { ...ctx, surface: null }).map(r => r.rule))];
-  return rules.length ? `gh said: (withheld: ${rules.join(', ')})` : `gh said: ${JSON.stringify(line)}`;
+  return rules.length ? `gh said: (withheld: ${rules.join(', ')})` : `gh said: ${JSON.stringify(line).replace(LINE_BREAKS_RE, c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)}`;
 }
 
 /** A JSON answer, or undefined; never an error message, which would quote the answer. */
