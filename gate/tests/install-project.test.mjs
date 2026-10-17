@@ -173,12 +173,14 @@ test('a project with a qualities list and costLimits installs both tables, and t
   const { homeDir, ch } = layout(t);
   const proj = join(homeDir, 'proj');
   mkdirSync(join(proj, '.claude'), { recursive: true });
-  writeFileSync(join(proj, '.claude', 'pact-config.json'), `${JSON.stringify({
+  const config = {
     schema: 1,
     qualities: [{ quality: 'Security', measure: 'ASVS 5.0 level 1', lenses: ['adversarial-lens'], enough: 'ASVS L1', enoughCosts: ['Hardening'] }],
     // Nine rows, the cap: the render and the installer's one-digit count both take the top of the range.
-    costLimits: [{ cost: 'Hardening', counted: 'Guards beyond the threat model', limit: '0', atLimit: 'Reported, never built unasked' }, { cost: 'Tests added' }, ...Array.from({ length: 7 }, (_, i) => ({ cost: `Cost ${i + 3}` }))],
-  })}\n`);
+    costLimits: [{ cost: 'Hardening', counted: 'Guards beyond the threat model', limit: '0', atLimit: 'Reported, never built unasked' }, { cost: 'Tests added' }, ...Array.from({ length: 7 }, (_, i) => ({ cost: 'Cost ' + (i + 3) }))],
+  };
+  // Not a template: the changed tier's string-literal scan (#151) loses its place after a multi-line one here, and stops tying this file to the agents.
+  writeFileSync(join(proj, '.claude', 'pact-config.json'), JSON.stringify(config) + '\n');
   const dry = projInstall(repo, ch, proj);
   assert.equal(dry.code, 0, dry.out);
   const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
