@@ -428,7 +428,8 @@ function checkProjectCostLimits(v, fail) {
       fail('project-cost-limits', `row ${i + 1}: a row holds a cost and may hold counted, limit and atLimit, each one line of text without a bar (all but the cost may be empty), and nothing else`);
       ok = false;
     } else if (seen.has(costKey(r.cost))) {
-      fail('project-cost-limits', `row ${i + 1}: two rows share the cost name ${JSON.stringify(r.cost.trim())}, ignoring case and surrounding space`);
+      // The reasons name rows and positions, never the project's own text: this renderer echoes no file content.
+      fail('project-cost-limits', `row ${i + 1}: its cost name repeats an earlier row's, ignoring case and surrounding space`);
       ok = false;
     } else {
       seen.add(costKey(r.cost));
@@ -448,9 +449,9 @@ function resolveEnoughCosts(qualities, costLimits, fail) {
   let ok = true;
   qualities.forEach((q, i) => {
     // A cost named twice in one cell (by case or space) shows once.
-    q.enoughCosts = [...new Set(q.enoughCosts.flatMap(n => {
+    q.enoughCosts = [...new Set(q.enoughCosts.flatMap((n, k) => {
       if (byKey.has(costKey(n))) return [byKey.get(costKey(n))];
-      fail('project-enough-cost', `qualities row ${i + 1}: enoughCosts names ${JSON.stringify(n.trim())}, which is not a cost in this project's costLimits`);
+      fail('project-enough-cost', `qualities row ${i + 1}: enoughCosts item ${k + 1} is not a cost in this project's costLimits`);
       ok = false;
       return [];
     }))];

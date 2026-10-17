@@ -658,8 +658,9 @@ safe, and a change made months ago is easy to forget.
   is the home part's own, so the one rule and the security bar win over any
   row there as at home. A field is the project's own one-line text, as its
   own rules file could already be; a bar in a Cost limits field is refused.
-  The file has no accepted-risks key: accepted risks live only in a threat
-  model, so a cloned repo can't mute a lens that way.
+  The configuration file has no accepted-risks key: accepted risks live only
+  in a threat model. A cloned repo's own committed threat model is another
+  matter, and this entry does not cover it.
 - **R32. A shared builder file can carry agent files.** A builder file
   someone hands you may hold whole agent files: one named like a pact agent
   replaces it, `scout`, which sessions call for every lookup, included, and
