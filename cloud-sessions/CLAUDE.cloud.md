@@ -59,8 +59,8 @@ and help with what it needs.
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
   propose a fresh session.
-- **Say a mismatch first.** If the tier, model or effort doesn't fit the
-  work, say so in the first line, before any work.
+- **Say a mismatch first.** If the tier or model doesn't fit the work,
+  say so in the first line, before any work.
 
 ## How much checking
 
