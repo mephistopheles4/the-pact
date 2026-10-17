@@ -12,6 +12,7 @@ import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
 import { git, install, makeRepo, refused, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
+import { skipUnlessLinuxCi } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -331,7 +332,8 @@ for (const [which, why] of [
       else rmSync(at);
       const r = spawnSync('mkfifo', [at]);
       if (r.status !== 0) {
-        t.skip('mkfifo is not available (not run)');
+        // #311: an image without mkfifo fails here on Linux CI rather than skip.
+        skipUnlessLinuxCi(t, 'mkfifo is not available (not run)');
         return false;
       }
     }, why);
