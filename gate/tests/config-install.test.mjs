@@ -380,7 +380,7 @@ test('the user file and its blocks folder are never deleted, whatever the record
   assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
   const mf = join(h, '.pact-install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
-  const planted = ['pact/config.json', 'PACT/Config.JSON', 'pact/config.json.', 'pact/blocks/a.md', 'Pact/Blocks/a.md', 'pact/blocks'];
+  const planted = ['pact/config.json', 'PACT/Config.JSON', 'pact/config.json.', 'pact/blocks/a.md', 'Pact/Blocks/a.md', 'pact/blocks', 'pact/presets/p.json', 'Pact/Presets/p.json', 'pact/presets'];
   for (const path of planted) m.files.push({ path, sha256: 'a'.repeat(64) });
   writeFileSync(mf, JSON.stringify(m));
   const dry = install(repo, h);

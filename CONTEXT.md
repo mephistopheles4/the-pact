@@ -25,8 +25,8 @@ spec (revision 9), built in #261.
 - **Business driver:** what decides a trade-off point (#278). The spec's own holds; else the one under a "Business drivers" heading in the project's agent instructions. There is no home level and no configuration key.
 - **Accepted risk:** a known path the owner chooses not to close, recorded so a lens reports it as one line marked accepted by the threat model, never as a defect. It lives only in the project's threat model, on the owner's word, never in a file the pact creates (#278). The pact's own are R1 to R32 in its threat model.
 - **Security-defaults line:** the dry run's first warning, naming each part an edit reaches that sets security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`, `cost-limits`), or a project's own qualities list and Cost limits.
-- **Preset:** a Scriptorium builder file shipped in `builder/presets/`, or shared, that the page loads after the person ticks what to take from it. It replaced the **setup**.
-- **Builder kit:** what `/scriptorium` runs from, installed under `~/.claude/pact/builder/`: the builder, the page, the presets, the pact's agents, the renderer, and the rules before any configuration as `claude/rules.source.md`.
+- **Preset:** a Scriptorium builder file shipped in `builder/presets/`, or shared, that the page loads after the person ticks what to take from it. A person's own presets live in `~/.claude/pact/presets/` and are listed apart, under "Your presets". It replaced the **setup**.
+- **Builder kit:** what `/scriptorium` runs from, installed under `~/.claude/pact/builder/`, and the only builder that reads the person's `pact/presets/` folder: the builder, the page, the presets, the pact's agents, the renderer, and the rules before any configuration as `claude/rules.source.md`.
 - **Yours (agent):** an agent file in `~/.claude/agents/` the pact didn't write, or changed since it wrote it. The install never overwrites, deletes or records it; the dry run lists it under "Yours, left as is" (ADR 0071).
 ## The review lenses
 

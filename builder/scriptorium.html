@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/pIh1p+7P7rwimkkW2xVXgJMLeGsRa8uAOGefMsqk1E='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-+MpF0qWWcYe3Ku9+xq/OBORyvADdpKcg475PcjKbj5w='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -2791,6 +2791,7 @@ const PACT = /* pact-data:begin */ {
    }
   }
  ],
+ "ownPresets": [],
  "title": "Example builder",
  "yours": {
   "skills": [],
@@ -3380,7 +3381,7 @@ function partsProblems(p) {
     for (const o of g.offers)
       for (const pair of rosterPairs(p)) {
         const has = pair.agents.filter(a => o.agents.includes(a)).length;
-        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.label} on its own; a pair's reports are crossed, so run both or neither` });
+        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.agents.join(' and ')} on its own; a pair's reports are crossed, so run both or neither` });
       }
   return out;
 }
@@ -3804,7 +3805,7 @@ function presetFromText(text, title = 'A shared file') {
   if (Object.hasOwn(doc, 'agentFiles')) {
     const f = doc.agentFiles;
     if (!f || typeof f !== 'object' || Array.isArray(f) || Object.keys(f).length > 32) return { refuse: 'agentFiles must map at most 32 agent names to their files' };
-    for (const [name, t] of Object.entries(f)) if (!PRESET_AGENT_RE.test(name) || typeof t !== 'string' || !t.trim() || t.length > 65536) return { refuse: `agentFiles: ${name.slice(0, 64)} is not an agent name with a file` };
+    for (const [i, [name, t]] of Object.entries(f).entries()) if (!PRESET_AGENT_RE.test(name) || typeof t !== 'string' || !t.trim() || t.length > 65536) return { refuse: `agentFiles entry ${i + 1} is not an agent name with a file` };
     preset.agentFiles = Object.fromEntries(Object.entries(f).filter(([name]) => !RETIRED_AGENTS.includes(name)));
     if (Object.keys(preset.agentFiles).length !== Object.keys(f).length) preset.droppedRetired = true;
     if (!Object.keys(preset.agentFiles).length) delete preset.agentFiles;
@@ -3816,6 +3817,23 @@ function presetFromText(text, title = 'A shared file') {
 /** What a preset offers to take, each ticked: ['part:<key>' | 'models' | 'agent:<name>']. */
 function presetPicks(preset) {
   return [...Object.keys(preset.parts).map(k => `part:${k}`), ...(preset.models ? ['models'] : []), ...Object.keys(preset.agentFiles || {}).map(n => `agent:${n}`)];
+}
+
+/**
+ * The picks the take view starts with. Only a shipped preset's agent rows start
+ * ticked: one from a shared file or a person's own folder may be a file someone
+ * handed them, and an agent file can replace scout or a security lens (R32).
+ */
+function startPicks(preset) {
+  const shipped = PACT.presets.includes(preset);
+  return presetPicks(preset).filter(k => shipped || !k.startsWith('agent:'));
+}
+
+/** The take view's sentence on why agent rows start unticked, or '' when they start ticked. */
+function takeNote(preset) {
+  if (PACT.presets.includes(preset)) return '';
+  if (PACT.ownPresets.includes(preset)) return ` This preset came from presets/${preset.id}.json in your presets folder, which may hold a file someone handed you, so its agent files start unticked: tick each one you mean to take.`;
+  return " A shared file's agent files start unticked: tick each one you mean to take.";
 }
 
 /** Take the ticked `picks` of `preset` into `state`, each replacing the person's own. Returns the agent names taken. */
@@ -5878,13 +5896,14 @@ function boot() {
         el('section', { class: 'av-tool-bar av-tool-bar--stack' },
           el('h3', { class: 'section-title', text: 'Presets' }),
           ...(PACT.presets.length ? PACT.presets.map(p => el('div', { class: 'chips' }, chip(p.title, false, () => openPresets(p), 'av-tool-chip--ghost'))) : [el('p', { class: 'av-annot', text: 'No presets ship with this page yet.' })]),
+          ...(PACT.ownPresets.length ? [el('h3', { class: 'section-title', text: 'Your presets' }), ...PACT.ownPresets.map(p => el('div', { class: 'chips' }, chip(p.title, false, () => openPresets(p), 'av-tool-chip--ghost')))] : []),
           el('h3', { class: 'section-title', text: 'A shared file' }),
           el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Open a builder file' }), file),
           ...(why ? [el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: why })] : []))));
       return showDialog('presets');
     }
-    // A shared file's agent files start unticked: one can replace scout or a security lens (#262, owner decision). A shipped preset's start ticked.
-    const picks = new Set(presetPicks(chosen).filter(k => chosen.id !== 'file' || !k.startsWith('agent:')));
+    // A shared file's or an own preset's agent files start unticked: one can replace scout or a security lens (#262, #283). A shipped preset's start ticked.
+    const picks = new Set(startPicks(chosen));
     // One accordion row per section the preset carries: a checkbox where a tier's number sits, its name and a count, and inside, what it holds.
     const lines = xs => el('ul', { class: 'runs' }, ...xs.map(x => el('li', { text: x.replaceAll('`', '') })));
     const all = { ...copyParts(state.parts), ...copyParts(chosen.parts) };
@@ -5929,7 +5948,7 @@ function boot() {
     };
     const kept = Object.keys(PRESET_PARTS).filter(k => !Object.hasOwn(chosen.parts, k)).map(k => PRESET_PARTS[k]);
     $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
-      head(`Take from ${chosen.title}. Each ticked section replaces yours; open one to see what it holds, and read its agent files before you save.${chosen.id === 'file' ? ' A shared file\'s agent files start unticked: tick each one you mean to take.' : ''}${chosen.droppedRetired ? ' Note: this file named an agent the pact retired, and the page took the name out. Check its lens offers, lens rows, qualities and agent files.' : ''}`),
+      head(`Take from ${chosen.title}. Each ticked section replaces yours; open one to see what it holds, and read its agent files before you save.${takeNote(chosen)}${chosen.droppedRetired ? ' Note: this file named an agent the pact retired, and the page took the name out. Check its lens offers, lens rows, qualities and agent files.' : ''}`),
       el('section', { class: 'av-tool-bar av-tool-bar--stack' },
         el('div', { class: 'accs' },
           ...Object.keys(chosen.parts).map(k => {

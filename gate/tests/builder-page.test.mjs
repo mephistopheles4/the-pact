@@ -11,7 +11,7 @@ import { basename, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
-import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, shippedPresets } from '../../builder/build.mjs';
+import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, personalPresets, personalPresetsDir, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
 import { BUILDER_KIT, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
@@ -539,7 +539,7 @@ test('a builder file\'s agent files load into the page, set a pact agent\'s mode
 // #262 addendum 4: the builder check refuses agent files it can't carry.
 test('bad builder file: agent files with a bad name, no text, or a web address are refused', t => {
   for (const [agentFiles, says] of [
-    [{ 'Bad Name': 'x' }, /agentFiles: "Bad Name" is not an agent name/],
+    [{ 'Bad Name': 'x' }, /agentFiles entry 1 is not an agent name/],
     [{ mine: '' }, /agentFiles mine: the file must be text/],
     [{ mine: ['x'] }, /agentFiles mine: the file must be text/],
     [{ mine: `see ${'https:/'}/x.example` }, /agentFiles mine: holds text the page's content policy refuses/],
@@ -729,10 +729,10 @@ test('the command line writes a page from a builder file, and refuses to write o
  * never boots; its data and functions handed back. Results are cloned into
  * this realm, so assertions compare them as plain values.
  */
-function pageLogic() {
-  const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
+function pageLogic(page = PAGE) {
+  const script = [...page.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset, startPicks, takeNote });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT), OPT_COMMANDS: clone(got.OPT_COMMANDS), OPT_TOOLS: clone(got.OPT_TOOLS) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -1224,7 +1224,7 @@ test('a shared file opens as a preset only when the page can use it, and says wh
   assert.match(L.presetFromText('{').refuse, /not valid JSON/);
   assert.match(L.presetFromText('{"schema": 1, "presets": []}').refuse, /keys a builder file doesn't: presets/);
   assert.match(L.presetFromText('{"schema": 1, "tiers": []}').refuse, /tiers: tiers must list 1 to 6 tiers/);
-  assert.match(L.presetFromText('{"schema": 1, "agentFiles": {"Bad": "x"}}').refuse, /agentFiles: Bad is not an agent name/);
+  assert.match(L.presetFromText('{"schema": 1, "agentFiles": {"Bad": "x"}}').refuse, /agentFiles entry 1 is not an agent name/);
   assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, models or agent files/);
   // Tiers without a workflow meet the pact's workflow: its offers take the tiers that exist.
   const r = L.presetFromText(JSON.stringify({ schema: 1, title: 'Two tiers', tiers: [{ id: 'light', name: 'Light', fits: 'Small', plan: 'none', build: 'Sonnet, medium' }, { id: 'full', name: 'Full', fits: 'The rest', plan: 'Opus, high', build: 'Sonnet, medium' }] }));
@@ -1316,4 +1316,142 @@ test('taking a preset replaces only the ticked parts and agent files, and the wo
   assert.deepEqual([got.parts.tiers.map(t => t.id), got.parts.moves[0].lead, Object.keys(got.own), got.agents.scout.model], [['light', 'full'], 'Sense the work', ['scout'], 'opus']);
   assert.equal(got.parts.sensitive.tier, 'full');
   assert.deepEqual(got.parts.workflowGraph.stages.find(x => x.id === 'design').skipAt, []);
+});
+
+// ------------------------------------------------------------ #283: a person's own presets
+
+/** The installed kit laid out in a fresh Claude home; `cli` runs its build.mjs. */
+function kitHome(t) {
+  const home = join(tempDir(t, 'pact-own-'), 'claude-home');
+  const kit = join(home, 'pact', 'builder');
+  for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
+  cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  delete env.CLAUDE_CONFIG_DIR;
+  const cli = args => spawnSync(process.execPath, [join(kit, 'builder', 'build.mjs'), ...args], { encoding: 'utf8', env, cwd: dirname(home) });
+  return { home, kit, presets: join(home, 'pact', 'presets'), cli };
+}
+
+const ONE_TIER = [{ id: 'only', name: 'Only', fits: 'All work', plan: 'none', build: 'Sonnet, medium' }];
+const findingLines = out => out.split('\n').filter(l => l.startsWith('FINDING presets')).map(l => l.replace(/\r$/, ''));
+
+/** Run the kit's page on `f` and read the page it wrote. */
+function ownPage(t, k, f) {
+  const r = k.cli(['--builder', f]);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const wrote = /^WROTE (.+)$/m.exec(r.stdout)[1];
+  t.after(() => rmSync(dirname(wrote), { recursive: true, force: true }));
+  return { r, text: readFileSync(wrote, 'utf8') };
+}
+
+test('C1: the kit lists a person\'s good preset under ownPresets, with only what it gives, and prints no finding', t => {
+  const k = kitHome(t);
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  const none = ownPage(t, k, f);
+  assert.deepEqual(pageLogic(none.text).PACT.ownPresets, []);
+  mkdirSync(k.presets, { recursive: true });
+  writeFileSync(join(k.presets, 'mine.json'), JSON.stringify({ schema: 1, title: 'Mine', tiers: ONE_TIER, models: ['Opus'], agentFiles: { mine: '---\nname: mine\n---\n' } }));
+  const { r, text } = ownPage(t, k, f);
+  assert.deepEqual(findingLines(r.stdout), []);
+  const P = pageLogic(text).PACT;
+  assert.equal(P.ownPresets.length, 1);
+  const [p] = P.ownPresets;
+  assert.deepEqual([p.id, p.title, Object.keys(p.parts), p.models, Object.keys(p.agentFiles)], ['mine', 'Mine', ['tiers'], ['Opus'], ['mine']]);
+  assert.deepEqual(P.presets, pageLogic(none.text).PACT.presets, 'presets holds the shipped ones only');
+  assert.deepEqual(P.presets, shippedPresets(REPO, pactData(REPO)));
+});
+
+test('C2: a bad personal preset is left out with a finding on every run, no message quotes a file, and 16 are read at most', t => {
+  const k = kitHome(t);
+  mkdirSync(k.presets, { recursive: true });
+  const put = (name, doc) => writeFileSync(join(k.presets, name), typeof doc === 'string' ? doc : JSON.stringify(doc));
+  put('a-bad-tiers.json', { schema: 1, tiers: [] });
+  put('a b.json', { schema: 1, models: ['Opus'] });
+  put('notes.txt', 'ignored');
+  put('a-empty.json', { schema: 1 });
+  put('a-badkey.json', { schema: 1, agentFiles: { 'zebra quokka': 'x' } });
+  const pair = copyParts(DEFAULT_PARTS);
+  pair.lenses.find(r => r.agents.join() === 'behaviour-lens,integrity-lens').label = 'walrus mango';
+  pair.workflowGraph.offers.find(o => o.id === 'test-qa-pair').agents = ['behaviour-lens'];
+  put('a-pair.json', { schema: 1, lenses: pair.lenses, workflowGraph: pair.workflowGraph });
+  put('a-proto.json', '{"schema":1,"models":["Opus"],"yours":{"skills":[{"name":"a","__proto__":{"x":1}}]}}');
+  for (let i = 1; i <= 20; i++) put(`g${String(i).padStart(2, '0')}.json`, { schema: 1, models: [`m${i}`] });
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  const check = k.cli(['--builder', f, '--check']);
+  assert.equal(check.status, 0, check.stdout);
+  const { r, text } = ownPage(t, k, f);
+  const lines = findingLines(r.stdout);
+  assert.deepEqual(findingLines(check.stdout), lines, 'the check and the page run print the same findings');
+  const has = re => lines.filter(l => re.test(l));
+  assert.equal(has(/presets\/a-bad-tiers\.json: left out: .*1 to 6 tiers/).length, 1);
+  assert.equal(has(/^FINDING presets: a file in your presets folder has a name the page can't carry; it is left out$/).length, 1);
+  assert.equal(has(/presets\/a-empty\.json: left out: it gives no part, models or agent files$/).length, 1);
+  assert.equal(has(/presets\/a-badkey\.json: left out: agentFiles entry 1 is not an agent name/).length, 1);
+  assert.equal(has(/presets\/a-proto\.json: left out: .*__proto__/).length, 1);
+  assert.equal(has(/presets\/a-pair\.json: workflow: offer test-qa-pair: half of behaviour-lens and integrity-lens on its own/).length, 1);
+  assert.equal(has(/^FINDING presets: 9 more files in your presets folder are past the limit of 16 and are left out$/).length, 1);
+  assert.equal(lines.length, 7, lines.join('\n'));
+  for (const bad of ['zebra', 'quokka', 'walrus', 'mango', 'a b']) assert.ok(!r.stdout.includes(bad) && !check.stdout.includes(bad), bad);
+  const ids = pageLogic(text).PACT.ownPresets.map(p => p.id);
+  assert.deepEqual(ids, ['a-pair', ...Array.from({ length: 11 }, (_, i) => `g${String(i + 1).padStart(2, '0')}`)]);
+});
+
+test('C7: a presets folder that is a file stops nothing: one finding, no presets', t => {
+  const k = kitHome(t);
+  mkdirSync(join(k.home, 'pact'), { recursive: true });
+  writeFileSync(k.presets, 'not a folder');
+  const f = builderFile(t, GOOD, GOOD_BLOCKS);
+  const one = ['FINDING presets: your presets folder could not be read; no presets were listed'];
+  const check = k.cli(['--builder', f, '--check']);
+  assert.equal(check.status, 0, check.stdout);
+  assert.deepEqual(findingLines(check.stdout), one);
+  const { r, text } = ownPage(t, k, f);
+  assert.deepEqual(findingLines(r.stdout), one);
+  assert.deepEqual(pageLogic(text).PACT.ownPresets, []);
+});
+
+test('C3: a personal level-3-full lands nowhere and shadows nothing', t => {
+  const k = kitHome(t);
+  mkdirSync(k.presets, { recursive: true });
+  writeFileSync(join(k.presets, 'level-3-full.json'), JSON.stringify({ schema: 1, title: 'Fake', tiers: ONE_TIER }));
+  const { text } = ownPage(t, k, builderFile(t, GOOD, GOOD_BLOCKS));
+  const Lp = pageLogic(text);
+  const shipped = shippedPresets(REPO, pactData(REPO)).find(p => p.id === 'level-3-full');
+  assert.deepEqual(Lp.PACT.presets.find(p => p.id === 'level-3-full'), shipped);
+  assert.equal(Lp.PACT.ownPresets.length, 1);
+  assert.deepEqual(Lp.startState().parts.tiers, shipped.parts.tiers);
+});
+
+/** Run `expr` inside the page's script, so identity of its data holds. */
+function inPage(page, expr) {
+  const script = [...page.matchAll(SCRIPT_RE)][0][2];
+  return JSON.parse(JSON.stringify(vm.runInContext(`${script}\n;(${expr})`, vm.createContext({}))));
+}
+
+test('C4: only a shipped preset\'s agent rows start ticked; the head says why for the others', () => {
+  const agent = JSON.stringify({ 'a-lens': '---\nname: a-lens\n---\n' });
+  const got = inPage(PAGE, `(() => {
+    PACT.presets[0].agentFiles = ${agent};
+    PACT.ownPresets.push({ id: 'mine', title: 'Mine', parts: { tiers: PACT.presets[0].parts.tiers }, agentFiles: ${agent} });
+    const shared = presetFromText(${JSON.stringify(JSON.stringify({ schema: 1, tiers: ONE_TIER, agentFiles: JSON.parse(agent) }))}).preset;
+    return { shipped: startPicks(PACT.presets[0]), own: startPicks(PACT.ownPresets[0]), shared: startPicks(shared), ownNote: takeNote(PACT.ownPresets[0]), sharedNote: takeNote(shared), shippedNote: takeNote(PACT.presets[0]) };
+  })()`);
+  assert.ok(got.shipped.includes('agent:a-lens'));
+  assert.ok(!got.own.some(k => k.startsWith('agent:')) && got.own.includes('part:tiers'));
+  assert.ok(!got.shared.some(k => k.startsWith('agent:')) && got.shared.includes('part:tiers'));
+  assert.match(got.ownNote, /presets\/mine\.json in your presets folder/);
+  assert.match(got.sharedNote, /A shared file's agent files start unticked/);
+  assert.equal(got.shippedNote, '');
+});
+
+test('C5: a clone reads no presets folder, and the committed page carries an empty ownPresets', () => {
+  assert.equal(personalPresetsDir(REPO), null);
+  assert.deepEqual(personalPresets(REPO, pactData(REPO)), { presets: [], findings: [] });
+  assert.deepEqual(L.PACT.ownPresets, []);
+});
+
+test('a builder file over 1 MiB is refused before it is read', t => {
+  const big = builderFile(t, `{"schema":1,"title":"${'x'.repeat(1024 * 1024)}"}`);
+  assert.match(checkBuilder(REPO, big).refusals.join(), /larger than 1 MiB/);
 });

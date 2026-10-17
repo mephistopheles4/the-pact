@@ -608,7 +608,7 @@ export function partsProblems(p) {
     for (const o of g.offers)
       for (const pair of rosterPairs(p)) {
         const has = pair.agents.filter(a => o.agents.includes(a)).length;
-        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.label} on its own; a pair's reports are crossed, so run both or neither` });
+        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.agents.join(' and ')} on its own; a pair's reports are crossed, so run both or neither` });
       }
   return out;
 }

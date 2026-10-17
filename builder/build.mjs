@@ -239,12 +239,20 @@ const AGENT_FILES_MAX = 32;
 const AGENT_FILE_MAX = 65536;
 const PART_KEYS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflowGraph', 'lenses', 'qualities', 'costLimits']);
 
+/** Whether `v` holds a __proto__ key as its own, at any depth. */
+function holdsProtoKey(v) {
+  if (Array.isArray(v)) return v.some(holdsProtoKey);
+  if (!isObject(v)) return false;
+  return Object.keys(v).some(k => k === '__proto__' || holdsProtoKey(v[k]));
+}
+
 const isObject = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysOnly = (o, allowed) => Object.keys(o).every(k => allowed.includes(k));
 
 /**
  * Read and check a builder file against the pact data `pact`. Returns
- * { builder, refusals, findings }: `builder` is the page's half of the data
+ * { builder, refusals, findings, givenParts }: `givenParts` is the part keys
+ * the file holds, beside `builder`, never inside it; `builder` is the page's half of the data
  * when there are no refusals, else null. Messages name ids and fields, never
  * text taken from the file beyond an id that passed its pattern.
  */
@@ -256,6 +264,7 @@ export function loadBuilder(file, pact) {
   try {
     const st = lstatSync(file);
     if (!st.isFile()) return { builder: null, refusals: ['the builder file is not a regular file'], findings };
+    if (st.size > BUILDER_MAX) return { builder: null, refusals: ['the builder file is larger than 1 MiB'], findings };
     buf = readFileSync(file);
   } catch {
     return { builder: null, refusals: ['the builder file could not be read'], findings };
@@ -271,6 +280,9 @@ export function loadBuilder(file, pact) {
     return { builder: null, refusals: [`the builder file is not strict JSON: ${e.reason}`], findings };
   }
   if (!isObject(doc)) return { builder: null, refusals: ['the builder file is not a JSON object'], findings };
+  // The page binds its data as an object literal, where a __proto__ key would set an object's prototype.
+  if (holdsProtoKey(doc)) return { builder: null, refusals: ['the builder file holds a __proto__ key, which the page cannot carry'], findings };
+  const givenParts = PART_KEYS.filter(k => Object.hasOwn(doc, k));
   if (Object.hasOwn(doc, 'presets') || Object.hasOwn(doc, 'workflows')) refuse('presets and workflows left the builder (#262): bind a skill to a stage as a skill node in workflowGraph instead');
   else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models', 'agentFiles'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')}, models or agentFiles; the pact's own text is never part of a builder file`);
   if (doc.schema !== 1) refuse('schema must be 1');
@@ -322,8 +334,8 @@ export function loadBuilder(file, pact) {
   if (agentFiles !== null) {
     if (!isObject(agentFiles) || Object.keys(agentFiles).length > AGENT_FILES_MAX) refuse(`agentFiles must map at most ${AGENT_FILES_MAX} agent names to their files`);
     else
-      for (const [name, text] of Object.entries(agentFiles)) {
-        if (!AGENT_NAME_RE.test(name)) refuse(`agentFiles: ${JSON.stringify(name.slice(0, 64))} is not an agent name of lowercase letters, digits and hyphens`);
+      for (const [i, [name, text]] of Object.entries(agentFiles).entries()) {
+        if (!AGENT_NAME_RE.test(name)) refuse(`agentFiles entry ${i + 1} is not an agent name of lowercase letters, digits and hyphens`);
         else if (typeof text !== 'string' || !text.trim() || text.length > AGENT_FILE_MAX) refuse(`agentFiles ${name}: the file must be text of 1 to ${AGENT_FILE_MAX} characters`);
       }
   }
@@ -349,8 +361,8 @@ export function loadBuilder(file, pact) {
   const listed = yours.skills.length + yours.commands.length + yours.agents.length;
   if (!listed) findings.push('yours lists no skills, commands or agents; the page\'s "Yours" section will say so');
 
-  if (refusals.length) return { builder: null, refusals, findings };
-  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}), ...(droppedRetired ? { droppedRetired: true } : {}) }, refusals, findings };
+  if (refusals.length) return { builder: null, refusals, findings, givenParts };
+  return { givenParts, builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}), ...(droppedRetired ? { droppedRetired: true } : {}) }, refusals, findings };
 }
 
 /**
@@ -449,23 +461,74 @@ export function shippedPresets(root, pact, dir = join(root, PRESETS_REL)) {
   }
   return names.map(name => {
     const file = join(dir, name);
-    const { builder, refusals } = loadBuilder(file, pact);
+    const { builder, refusals, givenParts } = loadBuilder(file, pact);
     if (!builder) fail(`the preset ${name} is refused: ${refusals.join('; ')}`);
-    const doc = JSON.parse(readFileSync(file, 'utf8'));
-    const parts = Object.fromEntries(PART_KEYS.filter(k => Object.hasOwn(doc, k)).map(k => [k, builder.ownParts[k]]));
+    const parts = Object.fromEntries(givenParts.map(k => [k, builder.ownParts[k]]));
     return { id: name.slice(0, -'.json'.length), title: builder.title || name, parts, ...(builder.ownModels ? { models: builder.ownModels } : {}), ...(builder.ownAgentFiles ? { agentFiles: builder.ownAgentFiles } : {}) };
   });
 }
 
+// A person's own presets (#283): one fixed folder beside the kit, read only by the installed kit.
+export const OWN_PRESETS_MAX = 16;
+const OWN_PRESET_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}\.json$/;
+const YOURS_NONE = 'yours lists no skills, commands or agents; the page\'s "Yours" section will say so';
+
+/** `<Claude home>/pact/presets` when `root` is the installed kit, else null: a clone reads no personal folder. */
+export function personalPresetsDir(root) {
+  return isKit(root) ? join(root, '..', 'presets') : null;
+}
+
+/**
+ * A person's own presets: { presets, findings }. Each *.json in the folder is
+ * checked as a builder file is, and carried with only its parts, models and
+ * agent files; one that fails is left out with a finding. Never throws, and no
+ * finding quotes text from inside a file; a checked file name is the one piece
+ * of file-chosen text a finding carries.
+ */
+export function personalPresets(root, pact, dir = personalPresetsDir(root)) {
+  const presets = [];
+  const findings = [];
+  if (dir === null) return { presets, findings };
+  let names;
+  try {
+    names = readdirSync(dir).filter(n => n.endsWith('.json')).sort();
+  } catch (e) {
+    if (e.code !== 'ENOENT') findings.push('presets: your presets folder could not be read; no presets were listed');
+    return { presets, findings };
+  }
+  const fit = names.filter(n => OWN_PRESET_NAME_RE.test(n));
+  if (fit.length !== names.length) findings.push("presets: a file in your presets folder has a name the page can't carry; it is left out");
+  for (const name of fit.slice(0, OWN_PRESETS_MAX)) {
+    const at = `presets/${name}`;
+    const r = loadBuilder(join(dir, name), pact);
+    if (r.builder) r.refusals.push(...partsThroughRenderer(root, r.builder.ownParts));
+    if (r.refusals.length) {
+      findings.push(`${at}: left out: ${r.refusals.join('; ')}`);
+      continue;
+    }
+    const b = r.builder;
+    if (!r.givenParts.length && !b.ownModels && !b.ownAgentFiles) {
+      findings.push(`${at}: left out: it gives no part, models or agent files`);
+      continue;
+    }
+    for (const f of r.findings) if (f !== YOURS_NONE) findings.push(`${at}: ${f}`);
+    const id = name.slice(0, -'.json'.length);
+    presets.push({ id, title: b.title || id, parts: Object.fromEntries(r.givenParts.map(k => [k, b.ownParts[k]])), ...(b.ownModels ? { models: b.ownModels } : {}), ...(b.ownAgentFiles ? { agentFiles: b.ownAgentFiles } : {}), ...(b.droppedRetired ? { droppedRetired: true } : {}) });
+  }
+  const past = fit.length - OWN_PRESETS_MAX;
+  if (past > 0) findings.push(`presets: ${past} more file${past === 1 ? '' : 's'} in your presets folder ${past === 1 ? 'is' : 'are'} past the limit of ${OWN_PRESETS_MAX} and ${past === 1 ? 'is' : 'are'} left out`);
+  return { presets, findings };
+}
+
 /** The page `html` with its data object rebuilt from the pact and the builder file, and its policy hashes recomputed. */
-export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_REL)) {
+export function buildPage(root, html, builderFile = join(root, EXAMPLE_BUILDER_REL), ownPresets = []) {
   if (!DATA_RE.test(html)) fail('the page has no pact-data marks');
   const pact = pactData(root);
   const { builder, refusals } = loadBuilder(builderFile, pact);
   if (!builder) fail(`the builder file is refused: ${refusals.join('; ')}`);
   const presets = shippedPresets(root, pact);
   // JSON inside a script: "<" is escaped, so no text can close the script or open a comment.
-  const json = JSON.stringify({ ...pact, presets, ...builder }, null, 1).replaceAll('<', ESC_LT);
+  const json = JSON.stringify({ ...pact, presets, ownPresets, ...builder }, null, 1).replaceAll('<', ESC_LT);
   let out = html.replace(DATA_RE, () => `/* pact-data:begin */ ${json} /* pact-data:end */`);
   if (!PARTS_CODE_RE.test(out)) fail('the page has no parts-code marks');
   out = out.replace(PARTS_CODE_RE, () => `/* parts-code:begin */\n${partsCode()}/* parts-code:end */`);
@@ -584,6 +647,9 @@ function main(argv) {
   // With no --out, the page goes in a new folder under the system's temporary folder (#203, S6).
   if (!opts.check && !opts.out && !opts.texts) opts.out = join(mkdtempSync(join(tmpdir(), 'scriptorium-')), 'scriptorium.html');
   const r = checkBuilder(root, opts.builder);
+  // A person's own presets are read once per run, and never by --texts (#283).
+  const own = r.builder && !opts.texts ? personalPresets(root, r.pact) : { presets: [], findings: [] };
+  r.findings.push(...own.findings);
   printCheck('builder file', r);
   if (!r.builder) {
     process.exitCode = 1;
@@ -603,9 +669,9 @@ function main(argv) {
     process.exitCode = 1;
     return;
   }
-  writeFileSync(resolve(opts.out), buildPage(root, readFileSync(page, 'utf8'), opts.builder), { flag: 'wx' });
+  writeFileSync(resolve(opts.out), buildPage(root, readFileSync(page, 'utf8'), opts.builder, own.presets), { flag: 'wx' });
   process.stdout.write(`WROTE ${resolve(opts.out)}\n`);
-  process.stdout.write('NOTE the page holds your lists and any agent files in plain text: delete its folder once you are done with it\n');
+  process.stdout.write('NOTE the page holds your lists, every preset from your presets folder and any agent files in plain text: delete its folder once you are done with it\n');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main(process.argv.slice(2));
