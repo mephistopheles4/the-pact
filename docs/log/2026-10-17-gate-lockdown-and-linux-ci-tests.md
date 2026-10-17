@@ -4,7 +4,7 @@
 
 ## What was built
 
-- **The lockdown test (#310).** `lockdownProblems` refuses an `if:` or a `continue-on-error` anywhere in the gate workflow, the job and its steps included, with a bad case for each key on the job and on a step, quoted keys and flow mappings included.
+- **The lockdown test (#310).** `lockdownProblems` refuses an `if:` or a `continue-on-error` anywhere in the gate workflow, the job and its steps included, with a bad case for each key on the job and on a step, and for an `if` under a quoted key or in a flow mapping.
 - **The Linux-only install tests (#311).** A new test helper, `skipUnlessLinuxCi`, with a test of its own, skips as before off CI but fails the test on Linux when `CI` is set. The root-account and `mkfifo` skips use it; the Windows skips can't fire on Linux and stay as they were.
 - **Two tests now assert their titles (#311).** The signal test asserts the runner was staged before the signal; the mode test runs `--apply` on a 0664 settings file, asserts the file was merged, and asserts the mode is kept.
 

@@ -333,9 +333,11 @@ for (const [label, plant, says] of [
   ['drops the pull_request trigger', s => s.replace('  pull_request:\n', ''), 'does not run on every pull request and every push to main'],
   // #310 C1, C2: each key planted on the job and on the gate-suite step.
   ['skips the gate job on a condition', s => s.replace('    timeout-minutes: 30\n', "    timeout-minutes: 30\n    if: github.actor != 'x'\n"), 'lets the gate job or a step be skipped'],
-  ['carries on after the gate suite fails', s => s.replace('      - name: Gate suite, full tier\n', '      - name: Gate suite, full tier\n        continue-on-error: true\n'), 'lets the gate carry on after an error'],
+  ['carries on after the gate suite fails', s => s.replace('      - name: Gate suite, full tier\n', '      - continue-on-error: true\n        name: Gate suite, full tier\n'), 'lets the gate carry on after an error'],
   ['skips the gate-suite step on a condition', s => s.replace('      - name: Gate suite, full tier\n', '      - if: false\n        name: Gate suite, full tier\n'), 'lets the gate job or a step be skipped'],
   ['skips the gate job under a quoted key', s => s.replace('    timeout-minutes: 30\n', "    timeout-minutes: 30\n    'if': github.actor != 'x'\n"), 'lets the gate job or a step be skipped'],
+  ['skips the gate job under a double-quoted key', s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    "if": false\n'), 'lets the gate job or a step be skipped'],
+  ['skips a step written as a flow mapping', s => s.replace('      - name: Gate suite, full tier\n', '      - { if: false, name: x, run: x }\n      - name: Gate suite, full tier\n'), 'lets the gate job or a step be skipped'],
   ['carries on after the gate job fails', s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    continue-on-error: true\n'), 'lets the gate carry on after an error'],
   ['drops the push trigger', s => s.replace('  push:\n    branches: [main]\n', ''), 'does not run on every pull request and every push to main'],
 ]) {
@@ -491,4 +493,17 @@ test('skipUnlessLinuxCi fails on Linux under CI and skips elsewhere', () => {
   skipUnlessLinuxCi(t, 'a', { platform: 'linux', ci: '' });
   skipUnlessLinuxCi(t, 'b', { platform: 'win32', ci: 'true' });
   assert.deepEqual(skips, ['a', 'b']);
+  // The call sites use the defaults: the platform and CI of this process.
+  const saved = process.env.CI;
+  try {
+    process.env.CI = 'true';
+    assert.throws(() => skipUnlessLinuxCi(t, 'c', { platform: 'linux' }), /Linux CI must run this case/);
+    const onLinux = process.platform === 'linux';
+    let threw = false;
+    try { skipUnlessLinuxCi(t, 'd', { ci: 'true' }); } catch { threw = true; }
+    assert.equal(threw, onLinux);
+  } finally {
+    if (saved === undefined) delete process.env.CI;
+    else process.env.CI = saved;
+  }
 });
