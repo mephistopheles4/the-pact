@@ -12,6 +12,16 @@ import { tempDir } from './tree.mjs';
 
 export const WIN = process.platform === 'win32';
 
+/**
+ * Skip a test whose environment is wrong, except on Linux under CI (#311): the
+ * gate job is where the Linux-only cases run, and a skip counts as a pass, so
+ * there the wrong environment fails the test instead.
+ */
+export function skipUnlessLinuxCi(t, reason) {
+  if (process.platform === 'linux' && process.env.CI) assert.fail(`Linux CI must run this case, but: ${reason}`);
+  t.skip(reason);
+}
+
 function which(cmd) {
   const r = spawnSync(WIN ? 'where.exe' : 'which', [cmd], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`${cmd} not found on PATH`);

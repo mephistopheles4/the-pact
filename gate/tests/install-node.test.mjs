@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitAll, git, home, install, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
+import { commitAll, git, home, install, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, skipUnlessLinuxCi, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 import { withoutOpenMarks } from './text.mjs';
 
@@ -185,7 +185,10 @@ test('node: a signal stops the runner and removes the work folder', async t => {
   const repo = makeRepo(t, root => edit(root, 'gate/install-run.mjs', 'async function main() {', 'async function main() {\n  setInterval(() => {}, 1000);\n  await new Promise(() => {});'));
   const tmp = tempDir(t, 'pact-tmp-');
   const p = spawnNodeInstallAsync([join(repo, 'gate', 'install.mjs'), '--claude-home', home(t)], { cwd: repo, env: nodeEnv({ TEMP: tmp, TMP: tmp, TMPDIR: tmp }) });
-  for (let i = 0; i < 200 && !workFolders(tmp).some(n => existsSync(join(tmp, n, 'stage', 'gate', 'install-run.mjs'))); i++) await new Promise(r => setTimeout(r, 50));
+  const staged = () => workFolders(tmp).some(n => existsSync(join(tmp, n, 'stage', 'gate', 'install-run.mjs')));
+  for (let i = 0; i < 200 && !staged(); i++) await new Promise(r => setTimeout(r, 50));
+  // #311: the runner was staged, so the signal reaches a live install, not one that already stopped.
+  assert.ok(staged(), 'the install staged its runner before the signal');
   await new Promise(r => setTimeout(r, 300));
   const exited = new Promise(r => p.on('exit', r));
   p.kill('SIGTERM');
@@ -310,7 +313,9 @@ test('node: a link inside the configuration blocks folder refuses before the ren
 });
 
 test('node: a configuration blocks folder that cannot be read refuses', t => {
-  if (WIN || process.getuid?.() === 0) return t.skip('a folder this account cannot read can only be made on Unix, as a user other than root');
+  if (WIN) return t.skip('a folder this account cannot read can only be made on Unix');
+  // #311: a root account on Linux CI fails here rather than skip.
+  if (process.getuid?.() === 0) return skipUnlessLinuxCi(t, 'a folder this account cannot read can only be made as a user other than root');
   const repo = makeRepo(t);
   const h = home(t);
   const locked = join(h, 'pact', 'blocks', 'locked');
@@ -380,6 +385,9 @@ test('node: a settings file other accounts can read draws a warning, and --apply
   const r = install(repo, h);
   passed(r);
   assert.match(r.stdout, /^WARN: settings\.json can be read by other accounts on this machine; .*\(chmod 600\)\.$/m);
+  // #311: --apply rewrites the settings file and keeps the mode it found.
+  passed(install(repo, h, { apply: true }));
+  assert.equal(statSync(sf).mode & 0o777, 0o644);
   chmodSync(sf, 0o600);
   const again = install(repo, h);
   passed(again);

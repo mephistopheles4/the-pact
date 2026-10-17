@@ -49,6 +49,9 @@ function lockdownProblems(src) {
   if (!/node-version: '24'/.test(code)) out.push('runs another Node than the floor');
   if (!/env -u NODE_OPTIONS node gate\/install\.mjs --claude-home "\$RUNNER_TEMP\/pact-home"/.test(code)) out.push('does not run the install dry run');
   if (!/^ {8}run: env -u NODE_OPTIONS node gate\/tests\/run\.mjs full$/m.test(code)) out.push('does not run the full tier');
+  // #310: an if: skips the gate, and a skipped required check counts as passing; continue-on-error keeps a failed gate green.
+  if (/^\s*(?:- )?if\s*:/m.test(code)) out.push('lets the gate job or a step be skipped');
+  if (/^\s*(?:- )?continue-on-error\s*:/m.test(code)) out.push('lets the gate carry on after an error');
   if (!/^ {2}pull_request:\s*$/m.test(code) || !/^ {2}push:\n {4}branches: \[main\]$/m.test(code)) out.push('does not run on every pull request and every push to main');
   return out;
 }
@@ -328,6 +331,9 @@ for (const [label, plant, says] of [
   ['runs the fast tier instead', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs fast'), 'does not run the full tier'],
   ['narrows the full tier', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs full --list'), 'does not run the full tier'],
   ['drops the pull_request trigger', s => s.replace('  pull_request:\n', ''), 'does not run on every pull request and every push to main'],
+  // #310: one plant on the job, one on the gate-suite step.
+  ['skips the gate job on a condition', s => s.replace('    timeout-minutes: 30\n', "    timeout-minutes: 30\n    if: github.actor != 'x'\n"), 'lets the gate job or a step be skipped'],
+  ['carries on after the gate suite fails', s => s.replace('      - name: Gate suite, full tier\n', '      - name: Gate suite, full tier\n        continue-on-error: true\n'), 'lets the gate carry on after an error'],
   ['drops the push trigger', s => s.replace('  push:\n    branches: [main]\n', ''), 'does not run on every pull request and every push to main'],
 ]) {
   test(`bad case: the workflow lockdown check catches a workflow that ${label}`, () => {
