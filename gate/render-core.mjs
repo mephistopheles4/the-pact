@@ -144,7 +144,7 @@
 //   RETIRED-NAME qualities <agent>    (one per retired agent the qualities list names, #302)
 //   COST-LIMITS <n>                   (with a costLimits list: its row count)
 //   COST-LIMITS-UNNAMED <p> <p> ...   (only when some cost rows are named by no quality's enoughCosts, #299:
-//                                     their 1-based places, ascending, digits and spaces only)
+//                                     their 1-based positions, ascending, digits and spaces only)
 //   RESULT: pass
 //
 // Its digest is the first 12 hex characters of the sha256 of "user <sha256 of
@@ -1298,7 +1298,7 @@ function runProject(out, home, projectFolder, report) {
   const checked = checkProject(proj.buf, effective, report);
   if (checked === null) return;
   const { values, qualities, costLimits } = checked;
-  // The places (1-based) of the cost rows no quality's resolved enoughCosts names (#299); digits only, never a cost's text.
+  // The positions (1-based) of the cost rows no quality's resolved enoughCosts names (#299); digits only, never a cost's text.
   const named = new Set((qualities ?? []).flatMap(q => q.enoughCosts.map(costKey)));
   const unnamed = (costLimits ?? []).flatMap((c, i) => (named.has(costKey(c.cost)) ? [] : [i + 1]));
   const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v)), qualities, costLimits).join('\n'), 'utf8');

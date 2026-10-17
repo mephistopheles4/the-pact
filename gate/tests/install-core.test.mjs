@@ -388,6 +388,7 @@ for (const c of table('project render lines', {
     { id: 'unnamed-repeated', plant: rep('RESULT', 'COST-LIMITS 4\nCOST-LIMITS-UNNAMED 2 2\nRESULT'), fails: ['project-render-unnamed-order'], why: 'a position once' },
     { id: 'unnamed-past-count', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS-UNNAMED 1 3\nRESULT'), fails: ['project-render-unnamed-range'], why: 'no position past the last cost row' },
     { id: 'unnamed-zero', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS-UNNAMED 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'positions start at 1' },
+    { id: 'unnamed-two-spaces', plant: rep('RESULT', 'COST-LIMITS 4\nCOST-LIMITS-UNNAMED 2  4\nRESULT'), fails: ['project-render-unknown-line'], why: 'single spaces between positions' },
     { id: 'unnamed-empty', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS-UNNAMED\nRESULT'), fails: ['project-render-unknown-line'], why: 'a line with no positions is not the line' },
   ],
 })) test(c.name, c.fn);
@@ -421,10 +422,10 @@ test('the project render reads the unnamed cost rows as a list, and the Project 
   assert.deepEqual(parse('QUALITIES 1', 'COST-LIMITS 4').unnamedCosts, [], 'no line: an empty list');
   assert.deepEqual(parse('QUALITIES 1', 'COST-LIMITS 9', 'COST-LIMITS-UNNAMED 1 2 3 4 5 6 7 8 9').unnamedCosts, [1, 2, 3, 4, 5, 6, 7, 8, 9], 'up to the count');
   const warns = (...extra) => core.projectBlock({ kind: 'new' }, parse('QUALITIES 1', ...extra)).filter(l => l.includes('named by no quality'));
-  const tail = "named by no quality's enoughCosts, so ";
-  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2'), [`  WARN: the project configuration's Cost limits row 2 is ${tail}it holds back no lens; name it in the enoughCosts of a quality it should hold back, or take it out.`]);
-  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2 4'), [`  WARN: the project configuration's Cost limits rows 2 and 4 are ${tail}they hold back no lens; name each in the enoughCosts of a quality it should hold back, or take it out.`]);
-  assert.deepEqual(warns('COST-LIMITS 7', 'COST-LIMITS-UNNAMED 2 4 7'), [`  WARN: the project configuration's Cost limits rows 2, 4 and 7 are ${tail}they hold back no lens; name each in the enoughCosts of a quality it should hold back, or take it out.`]);
+  const tail = "named by no quality's enoughCosts; read ";
+  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2'), [`  WARN: the project configuration's Cost limits row 2 is ${tail}it in the project's .claude/pact-config.json and take it out unless you meant it, or name it in the enoughCosts of a quality that should hold it back.`]);
+  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2 4'), [`  WARN: the project configuration's Cost limits rows 2 and 4 are ${tail}them in the project's .claude/pact-config.json and take out any you did not mean, or name each in the enoughCosts of a quality that should hold it back.`]);
+  assert.deepEqual(warns('COST-LIMITS 7', 'COST-LIMITS-UNNAMED 2 4 7'), [`  WARN: the project configuration's Cost limits rows 2, 4 and 7 are ${tail}them in the project's .claude/pact-config.json and take out any you did not mean, or name each in the enoughCosts of a quality that should hold it back.`]);
   assert.deepEqual(warns('COST-LIMITS 4'), [], 'none unnamed: no line');
   const block = core.projectBlock({ kind: 'new' }, parse('QUALITIES 1', 'RETIRED-NAME qualities good-enough-lens', 'COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2'));
   const at = block.findIndex(l => l.includes('row 2 is'));

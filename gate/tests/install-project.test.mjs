@@ -190,7 +190,7 @@ test('a project with a qualities list and costLimits installs both tables, and t
   assert.ok(!dry.stdout.includes('reach none of its qualities'), 'Cost limits are set: no note');
   // #299 C5: only row 1 is named, so one WARN line names the other eight rows by position; the install still goes ahead.
   const unnamed = lines.filter(l => l.includes('named by no quality'));
-  assert.deepEqual(unnamed, ["  WARN: the project configuration's Cost limits rows 2, 3, 4, 5, 6, 7, 8 and 9 are named by no quality's enoughCosts, so they hold back no lens; name each in the enoughCosts of a quality it should hold back, or take it out."], dry.out);
+  assert.deepEqual(unnamed, ["  WARN: the project configuration's Cost limits rows 2, 3, 4, 5, 6, 7, 8 and 9 are named by no quality's enoughCosts; read them in the project's .claude/pact-config.json and take out any you did not mean, or name each in the enoughCosts of a quality that should hold it back."], dry.out);
   const named = { ...config, qualities: [{ ...config.qualities[0], enoughCosts: config.costLimits.map(c => c.cost) }] };
   writeFileSync(join(proj, '.claude', 'pact-config.json'), JSON.stringify(named) + '\n');
   const allNamed = projInstall(repo, ch, proj);

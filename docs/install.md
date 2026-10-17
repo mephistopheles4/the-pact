@@ -184,14 +184,15 @@ parts:
   takes the place of your cost limits there; its dry run leads with a `WARN:
   SECURITY DEFAULTS:` line saying so, with the row count of each (ADR 0068).
   A project with its own `qualities` and no `costLimits` gets a `NOTE:` line
-  after it: your cost limits reach none of its qualities there. A project cost
-  row that no quality's `enoughCosts` names holds back no lens, and one `WARN:`
-  line in the Project block names such rows by position; the install still goes
-  ahead. Each quality row may carry `enough` (one line, no middle dot, since that joins the cell)
+  after it: your cost limits reach none of its qualities there. Each quality
+  row may carry `enough` (one line, no middle dot, since that joins the cell)
   and `enoughCosts`, and an `enoughCosts` name must
   find a cost row in that project's own `costLimits`. A cost row holds `cost`,
   and may hold `counted`, `limit` and `atLimit`, each one line of text with no
-  bar; names match ignoring case and surrounding space. A project's `costLimits`
+  bar; names match ignoring case and surrounding space. A cost row that no
+  quality's `enoughCosts` names gets one `WARN:` line under the dry run's
+  `Project:` heading, naming such rows by position and telling you to read them
+  in the project's file; the install still goes ahead. A project's `costLimits`
   refuses without its `qualities`, and an `acceptedRisks` key is refused as
   any other key is: accepted risks live only in a threat model.
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and
