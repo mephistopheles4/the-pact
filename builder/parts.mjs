@@ -136,7 +136,7 @@ export const DEFAULT_PARTS = Object.freeze({
     layout: {},
   },
   lenses: [
-    { agents: ['behaviour-lens', 'integrity-lens'], label: 'the QA pair', asks: 'Does the change do what was asked? Can the tests behind the pass actually fail?' },
+    { agents: ['behaviour-lens', 'integrity-lens'], label: 'the QA pair', asks: 'Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place?' },
     { agents: ['executability-lens', 'unstated-lens'], label: 'the spec pair', asks: 'Would the spec, built as written, run end to end? What need did nobody write down?' },
     { agents: ['unstated-lens'], label: 'the gatekeeper', asks: 'What need did nobody write down?' },
     { agents: ['conventions-lens', 'reader-lens'], label: 'the standards pair', asks: "Does the diff keep the repo's written rules? Can the next reader act on what it says?" },

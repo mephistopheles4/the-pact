@@ -139,12 +139,14 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   everything in silence. The rule in ["What every change here needs"](changing-rules.md#what-every-change-here-needs), that
   each check a change adds or tightens needs a bad case it is seen to catch,
   stands unchanged.
-- **Minus-one.** A test whose assertions another test already makes, on the
-  same function and the same class of input, is a cut candidate. Cut one only
-  in a file the change is already editing. List each cut, with the test that
-  covers it, in an issue comment and in the PR body, and hand that list to
-  `integrity-lens` at Test with the tests it cites. The repo has no mutation
-  tool, so this is judged by reading.
+- **Minus-one.** A test whose caught broken versions another test already
+  catches, on the same function and the same class of input, is a cut
+  candidate. Cut one only in a file the change is already editing. List each
+  cut, with the test that covers it, in an issue comment and in the PR body,
+  and hand that list to `integrity-lens` at Test with the tests it cites. It
+  probes each cover and notes the cut as covered, or reports that the cover
+  does not catch. The repo has no mutation tool, so this is judged by
+  reading.
 - **Size the suite to review cost.** Every test is something the owner has to
   trust and maintain. The PR body carries one line, `Tests: +<added> −<cut>`,
   counting `test(...)` calls and table rows, as its second line, straight

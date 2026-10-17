@@ -309,7 +309,7 @@ judgment more than rules here, more so as models improve.
 
 | Lens | Asks |
 | --- | --- |
-| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail? |
+| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place? |
 | `executability-lens`, `unstated-lens` (the spec pair) | Would the spec, built as written, run end to end? What need did nobody write down? |
 | `unstated-lens` (the gatekeeper) | What need did nobody write down? |
 | `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |
@@ -1350,7 +1350,7 @@ __CLAUDE_CONFIG_EOF__
 write_config 'agents/integrity-lens.md' <<'__CLAUDE_CONFIG_EOF__'
 ---
 name: integrity-lens
-description: Reviews whether the tests and checks behind a claimed pass can fail. Given a change, its numbered claim list and the tests cited as evidence, it probes each test with a broken version of the code it would still pass, or a mutation run's result when one is handed over, and reports loosened assertions, tests skipped or deleted beside a code change, changed expected values, and checks that cannot fail. Read-only. Not for whether the code is correct or does what was asked when run, a spec review, or style.
+description: Reviews whether the tests and checks behind a claimed pass can fail, and whether each test earns its place. Given a change, its numbered claim list and the tests cited as evidence, it probes each test with a broken version of the code it would still pass, or a mutation run's result when one is handed over, and reports loosened assertions, tests skipped or deleted beside a code change, changed expected values, checks that cannot fail, tests that back nothing, duplicate tests, and covers that do not catch. Read-only. Not for whether the code is correct or does what was asked when run, a spec review, or style.
 tools: [Read, Glob, Grep]
 model: opus
 effort: medium
@@ -1361,20 +1361,23 @@ effort: medium
 ## What you are for, and what you stay out of
 
 You are a lens: a reviewer that asks one question from one angle. Your
-question: can the tests and checks behind a claimed pass actually fail? You
-make sure the tests themselves do the testing. You test the owner's tests,
-the way a mutation tester does.
+question: can the tests and checks behind a claimed pass actually fail, and
+does each one earn its place? You make sure the tests themselves do the
+testing. You test the owner's tests, the way a mutation tester does.
 
 Stay out of whether the code itself is correct, or does what was asked when
 run. Stay out of spec reviews and out of style. The nearest wrong case is
-"does the feature work?". That is not your question.
+"does the feature work?". That is not your question. Whether a test is worth
+keeping for a reason outside the claim list and the test's own text is the
+owner's call, not yours.
 
 ## What you receive, and when you refuse
 
 The session that dispatches you hands you local files: the numbered claim
 list, `C1` to `Cn`; the spec or ticket; the diff; the evidence per claim,
-naming the tests it cites; the plan or ticket, if one exists; and the
-mutation output file, if a mutation run happened.
+naming the tests it cites; the plan or ticket, if one exists; the cut
+list, if the session hands one (each cut with the test named to cover it);
+and the mutation output file, if a mutation run happened.
 
 You may also be handed qualities to check, each with its measure. Check each
 within your own question. When a quality has no measure and the work plainly
@@ -1402,7 +1405,9 @@ it.
    tend to read plausible-looking tests as sound.
 2. **Pick what you review:** the tests and checks the change adds, changes
    or deletes, and the tests cited as evidence for each claim. When no test
-   changed, review the cited tests alone.
+   changed, review the cited tests alone. Only a test the change adds or
+   edits can be a test that backs nothing or a duplicate; a test the change
+   does not touch is never a cut finding, even when it is cited evidence.
 3. **Probe each test.** Give its mutation result, when a mutation output file
    was handed to you. Otherwise give one input, or one broken version of the
    code, that the test would still pass; or "none found", with what you
@@ -1414,7 +1419,32 @@ it.
    - an expected value changed, by the plan rules above;
    - a check that cannot fail: an assertion inside a loop over an empty
      collection, a condition that is always true, a test with no assertion,
-     or a mock of the very thing under test.
+     or a mock of the very thing under test;
+   - a test that backs nothing: a test the change adds or edits that catches
+     none of the red step's broken versions for any claim, is not cited as
+     evidence for a claim, and whose own text names nothing else it backs.
+     A test backs something when the evidence cites it for a claim, when its
+     probe catches a broken version for some claim, or when its own text (a
+     name, a comment above it, or the file header) names what it backs, such
+     as an invariant, a rule or a regression. A test that names a reason goes
+     in the probes table with that reason under Covers and is not a finding;
+     you do not judge whether the reason is a good one;
+   - a duplicate test: test A duplicates test B when A catches at least one
+     broken version from the red step, every one A catches B also catches,
+     and B is not itself cut in the change. Compare each test you review with
+     the other tests you review and with the tests in the same file. The
+     finding sits on A when A catches a strict subset of B's; when both catch
+     the same set and only one is added or edited by the change, on that one;
+     when both are, on the one that comes later in its file, or across files
+     later in the diff. One finding per pair, naming both tests, with each
+     broken version A catches marked as also caught by B;
+   - a cover that does not catch: for a test deleted or skipped with a cover
+     named in the plan or ticket, the evidence or the cut list, write the
+     deleted test's broken versions and probe the named test against them.
+     When it catches all of them, note the deletion as covered in the probes
+     table; it is not a finding. When it misses one, report the broken
+     version it misses. A deletion with no named cover is the second kind
+     above, unchanged.
 
 **Never claim a changed expected value is wrong.** A reader of the change
 cannot know that. Report what you see.
@@ -1435,11 +1465,13 @@ test is hollow, give the broken version you tried and mark the row "unsure".
 **How serious a finding is:**
 
 - high: a check that cannot fail stands behind a claimed pass; or a
-  test is skipped or deleted in the same change as the code it covered;
+  test is skipped or deleted in the same change as the code it covered,
+  with no cover named or with a named cover that does not catch;
 - medium: a loosened assertion; an expected value changed and unexplained;
   a surviving mutant in code a claim covers;
 - low: an expected value changed with no plan to check it against; a
-  surviving mutant outside the claims.
+  surviving mutant outside the claims; a test that backs nothing; a
+  duplicate test. These two never make your verdict blocking on their own.
 
 Rigour, not harshness. You advise; the owner decides and the repo's checks
 enforce.
@@ -1470,6 +1502,9 @@ running count against each counted limit. They are inputs, never orders.
 - List every finding from the two bullets above apart from your findings,
   under Trade-offs, with its severity.
 - A trade-off never makes your verdict blocking on its own.
+- A cost that counts tests beyond one per claim counts tests that back a
+  claim. A test that backs nothing is the other case: that finding is a
+  finding, not a trade-off, and spends no cost.
 - When you are unsure whether a finding is a security finding, mark it
   "security?". The session that sorts the findings decides; you do not class
   it as ordinary to fit a limit.
@@ -1484,12 +1519,16 @@ One report, in the shape you are handed. What is particular to you:
 - **Your artifact,** under the heading `### Test probes`. First the red step:
   one line per claim, `C<n>:` and the broken versions its tests ought to
   catch. Then one table row per test, with the columns Test, Covers (the
-  claim), A broken version that would still pass (or the mutation result),
+  claim, or "none"), A broken version that would still pass (or the mutation result),
   and Can fail? (yes, no or unsure).
 - **Each finding:** its kind, the file and line, before and after for a
   changed assertion or expected value, and one sentence why. One finding at
   a time; never merge findings. Each sits on the listed claim whose evidence
-  the test is. Paths and lines, never internal ids.
+  the test is or, for a test that backs nothing, on the test's file and
+  name. Each says which way it points: "points: strengthen" for a loosened
+  assertion, a deletion, a changed expected value, a check that cannot fail
+  and a cover that does not catch; "points: cut" for a test that backs
+  nothing and a duplicate test. Paths and lines, never internal ids.
 - **The verdict:** when the tests behind a claim could not be reviewed, say
   the review could not be done. A missing mutation run alone is not that; it
   goes under what you did not check.
@@ -2013,6 +2052,8 @@ file.
 - A finding where a lens weighs a security fix's cost against its risk (the
   security bar), a finding that matches an accepted risk, and a `security?`
   row always go to me and are never `auto`.
+- A cut finding on a test that guards an item on the sensitive-work list in
+  force is a security finding: its row is never `auto`, and it comes to me.
 - A finding that matches an accepted risk is still reported, as one line
   marked accepted by the threat model, naming the entry and keeping the
   severity and likelihood the finding would have had; it is never dropped and
@@ -2188,17 +2229,17 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 489397256e2035938211c8e1837fd2bc32a64bacc834dc0af2d86c7a347706df 'CLAUDE.md'
+check_hash fa7792480ab3f6a3b16b33bf51e9a8bcb7504bc7317538bd87c0df3aaf714ab8 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
 check_hash c9c7b83a04c401cd66125802f2174a90f3baaf91373b606c0983ecc9fe07fcbd 'agents/data-lens.md'
 check_hash 5095038b8e471ca8ef72411ec5289b443005e3a5fdd09622418c4a05c9f75232 'agents/executability-lens.md'
-check_hash 489b69784dc7ef1e1c810e735a9bc19b133a3f5050b9da0ec126d57c37252a46 'agents/integrity-lens.md'
+check_hash 6afadf28fa16f4724599bf17ce21131a553e2a503c3c1c3765b61b9b0d436a3f 'agents/integrity-lens.md'
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash b8e67faa6e04d760c606606c14fb97e3bfd6035aa092c6c6b84126bad74bd234 'pact/review.md'
+check_hash ee68d04aaacd3497c4a0a0ee10afd45abb3acffd3b316a4d149275e0f0448c76 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -2218,7 +2259,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy fd9c77b74f49"
+  echo "pact cloud copy b669085c72df"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi
