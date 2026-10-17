@@ -60,8 +60,5 @@ One line per finished piece of work: date, issue, and what it changed. Each entr
 - [2026-10-17](2026-10-17-mismatch-check-drops-effort.md) — **The mismatch check drops effort** (#306). "Say a mismatch first" names the tier and the model only, since a session cannot read its own effort.
 - [2026-10-17](2026-10-17-poster-prints-next-steps.md) — **The poster prints what to do next** (#294). On exit 1 and exit 3 a `NEXT:` line above `RESULT:` tells a session elsewhere not to post again, or where to look first; the rules file is untouched.
 - [2026-10-17](2026-10-17-threat-model-names-poster-checks.md) — **The threat model names the poster's own checks** (#316). A new section names the login check, the owner checks and the input rules as a boundary; no accepted risk changed.
-<<<<<<< HEAD
-- [2026-10-17](2026-10-17-cost-name-middle-dot-refused.md) — **A project cost name holds no middle dot, and a level names a cost row** (#318). The project render refuses U+00B7 in a cost name and counts a cost row as named by any segment of the rendered Enough cell, so the dry run and the rules file agree.
-=======
 - [2026-10-17](2026-10-17-poster-refuses-wrapped-prose-and-relative-links.md) — **The poster refuses wrapped prose and relative links** (#317). `text/hard-wrap` and `link/relative` refuse a body that would land ragged or with a dead link; the poster never rewrites a body.
->>>>>>> f0b108e5520bdfbd1cc8f8aee51721df365ef885
+- [2026-10-17](2026-10-17-cost-name-middle-dot-refused.md) — **A project cost name holds no middle dot, and a level names a cost row** (#318). The project render refuses U+00B7 in a cost name and counts a cost row as named by any segment of the rendered Enough cell, so the dry run and the rules file agree.
