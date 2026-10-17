@@ -778,6 +778,36 @@ because they plant bad cases on purpose and raised alerts that were noise.
   before posting, and the read before posting, come first on every install.
   Where the owner turns the poster on, its scan is a backstop behind that
   search, not a replacement for it.
+
+## The poster's own checks
+
+Where the owner turns the poster on (`claude/tools/poster.mjs`,
+`docs/poster.md`), it posts under the owner's `gh` login, so its checks on
+the login, the repo's owner and its own input are a boundary in code. They
+bear on R2, R4 and R11 to R16 without changing what those entries accept:
+they hold only for posts sent through the poster, only on an install with it
+on, and not against a rewritten poster (R14). Each refusal sends nothing.
+
+- **The login check.** Before it sends, the poster reads the login `gh` is
+  signed in as and stops, with nothing sent, when that read fails or returns
+  no login. When a token is set in the environment it refuses unless `--as`
+  names the expected login, and it refuses when `--as` differs from the login
+  `gh` returns (`as/missing`, `as/differs`). It checks who is posting; it
+  cannot tell a taken account from yours (R4).
+- **The owner checks.** The repo's owner must be the `gh` login twice: by the
+  name given in `--repo` (`owner/repo`), and by the owner GitHub returns for
+  that repo, which follows a rename or a transfer (`owner/github`). A pull
+  request's `--head` may name only the repo's own owner (`owner/head`). So a
+  post through the poster lands only in a repo the login owns.
+- **The input rules.** The repo, login, numbers, branch names and labels
+  must each match a fixed shape (`input/*`); options are checked per surface
+  (`usage/*`); the body and title files are read strictly: a regular file,
+  not a link, size-bounded, valid UTF-8 (`file/*`), with the body and title bounded in length and the
+  title one line (`text/body-length`, `text/title-lines`,
+  `text/title-length`). The content
+  scans and the table check that follow are the backstop R3, R13 and R29
+  name.
+
 ## What you may tweak, and what it costs
 
 Each tweak below is yours to make. The cost is what you give up.
