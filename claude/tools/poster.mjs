@@ -803,7 +803,7 @@ function parseJson(s) {
  */
 const failedNext = (page, login) => `NEXT: the post may have landed. Look at ${page} for a post by ${login} before anything else. If it is there, never post it again: tell the owner its link. If it isn't, tell the owner, and post again only on their word. If you can't tell, tell the owner, and don't post.`;
 
-/** The line after exit 1, where the post landed: the form says what the address below it is, the post's link, or only the page it sits on. */
+/** The line after exit 1, where the post landed: the form says what the address below it is: the post's link, only the page it sits on, or, on a mismatch, the link with the fields named above. */
 const landedNext = form => `NEXT: the post landed. Never post it again. Tell the owner, with ${form}.`;
 const LANDED_LINK = landedNext('the link below');
 const LANDED_PAGE = landedNext('the page below, where it sits');
@@ -1005,7 +1005,7 @@ export function post(argv, io) {
 
     phase = 'sending';
     const sent = io.gh(args, JSON.stringify(p.request));
-    if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr, ctx), failedNext(near, login), 'RESULT: failed'] };
+    if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr, ctx), failedNext(near, checkedLogin), 'RESULT: failed'] };
     phase = 'sent';
     const id = idText(parseJson(sent.stdout)?.[p.key]);
     if (id === null) return { code: 1, lines: [`the answer carried no usable ${p.key}`, LANDED_PAGE, `RESULT: unverified ${near}`] };

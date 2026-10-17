@@ -134,7 +134,8 @@ const POST_PAGE = `${WEB}/issues/5`;
 /** The one line starting NEXT: is the expected one, straight above the RESULT line, and the machine user name is nowhere in the output. */
 function assertNext(r, expected, code, result) {
   assert.equal(r.code, code, out(r));
-  assert.equal(last(r), result, out(r));
+  if (result instanceof RegExp) assert.match(last(r), result, out(r));
+  else assert.equal(last(r), result, out(r));
   assert.deepEqual(nextLines(r), [expected], out(r));
   assert.equal(r.lines.at(-2), expected, out(r));
   assert.ok(!out(r).includes('machineuser'), out(r));
@@ -213,7 +214,7 @@ for (const [field, surface, tamper] of TAMPERS) {
     const r = run(t, surface, w, { machine: OTHER });
     assert.equal(r.code, 1, out(r));
     assert.match(last(r), /^RESULT: mismatch https:\/\/github\.com\/tester\/sandbox\//);
-    assertNext(r, LANDED_NEXT.mismatch, 1, last(r));
+    assertNext(r, LANDED_NEXT.mismatch, 1, /^RESULT: mismatch https:\/\/github\.com\/tester\/sandbox\//);
     assert.ok(r.lines.some(l => l.startsWith(`MISMATCH ${field}:`)), out(r));
     assert.ok(!/plain|develop|feature|someone|tier|unsent|APPROVED/.test(out(r).replace(/https:\S+/g, '')), out(r));
   });
@@ -349,20 +350,20 @@ test('a gh that cannot start, or exits non-zero, is a failed call', t => {
 
 // #246 C10: a fault inside a run still ends with the result line its phase calls for
 // #294: and on exit 1 and exit 3 the NEXT line above it, in the form its phase calls for
-for (const [where, fault, code, result, next] of [
+for (const [where, fault, code, result, next, how = 'throw'] of [
   ['the login read', args => `${args[4]} ${args[5]}`.startsWith('GET user'), 4, 'RESULT: unavailable', null],
   ['the repo read', args => `${args[4]} ${args[5]}`.startsWith('GET repos/tester/sandbox'), 4, 'RESULT: unavailable', null],
   ['the post', args => args[4] === 'POST', 3, 'RESULT: failed', FAILED_NEXT(POST_PAGE)],
   ['the read-back', args => `${args[4]} ${args[5]}`.startsWith('GET repos/tester/sandbox/issues/comments'), 1, `RESULT: unverified ${WEB}/issues/5#issuecomment-9001`, LANDED_NEXT.link],
-  ['reading the post answer', args => args[4] === 'POST', 1, `RESULT: unverified ${POST_PAGE}`, LANDED_NEXT.page],
+  ['the post, whose answer throws when read', args => args[4] === 'POST', 1, `RESULT: unverified ${POST_PAGE}`, LANDED_NEXT.page, 'answer'],
 ]) {
   // #246 C10
-  test(`a gh that throws during ${where} ends ${result.split(' ')[1]}, exit ${code}`, t => {
+  test(`a gh that fails at ${where} ends ${result.split(' ')[1]}, exit ${code}`, t => {
     const w = world();
     const gh = (args, input) => {
       if (!fault(args)) return w.gh(args, input);
       // The post's answer comes back, but reading its stdout throws.
-      if (where === 'reading the post answer') return { ok: true, get stdout() { throw new Error('planted'); }, stderr: '' };
+      if (how === 'answer') return { ok: true, get stdout() { throw new Error('planted'); }, stderr: '' };
       throw new Error('planted');
     };
     const argv = place(t, { 'body.md': 'b\n' }, ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']);
@@ -449,8 +450,7 @@ test('a read-back that is not JSON ends unverified and shows none of it', t => {
 // #246 C10
 test('a read-back with no text in the body ends unverified', t => {
   const r = run(t, 'issue-comment', world({ tamper: x => ({ ...x, body: null }) }), { machine: OTHER });
-  assert.match(last(r), /^RESULT: unverified /);
-  assertNext(r, LANDED_NEXT.link, 1, last(r));
+  assertNext(r, LANDED_NEXT.link, 1, /^RESULT: unverified https:\/\/github\.com\/tester\/sandbox\/issues\/5#issuecomment-9001$/);
 });
 
 // #246 C10
@@ -462,6 +462,14 @@ test('a failed read-back ends unverified', t => {
   assertNext(r, LANDED_NEXT.link, 1, `RESULT: unverified ${WEB}/issues/5#issuecomment-9001`);
   assert.ok(!r.lines.at(-2).includes('zzmarker'));
 });
+
+// #294 C1: a new issue or pull request is looked for on the repo's list, a comment or review on its own page
+for (const [surface, page] of [['issue', `${WEB}/issues`], ['pull-request', `${WEB}/pulls`], ['issue-comment', `${WEB}/issues/5`], ['pull-request-review', `${WEB}/pull/7`], ['review-thread-reply', `${WEB}/pull/7`]]) {
+  test(`a failed post on ${surface} sends the session to ${page}`, t => {
+    const r = run(t, surface, world({ fail: { POST: 'HTTP 500' } }), { machine: OTHER });
+    assertNext(r, FAILED_NEXT(page), 3, 'RESULT: failed');
+  });
+}
 
 // #294 C4: no NEXT line takes text from gh's answers, its error line or the body, and only one line starts with NEXT:
 test('a NEXT line holds nothing from gh or the body, and gh text that starts with NEXT: is not a second NEXT line', t => {

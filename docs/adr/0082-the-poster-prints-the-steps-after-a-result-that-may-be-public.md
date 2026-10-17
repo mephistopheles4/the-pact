@@ -10,7 +10,7 @@ On exit 1 and exit 3 the poster prints one fixed `NEXT:` line, straight above it
 ## What the line holds
 
 - Fixed words, the page the poster knew before it sent, and the login it checked before it sent. Never text from gh's answers or error line, the body, a title or a label. The login is held outside the `try` and set only after every owner check, so the catch can't print an unchecked value.
-- Exit 3 says to look at the page for a post by the login, to tell the owner and never post it again if it is there, and to tell the owner and post again only on their word if it isn't or if the session can't tell.
+- Exit 3 says to look at the page for a post by the login, to tell the owner its link and never post it again if it is there, to tell the owner and post again only on their word if it isn't, and, if the session can't tell, to tell the owner and not post.
 - Exit 1 says the post landed and must not be posted again. Its form says what the address below it is: the post's link, the page only (the id was never read), or, on a mismatch, the link and the fields named above.
 
 ## What stays
