@@ -189,7 +189,10 @@ parts:
   and `enoughCosts`, and an `enoughCosts` name must
   find a cost row in that project's own `costLimits`. A cost row holds `cost`,
   and may hold `counted`, `limit` and `atLimit`, each one line of text with no
-  bar; names match ignoring case and surrounding space. A project's `costLimits`
+  bar; names match ignoring case and surrounding space. A cost row that no
+  quality's `enoughCosts` names gets one `WARN:` line under the dry run's
+  `Project:` heading, naming such rows by position and telling you to read them
+  in the project's file; the install still goes ahead. A project's `costLimits`
   refuses without its `qualities`, and an `acceptedRisks` key is refused as
   any other key is: accepted risks live only in a threat model.
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and

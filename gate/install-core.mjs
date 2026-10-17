@@ -587,7 +587,10 @@ export function checkProjectLinks(hit) {
 /**
  * The project render's lines (S6, J3): one RENDERED, one CONFIG (none or
  * user), one PROJECT, one DIGEST that must be the digest of the reported
- * hashes, and at least one VALUE, each setting at most once.
+ * hashes, and a VALUE, a QUALITIES line or a COST-LIMITS line, each setting
+ * at most once. It also reads RETIRED-NAME qualities (#302) and
+ * COST-LIMITS-UNNAMED (#299), whose positions must be ascending, once, and
+ * within the COST-LIMITS count.
  */
 export function parseProjectRenderLines(lines, hash) {
   let projectHash = null;
@@ -598,6 +601,7 @@ export function parseProjectRenderLines(lines, hash) {
   const values = new Map();
   let qualities = 0;
   let costLimits = 0;
+  let unnamedCosts = null;
   const retiredNames = [];
   for (const l of lines.slice(0, -1)) {
     let m;
@@ -625,6 +629,10 @@ export function parseProjectRenderLines(lines, hash) {
       // A project's own Cost limits (#278): its row count, at most nine rows.
       if (costLimits) refuse('project-render-two-cost-limits', 'the project render reported two Cost limits lines.');
       costLimits = Number(m[1]);
+    } else if ((m = /^COST-LIMITS-UNNAMED ([1-9](?: [1-9])*)$/.exec(l))) {
+      // The positions of the cost rows no quality names (#299): an unnamed row only warns in the dry run, a bad line still refuses; order and range are checked below.
+      if (unnamedCosts) refuse('project-render-two-unnamed', 'the project render reported two unnamed Cost limits lines.');
+      unnamedCosts = m[1].split(' ').map(Number);
     } else if ((m = /^RETIRED-NAME qualities ([a-z-]+)$/.exec(l))) {
       // A retired agent's name in the project's qualities list (#302): a warning, never a refusal.
       const retired = RETIRED_AGENTS.find(a => a === m[1]);
@@ -633,11 +641,16 @@ export function parseProjectRenderLines(lines, hash) {
       retiredNames.push(retired);
     } else refuse('project-render-unknown-line','the project render printed a line the install does not read.');
   }
+  if (unnamedCosts) {
+    if (!costLimits) refuse('project-render-unnamed-no-cost-limits', 'the project render reported unnamed Cost limits rows with no Cost limits list.');
+    if (unnamedCosts.some((p, i) => i && p <= unnamedCosts[i - 1])) refuse('project-render-unnamed-order', 'the project render reported unnamed Cost limits rows out of order or twice.');
+    if (unnamedCosts.at(-1) > costLimits) refuse('project-render-unnamed-range', 'the project render reported an unnamed Cost limits row past the last row.');
+  }
   if (retiredNames.length && !qualities) refuse('project-render-retired-no-qualities', 'the project render reported a retired name with no qualities list.');
   if (!projectHash || !userSeen || !fileHash || (!values.size && !qualities && !costLimits)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value, a qualities list or a Cost limits list.');
   const text = `${user ? `user ${user}\n` : ''}project ${fileHash}\n`;
   if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('project-render-digest', "the project render's configuration digest is missing or does not match the hashes it reported.");
-  return { projectHash, fileHash, digest, user, values, qualities, costLimits, retiredNames };
+  return { projectHash, fileHash, digest, user, values, qualities, costLimits, unnamedCosts: unnamedCosts ?? [], retiredNames };
 }
 
 /**
@@ -674,6 +687,13 @@ export function checkProjectOutput(entries, actualHash, reported) {
   if (actualHash !== reported) refuse('project-rules-hash', "the project rules file's hash does not match the one the renderer reported.");
 }
 
+/** The WARN line for the project's cost rows no quality names (#299, ADR 0079), by place; fixed words and digits only. */
+function unnamedCostsLine(positions) {
+  const one = positions.length === 1;
+  const list = one ? `${positions[0]}` : `${positions.slice(0, -1).join(', ')} and ${positions.at(-1)}`;
+  return `  WARN: the project configuration's Cost limits ${one ? 'row' : 'rows'} ${list} ${one ? 'is' : 'are'} named by no quality's enoughCosts; read ${one ? 'it' : 'them'} in the project's .claude/pact-config.json and ${one ? 'take it out unless you meant it' : 'take out any you did not mean'}, or name ${one ? 'it' : 'each'} in the enoughCosts of a quality that should hold it back.`;
+}
+
 /** The Project block of a dry run. */
 export function projectBlock(state, parsed) {
   const rulesLine = state.kind === 'new' ? 'would be written (new)' : state.sha256 === parsed.projectHash ? 'unchanged' : `would replace the existing file its record names (sha256 ${state.sha256}); the record is a file in the project, not proof the pact wrote it`;
@@ -687,6 +707,7 @@ export function projectBlock(state, parsed) {
     `  rendered project rules file: sha256 ${parsed.projectHash}`,
     ...[...parsed.values].map(([k, v]) => `  WARN: the project configuration sets ${k} to ${v}; the rules file reads it as the lower of that and the user's value.`),
     ...parsed.retiredNames.map(a => `  WARN: the project configuration's qualities list names ${a}, an agent the pact retired; take the name out of the list.`),
+    ...(parsed.unnamedCosts.length ? [unnamedCostsLine(parsed.unnamedCosts)] : []),
     '  Nothing is installed in the Claude home folder, and no agents go into the project.',
   ];
 }
