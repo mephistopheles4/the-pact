@@ -209,6 +209,9 @@ test('Git\'s shell is found whichever of its git folders PATH lists first (#293)
   for (const git of [join(root, 'cmd', 'git.exe'), join(root, 'mingw64', 'bin', 'git.exe'), join(root, 'bin', 'git.exe')]) {
     assert.equal(gitShell([git], exists), join(root, 'bin', 'sh.exe'), git);
   }
+  assert.equal(gitShell([join('D:/elsewhere', 'git.exe'), join(root, 'cmd', 'git.exe')], exists), join(root, 'bin', 'sh.exe'), 'a later git on PATH');
+  const usrOnly = join(root, 'usr', 'bin', 'sh.exe');
+  assert.equal(gitShell([join(root, 'cmd', 'git.exe')], p => p === usrOnly), usrOnly, 'the usr\\bin fallback');
   assert.equal(gitShell([join(root, 'nowhere', 'git.exe')], () => false), undefined);
 });
 
