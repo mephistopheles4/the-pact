@@ -71,6 +71,8 @@ test('docs/poster.md names every surface, option, result and rule id, and shows 
   assert.ok(commonOptions(SOURCE).length >= 4, 'expected the poster COMMON list');
   assert.ok(sourceExits(SOURCE).length >= 7, 'expected the exit codes in the poster header');
   assert.deepEqual(missingFromPage(PAGE, requiredNames(SOURCE, SURFACES), EXAMPLES), []);
+  // #317 C5: the page says the issue surface has no --parent option.
+  assert.match(PAGE, /`issue` has no `--parent` option/);
 });
 
 test("docs/poster.md's rule-id table and exit-code table match the poster's exactly", () => {

@@ -20,7 +20,9 @@
 // exact text it would send for credential shapes, environment secrets, local
 // paths, session ids, email addresses and hidden text. Then it checks the
 // shape of any Lens dispositions table in the body against the review
-// procedure's template (#280, T2). Before it posts, it checks that the repo's
+// procedure's template (#280, T2), and refuses a body whose prose is
+// hard-wrapped or whose link has no scheme (#317, text/hard-wrap and
+// link/relative); it never rewrites a body. Before it posts, it checks that the repo's
 // owner is the gh login, by name and again by what GitHub returns for the repo
 // (owner/repo, owner/github). The scans are a backstop for accidents, not a
 // guard against a session that sets out to get past them.
@@ -734,6 +736,202 @@ export function tableCheck(body) {
   return out;
 }
 
+// ---------------------------------------------------------------- the prose checks
+
+const PROSE = Object.freeze({ wrap: 'text/hard-wrap', link: 'link/relative' });
+
+// A fence for these checks: a run of three or more backticks or tildes at any
+// indent, whatever follows it, closed by a run of the same character at least
+// as long with nothing after it but spaces or tabs. Looser than the table
+// check's twice over, so a fence-like line mostly means fewer refusals.
+const PROSE_FENCE_OPEN_RE = /^[ \t]*(`{3,}|~{3,})/;
+const PROSE_FENCE_CLOSE_RE = /^[ \t]*(`{3,}|~{3,})[ \t]*$/;
+const QUOTE_RE = /^(?:[ ]{0,3}>[ ]?)+/;
+const OWN_BLOCK_RE = /^(?:[ ]{0,3}#{1,6}(?:[ \t]|$)|[ \t]*\||[ ]{0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$|[ \t]*<[A-Za-z/!]|[ ]{0,3}\[[^\]]*\]:|[ ]{0,3}\[!\w+\][ \t]*$)/;
+const LIST_MARKER_RE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
+const REF_DEF_RE = /^[ ]{0,3}\[([^\]]*)\]:[ \t]*(<[^>]*>|\S*)/;
+const HTML_ATTR_RE = /\b(?:href|src)[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gid;
+const SCHEME_RE = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/|#)/;
+// A line's end, past closing quotes, brackets and emphasis marks: one of `.!?:;`.
+const SENTENCE_END_RE = /[.!?:;][)"'\]*_`\u2019\u201d\u00bb]*$/;
+const BOLD_LABEL_RE = /^\*\*[^*]+(?::\*\*|\*\*:)/;
+
+/** Whether a line's last word holds `http://` or `https://`: a link at its end. */
+const endsInLink = t => {
+  const word = t.slice(Math.max(t.lastIndexOf(' '), t.lastIndexOf('	')) + 1);
+  return word.includes('http://') || word.includes('https://');
+};
+
+/** `line` with every code span replaced by spaces, matching backtick runs by length in one pass. */
+function blankCodeSpans(line) {
+  if (!line.includes('`')) return line;
+  const runs = [];
+  for (let i = 0; i < line.length; i += 1) {
+    if (line[i] !== '`') continue;
+    let j = i;
+    while (j < line.length && line[j] === '`') j += 1;
+    runs.push({ at: i, len: j - i });
+    i = j - 1;
+  }
+  // The next run of the same length after each run, from the right, once.
+  const nextSame = new Array(runs.length).fill(-1);
+  const seen = new Map();
+  for (let k = runs.length - 1; k >= 0; k -= 1) {
+    nextSame[k] = seen.get(runs[k].len) ?? -1;
+    seen.set(runs[k].len, k);
+  }
+  const out = [];
+  let from = 0;
+  for (let k = 0; k < runs.length; k += 1) {
+    if (nextSame[k] < 0) continue;
+    const end = runs[nextSame[k]].at + runs[nextSame[k]].len;
+    out.push(line.slice(from, runs[k].at), ' '.repeat(end - runs[k].at));
+    from = end;
+    // Runs inside the span are code; resume after its closing run.
+    while (k + 1 < runs.length && runs[k + 1].at < end) k += 1;
+  }
+  out.push(line.slice(from));
+  return out.join('');
+}
+
+/** The targets of the links in `line` (code spans and comments already blanked), as [{ target, at }]. */
+function linkTargets(line) {
+  const out = [];
+  let p = line.indexOf('](');
+  while (p >= 0) {
+    let s = p + 2;
+    while (line[s] === ' ' || line[s] === '\t') s += 1;
+    let e = s;
+    if (line[s] === '<') {
+      s += 1;
+      e = s;
+      while (e < line.length && line[e] !== '>') e += 1;
+    } else {
+      while (e < line.length && !/[\s)\]]/.test(line[e])) e += 1;
+    }
+    if (e > s) out.push({ target: line.slice(s, e), at: s });
+    p = line.indexOf('](', Math.max(e, p + 2));
+  }
+  const def = line.match(REF_DEF_RE);
+  if (def && !def[1].startsWith('^') && def[2] !== '') {
+    const raw = def[2];
+    const angled = raw.startsWith('<');
+    const target = angled ? raw.slice(1, -1) : raw;
+    if (target !== '') out.push({ target, at: def[0].length - raw.length + (angled ? 1 : 0) });
+  }
+  for (const m of line.matchAll(HTML_ATTR_RE)) {
+    const g = m[1] !== undefined ? 1 : m[2] !== undefined ? 2 : 3;
+    if (m[g] !== '') out.push({ target: m[g], at: m.indices[g][0] });
+  }
+  return out;
+}
+
+/**
+ * Each place the body's prose would land broken on GitHub, as
+ * [{ rule, where }]: a hard-wrapped paragraph, list item or quote
+ * (text/hard-wrap, a line that continues one that stopped mid-sentence), and a
+ * link whose target has no scheme and is not an anchor (link/relative). Each
+ * rule is reported once, at its first hit; `where` is the line and column,
+ * never the text. Fences and HTML comments are not read, and a line broken on
+ * purpose (two trailing spaces, a backslash, a bold label starting the next
+ * line) is not a wrap. Lines end as CommonMark ends them. One pass over the
+ * lines, each pattern anchored or bounded by a class that cannot overlap what
+ * follows it.
+ */
+export function proseCheck(body) {
+  let wrap = null;
+  let relative = null;
+  let fence = null;
+  let comment = false;
+  let open = false;
+  let prev = '';
+  const lines = body.split(LINE_END_RE);
+  for (let n = 0; n < lines.length; n += 1) {
+    const raw = lines[n];
+    const quote = raw.match(QUOTE_RE);
+    const off = quote ? quote[0].length : 0;
+    let line = quote ? raw.slice(off) : raw;
+    if (fence !== null) {
+      const close = line.match(PROSE_FENCE_CLOSE_RE);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      continue;
+    }
+    const startedInComment = comment;
+    if (!startedInComment) {
+      const f = line.match(PROSE_FENCE_OPEN_RE);
+      if (f) {
+        fence = f[1];
+        open = false;
+        continue;
+      }
+    }
+    // Blank the comments out, keeping every column.
+    let hadComment = startedInComment;
+    if (startedInComment || line.includes('<!--')) {
+      const parts = [];
+      let pos = 0;
+      for (;;) {
+        if (comment) {
+          const j = line.indexOf('-->', pos);
+          if (j < 0) {
+            parts.push(' '.repeat(line.length - pos));
+            pos = line.length;
+            break;
+          }
+          parts.push(' '.repeat(j + 3 - pos));
+          pos = j + 3;
+          comment = false;
+        } else {
+          const j = line.indexOf('<!--', pos);
+          if (j < 0) break;
+          hadComment = true;
+          parts.push(line.slice(pos, j));
+          pos = j;
+          comment = true;
+          parts.push('    ');
+          pos = j + 4;
+        }
+      }
+      parts.push(line.slice(pos));
+      line = parts.join('');
+    }
+    const text = line.trim();
+    if (hadComment || text === '') {
+      open = false;
+      if (text === '') continue;
+    }
+    const indented = /^(?: {4}|\t)/.test(line);
+    const ownBlock = OWN_BLOCK_RE.test(line);
+    const codeLine = indented && !open && !LIST_MARKER_RE.test(line);
+    if (!codeLine && relative === null) {
+      for (const { target, at } of linkTargets(blankCodeSpans(line))) {
+        if (SCHEME_RE.test(target)) continue;
+        relative = { rule: PROSE.link, where: `body ${n + 1}:${[...(quote ? raw.slice(0, off) : '')].length + [...line.slice(0, at)].length + 1}` };
+        break;
+      }
+    }
+    if (hadComment || codeLine) {
+      open = false;
+      continue;
+    }
+    if (ownBlock) {
+      open = false;
+      continue;
+    }
+    if (LIST_MARKER_RE.test(line)) {
+      open = true;
+      prev = raw.slice(off);
+      continue;
+    }
+    if (open && wrap === null && !SENTENCE_END_RE.test(prev.trimEnd()) && !endsInLink(prev.trimEnd()) && !/(?: {2}|[\\])$/.test(prev) && !BOLD_LABEL_RE.test(text)) {
+      wrap = { rule: PROSE.wrap, where: `body ${n + 1}:1` };
+    }
+    open = true;
+    prev = raw.slice(off);
+  }
+  return [wrap, relative].filter(Boolean);
+}
+
 // ---------------------------------------------------------------- gh
 
 /** The environment gh runs with: the caller's, without GH_DEBUG or DEBUG in any case. */
@@ -971,16 +1169,17 @@ export function post(argv, io) {
     plan.labels.forEach((text, i) => fields.push({ field: `label ${i + 1}`, text }));
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env, home: io.home, tmp: io.tmp, user: io.user, host: io.host };
-    // The table check runs after the secret scan, on the body only. Past the
-    // first fifty, its refusals are counted, not listed, so the result line
-    // stays in view.
+    // The table check and the prose checks run after the content scan, on the
+    // body only. Past the first fifty, the table refusals are counted, not
+    // listed, so the result line stays in view.
     const hits = scan(fields, { ...ctx, surface: plan.surface });
     const tables = tableCheck(plan.body);
+    const prose = proseCheck(plan.body);
     if (tables.length > TABLE_LISTED) {
-      const r = refused([...hits, ...tables.slice(0, TABLE_LISTED)]);
-      return { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length}`] };
+      const r = refused([...hits, ...tables.slice(0, TABLE_LISTED), ...prose]);
+      return { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length + prose.length}`] };
     }
-    if (hits.length || tables.length) return refused([...hits, ...tables]);
+    if (hits.length || tables.length || prose.length) return refused([...hits, ...tables, ...prose]);
 
     const p = postOf(plan);
     near = p.near;
