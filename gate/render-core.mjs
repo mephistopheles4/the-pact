@@ -399,9 +399,9 @@ function checkProjectQualities(v, fail) {
   v.forEach((r, i) => {
     const shaped = isObject(r) && QUALITY_FIELDS.every(k => Object.hasOwn(r, k)) && Object.keys(r).every(k => QUALITY_FIELDS.includes(k) || QUALITY_OPTIONAL.includes(k))
       && named(r.quality) && oneLine(r.measure) && Array.isArray(r.lenses) && r.lenses.length && r.lenses.every(named)
-      && (!Object.hasOwn(r, 'enough') || oneLine(r.enough)) && (!Object.hasOwn(r, 'enoughCosts') || (Array.isArray(r.enoughCosts) && r.enoughCosts.every(named)));
+      && (!Object.hasOwn(r, 'enough') || (oneLine(r.enough) && !r.enough.includes('·'))) && (!Object.hasOwn(r, 'enoughCosts') || (Array.isArray(r.enoughCosts) && r.enoughCosts.every(named)));
     if (!shaped) {
-      fail('project-qualities', `row ${i + 1}: a row holds quality, measure and a list of lenses, and may hold enough and a list of enoughCosts, each one line of text (the measure and enough may be empty), and nothing else`);
+      fail('project-qualities', `row ${i + 1}: a row holds quality, measure and a list of lenses, and may hold enough and a list of enoughCosts, each one line of text (the measure and enough may be empty, and enough holds no middle dot, which joins the Enough cell), and nothing else`);
       ok = false;
     } else out.push({ quality: r.quality, measure: r.measure, lenses: r.lenses, enough: r.enough ?? '', enoughCosts: r.enoughCosts ?? [] });
   });

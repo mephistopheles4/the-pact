@@ -338,6 +338,7 @@ for (const c of table('render project cost limits', {
     { id: 'not-a-list', plant: () => ({ project: cFile({ cost: 'x' }) }), fails: ['project-cost-limits'], why: 'a list' },
     { id: 'accepted-risks-key', plant: () => ({ project: cFile(C_ROWS, EQ_ROWS, { acceptedRisks: [] }) }), fails: ['project-key'], why: 'accepted risks live only in a threat model' },
     { id: 'enough-line-break', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enough: 'a\nb' }]) }), fails: ['project-qualities'], why: 'a level is one line' },
+    { id: 'enough-middle-dot', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enough: 'ASVS L1 · Linting' }]) }), fails: ['project-qualities'], why: 'a level that holds the cell separator would forge a cost name' },
     { id: 'enough-costs-blank-name', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: ['  '] }]) }), fails: ['project-qualities'], why: 'a name in enoughCosts is text' },
     { id: 'enough-costs-not-list', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: 'Tests added' }]) }), fails: ['project-qualities'], why: 'a list of names' },
   ],

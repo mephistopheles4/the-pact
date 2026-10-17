@@ -660,7 +660,12 @@ safe, and a change made months ago is easy to forget.
   own rules file could already be; a bar in a Cost limits field is refused.
   The configuration file has no accepted-risks key: accepted risks live only
   in a threat model. A cloned repo's own committed threat model is another
-  matter, and this entry does not cover it.
+  matter, and this entry does not cover it. Accepted 2026-10-17, from the
+  security review of #288 (adversarial-lens, widening of R31), on the owner's
+  word, relayed by the head chef session. Accepted the same day, same
+  source and arrival, from that review's data-lens: a project's cost fields
+  are not screened for a web address or a file import, which reaches no
+  further than R17 and this entry already allow.
 - **R32. A shared builder file can carry agent files.** A builder file
   someone hands you may hold whole agent files: one named like a pact agent
   replaces it, `scout`, which sessions call for every lookup, included, and

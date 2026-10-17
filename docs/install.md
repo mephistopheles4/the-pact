@@ -168,7 +168,8 @@ parts:
   SECURITY DEFAULTS:` line saying so, with the row count of each (ADR 0068).
   A project with its own `qualities` and no `costLimits` gets a `NOTE:` line
   after it: your cost limits reach none of its qualities there. Each quality
-  row may carry `enough` and `enoughCosts`, and an `enoughCosts` name must
+  row may carry `enough` (one line, no middle dot, since that joins the cell)
+  and `enoughCosts`, and an `enoughCosts` name must
   find a cost row in that project's own `costLimits`. A cost row holds `cost`,
   and may hold `counted`, `limit` and `atLimit`, each one line of text with no
   bar; names match ignoring case and surrounding space. A project's `costLimits`
