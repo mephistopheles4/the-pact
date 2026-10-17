@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-0oCA9TzEePqvUWsQ5h1DmQUxsEWCVy6rR0aFSf5Gtus='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qiT+8sJWYQ78+p6qALvm57fICoK6/+iauJq8/c+32FE='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -5857,7 +5857,7 @@ function boot() {
           ...(reached.length ? [] : [el('p', { class: 'av-callout av-callout--caution', role: 'status', text: 'This cost reaches no lens: name it in the Enough of a quality.' })]),
         );
       }),
-      el('div', { class: 'chips' }, chip('Add a cost', cs.length < PARTS_CAPS.costLimits, () => {
+      el('div', { class: 'chips' }, chip('Add a cost', false, () => {
         if (cs.length >= PARTS_CAPS.costLimits) return;
         cs.push({ cost: `Cost ${cs.length + 1}`, counted: '', limit: '', atLimit: '' });
         partsTouched();
