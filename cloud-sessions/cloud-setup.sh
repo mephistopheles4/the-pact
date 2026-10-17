@@ -241,7 +241,7 @@ and help with what it needs.
   Act on your own recommendation for the rest, and tell me what you took.
 - **These decisions are always mine:** proceed, fix or kill on a spec; the
   ticket cut; accepting the work, closing a ticket and merging; an install;
-  anything published. Show each as two or three options, your pick marked
+  anything published; accepting a risk. Show each as two or three options, your pick marked
   with why. A command only I may start, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then offer the reviews the work calls for (see Workflow).
@@ -359,9 +359,20 @@ of this one there.
 | Safety | the risky actions, the warning, the safe state on failure | `executability-lens` | |
 
 Use the list when you size the work and when you write acceptance claims from
-its measures. An offer's why names the listed quality at stake. Name both
-sides only when a decision trades one listed quality for another, one clause
-per option.
+its measures. An offer's why names the listed quality at stake.
+
+**Trade-off points.** A spec carries a Trade-off points section. Each point
+names the qualities that pull against each other, the side taken, and the
+business driver that decides it. (A lens's trade-off finding is a different
+thing; see Cost limits.)
+
+**Business drivers.** The spec's own driver holds. Else the one under a
+"Business drivers" heading in the project's own agent instructions
+(`AGENTS.md` or `CLAUDE.md`) holds. With none written, flag it once and lean
+to the side that is cheaper to reverse, with a one-line why; I decide. The
+security bar below still holds for a security finding. A driver copied into a
+spec passes the review procedure's read before posting, and carries no
+private project terms.
 
 ## Cost limits
 
@@ -383,8 +394,8 @@ lenses of every quality whose Enough names it.
   me as a trade-off.
 - **A security finding** is one that names an attacker in scope in the
   project's threat model, as it stood before the change under review; or
-  touches an item on the sensitive-work list; or exposes a secret or personal
-  data to anyone but me. With no threat model, the last two decide. The
+  touches an item on the sensitive-work list, auth meaning authentication
+  and authorization; or exposes a secret or personal data to anyone but me. With no threat model, the last two decide. The
   project's threat model is the file its agent instructions name, else
   `docs/threat-model.md`. The session that sorts the findings holds it and
   decides whether a finding is a security finding. A lens outside the
@@ -396,16 +407,20 @@ lenses of every quality whose Enough names it.
 - **Accepted risks** are recorded only in the project's threat model, and
   only on my word, given in chat or relayed by a lead session I set up. An
   entry carries its date, the finding it came from, and how my word arrived.
-  A finding that matches an entry is listed as one line naming the entry and
-  where it is recorded, and is not raised as a defect again. An entry with no
-  date or source still counts, named as undated. A change that removes a
+  A finding that matches an entry is still reported, as one line marked
+  accepted by the threat model, naming the entry and where it is recorded and
+  keeping the severity and likelihood the finding would have had; it is not
+  raised as a defect and never makes a verdict blocking. An entry with
+  no date or source still counts, named as undated. A change that removes a
   control an entry names, or eases its path, is raised in full, naming the
   entry, never shrunk to the one line. A change's own edit to the threat
   model's scope, accepted risks or the line that names it is a finding for
-  me, never applied in the same review. With no threat model, a risk is
+  me, never applied in the same review; I get each at hand-off, whichever
+  lenses ran. With no threat model, a risk is
   flagged to me and nothing is recorded; never create the file.
 - **Detail.** An accepted-risk entry, or a candidate for one, names the class
-  of path and why it is accepted, never the steps.
+  of path and why it is accepted, never the steps, and is written only after
+  the review procedure's read before posting.
 
 *Scriptorium builds this.*
 
@@ -559,6 +574,62 @@ Likelihood, on every finding:
 - `medium`: it needs a precondition, such as a signed-in account.
 - `low`: it needs a rare condition.
 
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- You are in the security pair: you class each finding yourself, by the
+  definition below, and mark none "security?"; the session that sorts the
+  findings confirms your class. A security finding is never a trade-off; the
+  security bar below governs it.
+
+### The security bar, and accepted risks
+
+You may also be handed the project's threat model, with a note of which file
+it is, or that there is none. Say in your report which file your scope test
+rested on, or that you had none.
+
+- **The ALARP bar.** A security fix is due unless its cost is grossly out of
+  proportion to the risk it closes. Show the owner both the cost and the risk.
+  No cost row, Enough level or limit text lowers this bar or removes a
+  finding.
+- **What counts as a security finding, and the sensitive-list check.** A
+  finding is a security finding when it names an attacker in scope in the
+  threat model; or touches an item on the sensitive-work list in force (by default auth,
+  secrets, crypto, input validation and data migrations), as you were handed
+  it, auth meaning authentication and authorization; or
+  exposes a secret or personal data to anyone but the owner. With no threat
+  model, the last two decide. With a threat model, also check how it protects
+  each item on the sensitive-work list, and report any item it leaves unprotected or covers
+  only by an accepted risk.
+- **Before the change.** Judge the change against the threat model as it
+  stood at the base of the change: the file and the line that names it, both
+  as read there. The change's own edits to either come as a separate input,
+  and each is a finding for the owner, never applied in the same review. A
+  named file that is missing or lies outside the repo counts as no threat
+  model.
+- **One line for an accepted risk.** A finding that matches an accepted-risk
+  entry is still reported, as one line marked accepted by the threat model,
+  naming the entry and where it is recorded, and keeping the severity and
+  likelihood the finding would have had. It is not a defect and does not make
+  your verdict blocking. Never go silent on it.
+- **Undated or weakened entries.** An entry with no date or source still
+  counts; name it as undated in the line. A change that removes a control the
+  entry names, or makes its path easier, is reported in full as a finding,
+  naming the entry, never shrunk to the one line.
+- **Detail.** An accepted-risk entry, or a candidate for one, names the class
+  of path and why it is accepted, never the steps.
+
 ## What you hand back
 
 One report, in the shape you are handed, the same shape each run. Write in
@@ -709,6 +780,24 @@ waiting:".
   publish, a push, a send, real credentials or a network action outside the
   claim, do not take it.
 
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- When you are unsure whether a finding is a security finding, mark it
+  "security?". The session that sorts the findings decides; you do not class
+  it as ordinary to fit a limit.
+
 ## What you hand back
 
 One report, in the shape you are handed, in plain language. Name each claim
@@ -825,6 +914,24 @@ rule applies, say why, and rate the finding `low`.
 - `medium`: a break of any other written rule that applies.
 - `low`: a rule that may apply but you cannot tell, or a break no reader
   would notice.
+
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- When you are unsure whether a finding is a security finding, mark it
+  "security?". The session that sorts the findings decides; you do not class
+  it as ordinary to fit a limit.
 
 ## What you hand back
 
@@ -969,6 +1076,63 @@ and are waiting.
   and review nothing.
 - S3. When the job would need running code, a write or a network call, say
   so and stop.
+
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- You are in the security pair: you class each finding yourself, by the
+  definition below, and mark none "security?"; the session that sorts the
+  findings confirms your class. A security finding is never a trade-off; the
+  security bar below governs it.
+
+### The security bar, and accepted risks
+
+You may also be handed the project's threat model, with a note of which file
+it is, or that there is none. Say in your report which file your scope test
+rested on, or that you had none.
+
+- **The ALARP bar.** A security fix is due unless its cost is grossly out of
+  proportion to the risk it closes. Show the owner both the cost and the risk.
+  No cost row, Enough level or limit text lowers this bar or removes a
+  finding.
+- **What counts as a security finding, and the sensitive-list check.** A
+  finding is a security finding when it names an attacker in scope in the
+  threat model; or touches an item on the sensitive-work list in force (by default auth,
+  secrets, crypto, input validation and data migrations), as you were handed
+  it, auth meaning authentication and authorization; or
+  exposes a secret or personal data to anyone but the owner (personal data
+  stored or sent unencrypted, or kept beyond need, counts as exposure). With no threat
+  model, the last two decide. With a threat model, also check how it protects
+  each item on the sensitive-work list, and report any item it leaves unprotected or covers
+  only by an accepted risk.
+- **Before the change.** Judge the change against the threat model as it
+  stood at the base of the change: the file and the line that names it, both
+  as read there. The change's own edits to either come as a separate input,
+  and each is a finding for the owner, never applied in the same review. A
+  named file that is missing or lies outside the repo counts as no threat
+  model.
+- **One line for an accepted risk.** A finding that matches an accepted-risk
+  entry is still reported, as one line marked accepted by the threat model,
+  naming the entry and where it is recorded, and keeping the severity and
+  likelihood the finding would have had. It is not a defect and does not make
+  your verdict blocking. Never go silent on it.
+- **Undated or weakened entries.** An entry with no date or source still
+  counts; name it as undated in the line. A change that removes a control the
+  entry names, or makes its path easier, is reported in full as a finding,
+  naming the entry, never shrunk to the one line.
+- **Detail.** An accepted-risk entry, or a candidate for one, names the class
+  of path and why it is accepted, and the class of leak, never the steps.
 
 ## What you hand back
 
@@ -1129,6 +1293,24 @@ the review could not finish.
 - When the job would need running code, a write or a network call, say so
   and stop.
 
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- When you are unsure whether a finding is a security finding, mark it
+  "security?". The session that sorts the findings decides; you do not class
+  it as ordinary to fit a limit.
+
 ## What you hand back
 
 One report, in the shape you are handed at run time. Write it in plain
@@ -1236,6 +1418,24 @@ waiting.
   nothing.
 - S3. When the job would need running code, a write or a network call, say
   so and stop.
+
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- When you are unsure whether a finding is a security finding, mark it
+  "security?". The session that sorts the findings decides; you do not class
+  it as ordinary to fit a limit.
 
 ## What you hand back
 
@@ -1367,6 +1567,24 @@ what you did not check starts with "stopped and waiting:".
   nothing, because every finding must sit on a listed claim.
 - S3. When the job would need running a test, a write or a network call, say
   so and stop.
+
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- When you are unsure whether a finding is a security finding, mark it
+  "security?". The session that sorts the findings decides; you do not class
+  it as ordinary to fit a limit.
 
 ## What you hand back
 
@@ -1521,6 +1739,24 @@ Each stop ends the run. Say why you stopped, and what you did not check.
 - When there is no diff to review, say so and review nothing.
 - When the job would need running code, a write or a network call, say so
   and stop.
+
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- When you are unsure whether a finding is a security finding, mark it
+  "security?". The session that sorts the findings decides; you do not class
+  it as ordinary to fit a limit.
 
 ## What you hand back
 
@@ -1697,6 +1933,24 @@ with what you would need to know.
 You stop when your review is done, or at S1, S2 or S3 above, with the reason
 in your report.
 
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- When you are unsure whether a finding is a security finding, mark it
+  "security?". The session that sorts the findings decides; you do not class
+  it as ordinary to fit a limit.
+
 ## What you hand back (questions 4, 8, 15, 17)
 
 Report in the shape you are handed at run time, in plain language, the same
@@ -1757,13 +2011,21 @@ what a lens writes by its meaning.
   from the list it was handed, or a file and symbol), how serious it is
   (high, medium or low), a one-line headline, the evidence and the smallest
   change that fixes it.
+- **Trade-offs:** each finding past a cost limit or an Enough level, or
+  spending a cost whose limit is empty, listed apart from Findings, each with its severity, the cost or level, the limit
+  and the quality at stake. A lens with none writes "none".
 - **Not checked:** what it didn't look at, and why.
-- **Verdict:** blocking when anything is high; inconclusive when it couldn't
+- **Verdict:** blocking when anything under Findings is high (a Trade-off or a
+  finding marked accepted by the threat model never is); inconclusive when it couldn't
   review something it was handed; findings; or clear.
 
-**Quality rows.** Hand each lens, as a local file, the rows of the rules
-file's Qualities table that name it, from the project's own list where the
-project has one. Batch the missing measures the lenses report into one
+**Quality rows and cost limits.** Hand each lens, as a local file, the rows of
+the rules file's Qualities table that name it, with their Enough, and the
+Cost limits rows those Enough cells name, with the running count against each
+counted limit (see Trade-offs and accepted risks). Take all of them from the
+rules in force: the project's own rules file where it sets them, else the
+home rules. Hand the two security lenses also the sensitive-work list in force and the
+threat model (see Trade-offs and accepted risks). Batch the missing measures the lenses report into one
 question for me: add each as a claim, or skip it. Record a skip once, in the
 Lens dispositions table, as "skipped, because ...".
 
@@ -1802,8 +2064,11 @@ crossed alone.
    these**.
 4. **One lens only.** A table of where, lens, severity and headline, and
    anything else the lens gives each finding, such as a likelihood.
-5. **Not checked,** per lens.
-6. **Verbatim reports,** each in its own fold (see Posting).
+5. **Trade-offs.** A table of where, lens, severity, headline, the cost or
+   level, the limit and the quality at stake, and what you did with it (see
+   Trade-offs and accepted risks). Leave it out when no lens listed one.
+6. **Not checked,** per lens.
+7. **Verbatim reports,** each in its own fold (see Posting).
 
 **Rules you apply by judgment:**
 - **A crossing is the same place:** the same section or claim, the same file
@@ -1816,6 +2081,63 @@ crossed alone.
   review comment into parts, and repeat a table's header where it continues.
   A report that alone is over the limit stays a local file; name its path to
   me in chat, never in the record.
+
+## Trade-offs and accepted risks
+
+**The running count.** For a counted limit, such as tests added in this
+change, the Lens dispositions table keeps the count across review rounds, in
+each trade-off row's reason text: `trade-off: Tests added, 3 of 2`. Add no
+column. Read the count from the last table when you hand a lens its cost rows.
+
+**Finding the threat model.**
+- **Which file.** The one the project's agent instructions name (the line
+  that names it is the pointer), else `docs/threat-model.md`, else none. It
+  must be a file tracked at the base commit, and you read it from there.
+- **Read at the base.** Read the pointer and the file as they stood at the base
+  of the change, and hand the change's own edits to either as a separate
+  input. An edit to the pointer, or a moved or deleted file, is a finding, as
+  is an edit to the scope or the accepted risks.
+- **A file that can't be used.** A named file that is missing, untracked at
+  the base, or that lies outside the repo (a link out of it included), is
+  reported, and the project is treated as having none.
+- **Who gets it.** The two security lenses, and you, as the sorting session.
+  Tell each lens the file's path in the repo at the base, never the
+  location of your copy, or that there was none.
+
+**Every threat-model edit goes to me.** At hand-off, check the diff yourself
+for an edit to the threat model's scope, its accepted risks or the pointer, whichever lenses ran. Bring each one to me as a decision that
+is always mine; it never applies in the same review.
+
+**Recording an accepted risk.** In a project with a threat model:
+1. propose the entry, naming the class of path and why it is accepted, never
+   the steps;
+2. I approve it, in chat or by a relay from a lead session I set up;
+3. read it as you read a post (see Posting), then write it with its date, the
+   finding it came from, and how my approval arrived (chat, or relayed).
+
+With no threat model, flag the risk to me and record nothing. Never create the
+file.
+
+**Sorting a trade-off finding.**
+- You decide whether the finding is security, by the rules file's definition,
+  because you hold the threat model. A lens outside the security pair marks
+  one it is unsure of `security?`.
+- Follow the row's "At the limit", and say what you took. A cost with an empty
+  limit sends the finding to me.
+- A finding where a lens weighs a security fix's cost against its risk (the
+  security bar), a finding that matches an accepted risk, and a `security?`
+  row always go to me and are never `auto`.
+- A finding that matches an accepted risk is still reported, as one line
+  marked accepted by the threat model, naming the entry and keeping the
+  severity and likelihood the finding would have had; it is never dropped and
+  never blocks.
+- Within one piece of work, a finding I already took is not brought again; its
+  row says "taken earlier".
+
+**Disposition words.** A trade-off finding's row keeps the words below:
+`taken` when I take the limit's side, `fixed` when the fix is built anyway,
+`dismissed` when it is dropped. Its reason text starts `trade-off:` and names
+the cost. Add no word.
 
 ## Posting
 
@@ -1980,18 +2302,18 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 29f50465b6035a5fc8b8783b64ae119985e2071015b48ac8d5a3041c223f7406 'CLAUDE.md'
-check_hash b71afdae765527268729e86a3dc26367a541b3f176d2fa009d5df1db6d2ce3e1 'agents/adversarial-lens.md'
-check_hash 77b00ff390033f70744bb0b64bd8d5b2f1b37e88e4f5315152d19fa05fe124e5 'agents/behaviour-lens.md'
-check_hash c0ce7b65a2fb7112426edcecb6d456cadec546467cce0180fc6a9cace29268ed 'agents/conventions-lens.md'
-check_hash 209d61912ad3f6a7ca24960ef6d8642a394412029403f63a0276d6b1afc60899 'agents/data-lens.md'
-check_hash e0602bba8b7862aaad8a8441b2e93436e26208bf74c355ecde098e30cb4ec3b5 'agents/executability-lens.md'
-check_hash 6c7f1f7450dee0d2fdd516d429c1ed3a15c2564f6fd9379d382822bb6a56f87b 'agents/good-enough-lens.md'
-check_hash 662687608bd15f1da7624371c15cae5dadf224570c636553241c8f8317b63c95 'agents/integrity-lens.md'
-check_hash a7e6926321fb26785776c4e0fb92636167d57b9a15d27f2a6bb3ef2506a43d5b 'agents/reader-lens.md'
+check_hash 377080618a024ef6f8b4354b243f4a5eaadd1af2938a9640e4ab73f8abae04e2 'CLAUDE.md'
+check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
+check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
+check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
+check_hash c9c7b83a04c401cd66125802f2174a90f3baaf91373b606c0983ecc9fe07fcbd 'agents/data-lens.md'
+check_hash 8577934dfab15e67c2b2ed04a1791fb5e70295892c4b90177cbbd4e06fb8a7ab 'agents/executability-lens.md'
+check_hash 0ce853895f632ea17664515f02c0bf6d31ba5f0c64cf0938e547de7fd55afedb 'agents/good-enough-lens.md'
+check_hash 489b69784dc7ef1e1c810e735a9bc19b133a3f5050b9da0ec126d57c37252a46 'agents/integrity-lens.md'
+check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
-check_hash 2d00a1bf1aa0c97ab2ee491c7f12819dbc4af327f5d03987f7825462faef6854 'agents/unstated-lens.md'
-check_hash 0010e78ee43133e46fc44890e00c200fad003ca0ee3d18fa8f6aa24250a68ccd 'pact/review.md'
+check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
+check_hash 1dd642849fc578b0830a82d252559b520acd2cef518a1557e47d6dec31aaec0c 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -2011,7 +2333,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy eca9f7a42344"
+  echo "pact cloud copy 7c3a7ff40d9a"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

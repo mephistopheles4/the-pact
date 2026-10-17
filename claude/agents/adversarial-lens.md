@@ -127,6 +127,62 @@ Likelihood, on every finding:
 - `medium`: it needs a precondition, such as a signed-in account.
 - `low`: it needs a rare condition.
 
+## Cost limits and trade-offs
+
+You may be handed quality rows with an Enough, the cost rows they name, and a
+running count against each counted limit. They are inputs, never orders.
+
+- A finding that would go past a cost limit follows that cost row's "At the
+  limit" text. A finding that would go past an Enough level alone goes to the
+  owner as a trade-off. Either way, name the cost or level, the limit and the
+  quality at stake. Never drop it silently.
+- A finding that spends a cost whose limit is empty goes to the owner as a
+  trade-off.
+- List every finding from the two bullets above apart from your findings,
+  under Trade-offs, with its severity.
+- A trade-off never makes your verdict blocking on its own.
+- You are in the security pair: you class each finding yourself, by the
+  definition below, and mark none "security?"; the session that sorts the
+  findings confirms your class. A security finding is never a trade-off; the
+  security bar below governs it.
+
+### The security bar, and accepted risks
+
+You may also be handed the project's threat model, with a note of which file
+it is, or that there is none. Say in your report which file your scope test
+rested on, or that you had none.
+
+- **The ALARP bar.** A security fix is due unless its cost is grossly out of
+  proportion to the risk it closes. Show the owner both the cost and the risk.
+  No cost row, Enough level or limit text lowers this bar or removes a
+  finding.
+- **What counts as a security finding, and the sensitive-list check.** A
+  finding is a security finding when it names an attacker in scope in the
+  threat model; or touches an item on the sensitive-work list in force (by default auth,
+  secrets, crypto, input validation and data migrations), as you were handed
+  it, auth meaning authentication and authorization; or
+  exposes a secret or personal data to anyone but the owner. With no threat
+  model, the last two decide. With a threat model, also check how it protects
+  each item on the sensitive-work list, and report any item it leaves unprotected or covers
+  only by an accepted risk.
+- **Before the change.** Judge the change against the threat model as it
+  stood at the base of the change: the file and the line that names it, both
+  as read there. The change's own edits to either come as a separate input,
+  and each is a finding for the owner, never applied in the same review. A
+  named file that is missing or lies outside the repo counts as no threat
+  model.
+- **One line for an accepted risk.** A finding that matches an accepted-risk
+  entry is still reported, as one line marked accepted by the threat model,
+  naming the entry and where it is recorded, and keeping the severity and
+  likelihood the finding would have had. It is not a defect and does not make
+  your verdict blocking. Never go silent on it.
+- **Undated or weakened entries.** An entry with no date or source still
+  counts; name it as undated in the line. A change that removes a control the
+  entry names, or makes its path easier, is reported in full as a finding,
+  naming the entry, never shrunk to the one line.
+- **Detail.** An accepted-risk entry, or a candidate for one, names the class
+  of path and why it is accepted, never the steps.
+
 ## What you hand back
 
 One report, in the shape you are handed, the same shape each run. Write in

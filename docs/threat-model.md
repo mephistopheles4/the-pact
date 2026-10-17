@@ -644,7 +644,18 @@ safe, and a change made months ago is easy to forget.
   configuration changed since the last install; it points, and you read the
   rendered part. The builder's checks and its Presets checklist, which shows
   each section a preset or shared file carries before anything is taken, are
-  your look at what you load, not a control the install runs.
+  your look at what you load, not a control the install runs. The rules
+  file's Cost limits part also defines what counts as security for every
+  lens, and no cost row narrows it: an attacker in scope in the threat model
+  as it stood before the change, an item on the sensitive-work list, or a
+  secret or personal data exposed to anyone but you. The lenses read the
+  threat model and the line that names it as they stood at the base
+  of the change; the change's own edit to either is a finding for you, and
+  the session brings every such edit to you at hand-off, whichever lenses
+  ran. A threat model is committed text, and may be public: an accepted-risk
+  entry, or a candidate for one, names the class of path and why it is
+  accepted, never the steps to use it. These additions to R30 were accepted
+  by the owner on 2026-10-17, relayed by the head chef session (#289).
 - **R31. A project's qualities list and Cost limits take the place of
   yours.** A project's `.claude/pact-config.json` may hold a list that drops
   the Security row, or any other, in that repo, and a Cost limits list that
@@ -660,7 +671,15 @@ safe, and a change made months ago is easy to forget.
   own rules file could already be; a bar in a Cost limits field is refused.
   The configuration file has no accepted-risks key: accepted risks live only
   in a threat model. A cloned repo's own committed threat model is another
-  matter, and this entry does not cover it. Accepted 2026-10-17, from the
+  matter: it can list an accepted risk, undated ones included, but a lens
+  never goes silent on a risk a threat model lists. It reports the finding
+  as one line marked accepted by the threat model, naming the entry, so a
+  planted or undated entry can label a finding, never hide it or its
+  severity. That
+  sentence was added 2026-10-17 from #300, on the owner's direction, and
+  accepted by the owner the same day, both relayed by the head chef session
+  (#289); the #288 review did not accept it.
+  Accepted 2026-10-17, from the
   security review of #288 (adversarial-lens, widening of R31), on the owner's
   word, relayed by the head chef session. Accepted the same day, same
   source and arrival, from that review's data-lens: a project's cost fields
