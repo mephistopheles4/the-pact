@@ -208,6 +208,8 @@ for (const c of table('poster prose', {
     linkRow('link-root', 'See [it](/owner/repo/x).', '/owner/repo/x', 'a root link, refused with the rest (q2 A)'),
     linkRow('link-reference', '[ref2]: docs/x.md', 'docs/x.md', 'a reference definition'),
     linkRow('link-image', 'See ![it](docs/x.png).', 'docs/x.png', 'an image'),
+    linkRow('link-html-src', '<img src="docs/x.png">', 'docs/x.png', 'an HTML src'),
+    linkRow('link-angle', 'See [it](<docs/x.md>).', 'docs/x.md', 'a target in angle brackets'),
     linkRow('link-html-href', '<a href="docs/x.md">it</a>', 'docs/x.md', 'an HTML href'),
   ],
 })) test(c.name, c.fn);

@@ -7,12 +7,12 @@
 - **Two checks** in `claude/tools/poster.mjs`, `proseCheck`, run after the content scan and the table check on the body only: `text/hard-wrap` and `link/relative`. Each refusal names the line and column, once per rule; a dry run runs them too.
 - **The rules file's poster part** says "a table, wrap or link refusal on a line inside a lens report means its fence is too short". `cloud-sessions/` and `builder/scriptorium.html` were regenerated.
 - **`docs/poster.md`** names both rules, how to fix each, and that `issue` has no `--parent`. The threat model's input-rules bullet gains one sentence naming both checks; no scope or accepted risk changed.
-- **Tests** in `gate/tests/poster-prose.test.mjs`: a table with the passing shapes in its base and eleven must-refuse rows, two tests through `post`, one worst-case timing test.
+- **Tests** in `gate/tests/poster-prose.test.mjs`: a table with the passing shapes in its base and thirteen must-refuse rows, two tests through `post`, one worst-case timing test.
 
 ## Decisions
 
 - [ADR 0083](../adr/0083-the-poster-refuses-wrapped-prose-and-relative-links.md): refuse, don't rewrite.
-- The Tests added limit was passed (16 added against 7 claims) and the owner accepted it.
+- The Tests added limit was passed (18 added against 7 claims) and the owner accepted it.
 
 ## Record
 

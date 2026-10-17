@@ -17,3 +17,4 @@ With the poster on, its pre-post checks refuse a body with a hard-wrapped paragr
 ## What stays
 
 - Nothing is rewritten, retried or relaxed. A throw inside the checks ends the run as `RESULT: unavailable` with nothing sent. A body that uses a setext heading may be refused; the session writes `#` instead.
+- **Known limits, left as specified.** A paragraph line directly followed by a `>` quote line is read as one block and may be refused. A table with no leading `|` is refused as a wrap. A paragraph indented four spaces inside a list item, after a blank line, is read as code, so a wrap or relative link there is not refused. Each is rare, and none touches the pact's own shapes; a later change can tighten or loosen them.
