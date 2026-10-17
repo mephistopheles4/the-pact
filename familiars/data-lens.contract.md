@@ -1,6 +1,6 @@
 # Contract: data-lens
 
-Version: 0.2.1
+Version: 0.3.0
 
 - **Type:** agent
 - **Level:** Thorough
@@ -159,6 +159,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.3.0 | 2026-10-17 | The lens may be handed quality rows with an Enough, the cost rows they name and running counts, as inputs: a finding past a cost limit follows that row's "At the limit", and one past an Enough level alone goes to the owner as a trade-off; both are listed under Trade-offs and never make the verdict blocking on their own. As one of the security pair, it classes each finding itself, and a security finding is never a trade-off. A security-bar section carries the ALARP bar, what counts as a security finding, the sensitive-list check, the threat model as it stood before the change, and the one-line report of an accepted risk. | #304: records what #289 (T4 of #278) added to the lens file, the "Cost limits and trade-offs" section and "The security bar, and accepted risks" | 10 |
 | 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
 | 0.2.0 | 2026-10-12 | Agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262). | The owner decided the lens be agnostic of the pact | 1, C10, C11, C17, owner, stop and ask, what makes it fire, 4, 5 (model, effort), 8, 9, 10, 11, 14, 16, 17, 18, 19 |
 | 0.1.6 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
@@ -188,6 +189,10 @@ Against its neighbours: it asks "where can data leak?", not "how could someone b
 - **Refuse when:** nothing to review (S1); on the spec, no section list (S2).
 
 **Decided** (2026-10-12, #262): the lens may also be handed quality rows, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
+
+**Decided** (2026-10-17, #304, recording #289): the lens may also be handed quality rows with an Enough, the cost rows they name and a running count against each counted limit, as inputs, never orders. A finding past a cost limit follows that cost row's "At the limit" text; one past an Enough level alone, or one that spends a cost with an empty limit, goes to the owner as a trade-off naming the cost or level, the limit and the quality at stake, and is never dropped silently. It lists those apart from its findings, under Trade-offs, with their severity; a trade-off never makes its verdict blocking on its own. As one of the security pair, it classes each finding itself and marks none "security?"; the sorting session confirms the class, and a security finding is never a trade-off. The lens file's "Cost limits and trade-offs" section holds the text.
+
+**Decided** (2026-10-17, #304, recording #289): it may also be handed the project's threat model, or a note that there is none, and says which file its scope test rested on. The lens file's "The security bar, and accepted risks" section holds the ALARP bar (a security fix is due unless its cost is grossly out of proportion to the risk it closes, the owner is shown both the cost and the risk, and no cost row lowers it), what counts as a security finding (personal data stored or sent unencrypted, or kept beyond need, counts as exposure) and the sensitive-list check, judging against the threat model as it stood at the base of the change, the one-line report of a finding that matches an accepted-risk entry, undated or weakened entries, and an entry naming the class of path and the class of leak, never the steps.
 
 ### 11. Where does a person decide?
 
