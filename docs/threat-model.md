@@ -82,6 +82,28 @@ stands before an action is Claude Code's own: its protected paths (the
 `~/.claude` folder and `~/.claude.json`), which in auto mode go to its
 classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 
+## Crypto and data migrations here
+
+**Crypto.** The pact holds no secret, key or signature, and encrypts nothing.
+Its one use of cryptography is SHA-256 as a fingerprint: the install records
+each file's hash in its install record to find drift, and an apply is bound to
+the commit and rendered hash its dry run printed. These hashes detect change;
+they authenticate no one, since a session that can write the files can write
+the install record too (R14). The atomic writer takes random bytes only to
+name a temporary file. Transport is git's and GitHub's, outside this page. A
+change that adds a secret, key, signature or encryption step is new scope, and
+sensitive work under the default.
+
+**Data migrations.** The pact keeps no database. What it migrates is the state
+an install leaves in the Claude home folder: the install record, the settings
+it merged, and files an older pact installed. The dry run shows that state's
+drift before anything changes; the install takes out the ask rules an older
+pact set (#265) and the retired builder agents (#262), and warns about a
+retired lens name without deleting its file (#302). A change to the install
+record's format, the settings overlay, or what an install removes is a data
+migration, sensitive work under the default; the rollback checks in
+`docs/agents/install.md` are its recovery.
+
 ## The risks at a glance
 
 The chart places each accepted risk by what is left after today's guards.
