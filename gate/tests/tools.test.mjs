@@ -165,6 +165,7 @@ test('a project configuration may not hold tools', t => {
 
 // ------------------------------------------------------------ the rules file: the poster's part (C6)
 
+// The first clause of the sentence on a lens report's fence reads "A table, wrap or link refusal" since #317 (q3 B on that issue).
 // T2's approved text (#280, revision 5, with the three clauses #285 carries
 // and the four changes from #285's Test; the owner approved it as q2 on #285),
 // byte for byte.
@@ -182,13 +183,13 @@ const T2 = [
   "  procedure's read before posting still comes first. When it refuses your",
   '  own prose or a Lens dispositions table, fix it in place and post again;',
   '  never fold, fence, quote, relabel or move a table to get past the check,',
-  '  and never rerun a lens for it. A table refusal on a line inside a lens',
-  '  report means its fence is too short: fix the fence, never the report. A',
-  '  lens report it refuses for a secret, a personal detail, a local path, a',
-  '  session id or hidden characters stays local: tell me where it is, in chat',
-  '  only, and never post it or edit it to get past the scan. If it ends',
-  '  unavailable, refuses for a reason no text fix clears, or refuses twice',
-  "  for a reason you can't explain, stop and tell me.",
+  '  and never rerun a lens for it. A table, wrap or link refusal on a line',
+  '  inside a lens report means its fence is too short: fix the fence, never',
+  '  the report. A lens report it refuses for a secret, a personal detail, a',
+  '  local path, a session id or hidden characters stays local: tell me where',
+  '  it is, in chat only, and never post it or edit it to get past the scan.',
+  '  If it ends unavailable, refuses for a reason no text fix clears, or',
+  "  refuses twice for a reason you can't explain, stop and tell me.",
 ].join('\n');
 const KEEP_RECORD = '- **Keep the record where the project keeps it.**';
 const rendered = r => readFileSync(join(r.out, 'CLAUDE.md'), 'utf8');

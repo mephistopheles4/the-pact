@@ -806,7 +806,8 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   title one line (`text/body-length`, `text/title-lines`,
   `text/title-length`). The content
   scans and the table check that follow are the backstop R3, R13 and R29
-  name.
+  name. Two body checks, `text/hard-wrap` and `link/relative`, keep a post
+  from landing broken; they are not a security control.
 
 ## What you may tweak, and what it costs
 
