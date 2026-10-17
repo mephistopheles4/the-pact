@@ -42,4 +42,6 @@ test('the notice and the fit check never mention a project or its files', () => 
   const fit = /- \*\*Say a mismatch first\.\*\*[\s\S]*?\n\n/.exec(rules);
   assert.ok(fit, 'the fit check is in the rules file');
   assert.doesNotMatch(fit[0], /project/i);
+  // #306: a session cannot read its own effort, so the check names the tier and the model only.
+  assert.doesNotMatch(fit[0], /effort/i);
 });

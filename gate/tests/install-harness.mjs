@@ -12,6 +12,7 @@ import { tempDir } from './tree.mjs';
 
 export const WIN = process.platform === 'win32';
 
+
 function which(cmd) {
   const r = spawnSync(WIN ? 'where.exe' : 'which', [cmd], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`${cmd} not found on PATH`);

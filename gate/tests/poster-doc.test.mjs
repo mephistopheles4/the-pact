@@ -104,3 +104,13 @@ test('bad case: a rule-id row missing or extra, or an exit code swapped, shows a
 test('control: a name only in plain text, not in backticks, does not count', () => {
   assert.deepEqual(missingFromPage('the rule usage/surface', ['usage/surface'], {}), ['usage/surface']);
 });
+
+// #294 C5: the page shows the NEXT line on the three rows where a post may already be on GitHub
+test('docs/poster.md says on its mismatch, unverified and failed rows that the poster prints a NEXT: line', () => {
+  for (const word of ['mismatch', 'unverified', 'failed']) {
+    const row = PAGE.split('\n').find((l) => l.startsWith(`| `) && l.includes(`\`RESULT: ${word}`));
+    assert.ok(row, `no exit-table row for ${word}`);
+    assert.ok(row.includes('`NEXT:`'), `the ${word} row does not name the NEXT: line`);
+  }
+  assert.ok(/^\/\/ Exits 1 and 3 also print one NEXT: line/m.test(SOURCE), 'the poster header does not describe the NEXT: line');
+});

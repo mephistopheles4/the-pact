@@ -251,8 +251,8 @@ and help with what it needs.
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
   propose a fresh session.
-- **Say a mismatch first.** If the tier, model or effort doesn't fit the
-  work, say so in the first line, before any work.
+- **Say a mismatch first.** If the tier or model doesn't fit the work,
+  say so in the first line, before any work.
 
 ## How much checking
 
@@ -2190,7 +2190,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash f8a09993ec2c6e45eac86153eb4099e38b11963d4b69f7fd497d5e524b77a076 'CLAUDE.md'
+check_hash 489397256e2035938211c8e1837fd2bc32a64bacc834dc0af2d86c7a347706df 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -2220,7 +2220,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 10d5a9ada223"
+  echo "pact cloud copy fd9c77b74f49"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

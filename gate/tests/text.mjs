@@ -104,3 +104,13 @@ export function applyDiff(text, diff) {
   out.push(...src.slice(at));
   return out.join('\n');
 }
+
+/**
+ * Skip a test whose environment is wrong, except on Linux under CI (#311): the
+ * gate job is where the Linux-only cases run, and a skip counts as a pass, so
+ * there the wrong environment fails the test instead.
+ */
+export function skipUnlessLinuxCi(t, reason, { platform = process.platform, ci = process.env.CI } = {}) {
+  if (platform === 'linux' && ci) assert.fail(`Linux CI must run this case, but: ${reason}`);
+  t.skip(reason);
+}
