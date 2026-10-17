@@ -1272,7 +1272,9 @@ Refuse when there is no spec, or no section list. See "When you stop".
    data in. It has no exception clause: a cost, a deadline or a trigger does
    not make its deferral pass, and you never weigh it by likelihood and
    impact. Suggest the smallest change that brings the work into the spec,
-   not a plan to defer it.
+   not a plan to defer it. This finding is never a trade-off, whatever cost
+   limit you are handed: report it under Findings, and mark it "security?"
+   when the work is not on the list above.
 6. **Report every blocking defect you know of in the same pass.**
 
 **How serious a finding is:**
@@ -2191,7 +2193,7 @@ check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'age
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
 check_hash c9c7b83a04c401cd66125802f2174a90f3baaf91373b606c0983ecc9fe07fcbd 'agents/data-lens.md'
-check_hash 8e314228fb7fa11e56d8b8b9576de1ada552b947c353581a4353f5208938ec68 'agents/executability-lens.md'
+check_hash 5095038b8e471ca8ef72411ec5289b443005e3a5fdd09622418c4a05c9f75232 'agents/executability-lens.md'
 check_hash 489b69784dc7ef1e1c810e735a9bc19b133a3f5050b9da0ec126d57c37252a46 'agents/integrity-lens.md'
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
@@ -2216,7 +2218,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 226e286e835b"
+  echo "pact cloud copy 10d5a9ada223"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

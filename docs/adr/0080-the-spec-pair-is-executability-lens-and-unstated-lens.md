@@ -18,6 +18,7 @@
 ## What was weighed
 
 - **Keeping the lens and cutting its brief.** Not taken: the part worth keeping, the guard, moves with the stop test, and the rest duplicated Cost limits.
+- **The builder drops a retired agent's file text too.** A saved or shared builder file that carries an agent file under the retired name loses it on load, with the page's note; the file on disk is untouched unless the owner saves over it. A separate Design offer of `unstated-lens` goes only when the new pair covers its tiers and condition.
 - **Refusing a block that names the old name.** Not taken: a block is prose, and refusing one for a word is the kind of text check [ADR 0069](0069-the-pact-is-vetted-like-a-skill.md) took out of the gate. The `agents` key is structured, so it still refuses.
 - **Adding the lens file to the install's retired list.** Not taken: a first install with no record must not delete a file it didn't write.
 

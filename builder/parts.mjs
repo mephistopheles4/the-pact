@@ -219,8 +219,10 @@ export function dropRetired(p) {
       o.agents = clean(o.agents);
       if (Array.isArray(o.agents) && o.agents.length > 0 && before && o.agents.includes(SPEC) && o.agents.includes(SECOND)) pairStages.add(o.stage);
     }
-    // A separate offer of the second lens alone, at a stage where the pair now holds it, goes.
-    g.offers = g.offers.filter(o => !isObj(o) || !Array.isArray(o.agents) || (o.agents.length && !(o.agents.length === 1 && o.agents[0] === SECOND && dropped && pairStages.has(o.stage) && o.id !== 'test-unstated')));
+    // A separate offer of the second lens alone goes only when the pair at its stage now covers it: the same condition and tiers.
+    const same = (a, b) => a.when === b.when && JSON.stringify(a.tiers ?? null) === JSON.stringify(b.tiers ?? null);
+    const covered = o => g.offers.some(q => isObj(q) && q !== o && q.stage === o.stage && Array.isArray(q.agents) && q.agents.includes(SPEC) && q.agents.includes(SECOND) && same(q, o));
+    g.offers = g.offers.filter(o => !isObj(o) || !Array.isArray(o.agents) || (o.agents.length && !(o.agents.length === 1 && o.agents[0] === SECOND && dropped && pairStages.has(o.stage) && covered(o))));
   }
   if (Array.isArray(p.lenses)) {
     for (const r of p.lenses) if (isObj(r)) r.agents = clean(r.agents);
@@ -599,8 +601,9 @@ export function partsProblems(p) {
     p.costLimits.forEach((c, i) => isObj(c) && typeof c.cost === 'string' && c.cost.trim() && !named.has(c.cost.trim().toLowerCase()) && out.push({ part: 'cost-limits', level: 'warn', text: `row ${i + 1}: no quality names this cost, so it holds back no lens` }));
   }
 
-  // A finding, never a refusal: one lens of a pair alone on an offer. A lens the roster also lists on its own row (the gatekeeper, #302) may be offered alone at Test.
-  const aloneRows = (Array.isArray(p.lenses) ? p.lenses : []).filter(r => Array.isArray(r.agents) && r.agents.length === 1).map(r => r.agents[0]);
+  // A finding, never a refusal: one lens of a pair alone on an offer. A lens the roster also lists on its own row (the gatekeeper, #302) may be offered alone at Test, but only a lens the pact's own roster lists on its own row, so a row added to a file never switches the warning off.
+  const ownAlone = DEFAULT_PARTS.lenses.filter(r => r.agents.length === 1).map(r => r.agents[0]);
+  const aloneRows = (Array.isArray(p.lenses) ? p.lenses : []).filter(r => Array.isArray(r.agents) && r.agents.length === 1).map(r => r.agents[0]).filter(a => ownAlone.includes(a));
   if (!out.some(f => f.level === 'error'))
     for (const o of g.offers)
       for (const pair of rosterPairs(p)) {

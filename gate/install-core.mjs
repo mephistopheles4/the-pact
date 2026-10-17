@@ -467,6 +467,8 @@ export function parseRenderLines(lines, { project, hash }) {
     if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
     if (tools.length) refuse('render-none-extras', 'the renderer reported a pact tool with no configuration.');
   } else {
+    // A retired name is reported only for a part the configuration edits with a block file (#302).
+    for (const r of retiredNames) if (!edits.get(r.mark)?.path) refuse('render-retired-no-block', 'the renderer reported a retired name in a part with no edit block.');
     let text = `user ${config.sha256}\n`;
     for (const e of edits.values()) if (e.path) text += `block ${e.path} ${e.sha256}\n`;
     if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('render-digest', "the renderer's configuration digest is missing or does not match the configuration hashes it reported.");
@@ -631,6 +633,7 @@ export function parseProjectRenderLines(lines, hash) {
       retiredNames.push(retired);
     } else refuse('project-render-unknown-line','the project render printed a line the install does not read.');
   }
+  if (retiredNames.length && !qualities) refuse('project-render-retired-no-qualities', 'the project render reported a retired name with no qualities list.');
   if (!projectHash || !userSeen || !fileHash || (!values.size && !qualities && !costLimits)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value, a qualities list or a Cost limits list.');
   const text = `${user ? `user ${user}\n` : ''}project ${fileHash}\n`;
   if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('project-render-digest', "the project render's configuration digest is missing or does not match the hashes it reported.");

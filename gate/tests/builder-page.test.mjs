@@ -1291,6 +1291,19 @@ test('an offer of one lens of a pair draws the warning, except the gatekeeper al
   const design = copyParts(DEFAULT_PARTS);
   design.workflowGraph.offers.find(o => o.id === 'design-spec-pair').agents = ['unstated-lens'];
   assert.match(warns(design).join(), /offer design-spec-pair: half of/);
+  // A one-lens row added to a file never switches the warning off.
+  const added = copyParts(DEFAULT_PARTS);
+  added.lenses.push({ agents: ['adversarial-lens'], label: 'mine', asks: 'x' });
+  added.workflowGraph.offers.push({ id: 'test-lone-adv', stage: 'test', when: 'every-build', words: '', agents: ['adversarial-lens'], on: true });
+  assert.match(warns(added).join(), /offer test-lone-adv: half of/);
+});
+
+test('a separate gatekeeper offer that reaches wider than the spec pair stays when a saved file is loaded', () => {
+  const doc = staleDoc();
+  doc.workflowGraph.offers.find(o => o.id === 'design-unstated').tiers = ['quick', 'standard', 'thorough'];
+  const r = L.presetFromText(JSON.stringify(doc));
+  assert.equal(r.refuse, undefined, r.refuse);
+  assert.ok(r.preset.parts.workflowGraph.offers.some(o => o.id === 'design-unstated'), 'the wider offer was removed');
 });
 
 // #262 addendum 4: only what is ticked is taken; the rest stays the person's, and the parts agree with the tiers taken.

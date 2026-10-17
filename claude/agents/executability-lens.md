@@ -99,7 +99,9 @@ Refuse when there is no spec, or no section list. See "When you stop".
    data in. It has no exception clause: a cost, a deadline or a trigger does
    not make its deferral pass, and you never weigh it by likelihood and
    impact. Suggest the smallest change that brings the work into the spec,
-   not a plan to defer it.
+   not a plan to defer it. This finding is never a trade-off, whatever cost
+   limit you are handed: report it under Findings, and mark it "security?"
+   when the work is not on the list above.
 6. **Report every blocking defect you know of in the same pass.**
 
 **How serious a finding is:**

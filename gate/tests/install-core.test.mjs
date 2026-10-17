@@ -232,6 +232,7 @@ for (const c of table('renderer lines', {
     // #302 C3: a retired name in a block is a warning line the install reads, once per part and only for a retired agent.
     { id: 'retired-name-twice', plant: rep('RESULT', 'RETIRED-NAME block moves good-enough-lens\nRETIRED-NAME block moves good-enough-lens\nRESULT'), fails: ['render-retired-twice'], why: 'one retired name reported twice for one part' },
     { id: 'retired-name-not-retired', plant: rep('RESULT', 'RETIRED-NAME block moves scout\nRESULT'), fails: ['render-unknown-line'], why: 'a live agent is no retired name' },
+    { id: 'retired-name-no-block', plant: rep('RESULT', 'RETIRED-NAME block tiers good-enough-lens\nRESULT'), fails: ['render-retired-no-block'], why: 'a part with no edit block cannot name a retired agent' },
     { id: 'hash-line-with-more', plant: rep(`RENDERED ${H('a')}`, `RENDERED ${H('a')} x`), fails: ['render-unknown-line'], why: 'anything after the hash' },
     { id: 'two-diff-hashes', plant: rep('CONFIG', `DIFF ${H('c')}\nCONFIG`), fails: ['render-two-diffs'], why: 'two diff hashes' },
     { id: 'no-diff-hash', plant: rep(`DIFF ${H('d')}\n`, ''), fails: ['render-counts'], why: 'no diff hash' },
@@ -373,6 +374,7 @@ for (const c of table('project render lines', {
     // #302 C3: a retired name in a qualities list is a warning line, once, and only for a retired agent.
     { id: 'retired-name-twice', plant: rep('RESULT', 'RETIRED-NAME qualities good-enough-lens\nRETIRED-NAME qualities good-enough-lens\nRESULT'), fails: ['project-render-two-retired'], why: 'one retired name reported twice' },
     { id: 'retired-name-not-retired', plant: rep('RESULT', 'RETIRED-NAME qualities scout\nRESULT'), fails: ['project-render-unknown-line'], why: 'a live agent is no retired name' },
+    { id: 'retired-name-no-qualities', plant: rep('RESULT', 'RETIRED-NAME qualities good-enough-lens\nRESULT'), fails: ['project-render-retired-no-qualities'], why: 'no qualities list to name it in' },
     { id: 'qualities-zero', plant: rep('RESULT', 'QUALITIES 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'a list holds a row' },
     { id: 'qualities-too-many', plant: rep('RESULT', 'QUALITIES 10\nRESULT'), fails: ['project-render-unknown-line'], why: 'at most nine rows, one per quality' },
     // #288 C8: a project's own Cost limits are reported once, as a row count of 1 to 9.
