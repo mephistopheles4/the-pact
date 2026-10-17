@@ -18,3 +18,5 @@
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/317)
 - [The spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242013729) and [its S5 correction](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242047066)
+- [The spec pair's review of revision 1](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6241989353)
+- [The QA pair's review](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242584187), [the standards pair's](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242584570), [the unstated-lens review](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242584920) and [the security pair's](https://github.com/mephistopheles4/the-pact/issues/317#issuecomment-6242585211), each with its Lens dispositions table
