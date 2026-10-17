@@ -22,3 +22,5 @@
 - [The plan](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234385149)
 - [The QA pair's review](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234665986), [the gatekeeper's](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234666303) and [the standards pair's](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234666664)
 - [The Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234668708)
+- [The security pair's review](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234948824) and [its dispositions](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234949148), run once on the owner's pick
+- [The follow-up for the familiars contracts, #304](https://github.com/mephistopheles4/the-pact/issues/304)
