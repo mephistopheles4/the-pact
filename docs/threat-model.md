@@ -85,29 +85,34 @@ classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 ## Crypto and data migrations here
 
 **Crypto.** The pact holds no secret, key or signature, and encrypts nothing.
-It uses hashes in three places. Git's SHA-1 object ids: the install checks
-that the commit and each file it reads are the commit's own bytes, and an
-apply is bound to that commit. SHA-256 fingerprints: the install record holds
-each file's hash to find drift, and an apply is bound to the rendered hash its
-dry run printed. These detect change; they authenticate no one, since a
-session that can write the files can write the install record too (R14), and
-they bind the clone and the render, not your sight of them (R22). SHA-256 in
-the builder page's content security policy: the browser runs only the inline
-script and style whose hashes it names. The atomic writer takes random bytes
-only to name a temporary file. Transport is git's and GitHub's, outside this
-page. A change that adds a secret, key, signature or encryption step is new
-scope, and sensitive work under the default.
+It uses hashes only to detect change, never to authenticate, apart from the
+builder page's policy hashes. It uses them in four places. Git's SHA-1 object
+ids: the install checks that the commit and each file it reads are the
+commit's own bytes, and an apply is bound to that commit. SHA-256 checks: the
+install record holds each file's hash to find drift, and the cloud setup
+script checks each file it writes and what it takes from the install. The
+apply binding: when a configuration applies, an apply is also bound to the
+rendered hash its dry run printed. A session that can write the files can
+write the install record too (R14), and the binding holds the clone and the
+render, not your sight of them (R22). The builder page's policy hashes: its
+content security policy names the SHA-256 of its inline script and style,
+and the browser runs only those. The atomic writer takes random bytes only to
+name a temporary file. Transport is git's and GitHub's, outside this page. A
+change that adds a secret, key, signature or encryption step is new scope,
+and sensitive work under the default.
 
 **Data migrations.** The pact keeps no database. What it migrates is the state
 an install leaves behind: in the Claude home folder, and a project install's
 rules file and record. That is the install record, the settings it merged, and
 files an older pact installed. The dry run shows that state's drift before
-anything changes; the install takes out the ask rules an older pact set
-(#265) and, on a first install, the retired builder agents (#262), and warns
-about a retired lens name without deleting its file (#302). A change to the
-install record's format, the configuration's format, the settings overlay, or
-what an install removes is a data migration, sensitive work under the default;
-the rollback checks in `docs/agents/install.md` are its recovery.
+anything changes. The install deletes any unchanged file its record lists
+that the pact no longer ships; with no record, a first install deletes only
+the retired builder agents (#262); a retired lens's file that isn't the pact's
+own copy draws a warning and stays (#302); and the install takes out the ask
+rules an older pact set (#265). A change to the install record's format, the
+configuration's format, the settings overlay, or what an install removes is a
+data migration, sensitive work under the default; the rollback checks in
+`docs/agents/install.md` are its recovery.
 
 ## The risks at a glance
 
