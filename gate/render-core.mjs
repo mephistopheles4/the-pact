@@ -82,8 +82,9 @@
 //                                          VALUE <setting> <number>   (one per value set)
 //                                          EDIT <mark> remove                        (one per edit,
 //                                          EDIT <mark> <op> <sha256> <block path>     in edit order)
-//   RETIRED-NAME block <mark> <agent>     (one per edited part whose block names a retired agent, #302;
-//                                          the project mode prints RETIRED-NAME qualities <agent>)
+//                                          RETIRED-NAME block <mark> <agent>   (after the EDIT lines: one per
+//                                          edited part whose block names a retired agent, #302; the project
+//                                          mode prints RETIRED-NAME qualities <agent>)
 //   COMMANDS none, or the commands the configuration turns on, comma-joined, in PACT_COMMANDS order
 //   TOOLS none, or the tools the configuration turns on, comma-joined, in PACT_TOOLS order
 //   RESULT: pass
@@ -186,7 +187,7 @@ const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens',
 // The agents the pact retired (#302). A key naming one is refused with a
 // message that says so, and a block or a project qualities list naming one
 // draws a warning line. Only these constants are ever printed. The install
-// keeps its own copy; a test holds them equal.
+// keeps its own copy, a test holds them equal, and builder/parts.mjs keeps a third for the builder page.
 const RETIRED_AGENTS = Object.freeze(['good-enough-lens']);
 /** The retired agents `text` names as whole tokens, in RETIRED_AGENTS order: a longer name that contains one is no match. */
 const retiredIn = text => RETIRED_AGENTS.filter(a => new RegExp(`(?<![A-Za-z0-9_-])${a}(?![A-Za-z0-9_-])`).test(text));

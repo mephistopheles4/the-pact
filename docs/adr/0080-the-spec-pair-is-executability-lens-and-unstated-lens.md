@@ -21,4 +21,4 @@
 - **Refusing a block that names the old name.** Not taken: a block is prose, and refusing one for a word is the kind of text check [ADR 0069](0069-the-pact-is-vetted-like-a-skill.md) took out of the gate. The `agents` key is structured, so it still refuses.
 - **Adding the lens file to the install's retired list.** Not taken: a first install with no record must not delete a file it didn't write.
 
-Amends [ADR 0053](0053-review-is-nine-lenses-in-pairs-joined-by-the-cross-script.md).
+Supersedes in part [ADR 0053](0053-review-is-nine-lenses-in-pairs-joined-by-the-cross-script.md) (the spec pair) and [ADR 0064](0064-review-crossings-by-template-and-judgment.md) (the Disagreements heading for the spec pair's crossings).

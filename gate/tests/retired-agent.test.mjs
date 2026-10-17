@@ -1,9 +1,10 @@
-// A retired agent's name (#302, from #281): good-enough-lens left the pact. The
-// renderer refuses an agents key that names it, and warns, with a fixed line,
-// when an edit block or a project qualities list still names it. Driven
-// through the renderer's command line, as the install script runs it. Every
-// fixture is invented text. The install's side of these lines is in
-// retired-agent-install.test.mjs.
+// A retired agent's name, the renderer's side. #302 C2: an agents key that
+// names the retired lens is refused. #302 C3: an edit block or a project
+// qualities list that names it draws a fixed warning line, and the render
+// passes. #302 C10: the lens is in no list of the install's agent names.
+// Driven through the renderer's command line, as the install script runs it,
+// because each case plants its own home. Every fixture is invented text (#302
+// C7). The install's side is in an install-tier file of its own.
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

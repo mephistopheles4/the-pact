@@ -1,9 +1,10 @@
-// A retired agent's name (#302, from #281), the install's side: the dry run
-// warns when a block or a project qualities list names good-enough-lens, and
-// prints one fixed line for a live agent file that carries its name, which it
-// leaves alone. Run against a throwaway repo and --claude-home; never touches
-// ~/.claude. Every fixture is invented text. The renderer's side is in
-// retired-agent.test.mjs.
+// A retired agent's name, the install's side. #302 C3: the dry run warns when
+// a block or a project qualities list names the retired lens, and still plans
+// the install. #302 C4: it prints one fixed line for a live agent file named
+// for the lens, and leaves the file alone; the pact's own recorded copy is
+// deleted through its record. Run against a throwaway repo and --claude-home;
+// never touches ~/.claude. Every fixture is invented text (#302 C7). The
+// renderer's side is in a fast-tier file of its own.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -32,7 +33,7 @@ test('bad case: an edit block naming the retired lens draws a WARN in the dry ru
   configure(h, { schema: 1, edits: [{ mark: 'workflow', op: 'replace', file: 'wf.md' }] }, { 'wf.md': `Design runs \`${LENS}\` ${SENTINEL}.\n` });
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, new RegExp(`^ {2}WARN: the user configuration's workflow block names ${LENS}, an agent the pact retired; take the name out of the block\\.\\r?$`, 'm'), r.out);
+  assert.match(r.stdout, new RegExp(`^ {2}WARN: the user configuration's workflow block names ${LENS}, an agent the pact retired; take the name out of the block, and where it sat in the spec pair put unstated-lens in its place\\.\\r?$`, 'm'), r.out);
   assert.match(r.stdout, /^seam-a\| RESULT: pass\r?$/m, r.out);
   assert.ok(!r.out.includes(SENTINEL), 'a block word reached the dry run');
 });
@@ -62,7 +63,7 @@ test('bad case: a live agent file with the retired name, and no record, draws th
   const repo = makeRepo(t);
   const h = home(t);
   plant(h);
-  const line = new RegExp(`^WARN: ${ORPHAN} carries the name of ${LENS}, an agent the pact retired; the file is not the pact's, so the install leaves it as is\\.\\r?$`, 'm');
+  const line = new RegExp(`^WARN: ${ORPHAN} is named for ${LENS}, an agent the pact retired; the file is not the pact's, so the install leaves it as is\\.\\r?$`, 'm');
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, line, dry.out);

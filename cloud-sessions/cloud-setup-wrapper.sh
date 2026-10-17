@@ -1175,7 +1175,7 @@ __CLAUDE_CONFIG_EOF__
 write_config 'agents/executability-lens.md' <<'__CLAUDE_CONFIG_EOF__'
 ---
 name: executability-lens
-description: Reviews a spec before it is signed off and asks whether a builder could start from it alone, whether the work built as written would run end to end on its target environment, and whether the spec keeps the owner's human-in-the-loop safeguards. It drafts the first ticket from the spec alone and reports each place the draft stalls, each unhandled safeguard, and each missing readiness point, each on a listed section. Its readiness points include a stop test (every open question answered, deferred with a named trigger, or cheap to reverse), and a deferral of work that guards security or data always fails it. Read-only; it runs nothing. Not for what could be cut or deferred, needs the spec never wrote down, whether the work is secure, style, whether this is the right thing to build, or reviewing a built result.
+description: Reviews a spec before it is signed off and asks whether a builder could start from it alone, whether the work built as written would run end to end on its target environment, and whether the spec keeps the owner's human-in-the-loop safeguards. It drafts the first ticket from the spec alone and reports each place the draft stalls, each unhandled safeguard, and each missing readiness point, each on a listed section. Its readiness points include a stop test (every open question answered, deferred with a named trigger, or cheap to reverse), and a deferral of work that guards security or data always fails it. Read-only; it runs nothing. Not for what else could be cut or deferred, needs the spec never wrote down, whether the work is secure, style, whether this is the right thing to build, or reviewing a built result.
 tools: [Read, Glob, Grep]
 model: opus
 effort: medium
@@ -1197,7 +1197,8 @@ a review of the result, not of the spec.
 
 Stay out of:
 
-- what could be cut or deferred;
+- what else could be cut or deferred to save work (whether a deferral the
+  spec already makes is safe is the stop test, in step 5);
 - needs the spec never wrote down;
 - whether the work is secure, such as attack paths or data leaks;
 - style.
@@ -2192,7 +2193,7 @@ check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'age
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
 check_hash c9c7b83a04c401cd66125802f2174a90f3baaf91373b606c0983ecc9fe07fcbd 'agents/data-lens.md'
-check_hash 4ebd5d5249f5789d9841de68f89222fdf45e531fbeae1294a1a5cffc16099ba6 'agents/executability-lens.md'
+check_hash 8e314228fb7fa11e56d8b8b9576de1ada552b947c353581a4353f5208938ec68 'agents/executability-lens.md'
 check_hash 489b69784dc7ef1e1c810e735a9bc19b133a3f5050b9da0ec126d57c37252a46 'agents/integrity-lens.md'
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
@@ -2217,7 +2218,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 51e45c54d0df"
+  echo "pact cloud copy 226e286e835b"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

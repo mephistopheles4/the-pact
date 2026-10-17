@@ -186,26 +186,41 @@ export function upgradeParts(p) {
   return p;
 }
 
-// Agents the pact retired (#302): a saved builder file that still names one loses the name when it loads. The renderer and the install keep the same list.
+// Agents the pact retired (#302): a saved builder file that still names one loses the name when it loads. The renderer (gate/render-core.mjs) and the install (gate/install-core.mjs) keep their own copies, which a test holds equal to each other; no test holds this one equal to them.
 export const RETIRED_AGENTS = Object.freeze(['good-enough-lens']);
 
 /**
- * `p` with every retired agent's name taken out, in place, of the lens offers,
- * the lens rows and the qualities' lens lists; an offer or row left with no
- * agent goes. True when anything was taken out.
+ * Takes every retired agent's name out of `p`, in place: the lens offers, the
+ * lens rows and the qualities' lens lists. An offer or row left with no agent
+ * goes. When the name leaves a spec pair that holds executability-lens, that
+ * pair takes unstated-lens in its place, and a separate offer of unstated-lens
+ * alone at the same stage goes, as the pact's own Design row reads (#302).
+ * Returns true when anything was taken out.
  */
 export function dropRetired(p) {
   let dropped = false;
+  const SPEC = 'executability-lens';
+  const SECOND = 'unstated-lens';
+  // Drops the retired names from `xs`; a list that held one and also holds SPEC takes SECOND in its place.
   const clean = xs => {
     if (!Array.isArray(xs)) return xs;
     const keep = xs.filter(a => !RETIRED_AGENTS.includes(a));
-    if (keep.length !== xs.length) dropped = true;
+    if (keep.length === xs.length) return xs;
+    dropped = true;
+    if (keep.includes(SPEC) && !keep.includes(SECOND)) keep.push(SECOND);
     return keep;
   };
   const g = isObj(p.workflowGraph) ? p.workflowGraph : null;
   if (g && Array.isArray(g.offers)) {
-    for (const o of g.offers) if (isObj(o)) o.agents = clean(o.agents);
-    g.offers = g.offers.filter(o => !isObj(o) || !Array.isArray(o.agents) || o.agents.length);
+    const pairStages = new Set();
+    for (const o of g.offers) {
+      if (!isObj(o)) continue;
+      const before = Array.isArray(o.agents) ? o.agents.length : 0;
+      o.agents = clean(o.agents);
+      if (Array.isArray(o.agents) && o.agents.length > 0 && before && o.agents.includes(SPEC) && o.agents.includes(SECOND)) pairStages.add(o.stage);
+    }
+    // A separate offer of the second lens alone, at a stage where the pair now holds it, goes.
+    g.offers = g.offers.filter(o => !isObj(o) || !Array.isArray(o.agents) || (o.agents.length && !(o.agents.length === 1 && o.agents[0] === SECOND && dropped && pairStages.has(o.stage) && o.id !== 'test-unstated')));
   }
   if (Array.isArray(p.lenses)) {
     for (const r of p.lenses) if (isObj(r)) r.agents = clean(r.agents);
@@ -584,13 +599,13 @@ export function partsProblems(p) {
     p.costLimits.forEach((c, i) => isObj(c) && typeof c.cost === 'string' && c.cost.trim() && !named.has(c.cost.trim().toLowerCase()) && out.push({ part: 'cost-limits', level: 'warn', text: `row ${i + 1}: no quality names this cost, so it holds back no lens` }));
   }
 
-  // A finding, never a refusal: one lens of a pair alone on an offer. A lens the roster also lists on its own row (the gatekeeper, #302) may be offered alone.
+  // A finding, never a refusal: one lens of a pair alone on an offer. A lens the roster also lists on its own row (the gatekeeper, #302) may be offered alone at Test.
   const aloneRows = (Array.isArray(p.lenses) ? p.lenses : []).filter(r => Array.isArray(r.agents) && r.agents.length === 1).map(r => r.agents[0]);
   if (!out.some(f => f.level === 'error'))
     for (const o of g.offers)
       for (const pair of rosterPairs(p)) {
         const has = pair.agents.filter(a => o.agents.includes(a)).length;
-        if (has === 1 && !(o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.label} on its own; a pair's reports are crossed, so run both or neither` });
+        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.label} on its own; a pair's reports are crossed, so run both or neither` });
       }
   return out;
 }

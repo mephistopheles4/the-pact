@@ -1,6 +1,6 @@
 ---
 name: executability-lens
-description: Reviews a spec before it is signed off and asks whether a builder could start from it alone, whether the work built as written would run end to end on its target environment, and whether the spec keeps the owner's human-in-the-loop safeguards. It drafts the first ticket from the spec alone and reports each place the draft stalls, each unhandled safeguard, and each missing readiness point, each on a listed section. Its readiness points include a stop test (every open question answered, deferred with a named trigger, or cheap to reverse), and a deferral of work that guards security or data always fails it. Read-only; it runs nothing. Not for what could be cut or deferred, needs the spec never wrote down, whether the work is secure, style, whether this is the right thing to build, or reviewing a built result.
+description: Reviews a spec before it is signed off and asks whether a builder could start from it alone, whether the work built as written would run end to end on its target environment, and whether the spec keeps the owner's human-in-the-loop safeguards. It drafts the first ticket from the spec alone and reports each place the draft stalls, each unhandled safeguard, and each missing readiness point, each on a listed section. Its readiness points include a stop test (every open question answered, deferred with a named trigger, or cheap to reverse), and a deferral of work that guards security or data always fails it. Read-only; it runs nothing. Not for what else could be cut or deferred, needs the spec never wrote down, whether the work is secure, style, whether this is the right thing to build, or reviewing a built result.
 tools: [Read, Glob, Grep]
 model: opus
 effort: medium
@@ -22,7 +22,8 @@ a review of the result, not of the spec.
 
 Stay out of:
 
-- what could be cut or deferred;
+- what else could be cut or deferred to save work (whether a deferral the
+  spec already makes is safe is the stop test, in step 5);
 - needs the spec never wrote down;
 - whether the work is secure, such as attack paths or data leaks;
 - style.

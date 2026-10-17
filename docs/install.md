@@ -123,12 +123,15 @@ parts:
   get the pact's back at the next install (ADR 0071).
 - **A retired agent's name (#302).** The pact retired `good-enough-lens`, and
   three warnings name it, each with fixed words and never your text:
-  - `WARN: agents/good-enough-lens.md carries the name of good-enough-lens, an
+  - `WARN: agents/good-enough-lens.md is named for good-enough-lens, an
     agent the pact retired; ...` appears on every dry run while that file is in
     your agents folder and the install isn't deleting it. The file isn't the
     pact's, so the install leaves it as is. Delete it yourself, or keep it;
   - `WARN: the user configuration's <part> block names good-enough-lens ...`
-    names the part whose edit block still holds the name, as a whole word;
+    names the part whose edit block still holds the name, as a whole word.
+    Take the name out, and where it sat in the spec pair of a workflow or
+    lenses block, put `unstated-lens` in its place, as the pact's own Design
+    row reads;
   - `WARN: the project configuration's qualities list names good-enough-lens
     ...` is the same for a project's own qualities list.
 

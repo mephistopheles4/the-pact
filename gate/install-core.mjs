@@ -8,12 +8,13 @@
 // Nothing here runs on import. Imports nothing.
 
 export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
-// The agents the pact retired (#302): the render warns when a block or a project qualities list names one, and the plan says so when a live agent file carries one's name. A test holds this equal to the renderer's list.
+// Retired lens names (#302), warned about and never deleted: the render warns when a block or a project qualities list names one, and the plan says so when a live agent file is named for one. Not RETIRED below, the old builders a first install does delete. A test holds this equal to the renderer's list; the builder page keeps a third copy in builder/parts.mjs.
 export const RETIRED_AGENTS = Object.freeze(['good-enough-lens']);
 // The renderer's model shape and efforts (#262), copied: a test holds them equal.
 // A model is one word: no space or line break, at most 128 characters.
 export const AGENT_MODEL_RE = /^\S{1,128}$/;
 export const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+// The old builder agents, which a first install deletes (#262). Not RETIRED_AGENTS above.
 export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md']);
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
 // gate/shared.mjs, so it works out its copy set without seam A's list.
@@ -462,7 +463,7 @@ export function parseRenderLines(lines, { project, hash }) {
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
   if (config.kind === 'none') {
-    if (digest || values.size || edits.size || agentSets.size || retiredNames.length) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit or an agent setting with no configuration.');
+    if (digest || values.size || edits.size || agentSets.size || retiredNames.length) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit, a retired name or an agent setting with no configuration.');
     if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
     if (tools.length) refuse('render-none-extras', 'the renderer reported a pact tool with no configuration.');
   } else {
@@ -1168,7 +1169,7 @@ export function plan(record, repoFiles, live, throughLink) {
  */
 export function retiredAgentLines(exists, deleting) {
   return RETIRED_AGENTS.filter(a => exists(`agents/${a}.md`) && !deleting.includes(`agents/${a}.md`))
-    .map(a => `WARN: agents/${a}.md carries the name of ${a}, an agent the pact retired; the file is not the pact's, so the install leaves it as is.`);
+    .map(a => `WARN: agents/${a}.md is named for ${a}, an agent the pact retired; the file is not the pact's, so the install leaves it as is.`);
 }
 
 // ------------------------------------------------------------ the configuration against the record
@@ -1242,7 +1243,7 @@ export function configBlock(parsed, rulesHash, record) {
   for (const [k, v] of parsed.values) out.push(`  WARN: the user configuration sets ${k} to ${v}.`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
   for (const [name, a] of parsed.agentSets) out.push(`  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`);
-  for (const r of parsed.retiredNames) out.push(`  WARN: the user configuration's ${r.mark} block names ${r.agent}, an agent the pact retired; take the name out of the block.`);
+  for (const r of parsed.retiredNames) out.push(`  WARN: the user configuration's ${r.mark} block names ${r.agent}, an agent the pact retired; take the name out of the block, and where it sat in the spec pair put unstated-lens in its place.`);
   out.push('  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.');
   return out;
 }
