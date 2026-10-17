@@ -290,6 +290,7 @@ async function main() {
     for (const i of items) say(`  ${core.formatPlain(i)}`);
   }
   for (const w of p.warnings) say(`WARN: ${core.formatPlain(w)}`);
+  for (const l of core.retiredAgentLines(rel => io.liveState(live(home, rel)).exists, p.delete)) say(l);
   say(`Unchanged: ${p.same}`);
   say(`settings.json: ${settings}`);
   if (settingsWill) for (const l of changes) say(l);

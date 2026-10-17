@@ -9,7 +9,7 @@ const PAIRS = [
     text: 'Spec pair · a spec, standard and up',
     lenses: [
       ['executability-lens', ['Would the spec, built as', 'written, run end to end?']],
-      ['good-enough-lens', ['What could be cut or', 'deferred, and what would', 'it save?']],
+      ['unstated-lens', ['What need did nobody', 'write down?']],
     ],
   },
   {

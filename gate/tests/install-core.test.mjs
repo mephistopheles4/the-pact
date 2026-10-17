@@ -229,6 +229,9 @@ for (const c of table('renderer lines', {
   run: renderRun(),
   rows: [
     { id: 'two-output-hashes', plant: rep('DIFF', `RENDERED ${H('b')}\nDIFF`), fails: ['render-two-hashes'], why: 'two output hashes' },
+    // #302 C3: a retired name in a block is a warning line the install reads, once per part and only for a retired agent.
+    { id: 'retired-name-twice', plant: rep('RESULT', 'RETIRED-NAME block moves good-enough-lens\nRETIRED-NAME block moves good-enough-lens\nRESULT'), fails: ['render-retired-twice'], why: 'one retired name reported twice for one part' },
+    { id: 'retired-name-not-retired', plant: rep('RESULT', 'RETIRED-NAME block moves scout\nRESULT'), fails: ['render-unknown-line'], why: 'a live agent is no retired name' },
     { id: 'hash-line-with-more', plant: rep(`RENDERED ${H('a')}`, `RENDERED ${H('a')} x`), fails: ['render-unknown-line'], why: 'anything after the hash' },
     { id: 'two-diff-hashes', plant: rep('CONFIG', `DIFF ${H('c')}\nCONFIG`), fails: ['render-two-diffs'], why: 'two diff hashes' },
     { id: 'no-diff-hash', plant: rep(`DIFF ${H('d')}\n`, ''), fails: ['render-counts'], why: 'no diff hash' },
@@ -284,6 +287,7 @@ for (const c of table('renderer lines with no configuration', {
     { id: 'digest', plant: rep('RESULT', `DIGEST ${D}\nRESULT`), fails: ['render-none-extras'], why: 'a digest with no configuration' },
     { id: 'value', plant: rep('RESULT', 'VALUE usage-pause 90\nRESULT'), fails: ['render-none-extras'], why: 'a value with no configuration' },
     { id: 'edit', plant: rep('RESULT', 'EDIT moves remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
+    { id: 'retired-name', plant: rep('RESULT', 'RETIRED-NAME block moves good-enough-lens\nRESULT'), fails: ['render-none-extras'], why: 'a retired name in a block with no configuration (#302 C3)' },
     { id: 'agent', plant: rep('RESULT', `AGENT data-lens opus high ${H('f')} security-set override local\nRESULT`), fails: ['render-none-extras'], why: 'an agent setting with no configuration' },
     { id: 'no-config-line', plant: rep('CONFIG none\n', ''), fails: ['render-counts'], why: 'no configuration line at all' },
     { id: 'two-none-lines', plant: rep('CONFIG none', 'CONFIG none\nCONFIG none'), fails: ['render-counts'], why: 'two configuration lines, both none' },
@@ -366,6 +370,9 @@ for (const c of table('project render lines', {
     { id: 'no-digest', plant: rep(`DIGEST ${PD}\n`, ''), fails: ['project-render-digest'], why: 'a digest is required' },
     // #262 C21: a project's own qualities list is reported once, as a row count of 1 to 9.
     { id: 'qualities-twice', plant: rep('RESULT', 'QUALITIES 3\nQUALITIES 3\nRESULT'), fails: ['project-render-two-qualities'], why: 'one qualities list' },
+    // #302 C3: a retired name in a qualities list is a warning line, once, and only for a retired agent.
+    { id: 'retired-name-twice', plant: rep('RESULT', 'RETIRED-NAME qualities good-enough-lens\nRETIRED-NAME qualities good-enough-lens\nRESULT'), fails: ['project-render-two-retired'], why: 'one retired name reported twice' },
+    { id: 'retired-name-not-retired', plant: rep('RESULT', 'RETIRED-NAME qualities scout\nRESULT'), fails: ['project-render-unknown-line'], why: 'a live agent is no retired name' },
     { id: 'qualities-zero', plant: rep('RESULT', 'QUALITIES 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'a list holds a row' },
     { id: 'qualities-too-many', plant: rep('RESULT', 'QUALITIES 10\nRESULT'), fails: ['project-render-unknown-line'], why: 'at most nine rows, one per quality' },
     // #288 C8: a project's own Cost limits are reported once, as a row count of 1 to 9.

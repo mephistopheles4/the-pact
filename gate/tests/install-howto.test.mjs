@@ -53,7 +53,7 @@ function installedAgentStems() {
 
 test('docs/install.md names every overlay setting and every installed agent', () => {
   const stems = installedAgentStems();
-  assert.ok(stems.length >= 10, `expected at least 10 installed agents, found ${stems.length}`);
+  assert.ok(stems.length >= 9, `expected at least 9 installed agents, found ${stems.length}`);
   const howto = readFileSync(join(REPO, 'docs', 'install.md'), 'utf8');
   assert.deepEqual(missingFromHowto(howto, requiredNames(realOverlay(), stems)), []);
 });

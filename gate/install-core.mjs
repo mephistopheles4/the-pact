@@ -7,11 +7,14 @@
 //
 // Nothing here runs on import. Imports nothing.
 
-export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+export const AGENT_NAMES = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+// Retired lens names (#302), warned about and never deleted: the render warns when a block or a project qualities list names one, and the plan says so when a live agent file is named for one. Not RETIRED below, the old builders a first install does delete. A test holds this equal to the renderer's list; the builder page keeps a third copy in builder/parts.mjs.
+export const RETIRED_AGENTS = Object.freeze(['good-enough-lens']);
 // The renderer's model shape and efforts (#262), copied: a test holds them equal.
 // A model is one word: no space or line break, at most 128 characters.
 export const AGENT_MODEL_RE = /^\S{1,128}$/;
 export const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
+// The old builder agents, which a first install deletes (#262). Not RETIRED_AGENTS above.
 export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md']);
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
 // gate/shared.mjs, so it works out its copy set without seam A's list.
@@ -367,7 +370,8 @@ export function checkVerdict(report, what) {
 
 // ------------------------------------------------------------ the renderer's lines
 
-const EDIT_RE = /^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
+const RETIRED_BLOCK_RE = /^RETIRED-NAME block (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) ([a-z-]+)$/;
+const EDIT_RE =/^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
@@ -392,6 +396,7 @@ export function parseRenderLines(lines, { project, hash }) {
   const values = new Map();
   const edits = new Map();
   const blockHashes = new Map();
+  const retiredNames = [];
   const agentSets = new Map();
   let commands = null;
   let tools = null;
@@ -416,6 +421,11 @@ export function parseRenderLines(lines, { project, hash }) {
         blockHashes.set(bp, m[4]);
         edits.set(mark, { op: m[3], sha256: m[4], path: bp });
       }
+    } else if ((m = RETIRED_BLOCK_RE.exec(l))) {
+      const retired = RETIRED_AGENTS.find(a => a === m[2]);
+      if (!retired) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
+      if (retiredNames.some(r => r.mark === m[1] && r.agent === retired)) refuse('render-retired-twice', 'the renderer reported one retired name twice.');
+      retiredNames.push({ mark: m[1], agent: retired });
     } else if (l === 'CONFIG none') configs.push({ kind: 'none' });
     else if ((m = /^CONFIG user ([0-9a-f]{64})$/.exec(l))) configs.push({ kind: 'user', sha256: m[1] });
     else if ((m = /^DIGEST ([0-9a-f]{12})$/.exec(l))) {
@@ -453,7 +463,7 @@ export function parseRenderLines(lines, { project, hash }) {
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
   if (config.kind === 'none') {
-    if (digest || values.size || edits.size || agentSets.size) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit or an agent setting with no configuration.');
+    if (digest || values.size || edits.size || agentSets.size || retiredNames.length) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit, a retired name or an agent setting with no configuration.');
     if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
     if (tools.length) refuse('render-none-extras', 'the renderer reported a pact tool with no configuration.');
   } else {
@@ -461,7 +471,7 @@ export function parseRenderLines(lines, { project, hash }) {
     for (const e of edits.values()) if (e.path) text += `block ${e.path} ${e.sha256}\n`;
     if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('render-digest', "the renderer's configuration digest is missing or does not match the configuration hashes it reported.");
   }
-  return { renderHash, diffHash, config, digest, values, edits, blockHashes, agentSets, commands, tools };
+  return { renderHash, diffHash, config, digest, values, edits, blockHashes, retiredNames, agentSets, commands, tools };
 }
 
 /**
@@ -586,6 +596,7 @@ export function parseProjectRenderLines(lines, hash) {
   const values = new Map();
   let qualities = 0;
   let costLimits = 0;
+  const retiredNames = [];
   for (const l of lines.slice(0, -1)) {
     let m;
     if ((m = /^RENDERED ([0-9a-f]{64})$/.exec(l))) {
@@ -612,12 +623,18 @@ export function parseProjectRenderLines(lines, hash) {
       // A project's own Cost limits (#278): its row count, at most nine rows.
       if (costLimits) refuse('project-render-two-cost-limits', 'the project render reported two Cost limits lines.');
       costLimits = Number(m[1]);
-    } else refuse('project-render-unknown-line', 'the project render printed a line the install does not read.');
+    } else if ((m = /^RETIRED-NAME qualities ([a-z-]+)$/.exec(l))) {
+      // A retired agent's name in the project's qualities list (#302): a warning, never a refusal.
+      const retired = RETIRED_AGENTS.find(a => a === m[1]);
+      if (!retired) refuse('project-render-unknown-line', 'the project render printed a line the install does not read.');
+      if (retiredNames.includes(retired)) refuse('project-render-two-retired', 'the project render reported one retired name twice.');
+      retiredNames.push(retired);
+    } else refuse('project-render-unknown-line','the project render printed a line the install does not read.');
   }
   if (!projectHash || !userSeen || !fileHash || (!values.size && !qualities && !costLimits)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value, a qualities list or a Cost limits list.');
   const text = `${user ? `user ${user}\n` : ''}project ${fileHash}\n`;
   if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('project-render-digest', "the project render's configuration digest is missing or does not match the hashes it reported.");
-  return { projectHash, fileHash, digest, user, values, qualities, costLimits };
+  return { projectHash, fileHash, digest, user, values, qualities, costLimits, retiredNames };
 }
 
 /**
@@ -666,6 +683,7 @@ export function projectBlock(state, parsed) {
     `  configuration digest: ${parsed.digest}`,
     `  rendered project rules file: sha256 ${parsed.projectHash}`,
     ...[...parsed.values].map(([k, v]) => `  WARN: the project configuration sets ${k} to ${v}; the rules file reads it as the lower of that and the user's value.`),
+    ...parsed.retiredNames.map(a => `  WARN: the project configuration's qualities list names ${a}, an agent the pact retired; take the name out of the list.`),
     '  Nothing is installed in the Claude home folder, and no agents go into the project.',
   ];
 }
@@ -1141,6 +1159,19 @@ export function plan(record, repoFiles, live, throughLink) {
   return { drift, overwrite, add, delete: del, warnings, same, yours };
 }
 
+/**
+ * The dry run's line for each live agent file that carries a retired agent's
+ * name and that this install does not delete (#302, S8): the file is not the
+ * pact's, so the install leaves it as is. Without the line such a file drops
+ * out of every dry run, because the plan looks only at names in its payload.
+ * `exists(rel)` is the live state; `deleting` is the plan's delete list. The
+ * line holds the constant name only.
+ */
+export function retiredAgentLines(exists, deleting) {
+  return RETIRED_AGENTS.filter(a => exists(`agents/${a}.md`) && !deleting.includes(`agents/${a}.md`))
+    .map(a => `WARN: agents/${a}.md is named for ${a}, an agent the pact retired; the file is not the pact's, so the install leaves it as is.`);
+}
+
 // ------------------------------------------------------------ the configuration against the record
 
 /** This run's configuration files, keyed as the record's are. */
@@ -1212,6 +1243,7 @@ export function configBlock(parsed, rulesHash, record) {
   for (const [k, v] of parsed.values) out.push(`  WARN: the user configuration sets ${k} to ${v}.`);
   for (const [k, e] of parsed.edits) out.push(`  WARN: the user configuration edits ${k} (${e.op}).`);
   for (const [name, a] of parsed.agentSets) out.push(`  WARN: the user configuration sets ${name} to \`${a.model}\`, ${a.effort} effort.`);
+  for (const r of parsed.retiredNames) out.push(`  WARN: the user configuration's ${r.mark} block names ${r.agent}, an agent the pact retired; take the name out of the block, and where it sat in the spec pair put unstated-lens in its place.`);
   out.push('  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.');
   return out;
 }

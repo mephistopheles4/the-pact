@@ -327,7 +327,7 @@ function plantRenderer(root, from, to) {
 
 // #261 C14
 for (const [label, withConfig, from, to, why] of [
-  ['an edit with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'EDIT moves remove');", 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
+  ['an edit with no configuration', false, R_NONE, "  if (config === NONE) head.push('CONFIG none', 'EDIT moves remove');", 'the renderer reported a digest, a value, an edit, a retired name or an agent setting with no configuration'],
   ['one open part edited twice', true, R_USER, `${R_USER}, 'EDIT moves remove'`, 'the renderer reported one open part edited twice'],
   ['two hashes for one block file', true, R_USER, `${R_USER}, 'EDIT qualities replace ${A64} team/extra.md'`, 'the renderer reported two hashes for one block file: it changed while it was read'],
   ['a block path with a .. segment', true, R_USER, `${R_USER}, 'EDIT qualities replace ${A64} team/../extra.md'`, 'the renderer reported a block path the install does not read'],

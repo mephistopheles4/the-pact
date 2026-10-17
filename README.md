@@ -79,11 +79,11 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 <details>
 <summary>Text of FIG. 03</summary>
 
-- **Spec pair, offered on a spec, standard and up.** `executability-lens`: would the spec, built as written, run end to end? `good-enough-lens`: what could be cut or deferred, and what would it save?
+- **Spec pair, offered on a spec, standard and up.** `executability-lens`: would the spec, built as written, run end to end? `unstated-lens`: what need did nobody write down?
 - **QA pair, offered at every build.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail?
 - **Standards pair, offered on a diff, standard and up.** `conventions-lens`: does the diff keep the repo's written rules? `reader-lens`: can the next reader act on what it says?
 - **Security pair, with the sensitive route, and once more at Test on a list match if I didn't take the route.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
-- **The gatekeeper, alone, offered on a spec and a result, standard and up.** `unstated-lens`: what need did nobody write down?
+- **The gatekeeper, alone, offered on a result, standard and up.** `unstated-lens`: what need did nobody write down?
 
 Each lens is offered with a one-line why, and I say yes or no. Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The session crosses the pair by a template; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
 

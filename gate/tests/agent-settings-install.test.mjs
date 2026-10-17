@@ -113,7 +113,7 @@ function plantRenderer(root, from, to) {
 const SET = { schema: 1, agents: { 'integrity-lens': { model: 'sonnet', effort: 'low' } } };
 
 for (const [label, config, from, to, why] of [
-  ['an AGENT line with no configuration', null, R_PUSH, `${R_PUSH}\n  report.lines.push('AGENT integrity-lens sonnet low ${A64} plain override local');`, 'the renderer reported a digest, a value, an edit or an agent setting with no configuration'],
+  ['an AGENT line with no configuration', null, R_PUSH, `${R_PUSH}\n  report.lines.push('AGENT integrity-lens sonnet low ${A64} plain override local');`, 'the renderer reported a digest, a value, an edit, a retired name or an agent setting with no configuration'],
   ['an AGENT line for an agent off the list', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT my-reviewer sonnet low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
   ['an AGENT line whose name differs only in case', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT Integrity-lens sonnet low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
   ['an AGENT line with a value off the pattern', SET, R_AGENT_PUSH, "  report.lines.push(`AGENT integrity-lens ${'a'.repeat(129)} low ${sha256(agents[0].buf)} plain override local`);", 'the renderer printed a line the install does not read'],
