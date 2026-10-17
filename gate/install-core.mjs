@@ -585,6 +585,7 @@ export function parseProjectRenderLines(lines, hash) {
   let userSeen = false;
   const values = new Map();
   let qualities = 0;
+  let costLimits = 0;
   for (const l of lines.slice(0, -1)) {
     let m;
     if ((m = /^RENDERED ([0-9a-f]{64})$/.exec(l))) {
@@ -607,23 +608,43 @@ export function parseProjectRenderLines(lines, hash) {
       // A project's own qualities list (#262 S25): its row count, one row per ISO/IEC 25010:2023 quality at most.
       if (qualities) refuse('project-render-two-qualities', 'the project render reported two qualities lines.');
       qualities = Number(m[1]);
+    } else if ((m = /^COST-LIMITS ([1-9])$/.exec(l))) {
+      // A project's own Cost limits (#278): its row count, at most nine rows.
+      if (costLimits) refuse('project-render-two-cost-limits', 'the project render reported two Cost limits lines.');
+      costLimits = Number(m[1]);
     } else refuse('project-render-unknown-line', 'the project render printed a line the install does not read.');
   }
-  if (!projectHash || !userSeen || !fileHash || (!values.size && !qualities)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value or a qualities list.');
+  if (!projectHash || !userSeen || !fileHash || (!values.size && !qualities && !costLimits)) refuse('project-render-counts', 'the project render did not report exactly one output hash, one user configuration line, one project file hash, and a value, a qualities list or a Cost limits list.');
   const text = `${user ? `user ${user}\n` : ''}project ${fileHash}\n`;
   if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('project-render-digest', "the project render's configuration digest is missing or does not match the hashes it reported.");
-  return { projectHash, fileHash, digest, user, values, qualities };
+  return { projectHash, fileHash, digest, user, values, qualities, costLimits };
 }
 
 /**
- * The project dry run's security-defaults line (#262 S25), or null: a
- * project's own qualities list takes the place of the person's in that repo,
- * so it is the one project setting that can loosen a default. Printed before
- * every other warning.
+ * The project dry run's security-defaults line (#262 S25, #278), or null: a
+ * project's own qualities list, and its own Cost limits, take the place of the
+ * person's in that repo, so they are the project settings that can loosen a
+ * default. Printed before every other warning. The render refuses Cost limits
+ * without a qualities list (`project-cost-limits-alone`); this line names
+ * whichever of the two it is told, so it never goes quiet on a Cost limits list.
  */
 export function projectSecurityLine(parsed) {
-  if (!parsed.qualities) return null;
-  return `WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (${parsed.qualities} row${parsed.qualities === 1 ? '' : 's'}), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.`;
+  if (!parsed.qualities && !parsed.costLimits) return null;
+  const rows = n => `${n} row${n === 1 ? '' : 's'}`;
+  const lists = [parsed.qualities && `its own qualities list (${rows(parsed.qualities)})`, parsed.costLimits && `its own Cost limits (${rows(parsed.costLimits)})`].filter(Boolean);
+  const sets = `${lists.join(' and ')}, which ${lists.length > 1 ? 'take' : 'takes'}`;
+  return `WARN: SECURITY DEFAULTS: the project configuration sets ${sets} the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.`;
+}
+
+/**
+ * The note line for a project with its own qualities and no Cost limits
+ * (#278), or null. Your Cost limits reach a lens only through a quality's
+ * Enough, and a project's qualities list takes the place of yours, so none of
+ * your cost rows binds a lens there.
+ */
+export function projectNoteLine(parsed) {
+  if (!parsed.qualities || parsed.costLimits) return null;
+  return "NOTE: the project configuration sets its own qualities list and no Cost limits, so your Cost limits reach none of its qualities; add costLimits, and name them in the enoughCosts of each quality they should hold back.";
 }
 
 /** The project render's output (J3): exactly its rules file, a plain file of at most 64 KiB, holding the reported hash. */

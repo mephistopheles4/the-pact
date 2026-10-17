@@ -163,8 +163,18 @@ parts:
   (`--review-folder` writes it out) before you install. Only your home
   configuration may edit them; a project's `.claude/pact-config.json` may
   edit no part. A project may hold its own `qualities` list, which takes the
-  place of yours in that repo; its dry run leads with a `WARN: SECURITY
-  DEFAULTS:` line saying so (ADR 0068).
+  place of yours in that repo, and with it its own `costLimits` list, which
+  takes the place of your cost limits there; its dry run leads with a `WARN:
+  SECURITY DEFAULTS:` line saying so, with the row count of each (ADR 0068).
+  A project with its own `qualities` and no `costLimits` gets a `NOTE:` line
+  after it: your cost limits reach none of its qualities there. Each quality
+  row may carry `enough` (one line, no middle dot, since that joins the cell)
+  and `enoughCosts`, and an `enoughCosts` name must
+  find a cost row in that project's own `costLimits`. A cost row holds `cost`,
+  and may hold `counted`, `limit` and `atLimit`, each one line of text with no
+  bar; names match ignoring case and surrounding space. A project's `costLimits`
+  refuses without its `qualities`, and an `acceptedRisks` key is refused as
+  any other key is: accepted risks live only in a threat model.
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and
   `/scriptorium`, each `on` or `off`, and `(not in this commit)` for one the
   commit doesn't hold yet. `/scriptorium` reads `on, always: part of the
@@ -409,10 +419,12 @@ sets an agent's model to anything but `opus` or `sonnet`, its effort above
 `high`, or any setting for `scout`, so take those out first. A pact from
 before #278 also refuses an edit to `cost-limits`, and an older builder refuses
 a builder file that holds a `costLimits` key or an Enough on a quality row.
+A pact from before #278 also refuses a project configuration with a `costLimits` key (`project-key`)
+or a quality row with `enough` or `enoughCosts` (`project-qualities`).
 It does not refuse a Qualities block with an Enough column: it installs that
 text as written, and the column then names costs no part defines, which an
 older lens reads with no one rule and no security bar. Remove the column, the
-edit and those builder-file fields first. Its install
+edit, the project keys and those builder-file fields first. Its install
 deletes `commands/scriptorium.md` and the builder kit, which its payload
 lacks; a configuration that lists `scriptorium` in `commands` refuses there.
 

@@ -280,44 +280,115 @@ const TOOL_PARTS = new Map([
 const PROJECT_REL = Object.freeze(['.claude', 'pact-config.json']);
 const PROJECT_SHOWN = '.claude/pact-config.json';
 const PROJECT_NAMES = Object.freeze(["the project's .claude folder", 'the project configuration file']);
-const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings', 'qualities']);
+const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings', 'qualities', 'costLimits']);
 const PROJECT_OUTPUT_NAME = 'pact-project.md';
-// A project's own qualities list (#262 S25, from #273): the one thing a
-// project may set that is not a tighter value. Its table is compiled here from
-// the rows' three fields under fixed text. Which qualities and measures a
+// A project's own qualities list (#262 S25, from #273): one of the two things
+// a project may set that is not a tighter value; the other is its costLimits
+// (#278). Its table is compiled here from the rows' three fields, and an
+// optional Enough, under fixed text. Which qualities and measures a
 // project lists is the owner's to judge; each field only has to stay on one
 // line, so the table stays a table.
 const QUALITY_FIELDS = Object.freeze(['quality', 'measure', 'lenses']);
+// Enough on a quality (#278): an optional level and the cost names it answers to.
+const QUALITY_OPTIONAL = Object.freeze(['enough', 'enoughCosts']);
+// A project's Cost limits (#278, T2): rows of the home part's shape. Only the cost is required; an omitted field is empty.
+const COST_FIELDS = Object.freeze(['cost', 'counted', 'limit', 'atLimit']);
 const oneLine = v => typeof v === 'string' && !/[\r\n]/.test(v);
 const named = v => oneLine(v) && v.trim() !== '';
-// A bar in a field would start a new cell, so it is escaped, backslashes first: the table stays three columns.
+// A bar in a field would start a new cell, so it is escaped, backslashes first: the table keeps its columns.
 const cell = v => v.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 // At most one row per quality: the install reads the count as one digit.
 const QUALITIES_MAX = 9;
-const PROJECT_TEMPLATE = (lines, qualities = null) => [
-  '# Pact settings for this project',
-  '',
-  qualities
-    ? "The pact's installer wrote this file from this project's pact configuration. Each setting line can only make the pact stricter here, and the qualities list takes the place of the one in my user rules."
-    : "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
-  '',
-  ...lines,
-  ...(qualities
-    ? [
-        ...(lines.length ? [''] : []),
-        '## Qualities for this project',
-        '',
-        "In this project, this list takes the place of the Qualities table in my user rules: the qualities that matter here, each with its measure and the lenses that check it.",
-        '',
-        '| Quality | Measure | Lens |',
-        '| --- | --- | --- |',
-        ...qualities.map(q => `| ${cell(q.quality)} | ${cell(q.measure)} | ${q.lenses.map(n => `\`${cell(n)}\``).join(', ')} |`),
-      ]
-    : []),
-  '',
-];
+// The home Cost limits part's fixed text (#287), which a project's Cost limits
+// render under word for word. A test holds it equal to claude/CLAUDE.md's.
+const COST_LIMITS_FIXED = `What the work may spend to reach those qualities. A cost says what is counted,
+its limit, and what happens at the limit. A quality's Enough says where more
+of it stops being worth it: an optional level, such as ASVS L1, then each cost
+limit it answers to, by name, joined by a middle dot. A cost holds back the
+lenses of every quality whose Enough names it.
 
-/** A project's qualities list (#262 S25): [{ quality, measure, lenses }], or null after recording each refusal. */
+- **One rule.** A finding that would go past a cost limit goes the way that
+  cost's "At the limit" says; a finding that would go past an Enough level
+  alone comes to me as a trade-off. Either way it names the cost or level, the
+  limit and the quality at stake, and is never dropped silently. This rule and
+  the security bar win over any cost's text: a cost can route a finding, never
+  remove it. I can override a cost on any finding.
+- **The security bar.** A security fix is due unless its cost is grossly out
+  of proportion to the risk it closes, and I see both.
+- **An empty limit** is my judgment: a finding that spends that cost comes to
+  me as a trade-off.
+- **A security finding** is one that names an attacker in scope in the
+  project's threat model, as it stood before the change under review; or
+  touches an item on the sensitive-work list; or exposes a secret or personal
+  data to anyone but me. With no threat model, the last two decide. The
+  project's threat model is the file its agent instructions name, else
+  \`docs/threat-model.md\`. The session that sorts the findings holds it and
+  decides whether a finding is a security finding. A lens outside the
+  security pair marks a finding it is unsure of "security?", and such a
+  finding's row in the Lens dispositions table is never \`auto\`.
+- **The sensitive-list check.** With a threat model, the security lenses also
+  check how it protects each item on the sensitive-work list, and report any
+  item it leaves unprotected or covers only by an accepted risk.
+- **Accepted risks** are recorded only in the project's threat model, and
+  only on my word, given in chat or relayed by a lead session I set up. An
+  entry carries its date, the finding it came from, and how my word arrived.
+  A finding that matches an entry is listed as one line naming the entry and
+  where it is recorded, and is not raised as a defect again. An entry with no
+  date or source still counts, named as undated. A change that removes a
+  control an entry names, or eases its path, is raised in full, naming the
+  entry, never shrunk to the one line. A change's own edit to the threat
+  model's scope, accepted risks or the line that names it is a finding for
+  me, never applied in the same review. With no threat model, a risk is
+  flagged to me and nothing is recorded; never create the file.
+- **Detail.** An accepted-risk entry, or a candidate for one, names the class
+  of path and why it is accepted, never the steps.`;
+
+// At most nine cost rows, like the qualities: the install reads the count as one digit.
+const COST_LIMITS_MAX = 9;
+const enoughCell = q => [q.enough.trim(), ...q.enoughCosts].filter(v => v).join(' · ');
+const PROJECT_TEMPLATE = (lines, qualities = null, costLimits = null) => {
+  const enough = qualities?.some(q => enoughCell(q));
+  return [
+    '# Pact settings for this project',
+    '',
+    costLimits
+      ? "The pact's installer wrote this file from this project's pact configuration. Each setting line can only make the pact stricter here, and the qualities list and the Cost limits list take the place of the ones in my user rules."
+      : qualities
+        ? "The pact's installer wrote this file from this project's pact configuration. Each setting line can only make the pact stricter here, and the qualities list takes the place of the one in my user rules."
+        : "The pact's installer wrote this file from this project's pact configuration. Each line can only make the pact stricter here.",
+    '',
+    ...lines,
+    ...(qualities
+      ? [
+          ...(lines.length ? [''] : []),
+          '## Qualities for this project',
+          '',
+          "In this project, this list takes the place of the Qualities table in my user rules: the qualities that matter here, each with its measure and the lenses that check it.",
+          '',
+          enough ? '| Quality | Measure | Lens | Enough |' : '| Quality | Measure | Lens |',
+          enough ? '| --- | --- | --- | --- |' : '| --- | --- | --- |',
+          ...qualities.map(q => `| ${cell(q.quality)} | ${cell(q.measure)} | ${q.lenses.map(n => `\`${cell(n)}\``).join(', ')} |${enough ? ` ${cell(enoughCell(q))} |` : ''}`),
+        ]
+      : []),
+    ...(costLimits
+      ? [
+          '',
+          '## Cost limits for this project',
+          '',
+          'In this project, this list takes the place of the Cost limits table in my user rules.',
+          '',
+          COST_LIMITS_FIXED,
+          '',
+          '| Cost | Counted as | Limit | At the limit |',
+          '| --- | --- | --- | --- |',
+          ...costLimits.map(c => `| ${cell(c.cost)} | ${cell(c.counted)} | ${cell(c.limit)} | ${cell(c.atLimit)} |`),
+        ]
+      : []),
+    '',
+  ];
+};
+
+/** A project's qualities list (#262 S25, with Enough from #278): [{ quality, measure, lenses, enough, enoughCosts }], or null after recording each refusal. */
 function checkProjectQualities(v, fail) {
   if (!Array.isArray(v) || !v.length || v.length > QUALITIES_MAX) {
     fail('project-qualities', `qualities must be a list of 1 to ${QUALITIES_MAX} rows`);
@@ -326,14 +397,66 @@ function checkProjectQualities(v, fail) {
   let ok = true;
   const out = [];
   v.forEach((r, i) => {
-    const shaped = isObject(r) && Object.keys(r).length === QUALITY_FIELDS.length && QUALITY_FIELDS.every(k => Object.hasOwn(r, k))
-      && named(r.quality) && oneLine(r.measure) && Array.isArray(r.lenses) && r.lenses.length && r.lenses.every(named);
+    const shaped = isObject(r) && QUALITY_FIELDS.every(k => Object.hasOwn(r, k)) && Object.keys(r).every(k => QUALITY_FIELDS.includes(k) || QUALITY_OPTIONAL.includes(k))
+      && named(r.quality) && oneLine(r.measure) && Array.isArray(r.lenses) && r.lenses.length && r.lenses.every(named)
+      && (!Object.hasOwn(r, 'enough') || (oneLine(r.enough) && !r.enough.includes('·'))) && (!Object.hasOwn(r, 'enoughCosts') || (Array.isArray(r.enoughCosts) && r.enoughCosts.every(named)));
     if (!shaped) {
-      fail('project-qualities', `row ${i + 1}: a row holds quality, measure and a list of lenses, each one line of text (the measure may be empty), and nothing else`);
+      fail('project-qualities', `row ${i + 1}: a row holds quality, measure and a list of lenses, and may hold enough and a list of enoughCosts, each one line of text (the measure and enough may be empty, and enough holds no middle dot, which joins the Enough cell), and nothing else`);
       ok = false;
-    } else out.push({ quality: r.quality, measure: r.measure, lenses: r.lenses });
+    } else out.push({ quality: r.quality, measure: r.measure, lenses: r.lenses, enough: r.enough ?? '', enoughCosts: r.enoughCosts ?? [] });
   });
   return ok ? out : null;
+}
+
+/** A name as cost rows and Enough cells compare it: ignoring case and surrounding space. */
+const costKey = v => v.trim().toLowerCase();
+
+/** A project's Cost limits (#278, T2): [{ cost, counted, limit, atLimit }], or null after recording each refusal. */
+function checkProjectCostLimits(v, fail) {
+  if (!Array.isArray(v) || !v.length || v.length > COST_LIMITS_MAX) {
+    fail('project-cost-limits', `costLimits must be a list of 1 to ${COST_LIMITS_MAX} rows`);
+    return null;
+  }
+  let ok = true;
+  const out = [];
+  const seen = new Set();
+  v.forEach((r, i) => {
+    // A bar in a field is refused, not escaped: a cost row is a short phrase, and a bar is a typo here.
+    const shaped = isObject(r) && Object.keys(r).every(k => COST_FIELDS.includes(k)) && Object.hasOwn(r, 'cost') && named(r.cost)
+      && COST_FIELDS.every(k => !Object.hasOwn(r, k) || (oneLine(r[k]) && !r[k].includes('|')));
+    if (!shaped) {
+      fail('project-cost-limits', `row ${i + 1}: a row holds a cost and may hold counted, limit and atLimit, each one line of text without a bar (all but the cost may be empty), and nothing else`);
+      ok = false;
+    } else if (seen.has(costKey(r.cost))) {
+      // The reasons name rows and positions, never the project's own text: this renderer echoes no file content.
+      fail('project-cost-limits', `row ${i + 1}: its cost name repeats an earlier row's, ignoring case and surrounding space`);
+      ok = false;
+    } else {
+      seen.add(costKey(r.cost));
+      out.push({ cost: r.cost.trim(), counted: r.counted ?? '', limit: r.limit ?? '', atLimit: r.atLimit ?? '' });
+    }
+  });
+  return ok ? out : null;
+}
+
+/**
+ * Every name resolves inside the one file (#278, T2): each cost name an Enough
+ * cell holds finds a project cost row, which also gives the cell that row's
+ * own spelling of it. Records each refusal; true when none.
+ */
+function resolveEnoughCosts(qualities, costLimits, fail) {
+  const byKey = new Map((costLimits ?? []).map(c => [costKey(c.cost), c.cost]));
+  let ok = true;
+  qualities.forEach((q, i) => {
+    // A cost named twice in one cell (by case or space) shows once.
+    q.enoughCosts = [...new Set(q.enoughCosts.flatMap((n, k) => {
+      if (byKey.has(costKey(n))) return [byKey.get(costKey(n))];
+      fail('project-enough-cost', `qualities row ${i + 1}: enoughCosts item ${k + 1} is not a cost in this project's costLimits`);
+      ok = false;
+      return [];
+    }))];
+  });
+  return ok;
 }
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.
@@ -1076,7 +1199,7 @@ function checkProject(buf, effective, report) {
     ok = false;
   }
   if (Object.keys(doc).some(k => k !== 'edits' && !PROJECT_TOP_KEYS.includes(k))) {
-    fail('project-key', 'a key that is not schema, settings or qualities');
+    fail('project-key', 'a key that is not schema, settings, qualities or costLimits');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -1109,11 +1232,20 @@ function checkProject(buf, effective, report) {
   }
   const qualities = Object.hasOwn(doc, 'qualities') ? checkProjectQualities(doc.qualities, fail) : null;
   if (Object.hasOwn(doc, 'qualities') && qualities === null) ok = false;
-  if (ok && !values.length && !qualities) {
-    fail('project-empty', 'the project configuration sets no value and no qualities, so there is nothing to install');
+  const costLimits = Object.hasOwn(doc, 'costLimits') ? checkProjectCostLimits(doc.costLimits, fail) : null;
+  if (Object.hasOwn(doc, 'costLimits') && costLimits === null) ok = false;
+  // Every name resolves inside this one file: the project render can't read the home part's text.
+  if (Object.hasOwn(doc, 'costLimits') && !Object.hasOwn(doc, 'qualities')) {
+    fail('project-cost-limits-alone', 'costLimits needs qualities: a project that sets its own Cost limits sets its own qualities too');
     ok = false;
   }
-  return ok ? { values, qualities } : null;
+  // A refused costLimits skips the name check, so its refusal is not echoed once for every Enough name.
+  if (qualities && (costLimits || !Object.hasOwn(doc, 'costLimits')) && !resolveEnoughCosts(qualities, costLimits, fail)) ok = false;
+  if (ok && !values.length && !qualities && !costLimits) {
+    fail('project-empty', 'the project configuration sets no value, no qualities and no costLimits, so there is nothing to install');
+    ok = false;
+  }
+  return ok ? { values, qualities, costLimits } : null;
 }
 
 /** The project mode: see the header. */
@@ -1140,10 +1272,10 @@ function runProject(out, home, projectFolder, report) {
   }
   const checked = checkProject(proj.buf, effective, report);
   if (checked === null) return;
-  const { values, qualities } = checked;
-  const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v)), qualities).join('\n'), 'utf8');
+  const { values, qualities, costLimits } = checked;
+  const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v)), qualities, costLimits).join('\n'), 'utf8');
   // The output holds constant text, checked numbers and, with a qualities
-  // list, the project's own one-line fields; the scanner runs on it before
+  // or Cost limits list, the project's own one-line fields; the scanner runs on it before
   // its hash is reported, so a refused character can never be installed.
   if (scanText(output, PROJECT_OUTPUT_NAME, report) === null) return;
   const userHash = user === NONE ? null : sha256(user.buf);
@@ -1157,6 +1289,7 @@ function runProject(out, home, projectFolder, report) {
     `DIGEST ${digest}`,
     ...values.map(([k, v]) => `VALUE ${k} ${v}`),
     ...(qualities ? [`QUALITIES ${qualities.length}`] : []),
+    ...(costLimits ? [`COST-LIMITS ${costLimits.length}`] : []),
   );
 }
 
