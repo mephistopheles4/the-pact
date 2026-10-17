@@ -34,8 +34,10 @@
 //   4  RESULT: unavailable        a read before posting failed, or the poster
 //                                 itself failed before sending; nothing sent
 //   0  RESULT: dry-run <surface>
-// Output names rules, fields, positions and sizes, never the text itself. It
-// never retries.
+// Exits 1 and 3 also print one NEXT: line, straight above the RESULT line,
+// that says what the session does next (#294).
+// Output names rules, fields, positions and sizes, never the text itself; the
+// NEXT: line holds fixed words, a page and a login. It never retries.
 //
 // Node 24 or later, ESM, node: built-ins only. Every rule is an exported
 // function that takes gh, the environment, the home and temp folders, the user
@@ -792,6 +794,21 @@ function parseJson(s) {
   }
 }
 
+// ---------------------------------------------------------------- the NEXT line
+
+/**
+ * The line a session reads after exit 3, where the post may have landed: the
+ * page to look at and the login the poster checked, both known before it
+ * sent, never text from gh or the body.
+ */
+const failedNext = (page, login) => `NEXT: the post may have landed. Look at ${page} for a post by ${login} before anything else. If it is there, never post it again: tell the owner its link. If it isn't, tell the owner, and post again only on their word. If you can't tell, tell the owner, and don't post.`;
+
+/** The line after exit 1, where the post landed: the form says what the address below it is, the post's link, or only the page it sits on. */
+const landedNext = form => `NEXT: the post landed. Never post it again. Tell the owner, with ${form}.`;
+const LANDED_LINK = landedNext('the link below');
+const LANDED_PAGE = landedNext('the page below, where it sits');
+const LANDED_MISMATCH = landedNext('the link below and the fields named above');
+
 // ---------------------------------------------------------------- one post
 
 /** The post call, the request it sends, and how its answer is read back and named. */
@@ -938,6 +955,9 @@ const refused = refusals => ({ code: 2, lines: [...refusals.map(r => `REFUSED ${
 export function post(argv, io) {
   let phase = 'before';
   let near = '';
+  // Held out here for the catch. The login is set only once it has passed every check, the link only once the post's id is read.
+  let checkedLogin = null;
+  let linked = false;
   try {
     const parsed = parseArgs(argv);
     if (parsed.refusals.length) return refused(parsed.refusals);
@@ -981,26 +1001,28 @@ export function post(argv, io) {
     const owner = repoRead.ok ? parseJson(repoRead.stdout)?.owner?.login : undefined;
     if (!isLogin(owner)) return { code: 4, lines: [...(repoRead.ok ? ['the repo read gave no owner'] : [saidLine(repoRead.stderr, ctx)]), 'RESULT: unavailable'] };
     if (owner !== login) return refused([{ rule: 'owner/github', where: 'option --repo' }]);
+    checkedLogin = login;
 
     phase = 'sending';
     const sent = io.gh(args, JSON.stringify(p.request));
-    if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr, ctx), 'RESULT: failed'] };
+    if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr, ctx), failedNext(near, login), 'RESULT: failed'] };
     phase = 'sent';
     const id = idText(parseJson(sent.stdout)?.[p.key]);
-    if (id === null) return { code: 1, lines: [`the answer carried no usable ${p.key}`, `RESULT: unverified ${near}`] };
+    if (id === null) return { code: 1, lines: [`the answer carried no usable ${p.key}`, LANDED_PAGE, `RESULT: unverified ${near}`] };
     const url = p.url(id);
     near = url;
+    linked = true;
     const read = io.gh(ghArgs('GET', p.read(id), false));
-    if (!read.ok) return { code: 1, lines: [saidLine(read.stderr, ctx), `RESULT: unverified ${url}`] };
+    if (!read.ok) return { code: 1, lines: [saidLine(read.stderr, ctx), LANDED_LINK, `RESULT: unverified ${url}`] };
     const back = parseJson(read.stdout);
     const c = compare(plan, p.request, back, login, id, p.key);
-    if (c.unusable.length) return { code: 1, lines: [`the read-back could not be read: ${c.unusable.join(', ')}`, `RESULT: unverified ${url}`] };
-    if (c.mismatches.length) return { code: 1, lines: [...c.mismatches, ...c.notes, `RESULT: mismatch ${url}`] };
+    if (c.unusable.length) return { code: 1, lines: [`the read-back could not be read: ${c.unusable.join(', ')}`, LANDED_LINK, `RESULT: unverified ${url}`] };
+    if (c.mismatches.length) return { code: 1, lines: [...c.mismatches, ...c.notes, LANDED_MISMATCH, `RESULT: mismatch ${url}`] };
     return { code: 0, lines: [...c.notes, `RESULT: verified ${plan.surface} ${url} as ${login}`] };
   } catch {
     if (phase === 'before') return { code: 4, lines: ['the poster failed before sending', 'RESULT: unavailable'] };
-    if (phase === 'sending') return { code: 3, lines: ['the post call failed', 'RESULT: failed'] };
-    return { code: 1, lines: ['the poster failed after sending', `RESULT: unverified ${near}`] };
+    if (phase === 'sending') return { code: 3, lines: ['the post call failed', failedNext(near, checkedLogin), 'RESULT: failed'] };
+    return { code: 1, lines: ['the poster failed after sending', linked ? LANDED_LINK : LANDED_PAGE, `RESULT: unverified ${near}`] };
   }
 }
 
