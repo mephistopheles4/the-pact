@@ -35,11 +35,12 @@ what a lens writes by its meaning.
   from the list it was handed, or a file and symbol), how serious it is
   (high, medium or low), a one-line headline, the evidence and the smallest
   change that fixes it.
-- **Trade-offs:** each finding past a cost limit or an Enough level, listed
-  apart from Findings, each with its severity, the cost or level, the limit
+- **Trade-offs:** each finding past a cost limit or an Enough level, or
+  spending a cost whose limit is empty, listed apart from Findings, each with its severity, the cost or level, the limit
   and the quality at stake. A lens with none writes "none".
 - **Not checked:** what it didn't look at, and why.
-- **Verdict:** blocking when anything is high; inconclusive when it couldn't
+- **Verdict:** blocking when anything under Findings is high (a Trade-off or a
+  finding marked accepted by the threat model never is); inconclusive when it couldn't
   review something it was handed; findings; or clear.
 
 **Quality rows and cost limits.** Hand each lens, as a local file, the rows of
@@ -47,8 +48,8 @@ the rules file's Qualities table that name it, with their Enough, and the
 Cost limits rows those Enough cells name, with the running count against each
 counted limit (see Trade-offs and accepted risks). Take all of them from the
 rules in force: the project's own rules file where it sets them, else the
-home rules. Hand the two security lenses also the threat model, as the next
-section says. Batch the missing measures the lenses report into one
+home rules. Hand the two security lenses also the sensitive-work list in force and the
+threat model (see Trade-offs and accepted risks). Batch the missing measures the lenses report into one
 question for me: add each as a claim, or skip it. Record a skip once, in the
 Lens dispositions table, as "skipped, because ...".
 
@@ -113,8 +114,8 @@ each trade-off row's reason text: `trade-off: Tests added, 3 of 2`. Add no
 column. Read the count from the last table when you hand a lens its cost rows.
 
 **Finding the threat model.**
-- **Which file.** The one the project's agent instructions name, else
-  `docs/threat-model.md`, else none.
+- **Which file.** The one the project's agent instructions name (the line
+  that names it is the pointer), else `docs/threat-model.md`, else none.
 - **Read at the base.** Read the pointer and the file as they stood at the base
   of the change, and hand the change's own edits to either as a separate
   input. An edit to the pointer, or a moved or deleted file, is a finding, as
@@ -125,8 +126,7 @@ column. Read the count from the last table when you hand a lens its cost rows.
   Tell each lens which file you gave it, or that there was none.
 
 **Every threat-model edit goes to me.** At hand-off, check the diff yourself
-for an edit to the threat model's scope, its accepted risks or the pointer
-that names it, whichever lenses ran. Bring each one to me as a decision that
+for an edit to the threat model's scope, its accepted risks or the pointer, whichever lenses ran. Bring each one to me as a decision that
 is always mine; it never applies in the same review.
 
 **Recording an accepted risk.** In a project with a threat model:
@@ -145,8 +145,9 @@ file.
   one it is unsure of `security?`.
 - Follow the row's "At the limit", and say what you took. A cost with an empty
   limit sends the finding to me.
-- A security-bar comparison, a finding that matches an accepted risk, and a
-  `security?` row always go to me and are never `auto`.
+- A finding where a lens weighs a security fix's cost against its risk (the
+  security bar), a finding that matches an accepted risk, and a `security?`
+  row always go to me and are never `auto`.
 - A finding that matches an accepted risk is still reported, as one line
   marked accepted by the threat model, naming the entry; it is never dropped
   and never blocks.

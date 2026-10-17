@@ -173,7 +173,8 @@ its measures. An offer's why names the listed quality at stake.
 
 **Trade-off points.** A spec carries a Trade-off points section. Each point
 names the qualities that pull against each other, the side taken, and the
-business driver that decides it.
+business driver that decides it. (A lens's trade-off finding is a different
+thing; see Cost limits.)
 
 **Business drivers.** The spec's own driver holds. Else the one under a
 "Business drivers" heading in the project's own agent instructions
