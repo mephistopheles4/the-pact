@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qiT+8sJWYQ78+p6qALvm57fICoK6/+iauJq8/c+32FE='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QFUdY1xhHk7x7beM2m+ZiHyVgZB7sM0EVKfWBSgfjcg='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -5809,7 +5809,7 @@ function boot() {
           partsTouched();
         })),
       )),
-      el('div', { class: 'chips' }, chip('Add a quality',QUALITY_NAMES.some(n => !qs.some(q => q.quality === n)), () => {
+      el('div', { class: 'chips' }, chip('Add a quality', false, () => {
         const next = QUALITY_NAMES.find(n => !qs.some(q => q.quality === n));
         if (!next) return;
         qs.push({ quality: next, measure: '', lenses: [] });
