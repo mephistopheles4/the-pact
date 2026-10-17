@@ -188,7 +188,7 @@ How to read it:
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; on an install with the poster on, its hidden-text scan as a backstop (#280) | Rule |
 | R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the six parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`, `cost-limits`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
-| R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits, and a warning for cost rows no quality names; the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
+| R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits, and a warning for cost rows no quality names; the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits, and a middle dot refused in an Enough level and a cost name (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
 | R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while the page takes a retired agent's file out of a loaded or shared file, with a note, and a file at agents/<name>.md for a retired agent draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
 
 ## Strangers on the tracker
@@ -666,12 +666,16 @@ safe, and a change made months ago is easy to forget.
   itself: you run the project install, and its dry run leads with a
   security-defaults line pointing at the lists in the project's config file,
   with a note when it keeps its own qualities and no Cost limits, and a
-  warning naming each Cost limits row that no quality's enoughCosts names, by
-  position, since no quality names it (#299). Each table
+  warning naming each Cost limits row that no quality's Enough cell names, by
+  its level or an enoughCosts name, by position, since no quality names it
+  (#299, #318). A cell can still read as naming a cost row by text the render
+  does not split on the joining dot, such as a lookalike dot, other wording in
+  the level, or a home cost's name in a project with no Cost limits; the
+  warning does not count those. Each table
   is compiled from one-line fields, at most nine rows, under fixed text that
   is the home part's own, so the one rule and the security bar win over any
   row there as at home. A field is the project's own one-line text, as its
-  own rules file could already be; a bar in a Cost limits field is refused.
+  own rules file could already be; a bar in a Cost limits field is refused, and a middle dot in a cost name, since it joins the Enough cell.
   The configuration file has no accepted-risks key: accepted risks live only
   in a threat model. A cloned repo's own committed threat model is another
   matter: it can list an accepted risk, undated ones included, but a lens
@@ -691,6 +695,10 @@ safe, and a change made months ago is easy to forget.
   The warning for a cost row no quality names was added to this entry
   2026-10-17 from #299, on the owner's word, relayed by the head chef session
   (#299, issuecomment-6240769507).
+  The middle-dot refusal and the Enough-cell count were added to this entry
+  2026-10-17 from #318, and the cases it leaves accepted the same day, on the
+  owner's word, relayed by the head chef session (#318,
+  issuecomment-6242141657).
 - **R32. A shared builder file can carry agent files.** A builder file
   someone hands you may hold whole agent files: one named like a pact agent
   replaces it, `scout`, which sessions call for every lookup, included, and
