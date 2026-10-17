@@ -202,6 +202,8 @@ async function main() {
     // A project's own qualities list leads the warnings (#262 S25).
     const projectSecurity = core.projectSecurityLine(pr);
     if (projectSecurity) say(projectSecurity);
+    const projectNote = core.projectNoteLine(pr);
+    if (projectNote) say(projectNote);
     for (const l of core.projectBlock(pc.state, pr)) say(l);
     if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
     else say('Working tree: clean');

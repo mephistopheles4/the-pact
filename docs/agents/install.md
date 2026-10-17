@@ -134,10 +134,18 @@ how every session in every repo behaves. So:
 - **Project install.** To make the pact stricter in one repo, add
   `--project-folder <full path>`. It reads the project's
   `.claude/pact-config.json`, which may only set values strictly tighter than
-  your own, but for one thing: a `qualities` list, which takes the place of
-  the home list in that repo. Its rows are a quality, a measure and a list of
-  lenses, each one line, compiled into a table under fixed text, and the
-  dry run leads with a security-defaults line for it (ADR 0068). It writes one rules file, `.claude/rules/pact-project.md`, with a
+  your own, but for two things: a `qualities` list, which takes the place of
+  the home list in that repo, and a `costLimits` list that goes with it (#278).
+  A quality row is a quality, a measure and a list of lenses, with an optional
+  `enough` level and `enoughCosts` names; a cost row is a cost with optional
+  `counted`, `limit` and `atLimit`; each field is one line, at most nine rows,
+  compiled into tables under fixed text, and the cost fields refuse a bar.
+  `costLimits` needs `qualities`, an `enoughCosts` name must find a cost row
+  in the same file, and `acceptedRisks` is no key. The dry run leads with a
+  security-defaults line for them (ADR 0068), and a note line when a project
+  has its own qualities and no `costLimits`. A pact from before #278 refuses
+  a project `costLimits` key and an `enough` or `enoughCosts` field, so
+  remove them first. It writes one rules file, `.claude/rules/pact-project.md`, with a
   record beside it. It installs nothing in the Claude home folder and no
   agents into the project. It refuses a project with no configuration file, a
   project that is or holds your home folder, or is, holds or sits inside a

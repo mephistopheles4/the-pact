@@ -188,7 +188,7 @@ How to read it:
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; on an install with the poster on, its hidden-text scan as a backstop (#280) | Rule |
 | R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the six parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`, `cost-limits`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
-| R31 A project's qualities list | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list | You run each project install, and its dry run leads with a security-defaults line pointing you at the list in that file; the renderer builds the table from three one-line fields, at most nine rows, with bars escaped, under fixed text (#262, ADR 0068) | Boundary (a pointer), judgment |
+| R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits; the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
 | R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is" (#262, ADR 0071) | Judgment |
 
 ## Strangers on the tracker
@@ -609,10 +609,10 @@ safe, and a change made months ago is easy to forget.
 - **The install says what changed.** The dry run prints a warning for each
   value set, each part edited and each tool turned on. The installed rules file names the
   configuration in effect.
-- **A project can only tighten, but for its qualities.** A project's own
-  configuration, installed through the install script, may only set values
-  stricter than yours, and may hold its own qualities list, which takes the
-  place of yours in that repo (R31).
+- **A project can only tighten, but for its qualities and Cost limits.** A
+  project's own configuration, installed through the install script, may
+  only set values stricter than yours, and may hold its own qualities list
+  and Cost limits list, which take the place of yours in that repo (R31).
 
 **What is accepted.**
 
@@ -645,14 +645,21 @@ safe, and a change made months ago is easy to forget.
   rendered part. The builder's checks and its Presets checklist, which shows
   each section a preset or shared file carries before anything is taken, are
   your look at what you load, not a control the install runs.
-- **R31. A project's qualities list takes the place of yours.** A project's
-  `.claude/pact-config.json` may hold a list that drops the Security row, or
-  any other, in that repo, the one way a project may loosen. A cloned repo
-  can't install it by itself: you run the project install, and its dry run
-  leads with a security-defaults line pointing at the list in the project's
-  config file. The table is compiled from three one-line fields, at most
-  nine rows, with bars escaped, under fixed text; a field is the project's
-  own one-line text, as its own rules file could already be.
+- **R31. A project's qualities list and Cost limits take the place of
+  yours.** A project's `.claude/pact-config.json` may hold a list that drops
+  the Security row, or any other, in that repo, and a Cost limits list that
+  sets its own limits there, with an empty limit or a looser one than yours.
+  These are the ways a project may loosen: an allowance that is not tighter.
+  A cloned repo's committed file is not your own text, and can't install
+  itself: you run the project install, and its dry run leads with a
+  security-defaults line pointing at the lists in the project's config file,
+  with a note when it keeps its own qualities and no Cost limits. Each table
+  is compiled from one-line fields, at most nine rows, under fixed text that
+  is the home part's own, so the one rule and the security bar win over any
+  row there as at home. A field is the project's own one-line text, as its
+  own rules file could already be; a bar in a Cost limits field is refused.
+  The file has no accepted-risks key: accepted risks live only in a threat
+  model, so a cloned repo can't mute a lens that way.
 - **R32. A shared builder file can carry agent files.** A builder file
   someone hands you may hold whole agent files: one named like a pact agent
   replaces it, `scout`, which sessions call for every lookup, included, and

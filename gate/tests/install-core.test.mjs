@@ -368,8 +368,29 @@ for (const c of table('project render lines', {
     { id: 'qualities-twice', plant: rep('RESULT', 'QUALITIES 3\nQUALITIES 3\nRESULT'), fails: ['project-render-two-qualities'], why: 'one qualities list' },
     { id: 'qualities-zero', plant: rep('RESULT', 'QUALITIES 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'a list holds a row' },
     { id: 'qualities-too-many', plant: rep('RESULT', 'QUALITIES 10\nRESULT'), fails: ['project-render-unknown-line'], why: 'at most nine rows, one per quality' },
+    // #278 C14 (T2): a project's own Cost limits are reported once, as a row count of 1 to 9.
+    { id: 'cost-limits-twice', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS 2\nRESULT'), fails: ['project-render-two-cost-limits'], why: 'one Cost limits list' },
+    { id: 'cost-limits-zero', plant: rep('RESULT', 'COST-LIMITS 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'a list holds a row' },
+    { id: 'cost-limits-too-many', plant: rep('RESULT', 'COST-LIMITS 10\nRESULT'), fails: ['project-render-unknown-line'], why: 'at most nine rows, as the render caps them' },
   ],
 })) test(c.name, c.fn);
+
+// #278 C14, C15 (T2): the Cost limits line is read, counts toward "the render set something", and the dry run names it.
+test('the project render with Cost limits and no value passes; the security-defaults line names them with their row count, and a qualities list without them gets a note', () => {
+  const lines = (...extra) => [`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, ...extra, 'RESULT: pass'];
+  const both = core.parseProjectRenderLines(lines('QUALITIES 3', 'COST-LIMITS 2'), sha256);
+  assert.equal(both.costLimits, 2);
+  assert.equal(core.projectSecurityLine(both), "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (3 rows) and its own Cost limits (2 rows), which take the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.");
+  assert.equal(core.projectNoteLine(both), null, 'Cost limits are set: no note');
+  assert.equal(core.parseProjectRenderLines(lines('COST-LIMITS 1'), sha256).costLimits, 1, 'a Cost limits line alone is something the render set');
+  assert.equal(core.projectSecurityLine(core.parseProjectRenderLines(lines('QUALITIES 1', 'COST-LIMITS 1'), sha256)).includes('(1 row) and its own Cost limits (1 row)'), true);
+  // A pre-#278 project configuration: the same line and no Cost limits.
+  const old = core.parseProjectRenderLines(lines('QUALITIES 3'), sha256);
+  assert.equal(old.costLimits, 0);
+  assert.equal(core.projectSecurityLine(old), "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (3 rows), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.");
+  assert.equal(core.projectNoteLine(old), "NOTE: the project configuration sets its own qualities list and no Cost limits, so your Cost limits reach none of its qualities; add costLimits, and name them in each quality's enoughCosts, to hold a lens back.");
+  assert.equal(core.projectNoteLine(core.parseProjectRenderLines(projRenderBase().in.split('\n'), sha256)), null, 'no qualities list: no note');
+});
 
 // #262 C21, C22: a project with only a qualities list renders, and its dry run leads with the security-defaults line.
 test('the project render with a qualities list and no value passes, and the project security-defaults line names it; with no list there is none', () => {

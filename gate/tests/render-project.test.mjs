@@ -223,6 +223,120 @@ for (const c of table('render project qualities', {
   ],
 })) test(c.name, c.fn);
 
+// ------------------------------------------------------------ a project's own Cost limits and Enough (#278, T2)
+
+const C_ROWS = [
+  { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'A trade-off for me' },
+  { cost: 'Hardening', counted: 'Guards for paths that are not security findings', limit: '0', atLimit: '' },
+];
+const EQ_ROWS = [
+  { quality: 'Functional suitability', measure: 'the acceptance claims', lenses: ['behaviour-lens'], enoughCosts: ['Tests added'] },
+  { quality: 'Security', measure: 'ASVS 5.0 level 1', lenses: ['adversarial-lens'], enough: 'ASVS L1', enoughCosts: [' hardening '] },
+  { quality: 'Compatibility', measure: '', lenses: ['conventions-lens'] },
+];
+const cFile = (costLimits, qualities = EQ_ROWS, extra = {}) => `${JSON.stringify({ schema: 1, ...extra, qualities, costLimits })}\n`;
+const cRow = (over, base = C_ROWS[0]) => cFile([{ ...base, ...over }]);
+
+/** The home part's fixed text, as the rules file states it between the Cost limits heading and its table. */
+function homeFixedText() {
+  const rules = readFileSync(new URL('../../claude/CLAUDE.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const from = rules.indexOf('## Cost limits\n\n') + '## Cost limits\n\n'.length;
+  return rules.slice(from, rules.indexOf('\n\n*Scriptorium builds this.*', from));
+}
+
+// #278 C9 (T2): a project's Cost limits replace the home list there, under the home part's own fixed text.
+test('a project costLimits list renders its table under the home part\'s fixed text, and an Enough column on the qualities; it reports both counts', t => {
+  const pbytes = Buffer.from(cFile(C_ROWS));
+  const r = render(t, userHome(t), project(t, pbytes));
+  assert.equal(r.code, 0, r.out);
+  const want = [
+    '# Pact settings for this project',
+    '',
+    "The pact's installer wrote this file from this project's pact configuration. Each setting line can only make the pact stricter here, and the qualities list and the Cost limits list take the place of the ones in my user rules.",
+    '',
+    '## Qualities for this project',
+    '',
+    'In this project, this list takes the place of the Qualities table in my user rules: the qualities that matter here, each with its measure and the lenses that check it.',
+    '',
+    '| Quality | Measure | Lens | Enough |',
+    '| --- | --- | --- | --- |',
+    '| Functional suitability | the acceptance claims | `behaviour-lens` | Tests added |',
+    '| Security | ASVS 5.0 level 1 | `adversarial-lens` | ASVS L1 · Hardening |',
+    '| Compatibility |  | `conventions-lens` |  |',
+    '',
+    '## Cost limits for this project',
+    '',
+    'In this project, this list takes the place of the Cost limits table in my user rules.',
+    '',
+    homeFixedText(),
+    '',
+    '| Cost | Counted as | Limit | At the limit |',
+    '| --- | --- | --- | --- |',
+    '| Tests added | Tests beyond one per acceptance claim | 2 per change | A trade-off for me |',
+    '| Hardening | Guards for paths that are not security findings | 0 |  |',
+    '',
+  ].join('\n');
+  assert.equal(r.bytes.toString('utf8'), want);
+  assert.match(r.stdout, /^QUALITIES 3$/m);
+  assert.match(r.stdout, /^COST-LIMITS 2$/m);
+  assert.ok(r.stdout.indexOf('QUALITIES 3') < r.stdout.indexOf('COST-LIMITS 2'), 'COST-LIMITS follows QUALITIES');
+});
+
+// #278 C10 (T2): Enough on a project quality alone, with a level and no cost.
+test('a project quality may carry an Enough level and no cost, with no costLimits key; the Enough column appears only when some row sets one', t => {
+  const withLevel = render(t, userHome(t), project(t, qRow({ enough: 'ASVS L1' })));
+  assert.equal(withLevel.code, 0, withLevel.out);
+  assert.ok(withLevel.bytes.toString('utf8').split('\n').includes('| Performance efficiency | p95 under 200 ms on checkout | `behaviour-lens` | ASVS L1 |'), withLevel.bytes.toString('utf8'));
+  assert.doesNotMatch(withLevel.stdout, /COST-LIMITS/);
+  assert.doesNotMatch(withLevel.bytes.toString('utf8'), /Cost limits/);
+});
+
+// #278 C11 (T2): a configuration from before the change renders as it did.
+test('a project qualities list with no Enough field renders the three-column table it did before, and a costLimits key adds nothing to it', t => {
+  const r = render(t, userHome(t), project(t, qFile(Q_ROWS)));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.bytes.toString('utf8'), /^\| Quality \| Measure \| Lens \|$/m);
+  assert.doesNotMatch(r.bytes.toString('utf8'), /Enough|Cost limits/);
+  assert.doesNotMatch(r.stdout, /COST-LIMITS/);
+});
+
+// #278 C12 (T2): the project's rows replace the home list; its text is the home part's text, not a copy that can drift.
+test('the fixed text a project\'s Cost limits render under is the home part\'s, byte for byte', t => {
+  const out = render(t, userHome(t), project(t, cFile(C_ROWS))).bytes.toString('utf8');
+  assert.ok(out.includes(`\n${homeFixedText()}\n`), 'the home part\'s fixed text appears whole');
+  assert.ok(homeFixedText().length > 1500, 'the extract found the whole text');
+});
+
+// #278 C13..C20 (T2): each shape or reference refusal, with its rule id, and nothing written.
+for (const c of table('render project cost limits', {
+  module: 'gate/render.mjs',
+  base: () => ({ project: cFile(C_ROWS) }),
+  run: (tree, t) => {
+    const r = render(t, userHome(t), project(t, tree.project));
+    return { ...moduleResult(r.code, r.stdout, r.stderr), files: readdirSync(r.dir) };
+  },
+  everyRow: r => assert.deepEqual(r.files, [], 'a refused render writes no file'),
+  rows: [
+    { id: 'without-qualities', plant: () => ({ project: `${JSON.stringify({ schema: 1, costLimits: C_ROWS })}\n` }), fails: ['project-cost-limits-alone'], why: 'every name resolves in one file' },
+    { id: 'enough-cost-unknown', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: ['Linting'] }]) }), fails: ['project-enough-cost'], why: 'an Enough name finds a project cost row' },
+    { id: 'enough-cost-no-list', plant: () => ({ project: `${JSON.stringify({ schema: 1, qualities: EQ_ROWS.slice(0, 1) })}\n` }), fails: ['project-enough-cost'], why: 'a project with no costLimits can name no cost' },
+    { id: 'cost-empty', plant: () => ({ project: cRow({ cost: '  ' }) }), fails: ['project-cost-limits'], why: 'a cost row has a name' },
+    { id: 'cost-missing', plant: () => ({ project: cFile([{ counted: 'x' }]) }), fails: ['project-cost-limits'], why: 'a cost row has a name' },
+    { id: 'unknown-field', plant: () => ({ project: cRow({ lenses: ['data-lens'] }) }), fails: ['project-cost-limits'], why: 'a cost names no lenses of its own' },
+    { id: 'bar-in-field', plant: () => ({ project: cRow({ counted: 'a | b' }) }), fails: ['project-cost-limits'], why: 'a bar would start a new cell' },
+    { id: 'line-break-in-field', plant: () => ({ project: cRow({ atLimit: 'a\n# Heading' }) }), fails: ['project-cost-limits'], why: 'a second line' },
+    { id: 'field-not-text', plant: () => ({ project: cRow({ limit: 2 }) }), fails: ['project-cost-limits'], why: 'a limit is text' },
+    { id: 'duplicate', plant: () => ({ project: cFile([C_ROWS[0], { ...C_ROWS[1], cost: 'Tests added' }]) }), fails: ['project-cost-limits'], why: 'one name, one row' },
+    { id: 'duplicate-by-case', plant: () => ({ project: cFile([C_ROWS[0], { ...C_ROWS[1], cost: ' TESTS ADDED ' }]) }), fails: ['project-cost-limits'], why: 'names match ignoring case and surrounding space' },
+    { id: 'ten-rows', plant: () => ({ project: cFile(Array.from({ length: 10 }, (_, i) => ({ cost: `C${i}` }))) }), fails: ['project-cost-limits'], why: 'at most nine, as the install reads the count' },
+    { id: 'no-rows', plant: () => ({ project: cFile([]) }), fails: ['project-cost-limits'], why: 'a list holds a row' },
+    { id: 'not-a-list', plant: () => ({ project: cFile({ cost: 'x' }) }), fails: ['project-cost-limits'], why: 'a list' },
+    { id: 'accepted-risks-key', plant: () => ({ project: cFile(C_ROWS, EQ_ROWS, { acceptedRisks: [] }) }), fails: ['project-key'], why: 'accepted risks live only in a threat model' },
+    { id: 'enough-line-break', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enough: 'a\nb' }]) }), fails: ['project-qualities'], why: 'a level is one line' },
+    { id: 'enough-costs-not-list', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: 'Tests added' }]) }), fails: ['project-qualities'], why: 'a list of names' },
+  ],
+})) test(c.name, c.fn);
+
 test('bad case: no project file refuses, saying there is no project configuration', t => {
   refusedWith(render(t, userHome(t), project(t)), 'project-none', /there is no project configuration/);
 });
