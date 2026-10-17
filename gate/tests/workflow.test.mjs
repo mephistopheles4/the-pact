@@ -488,7 +488,7 @@ test('skipUnlessLinuxCi fails on Linux under CI and skips elsewhere', () => {
   const t = { skip: r => skips.push(r) };
   assert.throws(() => skipUnlessLinuxCi(t, 'why', { platform: 'linux', ci: 'true' }), /Linux CI must run this case, but: why/);
   assert.deepEqual(skips, []);
-  skipUnlessLinuxCi(t, 'a', { platform: 'linux', ci: undefined });
+  skipUnlessLinuxCi(t, 'a', { platform: 'linux', ci: '' });
   skipUnlessLinuxCi(t, 'b', { platform: 'win32', ci: 'true' });
   assert.deepEqual(skips, ['a', 'b']);
 });
