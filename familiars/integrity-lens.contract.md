@@ -1,6 +1,6 @@
 # Contract: integrity-lens
 
-Version: 0.2.1
+Version: 0.3.0
 
 - **Type:** agent
 - **Level:** Thorough
@@ -142,6 +142,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.3.0 | 2026-10-17 | The lens may be handed quality rows with an Enough, the cost rows they name and running counts, as inputs: a finding past a cost limit follows that row's "At the limit", and one past an Enough level alone goes to the owner as a trade-off; both are listed under Trade-offs and never make the verdict blocking on their own. A finding it is unsure is a security finding is marked "security?", for the sorting session to decide. | #304: records what #289 (T4 of #278) added to the lens file, the "Cost limits and trade-offs" section | 10 |
 | 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
 | 0.2.0 | 2026-10-12 | Agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262). | #262: the owner decided the lens be agnostic of the pact | 1, 3, 4, 5, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18; The mutation step |
 | 0.1.4 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |
@@ -181,6 +182,8 @@ Its question is "can these checks fail?". Whether the work does what was asked, 
 - **Point out:** evidence that cites no test for a claim goes under what was not checked, as "no test cited for C<n>".
 
 **Decided** (2026-10-12, #262): the lens may also be handed qualities to check, each with its measure, and checks each within its own question. A quality with no measure, on work that plainly touches it, goes under what was not checked with the claim that would measure it, never as a finding.
+
+**Decided** (2026-10-17, #304, recording #289): the lens may also be handed quality rows with an Enough, the cost rows they name and a running count against each counted limit, as inputs, never orders. A finding past a cost limit follows that cost row's "At the limit" text; one past an Enough level alone, or one that spends a cost with an empty limit, goes to the owner as a trade-off naming the cost or level, the limit and the quality at stake, and is never dropped silently. It lists those apart from its findings, under Trade-offs, with their severity; a trade-off never makes its verdict blocking on its own. When it is unsure whether a finding is a security finding, it marks it "security?" and the sorting session decides; it never classes it as ordinary to fit a limit. The lens file's "Cost limits and trade-offs" section holds the text.
 
 ### 11. Where does a person decide?
 
