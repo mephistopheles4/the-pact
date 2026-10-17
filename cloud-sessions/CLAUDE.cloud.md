@@ -51,7 +51,7 @@ and help with what it needs.
   Act on your own recommendation for the rest, and tell me what you took.
 - **These decisions are always mine:** proceed, fix or kill on a spec; the
   ticket cut; accepting the work, closing a ticket and merging; an install;
-  anything published. Show each as two or three options, your pick marked
+  anything published; accepting a risk. Show each as two or three options, your pick marked
   with why. A command only I may start, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then offer the reviews the work calls for (see Workflow).
@@ -169,9 +169,19 @@ of this one there.
 | Safety | the risky actions, the warning, the safe state on failure | `executability-lens` | |
 
 Use the list when you size the work and when you write acceptance claims from
-its measures. An offer's why names the listed quality at stake. Name both
-sides only when a decision trades one listed quality for another, one clause
-per option.
+its measures. An offer's why names the listed quality at stake.
+
+**Trade-off points.** A spec carries a Trade-off points section. Each point
+names the qualities that pull against each other, the side taken, and the
+business driver that decides it.
+
+**Business drivers.** The spec's own driver holds. Else the one under a
+"Business drivers" heading in the project's own agent instructions
+(`AGENTS.md` or `CLAUDE.md`) holds. With none written, flag it once and lean
+to the side that is cheaper to reverse, with a one-line why; I decide. The
+security bar below still holds for a security finding. A driver copied into a
+spec passes the review procedure's read before posting, and carries no
+private project terms.
 
 ## Cost limits
 
@@ -206,9 +216,10 @@ lenses of every quality whose Enough names it.
 - **Accepted risks** are recorded only in the project's threat model, and
   only on my word, given in chat or relayed by a lead session I set up. An
   entry carries its date, the finding it came from, and how my word arrived.
-  A finding that matches an entry is listed as one line naming the entry and
-  where it is recorded, and is not raised as a defect again. An entry with no
-  date or source still counts, named as undated. A change that removes a
+  A finding that matches an entry is still reported, as one line marked
+  accepted by the threat model, naming the entry and where it is recorded; it
+  is not raised as a defect and never makes a verdict blocking. An entry with
+  no date or source still counts, named as undated. A change that removes a
   control an entry names, or eases its path, is raised in full, naming the
   entry, never shrunk to the one line. A change's own edit to the threat
   model's scope, accepted risks or the line that names it is a finding for

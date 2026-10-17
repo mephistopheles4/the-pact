@@ -35,13 +35,20 @@ what a lens writes by its meaning.
   from the list it was handed, or a file and symbol), how serious it is
   (high, medium or low), a one-line headline, the evidence and the smallest
   change that fixes it.
+- **Trade-offs:** each finding past a cost limit or an Enough level, listed
+  apart from Findings, each with its severity, the cost or level, the limit
+  and the quality at stake. A lens with none writes "none".
 - **Not checked:** what it didn't look at, and why.
 - **Verdict:** blocking when anything is high; inconclusive when it couldn't
   review something it was handed; findings; or clear.
 
-**Quality rows.** Hand each lens, as a local file, the rows of the rules
-file's Qualities table that name it, from the project's own list where the
-project has one. Batch the missing measures the lenses report into one
+**Quality rows and cost limits.** Hand each lens, as a local file, the rows of
+the rules file's Qualities table that name it, with their Enough, and the
+Cost limits rows those Enough cells name, with the running count against each
+counted limit (see Trade-offs and accepted risks). Take all of them from the
+rules in force: the project's own rules file where it sets them, else the
+home rules. Hand the two security lenses also the threat model, as the next
+section says. Batch the missing measures the lenses report into one
 question for me: add each as a claim, or skip it. Record a skip once, in the
 Lens dispositions table, as "skipped, because ...".
 
@@ -80,8 +87,11 @@ crossed alone.
    these**.
 4. **One lens only.** A table of where, lens, severity and headline, and
    anything else the lens gives each finding, such as a likelihood.
-5. **Not checked,** per lens.
-6. **Verbatim reports,** each in its own fold (see Posting).
+5. **Trade-offs.** A table of where, lens, severity, headline, the cost or
+   level, the limit and the quality at stake, and what you did with it (see
+   Trade-offs and accepted risks). Leave it out when no lens listed one.
+6. **Not checked,** per lens.
+7. **Verbatim reports,** each in its own fold (see Posting).
 
 **Rules you apply by judgment:**
 - **A crossing is the same place:** the same section or claim, the same file
@@ -94,6 +104,59 @@ crossed alone.
   review comment into parts, and repeat a table's header where it continues.
   A report that alone is over the limit stays a local file; name its path to
   me in chat, never in the record.
+
+## Trade-offs and accepted risks
+
+**The running count.** For a counted limit, such as tests added in this
+change, the Lens dispositions table keeps the count across review rounds, in
+each trade-off row's reason text: `trade-off: Tests added, 3 of 2`. Add no
+column. Read the count from the last table when you hand a lens its cost rows.
+
+**Finding the threat model.**
+- **Which file.** The one the project's agent instructions name, else
+  `docs/threat-model.md`, else none.
+- **Read at the base.** Read the pointer and the file as they stood at the base
+  of the change, and hand the change's own edits to either as a separate
+  input. An edit to the pointer, or a moved or deleted file, is a finding, as
+  is an edit to the scope or the accepted risks.
+- **A file that can't be used.** A named file that is missing, or that lies
+  outside the repo, is reported, and the project is treated as having none.
+- **Who gets it.** The two security lenses, and you, as the sorting session.
+  Tell each lens which file you gave it, or that there was none.
+
+**Every threat-model edit goes to me.** At hand-off, check the diff yourself
+for an edit to the threat model's scope, its accepted risks or the pointer
+that names it, whichever lenses ran. Bring each one to me as a decision that
+is always mine; it never applies in the same review.
+
+**Recording an accepted risk.** In a project with a threat model:
+1. propose the entry, naming the class of path and why it is accepted, never
+   the steps;
+2. I approve it, in chat or by a relay from a lead session I set up;
+3. write it with its date, the finding it came from, and how my approval
+   arrived (chat, or relayed).
+
+With no threat model, flag the risk to me and record nothing. Never create the
+file.
+
+**Sorting a trade-off finding.**
+- You decide whether the finding is security, by the rules file's definition,
+  because you hold the threat model. A lens outside the security pair marks
+  one it is unsure of `security?`.
+- Follow the row's "At the limit", and say what you took. A cost with an empty
+  limit sends the finding to me.
+- A security-bar comparison, a finding that matches an accepted risk, and a
+  `security?` row always go to me and are never `auto`.
+- A finding that matches an accepted risk is still reported, as one line
+  marked accepted by the threat model, naming the entry; it is never dropped
+  and never blocks.
+- Within one piece of work, a finding I already took is not brought again; its
+  row says "taken earlier".
+
+**Disposition words.** A trade-off finding's row keeps the words below:
+`taken` when I take the limit's side, `fixed` when the fix is built anyway,
+`dismissed` when it is dropped. Its reason text starts `trade-off:` and names
+the cost. Add no word.
 
 ## Posting
 

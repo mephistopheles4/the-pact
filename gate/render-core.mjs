@@ -332,9 +332,10 @@ lenses of every quality whose Enough names it.
 - **Accepted risks** are recorded only in the project's threat model, and
   only on my word, given in chat or relayed by a lead session I set up. An
   entry carries its date, the finding it came from, and how my word arrived.
-  A finding that matches an entry is listed as one line naming the entry and
-  where it is recorded, and is not raised as a defect again. An entry with no
-  date or source still counts, named as undated. A change that removes a
+  A finding that matches an entry is still reported, as one line marked
+  accepted by the threat model, naming the entry and where it is recorded; it
+  is not raised as a defect and never makes a verdict blocking. An entry with
+  no date or source still counts, named as undated. A change that removes a
   control an entry names, or eases its path, is raised in full, naming the
   entry, never shrunk to the one line. A change's own edit to the threat
   model's scope, accepted risks or the line that names it is a finding for
