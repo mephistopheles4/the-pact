@@ -7,7 +7,7 @@
 - **The render** prints `COST-LIMITS-UNNAMED <positions>` straight after `COST-LIMITS`, only when a row is unnamed. The positions are the rows' 1-based places in `costLimits`, ascending; the line holds digits and spaces and never a cost's text.
 - **The installer's parser** reads the line into a list and refuses a second line, a line with no `COST-LIMITS`, positions out of order or repeated, and a position past the row count. A misshapen line falls through to the existing unknown-line refusal.
 - **The dry run** prints one `WARN:` line in the Project block, after the retired-name warnings, naming the rows by position and telling the reader to read them in the project's file before binding them. It says what the render checked (no quality's `enoughCosts` names the row), not that the row binds no lens, since a crafted configuration can read as naming a row the render never matched (adversarial-lens). The install still goes ahead.
-- **Docs.** `docs/install.md` names the warning. `docs/threat-model.md` is not edited by this commit: R31 is an accepted risk, and its wording goes through the owner.
+- **Docs.** `docs/install.md` names the warning. R31 in `docs/threat-model.md` names the warning, added on the owner's word.
 
 ## Decisions
 
