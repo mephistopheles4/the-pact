@@ -98,18 +98,25 @@ only `--label`'s values are also scanned, with the title and the body.
 ## Results and exit codes
 
 The last line is always a `RESULT:` line on standard output. The lines above
-it name rules, fields, positions and sizes, never the text. A line `gh` wrote
-to standard error is shown as its first line, escaped, or withheld with only
-the rule it trips named. The poster never retries.
+it name rules, fields, positions and sizes, never the text; the one
+exception is the `NEXT:` line, which holds fixed words, a page and a login.
+A line `gh` wrote to standard error is shown as its first line, escaped, or
+withheld with only the rule it trips named. The poster never retries.
+
+On exit 1 and exit 3 the poster prints one `NEXT:` line, straight above the
+`RESULT:` line, saying what the session does next, so a session that never
+sees this page still knows. It is the only line that starts with `NEXT:`. Its
+page and login are the ones the poster checked before it sent, never text from
+`gh` or the body.
 
 | Exit | Last line | What it means | What a session does |
 | --- | --- | --- | --- |
 | 0 | `RESULT: verified <surface> <url> as <login>` | What landed is what was sent | Deletes the body file |
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
-| 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field | Never posts again; deletes the body file; tells the owner which field |
-| 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read | Never posts again; deletes the body file; opens the URL and tells the owner |
+| 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the body file; tells the owner which field |
+| 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
 | 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose or table in place and posts again. A refused lens report stays local, unedited, and the owner is told where it is, in chat. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
-| 3 | `RESULT: failed` | The post call failed. The post may or may not have landed | Deletes the body file; checks whether it landed, as below; never posts again on its own |
+| 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
 
 A fault inside the poster ends as exit 4 before it sends, exit 3 while it
@@ -118,8 +125,8 @@ is a `NOTE` line, not a mismatch.
 
 ### After exit 3: did it land?
 
-Read the target's newest items by your own login, and look for the post you
-meant to send:
+The `NEXT:` line names the page and the login to look for. Read the target's
+newest items by that login, and look for the post you meant to send:
 
 - **`issue`:** `gh issue list -R <owner/name> --author @me --state all --limit 5`
 - **`pull-request`:** `gh pr list -R <owner/name> --author @me --state all --limit 5`
@@ -129,6 +136,8 @@ meant to send:
 
 If the post is there, don't post again: treat it as unverified, and give the
 owner its URL. If it isn't, tell the owner, and post again only on their word.
+If you can't tell, tell the owner, and don't post.
+
 ## Rule ids
 
 A `REFUSED` line names one of these. Every one ends the run with exit 2 and
