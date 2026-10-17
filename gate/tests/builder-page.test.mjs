@@ -375,7 +375,7 @@ test('bad qualities: none or too many, a quality twice, a bar in a measure, no l
   assert.match(bad(p => (p.qualities[0].lenses = ['a-lens', 'b-lens', 'c-lens', 'd-lens', 'e-lens'])), /row 1: 1 to 4 lenses/);
 });
 
-// #278 seam 2: the cost limits part's checks, each with a bad case.
+// #287 C5, C9 (seam 2): the cost limits part's checks, each with a bad case.
 test('bad cost limits: none or ten, an empty cost, a duplicate name in any case, a bar, an unknown field, an Enough naming a missing cost', () => {
   const bad = f => {
     const p = copyParts(DEFAULT_PARTS);
@@ -387,15 +387,25 @@ test('bad cost limits: none or ten, an empty cost, a duplicate name in any case,
   assert.match(bad(p => (p.costLimits = Array.from({ length: 10 }, (_, i) => ({ ...p.costLimits[0], cost: `C${i}` })))), /cost-limits: the list must hold 1 to 9 cost rows/);
   assert.match(bad(p => (p.costLimits[0].cost = '  ')), /row 1: the cost must be one line of 1 to 60/);
   assert.match(bad(p => (p.costLimits[1].cost = ' tests ADDED ')), /names one cost twice/);
-  assert.match(bad(p => (p.costLimits[0].counted = 'a | b')), /row 1: counted must be one line/);
-  assert.match(bad(p => (p.costLimits[0].atLimit = 'a\nb')), /row 1: atLimit must be one line/);
+  assert.match(bad(p => (p.costLimits[0].counted = 'a | b')), /row 1: Counted as must be one line/);
+  assert.match(bad(p => (p.costLimits[0].atLimit = 'a\nb')), /row 1: At the limit must be one line/);
   assert.match(bad(p => (p.costLimits[0].lenses = [])), /row 1: only cost, counted, limit and atLimit/);
-  assert.match(bad(p => (p.qualities[0].enoughCosts = ['No such cost'])), /qualities: row 1: enoughCosts names a cost that has no row/);
+  assert.match(bad(p => (p.qualities[0].enoughCosts = ['No such cost'])), /qualities: row 1: a cost it answers to has no row/);
   assert.equal(bad(p => (p.qualities[0].enoughCosts = [' tests ADDED'])), '', 'names match ignoring case and surrounding space');
-  assert.match(bad(p => (p.qualities[0].enough = 'ASVS | L1')), /row 1: enough must be one line/);
+  assert.match(bad(p => (p.qualities[0].enough = 'ASVS | L1')), /row 1: the Enough level must be one line/);
+  assert.match(bad(p => (p.costLimits[0].limit = '2 | 3')), /row 1: the limit must be one line/);
+  assert.match(bad(p => (p.qualities[0].enoughCosts = 'Tests added')), /row 1: the costs it answers to must list/);
+  assert.match(bad(p => (p.qualities[0].enoughCosts = ['  '])), /row 1: the costs it answers to must list/);
+  assert.match(bad(p => (p.qualities[0].enoughCosts = ['a | b'])), /row 1: the costs it answers to must list/);
+  assert.equal(bad(p => {
+    p.costLimits = Array.from({ length: 9 }, (_, i) => ({ ...p.costLimits[0], cost: `C${i}` }));
+    p.qualities[0].enoughCosts = ['C0'];
+    p.qualities[5].enoughCosts = ['C1'];
+  }), '', 'nine rows are accepted');
   assert.equal(bad(p => (p.costLimits[0].limit = '')), '', 'an empty limit is the owner\'s judgment, not an error');
 });
 
+// #287 C5: a cost no quality names is a warning.
 test('a cost no quality names is a warning, never an error', () => {
   const p = copyParts(DEFAULT_PARTS);
   p.costLimits.push({ cost: 'Review rounds', counted: 'Rounds', limit: '', atLimit: '' });
@@ -405,11 +415,13 @@ test('a cost no quality names is a warning, never an error', () => {
   assert.deepEqual(partsProblems(DEFAULT_PARTS).filter(x => x.level === 'warn' && x.part === 'cost-limits'), []);
 });
 
+// #287 C3: the Enough column and the shipped Functional suitability row.
 test('the Enough column joins the qualities table only when a row sets a level or a cost, as "level, then each cost, with a middle dot between"', () => {
   const dot = String.fromCharCode(0xb7);
   const p = copyParts(DEFAULT_PARTS);
   const rows = parts => compileParts(parts).qualities.split('\n');
   assert.equal(rows(p)[0], '| Quality | Measure | Lens | Enough |');
+  assert.equal(rows(p).find(l => l.startsWith('| Functional suitability |')), ['| Functional suitability | the acceptance claims | `behaviour-lens`, `integrity-lens`, `unstated-lens` | Tests added', 'Follow-up issues |'].join(` ${dot} `));
   assert.equal(rows(p).find(l => l.startsWith('| Security |')), `| Security | an ASVS 5.0 level or chapters | \`adversarial-lens\`, \`data-lens\` | Hardening ${dot} Follow-up issues |`);
   p.qualities[5].enough = 'ASVS L1';
   assert.ok(rows(p).find(l => l.startsWith('| Security |')).endsWith(`| ASVS L1 ${dot} Hardening ${dot} Follow-up issues |`));
@@ -421,15 +433,20 @@ test('the Enough column joins the qualities table only when a row sets a level o
   assert.equal(rows(p)[1], '| --- | --- | --- |');
 });
 
+// #287 C5: the cost and Enough fields join the content-policy walk.
 test('a web address in a cost field or an Enough is read by the content policy', () => {
   const p = copyParts(DEFAULT_PARTS);
   p.costLimits[0].atLimit = 'see https://example.test/limits';
+  p.costLimits[1].cost = 'https://example.test/cost-name';
+  p.costLimits[1].counted = 'https://example.test/counted';
+  p.costLimits[1].limit = 'https://example.test/limit';
   p.qualities[0].enough = 'see https://example.test/level';
   p.qualities[1].enoughCosts = ['https://example.test/cost'];
   const where = partsTexts(p).filter(([, t]) => /https:/.test(t)).map(([w]) => w);
-  assert.deepEqual(where, ['qualities row 1', 'qualities row 2', 'cost limits row 1']);
+  assert.deepEqual(where, ['qualities row 1', 'qualities row 2', 'cost limits row 1', 'cost limits row 2', 'cost limits row 2', 'cost limits row 2']);
 });
 
+// #287 C5: an old builder file takes the default cost limits.
 test('a builder file from before #278 upgrades with the default cost limits, and one that has them keeps them', () => {
   const old = copyParts(DEFAULT_PARTS);
   delete old.costLimits;

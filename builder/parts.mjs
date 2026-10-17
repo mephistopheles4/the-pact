@@ -157,7 +157,7 @@ export const DEFAULT_PARTS = Object.freeze({
   // The cost limits (#278): what the work may spend to reach the qualities, and what happens at each limit.
   costLimits: [
     { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
-    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, by the definition above', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
+    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
     { cost: 'Follow-up issues', counted: 'Issues filed from one review', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
   ],
 });
@@ -514,10 +514,10 @@ export function partsProblems(p) {
   if (!Array.isArray(p.qualities) || !p.qualities.length || p.qualities.length > C.qualities) err('qualities', `the list must hold 1 to ${C.qualities} qualities`);
   else {
     p.qualities.forEach((q, i) => {
-      if (!isObj(q) || !keysIn(q, ['quality', 'measure', 'lenses', 'enough', 'enoughCosts'])) return err('qualities', `row ${i + 1}: only quality, measure, lenses, enough and enoughCosts`);
-      if (Object.hasOwn(q, 'enough') && !lineOk(q.enough, C.short)) err('qualities', `row ${i + 1}: enough must be one line of at most ${C.short} characters, with no bar`);
+      if (!isObj(q) || !keysIn(q, ['quality', 'measure', 'lenses', 'enough', 'enoughCosts'])) return err('qualities', `row ${i + 1}: only quality, measure, lenses, enough and enoughCosts (the Enough level and the costs it answers to)`);
+      if (Object.hasOwn(q, 'enough') && !lineOk(q.enough, C.short)) err('qualities', `row ${i + 1}: the Enough level must be one line of at most ${C.short} characters, with no bar`);
       if (Object.hasOwn(q, 'enoughCosts') && (!Array.isArray(q.enoughCosts) || q.enoughCosts.length > C.costLimits || q.enoughCosts.some(c => !lineOk(c, C.short) || !c.trim())))
-        err('qualities', `row ${i + 1}: enoughCosts must list at most ${C.costLimits} cost names, each one line of 1 to ${C.short} characters, with no bar`);
+        err('qualities', `row ${i + 1}: the costs it answers to must list at most ${C.costLimits} cost names, each one line of 1 to ${C.short} characters, with no bar`);
       if (!lineOk(q.quality, C.short) || !q.quality.trim()) err('qualities', `row ${i + 1}: the quality must be one line of 1 to ${C.short} characters, with no bar`);
       if (!lineOk(q.measure, C.measure)) err('qualities', `row ${i + 1}: the measure must be one line of at most ${C.measure} characters, with no bar`);
       if (!Array.isArray(q.lenses) || !q.lenses.length || q.lenses.length > C.agents || q.lenses.some(a => typeof a !== 'string' || !AGENT_RE.test(a))) err('qualities', `row ${i + 1}: 1 to ${C.agents} lenses, each a name of lowercase letters, digits and hyphens`);
@@ -539,9 +539,9 @@ export function partsProblems(p) {
       if (!isObj(c) || !keysIn(c, ['cost', 'counted', 'limit', 'atLimit'])) return err('cost-limits', `row ${i + 1}: only cost, counted, limit and atLimit`);
       if (!lineOk(c.cost, C.short) || !c.cost.trim()) err('cost-limits', `row ${i + 1}: the cost must be one line of 1 to ${C.short} characters, with no bar`);
       else costNames.push(c.cost.trim().toLowerCase());
-      if (!lineOk(c.counted, C.measure)) err('cost-limits', `row ${i + 1}: counted must be one line of at most ${C.measure} characters, with no bar`);
+      if (!lineOk(c.counted, C.measure)) err('cost-limits', `row ${i + 1}: Counted as must be one line of at most ${C.measure} characters, with no bar`);
       if (!lineOk(c.limit, C.short)) err('cost-limits', `row ${i + 1}: the limit must be one line of at most ${C.short} characters, with no bar`);
-      if (!lineOk(c.atLimit, C.line)) err('cost-limits', `row ${i + 1}: atLimit must be one line of at most ${C.line} characters, with no bar`);
+      if (!lineOk(c.atLimit, C.line)) err('cost-limits', `row ${i + 1}: At the limit must be one line of at most ${C.line} characters, with no bar`);
     });
     if (new Set(costNames).size !== costNames.length) err('cost-limits', 'the list names one cost twice');
     // An Enough that names no cost row is an error; a cost no quality names binds no lens, a finding.
@@ -551,7 +551,7 @@ export function partsProblems(p) {
         for (const n of q.enoughCosts) {
           if (typeof n !== 'string') continue;
           if (costNames.includes(n.trim().toLowerCase())) named.add(n.trim().toLowerCase());
-          else err('qualities', `row ${i + 1}: enoughCosts names a cost that has no row in the cost limits`);
+          else err('qualities', `row ${i + 1}: a cost it answers to has no row in the cost limits`);
         }
     p.costLimits.forEach((c, i) => isObj(c) && typeof c.cost === 'string' && c.cost.trim() && !named.has(c.cost.trim().toLowerCase()) && out.push({ part: 'cost-limits', level: 'warn', text: `row ${i + 1}: no quality names this cost, so it holds back no lens` }));
   }

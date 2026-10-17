@@ -1159,11 +1159,15 @@ export function securityDefaultsLine(parsed, record) {
  * The note line for a home Qualities edit with no Enough column (#278), or
  * null. The shipped cost rows reach a lens only through a quality's Enough, so
  * an edit that leaves the column out leaves every cost row binding nothing.
- * `rules` is the rendered rules file's text, which carries no marks.
+ * `rules` is the rendered rules file's text, which carries no marks. The
+ * column counts when a table header that names Quality also names Enough, in
+ * any position.
  */
 export function enoughNoteLine(parsed, rules) {
   if (!parsed.edits.has('qualities')) return null;
-  if (/^\|[^\n]*\| Enough \|$/m.test(rules)) return null;
+  const cells = l => l.split('|').map(c => c.trim());
+  const header = l => l.startsWith('|') && l.trimEnd().endsWith('|') && cells(l).includes('Quality');
+  if (rules.split('\n').some(l => header(l) && cells(l).includes('Enough'))) return null;
   return "NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits reach no lens; add an Enough column to the qualities you want them to hold back.";
 }
 

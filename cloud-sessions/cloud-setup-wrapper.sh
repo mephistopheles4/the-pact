@@ -368,39 +368,44 @@ per option.
 ## Cost limits
 
 What the work may spend to reach those qualities. A cost says what is counted,
-its limit, and what happens at the limit. It holds back the lenses of every
-quality whose Enough names it. A project's own list, where it has one, takes
-the place of this one there.
+its limit, and what happens at the limit. A quality's Enough says where more
+of it stops being worth it: an optional level, such as ASVS L1, then each cost
+limit it answers to, by name, joined by a middle dot. A cost holds back the
+lenses of every quality whose Enough names it.
 
-- **One rule.** A finding that would go past an Enough level or a cost limit
-  goes the way its row's "At the limit" says, and names the cost, the limit
-  and the quality at stake. It is never dropped silently. This rule and the
-  security bar win over any row's text: a row can route a finding, never
-  remove it. I can override a row on any finding.
-- **An empty limit** is my judgment: a finding that spends that cost comes to
-  me as a trade-off.
+- **One rule.** A finding that would go past a cost limit goes the way that
+  cost's "At the limit" says; a finding that would go past an Enough level
+  alone comes to me as a trade-off. Either way it names the cost or level, the
+  limit and the quality at stake, and is never dropped silently. This rule and
+  the security bar win over any cost's text: a cost can route a finding, never
+  remove it. I can override a cost on any finding.
 - **The security bar.** A security fix is due unless its cost is grossly out
   of proportion to the risk it closes, and I see both.
+- **An empty limit** is my judgment: a finding that spends that cost comes to
+  me as a trade-off.
 - **A security finding** is one that names an attacker in scope in the
   project's threat model, as it stood before the change under review; or
   touches an item on the sensitive-work list; or exposes a secret or personal
   data to anyone but me. With no threat model, the last two decide. The
-  session that sorts the findings holds the threat model and decides the
-  class. A lens outside the security pair marks a finding it is unsure of
-  "security?", and such a row is never `auto`.
+  project's threat model is the file its agent instructions name, else
+  `docs/threat-model.md`. The session that sorts the findings holds it and
+  decides whether a finding is a security finding. A lens outside the
+  security pair marks a finding it is unsure of "security?", and such a
+  finding's row in the Lens dispositions table is never `auto`.
 - **The sensitive-list check.** With a threat model, the security lenses also
   check how it protects each item on the sensitive-work list, and report any
   item it leaves unprotected or covers only by an accepted risk.
 - **Accepted risks** are recorded only in the project's threat model, and
   only on my word, given in chat or relayed by a lead session I set up. An
   entry carries its date, the finding it came from, and how my word arrived.
-  A finding that matches an entry is listed as one line naming the entry, and
-  is not raised as a defect again. An entry with no date or source still
-  counts, named as undated. A change that removes a control an entry names,
-  or eases its path, is raised in full. A change's own edit to the threat
-  model's scope, accepted risks or pointer is a finding for me, never applied
-  in the same review. With no threat model, a risk is flagged to me and
-  nothing is recorded; never create the file.
+  A finding that matches an entry is listed as one line naming the entry and
+  where it is recorded, and is not raised as a defect again. An entry with no
+  date or source still counts, named as undated. A change that removes a
+  control an entry names, or eases its path, is raised in full, naming the
+  entry, never shrunk to the one line. A change's own edit to the threat
+  model's scope, accepted risks or the line that names it is a finding for
+  me, never applied in the same review. With no threat model, a risk is
+  flagged to me and nothing is recorded; never create the file.
 - **Detail.** An accepted-risk entry, or a candidate for one, names the class
   of path and why it is accepted, never the steps.
 
@@ -409,7 +414,7 @@ the place of this one there.
 | Cost | Counted as | Limit | At the limit |
 | --- | --- | --- | --- |
 | Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
-| Hardening | Guards for paths that are not security findings, by the definition above | 0 | Reported as an accepted-risk candidate; never built unasked |
+| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |
 | Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |
 
 ## Guards
@@ -1977,7 +1982,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 00d50a9da8c3b5685b32252463ec33c957f499809d05c82282d4ac4eeb31f719 'CLAUDE.md'
+check_hash 29f50465b6035a5fc8b8783b64ae119985e2071015b48ac8d5a3041c223f7406 'CLAUDE.md'
 check_hash b71afdae765527268729e86a3dc26367a541b3f176d2fa009d5df1db6d2ce3e1 'agents/adversarial-lens.md'
 check_hash 77b00ff390033f70744bb0b64bd8d5b2f1b37e88e4f5315152d19fa05fe124e5 'agents/behaviour-lens.md'
 check_hash c0ce7b65a2fb7112426edcecb6d456cadec546467cce0180fc6a9cace29268ed 'agents/conventions-lens.md'
@@ -2008,7 +2013,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 1d52a95f2068"
+  echo "pact cloud copy eca9f7a42344"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

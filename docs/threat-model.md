@@ -633,9 +633,10 @@ safe, and a change made months ago is easy to forget.
 - **R30. The security defaults can be rewritten in a configuration.** A
   home configuration may replace the tiers, the sensitive-work list and its
   route, the workflow, the lens roster, the qualities and the cost limits.
-  The cost limits also bound what every lens may raise: a row can route a
-  finding but never remove it, and a Qualities edit that drops the Enough
-  column leaves the shipped cost rows holding back no lens, which the dry run
+  The cost limits also bound what the lenses they reach may raise: a cost
+  can route a finding but never remove it, and which lenses a cost reaches
+  follows the Enough cells, so a Qualities edit that drops the Enough column
+  leaves the shipped cost rows holding back no lens, which the dry run
   notes. After a rollback to a pact from before #278, a home Enough column
   stays as text that names costs no part defines, and old lenses read it with
   no one rule and no security bar. The dry run's

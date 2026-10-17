@@ -93,6 +93,15 @@ test('each part Scriptorium builds sits under its mark, flush against its text, 
   }
 });
 
+// #287 C1: the Cost limits part sits under its own heading, after the Qualities part, with its fixed text between.
+test('the Cost limits part sits under its own heading, after the Qualities part, before Guards', () => {
+  const b = at('<!-- pact:begin cost-limits -->');
+  const h = at('## Cost limits');
+  assert.ok(at('<!-- pact:end qualities -->') < h && h < b, 'heading after Qualities, before the block');
+  assert.ok(LINES.slice(h + 1, b).every(l => !l.startsWith('## ')), 'no other heading between');
+  assert.ok(at('## Guards') > at('<!-- pact:end cost-limits -->'), 'Guards follows');
+});
+
 // #261 C1
 test('usage-pause wraps the usage bullet in "Guards", right after the pinned stop-and-ask block', () => {
   const h = at('## Guards');

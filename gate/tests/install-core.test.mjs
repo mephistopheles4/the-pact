@@ -985,7 +985,7 @@ test('the configuration block: a removed configuration, changed and new files, a
   assert.ok(!core.configStale(new Map([['user', H('0')]]), new Map([['user', H('0')]])));
 });
 
-// #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for the moves.
+// #262 S8, S9; #287 C4, C7: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for the moves.
 test('the security-defaults line: each part Scriptorium builds alone shows it, a moves edit does not, and it says whether the configuration changed', () => {
   const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT moves', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
   for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']) {
@@ -1007,7 +1007,7 @@ test('the security-defaults line: a security-set lens off its default alone does
   assert.match(core.securityDefaultsLine(lines('EDIT moves', 'EDIT tiers'), null), /^WARN: SECURITY DEFAULTS: the user configuration edits tiers, which changes the pact's security defaults; read those parts in the rendered rules file before you install\. No install is recorded to compare with\.$/);
 });
 
-// #278 seam 3: the home note line. The shipped cost rows reach a lens only through a quality's Enough, so a
+// #287 C7 (seam 3): the home note line. The shipped cost rows reach a lens only through a quality's Enough, so a
 // Qualities edit whose table has no Enough column gets a note; no edit, a shipped table or an Enough column gets none.
 test('the Enough note: a Qualities edit with no Enough column shows it; the shipped table, an Enough column and other edits do not', () => {
   const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT moves', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
@@ -1020,4 +1020,7 @@ test('the Enough note: a Qualities edit with no Enough column shows it; the ship
   assert.equal(core.enoughNoteLine(withEdit('lenses'), old), null, 'an edit to another part');
   assert.equal(core.enoughNoteLine(withEdit('moves'), old), null);
   assert.equal(core.enoughNoteLine(withEdit('qualities'), `${old}\nProse that says | Enough | in a sentence.\n`), note, 'prose is no column header');
+  assert.equal(core.enoughNoteLine(withEdit('qualities'), '| Quality | Enough | Measure | Lens |\n'), null, 'the column in any position');
+  assert.equal(core.enoughNoteLine(withEdit('qualities'), '| Quality | Measure | Lens | Enough | \n'), null, 'a trailing space after the last bar');
+  assert.equal(core.enoughNoteLine(withEdit('qualities'), `${old}| Stage | Enough |\n`), note, 'another table that ends in Enough is not the Qualities table');
 });

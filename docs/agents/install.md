@@ -76,9 +76,11 @@ how every session in every repo behaves. So:
   install. A Qualities edit with no Enough column also gets a note line after
   it, since the Cost limits then reach no lens. A pact from before #262
   refuses an edit to these parts, and one from before #278 refuses an edit to
-  `cost-limits`; it does not refuse a home Qualities block with an Enough
-  column, so remove that column too. To roll back past either, remove those
-  edits first. The `usage-pause-session` setting
+  `cost-limits`; it installs a home Qualities block with an Enough column as
+  written, and its lenses then read cost names that no part defines, with no
+  one rule and no security bar, so remove that column too. An older builder
+  also refuses a builder file with a `costLimits` key or an Enough on a quality
+  row. To roll back past either, remove those edits first. The `usage-pause-session` setting
   (#142) sets the 5-hour session limit beside the weekly `usage-pause`; unset,
   the rules file has no session line.
 - **Agent settings.** The file's `agents` key may set any pact agent's

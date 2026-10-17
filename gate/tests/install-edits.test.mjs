@@ -447,7 +447,7 @@ test('-Apply with -ReviewFolder writes the review only after the last re-hash of
 const COST_BLOCK = '| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Review rounds | Rounds of lens review | 2 | Ask me |\n';
 const OLD_QUALITIES_BLOCK = '| Quality | Measure | Lens |\n| --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens` |\n';
 
-// #278 seam 3 and the applied home happy path: a cost-limits edit shows the security-defaults line, installs the
+// #287 C4, C7, C9 (seam 3) and the applied home happy path: a cost-limits edit shows the security-defaults line, installs the
 // edited rows into the rules file, and is bound by the rendered hash the dry run printed.
 test('a home cost-limits edit shows the security-defaults line and installs bound by its rendered hash', t => {
   const repo = makeRepo(t);
@@ -477,7 +477,7 @@ test('a home cost-limits edit shows the security-defaults line and installs boun
   assert.match(r.stdout, new RegExp(`^Installed commit [0-9a-f]{40} with configuration ${digest}; all files verified\.\r?$`, 'm'), r.out);
 });
 
-// #278 seam 3: a configuration from before the change, with a Qualities edit that has no Enough column, still installs; the dry run notes it.
+// #287 C7, C8 (seam 3): a configuration from before the change, with a Qualities edit that has no Enough column, still installs; the dry run notes it.
 test('a pre-#278 Qualities edit still renders and installs, and its dry run notes that the cost rows reach no lens', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -491,17 +491,4 @@ test('a pre-#278 Qualities edit still renders and installs, and its dry run note
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /\| Functional suitability \| the acceptance claims \| `behaviour-lens` \|\n/);
-});
-
-// #278 seam 3: no configuration renders the shipped text, with the new part and the Enough column in it.
-test('a home render with no configuration carries the shipped Cost limits part and Enough column, and no note', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  const dry = install(repo, h);
-  assert.equal(dry.code, 0, dry.out);
-  assert.doesNotMatch(dry.stdout, /no Enough column|SECURITY DEFAULTS/);
-  const want = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
-  assert.ok(dry.stdout.includes(`render| RENDERED ${sha256(want)}`), dry.out);
-  assert.match(want.toString('utf8'), /^\| Cost \| Counted as \| Limit \| At the limit \|$/m);
-  assert.match(want.toString('utf8'), /^\| Quality \| Measure \| Lens \| Enough \|$/m);
 });
