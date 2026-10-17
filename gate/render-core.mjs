@@ -82,6 +82,8 @@
 //                                          VALUE <setting> <number>   (one per value set)
 //                                          EDIT <mark> remove                        (one per edit,
 //                                          EDIT <mark> <op> <sha256> <block path>     in edit order)
+//   RETIRED-NAME block <mark> <agent>     (one per edited part whose block names a retired agent, #302;
+//                                          the project mode prints RETIRED-NAME qualities <agent>)
 //   COMMANDS none, or the commands the configuration turns on, comma-joined, in PACT_COMMANDS order
 //   TOOLS none, or the tools the configuration turns on, comma-joined, in PACT_TOOLS order
 //   RESULT: pass
@@ -93,7 +95,7 @@
 // '-' and '/'.
 //
 // Agent settings (#97). A user file may set the model and effort of every
-// agent in CONFIGURABLE_AGENTS, the nine lenses and scout (#262 S17); each
+// agent in CONFIGURABLE_AGENTS, the eight lenses and scout (#262 S17); each
 // file's own values are its default. A model is any one line with no space
 // (#262): one word, so it stays one frontmatter line and one AGENT field. Seam
 // A then reads the rewritten file, so a value YAML cannot read refuses there. Only when a setting is given, the renderer
@@ -180,7 +182,14 @@ const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'comman
 // exactly against these constants; a model is the user's own text, printed
 // and written only once agentModel() has passed it. The install keeps its own
 // copy of the names, the shape and the efforts; a test holds them equal.
-const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+const CONFIGURABLE_AGENTS = Object.freeze(['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+// The agents the pact retired (#302). A key naming one is refused with a
+// message that says so, and a block or a project qualities list naming one
+// draws a warning line. Only these constants are ever printed. The install
+// keeps its own copy; a test holds them equal.
+const RETIRED_AGENTS = Object.freeze(['good-enough-lens']);
+/** The retired agents `text` names as whole tokens, in RETIRED_AGENTS order: a longer name that contains one is no match. */
+const retiredIn = text => RETIRED_AGENTS.filter(a => new RegExp(`(?<![A-Za-z0-9_-])${a}(?![A-Za-z0-9_-])`).test(text));
 // Any Claude Code model: an alias (opus, sonnet, haiku, fable, inherit) or a
 // full or provider model ID. No space, '#', quote or line break can appear.
 // A model is one word: no space or line break, at most 128 characters (#262).
@@ -198,7 +207,8 @@ const agentModel = v => (typeof v === 'string' && AGENT_MODEL_RE.test(v) ? v : u
 const DEFAULT_AGENT_TOOLS = 'tools: [Read, Glob, Grep]';
 const AGENT_OUTPUT_PREFIX = 'agent-';
 // The security-set lenses no file sign shows, as a fixed list (#261, S4): the
-// security pair, and executability-lens, which checks that security-sensitive work has a security review planned. The rules
+// security pair, and executability-lens, which checks that security-sensitive work has a security review planned
+// and never accepts a deferral of work that guards security or data (#302). The rules
 // file names no route any more, so the renderer reads none from it. Without
 // this list data-lens, which has no other sign, would print as plain on its
 // AGENT line with no error.
@@ -209,7 +219,6 @@ const RISK_FLOOR_BLOCK = '<!-- pact:begin risk-floor -->';
 // Security-set lenses by doubt, each with its reason: each guards security
 // or data work. No sign in their files says so.
 const SECURITY_DOUBT = Object.freeze({
-  'good-enough-lens': 'it never suggests deferring work that guards security or data',
   'unstated-lens': 'it asks whether security-sensitive work should have had a security review',
 });
 
@@ -877,6 +886,12 @@ function checkAgentSettings(v, fail) {
   const out = [];
   for (const k of Object.keys(v)) {
     const name = CONFIGURABLE_AGENTS.find(a => a === k);
+    const retired = RETIRED_AGENTS.find(a => a === k);
+    if (retired) {
+      fail('config-agents', `${retired} was retired; remove its key from agents`);
+      ok = false;
+      continue;
+    }
     if (!name) {
       fail('config-agents', `agents names an agent this configuration cannot set; only ${CONFIGURABLE_AGENTS.join(', ')} can be set`);
       ok = false;
@@ -1044,7 +1059,7 @@ function readBlocks(home, edits, report) {
       ok = false;
       continue;
     }
-    out.push({ ...e, lines, hash: sha256(r.buf) });
+    out.push({ ...e, lines, hash: sha256(r.buf), retired: retiredIn(lines.join('\n')) });
   }
   return ok ? out : null;
 }
@@ -1293,6 +1308,7 @@ function runProject(out, home, projectFolder, report) {
     `DIGEST ${digest}`,
     ...values.map(([k, v]) => `VALUE ${k} ${v}`),
     ...(qualities ? [`QUALITIES ${qualities.length}`] : []),
+    ...(qualities ? RETIRED_AGENTS.filter(a => qualities.some(q => q.lenses.some(l => retiredIn(l).includes(a)))).map(a => `RETIRED-NAME qualities ${a}`) : []),
     ...(costLimits ? [`COST-LIMITS ${costLimits.length}`] : []),
   );
 }
@@ -1348,7 +1364,9 @@ function run(argv, report) {
     swaps = swapsFor(lines, pairs, values, edits, digest, report, agents, checked.tools);
     if (swaps === null) return;
     const editLines = edits.map(e => (e.path ? `EDIT ${e.mark} ${e.op} ${e.hash} ${e.path}` : `EDIT ${e.mark} ${e.op}`));
-    head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines);
+    // A block is prose, so a retired agent's name in one is a warning, never a refusal; the line holds constants only (#302).
+    const retiredLines = edits.flatMap(e => (e.retired ?? []).map(a => `RETIRED-NAME block ${e.mark} ${a}`));
+    head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines, ...retiredLines);
     commands = checked.commands;
     tools = checked.tools;
   }

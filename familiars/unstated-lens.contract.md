@@ -1,6 +1,6 @@
 # Contract: unstated-lens
 
-Version: 0.2.1
+Version: 0.2.2
 
 - **Type:** agent
 - **Level:** Thorough
@@ -125,6 +125,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.2.2 | 2026-10-17 | No rule changes. The lens now joins `executability-lens` as a pair on a spec; the decided quote from 2026-10-07 stays as history. | #281, #302: the owner's approval of the spec (q11 A) | none |
 | 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
 | 0.2.0 | 2026-10-12 | Agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262). | #262, the owner's decision that every lens be agnostic of the pact | Show me good (samples), 1, 3 (C4, C8, C9, C10, automatic checks, you, what makes it fire, checklist), 4, 10, 11, 16, 18 |
 | 0.1.4 | 2026-10-12 | The lens checks the quality rows it is handed against their measures, and reports a missing measure under Not checked with the claim to add. | #262, from #273's proposal: the qualities part; the owner's decision in chat | 10 |

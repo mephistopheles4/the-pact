@@ -10,7 +10,7 @@ effort, and what never goes in. For what the pact is and why, read the
 |---|---|---|
 | `claude/CLAUDE.md` | My global instructions for Claude Code | `~/.claude/CLAUDE.md` |
 | `claude/review.md` | The review procedure: how to give lenses their input, cross their reports by its template, post them and log each finding's fate. The rules file tells a session to read it before it runs a lens | `~/.claude/pact/review.md` |
-| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `good-enough-lens`, which finds what could wait; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text; and `unstated-lens`, which looks for needs nobody wrote down. Each runs on Opus by default. And `scout`, the one search helper, on Haiku at medium effort. A configuration may set any agent's model and effort, to any model Claude Code takes (ADRs 0027 and 0067). Their contracts are in `familiars/` | `~/.claude/agents/` |
+| `claude/agents/` | **The unsealed agents:** the security pair: `adversarial-lens`, which lists the attack paths through a change, and `data-lens`, which finds where its data can leak; the QA pair: `behaviour-lens`, which runs the change, and `integrity-lens`, which reads its tests; the spec pair: `executability-lens`, which drafts the first ticket from the spec, and `unstated-lens`, which looks for needs nobody wrote down; the standards pair: `conventions-lens`, which checks a diff against the repo's written rules, and `reader-lens`, which checks the owner can act on its text. Each runs on Opus by default. And `scout`, the one search helper, on Haiku at medium effort. A configuration may set any agent's model and effort, to any model Claude Code takes (ADRs 0027 and 0067). Their contracts are in `familiars/` | `~/.claude/agents/` |
 | `claude/commands/` | The pact commands, each one file the owner turns on by name (see "Pact commands" below) | `~/.claude/commands/<name>.md`: `/scriptorium` always, the others only when the configuration's `commands` list names them |
 | `claude/tools/` | The pact tools, each one file the owner turns on by name, off by default (see "Pact tools" below). Today only `poster.mjs`, the poster (#246, #253): posts free text to GitHub through one fixed call per surface and reads back what landed | `~/.claude/pact/tools/<name>.mjs`, only when the configuration's `tools` list names it |
 | `claude/settings.overlay.json` | The portable settings keys only, merged into the existing file, never replacing it | `~/.claude/settings.json` |
@@ -53,7 +53,7 @@ only while the tool is on. The cloud copy installs none.
 
 ## The familiars, by effort
 
-- **Medium:** `scout`, on Haiku; the pact ships no `Explore`, so skills that call it get Claude Code's built-in. The QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `good-enough-lens`; the standards pair, `conventions-lens` and `reader-lens`; and `unstated-lens`.
+- **Medium:** `scout`, on Haiku; the pact ships no `Explore`, so skills that call it get Claude Code's built-in. The QA pair, `behaviour-lens` and `integrity-lens`, which the rules file offers at every build; the spec pair, `executability-lens` and `unstated-lens`; and the standards pair, `conventions-lens` and `reader-lens`.
 - **High:** the security pair, `adversarial-lens` and `data-lens`.
 
 Builds run in a main session the owner watches, not in agents.
@@ -69,7 +69,7 @@ most of its work:
 | Move | Anthropic stage | What the pact does |
 |---|---|---|
 | Sense the work | Plan | Size and risk the work; propose a tier with a line of why, and for sensitive work the sensitive route with its why; an experiment first for an unknown target |
-| Think before doing | Plan, Design | Get the intent clear enough to defend; a quick prototype while it is still forming; the spec pair, `executability-lens` and `good-enough-lens`, and `unstated-lens` offered on a spec, standard and up |
+| Think before doing | Plan, Design | Get the intent clear enough to defend; a quick prototype while it is still forming; the spec pair, `executability-lens` and `unstated-lens`, offered on a spec, standard and up |
 | Checkpoint the seams | Build, Test | Costly work waits for a checkpoint, heavier the harder it is to undo; an approved spec or ticket is built test-first, straight away |
 | Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, offered at every build; the security pair, `adversarial-lens` and `data-lens`, with the sensitive route, and offered once more at Test on a list match when the route wasn't taken; the standards pair and `unstated-lens` offered, standard and up; the human decides |
 

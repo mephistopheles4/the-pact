@@ -323,10 +323,10 @@ test('a fourth tier compiles into its own column, and offers and the route name 
   const out = compileParts(p);
   assert.match(out.tiers, /^\| \*\*Expert\*\* \| Work only I can judge \| Opus, max \| Opus, high \|$/m);
   assert.match(out.workflow.split('\n')[0], /^\| Stage \| Quick \| Standard \| Thorough \| Expert \| Sensitive route \|/);
-  assert.match(out.workflow, /`executability-lens`, `good-enough-lens`: at standard and thorough;/);
+  assert.match(out.workflow, /`executability-lens`, `unstated-lens`: at standard and thorough;/);
   assert.match(out.sensitive.replace(/\s+/g, " "), /data migrations: expert, planned/);
   p.workflowGraph.offers[0].tiers = ['thorough', 'expert'];
-  assert.match(compileParts(p).workflow, /`good-enough-lens`: thorough and above;/);
+  assert.match(compileParts(p).workflow, /`executability-lens`, `unstated-lens`: thorough and above;/);
 });
 
 // #262: a builder file from before tier ids keeps working, and compiles as it did.
@@ -356,7 +356,7 @@ test('bad parts: no tiers or seven, an id twice, a skip, an offer or a route at 
   assert.match(bad(p => (p.workflowGraph.stages[0].skipAt = ['gone'])), /stage plan: skipAt must list tiers/);
   assert.match(bad(p => (p.workflowGraph.offers[0].tiers = [])), /offer design-spec-pair: tiers, a list of the tiers/);
   assert.match(bad(p => (p.workflowGraph.offers[0].tiers = ['gone'])), /offer design-spec-pair: tiers, a list of the tiers/);
-  assert.match(bad(p => (p.workflowGraph.offers[2].tiers = ['quick'])), /offer design-security-pair: tiers, a list of the tiers, only and always with when "tiers"/);
+  assert.match(bad(p => (p.workflowGraph.offers[1].tiers = ['quick'])), /offer design-security-pair: tiers, a list of the tiers, only and always with when "tiers"/);
   assert.match(bad(p => (p.sensitive.tier = 'gone')), /the route's tier must be one of the tiers/);
 });
 
@@ -559,7 +559,7 @@ test('reset puts the usage value, every part and every agent back to where the p
   s.parts.moves[1].text = 'Mine.';
   // Every agent off its default, and a model added, so a reset that misses one fails.
   for (const a of Object.keys(s.agents)) s.agents[a].model = s.agents[a].model === 'opus' ? 'sonnet' : 'opus';
-  assert.equal(Object.keys(s.agents).length, 10);
+  assert.equal(Object.keys(s.agents).length, 9);
   s.models.push('claude-opus-5-5');
   assert.equal(L.atDefaults(s), false);
   const changed = JSON.stringify(s);
@@ -1016,7 +1016,7 @@ test('Add agent starts a new agent from the template, and refuses a taken or mal
 
 // #262 C13: scout is set like any lens.
 test('every pact agent takes a model and effort, scout included, and only a change from the file is written', () => {
-  assert.deepEqual(L.PACT.agents.map(a => a.name), ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+  assert.deepEqual(L.PACT.agents.map(a => a.name), ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
   assert.ok(L.PACT.agents.every(a => a.configurable));
   const s = L.initialState();
   assert.deepEqual(Object.keys(s.agents).sort(), L.PACT.agents.map(a => a.name));
@@ -1064,7 +1064,6 @@ test('the page takes each lens\'s class from the renderer: six security-set, two
     'conventions-lens': 'plain local',
     'data-lens': 'security-set local',
     'executability-lens': 'security-set local',
-    'good-enough-lens': 'security-set local',
     'integrity-lens': 'plain local',
     'reader-lens': 'plain local',
     scout: 'plain local',
@@ -1231,6 +1230,22 @@ test('a shared file opens as a preset only when the page can use it, and says wh
   const r = L.presetFromText(JSON.stringify({ schema: 1, title: 'Two tiers', tiers: [{ id: 'light', name: 'Light', fits: 'Small', plan: 'none', build: 'Sonnet, medium' }, { id: 'full', name: 'Full', fits: 'The rest', plan: 'Opus, high', build: 'Sonnet, medium' }] }));
   assert.equal(r.refuse, undefined);
   assert.deepEqual(L.presetPicks(r.preset), ['part:tiers']);
+});
+
+// #302: a saved builder file that still names the retired lens loads without the name, with a note; the agent file for it is not taken either.
+test('bad case: a saved file naming good-enough-lens loads with the name taken out and a note, and a clean file carries no note', () => {
+  const offers = [{ id: 'design-spec-pair', stage: 'design', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['executability-lens', 'good-enough-lens'], on: true }];
+  const stale = { schema: 1, workflowGraph: { ...copyParts(DEFAULT_PARTS).workflowGraph, offers }, lenses: [{ agents: ['executability-lens', 'good-enough-lens'], label: 'the spec pair', asks: 'Would it run?' }], qualities: [{ quality: 'Safety', measure: 'x', lenses: ['good-enough-lens', 'executability-lens'] }], agentFiles: { 'good-enough-lens': '---\nname: good-enough-lens\n---\nmine\n' } };
+  const r = L.presetFromText(JSON.stringify(stale));
+  assert.equal(r.refuse, undefined, r.refuse);
+  assert.equal(r.preset.droppedRetired, true);
+  assert.ok(!JSON.stringify(r.preset).includes('good-enough-lens'), 'the retired name survived the load');
+  assert.deepEqual(r.preset.parts.workflowGraph.offers[0].agents, ['executability-lens']);
+  assert.deepEqual(r.preset.parts.qualities[0].lenses, ['executability-lens']);
+  assert.equal(r.preset.agentFiles, undefined);
+  const clean = L.presetFromText(JSON.stringify({ schema: 1, qualities: [{ quality: 'Safety', measure: 'x', lenses: ['executability-lens'] }] }));
+  assert.equal(clean.refuse, undefined, clean.refuse);
+  assert.equal(clean.preset.droppedRetired, undefined);
 });
 
 // #262 addendum 4: only what is ticked is taken; the rest stays the person's, and the parts agree with the tiers taken.

@@ -121,6 +121,20 @@ parts:
   that you have changed since. The install never overwrites, deletes or
   records them, and a changed pact agent is not drift. Delete your file to
   get the pact's back at the next install (ADR 0071).
+- **A retired agent's name (#302).** The pact retired `good-enough-lens`, and
+  three warnings name it, each with fixed words and never your text:
+  - `WARN: agents/good-enough-lens.md carries the name of good-enough-lens, an
+    agent the pact retired; ...` appears on every dry run while that file is in
+    your agents folder and the install isn't deleting it. The file isn't the
+    pact's, so the install leaves it as is. Delete it yourself, or keep it;
+  - `WARN: the user configuration's <part> block names good-enough-lens ...`
+    names the part whose edit block still holds the name, as a whole word;
+  - `WARN: the project configuration's qualities list names good-enough-lens
+    ...` is the same for a project's own qualities list.
+
+  The install goes ahead on all three. A configuration whose `agents` key sets
+  the retired lens is different: the render refuses it, and the message says to
+  remove the key.
 - **`settings.json:`.** What the merge into `~/.claude/settings.json` would
   change. Your other keys stay. The merge:
   - turns on auto mode (`permissions.defaultMode` set to `auto`) and skips its
@@ -273,7 +287,7 @@ RESULT: pass
 It installs these files under `~/.claude`:
 
 - `CLAUDE.md`, the rules;
-- `agents/`, ten agents: the nine lenses and `scout`;
+- `agents/`, nine agents: the eight lenses and `scout`;
 - `pact/review.md`, the review procedure the rules file points to before any
   lens runs. If a `pact/review.md` the install record doesn't list is already
   there, the install refuses and changes nothing: move your file out of the way;
@@ -340,9 +354,9 @@ through a session:
 ## 6. Check in a fresh session
 
 Start a new Claude Code session in a folder outside the clone, so it loads
-only your installed files, and run `/agents`. A pass lists these ten:
+only your installed files, and run `/agents`. A pass lists these nine:
 `adversarial-lens`, `behaviour-lens`, `conventions-lens`, `data-lens`,
-`executability-lens`, `good-enough-lens`, `integrity-lens`, `reader-lens`,
+`executability-lens`, `integrity-lens`, `reader-lens`,
 `unstated-lens` and `scout`.
 
 ## Install by prompt
@@ -460,7 +474,7 @@ The script has no uninstall. To back out by hand, under `~/.claude`:
    the dry run listed under `settings.json:`, or set them back. Above all,
    set `permissions.defaultMode` back to what you use, so you are not left
    in auto mode.
-2. **Delete the pact's files:** the ten agents listed in step 6 from
+2. **Delete the pact's files:** the nine agents listed in step 6 from
    `agents/`, `pact/review.md`, the `pact/builder/` folder, each pact command
    in `commands/` that the record lists, `/scriptorium` included,
    `pact/tools/poster.mjs` if the record lists it, and `.pact-install.json`.

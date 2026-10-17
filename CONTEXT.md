@@ -37,9 +37,7 @@ real work selects it.
 - **Pair:** two lenses in one area that look at the same work from different angles and never see each other's output.
 - **Anchor:** the shared tag that both lenses of a pair put on each finding, so that the session can match findings.
 - **Crossing:** an anchor that both lenses of a **joining pair** report on. The two lenses ask different questions, so a crossing means two different problems meet at one place, such as an attack path that reaches sensitive data. It is a priority signal. It is never "two reviewers confirmed it": no pair asks the same question twice.
-- **Joining pair:** a pair whose two lenses ask different questions that can meet at one anchor. Security, QA and standards are joining pairs.
-- **Tension pair:** a pair whose two lenses argue opposite ways on the same question: one for more, one for less. The spec pair is the one tension pair. An anchor both of its lenses report on is a **disagreement**, not a crossing.
-- **Disagreement:** an anchor where the two lenses of a tension pair both made a call. The owner settles it; the two calls are shown side by side.
+- **Joining pair:** a pair whose two lenses ask different questions that can meet at one anchor. Every pact pair is one: QA, spec, standards and security.
 - **Non-risk:** something a lens checked and found sound, with the assumption that keeps it sound. It complements the not-checked list.
 - **Inconclusive:** the verdict of a lens that could not verify something it was asked to check. It is never a pass.
 - **Pick:** retired by #189 (#164). It was the anchors the owner expected the problem on, or "none", said before the verdict was revealed; a **mismatch** was a pick that differed from the result.

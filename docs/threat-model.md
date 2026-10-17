@@ -24,7 +24,7 @@ Claude home folder, `~/.claude`:
 - **The rules file,** `CLAUDE.md`, which every session reads first.
 - **The review procedure,** `pact/review.md`, which the rules file tells a
   session to read before it runs a lens.
-- **Ten agents:** nine lenses and `scout`. A lens is a reviewer agent that
+- **Nine agents:** eight lenses and `scout`. A lens is a reviewer agent that
   asks one question from one angle. Most only read.
 - **Settings,** merged into `settings.json`. They turn on auto mode and skip
   its opt-in prompt, keep sessions going when a usage limit is reached, turn
@@ -171,7 +171,7 @@ How to read it:
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its secret scan as a backstop behind that read, which stays for everyone (#280); elsewhere, judgment | Rule, judgment |
-| R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071); a rewritten pact tool shows as drift (#280) | Outside the pact, boundary |
+| R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071); a live agent file that carries the name of an agent the pact retired draws a fixed line on every dry run, and the install leaves it as is (#302); a rewritten pact tool shows as drift (#280) | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on install mechanics only since ADR 0069; the dry run; your review of the commit | Boundary |
@@ -189,7 +189,7 @@ How to read it:
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; on an install with the poster on, its hidden-text scan as a backstop (#280) | Rule |
 | R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the six parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`, `cost-limits`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
 | R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits; the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
-| R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is" (#262, ADR 0071) | Judgment |
+| R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while a file named for an agent the pact retired draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
 
 ## Strangers on the tracker
 
@@ -307,8 +307,9 @@ once you install it.
   would change before it changes anything. It installs only committed files,
   and only those its checks passed: a small bootstrap stages them, and every
   check runs from that staged copy. An apply is bound to the commit its dry
-  run showed. Every change to the install gate's code takes the security
-  route.
+  run showed. A change to the install gate's code takes the pact's tiers
+  and sensitive route like any work, and each check it adds needs a bad case
+  it is seen to catch (ADR 0072).
 - **No ask rules (#265).** The pact sets none, and the install takes out the
   ones an older pact added. Claude Code guards its own folder and
   `~/.claude.json`; the install's apply, a `gh` command on rulesets or branch

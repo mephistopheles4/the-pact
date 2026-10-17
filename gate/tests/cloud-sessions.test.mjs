@@ -33,8 +33,8 @@ import { tempDir, writeTree } from './tree.mjs';
 
 const PAYLOAD = ['claude', 'familiars', 'AGENTS.md'];
 // The retired agents: the gate's own list of old reviewers, and the old builder.
-// The reviewers the pact retired (#45), and the old builder.
-const RETIRED = ['plan-reviewer', 'result-checker', 'test-reviewer', 'security-reviewer', 'builder'];
+// The reviewers the pact retired (#45), the old builder, and good-enough-lens (#302).
+const RETIRED = ['plan-reviewer', 'result-checker', 'test-reviewer', 'security-reviewer', 'builder', 'good-enough-lens'];
 const RLO = '‮';
 
 const sha256 = s => createHash('sha256').update(s).digest('hex');
@@ -394,7 +394,7 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   // shipped agent (the lenses and scout, #262 S18) and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
   const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md'].sort();
-  assert.ok(lenses.length >= 10 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
+  assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {
     assert.equal(body, repoText(source(dest)), dest);
