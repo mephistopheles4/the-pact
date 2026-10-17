@@ -396,8 +396,8 @@ lenses of every quality whose Enough names it.
   me as a trade-off.
 - **A security finding** is one that names an attacker in scope in the
   project's threat model, as it stood before the change under review; or
-  touches an item on the sensitive-work list; or exposes a secret or personal
-  data to anyone but me. With no threat model, the last two decide. The
+  touches an item on the sensitive-work list, auth meaning authentication
+  and authorization; or exposes a secret or personal data to anyone but me. With no threat model, the last two decide. The
   project's threat model is the file its agent instructions name, else
   `docs/threat-model.md`. The session that sorts the findings holds it and
   decides whether a finding is a security finding. A lens outside the
@@ -410,16 +410,19 @@ lenses of every quality whose Enough names it.
   only on my word, given in chat or relayed by a lead session I set up. An
   entry carries its date, the finding it came from, and how my word arrived.
   A finding that matches an entry is still reported, as one line marked
-  accepted by the threat model, naming the entry and where it is recorded; it
-  is not raised as a defect and never makes a verdict blocking. An entry with
+  accepted by the threat model, naming the entry and where it is recorded and
+  keeping the severity and likelihood the finding would have had; it is not
+  raised as a defect and never makes a verdict blocking. An entry with
   no date or source still counts, named as undated. A change that removes a
   control an entry names, or eases its path, is raised in full, naming the
   entry, never shrunk to the one line. A change's own edit to the threat
   model's scope, accepted risks or the line that names it is a finding for
-  me, never applied in the same review. With no threat model, a risk is
+  me, never applied in the same review; I get each at hand-off, whichever
+  lenses ran. With no threat model, a risk is
   flagged to me and nothing is recorded; never create the file.
 - **Detail.** An accepted-risk entry, or a candidate for one, names the class
-  of path and why it is accepted, never the steps.
+  of path and why it is accepted, never the steps, and is written only after
+  the review procedure's read before posting.
 
 *Scriptorium builds this.*
 
@@ -606,7 +609,7 @@ rested on, or that you had none.
   finding is a security finding when it names an attacker in scope in the
   threat model; or touches an item on the sensitive-work list in force (by default auth,
   secrets, crypto, input validation and data migrations), as you were handed
-  it; or
+  it, auth meaning authentication and authorization; or
   exposes a secret or personal data to anyone but the owner. With no threat
   model, the last two decide. With a threat model, also check how it protects
   each item on the sensitive-work list, and report any item it leaves unprotected or covers
@@ -619,8 +622,9 @@ rested on, or that you had none.
   model.
 - **One line for an accepted risk.** A finding that matches an accepted-risk
   entry is still reported, as one line marked accepted by the threat model,
-  naming the entry and where it is recorded. It is not a defect and does not
-  make your verdict blocking. Never go silent on it.
+  naming the entry and where it is recorded, and keeping the severity and
+  likelihood the finding would have had. It is not a defect and does not make
+  your verdict blocking. Never go silent on it.
 - **Undated or weakened entries.** An entry with no date or source still
   counts; name it as undated in the line. A change that removes a control the
   entry names, or makes its path easier, is reported in full as a finding,
@@ -1108,8 +1112,9 @@ rested on, or that you had none.
   finding is a security finding when it names an attacker in scope in the
   threat model; or touches an item on the sensitive-work list in force (by default auth,
   secrets, crypto, input validation and data migrations), as you were handed
-  it; or
-  exposes a secret or personal data to anyone but the owner. With no threat
+  it, auth meaning authentication and authorization; or
+  exposes a secret or personal data to anyone but the owner (personal data
+  stored or sent unencrypted, or kept beyond need, counts as exposure). With no threat
   model, the last two decide. With a threat model, also check how it protects
   each item on the sensitive-work list, and report any item it leaves unprotected or covers
   only by an accepted risk.
@@ -1121,8 +1126,9 @@ rested on, or that you had none.
   model.
 - **One line for an accepted risk.** A finding that matches an accepted-risk
   entry is still reported, as one line marked accepted by the threat model,
-  naming the entry and where it is recorded. It is not a defect and does not
-  make your verdict blocking. Never go silent on it.
+  naming the entry and where it is recorded, and keeping the severity and
+  likelihood the finding would have had. It is not a defect and does not make
+  your verdict blocking. Never go silent on it.
 - **Undated or weakened entries.** An entry with no date or source still
   counts; name it as undated in the line. A change that removes a control the
   entry names, or makes its path easier, is reported in full as a finding,
@@ -2087,15 +2093,18 @@ column. Read the count from the last table when you hand a lens its cost rows.
 
 **Finding the threat model.**
 - **Which file.** The one the project's agent instructions name (the line
-  that names it is the pointer), else `docs/threat-model.md`, else none.
+  that names it is the pointer), else `docs/threat-model.md`, else none. It
+  must be a file tracked at the base commit, and you read it from there.
 - **Read at the base.** Read the pointer and the file as they stood at the base
   of the change, and hand the change's own edits to either as a separate
   input. An edit to the pointer, or a moved or deleted file, is a finding, as
   is an edit to the scope or the accepted risks.
-- **A file that can't be used.** A named file that is missing, or that lies
-  outside the repo, is reported, and the project is treated as having none.
+- **A file that can't be used.** A named file that is missing, untracked at
+  the base, or that lies outside the repo (a link out of it included), is
+  reported, and the project is treated as having none.
 - **Who gets it.** The two security lenses, and you, as the sorting session.
-  Tell each lens which file you gave it, or that there was none.
+  Tell each lens the file's path in the repo at the base, never the
+  location of your copy, or that there was none.
 
 **Every threat-model edit goes to me.** At hand-off, check the diff yourself
 for an edit to the threat model's scope, its accepted risks or the pointer, whichever lenses ran. Bring each one to me as a decision that
@@ -2105,8 +2114,8 @@ is always mine; it never applies in the same review.
 1. propose the entry, naming the class of path and why it is accepted, never
    the steps;
 2. I approve it, in chat or by a relay from a lead session I set up;
-3. write it with its date, the finding it came from, and how my approval
-   arrived (chat, or relayed).
+3. read it as you read a post (see Posting), then write it with its date, the
+   finding it came from, and how my approval arrived (chat, or relayed).
 
 With no threat model, flag the risk to me and record nothing. Never create the
 file.
@@ -2121,8 +2130,9 @@ file.
   security bar), a finding that matches an accepted risk, and a `security?`
   row always go to me and are never `auto`.
 - A finding that matches an accepted risk is still reported, as one line
-  marked accepted by the threat model, naming the entry; it is never dropped
-  and never blocks.
+  marked accepted by the threat model, naming the entry and keeping the
+  severity and likelihood the finding would have had; it is never dropped and
+  never blocks.
 - Within one piece of work, a finding I already took is not brought again; its
   row says "taken earlier".
 
@@ -2294,18 +2304,18 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 3793db76c856c81178c3f876d70f066cb8d1171f7a01fb5c918d2901aae8dbf9 'CLAUDE.md'
-check_hash 4f93b5fc0c300feff11e3186344f096d6defe2d6cad119b5c00051280b56b452 'agents/adversarial-lens.md'
+check_hash 377080618a024ef6f8b4354b243f4a5eaadd1af2938a9640e4ab73f8abae04e2 'CLAUDE.md'
+check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
-check_hash 40ae4915b343ab1929e95d936565835f6b8fb91b110cfdc7b7b55c873efa222e 'agents/data-lens.md'
+check_hash c9c7b83a04c401cd66125802f2174a90f3baaf91373b606c0983ecc9fe07fcbd 'agents/data-lens.md'
 check_hash 8577934dfab15e67c2b2ed04a1791fb5e70295892c4b90177cbbd4e06fb8a7ab 'agents/executability-lens.md'
 check_hash 0ce853895f632ea17664515f02c0bf6d31ba5f0c64cf0938e547de7fd55afedb 'agents/good-enough-lens.md'
 check_hash 489b69784dc7ef1e1c810e735a9bc19b133a3f5050b9da0ec126d57c37252a46 'agents/integrity-lens.md'
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 4a011bee4cd7caf58a5b796b14c124424eecbdc3c619a8ac4ad344054a2405fe 'pact/review.md'
+check_hash 1dd642849fc578b0830a82d252559b520acd2cef518a1557e47d6dec31aaec0c 'pact/review.md'
 if command -v node >/dev/null 2>&1; then
   echo "node: $(node --version)"
   node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
@@ -2325,7 +2335,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written and every hash matched.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy f00141d4aef3"
+  echo "pact cloud copy 7c3a7ff40d9a"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
 fi

@@ -220,8 +220,8 @@ lenses of every quality whose Enough names it.
   me as a trade-off.
 - **A security finding** is one that names an attacker in scope in the
   project's threat model, as it stood before the change under review; or
-  touches an item on the sensitive-work list; or exposes a secret or personal
-  data to anyone but me. With no threat model, the last two decide. The
+  touches an item on the sensitive-work list, auth meaning authentication
+  and authorization; or exposes a secret or personal data to anyone but me. With no threat model, the last two decide. The
   project's threat model is the file its agent instructions name, else
   `docs/threat-model.md`. The session that sorts the findings holds it and
   decides whether a finding is a security finding. A lens outside the
@@ -234,16 +234,19 @@ lenses of every quality whose Enough names it.
   only on my word, given in chat or relayed by a lead session I set up. An
   entry carries its date, the finding it came from, and how my word arrived.
   A finding that matches an entry is still reported, as one line marked
-  accepted by the threat model, naming the entry and where it is recorded; it
-  is not raised as a defect and never makes a verdict blocking. An entry with
+  accepted by the threat model, naming the entry and where it is recorded and
+  keeping the severity and likelihood the finding would have had; it is not
+  raised as a defect and never makes a verdict blocking. An entry with
   no date or source still counts, named as undated. A change that removes a
   control an entry names, or eases its path, is raised in full, naming the
   entry, never shrunk to the one line. A change's own edit to the threat
   model's scope, accepted risks or the line that names it is a finding for
-  me, never applied in the same review. With no threat model, a risk is
+  me, never applied in the same review; I get each at hand-off, whichever
+  lenses ran. With no threat model, a risk is
   flagged to me and nothing is recorded; never create the file.
 - **Detail.** An accepted-risk entry, or a candidate for one, names the class
-  of path and why it is accepted, never the steps.
+  of path and why it is accepted, never the steps, and is written only after
+  the review procedure's read before posting.
 
 *Scriptorium builds this.*
 

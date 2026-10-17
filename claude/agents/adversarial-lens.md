@@ -160,7 +160,7 @@ rested on, or that you had none.
   finding is a security finding when it names an attacker in scope in the
   threat model; or touches an item on the sensitive-work list in force (by default auth,
   secrets, crypto, input validation and data migrations), as you were handed
-  it; or
+  it, auth meaning authentication and authorization; or
   exposes a secret or personal data to anyone but the owner. With no threat
   model, the last two decide. With a threat model, also check how it protects
   each item on the sensitive-work list, and report any item it leaves unprotected or covers
@@ -173,8 +173,9 @@ rested on, or that you had none.
   model.
 - **One line for an accepted risk.** A finding that matches an accepted-risk
   entry is still reported, as one line marked accepted by the threat model,
-  naming the entry and where it is recorded. It is not a defect and does not
-  make your verdict blocking. Never go silent on it.
+  naming the entry and where it is recorded, and keeping the severity and
+  likelihood the finding would have had. It is not a defect and does not make
+  your verdict blocking. Never go silent on it.
 - **Undated or weakened entries.** An entry with no date or source still
   counts; name it as undated in the line. A change that removes a control the
   entry names, or makes its path easier, is reported in full as a finding,

@@ -115,15 +115,18 @@ column. Read the count from the last table when you hand a lens its cost rows.
 
 **Finding the threat model.**
 - **Which file.** The one the project's agent instructions name (the line
-  that names it is the pointer), else `docs/threat-model.md`, else none.
+  that names it is the pointer), else `docs/threat-model.md`, else none. It
+  must be a file tracked at the base commit, and you read it from there.
 - **Read at the base.** Read the pointer and the file as they stood at the base
   of the change, and hand the change's own edits to either as a separate
   input. An edit to the pointer, or a moved or deleted file, is a finding, as
   is an edit to the scope or the accepted risks.
-- **A file that can't be used.** A named file that is missing, or that lies
-  outside the repo, is reported, and the project is treated as having none.
+- **A file that can't be used.** A named file that is missing, untracked at
+  the base, or that lies outside the repo (a link out of it included), is
+  reported, and the project is treated as having none.
 - **Who gets it.** The two security lenses, and you, as the sorting session.
-  Tell each lens which file you gave it, or that there was none.
+  Tell each lens the file's path in the repo at the base, never the
+  location of your copy, or that there was none.
 
 **Every threat-model edit goes to me.** At hand-off, check the diff yourself
 for an edit to the threat model's scope, its accepted risks or the pointer, whichever lenses ran. Bring each one to me as a decision that
@@ -133,8 +136,8 @@ is always mine; it never applies in the same review.
 1. propose the entry, naming the class of path and why it is accepted, never
    the steps;
 2. I approve it, in chat or by a relay from a lead session I set up;
-3. write it with its date, the finding it came from, and how my approval
-   arrived (chat, or relayed).
+3. read it as you read a post (see Posting), then write it with its date, the
+   finding it came from, and how my approval arrived (chat, or relayed).
 
 With no threat model, flag the risk to me and record nothing. Never create the
 file.
@@ -149,8 +152,9 @@ file.
   security bar), a finding that matches an accepted risk, and a `security?`
   row always go to me and are never `auto`.
 - A finding that matches an accepted risk is still reported, as one line
-  marked accepted by the threat model, naming the entry; it is never dropped
-  and never blocks.
+  marked accepted by the threat model, naming the entry and keeping the
+  severity and likelihood the finding would have had; it is never dropped and
+  never blocks.
 - Within one piece of work, a finding I already took is not brought again; its
   row says "taken earlier".
 

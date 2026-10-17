@@ -674,7 +674,8 @@ safe, and a change made months ago is easy to forget.
   matter: it can list an accepted risk, undated ones included, but a lens
   never goes silent on a risk a threat model lists. It reports the finding
   as one line marked accepted by the threat model, naming the entry, so a
-  planted or undated entry can label a finding and never hide one. That
+  planted or undated entry can label a finding, never hide it or its
+  severity. That
   sentence was added 2026-10-17 from #300, on the owner's direction, and
   accepted by the owner the same day, both relayed by the head chef session
   (#289); the #288 review did not accept it.
