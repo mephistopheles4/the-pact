@@ -83,7 +83,7 @@ test('config-notice is an empty slot right after the lines under the title', () 
 
 // #262 S8, C18: each part Scriptorium builds wraps its whole default, with the italic mark above it.
 test('each part Scriptorium builds sits under its mark, flush against its text, with no blank line inside', () => {
-  for (const n of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']) {
+  for (const n of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']) {
     const b = at(`<!-- pact:begin ${n} -->`);
     const e = at(`<!-- pact:end ${n} -->`);
     assert.ok(b > 0 && e > b + 1, n);
@@ -91,6 +91,15 @@ test('each part Scriptorium builds sits under its mark, flush against its text, 
     assert.ok(LINES.slice(b + 1, e).every(l => l.trim() !== '' && !/^\s/.test(l)), `${n}: a block may hold no blank line and no leading space`);
     assert.equal(LINES[e + 1], '', n);
   }
+});
+
+// #287 C1: the Cost limits part sits under its own heading, after the Qualities part, with its fixed text between.
+test('the Cost limits part sits under its own heading, after the Qualities part, before Guards', () => {
+  const b = at('<!-- pact:begin cost-limits -->');
+  const h = at('## Cost limits');
+  assert.ok(at('<!-- pact:end qualities -->') < h && h < b, 'heading after Qualities, before the block');
+  assert.ok(LINES.slice(h + 1, b).every(l => !l.startsWith('## ')), 'no other heading between');
+  assert.ok(at('## Guards') > at('<!-- pact:end cost-limits -->'), 'Guards follows');
 });
 
 // #261 C1

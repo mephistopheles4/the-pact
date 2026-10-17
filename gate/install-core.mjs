@@ -367,7 +367,7 @@ export function checkVerdict(report, what) {
 
 // ------------------------------------------------------------ the renderer's lines
 
-const EDIT_RE = /^EDIT (moves|tiers|sensitive|workflow|lenses|qualities) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
+const EDIT_RE = /^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
@@ -1140,7 +1140,7 @@ export function configStale(now, last) {
 // The parts Scriptorium builds (#262). An edit to any of them changes the
 // security defaults: what Claude looks for as sensitive, the route it
 // recommends, and which lenses are offered when.
-export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 
 /**
  * The security-defaults line (#262, S8), or null when no edit reaches one of
@@ -1153,6 +1153,22 @@ export function securityDefaultsLine(parsed, record) {
   if (!parts.length) return null;
   const since = !record ? 'no install is recorded to compare with' : configStale(configNow(parsed), record.config) ? 'the configuration CHANGED since the last install' : 'the configuration is unchanged since the last install';
   return `WARN: SECURITY DEFAULTS: the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install. ${since[0].toUpperCase()}${since.slice(1)}.`;
+}
+
+/**
+ * The note line for a home Qualities edit with no Enough column (#278), or
+ * null. The shipped cost rows reach a lens only through a quality's Enough, so
+ * an edit that leaves the column out leaves every cost row binding nothing.
+ * `rules` is the rendered rules file's text, which carries no marks. The
+ * column counts when a table header that names Quality also names Enough, in
+ * any position.
+ */
+export function enoughNoteLine(parsed, rules) {
+  if (!parsed.edits.has('qualities')) return null;
+  const cells = l => l.split('|').map(c => c.trim());
+  const header = l => l.startsWith('|') && l.trimEnd().endsWith('|') && cells(l).includes('Quality');
+  if (rules.split('\n').some(l => header(l) && cells(l).includes('Enough'))) return null;
+  return "NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits reach no lens; add an Enough column to the qualities you want them to hold back.";
 }
 
 /** The Configuration block, built from the renderer's parsed lines alone. */

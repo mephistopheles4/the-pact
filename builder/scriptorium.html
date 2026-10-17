@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qo3oWlUdnk6eM1oeVdcsemkHQnBWvlX/YPU6cfw0rnc='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-QFUdY1xhHk7x7beM2m+ZiHyVgZB7sM0EVKfWBSgfjcg='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -497,7 +497,8 @@ const PACT = /* pact-data:begin */ {
   "sensitive",
   "workflow",
   "lenses",
-  "qualities"
+  "qualities",
+  "cost-limits"
  ],
  "setting": {
   "name": "usage-pause",
@@ -518,7 +519,8 @@ const PACT = /* pact-data:begin */ {
    "sensitive",
    "workflow",
    "lenses",
-   "qualities"
+   "qualities",
+   "cost-limits"
   ],
   "text": {
    "moves": "- **Sense the work.**\n  What kind of work is it, how big, how risky, and do I know enough to plan\n  it? Size sets how much checking it needs. A target I can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it.\n- **Think before doing.**\n  I get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right. When the intent is still forming, a\n  prototype finds it.\n- **Checkpoint the seams.**\n  Where work is handed on, published or decided, anything costly waits for a\n  checkpoint. A light checkpoint is a check of mine that runs without me,\n  such as a test. A heavy one is my decision before the work moves. The\n  harder a step is to undo, the heavier its checkpoint. When in doubt, it's\n  heavy.\n- **Stay the owner.**\n  I own a result when I can verify it, reconstruct why it is right, and know\n  when to stop it. Checks that could have failed are the evidence.",
@@ -526,7 +528,8 @@ const PACT = /* pact-data:begin */ {
    "sensitive": "Sensitive work gets more checking when I choose it. By default, sensitive\nwork is auth, secrets, crypto, input validation and data migrations:\nthorough, planned and built on Opus at high, with the security pair,\n`adversarial-lens` and `data-lens`, on the spec and the diff. That is the\nsensitive route. When the work matches that list, or you think it sensitive\notherwise, say why in one line in your tier proposal and recommend the route;\nI take it or not. If I didn't take the route, offer the security pair once\nmore at Test when the change matches the list. Beyond that one offer,\nsensitivity doesn't stop the run. A flag or an offer I haven't answered stays\nopen, in one line, in every hand-off and in the result. If you find it later,\nsay so in one line at the next hand-off or result, and keep saying it until I\nanswer.",
    "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `good-enough-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
    "lenses": "| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail? |\n| `executability-lens`, `good-enough-lens` (the spec pair) | Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save? |\n| `unstated-lens` (the gatekeeper) | What need did nobody write down? |\n| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |\n| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |",
-   "qualities": "| Quality | Measure | Lens |\n| --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens` |\n| Performance efficiency | a budget: time, memory, size | `behaviour-lens` |\n| Reliability | a failure, and the recovery accepted | `behaviour-lens` |\n| Compatibility | named interfaces that stay stable: formats, flags, config keys, APIs | `conventions-lens` |\n| Interaction capability | a task a new user completes | `reader-lens`, `behaviour-lens` |\n| Security | an ASVS 5.0 level or chapters | `adversarial-lens`, `data-lens` |\n| Maintainability | the repo's written rules | `conventions-lens`, `reader-lens` |\n| Flexibility | the environments it must install and run on | `executability-lens`, `behaviour-lens` |\n| Safety | the risky actions, the warning, the safe state on failure | `executability-lens` |"
+   "qualities": "| Quality | Measure | Lens | Enough |\n| --- | --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens`, `integrity-lens`, `unstated-lens` | Tests added · Follow-up issues |\n| Performance efficiency | a budget: time, memory, size | `behaviour-lens` | |\n| Reliability | a failure, and the recovery accepted | `behaviour-lens` | |\n| Compatibility | named interfaces that stay stable: formats, flags, config keys, APIs | `conventions-lens` | |\n| Interaction capability | a task a new user completes | `reader-lens`, `behaviour-lens` | |\n| Security | an ASVS 5.0 level or chapters | `adversarial-lens`, `data-lens` | Hardening · Follow-up issues |\n| Maintainability | the repo's written rules | `conventions-lens`, `reader-lens` | |\n| Flexibility | the environments it must install and run on | `executability-lens`, `behaviour-lens` | |\n| Safety | the risky actions, the warning, the safe state on failure | `executability-lens` | |",
+   "cost-limits": "| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |\n| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |\n| Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |"
   },
   "defaults": {
    "moves": [
@@ -831,7 +834,13 @@ const PACT = /* pact-data:begin */ {
      "quality": "Functional suitability",
      "measure": "the acceptance claims",
      "lenses": [
-      "behaviour-lens"
+      "behaviour-lens",
+      "integrity-lens",
+      "unstated-lens"
+     ],
+     "enoughCosts": [
+      "Tests added",
+      "Follow-up issues"
      ]
     },
     {
@@ -869,6 +878,10 @@ const PACT = /* pact-data:begin */ {
      "lenses": [
       "adversarial-lens",
       "data-lens"
+     ],
+     "enoughCosts": [
+      "Hardening",
+      "Follow-up issues"
      ]
     },
     {
@@ -893,6 +906,26 @@ const PACT = /* pact-data:begin */ {
      "lenses": [
       "executability-lens"
      ]
+    }
+   ],
+   "costLimits": [
+    {
+     "cost": "Tests added",
+     "counted": "Tests beyond one per acceptance claim",
+     "limit": "2 per change",
+     "atLimit": "The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep"
+    },
+    {
+     "cost": "Hardening",
+     "counted": "Guards for paths that are not security findings, as Cost limits defines them",
+     "limit": "0",
+     "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+    },
+    {
+     "cost": "Follow-up issues",
+     "counted": "Issues filed from one review",
+     "limit": "2",
+     "atLimit": "The rest listed as notes in the review's record; I pick which to file"
     }
    ]
   }
@@ -2857,7 +2890,7 @@ const PACT = /* pact-data:begin */ {
 } /* pact-data:end */;
 
 /* parts-code:begin */
-const PART_MARKS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+const PART_MARKS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 // The tiers (#262): any number from 1 to TIERS_MAX, lightest first, each with
 // an id the stages, offers and the route point at. A builder file from before
 // carries three tiers with no ids; upgradeParts gives them these.
@@ -2912,7 +2945,7 @@ const OFFER_WHENS = Object.freeze({
   words: '',
 });
 // Caps on the data, so no builder file can make a part too long to read.
-const PARTS_CAPS = Object.freeze({ moves: 12, stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, measure: 160, line: 300, short: 60, layout: 400 });
+const PARTS_CAPS = Object.freeze({ moves: 12, stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, costLimits: 9, measure: 160, line: 300, short: 60, layout: 400 });
 // The ISO/IEC 25010:2023 qualities (#273): the names a project's own list takes, and the builder offers.
 const QUALITY_NAMES = Object.freeze(['Functional suitability', 'Performance efficiency', 'Compatibility', 'Interaction capability', 'Reliability', 'Security', 'Maintainability', 'Flexibility', 'Safety']);
 // A skill node's two modes: offered (Claude offers it, I answer) or used (Claude runs it).
@@ -2973,15 +3006,21 @@ const DEFAULT_PARTS = Object.freeze({
     { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
   ],
   qualities: [
-    { quality: 'Functional suitability', measure: 'the acceptance claims', lenses: ['behaviour-lens'] },
+    { quality: 'Functional suitability', measure: 'the acceptance claims', lenses: ['behaviour-lens', 'integrity-lens', 'unstated-lens'], enoughCosts: ['Tests added', 'Follow-up issues'] },
     { quality: 'Performance efficiency', measure: 'a budget: time, memory, size', lenses: ['behaviour-lens'] },
     { quality: 'Reliability', measure: 'a failure, and the recovery accepted', lenses: ['behaviour-lens'] },
     { quality: 'Compatibility', measure: 'named interfaces that stay stable: formats, flags, config keys, APIs', lenses: ['conventions-lens'] },
     { quality: 'Interaction capability', measure: 'a task a new user completes', lenses: ['reader-lens', 'behaviour-lens'] },
-    { quality: 'Security', measure: 'an ASVS 5.0 level or chapters', lenses: ['adversarial-lens', 'data-lens'] },
+    { quality: 'Security', measure: 'an ASVS 5.0 level or chapters', lenses: ['adversarial-lens', 'data-lens'], enoughCosts: ['Hardening', 'Follow-up issues'] },
     { quality: 'Maintainability', measure: "the repo's written rules", lenses: ['conventions-lens', 'reader-lens'] },
     { quality: 'Flexibility', measure: 'the environments it must install and run on', lenses: ['executability-lens', 'behaviour-lens'] },
     { quality: 'Safety', measure: 'the risky actions, the warning, the safe state on failure', lenses: ['executability-lens'] },
+  ],
+  // The cost limits (#278): what the work may spend to reach the qualities, and what happens at each limit.
+  costLimits: [
+    { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
+    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
+    { cost: 'Follow-up issues', counted: 'Issues filed from one review', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
   ],
 });
 
@@ -3005,6 +3044,8 @@ function upgradeParts(p) {
       o.tiers = [...old[o.when]];
       o.when = 'tiers';
     }
+  // A builder file from before the cost limits (#278) has none: it takes the default.
+  if (!Object.hasOwn(p, 'costLimits')) p.costLimits = copyParts(DEFAULT_PARTS.costLimits);
   return p;
 }
 
@@ -3171,14 +3212,25 @@ function compileLenses(p) {
   return [row(['Lens', 'Asks']), rule(2), ...p.lenses.map(r => row([`${r.agents.map(tick).join(', ')}${r.label ? ` (${r.label})` : ''}`, r.asks]))].join('\n');
 }
 
-/** The qualities part (#273): the list, each quality with its measure and the lenses that check it. */
-function compileQualities(p) {
-  return [row(['Quality', 'Measure', 'Lens']), rule(3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', ')]))].join('\n');
+/** A quality's Enough cell (#278): its level, then each cost it answers to by name only, joined by a middle dot. */
+function enoughCell(q) {
+  return [q.enough, ...(Array.isArray(q.enoughCosts) ? q.enoughCosts : [])].filter(x => typeof x === 'string' && x).join(' \u00b7 ');
 }
 
-/** Each part's text: { moves, tiers, sensitive, workflow, lenses, qualities }. */
+/** The qualities part (#273): the list, each quality with its measure and the lenses that check it. An Enough column joins only when a row sets one (#278). */
+function compileQualities(p) {
+  const enough = p.qualities.some(q => enoughCell(q));
+  return [row(['Quality', 'Measure', 'Lens', ...(enough ? ['Enough'] : [])]), rule(enough ? 4 : 3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', '), ...(enough ? [enoughCell(q)] : [])]))].join('\n');
+}
+
+/** The cost limits part (#278): the table, four columns. */
+function compileCostLimits(p) {
+  return [row(['Cost', 'Counted as', 'Limit', 'At the limit']), rule(4), ...p.costLimits.map(c => row([c.cost, c.counted, c.limit, c.atLimit]))].join('\n');
+}
+
+/** Each part's text: { moves, tiers, sensitive, workflow, lenses, qualities, 'cost-limits' }. */
 function compileParts(p) {
-  return { moves: compileMoves(p), tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p) };
+  return { moves: compileMoves(p), tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p), 'cost-limits': compileCostLimits(p) };
 }
 
 // ------------------------------------------------------------ the builder's checks
@@ -3324,7 +3376,10 @@ function partsProblems(p) {
   if (!Array.isArray(p.qualities) || !p.qualities.length || p.qualities.length > C.qualities) err('qualities', `the list must hold 1 to ${C.qualities} qualities`);
   else {
     p.qualities.forEach((q, i) => {
-      if (!isObj(q) || !keysIn(q, ['quality', 'measure', 'lenses'])) return err('qualities', `row ${i + 1}: only quality, measure and lenses`);
+      if (!isObj(q) || !keysIn(q, ['quality', 'measure', 'lenses', 'enough', 'enoughCosts'])) return err('qualities', `row ${i + 1}: only quality, measure, lenses, enough and enoughCosts (the Enough level and the costs it answers to)`);
+      if (Object.hasOwn(q, 'enough') && !lineOk(q.enough, C.short)) err('qualities', `row ${i + 1}: the Enough level must be one line of at most ${C.short} characters, with no bar`);
+      if (Object.hasOwn(q, 'enoughCosts') && (!Array.isArray(q.enoughCosts) || q.enoughCosts.length > C.costLimits || q.enoughCosts.some(c => !lineOk(c, C.short) || !c.trim())))
+        err('qualities', `row ${i + 1}: the costs it answers to must list at most ${C.costLimits} cost names, each one line of 1 to ${C.short} characters, with no bar`);
       if (!lineOk(q.quality, C.short) || !q.quality.trim()) err('qualities', `row ${i + 1}: the quality must be one line of 1 to ${C.short} characters, with no bar`);
       if (!lineOk(q.measure, C.measure)) err('qualities', `row ${i + 1}: the measure must be one line of at most ${C.measure} characters, with no bar`);
       if (!Array.isArray(q.lenses) || !q.lenses.length || q.lenses.length > C.agents || q.lenses.some(a => typeof a !== 'string' || !AGENT_RE.test(a))) err('qualities', `row ${i + 1}: 1 to ${C.agents} lenses, each a name of lowercase letters, digits and hyphens`);
@@ -3336,6 +3391,31 @@ function partsProblems(p) {
       const roster = new Set(p.lenses.flatMap(r => (isObj(r) && Array.isArray(r.agents) ? r.agents : [])));
       p.qualities.forEach((q, i) => isObj(q) && Array.isArray(q.lenses) && q.lenses.filter(a => !roster.has(a)).forEach(a => out.push({ part: 'qualities', level: 'warn', text: `row ${i + 1}: ${a} has no roster row` })));
     }
+  }
+
+  // The cost limits (#278): 1 to 9 rows of four one-line fields. Names match ignoring case and surrounding space; the limit may be empty.
+  const costNames = [];
+  if (!Array.isArray(p.costLimits) || !p.costLimits.length || p.costLimits.length > C.costLimits) err('cost-limits', `the list must hold 1 to ${C.costLimits} cost rows`);
+  else {
+    p.costLimits.forEach((c, i) => {
+      if (!isObj(c) || !keysIn(c, ['cost', 'counted', 'limit', 'atLimit'])) return err('cost-limits', `row ${i + 1}: only cost, counted, limit and atLimit`);
+      if (!lineOk(c.cost, C.short) || !c.cost.trim()) err('cost-limits', `row ${i + 1}: the cost must be one line of 1 to ${C.short} characters, with no bar`);
+      else costNames.push(c.cost.trim().toLowerCase());
+      if (!lineOk(c.counted, C.measure)) err('cost-limits', `row ${i + 1}: Counted as must be one line of at most ${C.measure} characters, with no bar`);
+      if (!lineOk(c.limit, C.short)) err('cost-limits', `row ${i + 1}: the limit must be one line of at most ${C.short} characters, with no bar`);
+      if (!lineOk(c.atLimit, C.line)) err('cost-limits', `row ${i + 1}: At the limit must be one line of at most ${C.line} characters, with no bar`);
+    });
+    if (new Set(costNames).size !== costNames.length) err('cost-limits', 'the list names one cost twice');
+    // An Enough that names no cost row is an error; a cost no quality names binds no lens, a finding.
+    const named = new Set();
+    for (const [i, q] of (Array.isArray(p.qualities) ? p.qualities : []).entries())
+      if (isObj(q) && Array.isArray(q.enoughCosts))
+        for (const n of q.enoughCosts) {
+          if (typeof n !== 'string') continue;
+          if (costNames.includes(n.trim().toLowerCase())) named.add(n.trim().toLowerCase());
+          else err('qualities', `row ${i + 1}: a cost it answers to has no row in the cost limits`);
+        }
+    p.costLimits.forEach((c, i) => isObj(c) && typeof c.cost === 'string' && c.cost.trim() && !named.has(c.cost.trim().toLowerCase()) && out.push({ part: 'cost-limits', level: 'warn', text: `row ${i + 1}: no quality names this cost, so it holds back no lens` }));
   }
 
   // A finding, never a refusal: one lens of a pair alone on an offer.
@@ -3366,7 +3446,12 @@ function partsTexts(p) {
   (Array.isArray(g.skills) ? g.skills : []).forEach((s, i) => isObj(s) && ['id', 'skill', 'words'].forEach(k => add(`skill ${i + 1}`, s[k])));
   (Array.isArray(g.links) ? g.links : []).forEach((l, i) => isObj(l) && add(`link ${i + 1}`, l.when));
   (Array.isArray(p.lenses) ? p.lenses : []).forEach((r, i) => isObj(r) && ['label', 'asks'].forEach(k => add(`lenses row ${i + 1}`, r[k])));
-  (Array.isArray(p.qualities) ? p.qualities : []).forEach((q, i) => isObj(q) && ['quality', 'measure'].forEach(k => add(`qualities row ${i + 1}`, q[k])));
+  (Array.isArray(p.qualities) ? p.qualities : []).forEach((q, i) => {
+    if (!isObj(q)) return;
+    ['quality', 'measure', 'enough'].forEach(k => add(`qualities row ${i + 1}`, q[k]));
+    (Array.isArray(q.enoughCosts) ? q.enoughCosts : []).forEach(c => add(`qualities row ${i + 1}`, c));
+  });
+  (Array.isArray(p.costLimits) ? p.costLimits : []).forEach((c, i) => isObj(c) && ['cost', 'counted', 'limit', 'atLimit'].forEach(k => add(`cost limits row ${i + 1}`, c[k])));
   return out;
 }
 /* parts-code:end */
@@ -3595,7 +3680,7 @@ function builderWith(existing, state) {
   const hasModels = existing !== null && /"models"\s*:/.test(existing);
   const hasFiles = existing !== null && /"agentFiles"\s*:/.test(existing);
   const files = Object.fromEntries(Object.keys(state.own).sort().map(name => [name, ownFile(state, name)]));
-  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, qualities: state.parts.qualities, ...(modelsAtPact && !hasModels ? {} : { models: state.models }), ...(!Object.keys(files).length && !hasFiles ? {} : { agentFiles: files }) };
+  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, qualities: state.parts.qualities, costLimits: state.parts.costLimits, ...(modelsAtPact && !hasModels ? {} : { models: state.models }), ...(!Object.keys(files).length && !hasFiles ? {} : { agentFiles: files }) };
   const atPact = !Object.keys(partsChanged(state)).length && modelsAtPact && !Object.keys(files).length;
   if (existing === null) return atPact ? { skip: true } : { text: `${JSON.stringify({ schema: 1, ...keys }, null, 2)}\n` };
   let doc;
@@ -3723,7 +3808,7 @@ function resetAll(state) {
 
 // #262 addendum 4: presets and shared results. A preset is a builder file: the
 // parts it gives, its models and its agent files. The person ticks what to take.
-const PRESET_PARTS = Object.freeze({ moves: 'The moves', tiers: 'Tiers', sensitive: 'Sensitive work', workflowGraph: 'Workflow', lenses: 'Lens and agent roster', qualities: 'Qualities' });
+const PRESET_PARTS = Object.freeze({ moves: 'The moves', tiers: 'Tiers', sensitive: 'Sensitive work', workflowGraph: 'Workflow', lenses: 'Lens and agent roster', qualities: 'Qualities', costLimits: 'Cost limits' });
 const PRESET_AGENT_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 /**
@@ -5635,6 +5720,9 @@ function boot() {
     }, 'type a tool, then Enter');
     const row = state.parts.lenses.find(r => r.agents.includes(a.name));
     const qs = state.parts.qualities;
+    const cs = state.parts.costLimits;
+    /** The cost names a quality's Enough can take: the cost rows, and any name already there (#278). */
+    const costNames = (...more) => [...new Set([...cs.map(c => c.cost.trim()).filter(Boolean), ...more])];
     const listItem = x => el('button', { type: 'button', class: `agent-pick${x.name === agentSel ? ' on' : ''}`, 'aria-pressed': String(x.name === agentSel), onclick: () => {
       agentSel = x.name;
       renderAgents();
@@ -5714,11 +5802,64 @@ function boot() {
           q.lenses = names;
           partsTouched();
         })),
+        el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Enough level' }), dialogInput(q.enough || '', v => (v ? (q.enough = v) : delete q.enough), { title: 'Where more of this quality stops being worth it, such as ASVS L1. Empty when none is set.', placeholder: 'none' })),
+        el('div', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Cost limits it answers to' }), tagPicker(`${q.quality} costs`, q.enoughCosts || [], costNames(...(q.enoughCosts || [])), names => {
+          if (names.length) q.enoughCosts = names;
+          else delete q.enoughCosts;
+          partsTouched();
+        })),
       )),
-      el('div', { class: 'chips' }, chip('Add a quality', QUALITY_NAMES.some(n => !qs.some(q => q.quality === n)), () => {
+      el('div', { class: 'chips' }, chip('Add a quality', false, () => {
         const next = QUALITY_NAMES.find(n => !qs.some(q => q.quality === n));
         if (!next) return;
         qs.push({ quality: next, measure: '', lenses: [] });
+        partsTouched();
+      }, 'av-tool-chip--ghost')),
+    );
+    // The cost limits (#278): what the work may spend. A row shows the qualities that name it and the lenses that reaches, and warns when it reaches none.
+    const costLimits = agentsSection(
+      'cost-limits',
+      'Cost limits',
+      el('p', { class: 'av-annot', text: 'What the work may spend to reach the qualities: each cost says what is counted, its limit (empty is your judgment) and what happens at the limit. A cost holds back the lenses of every quality whose Enough names it.' }),
+      ...cs.map((c, i0) => {
+        const i = i0;
+        const held = qs.filter(q => Array.isArray(q.enoughCosts) && q.enoughCosts.some(n => n.trim().toLowerCase() === c.cost.trim().toLowerCase()));
+        const reached = [...new Set(held.flatMap(q => q.lenses))];
+        return el(
+          'div',
+          { class: 'wf-group lens-row' },
+          el('div', { class: 'row-line' }, (() => {
+            // A renamed cost takes its Enough links with it, once, when the field is left, and only while no other row still holds the old name.
+            const was = c.cost.trim().toLowerCase();
+            const i = el('input', { type: 'text', 'aria-label': `Cost ${i0 + 1}`, title: 'The cost: what the work spends, such as Tests added.', placeholder: 'cost' });
+            i.value = c.cost;
+            i.addEventListener('input', () => {
+              c.cost = i.value;
+              partsTouched(false);
+            });
+            i.addEventListener('change', () => {
+              const now = c.cost.trim();
+              if (was && was !== now.toLowerCase() && !cs.some(o => o !== c && o.cost.trim().toLowerCase() === was))
+                for (const q of qs) if (Array.isArray(q.enoughCosts)) q.enoughCosts = q.enoughCosts.map(n => (n.trim().toLowerCase() === was ? now : n));
+              partsTouched();
+            });
+            return i;
+          })(), el('button', { type: 'button', class: 'row-x', title: 'Remove this cost', 'aria-label': `Remove the cost ${c.cost}`, onclick: () => {
+            const was = c.cost.trim().toLowerCase();
+            for (const q of qs) if (Array.isArray(q.enoughCosts)) q.enoughCosts = q.enoughCosts.filter(n => n.trim().toLowerCase() !== was);
+            cs.splice(i, 1);
+            partsTouched();
+          } }, '×')),
+          el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Counted as' }), dialogInput(c.counted, v => (c.counted = v), { title: 'A unit you could tally by hand.' })),
+          el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Limit' }), dialogInput(c.limit, v => (c.limit = v), { title: 'A number, or empty for your judgment.', placeholder: 'your judgment' })),
+          el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'At the limit' }), dialogInput(c.atLimit, v => (c.atLimit = v), { title: 'The rule set in advance; you can override it on any finding. Empty means ask.', placeholder: 'ask me' })),
+          el('p', { class: 'av-annot', text: held.length ? `Named by ${held.map(q => q.quality).join(', ')}; holds back ${reached.join(', ')}.` : 'No quality names this cost.' }),
+          ...(reached.length ? [] : [el('p', { class: 'av-callout av-callout--caution', role: 'status', text: 'This cost reaches no lens: name it in the Enough of a quality.' })]),
+        );
+      }),
+      el('div', { class: 'chips' }, chip('Add a cost', false, () => {
+        if (cs.length >= PARTS_CAPS.costLimits) return;
+        cs.push({ cost: `Cost ${cs.length + 1}`, counted: '', limit: '', atLimit: '' });
         partsTouched();
       }, 'av-tool-chip--ghost')),
     );
@@ -5749,7 +5890,7 @@ function boot() {
         })()),
         detail,
       )),
-      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, roster, qualities)),
+      el('section', { class: 'av-tool-bar av-tool-bar--stack' }, el('div', { class: 'accs' }, roster, qualities, costLimits)),
     ));
   }
   function openAgents() {
@@ -5799,7 +5940,8 @@ function boot() {
             lines([...on(g.offers).filter(o => o.stage === st.id).map(o => `Lens: ${offerText(all, o)}`), ...on(g.skills).filter(k => k.stage === st.id).map(k => `Skill: ${skillText(all, k)}`), ...on(g.links).filter(l => l.from === st.id && l.when).map(l => `Out: ${linkText(g, l, order)}`)])))];
       },
       lenses: rs => [plural(rs.length, 'row'), lines(rs.map(r => `${r.agents.join(', ')}${r.label ? ` (${r.label})` : ''}: ${r.asks}`))],
-      qualities: qs => [plural(qs.length, 'quality', 'qualities'), lines(qs.map(q => `${q.quality}: ${q.measure || 'no measure yet'} (${q.lenses.join(', ')})`))],
+      qualities: qs => [plural(qs.length, 'quality', 'qualities'), lines(qs.map(q => `${q.quality}: ${q.measure || 'no measure yet'} (${q.lenses.join(', ')})${enoughCell(q) ? `; Enough: ${enoughCell(q)}` : ''}`))],
+      costLimits: cs => [plural(cs.length, 'cost'), lines(cs.map(c => `${c.cost}: ${c.counted || 'nothing counted yet'}; limit ${c.limit || 'your judgment'}; at the limit: ${c.atLimit || 'ask me'}`))],
     };
     const row = (key, label, count, ...body) => {
       const box = el('input', { type: 'checkbox', 'aria-label': `Take ${label}` });

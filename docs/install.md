@@ -149,12 +149,15 @@ parts:
   `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
   a rendered hash the apply command carries.
 - **`WARN: SECURITY DEFAULTS:`.** Shown before every other warning when your
-  configuration edits any of the five parts Scriptorium builds that set
-  security defaults: `tiers`, `sensitive`, `workflow`, `lenses` or
-  `qualities`. They hold the tier table, what Claude looks for as sensitive
-  work and the route it recommends, the workflow table with the lenses
-  offered at each stage, the lens roster, and the qualities with the
-  lenses that check them.
+  configuration edits any of the six parts Scriptorium builds that set
+  security defaults: `tiers`, `sensitive`, `workflow`, `lenses`, `qualities`
+  or `cost-limits`. They hold the tier table, what Claude looks for as
+  sensitive work and the route it recommends, the workflow table with the
+  lenses offered at each stage, the lens roster, the qualities with the
+  lenses that check them and what each answers to, and the cost limits.
+  A `NOTE:` line follows it when you edit `qualities` and the table has no
+  Enough column: the shipped cost rows reach a lens only through a quality's
+  Enough, so they then hold back none.
   The line names the parts you edit and says whether your configuration
   changed since the last install. Read those parts in the rendered rules file
   (`--review-folder` writes it out) before you install. Only your home
@@ -367,8 +370,8 @@ model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default), and
 `usage-pause-session`, the 5-hour session line, unset by default (#142). The
 builder's Settings dialog holds both. The canvas edits the workflow, Settings
-the tiers and sensitive work, and the Agents dialog the lens roster and the
-qualities; `examples/pact-config/config-parts.json` edits all five, with the
+the tiers and sensitive work, and the Agents dialog the lens roster, the
+qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
 session line set. For a builder of your own, type `/scriptorium` in any
 session.
 
@@ -403,7 +406,13 @@ those two.
 A pact from before #262 and #142 refuses a configuration that edits `tiers`,
 `sensitive`, `workflow`, `lenses` or `qualities`, sets `usage-pause-session`,
 sets an agent's model to anything but `opus` or `sonnet`, its effort above
-`high`, or any setting for `scout`, so take those out first. Its install
+`high`, or any setting for `scout`, so take those out first. A pact from
+before #278 also refuses an edit to `cost-limits`, and an older builder refuses
+a builder file that holds a `costLimits` key or an Enough on a quality row.
+It does not refuse a Qualities block with an Enough column: it installs that
+text as written, and the column then names costs no part defines, which an
+older lens reads with no one rule and no security bar. Remove the column, the
+edit and those builder-file fields first. Its install
 deletes `commands/scriptorium.md` and the builder kit, which its payload
 lacks; a configuration that lists `scriptorium` in `commands` refuses there.
 
