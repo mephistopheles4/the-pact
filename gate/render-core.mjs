@@ -446,7 +446,7 @@ function checkProjectCostLimits(v, fail) {
       && COST_FIELDS.every(k => !Object.hasOwn(r, k) || (oneLine(r[k]) && !r[k].includes('|')))
       && !r.cost.includes('·');
     if (!shaped) {
-      fail('project-cost-limits', `row ${i + 1}: a row holds a cost and may hold counted, limit and atLimit, each one line of text without a bar (all but the cost may be empty), the cost holds no middle dot, which joins the Enough cell, and nothing else`);
+      fail('project-cost-limits', `row ${i + 1}: a row holds a cost and may hold counted, limit and atLimit, each one line of text without a bar (all but the cost may be empty, and the cost holds no middle dot, which joins the Enough cell), and nothing else`);
       ok = false;
     } else if (seen.has(costKey(r.cost))) {
       // The reasons name rows and positions, never the project's own text: this renderer echoes no file content.

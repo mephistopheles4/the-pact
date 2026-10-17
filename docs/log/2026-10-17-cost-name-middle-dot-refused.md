@@ -1,6 +1,6 @@
 # A project cost name holds no middle dot, and a level names a cost row
 
-**2026-10-17.** The project render joins a quality's Enough cell with a middle dot (U+00B7), and a lens reads that cell to learn which cost rows hold it back. The dry run counted a row as named from the resolved `enoughCosts` only, so a cost name holding the dot, or a level equal to a cost name, made the warning and the rules file disagree (#299 review, adversarial-lens F1). Tier: standard.
+**2026-10-17.** The project render joins a quality's Enough cell with a middle dot (U+00B7), and a lens reads that cell to learn which cost rows hold it back. The dry run counted a row as named from the resolved `enoughCosts` only, so a cost name holding the dot, or a level equal to a cost name, made the warning and the rules file disagree (the first from #299's review, adversarial-lens F1; the second from this issue's own trace). Tier: standard.
 
 ## What was built (#318)
 
