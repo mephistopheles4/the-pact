@@ -143,7 +143,7 @@
 //   QUALITIES <n>                     (with a qualities list: its row count)
 //   RETIRED-NAME qualities <agent>    (one per retired agent the qualities list names, #302)
 //   COST-LIMITS <n>                   (with a costLimits list: its row count)
-//   COST-LIMITS-UNNAMED <p> <p> ...   (only when some cost rows are named by no quality's enoughCosts, #299:
+//   COST-LIMITS-UNNAMED <p> <p> ...   (only when some cost rows are named by no quality's Enough cell (its level or an enoughCosts name), #299, #318:
 //                                     their 1-based positions, ascending, digits and spaces only)
 //   RESULT: pass
 //
@@ -441,10 +441,12 @@ function checkProjectCostLimits(v, fail) {
   const seen = new Set();
   v.forEach((r, i) => {
     // A bar in a field is refused, not escaped: a cost row is a short phrase, and a bar is a typo here.
+    // A middle dot in the cost is refused too (#318): it joins the Enough cell, so a cost holding one would read as two names.
     const shaped = isObject(r) && Object.keys(r).every(k => COST_FIELDS.includes(k)) && Object.hasOwn(r, 'cost') && named(r.cost)
-      && COST_FIELDS.every(k => !Object.hasOwn(r, k) || (oneLine(r[k]) && !r[k].includes('|')));
+      && COST_FIELDS.every(k => !Object.hasOwn(r, k) || (oneLine(r[k]) && !r[k].includes('|')))
+      && !r.cost.includes('·');
     if (!shaped) {
-      fail('project-cost-limits', `row ${i + 1}: a row holds a cost and may hold counted, limit and atLimit, each one line of text without a bar (all but the cost may be empty), and nothing else`);
+      fail('project-cost-limits', `row ${i + 1}: a row holds a cost and may hold counted, limit and atLimit, each one line of text without a bar (all but the cost may be empty), the cost holds no middle dot, which joins the Enough cell, and nothing else`);
       ok = false;
     } else if (seen.has(costKey(r.cost))) {
       // The reasons name rows and positions, never the project's own text: this renderer echoes no file content.
@@ -1298,8 +1300,9 @@ function runProject(out, home, projectFolder, report) {
   const checked = checkProject(proj.buf, effective, report);
   if (checked === null) return;
   const { values, qualities, costLimits } = checked;
-  // The positions (1-based) of the cost rows no quality's resolved enoughCosts names (#299); digits only, never a cost's text.
-  const named = new Set((qualities ?? []).flatMap(q => q.enoughCosts.map(costKey)));
+  // The positions (1-based) of the cost rows no quality's Enough cell names (#299, #318); digits only, never a cost's text.
+  // The cell's segments are the level and the resolved cost names, since neither can hold the joining dot.
+  const named = new Set((qualities ?? []).flatMap(q => enoughCell(q).split('·').map(costKey).filter(k => k)));
   const unnamed = (costLimits ?? []).flatMap((c, i) => (named.has(costKey(c.cost)) ? [] : [i + 1]));
   const output = Buffer.from(PROJECT_TEMPLATE(values.map(([k, v]) => SETTINGS.get(k).projectLine(v)), qualities, costLimits).join('\n'), 'utf8');
   // The output holds constant text, checked numbers and, with a qualities

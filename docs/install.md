@@ -189,8 +189,9 @@ parts:
   and `enoughCosts`, and an `enoughCosts` name must
   find a cost row in that project's own `costLimits`. A cost row holds `cost`,
   and may hold `counted`, `limit` and `atLimit`, each one line of text with no
-  bar; names match ignoring case and surrounding space. A cost row that no
-  quality's `enoughCosts` names gets one `WARN:` line under the dry run's
+  bar, and the cost holds no middle dot either, since that joins the Enough
+  cell; names match ignoring case and surrounding space. A cost row that no
+  quality's Enough cell names, by its level or an `enoughCosts` name, gets one `WARN:` line under the dry run's
   `Project:` heading, naming such rows by position and telling you to read them
   in the project's file; the install still goes ahead. A project's `costLimits`
   refuses without its `qualities`, and an `acceptedRisks` key is refused as
