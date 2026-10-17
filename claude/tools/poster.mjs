@@ -743,7 +743,7 @@ const PROSE = Object.freeze({ wrap: 'text/hard-wrap', link: 'link/relative' });
 // A fence for these checks: a run of three or more backticks or tildes at any
 // indent, whatever follows it, closed by a run of the same character at least
 // as long with nothing after it but spaces or tabs. Looser than the table
-// check's twice over, so a fence-like line only ever means fewer refusals.
+// check's twice over, so a fence-like line mostly means fewer refusals.
 const PROSE_FENCE_OPEN_RE = /^[ \t]*(`{3,}|~{3,})/;
 const PROSE_FENCE_CLOSE_RE = /^[ \t]*(`{3,}|~{3,})[ \t]*$/;
 const QUOTE_RE = /^(?:[ ]{0,3}>[ ]?)+/;
@@ -752,9 +752,8 @@ const LIST_MARKER_RE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
 const REF_DEF_RE = /^[ ]{0,3}\[([^\]]*)\]:[ \t]*(<[^>]*>|\S*)/;
 const HTML_ATTR_RE = /\b(?:href|src)[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gid;
 const SCHEME_RE = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/|#)/;
-// A line's end, past closing quotes, brackets and emphasis marks: a full stop, a mark or a colon.
+// A line's end, past closing quotes, brackets and emphasis marks: one of `.!?:;`.
 const SENTENCE_END_RE = /[.!?:;][)"'\]*_`\u2019\u201d\u00bb]*$/;
-const LINK_END_RE = /https?:\/\/\S*$/;
 const BOLD_LABEL_RE = /^\*\*[^*]+(?::\*\*|\*\*:)/;
 
 /** Whether a line's last word holds `http://` or `https://`: a link at its end. */
@@ -1170,7 +1169,7 @@ export function post(argv, io) {
     plan.labels.forEach((text, i) => fields.push({ field: `label ${i + 1}`, text }));
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env, home: io.home, tmp: io.tmp, user: io.user, host: io.host };
-    // The table check and the prose checks run after the secret scan, on the
+    // The table check and the prose checks run after the content scan, on the
     // body only. Past the first fifty, the table refusals are counted, not
     // listed, so the result line stays in view.
     const hits = scan(fields, { ...ctx, surface: plan.surface });

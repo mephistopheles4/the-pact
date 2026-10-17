@@ -90,7 +90,7 @@ only `--label`'s values are also scanned, with the title and the body.
 | `--repo` | `owner/name`; the owner must be the `gh` login, by name and by what GitHub returns for the repo | `input/repo`, `owner/repo`, `owner/github` |
 | `--body` | A file: a regular file, not a link, at most 256 KiB, valid UTF-8 with no byte-order mark, not empty; the body at most 65,536 characters | the `file/` rules, `text/body-length` |
 | `--as` | A login the `gh` login must equal; needed when `GH_TOKEN` or `GITHUB_TOKEN` is set | `input/login`, `as/differs`, `as/missing` |
-| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. The content scan, the table check and the two prose checks all run; `gh` doesn't, so the login and owner checks don't, and nor does the `--as` check: a dry run can pass where the real run is refused | none |
+| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. The content scan, the table check and the wrap and link checks all run; `gh` doesn't, so the login and owner checks don't, and nor does the `--as` check: a dry run can pass where the real run is refused | none |
 | `--title-file` | A file read as `--body` is; one line, which may end with one line break, at most 256 characters | the `file/` rules, `text/title-lines`, `text/title-length` |
 | `--label` | A label name: letters, digits, spaces and `:._-`, at most 50 characters; once per label. A label the repo doesn't have is created by GitHub, and stays | `input/label` |
 | `--head` | A branch, or `owner:branch` with the repo's own owner | `input/branch`, `owner/head` |
@@ -118,7 +118,7 @@ page and login are the ones the poster checked before it sent, never text from
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
 | 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the body file; tells the owner which field |
 | 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
-| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A refused lens report stays local, unedited, and the owner is told where it is, in chat. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
+| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for a secret, a personal detail, a local path, a session id or hidden characters stays local, unedited, and the owner is told where it is, in chat; a table, wrap or link refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
 | 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
 
@@ -235,7 +235,7 @@ no test holds them.
   stops mid-sentence (no `.`, `!`, `?`, `:` or `;` at its end, and no link)
   when the next line continues the same paragraph, list item or quote, and
   names the continuing line once, however many lines are wrapped. It never
-  reads a fence, an HTML comment, a table, a heading or a list marker line. A
+  reads a fence, an HTML comment, a table or a heading. A
   line broken on purpose passes: two trailing spaces, a backslash, or a bold
   label such as `**After:**` starting the next line. To fix it, join the
   paragraph or item onto one line; never put prose in a fence, code span or
@@ -245,8 +245,8 @@ no test holds them.
 - **The link check (`link/relative`):** on the body only, after the table
   check. GitHub leaves a link's target as written, so a repository-relative
   link on an issue page is a dead link. It refuses an inline link, an image, a
-  reference definition or an HTML `href` or `src` whose target has no scheme
-  (`https:`, `mailto:`), no `//` and no `#`, a root link such as
+  reference definition or an HTML `href` or `src` whose target does not start with a
+  scheme (`https:`, `mailto:`), `//` or `#`, a root link such as
   `/owner/repo/issues/3` included, and names the target's line and column
   once. It never reads a fence, a code span or an HTML comment, and a footnote
   definition is not a link. To fix it, write the full `https://github.com/...`

@@ -18,7 +18,7 @@ const MACHINE = { home: '/srv/home/tester', tmp: '/tmp', user: 'tester', host: '
 const FENCE3 = '`'.repeat(3);
 const FENCE4 = '`'.repeat(4);
 
-// C3: every shape below must pass. The pact's own report, spec and PR shapes come first.
+// #317 C3: every shape below must pass. The pact's own report, spec and PR shapes come first.
 const BASE = [
   '- [ ] This PR finishes its work: the docs/log entry and its ADRs are included. Otherwise: this isn\'t the last PR for the work.',
   'Tests: +2 −0',
@@ -109,6 +109,32 @@ const BASE = [
   'Before the change',
   '**After:** the change',
   '',
+  // Marks other than a full stop, closing marks after one, and other fences and list markers.
+  'A line ending in a bang!',
+  'A line ending in a colon:',
+  'A line ending in bold text.**',
+  'A line ending in a curly quote.’',
+  'A line ending in `code.`',
+  'The next line',
+  '',
+  '~~~text',
+  'wrapped prose that stops here',
+  'and carries on, with [a link](docs/x.md)',
+  FENCE3,
+  '~~~',
+  '',
+  '* a star item',
+  '* another star item',
+  '',
+  '+ a plus item',
+  '+ another plus item',
+  '',
+  '1. a numbered item',
+  '2) another numbered item',
+  '',
+  'Before the change',
+  '**After**: the change',
+  '',
   // Links that are not relative.
   'See [a full URL](https://github.com/mephistopheles4/the-pact/issues/1), [a mail link](mailto:noreply@anthropic.com), [an anchor](#a-heading) and a note.[^1]',
   '',
@@ -125,16 +151,17 @@ const BASE = [
 
 const BASE_LINES = BASE.split('\n').length - 1;
 
-/** The base with `lines` added as a new block at its end; the block's first line is at `first(plant)`. */
+/** The base with `lines` added as a new block at its end; the plant's lines start at `at(0)`. */
 const add = (...lines) => tree => ({ 'body.md': `${tree['body.md']}\n${lines.join('\n')}\n` });
 /** The line number of the `i`th (from 0) line a plant adds. */
 const at = i => BASE_LINES + 2 + i;
 const asBody = text => () => ({ 'body.md': text });
 
 /**
- * A dry run of an issue comment carrying the tree's body, with a gh that
- * records any call; in a table's shape. The poster refuses with exit 2, which
- * `refusedQuietly` asserts on `real`.
+ * A run of an issue comment carrying the tree's body (a dry run by default),
+ * with a gh that records any call. Its code and last line are mapped to what
+ * `table()` asserts: a refusal (exit 2) to exit 1 and `RESULT: fail`, a dry
+ * run to exit 0 and `RESULT: pass`. `refusedQuietly` asserts the real exit 2.
  */
 function runBody(tree, t, extra = ['--dry-run']) {
   const dir = tempDir(t, 'pact-poster-prose-');
@@ -164,7 +191,7 @@ const wrap = (n) => new RegExp(`^REFUSED text/hard-wrap body ${n}:1$`, 'm');
 const link = (n, line, target) => new RegExp(`^REFUSED link/relative body ${n}:${[...line.slice(0, line.indexOf(target))].length + 1}$`, 'm');
 const linkRow = (id, line, target, why) => ({ id, plant: add(line), fails: ['link/relative'], says: link(at(0), line, target), why });
 
-// C1, C2: each rule refuses a planted line, at its place. C3: the base, with every passing shape, passes.
+// #317 C1, #317 C2: each rule refuses a planted line, at its place. #317 C3: the base, with every passing shape, passes.
 for (const c of table('poster prose', {
   module: 'claude/tools/poster.mjs',
   base: () => ({ 'body.md': BASE }),
@@ -175,9 +202,9 @@ for (const c of table('poster prose', {
     { id: 'wrap-list-continuation', plant: add('- a list item that stops here', '  and carries on.'), fails: ['text/hard-wrap'], says: wrap(at(1)), why: 'a list item wrapped onto an indented line' },
     { id: 'wrap-quote', plant: add('> a quoted line that stops here', '> and carries on.'), fails: ['text/hard-wrap'], says: wrap(at(1)), why: 'a quote read with its markers off' },
     { id: 'wrap-whole-body', plant: asBody('A paragraph that stops here\nand goes on over\nthree lines.\n\nAnother that stops here\nand goes on.\n'), fails: ['text/hard-wrap'], says: wrap(2), why: 'a wholly wrapped body gives one refusal, at its first hit' },
-    linkRow('link-path', 'See [it](docs/x.md).', 'docs/x.md', 'a path with no scheme'),
-    linkRow('link-dot-slash', 'See [it](./x).', './x', 'a dot-slash target'),
-    linkRow('link-dot-dot', 'See [it](../blob/main/x).', '../blob/main/x', 'a dot-dot target'),
+    linkRow('link-path', 'See [ok](https://x.test) and [it](docs/x.md).', 'docs/x.md', 'a path with no scheme, after a link that passes'),
+    linkRow('link-dot-slash', '> See [it](./x).', './x', 'a dot-slash target inside a quote'),
+    linkRow('link-dot-dot', '😀 See [it](../blob/main/x).', '../blob/main/x', 'a dot-dot target after a wide character: columns count characters'),
     linkRow('link-root', 'See [it](/owner/repo/x).', '/owner/repo/x', 'a root link, refused with the rest (q2 A)'),
     linkRow('link-reference', '[ref2]: docs/x.md', 'docs/x.md', 'a reference definition'),
     linkRow('link-image', 'See ![it](docs/x.png).', 'docs/x.png', 'an image'),
@@ -185,7 +212,7 @@ for (const c of table('poster prose', {
   ],
 })) test(c.name, c.fn);
 
-// C4: on a refusal, nothing is sent, both new rules are counted, and a dry run refuses the same body.
+// #317 C4: on a refusal, nothing is sent, both new rules are counted, and a dry run refuses the same body.
 test('a refusal sends nothing, counts both rules, and a dry run refuses the same body', t => {
   const text = 'A paragraph that stops here\nand carries on, with [a link](docs/x.md)\n';
   for (const extra of [[], ['--dry-run']]) {
@@ -196,7 +223,7 @@ test('a refusal sends nothing, counts both rules, and a dry run refuses the same
   }
 });
 
-// C4, S4 point 6: the prose refusals follow the content scan's and the table check's, any note on unlisted table refusals follows them, and one count covers all.
+// #317 C4, S4 point 6: the prose refusals follow the content scan's and the table check's, any note on unlisted table refusals follows them, and one count covers all.
 test('the prose refusals come after the scan and the table check, before any note, in one count', t => {
   const token = 'n' + 'pm_' + 'E5'.repeat(18);
   const head = ['### Lens dispositions', '', '| Finding | Lens | Disposition | Rerun |', '| --- | --- | --- | --- |'];
@@ -210,7 +237,7 @@ test('the prose refusals come after the scan and the table check, before any not
   assert.equal(many.real.lines.at(-1), 'RESULT: refused 61');
 });
 
-// C7: one pass over the lines. Each body below is at the size limit; a reader that searches ahead again from every run, or
+// #317 C7: one pass over the lines. Each body below is at the size limit; a reader that searches ahead again from every run, or
 // retries a pattern from every `[` or `](`, would take minutes on one of them.
 test('a worst-case body at the 65,536-character limit finishes within two seconds', t => {
   const fill = s => s.repeat(Math.ceil(65536 / s.length)).slice(0, 65536);
