@@ -1,6 +1,6 @@
 # Contract: executability-lens
 
-Version: 0.3.0
+Version: 0.4.0
 
 - **Type:** agent
 - **Level:** Thorough
@@ -154,6 +154,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.4.0 | 2026-10-17 | The lens may be handed quality rows with an Enough, the cost rows they name and running counts, as inputs: a finding past a cost limit follows that row's "At the limit", and one past an Enough level alone goes to the owner as a trade-off; both are listed under Trade-offs and never make the verdict blocking on their own. A finding it is unsure is a security finding is marked "security?", for the sorting session to decide. | #304: records what #289 (T4 of #278) added to the lens file, the "Cost limits and trade-offs" section | 10 |
 | 0.3.0 | 2026-10-17 | The stop test (C15) and the guard that work guarding security or data is never deferred (C16) move in from good-enough-lens, which retires; the checklist gains the stop test. | #281, #302: the owner's approval of spec revision 2, on the tracker | 3 (C15, C16, checklist) |
 | 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
 | 0.2.0 | 2026-10-12 | Agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time. Sign 5 becomes security-sensitive work with no security review planned; sign 6 and the risk floor go; the fixed verdict words, finding-line syntax and banned headline words go. | #262 (the owner's decision that a lens be agnostic of the pact) | 1, 2, 3 (C3, C4, C5, C6, C9, C10, C14, automatic checks, you, stop and ask, what makes it fire, checklist), 4, 5, 8, 9, 10, 11, 14, 16, 17, 18 |
@@ -185,6 +186,8 @@ It asks "can this be built as written, with the owner's safeguards?", never "wha
 - **Refuse when:** no spec (S1), or no section list (S2).
 
 **Decided** (2026-10-12, #262): the lens may also be handed quality rows, each a quality and its measure, and checks each within its own question. A row with no measure, on work that plainly touches the quality, goes under Not checked with the claim that would measure it, never as a finding.
+
+**Decided** (2026-10-17, #304, recording #289): the lens may also be handed quality rows with an Enough, the cost rows they name and a running count against each counted limit, as inputs, never orders. A finding past a cost limit follows that cost row's "At the limit" text; one past an Enough level alone, or one that spends a cost with an empty limit, goes to the owner as a trade-off naming the cost or level, the limit and the quality at stake, and is never dropped silently. It lists those apart from its findings, under Trade-offs, with their severity; a trade-off never makes its verdict blocking on its own. When it is unsure whether a finding is a security finding, it marks it "security?" and the sorting session decides. The lens file's "Cost limits and trade-offs" section holds the text.
 
 ### 11. Where does a person decide?
 
