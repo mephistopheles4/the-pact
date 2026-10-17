@@ -442,3 +442,66 @@ test('-Apply with -ReviewFolder writes the review only after the last re-hash of
   assert.match(r.stdout, /^REFUSED: the staged copy of agents\/[^ ]+ changed after the check\. Nothing was changed\.\r?$/m, r.out);
   assert.ok(!existsSync(folder), 'the review was written before the last re-hash');
 });
+// ------------------------------------------------------------ the Cost limits part (#278)
+
+const COST_BLOCK = '| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Review rounds | Rounds of lens review | 2 | Ask me |\n';
+const OLD_QUALITIES_BLOCK = '| Quality | Measure | Lens |\n| --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens` |\n';
+
+// #278 seam 3 and the applied home happy path: a cost-limits edit shows the security-defaults line, installs the
+// edited rows into the rules file, and is bound by the rendered hash the dry run printed.
+test('a home cost-limits edit shows the security-defaults line and installs bound by its rendered hash', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const config = Buffer.from(`${JSON.stringify({ schema: 1, settings: { 'usage-pause': 90 }, edits: [{ mark: 'cost-limits', op: 'replace', file: 'team/cost.md' }] })}\n`);
+  const blocks = { 'team/cost.md': Buffer.from(COST_BLOCK) };
+  configure(h, config, blocks);
+  const digest = sha256(`user ${sha256(config)}\nblock team/cost.md ${sha256(blocks['team/cost.md'])}\n`).slice(0, 12);
+  let s = readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8').replace('When it is above 75%,', 'When it is above 90%,');
+  s = editPart(s, 'cost-limits', () => COST_BLOCK.slice(0, -1).split('\n'));
+  s = editPart(s, 'config-notice', () => ['', `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`, 'Values set: usage-pause 90. Parts edited: cost-limits (replace).']);
+  const want = Buffer.from(withoutOpenMarks(s));
+
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
+  const at = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
+  assert.match(lines[at], /^WARN: SECURITY DEFAULTS: the user configuration edits cost-limits, which changes the pact's security defaults;/);
+  assert.equal(lines.findIndex(l => l.includes('WARN')), at, 'no warning comes before it');
+  assert.ok(!lines.some(l => l.includes('no Enough column')), 'the shipped Qualities table keeps its Enough column: no note');
+  assert.equal(dryRunHash(dry), sha256(want));
+
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), want);
+  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /\| Review rounds \| Rounds of lens review \| 2 \| Ask me \|/);
+  assert.match(r.stdout, new RegExp(`^Installed commit [0-9a-f]{40} with configuration ${digest}; all files verified\.\r?$`, 'm'), r.out);
+});
+
+// #278 seam 3: a configuration from before the change, with a Qualities edit that has no Enough column, still installs; the dry run notes it.
+test('a pre-#278 Qualities edit still renders and installs, and its dry run notes that the cost rows reach no lens', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  configure(h, `${JSON.stringify({ schema: 1, edits: [{ mark: 'qualities', op: 'replace', file: 'q.md' }] })}\n`, { 'q.md': OLD_QUALITIES_BLOCK });
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
+  const sec = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
+  assert.match(lines[sec], /edits qualities,/);
+  assert.match(lines[sec + 1], /^NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits reach no lens;/, 'the note follows the security-defaults line');
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
+  assert.equal(r.code, 0, r.out);
+  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /\| Functional suitability \| the acceptance claims \| `behaviour-lens` \|\n/);
+});
+
+// #278 seam 3: no configuration renders the shipped text, with the new part and the Enough column in it.
+test('a home render with no configuration carries the shipped Cost limits part and Enough column, and no note', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  assert.doesNotMatch(dry.stdout, /no Enough column|SECURITY DEFAULTS/);
+  const want = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
+  assert.ok(dry.stdout.includes(`render| RENDERED ${sha256(want)}`), dry.out);
+  assert.match(want.toString('utf8'), /^\| Cost \| Counted as \| Limit \| At the limit \|$/m);
+  assert.match(want.toString('utf8'), /^\| Quality \| Measure \| Lens \| Enough \|$/m);
+});

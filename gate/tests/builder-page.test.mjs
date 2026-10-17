@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, shippedPresets } from '../../builder/build.mjs';
-import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, upgradeParts } from '../../builder/parts.mjs';
+import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
 import { BUILDER_KIT, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
@@ -375,12 +375,76 @@ test('bad qualities: none or too many, a quality twice, a bar in a measure, no l
   assert.match(bad(p => (p.qualities[0].lenses = ['a-lens', 'b-lens', 'c-lens', 'd-lens', 'e-lens'])), /row 1: 1 to 4 lenses/);
 });
 
+// #278 seam 2: the cost limits part's checks, each with a bad case.
+test('bad cost limits: none or ten, an empty cost, a duplicate name in any case, a bar, an unknown field, an Enough naming a missing cost', () => {
+  const bad = f => {
+    const p = copyParts(DEFAULT_PARTS);
+    f(p);
+    return partsProblems(p).filter(x => x.level === 'error').map(x => `${x.part}: ${x.text}`).join(' / ');
+  };
+  assert.equal(bad(() => {}), '', 'the shipped part passes');
+  assert.match(bad(p => (p.costLimits = [])), /cost-limits: the list must hold 1 to 9 cost rows/);
+  assert.match(bad(p => (p.costLimits = Array.from({ length: 10 }, (_, i) => ({ ...p.costLimits[0], cost: `C${i}` })))), /cost-limits: the list must hold 1 to 9 cost rows/);
+  assert.match(bad(p => (p.costLimits[0].cost = '  ')), /row 1: the cost must be one line of 1 to 60/);
+  assert.match(bad(p => (p.costLimits[1].cost = ' tests ADDED ')), /names one cost twice/);
+  assert.match(bad(p => (p.costLimits[0].counted = 'a | b')), /row 1: counted must be one line/);
+  assert.match(bad(p => (p.costLimits[0].atLimit = 'a\nb')), /row 1: atLimit must be one line/);
+  assert.match(bad(p => (p.costLimits[0].lenses = [])), /row 1: only cost, counted, limit and atLimit/);
+  assert.match(bad(p => (p.qualities[0].enoughCosts = ['No such cost'])), /qualities: row 1: enoughCosts names a cost that has no row/);
+  assert.equal(bad(p => (p.qualities[0].enoughCosts = [' tests ADDED'])), '', 'names match ignoring case and surrounding space');
+  assert.match(bad(p => (p.qualities[0].enough = 'ASVS | L1')), /row 1: enough must be one line/);
+  assert.equal(bad(p => (p.costLimits[0].limit = '')), '', 'an empty limit is the owner\'s judgment, not an error');
+});
+
+test('a cost no quality names is a warning, never an error', () => {
+  const p = copyParts(DEFAULT_PARTS);
+  p.costLimits.push({ cost: 'Review rounds', counted: 'Rounds', limit: '', atLimit: '' });
+  const found = partsProblems(p).filter(x => x.part === 'cost-limits');
+  assert.deepEqual(found.map(x => x.level), ['warn']);
+  assert.match(found[0].text, /^row 4: no quality names this cost, so it holds back no lens$/);
+  assert.deepEqual(partsProblems(DEFAULT_PARTS).filter(x => x.level === 'warn' && x.part === 'cost-limits'), []);
+});
+
+test('the Enough column joins the qualities table only when a row sets a level or a cost, as "level, then each cost, with a middle dot between"', () => {
+  const dot = String.fromCharCode(0xb7);
+  const p = copyParts(DEFAULT_PARTS);
+  const rows = parts => compileParts(parts).qualities.split('\n');
+  assert.equal(rows(p)[0], '| Quality | Measure | Lens | Enough |');
+  assert.equal(rows(p).find(l => l.startsWith('| Security |')), `| Security | an ASVS 5.0 level or chapters | \`adversarial-lens\`, \`data-lens\` | Hardening ${dot} Follow-up issues |`);
+  p.qualities[5].enough = 'ASVS L1';
+  assert.ok(rows(p).find(l => l.startsWith('| Security |')).endsWith(`| ASVS L1 ${dot} Hardening ${dot} Follow-up issues |`));
+  for (const q of p.qualities) {
+    delete q.enough;
+    delete q.enoughCosts;
+  }
+  assert.equal(rows(p)[0], '| Quality | Measure | Lens |', 'no row sets one: the table is as before #278');
+  assert.equal(rows(p)[1], '| --- | --- | --- |');
+});
+
+test('a web address in a cost field or an Enough is read by the content policy', () => {
+  const p = copyParts(DEFAULT_PARTS);
+  p.costLimits[0].atLimit = 'see https://example.test/limits';
+  p.qualities[0].enough = 'see https://example.test/level';
+  p.qualities[1].enoughCosts = ['https://example.test/cost'];
+  const where = partsTexts(p).filter(([, t]) => /https:/.test(t)).map(([w]) => w);
+  assert.deepEqual(where, ['qualities row 1', 'qualities row 2', 'cost limits row 1']);
+});
+
+test('a builder file from before #278 upgrades with the default cost limits, and one that has them keeps them', () => {
+  const old = copyParts(DEFAULT_PARTS);
+  delete old.costLimits;
+  assert.deepEqual(upgradeParts(old).costLimits, DEFAULT_PARTS.costLimits);
+  const mine = copyParts(DEFAULT_PARTS);
+  mine.costLimits = [{ cost: 'Mine', counted: 'x', limit: '1', atLimit: 'y' }];
+  assert.deepEqual(upgradeParts(mine).costLimits, mine.costLimits);
+});
+
 // #262 C23: a lens added to a quality reaches its row in the compiled qualities part.
 test('a lens added to a quality reaches its row in the compiled qualities part', () => {
   const p = copyParts(DEFAULT_PARTS);
   p.qualities[0].lenses = [...p.qualities[0].lenses, 'reader-lens'];
   const rowOf = parts => compileParts(parts).qualities.split('\n').find(l => l.startsWith(`| ${p.qualities[0].quality} |`));
-  assert.match(rowOf(p), /`reader-lens` \|$/);
+  assert.match(rowOf(p), /`unstated-lens`, `reader-lens` \| /);
   assert.doesNotMatch(rowOf(DEFAULT_PARTS), /reader-lens/);
 });
 
@@ -438,7 +502,7 @@ test('a builder file\'s parts load into its page; the page saves only the parts 
   const s = L.initialState();
   s.parts.lenses[2].asks = 'Who needs what, unsaid?';
   const kept = JSON.parse(L.builderWith('{"schema": 1, "title": "Mine", "yours": {}}', s).text);
-  assert.deepEqual([kept.title, kept.lenses[2].asks, Object.keys(kept).sort()], ['Mine', 'Who needs what, unsaid?', ['lenses', 'moves', 'qualities', 'schema', 'sensitive', 'tiers', 'title', 'workflowGraph', 'yours']]);
+  assert.deepEqual([kept.title, kept.lenses[2].asks, Object.keys(kept).sort()], ['Mine', 'Who needs what, unsaid?', ['costLimits', 'lenses', 'moves', 'qualities', 'schema', 'sensitive', 'tiers', 'title', 'workflowGraph', 'yours']]);
 });
 
 // #262 addendum 4: a builder file carries the agent files written on the page; a
@@ -669,7 +733,7 @@ test('the page holds the moves as one part, named by their lead-ins, beside the 
     assert.equal(g.text.split('\n').map(l => l.trim()).join('\n'), clause, `${g.mark} differs from its block in claude/CLAUDE.md`);
   }
   assert.deepEqual(L.PACT.always.map(a => a.mark), ['stop-and-escalate']);
-  assert.deepEqual([...L.PACT.editable], ['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+  assert.deepEqual([...L.PACT.editable], ['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 });
 
 test('with nothing changed, the page saves a configuration that sets nothing', () => {

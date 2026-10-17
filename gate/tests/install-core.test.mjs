@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import * as core from '../install-core.mjs';
-import { GATE } from './text.mjs';
+import { GATE, REPO } from './text.mjs';
 import { table } from './tables.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -988,7 +988,7 @@ test('the configuration block: a removed configuration, changed and new files, a
 // #262 S8, S9: the security-defaults line names each part Scriptorium builds, says whether the configuration changed, and never shows for the moves.
 test('the security-defaults line: each part Scriptorium builds alone shows it, a moves edit does not, and it says whether the configuration changed', () => {
   const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT moves', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
-  for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']) {
+  for (const mark of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']) {
     const line = core.securityDefaultsLine(withEdit(mark), null);
     assert.match(line, new RegExp(`^WARN: SECURITY DEFAULTS: the user configuration edits ${mark}, which changes the pact's security defaults;`));
     assert.doesNotMatch(line, /a\.md|blocks/, 'it names no block file');
@@ -1005,4 +1005,19 @@ test('the security-defaults line: each part Scriptorium builds alone shows it, a
 test('the security-defaults line: a security-set lens off its default alone does not show it, and does not change the parts\' line', () => {
   const lines = (from, to) => core.parseRenderLines(renderBase().in.replace(from, to).split('\n'), { project: false, hash: sha256 });
   assert.match(core.securityDefaultsLine(lines('EDIT moves', 'EDIT tiers'), null), /^WARN: SECURITY DEFAULTS: the user configuration edits tiers, which changes the pact's security defaults; read those parts in the rendered rules file before you install\. No install is recorded to compare with\.$/);
+});
+
+// #278 seam 3: the home note line. The shipped cost rows reach a lens only through a quality's Enough, so a
+// Qualities edit whose table has no Enough column gets a note; no edit, a shipped table or an Enough column gets none.
+test('the Enough note: a Qualities edit with no Enough column shows it; the shipped table, an Enough column and other edits do not', () => {
+  const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT moves', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
+  const old = '| Quality | Measure | Lens |\n| --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens` |\n';
+  const note = core.enoughNoteLine(withEdit('qualities'), old);
+  assert.match(note, /^NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits reach no lens;/);
+  const shipped = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
+  assert.equal(core.enoughNoteLine(withEdit('qualities'), shipped), null, 'the shipped table has the column');
+  assert.equal(core.enoughNoteLine(withEdit('qualities'), `${old}| Quality | Measure | Lens | Enough |\n`), null);
+  assert.equal(core.enoughNoteLine(withEdit('lenses'), old), null, 'an edit to another part');
+  assert.equal(core.enoughNoteLine(withEdit('moves'), old), null);
+  assert.equal(core.enoughNoteLine(withEdit('qualities'), `${old}\nProse that says | Enough | in a sentence.\n`), note, 'prose is no column header');
 });

@@ -83,7 +83,7 @@ test('config-notice is an empty slot right after the lines under the title', () 
 
 // #262 S8, C18: each part Scriptorium builds wraps its whole default, with the italic mark above it.
 test('each part Scriptorium builds sits under its mark, flush against its text, with no blank line inside', () => {
-  for (const n of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities']) {
+  for (const n of ['tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']) {
     const b = at(`<!-- pact:begin ${n} -->`);
     const e = at(`<!-- pact:end ${n} -->`);
     assert.ok(b > 0 && e > b + 1, n);

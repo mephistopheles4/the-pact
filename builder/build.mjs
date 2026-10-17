@@ -24,7 +24,7 @@
 // The builder file:
 //   { "schema": 1, "title": <text, optional>,
 //     "yours": { "skills" | "commands" | "agents": [ { "name", "description" } ] },
-//     "moves", "tiers", "sensitive", "workflowGraph", "lenses", "qualities": the
+//     "moves", "tiers", "sensitive", "workflowGraph", "lenses", "qualities", "costLimits": the
 //       parts Scriptorium builds, each optional, in the shapes builder/parts.mjs
 //       describes (#262),
 //     "models": [<model>]: the Models list every dropdown offers, optional (#262 S19),
@@ -237,7 +237,7 @@ const YOURS_MAX = 2000;
 // The builder file's keys for the parts (#262), in PART_MARKS order: workflowGraph holds the workflow part's graph.
 const AGENT_FILES_MAX = 32;
 const AGENT_FILE_MAX = 65536;
-const PART_KEYS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflowGraph', 'lenses', 'qualities']);
+const PART_KEYS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflowGraph', 'lenses', 'qualities', 'costLimits']);
 
 const isObject = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysOnly = (o, allowed) => Object.keys(o).every(k => allowed.includes(k));

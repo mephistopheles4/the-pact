@@ -51,8 +51,8 @@ below is the POSIX form; in PowerShell, run `$env:NODE_OPTIONS = $null; node
    is in the file's `yours` lists.
 
 3. **Carry my edits to the parts.** The parts are `moves`, `tiers`,
-   `sensitive`, `workflow` (the `workflowGraph` key), `lenses` and
-   `qualities`. A builder file that changes no part opens on the Level 3 ·
+   `sensitive`, `workflow` (the `workflowGraph` key), `lenses`, `qualities`
+   and `cost-limits` (the `costLimits` key). A builder file that changes no part opens on the Level 3 ·
    Full preset, so if my configuration edits a part, the file must carry
    that part, or a save from the page would write over my edit. For each
    part my configuration edits:

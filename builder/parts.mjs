@@ -1,5 +1,5 @@
-// The five parts Scriptorium builds (#262): tiers, sensitive, workflow, lenses
-// and qualities (#273). This module is their one source: the default data, the compiler
+// The parts Scriptorium builds (#262): tiers, sensitive, workflow, lenses,
+// qualities (#273) and cost limits (#278). This module is their one source: the default data, the compiler
 // that turns data into each part's text, and the builder's checks on it.
 //
 // build.mjs imports it to check a builder file and to run the compiled parts
@@ -18,7 +18,9 @@
 //                                                             a skill or command at a stage: offered to me, or used
 //                    layout: { <node id>: { x, y } } }        the canvas's positions; compiles to nothing
 //   lenses:        [{ agents: [names], label, asks }]       the roster, one row each
-//   qualities:     [{ quality, measure, lenses: [names] }]  a measure may be empty
+//   qualities:     [{ quality, measure, lenses: [names], enough?, enoughCosts?: [cost names] }]  a measure may be empty;
+//                                                           enough is a level, enoughCosts the cost limits it answers to
+//   costLimits:    [{ cost, counted, limit, atLimit }]      1 to 9 rows; an empty limit is the owner's judgment (#278)
 //
 // An offer with two agents is a pair; nothing else marks one. An offer on
 // 'sensitive' runs on the sensitive route, once I take it.
@@ -26,7 +28,7 @@
 // The compiled default of each part is the text between its marks in
 // claude/CLAUDE.md, byte for byte; a builder test holds them together.
 
-export const PART_MARKS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities']);
+export const PART_MARKS = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 // The tiers (#262): any number from 1 to TIERS_MAX, lightest first, each with
 // an id the stages, offers and the route point at. A builder file from before
 // carries three tiers with no ids; upgradeParts gives them these.
@@ -81,7 +83,7 @@ export const OFFER_WHENS = Object.freeze({
   words: '',
 });
 // Caps on the data, so no builder file can make a part too long to read.
-export const PARTS_CAPS = Object.freeze({ moves: 12, stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, measure: 160, line: 300, short: 60, layout: 400 });
+export const PARTS_CAPS = Object.freeze({ moves: 12, stages: 12, offers: 40, links: 40, skills: 40, agents: 4, items: 20, lenses: 20, qualities: 16, costLimits: 9, measure: 160, line: 300, short: 60, layout: 400 });
 // The ISO/IEC 25010:2023 qualities (#273): the names a project's own list takes, and the builder offers.
 export const QUALITY_NAMES = Object.freeze(['Functional suitability', 'Performance efficiency', 'Compatibility', 'Interaction capability', 'Reliability', 'Security', 'Maintainability', 'Flexibility', 'Safety']);
 // A skill node's two modes: offered (Claude offers it, I answer) or used (Claude runs it).
@@ -142,15 +144,21 @@ export const DEFAULT_PARTS = Object.freeze({
     { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
   ],
   qualities: [
-    { quality: 'Functional suitability', measure: 'the acceptance claims', lenses: ['behaviour-lens'] },
+    { quality: 'Functional suitability', measure: 'the acceptance claims', lenses: ['behaviour-lens', 'integrity-lens', 'unstated-lens'], enoughCosts: ['Tests added', 'Follow-up issues'] },
     { quality: 'Performance efficiency', measure: 'a budget: time, memory, size', lenses: ['behaviour-lens'] },
     { quality: 'Reliability', measure: 'a failure, and the recovery accepted', lenses: ['behaviour-lens'] },
     { quality: 'Compatibility', measure: 'named interfaces that stay stable: formats, flags, config keys, APIs', lenses: ['conventions-lens'] },
     { quality: 'Interaction capability', measure: 'a task a new user completes', lenses: ['reader-lens', 'behaviour-lens'] },
-    { quality: 'Security', measure: 'an ASVS 5.0 level or chapters', lenses: ['adversarial-lens', 'data-lens'] },
+    { quality: 'Security', measure: 'an ASVS 5.0 level or chapters', lenses: ['adversarial-lens', 'data-lens'], enoughCosts: ['Hardening', 'Follow-up issues'] },
     { quality: 'Maintainability', measure: "the repo's written rules", lenses: ['conventions-lens', 'reader-lens'] },
     { quality: 'Flexibility', measure: 'the environments it must install and run on', lenses: ['executability-lens', 'behaviour-lens'] },
     { quality: 'Safety', measure: 'the risky actions, the warning, the safe state on failure', lenses: ['executability-lens'] },
+  ],
+  // The cost limits (#278): what the work may spend to reach the qualities, and what happens at each limit.
+  costLimits: [
+    { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
+    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, by the definition above', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
+    { cost: 'Follow-up issues', counted: 'Issues filed from one review', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
   ],
 });
 
@@ -174,6 +182,8 @@ export function upgradeParts(p) {
       o.tiers = [...old[o.when]];
       o.when = 'tiers';
     }
+  // A builder file from before the cost limits (#278) has none: it takes the default.
+  if (!Object.hasOwn(p, 'costLimits')) p.costLimits = copyParts(DEFAULT_PARTS.costLimits);
   return p;
 }
 
@@ -340,14 +350,25 @@ export function compileLenses(p) {
   return [row(['Lens', 'Asks']), rule(2), ...p.lenses.map(r => row([`${r.agents.map(tick).join(', ')}${r.label ? ` (${r.label})` : ''}`, r.asks]))].join('\n');
 }
 
-/** The qualities part (#273): the list, each quality with its measure and the lenses that check it. */
-export function compileQualities(p) {
-  return [row(['Quality', 'Measure', 'Lens']), rule(3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', ')]))].join('\n');
+/** A quality's Enough cell (#278): its level, then each cost it answers to by name only, joined by a middle dot. */
+export function enoughCell(q) {
+  return [q.enough, ...(Array.isArray(q.enoughCosts) ? q.enoughCosts : [])].filter(x => typeof x === 'string' && x).join(' \u00b7 ');
 }
 
-/** Each part's text: { moves, tiers, sensitive, workflow, lenses, qualities }. */
+/** The qualities part (#273): the list, each quality with its measure and the lenses that check it. An Enough column joins only when a row sets one (#278). */
+export function compileQualities(p) {
+  const enough = p.qualities.some(q => enoughCell(q));
+  return [row(['Quality', 'Measure', 'Lens', ...(enough ? ['Enough'] : [])]), rule(enough ? 4 : 3), ...p.qualities.map(q => row([q.quality, q.measure, q.lenses.map(tick).join(', '), ...(enough ? [enoughCell(q)] : [])]))].join('\n');
+}
+
+/** The cost limits part (#278): the table, four columns. */
+export function compileCostLimits(p) {
+  return [row(['Cost', 'Counted as', 'Limit', 'At the limit']), rule(4), ...p.costLimits.map(c => row([c.cost, c.counted, c.limit, c.atLimit]))].join('\n');
+}
+
+/** Each part's text: { moves, tiers, sensitive, workflow, lenses, qualities, 'cost-limits' }. */
 export function compileParts(p) {
-  return { moves: compileMoves(p), tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p) };
+  return { moves: compileMoves(p), tiers: compileTiers(p), sensitive: compileSensitive(p), workflow: compileWorkflow(p), lenses: compileLenses(p), qualities: compileQualities(p), 'cost-limits': compileCostLimits(p) };
 }
 
 // ------------------------------------------------------------ the builder's checks
@@ -493,7 +514,10 @@ export function partsProblems(p) {
   if (!Array.isArray(p.qualities) || !p.qualities.length || p.qualities.length > C.qualities) err('qualities', `the list must hold 1 to ${C.qualities} qualities`);
   else {
     p.qualities.forEach((q, i) => {
-      if (!isObj(q) || !keysIn(q, ['quality', 'measure', 'lenses'])) return err('qualities', `row ${i + 1}: only quality, measure and lenses`);
+      if (!isObj(q) || !keysIn(q, ['quality', 'measure', 'lenses', 'enough', 'enoughCosts'])) return err('qualities', `row ${i + 1}: only quality, measure, lenses, enough and enoughCosts`);
+      if (Object.hasOwn(q, 'enough') && !lineOk(q.enough, C.short)) err('qualities', `row ${i + 1}: enough must be one line of at most ${C.short} characters, with no bar`);
+      if (Object.hasOwn(q, 'enoughCosts') && (!Array.isArray(q.enoughCosts) || q.enoughCosts.length > C.costLimits || q.enoughCosts.some(c => !lineOk(c, C.short) || !c.trim())))
+        err('qualities', `row ${i + 1}: enoughCosts must list at most ${C.costLimits} cost names, each one line of 1 to ${C.short} characters, with no bar`);
       if (!lineOk(q.quality, C.short) || !q.quality.trim()) err('qualities', `row ${i + 1}: the quality must be one line of 1 to ${C.short} characters, with no bar`);
       if (!lineOk(q.measure, C.measure)) err('qualities', `row ${i + 1}: the measure must be one line of at most ${C.measure} characters, with no bar`);
       if (!Array.isArray(q.lenses) || !q.lenses.length || q.lenses.length > C.agents || q.lenses.some(a => typeof a !== 'string' || !AGENT_RE.test(a))) err('qualities', `row ${i + 1}: 1 to ${C.agents} lenses, each a name of lowercase letters, digits and hyphens`);
@@ -505,6 +529,31 @@ export function partsProblems(p) {
       const roster = new Set(p.lenses.flatMap(r => (isObj(r) && Array.isArray(r.agents) ? r.agents : [])));
       p.qualities.forEach((q, i) => isObj(q) && Array.isArray(q.lenses) && q.lenses.filter(a => !roster.has(a)).forEach(a => out.push({ part: 'qualities', level: 'warn', text: `row ${i + 1}: ${a} has no roster row` })));
     }
+  }
+
+  // The cost limits (#278): 1 to 9 rows of four one-line fields. Names match ignoring case and surrounding space; the limit may be empty.
+  const costNames = [];
+  if (!Array.isArray(p.costLimits) || !p.costLimits.length || p.costLimits.length > C.costLimits) err('cost-limits', `the list must hold 1 to ${C.costLimits} cost rows`);
+  else {
+    p.costLimits.forEach((c, i) => {
+      if (!isObj(c) || !keysIn(c, ['cost', 'counted', 'limit', 'atLimit'])) return err('cost-limits', `row ${i + 1}: only cost, counted, limit and atLimit`);
+      if (!lineOk(c.cost, C.short) || !c.cost.trim()) err('cost-limits', `row ${i + 1}: the cost must be one line of 1 to ${C.short} characters, with no bar`);
+      else costNames.push(c.cost.trim().toLowerCase());
+      if (!lineOk(c.counted, C.measure)) err('cost-limits', `row ${i + 1}: counted must be one line of at most ${C.measure} characters, with no bar`);
+      if (!lineOk(c.limit, C.short)) err('cost-limits', `row ${i + 1}: the limit must be one line of at most ${C.short} characters, with no bar`);
+      if (!lineOk(c.atLimit, C.line)) err('cost-limits', `row ${i + 1}: atLimit must be one line of at most ${C.line} characters, with no bar`);
+    });
+    if (new Set(costNames).size !== costNames.length) err('cost-limits', 'the list names one cost twice');
+    // An Enough that names no cost row is an error; a cost no quality names binds no lens, a finding.
+    const named = new Set();
+    for (const [i, q] of (Array.isArray(p.qualities) ? p.qualities : []).entries())
+      if (isObj(q) && Array.isArray(q.enoughCosts))
+        for (const n of q.enoughCosts) {
+          if (typeof n !== 'string') continue;
+          if (costNames.includes(n.trim().toLowerCase())) named.add(n.trim().toLowerCase());
+          else err('qualities', `row ${i + 1}: enoughCosts names a cost that has no row in the cost limits`);
+        }
+    p.costLimits.forEach((c, i) => isObj(c) && typeof c.cost === 'string' && c.cost.trim() && !named.has(c.cost.trim().toLowerCase()) && out.push({ part: 'cost-limits', level: 'warn', text: `row ${i + 1}: no quality names this cost, so it holds back no lens` }));
   }
 
   // A finding, never a refusal: one lens of a pair alone on an offer.
@@ -535,6 +584,11 @@ export function partsTexts(p) {
   (Array.isArray(g.skills) ? g.skills : []).forEach((s, i) => isObj(s) && ['id', 'skill', 'words'].forEach(k => add(`skill ${i + 1}`, s[k])));
   (Array.isArray(g.links) ? g.links : []).forEach((l, i) => isObj(l) && add(`link ${i + 1}`, l.when));
   (Array.isArray(p.lenses) ? p.lenses : []).forEach((r, i) => isObj(r) && ['label', 'asks'].forEach(k => add(`lenses row ${i + 1}`, r[k])));
-  (Array.isArray(p.qualities) ? p.qualities : []).forEach((q, i) => isObj(q) && ['quality', 'measure'].forEach(k => add(`qualities row ${i + 1}`, q[k])));
+  (Array.isArray(p.qualities) ? p.qualities : []).forEach((q, i) => {
+    if (!isObj(q)) return;
+    ['quality', 'measure', 'enough'].forEach(k => add(`qualities row ${i + 1}`, q[k]));
+    (Array.isArray(q.enoughCosts) ? q.enoughCosts : []).forEach(c => add(`qualities row ${i + 1}`, c));
+  });
+  (Array.isArray(p.costLimits) ? p.costLimits : []).forEach((c, i) => isObj(c) && ['cost', 'counted', 'limit', 'atLimit'].forEach(k => add(`cost limits row ${i + 1}`, c[k])));
   return out;
 }

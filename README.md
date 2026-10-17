@@ -89,7 +89,7 @@ Each lens is offered with a one-line why, and I say yes or no. Each lens runs fr
 
 </details>
 
-The rules file also lists the qualities that matter in my work, each with how it is measured and the lenses that check it; a lens checks the rows it is handed against their measures, and a project may list its own.
+The rules file also lists the qualities that matter in my work, each with how it is measured and the lenses that check it; a lens checks the rows it is handed against their measures, and a project may list its own. A Cost limits part says what the work may spend to reach them, such as tests added or follow-up issues; each quality names the costs it answers to, and a cost holds back exactly the lenses of the qualities that name it.
 
 Their reports go into the work's record word for word. The agent sorts the findings and acts on its recommendation for each, and I can reverse any of them. Whether the work is done is my call.
 

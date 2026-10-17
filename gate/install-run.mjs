@@ -183,6 +183,8 @@ async function main() {
   // Before every other warning (#262, S8). A project install never edits a part.
   const securityLine = project ? null : core.securityDefaultsLine(parsed, record);
   if (securityLine) say(securityLine);
+  const enoughNote = project ? null : core.enoughNoteLine(parsed, rendered.toString('utf8'));
+  if (enoughNote) say(enoughNote);
 
   // A project install ends here, never reaching the home copy, delete,
   // settings merge or record. The renderer runs again in project mode, the
