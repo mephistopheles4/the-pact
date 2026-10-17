@@ -19,7 +19,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { test } from 'node:test';
 import { tokens } from './tables.mjs';
-import { REPO } from './text.mjs';
+import { REPO, skipUnlessLinuxCi } from './text.mjs';
 
 const WORKFLOWS = join(REPO, '.github', 'workflows');
 const WORKFLOW = join(WORKFLOWS, 'gate.yml');
@@ -50,8 +50,8 @@ function lockdownProblems(src) {
   if (!/env -u NODE_OPTIONS node gate\/install\.mjs --claude-home "\$RUNNER_TEMP\/pact-home"/.test(code)) out.push('does not run the install dry run');
   if (!/^ {8}run: env -u NODE_OPTIONS node gate\/tests\/run\.mjs full$/m.test(code)) out.push('does not run the full tier');
   // #310: an if: skips the gate, and a skipped required check counts as passing; continue-on-error keeps a failed gate green.
-  if (/^\s*(?:- )?if\s*:/m.test(code)) out.push('lets the gate job or a step be skipped');
-  if (/^\s*(?:- )?continue-on-error\s*:/m.test(code)) out.push('lets the gate carry on after an error');
+  if (/(?:^\s*(?:- )?|[{,]\s*)['"]?if['"]?\s*:/m.test(code)) out.push('lets the gate job or a step be skipped');
+  if (/(?:^\s*(?:- )?|[{,]\s*)['"]?continue-on-error['"]?\s*:/m.test(code)) out.push('lets the gate carry on after an error');
   if (!/^ {2}pull_request:\s*$/m.test(code) || !/^ {2}push:\n {4}branches: \[main\]$/m.test(code)) out.push('does not run on every pull request and every push to main');
   return out;
 }
@@ -331,9 +331,12 @@ for (const [label, plant, says] of [
   ['runs the fast tier instead', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs fast'), 'does not run the full tier'],
   ['narrows the full tier', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs full --list'), 'does not run the full tier'],
   ['drops the pull_request trigger', s => s.replace('  pull_request:\n', ''), 'does not run on every pull request and every push to main'],
-  // #310: one plant on the job, one on the gate-suite step.
+  // #310 C1, C2: each key planted on the job and on the gate-suite step.
   ['skips the gate job on a condition', s => s.replace('    timeout-minutes: 30\n', "    timeout-minutes: 30\n    if: github.actor != 'x'\n"), 'lets the gate job or a step be skipped'],
   ['carries on after the gate suite fails', s => s.replace('      - name: Gate suite, full tier\n', '      - name: Gate suite, full tier\n        continue-on-error: true\n'), 'lets the gate carry on after an error'],
+  ['skips the gate-suite step on a condition', s => s.replace('      - name: Gate suite, full tier\n', '      - if: false\n        name: Gate suite, full tier\n'), 'lets the gate job or a step be skipped'],
+  ['skips the gate job under a quoted key', s => s.replace('    timeout-minutes: 30\n', "    timeout-minutes: 30\n    'if': github.actor != 'x'\n"), 'lets the gate job or a step be skipped'],
+  ['carries on after the gate job fails', s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    continue-on-error: true\n'), 'lets the gate carry on after an error'],
   ['drops the push trigger', s => s.replace('  push:\n    branches: [main]\n', ''), 'does not run on every pull request and every push to main'],
 ]) {
   test(`bad case: the workflow lockdown check catches a workflow that ${label}`, () => {
@@ -477,4 +480,15 @@ test('dependabot keeps the pinned actions current, holding a release back two we
   const src = readFileSync(join(REPO, '.github', 'dependabot.yml'), 'utf8');
   assert.match(src, /package-ecosystem: github-actions/);
   assert.match(src, /default-days: 14/);
+});
+
+// #311 C4: on Linux under CI a wrong environment fails the test; anywhere else it skips.
+test('skipUnlessLinuxCi fails on Linux under CI and skips elsewhere', () => {
+  const skips = [];
+  const t = { skip: r => skips.push(r) };
+  assert.throws(() => skipUnlessLinuxCi(t, 'why', { platform: 'linux', ci: 'true' }), /Linux CI must run this case, but: why/);
+  assert.deepEqual(skips, []);
+  skipUnlessLinuxCi(t, 'a', { platform: 'linux', ci: undefined });
+  skipUnlessLinuxCi(t, 'b', { platform: 'win32', ci: 'true' });
+  assert.deepEqual(skips, ['a', 'b']);
 });

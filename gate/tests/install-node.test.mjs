@@ -7,9 +7,9 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitAll, git, home, install, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, skipUnlessLinuxCi, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
+import { commitAll, git, home, install, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
-import { withoutOpenMarks } from './text.mjs';
+import { skipUnlessLinuxCi, withoutOpenMarks } from './text.mjs';
 
 const edit = (root, rel, from, to) => {
   const p = join(root, ...rel.split('/'));
@@ -381,13 +381,16 @@ test('node: a settings file other accounts can read draws a warning, and --apply
   const h = home(t);
   const sf = join(h, 'settings.json');
   writeFileSync(sf, '{}\n');
-  chmodSync(sf, 0o644);
+  // 0664, which the usual umask would not give a new file by chance.
+  chmodSync(sf, 0o664);
   const r = install(repo, h);
   passed(r);
   assert.match(r.stdout, /^WARN: settings\.json can be read by other accounts on this machine; .*\(chmod 600\)\.$/m);
   // #311: --apply rewrites the settings file and keeps the mode it found.
-  passed(install(repo, h, { apply: true }));
-  assert.equal(statSync(sf).mode & 0o777, 0o644);
+  const applied = install(repo, h, { apply: true });
+  passed(applied);
+  assert.match(applied.stdout, /^merged settings\.json$/m);
+  assert.equal(statSync(sf).mode & 0o777, 0o664);
   chmodSync(sf, 0o600);
   const again = install(repo, h);
   passed(again);

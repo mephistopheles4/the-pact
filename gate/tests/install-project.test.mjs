@@ -10,8 +10,9 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
-import { git, install, makeRepo, refused, skipUnlessLinuxCi, WIN, wrapCheck } from './install-harness.mjs';
+import { git, install, makeRepo, refused, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
+import { skipUnlessLinuxCi } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
