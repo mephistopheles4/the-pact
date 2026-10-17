@@ -199,7 +199,7 @@ async function main() {
     const projectFile = join(projectOut, 'pact-project.md');
     const entries = io.folderEntries(projectOut);
     core.checkProjectOutput(entries, entries.length === 1 && entries[0].file ? io.fileSha256(projectFile) : null, pr.projectHash);
-    // A project's own qualities list leads the warnings (#262 S25).
+    // A project's own qualities list and Cost limits lead the warnings, then the note line (#262 S25, #278).
     const projectSecurity = core.projectSecurityLine(pr);
     if (projectSecurity) say(projectSecurity);
     const projectNote = core.projectNoteLine(pr);

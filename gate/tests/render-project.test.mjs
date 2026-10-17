@@ -136,15 +136,15 @@ test('bad case: a project file with an edit refuses, even an empty edit list', t
   refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"usage-pause": 60}, "edits": []}\n')), 'project-edit');
 });
 
-for (const [label, content, rule] of [
-  ['another top-level key', '{"schema": 1, "settings": {"usage-pause": 60}, "notes": "x"}\n', 'project-key'],
+for (const [label, content, rule, reason] of [
+  ['another top-level key', '{"schema": 1, "settings": {"usage-pause": 60}, "notes": "x"}\n', 'project-key', /qualities or costLimits/],
   ['an unknown setting', '{"schema": 1, "settings": {"usage-pause": 60, "other": 1}}\n', 'project-settings'],
   ['a value of the wrong type', '{"schema": 1, "settings": {"usage-pause": "60"}}\n', 'project-value'],
   ['a value out of range', '{"schema": 1, "settings": {"usage-pause": -1}}\n', 'project-value'],
   ['a fraction', '{"schema": 1, "settings": {"usage-pause": 60.5}}\n', 'project-value'],
   ['an unknown schema', '{"schema": 2, "settings": {"usage-pause": 60}}\n', 'project-schema'],
   ['no value at all', '{"schema": 1, "settings": {}}\n', 'project-empty'],
-  ['no settings', '{"schema": 1}\n', 'project-empty'],
+  ['no settings', '{"schema": 1}\n', 'project-empty', /no qualities and no costLimits/],
   ['malformed JSON', '{"schema": 1,\n', 'project-json'],
   ['a key given twice', '{"schema": 1, "settings": {"usage-pause": 60, "Usage-Pause": 10}}\n', 'project-json'],
   ['a list, not an object', '[1]\n', 'project-json'],
@@ -152,7 +152,7 @@ for (const [label, content, rule] of [
   ['a carriage return', '{"schema": 1,\r\n "settings": {"usage-pause": 60}}\n', 'characters'],
 ]) {
   test(`bad case: a project file with ${label} refuses`, t => {
-    refusedWith(render(t, userHome(t), project(t, content)), rule);
+    refusedWith(render(t, userHome(t), project(t, content)), rule, reason);
   });
 }
 
@@ -227,11 +227,11 @@ for (const c of table('render project qualities', {
 
 const C_ROWS = [
   { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'A trade-off for me' },
-  { cost: 'Hardening', counted: 'Guards for paths that are not security findings', limit: '0', atLimit: '' },
+  { cost: ' Hardening ', counted: 'Guards for paths that are not security findings', limit: '0', atLimit: '' },
 ];
 const EQ_ROWS = [
   { quality: 'Functional suitability', measure: 'the acceptance claims', lenses: ['behaviour-lens'], enoughCosts: ['Tests added'] },
-  { quality: 'Security', measure: 'ASVS 5.0 level 1', lenses: ['adversarial-lens'], enough: 'ASVS L1', enoughCosts: [' hardening '] },
+  { quality: 'Security', measure: 'ASVS 5.0 level 1', lenses: ['adversarial-lens'], enough: ' ASVS L1 ', enoughCosts: [' hardening ', 'HARDENING'] },
   { quality: 'Compatibility', measure: '', lenses: ['conventions-lens'] },
 ];
 const cFile = (costLimits, qualities = EQ_ROWS, extra = {}) => `${JSON.stringify({ schema: 1, ...extra, qualities, costLimits })}\n`;
@@ -244,7 +244,7 @@ function homeFixedText() {
   return rules.slice(from, rules.indexOf('\n\n*Scriptorium builds this.*', from));
 }
 
-// #278 C9 (T2): a project's Cost limits replace the home list there, under the home part's own fixed text.
+// #288 C2, C7: a project's Cost limits replace the home list there, under the home part's own fixed text.
 test('a project costLimits list renders its table under the home part\'s fixed text, and an Enough column on the qualities; it reports both counts', t => {
   const pbytes = Buffer.from(cFile(C_ROWS));
   const r = render(t, userHome(t), project(t, pbytes));
@@ -261,7 +261,7 @@ test('a project costLimits list renders its table under the home part\'s fixed t
     '| Quality | Measure | Lens | Enough |',
     '| --- | --- | --- | --- |',
     '| Functional suitability | the acceptance claims | `behaviour-lens` | Tests added |',
-    '| Security | ASVS 5.0 level 1 | `adversarial-lens` | ASVS L1 · Hardening |',
+    '| Security | ASVS 5.0 level 1 | `adversarial-lens` | ASVS L1 · Hardening |', // the spelling is the cost row's, trimmed, and a repeat shows once
     '| Compatibility |  | `conventions-lens` |  |',
     '',
     '## Cost limits for this project',
@@ -282,32 +282,37 @@ test('a project costLimits list renders its table under the home part\'s fixed t
   assert.ok(r.stdout.indexOf('QUALITIES 3') < r.stdout.indexOf('COST-LIMITS 2'), 'COST-LIMITS follows QUALITIES');
 });
 
-// #278 C10 (T2): Enough on a project quality alone, with a level and no cost.
+// #288 C1: Enough on a project quality alone, with a level and no cost.
 test('a project quality may carry an Enough level and no cost, with no costLimits key; the Enough column appears only when some row sets one', t => {
-  const withLevel = render(t, userHome(t), project(t, qRow({ enough: 'ASVS L1' })));
+  const withLevel = render(t, userHome(t), project(t, qRow({ enough: 'ASVS | L1' })));
   assert.equal(withLevel.code, 0, withLevel.out);
-  assert.ok(withLevel.bytes.toString('utf8').split('\n').includes('| Performance efficiency | p95 under 200 ms on checkout | `behaviour-lens` | ASVS L1 |'), withLevel.bytes.toString('utf8'));
+  assert.ok(withLevel.bytes.toString('utf8').split('\n').includes('| Performance efficiency | p95 under 200 ms on checkout | `behaviour-lens` | ASVS \\| L1 |'), withLevel.bytes.toString('utf8'));
   assert.doesNotMatch(withLevel.stdout, /COST-LIMITS/);
   assert.doesNotMatch(withLevel.bytes.toString('utf8'), /Cost limits/);
 });
 
-// #278 C11 (T2): a configuration from before the change renders as it did.
-test('a project qualities list with no Enough field renders the three-column table it did before, and a costLimits key adds nothing to it', t => {
+// #288 C12: a configuration from before the change renders as it did.
+test('a project qualities list with no Enough field renders the three-column table it did before; a costLimits key, or a blank level, does not add the column', t => {
   const r = render(t, userHome(t), project(t, qFile(Q_ROWS)));
   assert.equal(r.code, 0, r.out);
   assert.match(r.bytes.toString('utf8'), /^\| Quality \| Measure \| Lens \|$/m);
   assert.doesNotMatch(r.bytes.toString('utf8'), /Enough|Cost limits/);
   assert.doesNotMatch(r.stdout, /COST-LIMITS/);
+  const withCosts = render(t, userHome(t), project(t, cFile(C_ROWS, Q_ROWS)));
+  assert.equal(withCosts.code, 0, withCosts.out);
+  assert.match(withCosts.bytes.toString('utf8'), /^\| Quality \| Measure \| Lens \|$/m, 'no row sets an Enough: no column');
+  assert.match(withCosts.bytes.toString('utf8'), /^## Cost limits for this project$/m);
+  assert.doesNotMatch(render(t, userHome(t), project(t, qRow({ enough: '   ' }))).bytes.toString('utf8'), /Enough/, 'a blank level sets nothing');
 });
 
-// #278 C12 (T2): the project's rows replace the home list; its text is the home part's text, not a copy that can drift.
+// #288 C2: the project's rows replace the home list, under a copy of the home part's fixed text held equal to it, byte for byte.
 test('the fixed text a project\'s Cost limits render under is the home part\'s, byte for byte', t => {
   const out = render(t, userHome(t), project(t, cFile(C_ROWS))).bytes.toString('utf8');
   assert.ok(out.includes(`\n${homeFixedText()}\n`), 'the home part\'s fixed text appears whole');
   assert.ok(homeFixedText().length > 1500, 'the extract found the whole text');
 });
 
-// #278 C13..C20 (T2): each shape or reference refusal, with its rule id, and nothing written.
+// #288 C3, C4, C5, C6, C9: each shape or reference refusal, with its rule id, and nothing written.
 for (const c of table('render project cost limits', {
   module: 'gate/render.mjs',
   base: () => ({ project: cFile(C_ROWS) }),
@@ -333,6 +338,7 @@ for (const c of table('render project cost limits', {
     { id: 'not-a-list', plant: () => ({ project: cFile({ cost: 'x' }) }), fails: ['project-cost-limits'], why: 'a list' },
     { id: 'accepted-risks-key', plant: () => ({ project: cFile(C_ROWS, EQ_ROWS, { acceptedRisks: [] }) }), fails: ['project-key'], why: 'accepted risks live only in a threat model' },
     { id: 'enough-line-break', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enough: 'a\nb' }]) }), fails: ['project-qualities'], why: 'a level is one line' },
+    { id: 'enough-costs-blank-name', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: ['  '] }]) }), fails: ['project-qualities'], why: 'a name in enoughCosts is text' },
     { id: 'enough-costs-not-list', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: 'Tests added' }]) }), fails: ['project-qualities'], why: 'a list of names' },
   ],
 })) test(c.name, c.fn);

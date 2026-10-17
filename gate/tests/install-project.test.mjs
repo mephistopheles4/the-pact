@@ -162,11 +162,12 @@ test('a project with only a qualities list installs its table, and the dry run n
   const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', projectHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.match(readFileSync(join(proj, ...RULES), 'utf8'), /^\| Security \| ASVS 5\.0 level 2 \| `adversarial-lens`, `data-lens` \|$/m);
-  // #278 C15 (T2): with its own qualities and no costLimits, the home Cost limits bind none of them there; the dry run says so, once.
-  assert.equal(lines[at + 1], "NOTE: the project configuration sets its own qualities list and no Cost limits, so your Cost limits reach none of its qualities; add costLimits, and name them in each quality's enoughCosts, to hold a lens back.", dry.out);
+  // #288 C11: with its own qualities and no costLimits, the home Cost limits bind none of them there; the dry run says so, once.
+  assert.equal(lines[at + 1], "NOTE: the project configuration sets its own qualities list and no Cost limits, so your Cost limits reach none of its qualities; add costLimits, and name them in the enoughCosts of each quality they should hold back.", dry.out);
+  assert.equal(lines.filter(l => l.startsWith('NOTE: the project configuration sets its own qualities')).length, 1, 'the note shows once');
 });
 
-// #278 C16 (T2): a project with its own Cost limits installs end to end; the dry run names them with their row count and has no note.
+// #288 C10, C13: a project with its own Cost limits installs end to end; the dry run names them with their row count and has no note.
 test('a project with a qualities list and costLimits installs both tables, and the dry run names the Cost limits with their row count', t => {
   const repo = makeRepo(t);
   const { homeDir, ch } = layout(t);
@@ -175,13 +176,14 @@ test('a project with a qualities list and costLimits installs both tables, and t
   writeFileSync(join(proj, '.claude', 'pact-config.json'), `${JSON.stringify({
     schema: 1,
     qualities: [{ quality: 'Security', measure: 'ASVS 5.0 level 1', lenses: ['adversarial-lens'], enough: 'ASVS L1', enoughCosts: ['Hardening'] }],
-    costLimits: [{ cost: 'Hardening', counted: 'Guards beyond the threat model', limit: '0', atLimit: 'Reported, never built unasked' }, { cost: 'Tests added' }],
+    // Nine rows, the cap: the render and the installer's one-digit count both take the top of the range.
+    costLimits: [{ cost: 'Hardening', counted: 'Guards beyond the threat model', limit: '0', atLimit: 'Reported, never built unasked' }, { cost: 'Tests added' }, ...Array.from({ length: 7 }, (_, i) => ({ cost: `Cost ${i + 3}` }))],
   })}\n`);
   const dry = projInstall(repo, ch, proj);
   assert.equal(dry.code, 0, dry.out);
   const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
   const at = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
-  assert.equal(lines[at], "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (1 row) and its own Cost limits (2 rows), which take the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.", dry.out);
+  assert.equal(lines[at], "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (1 row) and its own Cost limits (9 rows), which take the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.", dry.out);
   assert.equal(lines.findIndex(l => l.includes('WARN')), at, 'no warning comes before it');
   assert.ok(!dry.stdout.includes('reach none of its qualities'), 'Cost limits are set: no note');
   const r = projInstall(repo, ch, proj, { apply: true, extra: ['--rendered-hash', projectHash(dry)] });

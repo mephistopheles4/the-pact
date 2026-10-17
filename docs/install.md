@@ -169,7 +169,9 @@ parts:
   A project with its own `qualities` and no `costLimits` gets a `NOTE:` line
   after it: your cost limits reach none of its qualities there. Each quality
   row may carry `enough` and `enoughCosts`, and an `enoughCosts` name must
-  find a cost row in that project's own `costLimits`. A project's `costLimits`
+  find a cost row in that project's own `costLimits`. A cost row holds `cost`,
+  and may hold `counted`, `limit` and `atLimit`, each one line of text with no
+  bar; names match ignoring case and surrounding space. A project's `costLimits`
   refuses without its `qualities`, and an `acceptedRisks` key is refused as
   any other key is: accepted risks live only in a threat model.
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and
@@ -416,7 +418,7 @@ sets an agent's model to anything but `opus` or `sonnet`, its effort above
 `high`, or any setting for `scout`, so take those out first. A pact from
 before #278 also refuses an edit to `cost-limits`, and an older builder refuses
 a builder file that holds a `costLimits` key or an Enough on a quality row.
-It also refuses a project configuration with a `costLimits` key (`project-key`)
+A pact from before #278 also refuses a project configuration with a `costLimits` key (`project-key`)
 or a quality row with `enough` or `enoughCosts` (`project-qualities`).
 It does not refuse a Qualities block with an Enough column: it installs that
 text as written, and the column then names costs no part defines, which an

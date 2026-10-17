@@ -624,13 +624,15 @@ export function parseProjectRenderLines(lines, hash) {
  * The project dry run's security-defaults line (#262 S25, #278), or null: a
  * project's own qualities list, and its own Cost limits, take the place of the
  * person's in that repo, so they are the project settings that can loosen a
- * default. Printed before every other warning. Cost limits need a qualities
- * list, so the render never reports them alone.
+ * default. Printed before every other warning. The render refuses Cost limits
+ * without a qualities list (`project-cost-limits-alone`); this line names
+ * whichever of the two it is told, so it never goes quiet on a Cost limits list.
  */
 export function projectSecurityLine(parsed) {
-  if (!parsed.qualities) return null;
+  if (!parsed.qualities && !parsed.costLimits) return null;
   const rows = n => `${n} row${n === 1 ? '' : 's'}`;
-  const sets = parsed.costLimits ? `its own qualities list (${rows(parsed.qualities)}) and its own Cost limits (${rows(parsed.costLimits)}), which take` : `its own qualities list (${rows(parsed.qualities)}), which takes`;
+  const lists = [parsed.qualities && `its own qualities list (${rows(parsed.qualities)})`, parsed.costLimits && `its own Cost limits (${rows(parsed.costLimits)})`].filter(Boolean);
+  const sets = `${lists.join(' and ')}, which ${lists.length > 1 ? 'take' : 'takes'}`;
   return `WARN: SECURITY DEFAULTS: the project configuration sets ${sets} the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.`;
 }
 
@@ -642,7 +644,7 @@ export function projectSecurityLine(parsed) {
  */
 export function projectNoteLine(parsed) {
   if (!parsed.qualities || parsed.costLimits) return null;
-  return "NOTE: the project configuration sets its own qualities list and no Cost limits, so your Cost limits reach none of its qualities; add costLimits, and name them in each quality's enoughCosts, to hold a lens back.";
+  return "NOTE: the project configuration sets its own qualities list and no Cost limits, so your Cost limits reach none of its qualities; add costLimits, and name them in the enoughCosts of each quality they should hold back.";
 }
 
 /** The project render's output (J3): exactly its rules file, a plain file of at most 64 KiB, holding the reported hash. */

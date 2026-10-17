@@ -282,9 +282,10 @@ const PROJECT_SHOWN = '.claude/pact-config.json';
 const PROJECT_NAMES = Object.freeze(["the project's .claude folder", 'the project configuration file']);
 const PROJECT_TOP_KEYS = Object.freeze(['schema', 'settings', 'qualities', 'costLimits']);
 const PROJECT_OUTPUT_NAME = 'pact-project.md';
-// A project's own qualities list (#262 S25, from #273): the one thing a
-// project may set that is not a tighter value. Its table is compiled here from
-// the rows' three fields under fixed text. Which qualities and measures a
+// A project's own qualities list (#262 S25, from #273): one of the two things
+// a project may set that is not a tighter value; the other is its costLimits
+// (#278). Its table is compiled here from the rows' three fields, and an
+// optional Enough, under fixed text. Which qualities and measures a
 // project lists is the owner's to judge; each field only has to stay on one
 // line, so the table stays a table.
 const QUALITY_FIELDS = Object.freeze(['quality', 'measure', 'lenses']);
@@ -294,7 +295,7 @@ const QUALITY_OPTIONAL = Object.freeze(['enough', 'enoughCosts']);
 const COST_FIELDS = Object.freeze(['cost', 'counted', 'limit', 'atLimit']);
 const oneLine = v => typeof v === 'string' && !/[\r\n]/.test(v);
 const named = v => oneLine(v) && v.trim() !== '';
-// A bar in a field would start a new cell, so it is escaped, backslashes first: the table stays three columns.
+// A bar in a field would start a new cell, so it is escaped, backslashes first: the table keeps its columns.
 const cell = v => v.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 // At most one row per quality: the install reads the count as one digit.
 const QUALITIES_MAX = 9;
@@ -344,7 +345,7 @@ lenses of every quality whose Enough names it.
 
 // At most nine cost rows, like the qualities: the install reads the count as one digit.
 const COST_LIMITS_MAX = 9;
-const enoughCell = q => [q.enough, ...q.enoughCosts].filter(v => v).join(' · ');
+const enoughCell = q => [q.enough.trim(), ...q.enoughCosts].filter(v => v).join(' · ');
 const PROJECT_TEMPLATE = (lines, qualities = null, costLimits = null) => {
   const enough = qualities?.some(q => enoughCell(q));
   return [
@@ -431,7 +432,7 @@ function checkProjectCostLimits(v, fail) {
       ok = false;
     } else {
       seen.add(costKey(r.cost));
-      out.push({ cost: r.cost, counted: r.counted ?? '', limit: r.limit ?? '', atLimit: r.atLimit ?? '' });
+      out.push({ cost: r.cost.trim(), counted: r.counted ?? '', limit: r.limit ?? '', atLimit: r.atLimit ?? '' });
     }
   });
   return ok ? out : null;
@@ -446,12 +447,13 @@ function resolveEnoughCosts(qualities, costLimits, fail) {
   const byKey = new Map((costLimits ?? []).map(c => [costKey(c.cost), c.cost]));
   let ok = true;
   qualities.forEach((q, i) => {
-    q.enoughCosts = q.enoughCosts.flatMap(n => {
+    // A cost named twice in one cell (by case or space) shows once.
+    q.enoughCosts = [...new Set(q.enoughCosts.flatMap(n => {
       if (byKey.has(costKey(n))) return [byKey.get(costKey(n))];
       fail('project-enough-cost', `qualities row ${i + 1}: enoughCosts names ${JSON.stringify(n.trim())}, which is not a cost in this project's costLimits`);
       ok = false;
       return [];
-    });
+    }))];
   });
   return ok;
 }
@@ -1236,6 +1238,7 @@ function checkProject(buf, effective, report) {
     fail('project-cost-limits-alone', 'costLimits needs qualities: a project that sets its own Cost limits sets its own qualities too');
     ok = false;
   }
+  // A refused costLimits skips the name check, so its refusal is not echoed once for every Enough name.
   if (qualities && (costLimits || !Object.hasOwn(doc, 'costLimits')) && !resolveEnoughCosts(qualities, costLimits, fail)) ok = false;
   if (ok && !values.length && !qualities && !costLimits) {
     fail('project-empty', 'the project configuration sets no value, no qualities and no costLimits, so there is nothing to install');
