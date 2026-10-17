@@ -802,7 +802,9 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
 - **The input rules.** The repo, login, numbers, branch names and labels
   must each match a fixed shape (`input/*`); options are checked per surface
   (`usage/*`); the body and title files are read strictly: a regular file,
-  not a link, size-bounded, valid UTF-8 (`file/*`, `text/*`). The content
+  not a link, size-bounded, valid UTF-8 (`file/*`), with the body and title bounded in length and the
+  title one line (`text/body-length`, `text/title-lines`,
+  `text/title-length`). The content
   scans and the table check that follow are the backstop R3, R13 and R29
   name.
 
