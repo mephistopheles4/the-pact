@@ -381,6 +381,14 @@ for (const c of table('project render lines', {
     { id: 'cost-limits-twice', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS 2\nRESULT'), fails: ['project-render-two-cost-limits'], why: 'one Cost limits list' },
     { id: 'cost-limits-zero', plant: rep('RESULT', 'COST-LIMITS 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'a list holds a row' },
     { id: 'cost-limits-too-many', plant: rep('RESULT', 'COST-LIMITS 10\nRESULT'), fails: ['project-render-unknown-line'], why: 'at most nine rows, as the render caps them' },
+    // #299 C4: the places of the cost rows no quality names: once, with a Cost limits list, ascending, within its count.
+    { id: 'unnamed-twice', plant: rep('RESULT', 'COST-LIMITS 4\nCOST-LIMITS-UNNAMED 2\nCOST-LIMITS-UNNAMED 3\nRESULT'), fails: ['project-render-two-unnamed'], why: 'one unnamed-rows line' },
+    { id: 'unnamed-no-cost-limits', plant: rep('RESULT', 'COST-LIMITS-UNNAMED 1\nRESULT'), fails: ['project-render-unnamed-no-cost-limits'], why: 'no Cost limits list to point into' },
+    { id: 'unnamed-out-of-order', plant: rep('RESULT', 'COST-LIMITS-UNNAMED 3 2\nCOST-LIMITS 4\nRESULT'), fails: ['project-render-unnamed-order'], why: 'ascending, whatever the line order' },
+    { id: 'unnamed-repeated', plant: rep('RESULT', 'COST-LIMITS 4\nCOST-LIMITS-UNNAMED 2 2\nRESULT'), fails: ['project-render-unnamed-order'], why: 'a position once' },
+    { id: 'unnamed-past-count', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS-UNNAMED 1 3\nRESULT'), fails: ['project-render-unnamed-range'], why: 'no position past the last cost row' },
+    { id: 'unnamed-zero', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS-UNNAMED 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'positions start at 1' },
+    { id: 'unnamed-empty', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS-UNNAMED\nRESULT'), fails: ['project-render-unknown-line'], why: 'a line with no positions is not the line' },
   ],
 })) test(c.name, c.fn);
 
@@ -403,6 +411,24 @@ test('the project render with Cost limits and no value passes; the security-defa
   assert.equal(core.projectSecurityLine(old), "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (3 rows), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.");
   assert.equal(core.projectNoteLine(old), "NOTE: the project configuration sets its own qualities list and no Cost limits, so your Cost limits reach none of its qualities; add costLimits, and name them in the enoughCosts of each quality they should hold back.");
   assert.equal(core.projectNoteLine(core.parseProjectRenderLines(projRenderBase().in.split('\n'), sha256)), null, 'no qualities list: no note');
+});
+
+// #299 C3, C5: the unnamed places are read as a list, and the Project block warns once, worded by the count.
+test('the project render reads the unnamed cost rows as a list, and the Project block prints one WARN line worded by how many', () => {
+  const lines = (...extra) => [`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, ...extra, 'RESULT: pass'];
+  const parse = (...extra) => core.parseProjectRenderLines(lines(...extra), sha256);
+  assert.deepEqual(parse('QUALITIES 1', 'COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2 4').unnamedCosts, [2, 4]);
+  assert.deepEqual(parse('QUALITIES 1', 'COST-LIMITS 4').unnamedCosts, [], 'no line: an empty list');
+  assert.deepEqual(parse('QUALITIES 1', 'COST-LIMITS 9', 'COST-LIMITS-UNNAMED 1 2 3 4 5 6 7 8 9').unnamedCosts, [1, 2, 3, 4, 5, 6, 7, 8, 9], 'up to the count');
+  const warns = (...extra) => core.projectBlock({ kind: 'new' }, parse('QUALITIES 1', ...extra)).filter(l => l.includes('named by no quality'));
+  const tail = "named by no quality's enoughCosts, so ";
+  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2'), [`  WARN: the project configuration's Cost limits row 2 is ${tail}it holds back no lens; name it in the enoughCosts of a quality it should hold back, or take it out.`]);
+  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2 4'), [`  WARN: the project configuration's Cost limits rows 2 and 4 are ${tail}they hold back no lens; name each in the enoughCosts of a quality it should hold back, or take it out.`]);
+  assert.deepEqual(warns('COST-LIMITS 7', 'COST-LIMITS-UNNAMED 2 4 7'), [`  WARN: the project configuration's Cost limits rows 2, 4 and 7 are ${tail}they hold back no lens; name each in the enoughCosts of a quality it should hold back, or take it out.`]);
+  assert.deepEqual(warns('COST-LIMITS 4'), [], 'none unnamed: no line');
+  const block = core.projectBlock({ kind: 'new' }, parse('QUALITIES 1', 'RETIRED-NAME qualities good-enough-lens', 'COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2'));
+  const at = block.findIndex(l => l.includes('row 2 is'));
+  assert.ok(block.findIndex(l => l.includes('retired')) < at && at < block.length - 1, 'after the retired-name warnings, before the closing line');
 });
 
 // #262 C21, C22: a project with only a qualities list renders, and its dry run leads with the security-defaults line.

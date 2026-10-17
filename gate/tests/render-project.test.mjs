@@ -282,6 +282,23 @@ test('a project costLimits list renders its table under the home part\'s fixed t
   assert.ok(r.stdout.indexOf('QUALITIES 3') < r.stdout.indexOf('COST-LIMITS 2'), 'COST-LIMITS follows QUALITIES');
 });
 
+// #299 C1, C2: the render reports the places of the cost rows no quality names, digits only, and only when there are some.
+test('a project cost row no quality names is reported by position after COST-LIMITS; a project that names every row, or has no costLimits, reports none', t => {
+  const rows = ['Alpha', 'MARKERBRAVO', 'Charlie', 'MARKERDELTA'].map(cost => ({ cost }));
+  const q = enoughCosts => [{ quality: 'Security', measure: '', lenses: ['adversarial-lens'], enoughCosts }];
+  const r = render(t, userHome(t), project(t, cFile(rows, q([' ALPHA ', 'charlie']))));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^COST-LIMITS 4\r?\nCOST-LIMITS-UNNAMED 2 4\r?$/m, 'the line follows COST-LIMITS');
+  assert.doesNotMatch(r.stdout, /MARKER/, 'no report line holds a cost text');
+  const none = render(t, userHome(t), project(t, cFile(rows, q([]))));
+  assert.match(none.stdout, /^COST-LIMITS-UNNAMED 1 2 3 4\r?$/m, 'no quality names a cost: every row');
+  const all = render(t, userHome(t), project(t, cFile(rows, q(['Alpha', 'MARKERBRAVO', 'Charlie', 'MARKERDELTA']))));
+  assert.equal(all.code, 0, all.out);
+  assert.match(all.stdout, /^COST-LIMITS 4\r?$/m);
+  assert.doesNotMatch(all.stdout, /UNNAMED/, 'every row named: no line');
+  assert.doesNotMatch(render(t, userHome(t), project(t, qFile(Q_ROWS))).stdout, /UNNAMED/, 'no costLimits: no line');
+});
+
 // #288 C1: Enough on a project quality alone, with a level and no cost.
 test('a project quality may carry an Enough level and no cost, with no costLimits key; the Enough column appears only when some row sets one', t => {
   const withLevel = render(t, userHome(t), project(t, qRow({ enough: 'ASVS | L1' })));
