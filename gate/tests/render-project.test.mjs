@@ -299,6 +299,20 @@ test('a project cost row no quality names is reported by position after COST-LIM
   assert.doesNotMatch(render(t, userHome(t), project(t, qFile(Q_ROWS))).stdout, /UNNAMED/, 'no costLimits: no line');
 });
 
+// #318 C2: an Enough level counts as naming the cost row it equals, ignoring case and surrounding space.
+test('a project Enough level equal to a cost name counts that row as named; a level that names none leaves it reported', t => {
+  const rows = [{ cost: 'Alpha' }, { cost: 'Hardening', counted: 'a · b' }]; // a dot in another cost field is still allowed
+  const q = enough => [{ quality: 'Security', measure: '', lenses: ['adversarial-lens'], enough, enoughCosts: ['Alpha'] }];
+  const r = render(t, userHome(t), project(t, cFile(rows, q(' hardening '))));
+  assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.stdout, /UNNAMED/, 'the level names the second row');
+  const other = render(t, userHome(t), project(t, cFile(rows, q('ASVS L1'))));
+  assert.equal(other.code, 0, other.out);
+  assert.match(other.stdout, /^COST-LIMITS-UNNAMED 2\r?$/m);
+  const part = render(t, userHome(t), project(t, cFile(rows, q('Hardening rules'))));
+  assert.match(part.stdout, /^COST-LIMITS-UNNAMED 2\r?$/m, 'a level that only holds the cost name does not name it');
+});
+
 // #288 C1: Enough on a project quality alone, with a level and no cost.
 test('a project quality may carry an Enough level and no cost, with no costLimits key; the Enough column appears only when some row sets one', t => {
   const withLevel = render(t, userHome(t), project(t, qRow({ enough: 'ASVS | L1' })));
@@ -337,7 +351,10 @@ for (const c of table('render project cost limits', {
     const r = render(t, userHome(t), project(t, tree.project));
     return { ...moduleResult(r.code, r.stdout, r.stderr), files: readdirSync(r.dir) };
   },
-  everyRow: r => assert.deepEqual(r.files, [], 'a refused render writes no file'),
+  everyRow: r => {
+    assert.deepEqual(r.files, [], 'a refused render writes no file');
+    assert.doesNotMatch(r.out, /MARKER/, 'a refusal echoes no cost text');
+  },
   rows: [
     { id: 'without-qualities', plant: () => ({ project: `${JSON.stringify({ schema: 1, costLimits: C_ROWS })}\n` }), fails: ['project-cost-limits-alone'], why: 'every name resolves in one file' },
     { id: 'enough-cost-unknown', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: ['Linting'] }]) }), fails: ['project-enough-cost'], why: 'an Enough name finds a project cost row' },
@@ -346,6 +363,8 @@ for (const c of table('render project cost limits', {
     { id: 'cost-missing', plant: () => ({ project: cFile([{ counted: 'x' }]) }), fails: ['project-cost-limits'], why: 'a cost row has a name' },
     { id: 'unknown-field', plant: () => ({ project: cRow({ lenses: ['data-lens'] }) }), fails: ['project-cost-limits'], why: 'a cost names no lenses of its own' },
     { id: 'bar-in-field', plant: () => ({ project: cRow({ counted: 'a | b' }) }), fails: ['project-cost-limits'], why: 'a bar would start a new cell' },
+    { id: 'cost-middle-dot', plant: () => ({ project: cFile([C_ROWS[0], { ...C_ROWS[1], cost: 'MARKERA·MARKERB' }]) }), fails: ['project-cost-limits'], says: /row 2:.*middle dot/, why: 'a cost name that holds the cell separator would read as two names' },
+    { id: 'cost-middle-dot-at-end', plant: () => ({ project: cFile([C_ROWS[0], { ...C_ROWS[1], cost: 'MARKERC·' }]) }), fails: ['project-cost-limits'], says: /row 2:.*middle dot/, why: 'the separator at one end still joins the cell wrongly' },
     { id: 'line-break-in-field', plant: () => ({ project: cRow({ atLimit: 'a\n# Heading' }) }), fails: ['project-cost-limits'], why: 'a second line' },
     { id: 'field-not-text', plant: () => ({ project: cRow({ limit: 2 }) }), fails: ['project-cost-limits'], why: 'a limit is text' },
     { id: 'duplicate', plant: () => ({ project: cFile([C_ROWS[0], { ...C_ROWS[1], cost: 'Tests added' }]) }), fails: ['project-cost-limits'], why: 'one name, one row' },

@@ -139,7 +139,7 @@ how every session in every repo behaves. So:
   A quality row is a quality, a measure and a list of lenses, with an optional
   `enough` level and `enoughCosts` names; a cost row is a cost with optional
   `counted`, `limit` and `atLimit`; each field is one line, at most nine rows,
-  compiled into tables under fixed text, and the cost fields refuse a bar.
+  compiled into tables under fixed text, and the cost fields refuse a bar, and the cost name a middle dot.
   `costLimits` needs `qualities`, an `enoughCosts` name must find a cost row
   in the same file, and `acceptedRisks` is no key. The dry run leads with a
   security-defaults line for them (ADR 0068), and a note line when a project

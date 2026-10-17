@@ -185,12 +185,13 @@ parts:
   SECURITY DEFAULTS:` line saying so, with the row count of each (ADR 0068).
   A project with its own `qualities` and no `costLimits` gets a `NOTE:` line
   after it: your cost limits reach none of its qualities there. Each quality
-  row may carry `enough` (one line, no middle dot, since that joins the cell)
+  row may carry `enough`, its level (one line, no middle dot, since the Enough cell joins the level and each `enoughCosts` name with it)
   and `enoughCosts`, and an `enoughCosts` name must
   find a cost row in that project's own `costLimits`. A cost row holds `cost`,
   and may hold `counted`, `limit` and `atLimit`, each one line of text with no
-  bar; names match ignoring case and surrounding space. A cost row that no
-  quality's `enoughCosts` names gets one `WARN:` line under the dry run's
+  bar, and the cost holds no middle dot either, since that joins the Enough
+  cell; names match ignoring case and surrounding space. A cost row that no
+  quality's Enough cell names, by its `enough` level or an `enoughCosts` name, gets one `WARN:` line under the dry run's
   `Project:` heading, naming such rows by position and telling you to read them
   in the project's file; the install still goes ahead. A project's `costLimits`
   refuses without its `qualities`, and an `acceptedRisks` key is refused as
