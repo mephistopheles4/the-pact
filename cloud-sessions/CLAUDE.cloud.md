@@ -103,7 +103,7 @@ every other way out has its condition.
 | Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |
 | --- | --- | --- | --- | --- | --- | --- |
 | Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
-| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `good-enough-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
+| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
 | Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |
 | Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
 | Deploy | I decide | I decide | I decide | I decide | none | |
@@ -120,7 +120,7 @@ judgment more than rules here, more so as models improve.
 | Lens | Asks |
 | --- | --- |
 | `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail? |
-| `executability-lens`, `good-enough-lens` (the spec pair) | Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save? |
+| `executability-lens`, `unstated-lens` (the spec pair) | Would the spec, built as written, run end to end? What need did nobody write down? |
 | `unstated-lens` (the gatekeeper) | What need did nobody write down? |
 | `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |
 | `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |

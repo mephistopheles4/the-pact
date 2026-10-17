@@ -83,20 +83,6 @@
         "words": "",
         "agents": [
           "executability-lens",
-          "good-enough-lens"
-        ],
-        "on": true
-      },
-      {
-        "id": "design-unstated",
-        "stage": "design",
-        "when": "tiers",
-        "tiers": [
-          "standard",
-          "thorough"
-        ],
-        "words": "",
-        "agents": [
           "unstated-lens"
         ],
         "on": true

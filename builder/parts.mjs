@@ -115,8 +115,7 @@ export const DEFAULT_PARTS = Object.freeze({
       { id: 'maintain', name: 'Maintain', text: 'What escaped, and what to change.', model: 'plan', skipAt: [] },
     ],
     offers: [
-      { id: 'design-spec-pair', stage: 'design', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['executability-lens', 'good-enough-lens'], on: true },
-      { id: 'design-unstated', stage: 'design', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['unstated-lens'], on: true },
+      { id: 'design-spec-pair', stage: 'design', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['executability-lens', 'unstated-lens'], on: true },
       { id: 'design-security-pair', stage: 'design', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
       { id: 'test-qa-pair', stage: 'test', when: 'every-build', words: '', agents: ['behaviour-lens', 'integrity-lens'], on: true },
       { id: 'test-standards-pair', stage: 'test', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['conventions-lens', 'reader-lens'], on: true },
@@ -138,7 +137,7 @@ export const DEFAULT_PARTS = Object.freeze({
   },
   lenses: [
     { agents: ['behaviour-lens', 'integrity-lens'], label: 'the QA pair', asks: 'Does the change do what was asked? Can the tests behind the pass actually fail?' },
-    { agents: ['executability-lens', 'good-enough-lens'], label: 'the spec pair', asks: 'Would the spec, built as written, run end to end? What could be cut or deferred, and what would it save?' },
+    { agents: ['executability-lens', 'unstated-lens'], label: 'the spec pair', asks: 'Would the spec, built as written, run end to end? What need did nobody write down?' },
     { agents: ['unstated-lens'], label: 'the gatekeeper', asks: 'What need did nobody write down?' },
     { agents: ['conventions-lens', 'reader-lens'], label: 'the standards pair', asks: "Does the diff keep the repo's written rules? Can the next reader act on what it says?" },
     { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
@@ -185,6 +184,52 @@ export function upgradeParts(p) {
   // A builder file from before the cost limits (#278) has none: it takes the default.
   if (!Object.hasOwn(p, 'costLimits')) p.costLimits = copyParts(DEFAULT_PARTS.costLimits);
   return p;
+}
+
+// Agents the pact retired (#302): a saved builder file that still names one loses the name when it loads. The renderer (gate/render-core.mjs) and the install (gate/install-core.mjs) keep their own copies, which a test holds equal to each other; no test holds this one equal to them.
+export const RETIRED_AGENTS = Object.freeze(['good-enough-lens']);
+
+/**
+ * Takes every retired agent's name out of `p`, in place: the lens offers, the
+ * lens rows and the qualities' lens lists. An offer or row left with no agent
+ * goes. When the name leaves a spec pair that holds executability-lens, that
+ * pair takes unstated-lens in its place, and a separate offer of unstated-lens
+ * alone at the same stage goes, as the pact's own Design row reads (#302).
+ * Returns true when anything was taken out.
+ */
+export function dropRetired(p) {
+  let dropped = false;
+  const SPEC = 'executability-lens';
+  const SECOND = 'unstated-lens';
+  // Drops the retired names from `xs`; a list that held one and also holds SPEC takes SECOND in its place.
+  const clean = xs => {
+    if (!Array.isArray(xs)) return xs;
+    const keep = xs.filter(a => !RETIRED_AGENTS.includes(a));
+    if (keep.length === xs.length) return xs;
+    dropped = true;
+    if (keep.includes(SPEC) && !keep.includes(SECOND)) keep.push(SECOND);
+    return keep;
+  };
+  const g = isObj(p.workflowGraph) ? p.workflowGraph : null;
+  if (g && Array.isArray(g.offers)) {
+    const pairStages = new Set();
+    for (const o of g.offers) {
+      if (!isObj(o)) continue;
+      const before = Array.isArray(o.agents) ? o.agents.length : 0;
+      o.agents = clean(o.agents);
+      if (Array.isArray(o.agents) && o.agents.length > 0 && before && o.agents.includes(SPEC) && o.agents.includes(SECOND)) pairStages.add(o.stage);
+    }
+    // A separate offer of the second lens alone goes only when the pair at its stage now covers it: the same condition and tiers.
+    const same = (a, b) => a.when === b.when && JSON.stringify(a.tiers ?? null) === JSON.stringify(b.tiers ?? null);
+    const covered = o => g.offers.some(q => isObj(q) && q !== o && q.stage === o.stage && Array.isArray(q.agents) && q.agents.includes(SPEC) && q.agents.includes(SECOND) && same(q, o));
+    g.offers = g.offers.filter(o => !isObj(o) || !Array.isArray(o.agents) || (o.agents.length && !(o.agents.length === 1 && o.agents[0] === SECOND && dropped && pairStages.has(o.stage) && covered(o))));
+  }
+  if (Array.isArray(p.lenses)) {
+    for (const r of p.lenses) if (isObj(r)) r.agents = clean(r.agents);
+    p.lenses = p.lenses.filter(r => !isObj(r) || !Array.isArray(r.agents) || r.agents.length);
+  }
+  if (Array.isArray(p.qualities)) for (const q of p.qualities) if (isObj(q)) q.lenses = clean(q.lenses);
+  return dropped;
 }
 
 /**
@@ -556,12 +601,14 @@ export function partsProblems(p) {
     p.costLimits.forEach((c, i) => isObj(c) && typeof c.cost === 'string' && c.cost.trim() && !named.has(c.cost.trim().toLowerCase()) && out.push({ part: 'cost-limits', level: 'warn', text: `row ${i + 1}: no quality names this cost, so it holds back no lens` }));
   }
 
-  // A finding, never a refusal: one lens of a pair alone on an offer.
+  // A finding, never a refusal: one lens of a pair alone on an offer. A lens the roster also lists on its own row (the gatekeeper, #302) may be offered alone at Test, but only a lens the pact's own roster lists on its own row, so a row added to a file never switches the warning off.
+  const ownAlone = DEFAULT_PARTS.lenses.filter(r => r.agents.length === 1).map(r => r.agents[0]);
+  const aloneRows = (Array.isArray(p.lenses) ? p.lenses : []).filter(r => Array.isArray(r.agents) && r.agents.length === 1).map(r => r.agents[0]).filter(a => ownAlone.includes(a));
   if (!out.some(f => f.level === 'error'))
     for (const o of g.offers)
       for (const pair of rosterPairs(p)) {
         const has = pair.agents.filter(a => o.agents.includes(a)).length;
-        if (has === 1) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.label} on its own; a pair's reports are crossed, so run both or neither` });
+        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.label} on its own; a pair's reports are crossed, so run both or neither` });
       }
   return out;
 }

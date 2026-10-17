@@ -52,7 +52,7 @@
         ],
         "agents": [
           "executability-lens",
-          "good-enough-lens"
+          "unstated-lens"
         ],
         "on": true
       },

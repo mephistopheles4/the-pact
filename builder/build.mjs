@@ -48,7 +48,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
-import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, reconcileTiers, upgradeParts } from './parts.mjs';
+import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
@@ -302,10 +302,13 @@ export function loadBuilder(file, pact) {
 
   // The four parts (#262): a key the file leaves out keeps the pact's default.
   let parts = null;
+  let droppedRetired = false;
   if (PART_KEYS.some(k => Object.hasOwn(doc, k))) {
     parts = copyParts(DEFAULT_PARTS);
     for (const k of PART_KEYS) if (Object.hasOwn(doc, k)) parts[k] = doc[k];
     upgradeParts(parts);
+    // A retired agent's name goes, with a finding and a note on the page (#302).
+    if (dropRetired(parts)) droppedRetired = true;
     // Tiers from the file meet the pact's workflow when it gives none, as on the page.
     reconcileTiers(parts);
     for (const f of partsProblems(parts)) (f.level === 'error' ? refusals : findings).push(`${f.part}: ${f.text}`);
@@ -338,11 +341,16 @@ export function loadBuilder(file, pact) {
   // In a part or an agent file, an @ followed by a path is a file import to Claude Code, which pulls that file into every session. The gate no longer refuses one (ADR 0069), so it is a finding here, never a refusal.
   const IMPORT_RE = /(^|\s)@[^\s@]/;
   for (const [kind, id, text] of texts) if (!kind.startsWith('yours') && kind !== 'models' && kind !== 'title' && IMPORT_RE.test(text)) findings.push(`${kind}${id ? ` ${id}` : ''}: holds an @ followed by a path, which Claude Code reads as a file import and loads into every session; make sure that is meant`);
+  if (isObject(agentFiles) && Object.keys(agentFiles).some(n => RETIRED_AGENTS.includes(n))) {
+    for (const n of RETIRED_AGENTS) delete agentFiles[n];
+    droppedRetired = true;
+  }
+  if (droppedRetired) findings.push('names an agent the pact retired; the page takes the name out of the lens offers, lens rows, qualities and agent files, and says so');
   const listed = yours.skills.length + yours.commands.length + yours.agents.length;
   if (!listed) findings.push('yours lists no skills, commands or agents; the page\'s "Yours" section will say so');
 
   if (refusals.length) return { builder: null, refusals, findings };
-  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}) }, refusals, findings };
+  return { builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}), ...(droppedRetired ? { droppedRetired: true } : {}) }, refusals, findings };
 }
 
 /**

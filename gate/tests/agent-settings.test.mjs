@@ -214,8 +214,8 @@ function classify(t, name, opts = {}) {
 }
 
 // #262 C13: scout is set like any lens.
-test('every pact agent can be set, scout included, and the security-set ones are exactly the six the spec names; only the shell and web lenses are egress', t => {
-  assert.deepEqual(PACT_AGENTS, ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'good-enough-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
+test('every pact agent can be set, scout included, and the security-set ones are exactly the five the spec names; only the shell and web lenses are egress', t => {
+  assert.deepEqual(PACT_AGENTS, ['adversarial-lens', 'behaviour-lens', 'conventions-lens', 'data-lens', 'executability-lens', 'integrity-lens', 'reader-lens', 'scout', 'unstated-lens']);
   const got = Object.fromEntries(PACT_AGENTS.map(a => [a, classify(t, a).words]));
   assert.deepEqual(got, {
     'adversarial-lens': 'security-set override egress',
@@ -223,7 +223,6 @@ test('every pact agent can be set, scout included, and the security-set ones are
     'conventions-lens': 'plain override local',
     'data-lens': 'security-set override local',
     'executability-lens': 'security-set override local',
-    'good-enough-lens': 'security-set override local',
     'integrity-lens': 'plain override local',
     'reader-lens': 'plain override local',
     scout: 'plain override local',

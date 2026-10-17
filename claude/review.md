@@ -83,9 +83,7 @@ crossed alone.
    it. A lens whose verdict is inconclusive is marked "not verified": its
    silence is not a pass, so read what it didn't check.
 3. **Crossings first.** A table of the places both lenses flagged, with each
-   lens's findings there. Where the two lenses pull opposite ways, such as
-   what blocks against what could wait, head it **Disagreements: you settle
-   these**.
+   lens's findings there.
 4. **One lens only.** A table of where, lens, severity and headline, and
    anything else the lens gives each finding, such as a likelihood.
 5. **Trade-offs.** A table of where, lens, severity, headline, the cost or
