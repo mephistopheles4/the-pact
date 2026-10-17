@@ -1,6 +1,8 @@
 # The commit-time layer (#153, S11): every pull request and every push to
 # main runs the Node install's dry run against an empty home folder, and the
-# gate suite's fast tier, on the current Node LTS. Made a required check on
+# gate suite's full tier, on the current Node LTS. Full, not fast (#303): the
+# install tier holds Linux-only tests that Windows skips, so this job is the
+# one place they run before a merge. Made a required check on
 # main by the owner's ruleset, with GitHub Actions as its source, so main
 # can't hold a pact that fails its own install.
 #
@@ -35,5 +37,5 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/pact-home"
           env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"
-      - name: Gate suite, fast tier
-        run: env -u NODE_OPTIONS node gate/tests/run.mjs fast
+      - name: Gate suite, full tier
+        run: env -u NODE_OPTIONS node gate/tests/run.mjs full

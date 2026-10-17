@@ -1,8 +1,8 @@
 // The commit-time layer's lockdown (#153, S11): the gate workflow reads the
 // repo with a read-only token, holds no secret, never runs on
 // pull_request_target, pins every action to a full commit SHA, leaves no
-// token in the checkout, uploads nothing, and runs the dry run and the fast
-// tier on the Node floor. Every other workflow file keeps the same lockdown,
+// token in the checkout, uploads nothing, and runs the dry run and the full
+// tier, install tests included (#303), on the Node floor. Every other workflow file keeps the same lockdown,
 // and none may define a job named gate, the required check's name (#166). It
 // reads the files' text; it can't see what GitHub does with them, which the
 // S15 CI probe records.
@@ -48,7 +48,7 @@ function lockdownProblems(src) {
   if (!/uses: actions\/checkout@/.test(code)) out.push('does not check the repo out');
   if (!/node-version: '24'/.test(code)) out.push('runs another Node than the floor');
   if (!/env -u NODE_OPTIONS node gate\/install\.mjs --claude-home "\$RUNNER_TEMP\/pact-home"/.test(code)) out.push('does not run the install dry run');
-  if (!/env -u NODE_OPTIONS node gate\/tests\/run\.mjs fast/.test(code)) out.push('does not run the fast tier');
+  if (!/^ {8}run: env -u NODE_OPTIONS node gate\/tests\/run\.mjs full$/m.test(code)) out.push('does not run the full tier');
   if (!/^ {2}pull_request:\s*$/m.test(code) || !/^ {2}push:\n {4}branches: \[main\]$/m.test(code)) out.push('does not run on every pull request and every push to main');
   return out;
 }
@@ -324,7 +324,9 @@ for (const [label, plant, says] of [
   ['reads the job token', s => s.replace("node-version: '24'", "node-version: '24'\n          token: ${{ github.token }}"), 'reads a secret or the token'],
   ['reads GITHUB_TOKEN', s => s.replace('      - name: Gate suite', '      - env:\n          T: GITHUB_TOKEN\n        name: Gate suite'), 'reads a secret or the token'],
   ['caches the workspace', s => s.replace('      - name: Gate suite', '      - uses: actions/cache@0000000000000000000000000000000000000000\n      - name: Gate suite'), 'uploads or caches the workspace'],
-  ['drops the fast tier', s => s.replace(/ {8}run: env -u NODE_OPTIONS node gate\/tests\/run\.mjs fast\n?/, '        run: echo skipped\n'), 'does not run the fast tier'],
+  ['drops the full tier', s => s.replace(/ {8}run: env -u NODE_OPTIONS node gate\/tests\/run\.mjs full\n?/, '        run: echo skipped\n'), 'does not run the full tier'],
+  ['runs the fast tier instead', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs fast'), 'does not run the full tier'],
+  ['narrows the full tier', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs full --list'), 'does not run the full tier'],
   ['drops the pull_request trigger', s => s.replace('  pull_request:\n', ''), 'does not run on every pull request and every push to main'],
   ['drops the push trigger', s => s.replace('  push:\n    branches: [main]\n', ''), 'does not run on every pull request and every push to main'],
 ]) {

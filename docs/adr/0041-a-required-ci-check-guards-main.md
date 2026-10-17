@@ -2,6 +2,8 @@
 
 Superseded in part by [ADR 0063](0063-the-pact-sets-no-ask-rules-and-defers-to-the-harness.md) (2026-10-11): the pact sets no ask rules, so a session's `gh` command on rulesets or branch protection no longer prompts; only auto mode's classifier stands before one.
 
+Superseded in part by [ADR 0081](0081-ci-runs-the-full-tier.md) (2026-10-17): the workflow runs the `full` tier, so the Linux-only install tests run before every merge.
+
 A GitHub Actions workflow, `.github/workflows/gate.yml`, runs the gate on every pull request and every push to `main`. A ruleset makes its check, `gate`, required on `main`.
 
 - **What it runs,** on Ubuntu with the current Node LTS:
