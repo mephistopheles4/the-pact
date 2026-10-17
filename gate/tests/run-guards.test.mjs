@@ -182,14 +182,38 @@ test('the Linux container script starts the runner with NODE_OPTIONS cleared', (
 
 function which(cmd) {
   const r = spawnSync(WIN ? 'where.exe' : 'which', [cmd], { encoding: 'utf8' });
-  return r.status === 0 ? r.stdout.split(/\r?\n/)[0].trim() : null;
+  return r.status === 0 ? r.stdout.split(/\r?\n/).map(l => l.trim()).filter(Boolean) : [];
 }
 
 // A POSIX shell: Git's own on Windows, the system's elsewhere. The suite never
 // starts PowerShell (#210, the owner's decision), so the documented POSIX form
 // is the one run on every OS, and the PowerShell form is checked as text above.
-const GIT = WIN ? which('git') : null;
-const SH = WIN ? (GIT ? [join(dirname(GIT), '..', 'bin', 'sh.exe'), join(dirname(GIT), '..', 'usr', 'bin', 'sh.exe')].find(existsSync) : undefined) : '/bin/sh';
+// Git puts git.exe in cmd, bin and mingw64\bin, and PATH may list any of them
+// first, so walk up from each one found to the install root that holds the shell.
+function gitShell(gits, exists = existsSync) {
+  for (const git of gits) {
+    for (let dir = dirname(git), up = 0; up < 3; dir = dirname(dir), up++) {
+      const sh = [join(dir, 'bin', 'sh.exe'), join(dir, 'usr', 'bin', 'sh.exe')].find(exists);
+      if (sh) return sh;
+    }
+  }
+  return undefined;
+}
+
+const SH = WIN ? gitShell(which('git')) : '/bin/sh';
+
+test('Git\'s shell is found whichever of its git folders PATH lists first (#293)', () => {
+  const root = 'C:/Git';
+  const has = new Set([join(root, 'bin', 'sh.exe'), join(root, 'usr', 'bin', 'sh.exe')]);
+  const exists = p => has.has(p);
+  for (const git of [join(root, 'cmd', 'git.exe'), join(root, 'mingw64', 'bin', 'git.exe'), join(root, 'bin', 'git.exe')]) {
+    assert.equal(gitShell([git], exists), join(root, 'bin', 'sh.exe'), git);
+  }
+  assert.equal(gitShell([join('D:/elsewhere', 'git.exe'), join(root, 'cmd', 'git.exe')], exists), join(root, 'bin', 'sh.exe'), 'a later git on PATH');
+  const usrOnly = join(root, 'usr', 'bin', 'sh.exe');
+  assert.equal(gitShell([join(root, 'cmd', 'git.exe')], p => p === usrOnly), usrOnly, 'the usr\\bin fallback');
+  assert.equal(gitShell([join(root, 'nowhere', 'git.exe')], () => false), undefined);
+});
 
 /**
  * Run a documented command, with `<tier>` as full, through a POSIX shell in a
