@@ -18,3 +18,7 @@
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/289)
 - [The spec, revision 5](https://github.com/mephistopheles4/the-pact/issues/278#issuecomment-6205162535)
+- [The owner's direction on accepted risks, #300](https://github.com/mephistopheles4/the-pact/issues/300)
+- [The plan](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234385149)
+- [The QA pair's review](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234665986), [the gatekeeper's](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234666303) and [the standards pair's](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234666664)
+- [The Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/289#issuecomment-6234668708)
