@@ -45,6 +45,7 @@ Taken in chat on 2026-10-18, from the build's picks on the Test review:
 - **No re-check in the Result section.** The skills and plugins steps could undo the Node block's checks, but R10 already accepts that.
 - **The mise rule stays in this repo.** The cloud rules copy is the pact itself, so other repos' cloud sessions rely on judgment (R36).
 - **The `mise trust` half of C10 runs in the test environment (D2),** on the owner's word there.
+- **Node's coming 24.x security release doesn't hold this PR.** The test-environment run and the merge go ahead on 24.22.0, which leaves sessions no more exposed than the image's Node 22. The pin is bumped after the release, as an ordinary bump: D2 is a one-off first run of the new block, and a bump changes only pin values. ADR 0088 now sets a 7-day limit for a security bump.
 
 ## Decisions
 
