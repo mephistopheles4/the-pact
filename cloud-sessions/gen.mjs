@@ -417,7 +417,7 @@ function repoPinLines(repoPins, templates) {
   // read-only before the generated declare and keep its own values.
   const headLines = templates.setupHead.split('\n');
   const at = headLines.indexOf(PH.repoPins);
-  if (at < 0 || headLines.slice(0, at).some(l => l.trim() !== '' && !l.trimStart().startsWith('#'))) refuse('cloud/pin', `${TEMPLATES.setupHead} runs a line before the repo pins`);
+  if (at < 0 || headLines.slice(0, at).some(l => !/^[ \t]*(#|$)/.test(l))) refuse('cloud/pin', `${TEMPLATES.setupHead} runs a line before the repo pins`);
   for (const [key, name] of Object.entries(TEMPLATES)) {
     for (const l of templates[key].split('\n')) {
       if (REPO_PIN_WRITE.test(l)) refuse('cloud/pin', `${name} writes REPO_PIN`);

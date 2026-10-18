@@ -202,7 +202,7 @@ try {
     if (!isObj(e) || declares(e)) return false;
     const s = e.source;
     if (isObj(s)) return ['github', 'url', 'git-subdir'].includes(s.source) && typeof s.sha === 'string' && /^[0-9a-f]{40}$/.test(s.sha);
-    if (typeof s !== 'string') return false;
+    if (typeof s !== 'string' || /[\x00-\x1f\x7f]/.test(s)) return false;
     const at = path.resolve(root, s);
     const rel = path.relative(root, at);
     if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return false;
@@ -451,6 +451,7 @@ install_plugins() {
     fi
     if [ "$st" -ne 0 ]; then
       rm -rf "$stage"
+      [ "$(tp_why "$st")" = "time" ] && { note time "$@"; return; }
       echo "WARN: $p could not be uninstalled; the plugin catalog was not updated"; note install "$@"; return
     fi
   done
@@ -2645,7 +2646,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy ae3d3fbd65bb"
+  echo "pact cloud copy d0ec8416312d"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

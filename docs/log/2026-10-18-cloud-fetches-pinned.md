@@ -63,6 +63,7 @@ The QA pair (behaviour-lens, integrity-lens) and the security pair (adversarial-
 - **The inline `settings` key passed** while a root `settings.json` was refused. It is refused now. No pinned listed plugin carries it.
 - **The skills step's listing file was appended to, not replaced,** so a link in one skill refused every skill after it in the same repo. It fails closed, and the build's drivers didn't meet it. Each listing now starts empty.
 - **`read -ra REPO_PIN` and a code line before the pins** were not refused by `assemble()`; both are now.
+- **From adversarial-lens's rerun on these fixes:** a line led by a no-break space and a hash passed the pins-first check as a comment, though bash runs it; the check now reads each line's raw text. A path source holding a control character, which the line-split link listing could misplace, is refused. An uninstall refused for time is named under `skipped (time)`.
 - **Smaller:** an official-marketplace lookup that fails reads `unknown`; a refused skill whose older copy stays says so; `cp`, `mv` and `mktemp` errors go to the step log; the drivers redact the login in their full passes too.
 
 ## Decisions
