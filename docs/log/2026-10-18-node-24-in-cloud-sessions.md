@@ -26,7 +26,12 @@ Run with the test driver in an `ubuntu:24.04` container. In a cloud container th
 - **C4:** under a `uname` stub printing `aarch64`, the block is skipped with a `WARN` and `node: arch`.
 - **C8, in the container:** the block alone took 8 s from nothing installed.
 - **C10, in the container:** in a folder holding an untrusted `mise.toml`, `mise install` refuses, and `node --version` through the wrapper prints `v24.22.0`.
+- **C1, in the container:** `mise exec node@22 -- node --version` printed `v22.23.3`.
 - **C1, C2, C7, C8, C10** run again in a cloud session in the test environment before merge (D2).
+
+## The full suite in a cloud container
+
+On Node 24.22.0, with `NODE_OPTIONS` and the token variables unset, 240 tests failed: the install refuses while `GIT_CONFIG_COUNT` is set, and a cloud session sets it, with its `GIT_CONFIG_KEY_*` and `GIT_CONFIG_VALUE_*` pairs. With those unset too, 2,154 passed and one failed: "a project holding the real home folder refuses", which fails the same way on `main` in a cloud container, where the home folder is `/root`. So C2's command, as the spec words it, can't pass in a cloud session yet; that question goes to the owner. CI's full run on Linux is the Test evidence.
 
 ## Decisions
 
