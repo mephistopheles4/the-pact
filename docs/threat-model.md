@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R42, so other work can point at it. A
+Each accepted risk has a label, R1 to R46, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -96,7 +96,7 @@ checks each file it writes, and its generator checks what it takes from the
 install. The cloud setup also checks the mise download and the installed
 Node binary against pinned SHA-256 hashes, and mise checks the Node archive
 against a third pin in its lockfile; `gen.mjs` refuses a pin out of its
-shape before it reaches the root-run script (R35). The cloud setup's third-party fetches are tied to their pins by git's object ids, SHA-1 with collision detection, below the hash strength ASVS asks of integrity checks; `gen.mjs` refuses a repo pin out of its shape (R41). The residual is a collision prepared by an upstream author who wrote both commits; accepted by the owner on 2026-10-18, in chat, from #183 T3's hand-off. The apply binding: when a configuration applies, an apply is also
+shape before it reaches the root-run script (R35). The cloud setup's third-party fetches are tied to their pins by git's object ids, SHA-1 with collision detection, below the hash strength ASVS asks of integrity checks; `gen.mjs` refuses a repo pin out of its shape (R45). The residual is a collision prepared by an upstream author who wrote both commits; accepted by the owner on 2026-10-18, in chat, from #183 T3's hand-off. The apply binding: when a configuration applies, an apply is also
 bound to the rendered hash its dry run printed. A session that can write the
 files can write the install record too (R14), and the binding holds the clone
 and the render, not your sight of them (R22). The builder page's policy
@@ -136,7 +136,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R42
+  title Residual risk, R1 to R46
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -182,8 +182,12 @@ quadrantChart
   R38: [0.10, 0.78]
   R39: [0.06, 0.74]
   R40: [0.05, 0.70]
-  R41: [0.10, 0.80]
-  R42: [0.15, 0.22]
+  R41: [0.20, 0.25]
+  R42: [0.15, 0.30]
+  R43: [0.75, 0.30]
+  R44: [0.10, 0.25]
+  R45: [0.10, 0.80]
+  R46: [0.15, 0.22]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -195,13 +199,14 @@ How to read it:
   it most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
   tracker rule (R1, R2), a foreign token taken as the owner (R38), the checker's origin check (R40), the rule on outsiders' code (R5, R6), commits credited by email (R39), trust in what
-  you install (R8, R9, R10, R35, R41), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
+  you install (R8, R9, R10, R35, R45), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), and agent files taken from a shared builder file (R32) sit here. Their guards are mostly rules, so cutting one moves its risk right.
-- **Watch (bottom right): R3, R7.** They happen by design, and the harm
-  is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R42.** R17 needs your own edits, and the dry
+- **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
+  is bounded: public reports, a blocked team, and a posted security row's
+  state word showing whether the item sits in published code.
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -211,9 +216,12 @@ How to read it:
   warning that leads its dry run. R33 needs another local account that can read the system's temporary folder. R34 needs a path whose folder names say
   something about you, outside your home and temp folders, to reach a post.
   R37 costs a broken `node` command until the next setup, or tells mise's
-  vendor which versions a session runs. R42 costs a cloud session skipped
-  plugins or skills, a Result that overstates what is missing, or a stale
-  plugin catalog, until the next setup.
+  vendor which versions a session runs. R41 and R42 need a session to break
+  the review procedure's own rule on a table row or on the base it hands a
+  lens. R44 needs another reader of the session's disk before the kept-local
+  reports are deleted. R46 costs a cloud session skipped plugins or skills,
+  a Result that overstates what is missing, or a stale plugin catalog, until
+  the next setup.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -257,8 +265,12 @@ How to read it:
 | R38 Foreign token taken as the owner | Whoever's token a session is given | The session announces its login in its first message, and stops if you object (ADR 0089) | Rule |
 | R39 Commits credited by email | Whoever's commits reach a branch of this repo in a pull request you opened | Only accounts with write rights push branches here; the insiders' check reads each commit's author and committer account (ADR 0089) | Outside the pact, rule |
 | R40 Checker origin read by path | Whoever sets a clone's origin | The run step checks that `origin` ends in this repo's account and name (ADR 0089) | Rule |
-| R41 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091) | Rule |
-| R42 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
+| R41 Table state unpaired | A careless or fooled session | The review procedure's sorting rule; the poster refuses a missing state word, and pairs a Disposition only on a withheld row (#336) | Rule |
+| R42 Lens takes the base on trust | A fooled session, text a session reads | The session checks the base with git at every round before it hands it, and a base that fails is a stop; a read-only lens can't check it (#336) | Rule |
+| R43 Posted state shows base debt | Anyone who reads the tracker | None beyond R19's; a report kept local keeps its finding's state off the record (#336) | Rule, judgment |
+| R44 Kept-local reports on disk | Another reader of the session's disk | Kept-local reports and place lines are named for deletion at every hand-off, and deleted on your word; a cloud container is reclaimed (#336) | Judgment |
+| R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091) | Rule |
+| R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 
 ## Strangers on the tracker
 
@@ -426,7 +438,7 @@ once you install it.
   only a checked tree replaces the kept one; skills holding a link or a
   `.claude-plugin/` entry are not copied; `PROXY_LINE_PROGRAM` reads the
   GitHub API's answer as data and prints only a login of GitHub's shape,
-  `anonymous` or `unexpected` (R10, R41).
+  `anonymous` or `unexpected` (R10, R45).
 
 **What is accepted.**
 
@@ -489,11 +501,11 @@ once you install it.
   off. Neither is a security finding, and the Hardening limit is 0. Accepted
   by the owner on 2026-10-18, in chat, from #183's Design review
   (adversarial-lens and data-lens trade-offs).
-- **R41. The cloud setup trusts its repo pins.** No signature or advisory
+- **R45. The cloud setup trusts its repo pins.** No signature or advisory
   feed backs these pins; the reviewed diff at each bump is the only check. A
   bump that skips its reads, or a commit an upstream author prepared, would
   pass. A fix upstream reaches sessions only after a bump. Accepted by the owner on 2026-10-18, in chat, from #183 T3's hand-off (ADR 0091).
-- **R42. Four gaps in the cloud setup's plugins and skills steps.** The Node
+- **R46. Four gaps in the cloud setup's plugins and skills steps.** The Node
   block spends from the same 270-second budget as the plugins and skills, so
   a slow Node download leaves less time for them; the Result names whatever
   was skipped, and the next snapshot retries. If setup ends early, its step
@@ -762,6 +774,13 @@ session can act before you see it.
   tree you work in, and its shell commands run when you type the name,
   before the model reads anything. No settings rule asks before a merge;
   you can add one, at the cost of a click on every merge.
+- **R42. A read-only lens takes the session's word on the base.** A lens
+  that can't run git is told the base and that everything outside the diff
+  is as it was there. The session checks the base with git at every round,
+  but a fooled session could hand a wrong one, and the lens would judge
+  against it. Accepted by the owner on 2026-10-18, in chat ("Proceed as
+  recommended", after the merge of #339), from the Test review of #336
+  (adversarial-lens, a Hardening trade-off, ADR 0090).
 
 ## Your own configuration loosening a rule
 
@@ -908,6 +927,13 @@ safe, and a change made months ago is easy to forget.
 - **R18. Retired by #189.** The rules no longer have sessions collect review
   totals into an issue on this repo. A session that reads several projects'
   records copies nothing from one project into another.
+- **R44. Kept-local reports sit unencrypted on the session's disk.** A
+  report kept local, a follow-up report handed a withheld row, and the
+  session's place lines stay on disk until you say to delete them, which the
+  session asks at every hand-off. Another reader of that disk could read
+  them; a cloud container is reclaimed when the session ends. Accepted by
+  the owner on 2026-10-18, in chat ("Proceed as recommended", after the
+  merge of #339), from the Test review of #336 (data-lens, ADR 0090).
 
 ## Code scanning on this repo
 
@@ -1023,6 +1049,14 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   scans and the table check that follow are the backstop R3, R13 and R29
   name. Two body checks, `text/hard-wrap` and `link/relative`, keep a post
   from landing broken; they are not a security control.
+- **R41. The poster doesn't pair a state word with a Disposition word.** It
+  refuses a Lens dispositions row with no state word, and a withheld row
+  whose Disposition isn't one bare word, but it lets `new` stand beside
+  `noted`, or `unchanged` beside a missing `security:` mark. The review
+  procedure's sorting is the rule; the table check is only a backstop.
+  Accepted by the owner on 2026-10-18, in chat ("Proceed as recommended",
+  after the merge of #339), from the Test review of #336 (adversarial-lens,
+  a Hardening trade-off, ADR 0090).
 
 ## The tracker author checker's own checks
 
@@ -1103,7 +1137,7 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
   GraphQL. Since #183 T2 it reads them through the tracker author checker
   (ADR 0089). The line goes when the issue closes.
 - **#180:** no setting yet for trusted accounts on a team repo (R7).
-- **#182:** the cloud setup fetched unpinned code; since #183 T3 it pins the skill repos and the plugin marketplace (R10, R41).
+- **#182:** the cloud setup fetched unpinned code; since #183 T3 it pins the skill repos and the plugin marketplace (R10, R45).
 - **#184:** no rule for sessions no person started (R16).
 - **#199:** no rule for fixing a reported hole out of public view (R19).
 
@@ -1140,3 +1174,10 @@ outsiders' code, and never runs.
   fixing a reported hole out of public view is #199. Since #261 the pact's
   placeholder for a security escape on a public repo is retired too, and
   accepted as judgment in the pact; this repo keeps the line in `AGENTS.md`.
+- **R43. A posted security row shows whether its item sits in published
+  code.** Its state word says whether a security finding was already at the
+  base, which is the published code, or came with the work. Delta gating
+  needs the state, and fix work is public anyway (R19). A report kept local
+  keeps its finding's state off the record. Accepted by the owner on
+  2026-10-18, in chat ("Proceed as recommended", after the merge of #339),
+  from the Test review of #336 (data-lens, ADR 0090).

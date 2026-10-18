@@ -70,10 +70,10 @@ The QA pair (behaviour-lens, integrity-lens) and the security pair (adversarial-
 
 At hand-off the owner took every pick (in chat, in the build thread, 2026-10-18):
 
-- **Threat model:** R10 narrowed, with the proxy's reach and each pinned send approved by name; the input checks named under the plugins section; the #182 line; snapshot leftovers under data migrations. Accepted: R41 (the repo pins), the SHA-1 residual in the crypto paragraph, and R42 (four step gaps: the shared Node budget, the step log left on an early end, the refused plugin step's Result, and the jq-less freeze).
+- **Threat model:** R10 narrowed, with the proxy's reach and each pinned send approved by name; the input checks named under the plugins section; the #182 line; snapshot leftovers under data migrations. Accepted: R45 (the repo pins), the SHA-1 residual in the crypto paragraph, and R46 (four step gaps: the shared Node budget, the step log left on an early end, the refused plugin step's Result, and the jq-less freeze).
 - **The 7-day deadline** for an advisory against a repo pin stays in ADR 0091, and the advisory watch takes the new prompt posted on #183.
 - **Tests:** none added beyond the 22 the spec kept. The wrapper driver's T3 section is cut: it ran the same generated setup as the setup driver's, case for case (integrity-lens). The wrapper driver keeps its passes, Node checks and merge tests.
-- **The ADR is 0091:** #336 merged first and took 0090.
+- **The ADR is 0091 and the risks are R45 and R46:** #336 merged first and took ADR 0090 and R41 to R44.
 
 ## Decisions
 
