@@ -436,26 +436,36 @@ install_plugins() {
     [ "$st" -ne 0 ] && [ "$(tp_why "$st")" = "time" ] && { note time "$@"; return; }
     echo "WARN: the plugin catalog could not be checked; no plugin installed"; note source "$@"; return
   fi
+  # Only a listed name counts as passing.
+  for p in "$@"; do
+    if grep -qxF -- "$p" <(tail -n +2 "$PACT_LOG_DIR/passed"); then passed+=("$p"); else failed+=("$p"); fi
+  done
+  # A listed plugin that no longer passes is uninstalled before the new tree
+  # goes in place, since an installed plugin loads from that folder. If that
+  # can't be done, the last checked tree stays.
+  for p in "${failed[@]}"; do
+    if ! command -v jq >/dev/null 2>&1; then st=1
+    elif jq -e --arg id "$p@$local_name" '(.plugins // {}) | has($id) | not' "$HOME/.claude/plugins/installed_plugins.json" >/dev/null 2>&1 \
+        || [ ! -e "$HOME/.claude/plugins/installed_plugins.json" ]; then continue
+    else third_party claude plugin uninstall "$p@$local_name" --scope user; st=$?
+    fi
+    if [ "$st" -ne 0 ]; then
+      rm -rf "$stage"
+      echo "WARN: $p could not be uninstalled; the plugin catalog was not updated"; note install "$@"; return
+    fi
+  done
   if ! replace_dir "$stage/m" "$folder"; then
     rm -rf "$stage"
     echo "WARN: the plugin catalog could not be put in place; no plugin installed"; note install "$@"; return
   fi
   rm -rf "$stage"
-  # Only a listed name counts as passing.
-  for p in "$@"; do
-    if grep -qxF -- "$p" <(tail -n +2 "$PACT_LOG_DIR/passed"); then passed+=("$p"); else echo "WARN: $p has no pinned source; skipped"; note source "$p"; failed+=("$p"); fi
-  done
+  for p in "${failed[@]}"; do echo "WARN: $p has no pinned source; skipped"; note source "$p"; done
   # The marketplace entry names this folder, or it is replaced.
   src=""
   if command -v jq >/dev/null 2>&1; then
     src="$(jq -r --arg n "$local_name" 'if (.[$n] | type) == "object" then ((.[$n].source.source // "") + ":" + (.[$n].source.path // "")) else "" end' "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null)"
   else
     src="unknown"
-  fi
-  # A listed plugin that no longer passes is uninstalled, in case an earlier
-  # run installed it from this marketplace.
-  if [ "$src" = "directory:$folder" ]; then
-    for p in "${failed[@]}"; do third_party claude plugin uninstall "$p@$local_name" --scope user; done
   fi
   if [ -n "$src" ] && [ "$src" != "directory:$folder" ]; then
     # Listed with another source (or not known without jq): remove it first.
@@ -2635,7 +2645,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 0d6dd848540d"
+  echo "pact cloud copy ae3d3fbd65bb"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
