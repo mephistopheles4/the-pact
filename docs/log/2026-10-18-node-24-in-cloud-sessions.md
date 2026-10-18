@@ -13,7 +13,7 @@
 
 ## The pins, re-checked at build time
 
-- **Node 24.22.0:** `SHASUMS256.txt.sig` checked with `gpgv` against the committed keyring (nodejs/release-keys at `481637f`): a good signature from `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C` (Richard Lau), which nodejs/node's README lists. The archive hash in the checked file, `28ea0a43…4228c`, matches the download. `bin/node` hashes to `67ca5783…751c`.
+- **Node 24.22.0:** `SHASUMS256.txt.sig` checked with `gpgv` against the committed keyring (nodejs/release-keys at `481637f`): a good signature from `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`, which nodejs/node's README lists. The archive hash in the checked file, `28ea0a43…4228c`, matches the download. `bin/node` hashes to `67ca5783…751c`.
 - **mise 2026.10.2:** the release's `SHASUMS256.txt` checked with `minisign` against the committed key (jdx/mise at tag `v2026.10.2`), key id `64113EDF160FDEC2`, which aqua-registry's mise entry also names. A copy with one byte changed failed the check. The tarball hash in the checked file, `79a2bf0f…db788`, matches the download.
 - **One departure from the signed-off procedure:** `minisign` came from Ubuntu 24.04's package archive (`minisign 0.11-1`, checked by apt's signed index), not from a pinned release checked by hash. It is raised with the owner at hand-off.
 

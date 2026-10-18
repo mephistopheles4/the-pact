@@ -15,7 +15,7 @@ The cloud setup installs Node 24 itself (#183, T1), because the image ships Node
 
 | Key | Fingerprint | Second source it was checked against |
 | --- | --- | --- |
-| Node release keyring | signed Node 24.22.0's checksums: `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C` (Richard Lau) | the releaser list in nodejs/node's README, commit `947b9a3` |
+| Node release keyring | signed Node 24.22.0's checksums: `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C` | the releaser list in nodejs/node's README, commit `947b9a3` |
 | mise's minisign key | key id `64113EDF160FDEC2`, public key `RWTC3g8W3z4RZK3V3qv7fa1QY4JEWyBtqIHW+85QlJpZc5yG+uNYNBSZ` | aquaproj/aqua-registry's `pkgs/jdx/mise/registry.yaml`, commit `56d6f76` |
 
 ## The pin bump
