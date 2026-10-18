@@ -29,3 +29,7 @@
 - [Design review, round 1](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6251846347)
 - [Design review, round 2](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6251846789)
 - [C10 live run](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252050011)
+- [Test review: the security pair](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252629086)
+- [Test review: the QA pair, three rounds](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252630257)
+- [Test review: integrity-lens reports](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252630440)
+- [Test review: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252630593)
