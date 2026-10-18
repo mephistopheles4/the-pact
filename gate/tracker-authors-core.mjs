@@ -256,7 +256,7 @@ function pullRecord(pull, commits, owner) {
   if (login(pull.user) !== owner) why.push('opener-not-owner');
   if (pull.head?.repo?.full_name !== SLUG) why.push('cross-repo');
   if (commits.some(c => login(c.author) !== owner || login(c.committer) !== owner)) why.push('commit-not-owner');
-  if (commits.length === 0 || commits[commits.length - 1].sha !== pull.head?.sha) why.push('head-mismatch');
+  if (commits.at(-1)?.sha !== pull.head?.sha) why.push('head-mismatch');
   return {
     kind: 'pull',
     id: pull.number,
