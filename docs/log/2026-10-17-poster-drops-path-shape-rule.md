@@ -5,7 +5,7 @@
 ## What was built (#326)
 
 - **The poster** loses `path/local` and its patterns; `path/machine` is unchanged.
-- **Its tests** lose path/local's eight cases and gain one showing that a drive-letter path, a network share and another user's home post. Every `path/machine` form keeps its bad case.
+- **Its tests** lose path/local's eight cases and gain two: one shows that a drive-letter path, a network share and another user's home post; one runs `path/machine` on a Windows-shaped machine, whose other-slash, drive-letter and project-folder forms path/local used to hide.
 - **The rules file's poster bullet**, `docs/poster.md` and `docs/reference.md` name a path of this machine's, not any local path.
 - **The threat model** records the accepted risk and updates the poster's scan line.
 - **Regenerated:** `cloud-sessions/` and `builder/scriptorium.html`, both already in step.
