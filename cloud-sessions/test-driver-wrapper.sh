@@ -155,6 +155,7 @@ CAT='{"name":"up","owner":{"name":"o"},"metadata":{"x":1},"renames":{"a":"b"},"p
  {"name":"link","source":"./plugins/link"},
  {"name":"ext","source":{"source":"github","repo":"a/b","sha":"'$SHA40'"}}]}'
 # run_plugins <repo> <plugins...>: the setup's own definitions and install_plugins, on that repo.
+# The prefix stops before the Node block, so its PATH line is added here.
 run_plugins() {
   local repo="$1" sha="$2"; shift 2
   rm -f /tmp/claude-calls.log; rm -rf /root/.claude/pact-pinned
@@ -163,7 +164,7 @@ run_plugins() {
     echo "install_plugins $repo pact-pinned-plugins $*"
     echo 'echo "skipped (source): ${SKIPPED_SOURCE[*]}"; echo "not installed: ${NOT_INSTALLED[*]}"; echo "skipped (time): ${SKIPPED_TIME[*]}"'
   } > /tmp/plugins-only.sh
-  PATH="/tmp/stub-claude:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=url.file:///tmp/fx/.insteadOf GIT_CONFIG_VALUE_0=https://github.com/ bash /tmp/plugins-only.sh 2>&1
+  PATH="/tmp/stub-claude:/root/.local/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=url.file:///tmp/fx/.insteadOf GIT_CONFIG_VALUE_0=https://github.com/ bash /tmp/plugins-only.sh 2>&1
   echo "claude calls: $(grep -c . /tmp/claude-calls.log 2>/dev/null || echo 0); marketplace add: $(grep -c 'marketplace add' /tmp/claude-calls.log 2>/dev/null || echo 0)"
 }
 S1="$(fx_mkt fx/mkt "$CAT")"
