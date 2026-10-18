@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R32, so other work can point at it. A
+Each accepted risk has a label, R1 to R33, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -35,7 +35,7 @@ Claude home folder, `~/.claude`:
   `pact/builder/`. The kit is Node code, the builder and the renderer, that
   runs when you type `/scriptorium`; it writes a page only into a new
   temporary folder or a path you name outside any repo, the Claude home
-  folder and any `.claude` folder (#262, ADR 0070). `/make-it-so` and
+  folder and any `.claude` folder (#262, ADR 0070). It also reads your own presets from `pact/presets/`, a folder the install never writes, lists or deletes, and carries each one into the page in plain text, as it carries the builder file. `/make-it-so` and
   `/finis` install only when your configuration lists them.
 
 The repo also holds a setup script for Claude Code cloud sessions, in
@@ -92,7 +92,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R32
+  title Residual risk, R1 to R33
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -130,6 +130,7 @@ quadrantChart
   R30: [0.26, 0.60]
   R31: [0.14, 0.42]
   R32: [0.18, 0.62]
+  R33: [0.12, 0.34]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -147,14 +148,14 @@ How to read it:
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), and agent files taken from a shared builder file (R32) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21, R26, R29, R31.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
   a posted report; a rule and a search before posting guard it on every
   install, and where the poster is on, its scan is a backstop behind them
   (#280). R31 needs you to run a project install and pass over the
-  warning that leads its dry run.
+  warning that leads its dry run. R33 needs another local account that can read the system's temporary folder.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -187,9 +188,10 @@ How to read it:
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; on an install with the poster on, its hidden-text scan as a backstop (#280) | Rule |
-| R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder or the builder file | The dry run's security-defaults line, first, for an edit to any of the six parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`, `cost-limits`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
+| R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder, the builder file or a preset in `pact/presets/` | The dry run's security-defaults line, first, for an edit to any of the six parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`, `cost-limits`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
 | R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits, and a warning for cost rows no quality names; the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits, and a middle dot refused in an Enough level and a cost name (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
-| R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while the page takes a retired agent's file out of a loaded or shared file, with a note, and a file at agents/<name>.md for a retired agent draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
+| R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked, as do a preset's from your own `pact/presets/` folder, since a file there may be one someone handed you; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while the page takes a retired agent's file out of a loaded or shared file, with a note, and a file at agents/<name>.md for a retired agent draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
+| R33 A written page stays on disk | Another local account that can read the system's temporary folder | The builder writes the page only into a new folder under the temporary folder or a path you name outside any repo, the kit, the Claude home folder and any `.claude` folder, never over a file; its closing note and the session's hand-over ask you to delete the folder | Judgment |
 
 ## Strangers on the tracker
 
@@ -391,7 +393,13 @@ session can act before you see it.
 
 - **R11. Auto mode is on.** The pact turns it on, and every install turns it
   on again. In auto mode, the main thing between a fooled session and your
-  shell is Claude Code's own checks. The pact chose speed here.
+  shell is Claude Code's own checks. The pact chose speed here. Since #283 the
+  `/scriptorium` session also reads the text of each preset in your presets
+  folder for secrets, in auto mode; a preset may be a file someone handed you
+  (R32), so the command treats that text as data. This was accepted as a
+  widening of this entry on 2026-10-17 from #283 (adversarial-lens), on the
+  owner's word, relayed by the head chef session (#283,
+  issuecomment-6243605644).
 - **R12. A lens can be steered.** A lens that runs code or fetches pages can
   be steered by what it reads, like any session. Since ADR 0069 nothing at
   install stops a commit that gives a lens more tools; you see it in the diff
@@ -656,7 +664,10 @@ safe, and a change made months ago is easy to forget.
   ran. A threat model is committed text, and may be public: an accepted-risk
   entry, or a candidate for one, names the class of path and why it is
   accepted, never the steps to use it. These additions to R30 were accepted
-  by the owner on 2026-10-17, relayed by the head chef session (#289).
+  by the owner on 2026-10-17, relayed by the head chef session (#289). A preset
+  in your own `pact/presets/` folder was added to this entry's attackers on
+  2026-10-17 from #283, on the owner's word, relayed by the head chef session
+  (#283, issuecomment-6243104977).
 - **R31. A project's qualities list and Cost limits take the place of
   yours.** A project's `.claude/pact-config.json` may hold a list that drops
   the Security row, or any other, in that repo, and a Cost limits list that
@@ -705,9 +716,24 @@ safe, and a change made months ago is easy to forget.
   any other name adds an agent. A file with no tools line gets every tool.
   The Presets checklist shows each file's tools, model and description, and
   names a replaced `scout` or security-set lens, before you take it; a
-  shared file's agent rows start unticked, so you tick each one you take. Once saved, the install
+  shared file's agent rows start unticked, as do a preset's from your own
+  `pact/presets/` folder, since a file there may be one someone handed you, so
+  you tick each one you take. Once saved, the install
   lists a pact-named file under "Yours, left as is" and never mentions a
-  new-named one.
+  new-named one. The personal presets folder was added to this entry and to
+  R30 on 2026-10-17 from #283, on the owner's word, relayed by the head chef
+  session (#283, issuecomment-6243104977).
+- **R33. A written page stays on disk.** The page `/scriptorium` writes holds
+  your lists, your agent files and every preset from your presets folder in
+  plain text, in a new folder under the system's temporary folder or at a path
+  you name. The builder never deletes it; its closing note and the session's
+  hand-over ask you to. On a machine whose temporary folder other local
+  accounts can read, they could read the page. The pact accepts this: the page
+  is local and holds your own data, and the system's access rules govern the
+  folder. The class of path is a local page left in a shared temporary folder.
+  This was accepted on 2026-10-17 from #283 (data-lens, the page outliving its
+  use), on the owner's word, relayed by the head chef session (#283,
+  issuecomment-6243605644).
 - **R18. Retired by #189.** The rules no longer have sessions collect review
   totals into an issue on this repo. A session that reads several projects'
   records copies nothing from one project into another.
