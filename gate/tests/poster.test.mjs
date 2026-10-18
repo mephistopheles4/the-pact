@@ -733,7 +733,7 @@ test("a drive-letter path, a network share and another user's home post", t => {
 
 // #326: with path/local gone, path/machine alone guards a Windows machine's own paths: either slash, a drive-letter start, the drive colon in Claude's project-folder form
 test("on a Windows-shaped machine, path/machine refuses its home and temp with the other slash, its user under a drive path, and its project-folder form", () => {
-  const ctx = { env: {}, home: 'X:\\Users\\tester', tmp: 'X:\\tmp', user: 'tester', host: 'buildhost', surface: 'issue-comment' };
+  const ctx = { env: {}, home: 'X:\\Users\\' + 'tester', tmp: 'X:\\tmp', user: 'tester', host: 'buildhost', surface: 'issue-comment' };
   for (const text of ['X:/Users/' + 'tester/notes', 'X:/tmp' + '/abc/file', 'Y:/work/' + 'tester/x', '~/.claude/projects/X--Users-' + 'tester/x.jsonl']) {
     assert.deepEqual([...new Set(scan([{ field: 'body', text }], ctx).map(r => r.rule))], ['path/machine'], text);
   }
