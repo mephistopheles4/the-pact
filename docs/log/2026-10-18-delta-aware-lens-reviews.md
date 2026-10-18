@@ -26,6 +26,10 @@
 - **Amended a third time:** each stage compares only with its own last base line, so Design to Test is a first round; on the default branch the base and the first commit are named to the owner before the first round's lenses run; at Design the last base must be an ancestor of the new one. The scattered withheld clauses became one coarse rule: a fixed row with one bare Disposition word, continuing reports kept local, and a verdict over posted findings only. The poster also refuses a withheld row whose Disposition is anything but one bare word, and the C4 test gained cases for other markup, a soft hyphen inside the word, quotes and the four Disposition shapes (seen to fail first). Tests stay `+3 −0`.
 - **The last round** (security pair and QA pair, on `9de57a3`) found nothing high and every base path closed. Two lenses found one medium leak: a follow-up report that finds a withheld finding `absent` continues nothing, so it would be posted. The owner chose to fix it and ship: a follow-up report handed a withheld row as an `E` row is kept local whatever it says. integrity-lens's four test gaps in C4 went to a follow-up issue, so the QA pair reads them there.
 
+## After merge
+
+- **Four accepted risks recorded** in `docs/threat-model.md`, on the owner's word in chat: R41 (the poster doesn't pair a state word with a Disposition word) and R42 (a read-only lens takes the session's word on the base), the two Hardening trade-offs; R43 (a posted security row's state shows whether its item sits in published code); R44 (kept-local reports sit unencrypted on the session's disk).
+
 ## Decisions
 
 - [ADR 0090](../adr/0090-lens-findings-carry-their-state-against-the-base.md) — Lens findings carry their state against the base.

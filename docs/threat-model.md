@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R40, so other work can point at it. A
+Each accepted risk has a label, R1 to R44, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -131,7 +131,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R40
+  title Residual risk, R1 to R44
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -177,6 +177,10 @@ quadrantChart
   R38: [0.10, 0.78]
   R39: [0.06, 0.74]
   R40: [0.05, 0.70]
+  R41: [0.20, 0.25]
+  R42: [0.15, 0.30]
+  R43: [0.75, 0.30]
+  R44: [0.10, 0.25]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -192,9 +196,10 @@ How to read it:
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), and agent files taken from a shared builder file (R32) sit here. Their guards are mostly rules, so cutting one moves its risk right.
-- **Watch (bottom right): R3, R7.** They happen by design, and the harm
-  is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37.** R17 needs your own edits, and the dry
+- **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
+  is bounded: public reports, a blocked team, and a posted security row's
+  state word showing whether the item sits in published code.
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -204,7 +209,10 @@ How to read it:
   warning that leads its dry run. R33 needs another local account that can read the system's temporary folder. R34 needs a path whose folder names say
   something about you, outside your home and temp folders, to reach a post.
   R37 costs a broken `node` command until the next setup, or tells mise's
-  vendor which versions a session runs.
+  vendor which versions a session runs. R41 and R42 need a session to break
+  the review procedure's own rule on a table row or on the base it hands a
+  lens. R44 needs another reader of the session's disk before the kept-local
+  reports are deleted.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -248,6 +256,10 @@ How to read it:
 | R38 Foreign token taken as the owner | Whoever's token a session is given | The session announces its login in its first message, and stops if you object (ADR 0089) | Rule |
 | R39 Commits credited by email | Whoever's commits reach a branch of this repo in a pull request you opened | Only accounts with write rights push branches here; the insiders' check reads each commit's author and committer account (ADR 0089) | Outside the pact, rule |
 | R40 Checker origin read by path | Whoever sets a clone's origin | The run step checks that `origin` ends in this repo's account and name (ADR 0089) | Rule |
+| R41 Table state unpaired | A careless or fooled session | The review procedure's sorting rule; the poster refuses a missing state word, and pairs a Disposition only on a withheld row (#336) | Rule |
+| R42 Lens takes the base on trust | A fooled session, text a session reads | The session checks the base with git at every round before it hands it, and a base that fails is a stop; a read-only lens can't check it (#336) | Rule |
+| R43 Posted state shows base debt | Anyone who reads the tracker | None beyond R19's; a report kept local keeps its finding's state off the record (#336) | Rule, judgment |
+| R44 Kept-local reports on disk | Another reader of the session's disk | Kept-local reports and place lines are named for deletion at every hand-off, and deleted on your word; a cloud container is reclaimed (#336) | Judgment |
 
 ## Strangers on the tracker
 
@@ -709,6 +721,13 @@ session can act before you see it.
   tree you work in, and its shell commands run when you type the name,
   before the model reads anything. No settings rule asks before a merge;
   you can add one, at the cost of a click on every merge.
+- **R42. A read-only lens takes the session's word on the base.** A lens
+  that can't run git is told the base and that everything outside the diff
+  is as it was there. The session checks the base with git at every round,
+  but a fooled session could hand a wrong one, and the lens would judge
+  against it. Accepted by the owner on 2026-10-18, in chat ("Proceed as
+  recommended", after the merge of #339), from the Test review of #336
+  (adversarial-lens, a Hardening trade-off, ADR 0090).
 
 ## Your own configuration loosening a rule
 
@@ -855,6 +874,13 @@ safe, and a change made months ago is easy to forget.
 - **R18. Retired by #189.** The rules no longer have sessions collect review
   totals into an issue on this repo. A session that reads several projects'
   records copies nothing from one project into another.
+- **R44. Kept-local reports sit unencrypted on the session's disk.** A
+  report kept local, a follow-up report handed a withheld row, and the
+  session's place lines stay on disk until you say to delete them, which the
+  session asks at every hand-off. Another reader of that disk could read
+  them; a cloud container is reclaimed when the session ends. Accepted by
+  the owner on 2026-10-18, in chat ("Proceed as recommended", after the
+  merge of #339), from the Test review of #336 (data-lens, ADR 0090).
 
 ## Code scanning on this repo
 
@@ -970,6 +996,14 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   scans and the table check that follow are the backstop R3, R13 and R29
   name. Two body checks, `text/hard-wrap` and `link/relative`, keep a post
   from landing broken; they are not a security control.
+- **R41. The poster doesn't pair a state word with a Disposition word.** It
+  refuses a Lens dispositions row with no state word, and a withheld row
+  whose Disposition isn't one bare word, but it lets `new` stand beside
+  `noted`, or `unchanged` beside a missing `security:` mark. The review
+  procedure's sorting is the rule; the table check is only a backstop.
+  Accepted by the owner on 2026-10-18, in chat ("Proceed as recommended",
+  after the merge of #339), from the Test review of #336 (adversarial-lens,
+  a Hardening trade-off, ADR 0090).
 
 ## The tracker author checker's own checks
 
@@ -1087,3 +1121,10 @@ outsiders' code, and never runs.
   fixing a reported hole out of public view is #199. Since #261 the pact's
   placeholder for a security escape on a public repo is retired too, and
   accepted as judgment in the pact; this repo keeps the line in `AGENTS.md`.
+- **R43. A posted security row shows whether its item sits in published
+  code.** Its state word says whether a security finding was already at the
+  base, which is the published code, or came with the work. Delta gating
+  needs the state, and fix work is public anyway (R19). A report kept local
+  keeps its finding's state off the record. Accepted by the owner on
+  2026-10-18, in chat ("Proceed as recommended", after the merge of #339),
+  from the Test review of #336 (data-lens, ADR 0090).
