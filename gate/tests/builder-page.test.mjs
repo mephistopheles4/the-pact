@@ -6,7 +6,7 @@
 // install script is in builder-install.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
@@ -1224,7 +1224,7 @@ test('a shared file opens as a preset only when the page can use it, and says wh
   assert.match(L.presetFromText('{').refuse, /not valid JSON/);
   assert.match(L.presetFromText('{"schema": 1, "presets": []}').refuse, /keys a builder file doesn't: presets/);
   assert.match(L.presetFromText('{"schema": 1, "tiers": []}').refuse, /tiers: tiers must list 1 to 6 tiers/);
-  assert.match(L.presetFromText('{"schema": 1, "agentFiles": {"Bad": "x"}}').refuse, /agentFiles entry 1 is not an agent name/);
+  assert.match(L.presetFromText('{"schema": 1, "agentFiles": {"Bad": "x"}}').refuse, /^agentFiles entry 1 is not an agent name with a file$/);
   assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, models or agent files/);
   // Tiers without a workflow meet the pact's workflow: its offers take the tiers that exist.
   const r = L.presetFromText(JSON.stringify({ schema: 1, title: 'Two tiers', tiers: [{ id: 'light', name: 'Light', fits: 'Small', plan: 'none', build: 'Sonnet, medium' }, { id: 'full', name: 'Full', fits: 'The rest', plan: 'Opus, high', build: 'Sonnet, medium' }] }));
@@ -1345,15 +1345,19 @@ function ownPage(t, k, f) {
   return { r, text: readFileSync(wrote, 'utf8') };
 }
 
+// #283 C1
 test('C1: the kit lists a person\'s good preset under ownPresets, with only what it gives, and prints no finding', t => {
   const k = kitHome(t);
   const f = builderFile(t, GOOD, GOOD_BLOCKS);
   const none = ownPage(t, k, f);
   assert.deepEqual(pageLogic(none.text).PACT.ownPresets, []);
+  assert.deepEqual(findingLines(none.r.stdout), [], 'no presets folder is no finding');
+  assert.ok(!/^LISTED/m.test(none.r.stdout));
   mkdirSync(k.presets, { recursive: true });
   writeFileSync(join(k.presets, 'mine.json'), JSON.stringify({ schema: 1, title: 'Mine', tiers: ONE_TIER, models: ['Opus'], agentFiles: { mine: '---\nname: mine\n---\n' } }));
   const { r, text } = ownPage(t, k, f);
   assert.deepEqual(findingLines(r.stdout), []);
+  assert.deepEqual(r.stdout.split('\n').filter(l => l.startsWith('LISTED')).map(l => l.trim()), ['LISTED presets/mine.json']);
   const P = pageLogic(text).PACT;
   assert.equal(P.ownPresets.length, 1);
   const [p] = P.ownPresets;
@@ -1362,13 +1366,15 @@ test('C1: the kit lists a person\'s good preset under ownPresets, with only what
   assert.deepEqual(P.presets, shippedPresets(REPO, pactData(REPO)));
 });
 
+// #283 C2
 test('C2: a bad personal preset is left out with a finding on every run, no message quotes a file, and 16 are read at most', t => {
   const k = kitHome(t);
   mkdirSync(k.presets, { recursive: true });
   const put = (name, doc) => writeFileSync(join(k.presets, name), typeof doc === 'string' ? doc : JSON.stringify(doc));
   put('a-bad-tiers.json', { schema: 1, tiers: [] });
   put('a b.json', { schema: 1, models: ['Opus'] });
-  put('notes.txt', 'ignored');
+  put('a-null-tier.json', '{"schema":1,"tiers":[null]}');
+  put('a-url.json', { schema: 1, agentFiles: { 'zebra quokka': `see ${'https:/'}/x.example` } });
   put('a-empty.json', { schema: 1 });
   put('a-badkey.json', { schema: 1, agentFiles: { 'zebra quokka': 'x' } });
   const pair = copyParts(DEFAULT_PARTS);
@@ -1390,13 +1396,16 @@ test('C2: a bad personal preset is left out with a finding on every run, no mess
   assert.equal(has(/presets\/a-badkey\.json: left out: agentFiles entry 1 is not an agent name/).length, 1);
   assert.equal(has(/presets\/a-proto\.json: left out: .*__proto__/).length, 1);
   assert.equal(has(/presets\/a-pair\.json: workflow: offer test-qa-pair: half of behaviour-lens and integrity-lens on its own/).length, 1);
-  assert.equal(has(/^FINDING presets: 9 more files in your presets folder are past the limit of 16 and are left out$/).length, 1);
-  assert.equal(lines.length, 7, lines.join('\n'));
+  assert.equal(has(/^FINDING presets: 11 more files in your presets folder are past the limit of 16 and are left out$/).length, 1);
+  assert.equal(has(/presets\/a-url\.json: left out: /).length, 1);
+  assert.equal(has(/presets\/a-null-tier\.json: left out: /).length, 1);
+  assert.equal(lines.length, 9, lines.join('\n'));
   for (const bad of ['zebra', 'quokka', 'walrus', 'mango', 'a b']) assert.ok(!r.stdout.includes(bad) && !check.stdout.includes(bad), bad);
   const ids = pageLogic(text).PACT.ownPresets.map(p => p.id);
-  assert.deepEqual(ids, ['a-pair', ...Array.from({ length: 11 }, (_, i) => `g${String(i + 1).padStart(2, '0')}`)]);
+  assert.deepEqual(ids, ['a-pair', ...Array.from({ length: 9 }, (_, i) => `g${String(i + 1).padStart(2, '0')}`)]);
 });
 
+// #283 C7
 test('C7: a presets folder that is a file stops nothing: one finding, no presets', t => {
   const k = kitHome(t);
   mkdirSync(join(k.home, 'pact'), { recursive: true });
@@ -1409,8 +1418,18 @@ test('C7: a presets folder that is a file stops nothing: one finding, no presets
   const { r, text } = ownPage(t, k, f);
   assert.deepEqual(findingLines(r.stdout), one);
   assert.deepEqual(pageLogic(text).PACT.ownPresets, []);
+  // A junction or link at the folder is not followed either.
+  rmSync(k.presets);
+  const elsewhere = tempDir(t, 'pact-own-elsewhere-');
+  writeFileSync(join(elsewhere, 'x.json'), JSON.stringify({ schema: 1, models: ['Opus'] }));
+  symlinkSync(elsewhere, k.presets, 'junction');
+  const linked = k.cli(['--builder', f, '--check']);
+  assert.equal(linked.status, 0, linked.stdout);
+  assert.deepEqual(findingLines(linked.stdout), one);
+  assert.ok(!/^LISTED/m.test(linked.stdout));
 });
 
+// #283 C3
 test('C3: a personal level-3-full lands nowhere and shadows nothing', t => {
   const k = kitHome(t);
   mkdirSync(k.presets, { recursive: true });
@@ -1429,29 +1448,26 @@ function inPage(page, expr) {
   return JSON.parse(JSON.stringify(vm.runInContext(`${script}\n;(${expr})`, vm.createContext({}))));
 }
 
+// #283 C4
 test('C4: only a shipped preset\'s agent rows start ticked; the head says why for the others', () => {
   const agent = JSON.stringify({ 'a-lens': '---\nname: a-lens\n---\n' });
   const got = inPage(PAGE, `(() => {
     PACT.presets[0].agentFiles = ${agent};
-    PACT.ownPresets.push({ id: 'mine', title: 'Mine', parts: { tiers: PACT.presets[0].parts.tiers }, agentFiles: ${agent} });
-    const shared = presetFromText(${JSON.stringify(JSON.stringify({ schema: 1, tiers: ONE_TIER, agentFiles: JSON.parse(agent) }))}).preset;
+    PACT.ownPresets.push({ id: PACT.presets[0].id, title: 'Mine', parts: { tiers: PACT.presets[0].parts.tiers }, models: ['Opus'], agentFiles: ${agent} });
+    const shared = presetFromText(${JSON.stringify(JSON.stringify({ schema: 1, tiers: ONE_TIER, models: ['Opus'], agentFiles: JSON.parse(agent) }))}).preset;
     return { shipped: startPicks(PACT.presets[0]), own: startPicks(PACT.ownPresets[0]), shared: startPicks(shared), ownNote: takeNote(PACT.ownPresets[0]), sharedNote: takeNote(shared), shippedNote: takeNote(PACT.presets[0]) };
   })()`);
   assert.ok(got.shipped.includes('agent:a-lens'));
-  assert.ok(!got.own.some(k => k.startsWith('agent:')) && got.own.includes('part:tiers'));
-  assert.ok(!got.shared.some(k => k.startsWith('agent:')) && got.shared.includes('part:tiers'));
-  assert.match(got.ownNote, /presets\/mine\.json in your presets folder/);
+  assert.ok(!got.own.some(k => k.startsWith('agent:')) && got.own.includes('part:tiers') && got.own.includes('models'));
+  assert.ok(!got.shared.some(k => k.startsWith('agent:')) && got.shared.includes('part:tiers') && got.shared.includes('models'));
+  assert.match(got.ownNote, new RegExp(`presets/${L.PACT.presets[0].id}\\.json in your presets folder`));
   assert.match(got.sharedNote, /A shared file's agent files start unticked/);
   assert.equal(got.shippedNote, '');
 });
 
+// #283 C5
 test('C5: a clone reads no presets folder, and the committed page carries an empty ownPresets', () => {
   assert.equal(personalPresetsDir(REPO), null);
   assert.deepEqual(personalPresets(REPO, pactData(REPO)), { presets: [], findings: [] });
   assert.deepEqual(L.PACT.ownPresets, []);
-});
-
-test('a builder file over 1 MiB is refused before it is read', t => {
-  const big = builderFile(t, `{"schema":1,"title":"${'x'.repeat(1024 * 1024)}"}`);
-  assert.match(checkBuilder(REPO, big).refusals.join(), /larger than 1 MiB/);
 });

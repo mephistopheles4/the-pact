@@ -17,3 +17,5 @@
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/283)
 - [The spec, revision 2](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243270715)
+- [The owner's earlier answers](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243104977) and [the go-ahead on revision 2](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243312506)
+- [The spec pair's review](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243269325), [the security pair's](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243269683) and [the dispositions](https://github.com/mephistopheles4/the-pact/issues/283#issuecomment-6243270326)

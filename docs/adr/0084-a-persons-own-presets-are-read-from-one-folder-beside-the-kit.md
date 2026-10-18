@@ -15,7 +15,7 @@ The installed builder kit reads the person's own presets from one fixed folder, 
 - **The install never touches the folder.** `pact/presets` joins `pact/blocks` on the never-touch list.
 - **A `__proto__` key is refused** in any builder file, at any depth, since the page binds its data as an object literal.
 
-## What stays
+## Also decided
 
-- An own preset's security-default parts start ticked, as a shipped preset's do (the owner's pick, Q6 A): the take view names the file, the checklist shows every part, and the install's dry run says so before any install.
-- The session running `/scriptorium` reads each preset for secrets before the page is rendered, reports what it finds, and edits a preset only when asked.
+- An own preset's security-default parts start ticked, as a shipped preset's do, so the take view names the file, the checklist shows every part, and the install's dry run says so before any install. The alternative, unticking those six parts, would close an eased path on threat model R30 at the cost of six ticks per use. The owner settled this with the go-ahead on spec revision 2, relayed by the head chef.
+- The session running `/scriptorium` reads each preset's file name and text for secrets before the page is rendered, reports what it finds, and edits a preset only when asked. The render prints one `LISTED` line per preset it carries, so that read can be matched against what was written.

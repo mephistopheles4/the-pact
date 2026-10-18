@@ -395,7 +395,7 @@ test('the user file and its blocks folder are never deleted, whatever the record
   // #264 S7: the live-file check names the review file now the script is gone.
   assert.ok(existsSync(join(h, 'pact', 'review.md')), 'the review file still installs beside the user file');
   const after = JSON.parse(readFileSync(mf, 'utf8'));
-  assert.ok(!after.files.some(f => /^pact\/(config|blocks)/i.test(f.path)), 'the record never lists the user file or its blocks');
+  assert.ok(!after.files.some(f => /^pact\/(config|blocks|presets)/i.test(f.path)), 'the record never lists the user file, its blocks or the presets folder');
 });
 
 // ------------------------------------------------------------ the renderer's lines, parsed exactly

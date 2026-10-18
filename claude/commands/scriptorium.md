@@ -87,20 +87,23 @@ below is the POSIX form; in PowerShell, run `$env:NODE_OPTIONS = $null; node
    A `REFUSE` line is a rule the page or the installer would break: fix it
    and rerun. A `FINDING` never refuses: fix the file, or write one line
    saying why it is meant. The check also reads my presets in
-   `~/.claude/pact/presets/`. A `FINDING` on one of them is reported to me
-   with its file name, never answered by editing the file: edit a preset only
-   when I ask. Done when the check ends `RESULT: pass` and every finding has
-   its fix or its line, or has been reported to me.
+   `~/.claude/pact/presets/`; a finding on one starts `FINDING presets`, and
+   each preset the page will list gets a `LISTED` line. A finding on a preset
+   is reported to me with its file name, never answered by editing the file:
+   edit a preset only when I ask. Done when the check ends `RESULT: pass`,
+   every finding on the builder file has its fix or its line, and every
+   finding on a preset has been reported to me.
 
 5. **Save the file and render the page.** Before saving, show me the
    `yours` lists. Drop or shorten any description that holds a key, a token,
    an internal address or a name I would not want in a page. Do the same for
    every text field of the parts the file carries, and for every agent file
-   in `agentFiles`. Apply the same read to every text field and agent file of
-   each preset in `~/.claude/pact/presets/` that the check passes. Change none
-   of them: name to me each preset where you find such text, and render only
-   once I have answered (I edit or remove the file, or say it is meant). Write the file to `~/.claude/pact/builder.json` once I
-   agree. Then render:
+   in `agentFiles`. Write the file to `~/.claude/pact/builder.json` once I
+   agree. Before rendering, apply the same read to the file name and every text
+   field and agent file of each preset the check lists (its `LISTED` lines).
+   Change none of them: name to me each preset where you find such text, and
+   render only once I have answered (I edit or remove the file, or say it is
+   meant). Then render:
 
    ```
    env -u NODE_OPTIONS node ~/.claude/pact/builder/builder/build.mjs --builder ~/.claude/pact/builder.json
@@ -118,9 +121,10 @@ below is the POSIX form; in PowerShell, run `$env:NODE_OPTIONS = $null; node
    carries or no longer carries, and the findings you kept with their lines.
    Then state the limit: the page's checks are for usability, and the
    install's dry run is the authority on what the page saves. Say too that
-   the page holds my lists, every preset from `~/.claude/pact/presets/` and any
+   the page holds my lists, every preset the check listed from `~/.claude/pact/presets/` and any
    agent files in plain text: delete its folder once I am done with it. Name
-   the presets the page lists from that folder, and any the check left out.
+   the presets the page lists from that folder (the `LISTED` lines of the render, matched
+   against the presets you read), and any the check left out.
 
 ## What never goes in a builder file
 

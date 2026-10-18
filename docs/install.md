@@ -304,9 +304,6 @@ It installs these files under `~/.claude`:
 - `pact/tools/poster.mjs`, only while your `tools` list turns the poster on.
   It posts to GitHub as your `gh` account. Taking it out of the list deletes
   it at the next install;
-- `pact/presets/`, where you keep your own presets: builder files that
-  `/scriptorium`'s page lists under "Your presets". The install never writes,
-  lists or deletes this folder.
 - `pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the
@@ -316,6 +313,10 @@ It installs these files under `~/.claude`:
   Claude home folder and any `.claude` folder;
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against.
+
+To keep presets of your own, create `~/.claude/pact/presets/` yourself and
+put builder files in it; `/scriptorium`'s page lists them under "Your
+presets". The install never writes, lists or deletes that folder.
 
 **How it writes `settings.json`.** It writes the merged file to a new file in
 the same folder, then renames it over the old one. The file stays plain JSON,

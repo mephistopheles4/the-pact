@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-+MpF0qWWcYe3Ku9+xq/OBORyvADdpKcg475PcjKbj5w='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-L0sC3K9jTa1/AV1v9LeibOlUmrinxKurz61LFBZ0hFs='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3014,7 +3014,7 @@ function dropRetired(p) {
  */
 function reconcileTiers(p) {
   if (!Array.isArray(p.tiers) || !p.tiers.length || !isObj(p.workflowGraph)) return p;
-  const ids = p.tiers.map(t => t.id);
+  const ids = p.tiers.map(t => (isObj(t) ? t.id : undefined));
   const heaviest = ids[ids.length - 1];
   const g = p.workflowGraph;
   for (const st of Array.isArray(g.stages) ? g.stages : []) if (isObj(st) && Array.isArray(st.skipAt)) st.skipAt = st.skipAt.filter(k => ids.includes(k));
@@ -5902,7 +5902,7 @@ function boot() {
           ...(why ? [el('p', { class: 'av-callout av-callout--caution', role: 'alert', text: why })] : []))));
       return showDialog('presets');
     }
-    // A shared file's or an own preset's agent files start unticked: one can replace scout or a security lens (#262, #283). A shipped preset's start ticked.
+    // #262, #283: see startPicks.
     const picks = new Set(startPicks(chosen));
     // One accordion row per section the preset carries: a checkbox where a tier's number sits, its name and a count, and inside, what it holds.
     const lines = xs => el('ul', { class: 'runs' }, ...xs.map(x => el('li', { text: x.replaceAll('`', '') })));

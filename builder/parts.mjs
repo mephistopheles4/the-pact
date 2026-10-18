@@ -241,7 +241,7 @@ export function dropRetired(p) {
  */
 export function reconcileTiers(p) {
   if (!Array.isArray(p.tiers) || !p.tiers.length || !isObj(p.workflowGraph)) return p;
-  const ids = p.tiers.map(t => t.id);
+  const ids = p.tiers.map(t => (isObj(t) ? t.id : undefined));
   const heaviest = ids[ids.length - 1];
   const g = p.workflowGraph;
   for (const st of Array.isArray(g.stages) ? g.stages : []) if (isObj(st) && Array.isArray(st.skipAt)) st.skipAt = st.skipAt.filter(k => ids.includes(k));
