@@ -270,8 +270,9 @@ stricter: an edited comment, and every issue, PR or review body, never count.
   failure is a failed read: stop and ask the owner.
 - **Run the checker as it stands on `main`,** never a copy a branch changed.
   First check that `git remote get-url origin` ends in
-  `mephistopheles4/the-pact` or `mephistopheles4/the-pact.git`; if it
-  doesn't, `origin/main` may be another repo's code: stop and ask the owner.
+  `/mephistopheles4/the-pact` or `:mephistopheles4/the-pact`, with or
+  without `.git`, so another account whose name ends the same way can't
+  pass; if it doesn't, `origin/main` may be another repo's code: stop and ask the owner.
   In a POSIX shell:
 
   ```sh

@@ -980,7 +980,8 @@ it trusts the `gh` and environment it is given (R10, R14).
 - **The output.** Every body is an escaped JSON string, with control,
   separator and format characters escaped, so no body can start a line. The
   verdict is taken only from the SUMMARY line, which names an insiders' pull
-  request with the head commit it was judged at, the one to check out. The
+  request with the head commit it was judged at, the one to check out; a
+  head that isn't 40 hex digits stops the read. The
   owner's unsubmitted review is left out.
 - **What it can't see.** An edit in the same second as its comment. Whether a
   review or review comment is hidden: REST carries no flag for them, so the

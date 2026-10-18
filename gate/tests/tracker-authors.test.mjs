@@ -139,6 +139,7 @@ for (const c of table('tracker authors insiders', {
     { id: 'other-commit', plant: edit(r => (r.commits[0].author = user(OTHER))), fails: ['commit-not-owner'], why: 'a commit authored by another account' },
     { id: 'unlinked-commit', plant: edit(r => (r.commits[0].committer = null)), fails: ['commit-not-owner'], why: 'a commit whose committer email links no account' },
     { id: 'unlinked-author', plant: edit(r => (r.commits[0].author = null)), fails: ['commit-not-owner'], why: 'a commit whose author email links no account' },
+    { id: 'other-committer', plant: edit(r => (r.commits[0].committer = user(OTHER))), fails: ['commit-not-owner'], why: 'a commit committed by another account' },
     { id: 'head-mismatch', plant: edit(r => r.commits.push(commit('b'.repeat(40)))), fails: ['head-mismatch'], why: 'the last commit read is not the head the PR names' },
   ],
 })) test(c.name, c.fn);
@@ -207,6 +208,7 @@ for (const c of table('tracker authors stops', {
     { id: 'non-array-page', plant: setPath(`${R}/pulls/7/reviews?per_page=100&page=1`, '"CANARY-page"'), fails: ['stop/shape'], why: 'a page that is not a JSON array' },
     { id: 'item-not-object', plant: setPath(`${R}/pulls/7`, '[]'), fails: ['stop/shape'], why: 'the PR read is not an object' },
     { id: 'user-without-login', plant: setPath('user', '{"name":"CANARY-name"}'), fails: ['stop/shape'], why: 'the user record has no login' },
+    { id: 'head-not-a-commit', plant: recs(r => ((r.pull.head.sha = `${SHA}\n${SHA}`), (r.commits[0].sha = r.pull.head.sha))), fails: ['stop/shape'], why: 'a head commit that is not 40 hex digits alone, which the SUMMARY would print' },
     { id: 'comments-count', plant: recs(r => (r.pull.comments = 2)), fails: ['stop/count'], why: 'fewer comments read than the PR counts' },
     { id: 'review-comments-count', plant: recs(r => (r.pull.review_comments = 0)), fails: ['stop/count'], why: 'more review comments read than the PR counts' },
     { id: 'commits-count', plant: recs(r => (r.pull.commits = 2)), fails: ['stop/count'], why: 'fewer commits read than the PR counts' },

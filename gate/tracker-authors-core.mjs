@@ -40,6 +40,7 @@ import { join } from 'node:path';
 export const SLUG = 'mephistopheles4/the-pact';
 const KINDS = ['issue', 'pr'];
 const NUMBER = /^[1-9][0-9]{0,8}$/;
+const SHA = /^[0-9a-f]{40}$/;
 const PER_PAGE = 100;
 const MAX_COMMITS = 250;
 const MAX_REVIEWS = 100;
@@ -152,6 +153,8 @@ export function read(kind, number, run) {
       counts = [[comments.length, issue.comments]];
     } else {
       const pull = item(run, `${repo}/pulls/${number}`);
+      // The head commit goes into the SUMMARY as the commit to check out, so it must be one.
+      if (typeof pull.head?.sha !== 'string' || !SHA.test(pull.head.sha)) throw new Stop('stop/shape');
       const commits = list(run, `${repo}/pulls/${number}/commits`);
       const reviews = list(run, `${repo}/pulls/${number}/reviews`, MAX_REVIEWS);
       const reviewComments = list(run, `${repo}/pulls/${number}/comments`);
