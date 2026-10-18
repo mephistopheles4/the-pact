@@ -1,5 +1,7 @@
 # The poster checks the Lens dispositions table
 
+Amended in part by [ADR 0090](0090-lens-findings-carry-their-state-against-the-base.md) (2026-10-18): a Finding cell starts with its state word, refused as `table/state`, except in a `skipped` or withheld row, and `noted` joins the Disposition words. The header is unchanged.
+
 Where the owner turns the poster on, its pre-post scan checks the shape of any Lens dispositions table in the body against the review procedure's template, and refuses a table that drifts, with nothing sent (#280, T2 in #285). Before it posts, the poster also asks GitHub who owns the repo, and refuses when that owner isn't the `gh` login.
 
 ## What changed

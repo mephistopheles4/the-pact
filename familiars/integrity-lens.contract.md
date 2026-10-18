@@ -190,6 +190,8 @@ Its question is "can these checks fail, and does each one earn its place?" (**De
 
 **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): the lens may also be handed a cut list, each cut with the test named to cover it. A cut finding (a test that backs nothing, or a duplicate test) is a finding, not a trade-off, and spends no cost.
 
+**Decided** (2026-10-18, #336, spec revision 3 signed off by the owner): every run is also handed the base, the commit the work started from with the request, and judges against it, giving each finding, trade-off and accepted-risk line a state: `new`, `updated` or `unchanged`. A follow-up, a later run on the same kind of input in the same piece of work, is still dispatched fresh and alone, and is also handed the revision diff and only its own rows of the last Lens dispositions table, numbered `E1`, `E2` and on, which it accounts for under Earlier findings as `absent`, with evidence, or as holding. The review procedure's report template and its by-lens table of the state words hold the text; this lens file is unchanged.
+
 ### 11. Where does a person decide?
 
 **Decided** (2026-10-12, #262): the owner decides on its findings. When the session that dispatched it hands back a choice, the lens repeats it in words before it acts.

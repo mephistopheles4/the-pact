@@ -34,7 +34,7 @@ const BASE = [
   '',
   '| Finding | Lens | Disposition | Rerun |',
   '| --- | --- | --- | --- |',
-  '| F1 a finding | executability-lens | fixed (auto) | none |',
+  '| new F1 a finding | executability-lens | fixed (auto) | none |',
   '',
   'Auto-takes:',
   '',
@@ -230,8 +230,8 @@ test('the prose refusals come after the scan and the table check, before any not
   const token = 'n' + 'pm_' + 'E5'.repeat(18);
   const head = ['### Lens dispositions', '', '| Finding | Lens | Disposition | Rerun |', '| --- | --- | --- | --- |'];
   const wrapped = ['', 'A paragraph that stops here', 'and carries on.', ''];
-  const few = runBody({ 'body.md': [...head, '| a | b | changed | c |', ...wrapped, token].join('\n') }, t);
-  assert.deepEqual(few.real.lines, ['REFUSED secret/token body 10:1', 'REFUSED table/disposition body 5:11', 'REFUSED text/hard-wrap body 8:1', 'RESULT: refused 3']);
+  const few = runBody({ 'body.md': [...head, '| new a | b | changed | c |', ...wrapped, token].join('\n') }, t);
+  assert.deepEqual(few.real.lines, ['REFUSED secret/token body 10:1', 'REFUSED table/disposition body 5:15', 'REFUSED text/hard-wrap body 8:1', 'RESULT: refused 3']);
   const many = runBody({ 'body.md': [...head, ...Array(60).fill('|'), ...wrapped].join('\n') }, t);
   assert.equal(many.real.lines.length, 53, many.out);
   assert.equal(many.real.lines[50], 'REFUSED text/hard-wrap body 67:1');
