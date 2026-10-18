@@ -177,7 +177,7 @@ run_plugins fx/mkt-linkcat "$S2" good mcp
 echo "outside file unchanged (expect {\"plugins\":[]}): $(cat /tmp/fx/outside.json)"
 echo "# an unparsable catalog"
 S3="$(fx_mkt fx/mkt-bad '{"plugins": [ not json')"
-run_plugins fx/mkt-bad "$S3" claude-code-setup claude-security code-review coderabbit security-guidance skill-creator superpowers
+run_plugins fx/mkt-bad "$S3" claude-code-setup claude-security code-review coderabbit security-guidance superpowers
 
 echo "### C7: PROXY_LINE_PROGRAM on fixture bodies"
 eval "$(sed -n "/^IFS= read -r -d '' PROXY_LINE_PROGRAM <<'PROXY_LINE_PROGRAM_EOF'$/,/^PROXY_LINE_PROGRAM_EOF$/p" /s/cloud-setup.sh)"

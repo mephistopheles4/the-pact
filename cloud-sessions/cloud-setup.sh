@@ -492,10 +492,10 @@ install_plugins() {
 if command -v claude >/dev/null 2>&1; then
   install_plugins anthropics/claude-plugins-official pact-pinned-plugins \
     claude-code-setup claude-security code-review coderabbit \
-    security-guidance skill-creator superpowers
+    security-guidance superpowers
 else
   echo "WARN: claude CLI not on PATH; plugins skipped"
-  note install claude-code-setup claude-security code-review coderabbit security-guidance skill-creator superpowers
+  note install claude-code-setup claude-security code-review coderabbit security-guidance superpowers
 fi
 
 echo "== Skills"
@@ -2851,7 +2851,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 682ad5997c59"
+  echo "pact cloud copy fcacdc2619a7"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
