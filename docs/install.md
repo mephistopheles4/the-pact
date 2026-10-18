@@ -314,6 +314,10 @@ It installs these files under `~/.claude`:
 - `settings.json`, merged as the dry run showed;
 - `.pact-install.json`, the record the next install compares against.
 
+To keep presets of your own, create `~/.claude/pact/presets/` yourself and
+put builder files in it; `/scriptorium`'s page lists them under "Your
+presets". The install never writes, lists or deletes that folder.
+
 **How it writes `settings.json`.** It writes the merged file to a new file in
 the same folder, then renames it over the old one. The file stays plain JSON,
 unencrypted, which is the form Claude Code reads. On Linux and macOS it keeps

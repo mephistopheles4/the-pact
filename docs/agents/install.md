@@ -121,7 +121,11 @@ how every session in every repo behaves. So:
   which every install puts in place with the builder kit under
   `~/.claude/pact/builder/`. It reads their skills, commands, agents and
   configuration, keeps the result in `~/.claude/pact/builder.json`, and
-  renders a page that carries those lists in plain text. Such a page belongs
+  renders a page that carries those lists in plain text. The kit also reads
+  the person's own presets from `~/.claude/pact/presets/`, a folder the
+  install never writes, lists or deletes, and the page lists them under
+  "Your presets" with their agent rows unticked; a clone's run reads none
+  (ADR 0085). Such a page belongs
   outside any repo: `build.mjs` refuses to write one inside this clone or
   any git work tree, the kit, the Claude home folder, any `.claude` folder,
   or over a file.

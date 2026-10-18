@@ -684,7 +684,7 @@ for (const c of table('install destinations', {
 // dest-skip: the reasons behind the rule id the table above checks.
 test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
   for (const p of ['', '../x', 'a/../b', '/x', '\\x', 'C:x', null, 5]) assert.equal(core.skipReason(p, noLink), 'unsafe path', String(p));
-  for (const p of ['settings.json', 'SETTINGS.JSON', '.pact-install.json', 'pact/config.json', 'pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', 'pact/blocks/b.md', 'pact/builder.json', 'Pact/Builder.json. ']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+  for (const p of ['settings.json', 'SETTINGS.JSON', '.pact-install.json', 'pact/config.json', 'pact/config.json:stream', 'x/.credentials.json', 'projects/a', 'memory', 'skills/x/y', 'handover/z', 'pact/blocks/b.md', 'pact/presets', 'pact/presets/personal.json', 'Pact/Presets/p.json. ', 'pact/builder.json', 'Pact/Builder.json. ']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
   for (const p of ['agents/a b.md', 'agents/.x', 'agents/a.', 'a\\b']) assert.equal(core.skipReason(p, noLink), 'non-canonical path', p);
   assert.equal(core.skipReason('agents/a.md', () => true), 'path through a link');
   assert.equal(core.skipReason('agents/a.md', noLink), null);

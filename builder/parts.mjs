@@ -241,7 +241,7 @@ export function dropRetired(p) {
  */
 export function reconcileTiers(p) {
   if (!Array.isArray(p.tiers) || !p.tiers.length || !isObj(p.workflowGraph)) return p;
-  const ids = p.tiers.map(t => t.id);
+  const ids = p.tiers.map(t => (isObj(t) ? t.id : undefined));
   const heaviest = ids[ids.length - 1];
   const g = p.workflowGraph;
   for (const st of Array.isArray(g.stages) ? g.stages : []) if (isObj(st) && Array.isArray(st.skipAt)) st.skipAt = st.skipAt.filter(k => ids.includes(k));
@@ -608,7 +608,7 @@ export function partsProblems(p) {
     for (const o of g.offers)
       for (const pair of rosterPairs(p)) {
         const has = pair.agents.filter(a => o.agents.includes(a)).length;
-        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.label} on its own; a pair's reports are crossed, so run both or neither` });
+        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.agents.join(' and ')} on its own; a pair's reports are crossed, so run both or neither` });
       }
   return out;
 }

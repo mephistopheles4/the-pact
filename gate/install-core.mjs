@@ -1099,7 +1099,7 @@ export function isProtected(rel) {
     .filter(Boolean);
   const n = segs.join('/').toLowerCase();
   const leaf = segs.length ? segs[segs.length - 1].toLowerCase() : '';
-  return n === 'settings.json' || n === '.pact-install.json' || n === 'pact/config.json' || n === 'pact/builder.json' || leaf.startsWith('.credentials') || /^(projects|memory|skills|handover|pact\/blocks)(\/|$)/.test(n);
+  return n === 'settings.json' || n === '.pact-install.json' || n === 'pact/config.json' || n === 'pact/builder.json' || leaf.startsWith('.credentials') || /^(projects|memory|skills|handover|pact\/blocks|pact\/presets)(\/|$)/.test(n);
 }
 
 /** Only plain, canonical record paths are acted on: a name that is not already plain could be a Windows alias. */
