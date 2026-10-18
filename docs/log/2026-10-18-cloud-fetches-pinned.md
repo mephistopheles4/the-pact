@@ -40,7 +40,7 @@ The two external plugin sources in the pinned catalog: `coderabbit` at `3e8763d2
 
 Run in a throwaway container from an Ubuntu 24.04 image with `git`, `curl` and `gnupg` (`buildpack-deps:noble-scm`, `jq` added), because Docker Hub refused the plain image (rate limit) and the cloud proxy refuses plain-HTTP apt. The container got the proxy's address through a forwarder on the Docker bridge, and the image's CA store with the proxy's CA added; no host network, no credentials of its own, one read-only mount. The proxy still answered the container's GitHub requests as the owner's account, so code in it had the owner's GitHub reach (see the proxy line below).
 
-Both drivers, run side by side on the final scripts (after the Test review's fixes), gave the same output apart from temp folder names, and the same as the run before those fixes apart from the marker and the redacted login. In one wrapper run the wrong-mise-pin hand check failed at the download, not the hash, so it read `node: download`; the rerun matched the setup driver line for line.
+Both drivers, run side by side on the final scripts before the wrapper driver's T3 section was cut (after the Test review's fixes), gave the same output apart from temp folder names, and the same as the run before those fixes apart from the marker and the redacted login. In one wrapper run the wrong-mise-pin hand check failed at the download, not the hash, so it read `node: download`; the rerun matched the setup driver line for line.
 
 - **Two passes from nothing installed:** Node 24.22.0, all five skill repos at their pins, 51/51 skills, 12 config files, the marker; the snapshot after pass 2 equals the one after pass 1. No `claude` in the image, so the plugins read `not installed`, as the spec expects.
 - **The Node block's hand checks** (T1's, rerun): each wrong pin, a blocked download, `paranoid` off and a non-x86_64 machine fail with their reason; the block alone takes 9 s.
@@ -65,6 +65,15 @@ The QA pair (behaviour-lens, integrity-lens) and the security pair (adversarial-
 - **`read -ra REPO_PIN` and a code line before the pins** were not refused by `assemble()`; both are now.
 - **From adversarial-lens's rerun on these fixes:** a line led by a no-break space and a hash passed the pins-first check as a comment, though bash runs it; the check now reads each line's raw text. A path source holding a control character, which the line-split link listing could misplace, is refused. An uninstall refused for time is named under `skipped (time)`.
 - **Smaller:** an official-marketplace lookup that fails reads `unknown`; a refused skill whose older copy stays says so; `cp`, `mv` and `mktemp` errors go to the step log; the drivers redact the login in their full passes too.
+
+## On the owner's word
+
+At hand-off the owner took every pick (in chat, in the build thread, 2026-10-18):
+
+- **Threat model:** R10 narrowed, with the proxy's reach and each pinned send approved by name; the input checks named under the plugins section; the #182 line; snapshot leftovers under data migrations. Accepted: R41 (the repo pins), the SHA-1 residual in the crypto paragraph, and R42 (four step gaps: the shared Node budget, the step log left on an early end, the refused plugin step's Result, and the jq-less freeze).
+- **The 7-day deadline** for an advisory against a repo pin stays in ADR 0091, and the advisory watch takes the new prompt posted on #183.
+- **Tests:** none added beyond the 22 the spec kept. The wrapper driver's T3 section is cut: it ran the same generated setup as the setup driver's, case for case (integrity-lens). The wrapper driver keeps its passes, Node checks and merge tests.
+- **The ADR is 0091:** #336 merged first and took 0090.
 
 ## Decisions
 

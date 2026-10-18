@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R40, so other work can point at it. A
+Each accepted risk has a label, R1 to R42, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -96,7 +96,7 @@ checks each file it writes, and its generator checks what it takes from the
 install. The cloud setup also checks the mise download and the installed
 Node binary against pinned SHA-256 hashes, and mise checks the Node archive
 against a third pin in its lockfile; `gen.mjs` refuses a pin out of its
-shape before it reaches the root-run script (R35). The apply binding: when a configuration applies, an apply is also
+shape before it reaches the root-run script (R35). The cloud setup's third-party fetches are tied to their pins by git's object ids, SHA-1 with collision detection, below the hash strength ASVS asks of integrity checks; `gen.mjs` refuses a repo pin out of its shape (R41). The residual is a collision prepared by an upstream author who wrote both commits; accepted by the owner on 2026-10-18, in chat, from #183 T3's hand-off. The apply binding: when a configuration applies, an apply is also
 bound to the rendered hash its dry run printed. A session that can write the
 files can write the install record too (R14), and the binding holds the clone
 and the render, not your sight of them (R22). The builder page's policy
@@ -119,7 +119,12 @@ own copy draws a warning and stays (#302); and the install takes out the ask
 rules an older pact set (#265). A change to the install record's format, the
 configuration's format, the settings overlay, or what an install removes is a
 data migration, sensitive work under the default; the rollback checks in
-`docs/agents/install.md` are its recovery.
+`docs/agents/install.md` are its recovery. A cloud snapshot taken before
+#183 T3 keeps its `claude-plugins-official` marketplace and
+`@claude-plugins-official` plugins, its `enabledPlugins` entries and any
+skill folder no longer listed (`resolving-merge-conflicts`). The setup names
+an official marketplace still configured in its Result; it removes nothing.
+The live run (C9) checks for clashes.
 
 ## The risks at a glance
 
@@ -131,7 +136,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R40
+  title Residual risk, R1 to R42
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -177,6 +182,8 @@ quadrantChart
   R38: [0.10, 0.78]
   R39: [0.06, 0.74]
   R40: [0.05, 0.70]
+  R41: [0.10, 0.80]
+  R42: [0.15, 0.22]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -188,13 +195,13 @@ How to read it:
   it most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
   tracker rule (R1, R2), a foreign token taken as the owner (R38), the checker's origin check (R40), the rule on outsiders' code (R5, R6), commits credited by email (R39), trust in what
-  you install (R8, R9, R10, R35), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
+  you install (R8, R9, R10, R35, R41), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), and agent files taken from a shared builder file (R32) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R42.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -204,7 +211,9 @@ How to read it:
   warning that leads its dry run. R33 needs another local account that can read the system's temporary folder. R34 needs a path whose folder names say
   something about you, outside your home and temp folders, to reach a post.
   R37 costs a broken `node` command until the next setup, or tells mise's
-  vendor which versions a session runs.
+  vendor which versions a session runs. R42 costs a cloud session skipped
+  plugins or skills, a Result that overstates what is missing, or a stale
+  plugin catalog, until the next setup.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -217,7 +226,7 @@ How to read it:
 | R7 Teams blocked | None; a cost to you | None yet (#180) | — |
 | R8 Publisher compromised | This repo's publisher | Dry run, the diff you read | Rule |
 | R9 Installed code | Plugin or skill author | None | — |
-| R10 Cloud fetches unpinned | Upstream authors | None for plugins, skills and the command-line tool; accepted (#182). mise and Node are pinned since #183 (R35) | — |
+| R10 Cloud fetches | Upstream authors, or the pin bump | Skill repos and the plugin marketplace pinned by commit; each installed plugin's catalog entry checked, before it replaces the kept copy, for a pinned source and no declared or undeclared dependencies, servers, monitors or settings, and path-source plugins for links; every third-party command run token-free and timed (ADR 0091). mise and Node are pinned since #183 (R35). Not pinned: the image's `claude` CLI, what claude.ai syncs, security-guidance's SDK install (#340) | Boundary, rule |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its secret scan as a backstop behind that read, which stays for everyone (#280); elsewhere, judgment | Rule, judgment |
@@ -248,6 +257,8 @@ How to read it:
 | R38 Foreign token taken as the owner | Whoever's token a session is given | The session announces its login in its first message, and stops if you object (ADR 0089) | Rule |
 | R39 Commits credited by email | Whoever's commits reach a branch of this repo in a pull request you opened | Only accounts with write rights push branches here; the insiders' check reads each commit's author and committer account (ADR 0089) | Outside the pact, rule |
 | R40 Checker origin read by path | Whoever sets a clone's origin | The run step checks that `origin` ends in this repo's account and name (ADR 0089) | Rule |
+| R41 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091) | Rule |
+| R42 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 
 ## Strangers on the tracker
 
@@ -407,6 +418,15 @@ once you install it.
   ones an older pact added. Claude Code guards its own folder and
   `~/.claude.json`; the install's apply, a `gh` command on rulesets or branch
   protection, and a review-folder dry run run unprompted (R22, R24, ADR 0063).
+- **For the cloud setup's fetches, input checks (#183 T3).** `gen.mjs`
+  refuses a repo pin out of its shape and any write to `REPO_PIN` in the
+  templates (`cloud/pin`); the setup's source check reads the upstream
+  catalog as data and keeps only entries with a pinned source and no
+  declared or undeclared servers, monitors, settings or dependencies, and
+  only a checked tree replaces the kept one; skills holding a link or a
+  `.claude-plugin/` entry are not copied; `PROXY_LINE_PROGRAM` reads the
+  GitHub API's answer as data and prints only a login of GitHub's shape,
+  `anonymous` or `unexpected` (R10, R41).
 
 **What is accepted.**
 
@@ -417,14 +437,33 @@ once you install it.
 - **R9. No rule can stop code you installed.** A plugin's hooks or servers run
   whatever they hold. The pact cannot see or limit them. Trust what you
   install, and pin versions where you can.
-- **R10. Cloud sessions fetch unpinned code.** Each time a cloud session
-  starts, its setup script installs plugins, third-party skills and a
-  command-line tool at their latest versions. That code can reach the repo
-  clone and any token the container holds. One plugin is a code-review
-  service's; using it may send code to that service. The owner accepted this
-  risk by name (#182). Since #183 mise and Node are pinned and checked (R35);
-  the rest is not, and it runs after them as root, so it could undo their
-  checks.
+- **R10. Cloud sessions run code the setup can't fully pin.** Since #183 T3
+  the setup fetches each skill repo and the plugin marketplace at a commit
+  pinned in `gen.mjs`, checks each plugin's catalog entry for a pinned source
+  and for declared or undeclared dependencies, servers and monitors, and
+  checks path-source plugins for links (ADR 0091). External plugin sources
+  are checked for a pinned `sha` only, and read at each bump. What stays
+  unpinned: the image's own `claude` CLI; what claude.ai syncs into a
+  session, outside the pact's reach; and security-guidance's session-start
+  hook, which installs its SDK from PyPI unpinned until #340 ships (owner's
+  card, 2026-10-18). A pin is only as good as its bump. Some pinned plugins
+  send data off the machine by design: coderabbit's review skill sends code
+  diffs to CodeRabbit's service; security-guidance's review sends diffs, and
+  files its reviewer chooses to read, to the Anthropic API; superpowers'
+  brainstorm page loads a logo from its author's site, sending the viewer's
+  address and the plugin version, unless telemetry is turned off. Some pinned
+  skills send data when used: one audit to TypeSafe or OpenRouter, one to
+  Cloudflare's API, one writes GitHub repo secrets, and one page loads two
+  CDN scripts. The owner accepted the unpinned remainder by name (#182), and
+  approved each of those sends by name on 2026-10-18, in chat, from #183 T3's
+  hand-off.
+  Pinning fixes which code runs, not what it can reach. Under the cloud
+  proxy, any process in a session, pinned plugins' hooks included, reaches
+  GitHub as the owner whatever the token variables hold. In one session, repo
+  API reads were limited to the session's attached repos; writes, other
+  endpoints and the proxy during setup were not observed. After T3 the setup
+  runs no third-party code itself: the CLI's own install of the pinned
+  plugins runs none of their code. The exposure is in sessions.
 - **R35. The cloud setup trusts its Node pins.** The setup runs mise and Node
   as root on the strength of three pinned hashes. A pin is only as good as the
   bump that set it. The bump checks the signatures on Node's and mise's
@@ -450,6 +489,20 @@ once you install it.
   off. Neither is a security finding, and the Hardening limit is 0. Accepted
   by the owner on 2026-10-18, in chat, from #183's Design review
   (adversarial-lens and data-lens trade-offs).
+- **R41. The cloud setup trusts its repo pins.** No signature or advisory
+  feed backs these pins; the reviewed diff at each bump is the only check. A
+  bump that skips its reads, or a commit an upstream author prepared, would
+  pass. A fix upstream reaches sessions only after a bump. Accepted by the owner on 2026-10-18, in chat, from #183 T3's hand-off (ADR 0091).
+- **R42. Four gaps in the cloud setup's plugins and skills steps.** The Node
+  block spends from the same 270-second budget as the plugins and skills, so
+  a slow Node download leaves less time for them; the Result names whatever
+  was skipped, and the next snapshot retries. If setup ends early, its step
+  log stays in a private temporary folder. When the plugin step is refused,
+  the Result names all seven plugins under "not installed" while the older
+  checked copies stay installed. And without jq, one plugin that stops
+  passing keeps the marketplace at its last checked tree on every run. None
+  is a security finding, and the Hardening limit is 0. Accepted by the owner on 2026-10-18, in chat, from #183 T3's hand-off (Design and
+  Test review trade-offs, the step log from data-lens; ADR 0091).
 - **R23. Work that publishes can run below the thorough tier.** Since #189
   publishing is not on the list of sensitive work, so a change to what gets
   published, such as a package's contents, a release step or a personal
@@ -1050,7 +1103,7 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
   GraphQL. Since #183 T2 it reads them through the tracker author checker
   (ADR 0089). The line goes when the issue closes.
 - **#180:** no setting yet for trusted accounts on a team repo (R7).
-- **#182:** the cloud setup fetches unpinned code (R10).
+- **#182:** the cloud setup fetched unpinned code; since #183 T3 it pins the skill repos and the plugin marketplace (R10, R41).
 - **#184:** no rule for sessions no person started (R16).
 - **#199:** no rule for fixing a reported hole out of public view (R19).
 
