@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reinstall global Claude Code skills, plugins and config in a fresh cloud container.
 # Every run fetches each third-party repo at its pinned commit and replaces
-# what it copies from it (#183 T3, ADR 0090). One failure never stops the
+# what it copies from it (#183 T3, ADR 0091). One failure never stops the
 # rest, so there is deliberately no `set -e`.
 
 # The third-party repos' pinned commits, written by gen.mjs. Read-only, and

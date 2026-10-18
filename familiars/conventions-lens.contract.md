@@ -168,6 +168,8 @@ None yet.
 
 **Decided** (2026-10-17, #304, recording #289): the lens may also be handed quality rows with an Enough, the cost rows they name and a running count against each counted limit, as inputs, never orders. A finding past a cost limit follows that cost row's "At the limit" text; one past an Enough level alone, or one that spends a cost with an empty limit, goes to the owner as a trade-off naming the cost or level, the limit and the quality at stake, and is never dropped silently. It lists those apart from its findings, under Trade-offs, with their severity; a trade-off never makes its verdict blocking on its own. When it is unsure whether a finding is a security finding, it marks it "security?" and the sorting session decides; it never classes it as ordinary to fit a limit. The lens file's "Cost limits and trade-offs" section holds the text.
 
+**Decided** (2026-10-18, #336, spec revision 3 signed off by the owner): every run is also handed the base, the commit the work started from with the request, and judges against it, giving each finding, trade-off and accepted-risk line a state: `new`, `updated` or `unchanged`. A follow-up, a later run on the same kind of input in the same piece of work, is still dispatched fresh and alone, and is also handed the revision diff and only its own rows of the last Lens dispositions table, numbered `E1`, `E2` and on, which it accounts for under Earlier findings as `absent`, with evidence, or as holding. The review procedure's report template and its by-lens table of the state words hold the text; this lens file is unchanged.
+
 ### 11. Where does a person decide?
 
 **Decided** (2026-10-12, #262): the owner decides on its findings.

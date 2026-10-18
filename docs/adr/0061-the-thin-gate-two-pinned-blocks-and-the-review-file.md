@@ -1,5 +1,7 @@
 # The thin gate, its two pinned blocks, and the review file
 
+Amended in part by [ADR 0090](0090-lens-findings-carry-their-state-against-the-base.md) (2026-10-18): the review file also hands every lens run the base and a follow-up its own earlier rows, and its report template gives each finding a state against the base.
+
 Superseded in part by [ADR 0064](0064-review-crossings-by-template-and-judgment.md) (2026-10-11): the review file no longer installs beside a cross script or names one; the gate no longer holds the script to a character scan or an import rule.
 
 The install gate now checks what can run and with what power, and stops checking what the rules file says or how it is shaped (#238 spec revision 9, S4 and S5, built in #261). Two blocks stay pinned word for word. The lens procedure moved out of the rules file into its own installed file, `pact/review.md`.

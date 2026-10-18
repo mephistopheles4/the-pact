@@ -68,7 +68,7 @@ The QA pair (behaviour-lens, integrity-lens) and the security pair (adversarial-
 
 ## Decisions
 
-- [ADR 0090](../adr/0090-the-cloud-setup-fetches-third-party-code-by-pinned-commit.md) — The cloud setup fetches third-party code by pinned commit.
+- [ADR 0091](../adr/0091-the-cloud-setup-fetches-third-party-code-by-pinned-commit.md) — The cloud setup fetches third-party code by pinned commit.
 
 ## Record
 

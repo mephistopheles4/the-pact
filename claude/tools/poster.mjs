@@ -563,17 +563,24 @@ export function scan(fields, ctx) {
 
 /**
  * The Lens dispositions table's shape, as the review procedure gives it: the
- * header row, the words a Disposition cell starts with, what follows
- * `skipped`, and what may follow ` (auto`. A test holds them equal to the
- * review procedure's.
+ * header row, the state words a Finding cell starts with, the words a
+ * Disposition cell starts with, what follows `skipped`, and what may follow
+ * ` (auto`. A test holds them equal to the review procedure's.
  */
 export const DISPOSITIONS = Object.freeze({
   header: Object.freeze(['Finding', 'Lens', 'Disposition', 'Rerun']),
-  words: Object.freeze(['fixed', 'taken', 'dismissed', 'skipped', 'open']),
+  states: Object.freeze(['new', 'updated', 'unchanged', 'absent']),
+  words: Object.freeze(['fixed', 'taken', 'dismissed', 'skipped', 'open', 'noted']),
   skipped: ', because',
   auto: ' (auto',
   afterAuto: Object.freeze([':', ')', ', reversed']),
 });
+
+/** The whole Finding cell of a row for a report kept local; it takes no state word (#336). */
+const WITHHELD = 'withheld, see chat';
+
+/** The whole Disposition cell a withheld row may have: one bare word, never `noted` (#336). */
+const WITHHELD_WORDS = Object.freeze(['open', 'fixed', 'taken', 'dismissed']);
 
 /** How many table refusals one run lists; the rest are counted. */
 const TABLE_LISTED = 50;
@@ -584,6 +591,7 @@ const TABLE = Object.freeze({
   disposition: 'table/disposition',
   skipped: 'table/skipped',
   auto: 'table/auto',
+  state: 'table/state',
 });
 
 // A fence as CommonMark reads it: a run of three or more backticks or tildes,
@@ -638,6 +646,19 @@ function tableCells(line) {
 /** Whether a table line's cells are a delimiter row, as `| --- | :-: |`. */
 const isDelimiter = cells => cells.every(c => DELIMITER_RE.test(c.text));
 
+/** The word of `words` that `cell` starts with, ending at a character that isn't a letter or at the cell's end. */
+const leadWord = (words, cell) => words.find(w => cell.startsWith(w) && !LETTER_RE.test(cell[w.length] ?? ''));
+
+/**
+ * Whether the text after a Finding cell's lead state word opens with the word
+ * "withheld", whatever its case, spacing, punctuation or markup (#336). A
+ * finding that quotes the withheld text after other words is not matched.
+ */
+function withheldAfter(cell, state) {
+  const rest = cell.slice(state.length).replace(/\p{Cf}/gu, '').replace(/^[^\p{L}\p{N}]+/u, '').toLowerCase();
+  return rest.startsWith('withheld') && !LETTER_RE.test(rest['withheld'.length] ?? '');
+}
+
 /**
  * The refusals one row's Disposition cell earns. ` (auto` is the auto mark
  * only where the word ends there, so reason text such as "(automatically)" is
@@ -645,7 +666,7 @@ const isDelimiter = cells => cells.every(c => DELIMITER_RE.test(c.text));
  */
 function dispositionRules(cell) {
   const out = [];
-  const word = DISPOSITIONS.words.find(w => cell.startsWith(w) && !LETTER_RE.test(cell[w.length] ?? ''));
+  const word = leadWord(DISPOSITIONS.words, cell);
   if (word === undefined) out.push(TABLE.disposition);
   else if (word === 'skipped' && !cell.startsWith(DISPOSITIONS.skipped, word.length)) out.push(TABLE.skipped);
   for (let i = cell.indexOf(DISPOSITIONS.auto); i >= 0; i = cell.indexOf(DISPOSITIONS.auto, i + 1)) {
@@ -667,8 +688,12 @@ function dispositionRules(cell) {
  * it, and only that line is the delimiter row. A table is checked when a
  * header cell reads `Disposition`, ignoring case and `**`, under an earlier
  * line naming "Lens dispositions". A header other than the template's is
- * refused, and its rows are not read. It reads nothing else: not the reason
- * text, not an empty Finding cell, not the Rerun cell, and no other table.
+ * refused, and its rows are not read. A Finding cell must start with a state
+ * word, unless the row is `skipped` or the cell is exactly the withheld text,
+ * and the word "withheld" never follows a state word, in any case or markup;
+ * a withheld row's Disposition cell is one bare word, never `noted` (#336). It
+ * reads nothing else: not the reason text, not a `skipped` row's Finding
+ * cell, not the Rerun cell, and no other table.
  * `where` names the line and column, never a cell. One pass over the lines,
  * with no pattern that can backtrack without bound.
  */
@@ -722,8 +747,14 @@ export function tableCheck(body) {
       refuse(TABLE.cells, 1);
       continue;
     }
+    const finding = cells[0].text;
+    const state = leadWord(DISPOSITIONS.states, finding);
+    // A withheld row takes no state word: one there would tell readers whether the held-back item is at the base.
+    if (leadWord(DISPOSITIONS.words, cells[2].text) !== 'skipped' && finding !== WITHHELD && (state === undefined || withheldAfter(finding, state))) refuse(TABLE.state, cells[0].col);
     if (cells[1].text === '') refuse(TABLE.cells, cells[1].col);
-    for (const rule of dispositionRules(cells[2].text)) refuse(rule, cells[2].col);
+    const dispositions = dispositionRules(cells[2].text);
+    for (const rule of dispositions) refuse(rule, cells[2].col);
+    if (finding === WITHHELD && !dispositions.includes(TABLE.disposition) && !WITHHELD_WORDS.includes(cells[2].text)) refuse(TABLE.disposition, cells[2].col);
   }
   return out;
 }

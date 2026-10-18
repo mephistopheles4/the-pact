@@ -77,7 +77,7 @@ export const CLOUD_PINS = Object.freeze({
 // The third-party repos the setup fetches (#183 T3), each pinned by commit:
 // the key is owner/repo, the value its 40-hex commit. assemble() writes them as
 // one read-only bash array, REPO_PIN. Bump them only by the procedure in
-// ADR 0090: each new commit is confirmed on its upstream and its diff read.
+// ADR 0091: each new commit is confirmed on its upstream and its diff read.
 export const CLOUD_REPO_PINS = Object.freeze({
   'anthropics/claude-plugins-official': 'ea10b213686c90bb1984b2016937310e05336cf3',
   'cloudflare/skills': '86505e44f87d801aa1864a3c4109e9a8ae5c409f',
