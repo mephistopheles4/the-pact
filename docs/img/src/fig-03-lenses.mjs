@@ -16,7 +16,7 @@ const PAIRS = [
     text: 'QA pair · every build',
     lenses: [
       ['behaviour-lens', ['Runs the change. Does it', 'do what was asked?']],
-      ['integrity-lens', ['Can the tests behind the', 'pass actually fail?']],
+      ['integrity-lens', ['Can the tests behind the', 'pass actually fail, and', 'does each one earn its', 'place?']],
     ],
   },
   {
