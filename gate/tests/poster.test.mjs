@@ -658,17 +658,10 @@ for (const c of table('poster scan', {
     { id: 'token-conn', plant: inBody(SECRETS.conn), fails: ['secret/token'], why: 'a connection string with a key' },
     { id: 'url-userinfo', plant: inBody(USERINFO), fails: ['secret/url-userinfo'], why: 'a password in a URL' },
     { id: 'env-value', plant: inBody(ENV_SECRET), fails: ['secret/env'], why: "a variable's value whose name ends in KEY" },
-    { id: 'drive-backslash', plant: inBody('D:' + '\\work\\notes.md'), fails: ['path/local'], why: 'a drive letter and a backslash' },
-    { id: 'drive-slash', plant: inBody('D:' + '/work/notes.md'), fails: ['path/local'], why: 'a drive letter and a slash' },
-    { id: 'unc', plant: inBody('\\\\' + 'fileserver\\share\\x'), fails: ['path/local'], why: 'a UNC path' },
-    { id: 'users', plant: inBody('/Users/' + 'notes-for-alice/x'), fails: ['path/local'], why: 'a macOS home' },
-    { id: 'home', plant: inBody('/home/' + 'notes-for-alice/x'), fails: ['path/local'], why: 'a Linux home' },
     { id: 'machine-home', plant: inBody('/srv/home/tester' + '/notes'), fails: ['path/machine'], why: "this machine's home folder as a prefix" },
     { id: 'machine-tmp', plant: inBody('/tmp' + '/abc/file'), fails: ['path/machine'], why: "this machine's temp folder as a prefix" },
     { id: 'machine-user', plant: inBody('/opt/build/' + 'tester/out'), fails: ['path/machine'], why: "this machine's user name in a local path" },
     { id: 'machine-private-tmp', plant: inBody('/private' + '/tmp/abc/file'), fails: ['path/machine'], why: 'macOS writes its temp folder behind /private' },
-    { id: 'git-bash-home', plant: inBody('/c/Users/' + 'notes-for-alice/x'), fails: ['path/local'], why: 'a Windows home as Git Bash writes it' },
-    { id: 'wsl-home', plant: inBody('/mnt/c/Users/' + 'notes-for-alice/x'), fails: ['path/local'], why: 'a Windows home as WSL writes it' },
     { id: 'email-mail-link', plant: inBody('[mail](mailto:' + 'alice@example.org)'), fails: ['personal/email'], why: 'an address in a mail link' },
     { id: 'email-after-colon', plant: inBody('Contact:' + 'alice@example.org'), fails: ['personal/email'], why: 'an address straight after a colon' },
     { id: 'hidden-tag', plant: inBody('a' + String.fromCodePoint(0xe0041) + 'b'), fails: ['text/hidden'], why: 'a tag character a reader never sees' },
@@ -698,7 +691,6 @@ for (const c of table('poster scan', {
     { id: 'title-token', plant: inTitle(SECRETS.github), fails: ['secret/token'], why: 'a token in the title' },
     { id: 'title-url-userinfo', plant: inTitle(USERINFO), fails: ['secret/url-userinfo'], why: 'userinfo in the title' },
     { id: 'title-env', plant: inTitle(ENV_SECRET), fails: ['secret/env'], why: 'an env value in the title' },
-    { id: 'title-path', plant: inTitle('D:' + '/work'), fails: ['path/local'], why: 'a path in the title' },
     { id: 'title-machine', plant: inTitle('/tmp' + '/abc/file'), fails: ['path/machine'], why: 'a temp path in the title' },
     { id: 'title-session', plant: inTitle('session_' + SESSION), fails: ['id/session'], why: 'a session id in the title' },
     { id: 'title-email', plant: inTitle('alice' + '@example.org'), fails: ['personal/email'], why: 'an email in the title' },
@@ -724,6 +716,27 @@ test('plain words that look like the rules pass the scan', t => {
   const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: { MY_KEY: 'seven77', PATH: '/usr/bin:/bin', PWD: '/srv/work/project-dir' }, home: '/root', tmp: '/tmp', user: 'root', host: 'box' });
   assert.equal(r.code, 0, r.lines.join('\n'));
   assert.equal(last(r), 'RESULT: dry-run issue-comment');
+});
+
+// #326 C1: a path that names none of this machine's own folders or names posts; only path/machine refuses a path
+test("a drive-letter path, a network share and another user's home post", t => {
+  const body = [
+    'Notes sit in D:' + '\\work\\notes.md and D:' + '/work/notes.md, on \\\\' + 'fileserver\\share\\x.',
+    'Homes: /Users/' + 'notes-for-alice/x, /home/' + 'notes-for-alice/x, /c/Users/' + 'notes-for-alice/x and /mnt/c/Users/' + 'notes-for-alice/x.',
+    '',
+  ].join('\n');
+  const argv = place(t, { 'body.md': body, 'title.txt': 'Moved to D:' + '/work\n' }, ISSUE_ARGV('tier:thorough'));
+  const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
+  assert.equal(r.code, 0, r.lines.join('\n'));
+  assert.match(last(r), /^RESULT: dry-run /);
+});
+
+// #326: with path/local gone, path/machine alone guards a Windows machine's own paths: either slash, a drive-letter start, the drive colon in Claude's project-folder form
+test("on a Windows-shaped machine, path/machine refuses its home and temp with the other slash, its user under a drive path, and its project-folder form", () => {
+  const ctx = { env: {}, home: 'X:\\Users\\' + 'tester', tmp: 'X:\\tmp', user: 'tester', host: 'buildhost', surface: 'issue-comment' };
+  for (const text of ['X:/Users/' + 'tester/notes', 'X:/tmp' + '/abc/file', 'Y:/work/' + 'tester/x', '~/.claude/projects/X--Users-' + 'tester/x.jsonl']) {
+    assert.deepEqual([...new Set(scan([{ field: 'body', text }], ctx).map(r => r.rule))], ['path/machine'], text);
+  }
 });
 
 // #246 C7: the user name counts only inside a local path, never in a web link or a repo path

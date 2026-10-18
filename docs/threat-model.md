@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R33, so other work can point at it. A
+Each accepted risk has a label, R1 to R34, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -124,7 +124,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R33
+  title Residual risk, R1 to R34
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -163,6 +163,7 @@ quadrantChart
   R31: [0.14, 0.42]
   R32: [0.18, 0.62]
   R33: [0.12, 0.34]
+  R34: [0.22, 0.24]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -180,14 +181,15 @@ How to read it:
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), and agent files taken from a shared builder file (R32) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
   a posted report; a rule and a search before posting guard it on every
   install, and where the poster is on, its scan is a backstop behind them
   (#280). R31 needs you to run a project install and pass over the
-  warning that leads its dry run. R33 needs another local account that can read the system's temporary folder.
+  warning that leads its dry run. R33 needs another local account that can read the system's temporary folder. R34 needs a path whose folder names say
+  something about you, outside your home and temp folders, to reach a post.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -224,6 +226,7 @@ How to read it:
 | R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits, and a warning for cost rows no quality names; the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits, and a middle dot refused in an Enough level and a cost name (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
 | R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked, as do a preset's from your own `pact/presets/` folder, since a file there may be one someone handed you; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while the page takes a retired agent's file out of a loaded or shared file, with a note, and a file at agents/<name>.md for a retired agent draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
 | R33 A written page stays on disk | Another local account that can read the system's temporary folder | The builder writes the page only into a new folder under the temporary folder or a path you name outside any repo, the kit, the Claude home folder and any `.claude` folder, never over a file; its closing note and the session's hand-over ask you to delete the folder | Judgment |
+| R34 A revealing path in a post | Anyone who reads the tracker | The read before posting, which looks for your home or temp folder path, user name and host name; on an install with the poster on, `path/machine` as a backstop for those; any other path passes (#326) | Rule |
 
 ## Strangers on the tracker
 
@@ -274,7 +277,8 @@ months.
   anchor-path check, kept full local paths, and the user name in them, out of
   posted anchors; it is now the lens files' rule and the read. Since #280,
   an install with the poster on (`docs/poster.md`) also scans each post for
-  secrets, email addresses, local paths and session ids, and checks the
+  secrets, email addresses, this machine's own paths and names, and session
+  ids, and checks the
   shape of a Lens dispositions table, before anything is sent. Both are a
   backstop that only some installs have: they catch accidents and cover fixed
   shapes, and they miss a secret with no known shape and every other personal
@@ -844,6 +848,16 @@ because they plant bad cases on purpose and raised alerts that were noise.
   before posting, and the read before posting, come first on every install.
   Where the owner turns the poster on, its scan is a backstop behind that
   search, not a replacement for it.
+- **R34. A local path that is not this machine's home or temp folder can
+  reach the public record.** An example is a project kept under a folder
+  whose name says something about its owner. Until #326 the poster's
+  `path/local` rule refused any text shaped like a local path; it refused far
+  more harmless text than it caught, withholding whole lens reports, so it is
+  gone. `path/machine` still refuses this machine's home and temp folders,
+  user name and host name, and the read before posting still looks for them.
+  Accepted by the owner on 2026-10-17, in [#326's body](https://github.com/mephistopheles4/the-pact/issues/326)
+  and in chat, relayed by the lead session; the tier and the declined sensitive route are in
+  [issuecomment-6243713061](https://github.com/mephistopheles4/the-pact/issues/326#issuecomment-6243713061) (ADR 0086).
 
 ## The poster's own checks
 

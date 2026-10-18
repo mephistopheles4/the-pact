@@ -17,8 +17,9 @@
 //
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every option and file, and scans the
-// exact text it would send for credential shapes, environment secrets, local
-// paths, session ids, email addresses and hidden text. Then it checks the
+// exact text it would send for credential shapes, environment secrets, this
+// machine's own folders and names, session ids, email addresses and hidden
+// text; any other path passes (#326). Then it checks the
 // shape of any Lens dispositions table in the body against the review
 // procedure's template (#280, T2), and refuses a body whose prose is
 // hard-wrapped or whose link has no scheme (#317, text/hard-wrap and
@@ -295,7 +296,6 @@ const RULE = Object.freeze({
   token: 'secret/token',
   userinfo: 'secret/url-userinfo',
   env: 'secret/env',
-  local: 'path/local',
   machine: 'path/machine',
   session: 'id/session',
   email: 'personal/email',
@@ -320,13 +320,6 @@ const TOKEN_RES = [
 // user name that may be empty. The lookbehind starts a scheme only where one
 // can start, so a long run of text is tried once, not from every character.
 const USERINFO_RE = /(?<![A-Za-z0-9+.-])(?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/[^\s/@:]*:[^\s/@]+@/g;
-const LOCAL_RES = [
-  /(?<![A-Za-z])[A-Za-z]:[\\/]/g,
-  /\\\\[A-Za-z0-9._$-]+\\/g,
-  /(?<![A-Za-z0-9._~-])\/(?:Users|home)\/[^\s/]+/g,
-  // A Windows home as Git Bash (/c/Users/...) or WSL (/mnt/c/Users/...) writes it.
-  /(?<![A-Za-z0-9._~-])\/(?:mnt\/)?[A-Za-z]\/(?:Users|home)\/[^\s/]+/g,
-];
 const SESSION_RES = [
   /(?<![0-9A-Fa-f])[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}(?![0-9A-Fa-f])/g,
   /session_[A-Za-z0-9]{16,}/g,
@@ -458,7 +451,6 @@ function hitsIn(text, ctx, trailer) {
   for (const re of TOKEN_RES) add(RULE.token, matches(text, re));
   add(RULE.userinfo, matches(text, USERINFO_RE));
   for (const [name, val] of envSecrets(ctx.env)) add(RULE.env, indexesOf(text, val).map(index => ({ index })), name);
-  for (const re of LOCAL_RES) add(RULE.local, matches(text, re));
   add(RULE.machine, machineHits(text, ctx));
   add(RULE.hidden, hiddenHits(text));
   const link = trailer ? trailerLink(text) : null;
@@ -977,7 +969,7 @@ const LINE_BREAKS_RE = new RegExp(`[${cp(0x85)}${cp(0x2028)}${cp(0x2029)}]`, 'g'
 
 /**
  * gh's stderr as one line: its first line, JSON-escaped and capped. A line
- * that trips a scan rule, such as one naming a local config path, is withheld
+ * that trips a scan rule, such as one naming a config path in the home folder, is withheld
  * and only the rule is named.
  */
 export function saidLine(stderr, ctx) {
