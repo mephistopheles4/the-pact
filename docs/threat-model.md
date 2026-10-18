@@ -89,9 +89,9 @@ It uses hashes only to detect change, never to authenticate, apart from the
 builder page's policy hashes. It uses them in four places. Git's SHA-1 object
 ids: the install checks that the commit and each file it reads are the
 commit's own bytes, and an apply is bound to that commit. SHA-256 checks: the
-install record holds each file's hash to find drift, and the cloud setup
-script checks each file it writes and what it takes from the install. The
-apply binding: when a configuration applies, an apply is also bound to the
+install record holds each file's hash to find drift, the cloud setup script
+checks each file it writes, and its generator checks what it takes from the
+install. The apply binding: when a configuration applies, an apply is also bound to the
 rendered hash its dry run printed. A session that can write the files can
 write the install record too (R14), and the binding holds the clone and the
 render, not your sight of them (R22). The builder page's policy hashes: its
