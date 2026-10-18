@@ -22,3 +22,4 @@
 - [Spec, revision 5, signed off](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6251845896)
 - [Design review, round 1](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6251846347)
 - [Design review, round 2](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6251846789)
+- [C10 live run](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6252050011)
