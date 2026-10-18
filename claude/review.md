@@ -40,8 +40,9 @@ the state before the work began.
 - **For a spec:** the working folder at the base. The spec is new in full.
 - **For a diff or a result:** the diff from the base, and the statement that
   everything outside the diff is as it was at the base.
-- **Where it is kept.** The review comment's first line names the base and the
-  revision or head it reviewed (see Crossing the reports). Later rounds, in
+- **Where it is kept.** The review comment's first line under its heading
+  names the base and the revision or head it reviewed (see Crossing the
+  reports). Later rounds, in
   this session or a fresh one, read both from there and never re-derive them.
   With no record, keep that line with your local copy of the last table. A
   fresh session that has neither runs a first round and says so in the review

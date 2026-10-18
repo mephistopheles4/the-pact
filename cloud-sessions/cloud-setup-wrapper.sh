@@ -2070,8 +2070,9 @@ the state before the work began.
 - **For a spec:** the working folder at the base. The spec is new in full.
 - **For a diff or a result:** the diff from the base, and the statement that
   everything outside the diff is as it was at the base.
-- **Where it is kept.** The review comment's first line names the base and the
-  revision or head it reviewed (see Crossing the reports). Later rounds, in
+- **Where it is kept.** The review comment's first line under its heading
+  names the base and the revision or head it reviewed (see Crossing the
+  reports). Later rounds, in
   this session or a fresh one, read both from there and never re-derive them.
   With no record, keep that line with your local copy of the last table. A
   fresh session that has neither runs a first round and says so in the review
@@ -2525,7 +2526,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 4860e6205eef73b4b052b215dad920d9a56b01d995549409e8c0487bf7a88a13 'pact/review.md'
+check_hash 33ffd6fd42065b604b290b594868d35b8dbaded47b5ffd976d83614def251041 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2548,7 +2549,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 82c992f13d7c"
+  echo "pact cloud copy 1a0693d5cf35"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

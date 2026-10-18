@@ -19,7 +19,7 @@ Every lens run is now handed the base, the state before the work began, and each
 
 ## Worked examples
 
-- **An unmarked high `unchanged` finding the session sorts as security.** The reader-lens reports a high `unchanged` finding with no `security?` mark: a sentence at the base tells sessions to paste a token into the record. Its verdict is findings, since the finding is neither new nor marked. The session, holding the threat model, sorts it as a security finding (it exposes a secret). The review's verdict is raised to blocking, marked beside the reader-lens's own verdict with the finding, and its row is `open`, with reason text starting `security:`, never `auto`.
+- **An unmarked high `unchanged` finding the session sorts as security.** The behaviour-lens reports a high `unchanged` fault with no `security?` mark: at the base, a command it runs prints a token's value into its output. Its verdict is findings, since the finding is neither new nor marked. The session, holding the threat model, sorts it as a security finding (it exposes a secret). The review's verdict is raised to blocking, marked beside the behaviour-lens's own verdict with the finding, and its row is `open`, with reason text starting `security:`, never `auto`.
 - **An `E` row taken at low, continued at medium.** Round 1's adversarial-lens row `E2` was `taken` at low, on the owner's word. On the follow-up the lens reports the same path at medium, continuing `E2`, because the revision made it easier. It is more severe than `E2`, so it doesn't stay "taken earlier": it comes to the owner again, naming `E2` and what changed.
 
 ## What stays

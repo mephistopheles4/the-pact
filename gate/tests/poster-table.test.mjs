@@ -1,7 +1,8 @@
 // The Lens dispositions table check in the poster's pre-post scan (#285, T2
 // of #280). Every case runs the poster's post() in-process as a dry run, with
 // a gh that fails any call, so a refusal is seen to send nothing. Each bad
-// case is a table row; the eleven recorded tables are fixtures, each reduced
+// case is a table row, but the state-word cases (#336 C4), which share one
+// test; the eleven recorded tables are fixtures, each reduced
 // to its label line and table with every unread cell a placeholder.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -200,11 +201,13 @@ test('each refusal names its line and column, and a rule broken twice is named t
 // #336 C4: a read row's Finding cell starts with a state word, or is exactly the withheld text; a refusal names the cell's place, never its text.
 test('a Finding cell without a state word is refused as table/state at its column, and a skipped row\'s Finding cell is not read', t => {
   const row = finding => body(LABEL, '', HEADER, SEP, `| ${finding} | b | fixed | c |`);
-  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `withheld, see chat ${MARK}`]) {
+  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`]) {
     const r = runBody({ 'body.md': row(finding) }, t);
     refusedQuietly(r);
     assert.deepEqual(r.real.lines, ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);
   }
+  // An empty cell's column is its start, right after the pipe.
+  assert.deepEqual(tableCheck(row('')), [{ rule: 'table/state', where: 'body 5:2' }], 'an empty Finding cell');
   for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat']) assert.deepEqual(rules(row(finding)), [], finding);
   for (const finding of ['', `${MARK} F1`]) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| ${finding} | b | skipped, because ${MARK} | c |`)), [], `skipped: ${JSON.stringify(finding)}`);
 });
