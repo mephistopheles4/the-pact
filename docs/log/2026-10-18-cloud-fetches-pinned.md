@@ -40,7 +40,19 @@ The two external plugin sources in the pinned catalog: `coderabbit` at `3e8763d2
 
 Run in a throwaway container from an Ubuntu 24.04 image with `git`, `curl` and `gnupg` (`buildpack-deps:noble-scm`, `jq` added), because Docker Hub refused the plain image (rate limit) and the cloud proxy refuses plain-HTTP apt. The container got the proxy's address through a forwarder on the Docker bridge, and the image's CA store with the proxy's CA added; no host network, no credentials, one read-only mount.
 
-<!-- driver results are filled in from the final run -->
+Both drivers, run side by side on the final scripts, gave the same output apart from the Node block's time (9 s and 10 s) and temp folder names.
+
+- **Two passes from nothing installed:** Node 24.22.0, all five skill repos at their pins, 51/51 skills, 12 config files, the marker; the snapshot after pass 2 equals the one after pass 1. No `claude` in the image, so the plugins read `not installed`, as the spec expects.
+- **The Node block's hand checks** (T1's, rerun): each wrong pin, a blocked download, `paranoid` off and a non-x86_64 machine fail with their reason; the block alone takes 9 s.
+- **C3, C14:** with grimoire's pin set to a commit it doesn't hold and typesafe-ai's key removed, those three skills are named under `not fetched at pin`, git's own output is absent from the setup's output, the config is written, the marker prints, and the installed `eagle-eye` is left as it was.
+- **C4:** from a fixture repo, the skill holding a link and the one holding `.claude-plugin/plugin.json` read `MISSING`, and only the good one is copied.
+- **C5:** on a fixture marketplace, only the contained path plugin and the external one with a `sha` pass; the other eight are each named under `skipped (source)`; the catalog is reduced to those two under the new name, with no other top-level field; one `marketplace add`, two installs. A link as the catalog file and an unparsable catalog each install nothing, add no marketplace and name every listed plugin; the file the link pointed at is unchanged. The first run of this case failed because the driver's plugins-only extract stopped before the Node block put Node on the PATH; the driver was fixed, not the setup.
+- **C7:** an email field prints only the login, a line break in the login and a non-JSON body print `unexpected` (the body's marker is not printed), and a 401 prints `anonymous`.
+- **C12:** with `FETCH_BUDGET=1`, all 51 skills are named under `skipped (time)` and none under `not fetched at pin`, and Node fails as `node: time`. The proxy line reads `unexpected`, since the image has no Node of its own.
+- **C17:** a set `INSTALL_ANTHROPIC_SKILLS` prints its `WARN`.
+- **C18:** with `timeout` hidden, no `git` command runs and every skill is named under `not fetched at pin`.
+- **C20:** an installed skill edited and given a stray file equals its pinned path after a run, with no nested or leftover folder; all 51 setup-copied skills equal their pinned paths.
+- **The proxy line**, in every full run: the proxy answered the container's token-free request as an authenticated account (the drivers print it as `<a login>`). So a process in a session reaches GitHub through the proxy whatever the token variables hold, as D7 records.
 
 ## Decisions
 
