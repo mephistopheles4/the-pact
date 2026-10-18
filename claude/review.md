@@ -282,9 +282,9 @@ severity:
 - **Its placeholder** in the review comment sits in the One lens only table,
   whatever its state or kind, never in Crossings first, Trade-offs or Notes.
 - **Its Earlier findings item** reads "withheld, see chat".
-- **A follow-up's report that continues it** is kept local too, as a
-  kept-local report, until I settle the finding, whatever the read before
-  posting finds.
+- **A follow-up's report that was handed it as an `E` row** is kept local
+  too, as a kept-local report, until I settle the finding, whatever it says
+  about it (holding or `absent`) and whatever the read before posting finds.
 - **The verdict.** A review that holds a withheld finding posts the verdict
   of its posted findings only, leaves out the verdict of a lens whose report
   is withheld, and says so: "posted findings only; withheld findings: see

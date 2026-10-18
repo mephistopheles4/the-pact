@@ -24,6 +24,7 @@
 - **Amended again:** on a branch the base is the merge base derived at every round, restarting when a merge or rebase moves it; on the default branch it is exactly the parent of the work's first commit; at Design it is never older than the last recorded base. Nothing in the record gives a withheld finding's state, class or severity. "Taken earlier" also needs likelihood no higher and no accepted risk eased. The poster reads only what follows the lead state word, in any case or markup, with more C4 cases (seen to fail first, and each catching its broken version). Plus wording from the reader-lens. Tests stay `+3 −0`.
 - **The second follow-up** (security pair and integrity-lens, on `5ce1666`) found V2 holding, but withheld metadata still leaking, through a continuing report and the verdict line, plus a stop defect: the first Test round compared its base with Design's. The owner chose to simplify and finish, with one last round.
 - **Amended a third time:** each stage compares only with its own last base line, so Design to Test is a first round; on the default branch the base and the first commit are named to the owner before the first round's lenses run; at Design the last base must be an ancestor of the new one. The scattered withheld clauses became one coarse rule: a fixed row with one bare Disposition word, continuing reports kept local, and a verdict over posted findings only. The poster also refuses a withheld row whose Disposition is anything but one bare word, and the C4 test gained cases for other markup, a soft hyphen inside the word, quotes and the four Disposition shapes (seen to fail first). Tests stay `+3 −0`.
+- **The last round** (security pair and QA pair, on `9de57a3`) found nothing high and every base path closed. Two lenses found one medium leak: a follow-up report that finds a withheld finding `absent` continues nothing, so it would be posted. The owner chose to fix it and ship: a follow-up report handed a withheld row as an `E` row is kept local whatever it says. integrity-lens's four test gaps in C4 went to a follow-up issue, so the QA pair reads them there.
 
 ## Decisions
 
@@ -61,3 +62,6 @@
 - [Second Test follow-up: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611425)
 - [Second Test follow-up: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611814)
 - [Spec amended after the second Test follow-up](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254730976)
+- [Last Test round: the QA pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254852446)
+- [Last Test round: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254852879)
+- [Last Test round: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254853306)
