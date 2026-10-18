@@ -9,13 +9,14 @@
 - **`gen.mjs`** holds the pins in `CLOUD_PINS` and writes them as five plain assignments. `assemble()` refuses a pin out of its shape, one set twice, defaulted in an expansion, or whose value appears anywhere else (`cloud/pin`).
 - **Tests: +3.** One holds the block's checks in order, every pin once and every fetch without the tokens. One holds the `cloud/pin` refusals, among them a wrong length, a shell metacharacter, a line break, a `${VAR:-…}` or `${VAR-…}` default and an `export` reassignment. One holds each committed key file to the hash its README records. The marker test changed for the new condition, and the assemble tests' stand-in head gained the pins placeholder. Run before the build, the new tests and the marker test failed, and the rest passed; each case added after the lenses was seen to catch a broken copy of the code.
 - **The test drivers** install `curl` and `gnupg`, show the wrappers and `paranoid` after each pass, and run the hand checks below. Their stale `familiars/scout.md` path (scout moved to `claude/agents/`) is fixed.
-- **`cloud-sessions/keys/`** holds Node's release keyring and mise's minisign key, with their sources. **`AGENTS.md`** says a session never runs `mise trust` or turns `paranoid` off without the owner's word in chat.
+- **`cloud-sessions/keys/`** holds Node's active-releaser keyring and mise's minisign key, with their sources and hashes. **`AGENTS.md`** says a session never marks a project's mise config trusted, by any of the five means mise offers, without the owner's word in chat.
+- **`docs/threat-model.md`**, on the owner's word at hand-off. The crypto paragraph names the two keys and the pins. R10 now says mise and Node are pinned. R35 covers the pins, R36 a trusted mise config and R37 the two hardening gaps from Design review.
 
 ## The pins, re-checked at build time
 
 - **Node 24.22.0:** `SHASUMS256.txt.sig` checked with `gpgv` against the committed keyring (nodejs/release-keys at `481637f`, the active releasers' keys only): a good signature from `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`, which nodejs/node's README lists. The archive hash in the checked file, `28ea0a43…4228c`, matches the download. `bin/node` hashes to `67ca5783…751c`.
 - **mise 2026.10.2:** the release's `SHASUMS256.txt` checked with `minisign` against the committed key (jdx/mise at tag `v2026.10.2`), key id `64113EDF160FDEC2`, which aqua-registry's mise entry also names. A copy with one byte changed failed the check. The tarball hash in the checked file, `79a2bf0f…db788`, matches the download.
-- **One departure from the signed-off procedure:** `minisign` came from Ubuntu 24.04's package archive (`minisign 0.11-1`, checked by apt's signed index), not from a pinned release checked by hash. It is raised with the owner at hand-off.
+- **One departure from the signed-off procedure:** `minisign` came from Ubuntu 24.04's package archive (`minisign 0.11-1`, checked by apt's signed index), not from a pinned release checked by hash. The owner accepted it at hand-off, and ADR 0088 now allows either source.
 
 ## Hand checks
 
@@ -31,7 +32,19 @@ Run with the test driver in an `ubuntu:24.04` container. In a cloud container th
 
 ## The full suite in a cloud container
 
-On Node 24.22.0, with `NODE_OPTIONS` and the token variables unset, 240 tests failed: the install refuses while `GIT_CONFIG_COUNT` is set, and a cloud session sets it, with its `GIT_CONFIG_KEY_*` and `GIT_CONFIG_VALUE_*` pairs. With those unset too, 2,154 passed and one failed: "a project holding the real home folder refuses", which fails the same way on `main` in a cloud container, where the home folder is `/root`. So C2's command, as the spec words it, can't pass in a cloud session yet; that question goes to the owner. CI's full run on Linux is the Test evidence.
+On Node 24.22.0, with `NODE_OPTIONS` and the token variables unset, 240 tests failed: the install refuses while `GIT_CONFIG_COUNT` is set, and a cloud session sets it, with its `GIT_CONFIG_KEY_*` and `GIT_CONFIG_VALUE_*` pairs. With those unset too, 2,154 passed and one failed: "a project holding the real home folder refuses", which fails the same way on `main` in a cloud container, where the home folder is `/root`. So C2's command, as the spec words it, can't pass in a cloud session yet. The owner took C2 reworded: it also unsets the `GIT_CONFIG_*` variables, and names that one test as a known cloud failure until [#333](https://github.com/mephistopheles4/the-pact/issues/333) fixes it. CI's full run on Linux is the Test evidence.
+
+## The owner's decisions at hand-off
+
+Taken in chat on 2026-10-18, from the build's picks on the Test review:
+
+- **Threat model:** the edits above (R35 to R37).
+- **npm and npx get no pin of their own.** mise's lockfile check covers the whole archive, and the driver showed it refusing a wrong archive hash.
+- **The fetches unset the two GitHub token variables only.** The cloud environment sets no other GitHub token variable, and such a token would go only to GitHub.
+- **The integrity-lens rows marked `security?` are fixed.**
+- **No re-check in the Result section.** The skills and plugins steps could undo the Node block's checks, but R10 already accepts that.
+- **The mise rule stays in this repo.** The cloud rules copy is the pact itself, so other repos' cloud sessions rely on judgment (R36).
+- **The `mise trust` half of C10 runs in the test environment (D2),** on the owner's word there.
 
 ## Decisions
 
@@ -42,3 +55,4 @@ On Node 24.22.0, with `NODE_OPTIONS` and the token variables unset, 240 tests fa
 - [Plan, signed off](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250226884)
 - [Design review, round 1](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250252522)
 - [Design review, round 2](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250267526)
+- [Test review](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250771419)
