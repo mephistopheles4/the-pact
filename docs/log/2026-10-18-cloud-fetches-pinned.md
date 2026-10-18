@@ -40,7 +40,7 @@ The two external plugin sources in the pinned catalog: `coderabbit` at `3e8763d2
 
 Run in a throwaway container from an Ubuntu 24.04 image with `git`, `curl` and `gnupg` (`buildpack-deps:noble-scm`, `jq` added), because Docker Hub refused the plain image (rate limit) and the cloud proxy refuses plain-HTTP apt. The container got the proxy's address through a forwarder on the Docker bridge, and the image's CA store with the proxy's CA added; no host network, no credentials of its own, one read-only mount. The proxy still answered the container's GitHub requests as the owner's account, so code in it had the owner's GitHub reach (see the proxy line below).
 
-Both drivers, run side by side on the final scripts (after the Test review's fixes), gave the same output apart from temp folder names, and the same as the run before those fixes apart from the marker and the redacted login.
+Both drivers, run side by side on the final scripts (after the Test review's fixes), gave the same output apart from temp folder names, and the same as the run before those fixes apart from the marker and the redacted login. In one wrapper run the wrong-mise-pin hand check failed at the download, not the hash, so it read `node: download`; the rerun matched the setup driver line for line.
 
 - **Two passes from nothing installed:** Node 24.22.0, all five skill repos at their pins, 51/51 skills, 12 config files, the marker; the snapshot after pass 2 equals the one after pass 1. No `claude` in the image, so the plugins read `not installed`, as the spec expects.
 - **The Node block's hand checks** (T1's, rerun): each wrong pin, a blocked download, `paranoid` off and a non-x86_64 machine fail with their reason; the block alone takes 9 s.
