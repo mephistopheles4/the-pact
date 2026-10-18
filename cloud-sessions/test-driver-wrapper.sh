@@ -52,9 +52,9 @@ snapshot() {
   echo "mise paranoid: $(cd /tmp && /root/.local/bin/mise settings get paranoid)"
 }
 
-echo "################ PASS 1"; sh /s/cloud-setup-wrapper.sh; echo "exit: $?"
+echo "################ PASS 1"; sh /s/cloud-setup-wrapper.sh 2>&1 | sed 's/authenticated as .*/authenticated as <a login>/'; echo "exit: ${PIPESTATUS[0]}"
 snapshot > /tmp/after1.txt; cat /tmp/after1.txt
-echo "################ PASS 2"; sh /s/cloud-setup-wrapper.sh; echo "exit: $?"
+echo "################ PASS 2"; sh /s/cloud-setup-wrapper.sh 2>&1 | sed 's/authenticated as .*/authenticated as <a login>/'; echo "exit: ${PIPESTATUS[0]}"
 snapshot > /tmp/after2.txt; cat /tmp/after2.txt
 echo "################ snapshot after pass 1 vs after pass 2 (expect empty)"
 diff -u /tmp/after1.txt /tmp/after2.txt && echo "(identical)"
@@ -139,7 +139,7 @@ fx_mkt() {
   rm -rf "/tmp/fx/$1" && mkdir -p "/tmp/fx/$1/.claude-plugin" && cd "/tmp/fx/$1" && git init -q && git config user.email t@t && git config user.name t
   for p in good escape dep expmon mcp link; do mkdir -p "plugins/$p/.claude-plugin"; echo "{\"name\":\"$p\"}" > "plugins/$p/.claude-plugin/plugin.json"; done
   echo '{"name":"expmon","experimental":{"monitors":"m.json"}}' > plugins/expmon/.claude-plugin/plugin.json
-  echo '{}' > plugins/mcp/.mcp.json; ln -s ../good plugins/link/peer
+  echo '{}' > plugins/mcp/.mcp.json; ln -s ../good 'plugins/link/pëer'  # a name git would quote without -z
   printf '%s\n' "$2" > .claude-plugin/marketplace.json
   git add -A && git commit -q -m fx && git config uploadpack.allowAnySHA1InWant true && git rev-parse HEAD; cd /
 }

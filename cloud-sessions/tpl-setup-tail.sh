@@ -2,7 +2,7 @@ echo "== Result"
 fail=0
 for e in "${SKILLS[@]}"; do
   n="$(basename "${e#* }")"
-  case "$BAD_SKILLS" in *" $n "*) echo "MISSING: $n"; fail=$((fail+1)); continue ;; esac
+  case "$BAD_SKILLS" in *" $n "*) if present "$n"; then echo "MISSING: $n (refused at its pin; an older copy is kept)"; else echo "MISSING: $n"; fi; fail=$((fail+1)); continue ;; esac
   present "$n" || { echo "MISSING: $n"; fail=$((fail+1)); }
 done
 echo "$(( ${#SKILLS[@]} - fail ))/${#SKILLS[@]} skills present"
@@ -12,6 +12,7 @@ echo "$(( ${#SKILLS[@]} - fail ))/${#SKILLS[@]} skills present"
 [ "${#SKIPPED_SOURCE[@]}" -gt 0 ] && echo "skipped (source): ${SKIPPED_SOURCE[*]}"
 [ "${#NOT_INSTALLED[@]}" -gt 0 ] && echo "not installed: ${NOT_INSTALLED[*]}"
 [ "$OFFICIAL_PRESENT" = "1" ] && echo "official marketplace present: claude-plugins-official is configured beside pact-pinned-plugins"
+[ "$OFFICIAL_PRESENT" = "unknown" ] && echo "official marketplace: unknown, the marketplace list could not be read"
 if command -v gh >/dev/null 2>&1; then echo "gh: $(gh --version | head -n 1)"; else echo "WARN: gh not found; the tracker rule fails closed"; fi
 EXPECTED_WRITES=__EXPECTED_COUNT__
 echo "$CONFIG_WRITTEN config files written (expected $EXPECTED_WRITES)"

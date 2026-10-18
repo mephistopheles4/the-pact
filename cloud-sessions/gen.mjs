@@ -137,7 +137,7 @@ const COMMIT_RE = /^[0-9a-f]{40}$/;
 // A template line that writes REPO_PIN: an assignment, an element assignment
 // or an append, or the name after a declaring builtin, printf -v, read -a,
 // mapfile or readarray. Only the two lines assemble() writes may.
-const REPO_PIN_WRITE = /(?:^|[\s;&|(])REPO_PIN(?:\[[^\]]*\])?\+?=|\b(?:declare|typeset|local|readonly|export|unset|mapfile|readarray)\b.*\bREPO_PIN\b|\bprintf\b.*\s-v\s*\S*\bREPO_PIN\b|\bread\b.*\s-a\s*\S*\bREPO_PIN\b/;
+const REPO_PIN_WRITE = /(?:^|[\s;&|(])REPO_PIN(?:\[[^\]]*\])?\+?=|\b(?:declare|typeset|local|readonly|export|unset|mapfile|readarray)\b.*\bREPO_PIN\b|\bprintf\b.*\s-v\s*\S*\bREPO_PIN\b|\bread\b.*\s-[A-Za-z]*a[A-Za-z]*\s*\S*\bREPO_PIN\b/;
 // An expansion of REPO_PIN that defaults, assigns, substitutes or tests.
 const REPO_PIN_DEFAULT = /\$\{REPO_PIN\[[^\]]*\]:?[-=+?]/;
 // A destination is held to these characters on top of seam A's safe-path rule,
@@ -413,6 +413,11 @@ function repoPinLines(repoPins, templates) {
   const used = reposUsed(templates.setupHead);
   for (const r of used) if (!Object.hasOwn(repoPins, r)) refuse('cloud/pin', `${REPO_KEY_RE.test(r) ? r : 'a repo'} is fetched but has no pin`);
   for (const k of Object.keys(repoPins)) if (!used.has(k)) refuse('cloud/pin', `${k} is pinned but no entry or call uses it`);
+  // The pins are the head's first code line, so no line can make the name
+  // read-only before the generated declare and keep its own values.
+  const headLines = templates.setupHead.split('\n');
+  const at = headLines.indexOf(PH.repoPins);
+  if (at < 0 || headLines.slice(0, at).some(l => l.trim() !== '' && !l.trimStart().startsWith('#'))) refuse('cloud/pin', `${TEMPLATES.setupHead} runs a line before the repo pins`);
   for (const [key, name] of Object.entries(TEMPLATES)) {
     for (const l of templates[key].split('\n')) {
       if (REPO_PIN_WRITE.test(l)) refuse('cloud/pin', `${name} writes REPO_PIN`);

@@ -3,6 +3,12 @@
 # Every run fetches each third-party repo at its pinned commit and replaces
 # what it copies from it (#183 T3, ADR 0090). One failure never stops the
 # rest, so there is deliberately no `set -e`.
+
+# The third-party repos' pinned commits, written by gen.mjs. Read-only, and
+# the first code line, so no line can declare the name before it or change a
+# pin after it.
+__CLOUD_REPO_PINS__
+
 set -u
 
 export HOME="${HOME:-/root}"
@@ -23,10 +29,6 @@ HAVE_GIT=0; command -v git >/dev/null 2>&1 && HAVE_GIT=1
 for v in INSTALL_ANTHROPIC_SKILLS INSTALL_KNOWLEDGE_WORK_PLUGINS; do
   [ "${!v+set}" = set ] && echo "WARN: $v is no longer read; claude.ai syncs these"
 done
-
-# The third-party repos' pinned commits, written by gen.mjs. Read-only, so no
-# later line can change one.
-__CLOUD_REPO_PINS__
 
 # "<owner/repo> <path of the skill folder inside the repo>"
 # The folder's basename is the skill name.
@@ -133,13 +135,13 @@ replace_dir() {
   local new="$1" dest="$2" old=""
   if [ -e "$dest" ] || [ -L "$dest" ]; then
     old="$(mktemp -d "${dest%/*}/.pact-old.XXXXXX")" || return 1
-    mv -T "$dest" "$old/d" || { rm -rf "$old"; return 1; }
+    mv -T "$dest" "$old/d" 2>>"$PACT_LOG_DIR/steps.log" || { rm -rf "$old"; return 1; }
   fi
-  if mv -T "$new" "$dest"; then
+  if mv -T "$new" "$dest" 2>>"$PACT_LOG_DIR/steps.log"; then
     [ -n "$old" ] && rm -rf "$old"
     return 0
   fi
-  [ -n "$old" ] && mv -T "$old/d" "$dest" && rm -rf "$old"
+  [ -n "$old" ] && mv -T "$old/d" "$dest" 2>>"$PACT_LOG_DIR/steps.log" && rm -rf "$old"
   return 1
 }
 
@@ -176,8 +178,8 @@ fetch_pinned() {
 # pass, under <local-name>. It prints "reduced", then each passing name, and
 # nothing of the catalog. A plugin passes with a contained path source, or a
 # github, url or git-subdir source carrying a 40-hex sha; nothing declared of
-# dependencies, servers or monitors; and, for a path source, no undeclared
-# server, LSP, monitor or settings file, no bin/ and no link.
+# dependencies, servers, monitors or settings; and, for a path source, no
+# undeclared server, LSP, monitor or settings file, no bin/ and no link.
 IFS= read -r -d '' PLUGIN_SOURCE_CHECK <<'PLUGIN_SOURCE_CHECK_EOF'
 const fs = require('node:fs');
 const path = require('node:path');
@@ -191,7 +193,7 @@ try {
   if (!cat || typeof cat !== 'object' || Array.isArray(cat) || !Array.isArray(cat.plugins)) process.exit(1);
   const links = fs.readFileSync(linksFile, 'utf8').split('\n').filter(Boolean);
   const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
-  const declares = o => isObj(o) && (['dependencies', 'mcpServers', 'lspServers', 'monitors'].some(k => Object.hasOwn(o, k)) || (isObj(o.experimental) && Object.hasOwn(o.experimental, 'monitors')));
+  const declares = o => isObj(o) && (['dependencies', 'mcpServers', 'lspServers', 'monitors', 'settings'].some(k => Object.hasOwn(o, k)) || (isObj(o.experimental) && Object.hasOwn(o.experimental, 'monitors')));
   const exists = p => { try { fs.lstatSync(p); return true; } catch { return false; } };
   const passes = e => {
     if (!isObj(e) || declares(e)) return false;
@@ -390,34 +392,51 @@ echo "== Plugins"
 # a marketplace from GitHub.
 install_plugins() {
   local repo="$1" local_name="$2"; shift 2
-  local folder="$HOME/.claude/pact-pinned/$local_name" p st src passed=() line
-  if third_party -o "$PACT_LOG_DIR/mkts" claude plugin marketplace list && grep -q 'claude-plugins-official' "$PACT_LOG_DIR/mkts"; then
+  local folder="$HOME/.claude/pact-pinned/$local_name" stage p st src passed=() failed=()
+  : > "$PACT_LOG_DIR/mkts"
+  third_party -o "$PACT_LOG_DIR/mkts" claude plugin marketplace list; st=$?
+  if [ "$st" -ne 0 ]; then
+    OFFICIAL_PRESENT=unknown
+  elif grep -q 'claude-plugins-official' "$PACT_LOG_DIR/mkts"; then
     OFFICIAL_PRESENT=1
   fi
-  if ! fetch_pinned "$repo" "$folder"; then note "$FETCH_WHY" "$@"; return; fi
-  # Every link in the tree. One under .claude-plugin/ refuses the step; a
-  # plugin whose folder holds one is skipped by the check.
-  third_party -o "$PACT_LOG_DIR/tree" git -C "$folder" ls-tree -r HEAD; st=$?
+  # Fetched and checked in a stage beside the kept folder, which is replaced
+  # only by a checked tree; any refusal leaves the last checked tree in place.
+  mkdir -p "${folder%/*}" && stage="$(mktemp -d "${folder%/*}/.pact-stage.XXXXXX")" || { echo "WARN: the plugin catalog could not be staged; no plugin installed"; note install "$@"; return; }
+  if ! fetch_pinned "$repo" "$stage/m"; then note "$FETCH_WHY" "$@"; rm -rf "$stage"; return; fi
+  # Every link in the tree, listed NUL-separated so git quotes no name. One
+  # under .claude-plugin/ refuses the step; a plugin whose folder holds one is
+  # skipped by the check.
+  : > "$PACT_LOG_DIR/tree.z"
+  third_party -o "$PACT_LOG_DIR/tree.z" git -C "$stage/m" ls-tree -r -z HEAD; st=$?
   if [ "$st" -ne 0 ]; then
+    rm -rf "$stage"
     [ "$(tp_why "$st")" = "time" ] && { note time "$@"; return; }
     echo "WARN: the plugin catalog could not be listed; no plugin installed"; note source "$@"; return
   fi
-  awk -F '\t' '$1 ~ /^120000 / { print $2 }' "$PACT_LOG_DIR/tree" > "$PACT_LOG_DIR/links"
+  tr '\0' '\n' < "$PACT_LOG_DIR/tree.z" | awk -F '\t' '$1 ~ /^120000 / { print $2 }' > "$PACT_LOG_DIR/links"
   if grep -qE '^\.claude-plugin(/|$)' "$PACT_LOG_DIR/links"; then
+    rm -rf "$stage"
     echo "WARN: the plugin catalog holds a link; no plugin installed"; note source "$@"; return
   fi
   # A missing node, a failed check or no reduced catalog refuses the step.
   : > "$PACT_LOG_DIR/passed"; st=1; TP_REFUSED=
   if command -v node >/dev/null 2>&1; then
-    third_party -o "$PACT_LOG_DIR/passed" node -e "$PLUGIN_SOURCE_CHECK" "$folder" "$local_name" "$PACT_LOG_DIR/links" "$@"; st=$?
+    third_party -o "$PACT_LOG_DIR/passed" node -e "$PLUGIN_SOURCE_CHECK" "$stage/m" "$local_name" "$PACT_LOG_DIR/links" "$@"; st=$?
   fi
   if [ "$st" -ne 0 ] || [ "$(head -n 1 "$PACT_LOG_DIR/passed")" != "reduced" ]; then
+    rm -rf "$stage"
     [ "$st" -ne 0 ] && [ "$(tp_why "$st")" = "time" ] && { note time "$@"; return; }
     echo "WARN: the plugin catalog could not be checked; no plugin installed"; note source "$@"; return
   fi
+  if ! replace_dir "$stage/m" "$folder"; then
+    rm -rf "$stage"
+    echo "WARN: the plugin catalog could not be put in place; no plugin installed"; note install "$@"; return
+  fi
+  rm -rf "$stage"
   # Only a listed name counts as passing.
   for p in "$@"; do
-    if grep -qxF -- "$p" <(tail -n +2 "$PACT_LOG_DIR/passed"); then passed+=("$p"); else echo "WARN: $p has no pinned source; skipped"; note source "$p"; fi
+    if grep -qxF -- "$p" <(tail -n +2 "$PACT_LOG_DIR/passed"); then passed+=("$p"); else echo "WARN: $p has no pinned source; skipped"; note source "$p"; failed+=("$p"); fi
   done
   # The marketplace entry names this folder, or it is replaced.
   src=""
@@ -425,6 +444,11 @@ install_plugins() {
     src="$(jq -r --arg n "$local_name" 'if (.[$n] | type) == "object" then ((.[$n].source.source // "") + ":" + (.[$n].source.path // "")) else "" end' "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null)"
   else
     src="unknown"
+  fi
+  # A listed plugin that no longer passes is uninstalled, in case an earlier
+  # run installed it from this marketplace.
+  if [ "$src" = "directory:$folder" ]; then
+    for p in "${failed[@]}"; do third_party claude plugin uninstall "$p@$local_name" --scope user; done
   fi
   if [ -n "$src" ] && [ "$src" != "directory:$folder" ]; then
     # Listed with another source (or not known without jq): remove it first.
@@ -474,16 +498,18 @@ for repo in $REPOS; do
   copied=0
   for i in "${!paths[@]}"; do
     p="${paths[$i]}"; n="${names[$i]}"
-    third_party -o "$PACT_LOG_DIR/tree" git -C "$work/repo" ls-tree -r "${REPO_PIN[$repo]}" -- "$p"; st=$?
+    : > "$PACT_LOG_DIR/tree.z"
+    third_party -o "$PACT_LOG_DIR/tree.z" git -C "$work/repo" ls-tree -r -z "${REPO_PIN[$repo]}" -- "$p"; st=$?
     if [ "$st" -ne 0 ]; then
       if [ "$(tp_why "$st")" = "time" ]; then note time "$n"; else note fetch "$n"; fi
       continue
     fi
+    tr '\0' '\n' < "$PACT_LOG_DIR/tree.z" > "$PACT_LOG_DIR/tree"
     if ! awk -F '\t' -v f="$p/SKILL.md" '$2 == f && $1 ~ /^100[0-7]+ blob / { found = 1 } END { exit !found }' "$PACT_LOG_DIR/tree" \
         || awk -F '\t' -v d="$p/.claude-plugin" '$1 ~ /^120000 / || $2 == d || index($2, d "/") == 1 { bad = 1 } END { exit !bad }' "$PACT_LOG_DIR/tree"; then
       echo "WARN: $n not at $p in $repo's pin, or holds a link or .claude-plugin; not copied"; BAD_SKILLS+="$n "; continue
     fi
-    if stage="$(mktemp -d "$SKILLS_DIR/.pact-new.XXXXXX")" && cp -R "$work/repo/$p" "$stage/$n" && replace_dir "$stage/$n" "$SKILLS_DIR/$n"; then
+    if stage="$(mktemp -d "$SKILLS_DIR/.pact-new.XXXXXX" 2>>"$PACT_LOG_DIR/steps.log")" && cp -R "$work/repo/$p" "$stage/$n" 2>>"$PACT_LOG_DIR/steps.log" && replace_dir "$stage/$n" "$SKILLS_DIR/$n"; then
       copied=$((copied + 1))
     else
       echo "WARN: copy of $n failed"; note install "$n"

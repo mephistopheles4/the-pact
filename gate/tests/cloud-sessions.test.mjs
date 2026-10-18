@@ -252,7 +252,7 @@ test('cloud copy: a rules file seam A refuses fails the generator', t => {
 
 // A small setup head stands in for the real one, so these cases don't depend
 // on its skills list; the other three templates are the real ones.
-const HEAD = '#!/usr/bin/env bash\nset -u\n__CLOUD_PINS__\n__CLOUD_REPO_PINS__\nSKILLS=()\npresent() { :; }\n';
+const HEAD = '#!/usr/bin/env bash\n__CLOUD_REPO_PINS__\nset -u\n__CLOUD_PINS__\nSKILLS=()\npresent() { :; }\n';
 /** The three real templates beside the stand-in head. */
 const TPL = () => Object.fromEntries(['configHead', 'configTail', 'setupTail'].map(k => [k, repoText(`cloud-sessions/${TEMPLATES[k]}`)]));
 const OVERLAY = '{\n  "permissions": {\n    "defaultMode": "auto"\n  }\n}\n';
