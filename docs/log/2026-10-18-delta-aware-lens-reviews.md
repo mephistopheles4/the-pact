@@ -65,3 +65,4 @@
 - [Last Test round: the QA pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254852446)
 - [Last Test round: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254852879)
 - [Last Test round: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254853306)
+- [Spec amended after the last Test round](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6255109202)
