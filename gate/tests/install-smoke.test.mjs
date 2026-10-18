@@ -37,7 +37,8 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   const gatePaths = manifest.gate.map(g => g.path).sort();
   // Written out, so a stray gate file fails it; the four cores came with #155.
-  // The Node install's gate is the gate folder alone (#153, S9).
+  // The Node install's gate is the gate folder alone (#153, S9). The tracker
+  // author checker (#183, T2) is staged with it and never run by the install.
   assert.deepEqual(gatePaths, [
     'gate/contained.mjs',
     'gate/install-core.mjs',
@@ -55,6 +56,8 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
     'gate/seam-a.mjs',
     'gate/settings-allowlist.json',
     'gate/shared.mjs',
+    'gate/tracker-authors-core.mjs',
+    'gate/tracker-authors.mjs',
   ]);
   assert.ok(!listTree(h).some(f => /AGENTS/.test(f)), listTree(h).join('\n'));
   // #261 S5: the review file installs byte for byte, and the manifest lists it.

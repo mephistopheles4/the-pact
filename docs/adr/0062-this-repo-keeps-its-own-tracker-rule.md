@@ -22,6 +22,8 @@ The pact's gated `tracker-authors` clause is retired (ADR 0060), and the pact no
 
 Amended by [ADR 0075](0075-agents-md-holds-only-what-every-session-needs.md): the short form and the five always-on parts now sit in `docs/agents/issue-tracker.md`, behind a pointer line in `AGENTS.md`.
 
+- **Since #183:** with a token set, the login is announced, not confirmed, and where GraphQL is refused author reads go through a checker in code. See [ADR 0089](0089-tracker-authors-are-read-through-rest-where-graphql-is-refused.md). This decision still holds.
+
 ## How this was decided
 
 - **2026-10-11** in mephistopheles4/the-pact#238: on spec revision 9 the owner took the recommendation on q4, keeping this repo's own tracker rule in `AGENTS.md` with the fail-closed parts and the any-text no-secret line, and the rest in `docs/agents/issue-tracker.md`. The `data-lens` read of revision 8 asked for the no-secret line to stay loaded. Built in #261.
