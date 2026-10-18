@@ -18,7 +18,8 @@ import { tempDir } from './tree.mjs';
 const MODULE = 'gate/tracker-authors-core.mjs';
 const CLI = join(GATE, 'tracker-authors.mjs');
 const OWNER = 'the-owner';
-const OTHER = 'someone-else';
+// Another account whose login starts with the owner's, so a loose match is caught.
+const OTHER = 'the-owner-2';
 const T = '2026-01-02T03:04:05Z';
 const LATER = '2026-01-02T03:04:06Z';
 const SHA = 'a'.repeat(40);
@@ -56,7 +57,11 @@ const edit = fn => tree => {
   fn(v.records, v);
   return { 'input.json': JSON.stringify(v) };
 };
-const judge = kinds => tree => tableCheck(kinds, JSON.parse(tree['input.json']));
+/** Judges `kinds`, or the input's own `kinds` where a row sets them. */
+const judge = kinds => tree => {
+  const v = JSON.parse(tree['input.json']);
+  return tableCheck(v.kinds ?? kinds, v);
+};
 
 // #183 C3
 for (const c of table('tracker authors comments', {
@@ -71,8 +76,8 @@ for (const c of table('tracker authors comments', {
   ],
 })) test(c.name, c.fn);
 
-// #183 C3: a hidden comment is flagged, and only a hidden one.
-test('tracker authors: a hidden comment is flagged hidden, an unhidden one is not', () => {
+// #183 C3: a hidden comment is flagged, and only a hidden one; one REST shows no flag for is unknown.
+test('tracker authors: a hidden comment is flagged hidden, an unhidden one is not, and one with no flag is unknown', () => {
   const r = issueRecords();
   r.comments.push(comment(102, { minimized: { reason: 'off-topic' } }));
   const out = decide('issue', r, OWNER).filter(x => x.kind === 'comment');
@@ -81,6 +86,17 @@ test('tracker authors: a hidden comment is flagged hidden, an unhidden one is no
     [
       [101, false],
       [102, true],
+    ],
+  );
+  const p = prRecords();
+  delete p.reviewComments[0].minimized;
+  p.reviews.push(review(401));
+  const unknown = decide('pr', p, OWNER).filter(x => x.kind === 'review-comment' || x.kind === 'review');
+  assert.deepEqual(
+    unknown.map(x => [x.kind, x.hidden]),
+    [
+      ['review', null],
+      ['review-comment', null],
     ],
   );
 });
@@ -94,6 +110,7 @@ for (const c of table('tracker authors bodies', {
   rows: [
     { id: 'issue-body', plant: edit((r, v) => ((v.kind = 'issue'), (v.records = issueRecords()))), fails: ['body-no-editor'], why: 'the owner\'s issue body, whose editor REST cannot show' },
     { id: 'review-body', plant: edit(r => r.reviews.push(review(401, { user: user(OWNER), author_association: 'OWNER' }))), fails: ['body-no-editor'], why: 'the owner\'s review body, whose editor REST cannot show' },
+    { id: 'pull-body', plant: edit((r, v) => (v.kinds = ['pull-body'])), fails: ['body-no-editor'], why: 'the owner\'s PR body, whose editor REST cannot show' },
   ],
 })) test(c.name, c.fn);
 
@@ -121,6 +138,7 @@ for (const c of table('tracker authors insiders', {
     { id: 'deleted-head-repo', plant: edit(r => (r.pull.head.repo = null)), fails: ['cross-repo'], why: 'the head repo was deleted' },
     { id: 'other-commit', plant: edit(r => (r.commits[0].author = user(OTHER))), fails: ['commit-not-owner'], why: 'a commit authored by another account' },
     { id: 'unlinked-commit', plant: edit(r => (r.commits[0].committer = null)), fails: ['commit-not-owner'], why: 'a commit whose committer email links no account' },
+    { id: 'unlinked-author', plant: edit(r => (r.commits[0].author = null)), fails: ['commit-not-owner'], why: 'a commit whose author email links no account' },
     { id: 'head-mismatch', plant: edit(r => r.commits.push(commit('b'.repeat(40)))), fails: ['head-mismatch'], why: 'the last commit read is not the head the PR names' },
   ],
 })) test(c.name, c.fn);
@@ -192,7 +210,8 @@ for (const c of table('tracker authors stops', {
     { id: 'comments-count', plant: recs(r => (r.pull.comments = 2)), fails: ['stop/count'], why: 'fewer comments read than the PR counts' },
     { id: 'review-comments-count', plant: recs(r => (r.pull.review_comments = 0)), fails: ['stop/count'], why: 'more review comments read than the PR counts' },
     { id: 'commits-count', plant: recs(r => (r.pull.commits = 2)), fails: ['stop/count'], why: 'fewer commits read than the PR counts' },
-    { id: 'repeated-id', plant: recs(r => (r.comments.push(comment(101)), (r.pull.comments = 2))), fails: ['stop/repeat'], why: 'one comment id read twice' },
+    { id: 'repeated-id', plant: recs(r => ((r.comments = [...Array.from({ length: 100 }, (_, i) => comment(1000 + i)), comment(1000)]), (r.pull.comments = 101))), fails: ['stop/repeat'], why: 'one comment id read on page 1 and again on page 2' },
+    { id: 'comment-without-times', plant: recs(r => (delete r.comments[0].created_at, delete r.comments[0].updated_at)), fails: ['stop/shape'], why: 'an owner comment without the times the edit check reads' },
     { id: 'commits-over-cap', plant: recs(r => (r.pull.commits = 251)), fails: ['stop/cap'], why: 'more commits than GitHub\'s list returns' },
     { id: 'reviews-over-cap', plant: recs(r => (r.reviews = Array.from({ length: 101 }, (_, i) => review(500 + i)))), fails: ['stop/cap'], why: 'a flood of reviews past 100' },
   ],
@@ -259,6 +278,8 @@ test('tracker authors: the runner pins the host, drops the debug variables, and 
   assert.deepEqual(run('user'), { ok: true, stdout: '{"login":"x"}' });
   run('user');
   assert.equal(seen.length, 2);
+  const failed = makeRun({ env: {}, tmp: tempDir(t), spawn: () => ({ status: 1, stdout: '{"login":"x"}' }) });
+  assert.equal(failed('user').ok, false, 'a non-zero exit is a failed call, whatever it printed');
   for (const s of seen) {
     assert.equal(s.cmd, 'gh');
     assert.deepEqual(s.args, ghArgs('user'));
@@ -284,12 +305,12 @@ test('tracker authors: no user field but the login, and no gh output, reaches th
 // #183 C12
 test('tracker authors: line separators, control and format characters in a body come out escaped', () => {
   const recs = issueRecords();
-  const raw = `a${String.fromCodePoint(0x2028)}b${String.fromCodePoint(0x202e)}c${String.fromCodePoint(0x85)}d${String.fromCodePoint(0xe0041)}e`;
+  const raw = `a${String.fromCodePoint(0x2028)}b${String.fromCodePoint(0x2029)}b${String.fromCodePoint(0x202e)}c${String.fromCodePoint(0x85)}d${String.fromCodePoint(0xe0041)}e`;
   recs.comments[0].body = raw;
   const r = check(['issue', '7'], fakeRun(issueWorld(recs)));
   assert.equal(r.code, 0, r.out);
   assert.doesNotMatch(r.out, /[\u0080-\u009f\u2028\u2029\p{Cf}]/u, 'no such character left raw');
-  assert.ok(r.out.includes('a\\u2028b\\u202ec\\u0085d\\udb40\\udc41e'), r.out);
+  assert.ok(r.out.includes('a\\u2028b\\u2029b\\u202ec\\u0085d\\udb40\\udc41e'), r.out);
   const records = JSON.parse(r.out.slice(0, r.out.indexOf('\nSUMMARY: ')));
   assert.equal(records.find(x => x.kind === 'comment').body, raw);
 });
@@ -306,4 +327,13 @@ test('tracker authors: another account\'s body imitating a record and a SUMMARY 
   assert.deepEqual(summaries, ['SUMMARY: issue 7 as the-owner; true: comment:101 label:"tier:quick"'], r.out);
   assert.equal(r.out.split('\n').filter(l => l.startsWith('RESULT:')).length, 1, r.out);
   assert.equal(r.last, 'RESULT: pass');
+});
+
+// #183 C6: a record decide() can't read is a stop, never a pass and never the error's text.
+test('tracker authors: an issue whose labels decide() cannot read stops with stop/shape and no content', () => {
+  const recs = issueRecords();
+  recs.issue.labels = 'CANARY-labels';
+  const r = check(['issue', '7'], fakeRun(issueWorld(recs)));
+  assert.deepEqual(r.fails, ['stop/shape'], r.out);
+  assert.equal(r.out, 'FAIL stop/shape\nRESULT: fail\n');
 });

@@ -182,8 +182,12 @@ function authorWhy(u, owner) {
 
 const login = u => (isObject(u) && typeof u.login === 'string' ? u.login : null);
 
-/** One comment or review comment. `hidden` is null where REST carries no minimized field. */
+/** Whether a comment or review is hidden: null where REST carries no minimized field. */
+const hiddenOf = x => ('minimized' in x ? x.minimized !== null : null);
+
+/** One comment or review comment. Without both its times, the edit check can't run, so the read stops. */
 function commentRecord(kind, c, owner) {
+  if (typeof c.created_at !== 'string' || typeof c.updated_at !== 'string') throw new Stop('stop/shape');
   const why = authorWhy(c.user, owner);
   if (why.length === 0 && c.updated_at !== c.created_at) why.push('edited');
   return {
@@ -194,14 +198,14 @@ function commentRecord(kind, c, owner) {
     author_type: c.user?.type ?? null,
     association: c.author_association ?? null,
     created_at: c.created_at ?? null,
-    hidden: 'minimized' in c ? c.minimized !== null : null,
+    hidden: hiddenOf(c),
     owner_unedited: why.length === 0,
     why,
     body: c.body ?? '',
   };
 }
 
-/** An issue, PR or review body: REST shows no editor, so the owner's is never unedited. */
+/** An issue, PR or review body: REST shows no editor, so the owner's is never unedited. Only a review can be hidden. */
 function bodyRecord(kind, b, created, owner) {
   const why = authorWhy(b.user, owner);
   if (why.length === 0) why.push('body-no-editor');
@@ -213,7 +217,7 @@ function bodyRecord(kind, b, created, owner) {
     author_type: b.user?.type ?? null,
     association: b.author_association ?? null,
     created_at: created ?? null,
-    hidden: false,
+    hidden: kind === 'review' ? hiddenOf(b) : false,
     owner_unedited: false,
     why,
     body: b.body ?? '',
@@ -337,10 +341,13 @@ export function check(argv, run) {
 /**
  * The tests' adapter over decide(): judges only the records whose kind is in
  * `kinds`. `input` is { kind, owner, records }, decide()'s arguments. code 1,
- * with the reason ids as fails, when any judged record has a reason.
+ * with the reason ids as fails, when any judged record has a reason, and
+ * `flag-mismatch` among them when a record's flag isn't true exactly when it
+ * has none, since the SUMMARY prints the flag.
  */
 export function tableCheck(kinds, input) {
   const judged = decide(input.kind, input.records, input.owner).filter(r => kinds.includes(r.kind));
-  const fails = [...new Set(judged.flatMap(r => r.why))].sort();
+  const mismatch = judged.some(r => flag(r) !== (r.why.length === 0)) ? ['flag-mismatch'] : [];
+  const fails = [...new Set([...judged.flatMap(r => r.why), ...mismatch])].sort();
   return fails.length ? result(1, [...fails.map(f => `FAIL ${f}`), 'RESULT: fail'], fails) : result(0, ['RESULT: pass']);
 }

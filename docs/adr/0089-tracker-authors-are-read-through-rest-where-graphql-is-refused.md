@@ -23,6 +23,6 @@ Two changes to this repo's tracker rule, "Whose text counts" in `docs/agents/iss
 - **A REST form inside the doc, as shell or PowerShell.** Not taken: each check would be prose a session follows by hand, with no bad case seen to fail.
 - **The GitHub MCP tools as the read.** Not taken (D1): they carry no hidden flag and list no label events.
 - **Checking the token's login against `mephistopheles4`.** Removed by the owner, as above.
-- **A review comment's hidden flag.** REST carries none, so the checker gives `null`, and the doc says to summarise any record whose `hidden` isn't `false` (the owner's choice at Build, 2026-10-18).
+- **A review's or review comment's hidden flag.** REST carries none, so the checker gives `null`, and the doc says to summarise any record whose `hidden` isn't `false` (the owner's choice at Build for review comments, 2026-10-18; reviews follow it after the Test review).
 
 Amends [ADR 0062](0062-this-repo-keeps-its-own-tracker-rule.md) and [ADR 0075](0075-agents-md-holds-only-what-every-session-needs.md), whose token part said nothing counts until the owner confirms the login.
