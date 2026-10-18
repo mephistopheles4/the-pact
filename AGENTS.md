@@ -24,9 +24,11 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 ## mise
 
-- **Never run `mise trust`, or turn mise's `paranoid` setting off,** without
-  the owner's word in chat: a trusted project config can fetch tools and run
-  hooks as root in a cloud session
+- **Never mark a project's mise config trusted, by any means,** without the
+  owner's word in chat: `mise trust`, the `trusted_config_paths` setting or
+  `MISE_TRUSTED_CONFIG_PATHS`, safe mode (`MISE_SAFE`) in a project folder, an edit to mise's
+  global or system config, or `paranoid` off. A trusted project config can
+  fetch tools and run hooks as root in a cloud session
   ([ADR 0088](docs/adr/0088-the-cloud-setup-installs-a-pinned-verified-node.md)).
 
 ## Running the gate's tests

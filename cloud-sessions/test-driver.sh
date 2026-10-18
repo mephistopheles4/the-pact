@@ -10,7 +10,10 @@
 # credentials passed in. Nothing is written to the mount. Where the network
 # goes only through a proxy, as in a cloud container, pass its address
 # (HTTPS_PROXY, HTTP_PROXY) and its CA bundle (SSL_CERT_FILE,
-# NODE_EXTRA_CA_CERTS, GIT_SSL_CAINFO), and nothing else.
+# NODE_EXTRA_CA_CERTS, GIT_SSL_CAINFO), and nothing else. Pass the address
+# only when it holds no login; otherwise, or when the proxy listens only on
+# the host's loopback, run a forwarder with no login on the Docker bridge and
+# pass its address.
 set -u
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq >/dev/null && # curl and gpg: the cloud image has both, and the Node block uses them (#183).
@@ -57,19 +60,23 @@ echo "################ Node block hand checks (#183 C3, C4, C8, C10)"
 # Each tamper case runs a copy of the script with one pin assignment
 # rewritten, from a state with no Node installed, so mise really fetches.
 node_reset() { rm -rf /root/.local/share/mise /root/.cache/mise; }
-wrappers_left() { for w in node npm npx; do [ -e "/root/.local/bin/$w" ] && printf '%s ' "$w"; done; echo; }
+# What the block leaves on the PATH: the wrappers, and mise itself.
+wrappers_left() { for w in node npm npx mise; do [ -e "/root/.local/bin/$w" ] && printf '%s ' "$w"; done; echo; }
 ZERO=0000000000000000000000000000000000000000000000000000000000000000
+# tamper <label> <sed expression>: one line of a copy rewritten.
 tamper() {
   local copy; copy="$(mktemp)"
-  sed "s/^$2=.*/$2=$3/" /s/cloud-setup.sh > "$copy"
+  sed "$2" /s/cloud-setup.sh > "$copy"
   echo "### $1: lines changed: $(diff /s/cloud-setup.sh "$copy" | grep -c '^>')"
   node_reset; bash "$copy" 2>&1 | grep -E '^WARN: (mise|Node|node|curl)|^pact cloud copy'
-  echo "wrappers left: $(wrappers_left)"; rm -f "$copy"
+  echo "wrappers left: $(wrappers_left)"
+  echo "Node install left: $(ls /root/.local/share/mise/installs/node 2>/dev/null || echo none)"; rm -f "$copy"
 }
-tamper "wrong mise pin" MISE_SHA256 "$ZERO"
-tamper "wrong Node archive pin" NODE_TAR_SHA256 "$ZERO"
-tamper "wrong Node binary pin" NODE_BIN_SHA256 "$ZERO"
-tamper "blocked download (no such mise release)" MISE_VERSION 0.0.1
+tamper "wrong mise pin (mise not left)" "s/^MISE_SHA256=.*/MISE_SHA256=$ZERO/"
+tamper "wrong Node archive pin" "s/^NODE_TAR_SHA256=.*/NODE_TAR_SHA256=$ZERO/"
+tamper "wrong Node binary pin (install removed)" "s/^NODE_BIN_SHA256=.*/NODE_BIN_SHA256=$ZERO/"
+tamper "blocked download (no such mise release)" "s/^MISE_VERSION=.*/MISE_VERSION=0.0.1/"
+tamper "paranoid off in the config (mise not left)" "s/^paranoid = true$/paranoid = false/"
 echo "### not x86_64 (a uname stub)"
 mkdir -p /tmp/stub
 printf '#!/bin/sh\n[ "$1" = -m ] && { echo aarch64; exit 0; }\nexec /usr/bin/uname "$@"\n' > /tmp/stub/uname; chmod 0755 /tmp/stub/uname
@@ -80,7 +87,10 @@ echo "### the Node block alone, from nothing installed (C8: 30 s or less)"
 node_reset; start=$(date +%s); bash /tmp/node-block.sh; echo "node block: $(( $(date +%s) - start )) s"
 echo "### an untrusted mise.toml (C10)"
 mkdir -p /tmp/untrusted && printf '[tools]\nnode = "22"\n' > /tmp/untrusted/mise.toml
-(cd /tmp/untrusted && /root/.local/bin/mise install 2>&1 | grep -i -m 1 -e 'not trusted' -e 'mise trust'; echo "mise install exit: ${PIPESTATUS[0]}")
+(cd /tmp/untrusted && /root/.local/bin/mise install > /tmp/untrusted.log 2>&1; echo "mise install exit: $?")
+sed 's/^/  /' /tmp/untrusted.log
+grep -q 'are not trusted' /tmp/untrusted.log && echo "refused as untrusted: yes" || echo "refused as untrusted: NO"
+echo "Node 22 installed: $(ls /root/.local/share/mise/installs/node | grep -c '^22' || true)"
 (cd /tmp/untrusted && echo "node there: $(/root/.local/bin/node --version)")
 echo "### another Node for one command (C1): $(cd /tmp && /root/.local/bin/mise exec node@22 -- node --version 2>&1 | tail -n 1)"
 

@@ -336,7 +336,9 @@ test('cloud copy: a malformed pin, a pin written twice or a defaulted pin is ref
   assert.ok(assemble(inputs(head('echo "$MISE_SHA256"'))).setup, 'a plain use of a pin is fine');
   refuses(() => assemble(inputs(head(`MISE_SHA256="\${MISE_SHA256:-${hash}}"`))), 'cloud/pin');
   refuses(() => assemble(inputs(head('echo "${NODE_VERSION:-24}"'))), 'cloud/pin');
+  refuses(() => assemble(inputs(head('echo "${NODE_VERSION-24}"'))), 'cloud/pin');
   refuses(() => assemble(inputs(head('NODE_BIN_SHA256=0'))), 'cloud/pin');
+  refuses(() => assemble(inputs(head('export NODE_BIN_SHA256=0'))), 'cloud/pin');
   refuses(() => assemble(inputs(head(`# ${hash}`))), 'cloud/pin');
   refuses(() => assemble(inputs({ templates: { setupHead: HEAD.replace('__CLOUD_PINS__\n', '') } })), 'cloud/form');
 });
@@ -493,6 +495,8 @@ test('cloud copy: the Node block checks every pin before anything runs or lands 
   const binHash = at('!= "$NODE_BIN_SHA256" ]; then');
   const wrappers = at('"$NODE_WRAPPER_TAG" "$NODE_HOME/bin/$w" > "/root/.local/bin/$w"');
   assert.ok(arch < curl && curl < miseHash && miseHash < untar, 'arch, download, then the hash before unpacking');
+  const hashToUntar = block.slice(miseHash, untar);
+  assert.ok(hashToUntar.includes('elif ') && !/^\s*fi$/m.test(hashToUntar), 'unpacking is the else of the hash check');
   assert.ok(untar < paranoid && paranoid < asked && asked < lock && lock < install && install < binHash, 'config, lockfile, install, then the binary');
   assert.ok(binHash < wrappers, 'wrappers only after every check');
   assert.ok(block.slice(binHash, wrappers).includes('if [ -z "$NODE_FAILED" ]; then'), 'wrappers only when no check failed');
@@ -500,6 +504,17 @@ test('cloud copy: the Node block checks every pin before anything runs or lands 
     assert.match(l, /env -u GH_TOKEN -u GITHUB_TOKEN /, `a fetch without the tokens: ${l}`);
   }
   for (const setting of ['lockfile = true', 'use_versions_host = false', 'node.verify = true', 'node.gpg_verify = true', 'node.mirror_url = "https://nodejs.org/dist/"']) at(setting);
+});
+
+// #183, ADR 0088: the pin bump's keys stay the bytes their README records, so
+// a swapped binary keyring shows as a text change in review.
+test('cloud copy: each committed key file hashes to the value its README records', () => {
+  const readme = repoText('cloud-sessions/keys/README.md');
+  for (const name of ['node-release-keys.kbx', 'mise-minisign.pub']) {
+    const want = new RegExp(`^- \`${name.replace(/[.]/g, '\\.')}\`: \`([0-9a-f]{64})\`$`, 'm').exec(readme);
+    assert.ok(want, `the README records ${name}'s hash`);
+    assert.equal(createHash('sha256').update(readFileSync(join(REPO, 'cloud-sessions', 'keys', name))).digest('hex'), want[1], name);
+  }
 });
 
 test('cloud copy: the templates are the four the generator reads', () => {

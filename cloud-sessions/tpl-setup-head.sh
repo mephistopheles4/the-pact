@@ -226,7 +226,8 @@ MISE_LOCK_EOF
   fi
 fi
 if [ -z "$NODE_FAILED" ] && [ "$(sha256_of "$NODE_HOME/bin/node")" != "$NODE_BIN_SHA256" ]; then
-  rm -rf "$NODE_HOME"
+  # mise's aliases (24, lts, latest) would be left pointing at nothing.
+  rm -rf "$NODE_HOME" && find "${NODE_HOME%/*}" -maxdepth 1 -xtype l -delete 2>/dev/null
   node_fail hash "node binary sha256 mismatch"
 fi
 # The wrappers point straight at the pinned install, not mise's shims, which
