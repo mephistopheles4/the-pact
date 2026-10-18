@@ -74,6 +74,19 @@ export const CLOUD_PINS = Object.freeze({
   NODE_BIN_SHA256: '67ca5783febb8bf85736c79fcdd92c8d6d465a0eb2a082672bcdfa76a506751c',
 });
 
+// The third-party repos the setup fetches (#183 T3), each pinned by commit:
+// the key is owner/repo, the value its 40-hex commit. assemble() writes them as
+// one read-only bash array, REPO_PIN. Bump them only by the procedure in
+// ADR 0090: each new commit is confirmed on its upstream and its diff read.
+export const CLOUD_REPO_PINS = Object.freeze({
+  'anthropics/claude-plugins-official': 'ea10b213686c90bb1984b2016937310e05336cf3',
+  'cloudflare/skills': '86505e44f87d801aa1864a3c4109e9a8ae5c409f',
+  'humanlayer/skills': '653b6411c1f70c275a18e37673b042ff99f67ceb',
+  'mattpocock/skills': '49dd158d1076134a641b33efb035946536778336',
+  'mephistopheles4/grimoire': '9a625fd5bca96a8b094f42b8b9a0edd81b8cad72',
+  'typesafe-ai/skills': '65a39f393687675ce170e6094757de20370365b9',
+});
+
 /** Seam A's --commands or --tools value for a list: none, or the names joined by commas. */
 export function commandsArg(list) {
   return list.length ? list.join(',') : 'none';
@@ -108,6 +121,7 @@ const PH = Object.freeze({
   hashes: '__EXPECTED_HASHES__',
   marker: '__PACT_CLOUD_MARKER__',
   pins: '__CLOUD_PINS__',
+  repoPins: '__CLOUD_REPO_PINS__',
 });
 // A pin's shape: a version is dot-separated numbers, a hash 64 lowercase hex.
 const PIN_SHAPE = Object.freeze({
@@ -117,6 +131,15 @@ const PIN_SHAPE = Object.freeze({
   NODE_TAR_SHA256: /^[0-9a-f]{64}$/,
   NODE_BIN_SHA256: /^[0-9a-f]{64}$/,
 });
+// A repo pin's shape: the key owner/repo, the value a 40-hex commit.
+const REPO_KEY_RE = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
+const COMMIT_RE = /^[0-9a-f]{40}$/;
+// A template line that writes REPO_PIN: an assignment, an element assignment
+// or an append, or the name after a declaring builtin, printf -v, read -a,
+// mapfile or readarray. Only the two lines assemble() writes may.
+const REPO_PIN_WRITE = /(?:^|[\s;&|(])REPO_PIN(?:\[[^\]]*\])?\+?=|\b(?:declare|typeset|local|readonly|export|unset|mapfile|readarray)\b.*\bREPO_PIN\b|\bprintf\b.*\s-v\s*\S*\bREPO_PIN\b|\bread\b.*\s-a\s*\S*\bREPO_PIN\b/;
+// An expansion of REPO_PIN that defaults, assigns, substitutes or tests.
+const REPO_PIN_DEFAULT = /\$\{REPO_PIN\[[^\]]*\]:?[-=+?]/;
 // A destination is held to these characters on top of seam A's safe-path rule,
 // and single-quoted anyway.
 const DEST_RE = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/;
@@ -355,16 +378,64 @@ function checkPins(name, text, pins) {
 }
 
 /**
+ * The repos the setup head fetches: each SKILLS entry's repo, and the first
+ * argument of each install_plugins call.
+ */
+function reposUsed(head) {
+  const used = new Set();
+  const lines = head.split('\n');
+  const from = lines.findIndex(l => /^SKILLS=\($/.test(l));
+  if (from >= 0) {
+    for (let i = from + 1; i < lines.length && lines[i] !== ')'; i += 1) {
+      const m = /^\s*"(\S+) \S+"$/.exec(lines[i]);
+      if (m) used.add(m[1]);
+    }
+  }
+  for (const l of lines) {
+    const m = /^\s*install_plugins\s+(\S+)/.exec(l);
+    if (m) used.add(m[1]);
+  }
+  return used;
+}
+
+/**
+ * Check `repoPins` (cloud/pin): each key and value in its shape, a pin for
+ * every repo the head uses and no other, and no template line that writes
+ * REPO_PIN or defaults it in an expansion. Returns the two lines that set it.
+ */
+function repoPinLines(repoPins, templates) {
+  if (repoPins === null || typeof repoPins !== 'object') refuse('cloud/pin', 'the repo pins are missing');
+  for (const [k, v] of Object.entries(repoPins)) {
+    // A line break is checked first, as for CLOUD_PINS.
+    if (/[\r\n]/.test(k) || !REPO_KEY_RE.test(k)) refuse('cloud/pin', 'a repo pin\'s key is not owner/repo');
+    if (typeof v !== 'string' || /[\r\n]/.test(v) || !COMMIT_RE.test(v)) refuse('cloud/pin', `${k}'s pin is not a 40-hex commit`);
+  }
+  const used = reposUsed(templates.setupHead);
+  for (const r of used) if (!Object.hasOwn(repoPins, r)) refuse('cloud/pin', `${REPO_KEY_RE.test(r) ? r : 'a repo'} is fetched but has no pin`);
+  for (const k of Object.keys(repoPins)) if (!used.has(k)) refuse('cloud/pin', `${k} is pinned but no entry or call uses it`);
+  for (const [key, name] of Object.entries(TEMPLATES)) {
+    for (const l of templates[key].split('\n')) {
+      if (REPO_PIN_WRITE.test(l)) refuse('cloud/pin', `${name} writes REPO_PIN`);
+      if (REPO_PIN_DEFAULT.test(l)) refuse('cloud/pin', `${name} defaults or tests REPO_PIN in an expansion`);
+    }
+  }
+  const pairs = Object.entries(repoPins).map(([k, v]) => `["${k}"]=${v}`);
+  return `unset REPO_PIN\ndeclare -rA REPO_PIN=( ${pairs.join(' ')}${pairs.length ? ' ' : ''})`;
+}
+
+/**
  * Build both scripts from `templates` and the copy set. `files` is
  * [{ dest, buf }] with the rules file first; `overlay` the settings overlay's
- * bytes; `pins` the Node block's pins (CLOUD_PINS). Returns { setup, wrapper, marker }, all checked.
+ * bytes; `pins` the Node block's pins (CLOUD_PINS); `repoPins` the
+ * third-party repos' commits (CLOUD_REPO_PINS). Returns { setup, wrapper, marker }, all checked.
  */
-export function assemble({ files, overlay, templates, pins }) {
+export function assemble({ files, overlay, templates, pins, repoPins = CLOUD_REPO_PINS }) {
   const pinned = pinLines(pins);
   for (const [k, name] of Object.entries(TEMPLATES)) {
     if (typeof templates[k] !== 'string') refuse('cloud/form', `${name} is missing`);
     checkBody(name, templates[k]);
   }
+  const repoPinned = repoPinLines(repoPins, templates);
   const ov = Buffer.isBuffer(overlay) ? overlay.toString('utf8') : overlay;
   if (ov.includes("'")) refuse('cloud/overlay', `${OVERLAY} holds a single quote`);
   try {
@@ -388,7 +459,7 @@ export function assemble({ files, overlay, templates, pins }) {
   let tail = templates.setupTail;
   tail = fill(tail, PH.count, String(files.length + 1), TEMPLATES.setupTail); // every file, plus the settings merge
   tail = fill(tail, PH.hashes, checks.join('\n'), TEMPLATES.setupTail);
-  const head = fill(templates.setupHead, PH.pins, pinned, TEMPLATES.setupHead);
+  const head = fill(fill(templates.setupHead, PH.pins, pinned, TEMPLATES.setupHead), PH.repoPins, repoPinned, TEMPLATES.setupHead);
   const unmarked = head + config + tail;
   const marker = sha256(Buffer.from(unmarked, 'utf8')).slice(0, 12);
   const setup = fill(unmarked, PH.marker, marker, 'cloud-setup.sh');
@@ -397,6 +468,12 @@ export function assemble({ files, overlay, templates, pins }) {
   checkForm({ setup, wrapper, files, overlay: ov });
   checkPins(OUTPUTS.setup, setup, pins);
   checkPins(OUTPUTS.wrapper, wrapper, pins);
+  for (const [name, text] of [
+    [OUTPUTS.setup, setup],
+    [OUTPUTS.wrapper, wrapper],
+  ]) {
+    for (const [k, v] of Object.entries(repoPins)) if (count(text, v) !== 1) refuse('cloud/pin', `${name} must hold ${k}'s pin exactly once`);
+  }
   for (const [name, text] of [
     [OUTPUTS.setup, setup],
     [OUTPUTS.wrapper, wrapper],
@@ -462,6 +539,7 @@ export function generate(root, options = {}) {
       overlay: checked.overlay,
       templates: readTemplates(),
       pins: CLOUD_PINS,
+      repoPins: CLOUD_REPO_PINS,
     });
     const rules = rendered.toString('utf8');
     const report = new Report();

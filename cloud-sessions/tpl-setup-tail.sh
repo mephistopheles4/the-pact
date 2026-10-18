@@ -2,9 +2,16 @@ echo "== Result"
 fail=0
 for e in "${SKILLS[@]}"; do
   n="$(basename "${e#* }")"
+  case "$BAD_SKILLS" in *" $n "*) echo "MISSING: $n"; fail=$((fail+1)); continue ;; esac
   present "$n" || { echo "MISSING: $n"; fail=$((fail+1)); }
 done
 echo "$(( ${#SKILLS[@]} - fail ))/${#SKILLS[@]} skills present"
+# What the skills and plugins steps left out, each line only when it has a name.
+[ "${#SKIPPED_TIME[@]}" -gt 0 ] && echo "skipped (time): ${SKIPPED_TIME[*]}"
+[ "${#NOT_FETCHED[@]}" -gt 0 ] && echo "not fetched at pin: ${NOT_FETCHED[*]}"
+[ "${#SKIPPED_SOURCE[@]}" -gt 0 ] && echo "skipped (source): ${SKIPPED_SOURCE[*]}"
+[ "${#NOT_INSTALLED[@]}" -gt 0 ] && echo "not installed: ${NOT_INSTALLED[*]}"
+[ "$OFFICIAL_PRESENT" = "1" ] && echo "official marketplace present: claude-plugins-official is configured beside pact-pinned-plugins"
 if command -v gh >/dev/null 2>&1; then echo "gh: $(gh --version | head -n 1)"; else echo "WARN: gh not found; the tracker rule fails closed"; fi
 EXPECTED_WRITES=__EXPECTED_COUNT__
 echo "$CONFIG_WRITTEN config files written (expected $EXPECTED_WRITES)"
@@ -39,6 +46,13 @@ if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
 else
   echo "github token during setup: absent"
 fi
+# What the GitHub API answers a token-free request during setup (#183 T3): a
+# login, anonymous or unexpected, never the body. Outside the fetch budget.
+if command -v curl >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
+  env -u GH_TOKEN -u GITHUB_TOKEN curl -s --max-time 10 -w '\n%{http_code}' https://api.github.com/user 2>/dev/null | node -e "$PROXY_LINE_PROGRAM" 2>/dev/null || echo "github api during setup: unexpected"
+else
+  echo "github api during setup: unexpected"
+fi
 
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
@@ -47,4 +61,5 @@ if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
+rm -rf "$PACT_STEP_DIR" "$PACT_LOG_DIR"
 exit 0
