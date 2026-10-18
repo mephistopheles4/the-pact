@@ -25,6 +25,62 @@ the repo.
 
 Tell each lens which other reviewers ran, by their questions.
 
+**The base.** Hand every lens run the base: the commit the work started from,
+by its short hash, and the request. A lens judges the work against the base,
+the state before the work began.
+- **At Design,** the base is the commit the spec says, in its header line, it
+  was drafted against.
+- **At Test,** it is the merge base of the work's branch with the default
+  branch at the first round of that stage. Work committed straight on the
+  default branch uses the commit before its first commit.
+- **Check the base before you hand it.** It must be an ancestor of the default
+  branch's head and, at Test, of the work's first commit. Check it with git at
+  every round, a base read from the record included. A base that fails is a
+  stop: name it to me, and run no lens on it.
+- **For a spec:** the working folder at the base. The spec is new in full.
+- **For a diff or a result:** the diff from the base, and the statement that
+  everything outside the diff is as it was at the base.
+- **Where it is kept.** The review comment's first line names the base and the
+  revision or head it reviewed (see Crossing the reports). Later rounds, in
+  this session or a fresh one, read both from there and never re-derive them.
+  With no record, keep that line with your local copy of the last table. A
+  fresh session that has neither runs a first round and says so in the review
+  comment.
+
+**First round and follow-up.**
+- **The first round** of a lens, on an input of one kind (a spec, a result or
+  a diff) in one piece of work, is handed only its inputs and the base.
+- **A follow-up** is any later run of that lens on the same kind of input in
+  the same piece of work. It is still dispatched fresh and alone, and still
+  judges against the base. It is also handed:
+  - **The revision diff:** for a spec, the diff of the spec's text since the
+    revision the last review comment names; for a diff or a result, the diff
+    between the head it names and now.
+  - **Its earlier findings:** only the rows that name it in the last Lens
+    dispositions table, numbered `E1`, `E2` and on, with their dispositions.
+    The last table is the last one in the work's record, read by the project's
+    rule on whose text counts where it has one. A table whose author or last
+    edit can't be told counts for nothing, and the run is a first round. With
+    no record, hand the rows from your own local copy of the last table.
+  - **A withheld row** is handed as its row, plus one line you write yourself:
+    the kind of item and the place it sits (file and key), never its value and
+    no text copied from the report. Never hand the lens the report. Keep that
+    line with your local copy of the table; a fresh session without it hands
+    the row alone. No path goes in the record.
+- **A restart.** A lens's next run is a first round again when the intent has
+  changed (the Workflow's "back to Design"), when the base moved (a merge or
+  rebase brought in other work), or when the last table holds no state words.
+  The review comment says which. Carry each `open` row of the last table into
+  the new table, still `open`, with a state word you write and "carried at
+  restart" in its reason text; the restart line says how many.
+- **A full pass** runs only when I ask, for the lenses I name. It is a first
+  round in which every finding gates, whatever its state.
+- **The Design-to-Test step is a first round.** At Test a lens reviews a diff
+  or a result; at Design it reviewed a spec, a different kind of input.
+- **Kept-local reports.** When the work's last review round closes, name each
+  report you kept local and ask me in chat to delete them and their place
+  lines. Delete them only on my word.
+
 **The report template.** Hand every lens this template with its inputs, and
 ask it to report in it. Its own artifact, such as a drafted ticket or a data
 inventory, goes in the report too. The template is a shape, not a syntax: take
@@ -38,10 +94,41 @@ what a lens writes by its meaning.
 - **Trade-offs:** each finding past a cost limit or an Enough level, or
   spending a cost whose limit is empty, listed apart from Findings, each with its severity, the cost or level, the limit
   and the quality at stake. A lens with none writes "none".
+- **State:** each finding, trade-off and accepted-risk line also gives its
+  state against the base: `new` (the work introduced it), `updated` (it was at
+  the base and the work makes it worse, or newly reaches or relies on it) or
+  `unchanged` (it was at the base, and the work neither touches nor relies on
+  it). Read the whole base; only the gating is scoped to the work. On a
+  follow-up, each also names the earlier finding it continues, by its `E`
+  number, or "none".
+- **Earlier findings,** on a follow-up only: one line per `E` row it was
+  handed, either `absent` (it no longer holds), with the evidence that it no
+  longer holds, or "holds", naming the finding under Findings that continues
+  it. An `E` row the report doesn't account for is something it couldn't
+  review.
 - **Not checked:** what it didn't look at, and why.
-- **Verdict:** blocking when anything under Findings is high (a Trade-off or a
-  finding marked accepted by the threat model never is); inconclusive when it couldn't
-  review something it was handed; findings; or clear.
+- **Verdict:** blocking when a finding is high and `new` or `updated`, or high
+  and `unchanged` and either a security finding by the lens's own class (the
+  security pair) or marked `security?` (any other lens); inconclusive when it
+  couldn't review something it was handed, an `E` row it didn't account for
+  included; findings; or clear. An `unchanged` finding that isn't a security
+  finding never makes the verdict blocking, nor does an `absent` one, a
+  Trade-off, or a finding marked accepted by the threat model.
+
+**What each state means, by lens.** Hand this table with the template, so each
+lens applies the words to its own question. A lens brought from elsewhere
+applies the general meanings above.
+
+| Lens | `new` | `updated` | `unchanged` |
+| --- | --- | --- | --- |
+| executability-lens | a stall in the spec's own text or steps | a gap in the system that the spec now relies on or deepens | a gap in the system that the spec neither relies on nor touches |
+| unstated-lens | a need of the request, or of the spec, with no home | a need the system already left unmet, made worse by the work | a need the system already left unmet, which the work doesn't touch |
+| behaviour-lens | a claim that fails, or a regression | a fault at the base that the change now reaches more often | a fault at the base outside the claims, untouched |
+| integrity-lens | a weak test or check the change adds or edits | a weak test at the base that the change now cites as evidence | a weak test at the base, neither edited nor cited |
+| conventions-lens | a rule break in lines the diff adds | a break at the base that the diff copies or extends | a break at the base in lines the diff doesn't touch |
+| reader-lens | a tell in text the change adds | a tell at the base in text the change edits | a tell at the base in text the change doesn't touch |
+| adversarial-lens | an attack path the change opens | a path at the base that the change makes easier | a path at the base that the change leaves as it was |
+| data-lens | a leak point the change adds | a leak point at the base that the change widens | a leak point at the base that the change leaves as it was |
 
 **Quality rows and cost limits.** Hand each lens, as a local file, the rows of
 the rules file's Qualities table that name it, with their Enough, and the
@@ -78,19 +165,32 @@ crossed alone.
 **The review comment.** One comment per review, in this order:
 
 1. A heading naming the lenses: `### lens-a and lens-b`, or `### lens-name`.
-2. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
-   inconclusive, then findings, then clear. Show each lens's verdict beside
-   it. A lens whose verdict is inconclusive is marked "not verified": its
-   silence is not a pass, so read what it didn't check.
-3. **Crossings first.** A table of the places both lenses flagged, with each
-   lens's findings there.
-4. **One lens only.** A table of where, lens, severity and headline, and
-   anything else the lens gives each finding, such as a likelihood.
-5. **Trade-offs.** A table of where, lens, severity, headline, the cost or
+2. **The base line,** the first line under the heading. It names the base by
+   its short hash, and the spec revision or head commit reviewed, and says
+   which lenses ran a first round, a follow-up, a restart (and why) or a full
+   pass.
+3. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
+   inconclusive, then findings, then clear, raised to blocking when you sort a
+   high `unchanged` finding as a security finding (see Findings and their
+   state). Show each lens's verdict beside it, and mark one your sort raises,
+   with the finding. A lens whose verdict is inconclusive is marked "not
+   verified": its silence is not a pass, so read what it didn't check.
+4. **Crossings first.** A table of the places both lenses flagged, with each
+   lens's findings there and the state beside each.
+5. **One lens only.** A table of where, lens, severity, state and headline,
+   and anything else the lens gives each finding, such as a likelihood.
+   These two tables hold the `new` and `updated` findings and the `unchanged`
+   security findings.
+6. **Trade-offs.** A table of where, lens, severity, headline, the cost or
    level, the limit and the quality at stake, and what you did with it (see
    Trade-offs and accepted risks). Leave it out when no lens listed one.
-6. **Not checked,** per lens.
-7. **Verbatim reports,** each in its own fold (see Posting).
+7. **Notes.** A table of where, lens, severity and headline for each `noted`
+   finding, with the notes the Follow-up issues cost overflows into. Leave it
+   out when there are none.
+8. **Earlier findings,** per lens on a follow-up: each `E` number with
+   `absent` or the finding that continues it.
+9. **Not checked,** per lens.
+10. **Verbatim reports,** each in its own fold (see Posting).
 
 **Rules you apply by judgment:**
 - **A crossing is the same place:** the same section or claim, the same file
@@ -103,6 +203,54 @@ crossed alone.
   review comment into parts, and repeat a table's header where it continues.
   A report that alone is over the limit stays a local file; name its path to
   me in chat, never in the record.
+
+## Findings and their state
+
+**You write the state words,** from the template, as you write the verdict and
+severity words, and never copy them from a report's text. A state you change
+from the lens's own is said in the row's reason text.
+
+**The class is said in the row.** A row for a security or `security?` finding
+says so at the start of its reason text, `security:` or `security?:`, except a
+withheld row, whose class goes to me in chat. On a follow-up, treat an `E` row
+whose class you can't tell as a security finding, for an `absent` finding and
+for "taken earlier".
+
+**Sorting an `unchanged` finding.**
+- You decide whether it is a security finding, as for any finding, by the
+  rules file's definition. A security finding keeps its full weight under the
+  security bar, and its row is never `auto`.
+- A finding a lens marked `security?` is never noted by you. It comes to me as
+  any `security?` row does.
+- Any other is `noted`, marked `(auto)` since you sorted it. Fix it in this
+  change only on my word.
+- A finding that guards data but isn't a security finding (data loss or
+  corruption, with no secret or personal data) is `noted` like any other. When
+  it is high, name it to me with the other high notes.
+- An `unchanged` trade-off follows its cost's "At the limit", as any trade-off
+  does, with its trade-off words; it is not `noted`.
+- At hand-off, name each high `noted` finding to me in chat, with the choice
+  to file it, fix it in this change, or leave it as a note, and offer a full
+  pass once.
+- Filing a `noted` finding counts against the Follow-up issues cost.
+
+**Sorting an `absent` earlier finding.** Record it `fixed`, naming its `E`
+number. When the earlier finding was a security or `security?` finding, first
+confirm it against the evidence the lens names (the fixing change or spec
+text), and its row is never `auto`: it is `fixed` only when I take the fix, and
+until then stays `open`, with the lens's `absent` and your confirmation in its
+reason text. One you can't confirm stays `open` and comes to me as
+unconfirmed.
+
+**A follow-up's withheld findings.** Its report goes through the read before
+posting like any report. A row or Earlier findings item continuing a withheld
+finding reads "withheld, see chat" until that read clears it.
+
+**Taken earlier.** Within one piece of work, a continuing finding stays "taken
+earlier" only when all three hold: its `E` row is `taken` without `auto`; it
+is no higher in severity than that row; and it is not newly a security or
+`security?` finding. Otherwise it comes to me again, naming its `E` number and
+what changed.
 
 ## Trade-offs and accepted risks
 
@@ -154,7 +302,8 @@ file.
   severity and likelihood the finding would have had; it is never dropped and
   never blocks.
 - Within one piece of work, a finding I already took is not brought again; its
-  row says "taken earlier".
+  row says "taken earlier", under the three conditions in Findings and their
+  state.
 
 **Disposition words.** A trade-off finding's row keeps the words below:
 `taken` when I take the limit's side, `fixed` when the fix is built anyway,
@@ -211,6 +360,13 @@ rerun, if any, and why. A `skipped` row may leave the Finding cell empty. A
 row for a report kept local keeps its four cells, with "withheld, see chat"
 in the Finding cell.
 
+The Finding cell starts with the finding's state word, one of `new`,
+`updated`, `unchanged` or `absent`, in lower case and with no markup, then a
+space and the finding. A `skipped` row needs none, and neither does a withheld
+row, whose Finding cell is exactly "withheld, see chat": a state word there
+would tell tracker readers whether the held-back item sits at the base. Its
+state goes to me in chat with the rest of the finding.
+
 The Disposition cell starts with one of these words, in lower case and with
 no markup:
 - `fixed`
@@ -220,6 +376,8 @@ no markup:
   which gets its own row as `skipped, because ...` with the reason.
 - `open`, for a finding I haven't settled yet. It needs nothing after it; a
   later table gives the finding its final word.
+- `noted`, for an `unchanged` finding kept as a note, which never blocks. When
+  I file one, its reason text says so, as in `noted: filed as #N`.
 
 Mark one you took on your own recommendation `auto`, as in
 `fixed (auto: chose X because Y)`, or `fixed (auto)` with no reason. One I
