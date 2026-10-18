@@ -8,7 +8,7 @@
 - **Its tests** lose path/local's eight cases and gain one showing that a drive-letter path, a network share and another user's home post. Every `path/machine` form keeps its bad case.
 - **The rules file's poster bullet**, `docs/poster.md` and `docs/reference.md` name a path of this machine's, not any local path.
 - **The threat model** records the accepted risk and updates the poster's scan line.
-- **Rebuilt:** `cloud-sessions/`.
+- **Regenerated:** `cloud-sessions/` and `builder/scriptorium.html`, both already in step.
 
 ## Decisions
 
