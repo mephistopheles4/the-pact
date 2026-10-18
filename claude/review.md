@@ -149,8 +149,6 @@ file.
 - A finding where a lens weighs a security fix's cost against its risk (the
   security bar), a finding that matches an accepted risk, and a `security?`
   row always go to me and are never `auto`.
-- A cut finding on a test that guards an item on the sensitive-work list in
-  force is a security finding: its row is never `auto`, and it comes to me.
 - A finding that matches an accepted risk is still reported, as one line
   marked accepted by the threat model, naming the entry and keeping the
   severity and likelihood the finding would have had; it is never dropped and
@@ -226,6 +224,9 @@ no markup:
 Mark one you took on your own recommendation `auto`, as in
 `fixed (auto: chose X because Y)`, or `fixed (auto)` with no reason. One I
 reverse is marked `(auto, reversed)`, keeping the row.
+
+A cut finding on a test that guards an item on the sensitive-work list in
+force is a security finding: its row is never `auto`, and it comes to me.
 
 A tool may check this table's shape before it posts; where none does, the
 table is unchecked. A retrospective that counts these tables reads each one

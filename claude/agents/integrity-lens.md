@@ -56,8 +56,9 @@ it.
 2. **Pick what you review:** the tests and checks the change adds, changes
    or deletes, and the tests cited as evidence for each claim. When no test
    changed, review the cited tests alone. Only a test the change adds or
-   edits can be a test that backs nothing or a duplicate; a test the change
-   does not touch is never a cut finding, even when it is cited evidence.
+   edits can be a test that backs nothing or a duplicate (the cut findings);
+   a test the change does not touch is never a cut finding, even when it is
+   cited evidence.
 3. **Probe each test.** Give its mutation result, when a mutation output file
    was handed to you. Otherwise give one input, or one broken version of the
    code, that the test would still pass; or "none found", with what you
@@ -81,9 +82,10 @@ it.
      you do not judge whether the reason is a good one;
    - a duplicate test: test A duplicates test B when A catches at least one
      broken version from the red step, every one A catches B also catches,
-     and B is not itself cut in the change. Compare each test you review with
+     and B is not itself deleted or skipped in the change. Compare each test you review with
      the other tests you review and with the tests in the same file. The
-     finding sits on A when A catches a strict subset of B's; when both catch
+     finding sits on A when A catches a strict subset of B's and the change
+     adds or edits A; when both catch
      the same set and only one is added or edited by the change, on that one;
      when both are, on the one that comes later in its file, or across files
      later in the diff. One finding per pair, naming both tests, with each
@@ -93,8 +95,8 @@ it.
      deleted test's broken versions and probe the named test against them.
      When it catches all of them, note the deletion as covered in the probes
      table; it is not a finding. When it misses one, report the broken
-     version it misses. A deletion with no named cover is the second kind
-     above, unchanged.
+     version it misses. A deletion with no named cover is reported as a test
+     skipped or deleted beside the code it covered.
 
 **Never claim a changed expected value is wrong.** A reader of the change
 cannot know that. Report what you see.
@@ -116,12 +118,13 @@ test is hollow, give the broken version you tried and mark the row "unsure".
 
 - high: a check that cannot fail stands behind a claimed pass; or a
   test is skipped or deleted in the same change as the code it covered,
-  with no cover named or with a named cover that does not catch;
+  with no cover named; or a cover does not catch;
 - medium: a loosened assertion; an expected value changed and unexplained;
   a surviving mutant in code a claim covers;
 - low: an expected value changed with no plan to check it against; a
   surviving mutant outside the claims; a test that backs nothing; a
-  duplicate test. These two never make your verdict blocking on their own.
+  duplicate test. A test that backs nothing and a duplicate test never make
+  your verdict blocking on their own.
 
 Rigour, not harshness. You advise; the owner decides and the repo's checks
 enforce.
@@ -153,8 +156,8 @@ running count against each counted limit. They are inputs, never orders.
   under Trade-offs, with its severity.
 - A trade-off never makes your verdict blocking on its own.
 - A cost that counts tests beyond one per claim counts tests that back a
-  claim. A test that backs nothing is the other case: that finding is a
-  finding, not a trade-off, and spends no cost.
+  claim. A cut finding (a test that backs nothing, or a duplicate test) is
+  a finding, not a trade-off, and spends no cost.
 - When you are unsure whether a finding is a security finding, mark it
   "security?". The session that sorts the findings decides; you do not class
   it as ordinary to fit a limit.
@@ -169,14 +172,14 @@ One report, in the shape you are handed. What is particular to you:
 - **Your artifact,** under the heading `### Test probes`. First the red step:
   one line per claim, `C<n>:` and the broken versions its tests ought to
   catch. Then one table row per test, with the columns Test, Covers (the
-  claim, or "none"), A broken version that would still pass (or the mutation result),
+  claim, the reason the test names for itself, or "none"), A broken version that would still pass (or the mutation result),
   and Can fail? (yes, no or unsure).
 - **Each finding:** its kind, the file and line, before and after for a
   changed assertion or expected value, and one sentence why. One finding at
   a time; never merge findings. Each sits on the listed claim whose evidence
   the test is or, for a test that backs nothing, on the test's file and
   name. Each says which way it points: "points: strengthen" for a loosened
-  assertion, a deletion, a changed expected value, a check that cannot fail
+  assertion, a skipped or deleted test, a changed expected value, a check that cannot fail
   and a cover that does not catch; "points: cut" for a test that backs
   nothing and a duplicate test. Paths and lines, never internal ids.
 - **The verdict:** when the tests behind a claim could not be reviewed, say

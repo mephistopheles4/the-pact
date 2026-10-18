@@ -160,4 +160,6 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   - any test in `gate/tests/cloud-sessions.test.mjs`, which guards a
     published script that runs as root.
 
-  When it is unclear whether a test falls under this list, it does.
+  When it is unclear whether a test falls under this list, it does. A cut
+  finding from `integrity-lens` on a test in this list is dismissed, naming
+  this list as the reason.

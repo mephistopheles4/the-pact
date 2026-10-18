@@ -16,4 +16,4 @@
 
 ## What stays
 
-The lens roster, model, effort and tools; the Tests added cost row and its limit; the protected set. Supersedes nothing.
+The lens roster, model, effort and tools; the Tests added cost row and its limit; the protected set. Amends [ADR 0057](0057-a-gate-test-names-what-it-backs-and-earns-its-place.md)'s minus-one bullet: a duplicate is judged by the broken versions a test catches, not by its assertions, and `integrity-lens` probes each named cover. Supersedes nothing else; 0057 delivers the "worth having" question it deferred.

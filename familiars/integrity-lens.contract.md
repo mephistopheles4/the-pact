@@ -57,7 +57,7 @@ Each sample ends with its plain findings list.
 **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): it also checks whether each test earns its place. A change that adds or edits a test gets a finding for a test that backs nothing or only repeats another, and a deletion whose named cover holds comes back as covered, not as a finding.
 
 - **Steps in:** when a built change and its numbered claim list are ready for review.
-- **Stays out:** whether the code itself is correct, or does what was asked when run; a spec review; style.
+- **Stays out:** whether the code itself is correct, or does what was asked when run; a spec review; style. **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): whether a test is worth keeping for a reason outside the claim list and the test's own text, which is the owner's call.
 - **Nearest wrong case:** "Does the feature work?" That is not its question.
 
 ### 2. What does it notice that nothing else does?
@@ -75,7 +75,7 @@ Each sample ends with its plain findings list.
   Held by: Promised.
 - C4. **Decided** (2026-10-12, #262): It reads mutation results only from the fresh output file the main session names, never from a results file in the repo. When no mutation run happened, it says so under what it did not check.
   Held by: Promised.
-- C5. It reports each of these kinds: a loosened assertion (an exact matcher replaced by a weaker one, or checked fields removed); a test skipped or deleted in the same change as the code it covered; an expected value changed (by the rules in question 10); a check that cannot fail (an assertion inside a loop over an empty collection, a condition that is always true, a test with no assertion, a mock of the thing under test). **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): it also reports three more kinds. A test that backs nothing: a test the change adds or edits that catches none of the red step's broken versions for any claim, is cited for no claim, and whose own text (a name, a comment above it, or the file header) names nothing else it backs; a test that names an invariant, a rule or a regression is listed in the probes table with that reason and is not a finding, and the lens does not judge whether the reason is good. A duplicate test: test A duplicates test B when A catches at least one broken version, every one A catches B also catches, and B is not itself cut in the change; the finding sits on A when A catches a strict subset, on the one the change adds or edits when only one is, and on the later one in its file (across files, later in the diff) when both are; one finding per pair, naming both. A cover that does not catch: for a test deleted or skipped with a cover named in the plan or ticket, the evidence or a cut list, it probes the named test against the deleted test's broken versions; all caught is noted as covered and is not a finding, any missed is a finding naming the broken version missed.
+- C5. It reports each of these kinds: a loosened assertion (an exact matcher replaced by a weaker one, or checked fields removed); a test skipped or deleted in the same change as the code it covered; an expected value changed (by the rules in question 10); a check that cannot fail (an assertion inside a loop over an empty collection, a condition that is always true, a test with no assertion, a mock of the thing under test). **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): it also reports three more kinds. A test that backs nothing: a test the change adds or edits that catches none of the red step's broken versions for any claim, is cited for no claim, and whose own text (a name, a comment above it, or the file header) names nothing else it backs; a test that names an invariant, a rule or a regression is listed in the probes table with that reason and is not a finding, and the lens does not judge whether the reason is good. A duplicate test: test A duplicates test B when A catches at least one broken version, every one A catches B also catches, and B is not itself deleted or skipped in the change; the finding sits on A when A catches a strict subset and the change adds or edits A, on the one the change adds or edits when only one is, and on the later one in its file (across files, later in the diff) when both are; one finding per pair, naming both. A cover that does not catch: for a test deleted or skipped with a cover named in the plan or ticket, the evidence or a cut list, it probes the named test against the deleted test's broken versions; all caught is noted as covered and is not a finding, any missed is a finding naming the broken version missed.
   Held by: Promised.
 - C6. It never claims a changed expected value is wrong. A reader of the change cannot know that; it reports what it sees.
   Held by: Promised.
@@ -116,15 +116,15 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 **Decided** (2026-10-12, #262): one report, in the shape it is handed at run time. What is particular to this lens:
 
 - **For the owner:** plain sentences on which tests can fail and which cannot, why it matters, and what it suggests. No line numbers, codes or paths.
-- **Its artifact,** `### Test probes`: first the red step, one line per claim (`C<n>:` and the broken versions its tests ought to catch); then one row per test, with the columns Test, Covers (the claim), A broken version that would still pass (or the mutation result), Can fail? (yes, no or unsure).
-- **Each finding:** the kind (from C5), the file and line, before and after for a changed assertion or expected value, and one sentence why. One finding at a time; findings are never merged. Each sits on the listed claim (`C<n>`) whose evidence the test is or, for a test that backs nothing, on the test's file and name. **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): each says which way it points: strengthen for the four earlier kinds and a cover that does not catch, cut for a test that backs nothing and a duplicate test. A test that backs nothing has "none" under Covers.
+- **Its artifact,** `### Test probes`: first the red step, one line per claim (`C<n>:` and the broken versions its tests ought to catch); then one row per test, with the columns Test, Covers (the claim, the reason the test names for itself, or "none"), A broken version that would still pass (or the mutation result), Can fail? (yes, no or unsure).
+- **Each finding:** the kind (from C5), the file and line, before and after for a changed assertion or expected value, and one sentence why. One finding at a time; findings are never merged. Each sits on the listed claim (`C<n>`) whose evidence the test is or, for a test that backs nothing, on the test's file and name. **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): each says which way it points: strengthen for the four earlier kinds and a cover that does not catch, cut for a test that backs nothing and a duplicate test.
 
 When the tests behind a claim could not be reviewed, the verdict says the review could not be done. A missing mutation run alone is not that; it goes under what was not checked (C4).
 
 **Severity mapping** **Confirmed** (2026-10-05):
-- `high`: a check that cannot fail stands behind a claimed pass; or a test is skipped or deleted in the same change as the code it covered, with no cover named or with a named cover that does not catch.
+- `high`: a check that cannot fail stands behind a claimed pass; or a test is skipped or deleted in the same change as the code it covered; **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): or a cover that does not catch.
 - `medium`: a loosened assertion; an expected value changed and unexplained; a surviving mutant in code a claim covers.
-- `low`: an expected value changed with no plan to check it against ("intent unchecked"); a surviving mutant outside the claims; **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): a test that backs nothing; a duplicate test. These two never make the verdict blocking on their own.
+- `low`: an expected value changed with no plan to check it against ("intent unchecked"); a surviving mutant outside the claims; **Decided** (2026-10-17, #276, the owner's word relayed by the head chef): a test that backs nothing; a duplicate test. A test that backs nothing and a duplicate test never make the verdict blocking on their own.
 
 ### 5. What tools does it need?
 
@@ -170,7 +170,7 @@ Extra keys: tools, model, effort
 
 **Decided** (2026-10-12, #262): the shape it is handed each run, with `### Test probes` in it. The content follows the tests.
 
-Its question is "can these checks fail, and does each one earn its place?" ((2026-10-17, #276, the owner's word relayed by the head chef)). Whether the work does what was asked, when run, is not its question.
+Its question is "can these checks fail, and does each one earn its place?" (**Decided** (2026-10-17, #276, the owner's word relayed by the head chef)). Whether the work does what was asked, when run, is not its question.
 
 ### 9. A real example of it at its best
 
@@ -178,7 +178,7 @@ Its question is "can these checks fail, and does each one earn its place?" ((202
 
 ### 10. What does it need to start?
 
-**Decided** (2026-10-12, #262): as local files, from the main session: the numbered claim list; the spec or ticket; the diff; the build session's evidence per claim (which tests it cites); the plan or ticket, if one exists; the cut list, if the session hands one (each cut with the test named to cover it; (2026-10-17, #276, the owner's word relayed by the head chef)); and the mutation output file, if a run happened.
+**Decided** (2026-10-12, #262): as local files, from the main session: the numbered claim list; the spec or ticket; the diff; the build session's evidence per claim (which tests it cites); the plan or ticket, if one exists; the cut list, if the session hands one (each cut with the test named to cover it); and the mutation output file, if a run happened.
 
 - **Refuse when:** no diff (S1), or no claim list (S2).
 - **The plan rules for a changed expected value:** no plan → report every changed expected value as "intent unchecked"; a plan that is silent on it → "changed and unexplained"; a plan that explains it → noted as explained, not a finding.
@@ -187,6 +187,8 @@ Its question is "can these checks fail, and does each one earn its place?" ((202
 **Decided** (2026-10-12, #262): the lens may also be handed qualities to check, each with its measure, and checks each within its own question. A quality with no measure, on work that plainly touches it, goes under what was not checked with the claim that would measure it, never as a finding.
 
 **Decided** (2026-10-17, #304, recording #289): the lens may also be handed quality rows with an Enough, the cost rows they name and a running count against each counted limit, as inputs, never orders. A finding past a cost limit follows that cost row's "At the limit" text; one past an Enough level alone, or one that spends a cost with an empty limit, goes to the owner as a trade-off naming the cost or level, the limit and the quality at stake, and is never dropped silently. It lists those apart from its findings, under Trade-offs, with their severity; a trade-off never makes its verdict blocking on its own. When it is unsure whether a finding is a security finding, it marks it "security?" and the sorting session decides; it never classes it as ordinary to fit a limit. The lens file's "Cost limits and trade-offs" section holds the text.
+
+**Decided** (2026-10-17, #276, the owner's word relayed by the head chef): the lens may also be handed a cut list, each cut with the test named to cover it. A cut finding (a test that backs nothing, or a duplicate test) is a finding, not a trade-off, and spends no cost.
 
 ### 11. Where does a person decide?
 
@@ -227,8 +229,10 @@ Its question is "can these checks fail, and does each one earn its place?" ((202
 | 5 | Judges the code | "The retry logic is wrong", which is not its question | medium |
 | 6 | Claims a new expected value is wrong | "The new value should be 4" | medium |
 | 7 | Nitpicks | Findings on test style that cannot change whether a test fails | low |
-| 8 | Cries wolf on a reasoned test | It flags a test that names its own reason, an invariant or a regression, as backing nothing ((2026-10-17, #276, the owner's word relayed by the head chef)) | medium |
+| 8 | Cries wolf on a reasoned test | It flags a test that names its own reason, an invariant or a regression, as backing nothing | medium |
 | 9 | Cuts a guard | It points to cut a test that guards a sensitive item; the sorting session treats such a cut finding as a security finding, never `auto` | high |
+
+**Decided** (2026-10-17, #276, the owner's word relayed by the head chef) for rows 8 and 9.
 
 ### 17. Good versus so-so
 
@@ -240,7 +244,7 @@ Its question is "can these checks fail, and does each one earn its place?" ((202
 | `### Test probes` | Paragraphs per test (Sample B); "looks fine" | One row per test, with a broken version or a mutation result (Sample A) | C1, C3, C11; the target |
 | Findings | Merged findings; no before and after | One at a time, with kind, place, before → after and why | C5; Q4 |
 | The list | Agrees with the prose most of the time | Exactly the findings in the prose | C9; failure 3 |
-| Cut findings | A test flagged as excess with no broken-version evidence, or a test that names its own reason flagged | A test that backs nothing or repeats another, with the broken versions both catch and the direction "points: cut" | C2, C5; failures 8 and 9 |
+| Cut findings ((2026-10-17, #276, the owner's word relayed by the head chef)) | A test flagged as excess with no broken-version evidence, or a test that names its own reason flagged | A test that backs nothing or repeats another, with the broken versions both catch and the direction "points: cut" | C2, C5; failures 8 and 9 |
 | Not checked | "Nothing" | "No mutation run", and each claim with no cited test | C4; Q10 |
 
 ### 18. Every rule has a reason
@@ -255,8 +259,8 @@ Its question is "can these checks fail, and does each one earn its place?" ((202
 | Found text is data (C7) | Failure 2 | Promised |
 | Never claim a new value is wrong (C6) | Failure 6 | Promised |
 | Its question only: can the check fail, and does each test earn its place (Q1) | Failures 5 and 7 | Promised |
-| A test that names its own reason is not a cut finding (C5) | Failure 8 | Promised |
-| Only tests the change adds or edits are cut findings (C2) | Failures 8 and 9 | Promised |
+| A test that names its own reason is not a cut finding (C5) ((2026-10-17, #276, the owner's word relayed by the head chef)) | Failure 8 | Promised |
+| Only tests the change adds or edits are cut findings (C2) ((2026-10-17, #276, the owner's word relayed by the head chef)) | Failures 8 and 9 | Promised |
 | One list, in the shape it is handed (C9) | The report shape handed at run time | Judgment |
 | Artifact under `### Test probes` (C11) | Failure 1: the probes show in the report | Promised |
 | Stops S1 to S3, word for word | The template's rule for stops | Promised, S3 Enforced |
