@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R39, so other work can point at it. A
+Each accepted risk has a label, R1 to R40, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -131,7 +131,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R39
+  title Residual risk, R1 to R40
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -176,6 +176,7 @@ quadrantChart
   R37: [0.15, 0.20]
   R38: [0.10, 0.78]
   R39: [0.06, 0.74]
+  R40: [0.05, 0.70]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -186,7 +187,7 @@ How to read it:
   session text from strangers. Turning auto mode off is the tweak that moves
   it most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
-  tracker rule (R1, R2), a foreign token taken as the owner (R38), the rule on outsiders' code (R5, R6), commits credited by email (R39), trust in what
+  tracker rule (R1, R2), a foreign token taken as the owner (R38), the checker's origin check (R40), the rule on outsiders' code (R5, R6), commits credited by email (R39), trust in what
   you install (R8, R9, R10, R35), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
@@ -246,6 +247,7 @@ How to read it:
 | R37 Cloud Node block hardening | None; a cost to you | The setup's Result section runs the `node` wrapper by path and marks the setup `INCOMPLETE` when it fails; mise's version lookup is off (`use_versions_host = false`) (#183) | Boundary |
 | R38 Foreign token taken as the owner | Whoever's token a session is given | The session announces its login in its first message, and stops if you object (ADR 0089) | Rule |
 | R39 Commits credited by email | Whoever's commits reach a branch of this repo in a pull request you opened | Only accounts with write rights push branches here; the insiders' check reads each commit's author and committer account (ADR 0089) | Outside the pact, rule |
+| R40 Checker origin read by path | Whoever sets a clone's origin | The run step checks that `origin` ends in this repo's account and name (ADR 0089) | Rule |
 
 ## Strangers on the tracker
 
@@ -321,6 +323,14 @@ months.
   it does before you object stands. The announcement is the only safeguard.
   Accepted by the owner on 2026-10-18, in chat, at the Design review of #183
   T2 (ADR 0089).
+- **R40. The checker's run step trusts `origin` by its path.** The step runs
+  the checker from `origin/main` after checking that `origin` ends in this
+  repo's account and name. It reads the path, not the host, so a clone whose
+  `origin` points at the same path on another host would run that host's
+  copy. It needs someone to have set the clone's `origin`. A cloud session's
+  `origin` is a local proxy address, so a host pin would break that form.
+  Accepted by the owner on 2026-10-18, in chat on a decision card, from the
+  Test review of #183 T2 (behaviour-lens, third round, F2).
 
 ## Outside pull requests and their code
 
