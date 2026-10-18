@@ -118,7 +118,7 @@ echo "eagle-eye left as it was (expect identical): $(diff -rq /tmp/pinned/mephis
 rm -f "$c"
 
 echo "### C4: a skill holding a link, and one holding .claude-plugin/plugin.json (a fixture repo)"
-mkdir -p /tmp/fx/src && cd /tmp/fx/src && git init -q && git config user.email t@t && git config user.name t
+mkdir -p /tmp/fx/fx/src && cd /tmp/fx/fx/src && git init -q && git config user.email t@t && git config user.name t
 mkdir -p skills/good skills/linked skills/plugged/.claude-plugin
 printf -- '---\nname: x\n---\n' | tee skills/good/SKILL.md skills/linked/SKILL.md skills/plugged/SKILL.md >/dev/null
 ln -s /etc/hostname skills/linked/notes.md; echo '{"name":"p"}' > skills/plugged/.claude-plugin/plugin.json
@@ -158,7 +158,7 @@ CAT='{"name":"up","owner":{"name":"o"},"metadata":{"x":1},"renames":{"a":"b"},"p
 run_plugins() {
   local repo="$1" sha="$2"; shift 2
   rm -f /tmp/claude-calls.log; rm -rf /root/.claude/pact-pinned
-  { sed -n '1,/^echo "== Node"$/p' /s/cloud-setup.sh | sed '$d' | sed "s/^declare -rA REPO_PIN=.*/declare -rA REPO_PIN=( [\"$repo\"]=$sha )/"
+  { sed -n '1,/^echo "== Node"$/p' /s/cloud-setup.sh | sed '$d' | sed "s|^declare -rA REPO_PIN=.*|declare -rA REPO_PIN=( [\"$repo\"]=$sha )|"
     sed -n '/^install_plugins() {$/,/^}$/p' /s/cloud-setup.sh
     echo "install_plugins $repo pact-pinned-plugins $*"
     echo 'echo "skipped (source): ${SKIPPED_SOURCE[*]}"; echo "not installed: ${NOT_INSTALLED[*]}"; echo "skipped (time): ${SKIPPED_TIME[*]}"'

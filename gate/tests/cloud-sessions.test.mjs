@@ -361,10 +361,11 @@ test('cloud copy: a malformed repo pin, a repo with no pin, an unused pin or a w
     { 'a/b': sha.toUpperCase() },
     { 'a/b': 'main' },
     { 'a/b': `${sha}\n` },
-    { 'a$(id)/b': sha },
   ]) {
     refuses(() => assemble(withHead(uses(), repoPins)), 'cloud/pin');
   }
+  // A key out of shape, used by the head, so only the shape check can refuse it.
+  refuses(() => assemble(withHead(uses('"a$(id)/b skills/x"'), { 'a$(id)/b': sha })), 'cloud/pin', /not owner\/repo/);
   refuses(() => assemble(withHead(uses(), {})), 'cloud/pin', /no pin/);
   refuses(() => assemble(withHead(HEAD)), 'cloud/pin', /no entry/);
   const plant = extra => uses().replace('present() {', `${extra}\npresent() {`);
