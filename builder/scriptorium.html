@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-3bIK1z8aC/a5+U7L3K8BxMg4nvfII8LMsMNLMkr4sqU='; style-src 'sha256-wkhoxbbMaCHdQvsLIUQpWNpMhonlFCZLRvDaCgMjNUA='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-smb092Mw5CmkrLlH4MW4Rf2uAv6Q6YOl2OITkaAHDQM='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -39,8 +39,6 @@
   --av-ink-55: rgb(34 38 43 / 0.55);
   --av-ink-30: rgb(34 38 43 / 0.3);
   --av-ink-12: rgb(34 38 43 / 0.12);
-  --av-grid-minor: rgb(34 38 43 / 0.035);
-  --av-grid-major: rgb(34 38 43 / 0.085);
   --av-surface: rgb(250 250 247 / 0.72);
   --av-ground: #efefe9;
   --av-paper-tech: #eaf0f6;
@@ -58,8 +56,6 @@
     --av-ink-55: rgb(236 229 223 / 0.55);
     --av-ink-30: rgb(236 229 223 / 0.28);
     --av-ink-12: rgb(236 229 223 / 0.11);
-    --av-grid-minor: rgb(236 229 223 / 0.032);
-    --av-grid-major: rgb(236 229 223 / 0.075);
     --av-surface: rgb(32 27 24 / 0.72);
     --av-ground: #100e0d;
     --av-paper-tech: #141a20;
@@ -174,8 +170,10 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .av-tool-code { margin: var(--av-s1) 0 0; padding: var(--av-s2); background: var(--av-paper-tech); border: var(--av-rule-hair) solid var(--av-ink-12); border-left: var(--av-rule-bold) solid var(--av-ink-30); font-family: var(--av-font); font-size: var(--av-t-annot); line-height: 1.65; color: var(--av-ink-80); white-space: pre-wrap; overflow-wrap: anywhere; }
 .section-title { font-size: var(--av-t-micro); text-transform: uppercase; letter-spacing: var(--av-track-label); font-weight: 600; color: var(--av-ink); margin: 0; }
 /* WORKFLOW (#262): #143's prototype v3, kept. The canvas is the drafting
-   surface, paper with the grid coming through; the library, the bar, the
-   table and the panel are sheets laid on it. */
+   surface, paper with the réseau coming through (one cross every major
+   division, drawn by draw() under the links, since the page's CSP refuses
+   image URLs); the library, the bar, the table and the panel are sheets
+   laid on it. */
 .wf { --wf-shadow: 0 2px 6px rgb(34 38 43 / 0.16); display: flex; flex-direction: column; border-top: var(--av-rule-hair) solid var(--av-ink-30); }
 @media screen { [data-aviation-scheme="dark"] .wf { --wf-shadow: 0 2px 6px rgb(0 0 0 / 0.45); } }
 .wf-bar { display: flex; align-items: center; gap: var(--av-s1); flex-wrap: wrap; padding: var(--av-s1) var(--av-s4); border-top: var(--av-rule-hair) solid var(--av-ink-12); border-bottom: var(--av-rule-hair) solid var(--av-ink-12); background: var(--av-surface); }
@@ -200,10 +198,7 @@ textarea { width: 100%; min-height: 6.5em; resize: vertical; font: inherit; font
 .wf-libpair .wf-lib:first-child small { display: block; }
 
 .wf-canvas { position: relative; overflow: hidden; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; min-height: 0;
-  background-color: var(--av-paper);
-  background-image:
-    linear-gradient(to right, var(--av-grid-major) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-major) 1px, transparent 1px),
-    linear-gradient(to right, var(--av-grid-minor) 1px, transparent 1px), linear-gradient(to bottom, var(--av-grid-minor) 1px, transparent 1px); }
+  background-color: var(--av-paper); }
 .wf-canvas.wf-panning { cursor: grabbing; }
 .wf-canvas.wf-dropping { box-shadow: inset 0 0 0 var(--av-rule-bold) var(--av-caution); }
 .wf-edges { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
@@ -4368,9 +4363,6 @@ function workflowEditor(host, state, changed) {
     renderTable();
     zoomPct.textContent = `${Math.round(ui.view.k * 100)}%`;
     world.style.transform = `translate(${ui.view.x}px, ${ui.view.y}px) scale(${ui.view.k})`;
-    canvas.style.backgroundPosition = `${ui.view.x}px ${ui.view.y}px`;
-    const k = ui.view.k;
-    canvas.style.backgroundSize = `${120 * k}px ${120 * k}px, ${120 * k}px ${120 * k}px, ${24 * k}px ${24 * k}px, ${24 * k}px ${24 * k}px`;
   }
 
   // ---- the workflow table, live under the canvas
@@ -4455,6 +4447,22 @@ function workflowEditor(host, state, changed) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
     ctx.setTransform(dpr * v.k, 0, 0, dpr * v.k, dpr * v.x, dpr * v.y);
+    // The réseau: a 13 px cross at the middle of each 120 px division, in ink 30.
+    const reseau = new Path2D();
+    const x0 = Math.floor(-v.x / v.k / 120) * 120;
+    const y0 = Math.floor(-v.y / v.k / 120) * 120;
+    for (let x = x0; x < (W / dpr - v.x) / v.k; x += 120) {
+      for (let y = y0; y < (H / dpr - v.y) / v.k; y += 120) {
+        reseau.moveTo(x + 54, y + 60.5);
+        reseau.lineTo(x + 67, y + 60.5);
+        reseau.moveTo(x + 60.5, y + 54);
+        reseau.lineTo(x + 60.5, y + 67);
+      }
+    }
+    ctx.strokeStyle = color('--av-ink-30');
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.stroke(reseau);
     const dash = ((t / 1000) * 26.7) % 24;
     for (const e of links()) {
       const q = geom(e);
