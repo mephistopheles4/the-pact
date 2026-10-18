@@ -11,7 +11,7 @@
 
 ## Decisions
 
-- [ADR 0084](../adr/0084-a-persons-own-presets-are-read-from-one-folder-beside-the-kit.md): one fixed folder beside the kit, treated as shared files for agent rows.
+- [ADR 0085](../adr/0085-a-persons-own-presets-are-read-from-one-folder-beside-the-kit.md): one fixed folder beside the kit, treated as shared files for agent rows.
 
 ## Record
 
