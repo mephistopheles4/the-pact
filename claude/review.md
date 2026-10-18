@@ -280,7 +280,7 @@ severity:
   (`open` until I settle the finding in chat, never `noted`), and at most the
   lens's name in the Rerun cell. A restart carries it as it stands.
 - **Its placeholder** in the review comment sits in the One lens only table,
-  whatever its state.
+  whatever its state or kind, never in Crossings first, Trade-offs or Notes.
 - **Its Earlier findings item** reads "withheld, see chat".
 - **A follow-up's report that continues it** is kept local too, as a
   kept-local report, until I settle the finding, whatever the read before
