@@ -60,3 +60,4 @@
 - [Second Test follow-up: integrity-lens](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611004)
 - [Second Test follow-up: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611425)
 - [Second Test follow-up: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611814)
+- [Spec amended after the second Test follow-up](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254730976)
