@@ -63,6 +63,17 @@ export const CLOUD_COMMANDS = Object.freeze([]);
 // code that posts as the owner. A cloud poster waits for its own trigger.
 export const CLOUD_TOOLS = Object.freeze([]);
 
+// The Node block's pins (#183), one shell variable each, written as plain
+// assignments at the top of the block. Bump them only by the procedure in
+// ADR 0088: each comes from a signature checked against a committed key.
+export const CLOUD_PINS = Object.freeze({
+  MISE_VERSION: '2026.10.2',
+  MISE_SHA256: '79a2bf0ffc9b8a9a6391344e875b3c3679c15053fda3e8728ddf1790d63db788',
+  NODE_VERSION: '24.22.0',
+  NODE_TAR_SHA256: '28ea0a438de9a13bd7891fd758eee6c7819ee8af5442dfd8d45bd65e56d4228c',
+  NODE_BIN_SHA256: '67ca5783febb8bf85736c79fcdd92c8d6d465a0eb2a082672bcdfa76a506751c',
+});
+
 /** Seam A's --commands or --tools value for a list: none, or the names joined by commas. */
 export function commandsArg(list) {
   return list.length ? list.join(',') : 'none';
@@ -96,6 +107,15 @@ const PH = Object.freeze({
   count: '__EXPECTED_COUNT__',
   hashes: '__EXPECTED_HASHES__',
   marker: '__PACT_CLOUD_MARKER__',
+  pins: '__CLOUD_PINS__',
+});
+// A pin's shape: a version is dot-separated numbers, a hash 64 lowercase hex.
+const PIN_SHAPE = Object.freeze({
+  MISE_VERSION: /^[0-9]+(?:\.[0-9]+)*$/,
+  MISE_SHA256: /^[0-9a-f]{64}$/,
+  NODE_VERSION: /^[0-9]+(?:\.[0-9]+)*$/,
+  NODE_TAR_SHA256: /^[0-9a-f]{64}$/,
+  NODE_BIN_SHA256: /^[0-9a-f]{64}$/,
 });
 // A destination is held to these characters on top of seam A's safe-path rule,
 // and single-quoted anyway.
@@ -309,12 +329,38 @@ function fill(text, placeholder, value, name) {
 
 const lineCount = (text, pred) => text.split('\n').filter(pred).length;
 
+/** Check `pins` against PIN_SHAPE: the same names, each value in its shape (cloud/pin). Returns the assignment lines. */
+function pinLines(pins) {
+  if (pins === null || typeof pins !== 'object') refuse('cloud/pin', 'the pins are missing');
+  const names = Object.keys(PIN_SHAPE);
+  if (Object.keys(pins).length !== names.length || names.some(k => !Object.hasOwn(pins, k))) refuse('cloud/pin', `the pins must be exactly ${names.join(', ')}`);
+  for (const k of names) {
+    // `$` in a JS regex also matches before a final line break, so the value is checked for one first.
+    if (typeof pins[k] !== 'string' || /[\r\n]/.test(pins[k]) || !PIN_SHAPE[k].test(pins[k])) refuse('cloud/pin', `${k} is not in its shape`);
+  }
+  return names.map(k => `${k}=${pins[k]}`).join('\n');
+}
+
+/**
+ * In `text`, each pin is set once, by its plain assignment line, and its value
+ * appears only there; no line defaults or reassigns it (cloud/pin).
+ */
+function checkPins(name, text, pins) {
+  for (const [k, v] of Object.entries(pins)) {
+    if (count(text, v) !== 1) refuse('cloud/pin', `${name} must hold ${k}'s value exactly once`);
+    if (lineCount(text, l => l === `${k}=${v}`) !== 1) refuse('cloud/pin', `${name} must set ${k} once, as a plain assignment`);
+    if (lineCount(text, l => new RegExp(`(?:^|[\\s;&|(])${k}=`).test(l)) !== 1) refuse('cloud/pin', `${name} assigns ${k} more than once`);
+    if (new RegExp(`\\$\\{${k}:?[-=+?]`).test(text)) refuse('cloud/pin', `${name} defaults or tests ${k} in an expansion`);
+  }
+}
+
 /**
  * Build both scripts from `templates` and the copy set. `files` is
  * [{ dest, buf }] with the rules file first; `overlay` the settings overlay's
- * bytes. Returns { setup, wrapper, marker }, all checked.
+ * bytes; `pins` the Node block's pins (CLOUD_PINS). Returns { setup, wrapper, marker }, all checked.
  */
-export function assemble({ files, overlay, templates }) {
+export function assemble({ files, overlay, templates, pins }) {
+  const pinned = pinLines(pins);
   for (const [k, name] of Object.entries(TEMPLATES)) {
     if (typeof templates[k] !== 'string') refuse('cloud/form', `${name} is missing`);
     checkBody(name, templates[k]);
@@ -342,12 +388,15 @@ export function assemble({ files, overlay, templates }) {
   let tail = templates.setupTail;
   tail = fill(tail, PH.count, String(files.length + 1), TEMPLATES.setupTail); // every file, plus the settings merge
   tail = fill(tail, PH.hashes, checks.join('\n'), TEMPLATES.setupTail);
-  const unmarked = templates.setupHead + config + tail;
+  const head = fill(templates.setupHead, PH.pins, pinned, TEMPLATES.setupHead);
+  const unmarked = head + config + tail;
   const marker = sha256(Buffer.from(unmarked, 'utf8')).slice(0, 12);
   const setup = fill(unmarked, PH.marker, marker, 'cloud-setup.sh');
   const wrapper = WRAPPER_HEAD + WRAPPER_OPEN + setup + WRAPPER_CLOSE;
 
   checkForm({ setup, wrapper, files, overlay: ov });
+  checkPins(OUTPUTS.setup, setup, pins);
+  checkPins(OUTPUTS.wrapper, wrapper, pins);
   for (const [name, text] of [
     [OUTPUTS.setup, setup],
     [OUTPUTS.wrapper, wrapper],
@@ -412,6 +461,7 @@ export function generate(root, options = {}) {
       files: checked.copy.map(c => ({ dest: c.dest, buf: c.buf })),
       overlay: checked.overlay,
       templates: readTemplates(),
+      pins: CLOUD_PINS,
     });
     const rules = rendered.toString('utf8');
     const report = new Report();

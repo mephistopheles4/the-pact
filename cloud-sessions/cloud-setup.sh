@@ -129,6 +129,128 @@ clone_and_copy() {
   rm -rf "$tmp"
 }
 
+# Node 24 (#183, ADR 0088). A pinned, hash-checked mise installs the pinned
+# Node against a lockfile hash, and the installed binary is checked too. Only
+# when every check passes do wrappers for node, npm and npx in /root/.local/bin
+# put it ahead of the image's Node; any failure leaves none, so the image's
+# Node stays, and the Result section turns the marker INCOMPLETE with the
+# reason. The pins are plain assignments, so setup's environment can't
+# replace one. Every fetch runs with the GitHub token variables unset.
+echo "== Node"
+MISE_VERSION=2026.10.2
+MISE_SHA256=79a2bf0ffc9b8a9a6391344e875b3c3679c15053fda3e8728ddf1790d63db788
+NODE_VERSION=24.22.0
+NODE_TAR_SHA256=28ea0a438de9a13bd7891fd758eee6c7819ee8af5442dfd8d45bd65e56d4228c
+NODE_BIN_SHA256=67ca5783febb8bf85736c79fcdd92c8d6d465a0eb2a082672bcdfa76a506751c
+NODE_FAILED=
+MISE_OK=0
+MISE_BIN=/root/.local/bin/mise
+MISE_CONF=/root/.config/mise
+NODE_HOME="/root/.local/share/mise/installs/node/$NODE_VERSION"
+NODE_WRAPPER_TAG='# pact cloud node wrapper'
+NODE_TMP=""
+
+node_fail() { NODE_FAILED="$1"; echo "WARN: $2"; }
+sha256_of() { sha256sum "$1" 2>/dev/null | cut -d ' ' -f 1; }
+# Removes only the wrappers this block wrote, by their tag line.
+remove_node_wrappers() {
+  local w
+  for w in node npm npx; do
+    if grep -qxF "$NODE_WRAPPER_TAG" "/root/.local/bin/$w" 2>/dev/null; then rm -f "/root/.local/bin/$w"; fi
+  done
+}
+
+if [ "$(uname -m)" != "x86_64" ]; then
+  node_fail arch "Node $NODE_VERSION skipped: this machine is $(uname -m), and the pins are for x86_64"
+fi
+if [ -z "$NODE_FAILED" ]; then
+  NODE_TMP="$(mktemp -d)"
+  if ! command -v curl >/dev/null 2>&1; then
+    node_fail download "curl not found; mise not downloaded"
+  elif ! env -u GH_TOKEN -u GITHUB_TOKEN $T curl -fsSL --proto '=https' --tlsv1.2 -o "$NODE_TMP/mise.tar.gz" \
+      "https://github.com/jdx/mise/releases/download/v$MISE_VERSION/mise-v$MISE_VERSION-linux-x64.tar.gz"; then
+    node_fail download "mise download failed"
+  fi
+fi
+# The archive's hash is checked before anything in it is unpacked.
+if [ -z "$NODE_FAILED" ]; then
+  if [ "$(sha256_of "$NODE_TMP/mise.tar.gz")" != "$MISE_SHA256" ]; then
+    rm -f "$NODE_TMP/mise.tar.gz"
+    node_fail hash "mise sha256 mismatch"
+  elif tar -xzf "$NODE_TMP/mise.tar.gz" -C "$NODE_TMP" mise/bin/mise \
+      && mkdir -p /root/.local/bin && install -m 0755 "$NODE_TMP/mise/bin/mise" "$MISE_BIN"; then
+    MISE_OK=1
+  else
+    node_fail install "mise could not be unpacked"
+  fi
+fi
+# paranoid: a project's mise.toml or .tool-versions is refused until someone
+# runs mise trust on it. lockfile: a reinstall of this Node checks its hash.
+if [ -z "$NODE_FAILED" ]; then
+  mkdir -p "$MISE_CONF"
+  cat > "$MISE_CONF/config.toml" <<MISE_CONFIG_EOF
+[settings]
+paranoid = true
+lockfile = true
+use_versions_host = false
+node.verify = true
+node.gpg_verify = true
+node.mirror_url = "https://nodejs.org/dist/"
+
+[tools]
+node = "$NODE_VERSION"
+MISE_CONFIG_EOF
+  if [ "$(cd "$NODE_TMP" && env -u GH_TOKEN -u GITHUB_TOKEN "$MISE_BIN" settings get paranoid 2>/dev/null)" != "true" ]; then
+    MISE_OK=0
+    node_fail config "mise does not report paranoid on"
+  fi
+fi
+# MISE_LOCKED refuses any tool not in the lockfile: safe mode outranks
+# paranoid and still reads tools from configs above the working folder.
+if [ -z "$NODE_FAILED" ]; then
+  cat > "$MISE_CONF/mise.lock" <<MISE_LOCK_EOF
+lockfile_version = 3
+
+[[tools.node]]
+version = "$NODE_VERSION"
+backend = "core:node"
+specifiers = ["$NODE_VERSION"]
+
+[tools.node."platforms.linux-x64"]
+checksum = "sha256:$NODE_TAR_SHA256"
+url = "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz"
+MISE_LOCK_EOF
+  if ! (cd "$NODE_TMP" && env -u GH_TOKEN -u GITHUB_TOKEN MISE_SAFE=1 MISE_LOCKED=1 $T "$MISE_BIN" install) >"$NODE_TMP/install.log" 2>&1; then
+    tail -n 5 "$NODE_TMP/install.log" | sed 's/^/  /'
+    if grep -qi 'checksum' "$NODE_TMP/install.log"; then
+      node_fail hash "Node archive sha256 mismatch"
+    else
+      node_fail install "mise install of Node $NODE_VERSION failed"
+    fi
+  fi
+fi
+if [ -z "$NODE_FAILED" ] && [ "$(sha256_of "$NODE_HOME/bin/node")" != "$NODE_BIN_SHA256" ]; then
+  # mise's aliases (24, lts, latest) would be left pointing at nothing.
+  rm -rf "$NODE_HOME" && find "${NODE_HOME%/*}" -maxdepth 1 -xtype l -delete 2>/dev/null
+  node_fail hash "node binary sha256 mismatch"
+fi
+# The wrappers point straight at the pinned install, not mise's shims, which
+# refuse in a folder holding an untrusted mise config.
+if [ -z "$NODE_FAILED" ]; then
+  for w in node npm npx; do
+    printf '#!/bin/sh\n%s\nexec "%s" "$@"\n' "$NODE_WRAPPER_TAG" "$NODE_HOME/bin/$w" > "/root/.local/bin/$w" \
+      && chmod 0755 "/root/.local/bin/$w" || node_fail install "could not write the $w wrapper"
+  done
+fi
+if [ -n "$NODE_FAILED" ]; then
+  remove_node_wrappers
+  [ "$MISE_OK" = "1" ] || rm -f "$MISE_BIN"
+else
+  export PATH="/root/.local/bin:$PATH"
+  echo "ok: node, npm and npx run Node $NODE_VERSION"
+fi
+[ -n "$NODE_TMP" ] && rm -rf "$NODE_TMP"
+
 echo "== Skills"
 REPOS="$(for e in "${SKILLS[@]}"; do echo "${e%% *}"; done | sort -u)"
 for repo in $REPOS; do
@@ -2244,11 +2366,14 @@ check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'age
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
 check_hash e0290dc2f8b5854ea8e7bc5d9615050015479b82e4dfd6261f27d3111ce400b5 'pact/review.md'
-if command -v node >/dev/null 2>&1; then
-  echo "node: $(node --version)"
-  node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 24 ? 0 : 1)' \
-    || echo "WARN: node is older than 24, the pact's Node floor"
+# Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
+NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
+echo "node: $NODE_SEEN"
+if [ -z "${NODE_FAILED:-}" ] && [ "$NODE_SEEN" != "v$NODE_VERSION" ]; then
+  NODE_FAILED=version
+  echo "WARN: node is $NODE_SEEN, not the pinned v$NODE_VERSION"
 fi
+if [ -n "${NODE_FAILED:-}" ]; then echo "WARN: Node $NODE_VERSION not installed (node: $NODE_FAILED); the image's Node stays on the PATH"; fi
 
 # Whether a GitHub token was in the environment during setup. Never its value.
 # Under the cloud's GitHub proxy the token variables hold a stand-in, so
@@ -2261,10 +2386,10 @@ else
 fi
 
 # The marker names this exact script. It prints only when every file was
-# written and every hash matched.
-if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then
-  echo "pact cloud copy 77d171e7af86"
+# written, every hash matched and the pinned Node is on the PATH.
+if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
+  echo "pact cloud copy b5d43883b59b"
 else
-  echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"
+  echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
 exit 0

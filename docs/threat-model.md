@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R34, so other work can point at it. A
+Each accepted risk has a label, R1 to R37, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -84,14 +84,19 @@ classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 
 ## Crypto and data migrations here
 
-**Crypto.** The pact holds no secret, key or signature, and encrypts nothing.
-It uses hashes only to detect change, never to authenticate, apart from the
-builder page's policy hashes. It uses them in four main places. Git's SHA-1
+**Crypto.** The pact holds no secret and encrypts nothing. It holds two
+public keys, in `cloud-sessions/keys/`, used only at a pin bump to check the
+signatures on Node's and mise's checksum files (ADR 0088). It uses hashes
+only to detect change, never to authenticate, apart from the builder page's
+policy hashes and the cloud setup's pins. It uses them in four main places. Git's SHA-1
 object ids: the install checks that the commit and each file it reads are the
 commit's own bytes, and an apply is bound to that commit. SHA-256 checks: the
 install record holds each file's hash to find drift, the cloud setup script
 checks each file it writes, and its generator checks what it takes from the
-install. The apply binding: when a configuration applies, an apply is also
+install. The cloud setup also checks the mise download and the installed
+Node binary against pinned SHA-256 hashes, and mise checks the Node archive
+against a third pin in its lockfile; `gen.mjs` refuses a pin out of its
+shape before it reaches the root-run script (R35). The apply binding: when a configuration applies, an apply is also
 bound to the rendered hash its dry run printed. A session that can write the
 files can write the install record too (R14), and the binding holds the clone
 and the render, not your sight of them (R22). The builder page's policy
@@ -126,7 +131,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R34
+  title Residual risk, R1 to R37
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -166,6 +171,9 @@ quadrantChart
   R32: [0.18, 0.62]
   R33: [0.12, 0.34]
   R34: [0.22, 0.24]
+  R35: [0.08, 0.80]
+  R36: [0.18, 0.78]
+  R37: [0.15, 0.20]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -177,13 +185,13 @@ How to read it:
   it most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
   tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
-  you install (R8, R9, R10), prompt injection (R12 to R16), a reported hole
+  you install (R8, R9, R10, R35), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), and agent files taken from a shared builder file (R32) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7.** They happen by design, and the harm
   is bounded: public reports, a blocked team.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -192,6 +200,8 @@ How to read it:
   (#280). R31 needs you to run a project install and pass over the
   warning that leads its dry run. R33 needs another local account that can read the system's temporary folder. R34 needs a path whose folder names say
   something about you, outside your home and temp folders, to reach a post.
+  R37 costs a broken `node` command until the next setup, or tells mise's
+  vendor which versions a session runs.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -204,7 +214,7 @@ How to read it:
 | R7 Teams blocked | None; a cost to you | None yet (#180) | — |
 | R8 Publisher compromised | This repo's publisher | Dry run, the diff you read | Rule |
 | R9 Installed code | Plugin or skill author | None | — |
-| R10 Cloud fetches unpinned | Upstream authors | None; accepted (#182) | — |
+| R10 Cloud fetches unpinned | Upstream authors | None for plugins, skills and the command-line tool; accepted (#182). mise and Node are pinned since #183 (R35) | — |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its secret scan as a backstop behind that read, which stays for everyone (#280); elsewhere, judgment | Rule, judgment |
@@ -229,6 +239,9 @@ How to read it:
 | R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked, as do a preset's from your own `pact/presets/` folder, since a file there may be one someone handed you; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while the page takes a retired agent's file out of a loaded or shared file, with a note, and a file at agents/<name>.md for a retired agent draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
 | R33 A written page stays on disk | Another local account that can read the system's temporary folder | The builder writes the page only into a new folder under the temporary folder or a path you name outside any repo, the kit, the Claude home folder and any `.claude` folder, never over a file; its closing note and the session's hand-over ask you to delete the folder | Judgment |
 | R34 A revealing path in a post | Anyone who reads the tracker | The read before posting, which looks for your home or temp folder path, user name and host name; on an install with the poster on, `path/machine` as a backstop for those; any other path passes (#326) | Rule |
+| R35 Cloud Node pins | Upstream release, or the pin bump | Pinned hashes checked before use; signatures checked against committed keys at each bump; a weekly advisory routine (ADR 0088) | Boundary, rule |
+| R36 Trusted mise config | A cloned repo, text a session reads | `paranoid` on in mise's global config, so mise refuses an untrusted project config; the `node`, `npm` and `npx` wrappers bypass mise's shims; here, the mise section in `AGENTS.md`; elsewhere, judgment (#183) | Boundary, rule, judgment |
+| R37 Cloud Node block hardening | None; a cost to you | The setup's Result section runs the `node` wrapper by path and marks the setup `INCOMPLETE` when it fails; mise's version lookup is off (`use_versions_host = false`) (#183) | Boundary |
 
 ## Strangers on the tracker
 
@@ -369,7 +382,34 @@ once you install it.
   command-line tool at their latest versions. That code can reach the repo
   clone and any token the container holds. One plugin is a code-review
   service's; using it may send code to that service. The owner accepted this
-  risk by name (#182).
+  risk by name (#182). Since #183 mise and Node are pinned and checked (R35);
+  the rest is not, and it runs after them as root, so it could undo their
+  checks.
+- **R35. The cloud setup trusts its Node pins.** The setup runs mise and Node
+  as root on the strength of three pinned hashes. A pin is only as good as the
+  bump that set it. The bump checks the signatures on Node's and mise's
+  checksum files against keys committed here, which were checked once against
+  a second source. A key compromised upstream, or a bump that skips its
+  checks, would pass. A security fix in the pinned Node or mise reaches
+  sessions only after a bump. Accepted by the owner on 2026-10-18, in chat,
+  from #183 T1's hand-off (ADR 0088).
+- **R36. A project's mise config, once marked trusted, runs as root.** mise
+  stays on the cloud session's PATH so Node can be switched, with `paranoid`
+  on, which refuses a project's mise config until it is marked trusted. Once
+  it is, by any of the means mise offers, that config can fetch tools and run
+  hooks as root with the session's secrets in reach. Here, the mise section in
+  `AGENTS.md` keeps every such means for the owner's word in chat; in other
+  repos' cloud sessions, nothing but judgment does. Accepted by the owner on
+  2026-10-18, in chat, from the Test review of #183 T1 (adversarial-lens F1,
+  data-lens F2).
+- **R37. Two hardening gaps in the cloud Node block.** The setup writes each
+  wrapper in place, so a setup cut off mid-write can leave a broken `node`
+  command until the next setup; the Result section then marks the setup
+  `INCOMPLETE`. And mise may contact its vendor beyond the two pinned
+  downloads, telling it which versions a session runs; its version lookup is
+  off. Neither is a security finding, and the Hardening limit is 0. Accepted
+  by the owner on 2026-10-18, in chat, from #183's Design review
+  (adversarial-lens and data-lens trade-offs).
 - **R23. Work that publishes can run below the thorough tier.** Since #189
   publishing is not on the list of sensitive work, so a change to what gets
   published, such as a package's contents, a release step or a personal

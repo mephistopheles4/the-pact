@@ -1,0 +1,69 @@
+# Node 24 in cloud sessions
+
+**2026-10-18.** #183, ticket T1. The cloud image ships Node 22, and the install and the gate refuse anything below 24. The cloud setup now installs a pinned, verified Node 24 through mise and puts it on the PATH. Tier: thorough, sensitive route; built on Opus at high, test-first.
+
+## What was built
+
+- **The Node block** in `cloud-sessions/tpl-setup-head.sh`, before the skills step. It refuses any machine but `x86_64`, downloads the pinned mise with the GitHub token variables unset, and checks its hash before unpacking. It then writes mise's global config with `paranoid` on and a lockfile holding the Node archive's hash, and asks mise whether `paranoid` is on. It installs the pinned Node with `MISE_SAFE=1 MISE_LOCKED=1` from a temp folder and checks the installed `bin/node`. Only then does it write `node`, `npm` and `npx` wrappers in `/root/.local/bin`. Any failure removes the wrappers it wrote and names its reason.
+- **The Result section** runs `/root/.local/bin/node` by path and turns the marker `INCOMPLETE (… node: <reason>)` on any Node failure or a version other than the pin.
+- **`gen.mjs`** holds the pins in `CLOUD_PINS` and writes them as five plain assignments. `assemble()` refuses a pin out of its shape, one set twice, defaulted in an expansion, or whose value appears anywhere else (`cloud/pin`).
+- **Tests: +3.** One holds the block's checks in order, every pin once and every fetch without the tokens. One holds the `cloud/pin` refusals, among them a wrong length, a shell metacharacter, a line break, a `${VAR:-…}` or `${VAR-…}` default and an `export` reassignment. One holds each committed key file to the hash its README records. The marker test changed for the new condition, and the assemble tests' stand-in head gained the pins placeholder. Run before the build, the new tests and the marker test failed, and the rest passed; each case added after the lenses was seen to catch a broken copy of the code.
+- **The test drivers** install `curl` and `gnupg`, show the wrappers and `paranoid` after each pass, and run the hand checks below. Their stale `familiars/scout.md` path (scout moved to `claude/agents/`) is fixed.
+- **`cloud-sessions/keys/`** holds Node's active-releaser keyring and mise's minisign key, with their sources and hashes. **`AGENTS.md`** says a session never marks a project's mise config trusted, by any of the five means mise offers, without the owner's word in chat.
+- **`docs/threat-model.md`**, on the owner's word at hand-off. The crypto paragraph names the two keys and the pins. R10 now says mise and Node are pinned. R35 covers the pins, R36 a trusted mise config and R37 the two hardening gaps from Design review.
+
+## The pins, re-checked at build time
+
+- **Node 24.22.0:** `SHASUMS256.txt.sig` checked with `gpgv` against the committed keyring (nodejs/release-keys at `481637f`, the active releasers' keys only): a good signature from `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`, which nodejs/node's README lists. The archive hash in the checked file, `28ea0a43…4228c`, matches the download. `bin/node` hashes to `67ca5783…751c`.
+- **mise 2026.10.2:** the release's `SHASUMS256.txt` checked with `minisign` against the committed key (jdx/mise at tag `v2026.10.2`), key id `64113EDF160FDEC2`, which aqua-registry's mise entry also names. A copy with one byte changed failed the check. The tarball hash in the checked file, `79a2bf0f…db788`, matches the download.
+- **One departure from the signed-off procedure:** `minisign` came from Ubuntu 24.04's package archive (`minisign 0.11-1`, checked by apt's signed index), not from a pinned release checked by hash. The owner accepted it at hand-off, and ADR 0088 now allows either source.
+
+## Hand checks
+
+Run with the test driver in an `ubuntu:24.04` container. In a cloud container the network goes only through a proxy, so the container got the proxy's address and its CA bundle through a forwarder on the Docker bridge, with no host network and no credentials.
+
+- **C5:** two passes give the same snapshot, the same three wrappers and `v24.22.0`.
+- **C3:** a wrong mise pin, a wrong archive pin and a wrong binary pin each print their mismatch `WARN`, leave no wrapper and read `INCOMPLETE (12 of 12 written, 0 hash mismatches, node: hash)`. A wrong mise pin leaves no mise; a wrong archive or binary pin leaves the checked mise and no Node install, aliases included. A missing mise release reads `node: download`, and `paranoid` off in the config reads `node: config` and leaves no mise.
+- **C4:** under a `uname` stub printing `aarch64`, the block is skipped with a `WARN` and `node: arch`.
+- **C8, in the container:** the block alone took 8 to 10 s from nothing installed, over four runs.
+- **C10, in the container:** in a folder holding an untrusted `mise.toml` that asks for Node 22, `mise install` refuses with "are not trusted" and installs nothing, and `node --version` through the wrapper prints `v24.22.0`. The half of C10 that runs `mise trust` was not run: `AGENTS.md` keeps that for the owner's word.
+- **C1, in the container:** `mise exec node@22 -- node --version` printed `v22.23.3`.
+
+## The run in a cloud session (D2)
+
+The owner pasted the PR's wrapper (`75c6d57`) straight into the live cloud environment, not a separate one, so D2 ran there. A fresh session reported on #183:
+
+- **C1:** `node`, `npm` and `npx` in the Bash tool and on the PATH `claude` gives its hooks: `v24.22.0`, `11.19.1`, `11.19.1`. `mise exec node@22 -- node --version` printed `v22.23.3`. Nothing ran the image's Node 22.
+- **C2, as reworded:** 2,155 passed, 9 skipped and one failed, the #333 test.
+- **C7:** the same 53 skill entries and 7 plugins as a session on the old setup. `resolving-merge-conflicts` is missing from both, so the skills line reads 51/52 on either setup. The gap predates this change.
+- **C8:** the Node block took 10 s or less.
+- **C10:** an untrusted `mise.toml` was refused with "are not trusted", and the wrapper printed `v24.22.0`. On the owner's word, `mise trust` in that one folder let `mise install` go ahead, and the wrapper still printed `v24.22.0`.
+- **The marker** wasn't seen. The session's copy of the setup log stopped about 4 s before the end. The script that ran matches the `75c6d57` wrapper byte for byte, and every condition for the marker held.
+
+## The full suite in a cloud container
+
+On Node 24.22.0, with `NODE_OPTIONS` and the token variables unset, 240 tests failed: the install refuses while `GIT_CONFIG_COUNT` is set, and a cloud session sets it, with its `GIT_CONFIG_KEY_*` and `GIT_CONFIG_VALUE_*` pairs. With those unset too, 2,154 passed and one failed: "a project holding the real home folder refuses", which fails the same way on `main` in a cloud container, where the home folder is `/root`. So C2's command, as the spec words it, can't pass in a cloud session yet. The owner took C2 reworded: it also unsets the `GIT_CONFIG_*` variables, and names that one test as a known cloud failure until [#333](https://github.com/mephistopheles4/the-pact/issues/333) fixes it. CI's full run on Linux is the Test evidence.
+
+## The owner's decisions at hand-off
+
+Taken in chat on 2026-10-18, from the build's picks on the Test review:
+
+- **Threat model:** the edits above (R35 to R37).
+- **npm and npx get no pin of their own.** mise's lockfile check covers the whole archive, and the driver showed it refusing a wrong archive hash.
+- **The fetches unset the two GitHub token variables only.** The cloud environment sets no other GitHub token variable, and such a token would go only to GitHub.
+- **The integrity-lens rows marked `security?` are fixed.**
+- **No re-check in the Result section.** The skills and plugins steps could undo the Node block's checks, but R10 already accepts that.
+- **The mise rule stays in this repo.** The cloud rules copy is the pact itself, so other repos' cloud sessions rely on judgment (R36).
+- **The `mise trust` half of C10 runs in the test environment (D2),** on the owner's word there.
+- **Node's coming 24.x security release doesn't hold this PR.** The test-environment run and the merge go ahead on 24.22.0, which leaves sessions no more exposed than the image's Node 22. The pin is bumped after the release, as an ordinary bump: D2 is a one-off first run of the new block, and a bump changes only pin values. ADR 0088 now sets a 7-day limit for a security bump.
+
+## Decisions
+
+- [ADR 0088](../adr/0088-the-cloud-setup-installs-a-pinned-verified-node.md) — The cloud setup installs a pinned, verified Node.
+
+## Record
+
+- [Plan, signed off](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250226884)
+- [Design review, round 1](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250252522)
+- [Design review, round 2](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250267526)
+- [Test review](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6250771419)
