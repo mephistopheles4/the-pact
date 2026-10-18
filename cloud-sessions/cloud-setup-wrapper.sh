@@ -2,25 +2,36 @@
 cat > /tmp/cloud-setup.sh <<'__CLOUD_SETUP_SH_EOF__'
 #!/usr/bin/env bash
 # Reinstall global Claude Code skills, plugins and config in a fresh cloud container.
-# Idempotent: anything already present is skipped. One failure never stops
-# the rest, so there is deliberately no `set -e`.
+# Every run fetches each third-party repo at its pinned commit and replaces
+# what it copies from it (#183 T3, ADR 0091). One failure never stops the
+# rest, so there is deliberately no `set -e`.
+
+# The third-party repos' pinned commits, written by gen.mjs. Read-only, and
+# the first code line, so no line can declare the name before it or change a
+# pin after it.
+unset REPO_PIN
+declare -rA REPO_PIN=( ["anthropics/claude-plugins-official"]=ea10b213686c90bb1984b2016937310e05336cf3 ["cloudflare/skills"]=86505e44f87d801aa1864a3c4109e9a8ae5c409f ["humanlayer/skills"]=653b6411c1f70c275a18e37673b042ff99f67ceb ["mattpocock/skills"]=49dd158d1076134a641b33efb035946536778336 ["mephistopheles4/grimoire"]=9a625fd5bca96a8b094f42b8b9a0edd81b8cad72 ["typesafe-ai/skills"]=65a39f393687675ce170e6094757de20370365b9 )
+
 set -u
 
 export HOME="${HOME:-/root}"
 export GIT_TERMINAL_PROMPT=0      # a missing repo errors instead of prompting
-export DO_NOT_TRACK=1             # skills CLI telemetry
 SKILLS_DIR="$HOME/.claude/skills"
 mkdir -p "$SKILLS_DIR"
 
-# Opt-in extras: Anthropic's own skills and the knowledge-work plugins. Off by
-# default, because these normally arrive through claude.ai account sync.
-INSTALL_ANTHROPIC_SKILLS="${INSTALL_ANTHROPIC_SKILLS:-0}"
-INSTALL_KNOWLEDGE_WORK_PLUGINS="${INSTALL_KNOWLEDGE_WORK_PLUGINS:-0}"
-
-# Wrap long-running steps so a hung network call cannot stall session start.
-if command -v timeout >/dev/null 2>&1; then T="timeout 300"; else T=""; fi
-HAVE_NPX=0; command -v npx >/dev/null 2>&1 && HAVE_NPX=1
+# The fetch budget: every network step below is timed against what is left of
+# it, so the whole setup stays under the five minutes a cached setup allows.
+FETCH_BUDGET=270
+FETCH_DEADLINE=$(( $(date +%s) + FETCH_BUDGET ))
+HAVE_TIMEOUT=0; command -v timeout >/dev/null 2>&1 && HAVE_TIMEOUT=1
+T=""
+left() { local n=$(( FETCH_DEADLINE - $(date +%s) )); [ "$n" -lt 0 ] && n=0; [ "$n" -gt 300 ] && n=300; echo "$n"; }
 HAVE_GIT=0; command -v git >/dev/null 2>&1 && HAVE_GIT=1
+
+# The opt-ins went with the skills CLI: claude.ai syncs what they installed.
+for v in INSTALL_ANTHROPIC_SKILLS INSTALL_KNOWLEDGE_WORK_PLUGINS; do
+  [ "${!v+set}" = set ] && echo "WARN: $v is no longer read; claude.ai syncs these"
+done
 
 # "<owner/repo> <path of the skill folder inside the repo>"
 # The folder's basename is the skill name.
@@ -43,10 +54,12 @@ SKILLS=(
   "mattpocock/skills skills/engineering/domain-modeling"
   "mattpocock/skills skills/engineering/grill-with-docs"
   "mattpocock/skills skills/engineering/implement"
+  "mattpocock/skills skills/engineering/implement-spec"
   "mattpocock/skills skills/engineering/improve-codebase-architecture"
+  "mattpocock/skills skills/engineering/pr"
   "mattpocock/skills skills/engineering/prototype"
   "mattpocock/skills skills/engineering/research"
-  "mattpocock/skills skills/engineering/resolving-merge-conflicts"
+  "mattpocock/skills skills/engineering/retro"
   "mattpocock/skills skills/engineering/setup-matt-pocock-skills"
   "mattpocock/skills skills/engineering/tdd"
   "mattpocock/skills skills/engineering/to-spec"
@@ -55,10 +68,7 @@ SKILLS=(
   "mattpocock/skills skills/engineering/wayfinder"
   "mattpocock/skills skills/engineering/wizard"
   "mattpocock/skills skills/in-progress/claude-handoff"
-  "mattpocock/skills skills/in-progress/implement-spec"
   "mattpocock/skills skills/in-progress/loop-me"
-  "mattpocock/skills skills/in-progress/pr"
-  "mattpocock/skills skills/in-progress/retro"
   "mattpocock/skills skills/in-progress/setup-ts-deep-modules"
   "mattpocock/skills skills/in-progress/writing-beats"
   "mattpocock/skills skills/in-progress/writing-fragments"
@@ -79,57 +89,174 @@ SKILLS=(
   "typesafe-ai/skills skills/typesafe-ai"
 )
 
-if [ "$INSTALL_ANTHROPIC_SKILLS" = "1" ]; then
-  SKILLS+=(
-    "anthropics/skills skills/canvas-design"
-    "anthropics/skills skills/docx"
-    "anthropics/skills skills/pdf"
-    "anthropics/skills skills/pptx"
-    "anthropics/skills skills/skill-creator"
-    "anthropics/skills skills/web-artifacts-builder"
-    "anthropics/skills skills/xlsx"
-  )
-fi
-
 present() { [ -f "$SKILLS_DIR/$1/SKILL.md" ]; }
 
-# Names from SKILLS that belong to one repo and are not installed yet.
-missing_for() {
-  local repo="$1" entry r p
-  for entry in "${SKILLS[@]}"; do
-    r="${entry%% *}"; p="${entry#* }"
-    [ "$r" = "$repo" ] || continue
-    present "$(basename "$p")" || echo "$(basename "$p")"
-  done
+# What the Result section names. Each holds names, never fetched text.
+SKIPPED_TIME=(); NOT_FETCHED=(); SKIPPED_SOURCE=(); NOT_INSTALLED=()
+BAD_SKILLS=" "
+OFFICIAL_PRESENT=0
+# A step's folder and its logs: new temp folders outside every kept or moved
+# folder. The logs hold the steps' own output, which is never printed, and
+# both go at the end of setup.
+PACT_STEP_DIR="$(mktemp -d)"
+PACT_LOG_DIR="$(mktemp -d)"
+
+# third_party [-o <file>] <cmd...>: the only way the setup runs a third-party
+# command. It refuses, setting TP_REFUSED and printing nothing, without
+# timeout or with 10 seconds or fewer left. Otherwise it runs the command
+# from the step folder, with the GitHub token variables unset and timed
+# against what is left, its stdout to <file> (else the log) and its stderr to
+# the log. Its status is the command's; 124 is timeout's. Never call it in a
+# subshell or a pipe, which would lose TP_REFUSED or its status.
+TP_REFUSED=
+third_party() {
+  local out="$PACT_LOG_DIR/steps.log" secs
+  if [ "${1:-}" = "-o" ]; then out="$2"; shift 2; fi
+  if [ "$HAVE_TIMEOUT" != "1" ]; then TP_REFUSED=no-timeout; return 1; fi
+  secs="$(left)"
+  if [ "$secs" -le 10 ]; then TP_REFUSED=time; return 1; fi
+  TP_REFUSED=
+  (cd "$PACT_STEP_DIR" && env -u GH_TOKEN -u GITHUB_TOKEN GIT_TERMINAL_PROMPT=0 timeout "$secs" "$@") >>"$out" 2>>"$PACT_LOG_DIR/steps.log" </dev/null
+}
+# After a failed third_party step: "time" when it was refused for time or
+# timed out, else "fail".
+tp_why() { if [ "$TP_REFUSED" = "time" ] || [ "$1" -eq 124 ]; then echo time; else echo fail; fi; }
+# note <why> <names...>: time goes under skipped (time); a fetch failure under
+# not fetched at pin; an install failure under not installed.
+note() {
+  local why="$1"; shift
+  case "$why" in
+    time) SKIPPED_TIME+=("$@") ;;
+    fetch) NOT_FETCHED+=("$@") ;;
+    source) SKIPPED_SOURCE+=("$@") ;;
+    *) NOT_INSTALLED+=("$@") ;;
+  esac
+}
+# replace_dir <new> <dest>: moves <new> to <dest>, replacing it whole; on
+# failure <dest> is left as it was.
+replace_dir() {
+  local new="$1" dest="$2" old=""
+  if [ -e "$dest" ] || [ -L "$dest" ]; then
+    old="$(mktemp -d "${dest%/*}/.pact-old.XXXXXX")" || return 1
+    mv -T "$dest" "$old/d" 2>>"$PACT_LOG_DIR/steps.log" || { rm -rf "$old"; return 1; }
+  fi
+  if mv -T "$new" "$dest" 2>>"$PACT_LOG_DIR/steps.log"; then
+    [ -n "$old" ] && rm -rf "$old"
+    return 0
+  fi
+  [ -n "$old" ] && mv -T "$old/d" "$dest" 2>>"$PACT_LOG_DIR/steps.log" && rm -rf "$old"
+  return 1
 }
 
-# Fallback: one shallow clone per repo, then copy each missing folder.
-clone_and_copy() {
-  local repo="$1" tmp entry r p name src
-  [ "$HAVE_GIT" = "1" ] || { echo "  git not found; cannot fall back for $repo"; return; }
-  tmp="$(mktemp -d)"
-  if ! $T git clone --depth 1 --quiet "https://github.com/$repo.git" "$tmp/repo"; then
-    echo "  WARN: git clone of $repo failed"; rm -rf "$tmp"; return
+# fetch_pinned <repo> <dest>: the only way the setup fetches a third-party
+# repo, at REPO_PIN[<repo>], into a new folder beside <dest> that replaces it
+# only once the checkout is at the pin. Git's object-id check ties the
+# checkout to the pin; rev-parse is a backstop. On failure FETCH_WHY is
+# "time" or "fetch", and <dest> is left as it was.
+FETCH_WHY=
+fetch_pinned() {
+  local repo="$1" dest="$2" tmp st
+  FETCH_WHY=fetch
+  if [ "$HAVE_GIT" != "1" ] || [[ ! -v REPO_PIN[$repo] ]]; then
+    echo "WARN: $repo not fetched at its pin"; return 1
   fi
-  for entry in "${SKILLS[@]}"; do
-    r="${entry%% *}"; p="${entry#* }"
-    [ "$r" = "$repo" ] || continue
-    name="$(basename "$p")"
-    present "$name" && continue
-    src="$tmp/repo/$p"
-    if [ ! -f "$src/SKILL.md" ]; then   # moved upstream? find it by name
-      src="$(find "$tmp/repo" -type f -path "*/$name/SKILL.md" -print -quit 2>/dev/null)"
-      src="${src%/SKILL.md}"
-    fi
-    if [ -n "$src" ] && [ -f "$src/SKILL.md" ]; then
-      rm -rf "${SKILLS_DIR:?}/$name"      # clears a dangling symlink too
-      cp -R "$src" "$SKILLS_DIR/$name" && echo "  copied $name" || echo "  WARN: copy of $name failed"
-    else
-      echo "  WARN: $name not found in $repo"
-    fi
-  done
+  mkdir -p "${dest%/*}" && tmp="$(mktemp -d "${dest%/*}/.pact-fetch.XXXXXX")" || { echo "WARN: $repo not fetched at its pin"; return 1; }
+  : > "$PACT_LOG_DIR/head"
+  third_party git -C "$tmp" init -q \
+    && third_party git -C "$tmp" fetch -q --depth 1 "https://github.com/$repo" "${REPO_PIN[$repo]}" \
+    && third_party git -C "$tmp" -c advice.detachedHead=false checkout -q FETCH_HEAD \
+    && third_party -o "$PACT_LOG_DIR/head" git -C "$tmp" rev-parse HEAD
+  st=$?
+  if [ "$st" -eq 0 ] && [ "$(cat "$PACT_LOG_DIR/head")" = "${REPO_PIN[$repo]}" ] && replace_dir "$tmp" "$dest"; then
+    return 0
+  fi
+  [ "$st" -ne 0 ] && [ "$(tp_why "$st")" = "time" ] && FETCH_WHY=time
   rm -rf "$tmp"
+  if [ "$FETCH_WHY" = "time" ]; then echo "WARN: $repo not fetched at its pin (time)"; else echo "WARN: $repo not fetched at its pin"; fi
+  return 1
 }
+
+# PLUGIN_SOURCE_CHECK <folder> <local-name> <links file> <plugins...>: reads
+# the fetched catalog and writes it back reduced to the listed plugins that
+# pass, under <local-name>. It prints "reduced", then each passing name, and
+# nothing of the catalog. A plugin passes with a contained path source, or a
+# github, url or git-subdir source carrying a 40-hex sha; nothing declared of
+# dependencies, servers, monitors or settings; and, for a path source, no
+# undeclared server, LSP, monitor or settings file, no bin/ and no link.
+IFS= read -r -d '' PLUGIN_SOURCE_CHECK <<'PLUGIN_SOURCE_CHECK_EOF'
+const fs = require('node:fs');
+const path = require('node:path');
+try {
+  const [dir, local, linksFile, ...want] = process.argv.slice(1);
+  const root = fs.realpathSync(dir);
+  const meta = path.join(root, '.claude-plugin');
+  const catPath = path.join(meta, 'marketplace.json');
+  if (!fs.lstatSync(meta).isDirectory() || !fs.lstatSync(catPath).isFile()) process.exit(1);
+  const cat = JSON.parse(fs.readFileSync(catPath, 'utf8'));
+  if (!cat || typeof cat !== 'object' || Array.isArray(cat) || !Array.isArray(cat.plugins)) process.exit(1);
+  const links = fs.readFileSync(linksFile, 'utf8').split('\n').filter(Boolean);
+  const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const declares = o => isObj(o) && (['dependencies', 'mcpServers', 'lspServers', 'monitors', 'settings'].some(k => Object.hasOwn(o, k)) || (isObj(o.experimental) && Object.hasOwn(o.experimental, 'monitors')));
+  const exists = p => { try { fs.lstatSync(p); return true; } catch { return false; } };
+  const passes = e => {
+    if (!isObj(e) || declares(e)) return false;
+    const s = e.source;
+    if (isObj(s)) return ['github', 'url', 'git-subdir'].includes(s.source) && typeof s.sha === 'string' && /^[0-9a-f]{40}$/.test(s.sha);
+    if (typeof s !== 'string' || /[\x00-\x1f\x7f]/.test(s)) return false;
+    const at = path.resolve(root, s);
+    const rel = path.relative(root, at);
+    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return false;
+    const st = fs.lstatSync(at);
+    if (!st.isDirectory() || fs.realpathSync(at) !== at) return false;
+    const relPosix = rel.split(path.sep).join('/');
+    if (links.some(l => l === relPosix || l.startsWith(`${relPosix}/`))) return false;
+    if (['.mcp.json', '.lsp.json', 'settings.json', 'bin', path.join('monitors', 'monitors.json')].some(f => exists(path.join(at, f)))) return false;
+    const man = path.join(at, '.claude-plugin', 'plugin.json');
+    if (exists(man) && declares(JSON.parse(fs.readFileSync(man, 'utf8')))) return false;
+    return true;
+  };
+  const pass = [];
+  const entries = [];
+  for (const name of want) {
+    const found = cat.plugins.filter(p => isObj(p) && p.name === name);
+    let ok = false;
+    try { ok = found.length === 1 && passes(found[0]); } catch { ok = false; }
+    if (ok) { pass.push(name); entries.push(found[0]); }
+  }
+  const out = { name: local, owner: cat.owner, description: cat.description, plugins: entries };
+  const tmp = path.join(meta, `.marketplace.json.${process.pid}`);
+  fs.writeFileSync(tmp, `${JSON.stringify(out, null, 2)}\n`, { flag: 'wx' });
+  fs.renameSync(tmp, catPath);
+  process.stdout.write(['reduced', ...pass].join('\n') + '\n');
+} catch {
+  process.exit(1);
+}
+PLUGIN_SOURCE_CHECK_EOF
+
+# PROXY_LINE_PROGRAM reads a response body and, after it, its status line
+# from stdin, and prints only a login of GitHub's shape, anonymous or
+# unexpected; never the body or a header.
+IFS= read -r -d '' PROXY_LINE_PROGRAM <<'PROXY_LINE_PROGRAM_EOF'
+let d = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', c => { if (d.length < 1000000) d += c; });
+process.stdin.on('end', () => {
+  let out = 'unexpected';
+  try {
+    const i = d.lastIndexOf('\n');
+    const code = d.slice(i + 1).trim();
+    if (code === '200') {
+      const j = JSON.parse(d.slice(0, i));
+      if (j && typeof j.login === 'string' && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(j.login)) out = `authenticated as ${j.login}`;
+    } else if (code === '401') {
+      out = 'anonymous';
+    }
+  } catch {
+    out = 'unexpected';
+  }
+  process.stdout.write(`github api during setup: ${out}\n`);
+});
+PROXY_LINE_PROGRAM_EOF
 
 # Node 24 (#183, ADR 0088). A pinned, hash-checked mise installs the pinned
 # Node against a lockfile hash, and the installed binary is checked too. Only
@@ -137,7 +264,8 @@ clone_and_copy() {
 # put it ahead of the image's Node; any failure leaves none, so the image's
 # Node stays, and the Result section turns the marker INCOMPLETE with the
 # reason. The pins are plain assignments, so setup's environment can't
-# replace one. Every fetch runs with the GitHub token variables unset.
+# replace one. Every fetch runs with the GitHub token variables unset, and is
+# timed against the fetch budget.
 echo "== Node"
 MISE_VERSION=2026.10.2
 MISE_SHA256=79a2bf0ffc9b8a9a6391344e875b3c3679c15053fda3e8728ddf1790d63db788
@@ -153,6 +281,12 @@ NODE_WRAPPER_TAG='# pact cloud node wrapper'
 NODE_TMP=""
 
 node_fail() { NODE_FAILED="$1"; echo "WARN: $2"; }
+# Before each network step: T is the time left, or "" without timeout. With
+# 10 seconds or fewer left, the step is skipped and the block fails as time.
+node_time() {
+  if [ "$(left)" -le 10 ]; then node_fail time "Node $NODE_VERSION skipped: the fetch budget is spent"; return 1; fi
+  if [ "$HAVE_TIMEOUT" = "1" ]; then T="timeout $(left)"; else T=""; fi
+}
 sha256_of() { sha256sum "$1" 2>/dev/null | cut -d ' ' -f 1; }
 # Removes only the wrappers this block wrote, by their tag line.
 remove_node_wrappers() {
@@ -169,6 +303,8 @@ if [ -z "$NODE_FAILED" ]; then
   NODE_TMP="$(mktemp -d)"
   if ! command -v curl >/dev/null 2>&1; then
     node_fail download "curl not found; mise not downloaded"
+  elif ! node_time; then
+    :
   elif ! env -u GH_TOKEN -u GITHUB_TOKEN $T curl -fsSL --proto '=https' --tlsv1.2 -o "$NODE_TMP/mise.tar.gz" \
       "https://github.com/jdx/mise/releases/download/v$MISE_VERSION/mise-v$MISE_VERSION-linux-x64.tar.gz"; then
     node_fail download "mise download failed"
@@ -222,7 +358,9 @@ specifiers = ["$NODE_VERSION"]
 checksum = "sha256:$NODE_TAR_SHA256"
 url = "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz"
 MISE_LOCK_EOF
-  if ! (cd "$NODE_TMP" && env -u GH_TOKEN -u GITHUB_TOKEN MISE_SAFE=1 MISE_LOCKED=1 $T "$MISE_BIN" install) >"$NODE_TMP/install.log" 2>&1; then
+  if ! node_time; then
+    :
+  elif ! (cd "$NODE_TMP" && env -u GH_TOKEN -u GITHUB_TOKEN MISE_SAFE=1 MISE_LOCKED=1 $T "$MISE_BIN" install) >"$NODE_TMP/install.log" 2>&1; then
     tail -n 5 "$NODE_TMP/install.log" | sed 's/^/  /'
     if grep -qi 'checksum' "$NODE_TMP/install.log"; then
       node_fail hash "Node archive sha256 mismatch"
@@ -253,49 +391,152 @@ else
 fi
 [ -n "$NODE_TMP" ] && rm -rf "$NODE_TMP"
 
-echo "== Skills"
-REPOS="$(for e in "${SKILLS[@]}"; do echo "${e%% *}"; done | sort -u)"
-for repo in $REPOS; do
-  mapfile -t missing < <(missing_for "$repo")
-  if [ "${#missing[@]}" -eq 0 ]; then echo "ok: $repo (all present)"; continue; fi
-  echo "-> $repo: ${missing[*]}"
-  if [ "$HAVE_NPX" = "1" ]; then
-    # --skill is variadic, so it goes last.
-    $T npx -y skills add "$repo" -y -g -a claude-code --copy --skill "${missing[@]}" </dev/null \
-      || echo "  WARN: npx skills add $repo failed; falling back to git"
-  fi
-  mapfile -t still < <(missing_for "$repo")
-  [ "${#still[@]}" -gt 0 ] && clone_and_copy "$repo"
-done
-
 echo "== Plugins"
+# install_plugins <repo> <local-name> <plugins...>: the repo at its pin, kept in
+# ~/.claude/pact-pinned/<local-name> (plugins from a local marketplace load in
+# place), its catalog reduced by PLUGIN_SOURCE_CHECK, added by path under
+# <local-name>, and each passing plugin installed from it. The step never adds
+# a marketplace from GitHub.
+install_plugins() {
+  local repo="$1" local_name="$2"; shift 2
+  local folder="$HOME/.claude/pact-pinned/$local_name" stage p st src passed=() failed=()
+  : > "$PACT_LOG_DIR/mkts"
+  third_party -o "$PACT_LOG_DIR/mkts" claude plugin marketplace list; st=$?
+  if [ "$st" -ne 0 ]; then
+    OFFICIAL_PRESENT=unknown
+  elif grep -q 'claude-plugins-official' "$PACT_LOG_DIR/mkts"; then
+    OFFICIAL_PRESENT=1
+  fi
+  # Fetched and checked in a stage beside the kept folder, which is replaced
+  # only by a checked tree; any refusal leaves the last checked tree in place.
+  mkdir -p "${folder%/*}" && stage="$(mktemp -d "${folder%/*}/.pact-stage.XXXXXX")" || { echo "WARN: the plugin catalog could not be staged; no plugin installed"; note install "$@"; return; }
+  if ! fetch_pinned "$repo" "$stage/m"; then note "$FETCH_WHY" "$@"; rm -rf "$stage"; return; fi
+  # Every link in the tree, listed NUL-separated so git quotes no name. One
+  # under .claude-plugin/ refuses the step; a plugin whose folder holds one is
+  # skipped by the check.
+  : > "$PACT_LOG_DIR/tree.z"
+  third_party -o "$PACT_LOG_DIR/tree.z" git -C "$stage/m" ls-tree -r -z HEAD; st=$?
+  if [ "$st" -ne 0 ]; then
+    rm -rf "$stage"
+    [ "$(tp_why "$st")" = "time" ] && { note time "$@"; return; }
+    echo "WARN: the plugin catalog could not be listed; no plugin installed"; note source "$@"; return
+  fi
+  tr '\0' '\n' < "$PACT_LOG_DIR/tree.z" | awk -F '\t' '$1 ~ /^120000 / { print $2 }' > "$PACT_LOG_DIR/links"
+  if grep -qE '^\.claude-plugin(/|$)' "$PACT_LOG_DIR/links"; then
+    rm -rf "$stage"
+    echo "WARN: the plugin catalog holds a link; no plugin installed"; note source "$@"; return
+  fi
+  # A missing node, a failed check or no reduced catalog refuses the step.
+  : > "$PACT_LOG_DIR/passed"; st=1; TP_REFUSED=
+  if command -v node >/dev/null 2>&1; then
+    third_party -o "$PACT_LOG_DIR/passed" node -e "$PLUGIN_SOURCE_CHECK" "$stage/m" "$local_name" "$PACT_LOG_DIR/links" "$@"; st=$?
+  fi
+  if [ "$st" -ne 0 ] || [ "$(head -n 1 "$PACT_LOG_DIR/passed")" != "reduced" ]; then
+    rm -rf "$stage"
+    [ "$st" -ne 0 ] && [ "$(tp_why "$st")" = "time" ] && { note time "$@"; return; }
+    echo "WARN: the plugin catalog could not be checked; no plugin installed"; note source "$@"; return
+  fi
+  # Only a listed name counts as passing.
+  for p in "$@"; do
+    if grep -qxF -- "$p" <(tail -n +2 "$PACT_LOG_DIR/passed"); then passed+=("$p"); else failed+=("$p"); fi
+  done
+  # A listed plugin that no longer passes is uninstalled before the new tree
+  # goes in place, since an installed plugin loads from that folder. If that
+  # can't be done, the last checked tree stays.
+  for p in "${failed[@]}"; do
+    if ! command -v jq >/dev/null 2>&1; then st=1
+    elif jq -e --arg id "$p@$local_name" '(.plugins // {}) | has($id) | not' "$HOME/.claude/plugins/installed_plugins.json" >/dev/null 2>&1 \
+        || [ ! -e "$HOME/.claude/plugins/installed_plugins.json" ]; then continue
+    else third_party claude plugin uninstall "$p@$local_name" --scope user; st=$?
+    fi
+    if [ "$st" -ne 0 ]; then
+      rm -rf "$stage"
+      [ "$(tp_why "$st")" = "time" ] && { note time "$@"; return; }
+      echo "WARN: $p could not be uninstalled; the plugin catalog was not updated"; note install "$@"; return
+    fi
+  done
+  if ! replace_dir "$stage/m" "$folder"; then
+    rm -rf "$stage"
+    echo "WARN: the plugin catalog could not be put in place; no plugin installed"; note install "$@"; return
+  fi
+  rm -rf "$stage"
+  for p in "${failed[@]}"; do echo "WARN: $p has no pinned source; skipped"; note source "$p"; done
+  # The marketplace entry names this folder, or it is replaced.
+  src=""
+  if command -v jq >/dev/null 2>&1; then
+    src="$(jq -r --arg n "$local_name" 'if (.[$n] | type) == "object" then ((.[$n].source.source // "") + ":" + (.[$n].source.path // "")) else "" end' "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null)"
+  else
+    src="unknown"
+  fi
+  if [ -n "$src" ] && [ "$src" != "directory:$folder" ]; then
+    # Listed with another source (or not known without jq): remove it first.
+    third_party claude plugin marketplace remove "$local_name"
+  fi
+  [ "${#passed[@]}" -gt 0 ] || return
+  if [ "$src" != "directory:$folder" ]; then
+    third_party claude plugin marketplace add "$folder"; st=$?
+    if [ "$st" -ne 0 ]; then
+      if [ "$(tp_why "$st")" = "time" ]; then note time "${passed[@]}"; else echo "WARN: marketplace $local_name not added"; note install "${passed[@]}"; fi
+      return
+    fi
+  fi
+  for p in "${passed[@]}"; do
+    third_party claude plugin install "$p@$local_name" --scope user -y; st=$?
+    if [ "$st" -eq 0 ]; then
+      echo "ok: $p@$local_name"
+    elif [ "$(tp_why "$st")" = "time" ]; then
+      note time "$p"
+    else
+      echo "WARN: plugin $p failed"; note install "$p"
+    fi
+  done
+}
 if command -v claude >/dev/null 2>&1; then
-  install_plugins() {
-    local marketplace_repo="$1" marketplace="$2"; shift 2
-    $T claude plugin marketplace add "$marketplace_repo" </dev/null \
-      || echo "  (marketplace $marketplace not added; it may already exist)"
-    local installed p
-    installed="$($T claude plugin list 2>/dev/null </dev/null)"
-    for p in "$@"; do
-      if printf '%s\n' "$installed" | grep -q "$p@$marketplace"; then
-        echo "ok: $p@$marketplace"
-      else
-        $T claude plugin install "$p@$marketplace" --scope user -y </dev/null \
-          || echo "  WARN: plugin $p@$marketplace failed"
-      fi
-    done
-  }
-  install_plugins anthropics/claude-plugins-official claude-plugins-official \
+  install_plugins anthropics/claude-plugins-official pact-pinned-plugins \
     claude-code-setup claude-security code-review coderabbit \
     security-guidance skill-creator superpowers
-  if [ "$INSTALL_KNOWLEDGE_WORK_PLUGINS" = "1" ]; then
-    install_plugins anthropics/knowledge-work-plugins knowledge-work-plugins \
-      cowork-plugin-management data engineering marketing product-management
-  fi
 else
   echo "WARN: claude CLI not on PATH; plugins skipped"
+  note install claude-code-setup claude-security code-review coderabbit security-guidance skill-creator superpowers
 fi
 
+echo "== Skills"
+# Every run, each repo at its pin, and each listed skill copied from it over
+# the installed folder. A path with no SKILL.md, a link or a .claude-plugin
+# entry is not copied and counts as missing. Nothing searches by name.
+REPOS="$(for e in "${SKILLS[@]}"; do echo "${e%% *}"; done | sort -u)"
+for repo in $REPOS; do
+  names=(); paths=()
+  for e in "${SKILLS[@]}"; do
+    [ "${e%% *}" = "$repo" ] || continue
+    paths+=("${e#* }"); names+=("$(basename "${e#* }")")
+  done
+  work="$(mktemp -d)"
+  if ! fetch_pinned "$repo" "$work/repo"; then note "$FETCH_WHY" "${names[@]}"; rm -rf "$work"; continue; fi
+  copied=0
+  for i in "${!paths[@]}"; do
+    p="${paths[$i]}"; n="${names[$i]}"
+    : > "$PACT_LOG_DIR/tree.z"
+    third_party -o "$PACT_LOG_DIR/tree.z" git -C "$work/repo" ls-tree -r -z "${REPO_PIN[$repo]}" -- "$p"; st=$?
+    if [ "$st" -ne 0 ]; then
+      if [ "$(tp_why "$st")" = "time" ]; then note time "$n"; else note fetch "$n"; fi
+      continue
+    fi
+    tr '\0' '\n' < "$PACT_LOG_DIR/tree.z" > "$PACT_LOG_DIR/tree"
+    if ! awk -F '\t' -v f="$p/SKILL.md" '$2 == f && $1 ~ /^100[0-7]+ blob / { found = 1 } END { exit !found }' "$PACT_LOG_DIR/tree" \
+        || awk -F '\t' -v d="$p/.claude-plugin" '$1 ~ /^120000 / || $2 == d || index($2, d "/") == 1 { bad = 1 } END { exit !bad }' "$PACT_LOG_DIR/tree"; then
+      echo "WARN: $n not at $p in $repo's pin, or holds a link or .claude-plugin; not copied"; BAD_SKILLS+="$n "; continue
+    fi
+    if stage="$(mktemp -d "$SKILLS_DIR/.pact-new.XXXXXX" 2>>"$PACT_LOG_DIR/steps.log")" && cp -R "$work/repo/$p" "$stage/$n" 2>>"$PACT_LOG_DIR/steps.log" && replace_dir "$stage/$n" "$SKILLS_DIR/$n"; then
+      copied=$((copied + 1))
+    else
+      echo "WARN: copy of $n failed"; note install "$n"
+    fi
+    [ -n "${stage:-}" ] && rm -rf "$stage"; stage=""
+  done
+  echo "ok: $repo at its pin, $copied of ${#paths[@]} skills copied"
+  rm -rf "$work"
+done
 echo "== Config"
 CLAUDE_HOME="$HOME/.claude"
 CONFIG_WRITTEN=0
@@ -2546,9 +2787,17 @@ echo "== Result"
 fail=0
 for e in "${SKILLS[@]}"; do
   n="$(basename "${e#* }")"
+  case "$BAD_SKILLS" in *" $n "*) if present "$n"; then echo "MISSING: $n (refused at its pin; an older copy is kept)"; else echo "MISSING: $n"; fi; fail=$((fail+1)); continue ;; esac
   present "$n" || { echo "MISSING: $n"; fail=$((fail+1)); }
 done
 echo "$(( ${#SKILLS[@]} - fail ))/${#SKILLS[@]} skills present"
+# What the skills and plugins steps left out, each line only when it has a name.
+[ "${#SKIPPED_TIME[@]}" -gt 0 ] && echo "skipped (time): ${SKIPPED_TIME[*]}"
+[ "${#NOT_FETCHED[@]}" -gt 0 ] && echo "not fetched at pin: ${NOT_FETCHED[*]}"
+[ "${#SKIPPED_SOURCE[@]}" -gt 0 ] && echo "skipped (source): ${SKIPPED_SOURCE[*]}"
+[ "${#NOT_INSTALLED[@]}" -gt 0 ] && echo "not installed: ${NOT_INSTALLED[*]}"
+[ "$OFFICIAL_PRESENT" = "1" ] && echo "official marketplace present: claude-plugins-official is configured beside pact-pinned-plugins"
+[ "$OFFICIAL_PRESENT" = "unknown" ] && echo "official marketplace: unknown, the marketplace list could not be read"
 if command -v gh >/dev/null 2>&1; then echo "gh: $(gh --version | head -n 1)"; else echo "WARN: gh not found; the tracker rule fails closed"; fi
 EXPECTED_WRITES=12
 echo "$CONFIG_WRITTEN config files written (expected $EXPECTED_WRITES)"
@@ -2593,14 +2842,22 @@ if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
 else
   echo "github token during setup: absent"
 fi
+# What the GitHub API answers a token-free request during setup (#183 T3): a
+# login, anonymous or unexpected, never the body. Outside the fetch budget.
+if command -v curl >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
+  env -u GH_TOKEN -u GITHUB_TOKEN curl -s --max-time 10 -w '\n%{http_code}' https://api.github.com/user 2>/dev/null | node -e "$PROXY_LINE_PROGRAM" 2>/dev/null || echo "github api during setup: unexpected"
+else
+  echo "github api during setup: unexpected"
+fi
 
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 2b8ed9acf90e"
+  echo "pact cloud copy 682ad5997c59"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
+rm -rf "$PACT_STEP_DIR" "$PACT_LOG_DIR"
 exit 0
 __CLOUD_SETUP_SH_EOF__
 bash /tmp/cloud-setup.sh

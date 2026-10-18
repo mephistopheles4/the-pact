@@ -14,6 +14,9 @@
 # only when it holds no login; otherwise, or when the proxy listens only on
 # the host's loopback, run a forwarder with no login on the Docker bridge and
 # pass its address.
+# A cloud proxy may add GitHub credentials of its own, so this driver's output
+# can carry the proxy line's login: report it only as the owner's, another
+# account's or anonymous, never by name (#183 T3).
 set -u
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq >/dev/null && # curl and gpg: the cloud image has both, and the Node block uses them (#183).
@@ -24,7 +27,7 @@ echo "### tools: $(jq --version), $(git --version), $(curl --version | head -n 1
 mkdir -p /root/.claude
 cat > /root/.claude/settings.json <<'JSON'
 {
-  "enabledPlugins": { "superpowers@claude-plugins-official": true },
+  "enabledPlugins": { "superpowers@pact-pinned-plugins": true },
   "extraKnownMarketplaces": { "mephistopheles4": { "source": { "source": "github", "repo": "mephistopheles4/grimoire" } } },
   "permissions": { "allow": ["Bash(git status)"] },
   "env": { "SEEDED_BY_TEST": "1" }
@@ -49,9 +52,9 @@ snapshot() {
   echo "mise paranoid: $(cd /tmp && /root/.local/bin/mise settings get paranoid)"
 }
 
-echo "################ PASS 1"; sh /s/cloud-setup-wrapper.sh; echo "exit: $?"
+echo "################ PASS 1"; sh /s/cloud-setup-wrapper.sh 2>&1 | sed 's/authenticated as .*/authenticated as <a login>/'; echo "exit: ${PIPESTATUS[0]}"
 snapshot > /tmp/after1.txt; cat /tmp/after1.txt
-echo "################ PASS 2"; sh /s/cloud-setup-wrapper.sh; echo "exit: $?"
+echo "################ PASS 2"; sh /s/cloud-setup-wrapper.sh 2>&1 | sed 's/authenticated as .*/authenticated as <a login>/'; echo "exit: ${PIPESTATUS[0]}"
 snapshot > /tmp/after2.txt; cat /tmp/after2.txt
 echo "################ snapshot after pass 1 vs after pass 2 (expect empty)"
 diff -u /tmp/after1.txt /tmp/after2.txt && echo "(identical)"
@@ -83,7 +86,7 @@ printf '#!/bin/sh\n[ "$1" = -m ] && { echo aarch64; exit 0; }\nexec /usr/bin/una
 PATH="/tmp/stub:$PATH" bash /s/cloud-setup.sh 2>&1 | grep -E '^WARN: (Node|node)|^pact cloud copy'
 echo "wrappers left: $(wrappers_left)"
 echo "### the Node block alone, from nothing installed (C8: 30 s or less)"
-{ echo 'T="timeout 300"'; sed -n '/^echo "== Node"$/,/^echo "== Skills"$/p' /s/cloud-setup.sh; } > /tmp/node-block.sh
+{ sed -n '/^FETCH_BUDGET=/,/^left() /p' /s/cloud-setup.sh; sed -n '/^echo "== Node"$/,/^echo "== Plugins"$/p' /s/cloud-setup.sh; } > /tmp/node-block.sh
 node_reset; start=$(date +%s); bash /tmp/node-block.sh; echo "node block: $(( $(date +%s) - start )) s"
 echo "### an untrusted mise.toml (C10)"
 mkdir -p /tmp/untrusted && printf '[tools]\nnode = "22"\n' > /tmp/untrusted/mise.toml

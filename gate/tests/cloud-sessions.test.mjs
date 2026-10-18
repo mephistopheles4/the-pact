@@ -16,6 +16,7 @@ import { test } from 'node:test';
 import {
   CLOUD_COMMANDS,
   CLOUD_PINS,
+  CLOUD_REPO_PINS,
   CLOUD_TOOLS,
   CONFIG_DELIM,
   CloudRefusal,
@@ -38,6 +39,7 @@ const PAYLOAD = ['claude', 'familiars', 'AGENTS.md'];
 const RETIRED = ['plan-reviewer', 'result-checker', 'test-reviewer', 'security-reviewer', 'builder', 'good-enough-lens'];
 const RLO = '‮';
 
+const WIN = process.platform === 'win32';
 const sha256 = s => createHash('sha256').update(s).digest('hex');
 const repoText = rel => readFileSync(join(REPO, ...rel.split('/')), 'utf8');
 
@@ -250,7 +252,7 @@ test('cloud copy: a rules file seam A refuses fails the generator', t => {
 
 // A small setup head stands in for the real one, so these cases don't depend
 // on its skills list; the other three templates are the real ones.
-const HEAD = '#!/usr/bin/env bash\nset -u\n__CLOUD_PINS__\nSKILLS=()\npresent() { :; }\n';
+const HEAD = '#!/usr/bin/env bash\n__CLOUD_REPO_PINS__\nset -u\n__CLOUD_PINS__\nSKILLS=()\npresent() { :; }\n';
 /** The three real templates beside the stand-in head. */
 const TPL = () => Object.fromEntries(['configHead', 'configTail', 'setupTail'].map(k => [k, repoText(`cloud-sessions/${TEMPLATES[k]}`)]));
 const OVERLAY = '{\n  "permissions": {\n    "defaultMode": "auto"\n  }\n}\n';
@@ -265,6 +267,8 @@ function inputs(change = {}) {
     overlay: change.overlay ?? OVERLAY,
     templates,
     pins: 'pins' in change ? change.pins : CLOUD_PINS,
+    // The stand-in head lists no skills or plugins, so it takes no repo pins.
+    repoPins: 'repoPins' in change ? change.repoPins : {},
   };
 }
 
@@ -341,6 +345,36 @@ test('cloud copy: a malformed pin, a pin written twice or a defaulted pin is ref
   refuses(() => assemble(inputs(head('export NODE_BIN_SHA256=0'))), 'cloud/pin');
   refuses(() => assemble(inputs(head(`# ${hash}`))), 'cloud/pin');
   refuses(() => assemble(inputs({ templates: { setupHead: HEAD.replace('__CLOUD_PINS__\n', '') } })), 'cloud/form');
+});
+
+// #183 T3 C2: a repo pin reaches the root script only in its own shape, once,
+// in the one read-only array assemble() writes, and only for a repo the head uses.
+test('cloud copy: a malformed repo pin, a repo with no pin, an unused pin or a write to REPO_PIN is refused', () => {
+  const sha = CLOUD_REPO_PINS['cloudflare/skills'];
+  const uses = (line = '"a/b skills/x"') => HEAD.replace('SKILLS=()', `SKILLS=(\n  ${line}\n)`);
+  const withHead = (head, repoPins = { 'a/b': sha }) => inputs({ templates: { setupHead: head }, repoPins });
+  const ok = assemble(withHead(uses()));
+  assert.equal(ok.setup.split(sha).length, 2, 'the pin appears once');
+  assert.match(ok.setup, new RegExp(`^unset REPO_PIN\ndeclare -rA REPO_PIN=\\( \\["a/b"\\]=${sha} \\)$`, 'm'));
+  for (const repoPins of [
+    { 'a/b': sha.slice(1) },
+    { 'a/b': sha.toUpperCase() },
+    { 'a/b': 'main' },
+    { 'a/b': `${sha}\n` },
+  ]) {
+    refuses(() => assemble(withHead(uses(), repoPins)), 'cloud/pin');
+  }
+  // A key out of shape, used by the head, so only the shape check can refuse it.
+  refuses(() => assemble(withHead(uses('"a$(id)/b skills/x"'), { 'a$(id)/b': sha })), 'cloud/pin', /not owner\/repo/);
+  refuses(() => assemble(withHead(uses(), {})), 'cloud/pin', /no pin/);
+  refuses(() => assemble(withHead(HEAD)), 'cloud/pin', /no entry/);
+  const plant = extra => uses().replace('present() {', `${extra}\npresent() {`);
+  for (const extra of ['declare -A REPO_PIN=()', `REPO_PIN[a/b]=${'0'.repeat(40)}`, `REPO_PIN+=([c/d]=${'0'.repeat(40)})`, 'echo "${REPO_PIN[a/b]:-0}"']) {
+    refuses(() => assemble(withHead(plant(extra))), 'cloud/pin');
+  }
+  assert.ok(assemble(withHead(plant('[[ -v REPO_PIN[$repo] ]] && echo "${REPO_PIN[$repo]}"'))).setup, 'a test and a plain read are fine');
+  assert.deepEqual(Object.keys(CLOUD_REPO_PINS).sort(), ['anthropics/claude-plugins-official', 'cloudflare/skills', 'humanlayer/skills', 'mattpocock/skills', 'mephistopheles4/grimoire', 'typesafe-ai/skills']);
+  assert.ok(Object.isFrozen(CLOUD_REPO_PINS));
 });
 
 // #261 C11
@@ -462,11 +496,111 @@ test('cloud copy: the Result section prints the marker only on a full, hash-matc
   assert.match(tail, /^ {4}echo "HASH MISMATCH: ~\/\.claude\/\$rel"; HASH_FAILED=\$\(\(HASH_FAILED \+ 1\)\)$/m);
   assert.equal(lines.filter(l => /HASH_FAILED=/.test(l)).length, 2);
   // The token line tests for a value and never expands one.
+  // #183 T3 C6: the proxy line asks the API with both variables unset.
   const tokenUses = lines.filter(l => /GH_TOKEN|GITHUB_TOKEN/.test(l));
-  assert.deepEqual(tokenUses, ['if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then']);
+  assert.deepEqual(tokenUses, [
+    'if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then',
+    `  env -u GH_TOKEN -u GITHUB_TOKEN curl -s --max-time 10 -w '\\n%{http_code}' https://api.github.com/user 2>/dev/null | node -e "$PROXY_LINE_PROGRAM" 2>/dev/null || echo "github api during setup: unexpected"`,
+  ]);
   for (const t of [...Object.values(TEMPLATES)].map(n => repoText(`cloud-sessions/${n}`))) {
     assert.doesNotMatch(t, /set -x|printenv|\benv\b *$/m);
   }
+});
+
+// ---------------------------------------------------------------- #183 T3: third-party fetches
+
+/** The setup's own code: the head before the config, and the Result section; never the embedded bodies. */
+function ownCode(setup) {
+  return setup.slice(0, setup.indexOf('echo "== Config"')) + setup.slice(setup.indexOf('echo "== Result"'));
+}
+
+/** A line's code: '' for a comment line, and every quoted string emptied. */
+const codeOf = l => (l.trim().startsWith('#') ? '' : l.replace(/"(?:[^"\\]|\\.)*"/g, '""').replace(/'[^']*'/g, "''"));
+
+/** The lines of `text` outside quoted heredoc bodies (the node programs), with their indexes. */
+function shellLines(text) {
+  const out = [];
+  let end = null;
+  text.split('\n').forEach((l, i) => {
+    if (end !== null) {
+      if (l === end) end = null;
+      return;
+    }
+    const m = /<<-?'([A-Z_]+)'/.exec(l);
+    if (m) end = m[1];
+    out.push({ l, i });
+  });
+  return out;
+}
+
+/** #183 T3 C1: each fetch the setup's own code makes at a moving ref, and each git fetch outside fetch_pinned or not at a pin. */
+function movingFetches(setup) {
+  const found = [];
+  const lines = ownCode(setup).split('\n');
+  const nodeFrom = lines.indexOf('echo "== Node"');
+  const nodeTo = lines.indexOf('echo "== Plugins"');
+  const fpFrom = lines.indexOf('fetch_pinned() {');
+  const fpTo = lines.indexOf('}', fpFrom);
+  let fetches = 0;
+  for (const { l, i } of shellLines(lines.join('\n'))) {
+    const code = codeOf(l);
+    if (/(?:^|[\s;&|(])npx\s/.test(code)) found.push(`npx: ${l}`);
+    if (/\bgit\b.*\bclone\b/.test(code)) found.push(`git clone: ${l}`);
+    if (!l.trim().startsWith('#') && /marketplace add (?!"\$)/.test(l)) found.push(`marketplace add of a non-path source: ${l}`);
+    if (/(?:^|[\s;&|(])(?:curl|wget)\s/.test(code.replace(/command -v \S+/g, '')) && !(i > nodeFrom && i < nodeTo) && !/curl -s --max-time 10 -w '\\n%\{http_code\}' https:\/\/api\.github\.com\/user /.test(l)) found.push(`a download outside the Node block: ${l}`);
+    if (/(?:^|[\s;&|(])git\b.*\sfetch\b/.test(code)) {
+      fetches += 1;
+      if (!(i > fpFrom && i < fpTo) || !l.includes('"${REPO_PIN[$repo]}"')) found.push(`a git fetch outside fetch_pinned or not at its pin: ${l}`);
+    }
+  }
+  if (fpFrom < 0 || fetches === 0) found.push('no fetch_pinned, or no git fetch in it');
+  return found;
+}
+
+/** #183 T3 C6: each git, claude or node command in the skills and plugins code that does not run through third_party. */
+function bareCommands(setup) {
+  const found = [];
+  const code = ownCode(setup);
+  const head = code.slice(0, code.indexOf('echo "== Result"'));
+  const region = head.slice(0, head.indexOf('echo "== Node"')) + head.slice(head.indexOf('echo "== Plugins"'));
+  for (const { l } of shellLines(region)) {
+    for (const seg of codeOf(l).split(/&&|\|\||;|\|/)) {
+      const hits = seg.match(/(?:^|[\s(!`])(?:git|claude|node)(?=\s|$)/g) ?? [];
+      if (hits.length === 0 || /command -v (?:git|claude|node)\b/.test(seg)) continue;
+      if (hits.length !== 1 || !/\bthird_party\s+(?:-o\s+\S+\s+)?(?:git|claude|node)\s/.test(seg)) found.push(l);
+    }
+  }
+  return found;
+}
+
+test('cloud copy: the setup fetches no third-party code at a moving ref, and every git fetch is fetch_pinned at a pin (#183 T3 C1)', () => {
+  const setup = repoText(OUTPUTS.setup);
+  assert.deepEqual(movingFetches(setup), []);
+  // Bad cases: each plant is one the check must see.
+  const at = setup.indexOf('echo "== Skills"');
+  for (const plant of ['npx -y skills add a/b -y', 'git clone --depth 1 https://github.com/a/b x', 'third_party claude plugin marketplace add anthropics/claude-plugins-official', 'third_party git -C "$x" fetch -q --depth 1 https://github.com/a/b main']) {
+    assert.notDeepEqual(movingFetches(`${setup.slice(0, at)}${plant}\n${setup.slice(at)}`), [], plant);
+  }
+});
+
+test('cloud copy: every git, claude and node command in the plugins and skills steps runs through third_party (#183 T3 C6)', () => {
+  const setup = repoText(OUTPUTS.setup);
+  assert.deepEqual(bareCommands(setup), []);
+  const at = setup.indexOf('echo "== Skills"');
+  assert.deepEqual(bareCommands(`${setup.slice(0, at)}  git -C "$tmp" ls-tree -r HEAD\n${setup.slice(at)}`), ['  git -C "$tmp" ls-tree -r HEAD']);
+  // third_party runs its command with both token variables unset.
+  assert.match(setup, /^ {2}\(cd "\$PACT_STEP_DIR" && env -u GH_TOKEN -u GITHUB_TOKEN GIT_TERMINAL_PROMPT=0 timeout "\$secs" "\$@"\)/m);
+});
+
+// #183 T3 C13
+test('cloud copy: both generated setup scripts parse under bash -n', { skip: WIN && 'not run: bash is not on a Windows runner by default' }, () => {
+  for (const rel of [OUTPUTS.setup, OUTPUTS.wrapper]) {
+    const r = spawnSync('bash', ['-n', join(REPO, ...rel.split('/'))], { encoding: 'utf8' });
+    assert.equal(r.status, 0, `${rel}: ${r.stderr}`);
+  }
+  // Bad case: a script that doesn't parse is seen to fail.
+  const bad = spawnSync('bash', ['-n'], { input: 'if true; then\n', encoding: 'utf8' });
+  assert.notEqual(bad.status, 0);
 });
 
 // #183 C6, C3: read, not run, as above. The Node block's hand checks are in
@@ -477,8 +611,10 @@ test('cloud copy: the Node block checks every pin before anything runs or lands 
     assert.equal(setup.split(v).length, 2, `${k} appears once`);
     assert.match(setup, new RegExp(`^${k}=${v.replace(/[.]/g, '\\.')}$`, 'm'), `${k} is a plain assignment`);
   }
-  const block = setup.slice(setup.indexOf('echo "== Node"'), setup.indexOf('echo "== Skills"'));
-  assert.ok(block.length > 0 && setup.indexOf('echo "== Node"') < setup.indexOf('echo "== Skills"'), 'the block runs before the skills step');
+  const block = setup.slice(setup.indexOf('echo "== Node"'), setup.indexOf('echo "== Plugins"'));
+  assert.ok(block.length > 0 && setup.indexOf('echo "== Node"') < setup.indexOf('echo "== Plugins"'), 'the block runs before the plugins step');
+  // #183 T3: plugins before skills, so a spent budget skips skills first.
+  assert.ok(setup.indexOf('echo "== Plugins"') < setup.indexOf('echo "== Skills"'), 'the plugins step runs before the skills step');
   const at = needle => {
     const i = block.indexOf(needle);
     assert.ok(i >= 0, `the block holds: ${needle}`);
