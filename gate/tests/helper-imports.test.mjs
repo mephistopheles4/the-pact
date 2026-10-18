@@ -60,7 +60,7 @@ test('the helper import guard finds every helper and core it must guard', () => 
     assert.ok(found.includes(f), f);
   }
   assert.ok(!found.some(f => f.startsWith('fixtures/')), found.join('\n'));
-  assert.deepEqual(cores(), ['project-core.mjs', 'render-core.mjs', 'review-core.mjs', 'seam-a-core.mjs']);
+  assert.deepEqual(cores(), ['project-core.mjs', 'render-core.mjs', 'review-core.mjs', 'seam-a-core.mjs', 'tracker-authors-core.mjs']);
 });
 
 for (const f of helpers()) {

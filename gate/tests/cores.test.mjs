@@ -33,12 +33,15 @@ function importUnderTrap(file) {
 
 // ------------------------------------------------------------ the core import guard
 
-test('the core import guard: the gate holds exactly the four cores, and the install\'s decisions (#153)', () => {
+// The tracker author checker's core (#183, T2) is held to the import rule in
+// the helper import guard; its check() takes a gh runner and answers in the
+// table harness's shape, so the shape and wrapper cases below leave it out.
+test('the core import guard: the gate holds exactly the four cores, the install\'s decisions and the tracker author checker (#153)', () => {
   assert.deepEqual(
     readdirSync(GATE)
       .filter(f => f.endsWith('-core.mjs'))
       .sort(),
-    ['install-core.mjs', ...MODULES.map(m => `${m}-core.mjs`)],
+    ['install-core.mjs', ...MODULES.map(m => `${m}-core.mjs`), 'tracker-authors-core.mjs'].sort(),
   );
 });
 

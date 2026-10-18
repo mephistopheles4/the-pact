@@ -21,3 +21,5 @@
 - **Renaming the planted old mark names and Scriptorium's list positions.** Not taken: the first are the old pact's real marks, planted on purpose; the second count positions in a list the person edits.
 
 Amends [ADR 0062](0062-this-repo-keeps-its-own-tracker-rule.md) and [ADR 0006](0006-root-agents-md.md), which said every rule for this repo lives in the root `AGENTS.md`: the rules now live there and in the docs it links.
+
+- **Since #183:** with a token set, the login is announced, not confirmed, and where GraphQL is refused author reads go through a checker in code. See [ADR 0089](0089-tracker-authors-are-read-through-rest-where-graphql-is-refused.md). This decision still holds.
