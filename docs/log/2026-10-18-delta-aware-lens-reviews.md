@@ -22,6 +22,8 @@
 
 - **The follow-up** (security pair, QA pair, reader-lens, on `05485a7`) found the first round's V2 and V8 paths absent, but left new mediums: a withheld finding's state could reach the record outside its Finding cell, "taken earlier" ignored an accepted risk eased at the same severity, and the poster's withheld check read the whole cell. It also found a defect the amendment brought in: after a merge from main, a restart's base failed the parent check. Having gone round twice, the session stopped; the owner chose to keep going, checked by a walk-through.
 - **Amended again:** on a branch the base is the merge base derived at every round, restarting when a merge or rebase moves it; on the default branch it is exactly the parent of the work's first commit; at Design it is never older than the last recorded base. Nothing in the record gives a withheld finding's state, class or severity. "Taken earlier" also needs likelihood no higher and no accepted risk eased. The poster reads only what follows the lead state word, in any case or markup, with more C4 cases (seen to fail first, and each catching its broken version). Plus wording from the reader-lens. Tests stay `+3 −0`.
+- **The second follow-up** (security pair and integrity-lens, on `5ce1666`) found V2 holding, but withheld metadata still leaking, through a continuing report and the verdict line, plus a stop defect: the first Test round compared its base with Design's. The owner chose to simplify and finish, with one last round.
+- **Amended a third time:** each stage compares only with its own last base line, so Design to Test is a first round; on the default branch the base and the first commit are named to the owner before the first round's lenses run; at Design the last base must be an ancestor of the new one. The scattered withheld clauses became one coarse rule: a fixed row with one bare Disposition word, continuing reports kept local, and a verdict over posted findings only. The poster also refuses a withheld row whose Disposition is anything but one bare word, and the C4 test gained cases for other markup, a soft hyphen inside the word, quotes and the four Disposition shapes (seen to fail first). Tests stay `+3 −0`.
 
 ## Decisions
 
@@ -55,3 +57,6 @@
 - [Test follow-up: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254347316)
 - [Test follow-up: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254347678)
 - [Spec amended after the Test follow-up](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254494167)
+- [Second Test follow-up: integrity-lens](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611004)
+- [Second Test follow-up: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611425)
+- [Second Test follow-up: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254611814)

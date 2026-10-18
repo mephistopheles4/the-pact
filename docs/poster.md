@@ -183,7 +183,7 @@ nothing sent.
 | `text/hidden` | A hidden character |
 | `table/header` | A Lens dispositions table's header row isn't exactly `\| Finding \| Lens \| Disposition \| Rerun \|` |
 | `table/cells` | A row has the wrong number of cells, or an empty Lens cell |
-| `table/disposition` | A Disposition cell doesn't start with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted` |
+| `table/disposition` | A Disposition cell doesn't start with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted`; or, in a row whose Finding cell is exactly `withheld, see chat`, it is anything but one bare `open`, `fixed`, `taken` or `dismissed` |
 | `table/skipped` | `skipped` isn't followed by `, because` |
 | `table/auto` | ` (auto` isn't followed by `:`, `)` or `, reversed` |
 | `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or the word "withheld", in any case, spacing or markup, comes straight after a state word |
@@ -225,7 +225,7 @@ no test holds them.
   joiners and selectors ordinary emoji use are let through.
 - **The table check (`table/`):** on the body only, after the content scan.
   It reads a table with a header cell reading `Disposition` under an earlier
-  line naming "Lens dispositions", outside any fence, folds (`<details>` blocks) included; the review procedure gives the table's template. Of each row with the template's cell count, it reads the Finding cell's lead word and what follows it (unless the row is `skipped` or the cell is exactly `withheld, see chat`), whether the Lens cell is empty, and the Disposition cell (#336, ADR 0090). A
+  line naming "Lens dispositions", outside any fence, folds (`<details>` blocks) included; the review procedure gives the table's template. Of each row with the template's cell count, it reads the Finding cell's lead word and what follows it (unless the row is `skipped` or the cell is exactly `withheld, see chat`), whether the Lens cell is empty, and the Disposition cell, which in a withheld row must be one bare word (#336, ADR 0090). A
   refusal on a line inside a lens report means the report's fence is too
   short: fix the fence, never the report (ADR 0076). Past 50 table refusals,
   the rest are counted, not listed. It is a backstop too.

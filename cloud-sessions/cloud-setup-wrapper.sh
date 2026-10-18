@@ -2060,18 +2060,25 @@ by its short hash, and the request. A lens judges the work against the base,
 the state before the work began.
 - **At Design,** the base is the commit the spec says, in its header line, it
   was drafted against. It must be an ancestor of the default branch's head,
-  and no older than the base the last base line names.
+  and the base the stage's last base line names must be an ancestor of it or
+  the same commit. At the stage's first round, tell me how many commits it is
+  behind the default branch's head.
 - **At Test, on a branch,** it is the merge base of the work's branch with the
   default branch. Derive it with git at every round, never from the record.
-  When it differs from the base the last base line names, the base moved: a
-  restart, on the new merge base, when a merge or rebase brought in other
-  work (a commit since the last reviewed head merges in the default branch,
-  or that head is no longer an ancestor of the branch), and a stop
+  When it differs from the base the stage's last base line names, the base
+  moved: a restart, on the new merge base, when a merge or rebase brought in
+  other work (a commit since the last reviewed head merges in the default
+  branch, or that head is no longer an ancestor of the branch), and a stop
   otherwise.
 - **At Test, on the default branch,** it is the parent of the work's first
   commit. Find that commit from the work itself, by the commits the record
-  names as the work's (its issue, ticket or messages), never from the base. A
-  base line that names any other commit is a stop.
+  names as the work's, read by the project's rule on whose text counts, never
+  from the base. At the stage's first round, name the base and that commit to
+  me in chat before any lens runs. A base line of the stage that names any
+  other commit is a stop.
+- **The stage's last base line** is the last one from a review at the same
+  stage, Design or Test. The Design-to-Test step is a first round, so the
+  first Test round compares with none.
 - **Check the base with git** at every round before you hand it. A base that
   fails is a stop: name it to me, and run no lens on it.
 - **For a spec:** the working folder at the base. The spec is new in full.
@@ -2116,8 +2123,7 @@ the state before the work began.
   The base line says which, and how many `open` rows each restarted lens
   carried. Carry each `open` row of the last table into the new table, still
   `open`, with a state word you write and "carried at restart" in its reason
-  text. A withheld row stays exactly "withheld, see chat": its state, class
-  and evidence go to me in chat.
+  text. A withheld row is carried as it stands (see A withheld finding).
 - **A full pass** runs only when I ask, for the lenses I name. It is a first
   round in which every finding gates, whatever its state.
 - **The Design-to-Test step is a first round.** At Test a lens reviews a diff
@@ -2221,9 +2227,10 @@ crossed alone.
    inconclusive, then findings, then clear, raised to blocking when you sort a
    high `unchanged` finding as a security finding (see Findings and their
    state). Show each lens's verdict beside it, and mark one your sort raises,
-   with the finding, unless the finding is withheld (see Findings and their
-   state). A lens whose verdict is inconclusive is marked "not
-   verified": its silence is not a pass, so read what it didn't check.
+   with the finding. A review that holds a withheld finding posts the verdict
+   of its posted findings only (see A withheld finding). A lens whose verdict
+   is inconclusive is marked "not verified": its silence is not a pass, so
+   read what it didn't check.
 4. **Crossings first.** A table of the places both lenses flagged, with each
    lens's findings there and the state beside each.
 5. **One lens only.** A table of where, lens, severity, state and headline,
@@ -2266,7 +2273,7 @@ lens's state and yours.
 
 **The class is said in the row.** A row for a security or `security?` finding
 says so at the start of its reason text, `security:` or `security?:`, except a
-withheld row, whose class goes to me in chat. On a follow-up, treat an `E` row
+withheld row (see A withheld finding). On a follow-up, treat an `E` row
 whose class you can't tell as a security finding, for an `absent` finding.
 
 **Sorting an `unchanged` finding.**
@@ -2293,21 +2300,25 @@ confirm it against the evidence the lens names (the fixing change or spec
 text), and its row is never `auto`: it is `fixed` only when I take the fix, and
 until then stays `open`, with the lens's `absent` and your confirmation in its
 reason text. One you can't confirm stays `open` and comes to me as
-unconfirmed. A withheld row stays exactly "withheld, see chat": its state,
-class, the lens's evidence and your confirmation go to me in chat.
+unconfirmed. A withheld row follows A withheld finding.
 
-**A follow-up's withheld findings.** Its report goes through the read before
-posting like any report. A row or Earlier findings item continuing a withheld
-finding reads "withheld, see chat" until that read clears it.
-
-**A withheld finding in the record.** Nothing in the record gives or implies a
-withheld finding's state, class or severity. Its row is `open` until I settle
-it in chat, never `noted`, and its reason text holds no state or class. Its
-placeholder sits in the One lens only table, whatever its state, and its
-Earlier findings item reads "withheld, see chat". When a review has a
-withheld finding, its verdict line adds "withheld findings: see chat",
-whatever they are, and a raise your sort makes for one is told to me in chat,
-not marked.
+**A withheld finding.** A finding from a report kept local lives in chat
+until I settle it. Nothing in the record gives or implies its state, class or
+severity:
+- **Its row** in the Lens dispositions table holds "withheld, see chat" in
+  the Finding cell, the lens in the Lens cell, one bare Disposition word
+  (`open` until I settle the finding in chat, never `noted`), and at most the
+  lens's name in the Rerun cell. A restart carries it as it stands.
+- **Its placeholder** in the review comment sits in the One lens only table,
+  whatever its state.
+- **Its Earlier findings item** reads "withheld, see chat".
+- **A follow-up's report that continues it** is kept local too, as a
+  kept-local report, until I settle the finding, whatever the read before
+  posting finds.
+- **The verdict.** A review that holds a withheld finding posts the verdict
+  of its posted findings only, leaves out the verdict of a lens whose report
+  is withheld, and says so: "posted findings only; withheld findings: see
+  chat". The full verdict, and any raise your sort makes, go to me in chat.
 
 **Taken earlier.** Within one piece of work, a continuing finding stays "taken
 earlier" only when all four hold: its `E` row is `taken` without `auto`; it
@@ -2563,7 +2574,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 803f4a3e7cb935b4638ab992fb53ab7722540ee72fb1c211dd165528552ca398 'pact/review.md'
+check_hash b3991264af3ee7f428cdd9bb2851971e9557b122c5da97861aaea46177725b38 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2586,7 +2597,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 02ab8b5d0bde"
+  echo "pact cloud copy 02bcbbb6efec"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
