@@ -2,6 +2,8 @@
 
 The repo's instructions install Node with [mise](https://mise.jdx.dev/), not Volta: `mise use -g node@24` gets the current LTS that the gate suite and the install need. This replaces the Volta part of [ADR 0029](0029-the-gate-suite-runs-capped-on-the-current-node-lts.md); its cap and its LTS floor are unchanged.
 
+- **Since #183:** the cloud setup installs a pinned, verified Node 24 through mise, with wrappers on the PATH. See [ADR 0088](0088-the-cloud-setup-installs-a-pinned-verified-node.md). This decision still holds.
+
 ## Why
 
 - **Volta is unmaintained.** Its README says so, and recommends migrating to mise.

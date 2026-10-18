@@ -22,6 +22,13 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   if one fails, never run its installer: stop and ask. Configuration, tools,
   project installs: [install](docs/agents/install.md).
 
+## mise
+
+- **Never run `mise trust`, or turn mise's `paranoid` setting off,** without
+  the owner's word in chat: a trusted project config can fetch tools and run
+  hooks as root in a cloud session
+  ([ADR 0088](docs/adr/0088-the-cloud-setup-installs-a-pinned-verified-node.md)).
+
 ## Running the gate's tests
 
 - **One runner, three tiers,** from the repo root with `NODE_OPTIONS` cleared:
