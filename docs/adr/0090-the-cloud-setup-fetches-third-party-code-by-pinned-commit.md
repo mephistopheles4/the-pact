@@ -1,0 +1,39 @@
+# The cloud setup fetches third-party code by pinned commit
+
+The cloud setup no longer fetches skills and plugins at their latest versions (#183, T3). Each third-party repo it fetches is pinned by commit in `CLOUD_REPO_PINS` in `cloud-sessions/gen.mjs`, which `assemble()` writes as one read-only bash array, `REPO_PIN`. `fetch_pinned` is the only way the setup fetches a repo: `git init`, `git fetch --depth 1` of the pinned commit, `git checkout FETCH_HEAD`, and a `git rev-parse HEAD` backstop. A fetch that fails leaves what was there and names the repo in the Result. It never falls back to fetching at HEAD.
+
+## Why
+
+- **The setup runs as root at every cloud start.** Before T3 it ran `npx -y skills add` (an unpinned npm package and its dependency tree), a `git clone --depth 1` fallback with a find-by-name search, and `claude plugin marketplace add anthropics/claude-plugins-official`, which follows that repo's `main`. A change upstream reached every session with no review.
+- **The owner's decisions, in chat on 2026-10-18** ("as recommended", then two decision cards): drop the `skills` CLI (D1); a local marketplace for plugins (D2); drop the two opt-ins, since claude.ai syncs what they installed (D3); the live run as in T1 (D4); the SDK prebuild split to #340 (D5); the weekly watch extended to the pins (D6); the proxy's reach recorded, not fought (D7).
+
+## How it works
+
+- **The pins.** One entry per repo, the key `owner/repo`, the value a 40-hex commit. `assemble()` refuses (`cloud/pin`) a key or value out of shape, a repo the head fetches with no pin, a pin nothing uses, any template line that writes `REPO_PIN` (an assignment, an element assignment, an append, a declaring builtin, `printf -v`, `read -a`, `mapfile`, `readarray`), and a `${REPO_PIN[…]}` expansion that defaults, assigns or tests. Each pin's value appears once in the script.
+- **`third_party`** runs every `git`, `claude` and `node` command of the plugins and skills steps. It runs the command from an empty step folder, with `GH_TOKEN` and `GITHUB_TOKEN` unset, under `timeout` for what is left of the budget. Its output goes to a log in a temp folder that is never printed and is removed at the end. Without `timeout`, or with 10 seconds or fewer left, it refuses and runs nothing.
+- **Plugins, before skills.** The official marketplace repo is fetched at its pin into `~/.claude/pact-pinned/pact-pinned-plugins`, where its plugins load in place. Every link in the tree is listed; one under `.claude-plugin/` refuses the step. `PLUGIN_SOURCE_CHECK`, a node program in the setup, reduces the catalog to the listed plugins that pass: a contained path source, or a `github`, `url` or `git-subdir` source with a 40-hex `sha`; nothing declared of dependencies, MCP or LSP servers or monitors; and, for a path source, no undeclared `.mcp.json`, `.lsp.json`, `monitors/monitors.json`, root `settings.json`, `bin/` or link. The folder is added by path under the new name, which imitates no official name, and each passing plugin is installed as `<name>@pact-pinned-plugins`. External sources are cloned by the CLI at their catalog `sha`.
+- **Skills.** Every run fetches each skill repo at its pin and copies each listed path over the installed folder, replacing it whole. A path with no `SKILL.md`, holding a link, or holding a `.claude-plugin/` entry is not copied and reads `MISSING`. Nothing searches for a skill by name.
+- **The budget.** `FETCH_BUDGET=270` seconds, from the top of the setup; the Node block's two network steps are timed against it too, and a Node step with 10 seconds or fewer left fails as `node: time`. The Result names what it left out under `skipped (time)`, `not fetched at pin`, `skipped (source)` and `not installed`. Why 270: the Node block takes 30 s or less, and a setup script over about five minutes is not cached.
+- **The proxy line.** The Result prints what the GitHub API answers a token-free request during setup: `authenticated as <login>`, `anonymous` or `unexpected`, never the body. Under the cloud proxy a process reaches GitHub as the owner whatever the token variables hold.
+
+## The pin bump
+
+One reviewed change per bump, with `node cloud-sessions/gen.mjs` run in it.
+
+- **Where it comes from:** each new commit, and each listed plugin's external `sha`, is confirmed reachable from its upstream's default branch or a tag (`git merge-base --is-ancestor` after fetching that branch), not only through a fork. The dated log records where.
+- **The trees:** at each new pin, list the trees, and stop and ask on a link, an undeclared server, LSP or monitor file, a `bin/` folder or a root `settings.json` in a listed plugin, a `.claude-plugin/` entry in a listed skill, or a `package.json` that declares dependencies in a listed plugin.
+- **Skill repos:** `git diff <old> <new> -- <each listed path>`, read in full. The dated log names anything that adds a script, a hook, a fetch, a link or a send of session data to any host. Each listed path is checked to exist at the new pin.
+- **The marketplace:** the whole `marketplace.json` diff, top-level fields included, and each listed in-repo plugin's folder diff; a changed external `sha` gets that repo's diff read the same way. Name every component that runs a command (hooks, servers, monitors, `bin/`, commands that carry `allowedTools`) and anything that fetches code or sends session data.
+- **The first pin** was taken in a cloud thread of the live environment, against what that environment ran: every file a listed plugin runs, and every listed skill's `SKILL.md` and scripts, read in full. The dated log records commit ids, file names and verdicts, never file content.
+- **When:** on the owner's word, when a pinned item breaks, or when the weekly watch opens an issue. The watch reports how far behind each pin is and any advisory naming a pinned repo; it never bumps.
+
+## What stays
+
+- The image's own `claude` CLI, and anything it fetches itself.
+- What claude.ai syncs into a session (plugins and skills under `synced/`), unpinned and outside the pact's reach.
+- security-guidance's session-start hook installs its SDK from PyPI unpinned, until #340 ships.
+- A pin is only as good as its bump: no signature or advisory feed backs these pins, and git's object ids are SHA-1 with collision detection.
+
+## How this was decided
+
+- **2026-10-18** in chat and on two decision cards with the owner: spec revision 4 signed off (record on #183, comment 6254239546), with D1 to D7, 22 tests beyond one per claim, and D5 split to #340. Plan, probes and three Design review rounds are on #183. Builds on [ADR 0088](0088-the-cloud-setup-installs-a-pinned-verified-node.md).

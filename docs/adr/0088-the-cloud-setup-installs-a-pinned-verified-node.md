@@ -2,6 +2,8 @@
 
 The cloud setup installs Node 24 itself (#183, T1), because the image ships Node 22 and the install and the gate refuse anything below 24. A pinned mise, checked by hash before it is unpacked, installs a pinned Node against a lockfile hash; the installed `bin/node` is checked too. Only when every check passes do wrappers for `node`, `npm` and `npx` in `/root/.local/bin` point straight at that install, ahead of the image's Node. Any failure leaves no wrapper, so the image's Node stays, and the marker reads `INCOMPLETE` with the reason (`node: arch|download|hash|config|install|version`).
 
+- **Since #183 T3:** the skills and plugins steps no longer fetch at the latest versions; each third-party repo is fetched at a pinned commit, and the Node block's two network steps are timed against the setup's fetch budget, failing as `node: time` when it is spent. See [ADR 0090](0090-the-cloud-setup-fetches-third-party-code-by-pinned-commit.md). This decision still holds.
+
 ## Why
 
 - **The owner's decisions, in chat on 2026-10-18:** mise, not Volta, which is unmaintained and checks no hash; mise stays on the PATH with `paranoid` on, so Node can be switched in a session while a project's mise config is refused until `mise trust` (D1); the first run is in a separate test environment, before merge (D2); the wrappers point at the pinned install, not mise's shims (D3); a weekly routine watches advisories (D4).
