@@ -12,6 +12,7 @@
 ## Decided at Build
 
 - **A review comment's hidden flag is `null`.** REST carries no `minimized` field for review comments; the owner chose to mark it unknown, and the doc says to summarise any record whose `hidden` isn't `false`.
+- **The threat model,** on the owner's word at hand-off. R38 accepts that a session takes whatever account its token belongs to as the owner. R1's control names the checker, "Strangers on the tracker" says the login is announced and an edited item doesn't count through REST, the #188 line says cloud sessions now read authors, and a new section lists the checker's own checks and what it can't see.
 
 ## Decisions
 

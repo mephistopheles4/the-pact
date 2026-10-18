@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R37, so other work can point at it. A
+Each accepted risk has a label, R1 to R38, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -131,7 +131,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R37
+  title Residual risk, R1 to R38
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -174,6 +174,7 @@ quadrantChart
   R35: [0.08, 0.80]
   R36: [0.18, 0.78]
   R37: [0.15, 0.20]
+  R38: [0.10, 0.78]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -184,7 +185,7 @@ How to read it:
   session text from strangers. Turning auto mode off is the tweak that moves
   it most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
-  tracker rule (R1, R2), the rule on outsiders' code (R5, R6), trust in what
+  tracker rule (R1, R2), a foreign token taken as the owner (R38), the rule on outsiders' code (R5, R6), trust in what
   you install (R8, R9, R10, R35), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
@@ -205,7 +206,7 @@ How to read it:
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
-| R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `docs/agents/issue-tracker.md`, one link from the loaded `AGENTS.md`; elsewhere, judgment (#261) | Rule, judgment |
+| R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `docs/agents/issue-tracker.md`, one link from the loaded `AGENTS.md`, and where GraphQL is refused a checker in code whose verdict a session follows by rule (ADR 0089); elsewhere, judgment (#261) | Rule, judgment |
 | R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment | Rule, judgment |
 | R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its scan as a backstop behind that read, which stays for everyone (#280) | Rule |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
@@ -242,6 +243,7 @@ How to read it:
 | R35 Cloud Node pins | Upstream release, or the pin bump | Pinned hashes checked before use; signatures checked against committed keys at each bump; a weekly advisory routine (ADR 0088) | Boundary, rule |
 | R36 Trusted mise config | A cloned repo, text a session reads | `paranoid` on in mise's global config, so mise refuses an untrusted project config; the `node`, `npm` and `npx` wrappers bypass mise's shims; here, the mise section in `AGENTS.md`; elsewhere, judgment (#183) | Boundary, rule, judgment |
 | R37 Cloud Node block hardening | None; a cost to you | The setup's Result section runs the `node` wrapper by path and marks the setup `INCOMPLETE` when it fails; mise's version lookup is off (`use_versions_host = false`) (#183) | Boundary |
+| R38 Foreign token taken as the owner | Whoever's token a session is given | The session announces its login in its first message, and stops if you object (ADR 0089) | Rule |
 
 ## Strangers on the tracker
 
@@ -261,7 +263,12 @@ account's text counts. A session reads authors from GitHub's structured
 fields, never from text. It counts an item only if the owner's account also
 made its last edit. It treats everything else as data: read, quoted with its
 author, and never followed. If it cannot tell who wrote something, nothing
-counts and it asks the owner. A planted test showed the effect: the pact
+counts and it asks the owner. With a token set, a session announces its
+login and goes on rather than waiting for you to confirm it (R38). Where
+GraphQL is refused, as in a cloud thread, it reads authors through the
+tracker author checker, which uses REST. REST shows no editor, so there an
+edited comment, and every issue, pull request or review body, never counts.
+A planted test showed the effect: the pact
 before the rule followed a stranger's comment, and the pact with it refused.
 
 The pact does not set GitHub's interaction limit, which restricts who can
@@ -273,7 +280,10 @@ months.
 - **R1. It is a rule, not a boundary; in the pact, judgment.** A model can
   still misread. The test covered the cases it planted, not every wording a
   stranger could try. In another repo with a public tracker, nothing but
-  judgment stands here unless that repo writes its own rule.
+  judgment stands here unless that repo writes its own rule. Where GraphQL is
+  refused, the tracker author checker decides in code, but a session still
+  follows its verdict by rule, and the checker trusts the `gh` and the
+  environment it is given (R10, R14). It is not a boundary.
 - **R2. Every session posts as you.** Here, by this repo's rule, a session marks a comment as your
   decision only when it heard you in chat. Only that session writes the
   mark, and a decision in the prompt that started a session is not from
@@ -301,6 +311,14 @@ months.
   posting stays the rule for everyone, with or without the poster.
 - **R4. Your GitHub account is the root of trust.** Anyone who controls it
   counts as you.
+- **R38. A session takes whatever account its token belongs to as the
+  owner.** With a token set, a session announces its login and goes on;
+  nothing checks that the login is yours. Run with another account's token,
+  it would count that account's text as yours, and pass that account's pull
+  requests from this repo as insiders' code, which a checkout runs. Anything
+  it does before you object stands. The announcement is the only safeguard.
+  Accepted by the owner on 2026-10-18, in chat, at the Design review of #183
+  T2 (ADR 0089).
 
 ## Outside pull requests and their code
 
@@ -931,6 +949,30 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   name. Two body checks, `text/hard-wrap` and `link/relative`, keep a post
   from landing broken; they are not a security control.
 
+## The tracker author checker's own checks
+
+Where GraphQL is refused, a session reads who wrote what through
+`gate/tracker-authors.mjs`, run as it stands on `main`. Its checks bear on R1
+without changing what R1 accepts: a session follows its verdict by rule, and
+it trusts the `gh` and environment it is given (R10, R14).
+
+- **The input.** Only `issue <n>` or `pr <n>`, with `<n>` 1 to 9 digits and
+  no leading zero, on this repo; anything else exits 2 before any call.
+- **The stops.** A failed, empty or misshapen read, an id read twice, more
+  commits or reviews than the read can see, or a count that differs from the
+  parent's stops with one fixed line naming the check, and nothing it read.
+- **The runner.** gh runs with the host pinned, its debug variables removed,
+  from a new empty folder, with no shell. Of the `user` record only the login
+  is kept, and gh's own output is never printed.
+- **The output.** Every body is an escaped JSON string, with control,
+  separator and format characters escaped, so no body can start a line. The
+  verdict is taken only from the SUMMARY line.
+- **What it can't see.** An edit in the same second as its comment. Whether a
+  review comment is hidden: REST carries no flag for it, so the checker says
+  `null`, and the session summarises it. Commit logins come from the commit's
+  email, so an unsigned commit can be attributed to you, in the GraphQL read
+  too.
+
 ## What you may tweak, and what it costs
 
 Each tweak below is yours to make. The cost is what you give up.
@@ -976,10 +1018,9 @@ These were open on 2026-10-09. Each is tracked on this repo's tracker.
   secret either: the pact leaves them to judgment. In this repo, `AGENTS.md`
   points to them, in `docs/agents/issue-tracker.md`, from the checkout. Elsewhere, keep cloud sessions off a
   public tracker, or write the rules into that repo's own `AGENTS.md`.
-- **#188:** with the current copy, a cloud session can't read authors. Since
-  #261 the pact carries no tracker rule, so this applies to this repo's own
-  rule: there nothing on the tracker counts, and the session asks you. That
-  fails safe.
+- **#188:** a cloud session couldn't read authors, because the proxy refuses
+  GraphQL. Since #183 T2 it reads them through the tracker author checker
+  (ADR 0089). The line goes when the issue closes.
 - **#180:** no setting yet for trusted accounts on a team repo (R7).
 - **#182:** the cloud setup fetches unpinned code (R10).
 - **#184:** no rule for sessions no person started (R16).
