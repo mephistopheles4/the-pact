@@ -647,6 +647,16 @@ const isDelimiter = cells => cells.every(c => DELIMITER_RE.test(c.text));
 const leadWord = (words, cell) => words.find(w => cell.startsWith(w) && !LETTER_RE.test(cell[w.length] ?? ''));
 
 /**
+ * Whether the text after a Finding cell's lead state word opens with the word
+ * "withheld", whatever its case, spacing, punctuation or markup (#336). A
+ * finding that quotes the withheld text after other words is not matched.
+ */
+function withheldAfter(cell, state) {
+  const rest = cell.slice(state.length).replace(/\p{Cf}/gu, '').replace(/^[^\p{L}\p{N}]+/u, '').toLowerCase();
+  return rest.startsWith('withheld') && !LETTER_RE.test(rest['withheld'.length] ?? '');
+}
+
+/**
  * The refusals one row's Disposition cell earns. ` (auto` is the auto mark
  * only where the word ends there, so reason text such as "(automatically)" is
  * left alone (q3 on #285).
@@ -677,7 +687,8 @@ function dispositionRules(cell) {
  * line naming "Lens dispositions". A header other than the template's is
  * refused, and its rows are not read. A Finding cell must start with a state
  * word, unless the row is `skipped` or the cell is exactly the withheld text,
- * and a cell holding the withheld text takes no state word (#336). It reads
+ * and the word "withheld" never follows a state word, in any case or markup
+ * (#336). It reads
  * nothing else: not the reason text, not a `skipped` row's
  * Finding cell, not the Rerun cell, and no other table.
  * `where` names the line and column, never a cell. One pass over the lines,
@@ -736,7 +747,7 @@ export function tableCheck(body) {
     const finding = cells[0].text;
     const state = leadWord(DISPOSITIONS.states, finding);
     // A withheld row takes no state word: one there would tell readers whether the held-back item is at the base.
-    if (leadWord(DISPOSITIONS.words, cells[2].text) !== 'skipped' && finding !== WITHHELD && (state === undefined || finding.includes(WITHHELD))) refuse(TABLE.state, cells[0].col);
+    if (leadWord(DISPOSITIONS.words, cells[2].text) !== 'skipped' && finding !== WITHHELD && (state === undefined || withheldAfter(finding, state))) refuse(TABLE.state, cells[0].col);
     if (cells[1].text === '') refuse(TABLE.cells, cells[1].col);
     for (const rule of dispositionRules(cells[2].text)) refuse(rule, cells[2].col);
   }

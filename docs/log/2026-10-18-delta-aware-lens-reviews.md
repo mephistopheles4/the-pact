@@ -20,6 +20,9 @@
 - **The Test review** (all seven lenses, under the installed rules, on the owner's word) found nothing high. C10 was not met: one medium path each under V2 ("taken earlier" couldn't judge severity and failed open on an unknown class) and V8 (the base line was read with no author test, and git counts a commit as its own ancestor). Five mechanical findings were fixed on the session's call.
 - **The owner took every pick,** and the spec was amended: the base is checked against the parent of the work's first commit, found from the work itself, and a base line counts only from a comment that counts; "taken earlier" reads severity from the review comment and fails closed; a withheld row never takes a state word, and the poster refuses one before the withheld text, with three more bad cases in the C4 test (seen to fail first); a secret's place line names its file only; kept-local reports are named for deletion at every hand-off; a missing state is `new`, and a lowered one goes to the owner; plus wording for `updated`, `absent`, restarts, overflow notes and the Rerun cell. Tests stay `+3 −0`.
 
+- **The follow-up** (security pair, QA pair, reader-lens, on `05485a7`) found the first round's V2 and V8 paths absent, but left new mediums: a withheld finding's state could reach the record outside its Finding cell, "taken earlier" ignored an accepted risk eased at the same severity, and the poster's withheld check read the whole cell. It also found a defect the amendment brought in: after a merge from main, a restart's base failed the parent check. Having gone round twice, the session stopped; the owner chose to keep going, checked by a walk-through.
+- **Amended again:** on a branch the base is the merge base derived at every round, restarting when a merge or rebase moves it; on the default branch it is exactly the parent of the work's first commit; at Design it is never older than the last recorded base. Nothing in the record gives a withheld finding's state, class or severity. "Taken earlier" also needs likelihood no higher and no accepted risk eased. The poster reads only what follows the lead state word, in any case or markup, with more C4 cases (seen to fail first, and each catching its broken version). Plus wording from the reader-lens. Tests stay `+3 −0`.
+
 ## Decisions
 
 - [ADR 0090](../adr/0090-lens-findings-carry-their-state-against-the-base.md) — Lens findings carry their state against the base.
@@ -47,3 +50,8 @@
 - [Test review: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254074863)
 - [Test review: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254075227)
 - [Spec amended after the Test review](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254188375)
+- [Test follow-up: the QA pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254346650)
+- [Test follow-up: reader-lens](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254346957)
+- [Test follow-up: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254347316)
+- [Test follow-up: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254347678)
+- [Spec amended after the Test follow-up](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254494167)

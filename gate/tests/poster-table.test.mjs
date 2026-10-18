@@ -1,7 +1,7 @@
 // The Lens dispositions table check in the poster's pre-post scan (#285, T2
 // of #280). Every case runs the poster's post() in-process as a dry run, with
 // a gh that fails any call, so a refusal is seen to send nothing. Each bad
-// case is a table row, but the state-word cases (#336 C4), which share one
+// case is a table row, except the state-word cases (#336 C4), which share one
 // test; the eleven recorded tables are fixtures, each reduced
 // to its label line and table with every unread cell a placeholder.
 import assert from 'node:assert/strict';
@@ -198,18 +198,19 @@ test('each refusal names its line and column, and a rule broken twice is named t
   ]);
 });
 
-// #336 C4: a read row's Finding cell starts with a state word, or is exactly the withheld text, which takes no state word; a refusal names the cell's place, never its text.
+// #336 C4: a read row's Finding cell starts with a state word, or is exactly the withheld text, which takes no state word, whatever its case, spacing or markup; a refusal names the cell's place, never its text.
 test('a Finding cell without a state word is refused as table/state at its column, and a skipped row\'s Finding cell is not read', t => {
   const row = finding => body(LABEL, '', HEADER, SEP, `| ${finding} | b | fixed | c |`);
-  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat']) {
+  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat', `new withheld, see chat ${MARK}`, 'new Withheld, see chat', 'updated **withheld**, see chat', 'new withheld']) {
     const r = runBody({ 'body.md': row(finding) }, t);
     refusedQuietly(r);
     assert.deepEqual(r.real.lines, ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);
   }
   // An empty cell's column is its start, right after the pipe.
   assert.deepEqual(tableCheck(row('')), [{ rule: 'table/state', where: 'body 5:2' }], 'an empty Finding cell');
-  for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat']) assert.deepEqual(rules(row(finding)), [], finding);
-  for (const finding of ['', `${MARK} F1`]) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| ${finding} | b | skipped, because ${MARK} | c |`)), [], `skipped: ${JSON.stringify(finding)}`);
+  // A finding that quotes the withheld text after other words is a finding, not a withheld row.
+  for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat', `new ${MARK} quotes "withheld, see chat"`]) assert.deepEqual(rules(row(finding)), [], finding);
+  for (const finding of ['', `${MARK} F1`, 'new withheld, see chat']) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| ${finding} | b | skipped, because ${MARK} | c |`)), [], `skipped: ${JSON.stringify(finding)}`);
 });
 
 // #280 C7: the secret scan still reads folds and fences; the check's reading rules never narrow it.
