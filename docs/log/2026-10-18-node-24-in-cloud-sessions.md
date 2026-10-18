@@ -28,7 +28,17 @@ Run with the test driver in an `ubuntu:24.04` container. In a cloud container th
 - **C8, in the container:** the block alone took 8 to 10 s from nothing installed, over four runs.
 - **C10, in the container:** in a folder holding an untrusted `mise.toml` that asks for Node 22, `mise install` refuses with "are not trusted" and installs nothing, and `node --version` through the wrapper prints `v24.22.0`. The half of C10 that runs `mise trust` was not run: `AGENTS.md` keeps that for the owner's word.
 - **C1, in the container:** `mise exec node@22 -- node --version` printed `v22.23.3`.
-- **C1, C2, C7, C8, C10** run again in a cloud session in the test environment before merge (D2).
+
+## The run in a cloud session (D2)
+
+The owner pasted the PR's wrapper (`75c6d57`) straight into the live cloud environment, not a separate one, so D2 ran there. A fresh session reported on #183:
+
+- **C1:** `node`, `npm` and `npx` in the Bash tool and on the PATH `claude` gives its hooks: `v24.22.0`, `11.19.1`, `11.19.1`. `mise exec node@22 -- node --version` printed `v22.23.3`. Nothing ran the image's Node 22.
+- **C2, as reworded:** 2,155 passed, 9 skipped and one failed, the #333 test.
+- **C7:** the same 53 skill entries and 7 plugins as a session on the old setup. `resolving-merge-conflicts` is missing from both, so the skills line reads 51/52 on either setup. The gap predates this change.
+- **C8:** the Node block took 10 s or less.
+- **C10:** an untrusted `mise.toml` was refused with "are not trusted", and the wrapper printed `v24.22.0`. On the owner's word, `mise trust` in that one folder let `mise install` go ahead, and the wrapper still printed `v24.22.0`.
+- **The marker** wasn't seen. The session's copy of the setup log stopped about 4 s before the end. The script that ran matches the `75c6d57` wrapper byte for byte, and every condition for the marker held.
 
 ## The full suite in a cloud container
 
