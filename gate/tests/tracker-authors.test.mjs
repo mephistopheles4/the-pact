@@ -315,6 +315,22 @@ test('tracker authors: line separators, control and format characters in a body 
   assert.equal(records.find(x => x.kind === 'comment').body, raw);
 });
 
+// #183 C7: an insiders' PR's SUMMARY names the head commit it was judged at.
+test('tracker authors: an insiders\' PR\'s SUMMARY names its head commit', () => {
+  const r = check(['pr', '7'], fakeRun(prWorld(prRecords())));
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(r.out.split('\n').filter(l => l.startsWith('SUMMARY:')), [`SUMMARY: pr 7 as the-owner; true: pull:7@${SHA} review-comment:301 comment:101`], r.out);
+});
+
+// #183 C12: the owner's unsubmitted review is left out, so its draft never reaches the output.
+test('tracker authors: a pending review is left out of the output', () => {
+  const recs = prRecords();
+  recs.reviews.push(review(402, { user: user(OWNER), author_association: 'OWNER', state: 'PENDING', submitted_at: undefined, body: 'CANARY-draft' }));
+  const r = check(['pr', '7'], fakeRun(prWorld(recs)));
+  assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.out, /CANARY|402/, r.out);
+});
+
 // #183 C12: the verdict is the SUMMARY line, and a body can't write one.
 test('tracker authors: another account\'s body imitating a record and a SUMMARY leaves the real SUMMARY without its id', () => {
   const recs = issueRecords();

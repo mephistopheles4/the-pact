@@ -26,7 +26,9 @@
 // "RESULT: pass", and exits 0. The verdict is the SUMMARY line, never a
 // record's flag: every body is an escaped JSON string, so no body can start a
 // line of its own. Each id in the SUMMARY is <record kind>:<id>, a label's
-// name as a JSON string, joined by single spaces; "none" when no flag is true.
+// name as a JSON string and an insiders' PR as pull:<n>@<head sha>, joined by
+// single spaces; "none" when no flag is true. A pending review, unsubmitted
+// and seen only by its author, is left out.
 //
 // Node 24 or later, ESM, node: built-ins only, so the two files run on their
 // own from a temporary folder.
@@ -287,7 +289,7 @@ export function decide(kind, records, owner) {
   return [
     pullRecord(pull, commits, owner),
     bodyRecord('pull-body', pull, pull.created_at, owner),
-    ...reviews.map(r => bodyRecord('review', r, r.submitted_at, owner)),
+    ...reviews.filter(r => r.state !== 'PENDING').map(r => bodyRecord('review', r, r.submitted_at, owner)),
     ...reviewComments.map(c => commentRecord('review-comment', c, owner)),
     ...comments.map(c => commentRecord('comment', c, owner)),
   ];
@@ -308,7 +310,8 @@ export function escape(text) {
   return text.replace(RAW, ch => [...Array(ch.length).keys()].map(i => hex(ch.charCodeAt(i))).join(''));
 }
 
-const summaryId = r => `${r.kind}:${typeof r.id === 'string' ? JSON.stringify(r.id) : r.id}`;
+/** A record's id in the SUMMARY: a PR's names the head commit it was judged at, the one to check out. */
+const summaryId = r => `${r.kind}:${typeof r.id === 'string' ? JSON.stringify(r.id) : r.id}${r.kind === 'pull' ? `@${r.head_sha}` : ''}`;
 
 /** The checker's answer; every line escaped as above, the SUMMARY with the records. */
 function result(code, lines, fails = []) {

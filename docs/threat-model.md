@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R38, so other work can point at it. A
+Each accepted risk has a label, R1 to R39, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -131,7 +131,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R38
+  title Residual risk, R1 to R39
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -175,6 +175,7 @@ quadrantChart
   R36: [0.18, 0.78]
   R37: [0.15, 0.20]
   R38: [0.10, 0.78]
+  R39: [0.06, 0.74]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -185,7 +186,7 @@ How to read it:
   session text from strangers. Turning auto mode off is the tweak that moves
   it most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
-  tracker rule (R1, R2), a foreign token taken as the owner (R38), the rule on outsiders' code (R5, R6), trust in what
+  tracker rule (R1, R2), a foreign token taken as the owner (R38), the rule on outsiders' code (R5, R6), commits credited by email (R39), trust in what
   you install (R8, R9, R10, R35), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
@@ -244,6 +245,7 @@ How to read it:
 | R36 Trusted mise config | A cloned repo, text a session reads | `paranoid` on in mise's global config, so mise refuses an untrusted project config; the `node`, `npm` and `npx` wrappers bypass mise's shims; here, the mise section in `AGENTS.md`; elsewhere, judgment (#183) | Boundary, rule, judgment |
 | R37 Cloud Node block hardening | None; a cost to you | The setup's Result section runs the `node` wrapper by path and marks the setup `INCOMPLETE` when it fails; mise's version lookup is off (`use_versions_host = false`) (#183) | Boundary |
 | R38 Foreign token taken as the owner | Whoever's token a session is given | The session announces its login in its first message, and stops if you object (ADR 0089) | Rule |
+| R39 Commits credited by email | Whoever's commits reach a branch of this repo in a pull request you opened | Only accounts with write rights push branches here; the insiders' check reads each commit's author and committer account (ADR 0089) | Outside the pact, rule |
 
 ## Strangers on the tracker
 
@@ -347,6 +349,16 @@ machine.
   builds or checks it. Since #270 the conditions sit one link from the loaded
   `AGENTS.md`, not in it: a session that skips the pointer line has only Claude
   Code's own defaults.
+- **R39. A commit is credited to an account by the email it carries.**
+  GitHub links an unsigned commit to whichever account owns its email, and
+  both the GraphQL read and the tracker author checker take that link as the
+  author. Someone else's commits that reach a branch of this repo, in a pull
+  request you opened, can read as yours, so the pull request passes as
+  insiders' code. It needs write rights to the repo. Requiring signed commits
+  would close it, but your own commits are unsigned, so every pull request
+  of yours would read as outsiders' code. Accepted by the owner on
+  2026-10-18, in chat on a decision card, from the Test review of #183 T2
+  (adversarial-lens F3).
 - **R7. Teams are blocked, not protected.** A teammate's text is data and
   their pull requests never run locally. There is no setting for trusted
   accounts yet (#180).
@@ -963,15 +975,20 @@ it trusts the `gh` and environment it is given (R10, R14).
   parent's stops with one fixed line naming the check, and nothing it read.
 - **The runner.** gh runs with the host pinned, its debug variables removed,
   from a new empty folder, with no shell. Of the `user` record only the login
-  is kept, and gh's own output is never printed.
+  is kept, gh's error output is never printed, and only parsed records reach
+  the output.
 - **The output.** Every body is an escaped JSON string, with control,
   separator and format characters escaped, so no body can start a line. The
-  verdict is taken only from the SUMMARY line.
+  verdict is taken only from the SUMMARY line, which names an insiders' pull
+  request with the head commit it was judged at, the one to check out. The
+  owner's unsubmitted review is left out.
 - **What it can't see.** An edit in the same second as its comment. Whether a
-  review comment is hidden: REST carries no flag for it, so the checker says
-  `null`, and the session summarises it. Commit logins come from the commit's
-  email, so an unsigned commit can be attributed to you, in the GraphQL read
-  too.
+  review or review comment is hidden: REST carries no flag for them, so the
+  checker says `null`, and the session summarises them. Whether the label
+  events list is whole: it has no count to check against. Commit logins come
+  from the commit's email (R39). A pull request with more than 100 reviews
+  always stops, so anyone who can review it can block its read for good;
+  the read fails safe.
 
 ## What you may tweak, and what it costs
 

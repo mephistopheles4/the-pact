@@ -15,7 +15,7 @@ Two changes to this repo's tracker rule, "Whose text counts" in `docs/agents/iss
 ## What stays
 
 - **The checker is not part of the install gate.** ADR 0069's "install mechanics only" is about the install gate. The checker sits in `gate/` because its checks are code with bad cases, as the gate's are; the install stages it with the rest of `gate/`, hashes it into the manifest, and never runs it.
-- **Outsiders' code.** Under REST, as under GraphQL, a PR is insiders' code only when the owner's account opened it from this repo and every commit's author and committer is the owner's. Commits made in cloud threads show `claude`, so such a PR stays outsiders' code.
+- **Outsiders' code.** Under REST, as under GraphQL, a PR is insiders' code only when the owner's account opened it from this repo and every commit's author and committer is the owner's. Commits made in cloud threads show `claude`, so such a PR stays outsiders' code. The checker's SUMMARY names an insiders' PR with the head commit it judged, and that is the commit a session checks out (the owner's word at the Test review). A commit is credited by its email, not a signature; the owner accepts that as R39 in the threat model.
 - **Everything else in "Whose text counts":** the "Owner decision, from chat" mark, quoted blocks, restated text, hidden comments summarised, and a failed or empty read counting for nothing. Any checker exit other than 0, or a missing `RESULT: pass`, is a failed read.
 
 ## What was weighed
@@ -23,6 +23,8 @@ Two changes to this repo's tracker rule, "Whose text counts" in `docs/agents/iss
 - **A REST form inside the doc, as shell or PowerShell.** Not taken: each check would be prose a session follows by hand, with no bad case seen to fail.
 - **The GitHub MCP tools as the read.** Not taken (D1): they carry no hidden flag and list no label events.
 - **Checking the token's login against `mephistopheles4`.** Removed by the owner, as above.
+- **Requiring signed commits for insiders' code.** Not taken (the owner, at the Test review): the owner's commits are unsigned, so every PR of theirs would read as outsiders' code.
+- **Dropping the 100-review cap.** Not taken: a review flood can block a PR's read for good, but the read fails safe, and the cap needs no spec change.
 - **A review's or review comment's hidden flag.** REST carries none, so the checker gives `null`, and the doc says to summarise any record whose `hidden` isn't `false` (the owner's choice at Build for review comments, 2026-10-18; reviews follow it after the Test review).
 
 Amends [ADR 0062](0062-this-repo-keeps-its-own-tracker-rule.md) and [ADR 0075](0075-agents-md-holds-only-what-every-session-needs.md), whose token part said nothing counts until the owner confirms the login.
