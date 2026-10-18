@@ -49,7 +49,8 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 - **A run passes only when it exits 0 and its last line is the runner's
   result line ending in `pass`.** An exit 0 with no result line is not a pass.
 - **Run the tests on the current Node LTS** (Node 24, "Krypton", as of
-  2026-10-08); `volta install node@24` gets it. The install needs it too.
+  2026-10-08); `mise use -g node@24` gets it (ADR 0087). The install needs
+  it too.
   The Linux run in a container (#96) is in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs `full`
   on Node 24.
