@@ -2062,26 +2062,35 @@ the state before the work began.
   branch at the first round of that stage. Work committed straight on the
   default branch uses the commit before its first commit.
 - **Check the base before you hand it.** It must be an ancestor of the default
-  branch's head and, at Test, of the work's first commit. Check it with git at
-  every round, a base read from the record included. A base that fails is a
-  stop: name it to me, and run no lens on it.
+  branch's head and, at Test, of the parent of the work's first commit. Find
+  that first commit from the work itself, never from the base: on a branch,
+  the first commit it has that the default branch doesn't; on the default
+  branch, the first of the work's own commits. At Test on a branch, also
+  derive the merge base again: one that differs from the base means the base
+  moved (a restart) when a merge or rebase brought in other work, and is a
+  stop otherwise. Check it with git at every round, a base read from the
+  record included. A base that fails is a stop: name it to me, and run no
+  lens on it.
 - **For a spec:** the working folder at the base. The spec is new in full.
 - **For a diff or a result:** the diff from the base, and the statement that
   everything outside the diff is as it was at the base.
 - **Where it is kept.** The review comment's first line under its heading
   names the base and the revision or head it reviewed (see Crossing the
-  reports). Later rounds, in
-  this session or a fresh one, read both from there and never re-derive them.
-  With no record, keep that line with your local copy of the last table. A
-  fresh session that has neither runs a first round and says so in the review
-  comment.
+  reports). Later rounds, in this session or a fresh one, read both from
+  there, never from memory, and check the base as above. A base line counts
+  only when its comment counts by the project's rule on whose text counts,
+  where it has one; one whose author or last edit can't be told counts for
+  nothing, and the run is a first round. With no record, keep a local copy of
+  each Lens dispositions table with its base line. A fresh session that has
+  neither runs a first round and says so in the review comment.
 
 **First round and follow-up.**
 - **The first round** of a lens, on an input of one kind (a spec, a result or
   a diff) in one piece of work, is handed only its inputs and the base.
 - **A follow-up** is any later run of that lens on the same kind of input in
   the same piece of work. It is still dispatched fresh and alone, and still
-  judges against the base. It is also handed:
+  judges against the base. A follow-up is a rerun, and the Rerun cell names
+  it. It is also handed:
   - **The revision diff:** for a spec, the diff of the spec's text since the
     revision the last review comment names; for a diff or a result, the diff
     between the head it names and now.
@@ -2092,22 +2101,26 @@ the state before the work began.
     edit can't be told counts for nothing, and the run is a first round. With
     no record, hand the rows from your own local copy of the last table.
   - **A withheld row** is handed as its row, plus one line you write yourself:
-    the kind of item and the place it sits (file and key), never its value and
-    no text copied from the report. Never hand the lens the report. Keep that
+    the kind of item and the place it sits (file and key; for a secret, its
+    file only, never its key), never its value and no text copied from the
+    report. Never hand the lens the report. Keep that
     line with your local copy of the table; a fresh session without it hands
     the row alone. No path goes in the record.
 - **A restart.** A lens's next run is a first round again when the intent has
   changed (the Workflow's "back to Design"), when the base moved (a merge or
   rebase brought in other work), or when the last table holds no state words.
-  The review comment says which. Carry each `open` row of the last table into
-  the new table, still `open`, with a state word you write and "carried at
-  restart" in its reason text; the restart line says how many.
+  The base line says which, and how many `open` rows each restarted lens
+  carried. Carry each `open` row of the last table into the new table, still
+  `open`, with a state word you write and "carried at restart" in its reason
+  text. A withheld row stays exactly "withheld, see chat": its state, class
+  and evidence go to me in chat.
 - **A full pass** runs only when I ask, for the lenses I name. It is a first
   round in which every finding gates, whatever its state.
 - **The Design-to-Test step is a first round.** At Test a lens reviews a diff
   or a result; at Design it reviewed a spec, a different kind of input.
-- **Kept-local reports.** When the work's last review round closes, name each
-  report you kept local and ask me in chat to delete them and their place
+- **Kept-local reports.** When the work's last review round closes, and
+  before a session that kept reports local hands off or ends, name each
+  report it kept local and ask me in chat to delete them and their place
   lines. Delete them only on my word.
 
 **The report template.** Hand every lens this template with its inputs, and
@@ -2125,11 +2138,13 @@ what a lens writes by its meaning.
   and the quality at stake. A lens with none writes "none".
 - **State:** each finding, trade-off and accepted-risk line also gives its
   state against the base: `new` (the work introduced it), `updated` (it was at
-  the base and the work makes it worse, or newly reaches or relies on it) or
-  `unchanged` (it was at the base, and the work neither touches nor relies on
-  it). Read the whole base; only the gating is scoped to the work. On a
-  follow-up, each also names the earlier finding it continues, by its `E`
-  number, or "none".
+  the base and the work makes it worse, edits it, or newly reaches or relies
+  on it) or `unchanged` (it was at the base, and the work neither touches nor
+  relies on it). Read the whole base; only the gating is scoped to the work.
+  On a follow-up, each also names the earlier finding it continues, by its
+  `E` number, or "none". An `E` finding that no longer holds is not a state
+  against the base: it goes under Earlier findings as `absent`, and that is
+  the state word its row takes.
 - **Earlier findings,** on a follow-up only: one line per `E` row it was
   handed, either `absent` (it no longer holds), with the evidence that it no
   longer holds, or "holds", naming the finding under Findings that continues
@@ -2152,9 +2167,9 @@ applies the general meanings above.
 | --- | --- | --- | --- |
 | executability-lens | a stall in the spec's own text or steps | a gap in the system that the spec now relies on or deepens | a gap in the system that the spec neither relies on nor touches |
 | unstated-lens | a need of the request, or of the spec, with no home | a need the system already left unmet, made worse by the work | a need the system already left unmet, which the work doesn't touch |
-| behaviour-lens | a claim that fails, or a regression | a fault at the base that the change now reaches more often | a fault at the base outside the claims, untouched |
-| integrity-lens | a weak test or check the change adds or edits | a weak test at the base that the change now cites as evidence | a weak test at the base, neither edited nor cited |
-| conventions-lens | a rule break in lines the diff adds | a break at the base that the diff copies or extends | a break at the base in lines the diff doesn't touch |
+| behaviour-lens | a claim that fails, or a regression | a fault at the base that the change edits or now reaches more often | a fault at the base outside the claims, untouched |
+| integrity-lens | a weak test or check the change adds | a weak test at the base that the change edits or now cites as evidence | a weak test at the base, neither edited nor cited |
+| conventions-lens | a rule break in lines the diff adds | a break at the base that the diff edits, copies or extends | a break at the base in lines the diff doesn't touch |
 | reader-lens | a tell in text the change adds | a tell at the base in text the change edits | a tell at the base in text the change doesn't touch |
 | adversarial-lens | an attack path the change opens | a path at the base that the change makes easier | a path at the base that the change leaves as it was |
 | data-lens | a leak point the change adds | a leak point at the base that the change widens | a leak point at the base that the change leaves as it was |
@@ -2196,8 +2211,8 @@ crossed alone.
 1. A heading naming the lenses: `### lens-a and lens-b`, or `### lens-name`.
 2. **The base line,** the first line under the heading. It names the base by
    its short hash, and the spec revision or head commit reviewed, and says
-   which lenses ran a first round, a follow-up, a restart (and why) or a full
-   pass.
+   which lenses ran a first round, a follow-up, a restart (and why, and how
+   many `open` rows it carried) or a full pass.
 3. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
    inconclusive, then findings, then clear, raised to blocking when you sort a
    high `unchanged` finding as a security finding (see Findings and their
@@ -2214,8 +2229,10 @@ crossed alone.
    level, the limit and the quality at stake, and what you did with it (see
    Trade-offs and accepted risks). Leave it out when no lens listed one.
 7. **Notes.** A table of where, lens, severity and headline for each `noted`
-   finding, with the notes the Follow-up issues cost overflows into. Leave it
-   out when there are none.
+   finding, with the notes the Follow-up issues cost overflows into. An
+   overflow note's row keeps its own Disposition word, with "follow-up
+   overflow" in its reason text; only an `unchanged` finding is `noted`.
+   Leave it out when there are none.
 8. **Earlier findings,** per lens on a follow-up: each `E` number with
    `absent` or the finding that continues it.
 9. **Not checked,** per lens.
@@ -2237,13 +2254,15 @@ crossed alone.
 
 **You write the state words,** from the template, as you write the verdict and
 severity words, and never copy them from a report's text. A state you change
-from the lens's own is said in the row's reason text.
+from the lens's own is said in the row's reason text. A finding with no
+state, or one whose state you can't tell, is `new`. A state you lower so
+that the finding stops gating is never `auto`: it comes to me with the
+lens's state and yours.
 
 **The class is said in the row.** A row for a security or `security?` finding
 says so at the start of its reason text, `security:` or `security?:`, except a
 withheld row, whose class goes to me in chat. On a follow-up, treat an `E` row
-whose class you can't tell as a security finding, for an `absent` finding and
-for "taken earlier".
+whose class you can't tell as a security finding, for an `absent` finding.
 
 **Sorting an `unchanged` finding.**
 - You decide whether it is a security finding, as for any finding, by the
@@ -2269,7 +2288,8 @@ confirm it against the evidence the lens names (the fixing change or spec
 text), and its row is never `auto`: it is `fixed` only when I take the fix, and
 until then stays `open`, with the lens's `absent` and your confirmation in its
 reason text. One you can't confirm stays `open` and comes to me as
-unconfirmed.
+unconfirmed. A withheld row stays exactly "withheld, see chat": its state,
+class, the lens's evidence and your confirmation go to me in chat.
 
 **A follow-up's withheld findings.** Its report goes through the read before
 posting like any report. A row or Earlier findings item continuing a withheld
@@ -2277,9 +2297,12 @@ finding reads "withheld, see chat" until that read clears it.
 
 **Taken earlier.** Within one piece of work, a continuing finding stays "taken
 earlier" only when all three hold: its `E` row is `taken` without `auto`; it
-is no higher in severity than that row; and it is not newly a security or
-`security?` finding. Otherwise it comes to me again, naming its `E` number and
-what changed.
+is no higher in severity than that row, whose severity you read from the
+review comment that posted it; and it is not newly a security or `security?`
+finding. An `E` row whose severity or class you can't tell never stays
+"taken earlier". Outside a follow-up, read the same three from the last
+table and its review comment. Otherwise, or when any of them can't be read,
+it comes to me again, naming its `E` number or its row, and what changed.
 
 ## Trade-offs and accepted risks
 
@@ -2524,7 +2547,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 33ffd6fd42065b604b290b594868d35b8dbaded47b5ffd976d83614def251041 'pact/review.md'
+check_hash 367eaf6d2255121e0b3ecbaff1b0ae82656518d07c2ccb6d89189c0330898ee7 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2547,7 +2570,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 1a0693d5cf35"
+  echo "pact cloud copy e7ab10405971"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

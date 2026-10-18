@@ -15,6 +15,11 @@
 - **`poster-prose.test.mjs` takes the lead word too.** The spec named only `poster-table.test.mjs`, but the prose test posts a Lens dispositions table, so its rows needed the same lead word and column move. No expected rule list changed, so it isn't one of the spec's stops; the QA pair reads it at Test.
 - **Within a row, `table/state` is named first,** at the Finding cell, before the Lens and Disposition cells' refusals, so refusals read left to right.
 
+## Changed at Test
+
+- **The Test review** (all seven lenses, under the installed rules, on the owner's word) found nothing high. C10 was not met: one medium path each under V2 ("taken earlier" couldn't judge severity and failed open on an unknown class) and V8 (the base line was read with no author test, and git counts a commit as its own ancestor). Five mechanical findings were fixed on the session's call.
+- **The owner took every pick,** and the spec was amended: the base is checked against the parent of the work's first commit, found from the work itself, and a base line counts only from a comment that counts; "taken earlier" reads severity from the review comment and fails closed; a withheld row never takes a state word, and the poster refuses one before the withheld text, with three more bad cases in the C4 test (seen to fail first); a secret's place line names its file only; kept-local reports are named for deletion at every hand-off; a missing state is `new`, and a lowered one goes to the owner; plus wording for `updated`, `absent`, restarts, overflow notes and the Rerun cell. Tests stay `+3 −0`.
+
 ## Decisions
 
 - [ADR 0090](../adr/0090-lens-findings-carry-their-state-against-the-base.md) — Lens findings carry their state against the base.
@@ -35,3 +40,10 @@
 - [Spec amended at sign-off: C10](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253604935)
 - [Lens dispositions, final: the owner accepted every open row](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253605302)
 - [Ticket cut](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253685001)
+- [Build state, at the Build-to-Test boundary](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6253849726)
+- [Test review: the QA pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254073725)
+- [Test review: unstated-lens](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254074071)
+- [Test review: the standards pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254074460)
+- [Test review: the security pair](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254074863)
+- [Test review: Lens dispositions](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254075227)
+- [Spec amended after the Test review](https://github.com/mephistopheles4/the-pact/issues/336#issuecomment-6254188375)

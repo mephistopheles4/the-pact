@@ -186,7 +186,7 @@ nothing sent.
 | `table/disposition` | A Disposition cell doesn't start with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted` |
 | `table/skipped` | `skipped` isn't followed by `, because` |
 | `table/auto` | ` (auto` isn't followed by `:`, `)` or `, reversed` |
-| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat` |
+| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or a state word comes before `withheld, see chat` |
 | `text/hard-wrap` | A prose line stops mid-sentence and the next line continues the same paragraph, list item or quote |
 | `link/relative` | A link's target has no scheme and isn't an anchor on the same page |
 

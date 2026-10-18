@@ -198,10 +198,10 @@ test('each refusal names its line and column, and a rule broken twice is named t
   ]);
 });
 
-// #336 C4: a read row's Finding cell starts with a state word, or is exactly the withheld text; a refusal names the cell's place, never its text.
+// #336 C4: a read row's Finding cell starts with a state word, or is exactly the withheld text, which takes no state word; a refusal names the cell's place, never its text.
 test('a Finding cell without a state word is refused as table/state at its column, and a skipped row\'s Finding cell is not read', t => {
   const row = finding => body(LABEL, '', HEADER, SEP, `| ${finding} | b | fixed | c |`);
-  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`]) {
+  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat']) {
     const r = runBody({ 'body.md': row(finding) }, t);
     refusedQuietly(r);
     assert.deepEqual(r.real.lines, ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);

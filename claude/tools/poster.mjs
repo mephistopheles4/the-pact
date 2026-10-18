@@ -676,8 +676,9 @@ function dispositionRules(cell) {
  * header cell reads `Disposition`, ignoring case and `**`, under an earlier
  * line naming "Lens dispositions". A header other than the template's is
  * refused, and its rows are not read. A Finding cell must start with a state
- * word, unless the row is `skipped` or the cell is exactly the withheld text
- * (#336). It reads nothing else: not the reason text, not a `skipped` row's
+ * word, unless the row is `skipped` or the cell is exactly the withheld text,
+ * and a cell holding the withheld text takes no state word (#336). It reads
+ * nothing else: not the reason text, not a `skipped` row's
  * Finding cell, not the Rerun cell, and no other table.
  * `where` names the line and column, never a cell. One pass over the lines,
  * with no pattern that can backtrack without bound.
@@ -733,7 +734,9 @@ export function tableCheck(body) {
       continue;
     }
     const finding = cells[0].text;
-    if (leadWord(DISPOSITIONS.words, cells[2].text) !== 'skipped' && finding !== WITHHELD && leadWord(DISPOSITIONS.states, finding) === undefined) refuse(TABLE.state, cells[0].col);
+    const state = leadWord(DISPOSITIONS.states, finding);
+    // A withheld row takes no state word: one there would tell readers whether the held-back item is at the base.
+    if (leadWord(DISPOSITIONS.words, cells[2].text) !== 'skipped' && finding !== WITHHELD && (state === undefined || finding.includes(WITHHELD))) refuse(TABLE.state, cells[0].col);
     if (cells[1].text === '') refuse(TABLE.cells, cells[1].col);
     for (const rule of dispositionRules(cells[2].text)) refuse(rule, cells[2].col);
   }
