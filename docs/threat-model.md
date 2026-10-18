@@ -86,17 +86,19 @@ classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 
 **Crypto.** The pact holds no secret, key or signature, and encrypts nothing.
 It uses hashes only to detect change, never to authenticate, apart from the
-builder page's policy hashes. It uses them in four places. Git's SHA-1 object
-ids: the install checks that the commit and each file it reads are the
+builder page's policy hashes. It uses them in four main places. Git's SHA-1
+object ids: the install checks that the commit and each file it reads are the
 commit's own bytes, and an apply is bound to that commit. SHA-256 checks: the
 install record holds each file's hash to find drift, the cloud setup script
 checks each file it writes, and its generator checks what it takes from the
-install. The apply binding: when a configuration applies, an apply is also bound to the
-rendered hash its dry run printed. A session that can write the files can
-write the install record too (R14), and the binding holds the clone and the
-render, not your sight of them (R22). The builder page's policy hashes: its
-content security policy names the SHA-256 of its inline script and style,
-and the browser runs only those. The atomic writer takes random bytes only to
+install. The apply binding: when a configuration applies, an apply is also
+bound to the rendered hash its dry run printed. A session that can write the
+files can write the install record too (R14), and the binding holds the clone
+and the render, not your sight of them (R22). The builder page's policy
+hashes: its content security policy names the SHA-256 of its inline script
+and style, and the browser runs only those. Others, among them the install's
+internal hand-offs, the project install's rules file and record, and CI's
+actions pinned to full commit ids, use hashes the same way. The atomic writer takes random bytes only to
 name a temporary file. Transport is git's and GitHub's, outside this page. A
 change that adds a secret, key, signature or encryption step is new scope,
 and sensitive work under the default.
