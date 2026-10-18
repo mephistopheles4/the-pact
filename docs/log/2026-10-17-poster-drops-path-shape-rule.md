@@ -17,4 +17,4 @@
 ## Record
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/326)
-- [The owner's tier and the accepted risk](https://github.com/mephistopheles4/the-pact/issues/326#issuecomment-6243713061)
+- [The tier and the declined sensitive route](https://github.com/mephistopheles4/the-pact/issues/326#issuecomment-6243713061); the owner accepted the risk in the issue body
