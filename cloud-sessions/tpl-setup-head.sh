@@ -129,6 +129,123 @@ clone_and_copy() {
   rm -rf "$tmp"
 }
 
+# Node 24 (#183, ADR 0088). A pinned, hash-checked mise installs the pinned
+# Node against a lockfile hash, and the installed binary is checked too. Only
+# when every check passes do wrappers for node, npm and npx in /root/.local/bin
+# put it ahead of the image's Node; any failure leaves none, so the image's
+# Node stays, and the Result section turns the marker INCOMPLETE with the
+# reason. The pins are plain assignments, so setup's environment can't
+# replace one. Every fetch runs with the GitHub token variables unset.
+echo "== Node"
+__CLOUD_PINS__
+NODE_FAILED=
+MISE_OK=0
+MISE_BIN=/root/.local/bin/mise
+MISE_CONF=/root/.config/mise
+NODE_HOME="/root/.local/share/mise/installs/node/$NODE_VERSION"
+NODE_WRAPPER_TAG='# pact cloud node wrapper'
+NODE_TMP=""
+
+node_fail() { NODE_FAILED="$1"; echo "WARN: $2"; }
+sha256_of() { sha256sum "$1" 2>/dev/null | cut -d ' ' -f 1; }
+# Removes only the wrappers this block wrote, by their tag line.
+remove_node_wrappers() {
+  local w
+  for w in node npm npx; do
+    if grep -qxF "$NODE_WRAPPER_TAG" "/root/.local/bin/$w" 2>/dev/null; then rm -f "/root/.local/bin/$w"; fi
+  done
+}
+
+if [ "$(uname -m)" != "x86_64" ]; then
+  node_fail arch "Node $NODE_VERSION skipped: this machine is $(uname -m), and the pins are for x86_64"
+fi
+if [ -z "$NODE_FAILED" ]; then
+  NODE_TMP="$(mktemp -d)"
+  if ! command -v curl >/dev/null 2>&1; then
+    node_fail download "curl not found; mise not downloaded"
+  elif ! env -u GH_TOKEN -u GITHUB_TOKEN $T curl -fsSL --proto '=https' --tlsv1.2 -o "$NODE_TMP/mise.tar.gz" \
+      "https://github.com/jdx/mise/releases/download/v$MISE_VERSION/mise-v$MISE_VERSION-linux-x64.tar.gz"; then
+    node_fail download "mise download failed"
+  fi
+fi
+# The archive's hash is checked before anything in it is unpacked.
+if [ -z "$NODE_FAILED" ]; then
+  if [ "$(sha256_of "$NODE_TMP/mise.tar.gz")" != "$MISE_SHA256" ]; then
+    rm -f "$NODE_TMP/mise.tar.gz"
+    node_fail hash "mise sha256 mismatch"
+  elif tar -xzf "$NODE_TMP/mise.tar.gz" -C "$NODE_TMP" mise/bin/mise \
+      && mkdir -p /root/.local/bin && install -m 0755 "$NODE_TMP/mise/bin/mise" "$MISE_BIN"; then
+    MISE_OK=1
+  else
+    node_fail install "mise could not be unpacked"
+  fi
+fi
+# paranoid: a project's mise.toml or .tool-versions is refused until someone
+# runs mise trust on it. lockfile: a reinstall of this Node checks its hash.
+if [ -z "$NODE_FAILED" ]; then
+  mkdir -p "$MISE_CONF"
+  cat > "$MISE_CONF/config.toml" <<MISE_CONFIG_EOF
+[settings]
+paranoid = true
+lockfile = true
+use_versions_host = false
+node.verify = true
+node.gpg_verify = true
+node.mirror_url = "https://nodejs.org/dist/"
+
+[tools]
+node = "$NODE_VERSION"
+MISE_CONFIG_EOF
+  if [ "$(cd "$NODE_TMP" && env -u GH_TOKEN -u GITHUB_TOKEN "$MISE_BIN" settings get paranoid 2>/dev/null)" != "true" ]; then
+    MISE_OK=0
+    node_fail config "mise does not report paranoid on"
+  fi
+fi
+# MISE_LOCKED refuses any tool not in the lockfile: safe mode outranks
+# paranoid and still reads tools from configs above the working folder.
+if [ -z "$NODE_FAILED" ]; then
+  cat > "$MISE_CONF/mise.lock" <<MISE_LOCK_EOF
+lockfile_version = 3
+
+[[tools.node]]
+version = "$NODE_VERSION"
+backend = "core:node"
+specifiers = ["$NODE_VERSION"]
+
+[tools.node."platforms.linux-x64"]
+checksum = "sha256:$NODE_TAR_SHA256"
+url = "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz"
+MISE_LOCK_EOF
+  if ! (cd "$NODE_TMP" && env -u GH_TOKEN -u GITHUB_TOKEN MISE_SAFE=1 MISE_LOCKED=1 $T "$MISE_BIN" install) >"$NODE_TMP/install.log" 2>&1; then
+    tail -n 5 "$NODE_TMP/install.log" | sed 's/^/  /'
+    if grep -qi 'checksum' "$NODE_TMP/install.log"; then
+      node_fail hash "Node archive sha256 mismatch"
+    else
+      node_fail install "mise install of Node $NODE_VERSION failed"
+    fi
+  fi
+fi
+if [ -z "$NODE_FAILED" ] && [ "$(sha256_of "$NODE_HOME/bin/node")" != "$NODE_BIN_SHA256" ]; then
+  rm -rf "$NODE_HOME"
+  node_fail hash "node binary sha256 mismatch"
+fi
+# The wrappers point straight at the pinned install, not mise's shims, which
+# refuse in a folder holding an untrusted mise config.
+if [ -z "$NODE_FAILED" ]; then
+  for w in node npm npx; do
+    printf '#!/bin/sh\n%s\nexec "%s" "$@"\n' "$NODE_WRAPPER_TAG" "$NODE_HOME/bin/$w" > "/root/.local/bin/$w" \
+      && chmod 0755 "/root/.local/bin/$w" || node_fail install "could not write the $w wrapper"
+  done
+fi
+if [ -n "$NODE_FAILED" ]; then
+  remove_node_wrappers
+  [ "$MISE_OK" = "1" ] || rm -f "$MISE_BIN"
+else
+  export PATH="/root/.local/bin:$PATH"
+  echo "ok: node, npm and npx run Node $NODE_VERSION"
+fi
+[ -n "$NODE_TMP" ] && rm -rf "$NODE_TMP"
+
 echo "== Skills"
 REPOS="$(for e in "${SKILLS[@]}"; do echo "${e%% *}"; done | sort -u)"
 for repo in $REPOS; do

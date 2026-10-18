@@ -15,6 +15,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import {
   CLOUD_COMMANDS,
+  CLOUD_PINS,
   CLOUD_TOOLS,
   CONFIG_DELIM,
   CloudRefusal,
@@ -249,7 +250,7 @@ test('cloud copy: a rules file seam A refuses fails the generator', t => {
 
 // A small setup head stands in for the real one, so these cases don't depend
 // on its skills list; the other three templates are the real ones.
-const HEAD = '#!/usr/bin/env bash\nset -u\nSKILLS=()\npresent() { :; }\n';
+const HEAD = '#!/usr/bin/env bash\nset -u\n__CLOUD_PINS__\nSKILLS=()\npresent() { :; }\n';
 /** The three real templates beside the stand-in head. */
 const TPL = () => Object.fromEntries(['configHead', 'configTail', 'setupTail'].map(k => [k, repoText(`cloud-sessions/${TEMPLATES[k]}`)]));
 const OVERLAY = '{\n  "permissions": {\n    "defaultMode": "auto"\n  }\n}\n';
@@ -263,6 +264,7 @@ function inputs(change = {}) {
     ],
     overlay: change.overlay ?? OVERLAY,
     templates,
+    pins: 'pins' in change ? change.pins : CLOUD_PINS,
   };
 }
 
@@ -311,6 +313,33 @@ for (const dest of ['agents/$(id).md', "agents/a'b.md", 'agents/a b.md', '../x.m
     refuses(() => assemble(inputs({ files: [{ dest, buf: Buffer.from('x\n') }] })), 'cloud/form');
   });
 }
+
+// #183 C6: a pin reaches the root script only in its own shape, as one plain
+// assignment that setup's environment can't replace.
+test('cloud copy: a malformed pin, a pin written twice or a defaulted pin is refused', () => {
+  const hash = CLOUD_PINS.MISE_SHA256;
+  for (const pins of [
+    { ...CLOUD_PINS, MISE_SHA256: hash.slice(1) },
+    { ...CLOUD_PINS, NODE_BIN_SHA256: `${hash}0` },
+    { ...CLOUD_PINS, NODE_TAR_SHA256: hash.toUpperCase() },
+    { ...CLOUD_PINS, NODE_VERSION: '24.22.0;id' },
+    { ...CLOUD_PINS, MISE_VERSION: '$(id)' },
+    { ...CLOUD_PINS, NODE_VERSION: '24.22.0\nid' },
+    { ...CLOUD_PINS, NODE_TAR_SHA256: `${hash}\n` },
+    { ...CLOUD_PINS, MISE_VERSION: undefined },
+    { ...CLOUD_PINS, EXTRA_PIN: '1.0.0' },
+  ]) {
+    refuses(() => assemble(inputs({ pins })), 'cloud/pin');
+  }
+  refuses(() => assemble(inputs({ pins: null })), 'cloud/pin');
+  const head = extra => ({ templates: { setupHead: HEAD.replace('__CLOUD_PINS__\n', `__CLOUD_PINS__\n${extra}\n`) } });
+  assert.ok(assemble(inputs(head('echo "$MISE_SHA256"'))).setup, 'a plain use of a pin is fine');
+  refuses(() => assemble(inputs(head(`MISE_SHA256="\${MISE_SHA256:-${hash}}"`))), 'cloud/pin');
+  refuses(() => assemble(inputs(head('echo "${NODE_VERSION:-24}"'))), 'cloud/pin');
+  refuses(() => assemble(inputs(head('NODE_BIN_SHA256=0'))), 'cloud/pin');
+  refuses(() => assemble(inputs(head(`# ${hash}`))), 'cloud/pin');
+  refuses(() => assemble(inputs({ templates: { setupHead: HEAD.replace('__CLOUD_PINS__\n', '') } })), 'cloud/form');
+});
 
 // #261 C11
 test('cloud copy: a direction-changing character in the rules body is refused', () => {
@@ -412,14 +441,20 @@ test('cloud copy: the Result section prints the marker only on a full, hash-matc
   // silently. The owner's first cloud setup log is the run.
   const tail = repoText(`cloud-sessions/${TEMPLATES.setupTail}`);
   const lines = tail.split('\n');
-  const at = lines.indexOf('if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ]; then');
+  const at = lines.indexOf('if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then');
   assert.ok(at > 0, 'the marker condition, word for word');
   assert.deepEqual(lines.slice(at + 1, at + 5), [
     '  echo "pact cloud copy __PACT_CLOUD_MARKER__"',
     'else',
-    '  echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches)"',
+    '  echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"',
     'fi',
   ]);
+  // #183: the Node check runs the wrapper by path, and only a wrong version
+  // adds a reason here; the head's block sets every other one.
+  const nodeAt = lines.indexOf('NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"');
+  assert.ok(nodeAt > 0 && nodeAt < at, 'the Node check, by path, before the marker');
+  assert.deepEqual(lines.filter(l => /NODE_FAILED=/.test(l)), ['  NODE_FAILED=version']);
+  assert.ok(lines.indexOf('if [ -z "${NODE_FAILED:-}" ] && [ "$NODE_SEEN" != "v$NODE_VERSION" ]; then') > nodeAt);
   assert.equal(tail.split('pact cloud copy __PACT_CLOUD_MARKER__').length, 2, 'the marker prints in one place');
   // HASH_FAILED counts every mismatch, and nothing resets it after the checks.
   assert.match(tail, /^ {4}echo "HASH MISMATCH: ~\/\.claude\/\$rel"; HASH_FAILED=\$\(\(HASH_FAILED \+ 1\)\)$/m);
@@ -430,6 +465,41 @@ test('cloud copy: the Result section prints the marker only on a full, hash-matc
   for (const t of [...Object.values(TEMPLATES)].map(n => repoText(`cloud-sessions/${n}`))) {
     assert.doesNotMatch(t, /set -x|printenv|\benv\b *$/m);
   }
+});
+
+// #183 C6, C3: read, not run, as above. The Node block's hand checks are in
+// the test driver; this holds the order of its checks.
+test('cloud copy: the Node block checks every pin before anything runs or lands on the PATH', () => {
+  const setup = repoText(OUTPUTS.setup);
+  for (const [k, v] of Object.entries(CLOUD_PINS)) {
+    assert.equal(setup.split(v).length, 2, `${k} appears once`);
+    assert.match(setup, new RegExp(`^${k}=${v.replace(/[.]/g, '\\.')}$`, 'm'), `${k} is a plain assignment`);
+  }
+  const block = setup.slice(setup.indexOf('echo "== Node"'), setup.indexOf('echo "== Skills"'));
+  assert.ok(block.length > 0 && setup.indexOf('echo "== Node"') < setup.indexOf('echo "== Skills"'), 'the block runs before the skills step');
+  const at = needle => {
+    const i = block.indexOf(needle);
+    assert.ok(i >= 0, `the block holds: ${needle}`);
+    return i;
+  };
+  const arch = at('if [ "$(uname -m)" != "x86_64" ]; then');
+  const curl = at(`env -u GH_TOKEN -u GITHUB_TOKEN $T curl -fsSL --proto '=https' --tlsv1.2 `);
+  const miseHash = at('!= "$MISE_SHA256" ]; then');
+  const untar = at('tar -xzf ');
+  const paranoid = at('paranoid = true');
+  const asked = at('"$MISE_BIN" settings get paranoid');
+  const lock = at('checksum = "sha256:$NODE_TAR_SHA256"');
+  const install = at('env -u GH_TOKEN -u GITHUB_TOKEN MISE_SAFE=1 MISE_LOCKED=1 $T "$MISE_BIN" install');
+  const binHash = at('!= "$NODE_BIN_SHA256" ]; then');
+  const wrappers = at('"$NODE_WRAPPER_TAG" "$NODE_HOME/bin/$w" > "/root/.local/bin/$w"');
+  assert.ok(arch < curl && curl < miseHash && miseHash < untar, 'arch, download, then the hash before unpacking');
+  assert.ok(untar < paranoid && paranoid < asked && asked < lock && lock < install && install < binHash, 'config, lockfile, install, then the binary');
+  assert.ok(binHash < wrappers, 'wrappers only after every check');
+  assert.ok(block.slice(binHash, wrappers).includes('if [ -z "$NODE_FAILED" ]; then'), 'wrappers only when no check failed');
+  for (const l of block.split('\n').filter(l => /\bcurl -|"\$MISE_BIN" (?!settings)/.test(l))) {
+    assert.match(l, /env -u GH_TOKEN -u GITHUB_TOKEN /, `a fetch without the tokens: ${l}`);
+  }
+  for (const setting of ['lockfile = true', 'use_versions_host = false', 'node.verify = true', 'node.gpg_verify = true', 'node.mirror_url = "https://nodejs.org/dist/"']) at(setting);
 });
 
 test('cloud copy: the templates are the four the generator reads', () => {
