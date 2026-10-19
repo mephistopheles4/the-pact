@@ -1,5 +1,7 @@
 # Agent and rule changes are proved by review, not by probe
 
+Superseded in part by [ADR 0092](0092-gate-bad-cases-are-plain-test-loops.md) (2026-10-18): the table module it names is gone; the rows run as plain `test()` loops.
+
 A change to an agent or a rule never needs a planted probe or a security-set rerun. AGENTS.md's "Testing a change to an agent or a rule" now says:
 
 - **The old probe floor takes the security route instead.** The security pair reads the spec and the diff of a change to the risk floor, the security route, a gated clause, the protected set, a security-set lens, a non-lens agent with a shell or network tools or that guards the route or the floor, the tool allow-list or the settings guard.
