@@ -16,6 +16,7 @@
 - **Changed by D3, each because a config-less install now renders the default:** every config-less `--apply` in the install tests first takes the dry run's rendered hash (`applyBound`); the tests that expected `CONFIG none`, "no configuration" or the plain render on a home install now expect the default; the planted no-configuration rows plant a renderer with no default folder, so they still reach `CONFIG none`; the usage rows count the optional fourth argument.
 - **Ready for C9:** the page's reset and Save tests read what they expect from `builder/default-config/config.json`, and the default's dry-run test expects a `skills:` line exactly when the default names skills, so the preset's `skills` entry lands with no test change. Each still pins the content through the C3 and C4 tests.
 - **Since the lens review:** rows for the tightened skill-source shapes, the default folder's refusals and the 100-path boundary; the security-defaults line's changed-since check; Export's skill-sources line. Full tier at the head: 2249 tests, one failure, #333; with the C9 pin applied, the same.
+- **The owner's picks (chat, 2026-10-19):** C9 landed; the threat-model edits applied; executability-lens read the install path for Safety (one medium, two low, all text fixes). Windows full tier at 8dffabe: 2249 tests, 0 fail, #333 included (C10); install dry run pass, drift 0.
 - **Not run green here:** "a project holding the real home folder refuses" (#333) fails only in a cloud container, where home is `/root`.
 
 ## The first pin of `addyosmani/agent-skills`
@@ -27,3 +28,4 @@ Read in a cloud thread at commit `aeac41d4d005999432bb7312f7ff06383a91d59d`, an 
 - Spec revision 7 and its sign-off: #183, comment 6259891767.
 - The Test lens review, first round for all seven lenses at 969542d, with its Lens dispositions: #183, comments [6260628618](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260628618), [6260629093](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260629093) and [6260629617](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260629617).
 - PR #346.
+- The executability-lens review and the settled dispositions: #183, comment [6267526951](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6267526951).
