@@ -1,6 +1,6 @@
 // Pact tools in the gate (#280, T1): the renderer's tools key, its TOOLS line
 // and the poster's rule part, and seam A's tool kind and its --tools argument.
-// Each bad case is a table row that must fail with its exact rule ids. Every
+// Each bad case is a row that must fail with its exact rule ids. Every
 // seam A case plants its own tool file. Nothing here installs;
 // the install-tier tools file runs the install script.
 import assert from 'node:assert/strict';

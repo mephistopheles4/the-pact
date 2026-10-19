@@ -1,6 +1,6 @@
 // Pact commands in the gate (#203, T1): seam A's command kind and its
 // --commands argument, and the renderer's commands key and COMMANDS line.
-// Each bad case is a table row that must fail with its exact rule ids. Every
+// Each bad case is a row that must fail with its exact rule ids. Every
 // bad case plants its own command file; the shipped ones (#203, T2) are
 // checked at the end. Nothing here installs; commands-install.test.mjs runs
 // the install script.

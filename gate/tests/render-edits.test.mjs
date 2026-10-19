@@ -266,7 +266,7 @@ const withPath = path => withEdits([{ ...OK_EDIT, file: path }]);
 
 /**
  * The renderer on a home built from `tree`, in-process through its core
- * (#140, T10): the tables' runner. parity.test.mjs proves the core prints
+ * (#140, T10): the rows' runner. parity.test.mjs proves the core prints
  * what the wrapper the install runs prints. This file's fault cases stay
  * child runs through render(), since their preload patches the whole process.
  */

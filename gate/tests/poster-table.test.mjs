@@ -1,7 +1,7 @@
 // The Lens dispositions table check in the poster's pre-post scan (#285, T2
 // of #280). Every case runs the poster's post() in-process as a dry run, with
 // a gh that fails any call, so a refusal is seen to send nothing. Each bad
-// case is a table row, except the state-word cases (#336 C4), which share one
+// case is a row, except the state-word cases (#336 C4), which share one
 // test; the eleven recorded tables are fixtures, each reduced
 // to its label line and table with every unread cell a placeholder.
 import assert from 'node:assert/strict';

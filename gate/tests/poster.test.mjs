@@ -506,7 +506,7 @@ test('a verified post, a dry run, a refusal and an unavailable result print no N
   }
 });
 
-// ---------------------------------------------------------------- refusals: tables of planted cases, run as dry runs
+// ---------------------------------------------------------------- refusals: rows of planted cases, run as dry runs
 
 /** The poster's result in a row's shape: exit 2 and its result line read as a fail, a dry run as a pass. The real values stay on the result for everyRow. */
 function adapt(r, calls) {

@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { MODULES, childEnv, preloadRefusal, runCheck, runCore, stageGate } from './gate-run.mjs';
-import { REPO } from './text.mjs';
+import { REPO, assertFails, assertPasses, moduleResult } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -210,6 +210,21 @@ test('control: a render table on an unplanted staged core passes its base, its r
   const r = stateTable(t, false);
   assert.equal(r.status, 0, r.out);
   assert.deepEqual(Object.fromEntries(r.results), { 'shared state: base passes': 'ok', 'shared state: unknown-mark': 'ok', 'shared state: base passes after the rows': 'ok' }, r.out);
+
+  // #272 C12: each condition of the row and base assertions bites on its own,
+  // as tables.test.mjs's cases showed before the rows became plain loops.
+  const result = (code, ...lines) => moduleResult(code, `${lines.join('\n')}\n`);
+  assert.doesNotThrow(() => assertPasses(result(0, 'PASS x', 'RESULT: pass')));
+  assert.throws(() => assertPasses(result(1, 'RESULT: pass')), /RESULT: pass/, 'a base that exits 1');
+  assert.throws(() => assertPasses(result(0, 'PASS x', 'RESULT: fail')), /RESULT: fail/, 'a base whose last line is a fail');
+  assert.throws(() => assertPasses(result(0, 'FAIL x: planted', 'RESULT: pass')), /FAIL x/, 'a base that prints a FAIL line');
+  const fails = result(1, 'FAIL edit-mark: no such mark', 'RESULT: fail');
+  assert.doesNotThrow(() => assertFails(fails, ['edit-mark'], /no such mark/));
+  assert.throws(() => assertFails(result(0, 'FAIL edit-mark: no such mark', 'RESULT: fail'), ['edit-mark']), /AssertionError/, 'a row that exits 0');
+  assert.throws(() => assertFails(result(1, 'FAIL edit-mark: no such mark', 'RESULT: pass'), ['edit-mark']), /AssertionError/, 'a row whose last line is a pass');
+  assert.throws(() => assertFails(result(1, 'FAIL edit-mark: x', 'FAIL edit-file: y', 'RESULT: fail'), ['edit-mark']), /AssertionError/, 'a row that trips a second rule');
+  assert.throws(() => assertFails(result(1, 'FAIL edit-file: y', 'RESULT: fail'), ['edit-mark']), /AssertionError/, 'a row that trips one wrong rule');
+  assert.throws(() => assertFails(fails, ['edit-mark'], /another text/), /AssertionError/, 'a row whose says does not match');
 });
 
 test('bad case: the shared-state check catches a core that keeps a counter across calls: the base after the rows fails', t => {

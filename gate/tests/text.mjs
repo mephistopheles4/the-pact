@@ -56,13 +56,7 @@ export function lastLine(stdout) {
 
 /** A gate module's result from its exit code and output: the FAIL rule ids, the last line, and all of it for `says`. */
 export function moduleResult(code, stdout, stderr = '') {
-  const lines = stdout.split('\n').filter(l => l !== '');
-  return {
-    code,
-    fails: lines.filter(l => l.startsWith('FAIL ')).map(l => l.slice(5).split(':')[0]),
-    last: lines[lines.length - 1],
-    out: stdout + stderr,
-  };
+  return { code, fails: failRules(stdout), last: lastLine(stdout), out: stdout + stderr };
 }
 
 /** A base input's result passes: exit 0, `RESULT: pass` last, and no FAIL line. */

@@ -1,6 +1,6 @@
 // The Node install end to end (#153, T2): the bootstrap and the runner against
 // a throwaway repo and home, for what only a whole run can show. Each refusal
-// the install decides is a table row in install-core.test.mjs; these cases
+// the install decides is a row in install-core.test.mjs; these cases
 // cover the bootstrap's own controls and every install-io path.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

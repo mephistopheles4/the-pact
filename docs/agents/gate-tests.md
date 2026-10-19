@@ -77,9 +77,11 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 
 - **A bad case for a gate module is a row.** A set of rows has a base input
   that passes; a row is one plant on the base and the exact rule ids it must
-  fail with, written as `{ id, plant, fails, says?, why }` with its id as a
-  string literal. Run the rows with a plain loop over node's `test()`, with
-  one test of the base before them and one after:
+  fail with, written as `{ id, plant, fails, says?, why }` and nothing else:
+  at least one rule id in `fails`, a `why` for the reader, and its id as a
+  string literal, so a search for a failing test's name finds its row. Run the
+  rows with a plain loop over node's `test()`, with one test of the base
+  before them and one after, every test's name starting with the set's name:
 
   ```js
   {
@@ -92,12 +94,18 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   }
   ```
 
-  `assertPasses`, `assertFails` and `moduleResult` are in `text.mjs`. The
-  base passing, and each row differing from it only by its plant, proves a
-  row fails because of its plant; the base after the rows catches a row that
-  leaked state into the process. Keep the loop at the file's top level, never
-  in a branch or a function, where it may run nothing. No guard checks that
-  since #272: the review reads each new loop.
+  `assertPasses`, `assertFails` and `moduleResult` are in `text.mjs`.
+  `run` returns `{ code, fails, last, out }`, which `moduleResult` builds
+  from an exit code and the output. `base()` builds a new input on every
+  call, since nothing copies it before a plant. For an assertion every row
+  shares, such as "a refusal writes no file", define `everyRow(res, t)` in
+  the block and await it after `assertFails`. The base passing, and each row
+  differing from it only by its plant, proves a row fails because of its
+  plant; the base after the rows catches a row that leaked state into the
+  process. Keep the loop at the file's top level, never in a branch or a
+  function, where it may run nothing; the bare `{ }` block only gives each
+  set of rows its own `base`, `run` and `rows`. No guard checks the loop
+  or the row shape since #272: the review reads each new loop and row.
 - **How a case runs the module.** In-process, through its core: call
   `runCore` from [`gate/tests/gate-run.mjs`](../../gate/tests/gate-run.mjs), or
   `renderStage` and `runSeamA`, which use it. Keep a case a child run when it

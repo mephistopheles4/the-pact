@@ -1,5 +1,5 @@
 // The Node install's decisions (#153, T2), in-process: every refusal in
-// gate/install-core.mjs is a table row seen to fail with its rule id, beside a
+// gate/install-core.mjs is a row seen to fail with its rule id, beside a
 // base that passes. The rest are plain cases over the pure functions. Nothing
 // here installs; install-node.test.mjs runs the whole script.
 import assert from 'node:assert/strict';

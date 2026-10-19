@@ -3,7 +3,7 @@
 // child runs calls the core in-process with a fake gh, so no case reaches
 // GitHub. Records are synthetic: the owner here is a made-up login, and only
 // the repo's own slug is real, since the cross-repo check compares with it.
-// Each bad case is a table row or a test naming its claim, #183 C3 to C8 and
+// Each bad case is a row or a test naming its claim, #183 C3 to C8 and
 // C12.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
