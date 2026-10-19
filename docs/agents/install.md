@@ -49,13 +49,19 @@ how every session in every repo behaves. So:
   file against the bytes it checked and installed: the rendered bytes for the
   rules file, and the repo copy for every other file. It exits non-zero on a
   mismatch. Check that it exited zero.
+- **Read a backup by its manifest only.** Each apply backs up what it replaces
+  into `~/.claude/pact/backups/` (#272), and a backup can hold a copy of
+  `settings.json`. A session checks one only by reading its `manifest.json`
+  and comparing hashes with a hash command; it never opens a copy, and posts
+  only the verdict and counts. An undo is the owner's, by hand
+  ([Undo an apply](../install.md#undo-an-apply)).
 - **It deletes only pact files:** those the last manifest lists that the repo
   dropped. Your own agents and skills are never touched. An agent file the
   pact didn't write, or one changed since it wrote it, is yours: the dry run
   lists it under "Yours, left as is", and the install never overwrites,
   deletes or records it (#262). Delete your file to get the pact's back.
 - **Configuration.** With no `~/.claude/pact/config.json`, a home install
-  renders the pact's default from `builder/default-config/` (ADR 0093).
+  renders the pact's default from `builder/default-config/` (ADR 0094).
   The owner's settings live in `~/.claude/pact/config.json`
   (an example is [`examples/pact-config/config.json`](../../examples/pact-config/config.json)).
   Its edits to open parts take their text from block files in
@@ -205,3 +211,10 @@ it, and stop to ask the owner. Check first, because an older commit's own
 this check stands before one (the threat model's R22). From a commit that
 passes, check out exactly that id and run only `gate/install.mjs`, dry run
 first.
+
+Since #272 each apply keeps backups in `~/.claude/pact/backups/`:
+- **A rollback to a commit before #272** takes no backup and prunes none, so
+  copy what you want to keep first, and delete `pact/backups` by hand once
+  you are sure.
+- **An older installer never touches `pact/backups`** unless the install
+  record was rewritten to list a path there (the threat model's R14).

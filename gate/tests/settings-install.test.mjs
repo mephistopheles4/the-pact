@@ -44,7 +44,7 @@ test('--apply removes the retired ask rules, keeps the owner\'s own, sets auto m
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^settings\.json: unchanged$/m, again.out);
   // The pact's default's security-defaults line shows on every dry run with no configuration of your own (#183 T4a); no other warning does.
-  // ADR 0093: the only top-level warning left is the pact's default's own security-defaults line.
+  // ADR 0094: the only top-level warning left is the pact's default's own security-defaults line.
   const warns = again.stdout.split(/\r?\n/).filter(l => l.startsWith('WARN: '));
   assert.equal(warns.length, 1, again.out);
   assert.match(warns[0], /^WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration \(Level 3 · Full\) renders; it edits workflow, which changes the pact's security defaults; .* The default is unchanged since the last install\.$/, again.out);
@@ -63,7 +63,7 @@ test('a live file the merge cannot read draws a plain warning, and -Apply refuse
   assert.equal(readFileSync(join(h, 'settings.json'), 'utf8'), '[1]\n');
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('canary: the install never prints a live value, a live env name, a live permission entry or a live key value', t => {
   const C = 'CANARYlive';
   const repo = makeRepo(t);
@@ -108,7 +108,7 @@ test('bad case: a banned key in the committed overlay refuses, and -Apply change
   assert.throws(() => readFileSync(join(h, 'settings.json')));
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: an -Apply whose written settings lack the guard reports a mismatch and exits non-zero', t => {
   // The merge writes what settingsText returns (#153, S8); planted to write an empty object.
   const repo = makeRepo(t, root => {

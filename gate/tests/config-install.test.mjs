@@ -273,7 +273,7 @@ test('a record that names another configuration hash is stale: the dry run says 
   assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
 });
 
-// #183 C1: with no configuration of the person's, the pact's default renders (ADR 0093).
+// #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('after an install of the pact\'s default, the dry run says so, and a new file is "new since the last install"', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -327,7 +327,7 @@ test('bad case: -Apply with no hash refuses when a configuration applies', t => 
   nothingWritten(h);
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: -Apply with an empty hash refuses: a hash given is compared even when empty', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -351,7 +351,7 @@ test('bad case: a configuration that appears after a dry run of the pact\'s defa
   nothingWritten(h);
 });
 
-// #183 C1: with no configuration of the person's, the pact's default renders (ADR 0093).
+// #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('bad case: a configuration deleted after a configured dry run refuses -Apply given its hash', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -542,7 +542,7 @@ test('bad case: a relative -ClaudeHome refuses before anything runs, even after 
 
 // ------------------------------------------------------------ an upgrade from a slice-2 record, and the user file's edit guard
 
-// #183 C35: with no configuration of the person's, the pact's default renders (ADR 0093).
+// #183 C35: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('a record from before configurations (no config, no digest) reads as no configuration: a new file is "new since the last install"', t => {
   const repo = makeRepo(t);
   const h = home(t);

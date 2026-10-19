@@ -59,7 +59,7 @@ test('bad case: a project qualities list naming the retired lens draws a WARN in
   assert.ok(!r.out.includes(SENTINEL), 'a project value reached the dry run');
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a live agent file with the retired name, and no record, draws the fixed line in every dry run and is left in place by --apply', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -85,7 +85,7 @@ test('a clean home draws no retired-agent line', t => {
   assert.doesNotMatch(r.stdout, /an agent the pact retired/, r.out);
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('the pact\'s own recorded copy is deleted through its record and draws no line; a changed copy is kept and named', t => {
   const repo = makeRepo(t);
   const h = home(t);

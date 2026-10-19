@@ -948,7 +948,7 @@ test('stub page: the review step warns that a downloaded config.json holds no to
   assert.match(P.ids.output.text, /Unless you set the tools under Settings, a downloaded config\.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools\./);
 });
 
-// #183 C4: with no configuration of the person's, the pact's default renders (ADR 0093).
+// #183 C4: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('stub page: Save to a picked folder keeps its commands list, and writes nothing over a config.json that isn\'t JSON (#203, T2)', async () => {
   /** A stand-in folder holding `held` (name -> text); `written` collects what Save writes. */
   const fakeFolder = held => {

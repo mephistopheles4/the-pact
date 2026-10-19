@@ -78,7 +78,7 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   choice of the default, or `cloud-sessions/pin-floor`, the lowest pact commit
   the cloud wrapper accepts, which #183 T4b adds) takes the sensitive route
   with the security pair: it changes the security defaults of every install
-  with no configuration. This is the one exception to ADR 0072 (ADR 0093).
+  with no configuration. This is the one exception to ADR 0072 (ADR 0094).
 - Each check a change adds or tightens in the gate's code (`gate/` but its
   tests, `.github/workflows/`, `.github/dependabot.yml`) needs a bad case it
   is seen to catch. Deleting or loosening a check, or changing a built-in

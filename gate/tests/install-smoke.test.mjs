@@ -92,7 +92,7 @@ test('bad case: a tampered live review file is drift, and --apply refuses and ch
   assert.match(readFileSync(live, 'utf8'), /tampered/, 'a refused apply changes nothing');
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a deleted live review file is drift, and --apply refuses and changes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);

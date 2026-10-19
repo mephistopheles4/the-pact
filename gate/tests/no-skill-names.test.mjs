@@ -60,10 +60,7 @@ test('bad case: a skill name put back in the intro to the moves, as a command, i
   assert.deepEqual(namedSkills(withoutOpenMarks(planted)), ['/to-spec']);
 });
 
-test('command forms: `/name` counts', () => {
-  assert.deepEqual(namedSkills('Type `/wayfinder` to chart it.'), ['/wayfinder']);
-  assert.deepEqual(namedSkills('Type `/to-spec` now.'), ['/to-spec']);
-});
+// #272's sweep cut two checks of this file's helper, a command span and a bare span counted, which the two bad cases above each catch.
 
 test('command forms: a bare /name in prose does not count', () => {
   assert.deepEqual(namedSkills('Type /wayfinder to chart it.'), []);
@@ -80,11 +77,6 @@ test('command forms: a span holding more than the command does not count', () =>
 test('plain words that are skill names do not count, and an unknown code span does not count', () => {
   assert.deepEqual(namedSkills('I triage it, and a prototype is built. Run `gh issue view`, or `/effort`.'), []);
 });
-
-test('a code span with the bare name counts', () => {
-  assert.deepEqual(namedSkills('Use `grilling` here.'), ['grilling']);
-});
-
 test('a gated block is skipped, an open part is not', () => {
   const text = [
     '<!-- pact:begin stop-and-escalate -->',

@@ -1,6 +1,6 @@
 # The pact's default configuration and skill sources
 
-**2026-10-19.** #183, ticket T4a. A home install with no `pact/config.json` rendered the pact's plain text, and only the cloud setup's script knew which skills a session gets. A config-less home install now renders the pact's default configuration, Level 3 · Full, generated from its preset, and a configuration may name skill sources by pinned commit (ADR 0093). Tier: thorough, sensitive route; built in a cloud thread, test-first.
+**2026-10-19.** #183, ticket T4a. A home install with no `pact/config.json` rendered the pact's plain text, and only the cloud setup's script knew which skills a session gets. A config-less home install now renders the pact's default configuration, Level 3 · Full, generated from its preset, and a configuration may name skill sources by pinned commit (ADR 0094). Tier: thorough, sensitive route; built in a cloud thread, test-first.
 
 ## What was built
 
@@ -17,6 +17,7 @@
 - **Ready for C9:** the page's reset and Save tests read what they expect from `builder/default-config/config.json`, and the default's dry-run test expects a `skills:` line exactly when the default names skills, so the preset's `skills` entry lands with no test change. Each still pins the content through the C3 and C4 tests.
 - **Since the lens review:** rows for the tightened skill-source shapes, the default folder's refusals and the 100-path boundary; the security-defaults line's changed-since check; Export's skill-sources line. Full tier at the head: 2249 tests, one failure, #333; with the C9 pin applied, the same.
 - **The owner's picks (chat, 2026-10-19):** C9 landed; the threat-model edits applied; executability-lens read the install path for Safety (one medium, two low, all text fixes). Windows full tier at 8dffabe: 2249 tests, 0 fail, #333 included (C10); install dry run pass, drift 0.
+- **After merging main (#272):** this decision is ADR 0094, since #272 took 0093; #272's backup tests apply through the dry run's rendered hash like every other config-less apply. Full tier on the merge: 2262 tests, one failure, #333.
 - **Not run green here:** "a project holding the real home folder refuses" (#333) fails only in a cloud container, where home is `/root`.
 
 ## The first pin of `addyosmani/agent-skills`

@@ -12,7 +12,7 @@ security route of its own (ADR 0072): work here takes the pact's tiers, and
 its sensitive route where the work matches the sensitive-work list, from the
 workflow, as work in any project does. The one exception: a change to the
 pact's default configuration takes the sensitive route with the security pair
-(AGENTS.md, ADR 0093).
+(AGENTS.md, ADR 0094).
 
 A lens is a reviewer agent that asks one question from one angle. A lens review
 is one run of lenses on real work. A security-set lens is either lens of the

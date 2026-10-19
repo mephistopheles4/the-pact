@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R46, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -37,13 +37,17 @@ Claude home folder, `~/.claude`:
   temporary folder or a path you name outside any repo, the Claude home
   folder and any `.claude` folder (#262, ADR 0070). It also reads your own presets from `pact/presets/`, a folder the install never writes, lists or deletes, and carries each one into the page in plain text, as it carries the builder file. `/make-it-so` and
   `/finis` install only when your configuration lists them.
+- **Backups,** in `pact/backups/`: before each apply writes, a dated copy of
+  each file it replaces, with a manifest. They hold copies of `settings.json`
+  (R47).
 
 The repo also holds a setup script for Claude Code cloud sessions, in
 `cloud-sessions/`. It is not part of the install. You paste it into a cloud
 environment yourself.
 
 **The data in reach.** A session can read what your account can: your
-`settings.json`, which can hold API keys; your GitHub sign-in; the repos on
+`settings.json`, which can hold API keys, and the older copies of it in the
+install's backups (R47); your GitHub sign-in; the repos on
 your machine. It writes review reports, their disposition tables and
 decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files.
 
@@ -84,7 +88,9 @@ classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 
 ## Crypto and data migrations here
 
-**Crypto.** The pact holds no secret and encrypts nothing. It holds two
+**Crypto.** The pact encrypts nothing. Since #272 its install keeps copies of
+a file that can hold keys, in its backups (R47). The backup manifest's SHA-256
+only detects a damaged copy; it never authenticates one. The pact holds two
 public keys, in `cloud-sessions/keys/`, used only at a pin bump to check the
 signatures on Node's and mise's checksum files (ADR 0088). It uses hashes
 only to detect change, never to authenticate, apart from the builder page's
@@ -116,10 +122,14 @@ anything changes. The install deletes any unchanged file its record lists
 that the pact no longer ships; with no record, a first install deletes only
 the retired builder agents (#262); a retired lens's file that isn't the pact's
 own copy draws a warning and stays (#302); and the install takes out the ask
-rules an older pact set (#265). A change to the install record's format, the
+rules an older pact set (#265). Since #272 an install also prunes its own old
+backups, by the rules `docs/install.md` sets out; a pruned backup can't be
+recovered. After a rollback to an older installer, which never prunes, the
+backups are deleted by hand, as the rollback lines in `docs/agents/install.md`
+say. A change to the install record's format, the
 configuration's format, the settings overlay, or what an install removes is a
 data migration, sensitive work under the default; the rollback checks in
-`docs/agents/install.md` are its recovery. Since #183 T4a, `skills` joins the configuration's format, and an install with no configuration of yours renders the pact's default configuration (Level 3 · Full) in place of the pact's plain text: the first dry run after the upgrade shows a `workflow` change and a security-defaults line, and the apply needs the rendered hash (ADR 0093). A cloud snapshot taken before
+`docs/agents/install.md` are its recovery. Since #183 T4a, `skills` joins the configuration's format, and an install with no configuration of yours renders the pact's default configuration (Level 3 · Full) in place of the pact's plain text: the first dry run after the upgrade shows a `workflow` change and a security-defaults line, and the apply needs the rendered hash (ADR 0094). A cloud snapshot taken before
 #183 T3 keeps its `claude-plugins-official` marketplace and
 `@claude-plugins-official` plugins, its `enabledPlugins` entries and any
 skill folder no longer listed (`resolving-merge-conflicts`). The setup names
@@ -136,7 +146,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R46
+  title Residual risk, R1 to R47
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -188,6 +198,7 @@ quadrantChart
   R44: [0.10, 0.25]
   R45: [0.10, 0.80]
   R46: [0.15, 0.22]
+  R47: [0.30, 0.55]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -202,7 +213,7 @@ How to read it:
   you install (R8, R9, R10, R35, R45), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
-  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), and agent files taken from a shared builder file (R32) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), agent files taken from a shared builder file (R32), and the install's backups on disk (R47) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
   is bounded: public reports, a blocked team, and a posted security row's
   state word showing whether the item sits in published code.
@@ -271,6 +282,7 @@ How to read it:
 | R44 Kept-local reports on disk | Another reader of the session's disk | Kept-local reports and place lines are named for deletion at every hand-off, and deleted on your word; a cloud container is reclaimed (#336) | Judgment |
 | R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091). The default's `addyosmani/agent-skills` pin lives in `builder/presets/level-3-full.json`, and a person's own pins in their configuration; ADR 0091's bump procedure covers both, and each send a bump's read names goes to you before the bump is committed (#183 T4a) | Rule |
 | R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
+| R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
 
 ## Strangers on the tracker
 
@@ -604,9 +616,8 @@ session can act before you see it.
   on, its scan refuses a report holding a secret of a known shape or an
   environment secret's value, and the session keeps that report local
   rather than editing it to get past the scan. That is a backstop only some
-  installs have; the read before posting stays for everyone. A word test checks
-  that the security pair's files hold the carried rules, but since #189 no
-  test has checked that a lens keeps them after a model change.
+  installs have; the read before posting stays for everyone. No test holds the
+  security lenses' carried rules word for word; they hold by review.
 - **R14. A fooled session can leave something behind.** It can write files
   that later sessions or installs load: memory files, a repo's own Claude
   settings or rules, its server list, or your configuration blocks. With a
@@ -629,6 +640,22 @@ session can act before you see it.
   your `gh` login until the next dry run shows the drift. That is accepted as
   this risk's residual (#284): whatever can rewrite the poster can also
   rewrite the rules file and the install record beside it.
+  The install's backups in `~/.claude/pact/backups/` are such a place too.
+  Their manifest hashes catch a damaged copy, which the undo steps check, but
+  not a planted one. A fooled session that writes a backup's files and its
+  manifest together, the install record among them, can do any of these:
+
+  - make a copy-back restore its files, which the restored record then hides
+    from the next drift check;
+  - list one of the person's own files as added by the apply, so that an undo
+    deletes it, which the undo steps' record check narrows but can't close;
+  - plant backups named between the last real one and the next apply, so the
+    prune pushes out real ones;
+  - race the clean-up and prune walks between their link check and their use.
+
+  A file changed while an apply runs, after its copy was taken, is
+  overwritten with no copy of the change. Whatever can do any of these can
+  already write `settings.json` and the rules file beside them (#272).
 - **R15. A repo's instruction files are instructions.** A cloned repo's
   `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. Since #261
   the pact holds no rule barring them from anything: `no-skill-overrides` and
@@ -783,6 +810,34 @@ session can act before you see it.
   against it. Accepted by the owner on 2026-10-18, in chat ("Proceed as
   recommended", after the merge of #339), from the Test review of #336
   (adversarial-lens, a Hardening trade-off, ADR 0090).
+- **R47. The install's backups are plain copies on disk.** Before each apply
+  writes, the install copies the files it will replace into
+  `~/.claude/pact/backups/`. Among them are the person's own files and
+  `settings.json`, which can hold API keys. The copies are unencrypted on
+  every platform. They are kept for as long as the prune keeps them:
+
+  - the ten newest backups;
+  - each backup taken with no install record before it;
+  - any entry named later than the newest run;
+  - any entry the prune doesn't recognise as a backup;
+  - a leftover staging folder.
+
+  Each stays until the person deletes it. There is no bound at all after a
+  rollback to an installer older than #272. The backups get the same access
+  as the Claude home folder they sit in, so they reach no reader the
+  `settings.json` and rules file beside them don't. They hold older copies,
+  though: a key rotated or removed from the live file stays in them until
+  they are pruned or deleted, and a session that reads a copy in the backups
+  folder takes those keys into its context; a manifest holds none. This entry makes no claim that the
+  folder is readable only by the person. On Linux and macOS the install sets
+  owner-only modes on each backup. On Windows it sets
+  no access list of its own, so a backup inherits from `~/.claude` through the
+  `pact` folder it sits in. Encrypting the copies would need a key in reach of
+  the same account, so it is not built. Full-disk encryption, outside the
+  pact, covers a lost or imaged disk. Accepted on the owner's word, relayed by
+  the head chef, 2026-10-18 (#272, q2 and q9), and reworded on the owner's
+  word, relayed by the head chef, 2026-10-19, from the Design review of #272
+  (data-lens and adversarial-lens).
 
 ## Your own configuration loosening a rule
 
@@ -810,7 +865,7 @@ safe, and a change made months ago is easy to forget.
 - **The pact's default can loosen a rule too.** With no file of yours,
   `builder/default-config/` renders. A change to it, its preset, its
   generator or the installer's choice of it takes the sensitive route
-  with the security pair (AGENTS.md, ADR 0093), and the dry run's
+  with the security pair (AGENTS.md, ADR 0094), and the dry run's
   security-defaults line names each part it edits and says whether the
   default changed since the last install.
 - **The install says what changed.** The dry run prints a warning for each

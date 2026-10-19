@@ -307,7 +307,7 @@ test('the review output is written only after every check passes: -Apply with no
   assert.ok(!existsSync(folder));
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('the review output is written only after every check passes: -Apply on a dirty tree writes none', t => {
   const repo = makeRepo(t);
   writeFileSync(join(repo, 'stray.txt'), 'x\n');
@@ -420,7 +420,7 @@ test('bad case: a staged rules file changed after the check refuses the review o
   assert.ok(!existsSync(folder));
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a review module that changes the stage on -Apply refuses before anything is installed', t => {
   // The runner's working folder is the stage (S3, step 9).
   const repo = makeRepo(t, root => wrapCheck(root, 'review-core', { after: "const d = 'claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n');" }));
@@ -443,7 +443,7 @@ test('bad case: a review module that changes the stage on a dry run refuses, say
   assert.doesNotMatch(r.stdout, /^Dry run only/m, r.out);
 });
 
-// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('-Apply with -ReviewFolder writes the review only after the last re-hash of the stage', t => {
   // A seam A that changes a staged agent as it returns: the re-hash refuses,
   // and no review is written, because the review comes after it.

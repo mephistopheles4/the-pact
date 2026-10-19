@@ -1,5 +1,5 @@
 // The pact's default configuration and skill sources, outside the install
-// (ADR 0093). The default is generated from one preset by the generator; the
+// (ADR 0094). The default is generated from one preset by the generator; the
 // page saves the same files; the renderer, the builder and the page's shared
 // checker refuse the same skills lists; and a person's own configuration
 // renders as if no default existed. The install's side is in the install-tier
