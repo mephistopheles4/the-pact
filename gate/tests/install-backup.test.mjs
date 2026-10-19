@@ -26,7 +26,7 @@ function edit(root, rel, from, to) {
   writeFileSync(p, s.replace(from, () => to));
 }
 
-/** Every file under `h` with its bytes, leaving out pact/backups; folders, empty or not, are not listed (C2, ex6). */
+/** Every file under `h` with its bytes, leaving out pact/backups; folders, empty or not, are not listed (C2). */
 function files(h, rel = '') {
   const out = [];
   for (const d of readdirSync(join(h, rel), { withFileTypes: true })) {
@@ -193,8 +193,8 @@ test('#272 C7: a refused apply prunes nothing, and the next verified apply prune
   assert.match(r.stdout, new RegExp(`^pruned 4 old backup\\(s\\)\\n${old.slice(0, 4).map(n => `  ${n}`).join('\\n')}$`, 'm'));
 });
 
-// The four ways a run can end between BACKUP STARTED and CHECKS DONE (ex2.2,
-// ad2.6), each planted in the backup's started hook and committed, so the apply
+// The four ways a run can end between BACKUP STARTED and CHECKS DONE (S9),
+// each planted in the backup's started hook and committed, so the apply
 // reaches it.
 test('#272 C17: a run that ends after BACKUP STARTED, other than by the backup\'s own refusal, names the staging folder', async t => {
   const at = (plant, more) =>
