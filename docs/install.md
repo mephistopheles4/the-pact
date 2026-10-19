@@ -175,7 +175,7 @@ parts:
   default. The default's workflow names six skills from `addyosmani/agent-skills` on
   the stages (`spec-driven-development`, `incremental-implementation`,
   `test-driven-development`, `code-review-and-quality`,
-  `shipping-and-launch` and `documentation-and-adrs`). At home they are
+  `shipping-and-launch` and `documentation-and-adrs`), and its `skills` list names their folders at a pinned commit, so the dry run shows a `skills:` block; the cloud setup fetches them from #183 T4b on. Two of them suggest registry audit commands (`npm audit` and the like), which send a project's dependency list to the package registry when a session runs one. At home they are
   optional: the install never fetches them, and a session uses one only if
   you installed it yourself, or if a repo you work in carries a skill of that
   name, which is then the one used. Install them yourself, or write a

@@ -20,7 +20,7 @@ Since #183 (T4a), a home install with no `~/.claude/pact/config.json` no longer 
 ## What stays
 
 - The cloud copy is unchanged by T4a: `cloud-sessions/gen.mjs` still renders with no configuration. ADR 0038's "no configuration in the cloud" is superseded when T4b moves the cloud to the fetched install.
-- The default's `skills` entry for `addyosmani/agent-skills` waits for the owner's approval of its pin and its sends (the spec's D13); until then the default names the six skills in its workflow table but lists no skill source.
+- The default's `skills` entry names the six skills' folders in `addyosmani/agent-skills` at `aeac41d4d005999432bb7312f7ff06383a91d59d`. The owner approved the pin and its sends in chat on 2026-10-19 (the spec's D13), the registry audit commands two of the skills suggest included. In T4a nothing fetches them.
 
 ## How this was decided
 

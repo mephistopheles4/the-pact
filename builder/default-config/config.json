@@ -6,5 +6,19 @@
       "op": "replace",
       "file": "workflow.md"
     }
+  ],
+  "skills": [
+    {
+      "repo": "addyosmani/agent-skills",
+      "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+      "paths": [
+        "skills/spec-driven-development",
+        "skills/incremental-implementation",
+        "skills/test-driven-development",
+        "skills/code-review-and-quality",
+        "skills/shipping-and-launch",
+        "skills/documentation-and-adrs"
+      ]
+    }
   ]
 }
