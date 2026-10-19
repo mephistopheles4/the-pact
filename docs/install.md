@@ -70,7 +70,8 @@ gone, and no session collects totals now (#189).
 
 Every `--apply` first copies what it will replace into
 `~/.claude/pact/backups/<name>/`, where `<name>` is the time in UTC and the
-commit, such as `20261018T143005123Z-addaa8a`. It copies each file it
+commit the apply installs, such as `20261018T143005123Z-addaa8a`; the backup
+holds your files from before that commit. It copies each file it
 overwrites or deletes, `settings.json` when it merges or writes it, and the
 install record. A `manifest.json` lists each copy with its SHA-256, and each
 file the apply adds as `absent`, so [Undo an apply](#undo-an-apply) can put
@@ -81,17 +82,21 @@ the agent files it wrote and still holds as it wrote them.
 
 - **Backups start with the first apply after #272.** An install made earlier
   has none, so keep your own copies of `~/.claude/CLAUDE.md`,
-  `~/.claude/settings.json` and `~/.claude/agents/` until then.
+  `~/.claude/settings.json` and `~/.claude/agents/` until you are sure you won't
+  uninstall: no backup holds the files your first install replaced.
 - **Every apply takes one,** an apply with nothing to do included. The
   install keeps the ten newest, and each backup taken with no install record
   before it, such as your first install's, until you delete it. So ten applies
   push out an older backup: copy aside one you mean to keep.
 - **The copies are plain and unencrypted.** Your settings file can hold API
   keys, and a key you rotate stays in the old copies until they are pruned or
-  you delete them. On Linux and macOS the backups are readable only by you. On
-  Windows they take the `~/.claude` folder's access list, as the
-  `settings.json` beside them does, so they are no more exposed than it is
-  (R47 in the [threat model](threat-model.md)). To see who that list lets in,
+  you delete them. On Linux and macOS the install gives the backups owner-only
+  modes (`700` and `600`); an access-list entry inherited from `~/.claude` on
+  macOS can still widen them, and `ls -le` shows one. On Windows they take the
+  `~/.claude` folder's access list, as the `settings.json` beside them does, so
+  they reach no reader that file doesn't, though they hold its older contents
+  (R47 in the [threat model](threat-model.md)). Don't have a session open or
+  search the backups folder: it would hold the copied keys in its context. To see who that list lets in,
   or to narrow it, open the folder's Properties in Explorer and its Security
   tab, or run `icacls "$env:USERPROFILE\.claude"` in PowerShell. A list for you
   alone holds your account, SYSTEM and Administrators.
@@ -101,7 +106,8 @@ the agent files it wrote and still holds as it wrote them.
   you, and deleted once you are sure of the install.
 - **The prune leaves some entries alone:** a backup named later than the
   newest apply's, and anything it doesn't recognise as a backup. Each may hold
-  a copy of your settings until you delete it, and the dry run counts them.
+  a copy of your settings until you delete it. The dry run counts the entries
+  it doesn't recognise, and the apply warns of the backups named later.
 - **To delete backups,** delete their folders under `~/.claude/pact/backups/`
   yourself, or the whole folder once you are sure of the install.
 
@@ -190,13 +196,18 @@ parts:
     (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`).
 - **`Backup: <n> file(s) to copy into pact/backups/ before the first write`.**
   What `--apply` copies first (step 3), ending `(settings.json included)` when
-  the merge writes your settings. Two warnings may follow it:
+  the merge writes your settings. The dry run doesn't preview the prune: it
+  doesn't say which old backups the apply will remove (step 3). Three warnings
+  may follow it:
   - `WARN: pact/backups holds <n> leftover staging folder(s) ...` names what
     an apply that stopped mid-backup left. Each may hold a copy of your
     settings: check it and delete it, since `--apply` refuses while one is
     there;
   - `WARN: pact/backups holds <n> entry(ies) the install does not recognise as
-    backups; ...` counts what the prune leaves as it is.
+    backups; ...` counts what the prune leaves as it is;
+  - `WARN: pact/backups is not a plain folder: ...` says a link, a file or
+    another reparse point sits where the backups go. `--apply` refuses until
+    you move it out of the way.
 - **`Configuration:`.** `no configuration`, unless you have a
   `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
   a rendered hash the apply command carries.
@@ -333,6 +344,9 @@ RESULT: pass
 ```
 
 The `pruned` lines show only when the apply removed old backups (step 3).
+`WARN:` lines may follow them: backups named later than this apply's,
+entries the prune doesn't recognise, or a prune that stopped on an error. Each
+leaves your files as they are, and the install still passes.
 
 It installs these files under `~/.claude`:
 
@@ -530,11 +544,12 @@ Do this yourself, not through a session: a session that reads a copy of your
 settings holds its keys in its context. The script has no undo command. Each
 backup in `~/.claude/pact/backups/` undoes one apply (step 3):
 
-1. **Pick the backup.** To undo more than one apply, go newest first, back to
-   the one you want.
-2. **Know what it undoes.** A copy-back undoes every edit made since that
-   apply, including what Claude Code writes to `settings.json`, such as
-   permission rules.
+1. **Pick the backup,** one whose name an apply you ran printed. To undo more
+   than one apply, go newest first, back to the one you want, and do steps 3 to
+   5 for each in turn.
+2. **Know what it undoes.** A copy-back puts each listed file back as it was
+   before that apply, losing any edit made to it since, including what Claude
+   Code writes to `settings.json`, such as permission rules.
 3. **Check its `manifest.json` before you act on it,** and stop on any
    failure:
    - each path is relative to `~/.claude`, with forward slashes and no `..`;
@@ -543,27 +558,34 @@ backup in `~/.claude/pact/backups/` undoes one apply (step 3):
      `pact/builder.json` or a `.credentials` file, the paths the install
      never touches; `settings.json` and `.pact-install.json` may be listed;
    - each `was: file` copy's SHA-256 matches its entry, by `sha256sum` or
-     `shasum -a 256`, or `Get-FileHash` in PowerShell;
+     `shasum -a 256`, or `Get-FileHash` in PowerShell (compare ignoring case);
    - each `was: absent` path, other than `settings.json` and
      `.pact-install.json`, is listed in your current
      `~/.claude/.pact-install.json`, so a planted entry can't have you delete
      a file of your own. Whatever could plant one could also rewrite the
      record, so this narrows that path rather than closing it (R14).
-4. **Copy back each `was: file` entry** to its path. Keep `settings.json`
+4. **Copy back each `was: file` entry:** `<backup>/<path>` to
+   `~/.claude/<path>`. Keep `settings.json`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
    and macOS.
 5. **Delete each `was: absent` path** that is there.
-6. **Run the dry run** to check.
+6. **Run the dry run** to check, and read it before you start any session: it
+   shows no drift, its `Last install:` line names the commit before the apply
+   you undid (after undoing a first install it reads as a first install), and
+   no `settings.json` warning names a command-running key you didn't set. Stop
+   on one.
 
-**Full uninstall.** First delete the pact files your current record lists:
-the agents, `pact/review.md`, the `pact/builder/` folder, each pact command in
-`commands/`, `/scriptorium` included, `pact/tools/poster.mjs` if it is listed,
-and `.pact-install.json`. Then restore the backup taken with no install record
-before it, your first install's, by the steps above. If you had no
-`settings.json` before, also set `permissions.defaultMode` back to what you
-use, so you are not left in auto mode.
+**Full uninstall.** Pick the oldest backup that lists `.pact-install.json` as
+`absent`, the first by name: your first install's. Run step 3's checks on it
+while your current record is still there. Then delete the pact files your
+current record lists: the agents, `pact/review.md`, the `pact/builder/`
+folder, each pact command in `commands/`, `/scriptorium` included,
+`pact/tools/poster.mjs` if it is listed, and `.pact-install.json`. Then do
+steps 4 to 6 with that backup. If you had no `settings.json` before, step 5
+deletes it, with anything Claude Code wrote there since.
 
-**Installed before backups.** An install made before #272 has no backup. Put
+**Installed before backups.** If no backup in `pact/backups/` lists
+`.pact-install.json` as `absent`, your first install predates backups. Put
 back your own copies of your rules file, settings and agents. With no copy of
 `settings.json`, edit it instead: remove the keys the dry run listed under
 `settings.json:`, or set them back, `permissions.defaultMode` above all. Then

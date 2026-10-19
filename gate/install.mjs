@@ -27,7 +27,7 @@ const GIT_REDIRECTS = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT
 // The only variables git and the runner get from the owner's environment.
 const KEEP = ['PATH', 'SystemRoot', 'windir', 'HOME', 'USERPROFILE', 'TEMP', 'TMP', 'TMPDIR'];
 const SIGNALS = WIN ? ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
-// What a run that ends between the runner's BACKUP STARTED and CHECKS DONE says (#272, S9).
+// What a run that ends between the runner's BACKUP STARTED and CHECKS DONE says (#272, S9): core.STAGING_LEFT's words, which this file can't import.
 const STAGED = 'pact/backups may hold a staging folder with a copy of your settings: check it and delete it; the next dry run names it.';
 
 const say = s => process.stdout.write(`${s}\n`);
@@ -205,10 +205,9 @@ function main() {
   }, LIMIT_MS);
   // Only the runner's stdout is relayed; its stderr is drained, never shown.
   const relay = line => {
-    if (line === 'BACKUP STARTED') backupStarted = true;
+    backupStarted = line === 'BACKUP STARTED' || (backupStarted && line !== 'CHECKS DONE');
     if (line !== 'CHECKS DONE') return say((last = line));
     checksDone = true;
-    backupStarted = false;
     clearTimeout(timer);
   };
   child.stdout.setEncoding('utf8');

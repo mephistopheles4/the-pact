@@ -173,20 +173,31 @@ test('#272 C3: each failing step of the backup refuses with nothing changed, and
     ["a copy's write", failing('write', p => p.endsWith('CLAUDE.md')), process.platform],
     ["a copy's fsync", failing('fsync', p => p.endsWith('CLAUDE.md')), process.platform],
     ["a copy's read-back", failing('read', p => p.includes('.staging-')), process.platform],
+    ["a copy's read-back that differs", { ...io.FS_OPS, read: p => (p.includes('.staging-') ? Buffer.from('changed\n') : io.FS_OPS.read(p)) }, process.platform],
     ['the manifest', failing('open', p => p.endsWith('manifest.json')), process.platform],
     ['the rename', failing('rename'), process.platform],
     ['the chmod of pact/backups', failing('chmod'), 'linux'],
   ];
   // A first install on an empty home copies nothing, so only the steps that make folders or the manifest can fail there.
   for (const fresh of [false, true]) {
-    for (const [step, ops, platform] of fresh ? cases.slice(3) : cases) {
+    for (const [step, ops, platform] of fresh ? cases.filter(([step]) => !step.includes('copy')) : cases) {
       const { h, entries } = backupHome(t, { fresh });
       const before = stateOf(h);
       assert.throws(() => backup(h, entries, { ops, platform }), refusal('backup-failed', /^Nothing was changed\.$/), step);
       assert.equal(stateOf(h), before, `${step}${fresh ? ', on a first install' : ''}`);
     }
   }
-  // Every name taken refuses; one taken takes the next suffix (ex2.1, ex3.3).
+  // pact/backups is narrowed before the staging folder is made.
+  const log = [];
+  const order = { ...io.FS_OPS, chmod: (q, m) => (log.push('chmod'), io.FS_OPS.chmod(q, m)), mkdir: (q, m) => (log.push(q.includes('.staging-') ? 'staging' : 'mkdir'), io.FS_OPS.mkdir(q, m)) };
+  const narrowed = backupHome(t);
+  try {
+    backup(narrowed.h, narrowed.entries, { ops: order, platform: 'linux' });
+  } catch (e) {
+    if (!(e instanceof core.Refusal)) throw e; // on Windows the mode check refuses afterwards; the order is what counts here
+  }
+  assert.ok(log.includes('chmod') && log.indexOf('chmod') < log.indexOf('staging'), log.join(' '));
+  // Every name taken refuses; one taken takes the next suffix.
   const { h, entries } = backupHome(t);
   mkdirSync(join(h, 'pact', 'backups', BASE_NAME), { recursive: true });
   assert.equal(backup(h, entries).name, `${BASE_NAME}-02`);
@@ -194,7 +205,7 @@ test('#272 C3: each failing step of the backup refuses with nothing changed, and
   const full = stateOf(h);
   assert.throws(() => backup(h, entries), refusal('backup-name-taken', /^Nothing was changed\.$/));
   assert.equal(stateOf(h), full);
-  // A clean-up that fails names the staging folder instead (ex2.7).
+  // A clean-up that fails names the staging folder instead.
   const other = backupHome(t);
   assert.throws(() => backup(other.h, other.entries, { ops: failing('rmdir', p => p.includes('.staging-'), failing('rename')) }), refusal('backup-cleanup', new RegExp(`pact/backups/\\.staging-${BASE_NAME} may hold a copy of your settings`)));
 });
@@ -207,11 +218,18 @@ test('#272 C4: a link on the backup path at the first check or the second, or at
   assert.throws(() => backup(first.h, first.entries), refusal('backup-link', /^Nothing was changed\.$/));
   assert.equal(stateOf(first.h), before);
   assert.deepEqual(readdirSync(elsewhere), []);
-  // The second check, just before the rename: a folder whose real path disagrees with its own (ex3.5).
+  // The second check, just before the rename: a folder whose real path disagrees with its own.
   const second = backupHome(t);
   const swapped = { ...io.FS_OPS, realpath: p => (p.includes('.staging-') ? `${p}-elsewhere` : io.FS_OPS.realpath(p)) };
   assert.throws(() => backup(second.h, second.entries, { ops: swapped }), refusal('backup-cleanup'));
-  // A retired agent a first install deletes is a source too, though the plan never link-tests it (ad2.2).
+  // A plain file where pact/backups should be refuses too.
+  const file = backupHome(t);
+  mkdirSync(join(file.h, 'pact'));
+  writeFileSync(join(file.h, 'pact', 'backups'), 'not a folder\n');
+  const filed = stateOf(file.h);
+  assert.throws(() => backup(file.h, file.entries), refusal('backup-link', /^Nothing was changed\.$/));
+  assert.equal(stateOf(file.h), filed);
+  // A retired agent a first install deletes is a source too, though the plan never link-tests it.
   const source = backupHome(t);
   writeFileSync(join(elsewhere, 'builder.md'), 'outside\n');
   if (!linkOrSkip(t, elsewhere, join(source.h, 'agents'), WIN ? 'junction' : 'dir')) return;
@@ -257,7 +275,7 @@ test('#272 C7: the prune keeps this run\'s backup, the ten newest, every one tak
   fakeBackup(h, 'mine-kept');
   fakeBackup(h, older(3), { manifest: null });
   fakeBackup(h, older(4), { format: 'other-1' });
-  fakeBackup(h, older(5), { manifest: ' '.repeat(1024 * 1024 + 1) });
+  fakeBackup(h, older(5), { manifest: `${JSON.stringify({ format: 'pact-backup-1', commit: COMMIT, created: '', entries: [] })}${' '.repeat(1024 * 1024)}` });
   const elsewhere = tempDir(t, 'pact-prune-else-');
   writeFileSync(join(elsewhere, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-1', entries: [] })}\n`);
   const linkedManifest = fakeBackup(h, older(6), { manifest: null });
@@ -278,7 +296,9 @@ test('#272 C15: a prune that fails part way reports one warning naming the folde
   const h = tempDir(t, 'pact-prune-');
   fakeBackup(h, OWN);
   for (let i = 1; i <= 11; i++) fakeBackup(h, older(i + 100));
-  const r = io.pruneBackups(failing('unlink'), { home: h, own: OWN });
+  // A file that fails to go, beside a manifest that could: the manifest is only tried after it.
+  writeFileSync(join(h, 'pact', 'backups', older(101), 'z-last.md'), 'x\n');
+  const r = io.pruneBackups(failing('unlink', p => p.endsWith('z-last.md')), { home: h, own: OWN });
   assert.equal(r.failed, true);
   const warns = core.pruneLines(r).filter(l => l.startsWith('WARN: '));
   assert.equal(warns.length, 1, warns.join('\n'));
@@ -301,7 +321,7 @@ test('#272 C16: the clean-up and the prune remove a link inside a folder they re
   assert.throws(() => backup(h, entries, { ops: plant }), refusal('backup-failed', /^Nothing was changed\.$/));
   assert.ok(planted, 'the link was planted in the staging folder');
   assert.equal(stateOf(h), before);
-  // The prune: a link inside a backup it removes, and a folder whose real path disagrees with its own (ad2.3).
+  // The prune: a link inside a backup it removes, and a folder whose real path disagrees with its own.
   const p = tempDir(t, 'pact-prune-');
   fakeBackup(p, OWN);
   for (let i = 1; i <= 10; i++) fakeBackup(p, older(i + 100));
@@ -313,6 +333,30 @@ test('#272 C16: the clean-up and the prune remove a link inside a folder they re
   const r = io.pruneBackups(swapped, { home: p, own: OWN });
   assert.equal(r.failed, true);
   assert.ok(existsSync(join(p, 'pact', 'backups', older(100), 'sub')), 'a folder that resolves elsewhere is not walked');
+  // A folder swapped for a link after its entries were read is not walked on.
+  const q = tempDir(t, 'pact-prune-');
+  fakeBackup(q, OWN);
+  for (let i = 1; i <= 10; i++) fakeBackup(q, older(i + 100));
+  let read = false;
+  const flip = {
+    ...io.FS_OPS,
+    readdir: d => {
+      const names = io.FS_OPS.readdir(d);
+      if (d.endsWith(older(101))) read = true;
+      return names;
+    },
+    realpath: d => (read && d.endsWith(older(101)) ? `${d}-elsewhere` : io.FS_OPS.realpath(d)),
+  };
+  assert.equal(io.pruneBackups(flip, { home: q, own: OWN }).failed, true);
+  assert.ok(existsSync(join(q, 'pact', 'backups', older(101), 'CLAUDE.md')), 'nothing under the swapped folder is removed');
+  // A pact/backups that is a link is not pruned at all.
+  const linked = tempDir(t, 'pact-prune-');
+  const target = tempDir(t, 'pact-prune-target-');
+  for (let i = 1; i <= 12; i++) fakeBackup(target, older(i + 100));
+  mkdirSync(join(linked, 'pact'));
+  assert.ok(tryLink(join(target, 'pact', 'backups'), join(linked, 'pact', 'backups'), WIN ? 'junction' : 'dir'));
+  assert.deepEqual(io.pruneBackups(io.FS_OPS, { home: linked, own: OWN }), { pruned: [], later: 0, others: 0, failed: true });
+  assert.equal(readdirSync(join(target, 'pact', 'backups')).length, 12);
   assert.deepEqual(readdirSync(elsewhere), ['keep.md']);
   assert.equal(readFileSync(join(elsewhere, 'keep.md'), 'utf8'), 'outside\n');
 });
@@ -320,7 +364,8 @@ test('#272 C16: the clean-up and the prune remove a link inside a folder they re
 test('#272 C6: on Linux and macOS a backup file or folder found open to others refuses, with nothing changed', t => {
   const { h, entries } = backupHome(t);
   const before = stateOf(h);
-  const wide = { ...io.FS_OPS, stat: p => ({ ...io.FS_OPS.stat(p), mode: 0o100644 }) };
+  // Group read alone, so a check of the other bits only would pass it.
+  const wide = { ...io.FS_OPS, stat: p => ({ ...io.FS_OPS.stat(p), mode: 0o100640 }) };
   assert.throws(() => backup(h, entries, { ops: wide, platform: 'linux' }), refusal('backup-mode', /^Nothing was changed\.$/));
   assert.equal(stateOf(h), before);
 });

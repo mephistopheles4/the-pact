@@ -738,6 +738,8 @@ test('#272 C8: no install record can make the install write or delete a path und
   const p = core.plan(record, new Map(), live, noLink);
   assert.deepEqual(p.delete, []);
   assert.deepEqual(p.warnings, ['protected path in the install record, skipped: pact/backups/b/CLAUDE.md']);
+  // backup-source: a path the backup must copy that is no longer a plain file refuses before anything is made.
+  assert.throws(() => core.backupEntries({ copy: ['CLAUDE.md'], add: [], live: () => ({ exists: true, file: false, sha256: null }), record: null }), e => e instanceof core.Refusal && e.rule === 'backup-source');
 });
 
 // #262: an agent file changed since the install, or one the record never listed, is the person's: in yours, never drift, overwrite or delete.

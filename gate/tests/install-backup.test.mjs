@@ -1,9 +1,10 @@
 // The install's backups end to end (#272, S7 to S9): what an apply copies
 // before its first write, the copy-back that undoes it, the refusals a test
 // can set up from outside, the modes, the output and the bootstrap's lines.
-// Each refusal the backup step raises itself is a case in install-io.test.mjs,
-// with its file operations injected.
+// Each other refusal the backup step raises itself is a case in the file
+// system module's tests, with its file operations injected.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -72,7 +73,7 @@ test('#272 C1: an apply first copies what it replaces into a dated backup, whose
   assert.equal(m.commit, commit);
   const paths = m.entries.map(e => e.path);
   assert.deepEqual(paths, [...paths].sort());
-  assert.deepEqual(m.entries.find(e => e.path === 'CLAUDE.md'), { path: 'CLAUDE.md', was: 'file', sha256: m.entries.find(e => e.path === 'CLAUDE.md').sha256, bytes: 13 });
+  assert.deepEqual(m.entries.find(e => e.path === 'CLAUDE.md'), { path: 'CLAUDE.md', was: 'file', sha256: createHash('sha256').update('my own rules\n').digest('hex'), bytes: 13 });
   assert.deepEqual(m.entries.find(e => e.path === '.pact-install.json'), { path: '.pact-install.json', was: 'absent' });
   const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   for (const f of record.files.filter(f => f.path !== 'CLAUDE.md')) assert.deepEqual(m.entries.find(e => e.path === f.path), { path: f.path, was: 'absent' }, f.path);
@@ -151,12 +152,24 @@ test('#272 C9: the dry run and the apply say what the backup takes, and a refusa
   assert.match(warned.stdout, /^WARN: pact\/backups holds 1 leftover staging folder\(s\) \(\.staging-x\?y\); each may hold a copy of your settings\. Check and delete them; --apply refuses while they are there\.$/m);
   assert.equal(warned.stdout.split('\n').find(l => l.includes(' --apply --commit ')), applyLine, 'the apply command does not change');
   rmSync(backupsDir(h), { recursive: true });
+  // An entry the prune does not recognise is counted, and a pact/backups that is not a folder warns and refuses.
+  mkdirSync(join(backupsDir(h), 'mine'), { recursive: true });
+  assert.match(install(repo, h).stdout, /^WARN: pact\/backups holds 1 entry\(ies\) the install does not recognise as backups; the prune leaves them as they are, and they may hold copies of your settings\.$/m);
+  rmSync(backupsDir(h), { recursive: true });
+  writeFileSync(backupsDir(h), 'not a folder\n');
+  const blocked = install(repo, h);
+  passed(blocked);
+  assert.match(blocked.stdout, /^WARN: pact\/backups is not a plain folder: a link, a file or another reparse point; --apply refuses until it is moved out of the way\.$/m);
+  refused(install(repo, h, { apply: true }), /^REFUSED: pact\/backups, on the backup's path, is a link, another reparse point or not what the backup expects; .* Nothing was changed\.$/m);
+  rmSync(backupsDir(h));
   const r = install(repo, h, { apply: true });
   passed(r);
   const lines = r.stdout.split('\n');
   const name = backups(h)[0];
   const at = s => lines.indexOf(s);
   assert.ok(at('BACKUP STARTED') >= 0 && at('BACKUP STARTED') < at(`backed up 1 file(s) to pact/backups/${name}`) && at(`backed up 1 file(s) to pact/backups/${name}`) < at('Applying.'), r.out);
+  // With nothing to merge, settings.json is not copied, and the line says so by leaving the note off.
+  assert.match(install(repo, h).stdout, /^Backup: 1 file\(s\) to copy into pact\/backups\/ before the first write$/m);
   const broken = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  say('Applying.');\n  for", "  say('Applying.');\n  throw new Error('planted');\n  for"));
   const h2 = ownHome(t);
   const after = install(broken, h2, { apply: true });

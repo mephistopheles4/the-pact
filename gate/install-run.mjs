@@ -26,7 +26,7 @@ function leftoverNote(tmp, own) {
   if (left) say(`NOTE: ${left} other pact-install-* folder(s) in the temp folder; an install stopped hard left them, and they may hold configuration text. docs/install.md says how to delete them.`);
 }
 let writing = false;
-// #272: set once the backup step creates something, so a run that ends before CHECKS DONE names the staging folder; then the backup's name.
+// #272: set when the backup step is about to create something, so a run that ends before CHECKS DONE names the staging folder; then the backup's name.
 let backupStarted = false;
 let backup = null;
 
@@ -251,7 +251,7 @@ async function main() {
     return;
   }
 
-  // The plan (L1 to L3). Each live state it reads is kept, so the backup compares its copies with what the plan saw (#272, ex2).
+  // The plan (L1 to L3). Each live state it reads is kept, so the backup compares its copies with what the plan saw (#272, S7).
   const linkIn = rel => io.throughLink(home, rel);
   const { repoFiles, sourceOf } = core.installDestinations(checked, linkIn);
   const seen = new Map();
@@ -307,7 +307,7 @@ async function main() {
   const settingsCopied = settingsWill && liveBytes !== null;
   say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
   const folder = io.scanBackups(home);
-  if (folder.link) say(`WARN: ${core.BACKUPS_REL} is a link or other reparse point; --apply refuses.`);
+  if (folder.link) say(`WARN: ${core.BACKUPS_REL} is not a plain folder: a link, a file or another reparse point; --apply refuses until it is moved out of the way.`);
   if (folder.staging.length) say(core.stagingLine(folder.staging));
   if (folder.others) say(core.othersLine(folder.others));
   for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) {

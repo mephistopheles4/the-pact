@@ -1356,7 +1356,7 @@ export function manifestText({ commit, created, entries }) {
 /** The dry run's backup line (S9): how many files the apply will copy, and whether settings.json is one. */
 export const backupLine = (count, settings) => `Backup: ${count} file(s) to copy into ${BACKUPS_REL}/ before the first write${settings ? ' (settings.json included)' : ''}`;
 
-/** The dry run's warning for staging folders an earlier apply left (S9, ad5): each name cleaned. */
+/** The dry run's warning for staging folders an earlier apply left (S9): each name cleaned. */
 export const stagingLine = names => `WARN: ${BACKUPS_REL} holds ${names.length} leftover staging folder(s) (${names.map(formatPlain).join(', ')}); each may hold a copy of your settings. Check and delete them; --apply refuses while they are there.`;
 
 /** How many backups the prune keeps by name, this run's included (S8). */
@@ -1364,7 +1364,7 @@ export const BACKUP_KEEP = 10;
 export const MANIFEST_CAP = 1024 * 1024;
 
 /**
- * A backup candidate from its manifest's text (S8, ad2.4): null unless it is a
+ * A backup candidate from its manifest's text (S8): null unless it is a
  * JSON object of this format with a list of entries. `noRecord` is true when
  * the backup was taken with no install record before it (q8).
  */
@@ -1380,7 +1380,7 @@ export function readManifest(name, text) {
 }
 
 /**
- * Which candidates the prune removes (S8, ad1), oldest first: never this run's
+ * Which candidates the prune removes (S8), oldest first: never this run's
  * (`own`), none named after it, none of the ten newest of the rest, and none
  * taken with no record. `later` counts those named after this run's.
  */
@@ -1390,7 +1390,7 @@ export function pruneSelect(candidates, own) {
   return { remove: rest.filter(c => !keep.has(c.name) && !c.noRecord).map(c => c.name).reverse(), later: candidates.filter(c => c.name > own).length };
 }
 
-/** The non-candidates line, for the dry run and the apply (S8, da3): entries the prune never touches. */
+/** The non-candidates line, for the dry run and the apply (S8): entries the prune never touches. */
 export const othersLine = n => `WARN: ${BACKUPS_REL} holds ${n} entry(ies) the install does not recognise as backups; the prune leaves them as they are, and they may hold copies of your settings.`;
 
 /** What the apply prints after its prune (S9): each pruned name, then the warnings. */
@@ -1405,12 +1405,12 @@ export function pruneLines({ pruned, later, others, failed }) {
 
 /** The backup step's refusals (S7). A refusal after a full clean-up keeps "Nothing was changed."; one whose clean-up failed names the staging folder. */
 export const backupStops = Object.freeze({
-  link: rel => refuse('backup-link', `${formatPlain(rel)}, on the backup's path, is a link or other reparse point.`),
+  link: rel => refuse('backup-link', `${formatPlain(rel)}, on the backup's path, is a link, another reparse point or not what the backup expects; move it out of the way, then run the install again.`),
   stagingLeft: n => refuse('backup-staging-left', `${BACKUPS_REL} holds ${n} staging folder(s) an earlier apply left; each may hold a copy of your settings. Check and delete them, then run the install again.`),
-  nameTaken: () => refuse('backup-name-taken', `every backup name for this millisecond is taken in ${BACKUPS_REL}; run the install again.`),
+  nameTaken: () => refuse('backup-name-taken', `no free backup name is left in ${BACKUPS_REL} for this millisecond, or the name was taken while the install ran; run the install again.`),
   changed: rel => refuse('backup-changed', `${formatPlain(rel)} changed while the install ran; run the install again.`),
-  mode: () => refuse('backup-mode', 'a backup file or folder can be read by other accounts on this machine.'),
-  failed: () => refuse('backup-failed', 'the backup of the files this install replaces could not be written in full.'),
+  mode: () => refuse('backup-mode', 'a backup file or folder can be read by other accounts on this machine; check the umask and the file system the Claude home folder sits on, then run the install again.'),
+  failed: () => refuse('backup-failed', 'the backup of the files this install replaces could not be written in full; check free space and that you can write to pact/backups, then run the install again.'),
   cleanup: stagingRel => refuse('backup-cleanup', 'the backup failed, and what it wrote could not be removed.', `${stagingRel} may hold a copy of your settings: check it and delete it, then run the install again.`),
 });
 

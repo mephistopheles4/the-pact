@@ -56,7 +56,7 @@ export function treeState(root) {
  */
 export const throughLink = (root, rel) => throughLinkWith(FS_OPS, root, rel);
 
-/** The link test on a given set of file operations, so a test can make lstat and realpath disagree (#272, ex3.5). */
+/** The link test on a given set of file operations, so a test can make lstat and realpath disagree (#272, S7). */
 function throughLinkWith(ops, root, rel) {
   let real;
   try {
@@ -228,10 +228,11 @@ function writeNew(ops, p, bytes) {
 }
 
 /**
- * Removes `rel` under `home` by walking it (ad2): each entry read with lstat,
- * a link or reparse point removed without descending into it, a folder whose
- * real path is not its own refused, and never a recursive remove. `last`
- * names an entry of the top folder removed after the others.
+ * Removes `rel` under `home` by walking it (#272, S7): each entry read with
+ * lstat, a link or reparse point removed without descending into it, a folder
+ * whose real path is not its own refused, before its entries are read and
+ * again before each is removed, and never a recursive remove. `last` names an
+ * entry of the top folder removed after the others.
  */
 function removeTree(ops, home, rel, last) {
   const p = join(home, ...rel.split('/'));
@@ -245,8 +246,14 @@ function removeTree(ops, home, rel, last) {
     }
     return;
   }
-  if (throughLinkWith(ops, home, rel)) throw new Error('a folder to remove resolves elsewhere');
-  for (const n of ops.readdir(p).sort((a, b) => (a === last) - (b === last))) removeTree(ops, home, `${rel}/${n}`);
+  const resolvesElsewhere = () => {
+    if (throughLinkWith(ops, home, rel)) throw new Error('a folder to remove resolves elsewhere');
+  };
+  resolvesElsewhere();
+  for (const n of ops.readdir(p).sort((a, b) => (a === last) - (b === last))) {
+    resolvesElsewhere(); // narrows a race that swaps the folder for a link mid-walk; Node has no folder-relative remove
+    removeTree(ops, home, `${rel}/${n}`);
+  }
   ops.rmdir(p);
 }
 
@@ -266,7 +273,7 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
   const at = rel => join(home, ...rel.split('/'));
   const link = rel => throughLinkWith(ops, home, rel);
   const B = core.BACKUPS_REL;
-  if (link(B)) core.backupStops.link(B);
+  if (notPlainFolder(ops, home)) core.backupStops.link(B);
   const left = namesIn(ops, at(B)).filter(n => n.startsWith('.staging-'));
   if (left.length) core.backupStops.stagingLeft(left.length);
   for (const e of entries) if (e.was === 'file' && link(e.path)) core.backupStops.link(e.path);
@@ -287,8 +294,8 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
       made.push(p);
     }
     if (unix) {
-      if (link(B)) core.backupStops.link(B);
-      ops.chmod(at(B), 0o700); // follows a link, so the link test runs right before it (ad2.3)
+      if (notPlainFolder(ops, home)) core.backupStops.link(B);
+      ops.chmod(at(B), 0o700); // follows a link, so the link test runs right before it
     }
     ops.mkdir(staging, 0o700);
     stagingMade = true;
@@ -318,7 +325,7 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
     writeNew(ops, manifest, Buffer.from(core.manifestText({ commit, created: date.toISOString(), entries: listed })));
     written.push(manifest);
     if (unix) for (const p of written) if ((ops.stat(p).mode & 0o077) !== 0) core.backupStops.mode();
-    if (link(B) || link(stagingRel)) core.backupStops.link(stagingRel);
+    if (notPlainFolder(ops, home) || link(stagingRel)) core.backupStops.link(stagingRel);
     // A POSIX rename onto an empty folder succeeds, so the name is checked first.
     if (presentWith(ops, join(at(B), name))) core.backupStops.nameTaken();
     ops.rename(staging, join(at(B), name));
@@ -332,6 +339,20 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
     }
     if (e instanceof core.Refusal) throw e;
     return core.backupStops.failed();
+  }
+}
+
+/**
+ * Whether pact/backups is anything but a plain folder or absent: a link, a
+ * reparse point, a file (#272, S7). The backup refuses then, and the dry run
+ * and the prune leave it alone.
+ */
+function notPlainFolder(ops, home) {
+  if (throughLinkWith(ops, home, core.BACKUPS_REL)) return true;
+  try {
+    return !ops.lstat(join(home, ...core.BACKUPS_REL.split('/'))).isDirectory();
+  } catch (e) {
+    return !(e && e.code === 'ENOENT');
   }
 }
 
@@ -352,12 +373,12 @@ function candidateIn(ops, home, name) {
 }
 
 /**
- * What pact/backups holds (S8, S9): whether it is a link, the staging folders
+ * What pact/backups holds (S8, S9): whether it is not a plain folder (link), the staging folders
  * an earlier apply left, the candidates the prune may act on, and how many
  * other entries it leaves alone.
  */
 export function scanBackups(home, ops = FS_OPS) {
-  if (throughLinkWith(ops, home, core.BACKUPS_REL)) return { link: true, staging: [], candidates: [], others: 0 };
+  if (notPlainFolder(ops, home)) return { link: true, staging: [], candidates: [], others: 0 };
   const names = namesIn(ops, join(home, ...core.BACKUPS_REL.split('/'))).sort();
   const staging = names.filter(n => n.startsWith('.staging-'));
   const candidates = [];

@@ -49,6 +49,12 @@ how every session in every repo behaves. So:
   file against the bytes it checked and installed: the rendered bytes for the
   rules file, and the repo copy for every other file. It exits non-zero on a
   mismatch. Check that it exited zero.
+- **Read a backup by its manifest only.** Each apply backs up what it replaces
+  into `~/.claude/pact/backups/` (#272), and a backup can hold a copy of
+  `settings.json`. A session checks one only by reading its `manifest.json`
+  and comparing hashes with a hash command; it never opens a copy, and posts
+  only the verdict and counts. An undo is the owner's, by hand
+  ([Undo an apply](../install.md#undo-an-apply)).
 - **It deletes only pact files:** those the last manifest lists that the repo
   dropped. Your own agents and skills are never touched. An agent file the
   pact didn't write, or one changed since it wrote it, is yours: the dry run

@@ -40,6 +40,7 @@ test('a file under gate/tests is not staged, checked or recorded as part of the 
   const inGate = manifest.gate.map(g => g.path).filter(p => p.startsWith('gate/tests/'));
   assert.deepEqual(inGate, []);
 });
+// #272 C18: two applies on one home at one commit each take a backup (the last assertion).
 test('the owner\'s own live agent is never deleted, and an old manifest deletes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -58,7 +59,6 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
   assert.equal(r.code, 0, r.out);
   assert.ok(existsSync(join(h, 'agents', 'my-own.md')));
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) assert.ok(existsSync(join(h, 'agents', f)), f);
-  // #272 C18: two applies on one home at one commit each take a backup.
   assert.equal(readdirSync(join(h, 'pact', 'backups')).length, 2);
 });
 

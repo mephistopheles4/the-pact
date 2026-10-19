@@ -90,7 +90,7 @@ classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 
 **Crypto.** The pact encrypts nothing. Since #272 its install keeps copies of
 a file that can hold keys, in its backups (R47). The backup manifest's SHA-256
-only detects a damaged copy; it never authenticates one. It holds two
+only detects a damaged copy; it never authenticates one. The pact holds two
 public keys, in `cloud-sessions/keys/`, used only at a pin bump to check the
 signatures on Node's and mise's checksum files (ADR 0088). It uses hashes
 only to detect change, never to authenticate, apart from the builder page's
@@ -124,8 +124,9 @@ the retired builder agents (#262); a retired lens's file that isn't the pact's
 own copy draws a warning and stays (#302); and the install takes out the ask
 rules an older pact set (#265). Since #272 an install also prunes its own old
 backups, by the rules `docs/install.md` sets out; a pruned backup can't be
-recovered, and the rollback lines in `docs/agents/install.md` are the recovery
-for the backups an older installer leaves. A change to the install record's format, the
+recovered. After a rollback to an older installer, which never prunes, the
+backups are deleted by hand, as the rollback lines in `docs/agents/install.md`
+say. A change to the install record's format, the
 configuration's format, the settings overlay, or what an install removes is a
 data migration, sensitive work under the default; the rollback checks in
 `docs/agents/install.md` are its recovery. A cloud snapshot taken before
@@ -823,10 +824,13 @@ session can act before you see it.
 
   Each stays until the person deletes it. There is no bound at all after a
   rollback to an installer older than #272. The backups get the same access
-  as the Claude home folder they sit in, so they are exactly as exposed as the
-  `settings.json` and rules file beside them, and no more. This entry makes no
-  claim that the folder is readable only by the person. On Linux and macOS
-  the install narrows each backup to the person's account. On Windows it sets
+  as the Claude home folder they sit in, so they reach no reader the
+  `settings.json` and rules file beside them don't. They hold older copies,
+  though: a key rotated or removed from the live file stays in them until
+  they are pruned or deleted, and a session that reads the backups folder
+  takes those keys into its context. This entry makes no claim that the
+  folder is readable only by the person. On Linux and macOS the install sets
+  owner-only modes on each backup. On Windows it sets
   no access list of its own, so a backup inherits from `~/.claude` through the
   `pact` folder it sits in. Encrypting the copies would need a key in reach of
   the same account, so it is not built. Full-disk encryption, outside the
