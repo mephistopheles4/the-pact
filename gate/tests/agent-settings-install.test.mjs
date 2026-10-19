@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { plantModule } from './gate-files.mjs';
+import { plantModule, plantNoDefault } from './gate-files.mjs';
 import { REPO } from './text.mjs';
 import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
@@ -136,7 +136,11 @@ for (const [label, config, from, to, why] of [
   ['an agent written into the stage', SET, R_AGENT_WRITE, `${R_AGENT_WRITE}\n  for (const a of agents) writeFileSync(join(dirname(source), 'agents', 'integrity-lens.md'), a.buf);`, 'the renderer changed the stage'],
 ]) {
   test(`bad case: a renderer that reports ${label} refuses, and nothing is installed`, t => {
-    const repo = makeRepo(t, root => plantRenderer(root, from, to));
+    // With no configuration, the renderer is also planted to skip the pact's default, so it reports CONFIG none (#183 T4a).
+    const repo = makeRepo(t, root => {
+      plantRenderer(root, from, to);
+      if (!config) plantNoDefault(join(root, 'gate'));
+    });
     const h = home(t);
     if (config) configure(h, config);
     const r = install(repo, h, { apply: true, extra: config ? ['--rendered-hash', A64] : [] });

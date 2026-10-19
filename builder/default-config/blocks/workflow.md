@@ -1,0 +1,8 @@
+| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Skills, and when | Other ways out |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | none | |
+| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | `spec-driven-development`: used, standard and above | |
+| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | `incremental-implementation`: used, at every tier; `test-driven-development`: used, at every tier | |
+| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | `code-review-and-quality`: offered, standard and above | back to Build when a claim fails; back to Design when the intent has changed |
+| Deploy | I decide | I decide | I decide | I decide | none | `shipping-and-launch`: offered, at every tier | |
+| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | `documentation-and-adrs`: offered, standard and above | back to Plan when a new change starts |

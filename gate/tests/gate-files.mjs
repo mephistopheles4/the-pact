@@ -49,3 +49,12 @@ export function copyGate(dest) {
   cpSync(GATE, dest, { recursive: true, filter: src => src !== tests });
   return dest;
 }
+
+/**
+ * Plant into the renderer in `gateDir` a version that never reads the pact's
+ * default (#183 T4a), so a home with no configuration renders CONFIG none:
+ * how a bad case reaches the install's no-configuration checks on a home install.
+ */
+export function plantNoDefault(gateDir) {
+  return plantModule(gateDir, 'render', 'const [source, out, home, defaultDir = null] = argv;', 'const [source, out, home] = argv;\n  const defaultDir = null;');
+}

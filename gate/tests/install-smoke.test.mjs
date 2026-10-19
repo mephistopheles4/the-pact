@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { applyBound, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 
 // #261 C7
 test('dry run on a clean tree passes and shows Node, the check and the gate', t => {
@@ -29,7 +29,7 @@ test('dry run on a clean tree passes and shows Node, the check and the gate', t 
 test('--apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) {
     assert.deepEqual(readFileSync(join(h, 'agents', f)), readFileSync(join(repo, 'claude', 'agents', f)), f);
@@ -81,26 +81,26 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
 test('bad case: a tampered live review file is drift, and --apply refuses and changes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  assert.equal(install(repo, h, { apply: true }).code, 0);
+  assert.equal(applyBound(repo, h).code, 0);
   const live = join(h, 'pact', 'review.md');
   writeFileSync(live, `${readFileSync(live, 'utf8')}\n// tampered\n`);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^Drift: 1\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}pact\/review\.md \(changed since the install\)\r?$/m, dry.out);
-  refused(install(repo, h, { apply: true }));
+  refused(applyBound(repo, h));
   assert.match(readFileSync(live, 'utf8'), /tampered/, 'a refused apply changes nothing');
 });
 
 test('bad case: a deleted live review file is drift, and --apply refuses and changes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  assert.equal(install(repo, h, { apply: true }).code, 0);
+  assert.equal(applyBound(repo, h).code, 0);
   rmSync(join(h, 'pact', 'review.md'));
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^Drift: 1\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}pact\/review\.md \(deleted since the install\)\r?$/m, dry.out);
-  refused(install(repo, h, { apply: true }));
+  refused(applyBound(repo, h));
   assert.ok(!existsSync(join(h, 'pact', 'review.md')), 'a refused apply changes nothing');
 });

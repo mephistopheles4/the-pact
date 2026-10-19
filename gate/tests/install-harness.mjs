@@ -142,6 +142,24 @@ export function install(repo, home, { apply = false, path, env = {}, extra = [],
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
 }
 
+/** The full rendered hash a dry run's Configuration block shows. */
+export function renderedHash(r) {
+  const m = /^ {2}rendered rules file: sha256 ([0-9a-f]{64})\r?$/m.exec(r.stdout);
+  assert.ok(m, r.out);
+  return m[1];
+}
+
+/**
+ * --apply bound by the rendered hash a dry run of the same repo and home shows
+ * (#183 T4a): every home install renders a configuration, the pact's default
+ * when the home folder holds none, so --apply needs the hash. The dry run is
+ * an install of its own.
+ */
+export function applyBound(repo, home, opts = {}) {
+  const dry = install(repo, home, { ...opts, apply: false });
+  return install(repo, home, { apply: true, ...opts, extra: [...(opts.extra ?? []), '--rendered-hash', renderedHash(dry)] });
+}
+
 /**
  * Plants a wrapper round a gate core's check(), the function the install's
  * runner calls in-process: `before` runs first, with `argv`, and `after` runs

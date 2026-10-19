@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { plantModule } from './gate-files.mjs';
-import { commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { applyBound, commitAll, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
 import { OVERLAY, RETIRED_RULES, overlayWith, shown } from './settings-rules.mjs';
 
 // ------------------------------------------------------------ install: the merge
@@ -34,7 +34,7 @@ test('--apply removes the retired ask rules, keeps the owner\'s own, sets auto m
   const removed = dry.stdout.split('\n').filter(l => l.startsWith('  - permissions.ask: '));
   assert.deepEqual(removed.map(l => l.slice('  - permissions.ask: '.length)).sort(), RETIRED_RULES.map(shown).sort());
   assert.doesNotMatch(dry.stdout, /^ {2}\+ permissions\.ask: /m, dry.out);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   const live = readLive(h);
   assert.deepEqual(live.permissions.ask, ['Bash(git push *)']);
@@ -43,7 +43,8 @@ test('--apply removes the retired ask rules, keeps the owner\'s own, sets auto m
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^settings\.json: unchanged$/m, again.out);
-  assert.doesNotMatch(again.stdout, /^WARN: |retired ask rules/m, again.out);
+  // The pact's default's security-defaults line shows on every dry run with no configuration of your own (#183 T4a); no other warning does.
+  assert.doesNotMatch(again.stdout, /^WARN: (?!SECURITY DEFAULTS: you have no configuration of your own)|retired ask rules/m, again.out);
 });
 test('a live file the merge cannot read draws a plain warning, and -Apply refuses before writing anything', t => {
   const repo = makeRepo(t);
@@ -72,7 +73,7 @@ test('canary: the install never prints a live value, a live env name, a live per
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
   assert.ok(!dry.out.includes(C), dry.out);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   assert.ok(!r.out.includes(C), r.out);
 });
@@ -113,7 +114,7 @@ test('bad case: an -Apply whose written settings lack the guard reports a mismat
   });
   const h = home(t);
   writeLive(h, { theme: 'dark' });
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.notEqual(r.code, 0, r.out);
   // #265 C6
   assert.match(r.stdout, /^MISMATCH settings\.json \(auto mode is off or a retired ask rule remains\)$/m, r.out);

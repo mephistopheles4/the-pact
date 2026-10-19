@@ -6,12 +6,12 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, makeRepo } from './install-harness.mjs';
+import { applyBound, home, install, makeRepo } from './install-harness.mjs';
 
 const MINE = '---\nname: scout\ndescription: My own scout.\nmodel: haiku\n---\n\nFind things, briefly.\n';
 const recorded = h => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8')).files.map(f => f.path);
 const apply = (repo, h) => {
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   return r;
 };

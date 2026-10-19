@@ -32,8 +32,8 @@ const TOOL_WARNS = Object.freeze({
 // gate/shared.mjs: installed under pact/builder/ in the repo's own layout
 // whenever /scriptorium installs. Its gate files are the only gate files that
 // ever install. The agents and the presets go by pattern.
-export const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
-export const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^builder\/presets\/[^/]+\.json$/]);
+export const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/default-config.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
+export const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^builder\/presets\/[^/]+\.json$/, /^builder\/default-config\/config\.json$/, /^builder\/default-config\/blocks\/[^/]+\.md$/]);
 export const inKit = rel => BUILDER_KIT.includes(rel) || BUILDER_KIT_PATTERNS.some(re => re.test(rel));
 const KIT_DEST = 'pact/builder/';
 // The unrendered rules file, which the install copies into the stage for the kit; never in a commit.
@@ -376,6 +376,14 @@ const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-se
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
+// A skill source's path (#183 T4a), as the renderer checks it: owner/name, a full commit, a relative folder whose last segment is the skill's name.
+const SKILL_LINE_RE = /^SKILL ([A-Za-z0-9-]+\/[A-Za-z0-9._-]+) ([0-9a-f]{40}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/;
+const SKILL_PATHS_MAX = 100;
+// The pact's default configuration (#183 T4a): the stage folder the renderer
+// reads when the Claude home folder holds no user file, and the preset it is
+// generated from, by title (a test holds the title equal to the preset's).
+export const DEFAULT_CONFIG_DIR = 'builder/default-config';
+export const DEFAULT_CONFIG_NAME = 'Level 3 · Full';
 
 /**
  * The renderer's lines (S6, R5 to R8), every one before RESULT matched to one
@@ -386,6 +394,9 @@ const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
  * COMMANDS line names pact commands, each once, in PACT_COMMANDS order (#203).
  * One TOOLS line follows it straight after, naming pact tools the same way
  * (#280), and none with no configuration.
+ * A CONFIG line names a user file, the pact's default (#183 T4a) or none; the
+ * digest is taken over "user" or "default" to match. SKILL lines follow the
+ * TOOLS line, one per skill path, none with no configuration (#183 T4a).
  * `hash` is sha256 over bytes, as hex.
  */
 export function parseRenderLines(lines, { project, hash }) {
@@ -402,6 +413,7 @@ export function parseRenderLines(lines, { project, hash }) {
   let tools = null;
   let commandsAt = -1;
   let toolsAt = -1;
+  const skills = [];
   for (const [at, l] of lines.slice(0, -1).entries()) {
     let m;
     if ((m = /^RENDERED ([0-9a-f]{64})$/.exec(l))) {
@@ -427,7 +439,14 @@ export function parseRenderLines(lines, { project, hash }) {
       if (retiredNames.some(r => r.mark === m[1] && r.agent === retired)) refuse('render-retired-twice', 'the renderer reported one retired name twice.');
       retiredNames.push({ mark: m[1], agent: retired });
     } else if (l === 'CONFIG none') configs.push({ kind: 'none' });
-    else if ((m = /^CONFIG user ([0-9a-f]{64})$/.exec(l))) configs.push({ kind: 'user', sha256: m[1] });
+    else if ((m = /^CONFIG (user|default) ([0-9a-f]{64})$/.exec(l))) configs.push({ kind: m[1], sha256: m[2] });
+    else if ((m = SKILL_LINE_RE.exec(l))) {
+      const segs = m[3].split('/');
+      const last = segs[segs.length - 1];
+      if (toolsAt < 0 || segs.some(g => g === '.' || g === '..') || /^[.-]/.test(last)) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
+      if (skills.some(k => k.name.toLowerCase() === last.toLowerCase())) refuse('render-skill-twice', 'the renderer reported two skill paths that install under one name.');
+      skills.push({ repo: m[1], commit: m[2], path: m[3], name: last });
+    }
     else if ((m = /^DIGEST ([0-9a-f]{12})$/.exec(l))) {
       if (digest) refuse('render-two-digests', 'the renderer reported two configuration digests.');
       digest = m[1];
@@ -460,20 +479,22 @@ export function parseRenderLines(lines, { project, hash }) {
   if (!commands) refuse('render-commands-missing', 'the renderer did not report which pact commands are on.');
   if (!tools) refuse('render-tools-missing', 'the renderer did not report which pact tools are on.');
   if (toolsAt !== commandsAt + 1) refuse('render-unknown-line', "the renderer's TOOLS line does not come straight after its COMMANDS line.");
+  if (skills.length > SKILL_PATHS_MAX) refuse('render-skill-count', `the renderer reported more than ${SKILL_PATHS_MAX} skill paths.`);
   const config = configs[0];
   if (project && config.kind !== 'none') refuse('render-project-config', "the stage's render on a project install read a configuration.");
   if (config.kind === 'none') {
     if (digest || values.size || edits.size || agentSets.size || retiredNames.length) refuse('render-none-extras', 'the renderer reported a digest, a value, an edit, a retired name or an agent setting with no configuration.');
     if (commands.length) refuse('render-none-extras', 'the renderer reported a pact command with no configuration.');
     if (tools.length) refuse('render-none-extras', 'the renderer reported a pact tool with no configuration.');
+    if (skills.length) refuse('render-none-extras', 'the renderer reported a skill source with no configuration.');
   } else {
     // A retired name is reported only for a part the configuration edits with a block file (#302).
     for (const r of retiredNames) if (!edits.get(r.mark)?.path) refuse('render-retired-no-block', 'the renderer reported a retired name in a part with no edit block.');
-    let text = `user ${config.sha256}\n`;
+    let text = `${config.kind} ${config.sha256}\n`;
     for (const e of edits.values()) if (e.path) text += `block ${e.path} ${e.sha256}\n`;
     if (digest !== hash(Buffer.from(text, 'ascii')).slice(0, 12)) refuse('render-digest', "the renderer's configuration digest is missing or does not match the configuration hashes it reported.");
   }
-  return { renderHash, diffHash, config, digest, values, edits, blockHashes, retiredNames, agentSets, commands, tools };
+  return { renderHash, diffHash, config, digest, values, edits, blockHashes, retiredNames, agentSets, commands, tools, skills };
 }
 
 /**
@@ -1201,7 +1222,9 @@ export function retiredAgentLines(exists, deleting) {
 /** This run's configuration files, keyed as the record's are. */
 export function configNow(parsed) {
   const now = new Map();
-  if (parsed.config.kind === 'user') now.set('user', parsed.config.sha256);
+  // The pact's default is part of the commit, not the person's files: the record holds none of it (#183 T4a).
+  if (parsed.config.kind !== 'user') return now;
+  now.set('user', parsed.config.sha256);
   for (const [bp, sha] of parsed.blockHashes) now.set(`block ${bp}`, sha);
   return now;
 }
@@ -1227,6 +1250,7 @@ export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', '
 export function securityDefaultsLine(parsed, record) {
   const parts = SECURITY_PARTS.filter(p => parsed.edits.has(p));
   if (!parts.length) return null;
+  if (parsed.config.kind === 'default') return `WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration (${DEFAULT_CONFIG_NAME}) renders; it edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install.`;
   const since = !record ? 'no install is recorded to compare with' : configStale(configNow(parsed), record.config) ? 'the configuration CHANGED since the last install' : 'the configuration is unchanged since the last install';
   return `WARN: SECURITY DEFAULTS: the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install. ${since[0].toUpperCase()}${since.slice(1)}.`;
 }
@@ -1258,6 +1282,16 @@ export function configBlock(parsed, rulesHash, record) {
     if (last.size) out.push('  the last install had a configuration; this install removes it from the rules file');
     return out;
   }
+  if (parsed.config.kind === 'default') {
+    out.push(`  configuration: the pact's default, ${DEFAULT_CONFIG_NAME} (${parsed.digest}): you have no ${CONFIG_REL}`);
+    // C35: a person's own configuration that has gone is said, not only replaced.
+    if (last.has('user')) out.push(`  the last install had your own configuration; ${CONFIG_REL} is gone now, so the pact's default renders in its place`);
+    out.push(`  rendered rules file: sha256 ${rulesHash}`);
+    for (const [k, v] of parsed.values) out.push(`  WARN: the pact's default configuration sets ${k} to ${v}.`);
+    for (const [k, e] of parsed.edits) out.push(`  WARN: the pact's default configuration edits ${k} (${e.op}).`);
+    out.push(`  To keep the pact's own text instead, write a ${CONFIG_REL} of your own; docs/install.md says how.`);
+    return out;
+  }
   out.push(`  user file ${CONFIG_REL}: sha256 ${parsed.config.sha256}, ${since('user')}`);
   for (const [bp, sha] of parsed.blockHashes) out.push(`  block file ${BLOCKS_REL}/${bp}: sha256 ${sha}, ${since(`block ${bp}`)}`);
   const removed = [...last.keys()].filter(k => k.startsWith('block ') && !now.has(k)).length;
@@ -1270,6 +1304,24 @@ export function configBlock(parsed, rulesHash, record) {
   for (const r of parsed.retiredNames) out.push(`  WARN: the user configuration's ${r.mark} block names ${r.agent}, an agent the pact retired; take the name out of the block, and where it sat in the spec pair put unstated-lens in its place.`);
   out.push('  Edited text is checked only for its characters and line ends, not for wording, meaning or file imports: read each block before you install.');
   return out;
+}
+
+/**
+ * The skill sources the configuration names (#183 T4a): one summary line, one
+ * line per repo with its short pin and path count, and that this install
+ * fetches none of them. Empty when it names none.
+ */
+export function skillsBlock(parsed) {
+  if (!parsed.skills.length) return [];
+  const repos = [...new Set(parsed.skills.map(k => k.repo))];
+  return [
+    `skills: ${parsed.skills.length} path${parsed.skills.length === 1 ? '' : 's'} from ${repos.length} repo${repos.length === 1 ? '' : 's'}, fetched only by the cloud setup`,
+    ...repos.map(r => {
+      const own = parsed.skills.filter(k => k.repo === r);
+      return `  ${r} at ${own[0].commit.slice(0, 12)}: ${own.length} path${own.length === 1 ? '' : 's'}`;
+    }),
+    '  This install fetches and installs none of them; the workflow names them, and a session here has only the skills you installed yourself.',
+  ];
 }
 
 // ------------------------------------------------------------ binding and apply

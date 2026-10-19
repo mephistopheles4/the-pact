@@ -5,8 +5,9 @@ import { createHash } from 'node:crypto';
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, WIN, wrapCheck } from './install-harness.mjs';
+import { applyBound, basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
+import { check as renderCheck } from '../render-core.mjs';
 import { READ_ONLY, agent, plainAgent, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -34,7 +35,7 @@ test('a file under gate/tests is not staged, checked or recorded as part of the 
     writeFileSync(join(root, 'gate', 'tests', 'planted.test.mjs'), "throw new Error('the install must not read this');\n");
   });
   const h = home(t);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   const inGate = manifest.gate.map(g => g.path).filter(p => p.startsWith('gate/tests/'));
@@ -44,7 +45,7 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
   const repo = makeRepo(t);
   const h = home(t);
   writeTree(h, { 'agents/my-own.md': plainAgent('my-own') });
-  assert.equal(install(repo, h, { apply: true }).code, 0);
+  assert.equal(applyBound(repo, h).code, 0);
   // A manifest from before the gate: the same files, no gate block.
   const mf = join(h, '.pact-install.json');
   const old = JSON.parse(readFileSync(mf, 'utf8'));
@@ -54,7 +55,7 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^Delete: 0$/m, dry.out);
   assert.match(dry.stdout, /^Gate: no gate recorded at the last install$/m, dry.out);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   assert.ok(existsSync(join(h, 'agents', 'my-own.md')));
   for (const f of readdirSync(join(repo, 'claude', 'agents'))) assert.ok(existsSync(join(h, 'agents', f)), f);
@@ -68,7 +69,7 @@ test('the owner\'s own live agent is never deleted, and an old manifest deletes 
 test('bad case: an edited install script is flagged in the dry run', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  assert.equal(install(repo, h, { apply: true }).code, 0);
+  assert.equal(applyBound(repo, h).code, 0);
   const p = join(repo, 'gate', 'install-run.mjs');
   writeFileSync(p, `${readFileSync(p, 'utf8')}// edited\n`);
   commitAll(repo);
@@ -86,7 +87,7 @@ test('bad case: an uncommitted edit to the install script refuses --apply', t =>
   const dry = install(repo, h);
   passed(dry);
   assert.match(dry.stdout, /^WARN: this install script differs from the committed copy; --apply will refuse\.$/m, dry.out);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   refused(r, /^REFUSED: this install script differs from the committed copy\./m);
   assert.deepEqual(listTree(h), []);
 });
@@ -190,7 +191,7 @@ test('bad case: a git planted in the folder the install runs from is never run',
 test('lines built from the install record are cleaned', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  assert.equal(install(repo, h, { apply: true }).code, 0);
+  assert.equal(applyBound(repo, h).code, 0);
   const mf = join(h, '.pact-install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
   m.gate.push({ path: 'gate/\u001b[2Kx', sha256: 'aa' });
@@ -311,22 +312,29 @@ function plantRenderer(root, from, to) {
   plantModule(join(root, 'gate'), 'render', from, to);
 }
 
-/** The repo's committed rules file: its source bytes, and the no-file render the tests expect. */
-function rulesOf(repo) {
+/**
+ * The repo's committed rules file: its source bytes, and the render a home
+ * with no configuration of its own gets, the pact's default (#183 T4a), from
+ * the renderer run on the repo's own default folder.
+ */
+function rulesOf(t, repo) {
   const source = readFileSync(join(repo, 'claude', 'CLAUDE.md'));
-  const rendered = Buffer.from(withoutOpenMarks(source.toString('utf8')));
-  assert.notDeepEqual(rendered, source, 'the source carries no open marks, so this test would pass for the wrong reason');
+  const out = tempDir(t, 'pact-render-');
+  const r = renderCheck([join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]);
+  assert.equal(r.failed, false, r.lines.join('\n'));
+  const rendered = readFileSync(join(out, 'CLAUDE.md'));
+  assert.notDeepEqual(rendered, Buffer.from(withoutOpenMarks(source.toString('utf8'))), 'the default changes nothing, so this test would pass for the wrong reason');
   return { source, rendered };
 }
 
-test('--apply installs the no-file render as the rules file, and the record holds its hash', t => {
+test('--apply installs the default render as the rules file, and the record holds its hash', t => {
   const repo = makeRepo(t);
-  const { source, rendered } = rulesOf(repo);
+  const { source, rendered } = rulesOf(t, repo);
   const h = home(t);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
   assert.match(r.stdout, new RegExp(`^render\\| RENDERED ${sha256(rendered)}$`, 'm'), r.out);
-  assert.match(r.stdout, /^render\| CONFIG none$/m, r.out);
+  assert.match(r.stdout, /^render\| CONFIG default [0-9a-f]{64}$/m, r.out);
   assert.match(r.stdout, /^OK {7}CLAUDE\.md$/m, r.out);
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), rendered);
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
@@ -339,13 +347,13 @@ test('--apply installs the no-file render as the rules file, and the record hold
   assert.match(again.stdout, /^Nothing to do\.$/m, again.out);
 });
 
-test('the dry run shows a Configuration block that says there is no configuration, before the gate block', t => {
+test('the dry run shows a Configuration block that names the pact\'s default when there is no configuration, before the gate block', t => {
   const r = install(makeRepo(t), home(t));
   assert.equal(r.code, 0, r.out);
   const lines = r.stdout.replaceAll('\r\n', '\n').split('\n');
   const c = lines.indexOf('Configuration:');
   assert.ok(c >= 0, r.out);
-  assert.equal(lines[c + 1], '  no configuration');
+  assert.match(lines[c + 1], /^ {2}configuration: the pact's default, Level 3 · Full \([0-9a-f]{12}\): you have no pact\/config\.json$/);
   assert.ok(c < lines.findIndex(l => /^Gate: /.test(l)), r.out);
 });
 
@@ -357,9 +365,9 @@ test('bad case: the rules file changed in the stage after the check refuses --ap
     plantSeamAOnce(root, "import { lstatSync, readFileSync, readdirSync } from 'node:fs';", "import { lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';");
     plantSeamAOnce(root, '// @@TEST-SETTINGS-HOOK@@', `writeFileSync(join(root, 'claude', 'CLAUDE.md'), ${JSON.stringify(source)});`);
   });
-  rulesOf(repo);
+  rulesOf(t, repo);
   const h = home(t);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   refused(r);
   assert.match(r.stdout, /^REFUSED: the staged copy of CLAUDE\.md changed after the check\./m, r.out);
   assert.deepEqual(listTree(h), []);
@@ -367,9 +375,9 @@ test('bad case: the rules file changed in the stage after the check refuses --ap
 
 test('bad case: a record whose rules-file hash is not the rendered bytes\' hash is drift, and --apply refuses', t => {
   const repo = makeRepo(t);
-  const { source, rendered } = rulesOf(repo);
+  const { source, rendered } = rulesOf(t, repo);
   const h = home(t);
-  assert.equal(install(repo, h, { apply: true }).code, 0);
+  assert.equal(applyBound(repo, h).code, 0);
   // The hash an install that ignored the render would have recorded.
   const mf = join(h, '.pact-install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
@@ -379,7 +387,7 @@ test('bad case: a record whose rules-file hash is not the rendered bytes\' hash 
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, /^Drift: 1$/m, dry.out);
   assert.match(dry.stdout, /^ {2}CLAUDE\.md \(changed since the install\)$/m, dry.out);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   refused(r, /^REFUSED: live files changed since the last install\./m);
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), rendered);
 });
@@ -413,7 +421,7 @@ test('bad case: a renderer that changes a staged file refuses', t => {
 
 test('the renderer and the rules file come from the commit: working-tree-only edits to them are not what runs', t => {
   const repo = makeRepo(t);
-  const { rendered } = rulesOf(repo);
+  const { rendered } = rulesOf(t, repo);
   writeFileSync(join(repo, 'gate', 'render.mjs'), "process.stdout.write('RESULT: fail\\n');\nprocess.exit(1);\n");
   const md = join(repo, 'claude', 'CLAUDE.md');
   writeFileSync(md, `${readFileSync(md, 'utf8')}CANARYworktree\n`);

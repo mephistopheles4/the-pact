@@ -92,7 +92,8 @@ async function main() {
     say(`It reads the user configuration under ${home} and writes nothing there.`);
   } else {
     say(`Install from commit ${commit} into ${home}`);
-    if (record) say(`Last install: ${core.formatPlain(record.commit)} with ${record.digest ? `configuration ${record.digest}` : 'no configuration'}`);
+    // A record with a digest and no configuration file of the person's is an install of the pact's default (#183 T4a).
+    if (record) say(`Last install: ${core.formatPlain(record.commit)} with ${record.digest ? `${record.config.size ? '' : "the pact's default "}configuration ${record.digest}` : 'no configuration'}`);
     else say('No manifest found: first-install mode. Live files are compared with the repo; only the retired agents (builder, spec-builder, security-builder) can be deleted.');
   }
 
@@ -145,7 +146,8 @@ async function main() {
   // A project install gives the stage its no-file render, against a new empty
   // folder in place of the Claude home folder; the user file is read later.
   const renderHome = project ? mkdtempSync(join(work, 'nohome-')) : home;
-  const { lines: renderLines } = runCheck(render, [rulesStaged, renderOut, renderHome], 'render', 'the renderer');
+  // A home install with no user file renders the pact's default from the stage (#183 T4a); a project install never does.
+  const { lines: renderLines } = runCheck(render, [rulesStaged, renderOut, renderHome, ...(project ? [] : [live(stage, core.DEFAULT_CONFIG_DIR)])], 'render', 'the renderer');
   const parsed = core.parseRenderLines(renderLines, { project, hash: io.sha256 });
   if (stateOf(stage) !== before) core.stops.renderChangedStage();
   core.checkRenderOutput(io.folderEntries(renderOut), parsed.agentSets.keys());
@@ -302,6 +304,7 @@ async function main() {
   for (const l of core.configBlock(parsed, rulesHash, record)) say(l);
   for (const l of core.commandsBlock(on, staged.keys(), parsed.commands)) say(l);
   for (const l of core.toolsBlock(toolsOn, staged.keys())) say(l);
+  for (const l of core.skillsBlock(parsed)) say(l);
   if (run.dirty) say(`Working tree: DIRTY (${run.dirty} path(s)); the check ran on commit ${commit}, and uncommitted edits are not checked. --apply will refuse.`);
   else say('Working tree: clean');
   if (nothing) say('Nothing to do.');
@@ -361,7 +364,7 @@ async function main() {
     io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.blockHashes, repoFiles, gateNow }), 0o600);
+  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow }), 0o600);
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;
@@ -389,7 +392,7 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  say(`Installed commit ${commit} with ${parsed.digest ? `configuration ${parsed.digest}` : 'no configuration'}; all files verified.`);
+  say(`Installed commit ${commit} with ${parsed.config.kind === 'default' ? `the pact's default configuration ${parsed.digest}` : parsed.digest ? `configuration ${parsed.digest}` : 'no configuration'}; all files verified.`);
   say('RESULT: pass');
 }
 

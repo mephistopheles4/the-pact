@@ -162,11 +162,24 @@ parts:
     (`showThinkingSummaries`);
   - turns on the experimental agent-teams flag
     (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`).
-- **`Configuration:`.** `no configuration`, unless you have a
-  `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
-  a rendered hash the apply command carries.
+- **`Configuration:`.** With no `~/.claude/pact/config.json` of your own,
+  the pact's default configuration renders: Level 3 · Full, the builder's
+  shipped preset. The block names it with its digest, the rendered hash the
+  apply command carries, and a `WARN` line per part it edits (ADR 0093). If
+  the last install had your own configuration and the file is gone now, a
+  line says so. To keep the pact's own text instead, write a configuration of
+  your own: `{"schema": 1}` alone renders the pact's text with only the
+  configuration notice added. If you do have one, it is used whole, never
+  mixed with the default: the block lists each setting and edit, and a
+  rendered hash the apply command carries. A project install never takes the
+  default. Its workflow names six skills from `addyosmani/agent-skills` on
+  the stages (`spec-driven-development`, `incremental-implementation`,
+  `test-driven-development`, `code-review-and-quality`,
+  `shipping-and-launch` and `documentation-and-adrs`). At home they are
+  optional: the install never fetches them, and a session uses one only if
+  you installed it yourself.
 - **`WARN: SECURITY DEFAULTS:`.** Shown before every other warning when your
-  configuration edits any of the six parts Scriptorium builds that set
+  configuration, or the pact's default in its place, edits any of the six parts Scriptorium builds that set
   security defaults: `tiers`, `sensitive`, `workflow`, `lenses`, `qualities`
   or `cost-limits`. They hold the tier table, what Claude looks for as
   sensitive work and the route it recommends, the workflow table with the
@@ -252,6 +265,14 @@ parts:
     hold `tools` at all (`project-key`).
   - **A tool this commit doesn't hold.** A name the block marks
     `(not in this commit)` refuses at the check (`tools-not-in-pact`).
+- **`skills:`.** Shown only when the configuration in force has a `skills`
+  list: how many skill folders it names from how many repos, and each repo
+  with its pin's first 12 characters. Each entry is
+  `{"repo": "owner/name", "commit": "<40 hex>", "paths": ["<folder>", ...]}`:
+  one entry per repo, a full commit id, and at most 100 paths in all, whose
+  last segments, the skills' names, are unique. Only the cloud setup fetches
+  them; this install fetches and installs none, and a session here has only
+  the skills you installed yourself. A bad list refuses (`config-skills`).
 - **`NOTE: … other pact-install-* folder(s) in the temp folder`.** An install
   stopped hard, by a power cut or a killed process, leaves its work folder in
   your temp folder. It may hold your configuration text. Delete those
@@ -274,20 +295,22 @@ The last lines print the apply command to run next.
 ## 5. Install with `--apply`
 
 When the dry run reads right, run the apply command it printed, as printed.
-With no configuration, it looks like this in PowerShell:
+It looks like this in PowerShell:
 
 ```powershell
-$env:NODE_OPTIONS = $null; node gate/install.mjs --apply --commit <commit>
+$env:NODE_OPTIONS = $null; node gate/install.mjs --apply --commit <commit> --rendered-hash <hash>
 ```
 
-With a configuration, it ends with `--rendered-hash <hash>`. The `--commit`
+The `--rendered-hash` binds the apply to the rules file the dry run showed,
+yours or the pact's default; only a project install, which renders no
+configuration, leaves it out. The `--commit`
 is the commit the dry run checked: if your clone moved on since, the apply
 refuses, so run the dry run again. `--apply` also refuses on drift or a
 working tree with uncommitted changes. After it copies the files, it checks
 each one's hash again. A good install ends with:
 
 ```text
-Installed commit <commit> with no configuration; all files verified.
+Installed commit <commit> with the pact's default configuration <digest>; all files verified.
 RESULT: pass
 ```
 
@@ -307,7 +330,9 @@ It installs these files under `~/.claude`:
 - `pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the
-  example builder file, and the rules as they stand before your
+  example builder file, the pact's default configuration
+  (`builder/default-config/`, which the install renders from its stage, and
+  its generator), and the rules as they stand before your
   configuration, as `claude/rules.source.md`. It holds no file named
   `CLAUDE.md`. The kit's builder writes a page only outside any repo, the
   Claude home folder and any `.claude` folder;

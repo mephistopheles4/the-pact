@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, makeRepo } from './install-harness.mjs';
+import { applyBound, home, install, makeRepo } from './install-harness.mjs';
 
 const LENS = 'good-enough-lens';
 const SENTINEL = 'ZZSENTINELWORD';
@@ -68,7 +68,7 @@ test('bad case: a live agent file with the retired name, and no record, draws th
   assert.equal(dry.code, 0, dry.out);
   assert.match(dry.stdout, line, dry.out);
   assert.ok(!dry.out.includes(SENTINEL), 'the file text reached the dry run');
-  const applied = install(repo, h, { apply: true });
+  const applied = applyBound(repo, h);
   assert.equal(applied.code, 0, applied.out);
   assert.ok(existsSync(join(h, ORPHAN)), 'the install deleted a file it did not write');
   assert.match(readFileSync(join(h, ORPHAN), 'utf8'), new RegExp(SENTINEL));
@@ -88,7 +88,7 @@ test('the pact\'s own recorded copy is deleted through its record and draws no l
   const repo = makeRepo(t);
   const h = home(t);
   // The repo no longer ships the lens, so an older install's copy is planted by hand and recorded.
-  const first = install(repo, h, { apply: true });
+  const first = applyBound(repo, h);
   assert.equal(first.code, 0, first.out);
   const recordFile = join(h, '.pact-install.json');
   const record = JSON.parse(readFileSync(recordFile, 'utf8'));

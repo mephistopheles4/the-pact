@@ -8,7 +8,7 @@
 // the install writes. The install script runs it from the stage, before seam A,
 // so seam A checks the bytes that get installed.
 //
-//   node render.mjs <source rules file> <output folder> <Claude home folder>
+//   node render.mjs <source rules file> <output folder> <Claude home folder> [<default folder>]
 //   node render.mjs project <output folder> <Claude home folder> <project folder>
 //
 // The second form is the project mode, described at the end of this header.
@@ -46,7 +46,8 @@
 //     "edits": [ { "mark": <open mark>, "op": "replace" | "remove" | "add-after",
 //                  "file": <block path, except for remove> } ],
 //     "commands": [ <pact command name>, ... ],
-//     "tools": [ <pact tool name>, ... ] }
+//     "tools": [ <pact tool name>, ... ],
+//     "skills": [ { "repo": <owner/name>, "commit": <40 hex>, "paths": [ <folder>, ... ] } ] }
 // The commands list (#203) turns on pact commands: unique names from
 // PACT_COMMANDS (shared.mjs). The install copies only the commands it names.
 // The tools list (#280) does the same for pact tools, from PACT_TOOLS, off by
@@ -61,9 +62,28 @@
 // filled with a fixed notice naming its digest, its values and its edited
 // parts.
 //
+// The skills list (#183 T4a) names skill folders in pinned repos, for the
+// cloud setup to fetch; the renderer only checks it and reports it, and the
+// install fetches nothing. Each entry is one repo, named once (compared
+// without case), at a full 40-hex lowercase commit, with one or more paths;
+// each path's segments are letters, digits, '.', '_' or '-', never . or ..;
+// the last segment, the skill's name, starts with neither '.' nor '-' and
+// names one path only (compared without case); 100 paths at most in all.
+// builder/parts.mjs's skillsProblems holds the same rules in the same words
+// for the builder and its page, and a gate test holds them alike.
+//
+// The default folder (#183 T4a). With a fourth argument and no user file, the
+// renderer reads the pact's default configuration instead: DEFAULT_CONFIG_REL
+// and its blocks under DEFAULT_BLOCKS_REL in that folder, under the same read
+// rules, rooted at that folder. It prints CONFIG default in place of CONFIG
+// user, and its digest and notice name the default. A user file always wins
+// whole: the default is never read beside it. Without the fourth argument, as
+// on a project install, no user file means no configuration.
+//
 // The digest is the first 12 hex characters of the sha256 of one line per
-// file read: "user <sha256 of the user file>\n", then for each edit with a
-// block, in edit order, "block <block path> <sha256 of the block file>\n".
+// file read: "user <sha256 of the user file>\n" (or "default <sha256>\n"
+// for the default), then for each edit with a block, in edit order,
+// "block <block path> <sha256 of the block file>\n".
 //
 // With no configuration, the output is the source with its open-mark lines
 // removed and every other byte unchanged. A line that is not an open-mark line
@@ -77,7 +97,7 @@
 //
 //   RENDERED <sha256 of the output file>
 //   DIFF <sha256 of the diff file>
-//   CONFIG none                       or   CONFIG user <sha256 of the file>
+//   CONFIG none                       or   CONFIG user <sha256 of the file>  (or CONFIG default <sha256>)
 //                                          DIGEST <12 hex>
 //                                          VALUE <setting> <number>   (one per value set)
 //                                          EDIT <mark> remove                        (one per edit,
@@ -87,6 +107,7 @@
 //                                          mode prints RETIRED-NAME qualities <agent>)
 //   COMMANDS none, or the commands the configuration turns on, comma-joined, in PACT_COMMANDS order
 //   TOOLS none, or the tools the configuration turns on, comma-joined, in PACT_TOOLS order
+//   SKILL <repo> <commit> <path>   (one per skill path, in list order; none with no configuration)
 //   RESULT: pass
 //
 // or FAIL lines and "RESULT: fail", with exit 1. Like seam A, it never echoes a
@@ -182,7 +203,22 @@ const BLOCK_MAX = 16 * 1024;
 const BLOCK_PATH_MAX = 200;
 const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
-const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands', 'tools']);
+const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands', 'tools', 'skills']);
+// Skill sources (#183 T4a): the cloud setup fetches them; the render only
+// checks them and reports each path. builder/parts.mjs's skillsProblems holds
+// the same checks for the builder and its page, and a test holds the two equal.
+const SKILL_REPO_RE = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
+const SKILL_COMMIT_RE = /^[0-9a-f]{40}$/;
+const SKILL_SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
+const SKILL_PATHS_MAX = 100;
+// The pact's default configuration (#183 T4a): a folder the install names
+// from its stage, holding config.json and blocks/ as a person's pact folder
+// does. It renders only on a home install with no user file.
+const DEFAULT_CONFIG_REL = Object.freeze(['config.json']);
+const DEFAULT_CONFIG_SHOWN = 'builder/default-config/config.json';
+const DEFAULT_CONFIG_NAMES = Object.freeze(["the pact's default configuration file"]);
+const DEFAULT_BLOCKS_REL = Object.freeze(['blocks']);
+const DEFAULT_BLOCKS_SHOWN = 'builder/default-config/blocks';
 
 // Agent settings: who may be set, to what. Names and efforts are matched
 // exactly against these constants; a model is the user's own text, printed
@@ -482,9 +518,9 @@ function resolveEnoughCosts(qualities, costLimits, fail) {
 
 // The notice. It starts with an empty line, so it reads as its own paragraph.
 const NOTICE_MARK = 'config-notice';
-const NOTICE_TEMPLATE = (digest, values, edits, agents = []) => [
+const NOTICE_TEMPLATE = (digest, values, edits, agents = [], pactDefault = false) => [
   '',
-  `**Configuration in effect.** This file was rendered with the configuration \`${digest}\`.`,
+  `**Configuration in effect.** This file was rendered with ${pactDefault ? "the pact's default configuration" : 'the configuration'} \`${digest}\`.`,
   `Values set: ${values.length ? values.map(([k, v]) => `${k} ${v}`).join(', ') : 'none'}. Parts edited: ${edits.length ? edits.map(e => `${e.mark} (${e.op})`).join(', ') : 'none'}.`,
   ...(agents.length ? [`Agents set: ${agents.map(a => `${a.name} (${noticeModel(a.model)}, ${a.effort} effort)`).join(', ')}.`] : []),
 ];
@@ -770,9 +806,9 @@ function checkEdits(edits, fail) {
  * recording every refusal. Keys are compared exactly against hard-coded
  * lists, so no key such as "__proto__" means anything.
  */
-function checkConfig(buf, report) {
-  const fail = (rule, reason) => report.fail(rule, CONFIG_SHOWN, null, reason);
-  if (scanText(buf, CONFIG_SHOWN, report) === null) return null;
+function checkConfig(buf, report, shown = CONFIG_SHOWN) {
+  const fail = (rule, reason) => report.fail(rule, shown, null, reason);
+  if (scanText(buf, shown, report) === null) return null;
   let doc;
   try {
     doc = readStrictJson(buf);
@@ -788,7 +824,7 @@ function checkConfig(buf, report) {
   let ok = true;
   const keys = Object.keys(doc);
   if (keys.some(k => !TOP_KEYS.includes(k))) {
-    fail('config-key', 'a key that is not schema, settings, edits, agents, commands or tools');
+    fail('config-key', 'a key that is not schema, settings, edits, agents, commands, tools or skills');
     ok = false;
   }
   if (!Object.hasOwn(doc, 'schema') || !wholeIn(doc.schema, SCHEMA, SCHEMA)) {
@@ -815,6 +851,11 @@ function checkConfig(buf, report) {
     tools = checkTools(doc.tools, fail);
     if (tools === null) ok = false;
   }
+  let skills = [];
+  if (Object.hasOwn(doc, 'skills')) {
+    skills = checkSkills(doc.skills, fail);
+    if (skills === null) ok = false;
+  }
   const values = [];
   if (Object.hasOwn(doc, 'settings')) {
     if (!isObject(doc.settings)) {
@@ -836,7 +877,48 @@ function checkConfig(buf, report) {
       }
     }
   }
-  return ok ? { values, edits, agents, commands, tools } : null;
+  return ok ? { values, edits, agents, commands, tools, skills } : null;
+}
+
+/**
+ * The skills list (#183 T4a), checked: [{ repo, commit, path }], one per
+ * path, in list order; or null after recording every refusal. The reasons
+ * name entry and path positions only.
+ */
+function checkSkills(v, fail) {
+  if (!Array.isArray(v)) {
+    fail('config-skills', 'skills must be a list of { repo, commit, paths }');
+    return null;
+  }
+  let ok = true;
+  const bad = reason => {
+    fail('config-skills', reason);
+    ok = false;
+  };
+  const out = [];
+  const repos = new Set();
+  const names = new Set();
+  v.forEach((e, i) => {
+    const at = `skills entry ${i + 1}`;
+    if (!isObject(e) || Object.keys(e).some(k => !['repo', 'commit', 'paths'].includes(k)) || !['repo', 'commit', 'paths'].every(k => Object.hasOwn(e, k))) return bad(`${at}: holds repo, commit and paths, and nothing else`);
+    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) bad(`${at}: repo must be owner/name, in letters, digits, '.', '_' and '-'`);
+    else if (repos.has(e.repo.toLowerCase())) bad(`${at}: names a repo an earlier entry names`);
+    else repos.add(e.repo.toLowerCase());
+    if (typeof e.commit !== 'string' || !SKILL_COMMIT_RE.test(e.commit)) bad(`${at}: commit must be a full commit id, 40 lowercase hex characters`);
+    if (!Array.isArray(e.paths) || !e.paths.length) return bad(`${at}: paths must be a list of at least one folder in the repo`);
+    e.paths.forEach((p, k) => {
+      const pat = `${at} path ${k + 1}`;
+      const segs = typeof p === 'string' ? p.split('/') : [];
+      if (!segs.length || segs.some(s => !SKILL_SEGMENT_RE.test(s) || s === '.' || s === '..')) return bad(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', and no . or .. segment`);
+      const last = segs[segs.length - 1];
+      if (last.startsWith('.') || last.startsWith('-')) return bad(`${pat}: its last segment, the skill's name, must not start with '.' or '-'`);
+      if (names.has(last.toLowerCase())) return bad(`${pat}: its last segment, the skill's name, repeats one an earlier path ends in`);
+      names.add(last.toLowerCase());
+      out.push({ repo: e.repo, commit: e.commit, path: p });
+    });
+  });
+  if (v.reduce((n, e) => n + (isObject(e) && Array.isArray(e.paths) ? e.paths.length : 0), 0) > SKILL_PATHS_MAX) bad(`skills names more than ${SKILL_PATHS_MAX} paths in all`);
+  return ok ? out : null;
 }
 
 /**
@@ -1041,7 +1123,7 @@ function checkBlock(buf, file, report) {
  * Each edit's block, read and checked: the edits with `lines` (strings) and
  * `hash` added for each block, or null after recording every refusal.
  */
-function readBlocks(home, edits, report) {
+function readBlocks(home, edits, report, where = { rel: BLOCKS_REL, shown: 'pact/blocks', names: ['the pact folder', 'the blocks folder'] }) {
   let ok = true;
   const out = [];
   for (const e of edits) {
@@ -1050,9 +1132,9 @@ function readBlocks(home, edits, report) {
       continue;
     }
     const segs = e.path.split('/');
-    const shownFile = `pact/blocks/${e.path}`;
-    const names = ['the pact folder', 'the blocks folder', ...segs.slice(1).map(() => 'a folder on the block path'), 'the block file'];
-    const r = readUnder(home, [...BLOCKS_REL, ...segs], names, { cap: BLOCK_MAX, shownFile, rule: 'block-file', size: { rule: 'block-size', reason: 'larger than 16 KiB' } }, report);
+    const shownFile = `${where.shown}/${e.path}`;
+    const names = [...where.names, ...segs.slice(1).map(() => 'a folder on the block path'), 'the block file'];
+    const r = readUnder(home, [...where.rel, ...segs], names, { cap: BLOCK_MAX, shownFile, rule: 'block-file', size: { rule: 'block-size', reason: 'larger than 16 KiB' } }, report);
     if (r === MISSING) {
       report.fail('block-file', shownFile, null, `edit ${e.n}: the block file, or a folder on its path, does not exist`);
       ok = false;
@@ -1080,7 +1162,7 @@ const toLines = texts => texts.map(s => Buffer.from(s, 'utf8'));
  * lines strictly between an open part's two mark lines; or null after
  * recording a refusal.
  */
-function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tools = []) {
+function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tools = [], pactDefault = false) {
   const fail = (name, reason) => {
     report.fail('render', 'claude/CLAUDE.md', null, `${name}: ${reason}`);
     return null;
@@ -1116,7 +1198,7 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tool
   const n = pairs.get(NOTICE_MARK);
   if (!n) return fail(NOTICE_MARK, 'the slot is not in the source');
   if (n.end !== n.begin + 1) return fail(NOTICE_MARK, 'the slot is not empty in the source');
-  swaps.push({ ...n, with: toLines(NOTICE_TEMPLATE(digest, values, edits, agents)) });
+  swaps.push({ ...n, with: toLines(NOTICE_TEMPLATE(digest, values, edits, agents, pactDefault)) });
   return swaps;
 }
 
@@ -1327,7 +1409,7 @@ function runProject(out, home, projectFolder, report) {
 }
 
 function run(argv, report) {
-  const usage = 'usage: node render.mjs <source rules file> <output folder> <Claude home folder>, or node render.mjs project <output folder> <Claude home folder> <project folder>';
+  const usage = 'usage: node render.mjs <source rules file> <output folder> <Claude home folder> [<default configuration folder>], or node render.mjs project <output folder> <Claude home folder> <project folder>';
   if (argv.some(a => a === '' || a.startsWith('-'))) {
     report.fail('usage', null, null, usage);
     return;
@@ -1340,11 +1422,11 @@ function run(argv, report) {
     runProject(argv[1], argv[2], argv[3], report);
     return;
   }
-  if (argv.length !== 3) {
+  if (argv.length !== 3 && argv.length !== 4) {
     report.fail('usage', null, null, usage);
     return;
   }
-  const [source, out, home] = argv;
+  const [source, out, home, defaultDir = null] = argv;
   if (!emptyFolder(out)) {
     report.fail('output', null, null, 'the output folder must be an empty folder that is not a link');
     return;
@@ -1355,38 +1437,63 @@ function run(argv, report) {
   const pairs = checkMarks(lines, report);
   if (pairs === null) return;
 
-  const config = readUserConfig(home, report);
+  let config = readUserConfig(home, report);
   if (config === null) return;
+  // With no user file and a default folder named, the pact's default renders
+  // in its place (#183 T4a), read under the same rules, rooted at that folder.
+  let kind = 'user';
+  let shown = CONFIG_SHOWN;
+  let blocksWhere;
+  let blocksRoot = home;
+  if (config === NONE && defaultDir !== null) {
+    const r = readUnder(defaultDir, DEFAULT_CONFIG_REL, DEFAULT_CONFIG_NAMES, { cap: CONFIG_MAX, shownFile: DEFAULT_CONFIG_SHOWN, rule: 'default-config', size: { rule: 'config-size', reason: 'larger than 64 KiB' }, rootLabel: "the pact's default configuration folder" }, report);
+    if (r === null) return;
+    if (r === MISSING) {
+      report.fail('default-config', DEFAULT_CONFIG_SHOWN, null, "the pact's default configuration is missing");
+      return;
+    }
+    config = r;
+    kind = 'default';
+    shown = DEFAULT_CONFIG_SHOWN;
+    blocksWhere = { rel: DEFAULT_BLOCKS_REL, shown: DEFAULT_BLOCKS_SHOWN, names: ['the default blocks folder'] };
+    blocksRoot = defaultDir;
+  }
   const head = [];
   let swaps = [];
   let agents = [];
   let commands = [];
   let tools = [];
+  let skills = [];
   if (config === NONE) head.push('CONFIG none');
   else {
-    const checked = checkConfig(config.buf, report);
+    const checked = checkConfig(config.buf, report, shown);
     if (checked === null) return;
     const { values } = checked;
-    const edits = readBlocks(home, checked.edits, report);
+    const edits = readBlocks(blocksRoot, checked.edits, report, blocksWhere);
     if (edits === null) return;
     // An agent file is read only when a setting names its agent.
     agents = checked.agents.map(a => renderAgent(source, a, report));
     if (agents.some(a => a === null)) return;
     const hash = sha256(config.buf);
-    const digest = sha256(`user ${hash}\n${edits.filter(e => e.path).map(e => `block ${e.path} ${e.hash}\n`).join('')}`).slice(0, 12);
-    swaps = swapsFor(lines, pairs, values, edits, digest, report, agents, checked.tools);
+    const digest = sha256(`${kind} ${hash}\n${edits.filter(e => e.path).map(e => `block ${e.path} ${e.hash}\n`).join('')}`).slice(0, 12);
+    swaps = swapsFor(lines, pairs, values, edits, digest, report, agents, checked.tools, kind === 'default');
     if (swaps === null) return;
     const editLines = edits.map(e => (e.path ? `EDIT ${e.mark} ${e.op} ${e.hash} ${e.path}` : `EDIT ${e.mark} ${e.op}`));
     // A block is prose, so a retired agent's name in one is a warning, never a refusal; the line holds constants only (#302).
     const retiredLines = edits.flatMap(e => (e.retired ?? []).map(a => `RETIRED-NAME block ${e.mark} ${a}`));
     head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines, ...retiredLines);
+    // The pact's default names itself on its CONFIG line, the first in head (#183 T4a).
+    if (kind === 'default') head[0] = `CONFIG default ${hash}`;
     commands = checked.commands;
     tools = checked.tools;
+    skills = checked.skills;
   }
   // Exactly one COMMANDS line, from the buffer the digest hashes (#203, S8),
   // and one TOOLS line straight after it (#280).
   head.push(`COMMANDS ${commands.length ? commands.join(',') : 'none'}`);
   head.push(`TOOLS ${tools.length ? tools.join(',') : 'none'}`);
+  // One SKILL line per skill path, in list order, after the TOOLS line (#183 T4a). Each field passed its pattern.
+  head.push(...skills.map(k => `SKILL ${k.repo} ${k.commit} ${k.path}`));
 
   const { rendered, diff } = apply(lines, swaps);
   if (rendered.length > MAX_BYTES) {
