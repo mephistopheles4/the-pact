@@ -464,6 +464,15 @@ for (const [label, files, says] of [
     assert.match(r.last, /^RESULT: full tier, 1 files, fail \(the skips differ from the list: \d+ not listed, \d+ not seen\)$/);
   });
 }
+// #351 D6 (q7): a list line out of the list's shape is refused by its line number, never echoed.
+test('bad case: --skips with a line out of the list\'s shape refuses before node runs, naming only its line', t => {
+  const p = plant(t, { 'a.test.mjs': SKIPPING, 'skips.txt': `${LISTED}TOKEN=not-a-skip-line\n` });
+  const r = runIn(p, ['full', '--skips', join(p.tests, 'skips.txt')]);
+  assert.equal(r.code, 2);
+  assert.equal(r.stdout, '', 'node never ran');
+  assert.ok(!r.stderr.includes('TOKEN'), 'the line is never echoed');
+  assert.equal(r.last, 'RESULT: refused, the --skips list holds a line out of its shape at line 5');
+});
 test('bad case: --skips with a list that cannot be read refuses before node runs', t => {
   const p = plant(t, { 'a.test.mjs': SKIPPING });
   const r = runIn(p, ['full', '--skips', join(p.tests, 'missing.txt')]);
