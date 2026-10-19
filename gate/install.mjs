@@ -27,11 +27,14 @@ const GIT_REDIRECTS = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT
 // The only variables git and the runner get from the owner's environment.
 const KEEP = ['PATH', 'SystemRoot', 'windir', 'HOME', 'USERPROFILE', 'TEMP', 'TMP', 'TMPDIR'];
 const SIGNALS = WIN ? ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
+// What a run that ends between the runner's BACKUP STARTED and CHECKS DONE says (#272, S9).
+const STAGED = 'pact/backups may hold a staging folder with a copy of your settings: check it and delete it; the next dry run names it.';
 
 const say = s => process.stdout.write(`${s}\n`);
 class Stop extends Error {}
 let work = null;
 let child = null;
+let backupStarted = false;
 
 function refuse(why, outcome) {
   say(`REFUSED: ${why} ${outcome || 'Nothing was changed.'}`);
@@ -202,8 +205,10 @@ function main() {
   }, LIMIT_MS);
   // Only the runner's stdout is relayed; its stderr is drained, never shown.
   const relay = line => {
+    if (line === 'BACKUP STARTED') backupStarted = true;
     if (line !== 'CHECKS DONE') return say((last = line));
     checksDone = true;
+    backupStarted = false;
     clearTimeout(timer);
   };
   child.stdout.setEncoding('utf8');
@@ -219,8 +224,8 @@ function main() {
     if (partial) relay(partial);
     // ADR 0032's control 4: a pass is exit 0 and a last line of exactly RESULT: pass.
     const ok = !timedOut && code === 0 && last === 'RESULT: pass';
-    if (timedOut) say(`REFUSED: the install's checks did not finish within ${LIMIT_MS / 1000} s. Nothing was changed.`);
-    else if (!ok && last !== 'RESULT: refused') say(checksDone ? 'REFUSED: the install runner failed after it began writing; the Claude home folder may hold part of this install.' : 'REFUSED: the install runner did not end with a pass. Nothing was changed.');
+    if (timedOut) say(`REFUSED: the install's checks did not finish within ${LIMIT_MS / 1000} s. ${backupStarted ? STAGED : 'Nothing was changed.'}`);
+    else if (!ok && last !== 'RESULT: refused') say(checksDone ? 'REFUSED: the install runner failed after it began writing; the Claude home folder may hold part of this install.' : `REFUSED: the install runner did not end with a pass. ${backupStarted ? STAGED : 'Nothing was changed.'}`);
     if (!ok && (timedOut || last !== 'RESULT: refused')) say('RESULT: refused');
     process.exitCode = ok ? 0 : 1;
     cleanup();
@@ -231,7 +236,7 @@ const stop = () => {
   killTree();
   cleanup();
 };
-for (const sig of SIGNALS) process.on(sig, () => process.exit((stop(), 1)));
+for (const sig of SIGNALS) process.on(sig, () => process.exit((backupStarted && (say(`REFUSED: the install was stopped by a signal. ${STAGED}`), say('RESULT: refused')), stop(), 1)));
 process.on('exit', stop);
 try {
   main();

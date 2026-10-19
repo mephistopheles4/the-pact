@@ -76,7 +76,9 @@ test('the poster off: by default it never installs, and turning it off deletes t
   assert.match(dry.stdout, /^ {2}poster: off\r?$/m, dry.out);
   assert.doesNotMatch(dry.stdout, /WARN: the user configuration turns on the pact tool/, dry.out);
   assert.ok(!existsSync(join(h, ...LIVE)), 'the tool turned off is deleted');
-  assert.ok(!listTree(h).some(f => /poster/.test(f)), listTree(h).join('\n'));
+  // #272: the apply's backup keeps a copy of the file it deletes, by design; nothing else holds one.
+  const outsideBackups = listTree(h).filter(f => !f.split(/[\\/]/).join('/').startsWith('pact/backups'));
+  assert.ok(!outsideBackups.some(f => /poster/.test(f)), outsideBackups.join('\n'));
 });
 
 // unlisted-live, #280 C2

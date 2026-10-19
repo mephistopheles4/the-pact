@@ -26,6 +26,9 @@ function leftoverNote(tmp, own) {
   if (left) say(`NOTE: ${left} other pact-install-* folder(s) in the temp folder; an install stopped hard left them, and they may hold configuration text. docs/install.md says how to delete them.`);
 }
 let writing = false;
+// #272: set once the backup step creates something, so a run that ends before CHECKS DONE names the staging folder; then the backup's name.
+let backupStarted = false;
+let backup = null;
 
 /** A gate module's core, loaded from the stage; a missing or broken one refuses. */
 async function loadCore(file) {
@@ -248,15 +251,20 @@ async function main() {
     return;
   }
 
-  // The plan (L1 to L3).
+  // The plan (L1 to L3). Each live state it reads is kept, so the backup compares its copies with what the plan saw (#272, ex2).
   const linkIn = rel => io.throughLink(home, rel);
   const { repoFiles, sourceOf } = core.installDestinations(checked, linkIn);
-  const p = core.plan(record, repoFiles, rel => io.liveState(live(home, rel)), linkIn);
+  const seen = new Map();
+  const liveAt = rel => {
+    if (!seen.has(rel)) seen.set(rel, io.liveState(live(home, rel)));
+    return seen.get(rel);
+  };
+  const p = core.plan(record, repoFiles, liveAt, linkIn);
   // #262: the person's agents are not the pact's to write, check or record.
   for (const rel of p.yours) repoFiles.delete(rel);
   // A pact command never shadowed by a same-named skill, nor a command or tool laid over a file the pact didn't write (#203, S8; #280).
   core.checkSkillClash(on, rel => io.present(live(home, rel)));
-  core.checkNewPaths(repoFiles, record, rel => io.liveState(live(home, rel)));
+  core.checkNewPaths(repoFiles, record, liveAt);
 
   // Settings (L4 to L9).
   const settingsFile = join(home, 'settings.json');
@@ -290,11 +298,17 @@ async function main() {
     for (const i of items) say(`  ${core.formatPlain(i)}`);
   }
   for (const w of p.warnings) say(`WARN: ${core.formatPlain(w)}`);
-  for (const l of core.retiredAgentLines(rel => io.liveState(live(home, rel)).exists, p.delete)) say(l);
+  for (const l of core.retiredAgentLines(rel => liveAt(rel).exists, p.delete)) say(l);
   say(`Unchanged: ${p.same}`);
   say(`settings.json: ${settings}`);
   if (settingsWill) for (const l of changes) say(l);
   for (const l of notes) say(l);
+  // What --apply will copy first (#272, S9): the same inputs the backup takes.
+  const settingsCopied = settingsWill && liveBytes !== null;
+  say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
+  const folder = io.backupFolder(home);
+  if (folder.link) say(`WARN: ${core.BACKUPS_REL} is a link or other reparse point; --apply refuses.`);
+  if (folder.staging.length) say(core.stagingLine(folder.staging));
   for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) {
     if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
   }
@@ -344,6 +358,17 @@ async function main() {
   for (const rel of [...p.overwrite, ...p.add]) if (io.exists(io.tempName(live(home, rel)))) core.stops.tempLeft(rel);
   for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) if (io.exists(io.tempName(file))) core.stops.tempLeft(rel);
   await writeReview();
+  // @@TEST-BACKUP-HOOK@@
+  // The backup, after every check and before CHECKS DONE, so a backup that fails still changed nothing (#272, S7).
+  const entries = core.backupEntries({ copy: [...p.overwrite, ...p.delete], add: p.add, live: rel => seen.get(rel), settings: settingsWill ? (liveBytes === null ? null : io.sha256(liveBytes)) : undefined, record: recordBytes === null ? null : io.sha256(recordBytes) });
+  const started = () => {
+    backupStarted = true;
+    say('BACKUP STARTED');
+    // @@TEST-BACKUP-STARTED-HOOK@@
+  };
+  const taken = io.takeBackup(io.FS_OPS, { home, commit, entries, platform: process.platform, now: () => new Date(), started });
+  backup = taken.name;
+  say(`backed up ${taken.files} file(s) to ${core.BACKUPS_REL}/${backup}`);
   say('CHECKS DONE');
   writing = true;
   say('Applying.');
@@ -385,7 +410,7 @@ async function main() {
     bad++;
   }
   if (bad) {
-    say(`${bad} mismatch(es).`);
+    say(`${bad} mismatch(es). ${core.backupKept(backup)}`);
     process.exitCode = 1;
     return;
   }
@@ -397,9 +422,11 @@ try {
   await main();
 } catch (e) {
   for (const l of gateLines) say(l);
-  const left = writing === 'project' ? core.PROJECT_LEFT : 'The Claude home folder may hold part of this install.';
-  if (e instanceof core.Refusal) say(`REFUSED: ${e.why} ${writing ? left : e.outcome}`);
-  else say(`REFUSED: the install failed while it ran. ${writing ? left : 'Nothing was changed.'}`);
+  const left = writing === 'project' ? core.PROJECT_LEFT : `The Claude home folder may hold part of this install.${backup ? ` ${core.backupKept(backup)}` : ''}`;
+  // Between BACKUP STARTED and CHECKS DONE only the backup's own refusal knows what it removed (#272, S9).
+  const staged = backupStarted && !writing;
+  if (e instanceof core.Refusal) say(`REFUSED: ${e.why} ${writing ? left : staged && !e.rule.startsWith('backup-') ? core.STAGING_LEFT : e.outcome}`);
+  else say(`REFUSED: the install failed while it ran. ${writing ? left : staged ? core.STAGING_LEFT : 'Nothing was changed.'}`);
   say('RESULT: refused');
   process.exitCode = 1;
 }

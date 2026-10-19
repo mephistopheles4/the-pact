@@ -3,9 +3,10 @@
 // tree state, the replacing write and the leftover count. Nothing here
 // installs. A link the OS won't let this account make is a skip, named.
 import assert from 'node:assert/strict';
-import { chmodSync, linkSync, mkdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, linkSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import * as core from '../install-core.mjs';
 import * as io from '../install-io.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -124,4 +125,106 @@ test('presence: a file, a folder and a junction to nothing are present; a missin
   // A junction on Windows needs no privilege; elsewhere a directory symlink.
   if (!linkOrSkip(t, join(root, 'gone'), join(root, 'dangling'), WIN ? 'junction' : 'dir')) return;
   assert.equal(io.present(join(root, 'dangling')), true, 'a dangling link is present, read without following it');
+});
+
+// ------------------------------------------------------------ the backup (#272, S7)
+
+const NOW = () => new Date(Date.UTC(2026, 9, 18, 14, 30, 5, 123));
+const BASE_NAME = '20261018T143005123Z-aaaaaaa';
+const COMMIT = 'a'.repeat(40);
+
+/** A home holding the person's own rules file and settings, and the entries an apply over it backs up. */
+function backupHome(t, { fresh = false } = {}) {
+  const h = fresh ? join(tempDir(t, 'pact-bk-'), 'home') : tempDir(t, 'pact-bk-');
+  const entries = [
+    { path: '.pact-install.json', was: 'absent' },
+    { path: 'agents/scout.md', was: 'absent' },
+  ];
+  if (!fresh) {
+    writeFileSync(join(h, 'CLAUDE.md'), 'mine\n');
+    writeFileSync(join(h, 'settings.json'), '{"k": 1}\n');
+    entries.unshift({ path: 'CLAUDE.md', was: 'file', sha256: io.sha256('mine\n') });
+    entries.push({ path: 'settings.json', was: 'file', sha256: io.sha256('{"k": 1}\n') });
+  }
+  return { h, entries };
+}
+const backup = (h, entries, { ops = io.FS_OPS, platform = process.platform, now = NOW } = {}) => io.takeBackup(ops, { home: h, commit: COMMIT, entries, platform, now, started: () => {} });
+const stateOf = h => (io.present(h) ? io.treeState(h) : 'absent');
+
+/** The real operations, with `name` failing whenever `when` holds for the path it acts on (a write or fsync: the path its handle opened). */
+function failing(name, when = () => true, base = io.FS_OPS) {
+  const opened = new Map();
+  const ops = { ...base, open: (p, flags, mode) => {
+    const fd = base.open(p, flags, mode);
+    opened.set(fd, p);
+    return fd;
+  } };
+  const real = ops[name];
+  ops[name] = (a, ...rest) => {
+    if (when(String(typeof a === 'number' ? opened.get(a) : a))) throw Object.assign(new Error('injected'), { code: 'EIO' });
+    return real(a, ...rest);
+  };
+  return ops;
+}
+const refusal = (rule, outcome) => e => e instanceof core.Refusal && e.rule === rule && (outcome === undefined || outcome.test(e.outcome));
+
+test('#272 C3: each failing step of the backup refuses with nothing changed, and a name taken moves to the next free one', t => {
+  const cases = [
+    ["a copy's write", failing('write', p => p.endsWith('CLAUDE.md')), process.platform],
+    ["a copy's fsync", failing('fsync', p => p.endsWith('CLAUDE.md')), process.platform],
+    ["a copy's read-back", failing('read', p => p.includes('.staging-')), process.platform],
+    ['the manifest', failing('open', p => p.endsWith('manifest.json')), process.platform],
+    ['the rename', failing('rename'), process.platform],
+    ['the chmod of pact/backups', failing('chmod'), 'linux'],
+  ];
+  // A first install on an empty home copies nothing, so only the steps that make folders or the manifest can fail there.
+  for (const fresh of [false, true]) {
+    for (const [step, ops, platform] of fresh ? cases.slice(3) : cases) {
+      const { h, entries } = backupHome(t, { fresh });
+      const before = stateOf(h);
+      assert.throws(() => backup(h, entries, { ops, platform }), refusal('backup-failed', /^Nothing was changed\.$/), step);
+      assert.equal(stateOf(h), before, `${step}${fresh ? ', on a first install' : ''}`);
+    }
+  }
+  // Every name taken refuses; one taken takes the next suffix (ex2.1, ex3.3).
+  const { h, entries } = backupHome(t);
+  mkdirSync(join(h, 'pact', 'backups', BASE_NAME), { recursive: true });
+  assert.equal(backup(h, entries).name, `${BASE_NAME}-02`);
+  for (let i = 3; i <= 99; i++) mkdirSync(join(h, 'pact', 'backups', `${BASE_NAME}-${String(i).padStart(2, '0')}`));
+  const full = stateOf(h);
+  assert.throws(() => backup(h, entries), refusal('backup-name-taken', /^Nothing was changed\.$/));
+  assert.equal(stateOf(h), full);
+  // A clean-up that fails names the staging folder instead (ex2.7).
+  const other = backupHome(t);
+  assert.throws(() => backup(other.h, other.entries, { ops: failing('rmdir', p => p.includes('.staging-'), failing('rename')) }), refusal('backup-cleanup', new RegExp(`pact/backups/\\.staging-${BASE_NAME} may hold a copy of your settings`)));
+});
+
+test('#272 C4: a link on the backup path at the first check or the second, or at a source, refuses before anything is copied', t => {
+  const elsewhere = tempDir(t, 'pact-bk-else-');
+  const first = backupHome(t);
+  if (!linkOrSkip(t, elsewhere, join(first.h, 'pact'), WIN ? 'junction' : 'dir')) return;
+  const before = stateOf(first.h);
+  assert.throws(() => backup(first.h, first.entries), refusal('backup-link', /^Nothing was changed\.$/));
+  assert.equal(stateOf(first.h), before);
+  assert.deepEqual(readdirSync(elsewhere), []);
+  // The second check, just before the rename: a folder whose real path disagrees with its own (ex3.5).
+  const second = backupHome(t);
+  const swapped = { ...io.FS_OPS, realpath: p => (p.includes('.staging-') ? `${p}-elsewhere` : io.FS_OPS.realpath(p)) };
+  assert.throws(() => backup(second.h, second.entries, { ops: swapped }), refusal('backup-cleanup'));
+  // A retired agent a first install deletes is a source too, though the plan never link-tests it (ad2.2).
+  const source = backupHome(t);
+  writeFileSync(join(elsewhere, 'builder.md'), 'outside\n');
+  if (!linkOrSkip(t, elsewhere, join(source.h, 'agents'), WIN ? 'junction' : 'dir')) return;
+  const withSource = [...source.entries, { path: 'agents/builder.md', was: 'file', sha256: io.sha256('outside\n') }];
+  const was = stateOf(source.h);
+  assert.throws(() => backup(source.h, withSource), refusal('backup-link', /^Nothing was changed\.$/));
+  assert.equal(stateOf(source.h), was);
+});
+
+test('#272 C6: on Linux and macOS a backup file or folder found open to others refuses, with nothing changed', t => {
+  const { h, entries } = backupHome(t);
+  const before = stateOf(h);
+  const wide = { ...io.FS_OPS, stat: p => ({ ...io.FS_OPS.stat(p), mode: 0o100644 }) };
+  assert.throws(() => backup(h, entries, { ops: wide, platform: 'linux' }), refusal('backup-mode', /^Nothing was changed\.$/));
+  assert.equal(stateOf(h), before);
 });
