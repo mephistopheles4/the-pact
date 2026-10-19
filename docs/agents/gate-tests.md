@@ -95,7 +95,9 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   A push that waits is squashed to one commit first, so the security pair's
   read of the diff covers every commit the push publishes. A decline of the
   offer that reached the session only by relay stays open, as the pact says,
-  and the push goes on it.
+  and the push goes on it. A decline frees only the wait for the offer: a
+  diff that touches `.github/` or the lockdown test still waits for the
+  pair's read or the owner's word on the push itself.
 - **The pushed commit is the one the pair read.** The pair's report names
   the commit it read, and the push publishes exactly that commit. A later
   push on a branch that waited, one that changes what the pair read, waits

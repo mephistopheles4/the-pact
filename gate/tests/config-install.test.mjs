@@ -56,7 +56,16 @@ function denyRead(p) {
   if (WIN) {
     const deny = spawnSync('icacls', [p, '/deny', '*S-1-1-0:(R)'], { encoding: 'utf8' });
     if (deny.status !== 0) return null;
-    return () => spawnSync('icacls', [p, '/remove:d', '*S-1-1-0'], { encoding: 'utf8' });
+    const undo = () => spawnSync('icacls', [p, '/remove:d', '*S-1-1-0'], { encoding: 'utf8' });
+    // An elevated account, such as GitHub's Windows runner's, reads past the
+    // deny, so the plant didn't take: skip, as for root below (#351, q10).
+    try {
+      readFileSync(p);
+      undo();
+      return null;
+    } catch {
+      return undo;
+    }
   }
   chmodSync(p, 0o000);
   try {

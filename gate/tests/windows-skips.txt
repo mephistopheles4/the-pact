@@ -7,9 +7,13 @@
 # skip goes to the owner.
 # Taken from a local PowerShell full run at the part-1 PR's head (#351),
 # less the short-name case: GitHub's runner gives its temp folder a short
-# name, so that case runs there (spec S4.4's expected difference).
+# name, so that case runs there (spec S4.4's expected difference), and plus
+# the unreadable-file case: the runner's elevated account reads past a deny,
+# so the plant can't take there; it runs on Linux and on Windows unelevated
+# (a reviewed skip of an installer file guard, the owner's q10).
 agent-settings.test.mjs bad case: an agent file that is a link is refused
 cloud-sessions.test.mjs cloud copy: both generated setup scripts parse under bash -n
+config-install.test.mjs bad case: an unreadable configuration file refuses, and -Apply writes nothing
 contained.test.mjs bad case: a dangling link planted at the temp name refuses, and nothing is created outside the folder
 install-backup.test.mjs #272 C6: on Linux and macOS the backup folders are 0700 and its files 0600
 install-node.test.mjs node: a configuration blocks folder that cannot be read refuses

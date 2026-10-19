@@ -258,7 +258,7 @@ How to read it:
 | R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline that came only by relay kept open until you answer in chat; review of a lens change, with the security pair when you ask for it (ADR 0072); a change Claude doesn't see as sensitive, judgment | Rule, judgment |
 | R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build, in the default workflow, which a home configuration can change behind the security-defaults line (#262, R30); here, the QA pair reads every change to the gate's tests at Test, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line, the read of every commit before a push, and the wait for the security pair's read when it is due or offered (#351); elsewhere, judgment | Rule, judgment |
+| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check and in `gate-windows`: nothing outside `gate/tests/` loads a file inside it | Rule |
@@ -689,12 +689,13 @@ session can act before you see it.
   route. An ordinary edit, or one a fooled session makes, could narrow what
   the CI checks run, or weaken record mode's scrub, which keeps local paths
   and names out of posted test output. Neither CI check can catch
-  that, because both run the runner the edit narrowed. A run with `--skips`
-  that is killed partway can leave its junit report, with test names and this
-  machine's test-file paths, in a folder under the system temp that only your
-  account reads; it never leaves the machine (accepted 2026-10-19 by the owner
-  in chat, the owner's q8 on #351, from data-lens's T1). Only the review at the
+  that, because both run the runner the edit narrowed. Only the review at the
   end of the build does: here, the QA pair at Test, which the pact's one-line exception never covers (#262); elsewhere, the QA pair when you take its offer. The owner accepted this risk by name (#189).
+  A run with `--skips` that is killed partway can leave its junit report, with
+  test names and this machine's test-file paths, in the configured temp
+  folder, exposed as the suite's other test folders there are; it never
+  leaves the machine (accepted 2026-10-19 by the owner, from data-lens's T1
+  and D10 on #351: q8 in chat, then q9 relayed by the head chef).
 - **R22. The install's apply is unprompted.** Since #265 the pact sets no ask
   rules, so nothing prompts you before `--apply`, in any spelling. Before it,
   ask rules looked for an apply's spelling, and some spellings already got

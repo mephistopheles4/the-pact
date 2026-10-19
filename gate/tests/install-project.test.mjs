@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
@@ -395,7 +395,7 @@ test('bad case: a project inside the Claude folder refuses', t => {
 
 /** A new folder outside the real home folder: under the temp folder when that is outside it, else under ProgramData on Windows; null when neither can be made. */
 function outsideHome(t) {
-  const bases = [tmpdir(), WIN ? process.env.ProgramData : null].filter(b => b && !under(b, homedir()));
+  const bases = [realpathSync.native(tmpdir()), WIN ? process.env.ProgramData : null].filter(b => b && !under(b, homedir()));
   for (const b of bases) {
     try {
       const d = mkdtempSync(join(b, 'pact-proj-'));
