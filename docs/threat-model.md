@@ -109,7 +109,7 @@ and the render, not your sight of them (R22). The builder page's policy
 hashes: its content security policy names the SHA-256 of its inline script
 and style, and the browser runs only those. Others, among them the install's
 internal hand-offs, the project install's rules file and record, and CI's
-actions, in every workflow, the gate workflow's two jobs included, pinned to full commit ids, use hashes the same way. The atomic writer takes random bytes only to
+actions, in every workflow, the gate workflow's two jobs included, pinned to full commit ids, use hashes the same way. CI's action pins are git's object ids too, SHA-1 with collision detection, below the hash strength ASVS asks of integrity checks. The residual is a collision prepared by the author of a pinned action who wrote both commits; accepted by the owner on 2026-10-19, in chat, relayed by the head chef, from adversarial-lens's F5 in #351's Test review. The atomic writer takes random bytes only to
 name a temporary file. Transport is git's and GitHub's, outside this page. A
 change that adds a secret, key, signature or encryption step is new scope,
 and sensitive work under the default.
