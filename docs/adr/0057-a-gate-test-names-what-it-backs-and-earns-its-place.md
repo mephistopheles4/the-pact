@@ -1,5 +1,7 @@
 # A gate test names what it backs and earns its place
 
+Amended in part by [ADR 0093](0093-installs-back-up-what-they-replace.md) (2026-10-19): for #272 only, D2 is set aside, and a one-off sweep of the existing suite ran under the never-cut lists. D2 stands for all other work.
+
 "Writing a gate test" in `AGENTS.md` now asks of each test a change adds or edits: what does it back, and is it worth having? `integrity-lens` asks whether a test can fail; nothing asked whether it was worth keeping, so the only pressure on the suite was upward. The rule is forward-only: it does not touch the 1,085 tests already in the suite (#215).
 
 ## The rule
