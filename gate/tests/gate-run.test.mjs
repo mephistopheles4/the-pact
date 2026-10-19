@@ -224,6 +224,8 @@ test('control: a render table on an unplanted staged core passes its base, its r
   assert.throws(() => assertFails(result(1, 'FAIL edit-mark: no such mark', 'RESULT: pass'), ['edit-mark']), /AssertionError/, 'a row whose last line is a pass');
   assert.throws(() => assertFails(result(1, 'FAIL edit-mark: x', 'FAIL edit-file: y', 'RESULT: fail'), ['edit-mark']), /AssertionError/, 'a row that trips a second rule');
   assert.throws(() => assertFails(result(1, 'FAIL edit-file: y', 'RESULT: fail'), ['edit-mark']), /AssertionError/, 'a row that trips one wrong rule');
+  assert.throws(() => assertFails(result(1, 'FAIL edit-mark: x', 'RESULT: fail'), ['edit-mark', 'edit-op']), /AssertionError/, 'a row naming a rule the output lacks');
+  assert.throws(() => assertFails(result(2, 'FAIL edit-mark: x', 'RESULT: fail'), ['edit-mark']), /AssertionError/, 'a row that exits 2');
   assert.throws(() => assertFails(fails, ['edit-mark'], /another text/), /AssertionError/, 'a row whose says does not match');
 });
 
