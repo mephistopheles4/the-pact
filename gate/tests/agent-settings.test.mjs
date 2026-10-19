@@ -11,8 +11,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { AGENT_EFFORTS, AGENT_MODEL_RE, AGENT_NAMES } from '../install-core.mjs';
 import { copyGate, moduleMatch, plantModule } from './gate-files.mjs';
-import { GATE, RENDER, REPO, lastLine } from './text.mjs';
-import { moduleResult, table } from './tables.mjs';
+import { GATE, RENDER, REPO, assertFails, assertPasses, lastLine, moduleResult } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
@@ -116,20 +115,19 @@ test('with no agents key, no agent file is read: a stage with none renders, and 
 const agentsKey = agents => `${JSON.stringify({ schema: 1, agents })}\n`;
 const setTo = v => () => ({ config: agentsKey({ 'integrity-lens': v }) });
 
-for (const c of table('render agents key', {
-  module: 'gate/render.mjs',
-  base: () => ({ config: agentsKey({ 'integrity-lens': { model: 'sonnet' } }) }),
-  run: ({ config }, t) => {
+{
+  const base = () => ({ config: agentsKey({ 'integrity-lens': { model: 'sonnet' } }) });
+  const run = ({ config }, t) => {
     const r = render(t, config);
     const planted = Object.values(JSON.parse(config).agents ?? {}).flatMap(e => (e && typeof e === 'object' ? Object.values(e) : [])).filter(v => typeof v === 'string' && v.length >= 6);
     return { ...moduleResult(r.code, r.stdout, r.stderr), outFiles: r.outFiles, planted };
-  },
+  };
   // #262 C14: a refusal names the agent and the rule, never the refused value (data-lens F3).
-  everyRow: r => {
+  const everyRow = r => {
     assert.deepEqual(r.outFiles, [], 'a refused render left output files');
     for (const v of r.planted) if (v !== 'sonnet') assert.ok(!r.out.includes(v), `a refused value was printed: ${JSON.stringify(v)}`);
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'unknown-agent', plant: () => ({ config: agentsKey({ 'my-reviewer': { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'an agent the pact does not ship' },
     { id: 'agent-name-in-capitals', plant: () => ({ config: agentsKey({ 'Integrity-Lens': { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'names are matched exactly' },
     { id: 'constructor-as-agent', plant: () => ({ config: agentsKey({ constructor: { model: 'sonnet' } }) }), fails: ['config-agents'], says: /cannot set/, why: 'a prototype name is no agent' },
@@ -157,21 +155,29 @@ for (const c of table('render agents key', {
     { id: 'effort-in-capitals', plant: setTo({ effort: 'High' }), fails: ['config-agents'], says: /effort must be one of/, why: 'efforts are matched exactly' },
     { id: 'effort-list', plant: setTo({ effort: ['low'] }), fails: ['config-agents'], says: /effort must be one of/, why: 'an effort is text' },
     { id: 'effort-object', plant: setTo({ effort: { v: 'low' } }), fails: ['config-agents'], says: /effort must be one of/, why: 'an effort is text' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render agents key: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`render agents key: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('render agents key: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ the renderer: the agent file's refusals
 
-for (const c of table('render agent file', {
-  module: 'gate/render.mjs',
-  base: () => ({ 'agent.md': AGENT }),
-  run: (tree, t) => {
+{
+  const base = () => ({ 'agent.md': AGENT });
+  const run = (tree, t) => {
     const agent = Object.hasOwn(tree, 'agent.md') ? tree['agent.md'] : Object.hasOwn(tree, 'folder') ? p => mkdirSync(p) : null;
     const r = render(t, cfg({ 'integrity-lens': { model: 'sonnet' } }), { agent });
     return { ...moduleResult(r.code, r.stdout, r.stderr), outFiles: r.outFiles };
-  },
-  everyRow: r => assert.deepEqual(r.outFiles, [], 'a refused render left output files'),
-  rows: [
+  };
+  const everyRow = r => assert.deepEqual(r.outFiles, [], 'a refused render left output files');
+  const rows = [
     { id: 'missing', plant: () => ({ none: '' }), fails: ['agent-file'], says: /the file is missing/, why: 'no file to set' },
     { id: 'folder', plant: () => ({ folder: '' }), fails: ['agent-file'], says: /not a regular file/, why: 'a folder in place of the file' },
     { id: 'over-1-mib', plant: () => ({ 'agent.md': `${AGENT}${'x'.repeat(1024 * 1024)}\n` }), fails: ['agent-file'], says: /larger than its cap/, why: 'the read cap' },
@@ -190,8 +196,17 @@ for (const c of table('render agent file', {
     { id: 'own-effort-off-list', plant: () => ({ 'agent.md': AGENT.replace(/^effort: .*$/m, 'effort: ultra') }), fails: ['agent-file'], says: /effort line is not one of/, why: 'a kept effort is written back' },
     { id: 'second-tools-line', plant: () => ({ 'agent.md': AGENT.replace('tools: [Read, Glob, Grep]', 'tools: [Read, Glob, Grep]\ntools: [Bash]') }), fails: ['agent-file'], says: /exactly one tools line/, why: 'the tools line is read once' },
     { id: 'no-tools-line', plant: () => ({ 'agent.md': AGENT.replace(/^tools: .*\n/m, '') }), fails: ['agent-file'], says: /exactly one tools line/, why: 'the tools line is read once' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render agent file: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`render agent file: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('render agent file: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('bad case: an agent file that is a link is refused', { skip: WIN && 'not run: planting a symbolic link needs privileges on Windows' }, t => {
   const target = join(tempDir(t, 'pact-agents-target-'), 'real.md');

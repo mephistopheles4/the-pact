@@ -204,7 +204,7 @@ for (const module of MODULES) {
 /**
  * One process, one module: the pass, each failure, the usage error, then the
  * pass again, each built at the same path. Returns each way the second pass
- * differs from the first. The tables rerun their base after their rows; this
+ * differs from the first. Each set of rows reruns its base after the rows; this
  * covers the in-process cases outside tables, seam A's above all.
  */
 function stateProblems(t, module, runner = runCore) {

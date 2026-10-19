@@ -18,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { test } from 'node:test';
-import { tokens } from './tables.mjs';
+import { tokens } from './text.mjs';
 import { REPO, skipUnlessLinuxCi } from './text.mjs';
 
 const WORKFLOWS = join(REPO, '.github', 'workflows');

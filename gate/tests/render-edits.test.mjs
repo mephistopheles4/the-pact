@@ -11,10 +11,9 @@ import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { stage } from './payload.mjs';
-import { GATE, RENDER, REPO, applyDiff, editPart, failRules, lastLine, plainAgent, withoutOpenMarks } from './text.mjs';
+import { GATE, RENDER, REPO, applyDiff, assertFails, assertPasses, editPart, failRules, lastLine, moduleResult, plainAgent, withoutOpenMarks } from './text.mjs';
 import { read, tempDir, writeTree } from './tree.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
-import { moduleResult, table } from './tables.mjs';
 
 const WIN = process.platform === 'win32';
 const SOURCE = join(REPO, 'claude', 'CLAUDE.md');
@@ -267,7 +266,7 @@ const withPath = path => withEdits([{ ...OK_EDIT, file: path }]);
 
 /**
  * The renderer on a home built from `tree`, in-process through its core
- * (#140, T10): the tables' runner. parity.test.mjs proves the core prints
+ * (#140, T10): the rows' runner. parity.test.mjs proves the core prints
  * what the wrapper the install runs prints. This file's fault cases stay
  * child runs through render(), since their preload patches the whole process.
  */
@@ -289,12 +288,11 @@ function refusedOnly(r) {
 // ------------------------------------------------------------ the must-refuse table: the edit list
 
 // #261 C4
-for (const c of table('render edit list', {
-  module: 'gate/render.mjs',
-  base: editHome,
-  run: renderTree,
-  everyRow: refusedOnly,
-  rows: [
+{
+  const base = editHome;
+  const run = renderTree;
+  const everyRow = refusedOnly;
+  const rows = [
     { id: 'unknown-mark', plant: withEdits([{ mark: 'move-9', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'an unknown mark' },
     { id: 'mark-in-another-case', plant: withEdits([{ mark: 'Moves', op: 'remove' }]), fails: ['edit-mark'], says: /edit 1: an unknown mark/, why: 'a mark in another case' },
     // A fixed block is no open part, so no edit can target it.
@@ -322,8 +320,17 @@ for (const c of table('render edit list', {
     // #142: the session setting's part, like the weekly one's, is filled only from its setting.
     { id: 'session-setting-part', plant: withEdits([{ mark: 'usage-pause-session', op: 'replace', file: 'ok.md' }]), fails: ['edit-setting'], says: /edit 1: usage-pause-session is set only through its setting/, why: 'an edit to the session setting\'s part' },
     // block-text on the parts Scriptorium builds (#262, S9): each part, and each of the two refusals.
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render edit list: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`render edit list: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('render edit list: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('16 edits are not refused by the count: the same list refuses only for a mark edited twice', t => {
   const r = render(t, homeWith(t, cfg(Array.from({ length: 16 }, () => ({ mark: 'moves', op: 'remove' })))));
@@ -340,12 +347,11 @@ test('a refusal reports every bad edit, each by its position', t => {
 
 // ------------------------------------------------------------ the must-refuse table: block paths, on their text
 
-for (const c of table('render block path', {
-  module: 'gate/render.mjs',
-  base: editHome,
-  run: renderTree,
-  everyRow: refusedOnly,
-  rows: [
+{
+  const base = editHome;
+  const run = renderTree;
+  const everyRow = refusedOnly;
+  const rows = [
     { id: 'empty', plant: withPath(''), fails: ['block-path'], says: /the block path is empty or not text/, why: 'an empty path' },
     { id: 'not-text', plant: withPath(5), fails: ['block-path'], says: /the block path is empty or not text/, why: 'a path that is not text' },
     { id: 'absolute', plant: withPath('/etc/passwd'), fails: ['block-path'], says: /an absolute path, a network share or a device path/, why: 'an absolute path' },
@@ -377,8 +383,17 @@ for (const c of table('render block path', {
     { id: 'environment-reference', plant: withPath('%USERPROFILE%/a.md'), fails: ['block-path'], says: /a character outside letters, digits/, why: 'an environment reference' },
     { id: 'over-200-characters', plant: withPath(`${'a'.repeat(198)}.md`), fails: ['block-path'], says: /longer than 200 characters/, why: 'a path over 200 characters' },
     { id: 'over-8-segments', plant: withPath('a/b/c/d/e/f/g/h/i.md'), fails: ['block-path'], says: /more than 8 path segments/, why: 'more than 8 segments' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render block path: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`render block path: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('render block path: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('a path refused on its text is refused before any file is opened, even when the file it names is there and good', t => {
   const h = homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: '../outside.md' }]));

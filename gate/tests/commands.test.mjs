@@ -1,6 +1,6 @@
 // Pact commands in the gate (#203, T1): seam A's command kind and its
 // --commands argument, and the renderer's commands key and COMMANDS line.
-// Each bad case is a table row that must fail with its exact rule ids. Every
+// Each bad case is a row that must fail with its exact rule ids. Every
 // bad case plants its own command file; the shipped ones (#203, T2) are
 // checked at the end. Nothing here installs; commands-install.test.mjs runs
 // the install script.
@@ -12,8 +12,7 @@ import { BUILDER_KIT as INSTALL_KIT, BUILDER_KIT_PATTERNS as INSTALL_KIT_PATTERN
 import { BUILDER_KIT, BUILDER_KIT_PATTERNS, PACT_COMMANDS } from '../shared.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
-import { moduleResult, table } from './tables.mjs';
-import { REPO } from './text.mjs';
+import { REPO, assertFails, assertPasses, moduleResult } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const CMD = 'claude/commands/finis.md';
@@ -26,20 +25,22 @@ const line = text => t => ({ ...t, [CMD]: `${t[CMD]}${text}\n` });
 // ------------------------------------------------------------ seam A: the command file (S3)
 // Since #262 seam A checks only a command file's path and name; what it says is the owner's to judge.
 
-for (const c of table('command file', {
-  module: 'gate/seam-a.mjs',
-  base: () => ({ [CMD]: GOOD }),
-  run: (tree, t) => {
+{
+  const base = () => ({ [CMD]: GOOD });
+  const run = (tree, t) => {
     const r = runSeamA(stage(t, tree), undefined, { commands: 'finis' });
     return moduleResult(r.code, r.stdout, r.stderr);
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'unlisted-name', plant: t => ({ ...t, 'claude/commands/ship-it.md': GOOD }), fails: ['command-file-name'], why: 'a fourth command needs a gate change' },
     { id: 'name-in-capitals', plant: () => ({ 'claude/commands/Finis.md': GOOD }), fails: ['command-file-name', 'commands-not-in-pact'], why: 'names are matched exactly, so finis is not in the stage' },
     { id: 'subfolder', plant: t => ({ ...t, 'claude/commands/more/finis.md': GOOD }), fails: ['command-path'], why: 'a command is exactly claude/commands/<name>.md' },
     { id: 'not-markdown', plant: t => ({ ...t, 'claude/commands/finis.txt': GOOD }), fails: ['command-file-name'], why: 'only a .md file is a command' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('command file: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`command file: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('command file: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('seam A lists a command for install only when --commands names it', t => {
   const root = stage(t, { [CMD]: GOOD });
@@ -68,11 +69,10 @@ function seamWith(t, tree, argv) {
   const r = runCore('seam-a', [root, ...argv]);
   return moduleResult(r.code, r.stdout, r.stderr);
 }
-for (const c of table('seam a commands argument', {
-  module: 'gate/seam-a.mjs',
-  base: () => ({ [CMD]: GOOD, argv: JSON.stringify(['--commands', 'finis', '--tools', 'none']) }),
-  run: ({ argv, ...tree }, t) => seamWith(t, tree, JSON.parse(argv)),
-  rows: [
+{
+  const base = () => ({ [CMD]: GOOD, argv: JSON.stringify(['--commands', 'finis', '--tools', 'none']) });
+  const run = ({ argv, ...tree }, t) => seamWith(t, tree, JSON.parse(argv));
+  const rows = [
     { id: 'missing', plant: t => ({ ...t, argv: JSON.stringify(['--tools', 'none']) }), fails: ['commands-arg'], why: 'the list never defaults' },
     { id: 'given-twice', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis', '--commands', 'finis', '--tools', 'none']) }), fails: ['commands-arg'], why: 'given twice, even the same' },
     { id: 'no-value', plant: t => ({ ...t, argv: JSON.stringify(['--tools', 'none', '--commands']) }), fails: ['commands-arg'], why: 'a flag with nothing after it' },
@@ -84,8 +84,11 @@ for (const c of table('seam a commands argument', {
     { id: 'spaces', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis, make-it-so', '--tools', 'none']) }), fails: ['commands-name'], why: 'names joined by commas alone' },
     { id: 'repeat', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis,finis', '--tools', 'none']) }), fails: ['commands-repeat'], why: 'one name twice' },
     { id: 'not-in-this-pact', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis,make-it-so', '--tools', 'none']) }), fails: ['commands-not-in-pact'], says: /make-it-so, but the stage holds no claude\/commands\/make-it-so\.md: it is not in this pact/, why: 'a listed name whose file is not in the stage' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('seam a commands argument: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`seam a commands argument: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('seam a commands argument: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('the pact command list is one list: the install keeps the same names in the same order', () => {
   assert.deepEqual([...INSTALL_COMMANDS], [...PACT_COMMANDS]);
@@ -113,14 +116,13 @@ function renderWith(t, config) {
   const out = tempDir(t, 'pact-render-out-');
   return runCore('render', [SOURCE, out, h]);
 }
-for (const c of table('render commands key', {
-  module: 'gate/render.mjs',
-  base: () => ({ config: '{"schema": 1, "commands": ["finis"]}' }),
-  run: ({ config }, t) => {
+{
+  const base = () => ({ config: '{"schema": 1, "commands": ["finis"]}' });
+  const run = ({ config }, t) => {
     const r = renderWith(t, config);
     return moduleResult(r.code, r.stdout, r.stderr);
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'not-a-list', plant: () => ({ config: '{"schema": 1, "commands": "finis"}' }), fails: ['config-commands'], why: 'a list, not one name' },
     { id: 'an-object', plant: () => ({ config: '{"schema": 1, "commands": {"finis": true}}' }), fails: ['config-commands'], why: 'a list, not a map' },
     { id: 'unknown-name', plant: () => ({ config: '{"schema": 1, "commands": ["ship-it"]}' }), fails: ['config-commands'], why: 'a name that is not a pact command' },
@@ -129,8 +131,11 @@ for (const c of table('render commands key', {
     { id: 'repeat', plant: () => ({ config: '{"schema": 1, "commands": ["finis", "finis"]}' }), fails: ['config-commands'], why: 'one name twice' },
     { id: 'none-as-a-name', plant: () => ({ config: '{"schema": 1, "commands": ["none"]}' }), fails: ['config-commands'], why: 'none is the line\'s word, not a name' },
     { id: 'key-in-capitals', plant: () => ({ config: '{"schema": 1, "Commands": ["finis"]}' }), fails: ['config-key'], why: 'keys are matched exactly' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render commands key: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`render commands key: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('render commands key: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #280 C1: the COMMANDS line comes last but for the TOOLS line.
 test('the renderer always prints one COMMANDS line: none, or the names on in PACT_COMMANDS order', t => {

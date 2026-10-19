@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { post } from '../../claude/tools/poster.mjs';
-import { table } from './tables.mjs';
+import { assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const TARGET = 'tester/sandbox';
@@ -160,8 +160,9 @@ const asBody = text => () => ({ 'body.md': text });
 /**
  * A run of an issue comment carrying the tree's body (a dry run by default),
  * with a gh that records any call. Its code and last line are mapped to what
- * `table()` asserts: a refusal (exit 2) to exit 1 and `RESULT: fail`, a dry
- * run to exit 0 and `RESULT: pass`. `refusedQuietly` asserts the real exit 2.
+ * `assertFails` and `assertPasses` assert: a refusal (exit 2) to exit 1 and
+ * `RESULT: fail`, a dry run to exit 0 and `RESULT: pass`. `refusedQuietly`
+ * asserts the real exit 2.
  */
 function runBody(tree, t, extra = ['--dry-run']) {
   const dir = tempDir(t, 'pact-poster-prose-');
@@ -192,12 +193,11 @@ const link = (n, line, target) => new RegExp(`^REFUSED link/relative body ${n}:$
 const linkRow = (id, line, target, why) => ({ id, plant: add(line), fails: ['link/relative'], says: link(at(0), line, target), why });
 
 // #317 C1, #317 C2: each rule refuses a planted line, at its place. #317 C3: the base, with every passing shape, passes.
-for (const c of table('poster prose', {
-  module: 'claude/tools/poster.mjs',
-  base: () => ({ 'body.md': BASE }),
-  run: runBody,
-  everyRow: refusedQuietly,
-  rows: [
+{
+  const base = () => ({ 'body.md': BASE });
+  const run = runBody;
+  const everyRow = refusedQuietly;
+  const rows = [
     { id: 'wrap-paragraph', plant: add('A paragraph that stops here', 'and carries on.'), fails: ['text/hard-wrap'], says: wrap(at(1)), why: 'a line that stops mid-sentence, continued' },
     { id: 'wrap-list-continuation', plant: add('- a list item that stops here', '  and carries on.'), fails: ['text/hard-wrap'], says: wrap(at(1)), why: 'a list item wrapped onto an indented line' },
     { id: 'wrap-quote', plant: add('> a quoted line that stops here', '> and carries on.'), fails: ['text/hard-wrap'], says: wrap(at(1)), why: 'a quote read with its markers off' },
@@ -211,8 +211,17 @@ for (const c of table('poster prose', {
     linkRow('link-html-src', '<img src="docs/x.png">', 'docs/x.png', 'an HTML src'),
     linkRow('link-angle', 'See [it](<docs/x.md>).', 'docs/x.md', 'a target in angle brackets'),
     linkRow('link-html-href', '<a href="docs/x.md">it</a>', 'docs/x.md', 'an HTML href'),
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('poster prose: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`poster prose: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('poster prose: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #317 C4: on a refusal, nothing is sent, both new rules are counted, and a dry run refuses the same body.
 test('a refusal sends nothing, counts both rules, and a dry run refuses the same body', t => {

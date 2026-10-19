@@ -1,5 +1,7 @@
 # Install cases are cut by covering row, with no permanent compare
 
+Superseded in part by [ADR 0092](0092-gate-bad-cases-are-plain-test-loops.md) (2026-10-18): the table guard's reader of `table(...)` calls, in `tables.mjs`, is gone with the table module; an in-process row is a row in a plain `test()` loop.
+
 An end-to-end install case is cut only when an in-process row already checks the decision it makes. The cut is proved once, in the build that makes it, by a table on the issue; no compare runs afterwards. This supersedes [ADR 0031](0031-gate-bad-cases-are-table-rows-and-no-case-is-lost.md) in part: the T1 baseline, its lists and the no-loss compare are deleted. Tables of bad cases stay as 0031 describes them.
 
 - **A case may be cut** when a row in `install-core.test.mjs`, or another file that never installs, checks the same decision by its rule id, or by the same pure function's output. The table on the issue names, for each property, the row and the cases it covers.

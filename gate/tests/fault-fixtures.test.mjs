@@ -187,7 +187,7 @@ test('the fault-fixture guard: no file under gate/tests/ outside fixtures/ impor
 
 test('the fault-fixture guard reads every source file outside fixtures/, test files and helpers alike', () => {
   const seen = sources(TESTS).map(([rel]) => rel);
-  for (const f of ['text.mjs', 'tree.mjs', 'gate-files.mjs', 'payload.mjs', 'install-harness.mjs', 'gate-run.mjs', 'tables.mjs', 'fault-fixtures.test.mjs', 'render-edits.test.mjs']) assert.ok(seen.includes(f), f);
+  for (const f of ['text.mjs', 'tree.mjs', 'gate-files.mjs', 'payload.mjs', 'install-harness.mjs', 'gate-run.mjs', 'fault-fixtures.test.mjs', 'render-edits.test.mjs']) assert.ok(seen.includes(f), f);
   assert.ok(!seen.some(f => f.startsWith('fixtures/')));
 });
 

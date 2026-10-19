@@ -1,6 +1,6 @@
 // Pact tools in the gate (#280, T1): the renderer's tools key, its TOOLS line
 // and the poster's rule part, and seam A's tool kind and its --tools argument.
-// Each bad case is a table row that must fail with its exact rule ids. Every
+// Each bad case is a row that must fail with its exact rule ids. Every
 // seam A case plants its own tool file. Nothing here installs;
 // the install-tier tools file runs the install script.
 import assert from 'node:assert/strict';
@@ -11,8 +11,7 @@ import { PACT_TOOLS as INSTALL_TOOLS } from '../install-core.mjs';
 import { PACT_TOOLS } from '../shared.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
-import { moduleResult, table } from './tables.mjs';
-import { REPO } from './text.mjs';
+import { REPO, assertFails, assertPasses, moduleResult } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const TOOL = 'claude/tools/poster.mjs';
@@ -30,21 +29,23 @@ test('the pact tool list is one list: the install keeps the same names in the sa
 // ------------------------------------------------------------ seam A: the tool file (C3)
 
 // #280 C3
-for (const c of table('tool file', {
-  module: 'gate/seam-a.mjs',
-  base: () => ({ [TOOL]: GOOD }),
-  run: (tree, t) => {
+{
+  const base = () => ({ [TOOL]: GOOD });
+  const run = (tree, t) => {
     const r = runSeamA(stage(t, tree), undefined, { tools: 'poster' });
     return moduleResult(r.code, r.stdout, r.stderr);
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'subfolder', plant: t => ({ ...t, 'claude/tools/more/poster.mjs': GOOD }), fails: ['tool-path'], why: 'a tool is exactly claude/tools/<name>.mjs' },
     { id: 'unlisted-name', plant: t => ({ ...t, 'claude/tools/sender.mjs': GOOD }), fails: ['tool-file-name'], why: 'a second tool needs a gate change' },
     { id: 'not-a-module', plant: t => ({ ...t, 'claude/tools/poster.md': GOOD }), fails: ['tool-file-name'], why: 'only a .mjs file is a tool' },
     { id: 'name-in-capitals', plant: () => ({ 'claude/tools/Poster.mjs': GOOD }), fails: ['tool-file-name', 'tools-not-in-pact'], why: 'names are matched exactly, so poster is not in the stage' },
     { id: 'hidden-character', plant: t => ({ ...t, [TOOL]: "console.log('a\u200btool');\n" }), fails: ['invisible'], why: 'the text scanner reads a tool file' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('tool file: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`tool file: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('tool file: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #280 C2
 test('seam A lists a tool for install only when --tools names it, at pact/tools/<name>.mjs', t => {
@@ -75,11 +76,10 @@ function seamWith(t, tree, argv) {
 }
 const args = (...a) => JSON.stringify(['--commands', 'none', ...a]);
 // #280 C3
-for (const c of table('seam a tools argument', {
-  module: 'gate/seam-a.mjs',
-  base: () => ({ [TOOL]: GOOD, argv: args('--tools', 'poster') }),
-  run: ({ argv, ...tree }, t) => seamWith(t, tree, JSON.parse(argv)),
-  rows: [
+{
+  const base = () => ({ [TOOL]: GOOD, argv: args('--tools', 'poster') });
+  const run = ({ argv, ...tree }, t) => seamWith(t, tree, JSON.parse(argv));
+  const rows = [
     { id: 'missing', plant: t => ({ ...t, argv: args() }), fails: ['tools-arg'], why: 'the list never defaults' },
     { id: 'given-twice', plant: t => ({ ...t, argv: args('--tools', 'poster', '--tools', 'poster') }), fails: ['tools-arg'], why: 'given twice, even the same' },
     { id: 'no-value', plant: t => ({ ...t, argv: args('--tools') }), fails: ['tools-arg'], why: 'a flag with nothing after it' },
@@ -90,8 +90,11 @@ for (const c of table('seam a tools argument', {
     { id: 'repeat', plant: t => ({ ...t, argv: args('--tools', 'poster,poster') }), fails: ['tools-repeat'], why: 'one name twice' },
     { id: 'not-in-this-pact', plant: t => ({ argv: t.argv }), fails: ['tools-not-in-pact'], says: /--tools names poster, but the stage holds no claude\/tools\/poster\.mjs: it is not in this pact/, why: 'a listed name whose file is not in the stage' },
     { id: 'both-missing', plant: t => ({ ...t, argv: '[]' }), fails: ['commands-arg', 'tools-arg'], why: 'each list is required on its own' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('seam a tools argument: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`seam a tools argument: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('seam a tools argument: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #280 C3
 test('seam A takes --tools before or after --commands', t => {
@@ -112,14 +115,13 @@ function renderWith(t, config, { source = SOURCE, out = tempDir(t, 'pact-render-
   return { ...runCore('render', [source, out, h]), out };
 }
 // #280 C1
-for (const c of table('render tools key', {
-  module: 'gate/render.mjs',
-  base: () => ({ config: '{"schema": 1, "tools": ["poster"]}' }),
-  run: ({ config }, t) => {
+{
+  const base = () => ({ config: '{"schema": 1, "tools": ["poster"]}' });
+  const run = ({ config }, t) => {
     const r = renderWith(t, config);
     return moduleResult(r.code, r.stdout, r.stderr);
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'not-a-list', plant: () => ({ config: '{"schema": 1, "tools": "poster"}' }), fails: ['config-tools'], why: 'a list, not one name' },
     { id: 'an-object', plant: () => ({ config: '{"schema": 1, "tools": {"poster": true}}' }), fails: ['config-tools'], why: 'a list, not a map' },
     { id: 'unknown-name', plant: () => ({ config: '{"schema": 1, "tools": ["sender"]}' }), fails: ['config-tools'], why: 'a name that is not a pact tool' },
@@ -130,8 +132,11 @@ for (const c of table('render tools key', {
     { id: 'key-in-capitals', plant: () => ({ config: '{"schema": 1, "Tools": ["poster"]}' }), fails: ['config-key'], why: 'keys are matched exactly' },
     // #280 C6: the poster's part is filled only by the tools list.
     { id: 'edit-tool-part', plant: () => ({ config: '{"schema": 1, "edits": [{"mark": "tool-poster", "op": "remove"}]}' }), fails: ['edit-mark'], says: /tool-poster is filled while its tool is on; no edit may target it/, why: 'no edit may target the part' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render tools key: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`render tools key: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('render tools key: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #280 C1
 test('the renderer always prints one TOOLS line, straight after COMMANDS: none, or the tools on', t => {
@@ -220,20 +225,22 @@ test("the rule gives the PowerShell form only through $HOME and the POSIX form o
 });
 
 // render, #280 C6: the renderer fills the part only where the source holds it, and holds it empty.
-for (const c of table('render tool part', {
-  module: 'gate/render.mjs',
-  base: () => ({ source: readFileSync(SOURCE, 'utf8').replace(/\r\n/g, '\n') }),
-  run: ({ source }, t) => {
+{
+  const base = () => ({ source: readFileSync(SOURCE, 'utf8').replace(/\r\n/g, '\n') });
+  const run = ({ source }, t) => {
     const dir = tempDir(t, 'pact-render-source-');
     writeFileSync(join(dir, 'CLAUDE.md'), source);
     const r = renderWith(t, '{"schema": 1, "tools": ["poster"]}', { source: join(dir, 'CLAUDE.md') });
     return moduleResult(r.code, r.stdout, r.stderr);
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'part-missing', plant: t => ({ source: t.source.replace('<!-- pact:begin tool-poster -->\n<!-- pact:end tool-poster -->\n', '') }), fails: ['render'], says: /tool-poster: the part is not in the source/, why: 'a source with no part has nowhere to put the rule' },
     { id: 'part-not-empty', plant: t => ({ source: t.source.replace('<!-- pact:begin tool-poster -->\n', '<!-- pact:begin tool-poster -->\n- A rule already here.\n') }), fails: ['render'], says: /tool-poster: the part is not empty in the source/, why: 'the rule replaces nothing' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render tool part: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`render tool part: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('render tool part: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #280 C6: the source holds the part empty, among the open marks, outside the six parts an edit may target.
 test('the source holds the tool-poster part empty, after the record bullet', () => {

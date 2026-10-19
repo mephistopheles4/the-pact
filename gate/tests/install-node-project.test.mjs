@@ -1,7 +1,7 @@
 // The Node install's project install end to end (#153, T2's J rows): the
 // bootstrap and the runner against a throwaway repo, a throwaway home folder
 // <tmp>/home with --claude-home <tmp>/home/.claude, and a project beside it.
-// Each refusal the install decides is a table row in install-core.test.mjs;
+// Each refusal the install decides is a row in install-core.test.mjs;
 // the project module's own refusals are its tests'.
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';

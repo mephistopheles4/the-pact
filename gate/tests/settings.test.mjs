@@ -10,10 +10,9 @@ import * as core from '../install-core.mjs';
 import { moduleMatch } from './gate-files.mjs';
 import { runSeamA } from './gate-run.mjs';
 import { realOverlay, stage } from './payload.mjs';
-import { GATE, failRules, lastLine } from './text.mjs';
+import { GATE, assertFails, assertPasses, failRules, lastLine, moduleResult } from './text.mjs';
 import { tempDir } from './tree.mjs';
 import { OVERLAY, RETIRED_RULES, overlayWith, shown } from './settings-rules.mjs';
-import { moduleResult, table } from './tables.mjs';
 
 // Command-running settings, refused by name in seam A's own code.
 const BANNED = [
@@ -96,15 +95,14 @@ const banned = k => tree => {
   o[k] = k === 'hooks' ? { PreToolUse: [] } : 'x';
   return { [OVERLAY]: `${JSON.stringify(o, null, 2)}\n` };
 };
-for (const c of table('banned settings in the overlay', {
-  module: 'gate/seam-a.mjs',
-  base: () => ({ [OVERLAY]: realOverlay() }),
-  run: (tree, t) => {
+{
+  const base = () => ({ [OVERLAY]: realOverlay() });
+  const run = (tree, t) => {
     const r = runSeamA(stage(t, { [OVERLAY]: tree[OVERLAY] }));
     return moduleResult(r.code, r.stdout);
-  },
-  everyRow: r => assert.doesNotMatch(r.out, /^SETTINGS /m, r.out),
-  rows: [
+  };
+  const everyRow = r => assert.doesNotMatch(r.out, /^SETTINGS /m, r.out);
+  const rows = [
     { id: 'hooks', plant: banned('hooks'), fails: ['settings-banned'], says: /\(hooks\)/, why: 'hooks run commands' },
     { id: 'mcp-servers', plant: banned('mcpServers'), fails: ['settings-banned'], says: /\(mcpServers\)/, why: 'an MCP server runs a command' },
     { id: 'status-line', plant: banned('statusLine'), fails: ['settings-banned'], says: /\(statusLine\)/, why: 'a status line runs a command' },
@@ -117,8 +115,17 @@ for (const c of table('banned settings in the overlay', {
     { id: 'extra-known-marketplaces', plant: banned('extraKnownMarketplaces'), fails: ['settings-banned'], says: /\(extraKnownMarketplaces\)/, why: 'a marketplace supplies plugins' },
     { id: 'enable-all-project-mcp-servers', plant: banned('enableAllProjectMcpServers'), fails: ['settings-banned'], says: /\(enableAllProjectMcpServers\)/, why: "a project's MCP servers run commands" },
     { id: 'enabled-mcpjson-servers', plant: banned('enabledMcpjsonServers'), fails: ['settings-banned'], says: /\(enabledMcpjsonServers\)/, why: "an .mcp.json server runs a command" },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('banned settings in the overlay: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`banned settings in the overlay: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('banned settings in the overlay: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('the banned-settings table has a row for each banned name', () => {
   const src = readFileSync(join(GATE, 'tests', 'settings.test.mjs'), 'utf8');
@@ -236,15 +243,17 @@ const decided = fn => {
     throw e;
   }
 };
-for (const c of table('apply only as typed', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: JSON.stringify(['--claude-home', 'C:\\h']) }),
-  run: t => decided(() => core.parseArgs(JSON.parse(t.in), 'win32')),
-  rows: [
+{
+  const base = () => ({ in: JSON.stringify(['--claude-home', 'C:\\h']) });
+  const run = t => decided(() => core.parseArgs(JSON.parse(t.in), 'win32'));
+  const rows = [
     { id: 'powershell-apply-switch', plant: t => ({ in: JSON.stringify([...JSON.parse(t.in), '-Apply']) }), fails: ['args-unread'], why: "the PowerShell installer's switch is a word the script does not read" },
     { id: 'apply-with-a-value', plant: t => ({ in: JSON.stringify([...JSON.parse(t.in), '--apply=true']) }), fails: ['args-unread'], why: 'nothing but the bare word turns on --apply' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('apply only as typed: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`apply only as typed: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('apply only as typed: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ seam A: strict reading
 
