@@ -10,7 +10,8 @@
 # name, so that case runs there (spec S4.4's expected difference), and plus
 # the unreadable-file case: the runner's elevated account reads past a deny,
 # so the plant can't take there; it runs on Linux and on Windows unelevated
-# (a reviewed skip of an installer file guard, the owner's q10).
+# (a reviewed skip of an installer file guard, the owner's q10). render-config's
+# unreadable-file case skips there for the same reason (q11).
 agent-settings.test.mjs bad case: an agent file that is a link is refused
 cloud-sessions.test.mjs cloud copy: both generated setup scripts parse under bash -n
 config-install.test.mjs bad case: an unreadable configuration file refuses, and -Apply writes nothing
@@ -25,6 +26,7 @@ install-project.test.mjs bad case: a special-file record refuses
 render-config.test.mjs bad case: a Claude home folder that is a file refuses, never read as no configuration
 render-config.test.mjs bad case: a Claude home path through a file refuses, never read as no configuration
 render-config.test.mjs bad case: a configuration file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW
+render-config.test.mjs bad case: an unreadable configuration file refuses
 render-edits.test.mjs bad case: a block file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW
 run.test.mjs shell: a control character in a test-file name is printed replaced
 run.test.mjs shell: an untracked file with a control character in its name prints with it replaced

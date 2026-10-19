@@ -44,8 +44,13 @@ function commonProblems(src) {
 
 // #351 (#348 S4.1): the gate workflow's two jobs, the runner each is pinned to, and its full-tier line; the Windows run checks its skips against a committed list (q2).
 const FULL = 'env -u NODE_OPTIONS node gate/tests/run.mjs full';
-const GATE_JOBS = [['gate', 'ubuntu-24.04', FULL], ['gate-windows', 'windows-2025', `${FULL} --skips gate/tests/windows-skips.txt`]];
 const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"';
+const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\n${DRY_RUN}\n`;
+// The Windows step also plants a real Claude folder with a plain subfolder in the runner's home, as the Linux container's image does, so the installer's real-folder guards run (q11).
+const GATE_JOBS = [
+  ['gate', 'ubuntu-24.04', FULL, DRY_STEP],
+  ['gate-windows', 'windows-2025', `${FULL} --skips gate/tests/windows-skips.txt`, `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`],
+];
 // Pull requests share a group per ref, so a newer push cancels the older run; each push to main has a group of its own commit.
 const CANCELS = 'does not hold the concurrency group that cancels an older run only on a pull request';
 const CONCURRENCY = { group: "gate-${{ github.event_name == 'pull_request' && github.ref || github.sha }}", 'cancel-in-progress': 'true' };
@@ -75,7 +80,7 @@ function lockdownProblems(src) {
   if (!same(w.concurrency, CONCURRENCY)) out.push(CANCELS);
   const jobs = isMap(w.jobs) ? w.jobs : {};
   if (!same(Object.keys(jobs).sort(), GATE_JOBS.map(([id]) => id).sort())) out.push('holds other jobs than gate and gate-windows');
-  for (const [id, runner, fullLine] of GATE_JOBS) {
+  for (const [id, runner, fullLine, dryStep] of GATE_JOBS) {
     if (!isMap(jobs[id])) continue;
     const job = jobs[id];
     const win = id === 'gate-windows';
@@ -88,7 +93,7 @@ function lockdownProblems(src) {
     [['uses', 'with'], ['uses', 'with'], runKeys, runKeys].forEach((keys, i) => extras(`${id}'s step ${i + 1}`, raw[i], keys));
     extras(`${id}'s step 1's with`, raw[0]?.with, ['persist-credentials']);
     extras(`${id}'s step 2's with`, raw[1]?.with, ['node-version']);
-    if (isMap(raw[2]) && raw[2].run !== `mkdir -p "$RUNNER_TEMP/pact-home"\n${DRY_RUN}\n`) out.push(`${id}'s dry-run step runs other lines than the dry run`);
+    if (isMap(raw[2]) && raw[2].run !== dryStep) out.push(`${id}'s dry-run step runs other lines than the dry run`);
     if (job['runs-on'] !== runner) out.push(`${id} does not run on ${runner}`);
     if (!/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push(`${id} has no time limit`);
     // A matrix renames the check, so the required check would never report.
@@ -427,6 +432,8 @@ for (const [label, plant, says] of [
   // #351 F2, F4 (q7): the triggers are held exactly, and the Windows job pins each action to the Linux job's commit.
   ['filters its pull requests by path', s => s.replace('  pull_request:\n', '  pull_request:\n    paths: [docs/**]\n'), 'does not run on every pull request and every push to main'],
   ['pins the Windows checkout apart from gate', inWindows(s => s.replace(/actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${'3'.repeat(40)}`)), "gate-windows's step 1 is not pinned to gate's commit"],
+  // #351 (q11): the Windows dry-run step plants a real Claude folder, so the installer's real-folder guards run there.
+  ['drops the real Claude folder on Windows', inWindows(s => s.replace('          mkdir -p "$HOME/.claude/agents"\n', '')), "gate-windows's dry-run step runs other lines than the dry run"],
   ['renames the Windows check', inWindows(s => s.replace('    name: gate-windows\n', '    name: windows\n')), "gate-windows's check is not named gate-windows"],
   ['runs a line before the dry run', s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home"\n'), "gate's dry-run step runs other lines than the dry run"],
   ['drops the concurrency group', s => s.replace(/^concurrency:\n(?: {2}.+\n)+/m, ''), CANCELS],

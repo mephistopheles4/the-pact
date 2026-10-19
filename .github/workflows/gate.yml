@@ -8,11 +8,14 @@
 #
 # A second job, gate-windows (#351), runs the same two steps on a pinned
 # Windows image, under Git Bash so the same lines run unchanged, and fails on
-# any skipped test that gate/tests/windows-skips.txt doesn't list. A newer push
-# to a pull request cancels its older run of both jobs; each push to main is
-# grouped by its own commit, so no run of this workflow cancels another on
-# main. The group is repo-wide, so another workflow naming it could; a run on
-# main that was cancelled is re-run before an install or a rollback reads it.
+# any skipped test that gate/tests/windows-skips.txt doesn't list. Its dry-run
+# step also makes a real Claude folder in the runner's throwaway home, as the
+# Linux container's image does, so the installer's real-folder guards run. A
+# newer push to a pull request cancels its older run of both jobs; each push
+# to main is grouped by its own commit, so no run of this workflow cancels
+# another on main. The group is repo-wide, so another workflow naming it could;
+# a run on main that was cancelled is re-run before an install or a rollback
+# reads it.
 # The file is held to an exact allow-list (#351), as codeql.yml is.
 #
 # Locked down for a public repo: a read-only token, no secrets, no
@@ -67,6 +70,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/pact-home"
+          mkdir -p "$HOME/.claude/agents"
           env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"
       - name: Gate suite, full tier
         shell: bash
