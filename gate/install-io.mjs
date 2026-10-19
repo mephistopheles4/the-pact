@@ -373,7 +373,7 @@ function candidateIn(ops, home, name) {
 }
 
 /**
- * What pact/backups holds (S8, S9): whether it is not a plain folder (link), the staging folders
+ * What pact/backups holds (S8, S9): `link`, true for anything but a plain folder or nothing (a file included), the staging folders
  * an earlier apply left, the candidates the prune may act on, and how many
  * other entries it leaves alone.
  */
@@ -392,8 +392,9 @@ export function scanBackups(home, ops = FS_OPS) {
 }
 
 /**
- * Prunes old backups after a verified apply (S8): keeps `own`, those named
- * after it, the ten newest and each taken with no record, and removes the
+ * Prunes old backups after a verified apply (S8): keeps the ten newest, this
+ * run's (`own`) included, every one named after this run's, and every one
+ * taken with no record, and removes the
  * rest by the same walk as the clean-up, each manifest last, so a backup left
  * half-removed stays a candidate. Never throws: an error stops the prune and
  * sets `failed`.

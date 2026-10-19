@@ -189,14 +189,14 @@ test('#272 C3: each failing step of the backup refuses with nothing changed, and
   }
   // pact/backups is narrowed before the staging folder is made.
   const log = [];
-  const order = { ...io.FS_OPS, chmod: (q, m) => (log.push('chmod'), io.FS_OPS.chmod(q, m)), mkdir: (q, m) => (log.push(q.includes('.staging-') ? 'staging' : 'mkdir'), io.FS_OPS.mkdir(q, m)) };
+  const order = { ...io.FS_OPS, chmod: (q, m) => (log.push(`chmod ${q.split(/[\\/]/).slice(-2).join('/')}`), io.FS_OPS.chmod(q, m)), mkdir: (q, m) => (log.push(q.includes('.staging-') ? 'staging' : 'mkdir'), io.FS_OPS.mkdir(q, m)) };
   const narrowed = backupHome(t);
   try {
     backup(narrowed.h, narrowed.entries, { ops: order, platform: 'linux' });
   } catch (e) {
     if (!(e instanceof core.Refusal)) throw e; // on Windows the mode check refuses afterwards; the order is what counts here
   }
-  assert.ok(log.includes('chmod') && log.indexOf('chmod') < log.indexOf('staging'), log.join(' '));
+  assert.ok(log.includes('chmod pact/backups') && log.indexOf('chmod pact/backups') < log.indexOf('staging'), log.join(' '));
   // Every name taken refuses; one taken takes the next suffix.
   const { h, entries } = backupHome(t);
   mkdirSync(join(h, 'pact', 'backups', BASE_NAME), { recursive: true });
@@ -264,7 +264,7 @@ function tryLink(target, path, type) {
   }
 }
 
-test('#272 C7: the prune keeps this run\'s backup, the ten newest, every one taken with no record, those named later and everything it does not recognise', t => {
+test('#272 C7: the prune keeps the ten newest, this run\'s included, every one taken with no record, those named later and everything it does not recognise', t => {
   const h = tempDir(t, 'pact-prune-');
   fakeBackup(h, OWN);
   for (let i = 1; i <= 12; i++) fakeBackup(h, older(i + 100));
@@ -364,8 +364,10 @@ test('#272 C16: the clean-up and the prune remove a link inside a folder they re
 test('#272 C6: on Linux and macOS a backup file or folder found open to others refuses, with nothing changed', t => {
   const { h, entries } = backupHome(t);
   const before = stateOf(h);
-  // Group read alone, so a check of the other bits only would pass it.
-  const wide = { ...io.FS_OPS, stat: p => ({ ...io.FS_OPS.stat(p), mode: 0o100640 }) };
-  assert.throws(() => backup(h, entries, { ops: wide, platform: 'linux' }), refusal('backup-mode', /^Nothing was changed\.$/));
-  assert.equal(stateOf(h), before);
+  // Group read alone, then other read alone, so a check of either half of the bits fails one of them.
+  for (const mode of [0o100640, 0o100604]) {
+    const wide = { ...io.FS_OPS, stat: p => ({ ...io.FS_OPS.stat(p), mode }) };
+    assert.throws(() => backup(h, entries, { ops: wide, platform: 'linux' }), refusal('backup-mode', /^Nothing was changed\.$/), mode.toString(8));
+    assert.equal(stateOf(h), before);
+  }
 });

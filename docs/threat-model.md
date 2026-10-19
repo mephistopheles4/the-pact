@@ -827,8 +827,8 @@ session can act before you see it.
   as the Claude home folder they sit in, so they reach no reader the
   `settings.json` and rules file beside them don't. They hold older copies,
   though: a key rotated or removed from the live file stays in them until
-  they are pruned or deleted, and a session that reads the backups folder
-  takes those keys into its context. This entry makes no claim that the
+  they are pruned or deleted, and a session that reads a copy in the backups
+  folder takes those keys into its context; a manifest holds none. This entry makes no claim that the
   folder is readable only by the person. On Linux and macOS the install sets
   owner-only modes on each backup. On Windows it sets
   no access list of its own, so a backup inherits from `~/.claude` through the

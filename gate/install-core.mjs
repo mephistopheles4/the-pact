@@ -1380,9 +1380,9 @@ export function readManifest(name, text) {
 }
 
 /**
- * Which candidates the prune removes (S8), oldest first: never this run's
- * (`own`), none named after it, none of the ten newest of the rest, and none
- * taken with no record. `later` counts those named after this run's.
+ * Which candidates the prune removes (S8), oldest first: it keeps the ten
+ * newest, this run's (`own`) included, every one named after this run's, and
+ * every one taken with no record. `later` counts those named after this run's.
  */
 export function pruneSelect(candidates, own) {
   const rest = candidates.filter(c => c.name <= own).sort((a, b) => (a.name < b.name ? 1 : -1));

@@ -2,7 +2,8 @@
 // before its first write, the copy-back that undoes it, the refusals a test
 // can set up from outside, the modes, the output and the bootstrap's lines.
 // Each other refusal the backup step raises itself is a case in the file
-// system module's tests, with its file operations injected.
+// system module's tests, with its file operations injected; the refusal for a
+// source that is not a plain file is among the install decisions' tests.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';

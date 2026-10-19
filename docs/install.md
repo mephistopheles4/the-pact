@@ -95,11 +95,13 @@ the agent files it wrote and still holds as it wrote them.
   macOS can still widen them, and `ls -le` shows one. On Windows they take the
   `~/.claude` folder's access list, as the `settings.json` beside them does, so
   they reach no reader that file doesn't, though they hold its older contents
-  (R47 in the [threat model](threat-model.md)). Don't have a session open or
-  search the backups folder: it would hold the copied keys in its context. To see who that list lets in,
+  (R47 in the [threat model](threat-model.md)). To see who that list lets in,
   or to narrow it, open the folder's Properties in Explorer and its Security
   tab, or run `icacls "$env:USERPROFILE\.claude"` in PowerShell. A list for you
   alone holds your account, SYSTEM and Administrators.
+- **Keep sessions out of the copies.** A session that opens or searches a copy
+  in the backups folder holds its keys in its context. A session may read a
+  backup's `manifest.json`, which holds no keys.
 - **Never sync, share or commit the backups folder.** Any copy you make
   yourself, a backup copied aside or your own copies from before backups,
   belongs outside the clone and any synced or shared folder, readable only by
@@ -344,9 +346,11 @@ RESULT: pass
 ```
 
 The `pruned` lines show only when the apply removed old backups (step 3).
-`WARN:` lines may follow them: backups named later than this apply's,
-entries the prune doesn't recognise, or a prune that stopped on an error. Each
-leaves your files as they are, and the install still passes.
+These `WARN:` lines may follow, with or without them: `WARN: pact/backups holds
+<n> backup(s) named later than this run's; ...`, `WARN: pact/backups holds <n>
+entry(ies) the install does not recognise as backups; ...` and `WARN: the prune
+of old backups in pact/backups stopped on an error; ...`. Each leaves your
+files as they are, and the install still passes.
 
 It installs these files under `~/.claude`:
 
@@ -570,14 +574,19 @@ backup in `~/.claude/pact/backups/` undoes one apply (step 3):
    and macOS.
 5. **Delete each `was: absent` path** that is there.
 6. **Run the dry run** to check, and read it before you start any session: it
-   shows no drift, its `Last install:` line names the commit before the apply
-   you undid (after undoing a first install it reads as a first install), and
+   shows no drift, its `Last install:` line names the commit in the name of the
+   next-older backup, the apply before the oldest one you undid (after undoing
+   a first install it reads as a first install), and
    no `settings.json` warning names a command-running key you didn't set. Stop
    on one.
 
 **Full uninstall.** Pick the oldest backup that lists `.pact-install.json` as
 `absent`, the first by name: your first install's. Run step 3's checks on it
-while your current record is still there. Then delete the pact files your
+while your current record is still there; there, a `was: absent` path your
+current record doesn't list passes if it isn't on disk, and one that is on disk
+and unlisted is yours to leave alone. A backup taken after you moved the record
+aside (Updating later) is not your first install's: if every such backup was
+taken that way, or you deleted the first one, follow Installed before backups. Then delete the pact files your
 current record lists: the agents, `pact/review.md`, the `pact/builder/`
 folder, each pact command in `commands/`, `/scriptorium` included,
 `pact/tools/poster.mjs` if it is listed, and `.pact-install.json`. Then do
@@ -585,7 +594,8 @@ steps 4 to 6 with that backup. If you had no `settings.json` before, step 5
 deletes it, with anything Claude Code wrote there since.
 
 **Installed before backups.** If no backup in `pact/backups/` lists
-`.pact-install.json` as `absent`, your first install predates backups. Put
+`.pact-install.json` as `absent`, or each one that does was taken after you
+moved the record aside, your first install predates backups. Put
 back your own copies of your rules file, settings and agents. With no copy of
 `settings.json`, edit it instead: remove the keys the dry run listed under
 `settings.json:`, or set them back, `permissions.defaultMode` above all. Then
