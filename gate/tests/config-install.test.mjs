@@ -207,7 +207,10 @@ test('with no configuration file the dry run names the pact\'s default and its d
   assert.ok(lines.includes('  WARN: the pact\'s default configuration edits workflow (replace).'), dry.out);
   assert.match(dry.stdout, /^WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration \(Level 3 · Full\) renders; it edits workflow, /m, dry.out);
   assert.match(dry.stdout, new RegExp(`^ {2}.* --apply --commit [0-9a-f]{40} --rendered-hash ${hash}\\r?$`, 'm'), dry.out);
-  assert.doesNotMatch(dry.stdout, /^skills: /m, 'the default names no skill source yet');
+  // C6 at home: the default's skill sources are listed, never fetched.
+  const paths = (JSON.parse(readFileSync(join(repo, 'builder', 'default-config', 'config.json'), 'utf8')).skills || []).flatMap(e => e.paths);
+  if (paths.length) assert.match(dry.stdout, new RegExp(`^skills: ${paths.length} paths? from \\d+ repos?, fetched only by the cloud setup\\r?$`, 'm'), dry.out);
+  else assert.doesNotMatch(dry.stdout, /^skills: /m, dry.out);
 });
 
 // #183 T4a C6: skill sources are listed, and the install fetches and writes none of them.

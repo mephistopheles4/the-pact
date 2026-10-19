@@ -20,6 +20,8 @@ import { tempDir } from './tree.mjs';
 const WIN = process.platform === 'win32';
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');
 const PAGE_NAME = basename(PAGE_REL);
+// The page starts at Level 3 · Full, so a save from its start is the pact's default configuration (#183 T4a).
+const DEFAULT_CONFIG = JSON.parse(readFileSync(join(REPO, 'builder', 'default-config', 'config.json'), 'utf8'));
 const sha256b64 = s => createHash('sha256').update(s, 'utf8').digest('base64');
 
 // ------------------------------------------------------------ the page's checks
@@ -570,7 +572,8 @@ test('reset puts the usage value, every part and every agent back to where the p
   L.takePreset(start, L.PACT.presets.find(p => p.id === 'level-3-full'), L.presetPicks(L.PACT.presets.find(p => p.id === 'level-3-full')));
   assert.deepEqual(JSON.parse(JSON.stringify(s)), JSON.parse(JSON.stringify(start)));
   // A reset page saves Level 3 · Full: its workflow edit, no settings, no agents.
-  assert.deepEqual(JSON.parse(L.buildFiles(s).find(f => f.path === 'pact/config.json').text), { schema: 1, edits: [{ mark: 'workflow', op: 'replace', file: 'workflow.md' }] });
+  // #183 T4a C4: what a reset page saves is the pact's default configuration, skills included once it has them.
+  assert.deepEqual(JSON.parse(L.buildFiles(s).find(f => f.path === 'pact/config.json').text), DEFAULT_CONFIG);
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
@@ -951,11 +954,10 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
     return folder.written;
   };
   // The page starts from Level 3 · Full, so even an untouched save carries its workflow.
-  const edits = [{ mark: 'workflow', op: 'replace', file: 'workflow.md' }];
   const kept = await save(fakeFolder({ 'config.json': '{"schema":1,"commands":["finis"]}' }));
-  assert.deepEqual(JSON.parse(kept['config.json']), { schema: 1, edits, commands: ['finis'] });
+  assert.deepEqual(JSON.parse(kept['config.json']), { ...DEFAULT_CONFIG, commands: ['finis'] });
   assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
-  assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), { schema: 1, edits }, 'no file there: the save goes as built');
+  assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), DEFAULT_CONFIG, 'no file there: the save goes as built');
 });
 // #262: a moves edit saves the whole part as one replace; an empty move stops a save.
 test('an edited move saves the moves part as one replace, and an empty move stops a save', () => {
