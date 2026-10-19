@@ -190,6 +190,7 @@ test('bad case: a .claude folder named by its short name refuses', { skip: !WIN 
 });
 
 test('bad case: a .claude folder named with a trailing dot refuses, and nothing reaches the .claude folder', { skip: !WIN && 'Windows only (not run)' }, t => {
+  assert.fail('planted Windows-only failure for the #351 probe; never merged');
   // Win32 drops the dot, so this spelling could name .claude; Node keeps it,
   // so here it names a folder that does not exist. Either way it must refuse.
   // (The install script hands over GetFullPath's spelling, which drops the dot:
