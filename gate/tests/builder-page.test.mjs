@@ -647,17 +647,21 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.doesNotMatch(P.ids.output.text, /\r/);
 });
 
-// #183 T4a (adversarial F1): skill sources a builder file carries are named in Export before Save; none, no line.
+// #183 T4a (adversarial F1): Export names each skill source the configuration carries before Save, and the page's
+// start state (the pact's default) gets the line exactly when the default names skills.
 test('stub page: Export names each skill source the configuration carries before Save, and says nothing when there are none', () => {
   const SKILL = { repo: 'owner/skills', commit: 'a'.repeat(40), paths: ['skills/one', 'skills/two'] };
-  const withSkills = PAGE.replace('JSON.stringify(PACT.ownSkills || [])', `JSON.stringify(PACT.ownSkills || [${JSON.stringify(SKILL)}])`);
-  assert.notEqual(withSkills, PAGE, 'the plant must reach the page\'s start state');
+  const at = '    if (state.skills.length) notes.push(';
+  const withSkills = PAGE.replace(at, `    state.skills = [${JSON.stringify(SKILL)}];\n${at}`);
+  assert.notEqual(withSkills, PAGE, 'the plant must reach the Export notes');
   const P = bootPage({ page: withSkills });
   P.button(P.ids.actions, 'Export').click();
   assert.match(P.ids.output.text, /Check · skills · this configuration names skill sources that the cloud setup will fetch from #183 T4b on: owner\/skills at aaaaaaa, 2 paths\. Save them only if you chose them\./);
   const plain = bootPage();
   plain.button(plain.ids.actions, 'Export').click();
-  assert.doesNotMatch(plain.ids.output.text, /Check · skills/);
+  const named = (DEFAULT_CONFIG.skills ?? []).map(s => `${s.repo} at ${s.commit.slice(0, 7)}, ${s.paths.length} path${s.paths.length === 1 ? '' : 's'}`).join('; ');
+  if (named) assert.ok(plain.ids.output.text.includes(`fetch from #183 T4b on: ${named}. Save`), plain.ids.output.text);
+  else assert.doesNotMatch(plain.ids.output.text, /Check · skills/);
 });
 
 // #262 addendum 3: Add agent in the Agents panel reaches the saved files, and the save note says a save never deletes.
