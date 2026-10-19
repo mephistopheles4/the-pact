@@ -18,6 +18,7 @@
 - **Since the lens review:** rows for the tightened skill-source shapes, the default folder's refusals and the 100-path boundary; the security-defaults line's changed-since check; Export's skill-sources line. Full tier at the head: 2249 tests, one failure, #333; with the C9 pin applied, the same.
 - **The owner's picks (chat, 2026-10-19):** C9 landed; the threat-model edits applied; executability-lens read the install path for Safety (one medium, two low, all text fixes). Windows full tier at 8dffabe: 2249 tests, 0 fail, #333 included (C10); install dry run pass, drift 0.
 - **After merging main (#272):** this decision is ADR 0094, since #272 took 0093; #272's backup tests apply through the dry run's rendered hash like every other config-less apply. Full tier on the merge: 2262 tests, one failure, #333.
+- **After the merge (owner, chat, 2026-10-19):** the Safety review's medium row, the dry run's skills-block wording, is accepted as fixed in 8dffabe; a repo's skill named like one the default lists is recorded as a known route under R15, accepted.
 - **Not run green here:** "a project holding the real home folder refuses" (#333) fails only in a cloud container, where home is `/root`.
 
 ## The first pin of `addyosmani/agent-skills`

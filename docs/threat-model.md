@@ -250,7 +250,7 @@ How to read it:
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its secret scan as a backstop behind that read, which stays for everyone (#280); elsewhere, judgment | Rule, judgment |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071); a live agent file at agents/<name>.md for an agent the pact retired draws a fixed line on every dry run, and the install leaves it as is; the check reads that file name only, not an agent's own name line or a subfolder (#302); a rewritten pact tool shows as drift (#280) | Outside the pact, boundary |
-| R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor). A skill source is pinned by full commit, and the checks refuse an owner or segment that could pass an option to git; a look-alike repo name is caught only by the reader of the dry run's `skills:` block and by ADR 0091's read before a pin is committed (#183 T4a) | Judgment |
+| R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor). A skill source is pinned by full commit, and the checks refuse an owner or segment that could pass an option to git; a look-alike repo name is caught only by the reader of the dry run's `skills:` block and by ADR 0091's read before a pin is committed (#183 T4a). A repo's skill named like one the default lists is the one a session uses at home; the dry run's `skills:` block says so (#183 T4a) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on install mechanics only since ADR 0069; the dry run; your review of the commit | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
@@ -668,7 +668,14 @@ session can act before you see it.
   `CLAUDE.md`, `AGENTS.md` or rules folder loads like any rules. Since #261
   the pact holds no rule barring them from anything: `no-skill-overrides` and
   the floor's "may only add" are retired, and accepted as judgment. They can
-  argue against any rule.
+  argue against any rule. A repo's skills are a route too: since #183 T4a
+  the pact's default names six skills in its workflow, and at home, where
+  the install fetches none, a repo carrying a skill of one of those names
+  supplies the one a session uses. The dry run's `skills:` block and
+  [install](install.md) say so; installing those skills yourself, or a
+  configuration of your own, keeps a repo's skill out of that slot.
+  Accepted by the owner on 2026-10-19, in chat, from #183 T4a's Safety
+  review.
 - **R16. Sessions no person started** have no rule yet. A routine or an event
   trigger can open with an outsider's text where your chat would be (#184).
   Don't point one at a pact setup with a public tracker.
