@@ -639,3 +639,58 @@ export function partsTexts(p) {
   (Array.isArray(p.costLimits) ? p.costLimits : []).forEach((c, i) => isObj(c) && ['cost', 'counted', 'limit', 'atLimit'].forEach(k => add(`cost limits row ${i + 1}`, c[k])));
   return out;
 }
+
+// ------------------------------------------------------------ skill sources (#183 T4a)
+
+// A configuration's skill sources: [{ repo: 'owner/name', commit: <40 hex>, paths: [dir in repo] }].
+// They name each path's folder at its commit, to install as a skill named by
+// the path's last segment, for the cloud setup to fetch once #183 T4b ships;
+// until then nothing fetches them. The
+// installer's renderer keeps its own copy of these checks (a gate file imports
+// nothing from builder/), and a test holds the two equal on every bad case.
+export const SKILL_REPO_RE = /^[A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+$)(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt]$)[A-Za-z0-9._-]+$/;
+export const SKILL_COMMIT_RE = /^[0-9a-f]{40}$/;
+const SKILL_SEGMENT_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
+export const SKILL_PATHS_MAX = 100;
+
+/**
+ * What is wrong with a skills list, as fixed text naming entry and path
+ * positions, never a value: [] when it passes. An empty list names no source.
+ */
+export function skillsProblems(v) {
+  if (!Array.isArray(v)) return ['skills must be a list of { repo, commit, paths }'];
+  const out = [];
+  const repos = new Set();
+  const names = new Set();
+  let count = 0;
+  v.forEach((e, i) => {
+    const at = `skills entry ${i + 1}`;
+    if (!isObj(e) || !keysIn(e, ['repo', 'commit', 'paths']) || !['repo', 'commit', 'paths'].every(k => Object.hasOwn(e, k))) {
+      out.push(`${at}: holds repo, commit and paths, and nothing else`);
+      return;
+    }
+    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) out.push(`${at}: repo must be owner/name: an owner in letters, digits and '-', not starting with '-', and a name in letters, digits, '.', '_' and '-', not only dots and not ending in .git`);
+    else if (repos.has(e.repo.toLowerCase())) out.push(`${at}: names a repo an earlier entry names`);
+    else repos.add(e.repo.toLowerCase());
+    if (typeof e.commit !== 'string' || !SKILL_COMMIT_RE.test(e.commit)) out.push(`${at}: commit must be a full commit id, 40 lowercase hex characters`);
+    if (!Array.isArray(e.paths) || !e.paths.length) {
+      out.push(`${at}: paths must be a list of at least one folder in the repo`);
+      return;
+    }
+    e.paths.forEach((p, k) => {
+      count += 1;
+      const pat = `${at} path ${k + 1}`;
+      const segs = typeof p === 'string' ? p.split('/') : [];
+      if (!segs.length || segs.some(s => !SKILL_SEGMENT_RE.test(s) || s === '.' || s === '..')) {
+        out.push(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', none starting with '-', and no . or .. segment`);
+        return;
+      }
+      const last = segs[segs.length - 1];
+      if (last.startsWith('.') || last.startsWith('-')) out.push(`${pat}: its last segment, the skill's name, must not start with '.' or '-'`);
+      else if (names.has(last.toLowerCase())) out.push(`${pat}: its last segment, the skill's name, repeats one an earlier path ends in`);
+      else names.add(last.toLowerCase());
+    });
+  });
+  if (count > SKILL_PATHS_MAX) out.push(`skills names more than ${SKILL_PATHS_MAX} paths in all`);
+  return out;
+}

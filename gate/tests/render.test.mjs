@@ -245,12 +245,14 @@ test('bad case: an output folder that is a link refuses', t => {
 });
 
 // Since slice 3 the Claude home folder is a third argument the install always
-// passes, so two arguments are a usage failure and four are too many.
+// passes, so two arguments are a usage failure. Since #183 T4a a fourth names
+// the pact's default configuration folder, so five are too many.
 for (const [label, args] of [
   ['no arguments', []],
   ['one argument', ['x']],
   ['two arguments', ['a', 'b']],
-  ['four arguments', ['a', 'b', 'c', 'd']],
+  ['five arguments', ['a', 'b', 'c', 'd', 'e']],
+  ['a switch in place of the default configuration folder', ['a', 'b', 'c', '--none']],
   ['a switch in place of the source', ['--skip-checks', 'b', 'c']],
   ['a switch in place of the output folder', ['a', '--no-check', 'c']],
   ['a switch in place of the Claude home folder', ['a', 'b', '--no-config']],

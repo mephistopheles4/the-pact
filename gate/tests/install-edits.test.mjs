@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { home, install, listTree, makeRepo, refused, wrapCheck } from './install-harness.mjs';
-import { plantModule } from './gate-files.mjs';
+import { plantModule, plantNoDefault } from './gate-files.mjs';
 import { REPO, applyDiff, editPart, withoutOpenMarks } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -190,14 +190,18 @@ test('-ReviewFolder on a configured dry run writes the rendered rules and the di
   assert.ok(r.stdout.split('\n').filter(l => l.includes(folder)).every(l => l.includes(' --apply --commit ')), 'the folder path was printed outside the apply line');
 });
 
-test('-ReviewFolder with no configuration writes the rules and an empty diff', t => {
+// #183: with no configuration of your own, the review shows the pact's default, and its diff from the pact's own text.
+test('-ReviewFolder with no configuration writes the default\'s rules and the diff that gives them from the pact\'s own text', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const folder = join(tempDir(t), 'review');
   const r = install(repo, h, { extra: ['--review-folder', folder] });
   assert.equal(r.code, 0, r.out);
-  assert.equal(readFileSync(join(folder, 'config.diff')).length, 0);
-  assert.equal(readFileSync(join(folder, 'rendered-rules.txt'), 'utf8'), withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
+  const diff = readFileSync(join(folder, 'config.diff'), 'utf8');
+  assert.ok(diff.length > 0, 'the default changes nothing');
+  const rules = readFileSync(join(folder, 'rendered-rules.txt'), 'utf8');
+  assert.equal(applyDiff(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')), diff), rules);
+  assert.match(rules, /rendered with the pact's default configuration/);
 });
 
 // #261 C14
@@ -303,11 +307,13 @@ test('the review output is written only after every check passes: -Apply with no
   assert.ok(!existsSync(folder));
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('the review output is written only after every check passes: -Apply on a dirty tree writes none', t => {
   const repo = makeRepo(t);
   writeFileSync(join(repo, 'stray.txt'), 'x\n');
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { apply: true, extra: ['--review-folder', folder] });
+  const h = home(t);
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the working tree is not clean\./m, r.out);
   assert.ok(!existsSync(folder));
@@ -342,7 +348,11 @@ for (const [label, withConfig, from, to, why] of [
   ['no diff file', false, R_DIFF_WRITE, '', 'the renderer did not leave exactly its rules file of at most 1 MiB, its diff, and an agent file only for an agent setting it reported'],
 ]) {
   test(`bad case: a renderer that reports ${label} refuses`, t => {
-    const repo = makeRepo(t, root => plantRenderer(root, from, to));
+    // With no configuration, the renderer is also planted to skip the pact's default, so the no-configuration lines are what it reports (#183 T4a).
+    const repo = makeRepo(t, root => {
+      plantRenderer(root, from, to);
+      if (!withConfig) plantNoDefault(join(root, 'gate'));
+    });
     const h = home(t);
     if (withConfig) {
       const c = movesEdit();
@@ -410,12 +420,13 @@ test('bad case: a staged rules file changed after the check refuses the review o
   assert.ok(!existsSync(folder));
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a review module that changes the stage on -Apply refuses before anything is installed', t => {
   // The runner's working folder is the stage (S3, step 9).
   const repo = makeRepo(t, root => wrapCheck(root, 'review-core', { after: "const d = 'claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n');" }));
   const h = home(t);
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, h, { apply: true, extra: ['--review-folder', folder] });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^review\| RESULT: pass\r?$/m, r.out);
   assert.match(r.stdout, /^REFUSED: the review module changed the stage\. The review folder may hold what the review module wrote; nothing was installed\.\r?$/m, r.out);
@@ -432,12 +443,14 @@ test('bad case: a review module that changes the stage on a dry run refuses, say
   assert.doesNotMatch(r.stdout, /^Dry run only/m, r.out);
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('-Apply with -ReviewFolder writes the review only after the last re-hash of the stage', t => {
   // A seam A that changes a staged agent as it returns: the re-hash refuses,
   // and no review is written, because the review comes after it.
   const repo = makeRepo(t, root => wrapCheck(root, 'seam-a-core', { after: "const d = argv[0] + '/claude/agents'; fs.appendFileSync(d + '/' + fs.readdirSync(d).sort()[0], 'x\\n');" }));
   const folder = join(tempDir(t), 'review');
-  const r = install(repo, home(t), { apply: true, extra: ['--review-folder', folder] });
+  const h = home(t);
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h)), '--review-folder', folder] });
   refused(r);
   assert.match(r.stdout, /^REFUSED: the staged copy of agents\/[^ ]+ changed after the check\. Nothing was changed\.\r?$/m, r.out);
   assert.ok(!existsSync(folder), 'the review was written before the last re-hash');

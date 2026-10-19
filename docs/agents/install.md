@@ -60,7 +60,9 @@ how every session in every repo behaves. So:
   pact didn't write, or one changed since it wrote it, is yours: the dry run
   lists it under "Yours, left as is", and the install never overwrites,
   deletes or records it (#262). Delete your file to get the pact's back.
-- **Configuration.** The owner's settings live in `~/.claude/pact/config.json`
+- **Configuration.** With no `~/.claude/pact/config.json`, a home install
+  renders the pact's default from `builder/default-config/` (ADR 0094).
+  The owner's settings live in `~/.claude/pact/config.json`
   (an example is [`examples/pact-config/config.json`](../../examples/pact-config/config.json)).
   Its edits to open parts take their text from block files in
   `~/.claude/pact/blocks/` (examples are in
@@ -121,7 +123,11 @@ how every session in every repo behaves. So:
   builds a configuration without writing JSON. After a change to the pact
   text, the renderer's lists, the example blocks or a preset in
   `builder/presets/`, run `node builder/build.mjs` to refresh it; a gate test
-  fails until you do. A
+  fails until you do. After a change to the pact text, the builder or
+  `builder/presets/level-3-full.json`, also run
+  `node builder/default-config.mjs` to refresh `builder/default-config/`, the
+  pact's default configuration; `--check` exits 1, and a gate test fails,
+  while it is stale. A
   person's own builder comes from the `/scriptorium` command
   ([`claude/commands/scriptorium.md`](../../claude/commands/scriptorium.md)),
   which every install puts in place with the builder kit under

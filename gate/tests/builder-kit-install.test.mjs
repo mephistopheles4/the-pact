@@ -7,7 +7,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, write
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo, passed, refused } from './install-harness.mjs';
+import { applyBound, home, install, listTree, makeRepo, passed, refused } from './install-harness.mjs';
 import { REPO } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -31,7 +31,7 @@ test('the builder kit installs with no commands list, holds the unrendered rules
   const dry = install(repo, h);
   passed(dry);
   assert.match(dry.stdout, /^ {2}\/scriptorium: on, always: part of the pact, with the builder kit under pact\/builder\/\r?$/m, dry.out);
-  passed(install(repo, h, { apply: true }));
+  passed(applyBound(repo, h));
   const kit = join(h, 'pact', 'builder');
   assert.equal(readFileSync(join(h, 'commands', 'scriptorium.md'), 'utf8'), SCRIPTORIUM);
   assert.equal(readFileSync(join(kit, 'claude', 'rules.source.md'), 'utf8'), readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8'), 'the kit holds the unrendered rules');

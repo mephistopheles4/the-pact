@@ -129,7 +129,7 @@ backups are deleted by hand, as the rollback lines in `docs/agents/install.md`
 say. A change to the install record's format, the
 configuration's format, the settings overlay, or what an install removes is a
 data migration, sensitive work under the default; the rollback checks in
-`docs/agents/install.md` are its recovery. A cloud snapshot taken before
+`docs/agents/install.md` are its recovery. Since #183 T4a, `skills` joins the configuration's format, and an install with no configuration of yours renders the pact's default configuration (Level 3 · Full) in place of the pact's plain text: the first dry run after the upgrade shows a `workflow` change and a security-defaults line, and the apply needs the rendered hash (ADR 0094). A cloud snapshot taken before
 #183 T3 keeps its `claude-plugins-official` marketplace and
 `@claude-plugins-official` plugins, its `enabledPlugins` entries and any
 skill folder no longer listed (`resolving-merge-conflicts`). The setup names
@@ -250,7 +250,7 @@ How to read it:
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
 | R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its secret scan as a backstop behind that read, which stays for everyone (#280); elsewhere, judgment | Rule, judgment |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071); a live agent file at agents/<name>.md for an agent the pact retired draws a fixed line on every dry run, and the install leaves it as is; the check reads that file name only, not an agent's own name line or a subfolder (#302); a rewritten pact tool shows as drift (#280) | Outside the pact, boundary |
-| R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor) | Judgment |
+| R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor). A skill source is pinned by full commit, and the checks refuse an owner or segment that could pass an option to git; a look-alike repo name is caught only by the reader of the dry run's `skills:` block and by ADR 0091's read before a pin is committed (#183 T4a) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on install mechanics only since ADR 0069; the dry run; your review of the commit | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
@@ -280,7 +280,7 @@ How to read it:
 | R42 Lens takes the base on trust | A fooled session, text a session reads | The session checks the base with git at every round before it hands it, and a base that fails is a stop; a read-only lens can't check it (#336) | Rule |
 | R43 Posted state shows base debt | Anyone who reads the tracker | None beyond R19's; a report kept local keeps its finding's state off the record (#336) | Rule, judgment |
 | R44 Kept-local reports on disk | Another reader of the session's disk | Kept-local reports and place lines are named for deletion at every hand-off, and deleted on your word; a cloud container is reclaimed (#336) | Judgment |
-| R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091) | Rule |
+| R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091). The default's `addyosmani/agent-skills` pin lives in `builder/presets/level-3-full.json`, and a person's own pins in their configuration; ADR 0091's bump procedure covers both, and each send a bump's read names goes to you before the bump is committed (#183 T4a) | Rule |
 | R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
 
@@ -480,7 +480,7 @@ once you install it.
   Cloudflare's API, one writes GitHub repo secrets, and one page loads two
   CDN scripts. The owner accepted the unpinned remainder by name (#182), and
   approved each of those sends by name on 2026-10-18, in chat, from #183 T3's
-  hand-off.
+  hand-off. The default's six skills from `addyosmani/agent-skills` make no send of session data (first-pin read, 2026-10-19, at `aeac41d4d005999432bb7312f7ff06383a91d59d`); two suggest package-registry audits that send a dependency list, approved by the owner in chat on 2026-10-19 (#183 T4a).
   Pinning fixes which code runs, not what it can reach. Under the cloud
   proxy, any process in a session, pinned plugins' hooks included, reaches
   GitHub as the owner whatever the token variables hold. In one session, repo
@@ -847,7 +847,7 @@ safe, and a change made months ago is easy to forget.
 **What the pact does.**
 
 - **The configuration file is narrow.** `~/.claude/pact/config.json` can set
-  four kinds of thing. The usage pauses are the weekly and, if you set it,
+  five kinds of thing. The usage pauses are the weekly and, if you set it,
   the 5-hour usage levels above which sessions wait for you before expensive
   work. The open parts are the text Scriptorium builds: the moves, the
   tiers, sensitive work, the workflow, the lens roster and the qualities,
@@ -859,9 +859,15 @@ safe, and a change made months ago is easy to forget.
   `commands` list turns on pact commands, by name from a fixed list in the
   gate, which the install then copies into `commands/`. A `tools` list turns
   on pact tools the same way, each installed under `pact/tools/` with its
-  rule rendered into the rules file (#280). No configuration
+  rule rendered into the rules file (#280). A `skills` list names skill folders by repo, full commit and path, for the cloud setup to fetch (#183 T4b); the install checks its shape, prints a `skills:` block and fetches nothing. The repos and paths are your own text, so the dry run that names them is shared by verdict and counts only, like a custom model. No configuration
   edit can target the fixed "Stop and ask me" block, or a tool's rule part;
   the renderer refuses.
+- **The pact's default can loosen a rule too.** With no file of yours,
+  `builder/default-config/` renders. A change to it, its preset, its
+  generator or the installer's choice of it takes the sensitive route
+  with the security pair (AGENTS.md, ADR 0094), and the dry run's
+  security-defaults line names each part it edits and says whether the
+  default changed since the last install.
 - **The install says what changed.** The dry run prints a warning for each
   value set, each part edited and each tool turned on. The installed rules file names the
   configuration in effect.

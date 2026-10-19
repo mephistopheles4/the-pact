@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-smb092Mw5CmkrLlH4MW4Rf2uAv6Q6YOl2OITkaAHDQM='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wB7g9cd+R2yuPDon2brfz31+awH5Iops3KLs/y0n6yI='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -1704,7 +1704,21 @@ const PACT = /* pact-data:begin */ {
       }
      ]
     }
-   }
+   },
+   "skills": [
+    {
+     "repo": "addyosmani/agent-skills",
+     "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+     "paths": [
+      "skills/spec-driven-development",
+      "skills/incremental-implementation",
+      "skills/test-driven-development",
+      "skills/code-review-and-quality",
+      "skills/shipping-and-launch",
+      "skills/documentation-and-adrs"
+     ]
+    }
+   ]
   },
   {
    "id": "level-3-matt-pocock",
@@ -3407,6 +3421,61 @@ function partsTexts(p) {
   (Array.isArray(p.costLimits) ? p.costLimits : []).forEach((c, i) => isObj(c) && ['cost', 'counted', 'limit', 'atLimit'].forEach(k => add(`cost limits row ${i + 1}`, c[k])));
   return out;
 }
+
+// ------------------------------------------------------------ skill sources (#183 T4a)
+
+// A configuration's skill sources: [{ repo: 'owner/name', commit: <40 hex>, paths: [dir in repo] }].
+// They name each path's folder at its commit, to install as a skill named by
+// the path's last segment, for the cloud setup to fetch once #183 T4b ships;
+// until then nothing fetches them. The
+// installer's renderer keeps its own copy of these checks (a gate file imports
+// nothing from builder/), and a test holds the two equal on every bad case.
+const SKILL_REPO_RE = /^[A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+$)(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt]$)[A-Za-z0-9._-]+$/;
+const SKILL_COMMIT_RE = /^[0-9a-f]{40}$/;
+const SKILL_SEGMENT_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
+const SKILL_PATHS_MAX = 100;
+
+/**
+ * What is wrong with a skills list, as fixed text naming entry and path
+ * positions, never a value: [] when it passes. An empty list names no source.
+ */
+function skillsProblems(v) {
+  if (!Array.isArray(v)) return ['skills must be a list of { repo, commit, paths }'];
+  const out = [];
+  const repos = new Set();
+  const names = new Set();
+  let count = 0;
+  v.forEach((e, i) => {
+    const at = `skills entry ${i + 1}`;
+    if (!isObj(e) || !keysIn(e, ['repo', 'commit', 'paths']) || !['repo', 'commit', 'paths'].every(k => Object.hasOwn(e, k))) {
+      out.push(`${at}: holds repo, commit and paths, and nothing else`);
+      return;
+    }
+    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) out.push(`${at}: repo must be owner/name: an owner in letters, digits and '-', not starting with '-', and a name in letters, digits, '.', '_' and '-', not only dots and not ending in .git`);
+    else if (repos.has(e.repo.toLowerCase())) out.push(`${at}: names a repo an earlier entry names`);
+    else repos.add(e.repo.toLowerCase());
+    if (typeof e.commit !== 'string' || !SKILL_COMMIT_RE.test(e.commit)) out.push(`${at}: commit must be a full commit id, 40 lowercase hex characters`);
+    if (!Array.isArray(e.paths) || !e.paths.length) {
+      out.push(`${at}: paths must be a list of at least one folder in the repo`);
+      return;
+    }
+    e.paths.forEach((p, k) => {
+      count += 1;
+      const pat = `${at} path ${k + 1}`;
+      const segs = typeof p === 'string' ? p.split('/') : [];
+      if (!segs.length || segs.some(s => !SKILL_SEGMENT_RE.test(s) || s === '.' || s === '..')) {
+        out.push(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', none starting with '-', and no . or .. segment`);
+        return;
+      }
+      const last = segs[segs.length - 1];
+      if (last.startsWith('.') || last.startsWith('-')) out.push(`${pat}: its last segment, the skill's name, must not start with '.' or '-'`);
+      else if (names.has(last.toLowerCase())) out.push(`${pat}: its last segment, the skill's name, repeats one an earlier path ends in`);
+      else names.add(last.toLowerCase());
+    });
+  });
+  if (count > SKILL_PATHS_MAX) out.push(`skills names more than ${SKILL_PATHS_MAX} paths in all`);
+  return out;
+}
 /* parts-code:end */
 
 // The block rules, mirrored from gate/render-core.mjs for usability only: the
@@ -3473,7 +3542,8 @@ function initialState() {
   const own = { ...(PACT.ownAgentFiles || {}) };
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
   // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
-  return { usage: PACT.setting.def, session: null, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null };
+  // #183 T4a: skills holds the skill sources, named for the cloud setup to fetch, as the builder file gives them; a save writes them into config.json.
+  return { usage: PACT.setting.def, session: null, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
 }
 
 /** The model and effort an agent file's frontmatter sets, each falling back to `def`'s. */
@@ -3571,6 +3641,7 @@ function problems(state) {
     out.push({ where: ss.name, level: 'error', text: `must be a whole number from ${ss.min} to ${ss.max}, or unset` });
   }
   for (const t of modelsProblems(state.models)) out.push({ where: 'models', level: 'error', text: t });
+  for (const t of skillsProblems(state.skills)) out.push({ where: 'skills', level: 'error', text: t });
   out.push(...ownProblems(state));
   // The parts: the builder's own checks, then each changed part's text against the block rules.
   for (const f of partsProblems(state.parts)) out.push({ where: f.part, level: f.level, text: f.text });
@@ -3610,6 +3681,8 @@ function buildFiles(state) {
     blocks.push({ path: `pact/blocks/${mark}.md`, text: `${text}\n` });
   }
   if (edits.length) config.edits = edits;
+  // The skill sources, as they stand (#183 T4a): named for the cloud setup to fetch; a home install lists them.
+  if (state.skills.length) config.skills = JSON.parse(JSON.stringify(state.skills));
   const own = Object.keys(state.own).sort().map(name => ({ path: `agents/${name}.md`, text: ownFile(state, name) }));
   return [{ path: 'pact/config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks, ...own];
 }
@@ -3632,9 +3705,10 @@ function builderWith(existing, state) {
   const modelsAtPact = JSON.stringify(state.models) === JSON.stringify(MODEL_NAMES);
   const hasModels = existing !== null && /"models"\s*:/.test(existing);
   const hasFiles = existing !== null && /"agentFiles"\s*:/.test(existing);
+  const hasSkills = existing !== null && /"skills"\s*:/.test(existing);
   const files = Object.fromEntries(Object.keys(state.own).sort().map(name => [name, ownFile(state, name)]));
-  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, qualities: state.parts.qualities, costLimits: state.parts.costLimits, ...(modelsAtPact && !hasModels ? {} : { models: state.models }), ...(!Object.keys(files).length && !hasFiles ? {} : { agentFiles: files }) };
-  const atPact = !Object.keys(partsChanged(state)).length && modelsAtPact && !Object.keys(files).length;
+  const keys = { moves: state.parts.moves, tiers: state.parts.tiers, sensitive: state.parts.sensitive, workflowGraph: state.parts.workflowGraph, lenses: state.parts.lenses, qualities: state.parts.qualities, costLimits: state.parts.costLimits, ...(modelsAtPact && !hasModels ? {} : { models: state.models }), ...(!Object.keys(files).length && !hasFiles ? {} : { agentFiles: files }), ...(!state.skills.length && !hasSkills ? {} : { skills: state.skills }) };
+  const atPact = !Object.keys(partsChanged(state)).length && modelsAtPact && !Object.keys(files).length && !state.skills.length;
   if (existing === null) return atPact ? { skip: true } : { text: `${JSON.stringify({ schema: 1, ...keys }, null, 2)}\n` };
   let doc;
   try {
@@ -3779,7 +3853,7 @@ function presetFromText(text, title = 'A shared file') {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { refuse: 'it is not a JSON object' };
   // #280: no shared file turns on code that posts as the person.
   if (Object.hasOwn(doc, 'tools')) return { refuse: 'it holds a tools list, and a builder file never turns a tool on: tick tools under Settings' };
-  const known = ['schema', 'title', 'yours', ...Object.keys(PRESET_PARTS), 'models', 'agentFiles'];
+  const known = ['schema', 'title', 'yours', ...Object.keys(PRESET_PARTS), 'models', 'agentFiles', 'skills'];
   const extra = Object.keys(doc).filter(k => !known.includes(k));
   if (extra.length) return { refuse: `it holds keys a builder file doesn't: ${extra.slice(0, 3).join(', ')}` };
   if (doc.schema !== 1) return { refuse: 'its schema is not 1' };
@@ -3805,13 +3879,19 @@ function presetFromText(text, title = 'A shared file') {
     if (Object.keys(preset.agentFiles).length !== Object.keys(f).length) preset.droppedRetired = true;
     if (!Object.keys(preset.agentFiles).length) delete preset.agentFiles;
   }
-  if (!Object.keys(preset.parts).length && !preset.models && !preset.agentFiles) return { refuse: 'it gives no part, models or agent files' };
+  // #183 T4a: skill sources, checked as the installer's renderer checks them.
+  if (Object.hasOwn(doc, 'skills')) {
+    const k = skillsProblems(doc.skills);
+    if (k.length) return { refuse: k[0] };
+    if (doc.skills.length) preset.skills = JSON.parse(JSON.stringify(doc.skills));
+  }
+  if (!Object.keys(preset.parts).length && !preset.models && !preset.agentFiles && !preset.skills) return { refuse: 'it gives no part, models, agent files or skill sources' };
   return { preset };
 }
 
-/** What a preset offers to take, each ticked: ['part:<key>' | 'models' | 'agent:<name>']. */
+/** What a preset offers to take, each ticked: ['part:<key>' | 'models' | 'agent:<name>' | 'skills']. */
 function presetPicks(preset) {
-  return [...Object.keys(preset.parts).map(k => `part:${k}`), ...(preset.models ? ['models'] : []), ...Object.keys(preset.agentFiles || {}).map(n => `agent:${n}`)];
+  return [...Object.keys(preset.parts).map(k => `part:${k}`), ...(preset.models ? ['models'] : []), ...Object.keys(preset.agentFiles || {}).map(n => `agent:${n}`), ...(preset.skills ? ['skills'] : [])];
 }
 
 /**
@@ -3821,12 +3901,15 @@ function presetPicks(preset) {
  */
 function startPicks(preset) {
   const shipped = PACT.presets.includes(preset);
-  return presetPicks(preset).filter(k => shipped || !k.startsWith('agent:'));
+  // #183 T4a: skill sources name third-party code for the cloud setup (from T4b), so a shared file's skill sources start unticked too.
+  return presetPicks(preset).filter(k => shipped || (!k.startsWith('agent:') && k !== 'skills'));
 }
 
 /** The take view's sentence on why agent rows start unticked, or '' when they start ticked. */
 function takeNote(preset) {
   if (PACT.presets.includes(preset)) return '';
+  // #183 T4a: skill sources start unticked as agent files do.
+  if (preset.skills) return ' This file may be one someone handed you, so its agent files and skill sources start unticked: tick each one you mean to take.';
   if (PACT.ownPresets.includes(preset)) return ` This preset came from presets/${preset.id}.json in your presets folder, which may hold a file someone handed you, so its agent files start unticked: tick each one you mean to take.`;
   return " A shared file's agent files start unticked: tick each one you mean to take.";
 }
@@ -3838,6 +3921,7 @@ function takePreset(state, preset, picks) {
     const [kind, key] = pick.split(/:(.*)/s);
     if (kind === 'part' && Object.hasOwn(preset.parts, key)) state.parts[key] = copyParts(preset.parts[key]);
     else if (kind === 'models' && preset.models) state.models = [...preset.models];
+    else if (kind === 'skills' && preset.skills) state.skills = JSON.parse(JSON.stringify(preset.skills));
     else if (kind === 'agent' && preset.agentFiles && Object.hasOwn(preset.agentFiles, key)) {
       state.own[key] = preset.agentFiles[key];
       if (state.agents[key]) state.agents[key] = fileModel(preset.agentFiles[key], state.agents[key]);
@@ -5967,7 +6051,9 @@ function boot() {
           ...(chosen.agentFiles ? Object.keys(chosen.agentFiles).sort().map(n => {
             const says = agentSays(n, chosen.agentFiles[n]);
             return row(`agent:${n}`, `Agent file: ${n}`, says.count, lines(says.lines), el('pre', { class: 'preset-file', text: chosen.agentFiles[n] }));
-          }) : [])),
+          }) : []),
+          // #183 T4a: where each skill comes from, at which commit, named for the cloud setup to fetch and install as root.
+          ...(chosen.skills ? [row('skills', 'Skill sources', plural(chosen.skills.reduce((n, k) => n + k.paths.length, 0), 'skill'), lines(chosen.skills.map(k => `${k.repo} at ${k.commit.slice(0, 12)}: ${k.paths.join(', ')}`)), el('p', { class: 'av-annot', text: 'These are for the cloud setup to fetch at their commits, once it reads a configuration (#183 T4b); a home install only lists them. Read a source before you take it.' }))] : [])),
         ...(kept.length ? [el('p', { class: 'av-annot', text: `Not in this preset, so yours stays: ${kept.join(', ')}.` })] : []),
         el('div', { class: 'chips' },
           chip('Take these', true, () => {
@@ -6072,6 +6158,8 @@ function boot() {
     const notes = [
       ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
     ];
+    // A builder file's skill sources reach config.json with no view of their own, so Export names each before Save.
+    if (state.skills.length) notes.push(el('li', { class: 'av-callout av-callout--caution', text: `Check · skills · this configuration names skill sources that the cloud setup will fetch from #183 T4b on: ${state.skills.map(s => `${s.repo} at ${String(s.commit).slice(0, 7)}, ${s.paths.length} path${s.paths.length === 1 ? '' : 's'}`).join('; ')}. Save them only if you chose them.` }));
     if (status.text) notes.push(el('li', { class: `av-callout${status.level === 'error' ? ' av-callout--caution' : status.level === 'ok' ? ' av-callout--normal' : ''}`, text: status.text }));
     if (!notes.length) notes.push(el('li', { class: 'av-callout av-callout--normal', text: 'Nothing to fix here. The installer still checks everything.' }));
 

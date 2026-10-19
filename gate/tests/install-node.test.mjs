@@ -7,9 +7,10 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitAll, git, home, install, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
+import { applyBound, commitAll, git, home, install, makeRepo, nodeEnv, passed, refused, spawnNodeInstall, spawnNodeInstallAsync, WIN } from './install-harness.mjs';
+import { runCore } from './gate-run.mjs';
 import { tempDir } from './tree.mjs';
-import { skipUnlessLinuxCi, withoutOpenMarks } from './text.mjs';
+import { skipUnlessLinuxCi } from './text.mjs';
 
 const edit = (root, rel, from, to) => {
   const p = join(root, ...rel.split('/'));
@@ -37,10 +38,11 @@ test('node: a dry run on a clean tree passes, shows the pin, the check, the gate
   assert.equal(r.stderr, '');
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: --apply installs the files byte for byte, writes the record and the guard, and the next dry run has nothing to do', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  passed(install(repo, h, { apply: true }));
+  passed(applyBound(repo, h));
   const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.equal(record.commit, git(repo, 'rev-parse', 'HEAD').trim());
   assert.deepEqual(Object.keys(record), ['commit', 'digest', 'config', 'files', 'gate']);
@@ -57,28 +59,31 @@ test('node: --apply installs the files byte for byte, writes the record and the 
   assert.match(again.stdout, /^Gate: unchanged since the last install$/m);
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: --apply keeps the live settings: an exact large number, the owner\'s rules and the file mode (#177)', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const sf = join(h, 'settings.json');
   writeFileSync(sf, '{"big": 12345678901234567890.10, "permissions": {"allow": ["Read"]}}\n');
   if (!WIN) chmodSync(sf, 0o640);
-  passed(install(repo, h, { apply: true }));
+  passed(applyBound(repo, h));
   const text = readFileSync(sf, 'utf8');
   assert.match(text, /"big": 12345678901234567890\.10,/);
   assert.ok(JSON.parse(text).permissions.allow.includes('Read'));
   if (!WIN) assert.equal(statSync(sf).mode & 0o777, 0o640);
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: a new settings file and the record are owner-only on Unix', t => {
   if (WIN) return t.skip('Windows sets no mode bits');
   const repo = makeRepo(t);
   const h = home(t);
-  passed(install(repo, h, { apply: true }));
+  passed(applyBound(repo, h));
   assert.equal(statSync(join(h, 'settings.json')).mode & 0o777, 0o600);
   assert.equal(statSync(join(h, '.pact-install.json')).mode & 0o777, 0o600);
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: an installed file that is a hard link loses only its own name; the other file keeps its bytes', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -86,9 +91,13 @@ test('node: an installed file that is a hard link loses only its own name; the o
   writeFileSync(outside, 'victim\n');
   // #262: the rules file, which the pact always writes; an agent file it didn't write is the person's and left alone.
   linkSync(outside, join(h, 'CLAUDE.md'));
-  passed(install(repo, h, { apply: true }));
+  passed(applyBound(repo, h));
   assert.equal(readFileSync(outside, 'utf8'), 'victim\n');
-  assert.equal(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')), 'the rules file holds the no-configuration render');
+  // #183 T4a: with no configuration of the person's own, the rules file holds the pact's default render.
+  // ADR 0094: with no configuration, the rules file is the default's render, byte for byte.
+  const out = tempDir(t, 'pact-render-');
+  assert.equal(runCore('render', [join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]).failed, false);
+  assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), readFileSync(join(out, 'CLAUDE.md')), 'the rules file holds the default render');
 });
 
 for (const [name, dirty] of [
@@ -112,7 +121,7 @@ for (const [name, dirty] of [
     const r = install(repo, h);
     passed(r);
     assert.match(r.stdout, /^Working tree: DIRTY \(1 path\(s\)\)/m);
-    refused(install(repo, h, { apply: true }), /^REFUSED: the working tree is not clean\./m);
+    refused(applyBound(repo, h), /^REFUSED: the working tree is not clean\./m);
     assert.deepEqual(readdirSync(h), []);
   });
 }
@@ -353,10 +362,11 @@ test('node: a staged rules file changed after the check refuses the review outpu
   assert.ok(!existsSync(rev));
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: a staged file changed after the check refuses --apply before any write', t => {
   const repo = makeRepo(t, seamAThenEdit);
   const h = home(t);
-  refused(install(repo, h, { apply: true }), /^REFUSED: the staged copy of CLAUDE\.md changed after the check\. Nothing was changed\.$/m);
+  refused(applyBound(repo, h), /^REFUSED: the staged copy of CLAUDE\.md changed after the check\. Nothing was changed\.$/m);
   assert.deepEqual(readdirSync(h), []);
 });
 
@@ -367,14 +377,16 @@ test('node: a commit with no runner refuses', t => {
   refused(install(repo, home(t)), /^REFUSED: the commit holds no install runner/m);
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: a temp file an earlier install left refuses --apply before any write, naming it', t => {
   const repo = makeRepo(t);
   const h = home(t);
   writeFileSync(join(h, 'settings.json.pact-tmp'), '{}\n');
-  refused(install(repo, h, { apply: true }), /^REFUSED: a temp file the install writes through is already there: settings\.json\.pact-tmp\. .* Nothing was changed\.$/m);
+  refused(applyBound(repo, h), /^REFUSED: a temp file the install writes through is already there: settings\.json\.pact-tmp\. .* Nothing was changed\.$/m);
   assert.deepEqual(readdirSync(h), ['settings.json.pact-tmp']);
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('node: a settings file other accounts can read draws a warning, and --apply keeps its mode', t => {
   if (WIN) return t.skip('Windows sets no mode bits');
   const repo = makeRepo(t);
@@ -387,7 +399,7 @@ test('node: a settings file other accounts can read draws a warning, and --apply
   passed(r);
   assert.match(r.stdout, /^WARN: settings\.json can be read by other accounts on this machine; .*\(chmod 600\)\.$/m);
   // #311: --apply rewrites the settings file and keeps the mode it found.
-  const applied = install(repo, h, { apply: true });
+  const applied = applyBound(repo, h);
   passed(applied);
   assert.match(applied.stdout, /^merged settings\.json$/m);
   assert.equal(statSync(sf).mode & 0o777, 0o664);

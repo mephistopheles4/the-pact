@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { WIN, home, install, listTree, makeRepo, passed, refused, wrapCheck } from './install-harness.mjs';
+import { applyBound, WIN, home, install, listTree, makeRepo, passed, refused, wrapCheck } from './install-harness.mjs';
+import { plantNoDefault } from './gate-files.mjs';
 
 const FINIS = ['---', 'description: Wrap this session up.', 'disable-model-invocation: true', '---', '', 'Wrap the session up, step by step.', ''].join('\n');
 
@@ -72,7 +73,7 @@ test('a listed command installs to commands/<name>.md, and dropping it from the 
 test('with no list, no opt-in command installs, only /scriptorium, and the dry run still lists the pact commands', t => {
   const repo = repoWithFinis(t);
   const h = home(t);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   passed(r);
   assert.match(r.stdout, /^ {2}\/finis: off\r?$/m, r.out);
   assert.deepEqual(readdirSync(join(h, 'commands')), ['scriptorium.md'], 'only /scriptorium');
@@ -173,8 +174,13 @@ test('bad case: a render with two COMMANDS lines refuses', t => {
   refusedUnchanged(repo, homeWith(t, ['finis']), /^REFUSED: the renderer reported two commands lines\./m);
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a render that names a command with CONFIG none refuses', t => {
-  const repo = repoWithFinis(t, root => wrapCheck(root, 'render-core', { after: "r.lines = r.lines.map(l => (l === 'COMMANDS none' ? 'COMMANDS finis' : l));" }));
+  // The renderer is also planted to skip the pact's default, so it reports CONFIG none (#183 T4a).
+  const repo = repoWithFinis(t, root => {
+    wrapCheck(root, 'render-core', { after: "r.lines = r.lines.map(l => (l === 'COMMANDS none' ? 'COMMANDS finis' : l));" });
+    plantNoDefault(join(root, 'gate'));
+  });
   refusedUnchanged(repo, home(t), /^REFUSED: the renderer reported a pact command with no configuration\./m);
 });
 

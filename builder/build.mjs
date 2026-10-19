@@ -29,7 +29,10 @@
 //       describes (#262),
 //     "models": [<model>]: the Models list every dropdown offers, optional (#262 S19),
 //     "agentFiles": { <agent name>: <the whole agent file> }: the agent files
-//       written or edited on the page, optional (#262 addendum 4) }
+//       written or edited on the page, optional (#262 addendum 4),
+//     "skills": [ { "repo", "commit", "paths" } ]: the skill sources the cloud
+//       setup fetches, each repo at a full commit, optional (#183 T4a); a save
+//       writes them into config.json as they stand }
 // A builder file is also a preset: a saved result, shipped in builder/presets/
 // or shared, that the page loads after the person ticks what to take.
 // Skills bind to the workflow's stages as skill nodes, never to a move: the
@@ -48,7 +51,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
-import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, upgradeParts } from './parts.mjs';
+import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
 export const EXAMPLE_BUILDER_REL = 'examples/pact-config/builder.json';
@@ -287,7 +290,7 @@ export function loadBuilder(file, pact) {
   if (holdsProtoKey(doc)) return { builder: null, refusals: ['the builder file holds a __proto__ key, which the page cannot carry'], findings };
   const givenParts = PART_KEYS.filter(k => Object.hasOwn(doc, k));
   if (Object.hasOwn(doc, 'presets') || Object.hasOwn(doc, 'workflows')) refuse('presets and workflows left the builder (#262): bind a skill to a stage as a skill node in workflowGraph instead');
-  else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models', 'agentFiles'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')}, models or agentFiles; the pact's own text is never part of a builder file`);
+  else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models', 'agentFiles', 'skills'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')}, models, agentFiles or skills; the pact's own text is never part of a builder file`);
   if (doc.schema !== 1) refuse('schema must be 1');
   if (Object.hasOwn(doc, 'title') && (typeof doc.title !== 'string' || !LINE_RE.test(doc.title) || doc.title.length > 80)) refuse('title must be one line of at most 80 characters');
 
@@ -332,6 +335,10 @@ export function loadBuilder(file, pact) {
   const models = Object.hasOwn(doc, 'models') ? doc.models : null;
   if (models !== null) for (const p of modelsProblems(models)) refusals.push(`models: ${p}`);
 
+  // The skill sources (#183 T4a): the renderer's own checks, from builder/parts.mjs.
+  const skills = Object.hasOwn(doc, 'skills') ? doc.skills : null;
+  if (skills !== null) for (const p of skillsProblems(skills)) refusals.push(p);
+
   // The agent files (#262 addendum 4): by name, each the whole file as text.
   const agentFiles = Object.hasOwn(doc, 'agentFiles') ? doc.agentFiles : null;
   if (agentFiles !== null) {
@@ -365,7 +372,7 @@ export function loadBuilder(file, pact) {
   if (!listed) findings.push(YOURS_NONE);
 
   if (refusals.length) return { builder: null, refusals, findings, givenParts };
-  return { givenParts, builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}), ...(droppedRetired ? { droppedRetired: true } : {}) }, refusals, findings };
+  return { givenParts, builder: { title: typeof doc.title === 'string' ? doc.title : '', yours, ...(parts ? { ownParts: parts } : {}), ...(models ? { ownModels: [...models] } : {}), ...(agentFiles ? { ownAgentFiles: { ...agentFiles } } : {}), ...(skills ? { ownSkills: structuredClone(skills) } : {}), ...(droppedRetired ? { droppedRetired: true } : {}) }, refusals, findings };
 }
 
 /**
@@ -467,7 +474,7 @@ export function shippedPresets(root, pact, dir = join(root, PRESETS_REL)) {
     const { builder, refusals, givenParts } = loadBuilder(file, pact);
     if (!builder) fail(`the preset ${name} is refused: ${refusals.join('; ')}`);
     const parts = Object.fromEntries(givenParts.map(k => [k, builder.ownParts[k]]));
-    return { id: name.slice(0, -'.json'.length), title: builder.title || name, parts, ...(builder.ownModels ? { models: builder.ownModels } : {}), ...(builder.ownAgentFiles ? { agentFiles: builder.ownAgentFiles } : {}) };
+    return { id: name.slice(0, -'.json'.length), title: builder.title || name, parts, ...(builder.ownModels ? { models: builder.ownModels } : {}), ...(builder.ownAgentFiles ? { agentFiles: builder.ownAgentFiles } : {}), ...(builder.ownSkills ? { skills: builder.ownSkills } : {}) };
   });
 }
 
@@ -517,13 +524,13 @@ export function personalPresets(root, pact, dir = personalPresetsDir(root)) {
       continue;
     }
     const b = r.builder;
-    if (!r.givenParts.length && !b.ownModels && !b.ownAgentFiles) {
-      findings.push(`${at}: left out: it gives no part, models or agent files`);
+    if (!r.givenParts.length && !b.ownModels && !b.ownAgentFiles && !b.ownSkills) {
+      findings.push(`${at}: left out: it gives no part, models, agent files or skill sources`);
       continue;
     }
     for (const f of r.findings) if (f !== YOURS_NONE) findings.push(`${at}: ${f}`);
     const id = name.slice(0, -'.json'.length);
-    presets.push({ id, title: b.title || id, parts: Object.fromEntries(r.givenParts.map(k => [k, b.ownParts[k]])), ...(b.ownModels ? { models: b.ownModels } : {}), ...(b.ownAgentFiles ? { agentFiles: b.ownAgentFiles } : {}), ...(b.droppedRetired ? { droppedRetired: true } : {}) });
+    presets.push({ id, title: b.title || id, parts: Object.fromEntries(r.givenParts.map(k => [k, b.ownParts[k]])), ...(b.ownModels ? { models: b.ownModels } : {}), ...(b.ownAgentFiles ? { agentFiles: b.ownAgentFiles } : {}), ...(b.ownSkills ? { skills: b.ownSkills } : {}), ...(b.droppedRetired ? { droppedRetired: true } : {}) });
   }
   const past = fit.length - OWN_PRESETS_MAX;
   if (past > 0) findings.push(`presets: ${past} more file${past === 1 ? '' : 's'} in your presets folder ${past === 1 ? 'is' : 'are'} past the limit of ${OWN_PRESETS_MAX} and ${past === 1 ? 'is' : 'are'} left out`);

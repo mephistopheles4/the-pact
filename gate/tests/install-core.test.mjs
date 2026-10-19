@@ -287,6 +287,18 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     { id: 'tools-none-and-name', plant: rep('TOOLS poster', 'TOOLS none,poster'), fails: ['render-unknown-line'], why: 'none stands alone' },
     { id: 'line-between-commands-and-tools', plant: t => ({ in: t.in.replace(`AGENT data-lens sonnet high ${H('f')} security-set override local\n`, '').replace('COMMANDS finis\n', `COMMANDS finis\nAGENT data-lens sonnet high ${H('f')} security-set override local\n`) }), fails: ['render-unknown-line'], says: /TOOLS line does not come straight after its COMMANDS line/, why: 'straight after, not merely later' },
     { id: 'tools-line-out-of-order', plant: t => ({ in: t.in.replace('COMMANDS finis\nTOOLS poster', 'TOOLS poster\nCOMMANDS finis') }), fails: ['render-unknown-line'], why: 'the TOOLS line comes straight after the COMMANDS line' },
+    // #183 T4a C5: SKILL lines, one per skill path, only after the TOOLS line, each name once, 100 at most.
+    { id: 'skill-before-tools', plant: rep('COMMANDS finis', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/x\nCOMMANDS finis'), fails: ['render-unknown-line'], why: 'a skill line before the TOOLS line' },
+    { id: 'skill-dot-dot', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/../x\nRESULT'), fails: ['render-unknown-line'], why: 'a .. segment in a skill path' },
+    { id: 'skill-dot-segment', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/./x\nRESULT'), fails: ['render-unknown-line'], why: 'a . segment in a skill path' },
+    { id: 'skill-inner-dash', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc -skills/x\nRESULT'), fails: ['render-unknown-line'], why: 'a segment a git command could read as an option' },
+    { id: 'skill-repo-dots', plant: rep('RESULT', 'SKILL a/.. cccccccccccccccccccccccccccccccccccccccc skills/x\nRESULT'), fails: ['render-unknown-line'], why: 'a repo name of only dots' },
+    { id: 'skill-repo-dot-git', plant: rep('RESULT', 'SKILL a/b.git cccccccccccccccccccccccccccccccccccccccc skills/x\nRESULT'), fails: ['render-unknown-line'], why: 'a repo name ending in .git' },
+    { id: 'skill-name-dash', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/-x\nRESULT'), fails: ['render-unknown-line'], why: 'a skill name that starts with a dash' },
+    { id: 'skill-short-commit', plant: rep('RESULT', 'SKILL a/b ccccccccccccccccccccccccccccccccccccccc skills/x\nRESULT'), fails: ['render-unknown-line'], why: 'a commit that is not 40 hex' },
+    { id: 'skill-name-twice', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/x\nSKILL a/c cccccccccccccccccccccccccccccccccccccccc other/X\nRESULT'), fails: ['render-skill-twice'], why: 'two paths that install under one name, in any case' },
+    { id: 'skill-count', plant: t => ({ in: t.in.replace('RESULT', `${Array.from({ length: 101 }, (_, i) => `SKILL a/b cccccccccccccccccccccccccccccccccccccccc s/k${i}`).join('\n')}\nRESULT`) }), fails: ['render-skill-count'], why: 'more than 100 skill paths' },
+    { id: 'default-digest-over-user', plant: rep(`CONFIG user ${U}`, `CONFIG default ${U}`), fails: ['render-digest'], why: "the default's digest is taken over \"default\", so a user digest does not stand in" },
   ];
   test('renderer lines: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`renderer lines: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -309,6 +321,8 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     // #280 C3
     { id: 'tool-on', plant: rep('TOOLS none', 'TOOLS poster'), fails: ['render-none-extras'], says: /a pact tool with no configuration/, why: 'a named tool with CONFIG none' },
     { id: 'no-tools-line', plant: rep('TOOLS none\n', ''), fails: ['render-tools-missing'], why: 'TOOLS none is still printed' },
+    // #183 T4a C5
+    { id: 'skill', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/x\nRESULT'), fails: ['render-none-extras'], says: /a skill source with no configuration/, why: 'a skill path with CONFIG none' },
   ];
   test('renderer lines with no configuration: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) test(`renderer lines with no configuration: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
@@ -323,6 +337,21 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
   for (const r of rows) test(`renderer lines on a project install: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
   test('renderer lines on a project install: base passes after the rows', async t => assertPasses(await run(base(), t)));
 }
+
+// #183 T4a C6: the pact's default parses with its skill paths, and the skills block says the install fetches none of them.
+test('the renderer lines: the pact\'s default parses with its skill paths, and the skills block counts them by repo and fetches none', () => {
+  const text = renderBase().in.replace(`CONFIG user ${U}`, `CONFIG default ${U}`).replace(`DIGEST ${D}`, `DIGEST ${digestOf(`default ${U}\nblock a.md ${H('e')}\n`)}`).replace('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/x\nSKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/y\nSKILL c/d dddddddddddddddddddddddddddddddddddddddd z\nRESULT');
+  const p = core.parseRenderLines(text.split('\n'), { project: false, hash: sha256 });
+  assert.equal(p.config.kind, 'default');
+  assert.deepEqual(p.skills.map(k => [k.repo, k.path, k.name]), [['a/b', 'skills/x', 'x'], ['a/b', 'skills/y', 'y'], ['c/d', 'z', 'z']]);
+  assert.deepEqual(core.skillsBlock(p), [
+    'skills: 3 paths from 2 repos, fetched only by the cloud setup',
+    '  a/b at cccccccccccc: 2 paths',
+    '  c/d at dddddddddddd: 1 path',
+    '  This install fetches and installs none of them; a session here uses one only if you installed it yourself, or if a repo you work in carries a skill of that name, which it then uses.',
+  ]);
+  assert.deepEqual(core.skillsBlock(core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 })), []);
+});
 
 // #262 C4 (#142): the session limit's value line reaches both parses, home and project.
 test('the renderer lines: a usage-pause-session value parses beside the weekly one, in a home and a project render', () => {

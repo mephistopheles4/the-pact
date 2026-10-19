@@ -41,7 +41,7 @@ As the work needs it.
 
 </details>
 
-The moves name no skills. You put your own skills and commands on the stages of the workflow instead, with the Scriptorium builder page: type `/scriptorium` after installing, or write a configuration file by hand (there is an example in [`examples/pact-config/`](examples/pact-config/)). The builder starts from a full workflow and ships six presets, [Matt Pocock's skills](https://github.com/mattpocock/skills) and Superpowers among them.
+The moves name no skills. You put your own skills and commands on the stages of the workflow instead, with the Scriptorium builder page: type `/scriptorium` after installing, or write a configuration file by hand (there is an example in [`examples/pact-config/`](examples/pact-config/)). With no configuration file of your own, the install renders the builder's full workflow, Level 3 · Full, as the pact's default configuration. The builder starts from it and ships six presets, [Matt Pocock's skills](https://github.com/mattpocock/skills) and Superpowers among them.
 
 ## How much checking
 

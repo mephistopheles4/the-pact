@@ -7,8 +7,9 @@ import { createHash } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { home, install, listTree, makeRepo, nodeEnv, refused, spawnNodeInstall, WIN } from './install-harness.mjs';
-import { plantModule } from './gate-files.mjs';
+import { applyBound, home, install, listTree, makeRepo, nodeEnv, refused, spawnNodeInstall, WIN } from './install-harness.mjs';
+import { runCore } from './gate-run.mjs';
+import { plantModule, plantNoDefault } from './gate-files.mjs';
 import { REPO, withoutOpenMarks } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -170,18 +171,89 @@ test('the shipped example installs: the dry run shows it, -Apply with the full r
   assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
 });
 
-test('with no configuration file the install is as in slice 2: the notice slot stays empty, and the record names no configuration', t => {
+// #183 T4a C1: with no file of the person's, the pact's default renders, and none of it is the person's to record.
+test('with no configuration file the install renders the pact\'s default: the notice names it, and the record holds its digest and no configuration file', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  const r = install(repo, h, { apply: true });
+  const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
-  const rendered = Buffer.from(withoutOpenMarks(readFileSync(join(repo, 'claude', 'CLAUDE.md'), 'utf8')));
+  const out = tempDir(t, 'pact-render-');
+  const want = runCore('render', [join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]);
+  assert.equal(want.failed, false, want.lines.join('\n'));
+  const rendered = readFileSync(join(out, 'CLAUDE.md'));
   assert.deepEqual(readFileSync(join(h, 'CLAUDE.md')), rendered);
-  assert.ok(!rendered.toString('utf8').includes('Configuration in effect'));
+  assert.match(rendered.toString('utf8'), /^\*\*Configuration in effect\.\*\* This file was rendered with the pact's default configuration `[0-9a-f]{12}`\.$/m);
+  const digest = /^DIGEST ([0-9a-f]{12})$/m.exec(want.lines.join('\n'))[1];
   const manifest = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
-  assert.equal(manifest.digest, null);
+  assert.equal(manifest.digest, digest);
   assert.deepEqual(manifest.config, []);
-  assert.match(r.stdout, /^Installed commit [0-9a-f]{40} with no configuration; all files verified\.\r?$/m, r.out);
+  assert.match(r.stdout, new RegExp(`^Installed commit [0-9a-f]{40} with the pact's default configuration ${digest}; all files verified\\.\\r?$`, 'm'), r.out);
+  const again = install(repo, h);
+  assert.match(again.stdout, new RegExp(`^Last install: [0-9a-f]{40} with the pact's default configuration ${digest}\\r?$`, 'm'), again.out);
+  assert.match(again.stdout, /^Nothing to do\.\r?$/m, again.out);
+});
+
+// #183 T4a C1: the dry run names the default by its preset title and digest, warns of its security defaults, and binds the apply to its hash.
+test('with no configuration file the dry run names the pact\'s default and its digest, warns of its security defaults, and prints an apply bound to its hash', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  const hash = dryRunHash(dry);
+  const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
+  const c = lines.indexOf('Configuration:');
+  assert.match(lines[c + 1], /^ {2}configuration: the pact's default, Level 3 · Full \([0-9a-f]{12}\): you have no pact\/config\.json$/, dry.out);
+  assert.equal(lines[c + 2], `  rendered rules file: sha256 ${hash}`);
+  assert.ok(lines.includes('  WARN: the pact\'s default configuration edits workflow (replace).'), dry.out);
+  assert.match(dry.stdout, /^WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration \(Level 3 · Full\) renders; it edits workflow, .* No install is recorded to compare with\.\r?$/m, dry.out);
+  assert.match(dry.stdout, new RegExp(`^ {2}.* --apply --commit [0-9a-f]{40} --rendered-hash ${hash}\\r?$`, 'm'), dry.out);
+  // C6 at home: the default's skill sources are listed, never fetched.
+  const paths = (JSON.parse(readFileSync(join(repo, 'builder', 'default-config', 'config.json'), 'utf8')).skills || []).flatMap(e => e.paths);
+  if (paths.length) assert.match(dry.stdout, new RegExp(`^skills: ${paths.length} paths? from \\d+ repos?, fetched only by the cloud setup\\r?$`, 'm'), dry.out);
+  else assert.doesNotMatch(dry.stdout, /^skills: /m, dry.out);
+  // D3: the default binds the apply as a person's configuration does; without the hash, nothing is written.
+  const bare = install(repo, h, { apply: true });
+  refused(bare);
+  assert.match(bare.stdout, new RegExp(`^REFUSED: ${NEEDS_HASH}`, 'm'), bare.out);
+  nothingWritten(h);
+  // The security-defaults line says whether the default changed since the default was last installed.
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', hash] }).code, 0);
+  assert.match(install(repo, h).stdout, /^WARN: SECURITY DEFAULTS: you have no configuration .* The default is unchanged since the last install\.\r?$/m);
+  const mf = join(h, '.pact-install.json');
+  writeFileSync(mf, JSON.stringify({ ...JSON.parse(readFileSync(mf, 'utf8')), digest: 'b'.repeat(12) }));
+  assert.match(install(repo, h).stdout, /^WARN: SECURITY DEFAULTS: you have no configuration .* The default CHANGED since the last install\.\r?$/m);
+});
+
+// #183 T4a C6: skill sources are listed, and the install fetches and writes none of them.
+test('a configuration with skills: the dry run lists them by repo and says this install fetches none, and the apply writes no skill', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const pin = 'c'.repeat(40);
+  writeFileSync(configPath(h), JSON.stringify({ ...JSON.parse(EXAMPLE), skills: [{ repo: 'someone/skills', commit: pin, paths: ['skills/alpha', 'skills/beta'] }] }));
+  const dry = install(repo, h);
+  assert.equal(dry.code, 0, dry.out);
+  const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
+  const at = lines.indexOf('skills: 2 paths from 1 repo, fetched only by the cloud setup');
+  assert.ok(at > lines.indexOf('Configuration:'), dry.out);
+  assert.deepEqual(lines.slice(at + 1, at + 3), [`  someone/skills at ${pin.slice(0, 12)}: 2 paths`, '  This install fetches and installs none of them; a session here uses one only if you installed it yourself, or if a repo you work in carries a skill of that name, which it then uses.']);
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(listTree(h).filter(p => /(^|[\\/])(skills|alpha|beta)([\\/]|$)/.test(p)), []);
+});
+
+// #183 T4a C35: the default in place of a person's own configuration is said, not only shown.
+test('after an install with your own configuration, a dry run with the file gone says it is gone and the default renders in its place', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  writeFileSync(configPath(h), EXAMPLE);
+  assert.equal(install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(install(repo, h))] }).code, 0);
+  rmSync(configPath(h));
+  const r = install(repo, h);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.stdout, /^ {2}configuration: the pact's default, /m, r.out);
+  assert.match(r.stdout, /^ {2}the last install had your own configuration; pact\/config\.json is gone now, so the pact's default renders in its place\r?$/m, r.out);
+  assert.equal(applyBound(repo, h).code, 0);
+  assert.doesNotMatch(install(repo, h).stdout, /the last install had your own configuration/, 'once the default is installed, it is not said again');
 });
 
 test('a record that names another configuration hash is stale: the dry run says changed, and not "nothing to do"', t => {
@@ -201,14 +273,15 @@ test('a record that names another configuration hash is stale: the dry run says 
   assert.doesNotMatch(r.stdout, /^Nothing to do/m, r.out);
 });
 
-test('after a no-configuration install, the dry run says so, and a new file is "new since the last install"', t => {
+// #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
+test('after an install of the pact\'s default, the dry run says so, and a new file is "new since the last install"', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  assert.equal(install(repo, h, { apply: true }).code, 0);
+  assert.equal(applyBound(repo, h).code, 0);
   writeFileSync(configPath(h), EXAMPLE);
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.stdout, /^Last install: [0-9a-f]{40} with no configuration\r?$/m, r.out);
+  assert.match(r.stdout, /^Last install: [0-9a-f]{40} with the pact's default configuration [0-9a-f]{12}\r?$/m, r.out);
   assert.match(r.stdout, new RegExp(`^ {2}user file pact/config\\.json: sha256 ${sha256(EXAMPLE)}, new since the last install\\r?$`, 'm'), r.out);
 });
 
@@ -254,6 +327,7 @@ test('bad case: -Apply with no hash refuses when a configuration applies', t => 
   nothingWritten(h);
 });
 
+// ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: -Apply with an empty hash refuses: a hash given is compared even when empty', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -263,19 +337,21 @@ test('bad case: -Apply with an empty hash refuses: a hash given is compared even
   nothingWritten(h);
 });
 
-test('bad case: a configuration that appears after a no-configuration dry run refuses -Apply given no hash', t => {
+// #183: a dry run with no configuration renders the default, so its hash binds the default, and a file that appears after it is refused.
+test('bad case: a configuration that appears after a dry run of the pact\'s default refuses -Apply given the default\'s hash', t => {
   const repo = makeRepo(t);
   const h = home(t);
   const dry = install(repo, h);
   assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^ {2}no configuration\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}configuration: the pact's default, /m, dry.out);
   writeFileSync(configPath(h), EXAMPLE);
-  const r = install(repo, h, { apply: true });
+  const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   refused(r);
-  assert.match(r.stdout, new RegExp(`^REFUSED: ${NEEDS_HASH}`, 'm'), r.out);
+  assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
   nothingWritten(h);
 });
 
+// #183 C1: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('bad case: a configuration deleted after a configured dry run refuses -Apply given its hash', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -284,7 +360,8 @@ test('bad case: a configuration deleted after a configured dry run refuses -Appl
   rmSync(configPath(h));
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', hash] });
   refused(r);
-  assert.match(r.stdout, /^render\| CONFIG none\r?$/m, r.out);
+  // #183 T4a: with the file gone, the pact's default renders, and its hash is not the one given.
+  assert.match(r.stdout, /^render\| CONFIG default [0-9a-f]{64}\r?$/m, r.out);
   assert.match(r.stdout, new RegExp(`^REFUSED: ${BINDING}`, 'm'), r.out);
   nothingWritten(h);
 });
@@ -420,7 +497,11 @@ for (const [label, withConfig, from, to, why] of [
   ['a digest of the wrong length', true, R_USER, R_USER.replace('`DIGEST ${digest}`', '`DIGEST ${digest}0`'), 'the renderer printed a line the install does not read'],
 ]) {
   test(`bad case: a renderer that reports ${label} refuses`, t => {
-    const repo = makeRepo(t, root => plantRenderer(root, from, to));
+    // With no configuration, the renderer is also planted to skip the pact's default, so the no-configuration lines are what it reports (#183 T4a).
+    const repo = makeRepo(t, root => {
+      plantRenderer(root, from, to);
+      if (!withConfig) plantNoDefault(join(root, 'gate'));
+    });
     const h = home(t);
     if (withConfig) writeFileSync(configPath(h), EXAMPLE);
     const r = install(repo, h, { apply: true, extra: withConfig ? ['--rendered-hash', 'a'.repeat(64)] : [] });
@@ -461,10 +542,11 @@ test('bad case: a relative -ClaudeHome refuses before anything runs, even after 
 
 // ------------------------------------------------------------ an upgrade from a slice-2 record, and the user file's edit guard
 
+// #183 C35: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('a record from before configurations (no config, no digest) reads as no configuration: a new file is "new since the last install"', t => {
   const repo = makeRepo(t);
   const h = home(t);
-  assert.equal(install(repo, h, { apply: true }).code, 0);
+  assert.equal(applyBound(repo, h).code, 0);
   const mf = join(h, '.pact-install.json');
   const m = JSON.parse(readFileSync(mf, 'utf8'));
   delete m.config;
@@ -472,8 +554,9 @@ test('a record from before configurations (no config, no digest) reads as no con
   writeFileSync(mf, JSON.stringify(m));
   const none = install(repo, h);
   assert.equal(none.code, 0, none.out);
-  assert.match(none.stdout, /^ {2}no configuration\r?$/m, none.out);
-  assert.doesNotMatch(none.stdout, /the last install had a configuration/, none.out);
+  // #183 T4a: the pact's default renders, and the record names no file of the person's to say is gone.
+  assert.match(none.stdout, /^ {2}configuration: the pact's default, /m, none.out);
+  assert.doesNotMatch(none.stdout, /the last install had (a|your own) configuration/, none.out);
   writeFileSync(configPath(h), EXAMPLE);
   const r = install(repo, h);
   assert.equal(r.code, 0, r.out);

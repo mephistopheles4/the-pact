@@ -20,6 +20,8 @@ import { tempDir } from './tree.mjs';
 const WIN = process.platform === 'win32';
 const PAGE = readFileSync(join(REPO, PAGE_REL), 'utf8');
 const PAGE_NAME = basename(PAGE_REL);
+// The page starts at Level 3 · Full, so a save from its start is the pact's default configuration (#183 T4a).
+const DEFAULT_CONFIG = JSON.parse(readFileSync(join(REPO, 'builder', 'default-config', 'config.json'), 'utf8'));
 const sha256b64 = s => createHash('sha256').update(s, 'utf8').digest('base64');
 
 // ------------------------------------------------------------ the page's checks
@@ -570,7 +572,8 @@ test('reset puts the usage value, every part and every agent back to where the p
   L.takePreset(start, L.PACT.presets.find(p => p.id === 'level-3-full'), L.presetPicks(L.PACT.presets.find(p => p.id === 'level-3-full')));
   assert.deepEqual(JSON.parse(JSON.stringify(s)), JSON.parse(JSON.stringify(start)));
   // A reset page saves Level 3 · Full: its workflow edit, no settings, no agents.
-  assert.deepEqual(JSON.parse(L.buildFiles(s).find(f => f.path === 'pact/config.json').text), { schema: 1, edits: [{ mark: 'workflow', op: 'replace', file: 'workflow.md' }] });
+  // #183 T4a C4: what a reset page saves is the pact's default configuration, skills included once it has them.
+  assert.deepEqual(JSON.parse(L.buildFiles(s).find(f => f.path === 'pact/config.json').text), DEFAULT_CONFIG);
   L.restoreAll(s, before);
   assert.equal(JSON.stringify(s), changed);
 });
@@ -587,8 +590,8 @@ test('a security-set lens off its default saves like a plain one, with no warnin
 // ------------------------------------------------------------ the page on a stub DOM
 
 /** Boot the page's script against a small stand-in for the DOM; returns the elements by id and helpers. */
-function bootPage({ picker = false, folder = null } = {}) {
-  const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
+function bootPage({ picker = false, folder = null, page = PAGE } = {}) {
+  const script = [...page.matchAll(SCRIPT_RE)][0][2];
   class N {
     constructor(tag) { Object.assign(this, { tag, children: [], attrs: {}, hidden: false, textContent: '', listeners: {}, style: {}, dataset: {}, value: '' }); this.classList = { add() {}, remove() {}, toggle() {} }; }
     append(...c) { this.children.push(...c.map(x => (typeof x === 'string' ? Object.assign(new N('#text'), { textContent: x }) : x))); }
@@ -642,6 +645,23 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.match(P.ids.output.text, /"mark": "moves",\s*"op": "replace"/);
   assert.match(P.ids.output.text, /I sense the work my own way\./);
   assert.doesNotMatch(P.ids.output.text, /\r/);
+});
+
+// #183 T4a (adversarial F1): Export names each skill source the configuration carries before Save, and the page's
+// start state (the pact's default) gets the line exactly when the default names skills.
+test('stub page: Export names each skill source the configuration carries before Save, and says nothing when there are none', () => {
+  const SKILL = { repo: 'owner/skills', commit: 'a'.repeat(40), paths: ['skills/one', 'skills/two'] };
+  const at = '    if (state.skills.length) notes.push(';
+  const withSkills = PAGE.replace(at, `    state.skills = [${JSON.stringify(SKILL)}];\n${at}`);
+  assert.notEqual(withSkills, PAGE, 'the plant must reach the Export notes');
+  const P = bootPage({ page: withSkills });
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /Check · skills · this configuration names skill sources that the cloud setup will fetch from #183 T4b on: owner\/skills at aaaaaaa, 2 paths\. Save them only if you chose them\./);
+  const plain = bootPage();
+  plain.button(plain.ids.actions, 'Export').click();
+  const named = (DEFAULT_CONFIG.skills ?? []).map(s => `${s.repo} at ${s.commit.slice(0, 7)}, ${s.paths.length} path${s.paths.length === 1 ? '' : 's'}`).join('; ');
+  if (named) assert.ok(plain.ids.output.text.includes(`fetch from #183 T4b on: ${named}. Save`), plain.ids.output.text);
+  else assert.doesNotMatch(plain.ids.output.text, /Check · skills/);
 });
 
 // #262 addendum 3: Add agent in the Agents panel reaches the saved files, and the save note says a save never deletes.
@@ -928,6 +948,7 @@ test('stub page: the review step warns that a downloaded config.json holds no to
   assert.match(P.ids.output.text, /Unless you set the tools under Settings, a downloaded config\.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools\./);
 });
 
+// #183 C4: with no configuration of the person's, the pact's default renders (ADR 0094).
 test('stub page: Save to a picked folder keeps its commands list, and writes nothing over a config.json that isn\'t JSON (#203, T2)', async () => {
   /** A stand-in folder holding `held` (name -> text); `written` collects what Save writes. */
   const fakeFolder = held => {
@@ -951,11 +972,10 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
     return folder.written;
   };
   // The page starts from Level 3 · Full, so even an untouched save carries its workflow.
-  const edits = [{ mark: 'workflow', op: 'replace', file: 'workflow.md' }];
   const kept = await save(fakeFolder({ 'config.json': '{"schema":1,"commands":["finis"]}' }));
-  assert.deepEqual(JSON.parse(kept['config.json']), { schema: 1, edits, commands: ['finis'] });
+  assert.deepEqual(JSON.parse(kept['config.json']), { ...DEFAULT_CONFIG, commands: ['finis'] });
   assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
-  assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), { schema: 1, edits }, 'no file there: the save goes as built');
+  assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), DEFAULT_CONFIG, 'no file there: the save goes as built');
 });
 // #262: a moves edit saves the whole part as one replace; an empty move stops a save.
 test('an edited move saves the moves part as one replace, and an empty move stops a save', () => {
@@ -1225,7 +1245,7 @@ test('a shared file opens as a preset only when the page can use it, and says wh
   assert.match(L.presetFromText('{"schema": 1, "presets": []}').refuse, /keys a builder file doesn't: presets/);
   assert.match(L.presetFromText('{"schema": 1, "tiers": []}').refuse, /tiers: tiers must list 1 to 6 tiers/);
   assert.match(L.presetFromText('{"schema": 1, "agentFiles": {"Bad": "x"}}').refuse, /^agentFiles entry 1 is not an agent name with a file$/);
-  assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, models or agent files/);
+  assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, models, agent files or skill sources/);
   // Tiers without a workflow meet the pact's workflow: its offers take the tiers that exist.
   const r = L.presetFromText(JSON.stringify({ schema: 1, title: 'Two tiers', tiers: [{ id: 'light', name: 'Light', fits: 'Small', plan: 'none', build: 'Sonnet, medium' }, { id: 'full', name: 'Full', fits: 'The rest', plan: 'Opus, high', build: 'Sonnet, medium' }] }));
   assert.equal(r.refuse, undefined);
@@ -1392,7 +1412,7 @@ test('C2: a bad personal preset is left out with a finding on every run, no mess
   const has = re => lines.filter(l => re.test(l));
   assert.equal(has(/presets\/a-bad-tiers\.json: left out: .*1 to 6 tiers/).length, 1);
   assert.equal(has(/^FINDING presets: a file in your presets folder has a name the page can't carry; it is left out$/).length, 1);
-  assert.equal(has(/presets\/a-empty\.json: left out: it gives no part, models or agent files$/).length, 1);
+  assert.equal(has(/presets\/a-empty\.json: left out: it gives no part, models, agent files or skill sources$/).length, 1);
   assert.equal(has(/presets\/a-badkey\.json: left out: agentFiles entry 1 is not an agent name/).length, 1);
   assert.equal(has(/presets\/a-proto\.json: left out: .*__proto__/).length, 1);
   assert.equal(has(/presets\/a-pair\.json: workflow: offer test-qa-pair: half of behaviour-lens and integrity-lens on its own/).length, 1);
