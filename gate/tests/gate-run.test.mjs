@@ -177,7 +177,7 @@ export function check(argv) {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { moduleResult, table } from ${url(join(HERE, 'tables.mjs'))};
+import { assertFails, assertPasses, moduleResult } from ${url(join(HERE, 'text.mjs'))};
 import { runCheck } from ${url(join(HERE, 'gate-run.mjs'))};
 import { check } from ${url(core)};
 const SOURCE = ${JSON.stringify(join(REPO, 'claude', 'CLAUDE.md'))};
@@ -193,12 +193,11 @@ const run = (tree, t) => {
   const r = runCheck(check, [SOURCE, join(d, 'out'), join(d, 'home')]);
   return moduleResult(r.code, r.stdout);
 };
-for (const c of table('shared state', {
-  module: 'gate/render.mjs',
-  base: () => ({ 'pact/config.json': edits([{ mark: 'moves', op: 'add-after', file: 'ok.md' }]), 'pact/blocks/ok.md': 'Text.\\n' }),
-  run,
-  rows: [{ id: 'unknown-mark', plant: h => ({ ...h, 'pact/config.json': edits([{ mark: 'move-9', op: 'remove' }]) }), fails: ['edit-mark'], why: 'a row between the two bases' }],
-})) test(c.name, c.fn);
+const base = () => ({ 'pact/config.json': edits([{ mark: 'moves', op: 'add-after', file: 'ok.md' }]), 'pact/blocks/ok.md': 'Text.\\n' });
+const rows = [{ id: 'unknown-mark', plant: h => ({ ...h, 'pact/config.json': edits([{ mark: 'move-9', op: 'remove' }]) }), fails: ['edit-mark'], why: 'a row between the two bases' }];
+test('shared state: base passes', async t => assertPasses(await run(base(), t)));
+for (const r of rows) test(\`shared state: \${r.id}\`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+test('shared state: base passes after the rows', async t => assertPasses(await run(base(), t)));
 `,
   );
   const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', file], { cwd: dir, encoding: 'utf8', env: childEnv() });

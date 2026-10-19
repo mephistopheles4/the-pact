@@ -11,8 +11,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { SLUG, check, decide, ghArgs, ghEnv, ghOptions, makeRun, tableCheck } from '../tracker-authors-core.mjs';
-import { table } from './tables.mjs';
-import { GATE, lastLine } from './text.mjs';
+import { GATE, assertFails, assertPasses, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const MODULE = 'gate/tracker-authors-core.mjs';
@@ -64,17 +63,19 @@ const judge = kinds => tree => {
 };
 
 // #183 C3
-for (const c of table('tracker authors comments', {
-  module: MODULE,
-  base: () => input('issue', issueRecords()),
-  run: judge(['comment']),
-  rows: [
+{
+  const base = () => input('issue', issueRecords());
+  const run = judge(['comment']);
+  const rows = [
     { id: 'edited', plant: edit(r => (r.comments[0].updated_at = LATER)), fails: ['edited'], why: 'an owner comment edited after it was posted, by an editor REST cannot show' },
     { id: 'bot', plant: edit(r => (r.comments[0].user = user('helper[bot]', 'Bot'))), fails: ['bot'], why: 'a bot account' },
     { id: 'deleted-account', plant: edit(r => (r.comments[0].user = null)), fails: ['no-account'], why: 'a deleted account shows no user' },
     { id: 'other-account', plant: edit(r => (r.comments[0].user = user(OTHER))), fails: ['not-owner'], why: 'another account' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('tracker authors comments: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`tracker authors comments: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('tracker authors comments: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #183 C3: a hidden comment is flagged, and only a hidden one; one REST shows no flag for is unknown.
 test('tracker authors: a hidden comment is flagged hidden, an unhidden one is not, and one with no flag is unknown', () => {
@@ -103,36 +104,39 @@ test('tracker authors: a hidden comment is flagged hidden, an unhidden one is no
 
 // #183 C4. The base is a PR with no reviews, so it holds no record of the
 // kinds judged; the issue body row swaps in an issue's records whole.
-for (const c of table('tracker authors bodies', {
-  module: MODULE,
-  base: () => input('pr', prRecords()),
-  run: judge(['issue-body', 'review']),
-  rows: [
+{
+  const base = () => input('pr', prRecords());
+  const run = judge(['issue-body', 'review']);
+  const rows = [
     { id: 'issue-body', plant: edit((r, v) => ((v.kind = 'issue'), (v.records = issueRecords()))), fails: ['body-no-editor'], why: 'the owner\'s issue body, whose editor REST cannot show' },
     { id: 'review-body', plant: edit(r => r.reviews.push(review(401, { user: user(OWNER), author_association: 'OWNER' }))), fails: ['body-no-editor'], why: 'the owner\'s review body, whose editor REST cannot show' },
     { id: 'pull-body', plant: edit((r, v) => (v.kinds = ['pull-body'])), fails: ['body-no-editor'], why: 'the owner\'s PR body, whose editor REST cannot show' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('tracker authors bodies: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`tracker authors bodies: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('tracker authors bodies: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #183 C5
-for (const c of table('tracker authors labels', {
-  module: MODULE,
-  base: () => input('issue', issueRecords()),
-  run: judge(['label']),
-  rows: [
+{
+  const base = () => input('issue', issueRecords());
+  const run = judge(['label']);
+  const rows = [
     { id: 'other-actor', plant: edit(r => (r.events[0].actor = user(OTHER))), fails: ['label-not-owner'], why: 'another account applied it last' },
     { id: 'removed-after', plant: edit(r => r.events.push(labeled(202, 'tier:quick', OWNER, 'unlabeled'))), fails: ['label-removed'], why: 'an unlabeled event follows the labeled one' },
     { id: 'absent-from-issue', plant: edit(r => (r.issue.labels = [])), fails: ['label-removed'], why: 'the issue no longer carries it' },
     { id: 'no-labeled-event', plant: edit(r => (r.events = [])), fails: ['label-no-event'], why: 'the issue carries it, and no labeled event names it' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('tracker authors labels: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`tracker authors labels: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('tracker authors labels: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #183 C7
-for (const c of table('tracker authors insiders', {
-  module: MODULE,
-  base: () => input('pr', prRecords()),
-  run: judge(['pull']),
-  rows: [
+{
+  const base = () => input('pr', prRecords());
+  const run = judge(['pull']);
+  const rows = [
     { id: 'opener', plant: edit(r => (r.pull.user = user(OTHER))), fails: ['opener-not-owner'], why: 'another account opened it' },
     { id: 'cross-repo', plant: edit(r => (r.pull.head.repo.full_name = `${OTHER}/the-pact`)), fails: ['cross-repo'], why: 'a fork\'s head branch' },
     { id: 'deleted-head-repo', plant: edit(r => (r.pull.head.repo = null)), fails: ['cross-repo'], why: 'the head repo was deleted' },
@@ -141,8 +145,11 @@ for (const c of table('tracker authors insiders', {
     { id: 'unlinked-author', plant: edit(r => (r.commits[0].author = null)), fails: ['commit-not-owner'], why: 'a commit whose author email links no account' },
     { id: 'other-committer', plant: edit(r => (r.commits[0].committer = user(OTHER))), fails: ['commit-not-owner'], why: 'a commit committed by another account' },
     { id: 'head-mismatch', plant: edit(r => r.commits.push(commit('b'.repeat(40)))), fails: ['head-mismatch'], why: 'the last commit read is not the head the PR names' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('tracker authors insiders: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`tracker authors insiders: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('tracker authors insiders: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ check(), with a fake gh
 
@@ -194,15 +201,14 @@ const setPath = (path, text) => tree => ({ 'world.json': JSON.stringify({ ...JSO
 const runWorld = tree => check(['pr', '7'], fakeRun(JSON.parse(tree['world.json'])));
 
 // #183 C6: each stop fires with its fixed line and nothing else.
-for (const c of table('tracker authors stops', {
-  module: MODULE,
-  base: () => world(),
-  run: runWorld,
-  everyRow: r => {
+{
+  const base = () => world();
+  const run = runWorld;
+  const everyRow = r => {
     assert.equal(r.out.split('\n').filter(Boolean).length, 2, r.out);
     assert.doesNotMatch(r.out, /CANARY/, r.out);
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'non-zero-exit', plant: setPath(FAIL, `${R}/issues/7/comments?per_page=100&page=1`), fails: ['stop/gh'], why: 'a gh call exits non-zero' },
     { id: 'empty', plant: setPath(`${R}/pulls/7/reviews?per_page=100&page=1`, ''), fails: ['stop/empty'], why: 'a call prints nothing' },
     { id: 'non-array-page', plant: setPath(`${R}/pulls/7/reviews?per_page=100&page=1`, '"CANARY-page"'), fails: ['stop/shape'], why: 'a page that is not a JSON array' },
@@ -216,8 +222,17 @@ for (const c of table('tracker authors stops', {
     { id: 'comment-without-times', plant: recs(r => (delete r.comments[0].created_at, delete r.comments[0].updated_at)), fails: ['stop/shape'], why: 'an owner comment without the times the edit check reads' },
     { id: 'commits-over-cap', plant: recs(r => (r.pull.commits = 251)), fails: ['stop/cap'], why: 'more commits than GitHub\'s list returns' },
     { id: 'reviews-over-cap', plant: recs(r => (r.reviews = Array.from({ length: 101 }, (_, i) => review(500 + i)))), fails: ['stop/cap'], why: 'a flood of reviews past 100' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('tracker authors stops: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`tracker authors stops: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('tracker authors stops: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ the command line, as a child
 

@@ -9,8 +9,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { DISPOSITIONS, post, scan, tableCheck } from '../../claude/tools/poster.mjs';
-import { table } from './tables.mjs';
-import { REPO } from './text.mjs';
+import { REPO, assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const TARGET = 'tester/sandbox';
@@ -43,9 +42,9 @@ const asBody = text => () => ({ 'body.md': text });
 
 /**
  * A dry run of an issue comment carrying the tree's body, with a gh that
- * records any call; in a table's shape. A table expects a gate module's exit 1
- * and "RESULT: fail"; the poster refuses with exit 2, which `refusedQuietly`
- * asserts on `real`.
+ * records any call; in a row's shape. `assertFails` expects a gate module's
+ * exit 1 and "RESULT: fail"; the poster refuses with exit 2, which
+ * `refusedQuietly` asserts on `real`.
  */
 function runBody(tree, t) {
   const dir = tempDir(t, 'pact-poster-table-');
@@ -72,12 +71,11 @@ function refusedQuietly(r) {
 }
 
 // #280 C7: each rule refuses a planted table, with nothing sent and no cell text in the output.
-for (const c of table('poster dispositions table', {
-  module: 'claude/tools/poster.mjs',
-  base: () => ({ 'body.md': BASE }),
-  run: runBody,
-  everyRow: refusedQuietly,
-  rows: [
+{
+  const base = () => ({ 'body.md': BASE });
+  const run = runBody;
+  const everyRow = refusedQuietly;
+  const rows = [
     { id: 'header-extra-words', plant: swap(HEADER, '| Finding | Lens | Disposition | Rerun, if any |'), fails: ['table/header'], why: "the template's header has no more words" },
     { id: 'header-bold', plant: swap(HEADER, '| Finding | Lens | **Disposition** | Rerun |'), fails: ['table/header'], why: 'bold is refused, though the trigger reads past it' },
     { id: 'header-three-columns', plant: swap(`${HEADER}\n${SEP}`, '| Lens or read | Disposition | Rerun |\n| --- | --- | --- |'), fails: ['table/header'], why: 'a header of other columns, and its rows are not read' },
@@ -104,8 +102,17 @@ for (const c of table('poster dispositions table', {
     { id: 'lone-cr', plant: tree => ({ 'body.md': tree['body.md'].replace(ROWS[0], `| new ${MARK} F1 | behaviour-lens | Fixed | none |`).replace(/\n/g, '\r') }), fails: ['table/disposition'], why: 'CommonMark ends a line at a lone carriage return' },
     { id: 'pipe-line-above-header', plant: tree => ({ 'body.md': tree['body.md'].replace(HEADER, `| ${MARK} a stray line |\n${HEADER}`).replace(ROWS[0], `| new ${MARK} F1 | behaviour-lens | Fixed | none |`) }), fails: ['table/disposition'], why: 'the header is the line before the delimiter row' },
     { id: 'all-dash-row', plant: row(0, '| - | - | - | - |'), fails: ['table/state', 'table/disposition'], why: 'only the line after the header is the delimiter row' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('poster dispositions table: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`poster dispositions table: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('poster dispositions table: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 /** The refusals the check gives `text`, as rule ids. */
 const rules = text => tableCheck(text).map(r => r.rule);

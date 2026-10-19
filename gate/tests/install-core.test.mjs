@@ -8,8 +8,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import * as core from '../install-core.mjs';
-import { GATE, REPO } from './text.mjs';
-import { table } from './tables.mjs';
+import { GATE, REPO, assertFails, assertPasses } from './text.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const H = c => c.repeat(64);
@@ -33,11 +32,10 @@ const json = v => JSON.stringify(v);
 // ------------------------------------------------------------ the command line (S4, A3 to A6)
 
 const winArgs = () => ({ in: json(['--claude-home', 'C:\\Users\\user\\.claude', '--apply', '--commit', ID('a'), '--rendered-hash', H('b'), '--review-folder', 'D:\\review out']) });
-for (const c of table('command line on windows', {
-  module: 'gate/install-core.mjs',
-  base: winArgs,
-  run: t => decided(() => core.parseArgs(JSON.parse(t.in), 'win32')),
-  rows: [
+{
+  const base = winArgs;
+  const run = t => decided(() => core.parseArgs(JSON.parse(t.in), 'win32'));
+  const rows = [
     { id: 'unknown-word', plant: rep('"--apply"', '"--aply"'), fails: ['args-unread'], says: /holds 1 word the script does not read \(--aply\)/, why: 'a misspelled option is never dropped' },
     { id: 'repeated-option', plant: t => ({ in: json([...JSON.parse(t.in), '--apply']) }), fails: ['args-unread'], why: 'an option given twice' },
     { id: 'repeated-valued-option', plant: t => ({ in: json([...JSON.parse(t.in), '--claude-home', 'C:\\other']) }), fails: ['args-unread'], says: /2 words/, why: 'a second value can never replace the first' },
@@ -70,15 +68,17 @@ for (const c of table('command line on windows', {
     { id: 'stream-colon', plant: rep('review out', 'review:out'), fails: ['path-chars'], why: 'a colon past the drive names a stream' },
     { id: 'review-and-project', plant: t => ({ in: json([...JSON.parse(t.in), '--project-folder', 'C:\\proj']) }), fails: ['args-review-project'], why: 'a project install writes no review output' },
     { id: 'apply-without-commit', plant: t => ({ in: json(JSON.parse(t.in).filter(w => w !== '--commit' && w !== ID('a'))) }), fails: ['args-apply-commit'], why: 'every apply is bound to a dry run the owner saw' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('command line on windows: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`command line on windows: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('command line on windows: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 const unixArgs = () => ({ in: json(['--claude-home', '/home/user/.claude', '--project-folder', '/work/my project']) });
-for (const c of table('command line on unix', {
-  module: 'gate/install-core.mjs',
-  base: unixArgs,
-  run: t => decided(() => core.parseArgs(JSON.parse(t.in), 'linux')),
-  rows: [
+{
+  const base = unixArgs;
+  const run = t => decided(() => core.parseArgs(JSON.parse(t.in), 'linux'));
+  const rows = [
     { id: 'relative', plant: rep('/home/user/.claude', 'home/.claude'), fails: ['path-not-full'], why: 'a relative path' },
     { id: 'windows-drive', plant: rep('/home/user/.claude', 'C:/home'), fails: ['path-not-full'], why: 'a drive path is not full on Unix' },
     { id: 'backslash-root', plant: rep('/home/user/.claude', '\\\\home'), fails: ['path-not-full'], why: 'the Windows rule holds on every OS' },
@@ -86,8 +86,11 @@ for (const c of table('command line on unix', {
     { id: 'shell-metacharacter', plant: rep('my project', 'my|project'), fails: ['path-chars'], why: 'a pipe' },
     { id: 'tilde', plant: rep('/home/user/.claude', '~/.claude'), fails: ['path-not-full'], why: 'a shell expansion is not a full path' },
     { id: 'relative-project', plant: rep('/work/my project', 'work/my project'), fails: ['path-not-full'], why: 'the project folder is held to the same rule as the home folder' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('command line on unix: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`command line on unix: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('command line on unix: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('the command line: the base parses to its values, and an option given without --apply is still read', () => {
   const o = core.parseArgs(JSON.parse(winArgs().in), 'win32');
@@ -124,11 +127,10 @@ test('the apply line quotes each path and carries --project-folder, the commit a
 
 const rec = (mode, type, id, rel) => `${mode} ${type} ${id}\t${rel}\0`;
 const treeBase = () => ({ in: [rec('100644', 'blob', ID('1'), 'AGENTS.md'), rec('100644', 'blob', ID('2'), 'claude/CLAUDE.md'), rec('100644', 'blob', ID('3'), 'gate/seam-a.mjs'), rec('100755', 'blob', ID('4'), 'scripts/run.sh'), rec('100644', 'blob', ID('5'), 'gate/tests/x.test.mjs')].join('') });
-for (const c of table('commit tree', {
-  module: 'gate/install-core.mjs',
-  base: treeBase,
-  run: t => decided(() => core.parseTree(Buffer.from(t.in))),
-  rows: [
+{
+  const base = treeBase;
+  const run = t => decided(() => core.parseTree(Buffer.from(t.in)));
+  const rows = [
     { id: 'bad-record', plant: t => ({ in: `${t.in}garbage\0` }), fails: ['tree-record'], why: 'a record git would never print' },
     { id: 'executable-mode', plant: rep(`100644 blob ${ID('2')}`, `100755 blob ${ID('2')}`), fails: ['tree-mode'], why: 'only plain files install' },
     { id: 'symlink-mode', plant: rep(`100644 blob ${ID('3')}`, `120000 blob ${ID('3')}`), fails: ['tree-mode'], why: 'a link in the commit' },
@@ -137,8 +139,11 @@ for (const c of table('commit tree', {
     { id: 'non-ascii-path', plant: rep('claude/CLAUDE.md', 'claude/CL\u00c4UDE.md'), fails: ['tree-segment'], why: 'a non-ASCII name' },
     { id: 'dot-dot-segment', plant: rep('gate/seam-a.mjs', 'gate/../seam-a.mjs'), fails: ['tree-segment'], why: 'a parent segment' },
     { id: 'case-collision', plant: t => ({ in: `${t.in}${rec('100644', 'blob', ID('7'), 'claude/claude.md')}` }), fails: ['tree-case'], why: 'two paths one folding file system writes as one' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('commit tree: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`commit tree: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('commit tree: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #280 C2: the poster stages with the rest of the payload; a folder outside the staged set stages nothing.
 test('the commit tree: only the staged set is checked, and gate/tests is dropped', () => {
@@ -147,29 +152,33 @@ test('the commit tree: only the staged set is checked, and gate/tests is dropped
   assert.ok(core.isStaged('claude/tools/poster.mjs') && !core.isStaged('tools/poster.mjs') && !core.isStaged('docs/x.mjs') && !core.isStaged('gate/tests/a.mjs') && core.isStaged('gate/seam-a.mjs'));
 });
 
-for (const c of table('staged blob', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ id: ID('a'), actual: ID('a') }),
-  run: t => decided(() => core.checkStagedBlob('claude/x.md', t.id, t.actual)),
-  rows: [{ id: 'bytes-not-blob', plant: set(ID('b'), 'actual'), fails: ['stage-blob'], why: 'a staged file that changed after the bootstrap wrote it' }],
-})) test(c.name, c.fn);
+{
+  const base = () => ({ id: ID('a'), actual: ID('a') });
+  const run = t => decided(() => core.checkStagedBlob('claude/x.md', t.id, t.actual));
+  const rows = [{ id: 'bytes-not-blob', plant: set(ID('b'), 'actual'), fails: ['stage-blob'], why: 'a staged file that changed after the bootstrap wrote it' }];
+  test('staged blob: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`staged blob: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('staged blob: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ the install record (G5, G6)
 
 const recordBase = () => ({ in: json({ commit: ID('a'), digest: null, config: [], files: [{ path: 'CLAUDE.md', sha256: H('b') }], gate: [] }) });
-for (const c of table('install record', {
-  module: 'gate/install-core.mjs',
-  base: recordBase,
-  run: t => decided(() => core.parseRecord(t.in)),
-  rows: [
+{
+  const base = recordBase;
+  const run = t => decided(() => core.parseRecord(t.in));
+  const rows = [
     { id: 'not-json', plant: rep('{', '{,'), fails: ['record-unreadable'], why: 'a record that does not parse' },
     { id: 'no-commit', plant: rep(`"commit":"${ID('a')}",`, ''), fails: ['record-not-pact'], why: 'a record must name its commit' },
     { id: 'empty-commit', plant: rep(ID('a'), ''), fails: ['record-not-pact'], why: 'an empty commit is no commit' },
     { id: 'no-files', plant: t => ({ in: json({ ...JSON.parse(t.in), files: undefined }) }), fails: ['record-not-pact'], why: 'a record must list its files' },
     { id: 'empty-files', plant: t => ({ in: json({ ...JSON.parse(t.in), files: [] }) }), fails: ['record-not-pact'], why: 'an empty list is falsy to PowerShell too' },
     { id: 'keys-differ-in-case', plant: rep('"digest"', '"Commit":"x","digest"'), fails: ['record-unreadable'], why: 'PowerShell refused keys that differ only in case' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('install record: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`install record: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('install record: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('the install record: keys are read without regard to case, a BOM is dropped, and ill-typed configuration entries are ignored', () => {
   const r = core.parseRecord(`\ufeff${json({ COMMIT: ID('a'), Files: [{ Path: 'x', SHA256: 'AB' }, 'junk'], config: [{ kind: 'user', sha256: H('c') }, { kind: 'block', sha256: H('d') }, { kind: 5, sha256: H('e') }], digest: 'ABCDEF012345', gate: [{ path: 'gate/a.mjs', sha256: H('f') }] })}`);
@@ -201,17 +210,19 @@ test('the gate block: changed, added and removed lines, compared without regard 
 
 // ------------------------------------------------------------ a check's verdict (R4, S-1, control 4)
 
-for (const c of table('check verdict', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: json({ lines: ['PASS x', 'RESULT: pass'], failed: false }) }),
-  run: t => decided(() => core.checkVerdict(JSON.parse(t.in), 'the check')),
-  rows: [
+{
+  const base = () => ({ in: json({ lines: ['PASS x', 'RESULT: pass'], failed: false }) });
+  const run = t => decided(() => core.checkVerdict(JSON.parse(t.in), 'the check'));
+  const rows = [
     { id: 'failed-with-pass-line', plant: rep('"failed":false', '"failed":true'), fails: ['verdict-failed'], why: 'a non-zero exit refuses even with a RESULT: pass line' },
     { id: 'no-result-line', plant: rep('"RESULT: pass"', '"done"'), fails: ['verdict-last-line'], why: 'no RESULT line' },
     { id: 'result-not-last', plant: rep('"RESULT: pass"]', '"RESULT: pass","x"]'), fails: ['verdict-last-line'], why: 'anything after the pass' },
     { id: 'pass-line-split', plant: rep('"RESULT: pass"', '"RESULT: pass\\nRESULT: fail"'), fails: ['verdict-last-line'], why: 'a line holding a newline is read as two, as the wrapper prints it' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('check verdict: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`check verdict: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('check verdict: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ the renderer's lines (R5 to R8)
 
@@ -223,11 +234,10 @@ const renderRun = (project = false) => t => decided(() => core.parseRenderLines(
 const noConfig = t => ({ in: t.in.replace(`CONFIG user ${U}`, 'CONFIG none').replace('COMMANDS finis', 'COMMANDS none').replace('TOOLS poster', 'TOOLS none') });
 const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG none', 'COMMANDS none', 'TOOLS none', 'RESULT: pass'].join('\n') });
 // #261 C4
-for (const c of table('renderer lines', {
-  module: 'gate/install-core.mjs',
-  base: renderBase,
-  run: renderRun(),
-  rows: [
+{
+  const base = renderBase;
+  const run = renderRun();
+  const rows = [
     { id: 'two-output-hashes', plant: rep('DIFF', `RENDERED ${H('b')}\nDIFF`), fails: ['render-two-hashes'], why: 'two output hashes' },
     // #302 C3: a retired name in a block is a warning line the install reads, once per part and only for a retired agent.
     { id: 'retired-name-twice', plant: rep('RESULT', 'RETIRED-NAME block moves good-enough-lens\nRETIRED-NAME block moves good-enough-lens\nRESULT'), fails: ['render-retired-twice'], why: 'one retired name reported twice for one part' },
@@ -277,14 +287,16 @@ for (const c of table('renderer lines', {
     { id: 'tools-none-and-name', plant: rep('TOOLS poster', 'TOOLS none,poster'), fails: ['render-unknown-line'], why: 'none stands alone' },
     { id: 'line-between-commands-and-tools', plant: t => ({ in: t.in.replace(`AGENT data-lens sonnet high ${H('f')} security-set override local\n`, '').replace('COMMANDS finis\n', `COMMANDS finis\nAGENT data-lens sonnet high ${H('f')} security-set override local\n`) }), fails: ['render-unknown-line'], says: /TOOLS line does not come straight after its COMMANDS line/, why: 'straight after, not merely later' },
     { id: 'tools-line-out-of-order', plant: t => ({ in: t.in.replace('COMMANDS finis\nTOOLS poster', 'TOOLS poster\nCOMMANDS finis') }), fails: ['render-unknown-line'], why: 'the TOOLS line comes straight after the COMMANDS line' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('renderer lines: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`renderer lines: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('renderer lines: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
-for (const c of table('renderer lines with no configuration', {
-  module: 'gate/install-core.mjs',
-  base: noneBase,
-  run: renderRun(),
-  rows: [
+{
+  const base = noneBase;
+  const run = renderRun();
+  const rows = [
     { id: 'digest', plant: rep('RESULT', `DIGEST ${D}\nRESULT`), fails: ['render-none-extras'], why: 'a digest with no configuration' },
     { id: 'value', plant: rep('RESULT', 'VALUE usage-pause 90\nRESULT'), fails: ['render-none-extras'], why: 'a value with no configuration' },
     { id: 'edit', plant: rep('RESULT', 'EDIT moves remove\nRESULT'), fails: ['render-none-extras'], why: 'an edit with no configuration' },
@@ -297,15 +309,20 @@ for (const c of table('renderer lines with no configuration', {
     // #280 C3
     { id: 'tool-on', plant: rep('TOOLS none', 'TOOLS poster'), fails: ['render-none-extras'], says: /a pact tool with no configuration/, why: 'a named tool with CONFIG none' },
     { id: 'no-tools-line', plant: rep('TOOLS none\n', ''), fails: ['render-tools-missing'], why: 'TOOLS none is still printed' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('renderer lines with no configuration: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`renderer lines with no configuration: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('renderer lines with no configuration: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
-for (const c of table('renderer lines on a project install', {
-  module: 'gate/install-core.mjs',
-  base: noneBase,
-  run: renderRun(true),
-  rows: [{ id: 'stage-render-read-config', plant: () => renderBase(), fails: ['render-project-config'], why: "the stage's render must read no configuration" }],
-})) test(c.name, c.fn);
+{
+  const base = noneBase;
+  const run = renderRun(true);
+  const rows = [{ id: 'stage-render-read-config', plant: () => renderBase(), fails: ['render-project-config'], why: "the stage's render must read no configuration" }];
+  test('renderer lines on a project install: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`renderer lines on a project install: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('renderer lines on a project install: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #262 C4 (#142): the session limit's value line reaches both parses, home and project.
 test('the renderer lines: a usage-pause-session value parses beside the weekly one, in a home and a project render', () => {
@@ -330,11 +347,10 @@ test('the renderer lines: the parse gives the hashes, the configuration, the edi
 // ------------------------------------------------------------ the project install (J1 to J4)
 
 const projCheckBase = () => ({ in: json({ lines: ['ROOT C:\\work\\proj', 'STATE new', 'RESULT: pass'], failed: false }) });
-for (const c of table('project check', {
-  module: 'gate/install-core.mjs',
-  base: projCheckBase,
-  run: t => decided(() => core.parseProjectCheck(JSON.parse(t.in), 'win32')),
-  rows: [
+{
+  const base = projCheckBase;
+  const run = t => decided(() => core.parseProjectCheck(JSON.parse(t.in), 'win32'));
+  const rows = [
     { id: 'failed', plant: rep('"failed":false', '"failed":true'), fails: ['project-check'], why: 'the project module refused the folder' },
     { id: 'no-pass-line', plant: rep('"RESULT: pass"', '"RESULT: fail"'), fails: ['project-check'], why: 'both parts of the verdict' },
     { id: 'extra-line', plant: rep('"STATE new",', '"STATE new","NOTE x",'), fails: ['project-check-lines'], why: 'exactly three lines' },
@@ -342,8 +358,11 @@ for (const c of table('project check', {
     { id: 'root-not-full', plant: rep('ROOT C:\\\\work', 'ROOT work'), fails: ['project-check-root'], why: 'a real path is a full path' },
     { id: 'unknown-state', plant: rep('STATE new', 'STATE old'), fails: ['project-check-state'], why: 'new or update with a hash' },
     { id: 'update-short-hash', plant: rep('STATE new', `STATE update ${'a'.repeat(63)}`), fails: ['project-check-state'], why: 'a full hash' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('project check: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`project check: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('project check: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('the project check: the root is parsed, never shown, and the state read', () => {
   assert.deepEqual(core.parseProjectCheck({ lines: ['ROOT /w/p', `STATE update ${H('a')}`, 'RESULT: pass'], failed: false }, 'linux'), { root: '/w/p', state: { kind: 'update', sha256: H('a') } });
@@ -354,11 +373,10 @@ test('the project check: the root is parsed, never shown, and the state read', (
 const PF = H('3');
 const PD = digestOf(`user ${U}\nproject ${PF}\n`);
 const projRenderBase = () => ({ in: [`RENDERED ${H('a')}`, `CONFIG user ${U}`, `PROJECT ${PF}`, `DIGEST ${PD}`, 'VALUE usage-pause 60', 'RESULT: pass'].join('\n') });
-for (const c of table('project render lines', {
-  module: 'gate/install-core.mjs',
-  base: projRenderBase,
-  run: t => decided(() => core.parseProjectRenderLines(t.in.split('\n'), sha256)),
-  rows: [
+{
+  const base = projRenderBase;
+  const run = t => decided(() => core.parseProjectRenderLines(t.in.split('\n'), sha256));
+  const rows = [
     { id: 'two-output-hashes', plant: rep('CONFIG', `RENDERED ${H('b')}\nCONFIG`), fails: ['project-render-two-hashes'], why: 'two output hashes' },
     { id: 'two-user-lines', plant: rep('PROJECT', 'CONFIG none\nPROJECT'), fails: ['project-render-two-users'], why: 'two user configuration lines' },
     { id: 'two-project-hashes', plant: rep('DIGEST', `PROJECT ${H('4')}\nDIGEST`), fails: ['project-render-two-files'], why: 'two project file hashes' },
@@ -390,8 +408,11 @@ for (const c of table('project render lines', {
     { id: 'unnamed-zero', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS-UNNAMED 0\nRESULT'), fails: ['project-render-unknown-line'], why: 'positions start at 1' },
     { id: 'unnamed-two-spaces', plant: rep('RESULT', 'COST-LIMITS 4\nCOST-LIMITS-UNNAMED 2  4\nRESULT'), fails: ['project-render-unknown-line'], why: 'single spaces between positions' },
     { id: 'unnamed-empty', plant: rep('RESULT', 'COST-LIMITS 2\nCOST-LIMITS-UNNAMED\nRESULT'), fails: ['project-render-unknown-line'], why: 'a line with no positions is not the line' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('project render lines: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`project render lines: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('project render lines: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #288 C8, C10, C11: the Cost limits line is read, counts toward "the render set something", and the dry run names it.
 test('the project render with Cost limits and no value passes; the security-defaults line names them with their row count, and a qualities list without them gets a note', () => {
@@ -452,38 +473,41 @@ test('the project render with no user file: the digest is the project file\'s al
   assert.ok(!other.join('\n').includes('the pact recorded'));
 });
 
-for (const c of table('project output', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: json([{ name: 'pact-project.md', file: true, link: false, size: 100 }]), hash: H('a') }),
-  run: t => decided(() => core.checkProjectOutput(JSON.parse(t.in), t.hash, H('a'))),
-  rows: [
+{
+  const base = () => ({ in: json([{ name: 'pact-project.md', file: true, link: false, size: 100 }]), hash: H('a') });
+  const run = t => decided(() => core.checkProjectOutput(JSON.parse(t.in), t.hash, H('a')));
+  const rows = [
     { id: 'second-file', plant: t => ({ ...t, in: json([...JSON.parse(t.in), { name: 'x', file: true, link: false, size: 1 }]) }), fails: ['project-output'], why: 'exactly the rules file' },
     { id: 'other-name', plant: rep('pact-project.md', 'pact.md'), fails: ['project-output'], why: 'by its exact name' },
     { id: 'a-link', plant: rep('"link":false', '"link":true'), fails: ['project-output'], why: 'a plain file' },
     { id: 'over-64kib', plant: rep('"size":100', `"size":${64 * 1024 + 1}`), fails: ['project-output'], why: 'at most 64 KiB' },
     { id: 'hash-not-reported', plant: set(H('b'), 'hash'), fails: ['project-rules-hash'], why: 'the reported bytes' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('project output: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`project output: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('project output: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
-for (const c of table('project write', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: json({ lines: [`WROTE ${H('a')} ${H('b')}`, 'RESULT: pass'], failed: false }) }),
-  run: t => decided(() => core.parseProjectWrite(JSON.parse(t.in), H('a'))),
-  rows: [
+{
+  const base = () => ({ in: json({ lines: [`WROTE ${H('a')} ${H('b')}`, 'RESULT: pass'], failed: false }) });
+  const run = t => decided(() => core.parseProjectWrite(JSON.parse(t.in), H('a')));
+  const rows = [
     { id: 'other-hash', plant: rep(`WROTE ${H('a')}`, `WROTE ${H('c')}`), fails: ['project-write'], why: 'the bytes the dry run showed' },
     { id: 'extra-line', plant: rep('"RESULT: pass"', '"x","RESULT: pass"'), fails: ['project-write'], why: 'exactly two lines' },
     { id: 'failed', plant: rep('"failed":false', '"failed":true'), fails: ['project-write'], says: /may hold what the write left/, why: 'both parts of the verdict, and the refusal says what may be left' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('project write: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`project write: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('project write: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ the render output (R9, R10)
 
 const outBase = () => ({ in: json([{ name: 'CLAUDE.md', file: true, link: false, size: 10 }, { name: 'config.diff', file: true, link: false, size: 0 }, { name: 'agent-data-lens.md', file: true, link: false, size: 5 }]) });
-for (const c of table('render output', {
-  module: 'gate/install-core.mjs',
-  base: outBase,
-  run: t => decided(() => core.checkRenderOutput(JSON.parse(t.in), ['data-lens'])),
-  rows: [
+{
+  const base = outBase;
+  const run = t => decided(() => core.checkRenderOutput(JSON.parse(t.in), ['data-lens']));
+  const rows = [
     { id: 'second-file', plant: t => ({ in: json([...JSON.parse(t.in), { name: 'extra', file: true, link: false, size: 1 }]) }), fails: ['render-output'], why: 'a file the renderer should not leave' },
     { id: 'no-diff', plant: t => ({ in: json(JSON.parse(t.in).filter(e => e.name !== 'config.diff')) }), fails: ['render-output'], why: 'no diff file' },
     { id: 'no-agent-file', plant: t => ({ in: json(JSON.parse(t.in).filter(e => e.name !== 'agent-data-lens.md')) }), fails: ['render-output'], why: 'an AGENT line with no file' },
@@ -491,18 +515,23 @@ for (const c of table('render output', {
     { id: 'diff-is-link', plant: rep('"name":"config.diff","file":true,"link":false', '"name":"config.diff","file":true,"link":true'), fails: ['render-output'], why: 'a link in the output' },
     { id: 'rules-over-1mib', plant: rep('"size":10', `"size":${1024 * 1024 + 1}`), fails: ['render-output'], why: 'a rules file over its cap' },
     { id: 'file-over-4mib', plant: rep('"size":0', `"size":${4 * 1024 * 1024 + 1}`), fails: ['render-output'], why: 'any file over 4 MiB' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render output: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`render output: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('render output: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
-for (const c of table('rendered hashes', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ rules: H('a'), diff: H('d') }),
-  run: t => decided(() => core.checkRenderedHashes(t, { renderHash: H('a'), diffHash: H('d') })),
-  rows: [
+{
+  const base = () => ({ rules: H('a'), diff: H('d') });
+  const run = t => decided(() => core.checkRenderedHashes(t, { renderHash: H('a'), diffHash: H('d') }));
+  const rows = [
     { id: 'rules-hash', plant: set(H('b'), 'rules'), fails: ['render-rules-hash'], why: 'a renderer that reports a hash other than its output' },
     { id: 'diff-hash', plant: set(H('b'), 'diff'), fails: ['render-diff-hash'], why: "a diff hash that is not its diff's" },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('rendered hashes: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`rendered hashes: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('rendered hashes: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 const AGENT_OLD = '---\nname: data-lens\ndescription: d\ntools: [Read, Glob, Grep]\nmodel: opus\neffort: high\n---\nBody.\n';
 const AGENT_NEW = AGENT_OLD.replace('model: opus', 'model: sonnet');
@@ -512,11 +541,10 @@ const agentRun = t => {
   const neu = Buffer.from(t.new, 'latin1');
   return decided(() => core.checkAgentFile('data-lens', { ...s, sha256: sha256(neu) }, t.old === 'NONE' ? null : Buffer.from(t.old, 'latin1'), t.size ? Buffer.alloc(Number(t.size)) : neu, t.hash ?? sha256(neu)));
 };
-for (const c of table('agent file', {
-  module: 'gate/install-core.mjs',
-  base: agentBase,
-  run: agentRun,
-  rows: [
+{
+  const base = agentBase;
+  const run = agentRun;
+  const rows = [
     { id: 'not-committed', plant: set('NONE', 'old'), fails: ['agent-not-committed'], why: 'a setting for an agent the commit lacks' },
     { id: 'over-1mib', plant: t => ({ ...t, size: String(1024 * 1024 + 1) }), fails: ['agent-too-big'], why: 'a rendered agent over its cap' },
     { id: 'hash-not-reported', plant: t => ({ ...t, hash: H('0') }), fails: ['agent-hash'], why: 'a rendered agent file other than the reported one' },
@@ -533,19 +561,21 @@ for (const c of table('agent file', {
     { id: 'no-tools-line', plant: t => ({ ...t, old: t.old.replace('tools: [Read, Glob, Grep]\n', 'x: y\n'), new: t.new.replace('tools: [Read, Glob, Grep]\n', 'x: y\n') }), fails: ['agent-tools'], why: 'exactly one tools line in the committed file' },
     { id: 'egress-word-wrong', plant: rep('"egress":false', '"egress":true', 'set'), fails: ['agent-egress'], why: 'a read-only lens called egress' },
     { id: 'egress-not-security', plant: t => ({ ...t, old: t.old.replace('Grep]', 'Grep, Bash]'), new: t.new.replace('Grep]', 'Grep, Bash]'), set: t.set.replace('"security":true', '"security":false').replace('"egress":false', '"egress":true') }), fails: ['agent-egress-security'], why: 'an egress lens is security-set' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('agent file: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`agent file: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('agent file: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ seam A's copy set and overlay (S-2, S-3)
 
 const staged = new Map([['claude/CLAUDE.md', H('1')], ['claude/agents/a.md', H('2')], ['claude/agents/scout.md', H('3')], ['familiars/scout.contract.md', H('4')], ['gate/x.mjs', H('6')], ['AGENTS.md', H('7')], [core.OVERLAY_REL, H('8')], ['claude/review.md', H('d')]]);
 const copyBase = () => ({ in: [`INSTALL ${H('1')} claude/CLAUDE.md CLAUDE.md`, `INSTALL ${H('2')} claude/agents/a.md agents/a.md`, `INSTALL ${H('3')} claude/agents/scout.md agents/scout.md`, `INSTALL ${H('d')} claude/review.md pact/review.md`, 'RESULT: pass'].join('\n') });
 // #261 C3
-for (const c of table('copy set', {
-  module: 'gate/install-core.mjs',
-  base: copyBase,
-  run: t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(staged.keys()), staged, ID('a'))),
-  rows: [
+{
+  const base = copyBase;
+  const run = t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(staged.keys()), staged, ID('a')));
+  const rows = [
     { id: 'listed-twice', plant: rep('RESULT', `INSTALL ${H('2')} claude/agents/a.md agents/a.md\nRESULT`), fails: ['copy-set-twice'], why: 'one file listed twice' },
     { id: 'file-left-off', plant: rep(`INSTALL ${H('2')} claude/agents/a.md agents/a.md\n`, ''), fails: ['copy-set-mismatch'], why: 'a seam A that leaves a file off its list' },
     { id: 'file-added', plant: rep('RESULT', `INSTALL ${H('7')} AGENTS.md AGENTS.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'a file that never installs' },
@@ -556,20 +586,22 @@ for (const c of table('copy set', {
     // #261 C3: both readings map the review file to one fixed live path; a seam A that sends it anywhere else disagrees.
     { id: 'review-elsewhere', plant: rep('claude/review.md pact/review.md', 'claude/review.md review.md'), fails: ['copy-set-mismatch'], why: 'the review file at the top of the Claude folder, where the general rule would put it' },
     { id: 'gate-file-elsewhere', plant: rep('RESULT', `INSTALL ${H('6')} gate/x.mjs pact/x.mjs\nRESULT`), fails: ['copy-set-gate'], why: 'nor anywhere else' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('copy set: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`copy set: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('copy set: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // The copy set with pact commands (#203, S8): pairs, each side working out its own.
 const cmdStaged = new Map([...staged, ['claude/commands/finis.md', H('9')], ['claude/commands/make-it-so.md', H('b')]]);
 const cmdCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\nRESULT`), list: 'finis' });
-for (const c of table('copy set with commands', {
-  module: 'gate/install-core.mjs',
-  base: cmdCopyBase,
-  run: t => {
+{
+  const base = cmdCopyBase;
+  const run = t => {
     const st = t.extra ? new Map([...cmdStaged, [`claude/commands/${t.extra}.md`, H('c')]]) : cmdStaged;
     return decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(st.keys(), t.list ? t.list.split(',') : []), st, ID('a')));
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'listed-command-left-off', plant: rep(`INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a command the list names' },
     { id: 'unlisted-command-added', plant: rep('RESULT', `INSTALL ${H('b')} claude/commands/make-it-so.md commands/make-it-so.md\nRESULT`), fails: ['copy-set-mismatch'], why: 'the two sides read different lists' },
     { id: 'install-side-list-differs', plant: t => ({ ...t, list: 'finis,make-it-so' }), fails: ['copy-set-mismatch'], why: 'the install side names a command seam A did not list' },
@@ -577,23 +609,28 @@ for (const c of table('copy set with commands', {
     { id: 'pair-twice', plant: rep('RESULT', `INSTALL ${H('9')} claude/commands/finis.md commands/finis.md\nRESULT`), fails: ['copy-set-twice'], why: 'a pair listed twice' },
     { id: 'unknown-file-as-null', plant: t => ({ ...t, in: t.in.replace('RESULT', `INSTALL ${H('c')} claude/commands/ship-it.md null\nRESULT`), extra: 'ship-it' }), fails: ['copy-set-mismatch'], why: 'a file of no known kind never matches, even a line naming null' },
     { id: 'other-command-path', plant: rep('commands/finis.md\n', 'agents/finis.md\n'), fails: ['copy-set-mismatch'], why: 'a command goes to commands/<name>.md' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('copy set with commands: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`copy set with commands: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('copy set with commands: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // The copy set with pact tools (#280 C2): a tool pairs to its own live path only when on.
 const toolStaged = new Map([...staged, ['claude/tools/poster.mjs', H('9')]]);
 const toolCopyBase = () => ({ in: copyBase().in.replace('RESULT', `INSTALL ${H('9')} claude/tools/poster.mjs pact/tools/poster.mjs\nRESULT`), list: 'poster' });
 // #280 C2
-for (const c of table('copy set with tools', {
-  module: 'gate/install-core.mjs',
-  base: toolCopyBase,
-  run: t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(toolStaged.keys(), [], t.list ? t.list.split(',') : []), toolStaged, ID('a'))),
-  rows: [
+{
+  const base = toolCopyBase;
+  const run = t => decided(() => core.matchCopySet(t.in.split('\n'), core.expectedCopySet(toolStaged.keys(), [], t.list ? t.list.split(',') : []), toolStaged, ID('a')));
+  const rows = [
     { id: 'listed-tool-left-off', plant: rep(`INSTALL ${H('9')} claude/tools/poster.mjs pact/tools/poster.mjs\n`, ''), fails: ['copy-set-mismatch'], why: 'seam A must list a tool the list names' },
     { id: 'tool-off-but-listed', plant: t => ({ ...t, list: '' }), fails: ['copy-set-mismatch'], why: 'off, a tool never installs' },
     { id: 'tool-at-home-root', plant: rep('pact/tools/poster.mjs', 'tools/poster.mjs'), fails: ['copy-set-mismatch'], why: "the general claude/ rule's path is not the tool's" },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('copy set with tools: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`copy set with tools: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('copy set with tools: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #280 C2
 test('the copy set with tools: a listed tool pairs to pact/tools/, an unlisted one is left out, an unknown one or a subfolder pairs with null', () => {
@@ -648,11 +685,10 @@ test('the copy set: contracts, practice tests, the overlay, AGENTS.md, gate file
 
 const OVERLAY = json({ permissions: { defaultMode: 'auto', ask: ['PowerShell(x)'] } });
 const overlayBase = () => ({ in: [`SETTINGS ${sha256(OVERLAY)} claude/settings.overlay.json`, 'RESULT: pass'].join('\n'), staged: sha256(OVERLAY), text: OVERLAY });
-for (const c of table('settings overlay', {
-  module: 'gate/install-core.mjs',
-  base: overlayBase,
-  run: t => decided(() => core.checkOverlay(t.in.split('\n'), sha256(t.text), t.staged === 'NONE' ? undefined : t.staged, t.text)),
-  rows: [
+{
+  const base = overlayBase;
+  const run = t => decided(() => core.checkOverlay(t.in.split('\n'), sha256(t.text), t.staged === 'NONE' ? undefined : t.staged, t.text));
+  const rows = [
     { id: 'no-settings-line', plant: rep(/^SETTINGS .*\n/, ''), fails: ['overlay-line'], why: 'seam A must report the overlay' },
     { id: 'two-settings-lines', plant: t => ({ ...t, in: `${t.in.split('\n')[0]}\n${t.in}` }), fails: ['overlay-line'], why: 'exactly one overlay hash' },
     { id: 'other-path', plant: rep('claude/settings.overlay.json', 'claude/other.json'), fails: ['overlay-line'], why: 'the overlay at its one path' },
@@ -660,17 +696,19 @@ for (const c of table('settings overlay', {
     { id: 'hash-not-checked', plant: t => ({ ...t, text: t.text.replace('auto', 'plan') }), fails: ['overlay-hash'], why: 'bytes other than the ones seam A passed' },
     { id: 'staged-hash-differs', plant: set(H('0'), 'staged'), fails: ['overlay-hash'], why: 'the commit holds other bytes' },
     { id: 'not-an-object', plant: t => ({ in: `SETTINGS ${sha256('[1]')} claude/settings.overlay.json\nRESULT: pass`, staged: sha256('[1]'), text: '[1]' }), fails: ['overlay-not-object'], why: 'the overlay must be one JSON object' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('settings overlay: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`settings overlay: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('settings overlay: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ destinations and the plan (L1 to L3)
 
 const noLink = () => false;
-for (const c of table('install destinations', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: json([['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/agents/a.md', 'agents/a.md']]), link: '' }),
-  run: t => decided(() => core.installDestinations(new Map(JSON.parse(t.in).map(([rel, dest]) => [rel, { dest, sha256: H('1') }])), rel => rel === t.link)),
-  rows: [
+{
+  const base = () => ({ in: json([['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/agents/a.md', 'agents/a.md']]), link: '' });
+  const run = t => decided(() => core.installDestinations(new Map(JSON.parse(t.in).map(([rel, dest]) => [rel, { dest, sha256: H('1') }])), rel => rel === t.link));
+  const rows = [
     { id: 'unsafe', plant: rep('"agents/a.md"', '"../a.md"'), fails: ['dest-skip'], why: 'a destination outside the home folder' },
     { id: 'rooted', plant: rep('"agents/a.md"', '"/etc/a.md"'), fails: ['dest-skip'], why: 'a rooted destination' },
     { id: 'protected', plant: rep('"agents/a.md"', '"settings.json"'), fails: ['dest-skip'], why: "the owner's settings" },
@@ -678,8 +716,11 @@ for (const c of table('install destinations', {
     { id: 'non-canonical', plant: rep('"agents/a.md"', '"agents/a.md."'), fails: ['dest-skip'], why: 'a name that is not plain' },
     { id: 'through-link', plant: set('agents/a.md', 'link'), fails: ['dest-skip'], why: 'a live agents folder that is a link' },
     { id: 'two-sources', plant: rep('"agents/a.md"', '"claude.md"'), fails: ['dest-twice'], why: 'two sources for one live path, folded' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('install destinations: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`install destinations: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('install destinations: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // dest-skip: the reasons behind the rule id the table above checks.
 test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
@@ -738,15 +779,17 @@ test('the plan: a record listing the retired cross script, under a payload witho
 
 // ------------------------------------------------------------ pact commands against the live home folder (#203, S8)
 
-for (const c of table('skill clash', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: json(['make-it-so', 'finis']), present: json(['skills/other', 'skills/finis-old', 'commands/finis.md']) }),
-  run: t => decided(() => core.checkSkillClash(JSON.parse(t.in), rel => JSON.parse(t.present).includes(rel))),
-  rows: [
+{
+  const base = () => ({ in: json(['make-it-so', 'finis']), present: json(['skills/other', 'skills/finis-old', 'commands/finis.md']) });
+  const run = t => decided(() => core.checkSkillClash(JSON.parse(t.in), rel => JSON.parse(t.present).includes(rel)));
+  const rows = [
     { id: 'same-named-skill', plant: t => ({ ...t, present: json(['skills/finis']) }), fails: ['command-skill-clash'], says: /^REFUSED: skills\/finis exists in the Claude home folder, and Claude Code would run that skill in place of the pact command \/finis\./, why: 'a skill of the same name runs in place of the command' },
     { id: 'first-name-clashes', plant: t => ({ ...t, present: json(['skills/make-it-so']) }), fails: ['command-skill-clash'], why: 'each listed name is checked' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('skill clash: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`skill clash: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('skill clash: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('skill clash: only listed names are checked, and only by the path the check names', () => {
   const asked = [];
@@ -756,11 +799,10 @@ test('skill clash: only listed names are checked, and only by the path the check
 });
 
 // #261 C3
-for (const c of table('new command paths', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ files: json([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')]]), record: json({ commit: 'x', files: [{ path: 'commands/finis.md', sha256: H('2') }] }), live: json(['CLAUDE.md', 'commands/finis.md']) }),
-  run: t => decided(() => core.checkNewPaths(new Map(JSON.parse(t.files)), t.record === 'null' ? null : core.parseRecord(t.record), rel => ({ exists: JSON.parse(t.live).includes(rel) }))),
-  rows: [
+{
+  const base = () => ({ files: json([['CLAUDE.md', H('1')], ['commands/finis.md', H('2')]]), record: json({ commit: 'x', files: [{ path: 'commands/finis.md', sha256: H('2') }] }), live: json(['CLAUDE.md', 'commands/finis.md']) });
+  const run = t => decided(() => core.checkNewPaths(new Map(JSON.parse(t.files)), t.record === 'null' ? null : core.parseRecord(t.record), rel => ({ exists: JSON.parse(t.live).includes(rel) })));
+  const rows = [
     { id: 'unlisted-live-file', plant: t => ({ ...t, record: json({ commit: 'x', files: [{ path: 'CLAUDE.md', sha256: H('1') }] }) }), fails: ['unlisted-live'], says: /^REFUSED: commands\/finis\.md already exists in the Claude home folder, and the install record does not list it/, why: "the owner's own command is never overwritten" },
     { id: 'first-install', plant: t => ({ ...t, record: 'null' }), fails: ['unlisted-live'], why: 'with no record, nothing live at a new command path is the pact\'s' },
     // unlisted-live, #261 C3: the review file is never laid over a live file the pact did not put there.
@@ -768,8 +810,11 @@ for (const c of table('new command paths', {
     { id: 'kit-path', plant: t => ({ ...t, files: json([['pact/builder/x.mjs', H('3')]]), live: json(['pact/builder/x.mjs']) }), fails: ['unlisted-live'], says: /pact\/builder\/x\.mjs already exists .* Move it out of the way, then install again\./, why: 'the kit always installs with the pact, so moving the file is the only remedy' },
     // unlisted-live, #280 C2: a tool is never laid over a live file the pact did not put there.
     { id: 'tool-path', plant: t => ({ ...t, files: json([['pact/tools/poster.mjs', H('5')]]), live: json(['pact/tools/poster.mjs']) }), fails: ['unlisted-live'], says: /pact\/tools\/poster\.mjs already exists .* Move it, or take its name out of the tools list\./, why: 'the remedy names the tools list' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('new command paths: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`new command paths: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('new command paths: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('new command paths: agents keep their first-install behaviour, and a path not live passes', () => {
   assert.doesNotThrow(() => core.checkNewPaths(new Map([['agents/a.md', H('1')]]), null, () => ({ exists: true })));
@@ -931,11 +976,10 @@ test('the guard after an apply: auto mode, and no retired ask rule left', () => 
 
 // ------------------------------------------------------------ binding and apply (H1, X1)
 
-for (const c of table('hash and commit binding', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: json({ renderedHash: H('a'), commit: ID('c') }) }),
-  run: t => decided(() => core.checkBinding(JSON.parse(t.in), H('a'), ID('c'))),
-  rows: [
+{
+  const base = () => ({ in: json({ renderedHash: H('a'), commit: ID('c') }) });
+  const run = t => decided(() => core.checkBinding(JSON.parse(t.in), H('a'), ID('c')));
+  const rows = [
     { id: 'wrong-hash', plant: rep(H('a'), H('b')), fails: ['hash-mismatch'], why: 'a configuration changed since the dry run' },
     { id: 'first-63', plant: rep(H('a'), 'a'.repeat(63)), fails: ['hash-mismatch'], why: 'a hash cut short' },
     { id: 'digest-length', plant: rep(H('a'), 'a'.repeat(12)), fails: ['hash-mismatch'], why: 'the digest is not the hash' },
@@ -944,26 +988,31 @@ for (const c of table('hash and commit binding', {
     { id: 'empty-hash', plant: rep(H('a'), ''), fails: ['hash-mismatch'], why: 'a hash given is compared even when empty' },
     { id: 'wrong-commit', plant: rep(ID('c'), ID('d')), fails: ['commit-mismatch'], why: 'the clone changed since the dry run' },
     { id: 'short-commit', plant: rep(ID('c'), 'c'.repeat(7)), fails: ['commit-mismatch'], why: 'the full id only' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('hash and commit binding: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`hash and commit binding: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('hash and commit binding: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('the binding: nothing given is nothing compared', () => {
   assert.equal(decided(() => core.checkBinding({ renderedHash: null, commit: null }, H('a'), ID('c'))).code, 0);
 });
 
 const applyBase = () => ({ in: json({ configApplies: true, hashGiven: true, selfDiffers: false, drift: false, dirty: false, settingsObject: true }) });
-for (const c of table('apply refusals', {
-  module: 'gate/install-core.mjs',
-  base: applyBase,
-  run: t => decided(() => core.checkApply(JSON.parse(t.in))),
-  rows: [
+{
+  const base = applyBase;
+  const run = t => decided(() => core.checkApply(JSON.parse(t.in)));
+  const rows = [
     { id: 'no-hash-with-config', plant: rep('"hashGiven":true', '"hashGiven":false'), fails: ['apply-needs-hash'], why: 'a configuration applies' },
     { id: 'self-differs', plant: rep('"selfDiffers":false', '"selfDiffers":true'), fails: ['apply-self-differs'], why: 'an uncommitted edit to the install script' },
     { id: 'drift', plant: rep('"drift":false', '"drift":true'), fails: ['apply-drift'], says: /owner's decision/, why: 'live files changed since the last install' },
     { id: 'dirty', plant: rep('"dirty":false', '"dirty":true'), fails: ['apply-dirty'], why: 'the working tree is not clean' },
     { id: 'settings-not-object', plant: rep('"settingsObject":true', '"settingsObject":false'), fails: ['apply-settings'], why: "the guard can't be merged" },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('apply refusals: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`apply refusals: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('apply refusals: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('apply: no configuration needs no hash', () => {
   assert.equal(decided(() => core.checkApply({ configApplies: false, hashGiven: false, selfDiffers: false, drift: false, dirty: false, settingsObject: true })).code, 0);
@@ -972,41 +1021,47 @@ test('apply: no configuration needs no hash', () => {
 // ------------------------------------------------------------ the runner's start and its review (S3, V1)
 
 const workBase = () => ({ in: json({ parentReal: 'C:\\T', tmpReal: 'c:\\t', name: 'pact-install-Ab12', hasGit: false, runnerReal: 'C:\\T\\pact-install-Ab12\\stage\\gate\\install-run.mjs', expectedRunnerReal: 'c:\\t\\pact-install-ab12\\stage\\gate\\install-run.mjs', fold: true }) });
-for (const c of table('runner work folder', {
-  module: 'gate/install-core.mjs',
-  base: workBase,
-  run: t => decided(() => core.checkWorkFolder(JSON.parse(t.in))),
-  rows: [
+{
+  const base = workBase;
+  const run = t => decided(() => core.checkWorkFolder(JSON.parse(t.in)));
+  const rows = [
     { id: 'not-in-temp', plant: rep('"parentReal":"C:\\\\T"', '"parentReal":"C:\\\\repo"'), fails: ['run-work-folder'], why: 'run from the clone' },
     { id: 'other-name', plant: rep('"name":"pact-install-Ab12"', '"name":"stage"'), fails: ['run-work-folder'], why: 'a folder the bootstrap did not make' },
     { id: 'holds-git', plant: rep('"hasGit":false', '"hasGit":true'), fails: ['run-work-folder'], why: 'a work folder that is a repo' },
     { id: 'runner-elsewhere', plant: rep('"runnerReal":"C:\\\\T', '"runnerReal":"C:\\\\X'), fails: ['run-work-folder'], why: 'the runner is not the stage copy' },
     { id: 'case-on-unix', plant: rep('"fold":true', '"fold":false'), fails: ['run-work-folder'], why: 'case is folded only where the system folds it' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('runner work folder: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`runner work folder: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('runner work folder: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
-for (const c of table('runner command line', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: json(['/tmp/pact-install-x', ID('a'), '3', 'no', '--', '--apply']) }),
-  run: t => decided(() => core.parseRunnerArgs(JSON.parse(t.in))),
-  rows: [
+{
+  const base = () => ({ in: json(['/tmp/pact-install-x', ID('a'), '3', 'no', '--', '--apply']) });
+  const run = t => decided(() => core.parseRunnerArgs(JSON.parse(t.in)));
+  const rows = [
     { id: 'no-separator', plant: rep('"--",', ''), fails: ['run-args'], why: "the bootstrap's shape only" },
     { id: 'short-commit', plant: rep(ID('a'), 'a'.repeat(7)), fails: ['run-args'], why: 'a full commit id' },
     { id: 'bad-count', plant: rep('"3"', '"-1"'), fails: ['run-args'], why: 'a count of paths' },
     { id: 'bad-self', plant: rep('"no"', '"maybe"'), fails: ['run-args'], why: 'yes or no' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('runner command line: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`runner command line: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('runner command line: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
-for (const c of table('review lines', {
-  module: 'gate/install-core.mjs',
-  base: () => ({ in: json({ lines: [`REVIEW ${H('a')} ${H('d')}`, 'RESULT: pass'], failed: false }) }),
-  run: t => decided(() => core.checkReviewLines(JSON.parse(t.in), H('a'), H('d'))),
-  rows: [
+{
+  const base = () => ({ in: json({ lines: [`REVIEW ${H('a')} ${H('d')}`, 'RESULT: pass'], failed: false }) });
+  const run = t => decided(() => core.checkReviewLines(JSON.parse(t.in), H('a'), H('d')));
+  const rows = [
     { id: 'other-hashes', plant: rep(`REVIEW ${H('a')}`, `REVIEW ${H('b')}`), fails: ['review-failed'], why: 'a review module that reports other hashes than this run rendered' },
     { id: 'extra-line', plant: rep('"RESULT: pass"', '"x","RESULT: pass"'), fails: ['review-failed'], why: 'exactly two lines' },
     { id: 'failed', plant: rep('"failed":false', '"failed":true'), fails: ['review-failed'], why: 'both parts of the verdict' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('review lines: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`review lines: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('review lines: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ printing (control 5, L8) and pinned lists
 

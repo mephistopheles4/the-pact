@@ -49,7 +49,6 @@ const FAST_NOT_PICKED = Object.freeze([
   'review.test.mjs',
   'run-guards.test.mjs',
   'shared.test.mjs',
-  'tables.test.mjs',
 ]);
 
 /** The helpers that read the payload, so a test that reaches one reads the agents. */

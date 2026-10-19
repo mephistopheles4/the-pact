@@ -75,17 +75,29 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 
 ## Writing a gate test
 
-- **A bad case for a gate module is a row in its table.** A table, from
-  [`gate/tests/tables.mjs`](../../gate/tests/tables.mjs), has a base input that
-  passes and rows; a row is one plant on the base and the exact rule ids it
-  must fail with. Write the table's name and each row's id as string literals
-  in the `table(...)` call, and register its tests in the test file itself,
-  at its top level:
-  `for (const c of table('<name>', { ... })) test(c.name, c.fn);`. node's
-  reports name the file that calls `test()`, and a guard checks the loop. The
-  first tables are `render-edits`' edit list and block paths. A file already
-  in `fast` converts its loops when a session next changes its cases for
-  another reason.
+- **A bad case for a gate module is a row.** A set of rows has a base input
+  that passes; a row is one plant on the base and the exact rule ids it must
+  fail with, written as `{ id, plant, fails, says?, why }` with its id as a
+  string literal. Run the rows with a plain loop over node's `test()`, with
+  one test of the base before them and one after:
+
+  ```js
+  {
+    const base = () => ({ 'pact/config.json': '{"schema": 1}' });
+    const run = (tree, t) => moduleResult(/* the module's exit code and output */);
+    const rows = [{ id: 'unknown-mark', plant: tree => ({ ...tree, 'pact/config.json': '...' }), fails: ['edit-mark'], why: 'a mark the source lacks' }];
+    test('<name>: base passes', async t => assertPasses(await run(base(), t)));
+    for (const r of rows) test(`<name>: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+    test('<name>: base passes after the rows', async t => assertPasses(await run(base(), t)));
+  }
+  ```
+
+  `assertPasses`, `assertFails` and `moduleResult` are in `text.mjs`. The
+  base passing, and each row differing from it only by its plant, proves a
+  row fails because of its plant; the base after the rows catches a row that
+  leaked state into the process. Keep the loop at the file's top level, never
+  in a branch or a function, where it may run nothing. No guard checks that
+  since #272: the review reads each new loop.
 - **How a case runs the module.** In-process, through its core: call
   `runCore` from [`gate/tests/gate-run.mjs`](../../gate/tests/gate-run.mjs), or
   `renderStage` and `runSeamA`, which use it. Keep a case a child run when it
@@ -117,10 +129,10 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   install runner's checks (in `gate/install-run.mjs`) to refuse. Never cut a
   case that checks a refused install wrote nothing.
 - **A test names what it backs.** The rules in this bullet and the three below
-  apply to a test or table row a change adds or edits; they are not a sweep of
+  apply to a test a change adds or edits; they are not a sweep of
   the tests already there. Each such test names one of:
   - a claim of the issue it was built for, as `#<issue> C<n>`;
-  - an invariant already written down: a gate rule id (a table row's rule ids
+  - an invariant already written down: a gate rule id (a row's rule ids
     count), an ADR by number (`ADR 0047`), a threat-model risk (`R21`), or a
     rule of this repo by its section heading (`Writing a gate test`), whether
     the heading sits in `AGENTS.md` or in a doc under `docs/agents/`.
@@ -150,7 +162,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   reading.
 - **Size the suite to review cost.** Every test is something the owner has to
   trust and maintain. The PR body carries one line, `Tests: +<added> −<cut>`,
-  counting `test(...)` calls and table rows, as its second line, straight
+  counting each `test(...)` that runs, as its second line, straight
   after the close-out checkbox line. A change adds no test beyond what its
   claims and the invariants it names need.
 - **What is never a cut candidate.** The two bullets on silent failures and

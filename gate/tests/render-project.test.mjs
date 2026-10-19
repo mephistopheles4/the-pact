@@ -10,8 +10,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { copyGate, plantModule } from './gate-files.mjs';
-import { moduleResult, table } from './tables.mjs';
-import { RENDER, lastLine } from './text.mjs';
+import { RENDER, assertFails, assertPasses, lastLine, moduleResult } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -203,15 +202,14 @@ test('a bar in a project quality field is escaped in the table, so the row keeps
 
 const qRow = (over, base = Q_ROWS[0]) => qFile([{ ...base, ...over }]);
 // #262 C21, thinned by the gate's install-mechanics cut: a row's shape, each field one line.
-for (const c of table('render project qualities', {
-  module: 'gate/render.mjs',
-  base: () => ({ project: qFile(Q_ROWS) }),
-  run: (tree, t) => {
+{
+  const base = () => ({ project: qFile(Q_ROWS) });
+  const run = (tree, t) => {
     const r = render(t, userHome(t), project(t, tree.project));
     return { ...moduleResult(r.code, r.stdout, r.stderr), files: readdirSync(r.dir) };
-  },
-  everyRow: r => assert.deepEqual(r.files, [], 'a refused render writes no file'),
-  rows: [
+  };
+  const everyRow = r => assert.deepEqual(r.files, [], 'a refused render writes no file');
+  const rows = [
     { id: 'measure-line-break', plant: () => ({ project: qRow({ measure: 'fast\n# Heading' }) }), fails: ['project-qualities'], why: 'a second line' },
     { id: 'measure-not-text', plant: () => ({ project: qRow({ measure: 5 }) }), fails: ['project-qualities'], why: 'a measure is text' },
     { id: 'lenses-none', plant: () => ({ project: qRow({ lenses: [] }) }), fails: ['project-qualities'], why: 'at least one' },
@@ -220,8 +218,17 @@ for (const c of table('render project qualities', {
     { id: 'row-extra-field', plant: () => ({ project: qRow({ note: 'x' }) }), fails: ['project-qualities'], why: 'only the three fields' },
     { id: 'row-missing-field', plant: () => ({ project: qFile([{ quality: 'Security', lenses: ['data-lens'] }]) }), fails: ['project-qualities'], why: 'all three fields' },
     { id: 'qualities-not-list', plant: () => ({ project: `${JSON.stringify({ schema: 1, qualities: { Security: 'x' } })}\n` }), fails: ['project-qualities'], why: 'a list' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render project qualities: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`render project qualities: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('render project qualities: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // ------------------------------------------------------------ a project's own Cost limits and Enough (#278, T2)
 
@@ -344,18 +351,17 @@ test('the fixed text a project\'s Cost limits render under is the home part\'s, 
 });
 
 // #288 C3, C4, C5, C6, C9: each shape or reference refusal, with its rule id, and nothing written.
-for (const c of table('render project cost limits', {
-  module: 'gate/render.mjs',
-  base: () => ({ project: cFile(C_ROWS) }),
-  run: (tree, t) => {
+{
+  const base = () => ({ project: cFile(C_ROWS) });
+  const run = (tree, t) => {
     const r = render(t, userHome(t), project(t, tree.project));
     return { ...moduleResult(r.code, r.stdout, r.stderr), files: readdirSync(r.dir) };
-  },
-  everyRow: r => {
+  };
+  const everyRow = r => {
     assert.deepEqual(r.files, [], 'a refused render writes no file');
     assert.doesNotMatch(r.out, /MARKER/, 'a refusal echoes no cost text');
-  },
-  rows: [
+  };
+  const rows = [
     { id: 'without-qualities', plant: () => ({ project: `${JSON.stringify({ schema: 1, costLimits: C_ROWS })}\n` }), fails: ['project-cost-limits-alone'], why: 'every name resolves in one file' },
     { id: 'enough-cost-unknown', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: ['Linting'] }]) }), fails: ['project-enough-cost'], why: 'an Enough name finds a project cost row' },
     { id: 'enough-cost-no-list', plant: () => ({ project: `${JSON.stringify({ schema: 1, qualities: EQ_ROWS.slice(0, 1) })}\n` }), fails: ['project-enough-cost'], why: 'a project with no costLimits can name no cost' },
@@ -377,8 +383,17 @@ for (const c of table('render project cost limits', {
     { id: 'enough-middle-dot', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enough: 'ASVS L1 · Linting' }]) }), fails: ['project-qualities'], why: 'a level that holds the cell separator would forge a cost name' },
     { id: 'enough-costs-blank-name', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: ['  '] }]) }), fails: ['project-qualities'], why: 'a name in enoughCosts is text' },
     { id: 'enough-costs-not-list', plant: () => ({ project: cFile(C_ROWS, [{ ...EQ_ROWS[0], enoughCosts: 'Tests added' }]) }), fails: ['project-qualities'], why: 'a list of names' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render project cost limits: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`render project cost limits: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('render project cost limits: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 test('bad case: no project file refuses, saying there is no project configuration', t => {
   refusedWith(render(t, userHome(t), project(t)), 'project-none', /there is no project configuration/);

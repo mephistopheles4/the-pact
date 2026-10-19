@@ -11,8 +11,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { renderStage, runCore } from './gate-run.mjs';
 import { stage } from './payload.mjs';
-import { moduleResult, table } from './tables.mjs';
-import { RENDER, REPO, SEAM_A, lastLine, withoutOpenMarks } from './text.mjs';
+import { RENDER, REPO, SEAM_A, assertFails, assertPasses, lastLine, moduleResult, withoutOpenMarks } from './text.mjs';
 import { read, tempDir, writeTree } from './tree.mjs';
 
 const WIN = process.platform === 'win32';
@@ -148,22 +147,24 @@ test('a session value renders the session line after the weekly one, and the not
   assert.equal(without, expected(read(SOURCE), digestOf(bytes)));
 });
 
-for (const c of table('render session setting', {
-  module: 'gate/render.mjs',
-  base: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80}}\n' }),
-  run: (tree, t) => {
+{
+  const base = () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80}}\n' });
+  const run = (tree, t) => {
     const h = tempDir(t, 'pact-render-home-');
     writeTree(h, tree);
     const r = runCore('render', [SOURCE, tempDir(t, 'pact-render-out-'), h]);
     return moduleResult(r.code, r.stdout);
-  },
-  rows: [
+  };
+  const rows = [
     // #142: the same range and checks as the weekly value, refused naming only constants.
     { id: 'over-the-range', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 101}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number from 0 to 100/, why: 'a value out of range' },
     { id: 'a-fraction', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": 80.5}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number/, why: 'a non-integer' },
     { id: 'a-string', plant: () => ({ 'pact/config.json': '{"schema": 1, "settings": {"usage-pause-session": "80"}}\n' }), fails: ['config-value'], says: /usage-pause-session must be a whole number/, why: 'a string' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('render session setting: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`render session setting: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('render session setting: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #280 C3: seam A takes --tools beside --commands.
 test('a configured render of the real source passes seam A', t => {

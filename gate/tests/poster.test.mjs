@@ -10,8 +10,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { makeGh, post, scan } from '../../claude/tools/poster.mjs';
 import { childEnv } from './gate-run.mjs';
-import { table } from './tables.mjs';
-import { REPO } from './text.mjs';
+import { REPO, assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
 const POSTER = join(REPO, 'claude', 'tools', 'poster.mjs');
@@ -509,7 +508,7 @@ test('a verified post, a dry run, a refusal and an unavailable result print no N
 
 // ---------------------------------------------------------------- refusals: tables of planted cases, run as dry runs
 
-/** The poster's result in a table's shape: exit 2 and its result line read as a fail, a dry run as a pass. The real values stay on the result for everyRow. */
+/** The poster's result in a row's shape: exit 2 and its result line read as a fail, a dry run as a pass. The real values stay on the result for everyRow. */
 function adapt(r, calls) {
   const lastLine = r.lines.at(-1) ?? '';
   return {
@@ -550,12 +549,11 @@ const COMMENT_ARGV = n => ['issue-comment', '--repo', TARGET, '--body', '@body.m
 const ISSUE_ARGV = (...labels) => ['issue', '--repo', TARGET, '--title-file', '@title.txt', '--body', '@body.md', ...labels.flatMap(l => ['--label', l]), '--dry-run'];
 
 // #246 C5, C6 (usage and input rows), C4 (the --head owner)
-for (const c of table('poster input', {
-  module: 'claude/tools/poster.mjs',
-  base: () => ({ 'argv.json': JSON.stringify(PR_ARGV), 'body.md': 'A plain body.\n', 'title.txt': 'A plain title\n' }),
-  run: runTree,
-  everyRow: refusedQuietly,
-  rows: [
+{
+  const base = () => ({ 'argv.json': JSON.stringify(PR_ARGV), 'body.md': 'A plain body.\n', 'title.txt': 'A plain title\n' });
+  const run = runTree;
+  const everyRow = refusedQuietly;
+  const rows = [
     { id: 'no-surface', plant: asSurface(PR_ARGV.slice(1)), fails: ['usage/surface'], why: 'the first word is an option' },
     // #280 C2: the installed copy run with nothing refuses before any gh call.
     { id: 'no-arguments', plant: asSurface([]), fails: ['usage/surface'], why: 'run with no arguments at all' },
@@ -610,8 +608,17 @@ for (const c of table('poster input', {
     { id: 'title-carriage-return', plant: tree => ({ ...tree, 'title.txt': 'One\rTwo' }), fails: ['text/title-lines'], why: 'a lone carriage return' },
     { id: 'title-long', plant: tree => ({ ...tree, 'title.txt': 't'.repeat(257) }), fails: ['text/title-length'], why: 'a title over 256' },
     { id: 'title-empty', plant: tree => ({ ...tree, 'title.txt': '' }), fails: ['file/empty'], why: 'an empty title file' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('poster input: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`poster input: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('poster input: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #246 C5: a link is refused before it is read (a file link where the account may make one, else a junction)
 test('a body file that is a link is refused, and gh is never called', t => {
@@ -638,12 +645,11 @@ const inBody = text => tree => ({ ...tree, 'body.md': `A plain body with ${text}
 const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n` });
 
 // #246 C7: each rule refuses a planted case in the body and in the title, and the output never holds it
-for (const c of table('poster scan', {
-  module: 'claude/tools/poster.mjs',
-  base: scanBase,
-  run: runTree,
-  everyRow: refusedQuietly,
-  rows: [
+{
+  const base = scanBase;
+  const run = runTree;
+  const everyRow = refusedQuietly;
+  const rows = [
     { id: 'token-github', plant: inBody(SECRETS.github), fails: ['secret/token'], why: 'a GitHub token' },
     { id: 'token-pat', plant: inBody(SECRETS.pat), fails: ['secret/token'], why: 'a fine-grained GitHub token' },
     { id: 'token-sk', plant: inBody(SECRETS.sk), fails: ['secret/token'], why: 'an sk- key' },
@@ -700,8 +706,17 @@ for (const c of table('poster scan', {
     { id: 'as-entities', plant: inBody([...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('')), fails: ['secret/token'], why: 'entities hide the shape' },
     { id: 'named-entity', plant: inBody(GH_TOKEN_SHAPE.replace('_', '&lowbar;')), fails: ['secret/token'], why: 'a named entity for the underscore' },
     { id: 'in-a-fence', plant: inBody('\n```\n' + SECRETS.npm + '\n```\n'), fails: ['secret/token'], why: 'a secret in a code block is still a secret' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('poster scan: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`poster scan: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('poster scan: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #246 C7: what passes; the scan is not a word filter
 test('plain words that look like the rules pass the scan', t => {
@@ -776,12 +791,11 @@ test('the trailer passes with an id of exactly 16 and of exactly 40 characters',
 
 // #246 C8: the harness trailer, only on a pull request, only at the end
 const PR_BODY = `A plain body.\n\n${TRAILER}`;
-for (const c of table('poster trailer', {
-  module: 'claude/tools/poster.mjs',
-  base: () => ({ 'argv.json': JSON.stringify(PR_ARGV), 'body.md': PR_BODY, 'title.txt': 'A plain title\n' }),
-  run: runTree,
-  everyRow: refusedQuietly,
-  rows: [
+{
+  const base = () => ({ 'argv.json': JSON.stringify(PR_ARGV), 'body.md': PR_BODY, 'title.txt': 'A plain title\n' });
+  const run = runTree;
+  const everyRow = refusedQuietly;
+  const rows = [
     { id: 'token-shaped-id', plant: tree => ({ ...tree, 'body.md': PR_BODY.replace(SESSION, GH_TOKEN_SHAPE) }), fails: ['id/session', 'secret/token'], why: 'an id outside the letters-and-digits set' },
     { id: 'line-after', plant: tree => ({ ...tree, 'body.md': `${PR_BODY}more\n` }), fails: ['id/session'], why: 'the trailer must end the body' },
     { id: 'id-short', plant: tree => ({ ...tree, 'body.md': PR_BODY.replace(SESSION, 'A'.repeat(15)) }), fails: ['id/session'], why: 'an id under 16' },
@@ -789,8 +803,17 @@ for (const c of table('poster trailer', {
     { id: 'link-elsewhere', plant: tree => ({ ...tree, 'body.md': `See https://claude.ai/code/session_${SESSION}.\n\n${TRAILER}` }), fails: ['id/session'], why: 'the same link before the trailer' },
     { id: 'on-an-issue', plant: asSurface(ISSUE_ARGV()), fails: ['id/session'], why: 'the exception is for pull requests only' },
     { id: 'no-blank-line', plant: tree => ({ ...tree, 'body.md': PR_BODY.replace('code)\n\n', 'code)\n') }), fails: ['id/session'], why: 'not the exact trailer' },
-  ],
-})) test(c.name, c.fn);
+  ];
+  test('poster trailer: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) {
+    test(`poster trailer: ${r.id}`, async t => {
+      const res = await run(r.plant(base()), t);
+      assertFails(res, r.fails, r.says);
+      await everyRow(res, t);
+    });
+  }
+  test('poster trailer: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
 
 // #246 C10: a dry run calls no gh and prints no body text
 test('a dry run prints the gh arguments and the request sizes, never the text', t => {

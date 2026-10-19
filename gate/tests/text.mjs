@@ -52,6 +52,122 @@ export function lastLine(stdout) {
   return ls[ls.length - 1];
 }
 
+// ------------------------------------------------------------ bad cases as rows (#140, plain loops since #272)
+
+/** A gate module's result from its exit code and output: the FAIL rule ids, the last line, and all of it for `says`. */
+export function moduleResult(code, stdout, stderr = '') {
+  const lines = stdout.split('\n').filter(l => l !== '');
+  return {
+    code,
+    fails: lines.filter(l => l.startsWith('FAIL ')).map(l => l.slice(5).split(':')[0]),
+    last: lines[lines.length - 1],
+    out: stdout + stderr,
+  };
+}
+
+/** A base input's result passes: exit 0, `RESULT: pass` last, and no FAIL line. */
+export function assertPasses(r) {
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.last, 'RESULT: pass', r.out);
+  assert.deepEqual(r.fails, [], r.out);
+}
+
+const sortedSet = a => [...new Set(a)].sort();
+
+/**
+ * A row's result fails as it should: exit 1, `RESULT: fail` last, the set of
+ * FAIL rule ids equal to `ids` (equal, not includes), and the output matching
+ * `says` when it is given.
+ */
+export function assertFails(r, ids, says) {
+  assert.equal(r.code, 1, r.out);
+  assert.equal(r.last, 'RESULT: fail', r.out);
+  assert.deepEqual(sortedSet(r.fails), sortedSet(ids), r.out);
+  if (says) assert.match(r.out, says, r.out);
+}
+
+// ------------------------------------------------------------ a module's source as tokens
+
+const PUNCT_REGEX_AFTER = new Set([...'(,=:[!&|?{};+-*%<>~^']);
+const WORDS_REGEX_AFTER = new Set(['return', 'typeof', 'case', 'of', 'in', 'void', 'delete', 'throw', 'yield', 'await']);
+
+/** A module's source as tokens: { t: 'str', v } for a string literal (a template only when it has no ${}), { t: 'tpl' } for one that has, { t: 're' } for a regex literal, { t: 'word', v }, { t: 'p', v }. Comments are dropped. */
+export function tokens(src) {
+  const out = [];
+  const n = src.length;
+  let i = 0;
+  const prev = () => out[out.length - 1];
+  while (i < n) {
+    const c = src[i];
+    if (c === '/' && src[i + 1] === '/') {
+      const j = src.indexOf('\n', i);
+      i = j < 0 ? n : j;
+    } else if (c === '/' && src[i + 1] === '*') {
+      const j = src.indexOf('*/', i + 2);
+      i = j < 0 ? n : j + 2;
+    } else if (c === '"' || c === "'") {
+      let s = '';
+      i += 1;
+      while (i < n && src[i] !== c && src[i] !== '\n') {
+        if (src[i] === '\\') {
+          s += src[i + 1] ?? '';
+          i += 2;
+        } else s += src[i++];
+      }
+      i += 1;
+      out.push({ t: 'str', v: s });
+    } else if (c === '`') {
+      let s = '';
+      let plain = true;
+      i += 1;
+      while (i < n && src[i] !== '`') {
+        if (src[i] === '\\') {
+          s += src[i + 1] ?? '';
+          i += 2;
+        } else if (src[i] === '$' && src[i + 1] === '{') {
+          plain = false;
+          let depth = 1;
+          i += 2;
+          while (i < n && depth > 0) {
+            const d = src[i];
+            if (d === '"' || d === "'" || d === '`') {
+              i += 1;
+              while (i < n && src[i] !== d) i += src[i] === '\\' ? 2 : 1;
+            } else if (d === '{') depth += 1;
+            else if (d === '}') depth -= 1;
+            i += 1;
+          }
+        } else s += src[i++];
+      }
+      i += 1;
+      out.push(plain ? { t: 'str', v: s } : { t: 'tpl' });
+    } else if (c === '/' && (!prev() || (prev().t === 'p' && PUNCT_REGEX_AFTER.has(prev().v)) || (prev().t === 'word' && WORDS_REGEX_AFTER.has(prev().v)))) {
+      // A regex literal: skipped, and kept as one token that is no bracket.
+      i += 1;
+      let inClass = false;
+      while (i < n && src[i] !== '\n') {
+        if (src[i] === '\\') i += 2;
+        else if (src[i] === '[') (inClass = true), (i += 1);
+        else if (src[i] === ']') (inClass = false), (i += 1);
+        else if (src[i] === '/' && !inClass) break;
+        else i += 1;
+      }
+      i += 1;
+      while (i < n && /[a-z]/.test(src[i])) i += 1;
+      out.push({ t: 're' });
+    } else if (/\s/.test(c)) i += 1;
+    else if (/[A-Za-z0-9_$]/.test(c)) {
+      let w = '';
+      while (i < n && /[A-Za-z0-9_$]/.test(src[i])) w += src[i++];
+      out.push({ t: 'word', v: w });
+    } else {
+      out.push({ t: 'p', v: c });
+      i += 1;
+    }
+  }
+  return out;
+}
+
 // ------------------------------------------------------------ edits to open parts (#94), built independently of the renderer
 
 /** `src` with the lines between `mark`'s two mark lines replaced by fn(lines, indent). */

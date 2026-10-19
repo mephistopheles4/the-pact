@@ -646,8 +646,10 @@ session can act before you see it.
   its carried rules or resists planted text. A lens that reads well and
   behaves badly shows up only in use.
 - **R21. The test runner and its helpers are ordinary test code.** The
-  runner, its copy list, the table module, the in-process runner and the
-  guards beside it decide what "the full suite" and the required CI check
+  runner, its copy list, the gate's tests (written as plain `test()` loops
+  since #272; the registration guard that went with the table module is
+  gone, and the QA pair's read of every change to the gate's tests stands in
+  for it), the in-process runner and the guards beside it decide what "the full suite" and the required CI check
   run. Since #189 a change to them is proved by use, not by the security
   route. An ordinary edit, or one a fooled session makes, could narrow what
   the CI check runs, or weaken record mode's scrub, which keeps local paths
