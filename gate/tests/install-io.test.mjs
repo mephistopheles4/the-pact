@@ -3,7 +3,7 @@
 // tree state, the replacing write and the leftover count. Nothing here
 // installs. A link the OS won't let this account make is a skip, named.
 import assert from 'node:assert/strict';
-import { chmodSync, linkSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, linkSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import * as core from '../install-core.mjs';
@@ -219,6 +219,102 @@ test('#272 C4: a link on the backup path at the first check or the second, or at
   const was = stateOf(source.h);
   assert.throws(() => backup(source.h, withSource), refusal('backup-link', /^Nothing was changed\.$/));
   assert.equal(stateOf(source.h), was);
+});
+
+// ------------------------------------------------------------ the prune (#272, S8)
+
+const OWN = '20261018T143005123Z-aaaaaaa';
+/** A backup folder named `name` under `h`, holding a manifest with `format`, and the record listed as a file or, with `noRecord`, absent. */
+function fakeBackup(h, name, { format = 'pact-backup-1', noRecord = false, manifest } = {}) {
+  const dir = join(h, 'pact', 'backups', name);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'CLAUDE.md'), 'old\n');
+  const entries = [{ path: '.pact-install.json', ...(noRecord ? { was: 'absent' } : { was: 'file', sha256: 'f'.repeat(64), bytes: 1 }) }];
+  if (manifest !== null) writeFileSync(join(dir, 'manifest.json'), manifest ?? `${JSON.stringify({ format, commit: COMMIT, created: '', entries })}\n`);
+  return dir;
+}
+const older = i => `2025${String(i).padStart(4, '0')}T000000000Z-bbbbbbb`;
+const left = h => readdirSync(join(h, 'pact', 'backups')).sort();
+/** A link where the OS allows this account one, without marking the test skipped where it does not. */
+function tryLink(target, path, type) {
+  try {
+    symlinkSync(target, path, type);
+    return true;
+  } catch (e) {
+    if (e.code === 'EPERM' || e.code === 'EACCES') return false;
+    throw e;
+  }
+}
+
+test('#272 C7: the prune keeps this run\'s backup, the ten newest, every one taken with no record, those named later and everything it does not recognise', t => {
+  const h = tempDir(t, 'pact-prune-');
+  fakeBackup(h, OWN);
+  for (let i = 1; i <= 12; i++) fakeBackup(h, older(i + 100));
+  fakeBackup(h, older(1), { noRecord: true });
+  fakeBackup(h, older(2), { noRecord: true });
+  fakeBackup(h, '20991231T235959999Z-ccccccc');
+  // What is never a candidate: a name off the pattern, no manifest, a foreign one, an oversized one, one that is a link, a link to a backup, a staging folder.
+  fakeBackup(h, 'mine-kept');
+  fakeBackup(h, older(3), { manifest: null });
+  fakeBackup(h, older(4), { format: 'other-1' });
+  fakeBackup(h, older(5), { manifest: ' '.repeat(1024 * 1024 + 1) });
+  const elsewhere = tempDir(t, 'pact-prune-else-');
+  writeFileSync(join(elsewhere, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-1', entries: [] })}\n`);
+  const linkedManifest = fakeBackup(h, older(6), { manifest: null });
+  const linked = tryLink(join(elsewhere, 'manifest.json'), join(linkedManifest, 'manifest.json'), 'file') && tryLink(elsewhere, join(h, 'pact', 'backups', older(7)), WIN ? 'junction' : 'dir');
+  mkdirSync(join(h, 'pact', 'backups', `.staging-${older(8)}`));
+  const before = left(h);
+  const r = io.pruneBackups(io.FS_OPS, { home: h, own: OWN });
+  const pruned = [older(101), older(102), older(103)];
+  assert.deepEqual(r.pruned, pruned);
+  assert.deepEqual(left(h), before.filter(n => !pruned.includes(n)));
+  assert.equal(r.later, 1);
+  assert.equal(r.others, linked ? 6 : 4);
+  assert.equal(r.failed, false);
+  assert.deepEqual(readdirSync(elsewhere), ['manifest.json'], 'a link to a backup is never followed');
+});
+
+test('#272 C15: a prune that fails part way reports one warning naming the folder, and never throws', t => {
+  const h = tempDir(t, 'pact-prune-');
+  fakeBackup(h, OWN);
+  for (let i = 1; i <= 11; i++) fakeBackup(h, older(i + 100));
+  const r = io.pruneBackups(failing('unlink'), { home: h, own: OWN });
+  assert.equal(r.failed, true);
+  const warns = core.pruneLines(r).filter(l => l.startsWith('WARN: '));
+  assert.equal(warns.length, 1, warns.join('\n'));
+  assert.match(warns[0], /pact\/backups/);
+  assert.ok(left(h).includes(older(101)), 'the backup it could not remove is left as it was, manifest and all');
+  assert.ok(readdirSync(join(h, 'pact', 'backups', older(101))).includes('manifest.json'), 'the manifest goes last, so a half-removed backup stays a candidate');
+});
+
+test('#272 C16: the clean-up and the prune remove a link inside a folder they remove without following it', t => {
+  const elsewhere = tempDir(t, 'pact-follow-');
+  writeFileSync(join(elsewhere, 'keep.md'), 'outside\n');
+  // The clean-up: a link planted in the staging folder while the backup runs.
+  const { h, entries } = backupHome(t);
+  const before = stateOf(h);
+  let planted = null;
+  const plant = { ...failing('rename'), mkdir: (p, mode) => {
+    io.FS_OPS.mkdir(p, mode);
+    if (planted === null && p.includes('.staging-')) planted = tryLink(elsewhere, join(p, 'planted'), WIN ? 'junction' : 'dir');
+  } };
+  assert.throws(() => backup(h, entries, { ops: plant }), refusal('backup-failed', /^Nothing was changed\.$/));
+  assert.ok(planted, 'the link was planted in the staging folder');
+  assert.equal(stateOf(h), before);
+  // The prune: a link inside a backup it removes, and a folder whose real path disagrees with its own (ad2.3).
+  const p = tempDir(t, 'pact-prune-');
+  fakeBackup(p, OWN);
+  for (let i = 1; i <= 10; i++) fakeBackup(p, older(i + 100));
+  assert.ok(tryLink(elsewhere, join(p, 'pact', 'backups', older(101), 'planted'), WIN ? 'junction' : 'dir'));
+  assert.deepEqual(io.pruneBackups(io.FS_OPS, { home: p, own: OWN }).pruned, [older(101)]);
+  fakeBackup(p, older(100));
+  mkdirSync(join(p, 'pact', 'backups', older(100), 'sub'));
+  const swapped = { ...io.FS_OPS, realpath: q => (q.endsWith('sub') ? `${q}-elsewhere` : io.FS_OPS.realpath(q)) };
+  const r = io.pruneBackups(swapped, { home: p, own: OWN });
+  assert.equal(r.failed, true);
+  assert.ok(existsSync(join(p, 'pact', 'backups', older(100), 'sub')), 'a folder that resolves elsewhere is not walked');
+  assert.deepEqual(readdirSync(elsewhere), ['keep.md']);
+  assert.equal(readFileSync(join(elsewhere, 'keep.md'), 'utf8'), 'outside\n');
 });
 
 test('#272 C6: on Linux and macOS a backup file or folder found open to others refuses, with nothing changed', t => {

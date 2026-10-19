@@ -199,3 +199,10 @@ it, and stop to ask the owner. Check first, because an older commit's own
 this check stands before one (the threat model's R22). From a commit that
 passes, check out exactly that id and run only `gate/install.mjs`, dry run
 first.
+
+Since #272 each apply keeps backups in `~/.claude/pact/backups/`:
+- **A rollback to a commit before #272** takes no backup and prunes none, so
+  copy what you want to keep first, and delete `pact/backups` by hand once
+  you are sure.
+- **An older installer never touches `pact/backups`** unless the install
+  record was rewritten to list a path there (the threat model's R14).

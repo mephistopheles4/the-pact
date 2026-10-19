@@ -1359,6 +1359,50 @@ export const backupLine = (count, settings) => `Backup: ${count} file(s) to copy
 /** The dry run's warning for staging folders an earlier apply left (S9, ad5): each name cleaned. */
 export const stagingLine = names => `WARN: ${BACKUPS_REL} holds ${names.length} leftover staging folder(s) (${names.map(formatPlain).join(', ')}); each may hold a copy of your settings. Check and delete them; --apply refuses while they are there.`;
 
+/** How many backups the prune keeps by name, this run's included (S8). */
+export const BACKUP_KEEP = 10;
+export const MANIFEST_CAP = 1024 * 1024;
+
+/**
+ * A backup candidate from its manifest's text (S8, ad2.4): null unless it is a
+ * JSON object of this format with a list of entries. `noRecord` is true when
+ * the backup was taken with no install record before it (q8).
+ */
+export function readManifest(name, text) {
+  let m;
+  try {
+    m = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!m || typeof m !== 'object' || m.format !== BACKUP_FORMAT || !Array.isArray(m.entries)) return null;
+  return { name, noRecord: m.entries.some(e => e && e.path === '.pact-install.json' && e.was === 'absent') };
+}
+
+/**
+ * Which candidates the prune removes (S8, ad1), oldest first: never this run's
+ * (`own`), none named after it, none of the ten newest of the rest, and none
+ * taken with no record. `later` counts those named after this run's.
+ */
+export function pruneSelect(candidates, own) {
+  const rest = candidates.filter(c => c.name <= own).sort((a, b) => (a.name < b.name ? 1 : -1));
+  const keep = new Set([own, ...rest.slice(0, BACKUP_KEEP).map(c => c.name)]);
+  return { remove: rest.filter(c => !keep.has(c.name) && !c.noRecord).map(c => c.name).reverse(), later: candidates.filter(c => c.name > own).length };
+}
+
+/** The non-candidates line, for the dry run and the apply (S8, da3): entries the prune never touches. */
+export const othersLine = n => `WARN: ${BACKUPS_REL} holds ${n} entry(ies) the install does not recognise as backups; the prune leaves them as they are, and they may hold copies of your settings.`;
+
+/** What the apply prints after its prune (S9): each pruned name, then the warnings. */
+export function pruneLines({ pruned, later, others, failed }) {
+  const out = [];
+  if (pruned.length) out.push(`pruned ${pruned.length} old backup(s)`, ...pruned.map(n => `  ${formatPlain(n)}`));
+  if (later) out.push(`WARN: ${BACKUPS_REL} holds ${later} backup(s) named later than this run's; the prune leaves them, and they may hold copies of your settings.`);
+  if (others) out.push(othersLine(others));
+  if (failed) out.push(`WARN: the prune of old backups in ${BACKUPS_REL} stopped on an error; what is left there is safe to keep, and the next apply tries again.`);
+  return out;
+}
+
 /** The backup step's refusals (S7). A refusal after a full clean-up keeps "Nothing was changed."; one whose clean-up failed names the staging folder. */
 export const backupStops = Object.freeze({
   link: rel => refuse('backup-link', `${formatPlain(rel)}, on the backup's path, is a link or other reparse point.`),

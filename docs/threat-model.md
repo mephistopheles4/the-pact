@@ -37,13 +37,17 @@ Claude home folder, `~/.claude`:
   temporary folder or a path you name outside any repo, the Claude home
   folder and any `.claude` folder (#262, ADR 0070). It also reads your own presets from `pact/presets/`, a folder the install never writes, lists or deletes, and carries each one into the page in plain text, as it carries the builder file. `/make-it-so` and
   `/finis` install only when your configuration lists them.
+- **Backups,** in `pact/backups/`: before each apply writes, a dated copy of
+  each file it replaces, with a manifest. They hold copies of `settings.json`
+  (R47).
 
 The repo also holds a setup script for Claude Code cloud sessions, in
 `cloud-sessions/`. It is not part of the install. You paste it into a cloud
 environment yourself.
 
 **The data in reach.** A session can read what your account can: your
-`settings.json`, which can hold API keys; your GitHub sign-in; the repos on
+`settings.json`, which can hold API keys, and the older copies of it in the
+install's backups (R47); your GitHub sign-in; the repos on
 your machine. It writes review reports, their disposition tables and
 decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files.
 
@@ -84,7 +88,9 @@ classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 
 ## Crypto and data migrations here
 
-**Crypto.** The pact holds no secret and encrypts nothing. It holds two
+**Crypto.** The pact encrypts nothing. Since #272 its install keeps copies of
+a file that can hold keys, in its backups (R47). The backup manifest's SHA-256
+only detects a damaged copy; it never authenticates one. It holds two
 public keys, in `cloud-sessions/keys/`, used only at a pin bump to check the
 signatures on Node's and mise's checksum files (ADR 0088). It uses hashes
 only to detect change, never to authenticate, apart from the builder page's
@@ -116,7 +122,10 @@ anything changes. The install deletes any unchanged file its record lists
 that the pact no longer ships; with no record, a first install deletes only
 the retired builder agents (#262); a retired lens's file that isn't the pact's
 own copy draws a warning and stays (#302); and the install takes out the ask
-rules an older pact set (#265). A change to the install record's format, the
+rules an older pact set (#265). Since #272 an install also prunes its own old
+backups, by the rules `docs/install.md` sets out; a pruned backup can't be
+recovered, and the rollback lines in `docs/agents/install.md` are the recovery
+for the backups an older installer leaves. A change to the install record's format, the
 configuration's format, the settings overlay, or what an install removes is a
 data migration, sensitive work under the default; the rollback checks in
 `docs/agents/install.md` are its recovery. A cloud snapshot taken before
@@ -606,9 +615,8 @@ session can act before you see it.
   on, its scan refuses a report holding a secret of a known shape or an
   environment secret's value, and the session keeps that report local
   rather than editing it to get past the scan. That is a backstop only some
-  installs have; the read before posting stays for everyone. A word test checks
-  that the security pair's files hold the carried rules, but since #189 no
-  test has checked that a lens keeps them after a model change.
+  installs have; the read before posting stays for everyone. No test holds the
+  security lenses' carried rules word for word; they hold by review.
 - **R14. A fooled session can leave something behind.** It can write files
   that later sessions or installs load: memory files, a repo's own Claude
   settings or rules, its server list, or your configuration blocks. With a

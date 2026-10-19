@@ -335,8 +335,62 @@ export function takeBackup(ops, { home, commit, entries, platform, now, started 
   }
 }
 
-/** What a dry run reports about pact/backups (S9): whether it is a link, and the staging folders left in it. */
-export function backupFolder(home, ops = FS_OPS) {
-  if (throughLinkWith(ops, home, core.BACKUPS_REL)) return { link: true, staging: [] };
-  return { link: false, staging: namesIn(ops, join(home, ...core.BACKUPS_REL.split('/'))).filter(n => n.startsWith('.staging-')).sort() };
+/** A candidate for the prune (S8): a plain folder with a backup's name, holding a plain manifest of at most 1 MiB in this format; otherwise null. */
+function candidateIn(ops, home, name) {
+  if (!core.BACKUP_NAME_RE.test(name)) return null;
+  const rel = `${core.BACKUPS_REL}/${name}`;
+  try {
+    const st = ops.lstat(join(home, ...rel.split('/')));
+    if (st.isSymbolicLink() || !st.isDirectory() || throughLinkWith(ops, home, rel)) return null;
+    const manifest = join(home, ...rel.split('/'), 'manifest.json');
+    const ms = ops.lstat(manifest);
+    if (!ms.isFile() || ms.size > core.MANIFEST_CAP) return null;
+    return core.readManifest(name, ops.read(manifest).toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What pact/backups holds (S8, S9): whether it is a link, the staging folders
+ * an earlier apply left, the candidates the prune may act on, and how many
+ * other entries it leaves alone.
+ */
+export function scanBackups(home, ops = FS_OPS) {
+  if (throughLinkWith(ops, home, core.BACKUPS_REL)) return { link: true, staging: [], candidates: [], others: 0 };
+  const names = namesIn(ops, join(home, ...core.BACKUPS_REL.split('/'))).sort();
+  const staging = names.filter(n => n.startsWith('.staging-'));
+  const candidates = [];
+  let others = 0;
+  for (const n of names.filter(x => !x.startsWith('.staging-'))) {
+    const c = candidateIn(ops, home, n);
+    if (c) candidates.push(c);
+    else others++;
+  }
+  return { link: false, staging, candidates, others };
+}
+
+/**
+ * Prunes old backups after a verified apply (S8): keeps `own`, those named
+ * after it, the ten newest and each taken with no record, and removes the
+ * rest by the same walk as the clean-up, each manifest last, so a backup left
+ * half-removed stays a candidate. Never throws: an error stops the prune and
+ * sets `failed`.
+ */
+export function pruneBackups(ops, { home, own }) {
+  const out = { pruned: [], later: 0, others: 0, failed: false };
+  try {
+    const scan = scanBackups(home, ops);
+    if (scan.link) return { ...out, failed: true };
+    out.others = scan.others;
+    const { remove, later } = core.pruneSelect(scan.candidates, own);
+    out.later = later;
+    for (const name of remove) {
+      removeTree(ops, home, `${core.BACKUPS_REL}/${name}`, 'manifest.json');
+      out.pruned.push(name);
+    }
+  } catch {
+    out.failed = true;
+  }
+  return out;
 }

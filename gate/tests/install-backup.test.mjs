@@ -163,6 +163,23 @@ test('#272 C9: the dry run and the apply say what the backup takes, and a refusa
   refused(after, new RegExp(`^REFUSED: the install failed while it ran\\. The Claude home folder may hold part of this install\\. The files it replaced are in pact/backups/${backups(h2)[0]}; see Undo an apply in docs/install\\.md\\.$`, 'm'));
 });
 
+test('#272 C7: a refused apply prunes nothing, and the next verified apply prunes past the ten newest', t => {
+  const h = ownHome(t);
+  const old = Array.from({ length: 12 }, (_, i) => `2025${String(i + 101).padStart(4, '0')}T000000000Z-bbbbbbb`);
+  for (const name of old) {
+    mkdirSync(join(backupsDir(h), name), { recursive: true });
+    writeFileSync(join(backupsDir(h), name, 'manifest.json'), `${JSON.stringify({ format: 'pact-backup-1', commit: 'b'.repeat(40), created: '', entries: [{ path: '.pact-install.json', was: 'file', sha256: 'f'.repeat(64), bytes: 1 }] })}\n`);
+  }
+  const broken = makeRepo(t, root => edit(root, 'gate/install-run.mjs', "  say('Applying.');\n  for", "  say('Applying.');\n  throw new Error('planted');\n  for"));
+  refused(install(broken, h, { apply: true }));
+  assert.equal(backups(h).length, 13, 'the refused apply took its backup and pruned nothing');
+  const r = install(makeRepo(t), h, { apply: true });
+  passed(r);
+  // Both new backups were taken with no record before them (q8); the ten newest are those two and eight of the old.
+  assert.deepEqual(backups(h).filter(n => old.includes(n)), old.slice(4));
+  assert.match(r.stdout, new RegExp(`^pruned 4 old backup\\(s\\)\\n${old.slice(0, 4).map(n => `  ${n}`).join('\\n')}$`, 'm'));
+});
+
 // The four ways a run can end between BACKUP STARTED and CHECKS DONE (ex2.2,
 // ad2.6), each planted in the backup's started hook and committed, so the apply
 // reaches it.

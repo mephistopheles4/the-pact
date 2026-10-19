@@ -306,9 +306,10 @@ async function main() {
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
   const settingsCopied = settingsWill && liveBytes !== null;
   say(core.backupLine(p.overwrite.length + p.delete.length + (settingsCopied ? 1 : 0) + (recordBytes !== null ? 1 : 0), settingsCopied));
-  const folder = io.backupFolder(home);
+  const folder = io.scanBackups(home);
   if (folder.link) say(`WARN: ${core.BACKUPS_REL} is a link or other reparse point; --apply refuses.`);
   if (folder.staging.length) say(core.stagingLine(folder.staging));
+  if (folder.others) say(core.othersLine(folder.others));
   for (const [rel, file] of [['settings.json', settingsFile], ['.pact-install.json', recordFile]]) {
     if (io.openToOthers(file)) say(`WARN: ${rel} can be read by other accounts on this machine; an older install may have widened it. The install keeps a file's mode, so restrict it to yourself (chmod 600).`);
   }
@@ -414,6 +415,8 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  // Old backups go only after a verified apply; an error here leaves them, and the run still passes (#272, S8).
+  for (const l of core.pruneLines(io.pruneBackups(io.FS_OPS, { home, own: backup }))) say(l);
   say(`Installed commit ${commit} with ${parsed.digest ? `configuration ${parsed.digest}` : 'no configuration'}; all files verified.`);
   say('RESULT: pass');
 }
