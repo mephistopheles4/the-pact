@@ -53,7 +53,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   diff leaves `.github/` and the lockdown test alone. Otherwise squash to one
   commit and wait for the owner's answer to the pair's offer and, when the
   pair runs, for its read; a diff held back only by `.github/` or the
-  lockdown test may go on the owner's word instead. Push only the commit the
+  lockdown test may go on the owner's word instead, and a decline of the
+  offer never frees it. Push only the commit the
   pair's report names; a later change waits for its follow-up read or the
   owner's word. Details: [gate tests](docs/agents/gate-tests.md).
   A `changed` run is never Test evidence.
