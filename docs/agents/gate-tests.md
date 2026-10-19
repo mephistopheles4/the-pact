@@ -49,7 +49,10 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   run unless it skipped exactly the tests the file lists, by test file and
   name, and prints each difference as a line the list can take. The Windows
   CI job runs it with `gate/tests/windows-skips.txt`, so a new Windows skip is
-  a reviewed change to that list.
+  a reviewed change to that list. A line added for a test that guards the
+  installer's link, path or file handling is input validation: the change
+  matches the sensitive-work list, and the skip goes to the owner. A line out
+  of the list's shape refuses the run by its line number.
 - **A run passes only when it exits 0 and its last line is the runner's
   result line ending in `pass`.** An exit 0 with no result line is not a pass.
 - **Run the tests on the current Node LTS** (Node 24, "Krypton", as of
@@ -90,7 +93,13 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
     security pair's read or the owner's word.
 
   A push that waits is squashed to one commit first, so the security pair's
-  read of the diff covers every commit the push publishes.
+  read of the diff covers every commit the push publishes. A decline of the
+  offer that reached the session only by relay stays open, as the pact says,
+  and the push goes on it.
+- **The pushed commit is the one the pair read.** The pair's report names
+  the commit it read, and the push publishes exactly that commit. A later
+  push on a branch that waited, one that changes what the pair read, waits
+  for the pair's follow-up read or the owner's word, as the first push did.
 - **A cancelled run on `main`** is re-run before an install or a rollback
   reads its result. No run of the gate workflow cancels another on `main`,
   but a run of another workflow that named the same concurrency group could.

@@ -51,8 +51,11 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   detail, or this machine's paths and names. Push without asking only off the
   sensitive route, when the security pair isn't due or offered, and when the
   diff leaves `.github/` and the lockdown test alone. Otherwise squash to one
-  commit and push once the security pair has read it; a diff held back only
-  by `.github/` or the lockdown test may go on the owner's word instead.
+  commit and wait for the owner's answer to the pair's offer and, when the
+  pair runs, for its read; a diff held back only by `.github/` or the
+  lockdown test may go on the owner's word instead. Push only the commit the
+  pair's report names; a later change waits for its follow-up read or the
+  owner's word. Details: [gate tests](docs/agents/gate-tests.md).
   A `changed` run is never Test evidence.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.

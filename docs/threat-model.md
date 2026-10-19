@@ -549,8 +549,11 @@ once you install it.
   push is its first publish: before any push a session reads every commit it
   publishes for a secret, a personal detail or this machine's paths and
   names, and a change the security pair is due on or offered for waits for
-  the pair's read of the branch squashed to one commit (2026-10-19, the
-  owner's q4 on #351, relayed by the head chef from the owner's chat).
+  your answer to the offer and, when the pair runs, for its read of the
+  branch squashed to one commit (2026-10-19, the owner's q4 on #351, relayed
+  by the head chef from the owner's chat). The push publishes the commit the
+  pair read, and a later push that changes it waits for a follow-up read or
+  your word (2026-10-19, the owner's q7 on #351, in chat).
 
 ## A session that reads text as instructions
 
@@ -686,7 +689,11 @@ session can act before you see it.
   route. An ordinary edit, or one a fooled session makes, could narrow what
   the CI checks run, or weaken record mode's scrub, which keeps local paths
   and names out of posted test output. Neither CI check can catch
-  that, because both run the runner the edit narrowed. Only the review at the
+  that, because both run the runner the edit narrowed. A run with `--skips`
+  that is killed partway can leave its junit report, with test names and this
+  machine's test-file paths, in a folder under the system temp that only your
+  account reads; it never leaves the machine (accepted 2026-10-19 by the owner
+  in chat, the owner's q8 on #351, from data-lens's T1). Only the review at the
   end of the build does: here, the QA pair at Test, which the pact's one-line exception never covers (#262); elsewhere, the QA pair when you take its offer. The owner accepted this risk by name (#189).
 - **R22. The install's apply is unprompted.** Since #265 the pact sets no ask
   rules, so nothing prompts you before `--apply`, in any spelling. Before it,

@@ -19,6 +19,10 @@
 - **Messages name the job.** Problems a job's steps cause carry the job id, so a bad case shows which job it caught.
 - **The every-checkout rule sits in the common lockdown,** so it holds every workflow file, not only `gate.yml`.
 
+## Changed at Test
+
+- **The first Windows CI run failed 238 install tests** that this change doesn't touch: GitHub's Windows image gives the temp folder a short 8.3 name with a `~`, which the install refuses in a Claude home by design, and the tests made their homes there. Reproduced here with a short-name temp folder. By the owner's q6 the test helpers now make their temp folders under the temp folder's long name.
+- **The security pair's follow-up** found only lows. By q7 the push rule now ties the pair's read to the pushed commit and says what a declined offer and a later push need; a Windows skip that guards installer path or link handling goes to the owner; the `--skips` list refuses a line out of its shape by its line number; the triggers and the Windows job's action pins are held exactly. F1 (line-break characters in a workflow) and F3 (other workflows read with the YAML reader) are filed as follow-up issues. By q8, a killed run's leftover junit report in the temp folder is an accepted risk under R21.
 ## Owner steps after the merge
 
 - After the first green run on `main`: add `gate-windows` to main's ruleset as a required check, with GitHub Actions as its expected source (D1).

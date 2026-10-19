@@ -70,6 +70,8 @@ function lockdownProblems(src) {
   };
   extras('the file', w, ['name', 'on', 'permissions', 'concurrency', 'jobs']);
   extras('on', w.on, ['pull_request', 'push']);
+  // F2: the trigger values too, as the CodeQL check holds them, so no filter narrows when the gate runs.
+  if (!same(w.on, { pull_request: null, push: { branches: ['main'] } })) out.push('does not run on every pull request and every push to main');
   if (!same(w.concurrency, CONCURRENCY)) out.push(CANCELS);
   const jobs = isMap(w.jobs) ? w.jobs : {};
   if (!same(Object.keys(jobs).sort(), GATE_JOBS.map(([id]) => id).sort())) out.push('holds other jobs than gate and gate-windows');
@@ -101,6 +103,11 @@ function lockdownProblems(src) {
     // Git Bash runs the env -u lines above unchanged; pwsh, the runner's default, would not.
     if (win && [...dryRun, ...full].some(s => s.shell !== 'bash')) out.push(`${id} does not run its steps in bash`);
   }
+  // F4: the Windows job uses the very commits of checkout and setup-node that gate uses.
+  const pinned = id => (Array.isArray(jobs[id]?.steps) ? jobs[id].steps : []).map(s => (isMap(s) ? s.uses : undefined));
+  [0, 1].forEach(i => {
+    if (pinned('gate-windows')[i] !== pinned('gate')[i]) out.push(`gate-windows's step ${i + 1} is not pinned to gate's commit`);
+  });
   return out;
 }
 
@@ -417,6 +424,9 @@ for (const [label, plant, says] of [
   ['gives a job shell defaults', s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    defaults:\n      run:\n        shell: sh\n'), extraKey('gate', 'defaults')],
   ['sets a shell on a gate step', s => s.replace('      - name: Gate suite, full tier\n        run:', '      - name: Gate suite, full tier\n        shell: sh\n        run:'), extraKey("gate's step 4", 'shell')],
   ['checks out another ref', s => s.replace('          persist-credentials: false\n', '          persist-credentials: false\n          ref: main\n'), extraKey("gate's step 1's with", 'ref')],
+  // #351 F2, F4 (q7): the triggers are held exactly, and the Windows job pins each action to the Linux job's commit.
+  ['filters its pull requests by path', s => s.replace('  pull_request:\n', '  pull_request:\n    paths: [docs/**]\n'), 'does not run on every pull request and every push to main'],
+  ['pins the Windows checkout apart from gate', inWindows(s => s.replace(/actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${'3'.repeat(40)}`)), "gate-windows's step 1 is not pinned to gate's commit"],
   ['renames the Windows check', inWindows(s => s.replace('    name: gate-windows\n', '    name: windows\n')), "gate-windows's check is not named gate-windows"],
   ['runs a line before the dry run', s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home"\n'), "gate's dry-run step runs other lines than the dry run"],
   ['drops the concurrency group', s => s.replace(/^concurrency:\n(?: {2}.+\n)+/m, ''), CANCELS],

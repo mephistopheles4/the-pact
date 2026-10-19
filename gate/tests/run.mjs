@@ -479,8 +479,25 @@ export function junitSkips(xml) {
   return out.sort();
 }
 
-/** A skip list's lines: blank lines and lines starting with # are left out. */
-export const skipList = text => text.split(/\r?\n/).map(l => l.trimEnd()).filter(l => l !== '' && !l.startsWith('#')).sort();
+/** A skip line's shape: a plain test-file name, a space, and a name in printable ASCII. */
+export const SKIP_LINE = /^[A-Za-z0-9][A-Za-z0-9._-]*\.test\.mjs [\x20-\x7E]+$/;
+
+/**
+ * A skip list's lines, sorted, and the numbers of the lines out of their
+ * shape (#351, D6), so a file named by mistake is refused by line number and
+ * never echoed. Blank lines and lines starting with # are left out.
+ */
+export function skipList(text) {
+  const lines = [];
+  const bad = [];
+  text.split(/\r?\n/).forEach((raw, i) => {
+    const l = raw.trimEnd();
+    if (l === '' || l.startsWith('#')) return;
+    if (SKIP_LINE.test(l)) lines.push(l);
+    else bad.push(i + 1);
+  });
+  return { lines: lines.sort(), bad };
+}
 
 /** Which seen skips the list lacks, and which listed skips weren't seen, each sorted; a line counts as often as it appears. */
 export function skipDifference(listed, seen) {
@@ -679,11 +696,14 @@ export async function main(argv) {
   }
   let listed = null;
   if (parsed.opts.skips !== null) {
+    let read;
     try {
-      listed = skipList(readFileSync(resolve(parsed.opts.skips), 'utf8'));
+      read = skipList(readFileSync(resolve(parsed.opts.skips), 'utf8'));
     } catch {
       return usage(say, 'the --skips list cannot be read');
     }
+    if (read.bad.length) return usage(say, `the --skips list holds a line out of its shape at line ${read.bad[0]}`);
+    listed = read.lines;
   }
 
   let changed = [];
