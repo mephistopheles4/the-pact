@@ -66,18 +66,52 @@ So commit any edit you make to the rules before step 4. If you edited the
 "Totals only" paragraph in an earlier clone, drop that edit: the paragraph is
 gone, and no session collects totals now (#189).
 
-## 3. Back up your own files
+## 3. Where the install keeps backups
 
-Copy your `~/.claude/CLAUDE.md`, `~/.claude/settings.json` and
-`~/.claude/agents/` folder, if you have them. A first install replaces your
-rules file with no backup of its own. An agent of yours that shares a pact
-agent's name is left as it is, and so is a pact agent you edit after an
-install: the pact manages only the agent files it wrote and still holds as it
-wrote them.
-[Undo the install](#undo-the-install) restores from these copies. Your
-settings file can hold API keys, so keep the copies outside the clone and any
-synced or shared folder, readable only by you, and delete them once you are
-sure of the install.
+Every `--apply` first copies what it will replace into
+`~/.claude/pact/backups/<name>/`, where `<name>` is the time in UTC and the
+commit the apply installs, such as `20261018T143005123Z-addaa8a`; the backup
+holds your files from before that commit. It copies each file it
+overwrites or deletes, `settings.json` when it merges or writes it, and the
+install record. A `manifest.json` lists each copy with its SHA-256, and each
+file the apply adds as `absent`, so [Undo an apply](#undo-an-apply) can put
+everything back. If the copy can't be made in full, the apply refuses and
+changes nothing. An agent of yours that shares a pact agent's name is left as
+it is, and so is a pact agent you edit after an install: the pact manages only
+the agent files it wrote and still holds as it wrote them.
+
+- **Backups start with the first apply after #272.** An install made earlier
+  has none, so keep your own copies of `~/.claude/CLAUDE.md`,
+  `~/.claude/settings.json` and `~/.claude/agents/` until you are sure you won't
+  uninstall: no backup holds the files your first install replaced.
+- **Every apply takes one,** an apply with nothing to do included. The
+  install keeps the ten newest, and each backup taken with no install record
+  before it, such as your first install's, until you delete it. So ten applies
+  push out an older backup: copy aside one you mean to keep.
+- **The copies are plain and unencrypted.** Your settings file can hold API
+  keys, and a key you rotate stays in the old copies until they are pruned or
+  you delete them. On Linux and macOS the install gives the backups owner-only
+  modes (`700` and `600`); an access-list entry inherited from `~/.claude` on
+  macOS can still widen them, and `ls -le` shows one. On Windows they take the
+  `~/.claude` folder's access list, as the `settings.json` beside them does, so
+  they reach no reader that file doesn't, though they hold its older contents
+  (R47 in the [threat model](threat-model.md)). To see who that list lets in,
+  or to narrow it, open the folder's Properties in Explorer and its Security
+  tab, or run `icacls "$env:USERPROFILE\.claude"` in PowerShell. A list for you
+  alone holds your account, SYSTEM and Administrators.
+- **Keep sessions out of the copies.** A session that opens or searches a copy
+  in the backups folder holds its keys in its context. A session may read a
+  backup's `manifest.json`, which holds no keys.
+- **Never sync, share or commit the backups folder.** Any copy you make
+  yourself, a backup copied aside or your own copies from before backups,
+  belongs outside the clone and any synced or shared folder, readable only by
+  you, and deleted once you are sure of the install.
+- **The prune leaves some entries alone:** a backup named later than the
+  newest apply's, and anything it doesn't recognise as a backup. Each may hold
+  a copy of your settings until you delete it. The dry run counts the entries
+  it doesn't recognise, and the apply warns of the backups named later.
+- **To delete backups,** delete their folders under `~/.claude/pact/backups/`
+  yourself, or the whole folder once you are sure of the install.
 
 ## 4. Run the dry run and read it
 
@@ -162,6 +196,20 @@ parts:
     (`showThinkingSummaries`);
   - turns on the experimental agent-teams flag
     (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`).
+- **`Backup: <n> file(s) to copy into pact/backups/ before the first write`.**
+  What `--apply` copies first (step 3), ending `(settings.json included)` when
+  the merge writes your settings. The dry run doesn't preview the prune: it
+  doesn't say which old backups the apply will remove (step 3). Three warnings
+  may follow it:
+  - `WARN: pact/backups holds <n> leftover staging folder(s) ...` names what
+    an apply that stopped mid-backup left. Each may hold a copy of your
+    settings: check it and delete it, since `--apply` refuses while one is
+    there;
+  - `WARN: pact/backups holds <n> entry(ies) the install does not recognise as
+    backups; ...` counts what the prune leaves as it is;
+  - `WARN: pact/backups is not a plain folder: ...` says a link, a file or
+    another reparse point sits where the backups go. `--apply` refuses until
+    you move it out of the way.
 - **`Configuration:`.** `no configuration`, unless you have a
   `~/.claude/pact/config.json`. If you do, it lists each setting and edit, and
   a rendered hash the apply command carries.
@@ -287,9 +335,22 @@ working tree with uncommitted changes. After it copies the files, it checks
 each one's hash again. A good install ends with:
 
 ```text
+BACKUP STARTED
+backed up <n> file(s) to pact/backups/<name>
+Applying.
+...
+pruned <k> old backup(s)
+  <name of each>
 Installed commit <commit> with no configuration; all files verified.
 RESULT: pass
 ```
+
+The `pruned` lines show only when the apply removed old backups (step 3).
+These `WARN:` lines may follow, with or without them: `WARN: pact/backups holds
+<n> backup(s) named later than this run's; ...`, `WARN: pact/backups holds <n>
+entry(ies) the install does not recognise as backups; ...` and `WARN: the prune
+of old backups in pact/backups stopped on an error; ...`. Each leaves your
+files as they are, and the install still passes.
 
 It installs these files under `~/.claude`:
 
@@ -312,7 +373,10 @@ It installs these files under `~/.claude`:
   `CLAUDE.md`. The kit's builder writes a page only outside any repo, the
   Claude home folder and any `.claude` folder;
 - `settings.json`, merged as the dry run showed;
-- `.pact-install.json`, the record the next install compares against.
+- `.pact-install.json`, the record the next install compares against;
+- `pact/backups/`, a backup of what each apply replaced (step 3). No install
+  record lists it, and the install never writes there except to back up and
+  prune.
 
 To keep presets of your own, create `~/.claude/pact/presets/` yourself and
 put builder files in it; `/scriptorium`'s page lists them under "Your
@@ -374,8 +438,8 @@ only your installed files, and run `/agents`. A pass lists these nine:
 
 You can hand the first install to a Claude Code session with this prompt. It
 names the one address to clone from, and leaves the apply to you, because an
-install is your call and nothing prompts before it. Do step 3's
-backup first. The prompt installs the rules as published, without step 2's
+install is your call and nothing prompts before it. The apply backs up what
+it replaces (step 3). The prompt installs the rules as published, without step 2's
 edits:
 
 > Clone the-pact from `https://github.com/mephistopheles4/the-pact`, and no other address, into a new, empty folder. Don't reuse or pull an existing clone. From the new clone's root, with `NODE_OPTIONS` unset, run `node gate/install.mjs` and show me the whole dry run, including its "Install from commit" line. Don't change anything else. Then show me the apply command the dry run printed, and stop. I'll run it myself.
@@ -388,16 +452,18 @@ Pull the repo, and read what changed before you run anything: the dry run
 runs the new code, and a session opened in the clone loads its project files.
 The dry run's `Last install:` line names the commit you have.
 `git diff <that commit> HEAD` shows everything that arrived since, merges
-included. Or check out a commit you have reviewed. Then repeat steps 3 to 5.
+included. Or check out a commit you have reviewed. Then repeat steps 4 and 5;
+the apply takes its own backup (step 3).
 The dry run compares your live files with the record of the last install, so
 it shows any you have edited since.
 
 If the dry run shows drift, live files changed since the last install, and
 `--apply` refuses. Whether to keep or replace those edits is your decision.
-Copy each file you want to keep somewhere safe. Then move
-`~/.claude/.pact-install.json` out of the folder: the next dry run reads as a
-first install, with no drift, and lists the files `--apply` will overwrite.
-After the apply, bring your edits back by hand, or carry them as a
+Move `~/.claude/.pact-install.json` out of the folder: the next dry run reads
+as a first install, with no drift, and lists the files `--apply` will
+overwrite. That apply's backup holds your edited files, and the install keeps
+it until you delete it, as a backup taken with no install record. After the
+apply, bring your edits back by hand from it, or carry them as a
 configuration (see below).
 
 To change the pact's settings, such as the usage pause lines or a lens's
@@ -476,19 +542,63 @@ also repeat the removal by hand in step 5.
 - **The leftover work folders** of a hard stop stay until you delete them
   (step 4).
 
-## Undo the install
+## Undo an apply
 
-The script has no uninstall. To back out by hand, under `~/.claude`:
+Do this yourself, not through a session: a session that reads a copy of your
+settings holds its keys in its context. The script has no undo command. Each
+backup in `~/.claude/pact/backups/` undoes one apply (step 3):
 
-1. **Put back your rules file and settings** from the copies you made in
-   step 3. With no copy of `settings.json`, edit it instead: remove the keys
-   the dry run listed under `settings.json:`, or set them back. Above all,
-   set `permissions.defaultMode` back to what you use, so you are not left
-   in auto mode.
-2. **Delete the pact's files:** the nine agents listed in step 6 from
-   `agents/`, `pact/review.md`, the `pact/builder/` folder, each pact command
-   in `commands/` that the record lists, `/scriptorium` included,
-   `pact/tools/poster.mjs` if the record lists it, and `.pact-install.json`.
-3. **Put back your own agents** from your copy of the `agents/` folder.
+1. **Pick the backup,** one whose name an apply you ran printed. To undo more
+   than one apply, go newest first, back to the one you want, and do steps 3 to
+   5 for each in turn.
+2. **Know what it undoes.** A copy-back puts each listed file back as it was
+   before that apply, losing any edit made to it since, including what Claude
+   Code writes to `settings.json`, such as permission rules.
+3. **Check its `manifest.json` before you act on it,** and stop on any
+   failure:
+   - each path is relative to `~/.claude`, with forward slashes and no `..`;
+   - no path is under `projects/`, `memory/`, `skills/`, `handover/`,
+     `pact/blocks/`, `pact/presets/`, `pact/backups/`, `pact/config.json`,
+     `pact/builder.json` or a `.credentials` file, the paths the install
+     never touches; `settings.json` and `.pact-install.json` may be listed;
+   - each `was: file` copy's SHA-256 matches its entry, by `sha256sum` or
+     `shasum -a 256`, or `Get-FileHash` in PowerShell (compare ignoring case);
+   - each `was: absent` path, other than `settings.json` and
+     `.pact-install.json`, is listed in your current
+     `~/.claude/.pact-install.json`, so a planted entry can't have you delete
+     a file of your own. Whatever could plant one could also rewrite the
+     record, so this narrows that path rather than closing it (R14).
+4. **Copy back each `was: file` entry:** `<backup>/<path>` to
+   `~/.claude/<path>`. Keep `settings.json`
+   readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux
+   and macOS.
+5. **Delete each `was: absent` path** that is there.
+6. **Run the dry run** to check, and read it before you start any session: it
+   shows no drift, its `Last install:` line names the commit in the name of the
+   next-older backup, the apply before the oldest one you undid (after undoing
+   a first install it reads as a first install), and
+   no `settings.json` warning names a command-running key you didn't set. Stop
+   on one.
+
+**Full uninstall.** Pick the oldest backup that lists `.pact-install.json` as
+`absent`, the first by name: your first install's. Run step 3's checks on it
+while your current record is still there; there, a `was: absent` path your
+current record doesn't list passes if it isn't on disk, and one that is on disk
+and unlisted is yours to leave alone. A backup taken after you moved the record
+aside (Updating later) is not your first install's: if every such backup was
+taken that way, or you deleted the first one, follow Installed before backups. Then delete the pact files your
+current record lists: the agents, `pact/review.md`, the `pact/builder/`
+folder, each pact command in `commands/`, `/scriptorium` included,
+`pact/tools/poster.mjs` if it is listed, and `.pact-install.json`. Then do
+steps 4 to 6 with that backup. If you had no `settings.json` before, step 5
+deletes it, with anything Claude Code wrote there since.
+
+**Installed before backups.** If no backup in `pact/backups/` lists
+`.pact-install.json` as `absent`, or each one that does was taken after you
+moved the record aside, your first install predates backups. Put
+back your own copies of your rules file, settings and agents. With no copy of
+`settings.json`, edit it instead: remove the keys the dry run listed under
+`settings.json:`, or set them back, `permissions.defaultMode` above all. Then
+delete the pact files your record lists, as for a full uninstall.
 
 Start a new session to load the change.

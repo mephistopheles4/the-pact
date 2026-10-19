@@ -28,6 +28,8 @@ spec (revision 9), built in #261.
 - **Preset:** a Scriptorium builder file shipped in `builder/presets/`, or shared, that the page loads after the person ticks what to take from it. It replaced the **setup**. A person's own presets live in `~/.claude/pact/presets/` and are listed apart, under "Your presets".
 - **Builder kit:** what `/scriptorium` runs from, installed under `~/.claude/pact/builder/`: the builder, the page, the presets, the pact's agents, the renderer, and the rules before any configuration as `claude/rules.source.md`.
 - **Yours (agent):** an agent file in `~/.claude/agents/` the pact didn't write, or changed since it wrote it. The install never overwrites, deletes or records it; the dry run lists it under "Yours, left as is" (ADR 0071).
+- **Install backup:** the dated folder under `~/.claude/pact/backups/` that an apply writes before its first write, holding a copy of each file it replaces and a manifest that also lists each path it adds (#272, ADR 0093).
+- **Copy-back:** undoing an apply from its install backup by hand: each copied file put back, each added path deleted, after checking the manifest (#272).
 ## The review lenses
 
 From the spec for #35 (revision 7). The roster below is a hypothesis: use on

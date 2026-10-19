@@ -1099,7 +1099,7 @@ export function isProtected(rel) {
     .filter(Boolean);
   const n = segs.join('/').toLowerCase();
   const leaf = segs.length ? segs[segs.length - 1].toLowerCase() : '';
-  return n === 'settings.json' || n === '.pact-install.json' || n === 'pact/config.json' || n === 'pact/builder.json' || leaf.startsWith('.credentials') || /^(projects|memory|skills|handover|pact\/blocks|pact\/presets)(\/|$)/.test(n);
+  return n === 'settings.json' || n === '.pact-install.json' || n === 'pact/config.json' || n === 'pact/builder.json' || leaf.startsWith('.credentials') || /^(projects|memory|skills|handover|pact\/blocks|pact\/presets|pact\/backups)(\/|$)/.test(n);
 }
 
 /** Only plain, canonical record paths are acted on: a name that is not already plain could be a Windows alias. */
@@ -1312,6 +1312,106 @@ export const stops = Object.freeze({
   reviewChangedStage: () => refuse('review-changed-stage', 'the review module changed the stage.', REVIEW_LEFT),
   reviewFailed: () => refuse('review-failed', 'the review output was not written, or not as this run rendered it.', REVIEW_LEFT),
   tempLeft: rel => refuse('temp-left', `a temp file the install writes through is already there: ${formatPlain(rel)}.pact-tmp. An earlier install stopped mid-write, and the file may hold a copy of your settings; check it, delete it, and run the install again.`),
+});
+
+// ------------------------------------------------------------ the backup (#272, S7 to S9)
+
+export const BACKUPS_REL = 'pact/backups';
+export const BACKUP_FORMAT = 'pact-backup-1';
+/** A backup's folder name: the UTC time to the millisecond, the commit's short id, and a free suffix when that is taken. */
+export const BACKUP_NAME_RE = /^\d{8}T\d{9}Z-[0-9a-f]{7}(-(0[2-9]|[1-9][0-9]))?$/;
+export const backupName = (date, commit) => `${date.toISOString().replace(/[-:.]/g, '')}-${commit.slice(0, 7)}`;
+/** What a run that ends between BACKUP STARTED and CHECKS DONE says, other than by the backup's own refusal. */
+export const STAGING_LEFT = 'pact/backups may hold a staging folder with a copy of your settings: check it and delete it; the next dry run names it.';
+export const backupKept = name => `The files it replaced are in ${BACKUPS_REL}/${name}; see Undo an apply in docs/install.md.`;
+
+const byPath = (a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+
+/**
+ * The backup's entries, sorted by path (S7): each path the apply overwrites or
+ * deletes, with the hash the plan read (`live(rel)`, memoised for the run);
+ * each path it adds, as absent; settings.json when the apply writes it
+ * (`settings`: the hash of the bytes the merge read, or null when it creates
+ * the file); the record (`record`: its hash, or null when there is none).
+ */
+export function backupEntries({ copy, add, live, settings, record }) {
+  const out = [];
+  for (const rel of copy) {
+    const s = live(rel);
+    if (!s || !s.file || !s.sha256) refuse('backup-source', `${formatPlain(rel)} is not a plain file, so the backup cannot copy it.`);
+    out.push({ path: rel, was: 'file', sha256: s.sha256 });
+  }
+  for (const rel of add) out.push({ path: rel, was: 'absent' });
+  if (settings !== undefined) out.push(settings === null ? { path: 'settings.json', was: 'absent' } : { path: 'settings.json', was: 'file', sha256: settings });
+  out.push(record === null ? { path: '.pact-install.json', was: 'absent' } : { path: '.pact-install.json', was: 'file', sha256: record });
+  return out.sort(byPath);
+}
+
+/** The manifest, written last into a backup: two-space JSON, keys in a fixed order, entries sorted by path. */
+export function manifestText({ commit, created, entries }) {
+  const listed = [...entries].sort(byPath).map(e => (e.was === 'file' ? { path: e.path, was: 'file', sha256: e.sha256, bytes: e.bytes } : { path: e.path, was: 'absent' }));
+  return `${JSON.stringify({ format: BACKUP_FORMAT, commit, created, entries: listed }, null, 2)}\n`;
+}
+
+/** The dry run's backup line (S9): how many files the apply will copy, and whether settings.json is one. */
+export const backupLine = (count, settings) => `Backup: ${count} file(s) to copy into ${BACKUPS_REL}/ before the first write${settings ? ' (settings.json included)' : ''}`;
+
+/** The dry run's warning for staging folders an earlier apply left (S9): each name cleaned. */
+export const stagingLine = names => `WARN: ${BACKUPS_REL} holds ${names.length} leftover staging folder(s) (${names.map(formatPlain).join(', ')}); each may hold a copy of your settings. Check and delete them; --apply refuses while they are there.`;
+
+/** How many backups the prune keeps by name, this run's included (S8). */
+export const BACKUP_KEEP = 10;
+export const MANIFEST_CAP = 1024 * 1024;
+
+/**
+ * A backup candidate from its manifest's text (S8): null unless it is a
+ * JSON object of this format with a list of entries. `noRecord` is true when
+ * the backup was taken with no install record before it (q8).
+ */
+export function readManifest(name, text) {
+  let m;
+  try {
+    m = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!m || typeof m !== 'object' || m.format !== BACKUP_FORMAT || !Array.isArray(m.entries)) return null;
+  return { name, noRecord: m.entries.some(e => e && e.path === '.pact-install.json' && e.was === 'absent') };
+}
+
+/**
+ * Which candidates the prune removes (S8), oldest first: it keeps the ten
+ * newest, this run's (`own`) included, every one named after this run's, and
+ * every one taken with no record. `later` counts those named after this run's.
+ */
+export function pruneSelect(candidates, own) {
+  const rest = candidates.filter(c => c.name <= own).sort((a, b) => (a.name < b.name ? 1 : -1));
+  const keep = new Set([own, ...rest.slice(0, BACKUP_KEEP).map(c => c.name)]);
+  return { remove: rest.filter(c => !keep.has(c.name) && !c.noRecord).map(c => c.name).reverse(), later: candidates.filter(c => c.name > own).length };
+}
+
+/** The non-candidates line, for the dry run and the apply (S8): entries the prune never touches. */
+export const othersLine = n => `WARN: ${BACKUPS_REL} holds ${n} entry(ies) the install does not recognise as backups; the prune leaves them as they are, and they may hold copies of your settings.`;
+
+/** What the apply prints after its prune (S9): each pruned name, then the warnings. */
+export function pruneLines({ pruned, later, others, failed }) {
+  const out = [];
+  if (pruned.length) out.push(`pruned ${pruned.length} old backup(s)`, ...pruned.map(n => `  ${formatPlain(n)}`));
+  if (later) out.push(`WARN: ${BACKUPS_REL} holds ${later} backup(s) named later than this run's; the prune leaves them, and they may hold copies of your settings.`);
+  if (others) out.push(othersLine(others));
+  if (failed) out.push(`WARN: the prune of old backups in ${BACKUPS_REL} stopped on an error; what is left there is safe to keep, and the next apply tries again.`);
+  return out;
+}
+
+/** The backup step's refusals (S7). A refusal after a full clean-up keeps "Nothing was changed."; one whose clean-up failed names the staging folder. */
+export const backupStops = Object.freeze({
+  link: rel => refuse('backup-link', `${formatPlain(rel)}, on the backup's path, is a link, another reparse point or not what the backup expects; move it out of the way, then run the install again.`),
+  stagingLeft: n => refuse('backup-staging-left', `${BACKUPS_REL} holds ${n} staging folder(s) an earlier apply left; each may hold a copy of your settings. Check and delete them, then run the install again.`),
+  nameTaken: () => refuse('backup-name-taken', `no free backup name is left in ${BACKUPS_REL} for this millisecond, or the name was taken while the install ran; run the install again.`),
+  changed: rel => refuse('backup-changed', `${formatPlain(rel)} changed while the install ran; run the install again.`),
+  mode: () => refuse('backup-mode', 'a backup file or folder can be read by other accounts on this machine; check the umask and the file system the Claude home folder sits on, then run the install again.'),
+  failed: () => refuse('backup-failed', 'the backup of the files this install replaces could not be written in full; check free space and that you can write to pact/backups, then run the install again.'),
+  cleanup: stagingRel => refuse('backup-cleanup', 'the backup failed, and what it wrote could not be removed.', `${stagingRel} may hold a copy of your settings: check it and delete it, then run the install again.`),
 });
 
 /** The review module's lines (S6, V1): exactly the hashes this run rendered, then RESULT: pass. */

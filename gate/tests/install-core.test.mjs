@@ -731,6 +731,17 @@ test('skip reasons: unsafe, protected, non-canonical and linked paths', () => {
   assert.equal(core.skipReason('agents/a.md', noLink), null);
 });
 
+test('#272 C8: no install record can make the install write or delete a path under pact/backups', () => {
+  for (const p of ['pact/backups', 'pact/backups/20261018T143005123Z-addaa8a/settings.json', 'Pact/Backups/x. ', 'pact/backups:stream']) assert.equal(core.skipReason(p, noLink), 'protected path', p);
+  const live = () => ({ exists: true, file: true, sha256: H('1') });
+  const record = core.parseRecord(json({ commit: 'x', files: [{ path: 'pact/backups/b/CLAUDE.md', sha256: H('1') }] }));
+  const p = core.plan(record, new Map(), live, noLink);
+  assert.deepEqual(p.delete, []);
+  assert.deepEqual(p.warnings, ['protected path in the install record, skipped: pact/backups/b/CLAUDE.md']);
+  // backup-source: a path the backup must copy that is no longer a plain file refuses before anything is made.
+  assert.throws(() => core.backupEntries({ copy: ['CLAUDE.md'], add: [], live: () => ({ exists: true, file: false, sha256: null }), record: null }), e => e instanceof core.Refusal && e.rule === 'backup-source');
+});
+
 // #262: an agent file changed since the install, or one the record never listed, is the person's: in yours, never drift, overwrite or delete.
 test('the plan: drift, overwrite, add, delete, yours and unchanged; a record hash in capitals is not drift; a first install deletes only the retired agents', () => {
   const liveFiles = new Map([['CLAUDE.md', H('1')], ['pact/review.md', H('9')], ['agents/a.md', H('9')], ['agents/old.md', H('3')], ['agents/edited-old.md', H('6')], ['agents/builder.md', H('4')], ['agents/mine.md', H('5')]]);

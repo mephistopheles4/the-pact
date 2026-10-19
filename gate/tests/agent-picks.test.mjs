@@ -22,6 +22,7 @@ const INSTALL_PICKS = Object.freeze([
   'agents-yours-install.test.mjs', // edits scout in place, and names the repo's copy
   'builder-install.test.mjs', // saves an edited scout prompt and names its agent path
   'builder-kit-install.test.mjs', // lists the kit's agents against the repo's
+  'install-backup.test.mjs', // edits scout in the repo copy, and compares the backup's copy of it (#272)
   'install-edits.test.mjs', // lists the copy's agents
   'install-project.test.mjs', // names the live folder's agents in its own text
   'install-smoke.test.mjs', // the smoke set; compares every installed agent
