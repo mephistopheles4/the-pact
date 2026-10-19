@@ -645,7 +645,7 @@ session can act before you see it.
   every build and the security pair with the sensitive route, but nothing runs the lens to show it still follows
   its carried rules or resists planted text. A lens that reads well and
   behaves badly shows up only in use.
-- **R21. The test runner and its helpers are ordinary test code.** The
+- **R21. The test runner, its helpers and the gate's tests are ordinary test code.** The
   runner, its copy list, the gate's tests (written as plain `test()` loops
   since #272; the registration guard that went with the table module is
   gone, and the QA pair's read of every change to the gate's tests stands in
