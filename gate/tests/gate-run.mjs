@@ -13,7 +13,7 @@
 // (#155); it touches no file and starts no process. Ordinary test code
 // since #189, proved by use; weakening it could let every in-process case pass.
 import { spawnSync } from 'node:child_process';
-import { cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -167,8 +167,10 @@ export function renderStage(root, claudeHome) {
     return;
   }
   if (!st.isFile()) return;
-  const out = mkdtempSync(join(tmpdir(), 'pact-render-'));
-  const empty = claudeHome ? null : mkdtempSync(join(tmpdir(), 'pact-render-home-'));
+  // The temp folder by its long name, as tree.mjs's tempDir makes it (#351).
+  const tmp = realpathSync.native(tmpdir());
+  const out = mkdtempSync(join(tmp, 'pact-render-'));
+  const empty = claudeHome ? null : mkdtempSync(join(tmp, 'pact-render-home-'));
   try {
     // In-process through the renderer's core (#140, T10); parity.test.mjs proves it prints what the wrapper does.
     const r = runCore('render', [md, out, claudeHome ?? empty]);

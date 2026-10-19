@@ -1,0 +1,33 @@
+# The tests the gate-windows job may skip (#351), one per line: the test
+# file's name, a space and the test's name, as the runner's --skips prints
+# them after its prefix. The job fails on any skip this list lacks and on any listed skip that
+# ran, so a change here is a reviewed change to what Windows CI checks. A
+# line added for a test that guards the installer's link, path or file
+# handling is input validation: it matches the sensitive-work list, and the
+# skip goes to the owner.
+# Taken from a local PowerShell full run at the part-1 PR's head (#351),
+# less the short-name case: GitHub's runner gives its temp folder a short
+# name, so that case runs there (spec S4.4's expected difference), and plus
+# the unreadable-file case: the runner's elevated account reads past a deny,
+# so the plant can't take there; it runs on Linux and on Windows unelevated
+# (a reviewed skip of an installer file guard, the owner's q10). render-config's
+# unreadable-file case skips there for the same reason (q11).
+agent-settings.test.mjs bad case: an agent file that is a link is refused
+cloud-sessions.test.mjs cloud copy: both generated setup scripts parse under bash -n
+config-install.test.mjs bad case: an unreadable configuration file refuses, and -Apply writes nothing
+contained.test.mjs bad case: a dangling link planted at the temp name refuses, and nothing is created outside the folder
+install-backup.test.mjs #272 C6: on Linux and macOS the backup folders are 0700 and its files 0600
+install-node.test.mjs node: a configuration blocks folder that cannot be read refuses
+install-node.test.mjs node: a new settings file and the record are owner-only on Unix
+install-node.test.mjs node: a settings file other accounts can read draws a warning, and --apply keeps its mode
+install-node.test.mjs node: a signal stops the runner and removes the work folder
+install-project.test.mjs bad case: a special-file configuration refuses
+install-project.test.mjs bad case: a special-file record refuses
+render-config.test.mjs bad case: a Claude home folder that is a file refuses, never read as no configuration
+render-config.test.mjs bad case: a Claude home path through a file refuses, never read as no configuration
+render-config.test.mjs bad case: a configuration file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW
+render-config.test.mjs bad case: an unreadable configuration file refuses
+render-edits.test.mjs bad case: a block file swapped for a link between its lstat and its open refuses, by O_NOFOLLOW
+run.test.mjs shell: a control character in a test-file name is printed replaced
+run.test.mjs shell: an untracked file with a control character in its name prints with it replaced
+seam-a.test.mjs bad case: two agents whose names differ only in case

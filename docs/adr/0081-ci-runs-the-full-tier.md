@@ -1,5 +1,7 @@
 # CI runs the full tier
 
+Amended by [ADR 0095](0095-ci-runs-the-gate-on-windows-too.md) (2026-10-19): CI has two jobs, `gate` on Linux and `gate-windows` on Windows, each running the dry run and `full`.
+
 The `gate` workflow runs the gate suite's `full` tier, not `fast` (#303). This supersedes the line of [ADR 0041](0041-a-required-ci-check-guards-main.md) that says "It runs `fast`, not `full`: the install tier runs at move 4, on the owner's machine."
 
 ## Why

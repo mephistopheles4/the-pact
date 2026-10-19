@@ -35,29 +35,90 @@ function commonProblems(src) {
   if (!perms || perms[1].trim() !== 'contents: read' || (code.match(/^\s*permissions:/gm) ?? []).length !== 1) out.push('asks for more than read access to the contents');
   if (/\bsecrets\.|\$\{\{\s*github\.token|GITHUB_TOKEN/.test(code)) out.push('reads a secret or the token');
   for (const m of code.matchAll(/uses:\s*(\S+)/g)) if (!/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/.test(m[1])) out.push(`uses ${m[1]}, not pinned to a full commit SHA`);
-  const checkout = /uses: actions\/checkout@[0-9a-f]{40}[^\n]*\n((?: {8,}.+\n)*)/.exec(`${code}\n`);
-  if (/uses: actions\/checkout@/.test(code) && (!checkout || !/persist-credentials: false/.test(checkout[1]))) out.push('leaves the token in the checkout');
+  // #351: every checkout step, not only the first.
+  const checkouts = [...`${code}\n`.matchAll(/uses: actions\/checkout@[0-9a-f]{40}[^\n]*\n((?: {8,}.+\n)*)/g)];
+  if (checkouts.length !== (code.match(/uses: actions\/checkout@/g) ?? []).length || checkouts.some(c => !/persist-credentials: false/.test(c[1]))) out.push('leaves the token in the checkout');
   if (/upload-artifact|actions\/cache/.test(code)) out.push('uploads or caches the workspace');
   return out;
 }
 
-/** Where the gate workflow breaks its lockdown, as plain sentences; empty when it keeps it. */
+// #351 (#348 S4.1): the gate workflow's two jobs, the runner each is pinned to, and its full-tier line; the Windows run checks its skips against a committed list (q2).
+const FULL = 'env -u NODE_OPTIONS node gate/tests/run.mjs full';
+const DRY_RUN = 'env -u NODE_OPTIONS node gate/install.mjs --claude-home "$RUNNER_TEMP/pact-home"';
+const DRY_STEP = `mkdir -p "$RUNNER_TEMP/pact-home"\n${DRY_RUN}\n`;
+// The Windows step also plants a real Claude folder with a plain subfolder in the runner's home, as the Linux container's image does, so the installer's real-folder guards run (q11).
+const GATE_JOBS = [
+  ['gate', 'ubuntu-24.04', FULL, DRY_STEP],
+  ['gate-windows', 'windows-2025', `${FULL} --skips gate/tests/windows-skips.txt`, `mkdir -p "$RUNNER_TEMP/pact-home"\nmkdir -p "$HOME/.claude/agents"\n${DRY_RUN}\n`],
+];
+// Pull requests share a group per ref, so a newer push cancels the older run; each push to main has a group of its own commit.
+const CANCELS = 'does not hold the concurrency group that cancels an older run only on a pull request';
+const CONCURRENCY = { group: "gate-${{ github.event_name == 'pull_request' && github.ref || github.sha }}", 'cancel-in-progress': 'true' };
+
+/** Where the gate workflow breaks its lockdown, as plain sentences; empty when it keeps it. Each job is read on its own. */
 function lockdownProblems(src) {
   const code = codeOf(src);
   const out = commonProblems(src);
-  if (!/uses: actions\/checkout@/.test(code)) out.push('does not check the repo out');
-  if (!/node-version: '24'/.test(code)) out.push('runs another Node than the floor');
-  if (!/env -u NODE_OPTIONS node gate\/install\.mjs --claude-home "\$RUNNER_TEMP\/pact-home"/.test(code)) out.push('does not run the install dry run');
-  if (!/^ {8}run: env -u NODE_OPTIONS node gate\/tests\/run\.mjs full$/m.test(code)) out.push('does not run the full tier');
   // #310: an if: skips the gate, and a skipped required check counts as passing; continue-on-error keeps a failed gate green.
   if (/(?:^\s*(?:- )?|[{,]\s*)['"]?if['"]?\s*:/m.test(code)) out.push('lets the gate job or a step be skipped');
   if (/(?:^\s*(?:- )?|[{,]\s*)['"]?continue-on-error['"]?\s*:/m.test(code)) out.push('lets the gate carry on after an error');
   if (!/^ {2}pull_request:\s*$/m.test(code) || !/^ {2}push:\n {4}branches: \[main\]$/m.test(code)) out.push('does not run on every pull request and every push to main');
+  let w;
+  try {
+    w = readYaml(code);
+  } catch (e) {
+    return [...out, `is not in the YAML the check reads: ${e.message}`];
+  }
+  // #351, the security pair's first read, F1: an exact allow-list at every level, as the CodeQL workflow has, so no env, defaults, shell or checkout input changes what the lines below run.
+  const extras = (where, obj, keys) => {
+    if (isMap(obj)) for (const k of Object.keys(obj)) if (!keys.includes(k)) out.push(extraKey(where, k));
+  };
+  extras('the file', w, ['name', 'on', 'permissions', 'concurrency', 'jobs']);
+  extras('on', w.on, ['pull_request', 'push']);
+  // F2: the trigger values too, as the CodeQL check holds them, so no filter narrows when the gate runs.
+  if (!same(w.on, { pull_request: null, push: { branches: ['main'] } })) out.push('does not run on every pull request and every push to main');
+  if (!same(w.concurrency, CONCURRENCY)) out.push(CANCELS);
+  const jobs = isMap(w.jobs) ? w.jobs : {};
+  if (!same(Object.keys(jobs).sort(), GATE_JOBS.map(([id]) => id).sort())) out.push('holds other jobs than gate and gate-windows');
+  for (const [id, runner, fullLine, dryStep] of GATE_JOBS) {
+    if (!isMap(jobs[id])) continue;
+    const job = jobs[id];
+    const win = id === 'gate-windows';
+    extras(id, job, ['name', 'runs-on', 'timeout-minutes', 'steps']);
+    // The check's name is what the ruleset requires.
+    if (job.name !== id) out.push(`${id}'s check is not named ${id}`);
+    const raw = Array.isArray(job.steps) ? job.steps : [];
+    if (raw.length !== 4) out.push(`${id} holds other steps than checkout, setup-node, the dry run and the full tier`);
+    const runKeys = ['name', 'run', ...(win ? ['shell'] : [])];
+    [['uses', 'with'], ['uses', 'with'], runKeys, runKeys].forEach((keys, i) => extras(`${id}'s step ${i + 1}`, raw[i], keys));
+    extras(`${id}'s step 1's with`, raw[0]?.with, ['persist-credentials']);
+    extras(`${id}'s step 2's with`, raw[1]?.with, ['node-version']);
+    if (isMap(raw[2]) && raw[2].run !== dryStep) out.push(`${id}'s dry-run step runs other lines than the dry run`);
+    if (job['runs-on'] !== runner) out.push(`${id} does not run on ${runner}`);
+    if (!/^[1-9]\d*$/.test(job['timeout-minutes'] ?? '')) out.push(`${id} has no time limit`);
+    // A matrix renames the check, so the required check would never report.
+    if (Object.hasOwn(job, 'strategy')) out.push(`${id} runs on a matrix`);
+    const steps = Array.isArray(job.steps) ? job.steps.filter(isMap) : [];
+    if (!steps.some(s => /^actions\/checkout@/.test(s.uses ?? ''))) out.push(`${id} does not check the repo out`);
+    if (!steps.some(s => /^actions\/setup-node@/.test(s.uses ?? '') && s.with?.['node-version'] === '24')) out.push(`${id} runs another Node than the floor`);
+    const dryRun = steps.filter(s => typeof s.run === 'string' && s.run.split('\n').some(l => l.trim() === DRY_RUN));
+    const full = steps.filter(s => s.run === fullLine);
+    if (!dryRun.length) out.push(`${id} does not run the install dry run`);
+    if (!full.length) out.push(`${id} does not run the full tier`);
+    // Git Bash runs the env -u lines above unchanged; pwsh, the runner's default, would not.
+    if (win && [...dryRun, ...full].some(s => s.shell !== 'bash')) out.push(`${id} does not run its steps in bash`);
+  }
+  // F4: the Windows job uses the very commits of checkout and setup-node that gate uses.
+  const pinned = id => (Array.isArray(jobs[id]?.steps) ? jobs[id].steps : []).map(s => (isMap(s) ? s.uses : undefined));
+  [0, 1].forEach(i => {
+    if (pinned('gate-windows')[i] !== pinned('gate')[i]) out.push(`gate-windows's step ${i + 1} is not pinned to gate's commit`);
+  });
   return out;
 }
 
 const isMap = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const extraKey = (where, key) => `${where} holds ${key}, which the allow-list doesn't name`;
 /** A line with a trailing comment cut, outside quotes. */
 function uncommented(line) {
   let quote = null;
@@ -292,18 +353,27 @@ function premiseProblems(files) {
   return [...new Set(out)];
 }
 
-/** Where the workflow folder breaks the lockdown: the gate workflow's own, the CodeQL workflow's allow-list, every other file's common lockdown, and no other job named gate. */
+/** Where the workflow folder breaks the lockdown: the gate workflow's own, the CodeQL workflow's allow-list, every other file's common lockdown, and no other job named gate or gate-windows. */
 function folderProblems(files) {
   const out = [];
   if (!files.has('gate.yml')) out.push('has no gate.yml');
   for (const [name, src] of files) {
     const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : commonProblems(src);
     out.push(...problems.map(p => `${name} ${p}`));
-    if (name !== 'gate.yml' && /^ {2}gate:\s*$|^\s+name:\s*['"]?gate['"]?\s*$/m.test(codeOf(src))) out.push(`${name} defines a job or check named gate`);
+    if (name === 'gate.yml') continue;
+    // #351: gate-windows is the second required check's name. Trailing comments are cut and a key may be quoted (the first read's F4).
+    const code = codeOf(src).split('\n').map(uncommented).join('\n');
+    for (const [id] of GATE_JOBS) {
+      if (new RegExp(`^ {2}['"]?${id}['"]?:\\s*$|^\\s+(?:- )?['"]?name['"]?:\\s*['"]?${id}['"]?\\s*$`, 'm').test(code)) out.push(`${name} defines a job or check named ${id}`);
+    }
   }
   return out;
 }
 const realFolder = () => new Map(readdirSync(WORKFLOWS).filter(n => /\.ya?ml$/.test(n)).map(n => [n, readFileSync(join(WORKFLOWS, n), 'utf8')]));
+
+// A plant in the Windows job only: the job is the file's last, so its text runs from its key to the end.
+const WINDOWS_JOB = '\n  gate-windows:\n';
+const inWindows = plant => s => s.slice(0, s.indexOf(WINDOWS_JOB)) + plant(s.slice(s.indexOf(WINDOWS_JOB)));
 
 test('the gate workflow keeps its lockdown', () => {
   assert.deepEqual(lockdownProblems(readFileSync(WORKFLOW, 'utf8')), []);
@@ -321,15 +391,15 @@ for (const [label, plant, says] of [
   ['pins an action to a tag', s => s.replace(/actions\/setup-node@[0-9a-f]{40}/, 'actions/setup-node@v7'), 'uses actions/setup-node@v7, not pinned to a full commit SHA'],
   ['keeps the token in the checkout', s => s.replace('persist-credentials: false', 'persist-credentials: true'), 'leaves the token in the checkout'],
   ['uploads the workspace', s => s.replace('      - name: Gate suite', '      - uses: actions/upload-artifact@0000000000000000000000000000000000000000\n      - name: Gate suite'), 'uploads or caches the workspace'],
-  ['drops the dry run', s => s.replace(/ {10}env -u NODE_OPTIONS node gate\/install\.mjs.*\n/, ''), 'does not run the install dry run'],
-  ['runs an old Node', s => s.replace("node-version: '24'", "node-version: '20'"), 'runs another Node than the floor'],
+  ['drops the dry run', s => s.replace(/ {10}env -u NODE_OPTIONS node gate\/install\.mjs.*\n/, ''), 'gate does not run the install dry run'],
+  ['runs an old Node', s => s.replace("node-version: '24'", "node-version: '20'"), 'gate runs another Node than the floor'],
   ['runs on workflow_run', s => s.replace('  pull_request:\n', '  pull_request:\n  workflow_run:\n'), 'runs on a trigger that holds secrets or a write token'],
   ['reads the job token', s => s.replace("node-version: '24'", "node-version: '24'\n          token: ${{ github.token }}"), 'reads a secret or the token'],
   ['reads GITHUB_TOKEN', s => s.replace('      - name: Gate suite', '      - env:\n          T: GITHUB_TOKEN\n        name: Gate suite'), 'reads a secret or the token'],
   ['caches the workspace', s => s.replace('      - name: Gate suite', '      - uses: actions/cache@0000000000000000000000000000000000000000\n      - name: Gate suite'), 'uploads or caches the workspace'],
-  ['drops the full tier', s => s.replace(/ {8}run: env -u NODE_OPTIONS node gate\/tests\/run\.mjs full\n?/, '        run: echo skipped\n'), 'does not run the full tier'],
-  ['runs the fast tier instead', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs fast'), 'does not run the full tier'],
-  ['narrows the full tier', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs full --list'), 'does not run the full tier'],
+  ['drops the full tier', s => s.replace(/ {8}run: env -u NODE_OPTIONS node gate\/tests\/run\.mjs full\n?/, '        run: echo skipped\n'), 'gate does not run the full tier'],
+  ['runs the fast tier instead', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs fast'), 'gate does not run the full tier'],
+  ['narrows the full tier', s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs full --list'), 'gate does not run the full tier'],
   ['drops the pull_request trigger', s => s.replace('  pull_request:\n', ''), 'does not run on every pull request and every push to main'],
   // #310 C1, C2: each key planted on the job and on the gate-suite step.
   ['skips the gate job on a condition', s => s.replace('    timeout-minutes: 30\n', "    timeout-minutes: 30\n    if: github.actor != 'x'\n"), 'lets the gate job or a step be skipped'],
@@ -340,6 +410,40 @@ for (const [label, plant, says] of [
   ['skips a step written as a flow mapping', s => s.replace('      - name: Gate suite, full tier\n', '      - { if: false, name: x, run: x }\n      - name: Gate suite, full tier\n'), 'lets the gate job or a step be skipped'],
   ['carries on after the gate job fails', s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    continue-on-error: true\n'), 'lets the gate carry on after an error'],
   ['drops the push trigger', s => s.replace('  push:\n    branches: [main]\n', ''), 'does not run on every pull request and every push to main'],
+  // #351 C2 (#348 S4.2): the two jobs, each read on its own.
+  ['adds a third job', s => `${s}  extra:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 5\n    steps:\n      - run: echo ok\n`, 'holds other jobs than gate and gate-windows'],
+  ['drops the Windows job', s => s.slice(0, s.indexOf(WINDOWS_JOB) + 1), 'holds other jobs than gate and gate-windows'],
+  ['moves gate to another runner', s => s.replace('runs-on: ubuntu-24.04', 'runs-on: ubuntu-latest'), 'gate does not run on ubuntu-24.04'],
+  ['runs gate-windows on windows-latest', inWindows(s => s.replace('runs-on: windows-2025', 'runs-on: windows-latest')), 'gate-windows does not run on windows-2025'],
+  ['drops the Windows time limit', inWindows(s => s.replace('    timeout-minutes: 45\n', '')), 'gate-windows has no time limit'],
+  ['runs the fast tier on Windows', inWindows(s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs fast')), 'gate-windows does not run the full tier'],
+  // #351 (q2): the Windows run fails unless its skips match its committed list exactly.
+  ['drops the skip list on Windows', inWindows(s => s.replace(' --skips gate/tests/windows-skips.txt', '')), 'gate-windows does not run the full tier'],
+  ['drops the Windows dry run', inWindows(s => s.replace(/ {10}env -u NODE_OPTIONS node gate\/install\.mjs.*\n/, '')), 'gate-windows does not run the install dry run'],
+  ['drops bash from a Windows step', inWindows(s => s.replace('        shell: bash\n', '')), 'gate-windows does not run its steps in bash'],
+  // #351 (q14): the full step's bash too, not only the dry run's.
+  ['drops bash from the Windows full step', inWindows(s => s.replace('      - name: Gate suite, full tier\n        shell: bash\n', '      - name: Gate suite, full tier\n')), 'gate-windows does not run its steps in bash'],
+  ['keeps the token in the Windows checkout', inWindows(s => s.replace('persist-credentials: false', 'persist-credentials: true')), 'leaves the token in the checkout'],
+  ['runs an old Node on Windows', inWindows(s => s.replace("node-version: '24'", "node-version: '20'")), 'gate-windows runs another Node than the floor'],
+  ['folds the two jobs into a matrix', s => s.slice(0, s.indexOf(WINDOWS_JOB) + 1).replace('    runs-on: ubuntu-24.04\n', '    strategy:\n      matrix:\n        os: [ubuntu-24.04, windows-2025]\n    runs-on: ${{ matrix.os }}\n'), 'gate runs on a matrix'],
+  // #351, the first read's F1 (q3): the file is held to an exact allow-list, as the CodeQL workflow is, so no key changes what the required lines do.
+  ['sets a top-level env', s => s.replace('\njobs:\n', '\nenv:\n  CI: \'\'\njobs:\n'), extraKey('the file', 'env')],
+  ['gives a job shell defaults', s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    defaults:\n      run:\n        shell: sh\n'), extraKey('gate', 'defaults')],
+  ['sets a shell on a gate step', s => s.replace('      - name: Gate suite, full tier\n        run:', '      - name: Gate suite, full tier\n        shell: sh\n        run:'), extraKey("gate's step 4", 'shell')],
+  ['checks out another ref', s => s.replace('          persist-credentials: false\n', '          persist-credentials: false\n          ref: main\n'), extraKey("gate's step 1's with", 'ref')],
+  // #351, the follow-up read's F2 and F4 (q7): the triggers are held exactly, and the Windows job pins each action to the Linux job's commit.
+  ['filters its pull requests by path', s => s.replace('  pull_request:\n', '  pull_request:\n    paths: [docs/**]\n'), 'does not run on every pull request and every push to main'],
+  ['pins the Windows checkout apart from gate', inWindows(s => s.replace(/actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${'3'.repeat(40)}`)), "gate-windows's step 1 is not pinned to gate's commit"],
+  // #351 (q14): setup-node's pin is held equal too.
+  ['pins the Windows setup-node apart from gate', inWindows(s => s.replace(/actions\/setup-node@[0-9a-f]{40}/, `actions/setup-node@${'3'.repeat(40)}`)), "gate-windows's step 2 is not pinned to gate's commit"],
+  // #351 (q11): the Windows dry-run step plants a real Claude folder, so the installer's real-folder guards run there.
+  ['drops the real Claude folder on Windows', inWindows(s => s.replace('          mkdir -p "$HOME/.claude/agents"\n', '')), "gate-windows's dry-run step runs other lines than the dry run"],
+  ['renames the Windows check', inWindows(s => s.replace('    name: gate-windows\n', '    name: windows\n')), "gate-windows's check is not named gate-windows"],
+  ['runs a line before the dry run', s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home"\n'), "gate's dry-run step runs other lines than the dry run"],
+  ['drops the concurrency group', s => s.replace(/^concurrency:\n(?: {2}.+\n)+/m, ''), CANCELS],
+  ['keys the concurrency group on the ref alone', s => s.replace(/^( {2}group: ).*$/m, '$1gate-${{ github.ref }}'), CANCELS],
+  // #351 (q14): the group cancels the older run, not only groups it.
+  ['turns off cancelling an older run', s => s.replace('  cancel-in-progress: true\n', '  cancel-in-progress: false\n'), CANCELS],
 ]) {
   test(`bad case: the workflow lockdown check catches a workflow that ${label}`, () => {
     const src = readFileSync(WORKFLOW, 'utf8');
@@ -355,6 +459,12 @@ for (const [label, other, says] of [
   ['runs on pull_request_target', OTHER.replace('  pull_request:', '  pull_request_target:'), 'other.yml runs on a trigger that holds secrets or a write token'],
   ['defines a job named gate', OTHER.replace('  lint:', '  gate:'), 'other.yml defines a job or check named gate'],
   ['names a job gate', OTHER.replace('    runs-on:', '    name: gate\n    runs-on:'), 'other.yml defines a job or check named gate'],
+  // #351 C2 (#348 S4.2): gate-windows is the second required check's name.
+  ['defines a job named gate-windows', OTHER.replace('  lint:', '  gate-windows:'), 'other.yml defines a job or check named gate-windows'],
+  ['names a job gate-windows', OTHER.replace('    runs-on:', '    name: gate-windows\n    runs-on:'), 'other.yml defines a job or check named gate-windows'],
+  // #351, the first read's F4 (q3): a trailing comment or a quoted key doesn't hide the name.
+  ['names a job gate-windows before a comment', OTHER.replace('    runs-on:', '    name: gate-windows # look-alike\n    runs-on:'), 'other.yml defines a job or check named gate-windows'],
+  ['defines a quoted job id gate-windows', OTHER.replace('  lint:', "  'gate-windows':"), 'other.yml defines a job or check named gate-windows'],
 ]) {
   test(`bad case: the folder check catches a second workflow file that ${label}`, () => {
     const files = realFolder();
@@ -370,7 +480,6 @@ test('the CodeQL workflow keeps its allow-list', () => {
 
 const TRIGGERS = 'runs on other triggers than a push to main, every pull request, a weekly schedule and a manual run';
 const YAML_FORM = 'uses a YAML anchor, alias, merge key or flow mapping';
-const extraKey = (where, key) => `${where} holds ${key}, which the allow-list doesn't name`;
 for (const [label, plant, says] of [
   ['runs on issue comments', s => s.replace('  workflow_dispatch:\n', '  workflow_dispatch:\n  issue_comment:\n'), TRIGGERS],
   ['drops the schedule', s => s.replace(/ {2}schedule:\n {4}- cron: .*\n/, ''), TRIGGERS],

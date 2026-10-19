@@ -12,7 +12,8 @@ Claude Code session on your machine behaves.
 **Where these steps were tried:**
 
 - **Windows:** a real install over an earlier one, dry run and `--apply`
-  (Windows 11, Node 24).
+  (Windows 11, Node 24), and the dry run in CI on every pull request
+  (Windows Server 2025, Node 24, under Git Bash).
 - **Linux:** the dry run in CI on every pull request (Ubuntu, Node 24), and
   the gate's tests, which install into throwaway folders, in the repo's Linux
   container (`gate/tests/fixtures/linux/`).

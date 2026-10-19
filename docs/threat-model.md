@@ -109,7 +109,7 @@ and the render, not your sight of them (R22). The builder page's policy
 hashes: its content security policy names the SHA-256 of its inline script
 and style, and the browser runs only those. Others, among them the install's
 internal hand-offs, the project install's rules file and record, and CI's
-actions pinned to full commit ids, use hashes the same way. The atomic writer takes random bytes only to
+actions, in every workflow, the gate workflow's two jobs included, pinned to full commit ids, use hashes the same way. CI's action pins are git's object ids too, SHA-1 with collision detection, below the hash strength ASVS asks of integrity checks. The residual is a collision prepared by the author of a pinned action who wrote both commits; accepted by the owner on 2026-10-19, in chat, relayed by the head chef, from adversarial-lens's F5 in #351's Test review. The atomic writer takes random bytes only to
 name a temporary file. Transport is git's and GitHub's, outside this page. A
 change that adds a secret, key, signature or encryption step is new scope,
 and sensitive work under the default.
@@ -258,11 +258,11 @@ How to read it:
 | R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline that came only by relay kept open until you answer in chat; review of a lens change, with the security pair when you ask for it (ADR 0072); a change Claude doesn't see as sensitive, judgment | Rule, judgment |
 | R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build, in the default workflow, which a home configuration can change behind the security-defaults line (#262, R30); here, the QA pair reads every change to the gate's tests at Test, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line; elsewhere, judgment | Rule, judgment |
+| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
-| R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check: nothing outside `gate/tests/` loads a file inside it | Rule |
-| R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
+| R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check and in `gate-windows`: nothing outside `gate/tests/` loads a file inside it | Rule |
+| R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a diff touching `.github/` or the lockdown test waits for the security pair's read or your word before any push (#351); a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
 | R29 Hidden characters in reports | A lens or a file it read that carries control or direction-changing characters into a posted report | The lens files' rule, a search of each report before posting, fences and code spans; on an install with the poster on, its hidden-text scan as a backstop (#280) | Rule |
 | R30 Security defaults rewritten | A local process or a fooled session that writes the configuration folder, the builder file or a preset in `pact/presets/` | The dry run's security-defaults line, first, for an edit to any of the six parts that set security defaults (`tiers`, `sensitive`, `workflow`, `lenses`, `qualities`, `cost-limits`); it points by part name, and any part, moves included, can carry narrowing prose that shows only as that part's own warning, and a move's whole text can be replaced; the offers paragraph sits outside every part; the builder's checks, and the Presets checklist that shows what a preset or shared file carries before it is taken, are your look, not install-time controls (#262) | Boundary (a pointer), judgment |
@@ -545,7 +545,15 @@ once you install it.
   owner chose this over narrowing the phrase (#189, ADR 0050), accepted that
   personal data written into code or logs can ship below the thorough tier
   (#186, ADR 0056), and cut the no-secret rule from the pact as judgment
-  (#261, ADR 0060).
+  (#261, ADR 0060). Since #351 a branch here is pushed before Test, so the
+  push is its first publish: before any push a session reads every commit it
+  publishes for a secret, a personal detail or this machine's paths and
+  names, and a change the security pair is due on or offered for waits for
+  your answer to the offer and, when the pair runs, for its read of the
+  branch squashed to one commit (2026-10-19, the owner's q4 on #351, relayed
+  by the head chef from the owner's chat). The push publishes the commit the
+  pair read, and a later push that changes it waits for a follow-up read or
+  your word (2026-10-19, the owner's q7 on #351, in chat).
 
 ## A session that reads text as instructions
 
@@ -683,13 +691,18 @@ session can act before you see it.
   runner, its copy list, the gate's tests (written as plain `test()` loops
   since #272; the registration guard that went with the table module is
   gone, and the QA pair's read of every change to the gate's tests stands in
-  for it), the in-process runner and the guards beside it decide what "the full suite" and the required CI check
-  run. Since #189 a change to them is proved by use, not by the security
+  for it), the in-process runner and the guards beside it decide what "the full suite" and CI's two checks,
+  `gate` and `gate-windows`, run. Since #189 a change to them is proved by use, not by the security
   route. An ordinary edit, or one a fooled session makes, could narrow what
-  the CI check runs, or weaken record mode's scrub, which keeps local paths
-  and names out of posted test output. The required CI check can't catch
-  that, because it runs the runner the edit narrowed. Only the review at the
+  the CI checks run, or weaken record mode's scrub, which keeps local paths
+  and names out of posted test output. Neither CI check can catch
+  that, because both run the runner the edit narrowed. Only the review at the
   end of the build does: here, the QA pair at Test, which the pact's one-line exception never covers (#262); elsewhere, the QA pair when you take its offer. The owner accepted this risk by name (#189).
+  A run with `--skips` that is killed partway can leave its junit report, with
+  test names and this machine's test-file paths, in the configured temp
+  folder, exposed as the suite's other test folders there are; it never
+  leaves the machine (accepted 2026-10-19 by the owner, from data-lens's T1
+  and D10 on #351: q8 in chat, then q9 relayed by the head chef).
 - **R22. The install's apply is unprompted.** Since #265 the pact sets no ask
   rules, so nothing prompts you before `--apply`, in any spelling. Before it,
   ask rules looked for an apply's spelling, and some spellings already got
@@ -1039,11 +1052,12 @@ because they plant bad cases on purpose and raised alerts that were noise.
 **What is accepted.**
 
 - **R26. The gate's test files aren't scanned.** They run on your machine and
-  in CI with a read-only token and no secrets. They take no outside input:
+  in CI's two jobs, `gate` on Linux and `gate-windows` on Windows, each with a
+  read-only token and no secrets. They take no outside input:
   they read the repo and write temp folders, and CodeQL's JavaScript queries
   look for untrusted input reaching a sink. This holds only while nothing
   shipped imports them, which the premise test checks in the required `gate`
-  check. The runner, the helpers and the fixtures are still scanned
+  check and in `gate-windows`. The runner, the helpers and the fixtures are still scanned
   (ADR 0058).
 - **R27. A pull request from a branch in this repo runs its own copy of the
   workflow and its guard, with the write token, as soon as it opens.** That is
@@ -1056,6 +1070,12 @@ because they plant bad cases on purpose and raised alerts that were noise.
   or a session fooled into pushing (R11, R14, R24), and a fork's run gets a
   read-only token. Your review and merge stop such an edit reaching `main`,
   not its first run. Its own code-scanning result is not evidence for it.
+  Since #351 sessions here push and open a draft pull request before Test,
+  without asking you off the sensitive route, but a diff that touches
+  `.github/` or the gate workflow's lockdown test waits for the security
+  pair's read or your word before any push, so the bound above still holds
+  for an edit to a workflow or its guard (2026-10-19, the owner's q4 on #351,
+  relayed by the head chef from the owner's chat).
 - **R28. The workflow's token can read every open alert and change or
   dismiss alerts on `main`.** A compromised release of `checkout` or
   `codeql-action` running in that job would hold it. What bounds it: both

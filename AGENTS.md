@@ -41,9 +41,24 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **While building, run `changed`:**
   `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell.
-- **The full suite runs** once at Test, before an install, after a rebase or merge
-  that brought in other work, and after a final change set. A `changed` run
-  is never Test evidence.
+- **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
+  locally before an install, after a rebase or merge that brought in other
+  work, and after a final change set.
+- **Test evidence is CI's two jobs,** `gate` and `gate-windows`, passing on
+  the reviewed head, so push the branch and open a draft PR before Test. The
+  Test record cites both run links and each run's commit, which is the head.
+  Before any push, read every commit it publishes for a secret, a personal
+  detail, or this machine's paths and names. Push without asking only off the
+  sensitive route, when the security pair isn't due or offered, and when the
+  diff leaves `.github/` and the lockdown test (`gate/tests/workflow.test.mjs`)
+  alone. Otherwise squash to one commit and wait for the owner's answer to
+  the pair's offer and, when the pair runs, for its read of that local
+  commit, which comes before the push and the rest of Test; a diff held back only by `.github/` or the
+  lockdown test may go on the owner's word instead, and a decline of the
+  offer never frees it. Push only the commit the
+  pair's report names; a later change waits for its follow-up read or the
+  owner's word. Details: [gate tests](docs/agents/gate-tests.md).
+  A `changed` run is never Test evidence.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.
 - **Post test output only from record mode** (`--record <file>`); read a

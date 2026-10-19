@@ -6,14 +6,14 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, sep } from 'node:path';
 import { test } from 'node:test';
 import { git, install, makeRepo, refused, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
 import { skipUnlessLinuxCi } from './text.mjs';
-import { tempDir } from './tree.mjs';
+import { longTmp, tempDir } from './tree.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const RULES = ['.claude', 'rules', 'pact-project.md'];
@@ -395,7 +395,7 @@ test('bad case: a project inside the Claude folder refuses', t => {
 
 /** A new folder outside the real home folder: under the temp folder when that is outside it, else under ProgramData on Windows; null when neither can be made. */
 function outsideHome(t) {
-  const bases = [tmpdir(), WIN ? process.env.ProgramData : null].filter(b => b && !under(b, homedir()));
+  const bases = [longTmp(), WIN ? process.env.ProgramData : null].filter(b => b && !under(b, homedir()));
   for (const b of bases) {
     try {
       const d = mkdtempSync(join(b, 'pact-proj-'));
