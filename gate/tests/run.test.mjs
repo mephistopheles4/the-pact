@@ -299,12 +299,13 @@ test('the literal reader: comments are skipped, template pieces kept, a regex ho
 });
 
 test('parseArgs: unknown tiers, reporters and options, and a missing value, are usage errors', () => {
-  assert.deepEqual(parseArgs(['full', '--reporter', 'tap']).opts, { tier: 'full', reporter: 'tap', record: null, base: null, list: false });
+  assert.deepEqual(parseArgs(['full', '--reporter', 'tap']).opts, { tier: 'full', reporter: 'tap', record: null, base: null, skips: null, list: false });
+  assert.equal(parseArgs(['full', '--skips', 'gate/tests/windows-skips.txt']).opts.skips, 'gate/tests/windows-skips.txt');
   assert.equal(parseArgs(['fast', '--reporter=junit']).opts.reporter, 'junit');
   assert.equal(parseArgs(['changed']).opts.base, null, 'no base given; the shell uses the branch refs/heads/main');
   assert.equal(parseArgs(['changed', '--base', 'origin/main']).opts.base, 'origin/main');
   assert.equal(parseArgs(['changed', '--base=v1']).opts.base, 'v1');
-  for (const bad of [[], ['nope'], ['full', 'fast'], ['full', '--reporter', 'xml'], ['full', '--reporter'], ['full', '--record'], ['full', '--bogus'], ['full', '--base', '-x'], ['full', '--base', 'main'], ['fast', '--base', 'main'], ['changed', '--base', '-x'], ['changed', '--base=-x'], ['changed', '--base'], ['changed', '--base=']]) {
+  for (const bad of [[], ['nope'], ['full', 'fast'], ['full', '--reporter', 'xml'], ['full', '--reporter'], ['full', '--record'], ['full', '--bogus'], ['full', '--base', '-x'], ['full', '--base', 'main'], ['fast', '--base', 'main'], ['changed', '--base', '-x'], ['changed', '--base=-x'], ['changed', '--base'], ['changed', '--base='], ['full', '--skips'], ['changed', '--skips', 'x'], ['fast', '--skips', 'x']]) {
     assert.ok(parseArgs(bad).error, bad.join(' '));
   }
 });
@@ -439,6 +440,36 @@ test('shell: a failing test makes the run exit non-zero', t => {
   const r = runIn(p, ['fast']);
   assert.equal(r.code, 1);
   assert.equal(r.last, 'RESULT: fast tier, 2 files, fail (exit 1)');
+});
+
+// #351 (q2, #348 S4.4): a run given --skips fails unless it skipped exactly the listed tests, by file and name.
+const SKIPPING = "import { test } from 'node:test';\ntest('planted pass', () => {});\ntest('planted \"skip\" & <more>', { skip: 'why' }, () => {});\ntest('outer', async t => { await t.test('inner skip', { skip: true }, () => {}); });\n";
+const LISTED = '# expected skips\n\na.test.mjs inner skip\na.test.mjs planted "skip" & <more>\n';
+test('shell: --skips passes when the run skips exactly the listed tests, read by file and name', t => {
+  const p = plant(t, { 'a.test.mjs': SKIPPING, 'skips.txt': LISTED });
+  const r = runIn(p, ['full', '--skips', join(p.tests, 'skips.txt')]);
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stdout, /planted pass/, 'the visible reporter still prints');
+  assert.equal(r.last, 'RESULT: full tier, 1 files, pass');
+});
+for (const [label, files, says] of [
+  ['skips a test the list lacks', { 'a.test.mjs': SKIPPING, 'skips.txt': '# only one\na.test.mjs inner skip\n' }, /^skip not in the list: a\.test\.mjs planted "skip" & <more>$/m],
+  ['runs a test the list says it skips', { 'a.test.mjs': SKIPPING, 'skips.txt': `${LISTED}a.test.mjs planted pass\n` }, /^skip in the list but not seen: a\.test\.mjs planted pass$/m],
+]) {
+  test(`bad case: --skips fails a run that ${label}, naming the difference`, t => {
+    const p = plant(t, files);
+    const r = runIn(p, ['full', '--skips', join(p.tests, 'skips.txt')]);
+    assert.equal(r.code, 1, r.stderr);
+    assert.match(r.stderr, says);
+    assert.match(r.last, /^RESULT: full tier, 1 files, fail \(the skips differ from the list: \d+ not listed, \d+ not seen\)$/);
+  });
+}
+test('bad case: --skips with a list that cannot be read refuses before node runs', t => {
+  const p = plant(t, { 'a.test.mjs': SKIPPING });
+  const r = runIn(p, ['full', '--skips', join(p.tests, 'missing.txt')]);
+  assert.equal(r.code, 2);
+  assert.equal(r.stdout, '', 'node never ran');
+  assert.equal(r.last, 'RESULT: refused, the --skips list cannot be read');
 });
 
 test('shell: a test that kills its parent node makes the run exit non-zero', t => {

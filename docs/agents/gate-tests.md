@@ -45,7 +45,11 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   exits 2 and runs nothing. A failed, killed or unstarted node exits 1. Its
   last line, on stderr, names the tier, the file count and the result.
   `--reporter` takes `spec`, `tap`, `dot` or `junit`, and `--list` prints the
-  pick and runs nothing.
+  pick and runs nothing. `--skips <file>`, for `full` only, fails a passing
+  run unless it skipped exactly the tests the file lists, by test file and
+  name, and prints each difference as a line the list can take. The Windows
+  CI job runs it with `gate/tests/windows-skips.txt`, so a new Windows skip is
+  a reviewed change to that list.
 - **A run passes only when it exits 0 and its last line is the runner's
   result line ending in `pass`.** An exit 0 with no result line is not a pass.
 - **Run the tests on the current Node LTS** (Node 24, "Krypton", as of
@@ -59,11 +63,38 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell. Add
   `--base <ref>` when your branch starts from somewhere other than `main`. A
   base that starts with a dash, or one that isn't a commit, exits 2.
-- **The full suite runs** once at Test; before an install; after a rebase or
-  merge that brought in other work; and after a final change set. It doesn't
-  run before and after each change.
-- **A changed-files run is never Test evidence.** The Test verdict rests on
-  `full`.
+- **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
+  locally before an install, after a rebase or merge that brought in other
+  work, and after a final change set. It doesn't run before and after each
+  change.
+- **Test evidence is CI's two jobs passing on the reviewed head:** `gate` on
+  Linux and `gate-windows` on Windows, each running `full` (ADR 0095). CI runs
+  only on a pull request or a push to `main`, so the session pushes its branch
+  and opens a draft PR before Test. The Test record cites both jobs' run links
+  and names each run's commit as GitHub shows it, which must be the head it
+  cites. No local `full` at Test is kept as evidence.
+- **Before any push,** the session reads every commit the push publishes,
+  from the merge base, for a secret's value, a personal detail, or this
+  machine's home or temp path, user name or host name, as the review
+  procedure reads a post. If it finds one, it keeps the branch local and tells
+  the owner in chat.
+- **When the push waits.** Off the sensitive route, the session pushes
+  without asking, on the owner's standing go-ahead, unless one of these holds:
+  - the change is on the sensitive route, matches the sensitive-work list, or
+    is flagged sensitive, so the security pair is due or offered at Test: the
+    push waits for the owner's answer to the offer and, when the pair runs,
+    for its read;
+  - the diff touches `.github/` or `gate/tests/workflow.test.mjs`: a pull
+    request runs the branch's own copy of every workflow, the CodeQL one with
+    its write token, as soon as it opens (R27), so the push waits for the
+    security pair's read or the owner's word.
+
+  A push that waits is squashed to one commit first, so the security pair's
+  read of the diff covers every commit the push publishes.
+- **A cancelled run on `main`** is re-run before an install or a rollback
+  reads its result. No run of the gate workflow cancels another on `main`,
+  but a run of another workflow that named the same concurrency group could.
+- **A changed-files run is never Test evidence.**
 - **Test output is posted only from record mode.** `--record <file>` writes a
   copy of everything printed to a file outside the repo, with the repo, home
   and temp folders, the user name and the host name replaced by placeholders.

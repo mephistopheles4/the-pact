@@ -4,6 +4,8 @@ Superseded in part by [ADR 0063](0063-the-pact-sets-no-ask-rules-and-defers-to-t
 
 Superseded in part by [ADR 0081](0081-ci-runs-the-full-tier.md) (2026-10-17): the workflow runs the `full` tier, so the Linux-only install tests run before every merge.
 
+Amended by [ADR 0095](0095-ci-runs-the-gate-on-windows-too.md) (2026-10-19): a second job, `gate-windows`, runs the same steps on Windows, and becomes a second required check once the owner adds it to the ruleset; only `gate.yml` may define either name, and "Linux only" no longer holds.
+
 A GitHub Actions workflow, `.github/workflows/gate.yml`, runs the gate on every pull request and every push to `main`. A ruleset makes its check, `gate`, required on `main`.
 
 - **What it runs,** on Ubuntu with the current Node LTS:

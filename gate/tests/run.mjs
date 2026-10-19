@@ -1,6 +1,6 @@
 // The gate's test runner (#140): one fail-closed command per tier.
 //
-//   node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--list]
+//   node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--skips <file>] [--list]
 //
 // full is every top-level test file in this folder. The install tier is every
 // test file that reaches install-harness.mjs through its imports; fast is full
@@ -18,7 +18,9 @@
 // lines go to stderr, so node's reporter output on stdout stays clean; the
 // last line names the tier, the file count and the result. --record writes a
 // scrubbed copy of everything printed to a file outside the repo, and exits 3
-// if a local path, the user name or the host name survives the scrub. --list
+// if a local path, the user name or the host name survives the scrub. --skips
+// (full only, #351) fails a passing run unless it skipped exactly the tests a
+// list names, by file and name, and prints each difference. --list
 // prints the pick and runs nothing. Start it with NODE_OPTIONS cleared, as
 // AGENTS.md shows: clearing it for the child can't reach this process.
 // Only changed reads git: fast and full read the file system alone. The base
@@ -26,7 +28,7 @@
 // folder before any check, so this file is never staged or installed. Ordinary test
 // code since #189, proved by use.
 import { spawn, spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, hostname, tmpdir, userInfo } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { posix } from 'node:path';
@@ -445,6 +447,54 @@ export function leakedLines(text, words = []) {
   return out;
 }
 
+// ------------------------------------------------------------ the skip list
+
+// A skip line is the test file's name, a space and the test's name, with
+// anything outside printable ASCII replaced, so a printed line is a list line
+// and steers no terminal.
+const PRINTABLE = s => s.replace(/[^\x20-\x7E]/g, '?');
+const ENTITY = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
+const unxmlOnce = s => s.replace(/&(?:#(\d+)|#x([0-9a-f]+)|(lt|gt|amp|quot|apos));/gi, (m, dec, hex, name) => (dec ? String.fromCodePoint(Number(dec)) : hex ? String.fromCodePoint(parseInt(hex, 16)) : ENTITY[name.toLowerCase()]));
+// Node 24.21 writes a quote in a name as &amp;quot; and 24.22 as &quot;, so
+// the text is decoded until it stops changing; a name that spells out an
+// entity is read as the character, on every Node alike.
+const unxml = s => {
+  for (let i = 0; i < 4; i += 1) {
+    const next = unxmlOnce(s);
+    if (next === s) break;
+    s = next;
+  }
+  return s;
+};
+
+/** The tests node's junit report shows as skipped, as skip lines, subtests included. */
+export function junitSkips(xml) {
+  const out = [];
+  // Attributes are read quote by quote: node leaves > unescaped inside a value. A self-closing testcase ends in / and holds no skip.
+  for (const m of xml.matchAll(/<testcase\b((?:[^>"]|"[^"]*")*)>\s*<skipped\b/g)) {
+    if (m[1].endsWith('/')) continue;
+    const attr = key => unxml(new RegExp(`\\s${key}="([^"]*)"`).exec(m[1])?.[1] ?? '?');
+    out.push(PRINTABLE(`${attr('file').split(/[\\/]/).pop()} ${attr('name')}`));
+  }
+  return out.sort();
+}
+
+/** A skip list's lines: blank lines and lines starting with # are left out. */
+export const skipList = text => text.split(/\r?\n/).map(l => l.trimEnd()).filter(l => l !== '' && !l.startsWith('#')).sort();
+
+/** Which seen skips the list lacks, and which listed skips weren't seen, each sorted; a line counts as often as it appears. */
+export function skipDifference(listed, seen) {
+  const left = new Map();
+  for (const l of listed) left.set(l, (left.get(l) ?? 0) + 1);
+  const notListed = [];
+  for (const l of seen) {
+    const n = left.get(l) ?? 0;
+    if (n > 0) left.set(l, n - 1);
+    else notListed.push(l);
+  }
+  return { notListed: notListed.sort(), notSeen: [...left].flatMap(([l, n]) => Array(n).fill(l)).sort() };
+}
+
 /** What node's ending means: { result, code }. Only a clean exit 0 with no error or signal is a pass. */
 export function verdict({ error, code, signal }) {
   if (error) return { result: `fail (node did not start: ${SHOWN(String(error))})`, code: 1 };
@@ -460,18 +510,18 @@ const REPO = resolve(HERE, '..', '..');
 
 function usage(say, why) {
   say(`run: ${SHOWN(why)}`);
-  say('usage: node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--list]');
+  say('usage: node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--skips <file>] [--list]');
   say(`RESULT: refused, ${SHOWN(why)}`);
   return 2;
 }
 
 export function parseArgs(argv) {
-  const opts = { tier: null, reporter: null, record: null, base: null, list: false };
+  const opts = { tier: null, reporter: null, record: null, base: null, skips: null, list: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     const eq = a.indexOf('=');
     const [flag, inline] = a.startsWith('--') && eq > 0 ? [a.slice(0, eq), a.slice(eq + 1)] : [a, null];
-    if (flag === '--reporter' || flag === '--record' || flag === '--base') {
+    if (flag === '--reporter' || flag === '--record' || flag === '--base' || flag === '--skips') {
       const v = inline ?? argv[(i += 1)];
       if (v === undefined || v === '') return { error: `${flag} needs a value` };
       opts[flag.slice(2)] = v;
@@ -485,6 +535,8 @@ export function parseArgs(argv) {
   if (opts.reporter !== null && !REPORTERS.includes(opts.reporter)) return { error: `unknown reporter ${opts.reporter}` };
   if (opts.base !== null && opts.tier !== 'changed') return { error: `--base is for the changed tier only` };
   if (opts.base !== null && opts.base.startsWith('-')) return { error: `a base that starts with a dash` };
+  // A narrower pick skips fewer tests, so only full can match the list.
+  if (opts.skips !== null && opts.tier !== 'full') return { error: `--skips is for the full tier only` };
   return { opts };
 }
 
@@ -625,6 +677,14 @@ export async function main(argv) {
     recordPath = resolve(parsed.opts.record);
     if (inside(REPO, recordPath)) return usage(say, '--record must name a file outside the repo');
   }
+  let listed = null;
+  if (parsed.opts.skips !== null) {
+    try {
+      listed = skipList(readFileSync(resolve(parsed.opts.skips), 'utf8'));
+    } catch {
+      return usage(say, 'the --skips list cannot be read');
+    }
+  }
 
   let changed = [];
   let base = null;
@@ -661,8 +721,12 @@ export async function main(argv) {
     return 0;
   }
 
-  const rep = reporter ?? (process.stdout.isTTY ? 'spec' : null);
-  const args = ['--test', `--test-concurrency=${CAP}`, ...(rep ? [`--test-reporter=${rep}`] : []), ...files.map(f => `gate/tests/${f.file}`)];
+  const rep = reporter ?? (process.stdout.isTTY || listed ? 'spec' : null);
+  // With a skip list, node also writes a junit report to a folder of its own, read once the run ends.
+  const junitDir = listed ? mkdtempSync(join(tmpdir(), 'pact-skips-')) : null;
+  const junit = junitDir ? join(junitDir, 'report.xml') : null;
+  const reporters = junit ? [`--test-reporter=${rep}`, '--test-reporter-destination=stdout', '--test-reporter=junit', `--test-reporter-destination=${junit}`] : rep ? [`--test-reporter=${rep}`] : [];
+  const args = ['--test', `--test-concurrency=${CAP}`, ...reporters, ...files.map(f => `gate/tests/${f.file}`)];
   const outcome = await new Promise(done => {
     let child;
     try {
@@ -690,7 +754,23 @@ export async function main(argv) {
     child.on('close', (code, signal) => finish({ code, signal }));
   });
 
-  const { result, code } = verdict(outcome);
+  let { result, code } = verdict(outcome);
+  if (junitDir) {
+    let report = null;
+    try {
+      report = readFileSync(junit, 'utf8');
+    } catch {
+      // no report: the run fails below
+    }
+    rmSync(junitDir, { recursive: true, force: true });
+    if (code === 0 && report === null) [result, code] = ['fail (no junit report to read the skips from)', 1];
+    else if (code === 0) {
+      const { notListed, notSeen } = skipDifference(listed, junitSkips(report));
+      for (const l of notListed) say(`skip not in the list: ${l}`);
+      for (const l of notSeen) say(`skip in the list but not seen: ${l}`);
+      if (notListed.length || notSeen.length) [result, code] = [`fail (the skips differ from the list: ${notListed.length} not listed, ${notSeen.length} not seen)`, 1];
+    }
+  }
   const last = `RESULT: ${tier} tier, ${files.length} files, ${result}`;
 
   if (recordPath) {
