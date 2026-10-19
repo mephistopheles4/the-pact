@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { applyBound, basePath, commitAll, git, home, install, listTree, makeRepo, passed, refused, WIN, wrapCheck } from './install-harness.mjs';
 import { plantModule } from './gate-files.mjs';
-import { check as renderCheck } from '../render-core.mjs';
+import { runCore } from './gate-run.mjs';
 import { READ_ONLY, agent, plainAgent, withoutOpenMarks } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -28,6 +28,7 @@ function edit(root, rel, from, to) {
 
 // ------------------------------------------------------------ happy path
 
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('a file under gate/tests is not staged, checked or recorded as part of the gate', t => {
   // The harness leaves gate/tests out of every throwaway repo, so plant one here.
   const repo = makeRepo(t, root => {
@@ -41,6 +42,7 @@ test('a file under gate/tests is not staged, checked or recorded as part of the 
   const inGate = manifest.gate.map(g => g.path).filter(p => p.startsWith('gate/tests/'));
   assert.deepEqual(inGate, []);
 });
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('the owner\'s own live agent is never deleted, and an old manifest deletes nothing', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -79,6 +81,7 @@ test('bad case: an edited install script is flagged in the dry run', t => {
   assert.match(r.stdout, /^ {2}changed gate\/install-run\.mjs$/m, r.out);
 });
 
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: an uncommitted edit to the install script refuses --apply', t => {
   const repo = makeRepo(t);
   const p = join(repo, 'gate', 'install.mjs');
@@ -188,6 +191,7 @@ test('bad case: a git planted in the folder the install runs from is never run',
   assert.ok(!existsSync(marker), 'the planted git ran');
 });
 
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('lines built from the install record are cleaned', t => {
   const repo = makeRepo(t);
   const h = home(t);
@@ -291,6 +295,7 @@ test('bad case: a live pact/review.md the record does not list refuses, on the d
 
 // ------------------------------------------------------------ the check's runner, on real Node
 
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a seam A crash refuses, and its stderr is never echoed', t => {
   const repo = makeRepo(t, root => plantSeamAOnce(root, '// @@TEST-CRASH-HOOK@@', "process.stderr.write('CANARYseam\\n'); process.exit(134);"));
   const r = install(repo, home(t));
@@ -320,13 +325,14 @@ function plantRenderer(root, from, to) {
 function rulesOf(t, repo) {
   const source = readFileSync(join(repo, 'claude', 'CLAUDE.md'));
   const out = tempDir(t, 'pact-render-');
-  const r = renderCheck([join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]);
+  const r = runCore('render', [join(repo, 'claude', 'CLAUDE.md'), out, tempDir(t, 'pact-nohome-'), join(repo, 'builder', 'default-config')]);
   assert.equal(r.failed, false, r.lines.join('\n'));
   const rendered = readFileSync(join(out, 'CLAUDE.md'));
   assert.notDeepEqual(rendered, Buffer.from(withoutOpenMarks(source.toString('utf8'))), 'the default changes nothing, so this test would pass for the wrong reason');
   return { source, rendered };
 }
 
+// #183 C1: with no configuration of the person's, the pact's default renders (ADR 0093).
 test('--apply installs the default render as the rules file, and the record holds its hash', t => {
   const repo = makeRepo(t);
   const { source, rendered } = rulesOf(t, repo);
@@ -347,6 +353,7 @@ test('--apply installs the default render as the rules file, and the record hold
   assert.match(again.stdout, /^Nothing to do\.$/m, again.out);
 });
 
+// #183 C1: with no configuration of the person's, the pact's default renders (ADR 0093).
 test('the dry run shows a Configuration block that names the pact\'s default when there is no configuration, before the gate block', t => {
   const r = install(makeRepo(t), home(t));
   assert.equal(r.code, 0, r.out);
@@ -357,6 +364,7 @@ test('the dry run shows a Configuration block that names the pact\'s default whe
   assert.ok(c < lines.findIndex(l => /^Gate: /.test(l)), r.out);
 });
 
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: the rules file changed in the stage after the check refuses --apply, with nothing written', t => {
   let source;
   const repo = makeRepo(t, root => {
@@ -373,6 +381,7 @@ test('bad case: the rules file changed in the stage after the check refuses --ap
   assert.deepEqual(listTree(h), []);
 });
 
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a record whose rules-file hash is not the rendered bytes\' hash is drift, and --apply refuses', t => {
   const repo = makeRepo(t);
   const { source, rendered } = rulesOf(t, repo);
@@ -419,6 +428,7 @@ test('bad case: a renderer that changes a staged file refuses', t => {
   assert.match(r.stdout, /^REFUSED: the renderer changed the stage\./m, r.out);
 });
 
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('the renderer and the rules file come from the commit: working-tree-only edits to them are not what runs', t => {
   const repo = makeRepo(t);
   const { rendered } = rulesOf(t, repo);

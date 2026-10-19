@@ -63,10 +63,12 @@
 // parts.
 //
 // The skills list (#183 T4a) names skill folders in pinned repos, for the
-// cloud setup to fetch; the renderer only checks it and reports it, and the
-// install fetches nothing. Each entry is one repo, named once (compared
+// cloud setup to fetch once it reads a configuration (#183 T4b); the renderer
+// only checks it and reports it, and the install fetches nothing. Each entry is one repo, named once (compared
 // without case), at a full 40-hex lowercase commit, with one or more paths;
-// each path's segments are letters, digits, '.', '_' or '-', never . or ..;
+// each path's segments are letters, digits, '.', '_' or '-', none starting
+// with '-', never . or ..; the repo's owner does not start with '-', and its
+// name is not only dots and does not end in .git;
 // the last segment, the skill's name, starts with neither '.' nor '-' and
 // names one path only (compared without case); 100 paths at most in all.
 // builder/parts.mjs's skillsProblems holds the same rules in the same words
@@ -204,12 +206,12 @@ const BLOCK_PATH_MAX = 200;
 const BLOCK_DEPTH_MAX = 8;
 const SCHEMA = 1;
 const TOP_KEYS = Object.freeze(['schema', 'settings', 'edits', 'agents', 'commands', 'tools', 'skills']);
-// Skill sources (#183 T4a): the cloud setup fetches them; the render only
+// Skill sources (#183 T4a): named for the cloud setup to fetch; the render only
 // checks them and reports each path. builder/parts.mjs's skillsProblems holds
 // the same checks for the builder and its page, and a test holds the two equal.
-const SKILL_REPO_RE = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
+const SKILL_REPO_RE = /^[A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+$)(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt]$)[A-Za-z0-9._-]+$/;
 const SKILL_COMMIT_RE = /^[0-9a-f]{40}$/;
-const SKILL_SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
+const SKILL_SEGMENT_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
 const SKILL_PATHS_MAX = 100;
 // The pact's default configuration (#183 T4a): a folder the install names
 // from its stage, holding config.json and blocks/ as a person's pact folder
@@ -901,7 +903,7 @@ function checkSkills(v, fail) {
   v.forEach((e, i) => {
     const at = `skills entry ${i + 1}`;
     if (!isObject(e) || Object.keys(e).some(k => !['repo', 'commit', 'paths'].includes(k)) || !['repo', 'commit', 'paths'].every(k => Object.hasOwn(e, k))) return bad(`${at}: holds repo, commit and paths, and nothing else`);
-    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) bad(`${at}: repo must be owner/name, in letters, digits, '.', '_' and '-'`);
+    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) bad(`${at}: repo must be owner/name: an owner in letters, digits and '-', not starting with '-', and a name in letters, digits, '.', '_' and '-', not only dots and not ending in .git`);
     else if (repos.has(e.repo.toLowerCase())) bad(`${at}: names a repo an earlier entry names`);
     else repos.add(e.repo.toLowerCase());
     if (typeof e.commit !== 'string' || !SKILL_COMMIT_RE.test(e.commit)) bad(`${at}: commit must be a full commit id, 40 lowercase hex characters`);
@@ -909,7 +911,7 @@ function checkSkills(v, fail) {
     e.paths.forEach((p, k) => {
       const pat = `${at} path ${k + 1}`;
       const segs = typeof p === 'string' ? p.split('/') : [];
-      if (!segs.length || segs.some(s => !SKILL_SEGMENT_RE.test(s) || s === '.' || s === '..')) return bad(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', and no . or .. segment`);
+      if (!segs.length || segs.some(s => !SKILL_SEGMENT_RE.test(s) || s === '.' || s === '..')) return bad(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', none starting with '-', and no . or .. segment`);
       const last = segs[segs.length - 1];
       if (last.startsWith('.') || last.startsWith('-')) return bad(`${pat}: its last segment, the skill's name, must not start with '.' or '-'`);
       if (names.has(last.toLowerCase())) return bad(`${pat}: its last segment, the skill's name, repeats one an earlier path ends in`);
@@ -1482,7 +1484,8 @@ function run(argv, report) {
     // A block is prose, so a retired agent's name in one is a warning, never a refusal; the line holds constants only (#302).
     const retiredLines = edits.flatMap(e => (e.retired ?? []).map(a => `RETIRED-NAME block ${e.mark} ${a}`));
     head.push(`CONFIG user ${hash}`, `DIGEST ${digest}`, ...values.map(([k, v]) => `VALUE ${k} ${v}`), ...editLines, ...retiredLines);
-    // The pact's default names itself on its CONFIG line, the first in head (#183 T4a).
+    // The pact's default names itself on its CONFIG line, the first in head (#183 T4a). The push keeps the
+    // literal `CONFIG user ${hash}`: the gate tests plant renderer faults by anchoring on that text.
     if (kind === 'default') head[0] = `CONFIG default ${hash}`;
     commands = checked.commands;
     tools = checked.tools;

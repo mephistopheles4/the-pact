@@ -590,8 +590,8 @@ test('a security-set lens off its default saves like a plain one, with no warnin
 // ------------------------------------------------------------ the page on a stub DOM
 
 /** Boot the page's script against a small stand-in for the DOM; returns the elements by id and helpers. */
-function bootPage({ picker = false, folder = null } = {}) {
-  const script = [...PAGE.matchAll(SCRIPT_RE)][0][2];
+function bootPage({ picker = false, folder = null, page = PAGE } = {}) {
+  const script = [...page.matchAll(SCRIPT_RE)][0][2];
   class N {
     constructor(tag) { Object.assign(this, { tag, children: [], attrs: {}, hidden: false, textContent: '', listeners: {}, style: {}, dataset: {}, value: '' }); this.classList = { add() {}, remove() {}, toggle() {} }; }
     append(...c) { this.children.push(...c.map(x => (typeof x === 'string' ? Object.assign(new N('#text'), { textContent: x }) : x))); }
@@ -645,6 +645,19 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.match(P.ids.output.text, /"mark": "moves",\s*"op": "replace"/);
   assert.match(P.ids.output.text, /I sense the work my own way\./);
   assert.doesNotMatch(P.ids.output.text, /\r/);
+});
+
+// #183 T4a (adversarial F1): skill sources a builder file carries are named in Export before Save; none, no line.
+test('stub page: Export names each skill source the configuration carries before Save, and says nothing when there are none', () => {
+  const SKILL = { repo: 'owner/skills', commit: 'a'.repeat(40), paths: ['skills/one', 'skills/two'] };
+  const withSkills = PAGE.replace('JSON.stringify(PACT.ownSkills || [])', `JSON.stringify(PACT.ownSkills || [${JSON.stringify(SKILL)}])`);
+  assert.notEqual(withSkills, PAGE, 'the plant must reach the page\'s start state');
+  const P = bootPage({ page: withSkills });
+  P.button(P.ids.actions, 'Export').click();
+  assert.match(P.ids.output.text, /Check · skills · this configuration names skill sources that the cloud setup will fetch from #183 T4b on: owner\/skills at aaaaaaa, 2 paths\. Save them only if you chose them\./);
+  const plain = bootPage();
+  plain.button(plain.ids.actions, 'Export').click();
+  assert.doesNotMatch(plain.ids.output.text, /Check · skills/);
 });
 
 // #262 addendum 3: Add agent in the Agents panel reaches the saved files, and the save note says a save never deletes.
@@ -931,6 +944,7 @@ test('stub page: the review step warns that a downloaded config.json holds no to
   assert.match(P.ids.output.text, /Unless you set the tools under Settings, a downloaded config\.json holds no tools list: if yours has one, copy its tools entry across, or the next install deletes those tools\./);
 });
 
+// #183 C4: with no configuration of the person's, the pact's default renders (ADR 0093).
 test('stub page: Save to a picked folder keeps its commands list, and writes nothing over a config.json that isn\'t JSON (#203, T2)', async () => {
   /** A stand-in folder holding `held` (name -> text); `written` collects what Save writes. */
   const fakeFolder = held => {
@@ -1227,7 +1241,7 @@ test('a shared file opens as a preset only when the page can use it, and says wh
   assert.match(L.presetFromText('{"schema": 1, "presets": []}').refuse, /keys a builder file doesn't: presets/);
   assert.match(L.presetFromText('{"schema": 1, "tiers": []}').refuse, /tiers: tiers must list 1 to 6 tiers/);
   assert.match(L.presetFromText('{"schema": 1, "agentFiles": {"Bad": "x"}}').refuse, /^agentFiles entry 1 is not an agent name with a file$/);
-  assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, models or agent files/);
+  assert.match(L.presetFromText('{"schema": 1}').refuse, /gives no part, models, agent files or skill sources/);
   // Tiers without a workflow meet the pact's workflow: its offers take the tiers that exist.
   const r = L.presetFromText(JSON.stringify({ schema: 1, title: 'Two tiers', tiers: [{ id: 'light', name: 'Light', fits: 'Small', plan: 'none', build: 'Sonnet, medium' }, { id: 'full', name: 'Full', fits: 'The rest', plan: 'Opus, high', build: 'Sonnet, medium' }] }));
   assert.equal(r.refuse, undefined);
@@ -1394,7 +1408,7 @@ test('C2: a bad personal preset is left out with a finding on every run, no mess
   const has = re => lines.filter(l => re.test(l));
   assert.equal(has(/presets\/a-bad-tiers\.json: left out: .*1 to 6 tiers/).length, 1);
   assert.equal(has(/^FINDING presets: a file in your presets folder has a name the page can't carry; it is left out$/).length, 1);
-  assert.equal(has(/presets\/a-empty\.json: left out: it gives no part, models or agent files$/).length, 1);
+  assert.equal(has(/presets\/a-empty\.json: left out: it gives no part, models, agent files or skill sources$/).length, 1);
   assert.equal(has(/presets\/a-badkey\.json: left out: agentFiles entry 1 is not an agent name/).length, 1);
   assert.equal(has(/presets\/a-proto\.json: left out: .*__proto__/).length, 1);
   assert.equal(has(/presets\/a-pair\.json: workflow: offer test-qa-pair: half of behaviour-lens and integrity-lens on its own/).length, 1);

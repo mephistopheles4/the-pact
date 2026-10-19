@@ -7,7 +7,7 @@
 - **`builder/default-config.mjs`** writes `builder/default-config/` from `builder/presets/level-3-full.json`, as the page saves that preset taken whole; `--check` exits 1 on a stale copy, and the kit refuses to regenerate.
 - **The renderer** takes the default folder as an optional fourth argument, reads it only when the person has no file, prints `CONFIG default`, takes the digest over `default`, and names the default in its notice. It checks `skills` (`config-skills`) and prints a `SKILL` line per path after `TOOLS`.
 - **The installer** passes the staged default on a home install only; parses `CONFIG default` and `SKILL` lines (`render-skill-twice`, `render-skill-count`, a skill with no configuration is `render-none-extras`); names the default and its digest in the Configuration block, says when the person's own configuration is gone (C35), prints a security-defaults line and a `skills:` block; records the default's digest and no configuration file. The builder kit lists the default folder and its generator.
-- **The builder and its page** accept `skills` with the same checks in the same words (`builder/parts.mjs`'s `skillsProblems`), keep it on load and save, write it to `config.json`, and show it as a preset row.
+- **The builder and its page** accept `skills` with the same checks in the same words (`builder/parts.mjs`'s `skillsProblems`), keep it on load and save, write it to `config.json`, show it as a preset row, and name each source in Export before Save.
 - **AGENTS.md** gains the generator line and D12's sensitive-route line. `docs/install.md`, `docs/reference.md` and the README say what the default is; ADR 0091's bump procedure names the new pin homes and the owner's approval of sends.
 
 ## Tests
@@ -19,7 +19,7 @@
 
 ## The first pin of `addyosmani/agent-skills`
 
-Read in a cloud thread at commit `aeac41d4d005999432bb7312f7ff06383a91d59d`, an ancestor of the repo's `main`. Each of the six folders holds only `SKILL.md`, read in full: frontmatter `name` and `description` only, no link, no script, no URL. Sends of session data to an outside host: none. The audit commands two skills suggest reach package registries with a dependency list. Noted for the owner: the skills point to sibling skills and to `../../references/*.md` that the six paths don't carry; `incremental-implementation` commits after every slice; `spec-driven-development` writes plans into the repo; `code-review-and-quality` sets a softer approval bar than the review procedure. The preset's `skills` entry waits for the owner's approval (C9).
+Read in a cloud thread at commit `aeac41d4d005999432bb7312f7ff06383a91d59d`, an ancestor of the repo's `main`. Each of the six folders holds only `SKILL.md`, read in full: frontmatter `name` and `description` only, no link, no script, no URL. Sends of session data to an outside host: none that a skill makes itself. One flow for the owner to rule on with C9: `code-review-and-quality` and `shipping-and-launch` suggest `npm audit`, `pip-audit` or `cargo audit`, which send a project's dependency list (names and versions, no code) to the package registry when a session runs them. Noted for the owner: the skills point to sibling skills and to `../../references/*.md` that the six paths don't carry; `incremental-implementation` commits after every slice; `spec-driven-development` writes plans into the repo; `code-review-and-quality` sets a softer approval bar than the review procedure. The preset's `skills` entry waits for the owner's approval (C9).
 
 ## Record
 

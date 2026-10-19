@@ -643,13 +643,14 @@ export function partsTexts(p) {
 // ------------------------------------------------------------ skill sources (#183 T4a)
 
 // A configuration's skill sources: [{ repo: 'owner/name', commit: <40 hex>, paths: [dir in repo] }].
-// The cloud setup fetches each path's folder at its commit and installs it as a
-// skill named by the path's last segment; nothing else reads them. The
+// They name each path's folder at its commit, to install as a skill named by
+// the path's last segment, for the cloud setup to fetch once #183 T4b ships;
+// until then nothing fetches them. The
 // installer's renderer keeps its own copy of these checks (a gate file imports
 // nothing from builder/), and a test holds the two equal on every bad case.
-export const SKILL_REPO_RE = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
+export const SKILL_REPO_RE = /^[A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+$)(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt]$)[A-Za-z0-9._-]+$/;
 export const SKILL_COMMIT_RE = /^[0-9a-f]{40}$/;
-const SKILL_SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
+const SKILL_SEGMENT_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
 export const SKILL_PATHS_MAX = 100;
 
 /**
@@ -668,7 +669,7 @@ export function skillsProblems(v) {
       out.push(`${at}: holds repo, commit and paths, and nothing else`);
       return;
     }
-    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) out.push(`${at}: repo must be owner/name, in letters, digits, '.', '_' and '-'`);
+    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) out.push(`${at}: repo must be owner/name: an owner in letters, digits and '-', not starting with '-', and a name in letters, digits, '.', '_' and '-', not only dots and not ending in .git`);
     else if (repos.has(e.repo.toLowerCase())) out.push(`${at}: names a repo an earlier entry names`);
     else repos.add(e.repo.toLowerCase());
     if (typeof e.commit !== 'string' || !SKILL_COMMIT_RE.test(e.commit)) out.push(`${at}: commit must be a full commit id, 40 lowercase hex characters`);
@@ -681,7 +682,7 @@ export function skillsProblems(v) {
       const pat = `${at} path ${k + 1}`;
       const segs = typeof p === 'string' ? p.split('/') : [];
       if (!segs.length || segs.some(s => !SKILL_SEGMENT_RE.test(s) || s === '.' || s === '..')) {
-        out.push(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', and no . or .. segment`);
+        out.push(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', none starting with '-', and no . or .. segment`);
         return;
       }
       const last = segs[segs.length - 1];

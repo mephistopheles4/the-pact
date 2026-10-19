@@ -75,9 +75,10 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   ([ADR 0072](docs/adr/0072-this-repo-has-no-security-route-of-its-own.md)).
 - **A change to the default** (`builder/presets/level-3-full.json`,
   `builder/default-config/`, `builder/default-config.mjs`, the installer's
-  choice of the default, or `cloud-sessions/pin-floor`) takes the sensitive
-  route with the security pair: it changes the security defaults of every
-  install with no configuration.
+  choice of the default, or `cloud-sessions/pin-floor`, the lowest pact commit
+  the cloud wrapper accepts, which #183 T4b adds) takes the sensitive route
+  with the security pair: it changes the security defaults of every install
+  with no configuration. This is the one exception to ADR 0072 (ADR 0093).
 - Each check a change adds or tightens in the gate's code (`gate/` but its
   tests, `.github/workflows/`, `.github/dependabot.yml`) needs a bad case it
   is seen to catch. Deleting or loosening a check, or changing a built-in

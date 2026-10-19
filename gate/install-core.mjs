@@ -377,7 +377,7 @@ const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 // A skill source's path (#183 T4a), as the renderer checks it: owner/name, a full commit, a relative folder whose last segment is the skill's name.
-const SKILL_LINE_RE = /^SKILL ([A-Za-z0-9-]+\/[A-Za-z0-9._-]+) ([0-9a-f]{40}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*)$/;
+const SKILL_LINE_RE = /^SKILL ([A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+ )(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt] )[A-Za-z0-9._-]+) ([0-9a-f]{40}) ([A-Za-z0-9._][A-Za-z0-9._-]*(?:\/[A-Za-z0-9._][A-Za-z0-9._-]*)*)$/;
 const SKILL_PATHS_MAX = 100;
 // The pact's default configuration (#183 T4a): the stage folder the renderer
 // reads when the Claude home folder holds no user file, and the preset it is
@@ -1250,7 +1250,12 @@ export const SECURITY_PARTS = Object.freeze(['tiers', 'sensitive', 'workflow', '
 export function securityDefaultsLine(parsed, record) {
   const parts = SECURITY_PARTS.filter(p => parsed.edits.has(p));
   if (!parts.length) return null;
-  if (parsed.config.kind === 'default') return `WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration (${DEFAULT_CONFIG_NAME}) renders; it edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install.`;
+  if (parsed.config.kind === 'default') {
+    // The record holds the default's digest, and no configuration file, when the last install rendered the default.
+    const lastDefault = record && record.digest && !record.config.size;
+    const was = !record ? 'No install is recorded to compare with' : !lastDefault ? 'The last install did not render the pact\'s default' : record.digest === parsed.digest ? 'The default is unchanged since the last install' : 'The default CHANGED since the last install';
+    return `WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration (${DEFAULT_CONFIG_NAME}) renders; it edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install. ${was}.`;
+  }
   const since = !record ? 'no install is recorded to compare with' : configStale(configNow(parsed), record.config) ? 'the configuration CHANGED since the last install' : 'the configuration is unchanged since the last install';
   return `WARN: SECURITY DEFAULTS: the user configuration edits ${parts.join(', ')}, which changes the pact's security defaults; read those parts in the rendered rules file before you install. ${since[0].toUpperCase()}${since.slice(1)}.`;
 }
@@ -1284,7 +1289,7 @@ export function configBlock(parsed, rulesHash, record) {
   }
   if (parsed.config.kind === 'default') {
     out.push(`  configuration: the pact's default, ${DEFAULT_CONFIG_NAME} (${parsed.digest}): you have no ${CONFIG_REL}`);
-    // C35: a person's own configuration that has gone is said, not only replaced.
+    // A person's own configuration that has gone is said, not only replaced.
     if (last.has('user')) out.push(`  the last install had your own configuration; ${CONFIG_REL} is gone now, so the pact's default renders in its place`);
     out.push(`  rendered rules file: sha256 ${rulesHash}`);
     for (const [k, v] of parsed.values) out.push(`  WARN: the pact's default configuration sets ${k} to ${v}.`);
@@ -1320,7 +1325,7 @@ export function skillsBlock(parsed) {
       const own = parsed.skills.filter(k => k.repo === r);
       return `  ${r} at ${own[0].commit.slice(0, 12)}: ${own.length} path${own.length === 1 ? '' : 's'}`;
     }),
-    '  This install fetches and installs none of them; the workflow names them, and a session here has only the skills you installed yourself.',
+    '  This install fetches and installs none of them; a session here has only the skills you installed yourself.',
   ];
 }
 

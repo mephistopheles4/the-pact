@@ -174,6 +174,7 @@ test('bad case: a render with two COMMANDS lines refuses', t => {
   refusedUnchanged(repo, homeWith(t, ['finis']), /^REFUSED: the renderer reported two commands lines\./m);
 });
 
+// ADR 0093: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('bad case: a render that names a command with CONFIG none refuses', t => {
   // The renderer is also planted to skip the pact's default, so it reports CONFIG none (#183 T4a).
   const repo = repoWithFinis(t, root => {

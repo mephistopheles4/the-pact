@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hJP4bAiSh7DDKUPC2h35DQbLBnb2J9G04LBUMK+reNk='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-bEQE4YlrlA2Gh5eSTyY3RGT0v9uaKbnIGjl7WGBuiyw='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3411,13 +3411,14 @@ function partsTexts(p) {
 // ------------------------------------------------------------ skill sources (#183 T4a)
 
 // A configuration's skill sources: [{ repo: 'owner/name', commit: <40 hex>, paths: [dir in repo] }].
-// The cloud setup fetches each path's folder at its commit and installs it as a
-// skill named by the path's last segment; nothing else reads them. The
+// They name each path's folder at its commit, to install as a skill named by
+// the path's last segment, for the cloud setup to fetch once #183 T4b ships;
+// until then nothing fetches them. The
 // installer's renderer keeps its own copy of these checks (a gate file imports
 // nothing from builder/), and a test holds the two equal on every bad case.
-const SKILL_REPO_RE = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
+const SKILL_REPO_RE = /^[A-Za-z0-9][A-Za-z0-9-]*\/(?!\.+$)(?![A-Za-z0-9._-]*\.[Gg][Ii][Tt]$)[A-Za-z0-9._-]+$/;
 const SKILL_COMMIT_RE = /^[0-9a-f]{40}$/;
-const SKILL_SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
+const SKILL_SEGMENT_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
 const SKILL_PATHS_MAX = 100;
 
 /**
@@ -3436,7 +3437,7 @@ function skillsProblems(v) {
       out.push(`${at}: holds repo, commit and paths, and nothing else`);
       return;
     }
-    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) out.push(`${at}: repo must be owner/name, in letters, digits, '.', '_' and '-'`);
+    if (typeof e.repo !== 'string' || !SKILL_REPO_RE.test(e.repo)) out.push(`${at}: repo must be owner/name: an owner in letters, digits and '-', not starting with '-', and a name in letters, digits, '.', '_' and '-', not only dots and not ending in .git`);
     else if (repos.has(e.repo.toLowerCase())) out.push(`${at}: names a repo an earlier entry names`);
     else repos.add(e.repo.toLowerCase());
     if (typeof e.commit !== 'string' || !SKILL_COMMIT_RE.test(e.commit)) out.push(`${at}: commit must be a full commit id, 40 lowercase hex characters`);
@@ -3449,7 +3450,7 @@ function skillsProblems(v) {
       const pat = `${at} path ${k + 1}`;
       const segs = typeof p === 'string' ? p.split('/') : [];
       if (!segs.length || segs.some(s => !SKILL_SEGMENT_RE.test(s) || s === '.' || s === '..')) {
-        out.push(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', and no . or .. segment`);
+        out.push(`${pat}: must be a relative folder path, each segment letters, digits, '.', '_' or '-', none starting with '-', and no . or .. segment`);
         return;
       }
       const last = segs[segs.length - 1];
@@ -3527,7 +3528,7 @@ function initialState() {
   const own = { ...(PACT.ownAgentFiles || {}) };
   for (const [name, text] of Object.entries(own)) if (agents[name]) agents[name] = fileModel(text, agents[name]);
   // #203 S10: commands starts null, "leave as is": a save keeps the folder's own commands list until the person sets one here. #280: so does tools.
-  // #183 T4a: skills holds the skill sources the cloud setup fetches, as the builder file gives them; a save writes them into config.json.
+  // #183 T4a: skills holds the skill sources, named for the cloud setup to fetch, as the builder file gives them; a save writes them into config.json.
   return { usage: PACT.setting.def, session: null, agents, own, parts: copyParts(PACT.ownParts || PACT.parts.defaults), models: [...(PACT.ownModels || MODEL_NAMES)], commands: null, tools: null, skills: JSON.parse(JSON.stringify(PACT.ownSkills || [])) };
 }
 
@@ -3666,7 +3667,7 @@ function buildFiles(state) {
     blocks.push({ path: `pact/blocks/${mark}.md`, text: `${text}\n` });
   }
   if (edits.length) config.edits = edits;
-  // The skill sources, as they stand (#183 T4a): the cloud setup fetches them; a home install lists them.
+  // The skill sources, as they stand (#183 T4a): named for the cloud setup to fetch; a home install lists them.
   if (state.skills.length) config.skills = JSON.parse(JSON.stringify(state.skills));
   const own = Object.keys(state.own).sort().map(name => ({ path: `agents/${name}.md`, text: ownFile(state, name) }));
   return [{ path: 'pact/config.json', text: `${JSON.stringify(config, null, 2)}\n` }, ...blocks, ...own];
@@ -3870,7 +3871,7 @@ function presetFromText(text, title = 'A shared file') {
     if (k.length) return { refuse: k[0] };
     if (doc.skills.length) preset.skills = JSON.parse(JSON.stringify(doc.skills));
   }
-  if (!Object.keys(preset.parts).length && !preset.models && !preset.agentFiles && !preset.skills) return { refuse: 'it gives no part, models or agent files' };
+  if (!Object.keys(preset.parts).length && !preset.models && !preset.agentFiles && !preset.skills) return { refuse: 'it gives no part, models, agent files or skill sources' };
   return { preset };
 }
 
@@ -3886,7 +3887,7 @@ function presetPicks(preset) {
  */
 function startPicks(preset) {
   const shipped = PACT.presets.includes(preset);
-  // #183 T4a: skill sources are third-party code the cloud setup fetches and runs as root, so a file's start unticked too.
+  // #183 T4a: skill sources name third-party code for the cloud setup (from T4b), so a shared file's skill sources start unticked too.
   return presetPicks(preset).filter(k => shipped || (!k.startsWith('agent:') && k !== 'skills'));
 }
 
@@ -6037,8 +6038,8 @@ function boot() {
             const says = agentSays(n, chosen.agentFiles[n]);
             return row(`agent:${n}`, `Agent file: ${n}`, says.count, lines(says.lines), el('pre', { class: 'preset-file', text: chosen.agentFiles[n] }));
           }) : []),
-          // #183 T4a: where each skill comes from, at which commit: the cloud setup fetches these and installs them as root.
-          ...(chosen.skills ? [row('skills', 'Skill sources', plural(chosen.skills.reduce((n, k) => n + k.paths.length, 0), 'skill'), lines(chosen.skills.map(k => `${k.repo} at ${k.commit.slice(0, 12)}: ${k.paths.join(', ')}`)), el('p', { class: 'av-annot', text: 'The cloud setup fetches each of these at its commit and installs it; a home install only lists them. Read a source before you take it.' }))] : [])),
+          // #183 T4a: where each skill comes from, at which commit, named for the cloud setup to fetch and install as root.
+          ...(chosen.skills ? [row('skills', 'Skill sources', plural(chosen.skills.reduce((n, k) => n + k.paths.length, 0), 'skill'), lines(chosen.skills.map(k => `${k.repo} at ${k.commit.slice(0, 12)}: ${k.paths.join(', ')}`)), el('p', { class: 'av-annot', text: 'These are for the cloud setup to fetch at their commits, once it reads a configuration (#183 T4b); a home install only lists them. Read a source before you take it.' }))] : [])),
         ...(kept.length ? [el('p', { class: 'av-annot', text: `Not in this preset, so yours stays: ${kept.join(', ')}.` })] : []),
         el('div', { class: 'chips' },
           chip('Take these', true, () => {
@@ -6143,6 +6144,8 @@ function boot() {
     const notes = [
       ...found.map(f => el('li', { class: 'av-callout av-callout--caution', text: `${f.level === 'error' ? 'Fix' : 'Check'} · ${f.where} · ${f.text}` })),
     ];
+    // A builder file's skill sources reach config.json with no view of their own, so Export names each before Save.
+    if (state.skills.length) notes.push(el('li', { class: 'av-callout av-callout--caution', text: `Check · skills · this configuration names skill sources that the cloud setup will fetch from #183 T4b on: ${state.skills.map(s => `${s.repo} at ${String(s.commit).slice(0, 7)}, ${s.paths.length} path${s.paths.length === 1 ? '' : 's'}`).join('; ')}. Save them only if you chose them.` }));
     if (status.text) notes.push(el('li', { class: `av-callout${status.level === 'error' ? ' av-callout--caution' : status.level === 'ok' ? ' av-callout--normal' : ''}`, text: status.text }));
     if (!notes.length) notes.push(el('li', { class: 'av-callout av-callout--normal', text: 'Nothing to fix here. The installer still checks everything.' }));
 

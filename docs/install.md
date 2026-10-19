@@ -172,12 +172,14 @@ parts:
   configuration notice added. If you do have one, it is used whole, never
   mixed with the default: the block lists each setting and edit, and a
   rendered hash the apply command carries. A project install never takes the
-  default. Its workflow names six skills from `addyosmani/agent-skills` on
+  default. The default's workflow names six skills from `addyosmani/agent-skills` on
   the stages (`spec-driven-development`, `incremental-implementation`,
   `test-driven-development`, `code-review-and-quality`,
   `shipping-and-launch` and `documentation-and-adrs`). At home they are
   optional: the install never fetches them, and a session uses one only if
-  you installed it yourself.
+  you installed it yourself, or if a repo you work in carries a skill of that
+  name, which is then the one used. Install them yourself, or write a
+  configuration of your own, to keep a repo's skill out of that slot.
 - **`WARN: SECURITY DEFAULTS:`.** Shown before every other warning when your
   configuration, or the pact's default in its place, edits any of the six parts Scriptorium builds that set
   security defaults: `tiers`, `sensitive`, `workflow`, `lenses`, `qualities`
@@ -270,9 +272,11 @@ parts:
   with its pin's first 12 characters. Each entry is
   `{"repo": "owner/name", "commit": "<40 hex>", "paths": ["<folder>", ...]}`:
   one entry per repo, a full commit id, and at most 100 paths in all, whose
-  last segments, the skills' names, are unique. Only the cloud setup fetches
-  them; this install fetches and installs none, and a session here has only
-  the skills you installed yourself. A bad list refuses (`config-skills`).
+  last segments, the skills' names, are unique. They are for the cloud setup
+  to fetch, once it reads a configuration (#183 T4b); until then nothing
+  fetches them. This install fetches and installs none, and a session here
+  has only the skills you installed yourself. The block names your repos, so
+  share a dry run by its verdict and counts only. A bad list refuses (`config-skills`).
 - **`NOTE: … other pact-install-* folder(s) in the temp folder`.** An install
   stopped hard, by a power cut or a killed process, leaves its work folder in
   your temp folder. It may hold your configuration text. Delete those
@@ -477,6 +481,11 @@ older lens reads with no one rule and no security bar. Remove the column, the
 edit, the project keys and those builder-file fields first. Its install
 deletes `commands/scriptorium.md` and the builder kit, which its payload
 lacks; a configuration that lists `scriptorium` in `commands` refuses there.
+
+A pact from before the default configuration (#183 T4a) refuses a
+configuration or builder file with a `skills` key, so take the key out first.
+With no configuration of yours, it renders the pact's plain text again in
+place of the default, so its dry run shows the `workflow` part going back.
 
 A pact from before the pact tools (#280) refuses a configuration with a
 `tools` key, so take the key out first. Its install then deletes the poster

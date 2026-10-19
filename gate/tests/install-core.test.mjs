@@ -290,6 +290,10 @@ const noneBase = () => ({ in: [`RENDERED ${H('a')}`, `DIFF ${H('d')}`, 'CONFIG n
     // #183 T4a C5: SKILL lines, one per skill path, only after the TOOLS line, each name once, 100 at most.
     { id: 'skill-before-tools', plant: rep('COMMANDS finis', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/x\nCOMMANDS finis'), fails: ['render-unknown-line'], why: 'a skill line before the TOOLS line' },
     { id: 'skill-dot-dot', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/../x\nRESULT'), fails: ['render-unknown-line'], why: 'a .. segment in a skill path' },
+    { id: 'skill-dot-segment', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/./x\nRESULT'), fails: ['render-unknown-line'], why: 'a . segment in a skill path' },
+    { id: 'skill-inner-dash', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc -skills/x\nRESULT'), fails: ['render-unknown-line'], why: 'a segment a git command could read as an option' },
+    { id: 'skill-repo-dots', plant: rep('RESULT', 'SKILL a/.. cccccccccccccccccccccccccccccccccccccccc skills/x\nRESULT'), fails: ['render-unknown-line'], why: 'a repo name of only dots' },
+    { id: 'skill-repo-dot-git', plant: rep('RESULT', 'SKILL a/b.git cccccccccccccccccccccccccccccccccccccccc skills/x\nRESULT'), fails: ['render-unknown-line'], why: 'a repo name ending in .git' },
     { id: 'skill-name-dash', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/-x\nRESULT'), fails: ['render-unknown-line'], why: 'a skill name that starts with a dash' },
     { id: 'skill-short-commit', plant: rep('RESULT', 'SKILL a/b ccccccccccccccccccccccccccccccccccccccc skills/x\nRESULT'), fails: ['render-unknown-line'], why: 'a commit that is not 40 hex' },
     { id: 'skill-name-twice', plant: rep('RESULT', 'SKILL a/b cccccccccccccccccccccccccccccccccccccccc skills/x\nSKILL a/c cccccccccccccccccccccccccccccccccccccccc other/X\nRESULT'), fails: ['render-skill-twice'], why: 'two paths that install under one name, in any case' },
@@ -344,7 +348,7 @@ test('the renderer lines: the pact\'s default parses with its skill paths, and t
     'skills: 3 paths from 2 repos, fetched only by the cloud setup',
     '  a/b at cccccccccccc: 2 paths',
     '  c/d at dddddddddddd: 1 path',
-    '  This install fetches and installs none of them; the workflow names them, and a session here has only the skills you installed yourself.',
+    '  This install fetches and installs none of them; a session here has only the skills you installed yourself.',
   ]);
   assert.deepEqual(core.skillsBlock(core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 })), []);
 });

@@ -524,8 +524,8 @@ export function personalPresets(root, pact, dir = personalPresetsDir(root)) {
       continue;
     }
     const b = r.builder;
-    if (!r.givenParts.length && !b.ownModels && !b.ownAgentFiles) {
-      findings.push(`${at}: left out: it gives no part, models or agent files`);
+    if (!r.givenParts.length && !b.ownModels && !b.ownAgentFiles && !b.ownSkills) {
+      findings.push(`${at}: left out: it gives no part, models, agent files or skill sources`);
       continue;
     }
     for (const f of r.findings) if (f !== YOURS_NONE) findings.push(`${at}: ${f}`);
