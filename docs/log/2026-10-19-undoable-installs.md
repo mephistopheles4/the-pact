@@ -52,3 +52,5 @@
 - [T0, T2 and T3 claimed](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6259772109)
 - [T3's cut list](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6260202309)
 - [Test review, first round](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6260636231)
+- [Test follow-up: integrity-lens](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6260819343)
+- [Test follow-up: reader-lens](https://github.com/mephistopheles4/the-pact/issues/272#issuecomment-6260819777)
