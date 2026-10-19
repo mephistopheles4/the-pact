@@ -22,6 +22,7 @@ const under = (inner, outer) => {
 
 /** A new folder outside the real home folder: under the temp folder when that is outside it, else under ProgramData on Windows; null when neither can be made. */
 function outsideHome(t) {
+  // The temp folder by its long name, as tree.mjs's tempDir makes it (#351): a short 8.3 name with a ~ is refused in a Claude home.
   const bases = [realpathSync.native(tmpdir()), WIN ? process.env.ProgramData : null].filter(b => b && !under(b, homedir()));
   for (const b of bases) {
     try {

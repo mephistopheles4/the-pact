@@ -456,6 +456,7 @@ for (const [label, files, says] of [
   ['skips a test the list lacks', { 'a.test.mjs': SKIPPING, 'skips.txt': '# only one\na.test.mjs inner skip\n' }, /^skip not in the list: a\.test\.mjs planted "skip" & <more>$/m],
   ['runs a test the list says it skips', { 'a.test.mjs': SKIPPING, 'skips.txt': `${LISTED}a.test.mjs planted pass\n` }, /^skip in the list but not seen: a\.test\.mjs planted pass$/m],
 ]) {
+  // #351 (q2, #348 S4.4): each difference fails the run and is named.
   test(`bad case: --skips fails a run that ${label}, naming the difference`, t => {
     const p = plant(t, files);
     const r = runIn(p, ['full', '--skips', join(p.tests, 'skips.txt')]);
@@ -464,7 +465,7 @@ for (const [label, files, says] of [
     assert.match(r.last, /^RESULT: full tier, 1 files, fail \(the skips differ from the list: \d+ not listed, \d+ not seen\)$/);
   });
 }
-// #351 D6 (q7): a list line out of the list's shape is refused by its line number, never echoed.
+// #351, the follow-up read's D6 (q7): a list line out of the list's shape is refused by its line number, never echoed.
 test('bad case: --skips with a line out of the list\'s shape refuses before node runs, naming only its line', t => {
   const p = plant(t, { 'a.test.mjs': SKIPPING, 'skips.txt': `${LISTED}TOKEN=not-a-skip-line\n` });
   const r = runIn(p, ['full', '--skips', join(p.tests, 'skips.txt')]);
@@ -473,6 +474,7 @@ test('bad case: --skips with a line out of the list\'s shape refuses before node
   assert.ok(!r.stderr.includes('TOKEN'), 'the line is never echoed');
   assert.equal(r.last, 'RESULT: refused, the --skips list holds a line out of its shape at line 5');
 });
+// #351 (q2, #348 S4.4): a list that cannot be read refuses rather than passing.
 test('bad case: --skips with a list that cannot be read refuses before node runs', t => {
   const p = plant(t, { 'a.test.mjs': SKIPPING });
   const r = runIn(p, ['full', '--skips', join(p.tests, 'missing.txt')]);

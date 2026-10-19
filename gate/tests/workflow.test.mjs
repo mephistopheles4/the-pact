@@ -69,7 +69,7 @@ function lockdownProblems(src) {
   } catch (e) {
     return [...out, `is not in the YAML the check reads: ${e.message}`];
   }
-  // #351 F1: an exact allow-list at every level, as the CodeQL workflow has, so no env, defaults, shell or checkout input changes what the lines below run.
+  // #351, the security pair's first read, F1: an exact allow-list at every level, as the CodeQL workflow has, so no env, defaults, shell or checkout input changes what the lines below run.
   const extras = (where, obj, keys) => {
     if (isMap(obj)) for (const k of Object.keys(obj)) if (!keys.includes(k)) out.push(extraKey(where, k));
   };
@@ -361,7 +361,7 @@ function folderProblems(files) {
     const problems = name === 'gate.yml' ? lockdownProblems(src) : name === 'codeql.yml' ? codeqlProblems(src, files.get('gate.yml') ?? '') : commonProblems(src);
     out.push(...problems.map(p => `${name} ${p}`));
     if (name === 'gate.yml') continue;
-    // #351: gate-windows is the second required check's name. Trailing comments are cut and a key may be quoted (F4).
+    // #351: gate-windows is the second required check's name. Trailing comments are cut and a key may be quoted (the first read's F4).
     const code = codeOf(src).split('\n').map(uncommented).join('\n');
     for (const [id] of GATE_JOBS) {
       if (new RegExp(`^ {2}['"]?${id}['"]?:\\s*$|^\\s+(?:- )?['"]?name['"]?:\\s*['"]?${id}['"]?\\s*$`, 'm').test(code)) out.push(`${name} defines a job or check named ${id}`);
@@ -417,27 +417,33 @@ for (const [label, plant, says] of [
   ['runs gate-windows on windows-latest', inWindows(s => s.replace('runs-on: windows-2025', 'runs-on: windows-latest')), 'gate-windows does not run on windows-2025'],
   ['drops the Windows time limit', inWindows(s => s.replace('    timeout-minutes: 45\n', '')), 'gate-windows has no time limit'],
   ['runs the fast tier on Windows', inWindows(s => s.replace('gate/tests/run.mjs full', 'gate/tests/run.mjs fast')), 'gate-windows does not run the full tier'],
-  // #351 (q2): the Windows run fails on any skip its committed list doesn't name.
+  // #351 (q2): the Windows run fails unless its skips match its committed list exactly.
   ['drops the skip list on Windows', inWindows(s => s.replace(' --skips gate/tests/windows-skips.txt', '')), 'gate-windows does not run the full tier'],
   ['drops the Windows dry run', inWindows(s => s.replace(/ {10}env -u NODE_OPTIONS node gate\/install\.mjs.*\n/, '')), 'gate-windows does not run the install dry run'],
   ['drops bash from a Windows step', inWindows(s => s.replace('        shell: bash\n', '')), 'gate-windows does not run its steps in bash'],
+  // #351 (q14): the full step's bash too, not only the dry run's.
+  ['drops bash from the Windows full step', inWindows(s => s.replace('      - name: Gate suite, full tier\n        shell: bash\n', '      - name: Gate suite, full tier\n')), 'gate-windows does not run its steps in bash'],
   ['keeps the token in the Windows checkout', inWindows(s => s.replace('persist-credentials: false', 'persist-credentials: true')), 'leaves the token in the checkout'],
   ['runs an old Node on Windows', inWindows(s => s.replace("node-version: '24'", "node-version: '20'")), 'gate-windows runs another Node than the floor'],
   ['folds the two jobs into a matrix', s => s.slice(0, s.indexOf(WINDOWS_JOB) + 1).replace('    runs-on: ubuntu-24.04\n', '    strategy:\n      matrix:\n        os: [ubuntu-24.04, windows-2025]\n    runs-on: ${{ matrix.os }}\n'), 'gate runs on a matrix'],
-  // #351 F1 (q3): the file is held to an exact allow-list, as the CodeQL workflow is, so no key changes what the required lines do.
+  // #351, the first read's F1 (q3): the file is held to an exact allow-list, as the CodeQL workflow is, so no key changes what the required lines do.
   ['sets a top-level env', s => s.replace('\njobs:\n', '\nenv:\n  CI: \'\'\njobs:\n'), extraKey('the file', 'env')],
   ['gives a job shell defaults', s => s.replace('    timeout-minutes: 30\n', '    timeout-minutes: 30\n    defaults:\n      run:\n        shell: sh\n'), extraKey('gate', 'defaults')],
   ['sets a shell on a gate step', s => s.replace('      - name: Gate suite, full tier\n        run:', '      - name: Gate suite, full tier\n        shell: sh\n        run:'), extraKey("gate's step 4", 'shell')],
   ['checks out another ref', s => s.replace('          persist-credentials: false\n', '          persist-credentials: false\n          ref: main\n'), extraKey("gate's step 1's with", 'ref')],
-  // #351 F2, F4 (q7): the triggers are held exactly, and the Windows job pins each action to the Linux job's commit.
+  // #351, the follow-up read's F2 and F4 (q7): the triggers are held exactly, and the Windows job pins each action to the Linux job's commit.
   ['filters its pull requests by path', s => s.replace('  pull_request:\n', '  pull_request:\n    paths: [docs/**]\n'), 'does not run on every pull request and every push to main'],
   ['pins the Windows checkout apart from gate', inWindows(s => s.replace(/actions\/checkout@[0-9a-f]{40}/, `actions/checkout@${'3'.repeat(40)}`)), "gate-windows's step 1 is not pinned to gate's commit"],
+  // #351 (q14): setup-node's pin is held equal too.
+  ['pins the Windows setup-node apart from gate', inWindows(s => s.replace(/actions\/setup-node@[0-9a-f]{40}/, `actions/setup-node@${'3'.repeat(40)}`)), "gate-windows's step 2 is not pinned to gate's commit"],
   // #351 (q11): the Windows dry-run step plants a real Claude folder, so the installer's real-folder guards run there.
   ['drops the real Claude folder on Windows', inWindows(s => s.replace('          mkdir -p "$HOME/.claude/agents"\n', '')), "gate-windows's dry-run step runs other lines than the dry run"],
   ['renames the Windows check', inWindows(s => s.replace('    name: gate-windows\n', '    name: windows\n')), "gate-windows's check is not named gate-windows"],
   ['runs a line before the dry run', s => s.replace('          mkdir -p "$RUNNER_TEMP/pact-home"\n', '          export CI=\n          mkdir -p "$RUNNER_TEMP/pact-home"\n'), "gate's dry-run step runs other lines than the dry run"],
   ['drops the concurrency group', s => s.replace(/^concurrency:\n(?: {2}.+\n)+/m, ''), CANCELS],
   ['keys the concurrency group on the ref alone', s => s.replace(/^( {2}group: ).*$/m, '$1gate-${{ github.ref }}'), CANCELS],
+  // #351 (q14): the group cancels the older run, not only groups it.
+  ['turns off cancelling an older run', s => s.replace('  cancel-in-progress: true\n', '  cancel-in-progress: false\n'), CANCELS],
 ]) {
   test(`bad case: the workflow lockdown check catches a workflow that ${label}`, () => {
     const src = readFileSync(WORKFLOW, 'utf8');
@@ -456,7 +462,7 @@ for (const [label, other, says] of [
   // #351 C2 (#348 S4.2): gate-windows is the second required check's name.
   ['defines a job named gate-windows', OTHER.replace('  lint:', '  gate-windows:'), 'other.yml defines a job or check named gate-windows'],
   ['names a job gate-windows', OTHER.replace('    runs-on:', '    name: gate-windows\n    runs-on:'), 'other.yml defines a job or check named gate-windows'],
-  // #351 F4 (q3): a trailing comment or a quoted key doesn't hide the name.
+  // #351, the first read's F4 (q3): a trailing comment or a quoted key doesn't hide the name.
   ['names a job gate-windows before a comment', OTHER.replace('    runs-on:', '    name: gate-windows # look-alike\n    runs-on:'), 'other.yml defines a job or check named gate-windows'],
   ['defines a quoted job id gate-windows', OTHER.replace('  lint:', "  'gate-windows':"), 'other.yml defines a job or check named gate-windows'],
 ]) {

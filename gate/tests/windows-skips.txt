@@ -1,6 +1,6 @@
 # The tests the gate-windows job may skip (#351), one per line: the test
 # file's name, a space and the test's name, as the runner's --skips prints
-# them. The job fails on any skip this list lacks and on any listed skip that
+# them after its prefix. The job fails on any skip this list lacks and on any listed skip that
 # ran, so a change here is a reviewed change to what Windows CI checks. A
 # line added for a test that guards the installer's link, path or file
 # handling is input validation: it matches the sensitive-work list, and the

@@ -47,7 +47,9 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   `--reporter` takes `spec`, `tap`, `dot` or `junit`, and `--list` prints the
   pick and runs nothing. `--skips <file>`, for `full` only, fails a passing
   run unless it skipped exactly the tests the file lists, by test file and
-  name, and prints each difference as a line the list can take. The Windows
+  name, and prints each difference after a `skip not in the list: ` or
+  `skip in the list but not seen: ` prefix; the text after the prefix is the
+  list's line. The Windows
   CI job runs it with `gate/tests/windows-skips.txt`, so a new Windows skip is
   a reviewed change to that list. A line added for a test that guards the
   installer's link, path or file handling is input validation: the change
@@ -81,21 +83,23 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   machine's home or temp path, user name or host name, as the review
   procedure reads a post. If it finds one, it keeps the branch local and tells
   the owner in chat.
-- **When the push waits.** Off the sensitive route, the session pushes
-  without asking, on the owner's standing go-ahead, unless one of these holds:
+- **When the push waits.** The session pushes without asking, on the
+  owner's standing go-ahead, unless one of these holds:
   - the change is on the sensitive route, matches the sensitive-work list, or
     is flagged sensitive, so the security pair is due or offered at Test: the
     push waits for the owner's answer to the offer and, when the pair runs,
-    for its read;
+    for its read of the local commit, which comes before the push and the
+    rest of Test;
   - the diff touches `.github/` or `gate/tests/workflow.test.mjs`: a pull
     request runs the branch's own copy of every workflow, the CodeQL one with
     its write token, as soon as it opens (R27), so the push waits for the
     security pair's read or the owner's word.
 
   A push that waits is squashed to one commit first, so the security pair's
-  read of the diff covers every commit the push publishes. A decline of the
-  offer that reached the session only by relay stays open, as the pact says,
-  and the push goes on it. A decline frees only the wait for the offer: a
+  read of the diff covers every commit the push publishes. When the owner
+  declines the offer, the push goes on that answer; a decline that reached
+  the session only by relay frees it too, but stays open, as the pact says. A
+  decline frees only the wait for the offer: a
   diff that touches `.github/` or the lockdown test still waits for the
   pair's read or the owner's word on the push itself.
 - **The pushed commit is the one the pair read.** The pair's report names
@@ -105,6 +109,11 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 - **A cancelled run on `main`** is re-run before an install or a rollback
   reads its result. No run of the gate workflow cancels another on `main`,
   but a run of another workflow that named the same concurrency group could.
+- **When `gate-windows` fails on code a change doesn't touch, or never
+  reports** (a flaky test, an outage, a retired image label), the session
+  re-runs it once at most, then stops and brings the owner the choice:
+  re-run, move the image label in a spec change, or drop the required check
+  (#348, spec S7).
 - **A changed-files run is never Test evidence.**
 - **Test output is posted only from record mode.** `--record <file>` writes a
   copy of everything printed to a file outside the repo, with the repo, home

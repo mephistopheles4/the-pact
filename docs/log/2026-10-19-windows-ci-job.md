@@ -15,15 +15,16 @@
 ## Decided at Build
 
 - **No local Git Bash run,** by the owner's word, relayed: the local `full` runs in Docker through the #96 fixture, as a building check; Windows evidence comes only from `gate-windows`. `gate-windows` keeps `shell: bash` (q1), recorded in ADR 0095 with its alternative and the trigger to revisit.
-
 - **Messages name the job.** Problems a job's steps cause carry the job id, so a bad case shows which job it caught.
 - **The every-checkout rule sits in the common lockdown,** so it holds every workflow file, not only `gate.yml`.
 
 ## Changed at Test
 
 - **The first Windows CI run failed 238 install tests** that this change doesn't touch: GitHub's Windows image gives the temp folder a short 8.3 name with a `~`, which the install refuses in a Claude home by design, and the tests made their homes there. Reproduced here with a short-name temp folder. By the owner's q6 the test helpers now make their temp folders under the temp folder's long name.
-- **The security pair's follow-up** found only lows. By q7 the push rule now ties the pair's read to the pushed commit and says what a declined offer and a later push need; a Windows skip that guards installer path or link handling goes to the owner; the `--skips` list refuses a line out of its shape by its line number; the triggers and the Windows job's action pins are held exactly. F1 (line-break characters in a workflow) and F3 (other workflows read with the YAML reader) are filed as follow-up issues. By q8, a killed run's leftover junit report in the temp folder is an accepted risk under R21.- **The next Windows run** left two real failures. An outside-home project case still built its folder from the short temp name, fixed under q6. The unreadable-file case can't plant its file on GitHub's runner, whose elevated account reads past a deny: by the owner's q10 its plant now checks that it took, as on Linux, and it joins the Windows skip list as a reviewed skip of an installer file guard; it still runs on Linux and on Windows unelevated.
+- **The security pair's follow-up** found only lows. By q7 the push rule now ties the pair's read to the pushed commit and says what a declined offer and a later push need; a Windows skip that guards installer path or link handling goes to the owner; the `--skips` list refuses a line out of its shape by its line number; the triggers and the Windows job's action pins are held exactly. The follow-up read's F1 (line-break characters in a workflow) and F3 (other workflows read with the YAML reader) are filed as follow-up issues. By q8, a killed run's leftover junit report in the temp folder is an accepted risk under R21.
+- **The next Windows run** left two real failures. An outside-home project case still built its folder from the short temp name, fixed under q6. The unreadable-file case can't plant its file on GitHub's runner, whose elevated account reads past a deny: by the owner's q10 its plant now checks that it took, as on Linux, and it joins the Windows skip list as a reviewed skip of an installer file guard; it still runs on Linux and on Windows unelevated.
 - **The run after that** passed every test but failed its skip check on three runner-only skips. By the owner's q11 the Windows dry-run step plants a real Claude folder in the runner's home, so the two real-folder project guards run there, and render-config's unreadable-file case joins the list as a reviewed skip.
+- **At Test,** `main` was merged in and every Test lens ran on the new merge base. The lenses' wording fixes went in, and the gate-tests doc gained spec S7's stop for a required Windows check that fails on code a change doesn't touch. By the owner's q14 three more lockdown bad cases pin the full step's bash, setup-node's equal pin and `cancel-in-progress`; by q12 the threat model's crypto line covers every workflow's actions again. q13 and q15 to q17 left their findings as they were.
 
 ## Owner steps after the merge
 
@@ -51,3 +52,28 @@
 - [The proceed record](https://github.com/mephistopheles4/the-pact/issues/348#issuecomment-6270102103)
 - [T1 pointer to revision 6](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270099775)
 - [T1 claimed](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270130519)
+- [The local `full` in Docker, the owner's word](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270522398)
+- [Build: the security pair's first read](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270651128)
+- [Its dispositions](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270656698)
+- [The owner's q1 and q2](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270666700)
+- [The owner's q3 to q5](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6270892768)
+- [Build: the security pair's follow-up read](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6271295786)
+- [Its dispositions](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6271301257)
+- [The stop on the first Windows run](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6271847954)
+- [The owner's q6 to q8](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6271912714)
+- [Build: the security pair's second follow-up read](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272201120)
+- [Its dispositions](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272201873)
+- [The owner's q9](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272311956)
+- [CI after the q6 fix](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272368309)
+- [The owner's q10](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272492391)
+- [C4: the probe](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272692493)
+- [The owner's q11](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272839549)
+- [C3: both jobs on the head](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272989648)
+- [The hand-over at the end of the build](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6272999099)
+- [Test: the Docker full run at the merge with main](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273160137)
+- [Test: CI on the merged head](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273550370)
+- [Test review: the QA pair](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273643084)
+- [Test review: the standards pair](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273643893)
+- [Test review: unstated-lens](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273644648)
+- [Test review: the security pair](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273645453)
+- [Test review dispositions](https://github.com/mephistopheles4/the-pact/issues/351#issuecomment-6273646317)

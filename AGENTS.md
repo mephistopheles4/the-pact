@@ -50,9 +50,10 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   Before any push, read every commit it publishes for a secret, a personal
   detail, or this machine's paths and names. Push without asking only off the
   sensitive route, when the security pair isn't due or offered, and when the
-  diff leaves `.github/` and the lockdown test alone. Otherwise squash to one
-  commit and wait for the owner's answer to the pair's offer and, when the
-  pair runs, for its read; a diff held back only by `.github/` or the
+  diff leaves `.github/` and the lockdown test (`gate/tests/workflow.test.mjs`)
+  alone. Otherwise squash to one commit and wait for the owner's answer to
+  the pair's offer and, when the pair runs, for its read of that local
+  commit, which comes before the push and the rest of Test; a diff held back only by `.github/` or the
   lockdown test may go on the owner's word instead, and a decline of the
   offer never frees it. Push only the commit the
   pair's report names; a later change waits for its follow-up read or the
