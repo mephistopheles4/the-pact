@@ -1325,7 +1325,7 @@ export function skillsBlock(parsed) {
       const own = parsed.skills.filter(k => k.repo === r);
       return `  ${r} at ${own[0].commit.slice(0, 12)}: ${own.length} path${own.length === 1 ? '' : 's'}`;
     }),
-    '  This install fetches and installs none of them; a session here has only the skills you installed yourself.',
+    '  This install fetches and installs none of them; a session here uses one only if you installed it yourself, or if a repo you work in carries a skill of that name, which it then uses.',
   ];
 }
 

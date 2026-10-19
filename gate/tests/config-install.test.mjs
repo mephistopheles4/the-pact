@@ -235,7 +235,7 @@ test('a configuration with skills: the dry run lists them by repo and says this 
   const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
   const at = lines.indexOf('skills: 2 paths from 1 repo, fetched only by the cloud setup');
   assert.ok(at > lines.indexOf('Configuration:'), dry.out);
-  assert.deepEqual(lines.slice(at + 1, at + 3), [`  someone/skills at ${pin.slice(0, 12)}: 2 paths`, '  This install fetches and installs none of them; a session here has only the skills you installed yourself.']);
+  assert.deepEqual(lines.slice(at + 1, at + 3), [`  someone/skills at ${pin.slice(0, 12)}: 2 paths`, '  This install fetches and installs none of them; a session here uses one only if you installed it yourself, or if a repo you work in carries a skill of that name, which it then uses.']);
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.deepEqual(listTree(h).filter(p => /(^|[\\/])(skills|alpha|beta)([\\/]|$)/.test(p)), []);

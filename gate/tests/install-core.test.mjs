@@ -348,7 +348,7 @@ test('the renderer lines: the pact\'s default parses with its skill paths, and t
     'skills: 3 paths from 2 repos, fetched only by the cloud setup',
     '  a/b at cccccccccccc: 2 paths',
     '  c/d at dddddddddddd: 1 path',
-    '  This install fetches and installs none of them; a session here has only the skills you installed yourself.',
+    '  This install fetches and installs none of them; a session here uses one only if you installed it yourself, or if a repo you work in carries a skill of that name, which it then uses.',
   ]);
   assert.deepEqual(core.skillsBlock(core.parseRenderLines(renderBase().in.split('\n'), { project: false, hash: sha256 })), []);
 });

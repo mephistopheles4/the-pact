@@ -275,7 +275,7 @@ parts:
   last segments, the skills' names, are unique. They are for the cloud setup
   to fetch, once it reads a configuration (#183 T4b); until then nothing
   fetches them. This install fetches and installs none, and a session here
-  has only the skills you installed yourself. The block names your repos, so
+  uses one only if you installed it yourself, or if a repo you work in carries a skill of that name, which it then uses. The block names your repos, so
   share a dry run by its verdict and counts only. A bad list refuses (`config-skills`).
 - **`NOTE: … other pact-install-* folder(s) in the temp folder`.** An install
   stopped hard, by a power cut or a killed process, leaves its work folder in
@@ -306,8 +306,7 @@ $env:NODE_OPTIONS = $null; node gate/install.mjs --apply --commit <commit> --ren
 ```
 
 The `--rendered-hash` binds the apply to the rules file the dry run showed,
-yours or the pact's default; only a project install, which renders no
-configuration, leaves it out. The `--commit`
+yours or the pact's default; every apply line the dry run prints carries it, and a project install's binds its project rules file. The `--commit`
 is the commit the dry run checked: if your clone moved on since, the apply
 refuses, so run the dry run again. `--apply` also refuses on drift or a
 working tree with uncommitted changes. After it copies the files, it checks
@@ -485,7 +484,7 @@ lacks; a configuration that lists `scriptorium` in `commands` refuses there.
 A pact from before the default configuration (#183 T4a) refuses a
 configuration or builder file with a `skills` key, so take the key out first.
 With no configuration of yours, it renders the pact's plain text again in
-place of the default, so its dry run shows the `workflow` part going back.
+place of the default. Its dry run names the last install's configuration digest, then says no configuration, lists `CLAUDE.md` under Overwrite and the default's kit files under Delete, and prints no line naming the `workflow` part.
 
 A pact from before the pact tools (#280) refuses a configuration with a
 `tools` key, so take the key out first. Its install then deletes the poster
