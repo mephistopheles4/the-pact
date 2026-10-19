@@ -15,6 +15,7 @@
 - **New:** `default-config.test.mjs` (the committed copy is current and a stale one fails `--check`; the page's save equals the generator's files, with and without skills; the default's workflow names the six skills; a person's render is the same with or without the default folder; 18 D4 rows refused alike, in the same words, by the page's checker, the renderer and the builder; the page keeps `skills`; AGENTS.md's D12 line). In `install-core.test.mjs`, 7 renderer-line rows and one with no configuration, and a parse of the default with skills. In `config-install.test.mjs`, the dry run of the default (C1), a configuration with skills (C6) and the gone configuration (C35).
 - **Changed by D3, each because a config-less install now renders the default:** every config-less `--apply` in the install tests first takes the dry run's rendered hash (`applyBound`); the tests that expected `CONFIG none`, "no configuration" or the plain render on a home install now expect the default; the planted no-configuration rows plant a renderer with no default folder, so they still reach `CONFIG none`; the usage rows count the optional fourth argument.
 - **Ready for C9:** the page's reset and Save tests read what they expect from `builder/default-config/config.json`, and the default's dry-run test expects a `skills:` line exactly when the default names skills, so the preset's `skills` entry lands with no test change. Each still pins the content through the C3 and C4 tests.
+- **Since the lens review:** rows for the tightened skill-source shapes, the default folder's refusals and the 100-path boundary; the security-defaults line's changed-since check; Export's skill-sources line. Full tier at the head: 2249 tests, one failure, #333; with the C9 pin applied, the same.
 - **Not run green here:** "a project holding the real home folder refuses" (#333) fails only in a cloud container, where home is `/root`.
 
 ## The first pin of `addyosmani/agent-skills`
@@ -24,3 +25,5 @@ Read in a cloud thread at commit `aeac41d4d005999432bb7312f7ff06383a91d59d`, an 
 ## Record
 
 - Spec revision 7 and its sign-off: #183, comment 6259891767.
+- The Test lens review, first round for all seven lenses at 969542d, with its Lens dispositions: #183, comments [6260628618](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260628618), [6260629093](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260629093) and [6260629617](https://github.com/mephistopheles4/the-pact/issues/183#issuecomment-6260629617).
+- PR #346.
