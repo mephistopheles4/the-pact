@@ -49,7 +49,7 @@ still there, whatever the owner's answer.
 
 **When a session dies, its files stay.** Nothing deletes a file the session
 didn't. A lens report kept after a refusal for a secret, a personal detail, a
-path of this machine's, a session id or hidden characters is an ordinary, unencrypted file
+session id or hidden characters is an ordinary, unencrypted file
 in that session's scratch folder, which the session named to the owner in chat
 when it kept the report. If the session is killed before it cleans up, delete
 that file by hand. The report may also stay in the session's saved
@@ -118,7 +118,7 @@ page and login are the ones the poster checked before it sent, never text from
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
 | 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the body file; tells the owner which field |
 | 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
-| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for a secret, a personal detail, a path of this machine's, a session id or hidden characters stays local, unedited, and the owner is told where it is, in chat; a table, wrap or link refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
+| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for a secret, a personal detail, a session id or hidden characters stays local, unedited, and the owner is told where it is, in chat; a table, wrap or link refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
 | 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
 
