@@ -10,6 +10,14 @@
 - **The threat model's R34** widens to any revealing path, on the owner's word in chat.
 - **Regenerated:** `cloud-sessions/`, already in step.
 
+## Test
+
+The QA pair read `09b5868`.
+- integrity-lens found that the new test missed three things the cut tests covered: a path in a title, a run through the whole poster, and some home shapes. The test now covers them, and it goes red against the old poster.
+- behaviour-lens found that a drive-letter link passed `link/relative`, because `D:` read as a scheme. A scheme now needs two letters.
+- behaviour-lens also found that a scratchpad path is still refused, by `id/session`. The owner had it filed as #366 and noted in `docs/poster.md`.
+- The owner approved R34's wording in chat.
+
 ## Decisions
 
 - [ADR 0097](../adr/0097-the-poster-refuses-no-path.md): the poster refuses no path. Amends ADR 0086.
@@ -17,3 +25,4 @@
 ## Record
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/364): the tier, the declined sensitive route and the claims.
+- [The Test review](https://github.com/mephistopheles4/the-pact/issues/364#issuecomment-6335653511): the QA pair on `09b5868`, crossed, with the Lens dispositions table; behaviour-lens's report follows it once the merged pact is installed.

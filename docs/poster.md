@@ -211,7 +211,9 @@ no test holds them.
   temp folders, user name and host name included (#364, ADR 0097). Catching
   a path that says something about you is the read before posting's job. A
   link whose target is a local path is still refused, by `link/relative`,
-  since it lands as a dead link.
+  since it lands as a dead link. A path into a Claude Code scratchpad is
+  still refused, by `id/session`: the scratchpad folder is named by the
+  session's id (#366).
 - **`id/session`:** a UUID, a `session_` id, or a Claude Code session link.
   A pull request's body may end with Claude Code's attribution, whose session
   link is let through.
