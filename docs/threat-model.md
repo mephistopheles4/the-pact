@@ -224,8 +224,9 @@ How to read it:
   a posted report; a rule and a search before posting guard it on every
   install, and where the poster is on, its scan is a backstop behind them
   (#280). R31 needs you to run a project install and pass over the
-  warning that leads its dry run. R33 needs another local account that can read the system's temporary folder. R34 needs a path whose folder names say
-  something about you, outside your home and temp folders, to reach a post.
+  warning that leads its dry run. R33 needs another local account that can read the system's temporary folder. R34 needs a path that says something about
+  you, such as your user name in your home folder, to pass the read before
+  posting.
   R37 costs a broken `node` command until the next setup, or tells mise's
   vendor which versions a session runs. R41 and R42 need a session to break
   the review procedure's own rule on a table row or on the base it hands a
@@ -269,7 +270,7 @@ How to read it:
 | R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits, and a warning for cost rows no quality names; the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits, and a middle dot refused in an Enough level and a cost name (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
 | R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked, as do a preset's from your own `pact/presets/` folder, since a file there may be one someone handed you; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while the page takes a retired agent's file out of a loaded or shared file, with a note, and a file at agents/<name>.md for a retired agent draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
 | R33 A written page stays on disk | Another local account that can read the system's temporary folder | The builder writes the page only into a new folder under the temporary folder or a path you name outside any repo, the kit, the Claude home folder and any `.claude` folder, never over a file; its closing note and the session's hand-over ask you to delete the folder | Judgment |
-| R34 A revealing path in a post | Anyone who reads the tracker | The read before posting, which looks for your home or temp folder path, user name and host name; on an install with the poster on, `path/machine` as a backstop for those; any other path passes (#326) | Rule |
+| R34 A revealing path in a post | Anyone who reads the tracker | The read before posting, which looks for your home or temp folder path, user name and host name; the poster checks no path (#326, #364) | Rule |
 | R35 Cloud Node pins | Upstream release, or the pin bump | Pinned hashes checked before use; signatures checked against committed keys at each bump; a weekly advisory routine (ADR 0088) | Boundary, rule |
 | R36 Trusted mise config | A cloned repo, text a session reads | `paranoid` on in mise's global config, so mise refuses an untrusted project config; the `node`, `npm` and `npx` wrappers bypass mise's shims; here, the mise section in `AGENTS.md`; elsewhere, judgment (#183) | Boundary, rule, judgment |
 | R37 Cloud Node block hardening | None; a cost to you | The setup's Result section runs the `node` wrapper by path and marks the setup `INCOMPLETE` when it fails; mise's version lookup is off (`use_versions_host = false`) (#183) | Boundary |
@@ -341,8 +342,7 @@ months.
   anchor-path check, kept full local paths, and the user name in them, out of
   posted anchors; it is now the lens files' rule and the read. Since #280,
   an install with the poster on (`docs/poster.md`) also scans each post for
-  secrets, email addresses, this machine's own paths and names, and session
-  ids, and checks the
+  secrets, email addresses and session ids, and checks the
   shape of a Lens dispositions table, before anything is sent. Both are a
   backstop that only some installs have: they catch accidents and cover fixed
   shapes, and they miss a secret with no known shape and every other personal
@@ -1099,16 +1099,21 @@ because they plant bad cases on purpose and raised alerts that were noise.
   before posting, and the read before posting, come first on every install.
   Where the owner turns the poster on, its scan is a backstop behind that
   search, not a replacement for it.
-- **R34. A local path that is not this machine's home or temp folder can
-  reach the public record.** An example is a project kept under a folder
-  whose name says something about its owner. Until #326 the poster's
-  `path/local` rule refused any text shaped like a local path; it refused far
-  more harmless text than it caught, withholding whole lens reports, so it is
-  gone. `path/machine` still refuses this machine's home and temp folders,
-  user name and host name, and the read before posting still looks for them.
-  Accepted by the owner on 2026-10-17, in [#326's body](https://github.com/mephistopheles4/the-pact/issues/326)
+- **R34. A local path that says something about you can reach the public
+  record.** Examples are your home folder, which holds your user name, your
+  host name, or a project kept under a folder whose name says something about
+  you. Until #326 the poster's `path/local` rule refused any text shaped like
+  a local path; it refused far more harmless text than it caught,
+  withholding whole lens reports, so it went. Until #364 `path/machine`
+  refused this machine's home and temp folders, user name and host name; with
+  the temp folder moved to a folder that names nobody, it refused ordinary
+  scratch paths, so it went too. The read before posting still looks for a
+  home or temp folder path, a user name and a host name. Accepted by the
+  owner on 2026-10-17, in [#326's body](https://github.com/mephistopheles4/the-pact/issues/326)
   and in chat, relayed by the lead session; the tier and the declined sensitive route are in
   [issuecomment-6243713061](https://github.com/mephistopheles4/the-pact/issues/326#issuecomment-6243713061) (ADR 0086).
+  Widened by the owner on 2026-10-22, in chat, from #364's finding that the
+  rule refused scratch paths (ADR 0097).
 
 ## The poster's own checks
 

@@ -50,7 +50,7 @@ only while the tool is on. The cloud copy installs none.
 
 | Tool | What it does |
 | --- | --- |
-| `poster` | Posts free text to GitHub as the owner's `gh` account, through one fixed call per surface, and reads back what landed. Its scan for secrets, personal details and this machine's own paths and names is a backstop, not a guarantee. On, it installs to `~/.claude/pact/tools/poster.mjs`, and the rules file tells a session to post through it, from a scratch folder, on a repo the `gh` login owns. Its surfaces, options, exit codes and rule ids, and what its scans cover and don't, are in [poster.md](poster.md). |
+| `poster` | Posts free text to GitHub as the owner's `gh` account, through one fixed call per surface, and reads back what landed. Its scan for secrets, email addresses, session ids and hidden text is a backstop, not a guarantee; it refuses no path. On, it installs to `~/.claude/pact/tools/poster.mjs`, and the rules file tells a session to post through it, from a scratch folder, on a repo the `gh` login owns. Its surfaces, options, exit codes and rule ids, and what its scans cover and don't, are in [poster.md](poster.md). |
 
 ## The familiars, by effort
 
