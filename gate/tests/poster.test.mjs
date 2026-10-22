@@ -48,7 +48,7 @@ const USERINFO = 'https://bob:' + 'hunter2pass@example.com/x';
 const PLANTED = [
   'cache.example.com',
   ...Object.values(SECRETS), ENV_SECRET, 'hunter2pass', 'alice', 'example.org', 'notes-for-alice', SESSION, GH_TOKEN_SHAPE.slice(10),
-  '/srv/home', 'tester', 'buildhost', 'fileserver', '/tmp/abc', 'work/notes', '426614174000', 'abc/file',
+  'tester', '426614174000',
 ];
 
 const TRAILER = `${ROBOT} Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_${SESSION}\n`;
@@ -376,12 +376,12 @@ for (const [where, fault, code, result, next, how = 'throw'] of [
 }
 
 // #246 C10: gh's error line is shown only when it trips no scan rule
-test("a gh error line naming this machine's home folder is withheld", t => {
-  const w = world({ fail: { GET: 'open /srv/home/tester/.config/gh/hosts.yml: permission denied' } });
+test('a gh error line holding a token is withheld', t => {
+  const w = world({ fail: { GET: `bad credentials for ${SECRETS.github}` } });
   const r = run(t, 'issue-comment', w);
   assert.equal(r.code, 4);
-  assert.ok(r.lines.includes('gh said: (withheld: path/machine)'), out(r));
-  assert.ok(!out(r).includes('/srv/home'));
+  assert.ok(r.lines.includes('gh said: (withheld: secret/token)'), out(r));
+  assert.ok(!out(r).includes(SECRETS.github));
 });
 
 // ---------------------------------------------------------------- C10: the last line is always the true result
@@ -664,10 +664,6 @@ const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n
     { id: 'token-conn', plant: inBody(SECRETS.conn), fails: ['secret/token'], why: 'a connection string with a key' },
     { id: 'url-userinfo', plant: inBody(USERINFO), fails: ['secret/url-userinfo'], why: 'a password in a URL' },
     { id: 'env-value', plant: inBody(ENV_SECRET), fails: ['secret/env'], why: "a variable's value whose name ends in KEY" },
-    { id: 'machine-home', plant: inBody('/srv/home/tester' + '/notes'), fails: ['path/machine'], why: "this machine's home folder as a prefix" },
-    { id: 'machine-tmp', plant: inBody('/tmp' + '/abc/file'), fails: ['path/machine'], why: "this machine's temp folder as a prefix" },
-    { id: 'machine-user', plant: inBody('/opt/build/' + 'tester/out'), fails: ['path/machine'], why: "this machine's user name in a local path" },
-    { id: 'machine-private-tmp', plant: inBody('/private' + '/tmp/abc/file'), fails: ['path/machine'], why: 'macOS writes its temp folder behind /private' },
     { id: 'email-mail-link', plant: inBody('[mail](mailto:' + 'alice@example.org)'), fails: ['personal/email'], why: 'an address in a mail link' },
     { id: 'email-after-colon', plant: inBody('Contact:' + 'alice@example.org'), fails: ['personal/email'], why: 'an address straight after a colon' },
     { id: 'hidden-tag', plant: inBody('a' + String.fromCodePoint(0xe0041) + 'b'), fails: ['text/hidden'], why: 'a tag character a reader never sees' },
@@ -685,11 +681,6 @@ const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n
     { id: 'hidden-rare-selector', plant: inBody('a' + String.fromCharCode(0xfe00) + 'b'), fails: ['text/hidden'], why: 'a variation selector no emoji needs' },
     { id: 'userinfo-empty-user', plant: inBody('redis://:' + 'hunter2pass@cache.example.com:6379'), fails: ['secret/url-userinfo'], why: 'a password with an empty user name' },
     { id: 'userinfo-no-scheme', plant: inBody('//bob:' + 'hunter2pass@example.com/x'), fails: ['secret/url-userinfo'], why: 'a password in a link with no scheme' },
-    { id: 'account-form', plant: inBody('buildhost\\' + 'tester'), fails: ['path/machine'], why: 'a Windows account: host, backslash, user' },
-    { id: 'emphasised-path', plant: inBody('**/opt/' + 'tester/x**'), fails: ['path/machine'], why: 'a local path in bold' },
-    { id: 'host-in-link', plant: inBody('http://' + 'buildhost:8080/x'), fails: ['path/machine'], why: "this machine's host name as a link's host" },
-    { id: 'claude-project-folder', plant: inBody('~/.claude/projects/-srv-home-' + 'tester-sandbox/x.jsonl'), fails: ['path/machine'], why: 'the home folder as Claude names a project folder' },
-    { id: 'machine-host', plant: inBody('//' + 'buildhost/share'), fails: ['path/machine'], why: "this machine's host name in a path" },
     { id: 'uuid', plant: inBody('123e4567-e89b-12d3-a456-' + '426614174000'), fails: ['id/session'], why: 'a UUID' },
     { id: 'session-id', plant: inBody('session_' + SESSION), fails: ['id/session'], why: 'a session id' },
     { id: 'session-link', plant: inBody('https://claude.ai/code/' + 'session_' + SESSION), fails: ['id/session'], why: 'a session link outside the trailer' },
@@ -697,7 +688,6 @@ const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n
     { id: 'title-token', plant: inTitle(SECRETS.github), fails: ['secret/token'], why: 'a token in the title' },
     { id: 'title-url-userinfo', plant: inTitle(USERINFO), fails: ['secret/url-userinfo'], why: 'userinfo in the title' },
     { id: 'title-env', plant: inTitle(ENV_SECRET), fails: ['secret/env'], why: 'an env value in the title' },
-    { id: 'title-machine', plant: inTitle('/tmp' + '/abc/file'), fails: ['path/machine'], why: 'a temp path in the title' },
     { id: 'title-session', plant: inTitle('session_' + SESSION), fails: ['id/session'], why: 'a session id in the title' },
     { id: 'title-email', plant: inTitle('alice' + '@example.org'), fails: ['personal/email'], why: 'an email in the title' },
     { id: 'label-token', plant: tree => withArgv(tree, () => ISSUE_ARGV('tier:thorough', 'AK' + 'IA' + rep('H8', 8))), fails: ['secret/token'], why: 'every label is scanned' },
@@ -733,29 +723,26 @@ test('plain words that look like the rules pass the scan', t => {
   assert.equal(last(r), 'RESULT: dry-run issue-comment');
 });
 
-// #326 C1: a path that names none of this machine's own folders or names posts; only path/machine refuses a path
-test("a drive-letter path, a network share and another user's home post", t => {
-  const body = [
-    'Notes sit in D:' + '\\work\\notes.md and D:' + '/work/notes.md, on \\\\' + 'fileserver\\share\\x.',
-    'Homes: /Users/' + 'notes-for-alice/x, /home/' + 'notes-for-alice/x, /c/Users/' + 'notes-for-alice/x and /mnt/c/Users/' + 'notes-for-alice/x.',
-    '',
-  ].join('\n');
-  const argv = place(t, { 'body.md': body, 'title.txt': 'Moved to D:' + '/work\n' }, ISSUE_ARGV('tier:thorough'));
+// #364 C1: with path/machine gone, the poster refuses no path: this machine's own home, temp, user and host names post too, in a body or a title, on either kind of machine
+test("this machine's own home and temp folders, user name and host name post in paths", t => {
+  const machines = [
+    { home: '/srv/home/' + 'tester', tmp: '/tmp', user: 'tester', host: 'buildhost', texts: ['/srv/home/' + 'tester/notes', '/tmp' + '/abc/file', '/private' + '/tmp/abc', '/opt/build/' + 'tester/out', 'buildhost\\' + 'tester', '//' + 'buildhost/share', 'http://' + 'buildhost:8080/x', '~/.claude/projects/-srv-home-' + 'tester-sandbox/x.jsonl', 'D:' + '\\work\\notes.md', '\\\\' + 'fileserver\\share\\x', '/home/' + 'notes-for-alice/x', '/Users/' + 'notes-for-alice/x', '/c/Users/' + 'notes-for-alice/x', '/mnt/c/Users/' + 'notes-for-alice/x'] },
+    { home: 'X:\\Users\\' + 'tester', tmp: 'X:\\tmp', user: 'tester', host: 'buildhost', texts: ['X:\\Users\\' + 'tester\\notes', 'X:/Users/' + 'tester/notes', 'X:/tmp' + '/abc/file', 'Y:/work/' + 'tester/x', '~/.claude/projects/X--Users-' + 'tester/x.jsonl'] },
+  ];
+  for (const { texts, ...m } of machines) {
+    for (const text of texts) {
+      for (const field of ['body', 'title']) assert.deepEqual(scan([{ field, text }], { env: {}, ...m, surface: 'issue' }), [], `${field}: ${text}`);
+    }
+  }
+  // The whole poster, not only the scan: a dry run with this machine's paths in the title and the body.
+  const argv = place(t, { 'body.md': `${machines[0].texts.join(' and ')}.\n`, 'title.txt': `Moved to ${machines[0].texts[0]}\n` }, ISSUE_ARGV('tier:thorough'));
   const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
   assert.equal(r.code, 0, r.lines.join('\n'));
   assert.match(last(r), /^RESULT: dry-run /);
 });
 
-// #326: with path/local gone, path/machine alone guards a Windows machine's own paths: either slash, a drive-letter start, the drive colon in Claude's project-folder form
-test("on a Windows-shaped machine, path/machine refuses its home and temp with the other slash, its user under a drive path, and its project-folder form", () => {
-  const ctx = { env: {}, home: 'X:\\Users\\' + 'tester', tmp: 'X:\\tmp', user: 'tester', host: 'buildhost', surface: 'issue-comment' };
-  for (const text of ['X:/Users/' + 'tester/notes', 'X:/tmp' + '/abc/file', 'Y:/work/' + 'tester/x', '~/.claude/projects/X--Users-' + 'tester/x.jsonl']) {
-    assert.deepEqual([...new Set(scan([{ field: 'body', text }], ctx).map(r => r.rule))], ['path/machine'], text);
-  }
-});
-
-// #246 C7: the user name counts only inside a local path, never in a web link or a repo path
-test("links to the owner's own repo, and emoji with joiners, pass when the user name is the login", t => {
+// #246 C7: links to the owner's own repo, and emoji with joiners, pass
+test("links to the owner's own repo, and emoji with joiners, pass", t => {
   const ZWJ = String.fromCharCode(0x200d);
   const VS16 = String.fromCharCode(0xfe0f);
   const body = [

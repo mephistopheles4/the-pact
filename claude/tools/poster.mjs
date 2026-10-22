@@ -17,11 +17,10 @@
 //
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every option and file, and scans the
-// exact text it would send for credential shapes, environment secrets, this
-// machine's own folders and names, session ids, email addresses and hidden
-// text; any other path passes (#326). Then it checks the
-// shape of any Lens dispositions table in the body against the review
-// procedure's template (#280, T2), and refuses a body whose prose is
+// exact text it would send for credential shapes, environment secrets, session
+// ids, email addresses and hidden text; it refuses no path (#326, #364).
+// Then it checks the shape of any Lens dispositions table in the body against
+// the review procedure's template (#280, T2), and refuses a body whose prose is
 // hard-wrapped or whose link has no scheme (#317, text/hard-wrap and
 // link/relative); it never rewrites a body. Before it posts, it checks that the repo's
 // owner is the gh login, by name and again by what GitHub returns for the repo
@@ -43,14 +42,13 @@
 // NEXT: line holds fixed words, a page and a login. It never retries.
 //
 // Node 24 or later, ESM, node: built-ins only. Every rule is an exported
-// function that takes gh, the environment, the home and temp folders, the user
-// and the host as inputs, so its tests need no gh and no network. Only main
-// reads the real values, and main runs only when this file is the entry
-// script.
+// function that takes gh and the environment as inputs, so its tests need no
+// gh and no network. Only main reads the real values, and main runs only when
+// this file is the entry script.
 
 import { spawnSync } from 'node:child_process';
 import { closeSync, fstatSync, lstatSync, mkdtempSync, openSync, readSync, realpathSync, rmSync } from 'node:fs';
-import { homedir, hostname, tmpdir, userInfo } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -296,7 +294,6 @@ const RULE = Object.freeze({
   token: 'secret/token',
   userinfo: 'secret/url-userinfo',
   env: 'secret/env',
-  machine: 'path/machine',
   session: 'id/session',
   email: 'personal/email',
   hidden: 'text/hidden',
@@ -359,61 +356,7 @@ export function trailerLink(text) {
   return { start, end: start + m[1].length };
 }
 
-const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** A path written with either separator, as a pattern: each separator matches / or \. */
-const anySep = p => p.split(/[\\/]/).map(escapeRe).join('[\\\\/]');
-
 const matches = (text, re) => [...text.matchAll(re)].map(m => ({ index: m.index, text: m[0] }));
-
-// Where a path can start: after a space, a quote, a bracket, an equals sign, a
-// comma, a bar, or markdown's emphasis marks. A local path then starts with a
-// drive letter, one or two slashes or backslashes, or a tilde and a separator;
-// a web link starts with its scheme.
-const TOKEN_START_RE = /[\s"'`(<[{=,|*_]/;
-const LOCAL_START_RE = /^(?:[A-Za-z]:[\\/]|[\\/]{1,2}(?![\\/])|~[\\/])/;
-
-/**
- * A test of whether an index lies inside a local path: the word it sits in
- * starts like one. Asked about rising indexes, it walks the text once, so
- * many hits in one long word cost no more than one.
- */
-function inLocalPath(text) {
-  let pos = 0;
-  let start = 0;
-  return index => {
-    for (; pos < index; pos += 1) if (TOKEN_START_RE.test(text[pos])) start = pos + 1;
-    return LOCAL_START_RE.test(text.slice(start, Math.min(index, start + 3)));
-  };
-}
-
-/**
- * This machine's home and temp folders as a path prefix, and its user and host
- * names as a path segment. A name after a backslash counts anywhere: web links
- * have none, and Windows writes an account as host, backslash, user. A name
- * after a forward slash counts only inside a local path, since the user name is
- * often also the login in the owner's own repo links. The host name counts
- * after two slashes anywhere, as a link's host. The home folder also counts in
- * the dash-joined form Claude gives a project's folder.
- */
-function machineHits(text, ctx) {
-  const out = [];
-  for (const p of [ctx.home, ctx.tmp]) {
-    const trimmed = typeof p === 'string' ? p.replace(/[\\/]+$/, '') : '';
-    // macOS writes its temp folder behind /private as well.
-    if (trimmed !== '') out.push(...matches(text, new RegExp(`(?:(?<![A-Za-z0-9._-])|(?<=\\/private))${anySep(trimmed)}[\\\\/][^\\s]`, 'gi')));
-  }
-  const home = typeof ctx.home === 'string' ? ctx.home.replace(/[\\/]+$/, '') : '';
-  // Only for a home two folders deep, so /root can't match "non-root".
-  if (/[\\/][^\\/]+[\\/][^\\/]/.test(home)) out.push(...matches(text, new RegExp(`(?<![A-Za-z0-9])${escapeRe(home.replace(/[:\\/]/g, '-'))}(?![A-Za-z0-9._])`, 'gi')));
-  for (const [n, isHost] of [[ctx.user, false], [ctx.host, true]]) {
-    if (typeof n !== 'string' || n === '') continue;
-    const local = inLocalPath(text);
-    const keep = h => text[h.index - 1] === '\\' || (isHost && text[h.index - 2] === '/') || local(h.index);
-    out.push(...matches(text, new RegExp(`(?<=[\\\\/])${escapeRe(n)}(?![A-Za-z0-9._-])`, 'gi')).filter(keep));
-  }
-  return out;
-}
 
 // Characters that make a reader see other text than a model reads: the tag
 // block (but for a subdivision flag), the direction embeddings, overrides and
@@ -451,7 +394,6 @@ function hitsIn(text, ctx, trailer) {
   for (const re of TOKEN_RES) add(RULE.token, matches(text, re));
   add(RULE.userinfo, matches(text, USERINFO_RE));
   for (const [name, val] of envSecrets(ctx.env)) add(RULE.env, indexesOf(text, val).map(index => ({ index })), name);
-  add(RULE.machine, machineHits(text, ctx));
   add(RULE.hidden, hiddenHits(text));
   const link = trailer ? trailerLink(text) : null;
   for (const re of SESSION_RES) add(RULE.session, matches(text, re).filter(h => !(link && h.index >= link.start && h.index < link.end)));
@@ -774,7 +716,8 @@ const OWN_BLOCK_RE = /^(?:[ ]{0,3}#{1,6}(?:[ \t]|$)|[ \t]*\||[ ]{0,3}(?:(?:-[ \t
 const LIST_MARKER_RE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
 const REF_DEF_RE = /^[ ]{0,3}\[([^\]]*)\]:[ \t]*(<[^>]*>|\S*)/;
 const HTML_ATTR_RE = /\b(?:href|src)[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gid;
-const SCHEME_RE = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/|#)/;
+// A scheme has two letters or more, so a drive letter such as D: is none (#364).
+const SCHEME_RE = /^(?:[A-Za-z][A-Za-z0-9+.-]+:|\/\/|#)/;
 // A line's end, past closing quotes, brackets and emphasis marks: one of `.!?:;`.
 const SENTENCE_END_RE = /[.!?:;][)"'\]*_`\u2019\u201d\u00bb]*$/;
 const BOLD_LABEL_RE = /^\*\*[^*]+(?::\*\*|\*\*:)/;
@@ -1000,8 +943,8 @@ const LINE_BREAKS_RE = new RegExp(`[${cp(0x85)}${cp(0x2028)}${cp(0x2029)}]`, 'g'
 
 /**
  * gh's stderr as one line: its first line, JSON-escaped and capped. A line
- * that trips a scan rule, such as one naming a config path in the home folder, is withheld
- * and only the rule is named.
+ * that trips a scan rule, such as one holding a token, is withheld and only
+ * the rule is named.
  */
 export function saidLine(stderr, ctx) {
   const line = String(stderr ?? '').split(/\r?\n/)[0].slice(0, 300);
@@ -1191,7 +1134,7 @@ export function post(argv, io) {
     if (plan.title !== undefined) fields.push({ field: 'title', text: plan.title });
     plan.labels.forEach((text, i) => fields.push({ field: `label ${i + 1}`, text }));
     fields.push({ field: 'body', text: plan.body });
-    const ctx = { env: io.env, home: io.home, tmp: io.tmp, user: io.user, host: io.host };
+    const ctx = { env: io.env };
     // The table check and the prose checks run after the content scan, on the
     // body only. Past the first fifty, the table refusals are counted, not
     // listed, so the result line stays in view.
@@ -1254,15 +1197,9 @@ export function post(argv, io) {
 // ---------------------------------------------------------------- main
 
 function main() {
-  let user = '';
-  try {
-    user = userInfo().username;
-  } catch {
-    user = '';
-  }
   const env = { ...process.env };
   const tmp = tmpdir();
-  const r = post(process.argv.slice(2), { gh: makeGh({ env, tmp }), env, home: homedir(), tmp, user, host: hostname() });
+  const r = post(process.argv.slice(2), { gh: makeGh({ env, tmp }), env });
   process.stdout.write(`${r.lines.join('\n')}\n`);
   process.exitCode = r.code;
 }

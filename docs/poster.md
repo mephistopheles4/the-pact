@@ -177,7 +177,6 @@ nothing sent.
 | `secret/token` | A credential's known shape |
 | `secret/url-userinfo` | A password in a link's user part |
 | `secret/env` | The value of a secret environment variable; the line names the variable, never the value |
-| `path/machine` | This machine's home or temp folder, user name or host name |
 | `id/session` | A session id |
 | `personal/email` | An email address |
 | `text/hidden` | A hidden character |
@@ -208,12 +207,13 @@ no test holds them.
   variable whose name has a part ending in `TOKEN`, `SECRET`, `KEY`,
   `PASSWORD`, `PASSWD`, `PWD`, `PAT`, `AUTH`, `CREDENTIAL`, `CREDENTIALS` or
   `COOKIE`, except `PWD`, `OLDPWD` and `SSH_AUTH_SOCK`.
-- **`path/machine`:** this machine's home and temp folders, with either slash,
-  and the home folder in the dash-joined form Claude Code gives a project's
-  folder; the user name after a backslash or inside a local path; and the host
-  name after a backslash or two slashes. Any other path passes, whatever its
-  shape: a drive letter, a network share or another user's home names
-  nothing of this machine's (#326, ADR 0086).
+- **No path rule.** The scan refuses no path, this machine's own home and
+  temp folders, user name and host name included (#364, ADR 0097). Catching
+  a path that says something about you is the read before posting's job. A
+  link whose target is a local path is still refused, by `link/relative`,
+  since it lands as a dead link. A path into a Claude Code scratchpad is
+  still refused, by `id/session`: the scratchpad folder is named by the
+  session's id (#366).
 - **`id/session`:** a UUID, a `session_` id, or a Claude Code session link.
   A pull request's body may end with Claude Code's attribution, whose session
   link is let through.
@@ -246,8 +246,9 @@ no test holds them.
   check. GitHub leaves a link's target as written, so a repository-relative
   link on an issue page is a dead link. It refuses an inline link, an image, a
   reference definition or an HTML `href` or `src` whose target does not start with a
-  scheme (`https:`, `mailto:`), `//` or `#`, a root link such as
-  `/owner/repo/issues/3` included, and names the target's line and column
+  scheme of two letters or more (`https:`, `mailto:`), `//` or `#`, a root
+  link such as `/owner/repo/issues/3` and a drive-letter path such as
+  `D:/work/x.md` included (#364), and names the target's line and column
   once. It never reads a fence, a code span or an HTML comment, and a footnote
   definition is not a link. To fix it, write the full `https://github.com/...`
   link; never put the link in a fence, code span or comment to get past it. A
