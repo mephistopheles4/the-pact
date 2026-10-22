@@ -209,7 +209,9 @@ no test holds them.
   `COOKIE`, except `PWD`, `OLDPWD` and `SSH_AUTH_SOCK`.
 - **No path rule.** The scan refuses no path, this machine's own home and
   temp folders, user name and host name included (#364, ADR 0097). Catching
-  a path that says something about you is the read before posting's job.
+  a path that says something about you is the read before posting's job. A
+  link whose target is a local path is still refused, by `link/relative`,
+  since it lands as a dead link.
 - **`id/session`:** a UUID, a `session_` id, or a Claude Code session link.
   A pull request's body may end with Claude Code's attribution, whose session
   link is let through.
@@ -242,8 +244,9 @@ no test holds them.
   check. GitHub leaves a link's target as written, so a repository-relative
   link on an issue page is a dead link. It refuses an inline link, an image, a
   reference definition or an HTML `href` or `src` whose target does not start with a
-  scheme (`https:`, `mailto:`), `//` or `#`, a root link such as
-  `/owner/repo/issues/3` included, and names the target's line and column
+  scheme of two letters or more (`https:`, `mailto:`), `//` or `#`, a root
+  link such as `/owner/repo/issues/3` and a drive-letter path such as
+  `D:/work/x.md` included (#364), and names the target's line and column
   once. It never reads a fence, a code span or an HTML comment, and a footnote
   definition is not a link. To fix it, write the full `https://github.com/...`
   link; never put the link in a fence, code span or comment to get past it. A

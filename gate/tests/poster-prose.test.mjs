@@ -206,6 +206,7 @@ const linkRow = (id, line, target, why) => ({ id, plant: add(line), fails: ['lin
     linkRow('link-dot-slash', '> See [it](./x).', './x', 'a dot-slash target inside a quote'),
     linkRow('link-dot-dot', '😀 See [it](../blob/main/x).', '../blob/main/x', 'a dot-dot target after a wide character: columns count characters'),
     linkRow('link-root', 'See [it](/owner/repo/x).', '/owner/repo/x', 'a root link, refused with the rest (q2 A)'),
+    linkRow('link-drive-letter', 'See [it](D:/work/x.md).', 'D:/work/x.md', 'a drive letter is no scheme (#364)'),
     linkRow('link-reference', '[ref2]: docs/x.md', 'docs/x.md', 'a reference definition'),
     linkRow('link-image', 'See ![it](docs/x.png).', 'docs/x.png', 'an image'),
     linkRow('link-html-src', '<img src="docs/x.png">', 'docs/x.png', 'an HTML src'),

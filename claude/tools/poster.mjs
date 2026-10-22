@@ -716,7 +716,8 @@ const OWN_BLOCK_RE = /^(?:[ ]{0,3}#{1,6}(?:[ \t]|$)|[ \t]*\||[ ]{0,3}(?:(?:-[ \t
 const LIST_MARKER_RE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
 const REF_DEF_RE = /^[ ]{0,3}\[([^\]]*)\]:[ \t]*(<[^>]*>|\S*)/;
 const HTML_ATTR_RE = /\b(?:href|src)[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gid;
-const SCHEME_RE = /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/|#)/;
+// A scheme has two letters or more, so a drive letter such as D: is none (#364).
+const SCHEME_RE = /^(?:[A-Za-z][A-Za-z0-9+.-]+:|\/\/|#)/;
 // A line's end, past closing quotes, brackets and emphasis marks: one of `.!?:;`.
 const SENTENCE_END_RE = /[.!?:;][)"'\]*_`\u2019\u201d\u00bb]*$/;
 const BOLD_LABEL_RE = /^\*\*[^*]+(?::\*\*|\*\*:)/;
@@ -942,8 +943,8 @@ const LINE_BREAKS_RE = new RegExp(`[${cp(0x85)}${cp(0x2028)}${cp(0x2029)}]`, 'g'
 
 /**
  * gh's stderr as one line: its first line, JSON-escaped and capped. A line
- * that trips a scan rule, such as one naming a config path in the home folder, is withheld
- * and only the rule is named.
+ * that trips a scan rule, such as one holding a token, is withheld and only
+ * the rule is named.
  */
 export function saidLine(stderr, ctx) {
   const line = String(stderr ?? '').split(/\r?\n/)[0].slice(0, 300);

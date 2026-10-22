@@ -723,15 +723,22 @@ test('plain words that look like the rules pass the scan', t => {
   assert.equal(last(r), 'RESULT: dry-run issue-comment');
 });
 
-// #364 C1: with path/machine gone, the poster refuses no path: this machine's own home, temp, user and host names post too, on either kind of machine
-test("this machine's own home and temp folders, user name and host name post in paths", () => {
+// #364 C1: with path/machine gone, the poster refuses no path: this machine's own home, temp, user and host names post too, in a body or a title, on either kind of machine
+test("this machine's own home and temp folders, user name and host name post in paths", t => {
   const machines = [
-    { home: '/srv/home/' + 'tester', tmp: '/tmp', user: 'tester', host: 'buildhost', texts: ['/srv/home/' + 'tester/notes', '/tmp' + '/abc/file', '/private' + '/tmp/abc', '/opt/build/' + 'tester/out', 'buildhost\\' + 'tester', '//' + 'buildhost/share', 'http://' + 'buildhost:8080/x', '~/.claude/projects/-srv-home-' + 'tester-sandbox/x.jsonl', 'D:' + '\\work\\notes.md', '\\\\' + 'fileserver\\share\\x', '/home/' + 'notes-for-alice/x'] },
-    { home: 'X:\\Users\\' + 'tester', tmp: 'X:\\tmp', user: 'tester', host: 'buildhost', texts: ['X:\\Users\\' + 'tester\\notes', 'X:/tmp' + '/abc/file', 'Y:/work/' + 'tester/x', '~/.claude/projects/X--Users-' + 'tester/x.jsonl'] },
+    { home: '/srv/home/' + 'tester', tmp: '/tmp', user: 'tester', host: 'buildhost', texts: ['/srv/home/' + 'tester/notes', '/tmp' + '/abc/file', '/private' + '/tmp/abc', '/opt/build/' + 'tester/out', 'buildhost\\' + 'tester', '//' + 'buildhost/share', 'http://' + 'buildhost:8080/x', '~/.claude/projects/-srv-home-' + 'tester-sandbox/x.jsonl', 'D:' + '\\work\\notes.md', '\\\\' + 'fileserver\\share\\x', '/home/' + 'notes-for-alice/x', '/Users/' + 'notes-for-alice/x', '/c/Users/' + 'notes-for-alice/x', '/mnt/c/Users/' + 'notes-for-alice/x'] },
+    { home: 'X:\\Users\\' + 'tester', tmp: 'X:\\tmp', user: 'tester', host: 'buildhost', texts: ['X:\\Users\\' + 'tester\\notes', 'X:/Users/' + 'tester/notes', 'X:/tmp' + '/abc/file', 'Y:/work/' + 'tester/x', '~/.claude/projects/X--Users-' + 'tester/x.jsonl'] },
   ];
   for (const { texts, ...m } of machines) {
-    for (const text of texts) assert.deepEqual(scan([{ field: 'body', text }], { env: {}, ...m, surface: 'issue-comment' }), [], text);
+    for (const text of texts) {
+      for (const field of ['body', 'title']) assert.deepEqual(scan([{ field, text }], { env: {}, ...m, surface: 'issue' }), [], `${field}: ${text}`);
+    }
   }
+  // The whole poster, not only the scan: a dry run with this machine's paths in the title and the body.
+  const argv = place(t, { 'body.md': `${machines[0].texts.join(' and ')}.\n`, 'title.txt': `Moved to ${machines[0].texts[0]}\n` }, ISSUE_ARGV('tier:thorough'));
+  const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
+  assert.equal(r.code, 0, r.lines.join('\n'));
+  assert.match(last(r), /^RESULT: dry-run /);
 });
 
 // #246 C7: links to the owner's own repo, and emoji with joiners, pass
