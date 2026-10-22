@@ -124,6 +124,36 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   lines name your changed and untracked files. If one of them shouldn't be
   shared, post a `fast` or `full` record instead.
 
+## Athanor
+
+[athanor](https://github.com/mephistopheles4/athanor) runs the suite on
+Linux in a fresh, offline container, and holds runs to its machine-wide
+slots (ADR 0096).
+
+- **Run it** from the repo root: `athanor run` runs `full`, and
+  `athanor run fast` runs `fast`. The repo's
+  [`athanor.json`](../../athanor.json) names the image and the commands.
+  athanor reads `athanor.json` from commit `4121c28` on; an older copy
+  stops with a configuration error (exit 125). Its version, `0.1.0`, doesn't
+  tell them apart.
+- **The image is the Linux run's** in
+  [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/): Node 24
+  pinned by digest, git, no PowerShell, and a user that isn't root. athanor
+  replaces its `CMD`, so the bundle run is unchanged.
+- **What it tests:** the tracked working tree, staged or not, as one
+  synthetic commit, so a run can pass on uncommitted work. Only the bundle run
+  tests a real commit.
+- **A new file needs `git add` first.** athanor leaves untracked files out
+  and says how many it left, so a new ADR or test file is missing from the
+  run, and the docs-index tests fail on it.
+- **No `changed` tier:** the synthetic commit has no `main` to diff against.
+- **A local check only.** Nothing comes back but the output and the exit
+  code: no record file. So a run is never Test evidence, which stays CI's two
+  jobs, and nothing from it is posted.
+- **Limits:** 4 CPUs, to match the runner's cap of four test files, 4 GB of
+  memory and 10 minutes. `full` took under a minute on 2026-10-22. A run past
+  the limit ends with 137 (memory) or 124 (time).
+
 ## Writing a gate test
 
 - **A bad case for a gate module is a row.** A set of rows has a base input

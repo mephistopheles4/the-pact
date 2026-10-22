@@ -1,0 +1,11 @@
+{
+  "dockerfile": "gate/tests/fixtures/linux/Dockerfile",
+  "context": "gate/tests/fixtures/linux",
+  "commands": {
+    "test": ["env", "-u", "NODE_OPTIONS", "node", "gate/tests/run.mjs", "full"],
+    "fast": ["env", "-u", "NODE_OPTIONS", "node", "gate/tests/run.mjs", "fast"]
+  },
+  "memory": "4g",
+  "cpus": 4,
+  "timeoutMinutes": 10
+}
