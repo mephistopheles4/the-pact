@@ -64,6 +64,13 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Post test output only from record mode** (`--record <file>`); read a
   `changed` record's `pick:` and `unmapped:` lines first. Keep raw reporter
   output, such as a junit file, outside the repo.
+- **Locally, in a Linux container, through athanor** (the owner's Docker
+  test runner): `athanor run` runs `full`, `athanor run fast` runs `fast`;
+  athanor at commit `4121c28` or later. It passes when athanor exits 0 and
+  the runner's result line, the last but one, ends in `pass`. An athanor
+  `full` meets the local `full` after a rebase or merge and after a final
+  change set, never before an install. It is never Test evidence, and
+  nothing from it is posted. [Athanor](docs/agents/gate-tests.md#athanor).
 - Tier picks, and writing a gate test: [gate tests](docs/agents/gate-tests.md).
 
 ## In the same change

@@ -133,4 +133,4 @@ The full how-to, with the command for each shell, is in [docs/install.md](docs/i
 - **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
 - **[grimoire](https://github.com/mephistopheles4/grimoire).** Each agent's contract follows its format; its skills are optional.
 - **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: one of the builder's presets puts them on the workflow's stages.
-- **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the Linux test run.
+- **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the Linux test run, with [athanor](https://github.com/mephistopheles4/athanor) at `4121c28` or later to run it through `athanor.json`.

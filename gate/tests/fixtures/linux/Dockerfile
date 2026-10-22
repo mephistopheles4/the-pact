@@ -17,6 +17,11 @@
 # <out> is an empty folder outside the repo; the run writes its record there
 # (record.txt, scrubbed by the runner), to post on the issue.
 #
+# athanor runs this image too (#361), by the repo's athanor.json: it replaces
+# the CMD with its own command and tests the working tree as one synthetic
+# commit, so only the bundle run above tests a real commit, and only it
+# writes a record.
+#
 # Pinned by digest: Node 24 on Debian 12 (bookworm), node v24.21.0 as checked
 # on 2026-10-10 (#210). git is not pinned, since Debian drops old package
 # versions, so a rebuild may get a newer git; the run prints the version it used.

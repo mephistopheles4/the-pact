@@ -124,6 +124,56 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   lines name your changed and untracked files. If one of them shouldn't be
   shared, post a `fast` or `full` record instead.
 
+## Athanor
+
+[athanor](https://github.com/mephistopheles4/athanor), the owner's Docker
+test runner, runs the suite in a fresh, offline Linux container on any
+Docker host, Windows included (ADR 0096). A run waits for one of athanor's
+machine-wide slots (2 by default) before it starts. The slots count athanor
+runs only, never a host run of `gate/tests/run.mjs`.
+
+- **Run it** from the repo root: `athanor run` runs the `test` command,
+  athanor's default name, which is `full`; `athanor run fast` runs `fast`.
+  The repo's [`athanor.json`](../../athanor.json) names the image and the
+  commands.
+- **It needs athanor at commit `4121c28` or later,** the first to read
+  `athanor.json`. Its version, `0.1.0`, doesn't tell the builds apart. An
+  older copy stops with exit 125 and asks for an `athanor` key in a
+  `package.json`: leave that file out, and ask the owner to update athanor,
+  since an install is the owner's.
+- **It passes when athanor exits 0 and the runner's result line ends in
+  `pass`.** athanor prints one line of its own after the runner's result
+  line, so the result line is the last but one.
+- **What it counts for.** An athanor `full` meets the local `full` after a
+  rebase or merge that brought in other work, and after a final change set.
+  Before an install, run `full` on the host: the install runs on the host's
+  system, and athanor's run skips the Windows-only cases. Running on the host
+  stays the default way.
+- **The image is the Linux run's** in
+  [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/): Node 24
+  pinned by digest, git, no PowerShell, and a user that isn't root. athanor
+  replaces its `CMD`, so the Linux run's own way in, which clones a git
+  bundle of one commit, is unchanged.
+- **What it tests:** the tracked working tree, staged or not, as one
+  synthetic commit, so a run can pass on uncommitted work. Only the Linux
+  run's bundle tests a real commit.
+- **A new file needs `git add` first** (or `athanor run --untracked`).
+  athanor leaves untracked files out and says how many it left, so a new ADR
+  or test file is missing from the run, and the docs-index tests fail on it.
+- **No `changed` tier:** the snapshot is its own `main`, so `changed` finds
+  no changed paths and runs only `fast`, a pass that tests nothing of the
+  change.
+- **Never Test evidence.** Nothing comes back but the output and the exit
+  code: no record file. So a run is never Test evidence, which stays CI's two
+  jobs, and nothing from it is posted.
+- **Not the container for outsiders' code.** athanor ships the working tree,
+  not a clone checked against a PR's head commit, so it is not the container
+  [the one exception](issue-tracker.md#whose-text-counts) for running a PR's
+  code calls for. All five of that exception's conditions still hold.
+- **Limits:** 4 CPUs, to match the runner's cap of four test files, 4 GB of
+  memory and 10 minutes. `full` took under a minute on 2026-10-22. A run past
+  the limit ends with 137 (memory) or 124 (time).
+
 ## Writing a gate test
 
 - **A bad case for a gate module is a row.** A set of rows has a base input
