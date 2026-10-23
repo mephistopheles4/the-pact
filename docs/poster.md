@@ -48,8 +48,8 @@ answered, then delete it. Before the session ends, delete every such file
 still there, whatever the owner's answer.
 
 **When a session dies, its files stay.** Nothing deletes a file the session
-didn't. A lens report kept after a refusal for a secret, a personal detail, a
-session id or hidden characters is an ordinary, unencrypted file
+didn't. A lens report kept after a refusal for a secret, a personal detail
+or hidden characters is an ordinary, unencrypted file
 in that session's scratch folder, which the session named to the owner in chat
 when it kept the report. If the session is killed before it cleans up, delete
 that file by hand. The report may also stay in the session's saved
@@ -118,7 +118,7 @@ page and login are the ones the poster checked before it sent, never text from
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
 | 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the body file; tells the owner which field |
 | 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
-| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for a secret, a personal detail, a session id or hidden characters stays local, unedited, and the owner is told where it is, in chat; a table, wrap or link refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
+| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for a secret, a personal detail or hidden characters stays local, unedited, and the owner is told where it is, in chat; a table, wrap or link refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
 | 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
 
@@ -177,7 +177,6 @@ nothing sent.
 | `secret/token` | A credential's known shape |
 | `secret/url-userinfo` | A password in a link's user part |
 | `secret/env` | The value of a secret environment variable; the line names the variable, never the value |
-| `id/session` | A session id |
 | `personal/email` | An email address |
 | `text/hidden` | A hidden character |
 | `table/header` | A Lens dispositions table's header row isn't exactly `\| Finding \| Lens \| Disposition \| Rerun \|` |
@@ -212,12 +211,11 @@ no test holds them.
   before posting looks for a user name or host name, in a path or not, and
   for no path as such (#368, ADR 0098). A
   link whose target is a local path is still refused, by `link/relative`,
-  since it lands as a dead link. A path into a Claude Code scratchpad is
-  still refused, by `id/session`: the scratchpad folder is named by the
-  session's id (#366).
-- **`id/session`:** a UUID, a `session_` id, or a Claude Code session link.
-  A pull request's body may end with Claude Code's attribution, whose session
-  link is let through.
+  since it lands as a dead link.
+- **No session-id rule.** The scan refuses no UUID, `session_` id or Claude
+  Code session link, so a scratchpad path, a GitHub attachment link and
+  Claude Code's attribution post on any surface (#366, ADR 0100). A session
+  link opens only for the account that owns the session.
 - **`personal/email`:** an email address, except GitHub's `noreply` addresses
   and Anthropic's `noreply` address.
 - **`text/hidden`:** tag characters (a subdivision flag aside), direction

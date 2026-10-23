@@ -48,7 +48,7 @@ const USERINFO = 'https://bob:' + 'hunter2pass@example.com/x';
 const PLANTED = [
   'cache.example.com',
   ...Object.values(SECRETS), ENV_SECRET, 'hunter2pass', 'alice', 'example.org', 'notes-for-alice', SESSION, GH_TOKEN_SHAPE.slice(10),
-  'tester', '426614174000',
+  'tester',
 ];
 
 const TRAILER = `${ROBOT} Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_${SESSION}\n`;
@@ -681,14 +681,10 @@ const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n
     { id: 'hidden-rare-selector', plant: inBody('a' + String.fromCharCode(0xfe00) + 'b'), fails: ['text/hidden'], why: 'a variation selector no emoji needs' },
     { id: 'userinfo-empty-user', plant: inBody('redis://:' + 'hunter2pass@cache.example.com:6379'), fails: ['secret/url-userinfo'], why: 'a password with an empty user name' },
     { id: 'userinfo-no-scheme', plant: inBody('//bob:' + 'hunter2pass@example.com/x'), fails: ['secret/url-userinfo'], why: 'a password in a link with no scheme' },
-    { id: 'uuid', plant: inBody('123e4567-e89b-12d3-a456-' + '426614174000'), fails: ['id/session'], why: 'a UUID' },
-    { id: 'session-id', plant: inBody('session_' + SESSION), fails: ['id/session'], why: 'a session id' },
-    { id: 'session-link', plant: inBody('https://claude.ai/code/' + 'session_' + SESSION), fails: ['id/session'], why: 'a session link outside the trailer' },
     { id: 'email', plant: inBody('alice' + '@example.org'), fails: ['personal/email'], why: 'an email address' },
     { id: 'title-token', plant: inTitle(SECRETS.github), fails: ['secret/token'], why: 'a token in the title' },
     { id: 'title-url-userinfo', plant: inTitle(USERINFO), fails: ['secret/url-userinfo'], why: 'userinfo in the title' },
     { id: 'title-env', plant: inTitle(ENV_SECRET), fails: ['secret/env'], why: 'an env value in the title' },
-    { id: 'title-session', plant: inTitle('session_' + SESSION), fails: ['id/session'], why: 'a session id in the title' },
     { id: 'title-email', plant: inTitle('alice' + '@example.org'), fails: ['personal/email'], why: 'an email in the title' },
     { id: 'label-token', plant: tree => withArgv(tree, () => ISSUE_ARGV('tier:thorough', 'AK' + 'IA' + rep('H8', 8))), fails: ['secret/token'], why: 'every label is scanned' },
     { id: 'split-by-format-character', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a soft hyphen hides the shape' },
@@ -766,41 +762,23 @@ test('the scan of a full-size body of repeated path or colon shapes ends within 
   }
 });
 
-// #246 C8: the trailer's id may be 16 to 40 letters and digits, both ends included
-test('the trailer passes with an id of exactly 16 and of exactly 40 characters', t => {
-  for (const n of [16, 40]) {
-    const body = `A plain body.\n\n${TRAILER.replace(SESSION, 'A1'.repeat(n / 2))}`;
-    const argv = place(t, { 'body.md': body, 'title.txt': 'A plain title\n' }, PR_ARGV);
+// #366 C1: with id/session gone, a session id posts: a UUID, a session_ id, a session link, a scratchpad path, an attachment link and the harness trailer, in a body or a title, on an issue or a pull request
+test('session ids, UUIDs and session links post, in a body or a title, on any surface', t => {
+  const uuid = '123e4567-e89b-12d3-a456-' + '426614174000';
+  const texts = [uuid, 'session_' + SESSION, 'https://claude.ai/code/' + 'session_' + SESSION, '/tmp/claude/-srv-project/' + uuid + '/scratchpad/notes.md', 'https://github.com/user-attachments/assets/' + uuid];
+  for (const surface of ['issue', 'pull-request']) {
+    for (const text of texts) {
+      for (const field of ['body', 'title']) assert.deepEqual(scan([{ field, text }], { env: {}, ...MACHINE, surface }), [], `${surface} ${field}: ${text}`);
+    }
+  }
+  // The whole poster, not only the scan: a dry run of each surface, with the ids in the title and the body, the body ending with the harness trailer.
+  for (const argv0 of [ISSUE_ARGV(), PR_ARGV]) {
+    const argv = place(t, { 'body.md': `See ${texts.join(' and ')}.\n\n${TRAILER}`, 'title.txt': `About ${texts[1]}\n` }, argv0);
     const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: {}, ...MACHINE });
-    assert.equal(r.code, 0, `${n}: ${r.lines.join('\n')}`);
+    assert.equal(r.code, 0, `${argv0[0]}: ${r.lines.join('\n')}`);
+    assert.match(last(r), /^RESULT: dry-run /);
   }
 });
-
-// #246 C8: the harness trailer, only on a pull request, only at the end
-const PR_BODY = `A plain body.\n\n${TRAILER}`;
-{
-  const base = () => ({ 'argv.json': JSON.stringify(PR_ARGV), 'body.md': PR_BODY, 'title.txt': 'A plain title\n' });
-  const run = runTree;
-  const everyRow = refusedQuietly;
-  const rows = [
-    { id: 'token-shaped-id', plant: tree => ({ ...tree, 'body.md': PR_BODY.replace(SESSION, GH_TOKEN_SHAPE) }), fails: ['id/session', 'secret/token'], why: 'an id outside the letters-and-digits set' },
-    { id: 'line-after', plant: tree => ({ ...tree, 'body.md': `${PR_BODY}more\n` }), fails: ['id/session'], why: 'the trailer must end the body' },
-    { id: 'id-short', plant: tree => ({ ...tree, 'body.md': PR_BODY.replace(SESSION, 'A'.repeat(15)) }), fails: ['id/session'], why: 'an id under 16' },
-    { id: 'id-long', plant: tree => ({ ...tree, 'body.md': PR_BODY.replace(SESSION, 'A'.repeat(41)) }), fails: ['id/session'], why: 'an id over 40' },
-    { id: 'link-elsewhere', plant: tree => ({ ...tree, 'body.md': `See https://claude.ai/code/session_${SESSION}.\n\n${TRAILER}` }), fails: ['id/session'], why: 'the same link before the trailer' },
-    { id: 'on-an-issue', plant: asSurface(ISSUE_ARGV()), fails: ['id/session'], why: 'the exception is for pull requests only' },
-    { id: 'no-blank-line', plant: tree => ({ ...tree, 'body.md': PR_BODY.replace('code)\n\n', 'code)\n') }), fails: ['id/session'], why: 'not the exact trailer' },
-  ];
-  test('poster trailer: base passes', async t => assertPasses(await run(base(), t)));
-  for (const r of rows) {
-    test(`poster trailer: ${r.id}`, async t => {
-      const res = await run(r.plant(base()), t);
-      assertFails(res, r.fails, r.says);
-      await everyRow(res, t);
-    });
-  }
-  test('poster trailer: base passes after the rows', async t => assertPasses(await run(base(), t)));
-}
 
 // #246 C10: a dry run calls no gh and prints no body text
 test('a dry run prints the gh arguments and the request sizes, never the text', t => {
