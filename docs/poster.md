@@ -208,8 +208,9 @@ no test holds them.
   `PASSWORD`, `PASSWD`, `PWD`, `PAT`, `AUTH`, `CREDENTIAL`, `CREDENTIALS` or
   `COOKIE`, except `PWD`, `OLDPWD` and `SSH_AUTH_SOCK`.
 - **No path rule.** The scan refuses no path, this machine's own home and
-  temp folders, user name and host name included (#364, ADR 0097). Catching
-  a path that says something about you is the read before posting's job. A
+  temp folders, user name and host name included (#364, ADR 0097). The read
+  before posting looks for a user name or host name, in a path or not, and
+  for no path as such (#368, ADR 0098). A
   link whose target is a local path is still refused, by `link/relative`,
   since it lands as a dead link. A path into a Claude Code scratchpad is
   still refused, by `id/session`: the scratchpad folder is named by the
