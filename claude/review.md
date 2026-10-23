@@ -366,11 +366,12 @@ skill runs included.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
-  or a personal detail: a user name, a host name, a home or temp folder path,
-  or an email address. If you find one, keep whatever holds it local, name
-  where the value sits, and tell me in chat. A report kept local stays out of
-  the review comment too: leave its rows and strings out, write "withheld, see
-  chat" in their place, and give me its path in chat, never in the record.
+  or a personal detail: a user name, a host name or an email address. If you
+  find one, keep whatever holds it local, name where the value sits, and tell
+  me in chat. A path is no personal detail in itself, only by a user or host
+  name it holds. A report kept local stays out of the review comment too:
+  leave its rows and strings out, write "withheld, see chat" in their place,
+  and give me its path in chat, never in the record.
 - **Verbatim reports go in a fold,** an HTML details element whose summary
   names the lens and its verdict, holding the report in a fenced block. The
   fence is at least three backticks, one more than the report's longest run of

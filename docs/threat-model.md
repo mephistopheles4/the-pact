@@ -270,7 +270,7 @@ How to read it:
 | R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits, and a warning for cost rows no quality names; the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits, and a middle dot refused in an Enough level and a cost name (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
 | R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked, as do a preset's from your own `pact/presets/` folder, since a file there may be one someone handed you; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while the page takes a retired agent's file out of a loaded or shared file, with a note, and a file at agents/<name>.md for a retired agent draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
 | R33 A written page stays on disk | Another local account that can read the system's temporary folder | The builder writes the page only into a new folder under the temporary folder or a path you name outside any repo, the kit, the Claude home folder and any `.claude` folder, never over a file; its closing note and the session's hand-over ask you to delete the folder | Judgment |
-| R34 A revealing path in a post | Anyone who reads the tracker | The read before posting, which looks for your home or temp folder path, user name and host name; the poster checks no path (#326, #364) | Rule |
+| R34 A revealing path in a post | Anyone who reads the tracker | The read before posting, which looks for your user name and host name, in a path or not; neither it nor the poster checks a path as such (#326, #364, #368) | Rule |
 | R35 Cloud Node pins | Upstream release, or the pin bump | Pinned hashes checked before use; signatures checked against committed keys at each bump; a weekly advisory routine (ADR 0088) | Boundary, rule |
 | R36 Trusted mise config | A cloned repo, text a session reads | `paranoid` on in mise's global config, so mise refuses an untrusted project config; the `node`, `npm` and `npx` wrappers bypass mise's shims; here, the mise section in `AGENTS.md`; elsewhere, judgment (#183) | Boundary, rule, judgment |
 | R37 Cloud Node block hardening | None; a cost to you | The setup's Result section runs the `node` wrapper by path and marks the setup `INCOMPLETE` when it fails; mise's version lookup is off (`use_versions_host = false`) (#183) | Boundary |
@@ -1107,13 +1107,17 @@ because they plant bad cases on purpose and raised alerts that were noise.
   withholding whole lens reports, so it went. Until #364 `path/machine`
   refused this machine's home and temp folders, user name and host name; with
   the temp folder moved to a folder that names nobody, it refused ordinary
-  scratch paths, so it went too. The read before posting still looks for a
-  home or temp folder path, a user name and a host name. Accepted by the
+  scratch paths, so it went too. Until #368 the read before posting also
+  looked for a home or temp folder path; it held back whole lens reports over
+  paths that named nobody, so it went. The read still looks for a user name
+  and a host name, in a path or not. Accepted by the
   owner on 2026-10-17, in [#326's body](https://github.com/mephistopheles4/the-pact/issues/326)
   and in chat, relayed by the lead session; the tier and the declined sensitive route are in
   [issuecomment-6243713061](https://github.com/mephistopheles4/the-pact/issues/326#issuecomment-6243713061) (ADR 0086).
   Widened by the owner on 2026-10-22, in chat, from #364's finding that the
-  rule refused scratch paths (ADR 0097).
+  rule refused scratch paths (ADR 0097). Widened again by the owner on
+  2026-10-23, in chat, choosing to drop paths from the read before posting
+  and keep the user name, host name, email and secrets (ADR 0098).
 
 ## The poster's own checks
 

@@ -2635,11 +2635,12 @@ skill runs included.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
-  or a personal detail: a user name, a host name, a home or temp folder path,
-  or an email address. If you find one, keep whatever holds it local, name
-  where the value sits, and tell me in chat. A report kept local stays out of
-  the review comment too: leave its rows and strings out, write "withheld, see
-  chat" in their place, and give me its path in chat, never in the record.
+  or a personal detail: a user name, a host name or an email address. If you
+  find one, keep whatever holds it local, name where the value sits, and tell
+  me in chat. A path is no personal detail in itself, only by a user or host
+  name it holds. A report kept local stays out of the review comment too:
+  leave its rows and strings out, write "withheld, see chat" in their place,
+  and give me its path in chat, never in the record.
 - **Verbatim reports go in a fold,** an HTML details element whose summary
   names the lens and its verdict, holding the report in a fenced block. The
   fence is at least three backticks, one more than the report's longest run of
@@ -2821,7 +2822,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 5d30da8ba198c81343b7c06d9c1488f7e8e6a671920fef49df1143fba0d225e4 'pact/review.md'
+check_hash e2c9d1c27f3eba6a20f25d0480dbbc57ed6a51db3304b1783525e7dbd9a19e7b 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2851,7 +2852,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy fcacdc2619a7"
+  echo "pact cloud copy 38eb6a586ca5"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
