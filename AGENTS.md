@@ -38,12 +38,17 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   or `env -u NODE_OPTIONS node gate/tests/run.mjs <tier>` in a POSIX shell.
   `full` is the full suite; `fast` leaves out the install tests; `changed`
   adds what your change can reach (`--base <ref>`, `--list`).
-- **While building, run `changed`:**
+- **Local runs go through athanor by default** (the owner's Docker test
+  runner, in a Linux container): `athanor run` runs `full`, and
+  `athanor run fast` runs `fast`. Run on the host only for `full` before an
+  install, for a quick `changed` pick, or when athanor can't run.
+- **While building, run `athanor run fast`.** For a quick pick on the host,
+  run `changed`:
   `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
-  locally before an install, after a rebase or merge that brought in other
-  work, and after a final change set.
+  locally before an install (on the host), after a rebase or merge that
+  brought in other work, and after a final change set (through athanor).
 - **Test evidence is CI's two jobs,** `gate` and `gate-windows`, passing on
   the reviewed head, so push the branch and open a draft PR before Test. The
   Test record cites both run links and each run's commit, which is the head.
@@ -64,13 +69,11 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Post test output only from record mode** (`--record <file>`); read a
   `changed` record's `pick:` and `unmapped:` lines first. Keep raw reporter
   output, such as a junit file, outside the repo.
-- **Locally, in a Linux container, through athanor** (the owner's Docker
-  test runner): `athanor run` runs `full`, `athanor run fast` runs `fast`;
-  athanor at commit `4121c28` or later. It passes when athanor exits 0 and
-  the runner's result line, the last but one, ends in `pass`. An athanor
-  `full` meets the local `full` after a rebase or merge and after a final
-  change set, never before an install. It is never Test evidence, and
-  nothing from it is posted. [Athanor](docs/agents/gate-tests.md#athanor).
+- **An athanor run** needs athanor at commit `4121c28` or later; an older
+  copy exits 125 asking for a `package.json`: ask the owner to update it, and
+  run on the host meanwhile. It passes when athanor exits 0 and the runner's
+  result line, the last but one, ends in `pass`. It is never Test evidence,
+  and nothing from it is posted. [Athanor](docs/agents/gate-tests.md#athanor).
 - Tier picks, and writing a gate test: [gate tests](docs/agents/gate-tests.md).
 
 ## In the same change

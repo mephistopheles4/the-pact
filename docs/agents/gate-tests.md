@@ -63,11 +63,13 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   The Linux run in a container (#96) is in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/) and runs `full`
   on Node 24.
-- **While building, run `changed`:**
+- **While building, run `athanor run fast`** ([Athanor](#athanor)). For a
+  quicker pick on the host, run `changed`:
   `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell. Add
   `--base <ref>` when your branch starts from somewhere other than `main`. A
-  base that starts with a dash, or one that isn't a commit, exits 2.
+  base that starts with a dash, or one that isn't a commit, exits 2. athanor
+  can't run `changed`: its synthetic commit has no base to diff against.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
   locally before an install, after a rebase or merge that brought in other
   work, and after a final change set. It doesn't run before and after each
@@ -144,11 +146,11 @@ runs only, never a host run of `gate/tests/run.mjs`.
 - **It passes when athanor exits 0 and the runner's result line ends in
   `pass`.** athanor prints one line of its own after the runner's result
   line, so the result line is the last but one.
-- **What it counts for.** An athanor `full` meets the local `full` after a
-  rebase or merge that brought in other work, and after a final change set.
-  Before an install, run `full` on the host: the install runs on the host's
-  system, and athanor's run skips the Windows-only cases. Running on the host
-  stays the default way.
+- **It is the default for local runs** (#369): `fast` while building, and
+  `full` after a rebase or merge that brought in other work and after a final
+  change set. Before an install, run `full` on the host: the install runs on
+  the host's system, and athanor's run skips the Windows-only cases. Run on
+  the host too when athanor can't run: no Docker, or an older copy.
 - **The image is the Linux run's** in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/): Node 24
   pinned by digest, git, no PowerShell, and a user that isn't root. athanor
