@@ -342,7 +342,7 @@ months.
   anchor-path check, kept full local paths, and the user name in them, out of
   posted anchors; it is now the lens files' rule and the read. Since #280,
   an install with the poster on (`docs/poster.md`) also scans each post for
-  secrets, email addresses and session ids, and checks the
+  secrets and email addresses (session ids too, until #366), and checks the
   shape of a Lens dispositions table, before anything is sent. Both are a
   backstop that only some installs have: they catch accidents and cover fixed
   shapes, and they miss a secret with no known shape and every other personal

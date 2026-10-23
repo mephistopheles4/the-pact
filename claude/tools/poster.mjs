@@ -17,8 +17,9 @@
 //
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every option and file, and scans the
-// exact text it would send for credential shapes, environment secrets, session
-// ids, email addresses and hidden text; it refuses no path (#326, #364).
+// exact text it would send for credential shapes, environment secrets, email
+// addresses and hidden text; it refuses no path or session id (#326, #364,
+// #366).
 // Then it checks the shape of any Lens dispositions table in the body against
 // the review procedure's template (#280, T2), and refuses a body whose prose is
 // hard-wrapped or whose link has no scheme (#317, text/hard-wrap and
@@ -75,9 +76,6 @@ export const EXAMPLES = Object.freeze({
   'pull-request-review': 'pull-request-review --repo you/your-repo --body review.md --pr 34',
   'review-thread-reply': 'review-thread-reply --repo you/your-repo --body reply.md --pr 34 --comment 5678',
 });
-
-/** The surfaces whose body may end with the harness's attribution trailer. edit-pull-request arrives with the edit surfaces (S4, T2). */
-const TRAILER_SURFACES = new Set(['pull-request', 'edit-pull-request']);
 
 const FILE_MAX = 256 * 1024;
 const BODY_MAX = 65536;
@@ -294,7 +292,6 @@ const RULE = Object.freeze({
   token: 'secret/token',
   userinfo: 'secret/url-userinfo',
   env: 'secret/env',
-  session: 'id/session',
   email: 'personal/email',
   hidden: 'text/hidden',
 });
@@ -317,11 +314,6 @@ const TOKEN_RES = [
 // user name that may be empty. The lookbehind starts a scheme only where one
 // can start, so a long run of text is tried once, not from every character.
 const USERINFO_RE = /(?<![A-Za-z0-9+.-])(?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/[^\s/@:]*:[^\s/@]+@/g;
-const SESSION_RES = [
-  /(?<![0-9A-Fa-f])[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}(?![0-9A-Fa-f])/g,
-  /session_[A-Za-z0-9]{16,}/g,
-  /claude\.ai\/code\/session_/g,
-];
 // An address may follow a colon, as in a mail link, but not the password in a
 // URL's user part: the look back skips exactly the shape secret/url-userinfo
 // refuses. It is capped, so a long word of colons costs a bounded step at each.
@@ -341,19 +333,6 @@ export function envSecrets(env) {
     if (upper.split('_').some(part => ENV_WORDS.some(w => part.endsWith(w)))) out.push([name, val]);
   }
   return out;
-}
-
-// The harness's attribution, which a pull request body may end with. The robot
-// is built from its code point, so this source stays plain ASCII.
-const ROBOT = String.fromCodePoint(0x1f916);
-const TRAILER_RE = new RegExp(`(?:^|\\n)${ROBOT} Generated with \\[Claude Code\\]\\(https://claude\\.com/claude-code\\)\\r?\\n\\r?\\n(https://claude\\.ai/code/session_[A-Za-z0-9]{16,40})(?:\\r?\\n)?$`, 'u');
-
-/** The span of the trailer's session link, when `text` ends with the exact trailer; else null. */
-export function trailerLink(text) {
-  const m = text.match(TRAILER_RE);
-  if (!m) return null;
-  const start = m.index + m[0].indexOf(m[1]);
-  return { start, end: start + m[1].length };
 }
 
 const matches = (text, re) => [...text.matchAll(re)].map(m => ({ index: m.index, text: m[0] }));
@@ -385,8 +364,8 @@ function indexesOf(text, s) {
   return out;
 }
 
-/** Every hit in `text`: { rule, index, note }. The trailer's link is exempt from id/session only, on the surfaces that allow it. */
-function hitsIn(text, ctx, trailer) {
+/** Every hit in `text`: { rule, index, note }. */
+function hitsIn(text, ctx) {
   const hits = [];
   const add = (rule, list, note) => {
     for (const h of list) hits.push({ rule, index: h.index, note });
@@ -395,8 +374,6 @@ function hitsIn(text, ctx, trailer) {
   add(RULE.userinfo, matches(text, USERINFO_RE));
   for (const [name, val] of envSecrets(ctx.env)) add(RULE.env, indexesOf(text, val).map(index => ({ index })), name);
   add(RULE.hidden, hiddenHits(text));
-  const link = trailer ? trailerLink(text) : null;
-  for (const re of SESSION_RES) add(RULE.session, matches(text, re).filter(h => !(link && h.index >= link.start && h.index < link.end)));
   add(RULE.email, matches(text, EMAIL_RE).filter(h => !EMAIL_OK(h.text)));
   return hits.sort((a, b) => a.index - b.index);
 }
@@ -478,11 +455,9 @@ function lineCol(text, index) {
  */
 export function scan(fields, ctx) {
   const out = [];
-  const trailer = TRAILER_SURFACES.has(ctx.surface);
   for (const { field, text } of fields) {
     const seen = new Set();
-    const isBody = field === 'body';
-    for (const h of hitsIn(text, ctx, trailer && isBody)) {
+    for (const h of hitsIn(text, ctx)) {
       const key = `${h.rule} ${h.note ?? ''}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -490,7 +465,7 @@ export function scan(fields, ctx) {
     }
     for (const norm of new Set([normalise(text), normalise(text, true)])) {
       if (norm === text) continue;
-      for (const h of hitsIn(norm, ctx, trailer && isBody)) {
+      for (const h of hitsIn(norm, ctx)) {
         const key = `${h.rule} ${h.note ?? ''}`;
         if (seen.has(key)) continue;
         seen.add(key);
