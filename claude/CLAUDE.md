@@ -56,7 +56,9 @@ and help with what it needs.
 - **These decisions are always mine:** proceed, fix or kill on a spec; the
   ticket cut; accepting the work, closing a ticket and merging; an install;
   anything published; accepting a risk. Show each as two or three options, your pick marked
-  with why. A command only I may start, you hand to me in one line and stop.
+  with why. Once I confirm one in chat, you carry it out, its command
+  included. A command you can't run, such as one that needs my sign-in or a
+  password, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then offer the reviews the work calls for (see Workflow).
 - **Keep the record where the project keeps it.** Sign what you post there
