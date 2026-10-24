@@ -1525,3 +1525,39 @@ test('C5: a clone reads no presets folder, and the committed page carries an emp
   assert.deepEqual(personalPresets(REPO, pactData(REPO)), { presets: [], findings: [] });
   assert.deepEqual(L.PACT.ownPresets, []);
 });
+
+test('a builder file whose JSON escapes decode to an invisible, direction-changing or control character is refused (#327)', t => {
+  const dir = tempDir(t);
+  const load = (name, json) => {
+    const f = join(dir, name);
+    writeFileSync(f, json);
+    return checkBuilder(REPO, f);
+  };
+  assert.deepEqual(load('good.json', '{"schema":1,"title":"plain title"}').refusals, [], 'a clean file still loads');
+  assert.deepEqual(load('tab-lf.json', '{"schema":1,"agentFiles":{"mine":"---\\nname: mine\\n---\\na\\tb\\n"}}').refusals, [], 'a tab and a line feed still pass');
+  for (const [name, json] of [
+    ['title-rlo.json', '{"schema":1,"title":"a\\u202eb"}'],
+    ['key-zwsp.json', '{"schema":1,"agentFiles":{"zebra\\u200bquokka":"x"}}'],
+    ['title-cr.json', '{"schema":1,"title":"a\\rb"}'],
+    ['title-tag.json', '{"schema":1,"title":"a\\udb40\\udc01b"}'],
+    ['lone-surrogate.json', '{"schema":1,"title":"a\\ud800b"}'],
+    ['nested-control.json', '{"schema":1,"yours":{"skills":[{"name":"a","what":"x\\u0007y"}]}}'],
+  ]) {
+    const r = load(name, json);
+    assert.equal(r.builder, null, name);
+    assert.deepEqual(r.refusals, ['the builder file holds an escaped invisible, direction-changing or control character in a key or string'], name);
+  }
+});
+
+test('a shared file opened on the page whose JSON escapes decode to an invisible, direction-changing or control character is refused (#327)', () => {
+  const msg = 'it holds an escaped invisible, direction-changing or control character in a key or string';
+  for (const json of [
+    '{"schema":1,"title":"a\\u202eb","models":["Opus"]}',
+    '{"schema":1,"models":["Op\\u200bus"]}',
+    '{"schema":1,"zebra\\u200b":1}',
+    '{"schema":1,"title":"a\\udb40\\udc01b","models":["Opus"]}',
+    '{"schema":1,"title":"a\\ud800b","models":["Opus"]}',
+    '{"schema":1,"agentFiles":{"mine":"---\\nname: mine\\n---\\nx\\u0007y\\n"}}',
+  ]) assert.equal(L.presetFromText(json).refuse, msg, json);
+  assert.equal(L.presetFromText('{"schema":1,"agentFiles":{"mine":"---\\nname: mine\\n---\\na\\tb\\n"}}').refuse, undefined, 'a tab and a line feed still pass');
+});
