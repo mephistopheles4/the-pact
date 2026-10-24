@@ -69,9 +69,9 @@ export const CLOUD_TOOLS = Object.freeze([]);
 export const CLOUD_PINS = Object.freeze({
   MISE_VERSION: '2026.10.2',
   MISE_SHA256: '79a2bf0ffc9b8a9a6391344e875b3c3679c15053fda3e8728ddf1790d63db788',
-  NODE_VERSION: '24.22.0',
-  NODE_TAR_SHA256: '28ea0a438de9a13bd7891fd758eee6c7819ee8af5442dfd8d45bd65e56d4228c',
-  NODE_BIN_SHA256: '67ca5783febb8bf85736c79fcdd92c8d6d465a0eb2a082672bcdfa76a506751c',
+  NODE_VERSION: '24.22.1',
+  NODE_TAR_SHA256: 'eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c',
+  NODE_BIN_SHA256: 'e32e2d16081cf644f88392934288086e7662529d0d43277c34f7aad2207cfafb',
 });
 
 // The third-party repos the setup fetches (#183 T3), each pinned by commit:
