@@ -8,7 +8,7 @@
 - **Other workflows:** every file but `gate.yml` is read with the same YAML reader; a file it can't read is refused, and so is a job whose id or `name` equals a required check name, or whose `name` holds an expression. The line match from #351 stays beside it.
 - **The security pair's read** (F1, H1, H2): a job name is compared trimmed and in lower case, so a block-scalar name such as `|-` and `gate` reads as `gate`; a job id in another case counts too; and a workflow file whose extension is in another case is read.
 - **The QA pair's read:** the C1 control range is refused too, and the folder reader takes its listing, so the upper-case extension is tested through it.
-- **The tests:** nineteen bad cases, each failing on a broken version of its check, and one control that a CRLF line ending is no stray break.
+- **The tests:** twenty-one bad cases, each failing on a broken version of its check, and one control that a CRLF line ending and a tab are no stray break.
 
 ## Decisions
 

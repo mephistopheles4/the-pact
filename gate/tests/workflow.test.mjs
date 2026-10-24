@@ -492,7 +492,7 @@ for (const [label, other, says] of [
   ['holds a shape the reader cannot read', OTHER.replace('    runs-on:', '    name: &n gate\n    runs-on:'), "other.yml can't be read by the check"],
   // #357, the security pair's F1: a block-scalar name, a padded name or another case of the name is still the check's name.
   ['names a job gate in a stripped literal block', OTHER.replace('    runs-on:', '    name: |-\n      gate\n    runs-on:'), 'other.yml defines a job or check named gate'],
-  ['names a job gate padded in quotes', OTHER.replace('    runs-on:', "    name: ' gate'\n    runs-on:"), 'other.yml defines a job or check named gate'],
+  ['names a job gate padded in quotes', OTHER.replace('    runs-on:', "    name: ' gate '\n    runs-on:"), 'other.yml defines a job or check named gate'],
   ['names a job Gate', OTHER.replace('    runs-on:', '    name: Gate\n    runs-on:'), 'other.yml defines a job or check named gate'],
   ['defines a job id GATE-WINDOWS', OTHER.replace('  lint:', '  GATE-WINDOWS:'), 'other.yml defines a job or check named gate-windows'],
   // #356: a line break other than a line feed could hide a key from the reader.
@@ -504,7 +504,9 @@ for (const [label, other, says] of [
   // The QA pair's read: the rest of the C0 range, DEL and the C1 range are refused too.
   ['holds a null character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u0000'), 'other.yml holds a line break or control character other than a line feed'],
   ['holds a delete character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u007f'), 'other.yml holds a line break or control character other than a line feed'],
-  ['holds a C1 control character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u0086'), 'other.yml holds a line break or control character other than a line feed'],
+  ['holds the first C1 control character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u0080'), 'other.yml holds a line break or control character other than a line feed'],
+  ['holds a backspace', OTHER.replace('      - run: echo ok', '      - run: echo ok\u0008'), 'other.yml holds a line break or control character other than a line feed'],
+  ['holds a unit separator', OTHER.replace('      - run: echo ok', '      - run: echo ok\u001f'), 'other.yml holds a line break or control character other than a line feed'],
   ['holds the last C1 control character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u009f'), 'other.yml holds a line break or control character other than a line feed'],
 ]) {
   test(`bad case: the folder check catches a second workflow file that ${label}`, () => {
@@ -523,10 +525,11 @@ test('bad case: the folder check catches a gate workflow that holds a lone carri
 
 // #357, the security pair's H2: a workflow file with an upper-case extension is read too, through the folder's own listing.
 test('bad case: the folder check reads a workflow file whose extension is in another case', () => {
-  const planted = { 'other.YML': OTHER.replace('  lint:', '  gate:'), 'notes.txt': 'not a workflow' };
+  const planted = { 'other.YML': OTHER.replace('  lint:', '  gate:'), 'more.Yaml': OTHER.replace('  lint:', '  gate-windows:'), 'notes.txt': 'not a workflow' };
   const files = realFolder([...readdirSync(WORKFLOWS), ...Object.keys(planted)], n => planted[n] ?? readFileSync(join(WORKFLOWS, n), 'utf8'));
   assert.ok(!files.has('notes.txt'), 'control: a file that is not a workflow is left out');
   assert.ok(folderProblems(files).includes('other.YML defines a job or check named gate'), folderProblems(files).join('\n'));
+  assert.ok(folderProblems(files).includes('more.Yaml defines a job or check named gate-windows'), folderProblems(files).join('\n'));
 });
 
 // The QA pair's read: the CodeQL workflow is held to the same line breaks, and a CRLF line ending is no stray break.
@@ -536,8 +539,8 @@ test('bad case: the folder check catches a CodeQL workflow that holds a lone car
   assert.ok(folderProblems(files).includes('codeql.yml holds a line break or control character other than a line feed'), folderProblems(files).join('\n'));
 });
 
-test('a CRLF line ending is not read as a stray line break', () => {
-  const files = new Map([...realFolder(), ['other.yml', OTHER.replace(/\n/g, '\r\n')]]);
+test('a CRLF line ending and a tab are not read as a stray line break', () => {
+  const files = new Map([...realFolder(), ['other.yml', OTHER.replace('echo ok', 'echo\tok').replace(/\n/g, '\r\n')]]);
   assert.ok(!folderProblems(files).includes('other.yml holds a line break or control character other than a line feed'), folderProblems(files).join('\n'));
 });
 
