@@ -112,7 +112,8 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 - **The pushed commit is the one the pair read.** The pair's report names
   the commit it read, and the push publishes exactly that commit. A later
   push on a branch that waited, one that changes what the pair read, waits
-  for the pair's follow-up read or the owner's word, as the first push did.
+  for the pair's follow-up read, a full read, never a scoped follow-up, or
+  the owner's word, as the first push did.
 - **A cancelled run on `main`** is re-run before an install or a rollback
   reads its result. No run of the gate workflow cancels another on `main`,
   but a run of another workflow that named the same concurrency group could.

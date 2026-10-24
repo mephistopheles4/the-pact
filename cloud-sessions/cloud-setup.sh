@@ -2352,7 +2352,8 @@ the state before the work began.
   it. It is also handed:
   - **The revision diff:** for a spec, the diff of the spec's text since the
     revision the last review comment names; for a diff or a result, the diff
-    between the head it names and now.
+    between the head it names and now, derived with git at every round, as
+    the base is.
   - **Its earlier findings:** only the rows that name it in the last Lens
     dispositions table, numbered `E1`, `E2` and on, with their dispositions.
     The last table is the last one in the work's record, read by the project's
@@ -2366,15 +2367,65 @@ the state before the work began.
     hand the lens the report. Keep that line locally with the table it
     belongs to, record or not; a fresh session without it hands the row
     alone. No path goes in the record.
+- **A follow-up on a spec** reads the whole spec, as a first round does, and
+  is told to focus on what changed since the last reviewed revision and on
+  its `E` rows.
+- **A scoped follow-up.** A follow-up on a diff or a result is scoped, for
+  every lens. It is still dispatched fresh and alone, and is handed the base,
+  the request, the spec or ticket, the revision diff and its `E` rows as
+  above, and also the scope and the list of files the whole change touches,
+  names only. It is never handed the rest of the change.
+  - **The scope** is each file the revision diff touches and each file an
+    `E` row names. The lens reads the head side from the working folder, and
+    the base side is handed as that file's diff from the base.
+  - **The scope bounds every step of the lens's own prompt.** It reads
+    nothing in the working folder outside its scope. For a lens that works by
+    claims, its scope is the claims the revision diff reaches.
+  - **It checks its scope:** every file the revision diff touches and every
+    `E` row's file must be in it. A gap makes its verdict inconclusive.
+  - **A withheld row's file** enters the scope only for a lens that is handed
+    its place line, and then as the file only. For a lens that can reach the
+    web, the scope holds no file for that row.
+  - **It never marks a withheld row `absent`.** It carries the row as it
+    stands; only a full read or my word closes it.
+  - **Files on disk.** Any file you write for the scope, a diff or a copy,
+    sits with the round's inputs and is deleted when the round closes.
+    Nothing is written for a withheld row's file.
+  - **When the revision diff can't be derived** from the head the last base
+    line names, for example after a squash, the lens runs a first round
+    instead, and the base line says why.
+  - **A scoped report never releases a push.** Where a repo's push rule waits
+    on the security pair's read, the pair's follow-up whose read releases the
+    push is a full read: a first round on the whole change. Before such a
+    push, check that the report you cite is not marked scoped.
 - **A restart.** A lens's next run is a first round again when the intent has
   changed (the Workflow's "back to Design"), when the base moved (a merge or
-  rebase brought in other work), or when the last table holds no state words.
-  The base line says which, and how many `open` rows each restarted lens
-  carried. Carry each `open` row of the last table into the new table, still
-  `open`, with a state word you write and "carried at restart" in its reason
-  text. A withheld row is carried as it stands (see A withheld finding).
-- **A full pass** runs only when I ask, for the lenses I name. It is a first
-  round in which every finding gates, whatever its state.
+  rebase brought in other work), when the last table holds no state words, or
+  on my word. The base line says which, and how many `open` rows each
+  restarted lens carried. Carry each `open` row of the last table into the
+  new table, still `open`, with a state word you write and "carried at
+  restart" in its reason text. A withheld row is carried as it stands (see A
+  withheld finding).
+- **A full read on my word,** at any time, is the one I name: a restart, which
+  gates by state, or a full pass. **A full pass** runs only when I ask, for
+  the lenses I name. It is a first round in which every finding gates,
+  whatever its state.
+- **The closing read.** At Test, the last round before I accept the work, by
+  merge or otherwise, is a closing read, for every lens that ran at Test, the
+  security pair included. It is a first round on the whole change, gating by
+  state as usual and carrying each `open` row as a restart does.
+  - **Three states.** Hand it the base, the approved spec or ticket, and the
+    head, and it compares them. The approved spec is the revision the last
+    Design base line names, read by the project's rule on whose text counts.
+    With no spec or ticket, it compares the base, the request and the head.
+  - **Its head.** The base line names the head it read. The work I accept is
+    that head; a later commit needs a new closing read.
+  - **When.** Run it when the work is ready to come to me. A first Test round
+    on the final head, run with the three states and Spec drift, is the
+    closing read. If it leads to a fix, the follow-ups after it are scoped
+    again, and a new closing read comes before I accept the work.
+  - **A review in flight** when this rule is installed takes scoped follow-ups
+    from its next round, and a closing read before its own merge.
 - **The Design-to-Test step is a first round.** At Test a lens reviews a diff
   or a result; at Design it reviewed a spec, a different kind of input.
 - **Kept-local reports.** When the work's last review round closes, and
@@ -2399,7 +2450,8 @@ what a lens writes by its meaning.
   state against the base: `new` (the work introduced it), `updated` (it was at
   the base and the work makes it worse, edits it, or newly reaches or relies
   on it) or `unchanged` (it was at the base, and the work neither touches nor
-  relies on it). Read the whole base; only the gating is scoped to the work.
+  relies on it). A first round reads the whole base, and a scoped follow-up
+  reads the base only in its scope; the gating is scoped to the work.
   On a follow-up, each also names the earlier finding it continues, by its
   `E` number, or "none". An `E` finding that no longer holds is not a state
   against the base: it goes under Earlier findings as `absent`, and that is
@@ -2409,7 +2461,16 @@ what a lens writes by its meaning.
   longer holds, or "holds", naming the finding under Findings that continues
   it. An `E` row the report doesn't account for is something it couldn't
   review.
-- **Not checked:** what it didn't look at, and why.
+- **Spec drift,** on a closing read only: by the lens's own question, where
+  the head departs from the approved spec, and where the approved spec
+  departs from the request and the base. This holds over a lens's own
+  stay-out for this section. A drift item that is a defect is also a
+  finding, with its state; any other is for my information.
+- **Not checked:** what it didn't look at, and why. On a scoped follow-up, its
+  first item is exactly "scoped follow-up: the rest of the change was not
+  read", followed by the count of changed files outside its scope; it lists
+  no files. What lies outside its scope was not handed to it, so it doesn't
+  make the verdict inconclusive.
 - **Verdict:** blocking when a finding is high and `new` or `updated`, or high
   and `unchanged` and either a security finding by the lens's own class (the
   security pair) or marked `security?` (any other lens); inconclusive when it
@@ -2486,8 +2547,9 @@ crossed alone.
    for a lens a rules file offers on its own.
 2. **The base line,** the first line under the heading. It names the base by
    its short hash, and the spec revision or head commit reviewed, and says
-   which lenses ran a first round, a follow-up, a restart (and why, and how
-   many `open` rows it carried) or a full pass.
+   which lenses ran a first round, a follow-up, a scoped follow-up, a
+   restart (and why, and how many `open` rows it carried), a closing read
+   (and the head it read) or a full pass.
 3. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
    inconclusive, then findings, then clear, raised to blocking when you sort a
    high `unchanged` finding as a security finding (see Findings and their
@@ -2495,25 +2557,30 @@ crossed alone.
    with the finding. A review that holds a withheld finding posts the verdict
    of its posted findings only (see A withheld finding). A lens whose verdict
    is inconclusive is marked "not verified": its silence is not a pass, so
-   read what it didn't check.
+   read what it didn't check. Mark "scoped" beside the verdict of each lens
+   that ran a scoped follow-up.
 4. **Crossings first.** A table of the places both lenses flagged, with each
    lens's findings there and the state beside each.
 5. **One lens only.** A table of where, lens, severity, state and headline,
    and anything else the lens gives each finding, such as a likelihood.
    These two tables hold the `new` and `updated` findings and the `unchanged`
    security findings.
-6. **Trade-offs.** A table of where, lens, severity, headline, the cost or
+6. **Spec drift,** for a closing read: a table of where, lens and drift
+   item. A drift item that is a defect is also in the tables above. A
+   kept-local report's spec-drift items stay out of it and go to me in chat.
+   Leave it out when no lens reported drift.
+7. **Trade-offs.** A table of where, lens, severity, headline, the cost or
    level, the limit and the quality at stake, and what you did with it (see
    Trade-offs and accepted risks). Leave it out when no lens listed one.
-7. **Notes.** A table of where, lens, severity and headline for each `noted`
+8. **Notes.** A table of where, lens, severity and headline for each `noted`
    finding, with the notes the Follow-up issues cost overflows into. An
    overflow note's row keeps its own Disposition word, with "issues
    overflow" in its reason text; only an `unchanged` finding is `noted`.
    Leave it out when there are none.
-8. **Earlier findings,** per lens on a follow-up: each `E` number with
+9. **Earlier findings,** per lens on a follow-up: each `E` number with
    `absent` or the finding that continues it.
-9. **Not checked,** per lens.
-10. **Verbatim reports,** each in its own fold (see Posting).
+10. **Not checked,** per lens.
+11. **Verbatim reports,** each in its own fold (see Posting).
 
 **Rules you apply by judgment:**
 - **A crossing is the same place:** the same section or claim, the same file
@@ -2575,7 +2642,8 @@ severity:
   (`open` until I settle the finding in chat, never `noted`), and at most the
   lens's name in the Rerun cell. A restart carries it as it stands.
 - **Its placeholder** in the review comment sits in the One lens only table,
-  whatever its state or kind, never in Crossings first, Trade-offs or Notes.
+  whatever its state or kind, never in Crossings first, Spec drift,
+  Trade-offs or Notes.
 - **Its Earlier findings item** reads "withheld, see chat".
 - **A follow-up's report that was handed it as an `E` row** is kept local
   too, as a kept-local report, until I settle the finding, whatever it says
@@ -2848,7 +2916,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 473feb4e9281c76a19c8248308fbb071cec94f1d74461d420055998f08d37804 'pact/review.md'
+check_hash c215992268babbfda783c16e9325b8d0d340956ab15fb479fc38cba2da648da7 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2878,7 +2946,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy a0b2b37fbd91"
+  echo "pact cloud copy 08771ff7ee1e"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
