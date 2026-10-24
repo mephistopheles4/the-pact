@@ -4,17 +4,19 @@
 
 ## What was built (#376)
 
-- **The rules file** (`claude/CLAUDE.md`, How much checking): after "Keep one model for a whole session.", one sentence says the effort the owner or a lead set at the start, which the start prompt may state, is taken as given, and never judged, flagged or used to stop the work from the session's own sense of it.
-- **The test:** the #306 test in `gate/tests/paths.test.mjs` also checks that this sentence follows the one-model line. The mismatch bullet still names no effort.
+- **The rules file** (`claude/CLAUDE.md`, How much checking): after "Keep one model for a whole session.", one sentence says the effort set at the start, by the owner or by a lead session the owner set up, which the start prompt may state, is taken as given, and never judged, flagged or used to stop the work from the session's own sense of it.
+- **The test:** a new test in `gate/tests/paths.test.mjs` checks that this sentence follows the one-model line, word for word. The #306 test, unchanged, still checks that the mismatch bullet names no effort.
 - **Regenerated:** `cloud-sessions/`. **Unaffected:** `builder/scriptorium.html` and `builder/default-config/`, which don't carry this line.
 
 ## Decisions
 
 - The sentence sits on a line outside every builder block, so a configuration that replaces the tiers, the workflow or the sensitive route keeps it.
 - The issue's ask that a session name its doubt about effort in one line was dropped: a session can never read its effort, so the line would show in every session (the owner, relayed by the lead).
-- No ADR. ADR 0013 still sets which effort a tier starts at; this says who knows it.
+- No ADR. ADR 0013 still sets which effort a tier starts at; this says who knows it. An xhigh rerun the owner sets at a stop, under ADR 0013, is likewise an effort the session takes as given.
 - Once this merges, the owner pastes `cloud-sessions/cloud-setup-wrapper.sh` into the cloud environment's setup field again.
 
 ## Record
 
 - [The issue and the spec](https://github.com/mephistopheles4/the-pact/issues/376#issuecomment-6387275198).
+- [Test review: behaviour-lens and integrity-lens](https://github.com/mephistopheles4/the-pact/issues/376#issuecomment-6387417795).
+- [Test review: conventions-lens and reader-lens](https://github.com/mephistopheles4/the-pact/issues/376#issuecomment-6387430009).
