@@ -95,15 +95,20 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   - the diff touches `.github/` or `gate/tests/workflow.test.mjs`: a pull
     request runs the branch's own copy of every workflow, the CodeQL one with
     its write token, as soon as it opens (R27), so the push waits for the
-    security pair's read or the owner's word.
+    security pair's read or the owner's word;
+  - the diff touches `.claude/settings.json` or `.claude/hooks/`: the hook
+    runs in every session opened on the branch, before the permission check
+    (#383), so the push waits for the security pair's read or the owner's
+    word.
 
   A push that waits is squashed to one commit first, so the security pair's
   read of the diff covers every commit the push publishes. When the owner
   declines the offer, the push goes on that answer; a decline that reached
   the session only by relay frees it too, but stays open, as the pact says. A
   decline frees only the wait for the offer: a
-  diff that touches `.github/` or the lockdown test still waits for the
-  pair's read or the owner's word on the push itself.
+  diff that touches `.github/`, the lockdown test, `.claude/settings.json` or
+  `.claude/hooks/` still waits for the pair's read or the owner's word on the
+  push itself.
 - **The pushed commit is the one the pair read.** The pair's report names
   the commit it read, and the push publishes exactly that commit. A later
   push on a branch that waited, one that changes what the pair read, waits
@@ -175,6 +180,58 @@ runs only, never a host run of `gate/tests/run.mjs`.
 - **Limits:** 4 CPUs, to match the runner's cap of four test files, 4 GB of
   memory and 10 minutes. `full` took under a minute on 2026-10-22. A run past
   the limit ends with 137 (memory) or 124 (time).
+
+### The hook
+
+A PreToolUse hook holds sessions to athanor (#383, ADR 0104), ported from
+grimoire's agent check guard. `.claude/settings.json` runs
+[`.claude/hooks/athanor-guard.mjs`](../../.claude/hooks/athanor-guard.mjs)
+before every Bash and PowerShell call, with a 15 s timeout.
+
+- **What it refuses:** a host run of `gate/tests/run.mjs` with the tier `fast`
+  or `full`, in the forms the docs use and a few wrappers more (`env -u
+  NODE_OPTIONS`, the PowerShell form's `$env:NODE_OPTIONS = $null;`, `&`,
+  `time`, `timeout`, a quoted or absolute path), past any comment, while
+  `athanor --version` exits 0 and prints a version within 5 s. Its refusal is
+  fixed text that names `athanor run fast`, `athanor run` and the fallback.
+- **What it passes, silently:** `changed`, which athanor can't run; `--list`,
+  which runs nothing; a run with `--host-fallback=<reason>`; every other
+  command; and everything while athanor is missing, a shim dangles, or the
+  probe fails or hangs. A bare `node --test` is out of its reach, as it is
+  out of the runner's cap, and so is a run wrapped in `bash -c`,
+  `pwsh -Command`, `nohup` or `exec`, or started from inside `gate/tests/`.
+- **The fallback:** `--host-fallback='<reason>'`, in the `=` form only, on
+  `fast` and `full`. Use it for `full` before an install, and for any run when
+  athanor can't run: no Docker, a copy older than `4121c28`, or a run that
+  ends 124, 125 or 137. The probe can't tell those from a working athanor,
+  since every build reports `0.1.0`. Quote the reason, in either shell:
+  unquoted, PowerShell splits it into separate arguments and the runner
+  refuses them. Give a short reason in your own plain words: at most 80
+  letters, digits, spaces and `. , ; : ( ) -`, no word over 24, so no path,
+  token or pasted error text; anything else exits 2, echoing none of it, and
+  so does an unquoted reason split into more arguments, with a word to quote
+  it. Say in your report that you used the fallback. The runner prints
+  `host fallback: <reason>` as given, before the run, and `--record` keeps
+  it. An empty reason, the space form, or the flag on `changed` exits 2 too.
+- **Where it runs:** on the Windows host, in both tools; in WSL where athanor
+  answers there; and silently in cloud sessions and CI, which have no athanor.
+  It adds a Node start to every shell call, about a tenth of a second on the
+  Windows host.
+- **It is a nudge, not a control.** It makes a skip visible; it fails open on
+  any error, gives no explicit allow, so your permission rules still apply,
+  and reads the command as data.
+- **It is code that runs on load.** A checkout, pull, merge or rebase that
+  changes the hook script or its settings file takes effect on the next shell
+  call of every session open in that folder, before the permission check. So every change to
+  `.claude/settings.json` or `.claude/hooks/` is read closely, and its push
+  waits as above.
+- **Keys stay out.** `.gitignore` ignores every `settings.json` but this one,
+  which a gate test holds to the `hooks` key alone. Settings you save from
+  Claude Code for this repo go to local scope, `.claude/settings.local.json`,
+  which stays ignored, never to project scope.
+- **Rolling it back:** revert its commit; open sessions pick the change up on
+  their next shell call, as Claude Code reloads a changed settings file
+  (restart one that doesn't). The flag is the way through meanwhile.
 
 ## Writing a gate test
 
