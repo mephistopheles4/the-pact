@@ -73,7 +73,7 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-03-lenses-dark.svg">
-  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses, and unstated-lens on its own, each ask one question, and each is offered with a one-line why; the security pair comes with the sensitive route, and once more at Test on a list match if I didn't take the route. Their reports are crossed by a template and posted in the work's record, and I decide." width="800">
+  <img src="docs/img/fig-03-lenses.svg" alt="FIG. 03, lenses advise, I decide. Four pairs of review lenses each ask one question, and each pair is offered with a one-line why, at most two pairs a review round; the security pair comes with the sensitive route, and once more at Test on a list match if I didn't take the route. Their reports are crossed by a template and posted in the work's record, and I decide." width="800">
 </picture>
 
 <details>
@@ -83,9 +83,8 @@ A lens is a reviewer agent that asks one question from one angle. Lenses are too
 - **QA pair, offered at every build.** `behaviour-lens` runs the change: does it do what was asked? `integrity-lens`: can the tests behind the pass actually fail, and does each one earn its place?
 - **Standards pair, offered on a diff, standard and up.** `conventions-lens`: does the diff keep the repo's written rules? `reader-lens`: can the next reader act on what it says?
 - **Security pair, with the sensitive route, and once more at Test on a list match if I didn't take the route.** `adversarial-lens`: which attack paths does no control stop? `data-lens`: where can the data leak?
-- **The gatekeeper, alone, offered on a result, standard and up.** `unstated-lens`: what need did nobody write down?
 
-Each lens is offered with a one-line why, and I say yes or no. Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The session crosses the pair by a template; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
+Each pair is offered with a one-line why, and I say yes or no; a review runs at most two pairs a round, the Lens pairs cost. Each lens runs fresh and alone, and neither lens of a pair sees the other's report. The session crosses the pair by a template; where both lenses hit one spot, it shows first. The reports are posted in the work's record word for word. I decide: done, fix, or stop.
 
 </details>
 

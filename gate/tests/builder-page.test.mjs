@@ -407,14 +407,23 @@ test('bad cost limits: none or ten, an empty cost, a duplicate name in any case,
   assert.equal(bad(p => (p.costLimits[0].limit = '')), '', 'an empty limit is the owner\'s judgment, not an error');
 });
 
-// #287 C5: a cost no quality names is a warning.
-test('a cost no quality names is a warning, never an error', () => {
+// #377 C2: the default ships the Lens pairs row after the three it had; Ultra Code keeps only those three.
+test('the default cost limits end with the Lens pairs row, and Ultra Code carries the other three', () => {
+  assert.deepEqual(DEFAULT_PARTS.costLimits.map(c => c.cost), ['Tests added', 'Hardening', 'Follow-up issues', 'Lens pairs']);
+  assert.deepEqual(DEFAULT_PARTS.costLimits[3], { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' });
+  const ultra = shippedPresets(REPO, pactData(REPO)).find(p => p.id === 'ultra-code');
+  assert.deepEqual(ultra.parts.costLimits, DEFAULT_PARTS.costLimits.slice(0, 3));
+});
+
+// #377 C3, C4 (replaces #287 C5): a cost no quality names limits the review itself, so the builder gives no finding, and the rules file and the page say so.
+test('a cost no quality names draws no finding, and the rules file and the page say it limits the review itself', () => {
   const p = copyParts(DEFAULT_PARTS);
   p.costLimits.push({ cost: 'Review rounds', counted: 'Rounds', limit: '', atLimit: '' });
-  const found = partsProblems(p).filter(x => x.part === 'cost-limits');
-  assert.deepEqual(found.map(x => x.level), ['warn']);
-  assert.match(found[0].text, /^row 4: no quality names this cost, so it holds back no lens$/);
-  assert.deepEqual(partsProblems(DEFAULT_PARTS).filter(x => x.level === 'warn' && x.part === 'cost-limits'), []);
+  assert.deepEqual(partsProblems(p).filter(x => x.part === 'cost-limits'), []);
+  const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\s+/g, ' ');
+  assert.ok(rules.includes(`A cost that no quality's Enough names limits the review itself: count it each review round and follow its "At the limit"; it never holds back the security pair, a lens a repo's own rules require, or the lenses of a skill I typed.`), 'the Cost limits prose');
+  assert.ok(PAGE.includes('Limits the review itself.'), 'the page names the reach');
+  assert.ok(!PAGE.includes('This cost reaches no lens'), 'the page drops the caution');
 });
 
 // #287 C3: the Enough column and the shipped Functional suitability row.
@@ -1277,7 +1286,7 @@ test('bad case: a shared file naming good-enough-lens loads with the name taken 
   assert.ok(!JSON.stringify(r.preset).includes('good-enough-lens'), 'the retired name survived the load');
   const offers = r.preset.parts.workflowGraph.offers;
   assert.deepEqual(offers.filter(o => o.stage === 'design').map(o => [o.id, o.agents]), [['design-spec-pair', ['executability-lens', 'unstated-lens']]], 'the spec pair takes the second lens, and the emptied and the separate offers go');
-  assert.ok(offers.some(o => o.stage === 'test' && o.agents.length === 1 && o.agents[0] === 'unstated-lens'), 'the gatekeeper offer at Test stays');
+  assert.deepEqual(offers.filter(o => o.stage === 'test'), DEFAULT_PARTS.workflowGraph.offers.filter(o => o.stage === 'test'), 'the Test offers stay as given');
   assert.deepEqual(r.preset.parts.lenses.map(x => x.agents), [['executability-lens', 'unstated-lens'], ['unstated-lens']], 'an emptied row goes');
   assert.deepEqual(r.preset.parts.qualities[0].lenses, ['behaviour-lens']);
   assert.equal(r.preset.agentFiles, undefined);
@@ -1301,8 +1310,8 @@ test('bad case: a builder file naming good-enough-lens, built into a page, start
   assert.ok(!files.some(x => /good-enough-lens/.test(x.path || x.name || '')), 'a save writes the retired agent file');
 });
 
-// #302 C6: the half-of-a-pair warning still fires for a lone lens, and lets the gatekeeper stand alone at Test only.
-test('an offer of one lens of a pair draws the warning, except the gatekeeper alone at Test', () => {
+// #302 C6, #377 C4: the half-of-a-pair warning fires for a lone lens at any stage; unstated-lens alone at Test is no exception.
+test('an offer of one lens of a pair draws the warning, unstated-lens alone at Test included', () => {
   const warns = p => partsProblems(p).filter(x => x.level === 'warn' && /half of/.test(x.text)).map(x => x.text);
   assert.deepEqual(warns(copyParts(DEFAULT_PARTS)), []);
   const lone = copyParts(DEFAULT_PARTS);
@@ -1311,11 +1320,35 @@ test('an offer of one lens of a pair draws the warning, except the gatekeeper al
   const design = copyParts(DEFAULT_PARTS);
   design.workflowGraph.offers.find(o => o.id === 'design-spec-pair').agents = ['unstated-lens'];
   assert.match(warns(design).join(), /offer design-spec-pair: half of/);
+  // A saved file that still carries the old one-lens row and its Test offer draws the warning too.
+  const old = copyParts(DEFAULT_PARTS);
+  old.lenses.push({ agents: ['unstated-lens'], label: 'the gatekeeper', asks: 'What need did nobody write down?' });
+  old.workflowGraph.offers.push({ id: 'test-unstated', stage: 'test', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['unstated-lens'], on: true });
+  assert.match(warns(old).join(), /offer test-unstated: half of executability-lens and unstated-lens/);
   // A one-lens row added to a file never switches the warning off.
   const added = copyParts(DEFAULT_PARTS);
   added.lenses.push({ agents: ['adversarial-lens'], label: 'mine', asks: 'x' });
   added.workflowGraph.offers.push({ id: 'test-lone-adv', stage: 'test', when: 'every-build', words: '', agents: ['adversarial-lens'], on: true });
   assert.match(warns(added).join(), /offer test-lone-adv: half of/);
+});
+
+// #377 C1: every lens of the pact is offered in a pair, in the default, every preset and every example block.
+test('no default lens row, and no offer in the default, a preset or an example block, names one pact lens alone', () => {
+  const pact = new Set(DEFAULT_PARTS.lenses.flatMap(r => r.agents));
+  assert.deepEqual(DEFAULT_PARTS.lenses.filter(r => r.agents.length < 2).map(r => r.label), []);
+  const lone = (where, offers) => offers.filter(o => o.agents.length < 2).map(o => `${where}: ${o.id}`);
+  const found = [...lone('default', DEFAULT_PARTS.workflowGraph.offers), ...shippedPresets(REPO, pactData(REPO)).flatMap(p => lone(p.id, p.parts.workflowGraph?.offers ?? []))];
+  const blocks = join(REPO, 'examples', 'pact-config', 'blocks');
+  for (const name of readdirSync(blocks).filter(n => n.endsWith('.md'))) {
+    const text = readFileSync(join(blocks, name), 'utf8');
+    // A lenses row's first cell, or one offer in a workflow cell: the pact lenses it names.
+    const named = s => [...s.matchAll(/`([a-z-]+)`/g)].map(m => m[1]).filter(a => pact.has(a));
+    const rows = text.split('\n').filter(l => l.startsWith('| `'));
+    const firsts = name.startsWith('lenses-') ? rows.map(l => l.split('|')[1]) : [];
+    const offers = name.startsWith('workflow-') ? text.split('\n').filter(l => l.startsWith('| ')).flatMap(l => l.split('|').flatMap(c => c.split('; ').filter(s => /^`[a-z-]+-lens`.*: /.test(s.trim())).map(s => s.split(':')[0]))) : [];
+    for (const s of [...firsts, ...offers]) if (named(s).length === 1) found.push(`${name}: ${s.trim()}`);
+  }
+  assert.deepEqual(found, []);
 });
 
 test('a separate gatekeeper offer that reaches wider than the spec pair stays when a saved file is loaded', () => {

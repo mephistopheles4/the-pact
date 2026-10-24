@@ -1,5 +1,5 @@
 // FIG. 03: the review lenses. Each pair with when it is offered and each
-// lens's question, unstated-lens alone, and the path from an offer to my
+// lens's question, the two-pair cap, and the path from an offer to my
 // decision. Words from claude/CLAUDE.md's Lenses section and each lens's
 // description in claude/agents/.
 import { LEFT, PAD, RIGHT, block, label, notched, sheet } from './draw.mjs';
@@ -36,7 +36,7 @@ const PAIRS = [
     ],
   },
 ];
-const ALONE = { text: 'The gatekeeper · standard and up', name: 'unstated-lens', question: 'What need did nobody write down?' };
+const CAP = 'At most two pairs a review round: the Lens pairs cost.';
 
 const FLOW_W = 184;
 const LEFT_W = RIGHT - LEFT - FLOW_W - 28;
@@ -57,12 +57,10 @@ for (const p of PAIRS) {
   y += h + 22;
 }
 
-// unstated-lens, alone.
-const aloneH = 20 + 18 + 12;
-els.push(...notched({ x: LEFT, y, w: LEFT_W, h: aloneH, text: ALONE.text, stroke: 'ink55', dash: '4 3' }));
-els.push(block({ top: y + 20, x: LEFT + 12, size: 12, lh: 18, weight: 600, lines: [ALONE.name], max: 112 }).el);
-els.push(block({ top: y + 20, x: LEFT + 136, size: 12, lh: 18, color: 'ink80', lines: [ALONE.question], max: LEFT_W - 148 }).el);
-const leftBottom = y + aloneH;
+// The cap on a review round (#377): every lens runs in its pair.
+const capH = 18;
+els.push(block({ top: y, x: LEFT, size: 12, lh: 18, color: 'ink80', lines: [CAP], max: LEFT_W }).el);
+const leftBottom = y + capH;
 
 // The path a report takes, from the lenses to me.
 const fx = RIGHT - FLOW_W;

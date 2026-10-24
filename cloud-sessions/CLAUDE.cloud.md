@@ -105,7 +105,7 @@ every other way out has its condition.
 | Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
 | Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
 | Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |
-| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
+| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
 | Deploy | I decide | I decide | I decide | I decide | none | |
 | Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
 
@@ -121,7 +121,6 @@ judgment more than rules here, more so as models improve.
 | --- | --- |
 | `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place? |
 | `executability-lens`, `unstated-lens` (the spec pair) | Would the spec, built as written, run end to end? What need did nobody write down? |
-| `unstated-lens` (the gatekeeper) | What need did nobody write down? |
 | `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |
 | `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |
 
@@ -190,7 +189,10 @@ What the work may spend to reach those qualities. A cost says what is counted,
 its limit, and what happens at the limit. A quality's Enough says where more
 of it stops being worth it: an optional level, such as ASVS L1, then each cost
 limit it answers to, by name, joined by a middle dot. A cost holds back the
-lenses of every quality whose Enough names it.
+lenses of every quality whose Enough names it. A cost that no quality's
+Enough names limits the review itself: count it each review round and follow
+its "At the limit"; it never holds back the security pair, a lens a repo's
+own rules require, or the lenses of a skill I typed.
 
 - **One rule.** A finding that would go past a cost limit goes the way that
   cost's "At the limit" says; a finding that would go past an Enough level
@@ -239,6 +241,7 @@ lenses of every quality whose Enough names it.
 | Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
 | Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |
 | Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |
+| Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |
 
 ## Guards
 

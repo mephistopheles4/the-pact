@@ -125,20 +125,6 @@
         "on": true
       },
       {
-        "id": "test-unstated",
-        "stage": "test",
-        "when": "tiers",
-        "tiers": [
-          "standard",
-          "thorough"
-        ],
-        "words": "",
-        "agents": [
-          "unstated-lens"
-        ],
-        "on": true
-      },
-      {
         "id": "test-security-pair",
         "stage": "test",
         "when": "sensitive",

@@ -358,7 +358,10 @@ const COST_LIMITS_FIXED = `What the work may spend to reach those qualities. A c
 its limit, and what happens at the limit. A quality's Enough says where more
 of it stops being worth it: an optional level, such as ASVS L1, then each cost
 limit it answers to, by name, joined by a middle dot. A cost holds back the
-lenses of every quality whose Enough names it.
+lenses of every quality whose Enough names it. A cost that no quality's
+Enough names limits the review itself: count it each review round and follow
+its "At the limit"; it never holds back the security pair, a lens a repo's
+own rules require, or the lenses of a skill I typed.
 
 - **One rule.** A finding that would go past a cost limit goes the way that
   cost's "At the limit" says; a finding that would go past an Enough level

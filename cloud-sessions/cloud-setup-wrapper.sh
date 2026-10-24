@@ -660,7 +660,7 @@ every other way out has its condition.
 | Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |
 | Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |
 | Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |
-| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
+| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
 | Deploy | I decide | I decide | I decide | I decide | none | |
 | Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
 
@@ -676,7 +676,6 @@ judgment more than rules here, more so as models improve.
 | --- | --- |
 | `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place? |
 | `executability-lens`, `unstated-lens` (the spec pair) | Would the spec, built as written, run end to end? What need did nobody write down? |
-| `unstated-lens` (the gatekeeper) | What need did nobody write down? |
 | `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |
 | `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |
 
@@ -745,7 +744,10 @@ What the work may spend to reach those qualities. A cost says what is counted,
 its limit, and what happens at the limit. A quality's Enough says where more
 of it stops being worth it: an optional level, such as ASVS L1, then each cost
 limit it answers to, by name, joined by a middle dot. A cost holds back the
-lenses of every quality whose Enough names it.
+lenses of every quality whose Enough names it. A cost that no quality's
+Enough names limits the review itself: count it each review round and follow
+its "At the limit"; it never holds back the security pair, a lens a repo's
+own rules require, or the lenses of a skill I typed.
 
 - **One rule.** A finding that would go past a cost limit goes the way that
   cost's "At the limit" says; a finding that would go past an Enough level
@@ -794,6 +796,7 @@ lenses of every quality whose Enough names it.
 | Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
 | Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |
 | Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |
+| Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |
 
 ## Guards
 
@@ -2438,6 +2441,15 @@ Lens dispositions table, as "skipped, because ...".
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
 another lens's report. Never resume a lens.
 
+**Counting a round.** Before you dispatch a round, count the pairs it would
+run against each Cost limits row that no quality's Enough names, such as Lens
+pairs, and follow the row's "At the limit" for the pairs past it. A lens
+offered on its own counts as a pair. Never hold back the security pair, a lens
+the repo's own rules require, or the lenses of a skill I typed; those don't
+count toward the round. Taking a pair once doesn't carry it to a later stage:
+a pair I took on a spec is offered again at Test, as "Lenses are offers" says,
+never run there unasked.
+
 **The mutation step.** Before a lens that checks whether the tests can fail,
 run a mutation-testing tool if the repo's lock file pins one.
 - Run it as its local binary, never through a command that can fetch a
@@ -2454,12 +2466,15 @@ You lay the reports out yourself, by judgment. Nothing lays them out for
 you, and nothing refuses a report for its layout.
 
 **Pairs.** Lenses offered together in one offer of the Workflow are a pair,
-and their reports are crossed together. A lens offered alone, or run alone, is
-crossed alone.
+and their reports are crossed together. The pact offers every lens in a pair:
+never run or cross one lens of a pair without its partner, and a report from
+one waits for its partner's in the same round. Only a lens a rules file offers
+on its own is crossed alone.
 
 **The review comment.** One comment per review, in this order:
 
-1. A heading naming the lenses: `### lens-a and lens-b`, or `### lens-name`.
+1. A heading naming the lenses: `### lens-a and lens-b`, or `### lens-name`
+   for a lens a rules file offers on its own.
 2. **The base line,** the first line under the heading. It names the base by
    its short hash, and the spec revision or head commit reviewed, and says
    which lenses ran a first round, a follow-up, a restart (and why, and how
@@ -2814,7 +2829,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash fa7792480ab3f6a3b16b33bf51e9a8bcb7504bc7317538bd87c0df3aaf714ab8 'CLAUDE.md'
+check_hash 98a5572f23472bd7c77fc4a2c810bbd619806dfbf8e210257d60c94a4b60ca31 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -2824,7 +2839,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash e2c9d1c27f3eba6a20f25d0480dbbc57ed6a51db3304b1783525e7dbd9a19e7b 'pact/review.md'
+check_hash 31132be45a334e608cae5d7311362d27d287316e668859ebe06e72013d7f91b4 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2854,7 +2869,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 38eb6a586ca5"
+  echo "pact cloud copy 062140549b1d"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

@@ -1,0 +1,24 @@
+# Every lens runs in a pair, and a cost can limit the review
+
+**2026-10-24.** A field test ran seven lenses at Test twice on a Standard change, and the owner wants every lens offered in a pair and a review capped at two pairs a round. The owner chose a cost row for the cap rather than an edit to the Workflow cells. Tier: standard, planned on Opus at medium, built on Opus. The owner waived in chat ADR 0094's sensitive route for this change and the security-pair read a roster change needs.
+
+## What was built (#377)
+
+- **The gatekeeper goes:** from the Lenses table, the default Test cell, `builder/parts.mjs`, four presets and three example blocks. The builder's half-of-a-pair warning loses its exception.
+- **A cost no Enough names limits the review itself:** one sentence in the Cost limits prose (`claude/CLAUDE.md`, and `gate/render-core.mjs`'s fixed copy). The builder's warning for such a row is gone, Scriptorium shows its reach, and the dry run's notes follow.
+- **The Lens pairs row** ships in the pact's text; Ultra Code carries the other three rows and stays uncapped.
+- **`claude/review.md`:** a lens of a pair never runs or crosses alone, and a round is counted against review-wide costs.
+- **Docs:** the README, `docs/reference.md`, `docs/install.md`, `docs/agents/install.md`, `CONTEXT.md` and FIG. 03.
+- **Regenerated:** `builder/scriptorium.html`, `builder/default-config/`, `cloud-sessions/` and the figures.
+
+## Decisions
+
+- [ADR 0101](../adr/0101-every-lens-runs-in-a-pair-and-a-cost-can-limit-the-review.md): every lens runs in a pair, and a cost can limit the review. Supersedes in part ADR 0080 and ADR 0079.
+
+## Open
+
+- The threat model's R30 and R31 still describe the old warning; their edit is proposed to the owner, not applied here.
+
+## Record
+
+- [The issue](https://github.com/mephistopheles4/the-pact/issues/377): the spec, its review and the claims.

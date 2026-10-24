@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wB7g9cd+R2yuPDon2brfz31+awH5Iops3KLs/y0n6yI='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nWQ5MxkC36kliXQLsPPZzcsZrJ4u5ObPlyyzHQ/SVvY='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -521,10 +521,10 @@ const PACT = /* pact-data:begin */ {
    "moves": "- **Sense the work.**\n  What kind of work is it, how big, how risky, and do I know enough to plan\n  it? Size sets how much checking it needs. A target I can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it.\n- **Think before doing.**\n  I get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right. When the intent is still forming, a\n  prototype finds it.\n- **Checkpoint the seams.**\n  Where work is handed on, published or decided, anything costly waits for a\n  checkpoint. A light checkpoint is a check of mine that runs without me,\n  such as a test. A heavy one is my decision before the work moves. The\n  harder a step is to undo, the heavier its checkpoint. When in doubt, it's\n  heavy.\n- **Stay the owner.**\n  I own a result when I can verify it, reconstruct why it is right, and know\n  when to stop it. Checks that could have failed are the evidence.",
    "tiers": "| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small, one session, no plan needed | none | Opus, low |\n| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |\n| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |",
    "sensitive": "Sensitive work gets more checking when I choose it. By default, sensitive\nwork is auth, secrets, crypto, input validation and data migrations:\nthorough, planned and built on Opus at high, with the security pair,\n`adversarial-lens` and `data-lens`, on the spec and the diff. That is the\nsensitive route. When the work matches that list, or you think it sensitive\notherwise, say why in one line in your tier proposal and recommend the route;\nI take it or not. If I didn't take the route, offer the security pair once\nmore at Test when the change matches the list. Beyond that one offer,\nsensitivity doesn't stop the run. A flag or an offer I haven't answered stays\nopen, in one line, in every hand-off and in the result. If you find it later,\nsay so in one line at the next hand-off or result, and keep saying it until I\nanswer.",
-   "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
-   "lenses": "| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place? |\n| `executability-lens`, `unstated-lens` (the spec pair) | Would the spec, built as written, run end to end? What need did nobody write down? |\n| `unstated-lens` (the gatekeeper) | What need did nobody write down? |\n| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |\n| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |",
+   "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
+   "lenses": "| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place? |\n| `executability-lens`, `unstated-lens` (the spec pair) | Would the spec, built as written, run end to end? What need did nobody write down? |\n| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |\n| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |",
    "qualities": "| Quality | Measure | Lens | Enough |\n| --- | --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens`, `integrity-lens`, `unstated-lens` | Tests added · Follow-up issues |\n| Performance efficiency | a budget: time, memory, size | `behaviour-lens` | |\n| Reliability | a failure, and the recovery accepted | `behaviour-lens` | |\n| Compatibility | named interfaces that stay stable: formats, flags, config keys, APIs | `conventions-lens` | |\n| Interaction capability | a task a new user completes | `reader-lens`, `behaviour-lens` | |\n| Security | an ASVS 5.0 level or chapters | `adversarial-lens`, `data-lens` | Hardening · Follow-up issues |\n| Maintainability | the repo's written rules | `conventions-lens`, `reader-lens` | |\n| Flexibility | the environments it must install and run on | `executability-lens`, `behaviour-lens` | |\n| Safety | the risky actions, the warning, the safe state on failure | `executability-lens` | |",
-   "cost-limits": "| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |\n| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |\n| Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |"
+   "cost-limits": "| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |\n| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |\n| Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |\n| Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |"
   },
   "defaults": {
    "moves": [
@@ -681,20 +681,6 @@ const PACT = /* pact-data:begin */ {
       "on": true
      },
      {
-      "id": "test-unstated",
-      "stage": "test",
-      "when": "tiers",
-      "tiers": [
-       "standard",
-       "thorough"
-      ],
-      "words": "",
-      "agents": [
-       "unstated-lens"
-      ],
-      "on": true
-     },
-     {
       "id": "test-security-pair",
       "stage": "test",
       "when": "sensitive",
@@ -785,13 +771,6 @@ const PACT = /* pact-data:begin */ {
      ],
      "label": "the spec pair",
      "asks": "Would the spec, built as written, run end to end? What need did nobody write down?"
-    },
-    {
-     "agents": [
-      "unstated-lens"
-     ],
-     "label": "the gatekeeper",
-     "asks": "What need did nobody write down?"
     },
     {
      "agents": [
@@ -907,6 +886,12 @@ const PACT = /* pact-data:begin */ {
      "counted": "Issues filed from one review",
      "limit": "2",
      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+    },
+    {
+     "cost": "Lens pairs",
+     "counted": "Lens pairs run in one review round; a lens offered alone counts as a pair",
+     "limit": "2",
+     "atLimit": "The next pair becomes a trade-off for me: which pair it would replace, and what it would check"
     }
    ]
   }
@@ -1533,20 +1518,6 @@ const PACT = /* pact-data:begin */ {
        "on": true
       },
       {
-       "id": "test-unstated",
-       "stage": "test",
-       "when": "tiers",
-       "tiers": [
-        "standard",
-        "thorough"
-       ],
-       "words": "",
-       "agents": [
-        "unstated-lens"
-       ],
-       "on": true
-      },
-      {
        "id": "test-security-pair",
        "stage": "test",
        "when": "sensitive",
@@ -1844,20 +1815,6 @@ const PACT = /* pact-data:begin */ {
        "agents": [
         "conventions-lens",
         "reader-lens"
-       ],
-       "on": true
-      },
-      {
-       "id": "test-unstated",
-       "stage": "test",
-       "when": "tiers",
-       "tiers": [
-        "standard",
-        "thorough"
-       ],
-       "words": "",
-       "agents": [
-        "unstated-lens"
        ],
        "on": true
       },
@@ -2197,20 +2154,6 @@ const PACT = /* pact-data:begin */ {
        "on": true
       },
       {
-       "id": "test-unstated",
-       "stage": "test",
-       "when": "tiers",
-       "tiers": [
-        "standard",
-        "thorough"
-       ],
-       "words": "",
-       "agents": [
-        "unstated-lens"
-       ],
-       "on": true
-      },
-      {
        "id": "test-security-pair",
        "stage": "test",
        "when": "sensitive",
@@ -2536,21 +2479,6 @@ const PACT = /* pact-data:begin */ {
        "on": true
       },
       {
-       "id": "test-unstated",
-       "stage": "test",
-       "when": "tiers",
-       "tiers": [
-        "quick",
-        "standard",
-        "thorough"
-       ],
-       "words": "",
-       "agents": [
-        "unstated-lens"
-       ],
-       "on": true
-      },
-      {
        "id": "test-security-every",
        "stage": "test",
        "when": "tiers",
@@ -2796,7 +2724,27 @@ const PACT = /* pact-data:begin */ {
        "on": true
       }
      ]
-    }
+    },
+    "costLimits": [
+     {
+      "cost": "Tests added",
+      "counted": "Tests beyond one per acceptance claim",
+      "limit": "2 per change",
+      "atLimit": "The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep"
+     },
+     {
+      "cost": "Hardening",
+      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
+      "limit": "0",
+      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+     },
+     {
+      "cost": "Follow-up issues",
+      "counted": "Issues filed from one review",
+      "limit": "2",
+      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+     }
+    ]
    }
   }
  ],
@@ -2901,7 +2849,6 @@ const DEFAULT_PARTS = Object.freeze({
       { id: 'design-security-pair', stage: 'design', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
       { id: 'test-qa-pair', stage: 'test', when: 'every-build', words: '', agents: ['behaviour-lens', 'integrity-lens'], on: true },
       { id: 'test-standards-pair', stage: 'test', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['conventions-lens', 'reader-lens'], on: true },
-      { id: 'test-unstated', stage: 'test', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['unstated-lens'], on: true },
       { id: 'test-security-pair', stage: 'test', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
       { id: 'test-security-backstop', stage: 'test', when: 'sensitive-declined', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
     ],
@@ -2920,7 +2867,6 @@ const DEFAULT_PARTS = Object.freeze({
   lenses: [
     { agents: ['behaviour-lens', 'integrity-lens'], label: 'the QA pair', asks: 'Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place?' },
     { agents: ['executability-lens', 'unstated-lens'], label: 'the spec pair', asks: 'Would the spec, built as written, run end to end? What need did nobody write down?' },
-    { agents: ['unstated-lens'], label: 'the gatekeeper', asks: 'What need did nobody write down?' },
     { agents: ['conventions-lens', 'reader-lens'], label: 'the standards pair', asks: "Does the diff keep the repo's written rules? Can the next reader act on what it says?" },
     { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
   ],
@@ -2940,6 +2886,7 @@ const DEFAULT_PARTS = Object.freeze({
     { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
     { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
     { cost: 'Follow-up issues', counted: 'Issues filed from one review', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
+    { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' },
   ],
 });
 
@@ -3371,7 +3318,7 @@ function partsProblems(p) {
       if (!lineOk(c.atLimit, C.line)) err('cost-limits', `row ${i + 1}: At the limit must be one line of at most ${C.line} characters, with no bar`);
     });
     if (new Set(costNames).size !== costNames.length) err('cost-limits', 'the list names one cost twice');
-    // An Enough that names no cost row is an error; a cost no quality names binds no lens, a finding.
+    // An Enough that names no cost row is an error; a cost no quality names limits the review itself (#377), no finding.
     const named = new Set();
     for (const [i, q] of (Array.isArray(p.qualities) ? p.qualities : []).entries())
       if (isObj(q) && Array.isArray(q.enoughCosts))
@@ -3380,17 +3327,14 @@ function partsProblems(p) {
           if (costNames.includes(n.trim().toLowerCase())) named.add(n.trim().toLowerCase());
           else err('qualities', `row ${i + 1}: a cost it answers to has no row in the cost limits`);
         }
-    p.costLimits.forEach((c, i) => isObj(c) && typeof c.cost === 'string' && c.cost.trim() && !named.has(c.cost.trim().toLowerCase()) && out.push({ part: 'cost-limits', level: 'warn', text: `row ${i + 1}: no quality names this cost, so it holds back no lens` }));
   }
 
-  // A finding, never a refusal: one lens of a pair alone on an offer. A lens the roster also lists on its own row (the gatekeeper, #302) may be offered alone at Test, but only a lens the pact's own roster lists on its own row, so a row added to a file never switches the warning off.
-  const ownAlone = DEFAULT_PARTS.lenses.filter(r => r.agents.length === 1).map(r => r.agents[0]);
-  const aloneRows = (Array.isArray(p.lenses) ? p.lenses : []).filter(r => Array.isArray(r.agents) && r.agents.length === 1).map(r => r.agents[0]).filter(a => ownAlone.includes(a));
+  // A finding, never a refusal: one lens of a pair alone on an offer, at any stage (#377: every lens runs in a pair).
   if (!out.some(f => f.level === 'error'))
     for (const o of g.offers)
       for (const pair of rosterPairs(p)) {
         const has = pair.agents.filter(a => o.agents.includes(a)).length;
-        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.agents.join(' and ')} on its own; a pair's reports are crossed, so run both or neither` });
+        if (has === 1) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.agents.join(' and ')} on its own; a pair's reports are crossed, so run both or neither` });
       }
   return out;
 }
@@ -5888,11 +5832,11 @@ function boot() {
         partsTouched();
       }, 'av-tool-chip--ghost')),
     );
-    // The cost limits (#278): what the work may spend. A row shows the qualities that name it and the lenses that reaches, and warns when it reaches none.
+    // The cost limits (#278): what the work may spend. A row shows the qualities that name it and the lenses that reaches, or that it limits the review itself (#377).
     const costLimits = agentsSection(
       'cost-limits',
       'Cost limits',
-      el('p', { class: 'av-annot', text: 'What the work may spend to reach the qualities: each cost says what is counted, its limit (empty is your judgment) and what happens at the limit. A cost holds back the lenses of every quality whose Enough names it.' }),
+      el('p', { class: 'av-annot', text: 'What the work may spend to reach the qualities: each cost says what is counted, its limit (empty is your judgment) and what happens at the limit. A cost holds back the lenses of every quality whose Enough names it; a cost no quality names limits the review itself.' }),
       ...cs.map((c, i0) => {
         const i = i0;
         const held = qs.filter(q => Array.isArray(q.enoughCosts) && q.enoughCosts.some(n => n.trim().toLowerCase() === c.cost.trim().toLowerCase()));
@@ -5925,8 +5869,7 @@ function boot() {
           el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Counted as' }), dialogInput(c.counted, v => (c.counted = v), { title: 'A unit you could tally by hand.' })),
           el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'Limit' }), dialogInput(c.limit, v => (c.limit = v), { title: 'A number, or empty for your judgment.', placeholder: 'your judgment' })),
           el('label', { class: 'wf-field' }, el('span', { class: 'av-label', text: 'At the limit' }), dialogInput(c.atLimit, v => (c.atLimit = v), { title: 'The rule set in advance; you can override it on any finding. Empty means ask.', placeholder: 'ask me' })),
-          el('p', { class: 'av-annot', text: held.length ? `Named by ${held.map(q => q.quality).join(', ')}; holds back ${reached.join(', ')}.` : 'No quality names this cost.' }),
-          ...(reached.length ? [] : [el('p', { class: 'av-callout av-callout--caution', role: 'status', text: 'This cost reaches no lens: name it in the Enough of a quality.' })]),
+          el('p', { class: 'av-annot', text: held.length ? `Named by ${held.map(q => q.quality).join(', ')}; holds back ${reached.join(', ')}.` : 'No quality names this cost. Limits the review itself.' }),
         );
       }),
       el('div', { class: 'chips' }, chip('Add a cost', false, () => {
