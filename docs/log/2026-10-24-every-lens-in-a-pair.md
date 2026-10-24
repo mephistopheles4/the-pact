@@ -21,3 +21,4 @@
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/377).
 - [The spec, revision 3](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6385941228), and [the spec pair's review](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6385902546) of revision 2.
 - [The QA pair's review](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386232025) and [the standards pair's](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386247557) at Test.
+- The follow-up round at Test: [the QA pair](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386395569) and [the standards pair](https://github.com/mephistopheles4/the-pact/issues/377#issuecomment-6386410371).
