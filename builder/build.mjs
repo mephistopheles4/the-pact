@@ -50,7 +50,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
+import { isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
@@ -251,6 +251,14 @@ function holdsProtoKey(v) {
   return Object.keys(v).some(k => k === '__proto__' || holdsProtoKey(v[k]));
 }
 
+function holdsEscapedChar(v) {
+  const bad = s => [...s].some(ch => { const cp = ch.codePointAt(0); return cp !== 10 && (isRefused(cp) || isInvisible(cp) || (cp >= 0xd800 && cp <= 0xdfff)); });
+  if (typeof v === 'string') return bad(v);
+  if (Array.isArray(v)) return v.some(holdsEscapedChar);
+  if (!isObject(v)) return false;
+  return Object.keys(v).some(k => bad(k) || holdsEscapedChar(v[k]));
+}
+
 const isObject = v => typeof v === 'object' && v !== null && !Array.isArray(v);
 const keysOnly = (o, allowed) => Object.keys(o).every(k => allowed.includes(k));
 
@@ -288,6 +296,8 @@ export function loadBuilder(file, pact) {
   if (!isObject(doc)) return { builder: null, refusals: ['the builder file is not a JSON object'], findings };
   // The page binds its data as an object literal, where a __proto__ key would set an object's prototype.
   if (holdsProtoKey(doc)) return { builder: null, refusals: ['the builder file holds a __proto__ key, which the page cannot carry'], findings };
+  // The scan above reads the raw bytes, where a JSON escape hides the character it decodes to, or a lone surrogate the bytes can't hold (#327).
+  if (holdsEscapedChar(doc)) return { builder: null, refusals: ['the builder file holds an escaped invisible, direction-changing or control character in a key or string'], findings };
   const givenParts = PART_KEYS.filter(k => Object.hasOwn(doc, k));
   if (Object.hasOwn(doc, 'presets') || Object.hasOwn(doc, 'workflows')) refuse('presets and workflows left the builder (#262): bind a skill to a stage as a skill node in workflowGraph instead');
   else if (!keysOnly(doc, ['schema', 'title', 'yours', ...PART_KEYS, 'models', 'agentFiles', 'skills'])) refuse(`a top-level key that is not schema, title, yours, ${PART_KEYS.join(', ')}, models, agentFiles or skills; the pact's own text is never part of a builder file`);

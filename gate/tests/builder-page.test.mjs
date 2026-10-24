@@ -761,7 +761,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic(page = PAGE) {
   const script = [...page.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset, startPicks, takeNote });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, fileLabel, presetPicks, takePreset, startPicks, takeNote });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT), OPT_COMMANDS: clone(got.OPT_COMMANDS), OPT_TOOLS: clone(got.OPT_TOOLS) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -1524,4 +1524,46 @@ test('C5: a clone reads no presets folder, and the committed page carries an emp
   assert.equal(personalPresetsDir(REPO), null);
   assert.deepEqual(personalPresets(REPO, pactData(REPO)), { presets: [], findings: [] });
   assert.deepEqual(L.PACT.ownPresets, []);
+});
+
+test('a builder file whose JSON escapes decode to an invisible, direction-changing or control character is refused (#327)', t => {
+  const dir = tempDir(t);
+  const load = (name, json) => {
+    const f = join(dir, name);
+    writeFileSync(f, json);
+    return checkBuilder(REPO, f);
+  };
+  assert.deepEqual(load('good.json', '{"schema":1,"title":"plain title"}').refusals, [], 'a clean file still loads');
+  assert.deepEqual(load('tab-lf.json', '{"schema":1,"agentFiles":{"mine":"---\\nname: mine\\n---\\na\\tb\\n"}}').refusals, [], 'a tab and a line feed still pass');
+  for (const [name, json] of [
+    ['title-rlo.json', '{"schema":1,"title":"a\\u202eb"}'],
+    ['key-zwsp.json', '{"schema":1,"agentFiles":{"zebra\\u200bquokka":"x"}}'],
+    ['title-cr.json', '{"schema":1,"title":"a\\rb"}'],
+    ['title-tag.json', '{"schema":1,"title":"a\\udb40\\udc01b"}'],
+    ['lone-surrogate.json', '{"schema":1,"title":"a\\ud800b"}'],
+    ['nested-control.json', '{"schema":1,"yours":{"skills":[{"name":"a","what":"x\\u0007y"}]}}'],
+  ]) {
+    const r = load(name, json);
+    assert.equal(r.builder, null, name);
+    assert.deepEqual(r.refusals, ['the builder file holds an escaped invisible, direction-changing or control character in a key or string'], name);
+  }
+});
+
+test('a shared file opened on the page whose JSON escapes decode to an invisible, direction-changing or control character is refused (#327)', () => {
+  const msg = 'it holds an escaped invisible, direction-changing or control character in a key or string';
+  for (const json of [
+    '{"schema":1,"title":"a\\u202eb","models":["Opus"]}',
+    '{"schema":1,"models":["Op\\u200bus"]}',
+    '{"schema":1,"zebra\\u200b":1}',
+    '{"schema":1,"title":"a\\udb40\\udc01b","models":["Opus"]}',
+    '{"schema":1,"title":"a\\ud800b","models":["Opus"]}',
+    '{"schema":1,"agentFiles":{"mine":"---\\nname: mine\\n---\\nx\\u0007y\\n"}}',
+  ]) assert.equal(L.presetFromText(json).refuse, msg, json);
+  assert.equal(L.presetFromText('{"schema":1,"agentFiles":{"mine":"---\\nname: mine\\n---\\na\\tb\\n"}}').refuse, undefined, 'a tab and a line feed still pass');
+});
+
+test('an opened file whose name holds an invisible, direction-changing or control character is shown by fixed text (#327)', () => {
+  assert.equal(L.fileLabel('shared.json'), 'shared.json');
+  assert.equal(L.fileLabel('caf\u00e9.json'), 'caf\u00e9.json', 'a plain accented name is kept');
+  for (const name of ['a\u202ejson.exe', 'a\u200bb.json', 'a\u0007b.json', 'a\ud800b.json', 'a\udb40\udc01b.json', 'a\nb.json']) assert.equal(L.fileLabel(name), 'A shared file', JSON.stringify(name));
 });
