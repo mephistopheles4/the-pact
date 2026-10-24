@@ -1,5 +1,7 @@
 # The spec pair is executability-lens and unstated-lens
 
+Superseded in part by [ADR 0101](0101-every-lens-runs-in-a-pair-and-a-cost-can-limit-the-review.md) (2026-10-24): `unstated-lens` is no longer the gatekeeper at Test; every lens is offered in a pair.
+
 `good-enough-lens` leaves the pact. The spec pair becomes `executability-lens` and `unstated-lens`, a joining pair offered on a spec at standard and above (#281, #302). This supersedes the spec-pair part of [ADR 0053](0053-review-is-nine-lenses-in-pairs-joined-by-the-cross-script.md).
 
 ## What changed

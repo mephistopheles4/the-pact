@@ -72,7 +72,7 @@ most of its work:
 | Sense the work | Plan | Size and risk the work; propose a tier with a line of why, and for sensitive work the sensitive route with its why; an experiment first for an unknown target |
 | Think before doing | Plan, Design | Get the intent clear enough to defend; a quick prototype while it is still forming; the spec pair, `executability-lens` and `unstated-lens`, offered on a spec, standard and up |
 | Checkpoint the seams | Build, Test | Costly work waits for a checkpoint, heavier the harder it is to undo; an approved spec or ticket is built test-first, straight away |
-| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, offered at every build; the security pair, `adversarial-lens` and `data-lens`, with the sensitive route, and offered once more at Test on a list match when the route wasn't taken; the standards pair and `unstated-lens` offered, standard and up; the human decides |
+| Stay the owner | Test, Deploy | The QA pair, `behaviour-lens` and `integrity-lens`, offered at every build; the security pair, `adversarial-lens` and `data-lens`, with the sensitive route, and offered once more at Test on a list match when the route wasn't taken; the standards pair offered, standard and up; at most two pairs a review round; the human decides |
 
 The rules file's Workflow table runs the same six stages, Plan to Maintain: what each tier sets at each, the lenses to offer there, and where the work goes next.
 

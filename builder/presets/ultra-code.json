@@ -141,21 +141,6 @@
         "on": true
       },
       {
-        "id": "test-unstated",
-        "stage": "test",
-        "when": "tiers",
-        "tiers": [
-          "quick",
-          "standard",
-          "thorough"
-        ],
-        "words": "",
-        "agents": [
-          "unstated-lens"
-        ],
-        "on": true
-      },
-      {
         "id": "test-security-every",
         "stage": "test",
         "when": "tiers",
@@ -401,5 +386,25 @@
         "on": true
       }
     ]
-  }
+  },
+  "costLimits": [
+    {
+      "cost": "Tests added",
+      "counted": "Tests beyond one per acceptance claim",
+      "limit": "2 per change",
+      "atLimit": "The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep"
+    },
+    {
+      "cost": "Hardening",
+      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
+      "limit": "0",
+      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+    },
+    {
+      "cost": "Follow-up issues",
+      "counted": "Issues filed from one review",
+      "limit": "2",
+      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
+    }
+  ]
 }

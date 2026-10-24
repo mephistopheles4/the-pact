@@ -460,22 +460,23 @@ test('the project render with Cost limits and no value passes; the security-defa
   const old = core.parseProjectRenderLines(lines('QUALITIES 3'), sha256);
   assert.equal(old.costLimits, 0);
   assert.equal(core.projectSecurityLine(old), "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (3 rows), which takes the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.");
-  assert.equal(core.projectNoteLine(old), "NOTE: the project configuration sets its own qualities list and no Cost limits, so your Cost limits reach none of its qualities; add costLimits, and name them in the enoughCosts of each quality they should hold back.");
+  assert.equal(core.projectNoteLine(old), "NOTE: the project configuration sets its own qualities list and no Cost limits, so none of its qualities names your Cost limits and they limit the review itself there; add costLimits, and name them in the enoughCosts of each quality they should hold back.");
   assert.equal(core.projectNoteLine(core.parseProjectRenderLines(projRenderBase().in.split('\n'), sha256)), null, 'no qualities list: no note');
 });
 
-// #299 C3, C5: the unnamed places are read as a list, and the Project block warns once, worded by the count.
-test('the project render reads the unnamed cost rows as a list, and the Project block prints one WARN line worded by how many', () => {
+// #299 C3, C5, #377 C5: the unnamed places are read as a list, and the Project block notes them once, worded by the count.
+test('the project render reads the unnamed cost rows as a list, and the Project block prints one NOTE line worded by how many', () => {
   const lines = (...extra) => [`RENDERED ${H('a')}`, 'CONFIG none', `PROJECT ${PF}`, `DIGEST ${digestOf(`project ${PF}\n`)}`, ...extra, 'RESULT: pass'];
   const parse = (...extra) => core.parseProjectRenderLines(lines(...extra), sha256);
   assert.deepEqual(parse('QUALITIES 1', 'COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2 4').unnamedCosts, [2, 4]);
   assert.deepEqual(parse('QUALITIES 1', 'COST-LIMITS 4').unnamedCosts, [], 'no line: an empty list');
   assert.deepEqual(parse('QUALITIES 1', 'COST-LIMITS 9', 'COST-LIMITS-UNNAMED 1 2 3 4 5 6 7 8 9').unnamedCosts, [1, 2, 3, 4, 5, 6, 7, 8, 9], 'up to the count');
   const warns = (...extra) => core.projectBlock({ kind: 'new' }, parse('QUALITIES 1', ...extra)).filter(l => l.includes('named by no quality'));
-  const tail = "named by no quality's enoughCosts; read ";
-  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2'), [`  WARN: the project configuration's Cost limits row 2 is ${tail}it in the project's .claude/pact-config.json and take it out unless you meant it, or name it in the enoughCosts of a quality that should hold it back.`]);
-  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2 4'), [`  WARN: the project configuration's Cost limits rows 2 and 4 are ${tail}them in the project's .claude/pact-config.json and take out any you did not mean, or name each in the enoughCosts of a quality that should hold it back.`]);
-  assert.deepEqual(warns('COST-LIMITS 7', 'COST-LIMITS-UNNAMED 2 4 7'), [`  WARN: the project configuration's Cost limits rows 2, 4 and 7 are ${tail}them in the project's .claude/pact-config.json and take out any you did not mean, or name each in the enoughCosts of a quality that should hold it back.`]);
+  // #377 C5: a NOTE, not a WARN: such a row limits the review itself in that project.
+  const tail = "named by no quality's enoughCosts, so ";
+  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2'), [`  NOTE: the project configuration's Cost limits row 2 is ${tail}it limits the review itself in this project; to hold back a quality's lenses instead, name it in that quality's enoughCosts in the project's .claude/pact-config.json.`]);
+  assert.deepEqual(warns('COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2 4'), [`  NOTE: the project configuration's Cost limits rows 2 and 4 are ${tail}they limit the review itself in this project; to hold back a quality's lenses instead, name each in that quality's enoughCosts in the project's .claude/pact-config.json.`]);
+  assert.deepEqual(warns('COST-LIMITS 7', 'COST-LIMITS-UNNAMED 2 4 7'), [`  NOTE: the project configuration's Cost limits rows 2, 4 and 7 are ${tail}they limit the review itself in this project; to hold back a quality's lenses instead, name each in that quality's enoughCosts in the project's .claude/pact-config.json.`]);
   assert.deepEqual(warns('COST-LIMITS 4'), [], 'none unnamed: no line');
   const block = core.projectBlock({ kind: 'new' }, parse('QUALITIES 1', 'RETIRED-NAME qualities good-enough-lens', 'COST-LIMITS 4', 'COST-LIMITS-UNNAMED 2'));
   const at = block.findIndex(l => l.includes('row 2 is'));
@@ -1169,7 +1170,7 @@ test('the Enough note: a Qualities edit with no Enough column shows it; the ship
   const withEdit = mark => core.parseRenderLines(renderBase().in.replace('EDIT moves', `EDIT ${mark}`).split('\n'), { project: false, hash: sha256 });
   const old = '| Quality | Measure | Lens |\n| --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens` |\n';
   const note = core.enoughNoteLine(withEdit('qualities'), old);
-  assert.match(note, /^NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits reach no lens;/);
+  assert.match(note, /^NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits limit the review itself rather than any quality's lenses;/);
   const shipped = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
   assert.equal(core.enoughNoteLine(withEdit('qualities'), shipped), null, 'the shipped table has the column');
   assert.equal(core.enoughNoteLine(withEdit('qualities'), `${old}| Quality | Measure | Lens | Enough |\n`), null);

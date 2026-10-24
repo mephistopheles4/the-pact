@@ -119,7 +119,6 @@ export const DEFAULT_PARTS = Object.freeze({
       { id: 'design-security-pair', stage: 'design', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
       { id: 'test-qa-pair', stage: 'test', when: 'every-build', words: '', agents: ['behaviour-lens', 'integrity-lens'], on: true },
       { id: 'test-standards-pair', stage: 'test', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['conventions-lens', 'reader-lens'], on: true },
-      { id: 'test-unstated', stage: 'test', when: 'tiers', tiers: ['standard', 'thorough'], words: '', agents: ['unstated-lens'], on: true },
       { id: 'test-security-pair', stage: 'test', when: 'sensitive', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
       { id: 'test-security-backstop', stage: 'test', when: 'sensitive-declined', words: '', agents: ['adversarial-lens', 'data-lens'], on: true },
     ],
@@ -138,7 +137,6 @@ export const DEFAULT_PARTS = Object.freeze({
   lenses: [
     { agents: ['behaviour-lens', 'integrity-lens'], label: 'the QA pair', asks: 'Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place?' },
     { agents: ['executability-lens', 'unstated-lens'], label: 'the spec pair', asks: 'Would the spec, built as written, run end to end? What need did nobody write down?' },
-    { agents: ['unstated-lens'], label: 'the gatekeeper', asks: 'What need did nobody write down?' },
     { agents: ['conventions-lens', 'reader-lens'], label: 'the standards pair', asks: "Does the diff keep the repo's written rules? Can the next reader act on what it says?" },
     { agents: ['adversarial-lens', 'data-lens'], label: 'the security pair', asks: 'Which attack paths does no control stop? Where can the data leak?' },
   ],
@@ -158,6 +156,7 @@ export const DEFAULT_PARTS = Object.freeze({
     { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
     { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
     { cost: 'Follow-up issues', counted: 'Issues filed from one review', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
+    { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' },
   ],
 });
 
@@ -589,7 +588,7 @@ export function partsProblems(p) {
       if (!lineOk(c.atLimit, C.line)) err('cost-limits', `row ${i + 1}: At the limit must be one line of at most ${C.line} characters, with no bar`);
     });
     if (new Set(costNames).size !== costNames.length) err('cost-limits', 'the list names one cost twice');
-    // An Enough that names no cost row is an error; a cost no quality names binds no lens, a finding.
+    // An Enough that names no cost row is an error; a cost no quality names limits the review itself (#377), no finding.
     const named = new Set();
     for (const [i, q] of (Array.isArray(p.qualities) ? p.qualities : []).entries())
       if (isObj(q) && Array.isArray(q.enoughCosts))
@@ -598,17 +597,14 @@ export function partsProblems(p) {
           if (costNames.includes(n.trim().toLowerCase())) named.add(n.trim().toLowerCase());
           else err('qualities', `row ${i + 1}: a cost it answers to has no row in the cost limits`);
         }
-    p.costLimits.forEach((c, i) => isObj(c) && typeof c.cost === 'string' && c.cost.trim() && !named.has(c.cost.trim().toLowerCase()) && out.push({ part: 'cost-limits', level: 'warn', text: `row ${i + 1}: no quality names this cost, so it holds back no lens` }));
   }
 
-  // A finding, never a refusal: one lens of a pair alone on an offer. A lens the roster also lists on its own row (the gatekeeper, #302) may be offered alone at Test, but only a lens the pact's own roster lists on its own row, so a row added to a file never switches the warning off.
-  const ownAlone = DEFAULT_PARTS.lenses.filter(r => r.agents.length === 1).map(r => r.agents[0]);
-  const aloneRows = (Array.isArray(p.lenses) ? p.lenses : []).filter(r => Array.isArray(r.agents) && r.agents.length === 1).map(r => r.agents[0]).filter(a => ownAlone.includes(a));
+  // A finding, never a refusal: one lens of a pair alone on an offer, at any stage (#377: every lens runs in a pair).
   if (!out.some(f => f.level === 'error'))
     for (const o of g.offers)
       for (const pair of rosterPairs(p)) {
         const has = pair.agents.filter(a => o.agents.includes(a)).length;
-        if (has === 1 && !(o.stage === 'test' && o.agents.length === 1 && aloneRows.includes(o.agents[0]))) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.agents.join(' and ')} on its own; a pair's reports are crossed, so run both or neither` });
+        if (has === 1) out.push({ part: 'workflow', level: 'warn', text: `offer ${o.id}: half of ${pair.agents.join(' and ')} on its own; a pair's reports are crossed, so run both or neither` });
       }
   return out;
 }

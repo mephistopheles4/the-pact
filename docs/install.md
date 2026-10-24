@@ -237,8 +237,9 @@ parts:
   lenses offered at each stage, the lens roster, the qualities with the
   lenses that check them and what each answers to, and the cost limits.
   A `NOTE:` line follows it when you edit `qualities` and the table has no
-  Enough column: the shipped cost rows reach a lens only through a quality's
-  Enough, so they then hold back none.
+  Enough column: the shipped cost rows then reach no quality's lenses, so
+  they limit the review itself, Hardening at 0 included, so no lens builds a
+  guard for a path that is not a security finding.
   The line names the parts you edit and says whether your configuration
   changed since the last install. Read those parts in the rendered rules file
   (`--review-folder` writes it out) before you install. Only your home
@@ -248,16 +249,17 @@ parts:
   takes the place of your cost limits there; its dry run leads with a `WARN:
   SECURITY DEFAULTS:` line saying so, with the row count of each (ADR 0068).
   A project with its own `qualities` and no `costLimits` gets a `NOTE:` line
-  after it: your cost limits reach none of its qualities there. Each quality
+  after it: none of its qualities names your cost limits, so they limit the
+  review itself there. Each quality
   row may carry `enough`, its level (one line, no middle dot, since the Enough cell joins the level and each `enoughCosts` name with it)
   and `enoughCosts`, and an `enoughCosts` name must
   find a cost row in that project's own `costLimits`. A cost row holds `cost`,
   and may hold `counted`, `limit` and `atLimit`, each one line of text with no
   bar, and the cost holds no middle dot either, since that joins the Enough
   cell; names match ignoring case and surrounding space. A cost row that no
-  quality's Enough cell names, by its `enough` level or an `enoughCosts` name, gets one `WARN:` line under the dry run's
-  `Project:` heading, naming such rows by position and telling you to read them
-  in the project's file; the install still goes ahead. A project's `costLimits`
+  quality's Enough cell names, by its `enough` level or an `enoughCosts` name, limits the review itself in that
+  repo, and gets one `NOTE:` line under the dry run's `Project:` heading,
+  naming such rows by position; the install goes ahead. A project's `costLimits`
   refuses without its `qualities`, and an `acceptedRisks` key is refused as
   any other key is: accepted risks live only in a threat model.
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and

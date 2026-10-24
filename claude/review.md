@@ -167,6 +167,18 @@ Lens dispositions table, as "skipped, because ...".
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
 another lens's report. Never resume a lens.
 
+**Counting a round.** Before you dispatch a round, count it against each Cost
+limits row that no quality's Enough names, each by its Counted as: Lens pairs
+counts the pairs the round would run, and a lens offered on its own counts as
+a pair. Follow the row's "At the limit" for what goes past it, except that a
+pair held back always comes to me as a trade-off, whatever the row says. The security
+pair, a lens the repo's own rules require and the lenses of a skill I typed
+count toward the round, but are never the ones held back: another pair waits,
+and when only those are due, they all run and you say the count past the
+limit. Taking a pair once doesn't carry it to a later stage:
+a pair I took on a spec is offered again at Test, as "Lenses are offers" says,
+never run there unasked.
+
 **The mutation step.** Before a lens that checks whether the tests can fail,
 run a mutation-testing tool if the repo's lock file pins one.
 - Run it as its local binary, never through a command that can fetch a
@@ -183,12 +195,16 @@ You lay the reports out yourself, by judgment. Nothing lays them out for
 you, and nothing refuses a report for its layout.
 
 **Pairs.** Lenses offered together in one offer of the Workflow are a pair,
-and their reports are crossed together. A lens offered alone, or run alone, is
+and their reports are crossed together. The pact offers every lens in a pair:
+never run or cross one lens of a pair without its partner, and a report from
+one waits for its partner's in the same round. Only a lens a rules file offers
+on its own, even one the Lenses table lists with a partner, is run and
 crossed alone.
 
 **The review comment.** One comment per review, in this order:
 
-1. A heading naming the lenses: `### lens-a and lens-b`, or `### lens-name`.
+1. A heading naming the lenses: `### lens-a and lens-b`, or `### lens-name`
+   for a lens a rules file offers on its own.
 2. **The base line,** the first line under the heading. It names the base by
    its short hash, and the spec revision or head commit reviewed, and says
    which lenses ran a first round, a follow-up, a restart (and why, and how

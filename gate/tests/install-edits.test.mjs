@@ -491,7 +491,7 @@ test('a home cost-limits edit shows the security-defaults line and installs boun
 });
 
 // #287 C7, C8 (seam 3): a configuration from before the change, with a Qualities edit that has no Enough column, still installs; the dry run notes it.
-test('a pre-#278 Qualities edit still renders and installs, and its dry run notes that the cost rows reach no lens', t => {
+test('a pre-#278 Qualities edit still renders and installs, and its dry run notes that the cost rows limit the review itself', t => {
   const repo = makeRepo(t);
   const h = home(t);
   configure(h, `${JSON.stringify({ schema: 1, edits: [{ mark: 'qualities', op: 'replace', file: 'q.md' }] })}\n`, { 'q.md': OLD_QUALITIES_BLOCK });
@@ -500,7 +500,7 @@ test('a pre-#278 Qualities edit still renders and installs, and its dry run note
   const lines = dry.stdout.replaceAll('\r\n', '\n').split('\n');
   const sec = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
   assert.match(lines[sec], /edits qualities,/);
-  assert.match(lines[sec + 1], /^NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits reach no lens;/, 'the note follows the security-defaults line');
+  assert.match(lines[sec + 1], /^NOTE: the user configuration edits qualities, and its table has no Enough column, so the Cost limits limit the review itself rather than any quality's lenses;/, 'the note follows the security-defaults line');
   const r = install(repo, h, { apply: true, extra: ['--rendered-hash', dryRunHash(dry)] });
   assert.equal(r.code, 0, r.out);
   assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /\| Functional suitability \| the acceptance claims \| `behaviour-lens` \|\n/);

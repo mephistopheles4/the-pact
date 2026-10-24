@@ -43,11 +43,7 @@
 <text x="56" y="509.2" font-size="12" fill="#22262b" fill-opacity="0.8">no control stop?</text>
 <text x="302" y="473.2" font-size="12" font-weight="600" fill="#22262b">data-lens</text>
 <text x="302" y="491.2" font-size="12" fill="#22262b" fill-opacity="0.8">Where can the data leak?</text>
-<rect x="44" y="548" width="500" height="50" fill="#fafaf7" stroke="#22262b" stroke-opacity="0.55" stroke-width="1" stroke-dasharray="4 3"/>
-<rect x="54" y="545" width="311.2" height="6" fill="#fafaf7"/>
-<text x="60" y="552" font-size="11" font-weight="600" letter-spacing="1.76" fill="#22262b">THE GATEKEEPER · STANDARD AND UP</text>
-<text x="56" y="581.2" font-size="12" font-weight="600" fill="#22262b">unstated-lens</text>
-<text x="180" y="581.2" font-size="12" fill="#22262b" fill-opacity="0.8">What need did nobody write down?</text>
+<text x="44" y="561.2" font-size="12" fill="#22262b" fill-opacity="0.8">At most two pairs a review round: the Lens pairs cost.</text>
 <rect x="572" y="80" width="184" height="74" fill="#fafaf7" stroke="#22262b" stroke-opacity="0.3" stroke-width="1"/>
 <text x="584" y="103.2" font-size="12" fill="#22262b">Offered with a</text>
 <text x="584" y="121.2" font-size="12" fill="#22262b">one-line why.</text>

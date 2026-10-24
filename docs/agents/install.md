@@ -82,7 +82,7 @@ how every session in every repo behaves. So:
   the dry run's security-defaults line, before every other warning: it names
   the parts and says whether the configuration changed since the last
   install. A Qualities edit with no Enough column also gets a note line after
-  it, since the Cost limits then reach no lens. A pact from before #262
+  it, since the Cost limits then limit the review itself. A pact from before #262
   refuses an edit to these parts, and one from before #278 refuses an edit to
   `cost-limits`; it installs a home Qualities block with an Enough column as
   written, and its lenses then read cost names that no part defines, with no

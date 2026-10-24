@@ -1,5 +1,7 @@
 # A cost reaches lenses only through Enough
 
+Superseded in part by [ADR 0101](0101-every-lens-runs-in-a-pair-and-a-cost-can-limit-the-review.md) (2026-10-24): a cost no quality's Enough names now limits the review itself, so the builder no longer warns on one and the dry run notes it instead.
+
 A cost row names no lenses. It holds back the lenses of every quality whose Enough names it (#278, #289).
 
 ## What changed
