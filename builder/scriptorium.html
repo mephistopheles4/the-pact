@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-nWQ5MxkC36kliXQLsPPZzcsZrJ4u5ObPlyyzHQ/SVvY='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DU7wgc79bhCnWH6+xhmehHafoZRe5NRL0rfCsWTc0VE='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3787,6 +3787,20 @@ const PRESET_AGENT_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
  * or { refuse } with why. The parts it gives must pass the builder's checks
  * with the pact's defaults for the rest; a key the page doesn't know refuses.
  */
+/** Whether a decoded key or string holds a character the page refuses, or a lone surrogate; a line feed passes. */
+function holdsEscapedChar(v) {
+  const bad = s => [...s].some(ch => { const cp = ch.codePointAt(0); return cp !== 10 && (refusedChar(cp) || (cp >= 0xd800 && cp <= 0xdfff)); });
+  if (typeof v === 'string') return bad(v);
+  if (Array.isArray(v)) return v.some(holdsEscapedChar);
+  if (!v || typeof v !== 'object') return false;
+  return Object.keys(v).some(k => bad(k) || holdsEscapedChar(v[k]));
+}
+
+/** An opened file's name as the page shows it: fixed text when it holds a line break or a character holdsEscapedChar refuses (#327). */
+function fileLabel(name) {
+  return /\n/.test(name) || holdsEscapedChar(name) ? 'A shared file' : name;
+}
+
 function presetFromText(text, title = 'A shared file') {
   let doc;
   try {
@@ -3795,6 +3809,8 @@ function presetFromText(text, title = 'A shared file') {
     return { refuse: 'it is not valid JSON' };
   }
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return { refuse: 'it is not a JSON object' };
+  // #327: a JSON escape can decode to a character the file's bytes would show; checked before any of its text is shown.
+  if (holdsEscapedChar(doc)) return { refuse: 'it holds an escaped invisible, direction-changing or control character in a key or string' };
   // #280: no shared file turns on code that posts as the person.
   if (Object.hasOwn(doc, 'tools')) return { refuse: 'it holds a tools list, and a builder file never turns a tool on: tick tools under Settings' };
   const known = ['schema', 'title', 'yours', ...Object.keys(PRESET_PARTS), 'models', 'agentFiles', 'skills'];
@@ -5923,8 +5939,9 @@ function boot() {
       file.addEventListener('change', async () => {
         const f = file.files && file.files[0];
         if (!f) return;
-        const r = presetFromText(await f.text(), f.name);
-        openPresets(r.preset || null, r.refuse ? `${f.name} can't be opened: ${r.refuse}.` : '');
+        const name = fileLabel(f.name);
+        const r = presetFromText(await f.text(), name);
+        openPresets(r.preset || null, r.refuse ? `${name} can't be opened: ${r.refuse}.` : '');
       });
       $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
         head('A preset or a shared result is a saved Scriptorium builder file. You see what it carries and tick what to take before anything changes; Undo, on the Reset button, takes it back.'),
