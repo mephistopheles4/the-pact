@@ -44,4 +44,9 @@ test('the notice and the fit check never mention a project or its files', () => 
   assert.doesNotMatch(fit[0], /project/i);
   // #306: a session cannot read its own effort, so the check names the tier and the model only.
   assert.doesNotMatch(fit[0], /effort/i);
+  // #376: outside the fit check, the effort set at the start is taken as given.
+  const given = /^Keep one model for a whole session\. (Your effort[^\n]*(?:\n[^\n]+)*)/m.exec(rules);
+  assert.ok(given, 'the effort sentence follows the one-model line');
+  assert.match(given[1], /take it as given/);
+  assert.match(given[1], /own sense of it/);
 });

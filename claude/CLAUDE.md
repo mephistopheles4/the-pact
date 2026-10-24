@@ -102,7 +102,9 @@ say so in one line at the next hand-off or result, and keep saying it until I
 answer.
 <!-- pact:end sensitive -->
 
-Keep one model for a whole session.
+Keep one model for a whole session. Your effort is the one I or a lead set
+at the start, which the start prompt may state: take it as given, and never
+judge it, flag it or stop the work over it from your own sense of it.
 
 ## Workflow
 

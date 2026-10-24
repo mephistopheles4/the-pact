@@ -647,7 +647,9 @@ open, in one line, in every hand-off and in the result. If you find it later,
 say so in one line at the next hand-off or result, and keep saying it until I
 answer.
 
-Keep one model for a whole session.
+Keep one model for a whole session. Your effort is the one I or a lead set
+at the start, which the start prompt may state: take it as given, and never
+judge it, flag it or stop the work over it from your own sense of it.
 
 ## Workflow
 
@@ -2837,7 +2839,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 1239a0cdf76cae6d1da68abccce918bf38b4d77caa83c055f469f7ebae275daa 'CLAUDE.md'
+check_hash d163e4dd02e2693e28e096b5603c379f1ea0307013414bdd656726a02be90194 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -2877,7 +2879,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy e4825f696f07"
+  echo "pact cloud copy 4586db8327c4"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
