@@ -2373,21 +2373,26 @@ the state before the work began.
   is told to focus on what changed since the last reviewed revision and on
   its `E` rows.
 - **A scoped follow-up.** A follow-up on a diff or a result is scoped, for
-  every lens. It is still dispatched fresh and alone, and is handed the base,
-  the request, the spec or ticket, the revision diff and its `E` rows as
-  above, and also the scope and the list of files the whole change touches,
-  names only. It is never handed the rest of the change.
+  every lens. It is still dispatched fresh and alone. It is handed the base by
+  its short hash, the request, the spec or ticket, the revision diff and its
+  `E` rows as above, the scope, and the list of files the whole change
+  touches, names only. It is never handed the whole diff from the base, nor
+  the rest of the change.
   - **The scope** is each file the revision diff touches and each file an
     `E` row names. The lens reads the head side from the working folder, and
     the base side is handed as that file's diff from the base.
   - **The scope bounds every step of the lens's own prompt.** It reads
     nothing in the working folder outside its scope. For a lens that works by
-    claims, its scope is the claims the revision diff reaches.
+    claims, its scope is the claims the revision diff reaches and each claim
+    an `E` row names, and running a claim in its scope may touch what that
+    run needs.
   - **It checks its scope:** every file the revision diff touches and every
     `E` row's file must be in it. A gap makes its verdict inconclusive.
   - **A withheld row's file** enters the scope only for a lens that is handed
     its place line, and then as the file only. For a lens that can reach the
-    web, the scope holds no file for that row.
+    web, the scope holds no file for that row. A file the revision diff
+    touches is in the scope as any touched file, even when a withheld row
+    sits in it; nothing more is written for the row.
   - **It never marks a withheld row `absent`.** It carries the row as it
     stands; only a full read or my word closes it.
   - **Files on disk.** Any file you write for the scope, a diff or a copy,
@@ -2398,8 +2403,9 @@ the state before the work began.
     instead, and the base line says why.
   - **A scoped report never releases a push.** Where a repo's push rule waits
     on the security pair's read, the pair's follow-up whose read releases the
-    push is a full read: a first round on the whole change. Before such a
-    push, check that the report you cite is not marked scoped.
+    push is a full read: it reads the whole change as a first round does, is
+    still handed its `E` rows, and carries each `open` row as a restart does.
+    Before such a push, check that the report you cite is not marked scoped.
 - **A restart.** A lens's next run is a first round again when the intent has
   changed (the Workflow's "back to Design"), when the base moved (a merge or
   rebase brought in other work), when the last table holds no state words, or
@@ -2417,8 +2423,9 @@ the state before the work began.
   security pair included. It is a first round on the whole change, gating by
   state as usual and carrying each `open` row as a restart does.
   - **Three states.** Hand it the base, the approved spec or ticket, and the
-    head, and it compares them. The approved spec is the revision the last
-    Design base line names, read by the project's rule on whose text counts.
+    head, and it compares them. The approved spec is the revision I
+    approved, else the revision the last Design base line names, read by the
+    project's rule on whose text counts.
     With no spec or ticket, it compares the base, the request and the head.
   - **Its head.** The base line names the head it read. The work I accept is
     that head; a later commit needs a new closing read.
@@ -2918,7 +2925,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash c215992268babbfda783c16e9325b8d0d340956ab15fb479fc38cba2da648da7 'pact/review.md'
+check_hash 6b4f5955bb3887c37a3945218941115e99080cbc362fdcac8262d7453602469f 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2948,7 +2955,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 08771ff7ee1e"
+  echo "pact cloud copy cf37b286c789"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
