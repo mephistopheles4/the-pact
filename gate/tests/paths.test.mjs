@@ -45,3 +45,12 @@ test('the notice and the fit check never mention a project or its files', () => 
   // #306: a session cannot read its own effort, so the check names the tier and the model only.
   assert.doesNotMatch(fit[0], /effort/i);
 });
+
+// #376 C1
+test('the rules file takes the effort set at the start as given, outside the fit check', () => {
+  const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
+  const given = /^Keep one model for a whole session\. (Your effort[^\n]*(?:\n[^\n]+)*)/m.exec(rules);
+  assert.ok(given, 'the effort sentence follows the one-model line');
+  assert.equal(given[1].replace(/\s+/g, ' ').trim(),
+    'Your effort is the one set at the start, by me or by a lead session I set up, and the start prompt may state it: take it as given, and never judge it, flag it or stop the work over it from your own sense of it.');
+});
