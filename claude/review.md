@@ -170,7 +170,8 @@ another lens's report. Never resume a lens.
 **Counting a round.** Before you dispatch a round, count it against each Cost
 limits row that no quality's Enough names, each by its Counted as: Lens pairs
 counts the pairs the round would run, and a lens offered on its own counts as
-a pair. Follow the row's "At the limit" for what goes past it. The security
+a pair. Follow the row's "At the limit" for what goes past it, except that a
+pair held back always comes to me as a trade-off, whatever the row says. The security
 pair, a lens the repo's own rules require and the lenses of a skill I typed
 count toward the round, but are never the ones held back: another pair waits,
 and when only those are due, they all run and you say the count past the

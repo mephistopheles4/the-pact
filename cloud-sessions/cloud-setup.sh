@@ -746,7 +746,8 @@ lenses of every quality whose Enough names it. A cost that no quality's
 Enough names limits the review itself: count it each review round, by its
 Counted as, and follow its "At the limit"; the security pair, a lens a repo's own
 rules require and the lenses of a skill I typed count toward it, but it never
-holds them back.
+holds them back, and a pair it holds back always comes to me as a trade-off,
+whatever its "At the limit" says.
 
 - **One rule.** A finding that would go past a cost limit goes the way that
   cost's "At the limit" says; a finding that would go past an Enough level
@@ -2443,7 +2444,8 @@ another lens's report. Never resume a lens.
 **Counting a round.** Before you dispatch a round, count it against each Cost
 limits row that no quality's Enough names, each by its Counted as: Lens pairs
 counts the pairs the round would run, and a lens offered on its own counts as
-a pair. Follow the row's "At the limit" for what goes past it. The security
+a pair. Follow the row's "At the limit" for what goes past it, except that a
+pair held back always comes to me as a trade-off, whatever the row says. The security
 pair, a lens the repo's own rules require and the lenses of a skill I typed
 count toward the round, but are never the ones held back: another pair waits,
 and when only those are due, they all run and you say the count past the
@@ -2831,7 +2833,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 2fcde068edc15322750382bfd1d98a92298150dc50a0a6b5b5d3098208a14502 'CLAUDE.md'
+check_hash 95e49d656fcaceb9efffb3b3a514113661861c32f9c9ca735957ea07966e74a5 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -2841,7 +2843,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash cc97d77a9fa79dfc881874c751d22fadcd0769ebd8895dbce1e354d7f7cfa58a 'pact/review.md'
+check_hash 473feb4e9281c76a19c8248308fbb071cec94f1d74461d420055998f08d37804 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2871,7 +2873,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 93ce530bba43"
+  echo "pact cloud copy 4e3022e99f4c"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

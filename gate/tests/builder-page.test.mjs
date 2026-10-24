@@ -421,7 +421,7 @@ test('a cost no quality names draws no finding, and the rules file and the page 
   p.costLimits.push({ cost: 'Review rounds', counted: 'Rounds', limit: '', atLimit: '' });
   assert.deepEqual(partsProblems(p).filter(x => x.part === 'cost-limits'), []);
   const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\s+/g, ' ');
-  assert.ok(rules.includes(`A cost that no quality's Enough names limits the review itself: count it each review round, by its Counted as, and follow its "At the limit"; the security pair, a lens a repo's own rules require and the lenses of a skill I typed count toward it, but it never holds them back.`), 'the Cost limits prose');
+  assert.ok(rules.includes(`A cost that no quality's Enough names limits the review itself: count it each review round, by its Counted as, and follow its "At the limit"; the security pair, a lens a repo's own rules require and the lenses of a skill I typed count toward it, but it never holds them back, and a pair it holds back always comes to me as a trade-off, whatever its "At the limit" says.`), 'the Cost limits prose');
   assert.ok(PAGE.includes('Limits the review itself.'), 'the page names the reach');
   assert.ok(!PAGE.includes('This cost reaches no lens'), 'the page drops the caution');
 });
