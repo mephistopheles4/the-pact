@@ -167,12 +167,12 @@ Lens dispositions table, as "skipped, because ...".
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
 another lens's report. Never resume a lens.
 
-**Counting a round.** Before you dispatch a round, count the pairs it would
-run against each Cost limits row that no quality's Enough names, such as Lens
-pairs, and follow the row's "At the limit" for the pairs past it. A lens
-offered on its own counts as a pair. Never hold back the security pair, a lens
-the repo's own rules require, or the lenses of a skill I typed; those don't
-count toward the round. Taking a pair once doesn't carry it to a later stage:
+**Counting a round.** Before you dispatch a round, count it against each Cost
+limits row that no quality's Enough names, each in its own unit: Lens pairs
+counts the pairs the round would run, and a lens offered on its own counts as
+a pair. Follow the row's "At the limit" for what goes past it. The security
+pair, a lens the repo's own rules require and the lenses of a skill I typed
+count toward the round, but are never the ones held back: another pair waits. Taking a pair once doesn't carry it to a later stage:
 a pair I took on a spec is offered again at Test, as "Lenses are offers" says,
 never run there unasked.
 
@@ -195,7 +195,8 @@ you, and nothing refuses a report for its layout.
 and their reports are crossed together. The pact offers every lens in a pair:
 never run or cross one lens of a pair without its partner, and a report from
 one waits for its partner's in the same round. Only a lens a rules file offers
-on its own is crossed alone.
+on its own, even one that belongs to a pair in the Lenses table, is run and
+crossed alone.
 
 **The review comment.** One comment per review, in this order:
 

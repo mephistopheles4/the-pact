@@ -237,8 +237,8 @@ parts:
   lenses offered at each stage, the lens roster, the qualities with the
   lenses that check them and what each answers to, and the cost limits.
   A `NOTE:` line follows it when you edit `qualities` and the table has no
-  Enough column: the shipped cost rows reach a lens only through a quality's
-  Enough, so they then hold back none.
+  Enough column: the shipped cost rows then reach no quality's lenses, so
+  they limit the review itself, Hardening at 0 included.
   The line names the parts you edit and says whether your configuration
   changed since the last install. Read those parts in the rendered rules file
   (`--review-folder` writes it out) before you install. Only your home

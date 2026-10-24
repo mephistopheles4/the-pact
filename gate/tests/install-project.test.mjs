@@ -188,7 +188,7 @@ test('a project with a qualities list and costLimits installs both tables, and t
   const at = lines.findIndex(l => l.includes('SECURITY DEFAULTS'));
   assert.equal(lines[at], "WARN: SECURITY DEFAULTS: the project configuration sets its own qualities list (1 row) and its own Cost limits (9 rows), which take the place of yours in this project; read its rows in the project's .claude/pact-config.json before you install.", dry.out);
   assert.equal(lines.findIndex(l => l.includes('WARN')), at, 'no warning comes before it');
-  assert.ok(!dry.stdout.includes('reach none of its qualities'), 'Cost limits are set: no note');
+  assert.ok(!dry.stdout.includes('NOTE: the project configuration sets its own qualities'), 'Cost limits are set: no note');
   // #299 C5, #377 C5: only row 1 is named, so one NOTE line names the other eight rows by position; the install still goes ahead.
   const unnamed = lines.filter(l => l.includes('named by no quality'));
   assert.deepEqual(unnamed, ["  NOTE: the project configuration's Cost limits rows 2, 3, 4, 5, 6, 7, 8 and 9 are named by no quality's enoughCosts, so they limit the review itself in this project; to hold back a quality's lenses instead, name each in that quality's enoughCosts in the project's .claude/pact-config.json."], dry.out);
