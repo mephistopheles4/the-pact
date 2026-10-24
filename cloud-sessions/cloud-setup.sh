@@ -605,7 +605,9 @@ and help with what it needs.
 - **These decisions are always mine:** proceed, fix or kill on a spec; the
   ticket cut; accepting the work, closing a ticket and merging; an install;
   anything published; accepting a risk. Show each as two or three options, your pick marked
-  with why. A command only I may start, you hand to me in one line and stop.
+  with why. Once I confirm one in chat, you carry it out, its command
+  included. A command you can't run, such as one that needs my sign-in or a
+  password, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then offer the reviews the work calls for (see Workflow).
 - **Keep the record where the project keeps it.** Sign what you post there
@@ -2833,7 +2835,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 95e49d656fcaceb9efffb3b3a514113661861c32f9c9ca735957ea07966e74a5 'CLAUDE.md'
+check_hash 1239a0cdf76cae6d1da68abccce918bf38b4d77caa83c055f469f7ebae275daa 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -2873,7 +2875,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 4e3022e99f4c"
+  echo "pact cloud copy e4825f696f07"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
