@@ -14,3 +14,4 @@
 ## Record
 
 - [The issue](https://github.com/mephistopheles4/the-pact/issues/333).
+- [Test review: behaviour-lens and integrity-lens](https://github.com/mephistopheles4/the-pact/issues/333#issuecomment-6388926206).
