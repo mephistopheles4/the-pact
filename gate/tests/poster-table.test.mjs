@@ -222,6 +222,10 @@ test('a Finding cell without a state word is refused as table/state at its colum
   const held = word => body(LABEL, '', HEADER, SEP, `| withheld, see chat | b | ${word} | c |`);
   for (const word of ['open (trade-off: Hardening)', 'open: security', 'noted', `fixed (auto: ${MARK})`, `skipped, because ${MARK}`]) assert.deepEqual(tableCheck(held(word)), [{ rule: 'table/disposition', where: 'body 5:28' }], `withheld row: ${word}`);
   for (const word of ['open', 'fixed', 'taken', 'dismissed']) assert.deepEqual(rules(held(word)), [], `withheld row: ${word}`);
+  // A Disposition word that is no word at all is refused once, not again for the withheld row.
+  assert.deepEqual(tableCheck(held(`${MARK}`)), [{ rule: 'table/disposition', where: 'body 5:28' }], 'withheld row: not a word');
+  // The bare-word rule is the withheld row's alone: an ordinary row may still be noted.
+  assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| new ${MARK} | b | noted | c |`)), [], 'ordinary row: noted');
   // A finding that quotes the withheld text after other words is a finding, not a withheld row.
   for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat', `new ${MARK} quotes "withheld, see chat"`, `new withhelden ${MARK}`, `new 3 withheld reports ${MARK}`]) assert.deepEqual(rules(row(finding)), [], finding);
   for (const finding of ['', `${MARK} F1`, 'new withheld, see chat']) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| ${finding} | b | skipped, because ${MARK} | c |`)), [], `skipped: ${JSON.stringify(finding)}`);

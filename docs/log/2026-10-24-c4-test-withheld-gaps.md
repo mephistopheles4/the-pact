@@ -6,10 +6,11 @@
 
 - **The C4 test** (`gate/tests/poster-table.test.mjs`) gains five cases: curly quotes and `~~` before the word, and a bare withheld cell with two spaces after the comma, each refused as `table/state`; two different format characters inside the word, refused as `table/state`; and a withheld row with a `skipped, because …` Disposition, refused as `table/disposition`.
 - **Seen to catch:** four mutants of `claude/tools/poster.mjs` (an ASCII-only leading strip, removal of the first soft hyphen only, the withheld Disposition check under the skipped guard, and a spacing-tidying exemption) each pass the old test and fail the new one.
+- **Integrity-lens F5 and F6, on the owner's word:** an ordinary `noted` row is accepted, and a withheld row whose Disposition is no word is refused once. The F6 case kills a mutant that drops the double-refusal guard; the F5 mutant was already caught by an older case.
 
 ## Left out
 
-- Integrity-lens's two lows (F5, F6) and behaviour-lens F1's code change (running `withheldAfter` on the poster's `normalise` view) stay open on the issue for the owner.
+- Behaviour-lens F1's code change (running `withheldAfter` on the poster's `normalise` view) goes to its own issue, on the owner's word.
 
 ## Record
 
