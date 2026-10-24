@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4RQKtVJXGEsPu5+U6CtabGRpmAT8Sb6ldlgY1u62hm8='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DU7wgc79bhCnWH6+xhmehHafoZRe5NRL0rfCsWTc0VE='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3796,6 +3796,11 @@ function holdsEscapedChar(v) {
   return Object.keys(v).some(k => bad(k) || holdsEscapedChar(v[k]));
 }
 
+/** An opened file's name as the page shows it: fixed text when it holds a line break or a character holdsEscapedChar refuses (#327). */
+function fileLabel(name) {
+  return /\n/.test(name) || holdsEscapedChar(name) ? 'A shared file' : name;
+}
+
 function presetFromText(text, title = 'A shared file') {
   let doc;
   try {
@@ -5934,8 +5939,9 @@ function boot() {
       file.addEventListener('change', async () => {
         const f = file.files && file.files[0];
         if (!f) return;
-        const r = presetFromText(await f.text(), f.name);
-        openPresets(r.preset || null, r.refuse ? `${f.name} can't be opened: ${r.refuse}.` : '');
+        const name = fileLabel(f.name);
+        const r = presetFromText(await f.text(), name);
+        openPresets(r.preset || null, r.refuse ? `${name} can't be opened: ${r.refuse}.` : '');
       });
       $('presets').replaceChildren(el('div', { class: 'av-tool-sheet' },
         head('A preset or a shared result is a saved Scriptorium builder file. You see what it carries and tick what to take before anything changes; Undo, on the Reset button, takes it back.'),

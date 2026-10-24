@@ -12,6 +12,7 @@
 - **One test, the scanner's own.** It uses `isRefused` and `isInvisible` from `gate/shared.mjs`, so a decoded string meets the same bar as a raw line; a tab and a line feed still pass, as they do in the raw scan, since a part's text runs to several lines; the field checks still refuse a line break where one line is due.
 - **A lone surrogate too.** A JSON escape can decode to half of a surrogate pair, which the raw scan refuses as invalid UTF-8 when written out; the walk refuses one as well (Test, behaviour-lens F2).
 - **Every builder file, on both paths.** Shipped presets, the example builder file and a person's own presets folder go through `loadBuilder`; a file opened on the page goes through the page's `presetFromText`, which runs the same walk with its own copy of the character test before any of the file's text is shown, a key it would name in a refusal included (Test, adversarial-lens F2; the owner widened the change to cover it).
+- **The opened file's name too.** The page shows that name as a fallback title and at the head of a refusal, so a name with a line break or a character the walk refuses is shown as fixed text instead (Test, adversarial-lens round 2 F1; the owner's word).
 - **The refusal names no text** from the file, as the other refusals don't.
 
 ## Limits

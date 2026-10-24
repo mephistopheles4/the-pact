@@ -761,7 +761,7 @@ test('the command line writes a page from a builder file, and refuses to write o
 function pageLogic(page = PAGE) {
   const script = [...page.matchAll(SCRIPT_RE)][0][2];
   const ctx = vm.createContext({});
-  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, presetPicks, takePreset, startPicks, takeNote });`, ctx);
+  const got = vm.runInContext(`${script}\n;({ PACT, initialState, problems, buildFiles, blockProblems, atDefaults, atStart, resetAll, restoreAll, keepCommands, OPT_COMMANDS, OPT_TOOLS, startState, partsChanged, builderWith, addAgent, resetPrompt, ownProblems, AGENT_TEMPLATE, fileTools, withTools, presetFromText, fileLabel, presetPicks, takePreset, startPicks, takeNote });`, ctx);
   const clone = v => (v === null || typeof v !== 'object' ? v : structuredClone(v));
   const out = { PACT: clone(got.PACT), OPT_COMMANDS: clone(got.OPT_COMMANDS), OPT_TOOLS: clone(got.OPT_TOOLS) };
   for (const [k, f] of Object.entries(got)) if (typeof f === 'function') out[k] = (...a) => clone(f(...a));
@@ -1560,4 +1560,10 @@ test('a shared file opened on the page whose JSON escapes decode to an invisible
     '{"schema":1,"agentFiles":{"mine":"---\\nname: mine\\n---\\nx\\u0007y\\n"}}',
   ]) assert.equal(L.presetFromText(json).refuse, msg, json);
   assert.equal(L.presetFromText('{"schema":1,"agentFiles":{"mine":"---\\nname: mine\\n---\\na\\tb\\n"}}').refuse, undefined, 'a tab and a line feed still pass');
+});
+
+test('an opened file whose name holds an invisible, direction-changing or control character is shown by fixed text (#327)', () => {
+  assert.equal(L.fileLabel('shared.json'), 'shared.json');
+  assert.equal(L.fileLabel('caf\u00e9.json'), 'caf\u00e9.json', 'a plain accented name is kept');
+  for (const name of ['a\u202ejson.exe', 'a\u200bb.json', 'a\u0007b.json', 'a\ud800b.json', 'a\udb40\udc01b.json', 'a\nb.json']) assert.equal(L.fileLabel(name), 'A shared file', JSON.stringify(name));
 });
