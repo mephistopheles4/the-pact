@@ -2385,7 +2385,8 @@ the state before the work began.
     nothing in the working folder outside its scope. For a lens that works by
     claims, its scope is the claims the revision diff reaches and each claim
     an `E` row names, and running a claim in its scope may touch what that
-    run needs.
+    run needs, never a withheld row's file for a lens that can reach the web.
+    It accounts for every `E` row, as any follow-up does.
   - **It checks its scope:** every file the revision diff touches and every
     `E` row's file must be in it. A gap makes its verdict inconclusive.
   - **A withheld row's file** enters the scope only for a lens that is handed
@@ -2399,8 +2400,8 @@ the state before the work began.
     sits with the round's inputs and is deleted when the round closes.
     Nothing is written for a withheld row's file.
   - **When the revision diff can't be derived** from the head the last base
-    line names, for example after a squash, the lens runs a first round
-    instead, and the base line says why.
+    line names, for example after a squash, the lens runs a restart instead,
+    which carries each `open` row, and the base line says why.
   - **A scoped report never releases a push.** Where a repo's push rule waits
     on the security pair's read, the pair's follow-up whose read releases the
     push is a full read: it reads the whole change as a first round does, is
@@ -2421,7 +2422,8 @@ the state before the work began.
 - **The closing read.** At Test, the last round before I accept the work, by
   merge or otherwise, is a closing read, for every lens that ran at Test, the
   security pair included. It is a first round on the whole change, gating by
-  state as usual and carrying each `open` row as a restart does.
+  state as usual and carrying each `open` row as a restart does; after
+  earlier rounds, it is still handed its `E` rows.
   - **Three states.** Hand it the base, the approved spec or ticket, and the
     head, and it compares them. The approved spec is the revision I
     approved, else the revision the last Design base line names, read by the
@@ -2925,7 +2927,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 6b4f5955bb3887c37a3945218941115e99080cbc362fdcac8262d7453602469f 'pact/review.md'
+check_hash 51549db212b667e5573348e01317adc75a7ea01cdcd8cecedea0399048bac13a 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2955,7 +2957,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy cf37b286c789"
+  echo "pact cloud copy e7d0dd6c4728"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
