@@ -208,7 +208,7 @@ test('each refusal names its line and column, and a rule broken twice is named t
 // #336 C4: a read row's Finding cell starts with a state word, or is exactly the withheld text, which takes no state word, whatever its case, spacing or markup; a refusal names the cell's place, never its text.
 test('a Finding cell without a state word is refused as table/state at its column, and a skipped row\'s Finding cell is not read', t => {
   const row = finding => body(LABEL, '', HEADER, SEP, `| ${finding} | b | fixed | c |`);
-  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat', `new withheld, see chat ${MARK}`, 'new Withheld, see chat', 'updated **withheld**, see chat', 'new withheld', 'new _withheld_, see chat', 'new `withheld`, see chat', 'new "withheld", see chat', 'Withheld, see chat', '**withheld, see chat**']) {
+  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat', `new withheld, see chat ${MARK}`, 'new Withheld, see chat', 'updated **withheld**, see chat', 'new withheld', 'new _withheld_, see chat', 'new `withheld`, see chat', 'new "withheld", see chat', 'Withheld, see chat', '**withheld, see chat**', 'new \u201Cwithheld\u201D, see chat', 'new ~~withheld~~, see chat', 'withheld,  see chat']) {
     const r = runBody({ 'body.md': row(finding) }, t);
     refusedQuietly(r);
     assert.deepEqual(r.real.lines, ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);
@@ -217,9 +217,10 @@ test('a Finding cell without a state word is refused as table/state at its colum
   assert.deepEqual(tableCheck(row('')), [{ rule: 'table/state', where: 'body 5:2' }], 'an empty Finding cell');
   // An invisible format character inside the word, checked here so the hidden-character scan can't answer first.
   assert.deepEqual(tableCheck(row('new with\u00ADheld, see chat')), [{ rule: 'table/state', where: 'body 5:3' }], 'a soft hyphen inside the word');
+  assert.deepEqual(tableCheck(row('new with\u00ADhe\u200Dld, see chat')), [{ rule: 'table/state', where: 'body 5:3' }], 'two different format characters inside the word');
   // A withheld row's Disposition cell is one bare word, never noted, so it tells nothing of the finding.
   const held = word => body(LABEL, '', HEADER, SEP, `| withheld, see chat | b | ${word} | c |`);
-  for (const word of ['open (trade-off: Hardening)', 'open: security', 'noted', `fixed (auto: ${MARK})`]) assert.deepEqual(tableCheck(held(word)), [{ rule: 'table/disposition', where: 'body 5:28' }], `withheld row: ${word}`);
+  for (const word of ['open (trade-off: Hardening)', 'open: security', 'noted', `fixed (auto: ${MARK})`, `skipped, because ${MARK}`]) assert.deepEqual(tableCheck(held(word)), [{ rule: 'table/disposition', where: 'body 5:28' }], `withheld row: ${word}`);
   for (const word of ['open', 'fixed', 'taken', 'dismissed']) assert.deepEqual(rules(held(word)), [], `withheld row: ${word}`);
   // A finding that quotes the withheld text after other words is a finding, not a withheld row.
   for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat', `new ${MARK} quotes "withheld, see chat"`, `new withhelden ${MARK}`, `new 3 withheld reports ${MARK}`]) assert.deepEqual(rules(row(finding)), [], finding);
