@@ -4,10 +4,11 @@
 
 ## What was built (#356, #357)
 
-- **Line breaks** (`gate/tests/workflow.test.mjs`, `folderProblems`): every workflow file, `gate.yml` included, is refused when it holds a carriage return not followed by a line feed, a control character other than a tab or a line feed, next line, line separator or paragraph separator.
+- **Line breaks** (`gate/tests/workflow.test.mjs`, `folderProblems`): every workflow file, `gate.yml` included, is refused when it holds a carriage return not followed by a line feed, a control character other than a tab or a line feed (the C0 and C1 ranges and delete, next line among them), a line separator or a paragraph separator.
 - **Other workflows:** every file but `gate.yml` is read with the same YAML reader; a file it can't read is refused, and so is a job whose id or `name` equals a required check name, or whose `name` holds an expression. The line match from #351 stays beside it.
 - **The security pair's read** (F1, H1, H2): a job name is compared trimmed and in lower case, so a block-scalar name such as `|-` and `gate` reads as `gate`; a job id in another case counts too; and a workflow file whose extension is in another case is read.
-- **The tests:** thirteen bad cases, each seen to fail before the check and to pass after.
+- **The QA pair's read:** the C1 control range is refused too, and the folder reader takes its listing, so the upper-case extension is tested through it.
+- **The tests:** nineteen bad cases, each failing on a broken version of its check, and one control that a CRLF line ending is no stray break.
 
 ## Decisions
 

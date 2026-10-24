@@ -353,8 +353,8 @@ function premiseProblems(files) {
   return [...new Set(out)];
 }
 
-// #356: a control character but a tab or a line feed, a lone carriage return among them, or a Unicode line break.
-const BREAKS = /[\x00-\x08\x0b-\x1f\x7f\x85\u2028\u2029]/;
+// #356: a control character but a tab or a line feed (C0, DEL and C1, the QA pair's read), a lone carriage return and next line among them, or a Unicode line break.
+const BREAKS = /[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]/;
 /** Where the workflow folder breaks the lockdown: the gate workflow's own, the CodeQL workflow's allow-list, every other file's common lockdown, and no other job named gate or gate-windows. */
 function folderProblems(files) {
   const out = [];
@@ -389,7 +389,8 @@ function folderProblems(files) {
 }
 // The security pair's H2: an extension in another case is read too.
 const isWorkflow = n => /\.ya?ml$/i.test(n);
-const realFolder = () => new Map(readdirSync(WORKFLOWS).filter(isWorkflow).map(n => [n, readFileSync(join(WORKFLOWS, n), 'utf8')]));
+/** The workflow folder as file names and texts; a test may hand in its own listing and reader. */
+const realFolder = (names = readdirSync(WORKFLOWS), read = n => readFileSync(join(WORKFLOWS, n), 'utf8')) => new Map(names.filter(isWorkflow).map(n => [n, read(n)]));
 
 // A plant in the Windows job only: the job is the file's last, so its text runs from its key to the end.
 const WINDOWS_JOB = '\n  gate-windows:\n';
@@ -487,10 +488,11 @@ for (const [label, other, says] of [
   ['defines a quoted job id gate-windows', OTHER.replace('  lint:', "  'gate-windows':"), 'other.yml defines a job or check named gate-windows'],
   // #357: every other file is read with the YAML reader, so a spelling a line match misses still counts.
   ['defines a job id gate at four-space indent', OTHER.replace(/^ {4}/gm, '        ').replace(/^ {2}(?! )/gm, '    ').replace('    lint:', '    gate:'), 'other.yml defines a job or check named gate'],
-  ['names a job with an expression', OTHER.replace('    runs-on:', "    name: ${{ 'gate' }}\n    runs-on:"), 'other.yml names a job with an expression'],
+  ['names a job with an expression', OTHER.replace('    runs-on:', "    name: lint ${{ 'gate' }}\n    runs-on:"), 'other.yml names a job with an expression'],
   ['holds a shape the reader cannot read', OTHER.replace('    runs-on:', '    name: &n gate\n    runs-on:'), "other.yml can't be read by the check"],
   // #357, the security pair's F1: a block-scalar name, a padded name or another case of the name is still the check's name.
   ['names a job gate in a stripped literal block', OTHER.replace('    runs-on:', '    name: |-\n      gate\n    runs-on:'), 'other.yml defines a job or check named gate'],
+  ['names a job gate padded in quotes', OTHER.replace('    runs-on:', "    name: ' gate'\n    runs-on:"), 'other.yml defines a job or check named gate'],
   ['names a job Gate', OTHER.replace('    runs-on:', '    name: Gate\n    runs-on:'), 'other.yml defines a job or check named gate'],
   ['defines a job id GATE-WINDOWS', OTHER.replace('  lint:', '  GATE-WINDOWS:'), 'other.yml defines a job or check named gate-windows'],
   // #356: a line break other than a line feed could hide a key from the reader.
@@ -499,6 +501,11 @@ for (const [label, other, says] of [
   ['holds a next-line character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u0085'), 'other.yml holds a line break or control character other than a line feed'],
   ['holds a paragraph separator', OTHER.replace('      - run: echo ok', '      - run: echo ok\u2029'), 'other.yml holds a line break or control character other than a line feed'],
   ['holds a control character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u000b'), 'other.yml holds a line break or control character other than a line feed'],
+  // The QA pair's read: the rest of the C0 range, DEL and the C1 range are refused too.
+  ['holds a null character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u0000'), 'other.yml holds a line break or control character other than a line feed'],
+  ['holds a delete character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u007f'), 'other.yml holds a line break or control character other than a line feed'],
+  ['holds a C1 control character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u0086'), 'other.yml holds a line break or control character other than a line feed'],
+  ['holds the last C1 control character', OTHER.replace('      - run: echo ok', '      - run: echo ok\u009f'), 'other.yml holds a line break or control character other than a line feed'],
 ]) {
   test(`bad case: the folder check catches a second workflow file that ${label}`, () => {
     const files = realFolder();
@@ -514,9 +521,24 @@ test('bad case: the folder check catches a gate workflow that holds a lone carri
   assert.ok(folderProblems(files).includes('gate.yml holds a line break or control character other than a line feed'), folderProblems(files).join('\n'));
 });
 
-// #357, the security pair's H2: a workflow file with an upper-case extension is read too.
+// #357, the security pair's H2: a workflow file with an upper-case extension is read too, through the folder's own listing.
 test('bad case: the folder check reads a workflow file whose extension is in another case', () => {
-  assert.ok(isWorkflow('other.YML') && isWorkflow('x.Yaml') && !isWorkflow('x.txt') && !isWorkflow('yml'));
+  const planted = { 'other.YML': OTHER.replace('  lint:', '  gate:'), 'notes.txt': 'not a workflow' };
+  const files = realFolder([...readdirSync(WORKFLOWS), ...Object.keys(planted)], n => planted[n] ?? readFileSync(join(WORKFLOWS, n), 'utf8'));
+  assert.ok(!files.has('notes.txt'), 'control: a file that is not a workflow is left out');
+  assert.ok(folderProblems(files).includes('other.YML defines a job or check named gate'), folderProblems(files).join('\n'));
+});
+
+// The QA pair's read: the CodeQL workflow is held to the same line breaks, and a CRLF line ending is no stray break.
+test('bad case: the folder check catches a CodeQL workflow that holds a lone carriage return', () => {
+  const files = realFolder();
+  files.set('codeql.yml', files.get('codeql.yml').replace('\njobs:\n', '\njobs:\r'));
+  assert.ok(folderProblems(files).includes('codeql.yml holds a line break or control character other than a line feed'), folderProblems(files).join('\n'));
+});
+
+test('a CRLF line ending is not read as a stray line break', () => {
+  const files = new Map([...realFolder(), ['other.yml', OTHER.replace(/\n/g, '\r\n')]]);
+  assert.ok(!folderProblems(files).includes('other.yml holds a line break or control character other than a line feed'), folderProblems(files).join('\n'));
 });
 
 // #244 C2: the CodeQL workflow as it is passes its allow-list.
