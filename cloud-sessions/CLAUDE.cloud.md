@@ -92,7 +92,10 @@ open, in one line, in every hand-off and in the result. If you find it later,
 say so in one line at the next hand-off or result, and keep saying it until I
 answer.
 
-Keep one model for a whole session.
+Keep one model for a whole session. Your effort is the one set at the start,
+by me or by a lead session I set up, and the start prompt may state it: take
+it as given, and never judge it, flag it or stop the work over it from your
+own sense of it.
 
 ## Workflow
 
