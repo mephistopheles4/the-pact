@@ -14,13 +14,14 @@ A lens's follow-up on a diff or a result now reads only the revision: the revisi
 
 - **A follow-up cost what a first round did.** On one day of brigade work, 100 first rounds averaged about 80k tokens and 57 follow-ups about 78k: a follow-up re-read the whole change against the base. The state words and the `E` rows worked; the re-read was the cost.
 - **The owner's answers, relayed by the lead on 2026-10-24:** every lens scopes its follow-ups, the security pair included (q1); the push-releasing security read stays full (q5); a spec follow-up stays a full read, focused on what was fixed (q8); and the last read compares before, specified and after, because work can start as one thing, be specified as another and be built as a third (q9).
+- **The Test review's fixes, past spec revision 6.** The closing reads found that "handed the base" could hand the whole diff and lose the saving, so the base goes by its hash. They found that a claims lens dropped earlier findings, and that a bare first round after a squash dropped open rows, so the fallback is a restart. They found that a full read lost earlier findings, so the push read and closing read are handed them. And revision 6 was written after the last Design round, so "the approved spec" names the revision the owner approved. The touched-file rule for a withheld finding is the owner's q15, relayed by the lead: the same exposure as a full read. The claim-run exclusion and the keep-local rule for a closing read's report are the owner's q18 and q19, relayed the same way.
 
 ## What stays
 
 - **Fresh and alone,** from [ADR 0090](0090-lens-findings-carry-their-state-against-the-base.md): a follow-up is never resumed and never shown another lens's report.
 - **The state words, the `E` rows and the posting rules,** unchanged.
 - **The lens files.** No lens file changes; `review.md`'s scope rule bounds their steps on a scoped follow-up.
-- **The threat model.** R23, R27 and the hook paragraph keep their meaning, since the read that releases a push stays full. The matching wording for R42, whose trust in the session's word now also covers the revision diff, the head and the scope, goes to the owner as a decision, never applied in the same review.
+- **The threat model.** R23, R27 and the hook paragraph keep their meaning, since the read that releases a push stays full. R42 now names the revision diff, the head, the scope and its scoped label, and the approved spec, as taken on the session's word, and R23's later-push sentence says "a full read, never a scoped follow-up"; the owner approved both wordings at hand-off (q19, relayed by the lead). That a scoped data read can't see a leak crossing out of its scope is a note, not an accepted risk.
 
 ## What was weighed
 

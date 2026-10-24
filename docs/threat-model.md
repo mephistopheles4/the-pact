@@ -278,7 +278,7 @@ How to read it:
 | R39 Commits credited by email | Whoever's commits reach a branch of this repo in a pull request you opened | Only accounts with write rights push branches here; the insiders' check reads each commit's author and committer account (ADR 0089) | Outside the pact, rule |
 | R40 Checker origin read by path | Whoever sets a clone's origin | The run step checks that `origin` ends in this repo's account and name (ADR 0089) | Rule |
 | R41 Table state unpaired | A careless or fooled session | The review procedure's sorting rule; the poster refuses a missing state word, and pairs a Disposition only on a withheld row (#336) | Rule |
-| R42 Lens takes the base on trust | A fooled session, text a session reads | The session checks the base with git at every round before it hands it, and a base that fails is a stop; a read-only lens can't check it (#336) | Rule |
+| R42 Lens takes the base on trust | A fooled session, text a session reads | The session checks the base with git at every round before it hands it, and a base that fails is a stop; a read-only lens can't check it (#336). Since #389 also the revision diff, head, scope and scoped label, and the approved spec; the push read and closing read stay full | Rule |
 | R43 Posted state shows base debt | Anyone who reads the tracker | None beyond R19's; a report kept local keeps its finding's state off the record (#336) | Rule, judgment |
 | R44 Kept-local reports on disk | Another reader of the session's disk | Kept-local reports and place lines are named for deletion at every hand-off, and deleted on your word; a cloud container is reclaimed (#336) | Judgment |
 | R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091). The default's `addyosmani/agent-skills` pin lives in `builder/presets/level-3-full.json`, and a person's own pins in their configuration; ADR 0091's bump procedure covers both, and each send a bump's read names goes to you before the bump is committed (#183 T4a) | Rule |
@@ -563,8 +563,11 @@ once you install it.
   your answer to the offer and, when the pair runs, for its read of the
   branch squashed to one commit (2026-10-19, the owner's q4 on #351, relayed
   by the head chef from the owner's chat). The push publishes the commit the
-  pair read, and a later push that changes it waits for a follow-up read or
-  your word (2026-10-19, the owner's q7 on #351, in chat).
+  pair read, and a later push that changes it waits for a follow-up read (a
+  full read, never a scoped follow-up) or your word (2026-10-19, the owner's
+  q7 on #351, in chat; the bracket added 2026-10-24 from the Test review of
+  #389, adversarial-lens and data-lens, on the owner's word relayed by the
+  head chef).
 
 ## A session that reads text as instructions
 
@@ -840,7 +843,13 @@ session can act before you see it.
   but a fooled session could hand a wrong one, and the lens would judge
   against it. Accepted by the owner on 2026-10-18, in chat ("Proceed as
   recommended", after the merge of #339), from the Test review of #336
-  (adversarial-lens, a Hardening trade-off, ADR 0090).
+  (adversarial-lens, a Hardening trade-off, ADR 0090). Since #389 a scoped
+  follow-up also takes the revision diff, the head, the scope and its scoped
+  label on the session's word, and a closing read takes the approved spec
+  revision on it too; the read that releases a push and the closing read
+  stay full. Widened on 2026-10-24 from the Test review of #389
+  (adversarial-lens and data-lens, ADR 0108), on the owner's word relayed by
+  the head chef.
 - **R47. The install's backups are plain copies on disk.** Before each apply
   writes, the install copies the files it will replace into
   `~/.claude/pact/backups/`. Among them are the person's own files and
