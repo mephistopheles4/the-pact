@@ -25,7 +25,7 @@ The gatekeeper row leaves the pact: `unstated-lens` is offered only in the spec 
 ## The risks
 
 - **Less coverage at Test.** A finished result no longer gets the unstated-needs sweep, which also flags security-sensitive work with no security review. The sensitive-work default still brings the security pair on a list match.
-- **An unnamed row changes meaning.** A row meant for a quality's lenses but named by no Enough now limits the review, with a note rather than a warning. The threat model's R30 and R31 describe the old warning; their edit goes to the owner.
+- **An unnamed row changes meaning.** A row meant for a quality's lenses but named by no Enough now limits the review, with a note rather than a warning. The threat model's R30 and R31 now say so, and the owner accepted that a project's configuration can narrow the review in its repo, short of the lenses never held back.
 
 The owner waived, in chat on 2026-10-24, ADR 0094's sensitive route for this change and the security-pair read a roster change needs.
 

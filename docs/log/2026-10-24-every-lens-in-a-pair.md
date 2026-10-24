@@ -9,15 +9,12 @@
 - **The Lens pairs row** ships in the pact's text; Ultra Code carries the other three rows and stays uncapped.
 - **`claude/review.md`:** a lens of a pair never runs or crosses alone, and a round is counted against review-wide costs.
 - **Docs:** the README, `docs/reference.md`, `docs/install.md`, `docs/agents/install.md`, `CONTEXT.md` and FIG. 03.
+- **The threat model's R30 and R31** say a cost row no quality names limits the review, and the dry run notes it; the owner accepted the class of path a project's configuration opens here, relayed by the lead session.
 - **Regenerated:** `builder/scriptorium.html`, `builder/default-config/`, `cloud-sessions/` and the figures.
 
 ## Decisions
 
 - [ADR 0101](../adr/0101-every-lens-runs-in-a-pair-and-a-cost-can-limit-the-review.md): every lens runs in a pair, and a cost can limit the review. Supersedes in part ADR 0080 and ADR 0079.
-
-## Open
-
-- The threat model's R30 and R31 still describe the old warning; their edit is proposed to the owner, not applied here.
 
 ## Record
 
