@@ -1,6 +1,6 @@
 // The gate's test runner (#140): one fail-closed command per tier.
 //
-//   node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--skips <file>] [--list]
+//   node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--skips <file>] [--list] [--host-fallback=<reason>]
 //
 // full is every top-level test file in this folder. The install tier is every
 // test file that reaches install-harness.mjs through its imports; fast is full
@@ -21,7 +21,9 @@
 // if a local path, the user name or the host name survives the scrub. --skips
 // (full only, #351) fails a passing run unless it skipped exactly the tests a
 // list names, by file and name, and prints each difference. --list
-// prints the pick and runs nothing. Start it with NODE_OPTIONS cleared, as
+// prints the pick and runs nothing. --host-fallback=<reason> (fast and full,
+// the = form only, a short reason in plain words, #383) prints the reason a
+// session ran on the host rather than through athanor, before the run. Start it with NODE_OPTIONS cleared, as
 // AGENTS.md shows: clearing it for the child can't reach this process.
 // Only changed reads git: fast and full read the file system alone. The base
 // is resolved to a commit before any other git call. The install skips this
@@ -527,17 +529,35 @@ const REPO = resolve(HERE, '..', '..');
 
 function usage(say, why) {
   say(`run: ${SHOWN(why)}`);
-  say('usage: node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--skips <file>] [--list]');
+  say('usage: node gate/tests/run.mjs <changed|fast|full> [--base <ref>] [--reporter <spec|tap|dot|junit>] [--record <file>] [--skips <file>] [--list] [--host-fallback=<reason>]');
   say(`RESULT: refused, ${SHOWN(why)}`);
   return 2;
 }
 
+const PLAIN_REASON = /^[A-Za-z0-9 .,;:()-]{1,80}$/;
+
 export function parseArgs(argv) {
-  const opts = { tier: null, reporter: null, record: null, base: null, skips: null, list: false };
+  const opts = { tier: null, reporter: null, record: null, base: null, skips: null, list: false, hostFallback: null };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
+    // The = form only (#383): the agent hook frees a host run by that one token.
+    if (a === '--host-fallback') return { error: '--host-fallback takes its reason after =' };
+    if (a.startsWith('--host-fallback=')) {
+      const reason = a.slice('--host-fallback='.length).trim();
+      if (reason === '') return { error: '--host-fallback needs a reason' };
+      // The reason may reach a posted record, so it is a short reason in
+      // plain words, and a refusal echoes none of it (#383, data-lens D1).
+      // The refusals here pass through SHOWN, so they hold none of its marks.
+      if (!PLAIN_REASON.test(reason) || reason.split(' ').some(w => w.length > 24)) return { error: '--host-fallback takes a short reason in plain words - at most 80 letters and digits and spaces and basic punctuation - no word over 24' };
+      opts.hostFallback = reason;
+      continue;
+    }
     const eq = a.indexOf('=');
     const [flag, inline] = a.startsWith('--') && eq > 0 ? [a.slice(0, eq), a.slice(eq + 1)] : [a, null];
+    // A word the runner can't place, after a reason, is most likely the rest of
+    // an unquoted reason that PowerShell split: say so, and name none of it.
+    const stray = opts.hostFallback !== null && (a.startsWith('-') ? !['--reporter', '--record', '--base', '--skips', '--list'].includes(flag) : !(opts.tier === null && TIERS.includes(a)));
+    if (stray) return { error: 'quote the --host-fallback reason - it reached the runner as more than one argument' };
     if (flag === '--reporter' || flag === '--record' || flag === '--base' || flag === '--skips') {
       const v = inline ?? argv[(i += 1)];
       if (v === undefined || v === '') return { error: `${flag} needs a value` };
@@ -554,6 +574,8 @@ export function parseArgs(argv) {
   if (opts.base !== null && opts.base.startsWith('-')) return { error: `a base that starts with a dash` };
   // A narrower pick skips fewer tests, so only full can match the list.
   if (opts.skips !== null && opts.tier !== 'full') return { error: `--skips is for the full tier only` };
+  // changed runs on the host anyway (athanor can't), so it has nothing to fall back from.
+  if (opts.hostFallback !== null && opts.tier === 'changed') return { error: `--host-fallback is for the fast and full tiers only` };
   return { opts };
 }
 
@@ -723,6 +745,8 @@ export async function main(argv) {
     .map(e => ({ name: e.name, file: e.isFile() }));
   const { files, refused, unmapped } = pick({ tier, entries, sources: readSources(HERE), copyList: { dirs: COPY_DIRS, files: COPY_FILES }, changed });
   say(`run: tier ${tier}${base ?? ''}, cap ${CAP}${reporter ? `, reporter ${reporter}` : ''}${list ? ', list only' : ''}`);
+  // PLAIN_REASON bounds the reason, so it prints as given.
+  if (parsed.opts.hostFallback !== null) say(`host fallback: ${parsed.opts.hostFallback}`);
   if (refused.length) {
     for (const r of refused) say(`refused: gate/tests/${SHOWN(r.name)} (${r.why})`);
     say(`RESULT: ${tier} tier, ${files.length} files, refused (${refused.length} test-file names refused)`);

@@ -299,7 +299,7 @@ test('the literal reader: comments are skipped, template pieces kept, a regex ho
 });
 
 test('parseArgs: unknown tiers, reporters and options, and a missing value, are usage errors', () => {
-  assert.deepEqual(parseArgs(['full', '--reporter', 'tap']).opts, { tier: 'full', reporter: 'tap', record: null, base: null, skips: null, list: false });
+  assert.deepEqual(parseArgs(['full', '--reporter', 'tap']).opts, { tier: 'full', reporter: 'tap', record: null, base: null, skips: null, list: false, hostFallback: null });
   assert.equal(parseArgs(['full', '--skips', 'gate/tests/windows-skips.txt']).opts.skips, 'gate/tests/windows-skips.txt');
   assert.equal(parseArgs(['fast', '--reporter=junit']).opts.reporter, 'junit');
   assert.equal(parseArgs(['changed']).opts.base, null, 'no base given; the shell uses the branch refs/heads/main');
@@ -307,6 +307,41 @@ test('parseArgs: unknown tiers, reporters and options, and a missing value, are 
   assert.equal(parseArgs(['changed', '--base=v1']).opts.base, 'v1');
   for (const bad of [[], ['nope'], ['full', 'fast'], ['full', '--reporter', 'xml'], ['full', '--reporter'], ['full', '--record'], ['full', '--bogus'], ['full', '--base', '-x'], ['full', '--base', 'main'], ['fast', '--base', 'main'], ['changed', '--base', '-x'], ['changed', '--base=-x'], ['changed', '--base'], ['changed', '--base='], ['full', '--skips'], ['changed', '--skips', 'x'], ['fast', '--skips', 'x']]) {
     assert.ok(parseArgs(bad).error, bad.join(' '));
+  }
+});
+
+// #383 (S3, claim 5): the named host fallback, in its = form only, on fast and full.
+test('parseArgs: --host-fallback=<reason> on fast and full; an empty reason, the space form and changed are usage errors', () => {
+  assert.equal(parseArgs(['fast', '--host-fallback=no docker']).opts.hostFallback, 'no docker');
+  assert.equal(parseArgs(['full', '--host-fallback=before an install']).opts.hostFallback, 'before an install');
+  assert.equal(parseArgs(['fast', "--host-fallback=athanor exited 125, Docker stopped (restarting it)."]).opts.hostFallback, 'athanor exited 125, Docker stopped (restarting it).');
+  assert.equal(parseArgs(['full', '--host-fallback=athanor-run: exit 125; Docker down']).opts.hostFallback, 'athanor-run: exit 125; Docker down');
+  assert.equal(parseArgs(['--host-fallback=no docker', 'fast']).opts.tier, 'fast', 'the flag may come before the tier');
+  for (const bad of [['fast', '--host-fallback='], ['full', '--host-fallback=  '], ['fast', '--host-fallback', 'no docker'], ['fast', '--host-fallback'], ['changed', '--host-fallback=no docker']]) {
+    assert.ok(parseArgs(bad).error, bad.join(' '));
+  }
+});
+
+// #383, Test (data-lens D1, owner's q6): the reason may reach a posted record, so only a short reason in plain
+// words passes; anything else is refused without a word of it echoed.
+test('parseArgs: a --host-fallback reason that is long, holds a path, a long word or other characters is refused unechoed', () => {
+  // One rule broken at a time: the 80 cap, the 24-letter word, then the characters.
+  const over80 = 'docker is down here '.repeat(4) + 'x';
+  const longWord = 'docker down abcdefabcdefabcdefabcdefabcd';
+  for (const reason of [over80, longWord, 'no_docker', 'see /home/someone/x', 'C:\\x', 'key=value', 'a "quoted" bit', 'tab\there', 'emoji \u2603']) {
+    const r = parseArgs(['fast', `--host-fallback=${reason}`]);
+    assert.ok(r.error, reason);
+    for (const word of reason.split(/\s+/).filter(w => w.length > 2)) assert.ok(!r.error.includes(word), `${reason}: ${r.error}`);
+  }
+});
+
+// #383, Test (behaviour-lens B3, data-lens N1): an unquoted reason split by PowerShell is refused with
+// fixed text that says to quote it, naming none of its words.
+test('parseArgs: a --host-fallback reason split into more arguments is refused, unechoed, asking for quotes', () => {
+  for (const argv of [['fast', '--host-fallback=no', 'see', '/home/someone/x'], ['--host-fallback=no', 'see', 'fast'], ['full', '--host-fallback=no', '-docker']]) {
+    const { error } = parseArgs(argv);
+    assert.match(error ?? '', /quote/, argv.join(' '));
+    for (const word of ['see', 'someone', 'docker']) assert.ok(!error.includes(word), `${argv.join(' ')}: ${error}`);
   }
 });
 
@@ -433,6 +468,18 @@ test('held ${name}', async () => {
   assert.equal(CAP, 4);
   assert.equal(max, 4, 'at most four files run at once, and four did');
   assert.equal(r.last, 'RESULT: full tier, 6 files, pass');
+});
+
+// #383 (S3, claim 5): the note is printed before the run, the result line stays last, and a record holds the note.
+test('shell: --host-fallback prints its note, keeps the result line last, and the record holds it', t => {
+  const p = plant(t, { 'a.test.mjs': PASSING });
+  const rec = join(tempDir(t, 'pact-rec-'), 'rec.txt');
+  const r = runIn(p, ['fast', '--host-fallback=no docker: exit 125 (down); retry-later, then on.', '--record', rec]);
+  assert.equal(r.code, 0, r.stderr);
+  assert.match(r.stderr, /^host fallback: no docker: exit 125 \(down\); retry-later, then on\.$/m, 'printed as given');
+  assert.ok(r.stderr.indexOf('\nhost fallback: ') < r.stderr.indexOf('\npick: '), 'the note comes before the pick and the run');
+  assert.equal(r.last, 'RESULT: fast tier, 1 files, pass');
+  assert.match(readFileSync(rec, 'utf8'), /^host fallback: no docker: exit 125 \(down\); retry-later, then on\.$/m);
 });
 
 test('shell: a failing test makes the run exit non-zero', t => {

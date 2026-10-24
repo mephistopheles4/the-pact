@@ -381,7 +381,18 @@ rule says outsiders' code never runs here. Only a pull request your account open
 every commit yours, counts as your code. Everything else is read as a diff,
 as text. The one exception needs your typed OK naming the exact commit, and a
 container with no sign-ins, secrets, host folders or network route to your
-machine.
+machine. This repo's own tracked hook (#383), `.claude/settings.json` running
+the script in `.claude/hooks/`, runs in every session opened here, before
+the permission check: it nudges a session to run the gate's tests through
+athanor and is no defence. A checkout, pull, merge or rebase that changes the
+script or the settings file takes effect on the next shell call of every
+session open in that folder,
+so the checkout rule names it, `AGENTS.md` has every change to it read
+closely, as for `cloud-sessions/`, and a push that touches it waits for the
+security pair's read or your word. The settings file is the one
+`settings.json` let out of the ignore that keeps keys out of the repo; a gate
+test holds it to the `hooks` key, and local settings go in
+`.claude/settings.local.json`.
 
 **What is accepted.**
 

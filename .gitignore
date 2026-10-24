@@ -1,6 +1,8 @@
 # Never commit credentials or a full settings file (it carries API keys)
 settings.json
 settings.local.json
+# but for the repo's own hook file, which holds only `hooks` (#383; a gate test pins it)
+!/.claude/settings.json
 .claude.json
 *.key
 .env
