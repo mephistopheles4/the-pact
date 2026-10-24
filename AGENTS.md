@@ -69,8 +69,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   commit, which comes before the push and the rest of Test; a diff held back only by those paths
   may go on the owner's word instead, and a decline of the
   offer never frees it. Push only the commit the
-  pair's report names; a later change waits for its follow-up read or the
-  owner's word. Details: [gate tests](docs/agents/gate-tests.md).
+  pair's report names; a later change waits for its follow-up read (a full
+  read, never a scoped follow-up) or the owner's word. Details: [gate tests](docs/agents/gate-tests.md).
   A `changed` run is never Test evidence.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.
