@@ -238,7 +238,8 @@ parts:
   lenses that check them and what each answers to, and the cost limits.
   A `NOTE:` line follows it when you edit `qualities` and the table has no
   Enough column: the shipped cost rows then reach no quality's lenses, so
-  they limit the review itself, Hardening at 0 included.
+  they limit the review itself, Hardening at 0 included, so no lens builds a
+  guard for a path that is not a security finding.
   The line names the parts you edit and says whether your configuration
   changed since the last install. Read those parts in the rendered rules file
   (`--review-folder` writes it out) before you install. Only your home

@@ -206,8 +206,8 @@ its limit, and what happens at the limit. A quality's Enough says where more
 of it stops being worth it: an optional level, such as ASVS L1, then each cost
 limit it answers to, by name, joined by a middle dot. A cost holds back the
 lenses of every quality whose Enough names it. A cost that no quality's
-Enough names limits the review itself: count it each review round, in its own
-unit, and follow its "At the limit"; the security pair, a lens a repo's own
+Enough names limits the review itself: count it each review round, by its
+Counted as, and follow its "At the limit"; the security pair, a lens a repo's own
 rules require and the lenses of a skill I typed count toward it, but it never
 holds them back.
 

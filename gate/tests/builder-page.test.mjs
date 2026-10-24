@@ -421,7 +421,7 @@ test('a cost no quality names draws no finding, and the rules file and the page 
   p.costLimits.push({ cost: 'Review rounds', counted: 'Rounds', limit: '', atLimit: '' });
   assert.deepEqual(partsProblems(p).filter(x => x.part === 'cost-limits'), []);
   const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\s+/g, ' ');
-  assert.ok(rules.includes(`A cost that no quality's Enough names limits the review itself: count it each review round, in its own unit, and follow its "At the limit"; the security pair, a lens a repo's own rules require and the lenses of a skill I typed count toward it, but it never holds them back.`), 'the Cost limits prose');
+  assert.ok(rules.includes(`A cost that no quality's Enough names limits the review itself: count it each review round, by its Counted as, and follow its "At the limit"; the security pair, a lens a repo's own rules require and the lenses of a skill I typed count toward it, but it never holds them back.`), 'the Cost limits prose');
   assert.ok(PAGE.includes('Limits the review itself.'), 'the page names the reach');
   assert.ok(!PAGE.includes('This cost reaches no lens'), 'the page drops the caution');
 });
@@ -1287,7 +1287,7 @@ test('bad case: a shared file naming good-enough-lens loads with the name taken 
   assert.ok(!JSON.stringify(r.preset).includes('good-enough-lens'), 'the retired name survived the load');
   const offers = r.preset.parts.workflowGraph.offers;
   assert.deepEqual(offers.filter(o => o.stage === 'design').map(o => [o.id, o.agents]), [['design-spec-pair', ['executability-lens', 'unstated-lens']]], 'the spec pair takes the second lens, and the emptied and the separate offers go');
-  assert.deepEqual(offers.filter(o => o.stage === 'test').map(o => o.id), [...DEFAULT_PARTS.workflowGraph.offers.filter(o => o.stage === 'test').map(o => o.id), 'test-unstated'], 'the Test offers stay as given, an old lone one included');
+  assert.deepEqual(offers.filter(o => o.stage === 'test').map(o => [o.id, o.agents]), [...DEFAULT_PARTS.workflowGraph.offers.filter(o => o.stage === 'test').map(o => [o.id, o.agents]), ['test-unstated', ['unstated-lens']]], 'the Test offers stay as given, an old lone one included');
   assert.deepEqual(r.preset.parts.lenses.map(x => x.agents), [['executability-lens', 'unstated-lens'], ['unstated-lens']], 'an emptied row goes');
   assert.deepEqual(r.preset.parts.qualities[0].lenses, ['behaviour-lens']);
   assert.equal(r.preset.agentFiles, undefined);
