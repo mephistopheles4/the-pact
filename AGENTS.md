@@ -42,6 +42,13 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   runner, in a Linux container): `athanor run` runs `full`, and
   `athanor run fast` runs `fast`. Run on the host only for `full` before an
   install, for a quick `changed` pick, or when athanor can't run.
+- **A hook holds you to that** (`.claude/settings.json`, ADR 0104): while
+  `athanor --version` works, it refuses a host `fast` or `full` run. For the
+  two host cases, add `--host-fallback='<reason>'` to the same command,
+  quoted so PowerShell keeps it one argument: a short reason in your own
+  plain words (no path, token or pasted error text). Say in your report that
+  you used the fallback. The runner prints the reason.
+  [The hook](docs/agents/gate-tests.md#the-hook).
 - **While building, run `athanor run fast`.** For a quick pick on the host,
   run `changed`:
   `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
@@ -55,11 +62,12 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   Before any push, read every commit it publishes for a secret, a personal
   detail, or this machine's paths and names. Push without asking only off the
   sensitive route, when the security pair isn't due or offered, and when the
-  diff leaves `.github/` and the lockdown test (`gate/tests/workflow.test.mjs`)
-  alone. Otherwise squash to one commit and wait for the owner's answer to
+  diff leaves `.github/`, the lockdown test (`gate/tests/workflow.test.mjs`),
+  `.claude/settings.json` and `.claude/hooks/` alone. Otherwise squash to one
+  commit and wait for the owner's answer to
   the pair's offer and, when the pair runs, for its read of that local
-  commit, which comes before the push and the rest of Test; a diff held back only by `.github/` or the
-  lockdown test may go on the owner's word instead, and a decline of the
+  commit, which comes before the push and the rest of Test; a diff held back only by those paths
+  may go on the owner's word instead, and a decline of the
   offer never frees it. Push only the commit the
   pair's report names; a later change waits for its follow-up read or the
   owner's word. Details: [gate tests](docs/agents/gate-tests.md).
@@ -109,6 +117,12 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   is seen to catch. Deleting or loosening a check, or changing a built-in
   default that bounds anything, is a spec change. The QA pair reads every
   change to the gate's tests at Test; such a change is never one line.
+- **`.claude/settings.json` and `.claude/hooks/` run in every session**
+  opened here, cloud sessions included, before the permission check: a
+  change to either takes effect on the next shell call. Read every change to
+  them closely, as for `cloud-sessions/`. Settings you save from Claude Code
+  for this repo go to local scope, `.claude/settings.local.json`, never to
+  `.claude/settings.json`.
 - **The protected set** (the offers paragraph, the sensitive-work default and
   the security lenses' carried rules) is cut or weakened, and the lens roster
   changed, only by a spec change read by the spec pair and the security pair.
