@@ -431,7 +431,8 @@ function realHomeCase(t, proj, why) {
     t.skip('this folder already holds a project configuration or rules file, so the case is not planted (not run)');
     return;
   }
-  for (const spelled of [proj, `${proj}${sep}`]) {
+  // A filesystem root already ends in a separator; a second would spell a network path.
+  for (const spelled of proj.endsWith(sep) ? [proj] : [proj, `${proj}${sep}`]) {
     const r = projInstall(repo, ch, spelled);
     refused(r);
     assert.match(r.stdout, why, r.out);
