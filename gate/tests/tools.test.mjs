@@ -170,6 +170,7 @@ test('a project configuration may not hold tools', t => {
 
 // ------------------------------------------------------------ the rules file: the poster's part (C6)
 
+// The sentence on a lens report's fence is cut (#404, the lead's pick under the owner's standing instruction, 2026-10-25).
 // The stays-local list no longer names a path of this machine's, on the owner's word in chat (2026-10-21).
 // T2's approved text (#280, revision 5, with the three clauses #285 carries
 // and the four changes from #285's Test; the owner approved it as q2 on #285),
@@ -212,7 +213,7 @@ test('with the poster off, the rules file is the no-configuration render byte fo
   assert.equal(onText.split(T2).length, 2, 'the part holds T2 text once, byte for byte');
   const after = onText.slice(onText.indexOf(KEEP_RECORD));
   assert.match(after, /^- \*\*Keep the record[^\n]*\n(?: {2}[^\n]*\n)+- \*\*Post through the poster\.\*\*/, 'straight after the record bullet');
-  assert.ok(/Lens\s+dispositions\s+table/.test(T2) && /fix\s+the\s+fence/.test(T2), 'the table and fence clauses');
+  assert.ok(/Lens\s+dispositions\s+table/.test(T2), 'the table clause');
 });
 
 // #280 C6: each shell gets its own form; a $HOME form in POSIX or a tilde form in PowerShell would resolve under the folder it runs from.
