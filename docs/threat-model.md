@@ -150,8 +150,8 @@ check can read them in one place. It adds no control and accepts no risk.
   reads git's list of that commit's history, each line held to a commit id
   and the commit itself listed, and the install record's commit, printed
   only when it is a commit id (#407, ADR 0118). Whoever can write the clone
-  or the record can hide or force that warning, though never change what is
-  installed (R14, R61).
+  or the record can hide or force that warning; the warning itself never
+  changes what is installed (R14, R61).
 - **The cloud setup.** `gen.mjs` refuses a pin out of its shape; the setup
   reads upstream catalogs and the GitHub API's answers as data and keeps
   only what passes its shape checks (R10, R45; A compromised or careless

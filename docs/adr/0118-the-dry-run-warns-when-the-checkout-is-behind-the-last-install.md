@@ -11,7 +11,7 @@ A user install's dry run, and its apply, print one warning when the last install
 
 ## What it guards against
 
-An honest stale checkout: a person or session about to install from a clone that lags the last install. It does not guard against a session that can write the clone, its git folder included, or the install record: such a session can hide the line or force it, though never change what is installed, since the stage is still checked blob by blob against the commit object (R14). A rollback to a commit from before this change prints nothing, since the checked-out commit's runner decides (R22). A shallow clone may warn falsely.
+An honest stale checkout: a person or session about to install from a clone that lags the last install. It does not guard against a session that can write the clone, its git folder included, or the install record: such a session can hide the line or force it (R14, R61). The warning itself never changes what is installed; the stage is still checked blob by blob against the commit object. A rollback to a commit from before this change prints nothing, since the checked-out commit's runner decides (R22). A shallow clone may warn falsely.
 
 ## What was weighed
 
