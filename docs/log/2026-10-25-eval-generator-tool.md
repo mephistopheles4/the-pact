@@ -17,4 +17,5 @@ The pilot's 12 cases now grant no tools (q6); their workspace was empty, so they
 - The spec, revision 4: https://github.com/mephistopheles4/the-pact/issues/405#issuecomment-6400932105
 - The spec pair's first read, revision 1: https://github.com/mephistopheles4/the-pact/issues/405#issuecomment-6400836908
 - The spec pair's follow-up, revision 3: https://github.com/mephistopheles4/the-pact/issues/405#issuecomment-6400932598
+- The Test review, first round (QA and standards pairs): https://github.com/mephistopheles4/the-pact/issues/405#issuecomment-6401167409
 - The follow-up issue: https://github.com/mephistopheles4/the-pact/issues/415
