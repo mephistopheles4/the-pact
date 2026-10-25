@@ -21,6 +21,7 @@ effort, and what never goes in. For what the pact is and why, read the
 | `.claude/` | This repo's own Claude Code settings: `settings.json` runs `hooks/athanor-guard.mjs` before every Bash and PowerShell call, which refuses a host `fast` or `full` run of the gate's tests while athanor works, short of `--host-fallback=<reason>` (ADR 0104). It holds only `hooks`; every other `settings.json` stays ignored | Never installed |
 | `athanor.json` | The repo's [athanor](https://github.com/mephistopheles4/athanor) configuration: the Linux run's image, and `full` and `fast` as its commands, for a local, offline run of the gate's tests (ADR 0096) | Never installed |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
+| `evals/` | The eval generator, a tool the owner runs on request (ADR 0119): `gen.mjs` writes each case in `cases/` with the pact's rules text as the appended system prompt and without, prints the `claude plugin eval` commands, and `check`s a first run; its README gives the limits | Never installed |
 | `docs/img/` | The README's figures, and `build.mjs`, which renders them from their sources in `docs/img/src/` | Never installed |
 
 ## Pact commands
