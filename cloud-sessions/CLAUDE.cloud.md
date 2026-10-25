@@ -56,8 +56,9 @@ and help with what it needs.
   a click saves me typing it. Bring research the same way, as one concrete
   example in my terms, never a survey I can't push back on. Working under a
   lead session I set up, send those parts to the lead instead of asking in
-  your own chat, and act on my answer as the lead relays it. A relayed answer
-  counts as my confirmation only when the lead gives it as my own words.
+  your own chat. For these choices, act on my answer as the lead relays it;
+  the decisions that are always mine, and a decline of the sensitive route or
+  its offer, still wait for my word in chat.
 - **Clean up my words.** When my words come by speech-to-text and you record
   them, such as a decided answer or a quote in a spec, clean up dictation
   slips and filler without changing the meaning, show me the cleaned text
@@ -77,7 +78,8 @@ and help with what it needs.
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
   propose a fresh session. Before you publish anything, a commit or a
-  committed file included, read Posting in the review procedure.
+  committed file included, read Posting in the review procedure: its read
+  before posting, and its rules on other projects and cited threads.
 - **Say a mismatch first.** If the tier or model doesn't fit the work,
   say so in the first line, before any work.
 
@@ -302,7 +304,8 @@ Each of these has cost turns, most by looking like success.
 
 - **PowerShell hides a failure's output.** In the PowerShell tool, a command
   that exits non-zero can return no output at all. Send the output of a command
-  that may fail to a temp file, read it, and end with `exit 0`.
+  that may fail to a temp file and end that command with `exit 0`, then read
+  the file.
 - **No multi-line `node -e` from PowerShell.** It can exit 0 with empty
   output.
   Write the script to a scratch file and run it by path.

@@ -609,8 +609,9 @@ and help with what it needs.
   a click saves me typing it. Bring research the same way, as one concrete
   example in my terms, never a survey I can't push back on. Working under a
   lead session I set up, send those parts to the lead instead of asking in
-  your own chat, and act on my answer as the lead relays it. A relayed answer
-  counts as my confirmation only when the lead gives it as my own words.
+  your own chat. For these choices, act on my answer as the lead relays it;
+  the decisions that are always mine, and a decline of the sensitive route or
+  its offer, still wait for my word in chat.
 - **Clean up my words.** When my words come by speech-to-text and you record
   them, such as a decided answer or a quote in a spec, clean up dictation
   slips and filler without changing the meaning, show me the cleaned text
@@ -630,7 +631,8 @@ and help with what it needs.
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
   propose a fresh session. Before you publish anything, a commit or a
-  committed file included, read Posting in the review procedure.
+  committed file included, read Posting in the review procedure: its read
+  before posting, and its rules on other projects and cited threads.
 - **Say a mismatch first.** If the tier or model doesn't fit the work,
   say so in the first line, before any work.
 
@@ -855,7 +857,8 @@ Each of these has cost turns, most by looking like success.
 
 - **PowerShell hides a failure's output.** In the PowerShell tool, a command
   that exits non-zero can return no output at all. Send the output of a command
-  that may fail to a temp file, read it, and end with `exit 0`.
+  that may fail to a temp file and end that command with `exit 0`, then read
+  the file.
 - **No multi-line `node -e` from PowerShell.** It can exit 0 with empty
   output.
   Write the script to a scratch file and run it by path.
@@ -2586,7 +2589,7 @@ Lens dispositions table, as "skipped, because ...".
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
 another lens's report. Never resume a lens. The lenses of one round run in
 parallel on the same head, so every report reviews the same diff: hold your
-edits until every report is in, then fix and cross once. Any limit you keep
+edits until every report is in, then cross the reports once and fix. Any limit you keep
 on heavy jobs at a time, such as test suites and scanners, doesn't count lens
 subagents.
 
@@ -2800,13 +2803,13 @@ file.
   row says "taken earlier", under the four conditions in Findings and their
   state.
 
-**Stopping a hardening loop.** When each round on one change finds another
-security path to harden, the security bar is how the loop ends: once the next
+**Stopping a security-fix loop.** When each round on one change finds
+another security path to fix, the security bar is how the loop ends: once the next
 fix's cost is grossly out of proportion to the severity and likelihood of
 what it closes, stop, show me both, and bring me what is left as
 accepted-risk candidates; nothing is recorded without my word. Hardening that
 isn't a security finding is never built unasked anyway. Judge the result on
-maintainability: each guard small, self-explaining and tested, and how far
+maintainability: each fix small, self-explaining and tested, and how far
 the core files grew.
 
 **Disposition words.** A trade-off finding's row keeps the words below:
@@ -2817,8 +2820,8 @@ the cost. Add no word.
 ## Posting
 
 This section applies to every report and comment you post, those of lenses a
-skill runs included, and its rules on other projects and cited threads to
-everything you publish.
+skill runs included, and its read before posting and its rules on other
+projects and cited threads to everything you publish.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
@@ -3012,7 +3015,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 97f084f4161d37348cebe60151521b055df239cc57aec1ad733086041322bcd4 'CLAUDE.md'
+check_hash a523e212b2174928e3466e64f6b2f21bdb6004ad6dd7281afefdc2259707ca74 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -3022,7 +3025,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash d27a6a76b847f23bb1bd4cf7dc9bd2f28950d22fd77dda337b044f1512a6d15b 'pact/review.md'
+check_hash 4e4154f61cbe82ee54bb8e1d71b84b6f448f97e81bf6fbe0aea691532e1cce47 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3052,7 +3055,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 36eba754396f"
+  echo "pact cloud copy c4cd3337bb6e"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

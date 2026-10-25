@@ -482,10 +482,12 @@ Read the dry run as step 4 says, then run the apply command yourself.
 Fast-forward the repo (`git pull --ff-only`): a checkout behind the last
 install's commit would roll the pact back, and the dry run doesn't warn
 about it yet (#407). If the fast-forward refuses, stop and find out why
-before you install. Read what
+before you install; a checkout left on a reviewed commit last time has no
+branch, so switch back to it first. Read what
 changed before you run anything: the dry run
 runs the new code, and a session opened in the clone loads its project files.
-The dry run's `Last install:` line names the commit you have.
+The `commit` field of `~/.claude/.pact-install.json` names the commit you
+have; the dry run's `Last install:` line shows it too.
 `git diff <that commit> HEAD` shows everything that arrived since, merges
 included. Or check out a commit you have reviewed, at or after the last
 install's commit. Then repeat steps 4 and 5;

@@ -239,7 +239,7 @@ Lens dispositions table, as "skipped, because ...".
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
 another lens's report. Never resume a lens. The lenses of one round run in
 parallel on the same head, so every report reviews the same diff: hold your
-edits until every report is in, then fix and cross once. Any limit you keep
+edits until every report is in, then cross the reports once and fix. Any limit you keep
 on heavy jobs at a time, such as test suites and scanners, doesn't count lens
 subagents.
 
@@ -453,13 +453,13 @@ file.
   row says "taken earlier", under the four conditions in Findings and their
   state.
 
-**Stopping a hardening loop.** When each round on one change finds another
-security path to harden, the security bar is how the loop ends: once the next
+**Stopping a security-fix loop.** When each round on one change finds
+another security path to fix, the security bar is how the loop ends: once the next
 fix's cost is grossly out of proportion to the severity and likelihood of
 what it closes, stop, show me both, and bring me what is left as
 accepted-risk candidates; nothing is recorded without my word. Hardening that
 isn't a security finding is never built unasked anyway. Judge the result on
-maintainability: each guard small, self-explaining and tested, and how far
+maintainability: each fix small, self-explaining and tested, and how far
 the core files grew.
 
 **Disposition words.** A trade-off finding's row keeps the words below:
@@ -470,8 +470,8 @@ the cost. Add no word.
 ## Posting
 
 This section applies to every report and comment you post, those of lenses a
-skill runs included, and its rules on other projects and cited threads to
-everything you publish.
+skill runs included, and its read before posting and its rules on other
+projects and cited threads to everything you publish.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
