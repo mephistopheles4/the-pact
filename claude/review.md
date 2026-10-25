@@ -454,12 +454,13 @@ file.
   state.
 
 **Stopping a hardening loop.** When each round on one change finds another
-path to harden, stop the loop once the next fix would cost more than the
-threat's rating justifies, and bring me what is left as accepted-risk
-candidates; nothing is recorded without my word. Judge the result on
-maintainability: each limit small, self-explaining and tested, and how far
-the core files grew. A security finding still goes by the security bar, and I
-see both its cost and its risk.
+security path to harden, the security bar is how the loop ends: once the next
+fix's cost is grossly out of proportion to the severity and likelihood of
+what it closes, stop, show me both, and bring me what is left as
+accepted-risk candidates; nothing is recorded without my word. Hardening that
+isn't a security finding is never built unasked anyway. Judge the result on
+maintainability: each guard small, self-explaining and tested, and how far
+the core files grew.
 
 **Disposition words.** A trade-off finding's row keeps the words below:
 `taken` when I take the limit's side, `fixed` when the fix is built anyway,
@@ -469,7 +470,8 @@ the cost. Add no word.
 ## Posting
 
 This section applies to every report and comment you post, those of lenses a
-skill runs included.
+skill runs included, and its rules on other projects and cited threads to
+everything you publish.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value

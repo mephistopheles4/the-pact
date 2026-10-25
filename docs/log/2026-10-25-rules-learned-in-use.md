@@ -1,6 +1,6 @@
 # Rules learned in use ship in the pact
 
-#399 and #400 in one change, standard tier, planned and built on Opus at medium by pact-399-400, led by head-chef-field-test. The lead answered the plan's questions under the owner's auto-mode instruction; the owner's own answers came by relay through the lead (q6 and q6b).
+#399 and #400 in one change, standard tier, planned and built on Opus at medium by pact-399-400, led by head-chef-field-test. The lead answered the plan's questions under the owner's auto-mode instruction. The owner's own answers came by relay through the lead: the installer warning goes to its own issue, and the lead-relay clause goes in.
 
 Twenty rules that a lead session had kept in its machine-local memory move into the pact: two posting rules, two lens-running rules and a hardening-loop stop in `claude/review.md`; the asking rule, dictated words, Auto-fix, CodeRabbit's pass signal, the skill check and Fable in `claude/CLAUDE.md`; and nine tool traps in a new last section of the rules file (ADR 0115). Each new rule sits in plain prose outside the configurable blocks, so `builder/default-config/` and the builder page are unchanged; the cloud copy is regenerated.
 

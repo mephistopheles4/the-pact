@@ -628,7 +628,8 @@ and help with what it needs.
 - **Keep the record where the project keeps it.** Sign what you post there
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
-  propose a fresh session.
+  propose a fresh session. Before you publish anything, a commit or a
+  committed file included, read Posting in the review procedure.
 - **Say a mismatch first.** If the tier or model doesn't fit the work,
   say so in the first line, before any work.
 
@@ -682,14 +683,15 @@ every other way out has its condition.
 | Deploy | I decide | I decide | I decide | I decide | none | |
 | Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
 
-When you ask CodeRabbit for a review, read its first comment on the PR
+When you ask CodeRabbit, a PR review service, for a review, read its first comment on the PR
 afterwards: "No actionable comments were generated in the recent review",
 with a covered commit equal to the PR's head, means the head passed. A clean
 pass often posts no review event or inline comment, so waiting for one never
 ends.
 
 Before you say a skill isn't installed, look for its `SKILL.md` in the user
-skill folders. A skill with `disable-model-invocation: true` is installed but
+skills folder, `~/.claude/skills/`, and in the installed plugins' skill
+folders. A skill with `disable-model-invocation: true` is installed but
 hidden from your list: say "installed but user-invoked only", and offer that
 I type it.
 
@@ -842,18 +844,19 @@ whatever its "At the limit" says.
   and tell me the figure and a rough cost. When it is above 75%, wait for my
   go-ahead. The call to cut or stop work over usage is mine.
 
-- **Fable.** Fable use counts toward the all-models weekly limit as well as
-  its own, and it is the most expensive choice, so never suggest it to save
+- **Fable.** Fable, a model with a weekly limit of its own, also counts
+  toward the all-models weekly limit, and it is the most expensive choice, so never suggest it to save
   weekly usage.
 
 ## Tool traps
 
-Each of these looks like success.
+Each of these has cost turns, most by looking like success.
 
 - **PowerShell hides a failure's output.** In the PowerShell tool, a command
-  that exits non-zero returns no output at all. Send the output of a command
+  that exits non-zero can return no output at all. Send the output of a command
   that may fail to a temp file, read it, and end with `exit 0`.
-- **No multi-line `node -e` from PowerShell.** It exits 0 with empty output.
+- **No multi-line `node -e` from PowerShell.** It can exit 0 with empty
+  output.
   Write the script to a scratch file and run it by path.
 - **Commit messages from PowerShell.** Commit with `-m` and a single-quoted
   here-string, never `git commit -F -`, which takes the here-string as a
@@ -867,10 +870,10 @@ Each of these looks like success.
   escape with four hex digits into the character itself. Write JavaScript
   escapes in the brace form, `\u{200B}`, scan the file for invisible
   characters after editing, and say so in a subagent's brief for such work.
-- **Collapsing commits.** Reset to the fork point,
-  `git merge-base <branch> origin/<default>`, never `git reset --soft` onto a
-  ref that has moved: the soft reset keeps the old copy of every file that ref
-  changed. Compare `git diff origin/<default>...HEAD --stat` before and after.
+- **Collapsing commits.** Soft-reset to the fork point,
+  `git reset --soft $(git merge-base <branch> origin/<default>)`, never onto
+  a ref that has moved since the branch forked: that keeps the old copy of
+  every file the ref changed. Compare `git diff origin/<default>...HEAD --stat` before and after.
 - **Worktrees share one object store.** A sibling session's unpushed branch
   can be logged, diffed and merged in a scratch worktree, with no push.
 - **Finding a session.** Find which session works on something by the session
@@ -2797,12 +2800,13 @@ file.
   state.
 
 **Stopping a hardening loop.** When each round on one change finds another
-path to harden, stop the loop once the next fix would cost more than the
-threat's rating justifies, and bring me what is left as accepted-risk
-candidates; nothing is recorded without my word. Judge the result on
-maintainability: each limit small, self-explaining and tested, and how far
-the core files grew. A security finding still goes by the security bar, and I
-see both its cost and its risk.
+security path to harden, the security bar is how the loop ends: once the next
+fix's cost is grossly out of proportion to the severity and likelihood of
+what it closes, stop, show me both, and bring me what is left as
+accepted-risk candidates; nothing is recorded without my word. Hardening that
+isn't a security finding is never built unasked anyway. Judge the result on
+maintainability: each guard small, self-explaining and tested, and how far
+the core files grew.
 
 **Disposition words.** A trade-off finding's row keeps the words below:
 `taken` when I take the limit's side, `fixed` when the fix is built anyway,
@@ -2812,7 +2816,8 @@ the cost. Add no word.
 ## Posting
 
 This section applies to every report and comment you post, those of lenses a
-skill runs included.
+skill runs included, and its rules on other projects and cited threads to
+everything you publish.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
@@ -3006,7 +3011,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash de341c2848c0967e7a09002358bffb9a70ad40e76a796f5d9bf1b8cc1c1da22a 'CLAUDE.md'
+check_hash 2370ba66083abc9e7d4991c1898b2be0e1420ee9effbbc37ff79014fdfe47309 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -3016,7 +3021,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 01b9d57759d714fff89079a3a28fd6eaec6713c01fd9873101228d5b67fb0359 'pact/review.md'
+check_hash d27a6a76b847f23bb1bd4cf7dc9bd2f28950d22fd77dda337b044f1512a6d15b 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3046,7 +3051,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 2cd551a0cabb"
+  echo "pact cloud copy 6f630e609d82"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

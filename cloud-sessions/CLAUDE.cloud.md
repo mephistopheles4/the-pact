@@ -75,7 +75,8 @@ and help with what it needs.
 - **Keep the record where the project keeps it.** Sign what you post there
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
-  propose a fresh session.
+  propose a fresh session. Before you publish anything, a commit or a
+  committed file included, read Posting in the review procedure.
 - **Say a mismatch first.** If the tier or model doesn't fit the work,
   say so in the first line, before any work.
 
@@ -129,14 +130,15 @@ every other way out has its condition.
 | Deploy | I decide | I decide | I decide | I decide | none | |
 | Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
 
-When you ask CodeRabbit for a review, read its first comment on the PR
+When you ask CodeRabbit, a PR review service, for a review, read its first comment on the PR
 afterwards: "No actionable comments were generated in the recent review",
 with a covered commit equal to the PR's head, means the head passed. A clean
 pass often posts no review event or inline comment, so waiting for one never
 ends.
 
 Before you say a skill isn't installed, look for its `SKILL.md` in the user
-skill folders. A skill with `disable-model-invocation: true` is installed but
+skills folder, `~/.claude/skills/`, and in the installed plugins' skill
+folders. A skill with `disable-model-invocation: true` is installed but
 hidden from your list: say "installed but user-invoked only", and offer that
 I type it.
 
@@ -289,18 +291,19 @@ whatever its "At the limit" says.
   and tell me the figure and a rough cost. When it is above 75%, wait for my
   go-ahead. The call to cut or stop work over usage is mine.
 
-- **Fable.** Fable use counts toward the all-models weekly limit as well as
-  its own, and it is the most expensive choice, so never suggest it to save
+- **Fable.** Fable, a model with a weekly limit of its own, also counts
+  toward the all-models weekly limit, and it is the most expensive choice, so never suggest it to save
   weekly usage.
 
 ## Tool traps
 
-Each of these looks like success.
+Each of these has cost turns, most by looking like success.
 
 - **PowerShell hides a failure's output.** In the PowerShell tool, a command
-  that exits non-zero returns no output at all. Send the output of a command
+  that exits non-zero can return no output at all. Send the output of a command
   that may fail to a temp file, read it, and end with `exit 0`.
-- **No multi-line `node -e` from PowerShell.** It exits 0 with empty output.
+- **No multi-line `node -e` from PowerShell.** It can exit 0 with empty
+  output.
   Write the script to a scratch file and run it by path.
 - **Commit messages from PowerShell.** Commit with `-m` and a single-quoted
   here-string, never `git commit -F -`, which takes the here-string as a
@@ -314,10 +317,10 @@ Each of these looks like success.
   escape with four hex digits into the character itself. Write JavaScript
   escapes in the brace form, `\u{200B}`, scan the file for invisible
   characters after editing, and say so in a subagent's brief for such work.
-- **Collapsing commits.** Reset to the fork point,
-  `git merge-base <branch> origin/<default>`, never `git reset --soft` onto a
-  ref that has moved: the soft reset keeps the old copy of every file that ref
-  changed. Compare `git diff origin/<default>...HEAD --stat` before and after.
+- **Collapsing commits.** Soft-reset to the fork point,
+  `git reset --soft $(git merge-base <branch> origin/<default>)`, never onto
+  a ref that has moved since the branch forked: that keeps the old copy of
+  every file the ref changed. Compare `git diff origin/<default>...HEAD --stat` before and after.
 - **Worktrees share one object store.** A sibling session's unpushed branch
   can be logged, diffed and merged in a scratch worktree, with no push.
 - **Finding a session.** Find which session works on something by the session
