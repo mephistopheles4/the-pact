@@ -12,3 +12,4 @@ Design round 1 ran all four lenses on the sensitive route, relayed. The owner th
 - Design round 1, all four lenses: https://github.com/mephistopheles4/the-pact/issues/401#issuecomment-6400606302
 - Design round 2, the spec pair: https://github.com/mephistopheles4/the-pact/issues/401#issuecomment-6400749272
 - Test round 1, the QA and standards pairs: https://github.com/mephistopheles4/the-pact/issues/401#issuecomment-6400885600
+- Test closing read of 75961b0, all four lenses: https://github.com/mephistopheles4/the-pact/issues/401#issuecomment-6401038907

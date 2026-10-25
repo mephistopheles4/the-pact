@@ -296,13 +296,14 @@ round at a glance and the data stays as it is. In this order:
    - **A signal table,** one row per lens that ran: the lens, its signal and
      one line in your own words. A lens's signal is its most urgent row's
      fate, in the order of the list below.
-   - **Fates,** one scheme for signals and diagram pins:
+   - **Fates,** a key you use, not a part you post: one scheme for signals
+     and diagram pins.
      - **For me:** an `open` row that needs my decision, or a trade-off or
        `security?` row waiting on me. 🔴 when it is security, else 🟠; a red
-       pin, `#cf222e33`, with a thicker border for security.
+       pin, `#cf222e33`.
      - **Waiting:** an `open` row that needs nothing from me now, such as a
        rerun due; an inconclusive lens; a withheld row. 🟡; a yellow pin,
-       `#d4a72c33`.
+       `#d4a72c33`, but never a pin for a withheld row.
      - **Taken:** 🔵; a blue pin, `#0969da33`.
      - **Fixed, or a clear lens:** 🟢; a green pin, `#2da44e33`.
      - **Dismissed, noted or skipped:** ⚪; no pin.
@@ -409,7 +410,7 @@ holds renders as it would unfolded.
 - **One palette, for light and dark themes.** Each fill is its fate's colour
   at about 20% opacity, as the eight-digit hex in Fates, with a solid border
   in the same colour without the last two digits, `stroke-width:2px` for a
-  pin for me. Never set `color:`. Boundary boxes have a transparent fill and
+  pin for me and `3px` for one that is security. Never set `color:`. Boundary boxes have a transparent fill and
   a grey dashed border, `#8c959f`.
 - **Labels are your own words,** never text copied from a report, and hold no
   link, no `click` or `href`, and no init directive. An open security
@@ -425,10 +426,13 @@ holds renders as it would unfolded.
   question, so a crossing means two different problems meet at one place.
 - **Small work,** a round with one posted finding or none: the title line,
   the count line, any "not verified" mark and the count of not-checked items
-  per posted lens, then the folds. No signal table or diagram, and a box
-  only for a row for me.
+  per posted lens, then the folds. No diagram; a signal table only for a
+  withheld lens's row; and a box only for a row for me, an `[!IMPORTANT]`
+  item or the withheld note.
 - **A record that is not GitHub,** such as the review shown in chat: the
-  human layer is plain text, with no diagrams and no alert markup.
+  human layer is the title line, the verdict line, the signal table, the
+  count line and the boxes' text, as plain text, with no diagrams and no
+  alert markup.
 - **Size:** one comment holds at most 65,536 characters. Past that, part 1
   holds the heading, the base line, the human layer and the two folds, and
   the reports go to part 2 and on, each part opening with a heading that

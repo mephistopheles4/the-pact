@@ -2574,13 +2574,14 @@ round at a glance and the data stays as it is. In this order:
    - **A signal table,** one row per lens that ran: the lens, its signal and
      one line in your own words. A lens's signal is its most urgent row's
      fate, in the order of the list below.
-   - **Fates,** one scheme for signals and diagram pins:
+   - **Fates,** a key you use, not a part you post: one scheme for signals
+     and diagram pins.
      - **For me:** an `open` row that needs my decision, or a trade-off or
        `security?` row waiting on me. 🔴 when it is security, else 🟠; a red
-       pin, `#cf222e33`, with a thicker border for security.
+       pin, `#cf222e33`.
      - **Waiting:** an `open` row that needs nothing from me now, such as a
        rerun due; an inconclusive lens; a withheld row. 🟡; a yellow pin,
-       `#d4a72c33`.
+       `#d4a72c33`, but never a pin for a withheld row.
      - **Taken:** 🔵; a blue pin, `#0969da33`.
      - **Fixed, or a clear lens:** 🟢; a green pin, `#2da44e33`.
      - **Dismissed, noted or skipped:** ⚪; no pin.
@@ -2687,7 +2688,7 @@ holds renders as it would unfolded.
 - **One palette, for light and dark themes.** Each fill is its fate's colour
   at about 20% opacity, as the eight-digit hex in Fates, with a solid border
   in the same colour without the last two digits, `stroke-width:2px` for a
-  pin for me. Never set `color:`. Boundary boxes have a transparent fill and
+  pin for me and `3px` for one that is security. Never set `color:`. Boundary boxes have a transparent fill and
   a grey dashed border, `#8c959f`.
 - **Labels are your own words,** never text copied from a report, and hold no
   link, no `click` or `href`, and no init directive. An open security
@@ -2703,10 +2704,13 @@ holds renders as it would unfolded.
   question, so a crossing means two different problems meet at one place.
 - **Small work,** a round with one posted finding or none: the title line,
   the count line, any "not verified" mark and the count of not-checked items
-  per posted lens, then the folds. No signal table or diagram, and a box
-  only for a row for me.
+  per posted lens, then the folds. No diagram; a signal table only for a
+  withheld lens's row; and a box only for a row for me, an `[!IMPORTANT]`
+  item or the withheld note.
 - **A record that is not GitHub,** such as the review shown in chat: the
-  human layer is plain text, with no diagrams and no alert markup.
+  human layer is the title line, the verdict line, the signal table, the
+  count line and the boxes' text, as plain text, with no diagrams and no
+  alert markup.
 - **Size:** one comment holds at most 65,536 characters. Past that, part 1
   holds the heading, the base line, the human layer and the two folds, and
   the reports go to part 2 and on, each part opening with a heading that
@@ -3044,7 +3048,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 9bc796bf2e5e5a2b9d3ab8762de77eeb3e2231006e4267b03a6bbe015ed05339 'pact/review.md'
+check_hash 642b9446d91f7c3f65cc80543fe2a427b3193c176315437e7363b83318d12a07 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3074,7 +3078,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 8a78345a398f"
+  echo "pact cloud copy 3e1cbaa8c180"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

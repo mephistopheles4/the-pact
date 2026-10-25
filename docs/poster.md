@@ -90,7 +90,7 @@ only `--label`'s values are also scanned, with the title and the body.
 | `--repo` | `owner/name`; the owner must be the `gh` login, by name and by what GitHub returns for the repo | `input/repo`, `owner/repo`, `owner/github` |
 | `--body` | A file: a regular file, not a link, at most 256 KiB, valid UTF-8 with no byte-order mark, not empty; the body at most 65,536 characters | the `file/` rules, `text/body-length` |
 | `--as` | A login the `gh` login must equal; needed when `GH_TOKEN` or `GITHUB_TOKEN` is set | `input/login`, `as/differs`, `as/missing` |
-| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. The content scan, the table check and the wrap and link checks all run; `gh` doesn't, so the login and owner checks don't, and nor does the `--as` check: a dry run can pass where the real run is refused | none |
+| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. The content scan, the table check, the fence check and the wrap and link checks all run; `gh` doesn't, so the login and owner checks don't, and nor does the `--as` check: a dry run can pass where the real run is refused | none |
 | `--title-file` | A file read as `--body` is; one line, which may end with one line break, at most 256 characters | the `file/` rules, `text/title-lines`, `text/title-length` |
 | `--label` | A label name: letters, digits, spaces and `:._-`, at most 50 characters; once per label. A label the repo doesn't have is created by GitHub, and stays | `input/label` |
 | `--head` | A branch, or `owner:branch` with the repo's own owner | `input/branch`, `owner/head` |
