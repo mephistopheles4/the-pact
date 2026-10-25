@@ -2,6 +2,8 @@
 
 Superseded in part by [ADR 0092](0092-gate-bad-cases-are-plain-test-loops.md) (2026-10-18): the table module it names is gone; the rows run as plain `test()` loops.
 
+Superseded in part by [ADR 0119](0119-the-eval-generator-is-a-tool-the-owner-runs.md) (2026-10-25): eval cases and a checker live in the repo again, as a tool the owner runs on request; the probe rule is unchanged.
+
 A change to an agent or a rule never needs a planted probe or a security-set rerun. AGENTS.md's "Testing a change to an agent or a rule" now says:
 
 - **The old probe floor takes the security route instead.** The security pair reads the spec and the diff of a change to the risk floor, the security route, a gated clause, the protected set, a security-set lens, a non-lens agent with a shell or network tools or that guards the route or the floor, the tool allow-list or the settings guard.
