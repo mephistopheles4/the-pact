@@ -18,4 +18,5 @@ No gate test was added: since ADR 0069 the gate holds no rule text word for word
 - The closing read of head e0576ad, all four lenses: https://github.com/mephistopheles4/the-pact/issues/399#issuecomment-6399290914
 - The closing read of head aa8d10b, all four lenses: https://github.com/mephistopheles4/the-pact/issues/399#issuecomment-6399413034
 - The scoped read of head f989a77: https://github.com/mephistopheles4/the-pact/issues/399#issuecomment-6399485304
+- The closing read of head a6b3299, all four lenses: https://github.com/mephistopheles4/the-pact/issues/399#issuecomment-6399612637
 - The follow-up: #407.
