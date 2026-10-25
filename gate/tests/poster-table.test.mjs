@@ -2,7 +2,8 @@
 // of #280). Every case runs the poster's post() in-process as a dry run, with
 // a gh that fails any call, so a refusal is seen to send nothing. Each bad
 // case is a row, except the state-word cases (#336 C4), which share one
-// test; the eleven recorded tables are fixtures, each reduced
+// test, and the review comment's layout cases (#401), each its own test,
+// the fence check's cases sharing the C8 test; the eleven recorded tables are fixtures, each reduced
 // to its label line and table with every unread cell a placeholder.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -66,7 +67,7 @@ function runBody(tree, t) {
 function refusedQuietly(r) {
   assert.equal(r.real.code, 2, r.out);
   assert.equal(r.calls.length, 0, 'a refusal calls no gh');
-  for (const l of r.real.lines.slice(0, -1)) assert.match(l, /^REFUSED table\/[a-z]+ body [1-9][0-9]*:[1-9][0-9]*$/, r.out);
+  for (const l of r.real.lines.slice(0, -1)) assert.match(l, /^REFUSED (?:table\/[a-z]+|fence\/unclosed) body [1-9][0-9]*:[1-9][0-9]*$/, r.out);
   assert.ok(!r.out.includes(MARK), `the output quotes a cell: ${r.out}`);
 }
 
@@ -95,7 +96,7 @@ function refusedQuietly(r) {
     { id: 'two-rules-in-one-cell', plant: row(3, '| | data-lens | skipped (auto, x) | none |'), fails: ['table/skipped', 'table/auto'], why: 'each rule a cell breaks is named' },
     { id: 'in-a-fold', plant: swap(`${LABEL}\n\n${HEADER}`, `${LABEL}\n\n<details><summary>Table</summary>\n\n| Finding | Lens | Disposition | Rerun, if any |`), fails: ['table/header'], why: 'a fold hides nothing from the check' },
     { id: 'after-a-closed-fence', plant: swap(`${LABEL}\n`, `${LABEL}\n\n${FENCE3}text\na line\n${FENCE3}\n\n| Finding | Lens | Disposition | Rerun, if any |\n${SEP}\n`), fails: ['table/header'], why: 'a closed fence ends where it closes' },
-    { id: 'fence-too-short', plant: asBody(body(LABEL, '', '<details><summary>a lens</summary>', '', `${FENCE3}text`, 'A report quoting', FENCE3, '### Lens dispositions', '', '| Finding | Lens | Disposition | Rerun, if any |', SEP, `| new ${MARK} | x-lens | fixed | none |`, FENCE3, '', '</details>')), fails: ['table/header'], why: 'a three-backtick line inside a three-backtick fence closes it' },
+    { id: 'fence-too-short', plant: asBody(body(LABEL, '', '<details><summary>a lens</summary>', '', `${FENCE3}text`, 'A report quoting', FENCE3, '### Lens dispositions', '', '| Finding | Lens | Disposition | Rerun, if any |', SEP, `| new ${MARK} | x-lens | fixed | none |`, FENCE3, '', '</details>')), fails: ['table/header', 'fence/unclosed'], why: 'a three-backtick line inside a three-backtick fence closes it, and the fence that closed it is left open (#401)' },
     { id: 'info-string-backtick', plant: asBody(body(LABEL, '', `${FENCE3}a${'`'}b`, '| Finding | Lens | Disposition | Rerun |', SEP, `| new ${MARK} | x-lens | changed | none |`)), fails: ['table/disposition'], why: 'a backtick run whose info string holds a backtick opens no fence' },
     { id: 'title-case-label', plant: asBody(body('**Lens Dispositions**', '', HEADER, SEP, `| new ${MARK} | x-lens | done | none |`)), fails: ['table/disposition'], why: 'the label is read in any case' },
     { id: 'crlf', plant: tree => ({ 'body.md': tree['body.md'].replace(ROWS[0], `| new ${MARK} F1 | behaviour-lens | Fixed | none |`).replace(/\n/g, '\r\n') }), fails: ['table/disposition'], why: 'a body with Windows line ends' },
@@ -182,6 +183,48 @@ test('table refusals past fifty are counted, not listed', t => {
   assert.equal(r.real.lines.at(-1), 'RESULT: refused 5000');
 });
 
+// #401: the review comment's own layout. A human layer on top (title, signal table, an alert, a centred diagram, the counts), then the table in a fold whose summary line is its only label, the crossed findings and a report folded after it.
+const LAYOUT = (rows, { open = false } = {}) => body('### behaviour-lens and integrity-lens', '', 'Base `abc1234`, head `def5678`: a first round for both lenses.', '',
+  '## Test round 1 on `def5678`: findings, 1 for you', '', '| Lens | Signal | In one line |', '| :--- | :--- | :--- |', '| **behaviour** | 🟠 open | a claim to settle |', '',
+  '<div align="center">', '', `${FENCE3}mermaid`, 'flowchart TB', '  A["a part"] --> P(["a finding"])', ...(open ? [] : [FENCE3]), '', '</div>', '',
+  '> [!WARNING]', '> Decision: `a headline` (behaviour-lens). Which way?', '', 'Fixed 1 · Open 1', '',
+  `<details><summary>Lens dispositions (${rows.length} findings)</summary>`, '', HEADER, SEP, ...rows, '', '</details>', '',
+  '<details><summary>Crossed findings (0 crossings, 2 lenses)</summary>', '', '**Verdict: findings.**', '', '</details>', '',
+  '<details><summary>behaviour-lens: findings</summary>', '', `${FENCE4}text`, 'A report.', FENCE4, '', '</details>');
+const LAYOUT_ROWS = [ROWS[0], ROWS[6]];
+const lineOf = (text, line) => text.split('\n').indexOf(line) + 1;
+
+// #401 C2: a table in the review comment's fold passes as it would outside it.
+test("a table in the review comment's Lens dispositions fold passes", t => {
+  assertPasses(runBody({ 'body.md': LAYOUT(LAYOUT_ROWS) }, t));
+});
+
+// #401 C3: a broken row in that fold is refused at its row, with nothing sent.
+test("a broken row in the review comment's Lens dispositions fold is refused at its row", t => {
+  const bad = `| new ${MARK} F6 | unstated-lens | changed | |`;
+  const text = LAYOUT([ROWS[0], bad]);
+  const r = runBody({ 'body.md': text }, t);
+  refusedQuietly(r);
+  assert.deepEqual(r.real.lines, [`REFUSED table/disposition body ${lineOf(text, bad)}:31`, 'RESULT: refused 1']);
+});
+
+// #401 C8: a diagram fence left open swallows the folds and the table, so the body is refused at the fence; closed, the same body passes (the C2 test above).
+test('a fence left open is refused at the fence', t => {
+  const text = LAYOUT(LAYOUT_ROWS, { open: true });
+  const r = runBody({ 'body.md': text }, t);
+  assert.equal(r.real.code, 2, r.out);
+  assert.equal(r.calls.length, 0, 'a refusal calls no gh');
+  assert.deepEqual(r.real.lines, [`REFUSED fence/unclosed body ${lineOf(text, `${FENCE3}mermaid`)}:1`, 'RESULT: refused 1']);
+  // Each line a diagram never holds refuses on its own, though a later closer would close the fence: another fence, a fold's opening tag, its closing tag.
+  const refusedAtOne = ['REFUSED fence/unclosed body 1:1', 'RESULT: refused 1'];
+  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, 'flowchart TB', `${FENCE4}text`, 'x', FENCE4, FENCE3) }, t).real.lines, refusedAtOne);
+  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '<details><summary>x</summary>', FENCE3) }, t).real.lines, refusedAtOne);
+  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '</details>', FENCE3) }, t).real.lines, refusedAtOne);
+  // A tilde fence, and a fence indented three spaces, are fences too.
+  assert.deepEqual(runBody({ 'body.md': body('text', '', '~~~', 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:1', 'RESULT: refused 1']);
+  assert.deepEqual(runBody({ 'body.md': body('text', '', `   ${FENCE3}text`, 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:4', 'RESULT: refused 1']);
+});
+
 // #280 C7: the review procedure's fold, a four-backtick fence holding a three-backtick line, stays closed to the check.
 test('a Disposition table inside a four-backtick fence that holds a three-backtick line is never read', () => {
   const report = ['<details><summary>a lens: findings</summary>', '', `${FENCE4}text`, 'A report quoting:', `${FENCE3}text`, 'code', FENCE3, LABEL, '', '| Finding | Lens | Disposition | Rerun, if any |', SEP, '| new a | | changed |', FENCE4, '', '</details>'];
@@ -262,8 +305,8 @@ test('a worst-case body at the 65,536-character limit finishes within two second
     const r = runBody({ 'body.md': text }, t);
     const ms = performance.now() - start;
     assert.ok(ms < 2000, `${name}: ${Math.round(ms)} ms`);
-    // Any refusal here is the table check's, so a size refusal can't stand in for it.
-    assert.ok(r.fails.every(f => f.startsWith('table/')), `${name}: ${r.out.slice(0, 300)}`);
+    // Any refusal here is the table check's, or the fence check's on the two bodies that end inside a fence (#401), so a size refusal can't stand in for it.
+    assert.ok(r.fails.every(f => f.startsWith('table/') || (f === 'fence/unclosed' && name.startsWith('one line of backticks'))), `${name}: ${r.out.slice(0, 300)}`);
     if (name === 'many short units') assert.ok(r.fails.length > 0, 'the units are refused');
   }
 });
