@@ -154,6 +154,7 @@ test('C4: each refusal exits non-zero and writes nothing', t => {
   refused({ casesDir: bad('own', '---\nmax_turns: 4\nallowed_tools: []\nappend_system_prompt: "x"\n---\n\nbody\n') }, /append_system_prompt/);
   refused({ casesDir: bad('tools', '---\nmax_turns: 4\nallowed_tools: [Read]\n---\n\nbody\n') }, /tool/);
   refused({ casesDir: bad('twice', '---\nmax_turns: 4\nallowed_tools: [Bash]\nallowed_tools: []\n---\n\nbody\n') }, /twice/);
+  refused({ casesDir: bad('quoted', '---\nmax_turns: 4\nallowed_tools: []\n"allowedTools": [Bash]\n---\n\nbody\n') }, /plain key/);
   refused({ casesDir: bad('camel', '---\nmax_turns: 4\nallowed_tools: []\nallowedTools: [Bash]\n---\n\nbody\n') }, /tool/);
   refused({ casesDir: bad('nokey', '---\nmax_turns: 4\n---\n\nbody\n') }, /tool/);
   refused({ casesDir: bad('round', '---\nmax_turns: 4\nallowed_tools: []\nnote: a --- b\n---\n\nbody\n') }, /round trip/);

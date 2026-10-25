@@ -159,6 +159,7 @@ function readCase(dir, name) {
   if (!parts) refuse(`case ${name}: no front matter`);
   const keys = keysOf(parts.head);
   if ('append_system_prompt' in keys) refuse(`case ${name}: it sets append_system_prompt of its own`);
+  if (parts.head.some(l => l.trim() && !l.trim().startsWith('#') && !/^[A-Za-z_][A-Za-z0-9_-]*:\s/.test(l + ' '))) refuse(`case ${name}: its front matter holds a line that is not a plain key: value`);
   const names = keyNames(parts.head);
   if (new Set(names).size !== names.length) refuse(`case ${name}: its front matter sets a key twice`);
   if (names.some(k => /tool/i.test(k) && k !== 'allowed_tools')) refuse(`case ${name}: it must grant no tool (allowed_tools: [])`);
