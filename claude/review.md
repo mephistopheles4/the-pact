@@ -12,7 +12,9 @@ brought from elsewhere runs the same way as the pact's.
 
 **Inputs, by what is reviewed.** A lens reads; it doesn't build. Give each
 lens its input as local files, with the absolute working folder when it reads
-the repo.
+the repo. Ask each lens to cite files by repo-relative path, and to add no
+list of the local files it read: a report that names a path holding a user
+name stays local, and a lens is never rerun to get a clean copy.
 - **A spec:** number its headings `S1`, `S2` and on. Give the section list,
   the spec and the request.
 - **A result:** number the acceptance claims `C1`, `C2` and on, from the
@@ -235,7 +237,11 @@ question for me: add each as a claim, or skip it. Record a skip once, in the
 Lens dispositions table, as "skipped, because ...".
 
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
-another lens's report. Never resume a lens.
+another lens's report. Never resume a lens. The lenses of one round run in
+parallel on the same head, so every report reviews the same diff: hold your
+edits until every report is in, then fix and cross once. Any limit you keep
+on heavy jobs at a time, such as test suites and scanners, doesn't count lens
+subagents.
 
 **Counting a round.** Before you dispatch a round, count it against each Cost
 limits row that no quality's Enough names, each by its Counted as: Lens pairs
@@ -447,6 +453,14 @@ file.
   row says "taken earlier", under the four conditions in Findings and their
   state.
 
+**Stopping a hardening loop.** When each round on one change finds another
+path to harden, stop the loop once the next fix would cost more than the
+threat's rating justifies, and bring me what is left as accepted-risk
+candidates; nothing is recorded without my word. Judge the result on
+maintainability: each limit small, self-explaining and tested, and how far
+the core files grew. A security finding still goes by the security bar, and I
+see both its cost and its risk.
+
 **Disposition words.** A trade-off finding's row keeps the words below:
 `taken` when I take the limit's side, `fixed` when the fix is built anyway,
 `dismissed` when it is dropped. Its reason text starts `trade-off:` and names
@@ -465,6 +479,19 @@ skill runs included.
   name it holds. A report kept local stays out of the review comment too:
   leave its rows and strings out, write "withheld, see chat" in their place,
   and give me its path in chat, never in the record.
+- **Other projects stay unnamed.** Text you publish (a commit, a PR body, an
+  issue comment, a committed file) never names another project's issue or
+  pull request, by number, reference or link: a reference puts an event on
+  that issue that can't be removed. Describe the upstream behaviour in your
+  own words. A squash merge copies the branch's commit messages into the
+  default branch, so when one of them carries such a reference, write the
+  squash body by hand.
+- **People in a cited thread stay unnamed.** A public record should not name
+  or characterise private people, and a pushed commit can't be fully erased.
+  A note that cites a forum thread calls the people in it "the person who
+  posted", "a person" or "people", and leaves out their usernames, their products, the
+  thread's title and link, post ids, counts and direct quotes. Cite it as a
+  public thread, with the date you read it.
 - **Verbatim reports go in a fold,** an HTML details element whose summary
   names the lens and its verdict, holding the report in a fenced block. The
   fence is at least three backticks, one more than the report's longest run of

@@ -479,7 +479,10 @@ Read the dry run as step 4 says, then run the apply command yourself.
 
 ## Updating later
 
-Pull the repo, and read what changed before you run anything: the dry run
+Fast-forward the repo (`git pull --ff-only`): a checkout behind the last
+install's commit would roll the pact back, and the dry run doesn't warn
+about it yet (#407). Read what
+changed before you run anything: the dry run
 runs the new code, and a session opened in the clone loads its project files.
 The dry run's `Last install:` line names the commit you have.
 `git diff <that commit> HEAD` shows everything that arrived since, merges

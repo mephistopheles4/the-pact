@@ -53,6 +53,18 @@ and help with what it needs.
 - **Bring me decisions.** Sort a review: fix what is mechanical, group what is
   one question, and bring each real choice with your recommendation and why.
   Act on your own recommendation for the rest, and tell me what you took.
+  For a change to a file, quote its current text, then the wording you
+  propose and one recommendation with why: one item per turn, ending with
+  clickable choices where the harness offers them, your recommendation first.
+  I can't weigh text I haven't seen, and I mostly take the recommendation, so
+  a click saves me typing it. Bring research the same way, as one concrete
+  example in my terms, never a survey I can't push back on. Working under a
+  lead session I set up, send those parts to the lead instead of asking in
+  your own chat, and act on my answer as the lead relays it.
+- **Clean up my words.** When my words come by speech-to-text and you record
+  them, such as a decided answer or a quote in a spec, clean up dictation
+  slips and filler without changing the meaning, show me the cleaned text
+  once, and say what you assumed where a word looked wrong.
 - **These decisions are always mine:** proceed, fix or kill on a spec; the
   ticket cut; accepting the work, closing a ticket and merging; an install;
   anything published; accepting a risk. Show each as two or three options, your pick marked
@@ -60,7 +72,10 @@ and help with what it needs.
   included. A command you can't run, such as one that needs my sign-in or a
   password, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
-  repo has, then offer the reviews the work calls for (see Workflow).
+  repo has, then offer the reviews the work calls for (see Workflow). Never
+  promise to tell me when a PR goes green through Desktop's Auto-fix: it
+  wakes a session on a failure, a conflict or a review comment, never on all
+  green. When I ask, read the head and its checks once.
 - **Keep the record where the project keeps it.** Sign what you post there
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
@@ -125,6 +140,17 @@ every other way out has its condition.
 | Deploy | I decide | I decide | I decide | I decide | none | |
 | Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
 <!-- pact:end workflow -->
+
+When you ask CodeRabbit for a review, read its first comment on the PR
+afterwards: "No actionable comments were generated in the recent review",
+with a covered commit equal to the PR's head, means the head passed. A clean
+pass often posts no review event or inline comment, so waiting for one never
+ends.
+
+Before you say a skill isn't installed, look for its `SKILL.md` in the user
+skill folders. A skill with `disable-model-invocation: true` is installed but
+hidden from your list: say "installed but user-invoked only", and offer that
+I type it.
 
 ## Lenses
 
@@ -284,3 +310,41 @@ whatever its "At the limit" says.
 <!-- pact:end usage-pause -->
 <!-- pact:begin usage-pause-session -->
 <!-- pact:end usage-pause-session -->
+
+- **Fable.** Fable use counts toward the all-models weekly limit as well as
+  its own, and it is the most expensive choice, so never suggest it to save
+  weekly usage.
+
+## Tool traps
+
+Each of these looks like success.
+
+- **PowerShell hides a failure's output.** In the PowerShell tool, a command
+  that exits non-zero returns no output at all. Send the output of a command
+  that may fail to a temp file, read it, and end with `exit 0`.
+- **No multi-line `node -e` from PowerShell.** It exits 0 with empty output.
+  Write the script to a scratch file and run it by path.
+- **Commit messages from PowerShell.** Commit with `-m` and a single-quoted
+  here-string, never `git commit -F -`, which takes the here-string as a
+  pathspec and commits nothing. When a message must stay byte-identical,
+  drive git from a Node script: a PowerShell pipe turns line feeds into CRLF.
+- **Literal text in PowerShell.** Test and replace with `.Contains()` and
+  `.Replace()`, never `-like` or `-replace`: `-like` reads brackets as a
+  wildcard class and `-replace` takes a regex, so a check on code-shaped text
+  can say "not found" when the text is there.
+- **Escapes in written files.** The Write and Edit tools turn a backslash-u
+  escape with four hex digits into the character itself. Write JavaScript
+  escapes in the brace form, `\u{200B}`, scan the file for invisible
+  characters after editing, and say so in a subagent's brief for such work.
+- **Collapsing commits.** Reset to the fork point,
+  `git merge-base <branch> origin/<default>`, never `git reset --soft` onto a
+  ref that has moved: the soft reset keeps the old copy of every file that ref
+  changed. Compare `git diff origin/<default>...HEAD --stat` before and after.
+- **Worktrees share one object store.** A sibling session's unpushed branch
+  can be logged, diffed and merged in a scratch worktree, with no push.
+- **Finding a session.** Find which session works on something by the session
+  list's titles and branches, never by a worktree-derived name, which records
+  only where a session started. An idle session is not gone.
+- **A subagent and a versioned script.** When a subagent runs a versioned
+  script from a worktree, give it a check on the output's content, not only
+  the path: it may run the main checkout's copy.
