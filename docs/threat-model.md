@@ -136,6 +136,39 @@ skill folder no longer listed (`resolving-merge-conflicts`). The setup names
 an official marketplace still configured in its Result; it removes nothing.
 The live run (C9) checks for clashes.
 
+## Input validation here
+
+The pact's code reads outside input in four places. Each check is set out
+in full in its own section; this one gathers them, so the sensitive-list
+check can read them in one place. It adds no control and accepts no risk.
+
+- **The install.** It reads only the named commit's own bytes, and checks a
+  configuration or builder file against the renderer's fixed fields and
+  limits before it renders (R17, R30, R31).
+- **The cloud setup.** `gen.mjs` refuses a pin out of its shape; the setup
+  reads upstream catalogs and the GitHub API's answers as data and keeps
+  only what passes its shape checks (R10, R45; A compromised or careless
+  plugin or skill).
+- **The poster.** Where the owner turns it on, its input rules, strict file
+  reads, content scans and table check (The poster's own checks). The table
+  check reads the text after a Finding cell's lead state word as written and
+  on both normalised views, so a form the page folds into "withheld" is read
+  as the word, and so is a word the page hides in a comment or tag; a copy
+  without emphasis, code span and link marks catches the word split by them
+  (#392).
+- **The tracker author checker.** Its fixed input shape, stops and escaped
+  output (The tracker author checker's own checks).
+
+The rest is covered by the accepted risks those sections name: R41 for the
+table check's pairing of a state word with a Disposition word, R57 for a
+withheld row's state in a form or cell the table check does not read or
+fold, such as a look-alike letter from another script or a named character
+reference outside the poster's list, R14 for a rewritten tool, and R12 and
+R15 for text a lens or a cloned repo hands a session, which no check in
+code reads.
+Prose a session reads is not validated in code; the rules and judgment in
+A session that reads text as instructions stand there.
+
 ## The risks at a glance
 
 The chart places each accepted risk by what is left after today's guards.
@@ -284,6 +317,7 @@ How to read it:
 | R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091). The default's `addyosmani/agent-skills` pin lives in `builder/presets/level-3-full.json`, and a person's own pins in their configuration; ADR 0091's bump procedure covers both, and each send a bump's read names goes to you before the bump is committed (#183 T4a) | Rule |
 | R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
+| R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on four views of the text after the state word (#392) | Rule |
 
 ## Strangers on the tracker
 
@@ -1191,6 +1225,13 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   Accepted by the owner on 2026-10-18, in chat ("Proceed as recommended",
   after the merge of #339), from the Test review of #336 (adversarial-lens,
   a Hardening trade-off, ADR 0090).
+- **R57. The table check doesn't read every form of a withheld row's state.**
+  A state word beside a withheld row, written with a look-alike letter from
+  another script, a named character reference outside the poster's list, or
+  in a cell or wording the check doesn't read, passes it. The review
+  procedure's rule for a withheld finding is the control; the check is only
+  a backstop. Accepted by the owner on 2026-10-25, relayed by the lead, from
+  the Test review of #391 and #392 (adversarial-lens).
 
 ## The tracker author checker's own checks
 
