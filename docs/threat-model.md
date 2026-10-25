@@ -1220,8 +1220,9 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   title one line (`text/body-length`, `text/title-lines`,
   `text/title-length`). The content
   scans and the table check that follow are the backstop R3, R13 and R29
-  name. Two body checks, `text/hard-wrap` and `link/relative`, keep a post
-  from landing broken; they are not a security control.
+  name. Three body checks, `fence/unclosed`, `text/hard-wrap` and
+  `link/relative`, keep a post from landing broken; they are not a security
+  control.
 - **R41. The poster doesn't pair a state word with a Disposition word.** It
   refuses a Lens dispositions row with no state word, and a withheld row
   whose Disposition isn't one bare word, but it lets `new` stand beside

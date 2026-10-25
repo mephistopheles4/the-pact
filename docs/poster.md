@@ -90,7 +90,7 @@ only `--label`'s values are also scanned, with the title and the body.
 | `--repo` | `owner/name`; the owner must be the `gh` login, by name and by what GitHub returns for the repo | `input/repo`, `owner/repo`, `owner/github` |
 | `--body` | A file: a regular file, not a link, at most 256 KiB, valid UTF-8 with no byte-order mark, not empty; the body at most 65,536 characters | the `file/` rules, `text/body-length` |
 | `--as` | A login the `gh` login must equal; needed when `GH_TOKEN` or `GITHUB_TOKEN` is set | `input/login`, `as/differs`, `as/missing` |
-| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. The content scan, the table check and the wrap and link checks all run; `gh` doesn't, so the login and owner checks don't, and nor does the `--as` check: a dry run can pass where the real run is refused | none |
+| `--dry-run` | No value. Prints the `gh` arguments and the request with each text replaced by its size, and sends nothing. The content scan, the table check, the fence check and the wrap and link checks all run; `gh` doesn't, so the login and owner checks don't, and nor does the `--as` check: a dry run can pass where the real run is refused | none |
 | `--title-file` | A file read as `--body` is; one line, which may end with one line break, at most 256 characters | the `file/` rules, `text/title-lines`, `text/title-length` |
 | `--label` | A label name: letters, digits, spaces and `:._-`, at most 50 characters; once per label. A label the repo doesn't have is created by GitHub, and stays | `input/label` |
 | `--head` | A branch, or `owner:branch` with the repo's own owner | `input/branch`, `owner/head` |
@@ -118,7 +118,7 @@ page and login are the ones the poster checked before it sent, never text from
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
 | 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the body file; tells the owner which field |
 | 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
-| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for a secret, a personal detail or hidden characters stays local, unedited, and the owner is told where it is, in chat; a table, wrap or link refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
+| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for a secret, a personal detail or hidden characters stays local, unedited, and the owner is told where it is, in chat; a table, wrap, link or fence refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
 | 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
 
@@ -185,6 +185,7 @@ nothing sent.
 | `table/skipped` | `skipped` isn't followed by `, because` |
 | `table/auto` | ` (auto` isn't followed by `:`, `)` or `, reversed` |
 | `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or the word "withheld", in any case, spacing or markup, comes straight after a state word |
+| `fence/unclosed` | A fence is left open: the body ends inside it, or a `mermaid` fence runs into another fence or a fold's tag |
 | `text/hard-wrap` | A prose line stops mid-sentence and the next line continues the same paragraph, list item or quote |
 | `link/relative` | A link's target has no scheme and isn't an anchor on the same page |
 
@@ -224,10 +225,19 @@ no test holds them.
   joiners and selectors ordinary emoji use are let through.
 - **The table check (`table/`):** on the body only, after the content scan.
   It reads a table with a header cell reading `Disposition` under an earlier
-  line naming "Lens dispositions", outside any fence, folds (`<details>` blocks) included; the review procedure gives the table's template. Of each row with the template's cell count, it reads the Finding cell's lead word and what follows it (unless the row is `skipped` or the cell is exactly `withheld, see chat`), whether the Lens cell is empty, and the Disposition cell, which in a withheld row must be one bare word (#336, ADR 0090). A
+  line naming "Lens dispositions", outside any fence, folds (`<details>` blocks) included; the review procedure gives the table's template, and its review comment folds the table, with the fold's summary line as the line naming "Lens dispositions" (#401). Of each row with the template's cell count, it reads the Finding cell's lead word and what follows it (unless the row is `skipped` or the cell is exactly `withheld, see chat`), whether the Lens cell is empty, and the Disposition cell, which in a withheld row must be one bare word (#336, ADR 0090). A
   refusal on a line inside a lens report means the report's fence is too
   short: fix the fence, never the report (ADR 0076). Past 50 table refusals,
   the rest are counted, not listed. It is a backstop too.
+- **The fence check (`fence/unclosed`):** on the body only, after the table
+  check. A fence left open swallows what follows it, the review comment's
+  folds and its table included, from the reader and from the table check. It
+  refuses a body that ends inside a fence, read as the table check reads
+  fences, and a `mermaid` fence that runs into a line no diagram holds:
+  another fence or a fold's tag. It names the opening fence's line and column.
+  It reads nothing inside a closed fence, so a diagram's labels are checked
+  only by the content scans above. A refusal on a line inside a lens report
+  means the report's fence is too short: fix the fence, never the report (#401).
 - **The wrap check (`text/hard-wrap`):** on the body only, after the table
   check. GitHub shows each single line break in a post, so a paragraph wrapped
   at a column limit lands as a ragged column. It refuses a prose line that
@@ -264,6 +274,11 @@ no test holds them.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
   leading `|`, and any table inside a fence.
+- **The review comment's human layer** (#401): its title, signal table, boxes
+  and counts, and what its diagrams say. The content scans read all of it,
+  diagrams included; the table, wrap and link checks never read inside a
+  fence, and nothing checks the counts against the table or that a withheld
+  finding stays out. The review procedure's rules alone hold those.
 - **A session that sets out to get past them.** They catch accidents.
 - **The poster itself.** Nothing checks the live file before a session runs
   it; the next dry run shows a changed one as drift (threat model, R14).
