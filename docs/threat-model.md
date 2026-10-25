@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, so other work can point at it. A
+Each accepted risk has a label, R1 to R47 and R57, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -136,6 +136,40 @@ skill folder no longer listed (`resolving-merge-conflicts`). The setup names
 an official marketplace still configured in its Result; it removes nothing.
 The live run (C9) checks for clashes.
 
+## Input validation here
+
+The pact's code reads outside input in four places. Each check is set out
+in full in its own section; this one gathers them, so the sensitive-list
+check can read them in one place. It adds no control and accepts no risk.
+
+- **The install.** It reads only the named commit's own bytes, and checks a
+  configuration or builder file against the renderer's fixed fields and
+  limits before it renders (R17, R30, R31).
+- **The cloud setup.** `gen.mjs` refuses a pin out of its shape; the setup
+  reads upstream catalogs and the GitHub API's answers as data and keeps
+  only what passes its shape checks (R10, R45; A compromised or careless
+  plugin or skill).
+- **The poster.** Where the owner turns it on, its input rules, strict file
+  reads, content scans and table check (The poster's own checks). The table
+  check reads the text after a Finding cell's lead state word as written and
+  on both normalised views, so a form the page folds into "withheld" is read
+  as the word, and so is a word the page hides in a comment or tag; a copy
+  with each link folded to its text and without emphasis and code span marks
+  catches the word split by them (#392).
+- **The tracker author checker.** Its fixed input shape, stops and escaped
+  output (The tracker author checker's own checks).
+
+The rest is covered by the accepted risks those sections name: R41 for the
+table check's pairing of a state word with a Disposition word, R57 for a
+withheld row's state in a form or cell the table check does not read or
+fold, such as a look-alike letter from another script or a named character
+reference outside the poster's list, R13 for a secret the content scans
+miss, R14 for a rewritten tool, and R12 and
+R15 for text a lens or a cloned repo hands a session, which no check in
+code reads.
+Prose a session reads is not validated in code; the rules and judgment in
+A session that reads text as instructions stand there.
+
 ## The risks at a glance
 
 The chart places each accepted risk by what is left after today's guards.
@@ -146,7 +180,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47
+  title Residual risk, R1 to R47 and R57
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -199,6 +233,7 @@ quadrantChart
   R45: [0.10, 0.80]
   R46: [0.15, 0.22]
   R47: [0.30, 0.55]
+  R57: [0.15, 0.20]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -217,7 +252,7 @@ How to read it:
 - **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
   is bounded: public reports, a blocked team, and a posted security row's
   state word showing whether the item sits in published code.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -228,7 +263,7 @@ How to read it:
   you, such as your user name in your home folder, to pass the read before
   posting.
   R37 costs a broken `node` command until the next setup, or tells mise's
-  vendor which versions a session runs. R41 and R42 need a session to break
+  vendor which versions a session runs. R41, R42 and R57 need a session to break
   the review procedure's own rule on a table row or on the base it hands a
   lens. R44 needs another reader of the session's disk before the kept-local
   reports are deleted. R46 costs a cloud session skipped plugins or skills,
@@ -284,6 +319,7 @@ How to read it:
 | R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091). The default's `addyosmani/agent-skills` pin lives in `builder/presets/level-3-full.json`, and a person's own pins in their configuration; ADR 0091's bump procedure covers both, and each send a bump's read names goes to you before the bump is committed (#183 T4a) | Rule |
 | R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
+| R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on four views of the text after the state word (#392) | Rule |
 
 ## Strangers on the tracker
 
@@ -1191,6 +1227,13 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   Accepted by the owner on 2026-10-18, in chat ("Proceed as recommended",
   after the merge of #339), from the Test review of #336 (adversarial-lens,
   a Hardening trade-off, ADR 0090).
+- **R57. The table check doesn't read every form of a withheld row's state.**
+  A state word beside a withheld row, written with a look-alike letter from
+  another script, a named character reference outside the poster's list, or
+  in a cell or wording the check doesn't read, passes it. The review
+  procedure's rule for a withheld finding is the control; the check is only
+  a backstop. Accepted by the owner on 2026-10-24, relayed by the lead, from
+  the Test review of #391 and #392 (adversarial-lens and data-lens).
 
 ## The tracker author checker's own checks
 
