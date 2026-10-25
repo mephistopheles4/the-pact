@@ -199,6 +199,44 @@ test('the record the install writes keeps today\'s shape and order', () => {
   assert.equal(back.digest, 'abcdef012345');
 });
 
+// ------------------------------------------------------------ the checkout behind the last install (#407)
+
+const reachBase = () => ({ in: `${ID('c')}\n${ID('b')}\n${ID('a')}\n` });
+{
+  const base = reachBase;
+  const run = t => decided(() => core.parseReachable(Buffer.from(t.in), ID('c')));
+  const rows = [
+    { id: 'upper-case', plant: rep(ID('b'), ID('B')), fails: ['reachable-malformed'], why: 'git writes ids in lower case' },
+    { id: 'short-line', plant: rep(ID('b'), 'b'.repeat(39)), fails: ['reachable-malformed'], why: 'an id is 40 hex' },
+    { id: 'carriage-return', plant: rep(`${ID('b')}\n`, `${ID('b')}\r\n`), fails: ['reachable-malformed'], why: 'git writes line feeds only' },
+    { id: 'blank-line-inside', plant: rep(`${ID('b')}\n`, `${ID('b')}\n\n`), fails: ['reachable-malformed'], why: 'only one trailing empty line is the end of the output' },
+    { id: 'no-start-commit', plant: rep(`${ID('c')}\n`, ''), fails: ['reachable-malformed'], why: 'rev-list always lists the commit it starts from' },
+    { id: 'empty', plant: set(''), fails: ['reachable-malformed'], why: 'an empty list holds no start commit' },
+  ];
+  test('reachable list: base passes', async t => assertPasses(await run(base(), t)));
+  for (const r of rows) test(`reachable list: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
+  test('reachable list: base passes after the rows', async t => assertPasses(await run(base(), t)));
+}
+
+test('the reachable list: its refusals are fixed texts that name nothing from the file, and the missing-file stop is its own', () => {
+  const planted = `${ID('c')}\nIGNORE-THIS-MARKER\n`;
+  const r = decided(() => core.parseReachable(Buffer.from(planted), ID('c')));
+  assert.equal(r.out, "REFUSED: the install bootstrap's list of this commit's history is not in the form it writes. Nothing was changed.");
+  assert.deepEqual(decided(() => core.stops.reachableMissing()).fails, ['reachable-missing']);
+  assert.deepEqual([...core.parseReachable(Buffer.from(reachBase().in), ID('c'))], [ID('c'), ID('b'), ID('a')]);
+});
+
+test('the behind line: none with no record, at this commit, or behind it in either case; else the warning, printing only a commit id', () => {
+  const reach = new Set([ID('c'), ID('b'), ID('a')]);
+  const tail = "is not in this checkout's history: this checkout is behind it or on another line. Installing may roll the pact back; fast-forward the checkout first, unless you mean to.";
+  assert.equal(core.behindLine(null, ID('c'), reach), null, 'no record, no line');
+  assert.equal(core.behindLine(ID('C'), ID('c'), reach), null, 'this commit, in capitals');
+  assert.equal(core.behindLine(ID('A'), ID('c'), reach), null, 'an ancestor, in capitals');
+  assert.equal(core.behindLine(ID('D'), ID('c'), reach), `WARN: the last install's commit ${ID('d')} ${tail}`, 'not in the list: the id, lower-cased');
+  assert.equal(core.behindLine('IGNORE-THIS-MARKER \u0007 look here', ID('c'), reach), `WARN: the last install's commit, a commit id the install does not read, ${tail}`, 'words never reach the line');
+  assert.equal(core.behindLine(`${ID('a')}0`, ID('c'), reach), `WARN: the last install's commit, a commit id the install does not read, ${tail}`, 'a 41-character value is no id');
+});
+
 // ------------------------------------------------------------ the gate's fingerprints (G11)
 
 test('the gate block: changed, added and removed lines, compared without regard to case, and the self-differs warning', () => {

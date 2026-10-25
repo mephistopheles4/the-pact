@@ -166,6 +166,7 @@ function main() {
   } catch (e) {
     refuse('the work folder could not be made in the temp folder.');
   }
+  writeFileSync(join(work, 'reachable'), git(['rev-list', commit]).stdout, { flag: 'wx' });
   const stage = join(work, 'stage');
   const out = git(['cat-file', '--batch'], `${staged.map(e => e.id).join('\n')}\n`).stdout;
   let pos = 0;
