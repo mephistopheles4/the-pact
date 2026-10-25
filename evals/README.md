@@ -49,6 +49,9 @@ It prints four steps, numbered as it prints them:
 
 - **Step 0:** enter the output folder.
 - **Step 1:** run one case: the canary with `--canary`, else the first case.
+  Every printed run carries `--trust-plugin`, which trusts the output folder
+  the generator just wrote: with `--json` the eval can't stop to ask, and it
+  refuses a folder it hasn't been told to trust.
 - **Step 2:** check that run. The printed line names the script by its full
   path, so it runs from the output folder; its form is
   `node evals/gen.mjs check <run JSON> <output folder>`.

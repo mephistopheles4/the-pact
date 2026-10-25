@@ -21,6 +21,7 @@ ADR 0045 deleted the practice cases and their scorer because each run cost a ses
 
 - **No case grants a tool.** Every printed run also denies the read, write, shell, web and subagent tools, so the "no real repository, network or credential" limit holds whatever the eval makes of an empty tool list. A tool call would show as a second turn, which `check` fails.
 - **`--no-publish` on every printed run.** The report stays on the owner's machine.
+- **`--trust-plugin` on every printed run.** It trusts only the folder the generator just wrote. With `--json` the eval can't stop to ask, and it refuses an untrusted folder; the owner's confirming run found that.
 - **Checked against Claude Code 2.1.310.** The flags, the front-matter reading and the JSON fields are its interfaces. After an update, the generator runs with `--canary` and its printed steps 1 and 2 run before a round is trusted.
 - **The judge is not trusted alone.** Every reply is read by hand; the Haiku judge was wrong in both earlier rounds.
 

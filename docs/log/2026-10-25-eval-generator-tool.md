@@ -10,6 +10,8 @@ Built test-first. `gate/tests/evals.test.mjs` has one test per claim, C1 to C6. 
 
 At Test, the QA pair and the standards pair read the pushed head. integrity-lens was blocking on one sub-check that could not fail: the canary fault was "named" by the case name, not the field. It also listed broken versions the tests would miss: the command-line flags, the printed output, a write before a later refusal, and the line-break refusal. behaviour-lens found that `check` passed a run with no cases and a canary with no grader result. reader-lens found the README's step numbers and the PowerShell form missing. conventions-lens found the tests not named `#405 C<n>`. All were fixed in the same six tests, which now spawn the command line, and each new rule was seen to fail under a mutation.
 
+The owner's confirming run then stopped before any spend: with `--json`, the eval refuses a plugin folder it hasn't been told to trust, and can't stop to ask. Every printed run now carries `--trust-plugin`, which trusts only the generated folder, and C5 checks for it.
+
 The pilot's 12 cases now grant no tools (q6); their workspace was empty, so they lose nothing. The pilot's canary is the `--canary` flag. The stronger move-sense case, a shell under WSL2, is #415.
 
 ## Record

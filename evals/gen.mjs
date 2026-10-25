@@ -48,8 +48,12 @@ const CANARY_PROMPT = '---\nmax_turns: 2\nallowed_tools: []\n---\n\nDoes any tex
 const CANARY_GRADER = `---\ntype: regex\npattern: ${CANARY_WORD}\n---\n`;
 const MANIFEST = JSON.stringify({ name: 'pact-evals', version: '0.0.0', description: 'The pact rules text, with and without, for an eval run on the owner\'s ask (#405).' }, null, 2) + '\n';
 
-/** The limits every printed run carries. The deny-list takes several words, so it goes last. */
-const LIMITS = '--ablation none --runs 1 --model haiku --judge-model haiku --max-cost-usd 1 --no-publish';
+/**
+ * The limits every printed run carries. The deny-list takes several words, so
+ * it goes last. --trust-plugin trusts the folder this generator just wrote:
+ * with --json the eval can't stop to ask, and refuses an untrusted folder.
+ */
+const LIMITS = '--ablation none --runs 1 --model haiku --judge-model haiku --max-cost-usd 1 --no-publish --trust-plugin';
 const DENY = '--disallow-tools Agent WebFetch WebSearch Bash Write Edit NotebookEdit Read Glob Grep';
 const ESCAPED_HYPHEN = '\\' + 'u002D';
 // JSON.stringify leaves the two Unicode line separators raw; escape them too, so a key line never breaks.
@@ -186,7 +190,7 @@ export function generate({ out, rulesText, rulesFile, canary = false, casesDir =
     '',
     'Step 0, enter the output folder:',
     `cd "${target}"`,
-    'Step 1, run one case:',
+    'Step 1, run one case (--trust-plugin trusts only this generated folder):',
     evalLine(target, first, `run-${first}.json`),
     'Step 2, check that run before spending more:',
     `node "${GEN}" check "${join(target, `run-${first}.json`)}" "${target}"`,

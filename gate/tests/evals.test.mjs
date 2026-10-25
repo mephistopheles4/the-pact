@@ -24,7 +24,7 @@ import { tempDir, writeTree } from './tree.mjs';
 const GEN = join(REPO, 'evals', 'gen.mjs');
 const RULES = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
 const CASES = readdirSync(CASES_DIR).sort();
-const LIMITS = ['--ablation none', '--runs 1', '--model haiku', '--judge-model haiku', '--max-cost-usd 1', '--no-publish'];
+const LIMITS = ['--ablation none', '--runs 1', '--model haiku', '--judge-model haiku', '--max-cost-usd 1', '--no-publish', '--trust-plugin'];
 const DENY = '--disallow-tools Agent WebFetch WebSearch Bash Write Edit NotebookEdit Read Glob Grep';
 const GOOD_CASE = '---\nmax_turns: 4\nallowed_tools: []\n---\n\nbody\n';
 
