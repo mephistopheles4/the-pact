@@ -24,6 +24,12 @@
 // case names and field names, never a reply or a path.
 //
 // Checked against Claude Code 2.1.310. Node 24 or later, node: built-ins only.
+//
+// The default render calls the gate's render core in-process. Of the controls
+// ADR 0032 lists for an in-process caller, it keeps the two-part verdict and
+// prints no error text; it doesn't hold to committed code, refuse NODE_OPTIONS
+// or set a time limit. No install verdict rests on this render: it only feeds
+// eval text, which the owner reads by hand.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -46,6 +52,9 @@ const MANIFEST = JSON.stringify({ name: 'pact-evals', version: '0.0.0', descript
 const LIMITS = '--ablation none --runs 1 --model haiku --judge-model haiku --max-cost-usd 1 --no-publish';
 const DENY = '--disallow-tools Agent WebFetch WebSearch Bash Write Edit NotebookEdit Read Glob Grep';
 const ESCAPED_HYPHEN = '\\' + 'u002D';
+// JSON.stringify leaves the two Unicode line separators raw; escape them too, so a key line never breaks.
+const SEPARATORS = new RegExp(`[${String.fromCharCode(0x2028, 0x2029)}]`, 'g');
+const escapeChar = ch => '\\' + 'u' + ch.charCodeAt(0).toString(16).padStart(4, '0');
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
 
 export class Refusal extends Error {}
@@ -89,7 +98,7 @@ export function evalRead(text) {
 /** The with copy: the case's own keys, then the rules as one escaped string, then the body unchanged. */
 export function withCopy(source, rules) {
   const parts = sourceParts(source);
-  const scalar = JSON.stringify(RULES_HEAD + rules).replace(/-/g, ESCAPED_HYPHEN);
+  const scalar = JSON.stringify(RULES_HEAD + rules).replace(/-/g, ESCAPED_HYPHEN).replace(SEPARATORS, escapeChar);
   return ['---', ...parts.head, `append_system_prompt: ${scalar}`, '---', parts.body].join('\n');
 }
 
@@ -117,6 +126,8 @@ const within = (inner, outer) => {
 /** One case source, checked: its name, its front matter, no tools, no system prompt of its own. */
 function readCase(dir, name) {
   if (!NAME.test(name)) refuse(`case ${JSON.stringify(name)}: the name must be lower-case letters, digits and hyphens`);
+  if (name === 'canary') refuse('case canary: the name is kept for the built-in canary');
+  if (!existsSync(join(dir, name, 'prompt.md'))) refuse(`case ${name}: no prompt.md`);
   const source = readFileSync(join(dir, name, 'prompt.md'), 'utf8');
   const parts = sourceParts(source);
   if (!parts) refuse(`case ${name}: no front matter`);
@@ -133,15 +144,18 @@ const evalLine = (out, kase, json) => `claude plugin eval "${out}" --eval-dir ev
 /**
  * Builds every file in memory, checks each with copy the eval's way, then
  * writes. A refusal throws before anything is written. Returns the lines to print.
+ * `rulesText` is the rules text itself; `rulesFile` is a path, as --rules takes;
+ * with neither, the default render.
  */
-export function generate({ out, rules, rulesFile, canary = false, casesDir = CASES_DIR }) {
+export function generate({ out, rulesText, rulesFile, canary = false, casesDir = CASES_DIR }) {
   const target = resolve(out);
   if (within(target, REPO)) refuse('the output folder is inside the repo');
   if (within(REPO, target)) refuse('the repo inside the output folder');
   if (/["$`%\r\n]/.test(target)) refuse('the output path holds a character a shell would read inside double quotes');
   if (existsSync(target) && readdirSync(target).length) refuse('the output folder is not empty');
 
-  let text = rules ?? (rulesFile ? readFileSync(rulesFile, 'utf8') : defaultRules());
+  if (rulesText === undefined && rulesFile && !existsSync(rulesFile)) refuse('the --rules file does not exist');
+  let text = rulesText ?? (rulesFile ? readFileSync(rulesFile, 'utf8') : defaultRules());
   if (canary) text += `\nCanary: the pilot word is ${CANARY_WORD}.\n`;
 
   const cases = readdirSync(casesDir).sort().map(n => readCase(casesDir, n));
@@ -195,6 +209,7 @@ export function checkRun(doc, out) {
     fail('run: fail missing cases');
     return { lines, ok };
   }
+  if (!doc.cases.length) fail('run: fail no cases (the eval found none to run)');
   doc.cases.forEach((c, i) => {
     if (typeof c?.name !== 'string' || !NAME.test(c.name)) return fail(`case ${i + 1}: fail missing name`);
     const at = join(out, 'evals', c.name, 'prompt.md');
@@ -211,7 +226,7 @@ export function checkRun(doc, out) {
     else if (runs.some(r => r.turns !== 1)) bad.push('turns (a tool was called)');
     if (runs && c.name.startsWith('canary-')) {
       const want = c.name === 'canary-with';
-      if (runs.some(r => !Array.isArray(r?.graders) || r.graders.some(g => g?.passed !== want))) bad.push('canary');
+      if (runs.some(r => !Array.isArray(r?.graders) || !r.graders.length || r.graders.some(g => g?.passed !== want))) bad.push('canary');
     }
     if (bad.length) fail(`${c.name}: fail ${bad.join(', ')}`);
     else lines.push(`${c.name}: pass`);

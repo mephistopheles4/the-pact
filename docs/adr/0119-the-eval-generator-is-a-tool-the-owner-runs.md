@@ -21,10 +21,12 @@ ADR 0045 deleted the practice cases and their scorer because each run cost a ses
 
 - **No case grants a tool.** Every printed run also denies the read, write, shell, web and subagent tools, so the "no real repository, network or credential" limit holds whatever the eval makes of an empty tool list. A tool call would show as a second turn, which `check` fails.
 - **`--no-publish` on every printed run.** The report stays on the owner's machine.
-- **Checked against Claude Code 2.1.310.** The flags, the front-matter reading and the JSON fields are its interfaces. After an update, step 1 and step 2 run with `--canary` before a round is trusted.
+- **Checked against Claude Code 2.1.310.** The flags, the front-matter reading and the JSON fields are its interfaces. After an update, the generator runs with `--canary` and its printed steps 1 and 2 run before a round is trusted.
 - **The judge is not trusted alone.** Every reply is read by hand; the Haiku judge was wrong in both earlier rounds.
 
 ## What was weighed
+
+The q-numbers are the questions on #405, q1 to q10, each answered by the lead (see How this was decided).
 
 - **The tool spawning the eval itself**, with the limits enforced in code. Not taken (q1): every paid run stays a command the owner types, and the tool stays testable with no `claude` call.
 - **The owner's installed rules as the default.** Not taken (q2): the default render is reproducible and holds no private configuration; `--rules` takes the installed copy.
@@ -33,4 +35,4 @@ ADR 0045 deleted the practice cases and their scorer because each run cost a ses
 
 ## How this was decided
 
-- **2026-10-25.** Decided on #405, spec revision 4, standard tier. The questions q1 to q9 were answered by the lead, head-chef-field-test, under the owner's standing instruction for the day, not by the owner in chat. The lead declined a security read of the spec (q8); that decline stays open until the owner answers in chat.
+- **2026-10-25.** Decided on #405, spec revision 4, standard tier. The questions on #405, q1 to q10, were answered by the lead, head-chef-field-test, under the owner's standing instruction for the day, not by the owner in chat. The lead declined the security pair on the spec (q8) and at Test (q10); that decline stays open until the owner answers in chat.

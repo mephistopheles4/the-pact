@@ -26,7 +26,13 @@ the commands to run, and runs none of them.
 
 ## Running a round
 
-From the repo root, with `NODE_OPTIONS` cleared:
+From the repo root, with `NODE_OPTIONS` cleared. In PowerShell:
+
+```powershell
+$env:NODE_OPTIONS = $null; node evals/gen.mjs <output folder> [--rules <file>] [--canary]
+```
+
+In a POSIX shell:
 
 ```bash
 env -u NODE_OPTIONS node evals/gen.mjs <output folder> [--rules <file>] [--canary]
@@ -39,12 +45,14 @@ env -u NODE_OPTIONS node evals/gen.mjs <output folder> [--rules <file>] [--canar
 - `--canary` adds a code word to the rules text and a `canary` case that asks
   for it: its with copy shows the whole text reached the model.
 
-It prints four steps: enter the output folder, run one case, check that run,
-then run every case. Run the last step only after the check passes:
+It prints four steps, numbered as it prints them:
 
-```bash
-node evals/gen.mjs check <run JSON> <output folder>
-```
+- **Step 0:** enter the output folder.
+- **Step 1:** run one case: the canary with `--canary`, else the first case.
+- **Step 2:** check that run. The printed line names the script by its full
+  path, so it runs from the output folder; its form is
+  `node evals/gen.mjs check <run JSON> <output folder>`.
+- **Step 3:** run every case. Only after step 2 passes.
 
 `check` passes a run only when each case kept its own `max_turns`, its prompt
 holds only the case text, and every run took one turn (a second turn means a
@@ -66,7 +74,7 @@ The situation, and what the agent is asked to reply.
 ```
 
 The front matter holds the case's own keys and no `append_system_prompt`; the
-generator adds that. Write each case's expected result down before its run,
+generator adds that. Write down what each case should show before its run,
 and use no pact-only words in the prompt, so a difference shows clarity, not
 vocabulary.
 
@@ -75,4 +83,5 @@ vocabulary.
 Checked against Claude Code 2.1.310: the eval's flags, its front-matter
 reading (the front matter ends at the first `---`), and the run JSON's
 `cases[].name`, `maxTurns`, `promptMarkdown` and `arms[].turns`. After an
-update, run steps 1 and 2 with `--canary` before trusting a round.
+update, generate with `--canary` and run steps 1 and 2 before trusting a
+round.
