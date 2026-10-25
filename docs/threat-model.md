@@ -322,7 +322,7 @@ How to read it:
 | R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091). The default's `addyosmani/agent-skills` pin lives in `builder/presets/level-3-full.json`, and a person's own pins in their configuration; ADR 0091's bump procedure covers both, and each send a bump's read names goes to you before the bump is committed (#183 T4a) | Rule |
 | R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
-| R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on four views of the text after the state word (#392) | Rule |
+| R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on five views of the text after the state word (#392, #396) | Rule |
 
 ## Strangers on the tracker
 
