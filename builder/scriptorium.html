@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Zfd9u8j6Oe6XT9VSkU9UqFiOhijooiCsiO5jdhCXZNI='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1tUhQLN2ebV5kYoNEYZ5c5Sj91P147fIIz9jfoLrrLk='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -3741,7 +3741,7 @@ const OPT_COMMANDS = Object.freeze([
 const ALWAYS_COMMAND = { name: 'scriptorium', what: 'Always installed: the builder is part of the pact.' };
 // The pact tools a save may list (#280), in the installer's order, each off unless ticked, with what it does.
 const OPT_TOOLS = Object.freeze([
-  { name: 'poster', what: "Posts free text to GitHub as your gh account, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which a dry run with --review-folder shows." },
+  { name: 'poster', what: "Posts free text to GitHub as your gh account, edits what a session posted, and reads back what landed; its scan is a backstop, not a guarantee. Turning it on adds a rule to the rules file, which a dry run with --review-folder shows." },
 ]);
 // #262 addendum 3: a save writes agent files and never deletes one, and every file in agents/ installs.
 const AGENTS_NOTE = 'An agent file a save writes is yours: an install never writes over it, and a save deletes nothing.';

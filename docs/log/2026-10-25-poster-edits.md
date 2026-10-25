@@ -1,0 +1,15 @@
+# The poster edits signed posts
+
+#413, thorough tier on the sensitive route (authorization, input validation), planned and built on Opus at high by pact-413, led by head-chef-field-test. The route was the lead's pick under the owner's standing instruction for the day; the owner's own confirmation in this session's chat stays open. The owner answered q2, q5 and q6 in the lead's chat, relayed; the lead answered the rest under the standing instruction.
+
+A session had fixed a pull request body with `gh pr edit` because the poster could only create, so the edit skipped the scans and the read-back. The owner asked for edit surfaces, made safer by a required reason posted with the change. The spec went through two revisions. The spec pair and the security pair read revision 1 and all but data-lens returned blocking: the bare-label signature let a session claim an owner-typed comment, the record check leaned on a heading rule the review procedure doesn't set, the decision check read fewer views than the withheld check, reason lines could be dropped or forged, and the read-then-write gap had been filed under Hardening though it guards authorization. Revision 2 carried every fix.
+
+The build adds four edit surfaces to `claude/tools/poster.mjs`, each one `PATCH` of the body with `Edited: <reason> (<label>)` after it, and seven refusals: `edit/author`, `edit/target`, `edit/unsigned`, `edit/record`, `edit/decision`, `edit/leak` and `edit/reasons`, the last of which also refuses a reason line forged or hidden. The rules file's poster line says "post or edit" and names the signature an edit needs, and the install warning says the poster posts and edits. The threat model widens R2 to edits, on the owner's word, and adds R60 for the moment between the read and the write (ADR 0120). #412's sticky status comment inherits the same checks.
+
+Two Test rounds followed, all six lenses each, three pairs a round on the lead's pick. The first round's fixes added an item scan (`edit/leak`) and a rule that reason lines stay in plain sight. The second round found that two of those fixes regressed: fence markers hidden in comments blinded the record check, and a post naming `<!--` in a code span could no longer be edited. The record, decision and in-plain-sight checks all guess at GitHub's rendering from the source text, and each new reading opened a gap another had closed. The session stopped and asked; the owner chose to keep them as a best-effort backstop, which "create so much friction" otherwise (q12 (c), relayed). The five other checks are the edit's controls. Where a reading regressed, the record check keeps the stricter one, and its gaps are named in `docs/poster.md`. Reading GitHub's rendered page is #419.
+
+## Record
+
+- The spec, revision 2: https://github.com/mephistopheles4/the-pact/issues/413#issuecomment-6400998810
+- The Design round's review, part 1: https://github.com/mephistopheles4/the-pact/issues/413#issuecomment-6400997837
+- The Design round's review, part 2: https://github.com/mephistopheles4/the-pact/issues/413#issuecomment-6400998306

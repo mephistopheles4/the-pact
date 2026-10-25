@@ -303,7 +303,7 @@ parts:
   never turns one on. Each tool that is on gets a `WARN` line, word for word:
 
   ```text
-    WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts to GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.
+    WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.
   ```
 
   The poster on also adds its rule to the rules file, so the rendered hash
@@ -397,8 +397,8 @@ It installs these files under `~/.claude`:
   pact command your `commands` list turns on. Taking a name out of the list
   deletes its file at the next install;
 - `pact/tools/poster.mjs`, only while your `tools` list turns the poster on.
-  It posts to GitHub as your `gh` account. Taking it out of the list deletes
-  it at the next install;
+  It posts and edits on GitHub as your `gh` account. Taking it out of the
+  list deletes it at the next install;
 - `pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the

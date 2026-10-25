@@ -170,18 +170,24 @@ test('a project configuration may not hold tools', t => {
 
 // ------------------------------------------------------------ the rules file: the poster's part (C6)
 
+// The line says "or edit what you posted", names the signature an edit needs, and that an edit never removes a leak (#413, q3 and the Test round, the lead's picks under the owner's standing instruction, 2026-10-25).
 // The sentence on a lens report's fence is cut (#404, the lead's pick under the owner's standing instruction, 2026-10-25).
 // The stays-local list no longer names a path of this machine's, on the owner's word in chat (2026-10-21).
 // T2's approved text (#280, revision 5, with the three clauses #285 carries
 // and the four changes from #285's Test; the owner approved it as q2 on #285),
 // byte for byte.
 const T2 = [
-  '- **Post through the poster.** On a repo your gh login owns, post to GitHub',
-  '  with `node ~/.claude/pact/tools/poster.mjs` in a POSIX shell, or',
-  '  `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell. Write each piece',
-  '  of free text to a file in a scratch folder outside the repo, and run the',
-  '  poster from that folder, never from the repo. Delete a file once its post',
-  '  ends, whatever the result (verified, failed, unverified, mismatch or',
+  '- **Post through the poster.** On a repo your gh login owns, post to GitHub,',
+  '  or edit what you posted, with `node ~/.claude/pact/tools/poster.mjs` in a',
+  '  POSIX shell, or `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell.',
+  '  Write each piece of free text to a file in a scratch folder outside the',
+  '  repo, and run the poster from that folder, never from the repo. Sign a',
+  '  post you may edit with a `Signed: <label>` line, and keep it when you',
+  '  edit. An edit never removes text: for a leaked secret or personal detail,',
+  "  tell me instead. An edit's `--reason` names the kind of fix, never the",
+  '  text.',
+  '  Delete a file once its post ends, whatever the result (verified, failed,',
+  '  unverified, mismatch or',
   '  unavailable), or once you drop it; keep one refused for a lens report',
   '  until I have answered, then delete it. Before the session ends, delete',
   '  every such file still there, whatever my answer. `verified` means what',
