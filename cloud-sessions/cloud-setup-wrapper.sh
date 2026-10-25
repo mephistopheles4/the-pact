@@ -2334,8 +2334,8 @@ the state before the work began.
 - **For a spec:** the working folder at the base. The spec is new in full.
 - **For a diff or a result:** the diff from the base, and the statement that
   everything outside the diff is as it was at the base.
-- **Where it is kept.** The review comment's first line under its heading,
-  the base line, names the base and the revision or head it reviewed (see
+- **Where it is kept.** The review comment's first line under its lens
+  heading, the base line, names the base and the revision or head it reviewed (see
   Crossing the reports). Later rounds, in this session or a fresh one, read both from
   there, never from memory, and check the base as above. A base line counts
   only when its comment counts by the project's rule on whose text counts,
@@ -2567,15 +2567,25 @@ round at a glance and the data stays as it is. In this order:
    table of the round:
    - **A title line,** a level-two heading naming the stage, the round, the
      head commit or spec revision, the verdict word (item 6) and `N for you`
-     or `nothing for you`.
+     or `nothing for you`, N the rows for me plus the `[!IMPORTANT]` items.
    - **A verdict line** when the lenses' verdict and the state after your
      sort differ, for example "The lenses said blocking; after sorting,
      every finding is fixed".
-   - **A signal table,** one row per lens that ran: the lens, a signal and
-     one line in your own words. 🟢 fixed or clear, 🔵 taken, 🟡
-     inconclusive, waiting or withheld, 🟠 open, 🔴 open and security.
+   - **A signal table,** one row per lens that ran: the lens, its signal and
+     one line in your own words. A lens's signal is its most urgent row's
+     fate, in the order of the list below.
+   - **Fates,** one scheme for signals and diagram pins:
+     - **For me:** an `open` row that needs my decision, or a trade-off or
+       `security?` row waiting on me. 🔴 when it is security, else 🟠; a red
+       pin, `#cf222e33`, with a thicker border for security.
+     - **Waiting:** an `open` row that needs nothing from me now, such as a
+       rerun due; an inconclusive lens; a withheld row. 🟡; a yellow pin,
+       `#d4a72c33`.
+     - **Taken:** 🔵; a blue pin, `#0969da33`.
+     - **Fixed, or a clear lens:** 🟢; a green pin, `#2da44e33`.
+     - **Dismissed, noted or skipped:** ⚪; no pin.
    - **Diagrams,** one or more, each drawing the situation (see Diagrams
-     below), each in a centred block written exactly as
+     below; none for small work), each in a centred block written exactly as
      `<div align="center">`, a blank line, the `mermaid` fence, a blank line
      and `</div>`, with a short heading above each when there is more than
      one.
@@ -2620,6 +2630,9 @@ round at a glance and the data stays as it is. In this order:
 10. **Trade-offs.** A table of where, lens, severity, headline, the cost or
     level, the limit and the quality at stake, and what you did with it (see
     Trade-offs and accepted risks). Leave it out when no lens listed one.
+    Head no column "Disposition" here or in any other table below the Lens
+    dispositions fold: a check reads such a table as the Lens dispositions
+    table.
 11. **Notes.** A table of where, lens, severity and headline for each `noted`
     finding, with the notes the Follow-up issues cost overflows into. An
     overflow note's row keeps its own Disposition word, with "issues
@@ -2645,7 +2658,7 @@ holds renders as it would unfolded.
   Posting), with its line breaks removed, and never starts a line.
 - **A withheld finding stays out.** A lens whose report is kept local gets
   🟡 and `withheld, see chat`. The verdict word, the verdict line, `N for
-  you` and the thresholds below count posted findings only, and the title
+  you` and the small-work rule count posted findings only, and the title
   line says "posted findings only; withheld findings: see chat". A withheld
   row shows only in the count line, by its Disposition word, and as
   `withheld, see chat` in one `[!NOTE]` box (see A withheld finding).
@@ -2669,30 +2682,29 @@ holds renders as it would unfolded.
 | A finding across rounds | timeline |
 | A spec's structure, or what its claims cover | flowchart or mindmap |
 
-- **Pins are coloured by fate.** Boundaries come from the project's threat
-  model where it names them; else name the parts yourself.
-- **One palette, for light and dark themes.** Fills at about 20% opacity, as
-  eight-digit hex: red `#cf222e33` open, green `#2da44e33` fixed, yellow
-  `#d4a72c33` for me, waiting or withheld, blue `#0969da33` taken. Solid
-  borders in the same colours, `stroke-width:2px` for open and security
-  pins. Never set `color:`. Boundary boxes have a transparent fill and a grey
-  dashed border, `#8c959f`.
+- **Pins are coloured by fate** (see Fates). Boundaries come from the
+  project's threat model where it names them; else name the parts yourself.
+- **One palette, for light and dark themes.** Each fill is its fate's colour
+  at about 20% opacity, as the eight-digit hex in Fates, with a solid border
+  in the same colour without the last two digits, `stroke-width:2px` for a
+  pin for me. Never set `color:`. Boundary boxes have a transparent fill and
+  a grey dashed border, `#8c959f`.
 - **Labels are your own words,** never text copied from a report, and hold no
   link, no `click` or `href`, and no init directive. An open security
   finding is pinned by its part and class, never drawn as the steps of its
   path.
 - **Keep to forms you have seen render.** A diagram GitHub can't draw shows
   as an error box above the folds; it never touches the table.
-- **Small work:** no diagram when a round has one posted finding or none.
 
 **Rules you apply by judgment:**
 - **A crossing is the same place:** the same section or claim, the same file
   and symbol, or overlapping lines in one file. Two findings that read alike
   in different places are not a crossing. Each lens asks a different
   question, so a crossing means two different problems meet at one place.
-- **Small work:** the title line, the count line, any "not verified" mark
-  and the count of not-checked items per posted lens, then the folds; no
-  signal table, diagram or box unless a row is open.
+- **Small work,** a round with one posted finding or none: the title line,
+  the count line, any "not verified" mark and the count of not-checked items
+  per posted lens, then the folds. No signal table or diagram, and a box
+  only for a row for me.
 - **A record that is not GitHub,** such as the review shown in chat: the
   human layer is plain text, with no diagrams and no alert markup.
 - **Size:** one comment holds at most 65,536 characters. Past that, part 1
@@ -2702,7 +2714,8 @@ holds renders as it would unfolded.
   crossed-findings fold that still does not fit continues in a fold of its
   own whose summary line starts with the same words, with any table header
   repeated. Check every part before you post any; if one is refused, post
-  nothing and tell me. A report that alone is over the limit stays a local
+  nothing and tell me. If a later part is refused after part 1 landed, stop
+  and tell me; part 1 stays. A report that alone is over the limit stays a local
   file; name its path to me in chat, never in the record.
 
 ## Findings and their state
@@ -2755,6 +2768,8 @@ severity:
 - **Its placeholder** in the review comment sits in the One lens only table,
   whatever its state or kind, never in Crossings first, Spec drift,
   Trade-offs or Notes.
+- **In the human layer** it shows only in the count line and one `[!NOTE]`
+  box (see The review comment).
 - **Its Earlier findings item** reads "withheld, see chat".
 - **A follow-up's or a closing read's report that was handed it as an `E`
   row** is kept local too, as a kept-local report, until I settle the finding, whatever it says
@@ -3029,7 +3044,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash f103b157ccf544e3dba4424a2e699a96af376733aa874da87877a75e9f954643 'pact/review.md'
+check_hash 9bc796bf2e5e5a2b9d3ab8762de77eeb3e2231006e4267b03a6bbe015ed05339 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3059,7 +3074,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 09eff25c354c"
+  echo "pact cloud copy 8a78345a398f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

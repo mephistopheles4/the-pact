@@ -2,7 +2,7 @@
 // of #280). Every case runs the poster's post() in-process as a dry run, with
 // a gh that fails any call, so a refusal is seen to send nothing. Each bad
 // case is a row, except the state-word cases (#336 C4), which share one
-// test; the eleven recorded tables are fixtures, each reduced
+// test, and the review comment's layout cases (#401), each its own test; the eleven recorded tables are fixtures, each reduced
 // to its label line and table with every unread cell a placeholder.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -186,7 +186,7 @@ test('table refusals past fifty are counted, not listed', t => {
 const LAYOUT = (rows, { open = false } = {}) => body('### behaviour-lens and integrity-lens', '', 'Base `abc1234`, head `def5678`: a first round for both lenses.', '',
   '## Test round 1 on `def5678`: findings, 1 for you', '', '| Lens | Signal | In one line |', '| :--- | :--- | :--- |', '| **behaviour** | 🟠 open | a claim to settle |', '',
   '<div align="center">', '', `${FENCE3}mermaid`, 'flowchart TB', '  A["a part"] --> P(["a finding"])', ...(open ? [] : [FENCE3]), '', '</div>', '',
-  '> [!WARNING]', '> **q1:** `a headline` (behaviour-lens). Which way?', '', 'Fixed 1 · Open 1', '',
+  '> [!WARNING]', '> Decision: `a headline` (behaviour-lens). Which way?', '', 'Fixed 1 · Open 1', '',
   `<details><summary>Lens dispositions (${rows.length} findings)</summary>`, '', HEADER, SEP, ...rows, '', '</details>', '',
   '<details><summary>Crossed findings (0 crossings, 2 lenses)</summary>', '', '**Verdict: findings.**', '', '</details>', '',
   '<details><summary>behaviour-lens: findings</summary>', '', `${FENCE4}text`, 'A report.', FENCE4, '', '</details>');
@@ -207,14 +207,18 @@ test("a broken row in the review comment's Lens dispositions fold is refused at 
   assert.deepEqual(r.real.lines, [`REFUSED table/disposition body ${lineOf(text, bad)}:31`, 'RESULT: refused 1']);
 });
 
-// #401 C8: a diagram fence left open swallows the folds and the table, so the body is refused at the fence; closed, the same body passes.
-test('a body that ends inside an open fence is refused at the fence, and passes once it closes', t => {
+// #401 C8: a diagram fence left open swallows the folds and the table, so the body is refused at the fence; closed, the same body passes (the C2 test above).
+test('a fence left open is refused at the fence', t => {
   const text = LAYOUT(LAYOUT_ROWS, { open: true });
   const r = runBody({ 'body.md': text }, t);
   assert.equal(r.real.code, 2, r.out);
   assert.equal(r.calls.length, 0, 'a refusal calls no gh');
   assert.deepEqual(r.real.lines, [`REFUSED fence/unclosed body ${lineOf(text, `${FENCE3}mermaid`)}:1`, 'RESULT: refused 1']);
-  assertPasses(runBody({ 'body.md': LAYOUT(LAYOUT_ROWS) }, t));
+  // Each line a diagram never holds refuses on its own, though a later closer would close the fence: another fence, a fold's opening tag, its closing tag.
+  const refusedAtOne = ['REFUSED fence/unclosed body 1:1', 'RESULT: refused 1'];
+  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, 'flowchart TB', `${FENCE4}text`, 'x', FENCE4, FENCE3) }, t).real.lines, refusedAtOne);
+  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '<details><summary>x</summary>', FENCE3) }, t).real.lines, refusedAtOne);
+  assert.deepEqual(runBody({ 'body.md': body(`${FENCE3}mermaid`, '</details>', FENCE3) }, t).real.lines, refusedAtOne);
   // A tilde fence, and a fence indented three spaces, are fences too.
   assert.deepEqual(runBody({ 'body.md': body('text', '', '~~~', 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:1', 'RESULT: refused 1']);
   assert.deepEqual(runBody({ 'body.md': body('text', '', `   ${FENCE3}text`, 'a line') }, t).real.lines, ['REFUSED fence/unclosed body 3:4', 'RESULT: refused 1']);
@@ -300,8 +304,8 @@ test('a worst-case body at the 65,536-character limit finishes within two second
     const r = runBody({ 'body.md': text }, t);
     const ms = performance.now() - start;
     assert.ok(ms < 2000, `${name}: ${Math.round(ms)} ms`);
-    // Any refusal here is the table check's, or the fence check's on a body that ends in an open fence (#401), so a size refusal can't stand in for it.
-    assert.ok(r.fails.every(f => f.startsWith('table/') || f === 'fence/unclosed'), `${name}: ${r.out.slice(0, 300)}`);
+    // Any refusal here is the table check's, or the fence check's on the two bodies that end inside a fence (#401), so a size refusal can't stand in for it.
+    assert.ok(r.fails.every(f => f.startsWith('table/') || (f === 'fence/unclosed' && name.startsWith('one line of backticks'))), `${name}: ${r.out.slice(0, 300)}`);
     if (name === 'many short units') assert.ok(r.fails.length > 0, 'the units are refused');
   }
 });

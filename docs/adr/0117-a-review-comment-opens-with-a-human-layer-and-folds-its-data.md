@@ -1,6 +1,6 @@
 # A review comment opens with a human layer and folds its data
 
-A posted review round opens with a layer for people: a title line with the verdict and what is for the owner, a signal table per lens, one or more Mermaid diagrams chosen by the situation, GitHub alert boxes for decisions, and a count line. The Lens dispositions table, the crossed findings and the verbatim reports sit below in folds, the table byte for byte as before, so it can still be collected (#260). The poster refuses a fence left open, which would swallow the folds and the table (#401).
+A posted review round opens with a layer for people: a title line with the verdict and what is for the owner, a signal table with one row per lens, one or more Mermaid diagrams chosen by the situation, GitHub alert boxes for decisions, and a count line. The Lens dispositions table, the crossed findings and the verbatim reports sit below in folds, the table byte for byte as before, so it can still be collected (#260). The poster refuses a fence left open, which would swallow the folds and the table (#401).
 
 ## Why
 
@@ -19,3 +19,5 @@ Posted rounds were walls of crossed tables and reports. The owner read them as d
 - **A per-lens list on top:** it repeats the reports' structure; drawing the places where findings meet shows what the lenses found together.
 - **The sensitive route** (spec revisions 5 and 6): the security pair asked for a poster check on Mermaid directives and a threat-model line. The owner declined the route ("401 is not sensitive", relayed by the lead), so only the fence check, a layout guard, was built; the label rules stay as text.
 - **A sticky status comment edited each round:** a separate issue, #412, so a round's record is never edited.
+
+Amends [ADR 0064](0064-review-crossings-by-template-and-judgment.md)'s review-comment template: one comment per round, the human layer first, and the verdict, crossings and reports in folds.

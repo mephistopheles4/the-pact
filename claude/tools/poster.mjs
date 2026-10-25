@@ -22,8 +22,9 @@
 // #366).
 // Then it checks the shape of any Lens dispositions table in the body against
 // the review procedure's template (#280, T2), and refuses a body whose prose is
-// hard-wrapped or whose link has no scheme (#317, text/hard-wrap and
-// link/relative); it never rewrites a body. Before it posts, it checks that the repo's
+// hard-wrapped, whose link has no scheme (#317, text/hard-wrap and
+// link/relative) or that leaves a fence open (#401, fence/unclosed); it never
+// rewrites a body. Before it posts, it checks that the repo's
 // owner is the gh login, by name and again by what GitHub returns for the repo
 // (owner/repo, owner/github). The scans are a backstop for accidents, not a
 // guard against a session that sets out to get past them.
@@ -519,6 +520,19 @@ const TABLE = Object.freeze({
 // never tried again shorter.
 const FENCE_OPEN_RE = /^ {0,3}(`{3,}|~{3,})([^]*)$/;
 const FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+
+/** The fence `line` opens, as [run, info], or null. The table check and the fence check read fences through these two alone. */
+function fenceOpens(line) {
+  const open = line.match(FENCE_OPEN_RE);
+  return open && !(open[1][0] === '`' && open[2].includes('`')) ? [open[1], open[2]] : null;
+}
+
+/** Whether `line` closes the fence opened by the run `fence`. */
+function fenceCloses(fence, line) {
+  const close = line.match(FENCE_CLOSE_RE);
+  return close !== null && close[1][0] === fence[0] && close[1].length >= fence.length;
+}
+
 // A line ends at a line feed, a carriage return, or both, as CommonMark reads it.
 const LINE_END_RE = /\r\n|\r|\n/;
 const TABLE_LABEL_RE = /lens\s+dispositions/i;
@@ -641,13 +655,12 @@ export function tableCheck(body) {
     const line = lines[n];
     const refuse = (rule, col) => out.push({ rule, where: `body ${n + 1}:${col}` });
     if (fence !== null) {
-      const close = line.match(FENCE_CLOSE_RE);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      if (fenceCloses(fence, line)) fence = null;
       continue;
     }
-    const open = line.match(FENCE_OPEN_RE);
-    if (open && !(open[1][0] === '`' && open[2].includes('`'))) {
-      fence = open[1];
+    const open = fenceOpens(line);
+    if (open) {
+      fence = open[0];
       inTable = false;
       continue;
     }
@@ -708,15 +721,14 @@ export function fenceCheck(body) {
   for (let n = 0; n < lines.length; n += 1) {
     const line = lines[n];
     if (fence !== null) {
-      const close = line.match(FENCE_CLOSE_RE);
-      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      if (fenceCloses(fence, line)) fence = null;
       else if (diagram && DIAGRAM_END_RE.test(line)) return [{ rule: 'fence/unclosed', where }];
       continue;
     }
-    const open = line.match(FENCE_OPEN_RE);
-    if (open && !(open[1][0] === '`' && open[2].includes('`'))) {
-      fence = open[1];
-      diagram = open[2].trim().split(/[ \t]/)[0].toLowerCase() === 'mermaid';
+    const open = fenceOpens(line);
+    if (open) {
+      fence = open[0];
+      diagram = open[1].trim().split(/[ \t]/)[0].toLowerCase() === 'mermaid';
       where = `body ${n + 1}:${line.indexOf(fence[0]) + 1}`;
     }
   }
