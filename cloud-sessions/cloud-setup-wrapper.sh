@@ -2551,7 +2551,9 @@ one waits for its partner's in the same round. Only a lens a rules file offers
 on its own, even one the Lenses table lists with a partner, is run and
 crossed alone.
 
-**The review comment.** One comment per review, in this order:
+**The review comment.** One comment per review round. Its heading, base line
+and human layer show; the data sits folded below them, so a reader sees the
+round at a glance and the data stays as it is. In this order:
 
 1. A heading naming the lenses: `### lens-a and lens-b`, or `### lens-name`
    for a lens a rules file offers on its own.
@@ -2560,7 +2562,43 @@ crossed alone.
    which lenses ran a first round, a follow-up, a scoped follow-up, a
    restart (and why, and how many `open` rows it carried), a closing read
    (and the head it read) or a full pass.
-3. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
+3. **The human layer,** for people: it may repeat what the table says, and
+   nothing reads it back. Write it last, from the final Lens dispositions
+   table of the round:
+   - **A title line,** a level-two heading naming the stage, the round, the
+     head commit or spec revision, the verdict word (item 6) and `N for you`
+     or `nothing for you`.
+   - **A verdict line** when the lenses' verdict and the state after your
+     sort differ, for example "The lenses said blocking; after sorting,
+     every finding is fixed".
+   - **A signal table,** one row per lens that ran: the lens, a signal and
+     one line in your own words. 🟢 fixed or clear, 🔵 taken, 🟡
+     inconclusive, waiting or withheld, 🟠 open, 🔴 open and security.
+   - **Diagrams,** one or more, each drawing the situation (see Diagrams
+     below), each in a centred block written exactly as
+     `<div align="center">`, a blank line, the `mermaid` fence, a blank line
+     and `</div>`, with a short heading above each when there is more than
+     one.
+   - **Boxes,** GitHub alerts, each its own quote block: `[!WARNING]` for
+     each decision for me, opening "Decision:" and then the finding's
+     headline and its lens, with each side, the tension as the qualities
+     that pull against each other, and the question; `[!IMPORTANT]` for
+     what only I can do; `[!NOTE]` for items only waiting and for withheld
+     rows; `[!TIP]` for the next step. No box when there is nothing to say.
+   - **A count line,** one count per Disposition word in the table, such as
+     `Fixed 2 · Open 7`, summing to its rows.
+4. **The Lens dispositions fold:** an HTML details element whose summary line
+   reads `Lens dispositions (N findings)`, N the table's rows, then a blank
+   line, the table and any escape and gap table (see Lens dispositions and
+   Escapes and gaps), a blank line and the closing tag. The summary line is
+   the line naming "Lens dispositions". A table is never folded, fenced,
+   quoted, relabelled or moved any other way to get past a check; this fold
+   is the template's own, and a check reads the table in it as anywhere
+   else.
+5. **The crossed-findings fold:** a details element whose summary line reads
+   `Crossed findings (N crossings, M lenses)`, holding items 6 to 13 in their
+   order, each as it would stand unfolded.
+6. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
    inconclusive, then findings, then clear, raised to blocking when you sort a
    high `unchanged` finding as a security finding (see Findings and their
    state). Show each lens's verdict beside it, and mark one your sort raises,
@@ -2569,40 +2607,103 @@ crossed alone.
    is inconclusive is marked "not verified": its silence is not a pass, so
    read what it didn't check. Mark "scoped" beside the verdict of each lens
    that ran a scoped follow-up.
-4. **Crossings first.** A table of the places both lenses flagged, with each
+7. **Crossings first.** A table of the places both lenses flagged, with each
    lens's findings there and the state beside each.
-5. **One lens only.** A table of where, lens, severity, state and headline,
+8. **One lens only.** A table of where, lens, severity, state and headline,
    and anything else the lens gives each finding, such as a likelihood.
    These two tables hold the `new` and `updated` findings and the `unchanged`
    security findings.
-6. **Spec drift,** for a closing read: a table of where, lens and drift
+9. **Spec drift,** for a closing read: a table of where, lens and drift
    item. A drift item that is a defect is also in the tables above. A
    kept-local report's spec-drift items stay out of it and go to me in chat.
    Leave it out when no lens reported drift.
-7. **Trade-offs.** A table of where, lens, severity, headline, the cost or
-   level, the limit and the quality at stake, and what you did with it (see
-   Trade-offs and accepted risks). Leave it out when no lens listed one.
-8. **Notes.** A table of where, lens, severity and headline for each `noted`
-   finding, with the notes the Follow-up issues cost overflows into. An
-   overflow note's row keeps its own Disposition word, with "issues
-   overflow" in its reason text; only an `unchanged` finding is `noted`.
-   Leave it out when there are none.
-9. **Earlier findings,** per lens on a follow-up: each `E` number with
-   `absent` or the finding that continues it.
-10. **Not checked,** per lens.
-11. **Verbatim reports,** each in its own fold (see Posting).
+10. **Trade-offs.** A table of where, lens, severity, headline, the cost or
+    level, the limit and the quality at stake, and what you did with it (see
+    Trade-offs and accepted risks). Leave it out when no lens listed one.
+11. **Notes.** A table of where, lens, severity and headline for each `noted`
+    finding, with the notes the Follow-up issues cost overflows into. An
+    overflow note's row keeps its own Disposition word, with "issues
+    overflow" in its reason text; only an `unchanged` finding is `noted`.
+    Leave it out when there are none.
+12. **Earlier findings,** per lens on a follow-up: each `E` number with
+    `absent` or the finding that continues it.
+13. **Not checked,** per lens.
+14. **Verbatim reports,** each in its own fold (see Posting).
+
+Every fold has a count or a lens verdict in its summary line, and leaves a
+blank line after its summary line and before its closing tag, so what it
+holds renders as it would unfolded.
+
+**The human layer is derived, never a second source.**
+- **It matches the table.** Every count matches the table's rows by their
+  Disposition word, and every decision box is a row in it: an `open` row, or
+  a trade-off or `security?` row waiting on me. An `[!IMPORTANT]` item may
+  have no row: a change's own edit to the threat model, or an accepted-risk
+  candidate, which reach me at hand-off.
+- **Text from a report stays inert.** Every string you take from a report,
+  anywhere in the layer, follows "Text you lay out stays inert" (see
+  Posting), with its line breaks removed, and never starts a line.
+- **A withheld finding stays out.** A lens whose report is kept local gets
+  🟡 and `withheld, see chat`. The verdict word, the verdict line, `N for
+  you` and the thresholds below count posted findings only, and the title
+  line says "posted findings only; withheld findings: see chat". A withheld
+  row shows only in the count line, by its Disposition word, and as
+  `withheld, see chat` in one `[!NOTE]` box (see A withheld finding).
+- **An escape or gap row** shows only as a count, or as its placeholder in a
+  `[!NOTE]` box. An accepted-risk box names the class of path and why, never
+  the steps.
+- **Nothing in it is read by a later round;** the base line and the table
+  are. A reader of the table, such as a follow-up's count, Taken earlier or
+  a retrospective, finds it in its fold, and reads a table continued in a
+  later fold as one.
+
+**Diagrams.** Draw the situation, not the list of lenses:
+
+| Situation | Mermaid type |
+| --- | --- |
+| Findings across parts or trust boundaries | flowchart, boundaries as dashed boxes, each finding pinned on the part it touches |
+| A failure unfolding between actors | sequence diagram |
+| Several open findings to weigh | quadrant chart, severity against likelihood |
+| A lifecycle or state bug | state diagram |
+| A data or schema finding | ER diagram |
+| A finding across rounds | timeline |
+| A spec's structure, or what its claims cover | flowchart or mindmap |
+
+- **Pins are coloured by fate.** Boundaries come from the project's threat
+  model where it names them; else name the parts yourself.
+- **One palette, for light and dark themes.** Fills at about 20% opacity, as
+  eight-digit hex: red `#cf222e33` open, green `#2da44e33` fixed, yellow
+  `#d4a72c33` for me, waiting or withheld, blue `#0969da33` taken. Solid
+  borders in the same colours, `stroke-width:2px` for open and security
+  pins. Never set `color:`. Boundary boxes have a transparent fill and a grey
+  dashed border, `#8c959f`.
+- **Labels are your own words,** never text copied from a report, and hold no
+  link, no `click` or `href`, and no init directive. An open security
+  finding is pinned by its part and class, never drawn as the steps of its
+  path.
+- **Keep to forms you have seen render.** A diagram GitHub can't draw shows
+  as an error box above the folds; it never touches the table.
+- **Small work:** no diagram when a round has one posted finding or none.
 
 **Rules you apply by judgment:**
 - **A crossing is the same place:** the same section or claim, the same file
   and symbol, or overlapping lines in one file. Two findings that read alike
   in different places are not a crossing. Each lens asks a different
   question, so a crossing means two different problems meet at one place.
-- **Small work:** one line with the verdict, any "not verified" mark, and the
-  count of not-checked items per lens, followed by the folds.
-- **Size:** one comment holds at most 65,536 characters. Split a longer
-  review comment into parts, and repeat a table's header where it continues.
-  A report that alone is over the limit stays a local file; name its path to
-  me in chat, never in the record.
+- **Small work:** the title line, the count line, any "not verified" mark
+  and the count of not-checked items per posted lens, then the folds; no
+  signal table, diagram or box unless a row is open.
+- **A record that is not GitHub,** such as the review shown in chat: the
+  human layer is plain text, with no diagrams and no alert markup.
+- **Size:** one comment holds at most 65,536 characters. Past that, part 1
+  holds the heading, the base line, the human layer and the two folds, and
+  the reports go to part 2 and on, each part opening with a heading that
+  names it. Each part closes every fold it opens. A table or a
+  crossed-findings fold that still does not fit continues in a fold of its
+  own whose summary line starts with the same words, with any table header
+  repeated. Check every part before you post any; if one is refused, post
+  nothing and tell me. A report that alone is over the limit stays a local
+  file; name its path to me in chat, never in the record.
 
 ## Findings and their state
 
@@ -2776,12 +2877,13 @@ skill runs included.
 ## Lens dispositions
 
 At every lens review, post a "Lens dispositions" table where the reports went,
-under a line naming "Lens dispositions", one row per finding. Its header row
-is exactly `| Finding | Lens | Disposition | Rerun |`, with no markup. Each
-row gives the finding, the lens (never empty), the disposition, and the
-rerun, if any, and why. A `skipped` row may leave the Finding cell empty. A
-row for a report kept local keeps its four cells, with "withheld, see chat"
-in the Finding cell.
+under a line naming "Lens dispositions", one row per finding; in a review
+comment, that line is its fold's summary line (see The review comment). Its
+header row is exactly `| Finding | Lens | Disposition | Rerun |`, with no
+markup. Each row gives the finding, the lens (never empty), the
+disposition, and the rerun, if any, and why. A `skipped` row may leave the
+Finding cell empty. A row for a report kept local keeps its four cells,
+with "withheld, see chat" in the Finding cell.
 
 The Finding cell starts with the finding's state word, one of `new`,
 `updated`, `unchanged` or `absent`, in lower case and with no markup, then a
@@ -2819,7 +2921,8 @@ under "Auto-takes".
 ## Escapes and gaps
 
 Escape and gap rows go in a table of their own under that review's Lens
-dispositions table, with no Disposition column.
+dispositions table, with no Disposition column. In a review comment, they sit
+inside its fold.
 
 - **An escape.** A defect found after a lens review passed the work, within a
   question a lens there asked, gets a proposed escape row: the lens or
@@ -2926,7 +3029,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 5b64c3cfc526754d3c271df48878d50bbffc4dc16e75fbc0f2148b67360220cf 'pact/review.md'
+check_hash f103b157ccf544e3dba4424a2e699a96af376733aa874da87877a75e9f954643 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2956,7 +3059,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy ec5000d9bd7f"
+  echo "pact cloud copy 09eff25c354c"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

@@ -689,6 +689,40 @@ export function tableCheck(body) {
   return out;
 }
 
+// A line no diagram holds: a fence run, or a fold's tag. In a `mermaid` fence it means the fence was left open.
+const DIAGRAM_END_RE = /^ {0,3}(?:`{3,}|~{3,}|<\/?details[\s>])/i;
+
+/**
+ * A fence left open in `body`, as [{ rule, where }]: one fence/unclosed at
+ * the line and column of its opening run, or nothing. A fence is left open
+ * when the body ends inside it, or when a `mermaid` fence runs into a line no
+ * diagram holds, another fence or a fold's tag. It reads fences as the table
+ * check does, so a fence it reports is one that hid what followed it, folds
+ * and table included, from that check and from the reader (#401).
+ */
+export function fenceCheck(body) {
+  let fence = null;
+  let diagram = false;
+  let where = '';
+  const lines = body.split(LINE_END_RE);
+  for (let n = 0; n < lines.length; n += 1) {
+    const line = lines[n];
+    if (fence !== null) {
+      const close = line.match(FENCE_CLOSE_RE);
+      if (close && close[1][0] === fence[0] && close[1].length >= fence.length) fence = null;
+      else if (diagram && DIAGRAM_END_RE.test(line)) return [{ rule: 'fence/unclosed', where }];
+      continue;
+    }
+    const open = line.match(FENCE_OPEN_RE);
+    if (open && !(open[1][0] === '`' && open[2].includes('`'))) {
+      fence = open[1];
+      diagram = open[2].trim().split(/[ \t]/)[0].toLowerCase() === 'mermaid';
+      where = `body ${n + 1}:${line.indexOf(fence[0]) + 1}`;
+    }
+  }
+  return fence === null ? [] : [{ rule: 'fence/unclosed', where }];
+}
+
 // ---------------------------------------------------------------- the prose checks
 
 const PROSE = Object.freeze({ wrap: 'text/hard-wrap', link: 'link/relative' });
@@ -1128,7 +1162,7 @@ export function post(argv, io) {
     // listed, so the result line stays in view.
     const hits = scan(fields, { ...ctx, surface: plan.surface });
     const tables = tableCheck(plan.body);
-    const prose = proseCheck(plan.body);
+    const prose = [...fenceCheck(plan.body), ...proseCheck(plan.body)];
     if (tables.length > TABLE_LISTED) {
       const r = refused([...hits, ...tables.slice(0, TABLE_LISTED), ...prose]);
       return { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length + prose.length}`] };

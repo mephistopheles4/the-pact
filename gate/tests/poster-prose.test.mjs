@@ -269,6 +269,6 @@ test('a worst-case body at the 65,536-character limit finishes within two second
     const r = runBody({ 'body.md': text }, t);
     const ms = performance.now() - start;
     assert.ok(ms < 2000, `${name}: ${Math.round(ms)} ms`);
-    assert.ok(r.fails.every(f => /^(?:text|link)\//.test(f)) || r.fails.length === 0, `${name}: ${r.out.slice(0, 300)}`);
+    assert.ok(r.fails.every(f => /^(?:text|link)\//.test(f) || f === 'fence/unclosed') || r.fails.length === 0, `${name}: ${r.out.slice(0, 300)}`);
   }
 });
