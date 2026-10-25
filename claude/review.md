@@ -12,7 +12,9 @@ brought from elsewhere runs the same way as the pact's.
 
 **Inputs, by what is reviewed.** A lens reads; it doesn't build. Give each
 lens its input as local files, with the absolute working folder when it reads
-the repo.
+the repo. Ask each lens to cite files by repo-relative path, and to add no
+list of the local files it read: a report that names a path holding a user
+name stays local, and a lens is never rerun to get a clean copy.
 - **A spec:** number its headings `S1`, `S2` and on. Give the section list,
   the spec and the request.
 - **A result:** number the acceptance claims `C1`, `C2` and on, from the

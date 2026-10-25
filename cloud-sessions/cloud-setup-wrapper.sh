@@ -2293,7 +2293,9 @@ brought from elsewhere runs the same way as the pact's.
 
 **Inputs, by what is reviewed.** A lens reads; it doesn't build. Give each
 lens its input as local files, with the absolute working folder when it reads
-the repo.
+the repo. Ask each lens to cite files by repo-relative path, and to add no
+list of the local files it read: a report that names a path holding a user
+name stays local, and a lens is never rerun to get a clean copy.
 - **A spec:** number its headings `S1`, `S2` and on. Give the section list,
   the spec and the request.
 - **A result:** number the acceptance claims `C1`, `C2` and on, from the
@@ -2927,7 +2929,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 9697e26d3d8484ce1747c902ed2969507aa686d731d808f95196295dd081efd0 'pact/review.md'
+check_hash 5b64c3cfc526754d3c271df48878d50bbffc4dc16e75fbc0f2148b67360220cf 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -2957,7 +2959,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 95c33a2b313b"
+  echo "pact cloud copy 39afffdc0559"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
