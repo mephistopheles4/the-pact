@@ -571,14 +571,16 @@ const leadWord = (words, cell) => words.find(w => cell.startsWith(w) && !LETTER_
  * "withheld", whatever its case, spacing, punctuation or markup (#336). The
  * text is read as written and as the two normalised copies `scan` reads, so
  * a form that renders as the word is matched (#392) and a word the page
- * hides in a comment or tag still is; a fourth copy drops emphasis, code
- * span and link marks, which can split the word on the page. A finding that
- * quotes the withheld text after other words is not matched.
+ * hides in a comment or tag still is; a fourth copy folds each link to its
+ * text and drops emphasis and code span marks, which can split the word on
+ * the page. A finding that quotes the withheld text after other words is not
+ * matched.
  */
 function withheldAfter(cell, state) {
   const after = cell.slice(state.length);
   const shown = normalise(after);
-  return [after.replace(/\p{Cf}/gu, ''), shown, normalise(after, true), shown.replace(/[*_`~[\]]/g, '')].some(view => {
+  const unmarked = shown.replace(/!?\[([^[\]]*)\](?:\([^()]*\)|\[[^[\]]*\])?/g, '$1').replace(/[*_`~[\]]/g, '');
+  return [after.replace(/\p{Cf}/gu, ''), shown, normalise(after, true), unmarked].some(view => {
     const rest = view.replace(/^[^\p{L}\p{N}]+/u, '').toLowerCase();
     return rest.startsWith('withheld') && !LETTER_RE.test(rest['withheld'.length] ?? '');
   });

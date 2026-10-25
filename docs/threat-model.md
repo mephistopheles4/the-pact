@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, so other work can point at it. A
+Each accepted risk has a label, R1 to R47 and R57, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired.
 
 ## Who and what this covers
@@ -154,8 +154,8 @@ check can read them in one place. It adds no control and accepts no risk.
   check reads the text after a Finding cell's lead state word as written and
   on both normalised views, so a form the page folds into "withheld" is read
   as the word, and so is a word the page hides in a comment or tag; a copy
-  without emphasis, code span and link marks catches the word split by them
-  (#392).
+  with each link folded to its text and without emphasis and code span marks
+  catches the word split by them (#392).
 - **The tracker author checker.** Its fixed input shape, stops and escaped
   output (The tracker author checker's own checks).
 
@@ -163,7 +163,8 @@ The rest is covered by the accepted risks those sections name: R41 for the
 table check's pairing of a state word with a Disposition word, R57 for a
 withheld row's state in a form or cell the table check does not read or
 fold, such as a look-alike letter from another script or a named character
-reference outside the poster's list, R14 for a rewritten tool, and R12 and
+reference outside the poster's list, R13 for a secret the content scans
+miss, R14 for a rewritten tool, and R12 and
 R15 for text a lens or a cloned repo hands a session, which no check in
 code reads.
 Prose a session reads is not validated in code; the rules and judgment in
@@ -179,7 +180,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47
+  title Residual risk, R1 to R47 and R57
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -232,6 +233,7 @@ quadrantChart
   R45: [0.10, 0.80]
   R46: [0.15, 0.22]
   R47: [0.30, 0.55]
+  R57: [0.15, 0.20]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -250,7 +252,7 @@ How to read it:
 - **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
   is bounded: public reports, a blocked team, and a posted security row's
   state word showing whether the item sits in published code.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -261,7 +263,7 @@ How to read it:
   you, such as your user name in your home folder, to pass the read before
   posting.
   R37 costs a broken `node` command until the next setup, or tells mise's
-  vendor which versions a session runs. R41 and R42 need a session to break
+  vendor which versions a session runs. R41, R42 and R57 need a session to break
   the review procedure's own rule on a table row or on the base it hands a
   lens. R44 needs another reader of the session's disk before the kept-local
   reports are deleted. R46 costs a cloud session skipped plugins or skills,
@@ -1230,8 +1232,8 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   another script, a named character reference outside the poster's list, or
   in a cell or wording the check doesn't read, passes it. The review
   procedure's rule for a withheld finding is the control; the check is only
-  a backstop. Accepted by the owner on 2026-10-25, relayed by the lead, from
-  the Test review of #391 and #392 (adversarial-lens).
+  a backstop. Accepted by the owner on 2026-10-24, relayed by the lead, from
+  the Test review of #391 and #392 (adversarial-lens and data-lens).
 
 ## The tracker author checker's own checks
 
