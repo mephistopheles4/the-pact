@@ -4,7 +4,7 @@
 
 The two issues asked for 21 rules from a lead's machine-local memory to ship in the pact. The first build shipped 20 of them: five in `claude/review.md`, six in the fixed text of `claude/CLAUDE.md` and nine as a Tool traps section, with the installer warning cut to #407 at Design. Three Test rounds then went round the relay rule: whether a lead's relayed answer counts as the owner's confirmation. Each fix moved the conflict, to the always-mine decisions, then to the Lenses rule, ADR 0055 and the threat model's R24.
 
-The owner then held the PR. The new rules sat in fixed text that no Scriptorium configuration can change, and most were about this owner's tools and habits, while the #402 pilot found Claude follows most tested rules without their text. A triage of all 21 kept one rule in the pact, the lens-cite rule in `claude/review.md`, and the install guide's update lines. Eleven are specific to this owner, machine or brigade and live in the owner's notes or the lead skill; seven are dropped (ADR 0115). The cloud copy is regenerated; `builder/` is unchanged.
+The owner then held the PR. The new rules sat in fixed text that no Scriptorium configuration can change, and most were about this owner's tools and habits, while the #402 pilot found Claude follows most tested rules without their text. A triage of all 21 kept one rule in the pact, the lens-cite rule in `claude/review.md`, and the installer rule's guide lines, its warning staying with #407. Thirteen are specific to this owner, machine or brigade and live in the owner's notes or the lead skill; six are dropped (ADR 0115). The cloud copy is regenerated; `builder/` is unchanged.
 
 No gate test was added: since ADR 0069 the gate holds no rule text word for word.
 
