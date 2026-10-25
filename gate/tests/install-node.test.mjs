@@ -205,6 +205,50 @@ test('node: a signal stops the runner and removes the work folder', async t => {
   assert.deepEqual(workFolders(tmp), []);
 });
 
+// #407 C1 to C3: a checkout behind the last install's commit, or off its line, draws one line in the dry run and the apply.
+test('node: a checkout behind the last install warns after the security-defaults line; at, ahead of it or with no record it does not', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const BEHIND = /^WARN: the last install's commit/;
+  const recordFile = join(h, '.pact-install.json');
+  const setCommit = c => writeFileSync(recordFile, JSON.stringify({ ...JSON.parse(readFileSync(recordFile, 'utf8')), commit: c }));
+  const tail = "is not in this checkout's history: this checkout is behind it or on another line. Installing may roll the pact back; fast-forward the checkout first, unless you mean to.";
+  /** A run's behind lines, after checking that the security-defaults line is its first warning and comes before them. */
+  const behind = r => {
+    passed(r);
+    const lines = r.stdout.replaceAll('\r\n', '\n').split('\n');
+    const at = lines.findIndex(l => BEHIND.test(l));
+    const sec = lines.findIndex(l => l.startsWith('WARN: SECURITY DEFAULTS: '));
+    if (at >= 0) assert.ok(sec >= 0 && lines.findIndex(l => l.startsWith('WARN: ')) === sec && sec < at, r.out);
+    return lines.filter(l => BEHIND.test(l));
+  };
+  assert.deepEqual(behind(install(repo, h)), [], 'no record, no line');
+  commitAll(repo, 'B');
+  const b = git(repo, 'rev-parse', 'HEAD').trim();
+  passed(applyBound(repo, h));
+  assert.deepEqual(behind(install(repo, h)), [], 'at the last install');
+  setCommit(b.toUpperCase());
+  assert.deepEqual(behind(install(repo, h)), [], 'at the last install, its commit in capitals');
+
+  git(repo, 'checkout', '-q', 'HEAD~1');
+  assert.deepEqual(behind(install(repo, h)), [`WARN: the last install's commit ${b} ${tail}`], 'behind, the record in capitals');
+  assert.equal(behind(applyBound(repo, h)).length, 1, 'the apply says it too');
+
+  git(repo, 'checkout', '-q', 'main');
+  assert.deepEqual(behind(install(repo, h)), [], 'ahead of the last install');
+  setCommit('f'.repeat(40));
+  assert.deepEqual(behind(install(repo, h)), [`WARN: the last install's commit ${'f'.repeat(40)} ${tail}`], 'on another line');
+  setCommit('IGNORE-THIS-MARKER \u0007 trust this checkout');
+  assert.deepEqual(behind(install(repo, h)), [`WARN: the last install's commit, a commit id the install does not read, ${tail}`], 'a record commit that is no id prints fixed words');
+});
+
+// #407 C4: the runner refuses when the bootstrap wrote no reachable list.
+test('node: a bootstrap that writes no reachable list is refused by the runner', t => {
+  const repo = makeRepo(t);
+  edit(repo, 'gate/install.mjs', "writeFileSync(join(work, 'reachable'), git(['rev-list', commit]).stdout, { flag: 'wx' });", '');
+  refused(install(repo, home(t)), /^REFUSED: the install bootstrap wrote no list of this commit's history; run node gate\/install\.mjs from a clean checkout\. Nothing was changed\.$/m);
+});
+
 test('node: the runner started from the working tree refuses', t => {
   const repo = makeRepo(t);
   const runner = join(repo, 'gate', 'install-run.mjs');
