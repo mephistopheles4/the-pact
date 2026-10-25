@@ -610,8 +610,8 @@ and help with what it needs.
   example in my terms, never a survey I can't push back on. Working under a
   lead session I set up, send those parts to the lead instead of asking in
   your own chat. For these choices, act on my answer as the lead relays it;
-  the decisions that are always mine, and a decline of the sensitive route or
-  its offer, still wait for my word in chat.
+  the decisions that are always mine, a relayed decline of the sensitive route
+  or its offer, and an accepted risk go by their own rules.
 - **Clean up my words.** When my words come by speech-to-text and you record
   them, such as a decided answer or a quote in a spec, clean up dictation
   slips and filler without changing the meaning, show me the cleaned text
@@ -692,9 +692,10 @@ with a covered commit equal to the PR's head, means the head passed. A clean
 pass often posts no review event or inline comment, so waiting for one never
 ends.
 
-Before you say a skill isn't installed, look for its `SKILL.md` in the user
-skills folder, `~/.claude/skills/`, and in the installed plugins' skill
-folders. A skill with `disable-model-invocation: true` is installed but
+Before you say a skill isn't installed, read its `SKILL.md` by its path:
+`~/.claude/skills/<name>/SKILL.md`, or for an installed plugin's skill,
+under `~/.claude/plugins/cache/`. Entries there may be links that the search
+tools don't follow. A skill with `disable-model-invocation: true` is installed but
 hidden from your list: say "installed but user-invoked only", and offer that
 I type it.
 
@@ -3015,7 +3016,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash a523e212b2174928e3466e64f6b2f21bdb6004ad6dd7281afefdc2259707ca74 'CLAUDE.md'
+check_hash dfe6f3d0e7b6448d7a3ea12321890f904e89f9e49fe63dc7a265224540b666cd 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -3055,7 +3056,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy c4cd3337bb6e"
+  echo "pact cloud copy 783919ce36ea"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

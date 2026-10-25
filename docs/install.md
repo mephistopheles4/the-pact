@@ -483,7 +483,7 @@ Fast-forward the repo (`git pull --ff-only`): a checkout behind the last
 install's commit would roll the pact back, and the dry run doesn't warn
 about it yet (#407). If the fast-forward refuses, stop and find out why
 before you install; a checkout left on a reviewed commit last time has no
-branch, so switch back to it first. Read what
+branch, so switch back to your branch first, such as `git switch main`. Read what
 changed before you run anything: the dry run
 runs the new code, and a session opened in the clone loads its project files.
 The `commit` field of `~/.claude/.pact-install.json` names the commit you
