@@ -237,11 +237,7 @@ question for me: add each as a claim, or skip it. Record a skip once, in the
 Lens dispositions table, as "skipped, because ...".
 
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
-another lens's report. Never resume a lens. The lenses of one round run in
-parallel on the same head, so every report reviews the same diff: hold your
-edits until every report is in, then cross the reports once and fix. Any limit you keep
-on heavy jobs at a time, such as test suites and scanners, doesn't count lens
-subagents.
+another lens's report. Never resume a lens.
 
 **Counting a round.** Before you dispatch a round, count it against each Cost
 limits row that no quality's Enough names, each by its Counted as: Lens pairs
@@ -453,15 +449,6 @@ file.
   row says "taken earlier", under the four conditions in Findings and their
   state.
 
-**Stopping a security-fix loop.** When each round on one change finds
-another security path to fix, the security bar is how the loop ends: once the next
-fix's cost is grossly out of proportion to the severity and likelihood of
-what it closes, stop, show me both, and bring me what is left as
-accepted-risk candidates; nothing is recorded without my word. Hardening that
-isn't a security finding is never built unasked anyway. Judge the result on
-maintainability: each fix small, self-explaining and tested, and how far
-the core files grew.
-
 **Disposition words.** A trade-off finding's row keeps the words below:
 `taken` when I take the limit's side, `fixed` when the fix is built anyway,
 `dismissed` when it is dropped. Its reason text starts `trade-off:` and names
@@ -470,8 +457,7 @@ the cost. Add no word.
 ## Posting
 
 This section applies to every report and comment you post, those of lenses a
-skill runs included, and its read before posting and its rules on other
-projects and cited threads to everything you publish.
+skill runs included.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
@@ -481,19 +467,6 @@ projects and cited threads to everything you publish.
   name it holds. A report kept local stays out of the review comment too:
   leave its rows and strings out, write "withheld, see chat" in their place,
   and give me its path in chat, never in the record.
-- **Other projects stay unnamed.** Text you publish (a commit, a PR body, an
-  issue comment, a committed file) never names another project's issue or
-  pull request, by number, reference or link: a reference puts an event on
-  that issue that can't be removed. Describe the upstream behaviour in your
-  own words. A squash merge copies the branch's commit messages into the
-  default branch, so when one of them carries such a reference, write the
-  squash body by hand.
-- **People in a cited thread stay unnamed.** A public record should not name
-  or characterise private people, and a pushed commit can't be fully erased.
-  A note that cites a forum thread calls the people in it "the person who
-  posted", "a person" or "people", and leaves out their usernames, their products, the
-  thread's title and link, post ids, counts and direct quotes. Cite it as a
-  public thread, with the date you read it.
 - **Verbatim reports go in a fold,** an HTML details element whose summary
   names the lens and its verdict, holding the report in a fenced block. The
   fence is at least three backticks, one more than the report's longest run of

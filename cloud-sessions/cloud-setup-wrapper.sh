@@ -604,20 +604,6 @@ and help with what it needs.
 - **Bring me decisions.** Sort a review: fix what is mechanical, group what is
   one question, and bring each real choice with your recommendation and why.
   Act on your own recommendation for the rest, and tell me what you took.
-  For a change to a file, quote its current text, then the wording you
-  propose and one recommendation with why: one item per turn, ending with
-  clickable choices where the harness offers them, your recommendation first.
-  I can't weigh text I haven't seen, and I mostly take the recommendation, so
-  a click saves me typing it. Bring research the same way, as one concrete
-  example in my terms, never a survey I can't push back on. Working under a
-  lead session I set up, send those parts to the lead instead of asking in
-  your own chat. For these choices, act on my answer as the lead relays it;
-  the decisions that are always mine, a relayed decline of the sensitive route
-  or its offer, and an accepted risk go by their own rules.
-- **Clean up my words.** When my words come by speech-to-text and you record
-  them, such as a decided answer or a quote in a spec, clean up dictation
-  slips and filler without changing the meaning, show me the cleaned text
-  once, and say what you assumed where a word looked wrong.
 - **These decisions are always mine:** proceed, fix or kill on a spec; the
   ticket cut; accepting the work, closing a ticket and merging; an install;
   anything published; accepting a risk. Show each as two or three options, your pick marked
@@ -625,16 +611,11 @@ and help with what it needs.
   included. A command you can't run, such as one that needs my sign-in or a
   password, you hand to me in one line and stop.
 - **Finish the build.** At the end of a build, run the tests and any gates the
-  repo has, then offer the reviews the work calls for (see Workflow). Never
-  promise to tell me when a PR goes green through Desktop's Auto-fix: it
-  wakes a session on a failure, a conflict or a review comment, never on all
-  green. When I ask, read the head and its checks once.
+  repo has, then offer the reviews the work calls for (see Workflow).
 - **Keep the record where the project keeps it.** Sign what you post there
   with your session's short label. At a phase boundary, or past half the
   context window, put the state and the open questions in the record, and
-  propose a fresh session. Before you publish anything, a commit or a
-  committed file included, read Posting in the review procedure: its read
-  before posting, and its rules on other projects and cited threads.
+  propose a fresh session.
 - **Say a mismatch first.** If the tier or model doesn't fit the work,
   say so in the first line, before any work.
 
@@ -687,19 +668,6 @@ every other way out has its condition.
 | Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |
 | Deploy | I decide | I decide | I decide | I decide | none | |
 | Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |
-
-When you ask CodeRabbit, a PR review service, for a review, read its first comment on the PR
-afterwards: "No actionable comments were generated in the recent review",
-with a covered commit equal to the PR's head, means the head passed. A clean
-pass often posts no review event or inline comment, so waiting for one never
-ends.
-
-Before you say a skill isn't installed, read its `SKILL.md` by its path:
-`~/.claude/skills/<name>/SKILL.md`, or for an installed plugin's skill,
-under `~/.claude/plugins/cache/`. Entries there may be links that the search
-tools don't follow. A skill with `disable-model-invocation: true` is installed but
-hidden from your list: say "installed but user-invoked only", and offer that
-I type it.
 
 ## Lenses
 
@@ -849,46 +817,6 @@ whatever its "At the limit" says.
 - **Usage.** Before anything expensive, check my weekly usage if you can,
   and tell me the figure and a rough cost. When it is above 75%, wait for my
   go-ahead. The call to cut or stop work over usage is mine.
-
-- **Fable.** Fable, a model with a weekly limit of its own, also counts
-  toward the all-models weekly limit, and it is the most expensive choice, so never suggest it to save
-  weekly usage.
-
-## Tool traps
-
-Each of these has cost turns, most by looking like success.
-
-- **PowerShell hides a failure's output.** In the PowerShell tool, a command
-  that exits non-zero can return no output at all. Send the output of a command
-  that may fail to a temp file and end that command with `exit 0`, then read
-  the file.
-- **No multi-line `node -e` from PowerShell.** It can exit 0 with empty
-  output.
-  Write the script to a scratch file and run it by path.
-- **Commit messages from PowerShell.** Commit with `-m` and a single-quoted
-  here-string, never `git commit -F -`, which takes the here-string as a
-  pathspec and commits nothing. When a message must stay byte-identical,
-  drive git from a Node script: a PowerShell pipe turns line feeds into CRLF.
-- **Literal text in PowerShell.** Test and replace with `.Contains()` and
-  `.Replace()`, never `-like` or `-replace`: `-like` reads brackets as a
-  wildcard class and `-replace` takes a regex, so a check on code-shaped text
-  can say "not found" when the text is there.
-- **Escapes in written files.** The Write and Edit tools turn a backslash-u
-  escape with four hex digits into the character itself. Write JavaScript
-  escapes in the brace form, `\u{200B}`, scan the file for invisible
-  characters after editing, and say so in a subagent's brief for such work.
-- **Collapsing commits.** Soft-reset to the fork point,
-  `git reset --soft $(git merge-base <branch> origin/<default>)`, never onto
-  a ref that has moved since the branch forked: that keeps the old copy of
-  every file the ref changed. Compare `git diff origin/<default>...HEAD --stat` before and after.
-- **Worktrees share one object store.** A sibling session's unpushed branch
-  can be logged, diffed and merged in a scratch worktree, with no push.
-- **Finding a session.** Find which session works on something by the session
-  list's titles and branches, never by a worktree-derived name, which records
-  only where a session started. An idle session is not gone.
-- **A subagent and a versioned script.** When a subagent runs a versioned
-  script from a worktree, give it a check on the output's content, not only
-  the path: it may run the main checkout's copy.
 __CLAUDE_CONFIG_EOF__
 
 write_config 'agents/adversarial-lens.md' <<'__CLAUDE_CONFIG_EOF__'
@@ -2590,11 +2518,7 @@ question for me: add each as a claim, or skip it. Record a skip once, in the
 Lens dispositions table, as "skipped, because ...".
 
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
-another lens's report. Never resume a lens. The lenses of one round run in
-parallel on the same head, so every report reviews the same diff: hold your
-edits until every report is in, then cross the reports once and fix. Any limit you keep
-on heavy jobs at a time, such as test suites and scanners, doesn't count lens
-subagents.
+another lens's report. Never resume a lens.
 
 **Counting a round.** Before you dispatch a round, count it against each Cost
 limits row that no quality's Enough names, each by its Counted as: Lens pairs
@@ -2806,15 +2730,6 @@ file.
   row says "taken earlier", under the four conditions in Findings and their
   state.
 
-**Stopping a security-fix loop.** When each round on one change finds
-another security path to fix, the security bar is how the loop ends: once the next
-fix's cost is grossly out of proportion to the severity and likelihood of
-what it closes, stop, show me both, and bring me what is left as
-accepted-risk candidates; nothing is recorded without my word. Hardening that
-isn't a security finding is never built unasked anyway. Judge the result on
-maintainability: each fix small, self-explaining and tested, and how far
-the core files grew.
-
 **Disposition words.** A trade-off finding's row keeps the words below:
 `taken` when I take the limit's side, `fixed` when the fix is built anyway,
 `dismissed` when it is dropped. Its reason text starts `trade-off:` and names
@@ -2823,8 +2738,7 @@ the cost. Add no word.
 ## Posting
 
 This section applies to every report and comment you post, those of lenses a
-skill runs included, and its read before posting and its rules on other
-projects and cited threads to everything you publish.
+skill runs included.
 
 - **Read before you post.** Before posting any report, review comment, Lens
   dispositions table or line of your own prose, read it for a secret's value
@@ -2834,19 +2748,6 @@ projects and cited threads to everything you publish.
   name it holds. A report kept local stays out of the review comment too:
   leave its rows and strings out, write "withheld, see chat" in their place,
   and give me its path in chat, never in the record.
-- **Other projects stay unnamed.** Text you publish (a commit, a PR body, an
-  issue comment, a committed file) never names another project's issue or
-  pull request, by number, reference or link: a reference puts an event on
-  that issue that can't be removed. Describe the upstream behaviour in your
-  own words. A squash merge copies the branch's commit messages into the
-  default branch, so when one of them carries such a reference, write the
-  squash body by hand.
-- **People in a cited thread stay unnamed.** A public record should not name
-  or characterise private people, and a pushed commit can't be fully erased.
-  A note that cites a forum thread calls the people in it "the person who
-  posted", "a person" or "people", and leaves out their usernames, their products, the
-  thread's title and link, post ids, counts and direct quotes. Cite it as a
-  public thread, with the date you read it.
 - **Verbatim reports go in a fold,** an HTML details element whose summary
   names the lens and its verdict, holding the report in a fenced block. The
   fence is at least three backticks, one more than the report's longest run of
@@ -3018,7 +2919,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash dfe6f3d0e7b6448d7a3ea12321890f904e89f9e49fe63dc7a265224540b666cd 'CLAUDE.md'
+check_hash 5afe9dc0910c96550651afb285e59ff7c67e6051f14180d4bff041fefcdf0055 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -3028,7 +2929,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 4e4154f61cbe82ee54bb8e1d71b84b6f448f97e81bf6fbe0aea691532e1cce47 'pact/review.md'
+check_hash 5b64c3cfc526754d3c271df48878d50bbffc4dc16e75fbc0f2148b67360220cf 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3058,7 +2959,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 783919ce36ea"
+  echo "pact cloud copy 39afffdc0559"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

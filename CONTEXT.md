@@ -70,9 +70,3 @@ real work selects it.
 From #203's spec (revision 7) and its T2 build (#229).
 
 - **Pact command:** a slash command the pact ships in `claude/commands/`, standing for an answer the owner gives often, such as `/make-it-so` or `/finis`. The model can't start one on its own. `/scriptorium` always installs, with the builder kit; the others install only when the owner's configuration lists them.
-
-## Tool traps
-
-From #400's spec (revision 2 on #399), built with it.
-
-- **Tool trap:** a tool, shell or git behaviour that has cost turns, most often by looking like success, such as PowerShell's empty output on a failure. The rules file lists them in its last section, Tool traps (ADR 0115).
