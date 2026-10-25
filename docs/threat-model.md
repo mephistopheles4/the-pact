@@ -8,7 +8,9 @@ alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
 Each accepted risk has a label, R1 to R47 and R57, so other work can point at it. A
-retired risk keeps its label, so the others keep theirs: R18 is retired.
+retired risk keeps its label, so the others keep theirs: R18 is retired. Two
+are accepted without a label, in Crypto and data migrations here: the
+SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
 
 ## Who and what this covers
 
@@ -155,7 +157,8 @@ check can read them in one place. It adds no control and accepts no risk.
   on both normalised views, so a form the page folds into "withheld" is read
   as the word, and so is a word the page hides in a comment or tag; a copy
   with each link folded to its text and without emphasis and code span marks
-  catches the word split by them (#392).
+  catches the word split by them (#392), a link address with one level of
+  parentheses or a quoted title included (#396).
 - **The tracker author checker.** Its fixed input shape, stops and escaped
   output (The tracker author checker's own checks).
 
@@ -319,7 +322,7 @@ How to read it:
 | R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091). The default's `addyosmani/agent-skills` pin lives in `builder/presets/level-3-full.json`, and a person's own pins in their configuration; ADR 0091's bump procedure covers both, and each send a bump's read names goes to you before the bump is committed (#183 T4a) | Rule |
 | R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
-| R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on four views of the text after the state word (#392) | Rule |
+| R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on five views of the text after the state word (#392, #396) | Rule |
 
 ## Strangers on the tracker
 
@@ -1230,10 +1233,13 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
 - **R57. The table check doesn't read every form of a withheld row's state.**
   A state word beside a withheld row, written with a look-alike letter from
   another script, a named character reference outside the poster's list, or
-  in a cell or wording the check doesn't read, passes it. The review
+  in a cell or wording the check doesn't read, or in markup it doesn't fold,
+  passes it. The review
   procedure's rule for a withheld finding is the control; the check is only
   a backstop. Accepted by the owner on 2026-10-24, relayed by the lead, from
-  the Test review of #391 and #392 (adversarial-lens and data-lens).
+  the Test review of #391 and #392 (adversarial-lens and data-lens). "Or in
+  markup it doesn't fold" added on the owner's word, relayed by the lead, on
+  2026-10-24, from #395's last Test read (q11, #396).
 
 ## The tracker author checker's own checks
 
