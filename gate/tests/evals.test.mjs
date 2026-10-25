@@ -5,7 +5,7 @@
 // No test runs `claude`: the generator and the checker run nothing.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -65,13 +65,14 @@ test('C2: read the eval\'s way, each with copy keeps its keys, the rules text an
     assert.equal(got.system, RULES_HEAD + RULES, c);
     assert.equal(got.body, src.body, c);
   }
-  // A rules text holding the Unicode line breaks round trips too.
-  const odd = `a${String.fromCharCode(0x2028)}b${String.fromCharCode(0x2029)}c${String.fromCharCode(0x85)}d\n`;
+  // A rules text holding the Unicode line breaks, DEL, a C1 control and a noncharacter round trips too.
+  const ODD = [0x85, 0x2028, 0x2029, 0x7f, 0x9b, 0xfffe];
+  const odd = `${ODD.map(c => `x${String.fromCharCode(c)}`).join('')}\n`;
   const o2 = out(t);
   generate({ out: o2, rulesText: odd });
   assert.equal(withText(o2, CASES[0]).system, RULES_HEAD + odd);
   const raw = readFileSync(join(o2, 'evals', `${CASES[0]}-with`, 'prompt.md'), 'utf8');
-  for (const code of [0x85, 0x2028, 0x2029]) assert.ok(!raw.includes(String.fromCharCode(code)), `a raw U+${code.toString(16)} in the with copy`);
+  for (const code of ODD) assert.ok(!raw.includes(String.fromCharCode(code)), `a raw U+${code.toString(16)} in the with copy`);
   // The bad case: the #402 pilot's layout, the rules as a block scalar first in the front matter.
   const source = readFileSync(join(CASES_DIR, CASES[0], 'prompt.md'), 'utf8');
   const block = 'append_system_prompt: |\n' + (RULES_HEAD + RULES).split('\n').map(l => '  ' + l).join('\n') + '\n';
@@ -109,7 +110,9 @@ test('C3: the rules source is the default render, a --rules file, and --canary a
   assert.equal(graders.length, 1);
   const grader = readFileSync(join(o2, 'evals', 'canary-with', 'graders', graders[0]), 'utf8');
   assert.match(grader, /^type: regex$/m);
-  assert.ok(grader.includes(CANARY_WORD));
+  const pattern = new RegExp(grader.match(/^pattern: (.*)$/m)[1]);
+  assert.ok(pattern.test(CANARY_WORD) && !pattern.test('NONE'), 'the grader matches the word, and not NONE');
+  assert.ok(readFileSync(join(o2, 'evals', 'canary-without', 'graders', graders[0])).equals(readFileSync(join(o2, 'evals', 'canary-with', 'graders', graders[0]))), 'the without copy has the same grader');
 });
 
 // #405 C4
@@ -135,7 +138,13 @@ test('C4: each refusal exits non-zero and writes nothing', t => {
   mkdirSync(full, { recursive: true });
   writeFileSync(join(full, 'x'), 'x');
   refused({ out: full }, /not empty/, 1);
-  for (const ch of ['"', '$', '`', '%', '\n', '\r']) refused({ out: out(t) + ch }, /character/);
+  for (const ch of ['"', '$', '`', '%', '\n', '\r', ...[0x201c, 0x201d, 0x201e].map(c => String.fromCharCode(c))]) refused({ out: out(t) + ch }, /character/);
+  // A link into the repo, and the extended-length prefix, reach the repo too.
+  const link = join(tempDir(t, 'pact-evals-link-'), 'repo');
+  symlinkSync(REPO, link, 'junction');
+  assert.throws(() => generate({ rulesText: 'r\n', out: join(link, 'tmp-out-405') }), /inside the repo/);
+  assert.ok(!existsSync(join(REPO, 'tmp-out-405')), 'a linked refusal wrote into the repo');
+  if (process.platform === 'win32') assert.throws(() => generate({ rulesText: 'r\n', out: '\\\\?\\' + join(REPO, 'tmp-out-405') }), /inside the repo/);
   refused({ rulesText: undefined, rulesFile: join(tempDir(t, 'pact-evals-none-'), 'missing.md') }, /--rules path is not a file/);
   refused({ rulesText: undefined, rulesFile: tempDir(t, 'pact-evals-dir-') }, /--rules path is not a file/);
   refused({ casesDir: bad('subdir', GOOD_CASE) }, /not a file/);
@@ -144,6 +153,8 @@ test('C4: each refusal exits non-zero and writes nothing', t => {
   refused({ casesDir: bad('canary', GOOD_CASE) }, /built-in canary/);
   refused({ casesDir: bad('own', '---\nmax_turns: 4\nallowed_tools: []\nappend_system_prompt: "x"\n---\n\nbody\n') }, /append_system_prompt/);
   refused({ casesDir: bad('tools', '---\nmax_turns: 4\nallowed_tools: [Read]\n---\n\nbody\n') }, /tool/);
+  refused({ casesDir: bad('twice', '---\nmax_turns: 4\nallowed_tools: [Bash]\nallowed_tools: []\n---\n\nbody\n') }, /twice/);
+  refused({ casesDir: bad('camel', '---\nmax_turns: 4\nallowed_tools: []\nallowedTools: [Bash]\n---\n\nbody\n') }, /tool/);
   refused({ casesDir: bad('nokey', '---\nmax_turns: 4\n---\n\nbody\n') }, /tool/);
   refused({ casesDir: bad('round', '---\nmax_turns: 4\nallowed_tools: []\nnote: a --- b\n---\n\nbody\n') }, /round trip/);
   // The command line exits non-zero on a refusal, and prints no path.
@@ -209,6 +220,7 @@ test('C6: check passes a clean first run and fails each fault by its field, prin
     [json([run('canary-with', {}, { graders: [] })]), 'canary'],
     [json([run('canary-without')]), 'canary'],
     [json([run(`${c}-with`, { arms: {} })]), 'arms'],
+    [json([(({ promptMarkdown, ...rest }) => rest)(run(`${c}-with`))]), 'promptMarkdown'],
   ];
   for (const [doc, field] of faults) {
     const v = checkRun(doc, o);

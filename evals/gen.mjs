@@ -32,7 +32,7 @@
 // eval text, which the owner reads by hand.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as renderCheck } from '../gate/render-core.mjs';
 
@@ -56,9 +56,11 @@ const MANIFEST = JSON.stringify({ name: 'pact-evals', version: '0.0.0', descript
 const LIMITS = '--ablation none --runs 1 --model haiku --judge-model haiku --max-cost-usd 1 --no-publish --trust-plugin';
 const DENY = '--disallow-tools Agent WebFetch WebSearch Bash Write Edit NotebookEdit Read Glob Grep';
 const ESCAPED_HYPHEN = '\\' + 'u002D';
-// JSON.stringify leaves the Unicode line breaks raw (next line and the two separators); escape them
-// too, so a key line never breaks under a YAML reader.
-const SEPARATORS = new RegExp(`[${String.fromCharCode(0x85, 0x2028, 0x2029)}]`, 'g');
+// JSON.stringify leaves raw what a YAML reader breaks a line on or refuses: DEL and the C1
+// controls (next line among them), the two line separators, and U+FFFE and U+FFFF. Escape them too.
+const SEPARATORS = new RegExp(`[${String.fromCharCode(0x7f)}-${String.fromCharCode(0x9f)}${String.fromCharCode(0x2028, 0x2029, 0xfffe, 0xffff)}]`, 'g');
+// PowerShell reads the typographic double quotes as double quotes; a POSIX shell doesn't.
+const UNSAFE = new RegExp('["$`%\\r\\n' + String.fromCharCode(0x201c, 0x201d, 0x201e) + ']');
 const escapeChar = ch => '\\' + 'u' + ch.charCodeAt(0).toString(16).padStart(4, '0');
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -77,11 +79,14 @@ function sourceParts(text) {
 function keysOf(head) {
   const keys = {};
   for (const line of head) {
-    const m = line.match(/^([a-z_]+):\s*(.*)$/);
+    const m = line.match(/^([A-Za-z_]+):\s*(.*)$/);
     if (m) keys[m[1]] = m[2];
   }
   return keys;
 }
+
+/** The key names a case's front matter sets, one per `key:` line, repeats kept. */
+const keyNames = head => head.map(l => l.match(/^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*:/)?.[1]).filter(Boolean);
 
 /**
  * Reads a prompt file the eval's way: the front matter ends at the first `---`
@@ -125,6 +130,20 @@ export function defaultRules() {
 
 const isFile = p => { try { return statSync(p).isFile(); } catch { return false; } };
 
+/**
+ * A path as the file system sees it: links followed through its nearest
+ * existing folder (which also drops an extended-length prefix), the rest appended.
+ */
+function realPath(p) {
+  let head = p;
+  const rest = [];
+  while (!existsSync(head) && dirname(head) !== head) {
+    rest.unshift(basename(head));
+    head = dirname(head);
+  }
+  return join(realpathSync.native(head), ...rest);
+}
+
 const within = (inner, outer) => {
   const rel = relative(outer, inner);
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
@@ -140,6 +159,9 @@ function readCase(dir, name) {
   if (!parts) refuse(`case ${name}: no front matter`);
   const keys = keysOf(parts.head);
   if ('append_system_prompt' in keys) refuse(`case ${name}: it sets append_system_prompt of its own`);
+  const names = keyNames(parts.head);
+  if (new Set(names).size !== names.length) refuse(`case ${name}: its front matter sets a key twice`);
+  if (names.some(k => /tool/i.test(k) && k !== 'allowed_tools')) refuse(`case ${name}: it must grant no tool (allowed_tools: [])`);
   if (keys.allowed_tools !== '[]') refuse(`case ${name}: it must grant no tool (allowed_tools: [])`);
   const graders = existsSync(join(dir, name, 'graders')) ? readdirSync(join(dir, name, 'graders')).sort() : [];
   for (const g of graders) if (!isFile(join(dir, name, 'graders', g))) refuse(`case ${name}: graders/ holds something that is not a file`);
@@ -157,9 +179,11 @@ const evalLine = (out, kase, json) => `claude plugin eval "${out}" --eval-dir ev
  */
 export function generate({ out, rulesText, rulesFile, canary = false, casesDir = CASES_DIR }) {
   const target = resolve(out);
-  if (within(target, REPO)) refuse('the output folder is inside the repo');
-  if (within(REPO, target)) refuse('the repo inside the output folder');
-  if (/["$`%\r\n]/.test(target)) refuse('the output path holds a character a shell would read inside double quotes');
+  const real = realPath(target);
+  const repo = realpathSync.native(REPO);
+  if (within(real, repo)) refuse('the output folder is inside the repo');
+  if (within(repo, real)) refuse('the repo inside the output folder');
+  if (UNSAFE.test(target)) refuse('the output path holds a character a shell would read inside double quotes');
   if (existsSync(target) && readdirSync(target).length) refuse('the output folder is not empty');
 
   if (rulesText === undefined && rulesFile && !isFile(rulesFile)) refuse('the --rules path is not a file');
