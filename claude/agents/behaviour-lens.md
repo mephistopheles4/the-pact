@@ -155,11 +155,11 @@ What is particular to you:
 - **Each finding** sits on a listed claim. Its evidence says what was
   expected, what happened, how confident you are (high, medium or low), and
   how to reproduce it.
-- **How serious:**
-  - most serious: a claim fails reproducibly, or the change causes a
+- **How serious (severity):**
+  - `high`: a claim fails reproducibly, or the change causes a
     reproducible regression, with real impact on users or the system;
-  - less: a reproducible problem relevant to a claim that does not fail it;
-  - least: an advisory, or a risk you could not reproduce.
+  - `medium`: a reproducible problem relevant to a claim that does not fail it;
+  - `low`: an advisory, or a risk you could not reproduce.
 - **Not checked** holds every claim you did not run and every need no claim
   covers. Never say the work holds when a claim went unrun.
 

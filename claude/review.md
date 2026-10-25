@@ -172,9 +172,9 @@ what a lens writes by its meaning.
 - **For the owner:** plain sentences on what it found, why it matters and
   what it suggests.
 - **Findings:** one per item, each with where it sits (a section or claim
-  from the list it was handed, or a file and symbol), how serious it is
-  (high, medium or low), a one-line headline, the evidence and the smallest
-  change that fixes it.
+  from the list it was handed, or a file and line or symbol), how serious it
+  is (high, medium or low, as What each severity means says), a one-line
+  headline, the evidence and the smallest change that fixes it.
 - **Trade-offs:** each finding past a cost limit or an Enough level, or
   spending a cost whose limit is empty, listed apart from Findings, each with its severity, the cost or level, the limit
   and the quality at stake. A lens with none writes "none".
@@ -203,9 +203,12 @@ what a lens writes by its meaning.
   read", followed by the count of changed files outside its scope; it lists
   no files. What lies outside its scope was not handed to it, so it doesn't
   make the verdict inconclusive.
-- **Verdict:** blocking when a finding is high and `new` or `updated`, or high
-  and `unchanged` and either a security finding by the lens's own class (the
-  security pair) or marked `security?` (any other lens); inconclusive when it
+- **Verdict:** blocking when a finding is high, `new` or `updated`, and names
+  its place and evidence; or high and a security finding by the lens's own
+  class (the security pair) or marked `security?` (any other lens), whether
+  `new`, `updated` or `unchanged`. A high finding that is neither and lacks
+  its place or evidence never makes the verdict blocking on its own; the lens
+  says which is missing. Otherwise: inconclusive when it
   couldn't review something it was handed, an `E` row it didn't account for
   included; findings; or clear. An `unchanged` finding that isn't a security
   finding never makes the verdict blocking, nor does an `absent` one, a
@@ -226,6 +229,17 @@ applies the general meanings above.
 | adversarial-lens | an attack path the change opens | a path at the base that the change makes easier or edits | a path at the base that the change leaves as it was |
 | data-lens | a leak point the change adds | a leak point at the base that the change widens or edits | a leak point at the base that the change leaves as it was |
 
+**What each severity means.** Hand this with the template. Each lens's own
+scale applies these meanings to its question; a lens brought from elsewhere
+uses them as given.
+- `high`: the work can't be accepted as it stands. A high finding names where
+  it sits (a section or claim from the list it was handed, or a file and line
+  or symbol) and evidence that the place is wrong as the request, the spec or
+  the base reads.
+- `medium`: should be fixed in this change, or brought to me; never blocks.
+- `low`: can wait, as a note or a follow-up issue; never the reason for
+  another round.
+
 **Quality rows and cost limits.** Hand each lens, as a local file, the rows of
 the rules file's Qualities table that name it, with their Enough, and the
 Cost limits rows those Enough cells name, with the running count against each
@@ -235,6 +249,31 @@ home rules. Hand the two security lenses also the sensitive-work list in force a
 threat model (see Trade-offs and accepted risks). Batch the missing measures the lenses report into one
 question for me: add each as a claim, or skip it. Record a skip once, in the
 Lens dispositions table, as "skipped, because ...".
+
+**What a lens skips.** Hand every lens this list with those rows. A lens
+reports no finding on content that only regenerates or only re-locks, unless
+the repo's Review rules say otherwise:
+- **Only regenerates:** a file the repo marks as generated, by a "generated
+  by" header naming its generator or by its Review rules naming the path with
+  its generator, when the generator's source changes in the same diff.
+- **Only re-locks:** a lockfile change that follows a manifest change in the
+  same diff.
+
+Skipping is reporting nothing, not leaving unread: a lens that sees output
+not following from its source still reports it, and a lens that can't tell
+whether a file is marked generated reads it as any other. Never skipped: a
+lockfile change with no manifest change, and any path the project's agent
+instructions say to read closely, under any heading. The security pair skips
+nothing.
+
+**Repo review rules.** Hand every lens, with those rows, the "Review rules"
+section of the project's agent instructions (`AGENTS.md`, else `CLAUDE.md`),
+read at the base as the threat model is, or say there is none. Hand a
+change's own edit to that section apart, as an input; it takes effect for the
+next change. These rules can take items off the skip list, add paths to it
+only as generated files named with their generator, and add to what a lens
+checks. They never lift what this file says the security pair does, the
+security bar, the close-read exception above, or the read before posting.
 
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
 another lens's report. Never resume a lens.
@@ -335,7 +374,10 @@ round at a glance and the data stays as it is. In this order:
    inconclusive, then findings, then clear, raised to blocking when you sort a
    high `unchanged` finding as a security finding (see Findings and their
    state). Show each lens's verdict beside it, and mark one your sort raises,
-   with the finding. A review that holds a withheld finding posts the verdict
+   with the finding. Lower a lens's verdict to findings when it is blocking
+   only on highs that lack their place or evidence and none is a security or
+   `security?` finding; mark the lowering beside it, naming what is missing.
+   The lowering is never `auto`. A review that holds a withheld finding posts the verdict
    of its posted findings only (see A withheld finding). A lens whose verdict
    is inconclusive is marked "not verified": its silence is not a pass, so
    read what it didn't check. Mark "scoped" beside the verdict of each lens
@@ -359,7 +401,8 @@ round at a glance and the data stays as it is. In this order:
 11. **Notes.** A table of where, lens, severity and headline for each `noted`
     finding, with the notes the Follow-up issues cost overflows into. An
     overflow note's row keeps its own Disposition word, with "issues
-    overflow" in its reason text; only an `unchanged` finding is `noted`.
+    overflow" in its reason text; only an `unchanged` or a low finding is
+    `noted`.
     Leave it out when there are none.
 12. **Earlier findings,** per lens on a follow-up: each `E` number with
     `absent` or the finding that continues it.
@@ -475,6 +518,20 @@ whose class you can't tell as a security finding, for an `absent` finding.
   to file it, fix it in this change, or leave it as a note, and offer a full
   pass once.
 - Filing a `noted` finding counts against the Follow-up issues cost.
+
+**Sorting a low finding.** A low `new` or `updated` finding that isn't a
+security or `security?` finding is `noted (auto)`, unless its fix is
+mechanical and lands in a round before the closing read. A low finding never
+calls for a follow-up round on its own. After the closing read, a fix to a
+low finding is a later commit and needs a new closing read, so it is noted
+unless I ask for the fix. Filing one counts against the Follow-up issues
+cost. A low security or `security?` finding is sorted as any security finding
+is.
+
+**A high finding without its place or evidence** comes to me with what is
+missing, and with the lens's verdict and yours when you lowered it. Its row is
+`open`, never `auto` and never `noted`. A review in flight when this rule is
+installed applies it from its next round.
 
 **Sorting an `absent` earlier finding.** Record it `fixed`, naming its `E`
 number. When the earlier finding was a security or `security?` finding, first
@@ -642,7 +699,8 @@ no markup:
   which gets its own row as `skipped, because ...` with the reason.
 - `open`, for a finding I haven't settled yet. It needs nothing after it; a
   later table gives the finding its final word.
-- `noted`, for an `unchanged` finding kept as a note, which never blocks. When
+- `noted`, for an `unchanged` finding, or a low `new` or `updated` one, kept
+  as a note, which never blocks. When
   I file one, its reason text says so, as in `noted: filed as #N`.
 
 Mark one you took on your own recommendation `auto`, as in
