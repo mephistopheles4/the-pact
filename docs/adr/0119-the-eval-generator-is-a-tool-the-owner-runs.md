@@ -1,6 +1,6 @@
 # The eval generator is a tool the owner runs
 
-An eval instrument lives in the repo again: `evals/gen.mjs` and the cases in `evals/cases/` (#405). It writes each case twice, with the pact's rules text as the appended system prompt and without, and prints the `claude plugin eval` commands for the owner to type. It runs nothing, and nothing runs it: no CI job, hook or gate check. An eval run is not a probe under `docs/agents/changing-rules.md` and no evidence for a rule change; a rule still holds by review and by use (ADR 0069).
+An eval instrument lives in the repo again: `evals/gen.mjs` and the cases in `evals/cases/` (#405). It writes each case twice, with the pact's rules text as the appended system prompt and without, and prints the `claude plugin eval` commands for the owner to type. It runs nothing, and nothing runs an eval: no CI job, hook or gate check. The gate's tests run the generator and `check` only, with no `claude` call. An eval run is not a probe under `docs/agents/changing-rules.md` and no evidence for a rule change; a rule still holds by review and by use (ADR 0069).
 
 ## What it partly reverses
 
@@ -23,6 +23,7 @@ ADR 0045 deleted the practice cases and their scorer because each run cost a ses
 - **`--no-publish` on every printed run.** The report stays on the owner's machine.
 - **`--trust-plugin` on every printed run.** It trusts only the folder the generator just wrote. With `--json` the eval can't stop to ask, and it refuses an untrusted folder; the owner's confirming run found that.
 - **Checked against Claude Code 2.1.310.** The flags, the front-matter reading and the JSON fields are its interfaces. After an update, the generator runs with `--canary` and its printed steps 1 and 2 run before a round is trusted.
+- **The default render runs the gate's render core in-process.** Of the five controls ADR 0032 lists for an in-process caller, it keeps the two-part verdict and prints no error text. It doesn't hold to committed code, refuse `NODE_OPTIONS` or set a time limit: no install verdict rests on this render, which only feeds eval text the owner reads by hand.
 - **The judge is not trusted alone.** Every reply is read by hand; the Haiku judge was wrong in both earlier rounds.
 
 ## What was weighed

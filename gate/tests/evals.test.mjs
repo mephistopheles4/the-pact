@@ -17,7 +17,7 @@ import {
   evalRead,
   generate,
 } from '../../evals/gen.mjs';
-import { childEnv } from './gate-run.mjs';
+import { childEnv, runCore } from './gate-run.mjs';
 import { REPO } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
 
@@ -37,7 +37,9 @@ test('C1: two copies per case, the without copy and the graders byte for byte', 
   const o = out(t);
   generate({ out: o, rulesText: 'rules text\n' });
   assert.equal(CASES.length, 16);
-  assert.ok(existsSync(join(o, '.claude-plugin', 'plugin.json')));
+  const manifest = JSON.parse(readFileSync(join(o, '.claude-plugin', 'plugin.json'), 'utf8'));
+  assert.equal(manifest.name, 'pact-evals');
+  assert.equal(manifest.version, '0.0.0');
   assert.deepEqual(readdirSync(join(o, 'evals')).sort(), CASES.flatMap(c => [`${c}-with`, `${c}-without`]).sort());
   for (const c of CASES) {
     const src = join(CASES_DIR, c);
@@ -63,11 +65,13 @@ test('C2: read the eval\'s way, each with copy keeps its keys, the rules text an
     assert.equal(got.system, RULES_HEAD + RULES, c);
     assert.equal(got.body, src.body, c);
   }
-  // A rules text holding a Unicode line separator round trips too.
-  const odd = `a${String.fromCharCode(0x2028)}b${String.fromCharCode(0x2029)}c\n`;
+  // A rules text holding the Unicode line breaks round trips too.
+  const odd = `a${String.fromCharCode(0x2028)}b${String.fromCharCode(0x2029)}c${String.fromCharCode(0x85)}d\n`;
   const o2 = out(t);
   generate({ out: o2, rulesText: odd });
   assert.equal(withText(o2, CASES[0]).system, RULES_HEAD + odd);
+  const raw = readFileSync(join(o2, 'evals', `${CASES[0]}-with`, 'prompt.md'), 'utf8');
+  for (const code of [0x85, 0x2028, 0x2029]) assert.ok(!raw.includes(String.fromCharCode(code)), `a raw U+${code.toString(16)} in the with copy`);
   // The bad case: the #402 pilot's layout, the rules as a block scalar first in the front matter.
   const source = readFileSync(join(CASES_DIR, CASES[0], 'prompt.md'), 'utf8');
   const block = 'append_system_prompt: |\n' + (RULES_HEAD + RULES).split('\n').map(l => '  ' + l).join('\n') + '\n';
@@ -78,11 +82,10 @@ test('C2: read the eval\'s way, each with copy keeps its keys, the rules text an
 
 // #405 C3
 test('C3: the rules source is the default render, a --rules file, and --canary adds the word and its case', t => {
-  // The reference render runs as a child on purpose: an independent run of the renderer, not the generator's own call.
   const home = tempDir(t, 'pact-evals-home-');
   const ro = tempDir(t, 'pact-evals-render-');
-  const r = spawnSync(process.execPath, [join(REPO, 'gate', 'render.mjs'), join(REPO, 'claude', 'CLAUDE.md'), ro, home, join(REPO, 'builder', 'default-config')], { env: childEnv(), encoding: 'utf8' });
-  assert.equal(r.status, 0, r.stdout);
+  const r = runCore('render', [join(REPO, 'claude', 'CLAUDE.md'), ro, home, join(REPO, 'builder', 'default-config')]);
+  assert.equal(r.code, 0, r.stdout);
   const rendered = readFileSync(join(ro, 'CLAUDE.md'), 'utf8');
   assert.equal(defaultRules(), rendered);
 
@@ -98,9 +101,7 @@ test('C3: the rules source is the default render, a --rules file, and --canary a
   const run = gen([o2, '--rules', join(dir, 'mine.md'), '--canary']);
   assert.equal(run.status, 0, run.stderr);
   assert.ok(run.stdout.includes(CANARY_WORD), 'the word is printed');
-  const system = withText(o2, CASES[0]).system;
-  assert.ok(system.startsWith(RULES_HEAD + 'my rules\n'), 'the --rules file is the rules text');
-  assert.ok(system.trimEnd().endsWith(CANARY_WORD + '.'), 'the canary line ends it');
+  assert.equal(withText(o2, CASES[0]).system, `${RULES_HEAD}my rules\n\nCanary: the pilot word is ${CANARY_WORD}.\n`, 'the --rules file, then the canary line');
   const canary = withText(o2, 'canary');
   assert.equal(canary.keys.max_turns, '2');
   assert.equal(canary.keys.allowed_tools, '[]');
@@ -119,13 +120,14 @@ test('C4: each refusal exits non-zero and writes nothing', t => {
     const tree = { 'aaa/prompt.md': GOOD_CASE, 'aaa/graders/criteria.md': '---\ntype: llm\n---\n\nx\n' };
     if (text !== null) tree[`${name}/prompt.md`] = text;
     else tree[`${name}/graders/criteria.md`] = '---\ntype: llm\n---\n\nx\n';
+    if (name === 'subdir') tree['subdir/graders/inner/x.md'] = 'x\n';
     writeTree(d, tree);
     return d;
   };
   const refused = (opts, why, keep = 0) => {
     const o = opts.out ?? out(t);
     assert.throws(() => generate({ rulesText: 'r\n', ...opts, out: o }), why);
-    assert.ok(!existsSync(o) || readdirSync(o).length === keep, `${why} wrote something`);
+    assert.ok(keep ? readdirSync(o).length === keep : !existsSync(o), `${why} wrote something`);
   };
   refused({ out: join(REPO, 'evals', 'tmp-out') }, /inside the repo/);
   assert.throws(() => generate({ rulesText: 'r\n', out: dirname(REPO) }), /repo inside/);
@@ -134,7 +136,9 @@ test('C4: each refusal exits non-zero and writes nothing', t => {
   writeFileSync(join(full, 'x'), 'x');
   refused({ out: full }, /not empty/, 1);
   for (const ch of ['"', '$', '`', '%', '\n', '\r']) refused({ out: out(t) + ch }, /character/);
-  refused({ rulesText: undefined, rulesFile: join(tempDir(t, 'pact-evals-none-'), 'missing.md') }, /--rules file/);
+  refused({ rulesText: undefined, rulesFile: join(tempDir(t, 'pact-evals-none-'), 'missing.md') }, /--rules path is not a file/);
+  refused({ rulesText: undefined, rulesFile: tempDir(t, 'pact-evals-dir-') }, /--rules path is not a file/);
+  refused({ casesDir: bad('subdir', GOOD_CASE) }, /not a file/);
   refused({ casesDir: bad('nofm', 'no front matter\n') }, /front matter/);
   refused({ casesDir: bad('noprompt', null) }, /no prompt\.md/);
   refused({ casesDir: bad('canary', GOOD_CASE) }, /built-in canary/);
@@ -191,8 +195,9 @@ test('C6: check passes a clean first run and fails each fault by its field, prin
   });
   const json = (cases, top = {}) => ({ schemaVersion: 1, claudeVersion: '2.1.310', partial: false, costUsd: 0, cases, ...top });
 
-  const good = checkRun(json([run(`${c}-with`), run(`${c}-without`), run('canary-with'), run('canary-without', {}, { passed: false, graders: graded(false) })]), o);
-  assert.equal(good.ok, true, good.lines.join('\n'));
+  const good = { doc: json([run(`${c}-with`), run(`${c}-without`), run('canary-with'), run('canary-without', {}, { passed: false, graders: graded(false) })]) };
+  const passed = checkRun(good.doc, o);
+  assert.equal(passed.ok, true, passed.lines.join('\n'));
   const faults = [
     [json([run(`${c}-with`, { maxTurns: 10 })]), 'maxTurns'],
     [json([run(`${c}-with`, { promptMarkdown: `${RULES_HEAD}r\n${body}` })]), 'promptMarkdown'],
@@ -203,6 +208,7 @@ test('C6: check passes a clean first run and fails each fault by its field, prin
     [json([run('canary-with', {}, { passed: false, graders: graded(false) })]), 'canary'],
     [json([run('canary-with', {}, { graders: [] })]), 'canary'],
     [json([run('canary-without')]), 'canary'],
+    [json([run(`${c}-with`, { arms: {} })]), 'arms'],
   ];
   for (const [doc, field] of faults) {
     const v = checkRun(doc, o);
@@ -212,10 +218,14 @@ test('C6: check passes a clean first run and fails each fault by its field, prin
       assert.ok(!l.includes(reply) && !l.includes(o) && !l.includes(REPO), `check printed a reply or a path: ${l}`);
     }
   }
-  // The command line exits non-zero on a fault, with a fail result line.
-  const file = join(tempDir(t, 'pact-evals-run-'), 'run.json');
-  writeFileSync(file, JSON.stringify(faults[0][0]));
-  const r = gen(['check', file, o]);
-  assert.equal(r.status, 1);
-  assert.ok(r.stdout.trimEnd().endsWith('RESULT: fail'));
+  // The command line exits 0 on a clean run and 1 on a fault, with its result line last, and prints no reply or path.
+  const dir = tempDir(t, 'pact-evals-run-');
+  for (const [name, doc, status, result] of [['good.json', good.doc, 0, 'RESULT: pass'], ['bad.json', json([run('canary-with', {}, { passed: false, graders: graded(false) })]), 1, 'RESULT: fail']]) {
+    const file = join(dir, name);
+    writeFileSync(file, JSON.stringify(doc));
+    const r = gen(['check', file, o]);
+    assert.equal(r.status, status, name);
+    assert.ok(r.stdout.trimEnd().endsWith(result), name);
+    for (const s of [reply, o, file, REPO]) assert.ok(!(r.stdout + r.stderr).includes(s), `check printed a reply or a path (${name})`);
+  }
 });

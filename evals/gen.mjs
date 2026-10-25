@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// The eval generator (#405, ADR 0119): a tool the owner runs on request,
-// never a standing step. It writes each case in evals/cases/ twice, as a
+// The eval generator (#405, ADR 0119): a tool the owner runs on request;
+// no CI job, hook or gate check runs an eval. It writes each case in evals/cases/ twice, as a
 // plugin folder `claude plugin eval` can read, and prints the commands for the
 // owner to run; it runs none of them.
 //
@@ -30,7 +30,7 @@
 // prints no error text; it doesn't hold to committed code, refuse NODE_OPTIONS
 // or set a time limit. No install verdict rests on this render: it only feeds
 // eval text, which the owner reads by hand.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,8 +56,9 @@ const MANIFEST = JSON.stringify({ name: 'pact-evals', version: '0.0.0', descript
 const LIMITS = '--ablation none --runs 1 --model haiku --judge-model haiku --max-cost-usd 1 --no-publish --trust-plugin';
 const DENY = '--disallow-tools Agent WebFetch WebSearch Bash Write Edit NotebookEdit Read Glob Grep';
 const ESCAPED_HYPHEN = '\\' + 'u002D';
-// JSON.stringify leaves the two Unicode line separators raw; escape them too, so a key line never breaks.
-const SEPARATORS = new RegExp(`[${String.fromCharCode(0x2028, 0x2029)}]`, 'g');
+// JSON.stringify leaves the Unicode line breaks raw (next line and the two separators); escape them
+// too, so a key line never breaks under a YAML reader.
+const SEPARATORS = new RegExp(`[${String.fromCharCode(0x85, 0x2028, 0x2029)}]`, 'g');
 const escapeChar = ch => '\\' + 'u' + ch.charCodeAt(0).toString(16).padStart(4, '0');
 const NAME = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -122,6 +123,8 @@ export function defaultRules() {
   }
 }
 
+const isFile = p => { try { return statSync(p).isFile(); } catch { return false; } };
+
 const within = (inner, outer) => {
   const rel = relative(outer, inner);
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
@@ -139,6 +142,7 @@ function readCase(dir, name) {
   if ('append_system_prompt' in keys) refuse(`case ${name}: it sets append_system_prompt of its own`);
   if (keys.allowed_tools !== '[]') refuse(`case ${name}: it must grant no tool (allowed_tools: [])`);
   const graders = existsSync(join(dir, name, 'graders')) ? readdirSync(join(dir, name, 'graders')).sort() : [];
+  for (const g of graders) if (!isFile(join(dir, name, 'graders', g))) refuse(`case ${name}: graders/ holds something that is not a file`);
   return { name, source, keys, body: parts.body, graders: graders.map(g => [g, readFileSync(join(dir, name, 'graders', g))]) };
 }
 
@@ -158,7 +162,7 @@ export function generate({ out, rulesText, rulesFile, canary = false, casesDir =
   if (/["$`%\r\n]/.test(target)) refuse('the output path holds a character a shell would read inside double quotes');
   if (existsSync(target) && readdirSync(target).length) refuse('the output folder is not empty');
 
-  if (rulesText === undefined && rulesFile && !existsSync(rulesFile)) refuse('the --rules file does not exist');
+  if (rulesText === undefined && rulesFile && !isFile(rulesFile)) refuse('the --rules path is not a file');
   let text = rulesText ?? (rulesFile ? readFileSync(rulesFile, 'utf8') : defaultRules());
   if (canary) text += `\nCanary: the pilot word is ${CANARY_WORD}.\n`;
 

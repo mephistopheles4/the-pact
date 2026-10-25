@@ -1,7 +1,8 @@
 # Evals
 
 A tool the owner runs on request, never a standing step: no CI job, hook or
-gate check runs it (ADR 0119). It asks whether Claude follows a rule in the
+gate check runs an eval (ADR 0119). The gate's tests run the generator and
+`check` only, with no `claude` call. It asks whether Claude follows a rule in the
 pact's text without that text, so a rule it passes bare is a candidate to cut.
 An eval run is not a probe under `docs/agents/changing-rules.md`, and it is no
 evidence for a rule change; a rule still holds by review and by use.
@@ -54,7 +55,7 @@ It prints four steps, numbered as it prints them:
   refuses a folder it hasn't been told to trust.
 - **Step 2:** check that run. The printed line names the script by its full
   path, so it runs from the output folder; its form is
-  `node evals/gen.mjs check <run JSON> <output folder>`.
+  `node "<repo>/evals/gen.mjs" check "<run JSON>" "<output folder>"`.
 - **Step 3:** run every case. Only after step 2 passes.
 
 `check` passes a run only when each case kept its own `max_turns`, its prompt
@@ -65,7 +66,8 @@ without copy must not. It prints case and field names, never a reply or a path.
 ## Adding a case
 
 A case is a folder in `cases/`, named in lower-case letters, digits and
-hyphens, holding `prompt.md` and `graders/*.md`:
+hyphens (not `canary`, which the built-in canary uses), holding `prompt.md`
+and `graders/*.md`:
 
 ```markdown
 ---
