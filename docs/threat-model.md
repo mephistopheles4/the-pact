@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47 and R57, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57 and R61, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -144,9 +144,14 @@ The pact's code reads outside input in four places. Each check is set out
 in full in its own section; this one gathers them, so the sensitive-list
 check can read them in one place. It adds no control and accepts no risk.
 
-- **The install.** It reads only the named commit's own bytes, and checks a
+- **The install.** It installs only the named commit's own bytes, and checks a
   configuration or builder file against the renderer's fixed fields and
-  limits before it renders (R17, R30, R31).
+  limits before it renders (R17, R30, R31). For its behind warning it also
+  reads git's list of that commit's history, each line held to a commit id
+  and the commit itself listed, and the install record's commit, printed
+  only when it is a commit id (#407, ADR 0118). Whoever can write the clone
+  or the record can hide or force that warning, though never change what is
+  installed (R14, R61).
 - **The cloud setup.** `gen.mjs` refuses a pin out of its shape; the setup
   reads upstream catalogs and the GitHub API's answers as data and keeps
   only what passes its shape checks (R10, R45; A compromised or careless
@@ -183,7 +188,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47 and R57
+  title Residual risk, R1 to R47, R57 and R61
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -237,6 +242,7 @@ quadrantChart
   R46: [0.15, 0.22]
   R47: [0.30, 0.55]
   R57: [0.15, 0.20]
+  R61: [0.10, 0.15]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -255,7 +261,7 @@ How to read it:
 - **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
   is bounded: public reports, a blocked team, and a posted security row's
   state word showing whether the item sits in published code.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R61.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -271,7 +277,8 @@ How to read it:
   lens. R44 needs another reader of the session's disk before the kept-local
   reports are deleted. R46 costs a cloud session skipped plugins or skills,
   a Result that overstates what is missing, or a stale plugin catalog, until
-  the next setup.
+  the next setup. R61 costs only a wrong behind warning; what is installed
+  doesn't change.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -322,6 +329,7 @@ How to read it:
 | R45 Cloud repo pins | Upstream authors, or the pin bump | Commits pinned in `gen.mjs`; each bump confirms the commit on its upstream and reads its diff; a weekly watch reports commits behind and advisory ids (ADR 0091). The default's `addyosmani/agent-skills` pin lives in `builder/presets/level-3-full.json`, and a person's own pins in their configuration; ADR 0091's bump procedure covers both, and each send a bump's read names goes to you before the bump is committed (#183 T4a) | Rule |
 | R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
+| R61 Git folder steers the behind warning | A session that can write the clone | None; the warning never changes what is installed (ADR 0118) | — |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on five views of the text after the state word (#392, #396) | Rule |
 
 ## Strangers on the tracker
@@ -766,7 +774,12 @@ session can act before you see it.
   hash a dry run printed, but a session can run that dry run unseen: the
   commit and hash bind the clone and the render, not your sight of them. So a
   fooled or careless session could install a commit it made, with its own
-  gate checks, and the next dry run would show it only afterwards. A dry run
+  gate checks, and the next dry run would show it only afterwards. Since
+  #407 a dry run warns when the last install's commit is outside the
+  checkout's history, so an apply would roll back from it; the warning goes
+  to whoever runs the dry run, so it guards an honest stale checkout and
+  gives nothing against that fooled or careless session, and it shows only
+  when the checked-out commit's runner carries it (ADR 0118). A dry run
   with `--review-folder` also runs unprompted and writes your rendered rules
   and their diff, your block text included, to any new or empty folder
   outside the Claude home and any `.claude` folder; those folder checks are
@@ -791,6 +804,15 @@ session can act before you see it.
   aren't documented to stop this. The owner accepted this by name (#217,
   ADR 0052), and the acceptance stands now that the pact keeps no rollback
   route to such an installer (#242, ADR 0059).
+- **R61. The clone's git folder can steer the behind warning.** The dry
+  run's warning that the checkout is behind the last install reads git's
+  view of the commit's history (#407, ADR 0118). A session that can write
+  the clone's git folder can change that view, so the warning hides or
+  shows when it shouldn't. It never changes what is installed: the stage is
+  still checked blob by blob against the commit object, and that foothold
+  can already move HEAD. Accepted 2026-10-25 by the owner, from
+  adversarial-lens's F3 at Test on #407: relayed by head-chef-field-test,
+  then given in chat to the building session.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A

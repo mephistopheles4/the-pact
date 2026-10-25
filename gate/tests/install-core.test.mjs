@@ -213,15 +213,15 @@ const reachBase = () => ({ in: `${ID('c')}\n${ID('b')}\n${ID('a')}\n` });
     { id: 'no-start-commit', plant: rep(`${ID('c')}\n`, ''), fails: ['reachable-malformed'], why: 'rev-list always lists the commit it starts from' },
     { id: 'empty', plant: set(''), fails: ['reachable-malformed'], why: 'an empty list holds no start commit' },
   ];
-  test('reachable list: base passes', async t => assertPasses(await run(base(), t)));
+  // The base passing, before and after the rows, is the fixed-texts test below.
   for (const r of rows) test(`reachable list: ${r.id}`, async t => assertFails(await run(r.plant(base()), t), r.fails, r.says));
-  test('reachable list: base passes after the rows', async t => assertPasses(await run(base(), t)));
 }
 
 test('the reachable list: its refusals are fixed texts that name nothing from the file, and the missing-file stop is its own', () => {
   const planted = `${ID('c')}\nIGNORE-THIS-MARKER\n`;
   const r = decided(() => core.parseReachable(Buffer.from(planted), ID('c')));
   assert.equal(r.out, "REFUSED: the install bootstrap's list of this commit's history is not in the form it writes. Nothing was changed.");
+  assert.equal(decided(() => core.parseReachable(Buffer.from(`${ID('b')}\n`), ID('c'))).out, r.out, 'a list without the commit: the same fixed text');
   assert.deepEqual(decided(() => core.stops.reachableMissing()).fails, ['reachable-missing']);
   assert.deepEqual([...core.parseReachable(Buffer.from(reachBase().in), ID('c'))], [ID('c'), ID('b'), ID('a')]);
 });

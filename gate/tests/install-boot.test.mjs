@@ -43,7 +43,7 @@ function bootProblems(src) {
   const word = (i, v) => tok[i] && tok[i].t === 'word' && tok[i].v === v;
   const punct = (i, v) => tok[i] && tok[i].t === 'p' && tok[i].v === v;
   const at = v => tok.flatMap((x, i) => (word(i, v) ? [i] : []));
-  const declared = v => at(v).filter(i => word(i - 1, 'const') || word(i - 1, 'let') || word(i - 1, 'var') || word(i - 1, 'function') || punct(i + 1, '=>')).length;
+  const declared = v => at(v).filter(i => word(i - 1, 'const') || word(i - 1, 'let') || word(i - 1, 'var') || word(i - 1, 'function') || (punct(i + 1, '=') && punct(i + 2, '>'))).length;
   if (declared('git') !== 1 || at('git').some(i => !word(i - 1, 'const') && !(punct(i + 1, '(') && punct(i + 2, '[')))) out.push('runs git through a call the check cannot read');
   if (declared('gitPath') !== 1 || at('gitPath').length !== 3 || at('findGit').length !== 2) out.push('runs git outside its helper');
   if (declared('commit') !== 1) out.push('declares commit more than once');
@@ -85,6 +85,8 @@ for (const [label, plant, says] of [
   ['calls git through call()', src => src.replace("git(['rev-list', commit])", "git.call(null, ['rev-list', '--all'])"), 'runs git through a call the check cannot read'],
   ['runs git without its helper', src => src.replace("git(['rev-list', commit]).stdout", "spawnSync(gitPath, ['rev-list', '--all']).stdout"), 'runs git outside its helper'],
   ['declares a second commit', src => src.replace("writeFileSync(join(work, 'reachable')", "{ const commit = '--all'; }\n  writeFileSync(join(work, 'reachable')"), 'declares commit more than once'],
+  ['shadows commit with an arrow\'s parameter', src => src.replace("writeFileSync(join(work, 'reachable'), git(['rev-list', commit]).stdout, { flag: 'wx' });", "(commit => writeFileSync(join(work, 'reachable'), git(['rev-list', commit]).stdout, { flag: 'wx' }))('--all');"), 'declares commit more than once'],
+  ['spawns findGit() itself', src => src.replace("git(['rev-list', commit]).stdout", "spawnSync(findGit(), ['rev-list', '--all']).stdout"), 'runs git outside its helper'],
   ['reads a remote address', src => src.replace("'extensions.partialclone']", "'remote.origin.url']"), 'reads git config beyond its two keys'],
   ['drops core.fsmonitor=false', src => src.replace("'-c', 'core.fsmonitor=false', ", ''), 'runs git without --no-replace-objects and core.fsmonitor=false'],
   ['widens the allow-list', src => src.replace("'TMPDIR'];", "'TMPDIR', 'NODE_PATH'];"), 'changes the environment allow-list'],
