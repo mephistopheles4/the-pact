@@ -18,14 +18,11 @@ else: the stages, the tools and the agents of working with AI.
   its start before anyone fixes it.
 - **Think before doing.**
   I get the intent clear enough to defend: what it is for, how it can go
-  wrong, and why each decision is right. When the intent is still forming, a
-  prototype finds it.
+  wrong, and why each decision is right.
 - **Checkpoint the seams.**
   Where work is handed on, published or decided, anything costly waits for a
-  checkpoint. A light checkpoint is a check of mine that runs without me,
-  such as a test. A heavy one is my decision before the work moves. The
-  harder a step is to undo, the heavier its checkpoint. When in doubt, it's
-  heavy.
+  checkpoint. The harder a step is to undo, the heavier its checkpoint. When
+  in doubt, it's heavy.
 - **Stay the owner.**
   I own a result when I can verify it, reconstruct why it is right, and know
   when to stop it. Checks that could have failed are the evidence.

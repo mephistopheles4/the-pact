@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DU7wgc79bhCnWH6+xhmehHafoZRe5NRL0rfCsWTc0VE='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Zfd9u8j6Oe6XT9VSkU9UqFiOhijooiCsiO5jdhCXZNI='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -518,7 +518,7 @@ const PACT = /* pact-data:begin */ {
    "cost-limits"
   ],
   "text": {
-   "moves": "- **Sense the work.**\n  What kind of work is it, how big, how risky, and do I know enough to plan\n  it? Size sets how much checking it needs. A target I can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it.\n- **Think before doing.**\n  I get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right. When the intent is still forming, a\n  prototype finds it.\n- **Checkpoint the seams.**\n  Where work is handed on, published or decided, anything costly waits for a\n  checkpoint. A light checkpoint is a check of mine that runs without me,\n  such as a test. A heavy one is my decision before the work moves. The\n  harder a step is to undo, the heavier its checkpoint. When in doubt, it's\n  heavy.\n- **Stay the owner.**\n  I own a result when I can verify it, reconstruct why it is right, and know\n  when to stop it. Checks that could have failed are the evidence.",
+   "moves": "- **Sense the work.**\n  What kind of work is it, how big, how risky, and do I know enough to plan\n  it? Size sets how much checking it needs. A target I can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it.\n- **Think before doing.**\n  I get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right.\n- **Checkpoint the seams.**\n  Where work is handed on, published or decided, anything costly waits for a\n  checkpoint. The harder a step is to undo, the heavier its checkpoint. When\n  in doubt, it's heavy.\n- **Stay the owner.**\n  I own a result when I can verify it, reconstruct why it is right, and know\n  when to stop it. Checks that could have failed are the evidence.",
    "tiers": "| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small, one session, no plan needed | none | Opus, low |\n| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |\n| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |",
    "sensitive": "Sensitive work gets more checking when I choose it. By default, sensitive\nwork is auth, secrets, crypto, input validation and data migrations:\nthorough, planned and built on Opus at high, with the security pair,\n`adversarial-lens` and `data-lens`, on the spec and the diff. That is the\nsensitive route. When the work matches that list, or you think it sensitive\notherwise, say why in one line in your tier proposal and recommend the route;\nI take it or not. If I didn't take the route, offer the security pair once\nmore at Test when the change matches the list. Beyond that one offer,\nsensitivity doesn't stop the run. A flag or an offer I haven't answered stays\nopen, in one line, in every hand-off and in the result. If you find it later,\nsay so in one line at the next hand-off or result, and keep saying it until I\nanswer.",
    "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
@@ -534,11 +534,11 @@ const PACT = /* pact-data:begin */ {
     },
     {
      "lead": "Think before doing",
-     "text": "I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right. When the intent is still forming, a prototype finds it."
+     "text": "I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right."
     },
     {
      "lead": "Checkpoint the seams",
-     "text": "Where work is handed on, published or decided, anything costly waits for a checkpoint. A light checkpoint is a check of mine that runs without me, such as a test. A heavy one is my decision before the work moves. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy."
+     "text": "Where work is handed on, published or decided, anything costly waits for a checkpoint. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy."
     },
     {
      "lead": "Stay the owner",
@@ -2825,8 +2825,8 @@ const DEFAULT_PARTS = Object.freeze({
   // The moves (#262): how I work, upheld at all times. Each is a lead-in and its text, one paragraph.
   moves: [
     { lead: 'Sense the work', text: 'What kind of work is it, how big, how risky, and do I know enough to plan it? Size sets how much checking it needs. A target I can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it.' },
-    { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right. When the intent is still forming, a prototype finds it.' },
-    { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly waits for a checkpoint. A light checkpoint is a check of mine that runs without me, such as a test. A heavy one is my decision before the work moves. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy." },
+    { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right.' },
+    { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly waits for a checkpoint. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy." },
     { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
   ],
   tiers: [

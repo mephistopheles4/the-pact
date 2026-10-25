@@ -170,7 +170,7 @@ test('a project configuration may not hold tools', t => {
 
 // ------------------------------------------------------------ the rules file: the poster's part (C6)
 
-// The first clause of the sentence on a lens report's fence reads "A table, wrap or link refusal" since #317 (q3 B on that issue).
+// The sentence on a lens report's fence is cut (#404, the lead's pick under the owner's standing instruction, 2026-10-25).
 // The stays-local list no longer names a path of this machine's, on the owner's word in chat (2026-10-21).
 // T2's approved text (#280, revision 5, with the three clauses #285 carries
 // and the four changes from #285's Test; the owner approved it as q2 on #285),
@@ -189,11 +189,9 @@ const T2 = [
   "  procedure's read before posting still comes first. When it refuses your",
   '  own prose or a Lens dispositions table, fix it in place and post again;',
   '  never fold, fence, quote, relabel or move a table to get past the check,',
-  '  and never rerun a lens for it. A table, wrap or link refusal on a line',
-  '  inside a lens report means its fence is too short: fix the fence, never',
-  '  the report. A lens report it refuses for a secret, a personal detail or',
-  '  hidden characters stays local: tell me where it is, in chat only, and',
-  '  never post it or edit it to get past the scan. If it ends',
+  '  and never rerun a lens for it. A lens report it refuses for a secret, a',
+  '  personal detail or hidden characters stays local: tell me where it is, in',
+  '  chat only, and never post it or edit it to get past the scan. If it ends',
   '  unavailable, refuses for a reason no text fix clears, or refuses twice for',
   "  a reason you can't explain, stop and tell me.",
 ].join('\n');
@@ -215,7 +213,7 @@ test('with the poster off, the rules file is the no-configuration render byte fo
   assert.equal(onText.split(T2).length, 2, 'the part holds T2 text once, byte for byte');
   const after = onText.slice(onText.indexOf(KEEP_RECORD));
   assert.match(after, /^- \*\*Keep the record[^\n]*\n(?: {2}[^\n]*\n)+- \*\*Post through the poster\.\*\*/, 'straight after the record bullet');
-  assert.ok(/Lens\s+dispositions\s+table/.test(T2) && /fix\s+the\s+fence/.test(T2), 'the table and fence clauses');
+  assert.ok(/Lens\s+dispositions\s+table/.test(T2), 'the table clause');
 });
 
 // #280 C6: each shell gets its own form; a $HOME form in POSIX or a tilde form in PowerShell would resolve under the folder it runs from.
