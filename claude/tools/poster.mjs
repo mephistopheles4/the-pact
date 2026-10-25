@@ -1118,6 +1118,15 @@ function signedIn(text) {
   });
 }
 
+/** Text with its closed HTML comments dropped, again until none is left, so a nested opener such as `<!<!---->--` leaves no comment behind. */
+function dropComments(text) {
+  for (let prev; prev !== text;) {
+    prev = text;
+    text = text.replace(CLOSED_COMMENT_RE, '');
+  }
+  return text;
+}
+
 /**
  * The labels a body is signed with: each signature line outside a fence, a
  * quote and a closed HTML comment, in both of two readings, so a line either
@@ -1128,8 +1137,8 @@ function signedIn(text) {
  */
 export function signatures(body) {
   const lines = linesOf(body);
-  const spansFirst = signedIn(lines.map(blankCodeSpans).join('\n').replace(CLOSED_COMMENT_RE, ''));
-  const commentsFirst = signedIn(lines.join('\n').replace(CLOSED_COMMENT_RE, ''));
+  const spansFirst = signedIn(dropComments(lines.map(blankCodeSpans).join('\n')));
+  const commentsFirst = signedIn(dropComments(lines.join('\n')));
   const left = [...commentsFirst];
   return spansFirst.filter(l => {
     const i = left.indexOf(l);

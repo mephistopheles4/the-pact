@@ -195,6 +195,10 @@ test('C6: edit/unsigned takes only the two signature forms, on the item and on t
   const escaped = world({ store: items(`Text \\\`<!--\` more:\nSigned: ${LABEL}\n-->\n`) });
   assert.ok(refusedBy(edit(t, s, escaped), 'edit/unsigned', 'item'));
   assert.equal(patches(escaped).length, 0);
+  // A nested opener leaves no comment behind: comments are dropped until none is left.
+  const nested = world({ store: items(`Text <!<!-- x -->-- more:\nSigned: ${LABEL}\n-->\n`) });
+  assert.ok(refusedBy(edit(t, s, nested), 'edit/unsigned', 'item'));
+  assert.equal(patches(nested).length, 0);
   // A post that only names a comment or a fold in a code span stays editable.
   const named = `A fold opens with \`<details>\` and a comment with \`<!--\`.\n\nSigned: ${LABEL}\n`;
   assert.equal(edit(t, s, world({ store: items(named) }), { body: named }).code, 0);
