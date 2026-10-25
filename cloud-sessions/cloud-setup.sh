@@ -571,14 +571,11 @@ else: the stages, the tools and the agents of working with AI.
   its start before anyone fixes it.
 - **Think before doing.**
   I get the intent clear enough to defend: what it is for, how it can go
-  wrong, and why each decision is right. When the intent is still forming, a
-  prototype finds it.
+  wrong, and why each decision is right.
 - **Checkpoint the seams.**
   Where work is handed on, published or decided, anything costly waits for a
-  checkpoint. A light checkpoint is a check of mine that runs without me,
-  such as a test. A heavy one is my decision before the work moves. The
-  harder a step is to undo, the heavier its checkpoint. When in doubt, it's
-  heavy.
+  checkpoint. The harder a step is to undo, the heavier its checkpoint. When
+  in doubt, it's heavy.
 - **Stay the owner.**
   I own a result when I can verify it, reconstruct why it is right, and know
   when to stop it. Checks that could have failed are the evidence.
@@ -2917,7 +2914,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 5afe9dc0910c96550651afb285e59ff7c67e6051f14180d4bff041fefcdf0055 'CLAUDE.md'
+check_hash e7cb67b08cb5d9ea423fcc9362339da3c93b45caf6ae9ecfd6cc1239d8ef3452 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -2957,7 +2954,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 39afffdc0559"
+  echo "pact cloud copy ec5000d9bd7f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

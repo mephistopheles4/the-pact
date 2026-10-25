@@ -95,8 +95,8 @@ export const DEFAULT_PARTS = Object.freeze({
   // The moves (#262): how I work, upheld at all times. Each is a lead-in and its text, one paragraph.
   moves: [
     { lead: 'Sense the work', text: 'What kind of work is it, how big, how risky, and do I know enough to plan it? Size sets how much checking it needs. A target I can know gets a plan; an unknown one gets an experiment first. A bug is reproduced and traced to its start before anyone fixes it.' },
-    { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right. When the intent is still forming, a prototype finds it.' },
-    { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly waits for a checkpoint. A light checkpoint is a check of mine that runs without me, such as a test. A heavy one is my decision before the work moves. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy." },
+    { lead: 'Think before doing', text: 'I get the intent clear enough to defend: what it is for, how it can go wrong, and why each decision is right.' },
+    { lead: 'Checkpoint the seams', text: "Where work is handed on, published or decided, anything costly waits for a checkpoint. The harder a step is to undo, the heavier its checkpoint. When in doubt, it's heavy." },
     { lead: 'Stay the owner', text: 'I own a result when I can verify it, reconstruct why it is right, and know when to stop it. Checks that could have failed are the evidence.' },
   ],
   tiers: [
