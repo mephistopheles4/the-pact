@@ -392,7 +392,7 @@ no test holds them.
   label and edit any post signed in the two forms, an owner's comment that
   holds a session's pasted signature line included. The edit checks stop an
   edit of owner-typed text with no signature line, of a review record, and of a
-  decision mark; they catch accidents.
+  decision mark; they catch accidents (threat model, R2).
 - **Text already relied on.** An edit can change a post someone has acted on,
   such as an approved spec, a hand-off or a pull request body at merge, and in
   a repo whose rule counts the owner's account's last edit, the item still
@@ -407,10 +407,14 @@ no test holds them.
   a fence, a code span or a closed comment, or carried in a reason; and a
   reason line forged with an entity, emphasis or an escape. They also refuse
   some text that isn't a record, such as a record shape quoted inside a fence.
-  Reading GitHub's rendered page instead is #419.
+  These gaps are accepted by class (threat model, R2); reading GitHub's
+  rendered page instead is #419.
 - **A change between the read and the write.** The poster reads the item, then
-  writes it; a change made between the two is overwritten unseen (threat
-  model, R60).
+  writes it; a change made between the two is overwritten unseen. A session
+  that drafts from its own earlier read widens that window to its drafting
+  time, so a change made since, a removed personal detail included, comes
+  back (threat model, R60). A refusal when the item changed since that read
+  is #419.
 - **A Claude home elsewhere.** The rules file names the default
   `~/.claude`; an install with `--claude-home` elsewhere puts the poster
   where the rule doesn't point.

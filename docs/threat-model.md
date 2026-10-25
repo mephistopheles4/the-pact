@@ -338,7 +338,7 @@ How to read it:
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
 | R61 Git folder steers the behind warning | A session that can write the clone | None; the warning never changes what is installed (ADR 0118) | — |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on five views of the text after the state word (#392, #396) | Rule |
-| R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write (#413) | — |
+| R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
 
@@ -396,7 +396,15 @@ months.
   layout or a look-alike letter outside its set. The visible, append-only
   reason lines and GitHub's edit history are the control. Widened by the owner on 2026-10-25, in the lead's chat ("accept",
   then "q5 a"), relayed by head-chef-field-test, from S10 q2 and q5 of the
-  spec on #413.
+  spec on #413. Two cases within it are accepted by name. A comment you
+  typed that holds a session's signature line, pasted in, can be edited by
+  any session and keeps counting: accepted by the owner on 2026-10-25, in the
+  lead's chat ("2 a"), relayed by head-chef-field-test, from adversarial-lens
+  F1 of the third Test round on #413. The best-effort checks' gaps, by the
+  classes `docs/poster.md` names, let such forms through: accepted by the
+  owner on 2026-10-25, in the lead's chat ("5 a"), relayed by
+  head-chef-field-test, from adversarial-lens F4 to F6 of the third Test
+  round on #413; #419 tracks them.
 - **R3. Review reports are public, and stay public.** Sessions post every
   lens report on the tracker word for word, security findings included. A
   comment stays readable after the fix. Security reports name where a secret
@@ -1286,6 +1294,13 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   your account and the window is one round trip. Accepted by the owner on
   2026-10-25, in the lead's chat ("q6 a"), relayed by head-chef-field-test,
   from S10 q6 of the spec on #413 (adversarial-lens, Design round, F6).
+  When a session drafts from its own earlier read, the window is the
+  drafting time, and the change overwritten can be a personal detail you
+  removed, which comes back on the page. Accepted for now by the owner on
+  2026-10-25, in the lead's chat ("4 a"), relayed by head-chef-field-test,
+  from data-lens F1 of the third Test round on #413; the fix that closes it,
+  a refusal when the item changed since the session's read, comes first on
+  #419.
 - **R41. The poster doesn't pair a state word with a Disposition word.** It
   refuses a Lens dispositions row with no state word, and a withheld row
   whose Disposition isn't one bare word, but it lets `new` stand beside
