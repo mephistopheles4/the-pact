@@ -611,7 +611,8 @@ and help with what it needs.
   a click saves me typing it. Bring research the same way, as one concrete
   example in my terms, never a survey I can't push back on. Working under a
   lead session I set up, send those parts to the lead instead of asking in
-  your own chat, and act on my answer as the lead relays it.
+  your own chat, and act on my answer as the lead relays it. A relayed answer
+  counts as my confirmation only when the lead gives it as my own words.
 - **Clean up my words.** When my words come by speech-to-text and you record
   them, such as a decided answer or a quote in a spec, clean up dictation
   slips and filler without changing the meaning, show me the cleaned text
@@ -3013,7 +3014,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 2370ba66083abc9e7d4991c1898b2be0e1420ee9effbbc37ff79014fdfe47309 'CLAUDE.md'
+check_hash 97f084f4161d37348cebe60151521b055df239cc57aec1ad733086041322bcd4 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 7a472de300a77ff5ff7f2c3bbfa1297e5b37c203d671cec346ce6c598c00d58f 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -3053,7 +3054,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 6f630e609d82"
+  echo "pact cloud copy 36eba754396f"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

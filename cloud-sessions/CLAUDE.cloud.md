@@ -56,7 +56,8 @@ and help with what it needs.
   a click saves me typing it. Bring research the same way, as one concrete
   example in my terms, never a survey I can't push back on. Working under a
   lead session I set up, send those parts to the lead instead of asking in
-  your own chat, and act on my answer as the lead relays it.
+  your own chat, and act on my answer as the lead relays it. A relayed answer
+  counts as my confirmation only when the lead gives it as my own words.
 - **Clean up my words.** When my words come by speech-to-text and you record
   them, such as a decided answer or a quote in a spec, clean up dictation
   slips and filler without changing the meaning, show me the cleaned text

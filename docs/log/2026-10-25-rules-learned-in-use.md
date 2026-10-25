@@ -14,4 +14,5 @@ No gate test was added: since ADR 0069 the gate holds no rule text word for word
 - The spec, revision 1: https://github.com/mephistopheles4/the-pact/issues/399#issuecomment-6398839860
 - The spec pair's review of revision 1: https://github.com/mephistopheles4/the-pact/issues/399#issuecomment-6398988490
 - The spec, revision 2: https://github.com/mephistopheles4/the-pact/issues/399#issuecomment-6398989963
+- The Test review of head 30ad67d, all four lenses, first round: https://github.com/mephistopheles4/the-pact/issues/399#issuecomment-6399182107
 - The follow-up: #407.

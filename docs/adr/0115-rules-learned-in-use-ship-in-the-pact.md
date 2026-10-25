@@ -14,7 +14,7 @@ Working rules a lead session had kept in its machine-local memory now live in th
 
 - **Memory doesn't travel.** A rule kept in one machine's memory for one project folder reaches no other machine or project, so the same failure cost turns again elsewhere.
 - **The lead's decisions, under the owner's auto-mode instruction, on 2026-10-25:** the traps go in the rules file rather than a new installed file, and a session under a lead sends its choices to the lead.
-- **The owner's answers, relayed by the lead the same day:** the installer warning goes to its own issue, where it takes the security pair; and a session under a lead acts on the owner's answer as the lead relays it.
+- **The owner's answers, relayed by the lead the same day:** the installer warning goes to its own issue, where it takes the security pair; and a session under a lead acts on the owner's answer as the lead relays it. Under the owner's standing instruction for the day, the lead's pick added that a relayed answer counts as the owner's confirmation only when the lead gives it as the owner's own words.
 - **ADR 0009** solved the same failure, an installed user-only skill reported as not installed, with a fixed last line handing the owner the command. That line is no longer in the rules file; the skill check here keeps its first half, and offers that the owner type the skill.
 
 ## What was weighed
