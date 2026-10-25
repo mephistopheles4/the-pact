@@ -1,6 +1,6 @@
 # The dry run warns when the checkout is behind the last install
 
-#407, on the sensitive route (Opus at high, the security pair on the spec and the diff), built by pact-407, led by head-chef-field-test. The lead first set Quick; the build stopped before any work because the issue named the security pair and a loosened gate check, and the lead's pick moved it to the sensitive route. Every answer came from the lead under the owner's standing instruction for the day; none came from the owner in chat.
+#407, on the sensitive route (Opus at high, the security pair on the spec and the diff), built by pact-407, led by head-chef-field-test. The lead first set Quick; the build stopped before any work because the issue named the security pair and a loosened gate check, and the lead's pick moved it to the sensitive route. The lead answered every question under the owner's standing instruction for the day, except R61 and the threat-model wording, which were the owner's own words, relayed; the owner then confirmed R61 in chat.
 
 Earlier the same day a lead nearly ran a dry run from a checkout behind the last install: the overwrite and delete lists were long for a one-file change, with no warning, and the apply would have rolled the pact back. #399 cut the warning out to this issue, with its draft (S6b) and three findings marked `security?`.
 
@@ -8,7 +8,7 @@ The spec addendum went through four revisions. The spec pair and the security pa
 
 The build adds one line to the bootstrap, which is now at its 250-line budget. `parseReachable` and `behindLine` sit in `gate/install-core.mjs`, the runner reads the list and prints the line, and the boot test allows `rev-list` only as `'rev-list', commit`. The warning never refuses (ADR 0118).
 
-At Test the QA pair and the security pair read the commit together. Their read released the push. The lead took two more test fixes from integrity-lens (a bad case for the `findGit` rule, the no-commit refusal's text pinned), cut two duplicate base rows, and from adversarial-lens's list of forms the boot test can't read, fixed only its dead arrow branch, keeping the rest as a note. The owner accepted R61: a session that can write the clone's git folder can steer the warning, never what is installed. The owner also took the two drafted threat-model sentences, for R22 and "Input validation here". The acceptance came relayed by the lead and then in chat, after the permission check refused the relayed edit.
+At Test the QA pair and the security pair read the commit together. Their read released the push. The lead took two more test fixes from integrity-lens (a bad case for the `findGit` rule, the no-commit refusal's text pinned), cut two duplicate base rows, and from adversarial-lens's list of forms the boot test can't read, fixed only its dead arrow branch, keeping the rest as a note. The owner accepted R61: a session that can write the clone's git folder can steer the warning; the warning itself never changes what is installed. The owner also took the two drafted threat-model sentences, for R22 and "Input validation here". The acceptance came relayed by the lead and then in chat, after the permission check refused the relayed edit.
 
 ## Record
 
