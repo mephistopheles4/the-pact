@@ -14,6 +14,6 @@ Of the 21 working rules a lead session had kept in its machine-local memory (#39
 
 ## What was weighed
 
-- **Shipping all 21, with the tool traps in their own section of the rules file.** Built and reviewed first (spec revision 2 on #399), then cut on the owner's word: it grew the fixed text every session reads by about seventy lines that no configuration can change, and the relay rule in it clashed with ADR 0055 and the threat model's R24.
+- **Shipping all 21, with the tool traps in their own section of the rules file.** Built and reviewed first (spec revision 2 on #399), then cut on the owner's word: it grew the fixed text every session reads by about seventy lines that no configuration can change, and the relay rule in it (a session under a lead acting on the owner's answer as the lead relays it) clashed with ADR 0055 and the threat model's R24.
 - **Making them Scriptorium-controlled** with a new editable part or an on/off part. Not taken: gate code and a spec change for rules that are mostly personal; a block in the owner's own configuration does the same for the owner.
 - **The installer warning in this change.** Not taken: it loosens an install control, and the spec pair marked three of its findings security?. #407 holds it.
