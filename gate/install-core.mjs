@@ -26,7 +26,7 @@ export const PACT_TOOLS = Object.freeze(['poster']);
 const TOOLS_DEST = 'pact/tools/';
 // What each tool does, said in its dry run WARN line after where it installs.
 const TOOL_WARNS = Object.freeze({
-  poster: " and posts to GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
+  poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
 });
 // The builder kit (#203 S6; #262), the install's own copy of seam A's list in
 // gate/shared.mjs: installed under pact/builder/ in the repo's own layout

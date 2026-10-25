@@ -1,7 +1,8 @@
 # The poster
 
-The poster posts free text to GitHub as your `gh` account, then reads back
-what landed and checks it against what it sent. It is a pact tool, off unless
+The poster posts free text to GitHub as your `gh` account, and edits what a
+session posted there, then reads back what landed and checks it against what
+it sent. It is a pact tool, off unless
 the `tools` list in `~/.claude/pact/config.json` names it (ADR 0074). When it's
 on, the install puts it at `~/.claude/pact/tools/poster.mjs`, and the rules
 file tells a session to post through it. Its scans are a backstop for
@@ -40,7 +41,8 @@ sits behind Claude Code's workspace trust, as a repo's hooks do (threat
 model, R14).
 
 Every piece of free text comes from a file, so no prose reaches a command
-line. Write the body and any title to files in the scratch folder. As the
+line. Write the body, any title and any edit's reason to files in the scratch
+folder. As the
 rules file says, delete a file once its post ends, whatever the result
 (verified, failed, unverified, mismatch or unavailable), or once you drop it.
 Keep a file holding a lens report that the poster refused until the owner has
@@ -64,9 +66,16 @@ transcript; for a secret, rotating it is the fix, as for posted text.
 | `issue-comment` | A comment on an issue or a pull request's conversation | `--issue` |
 | `pull-request-review` | A review that only comments, never approving or asking for changes, with a body and no line comments | `--pr` |
 | `review-thread-reply` | A reply in an existing line-comment thread on a pull request | `--pr` and `--comment`, the id of the thread's review comment |
+| `issue-edit` | A new body for an issue | `--issue`, `--reason` and `--signed` |
+| `pull-request-edit` | A new body for a pull request | `--pr`, `--reason` and `--signed` |
+| `issue-comment-edit` | A new body for a comment on an issue or a pull request's conversation | `--issue`, `--comment`, the id of the comment edited, `--reason` and `--signed` |
+| `review-thread-reply-edit` | A new body for a reply in a line-comment thread | `--pr`, `--comment`, the id of the reply edited, `--reason` and `--signed` |
 
 `issue` has no `--parent` option. A session that needs a sub-issue link asks
 the owner to set it on GitHub.
+
+`--comment` names the comment being answered on `review-thread-reply`, and
+the comment being edited on the two comment edits.
 
 The documented command line for each, as the poster's own `EXAMPLES` hold
 them:
@@ -77,7 +86,79 @@ node poster.mjs pull-request --repo you/your-repo --title-file title.txt --body 
 node poster.mjs issue-comment --repo you/your-repo --body comment.md --issue 12 --as you
 node poster.mjs pull-request-review --repo you/your-repo --body review.md --pr 34
 node poster.mjs review-thread-reply --repo you/your-repo --body reply.md --pr 34 --comment 5678
+node poster.mjs issue-edit --repo you/your-repo --body body.md --reason reason.txt --signed build-12 --issue 12
+node poster.mjs pull-request-edit --repo you/your-repo --body body.md --reason reason.txt --signed build-12 --pr 34
+node poster.mjs issue-comment-edit --repo you/your-repo --body comment.md --reason reason.txt --signed build-12 --issue 12 --comment 4321
+node poster.mjs review-thread-reply-edit --repo you/your-repo --body reply.md --reason reason.txt --signed build-12 --pr 34 --comment 8765
 ```
+
+### Edits
+
+An edit replaces the body of something the poster's login posted, and nothing
+else: no title, label or state. A review's body can't be edited. Start the new
+body from the item's current body, read with `gh api repos/<owner/name>/<path>
+--jq .body`, where the path is `issues/<n>`, `pulls/<n>`,
+`issues/comments/<id>` or `pulls/comments/<id>`, and keep its signature line
+and every `Edited:` line as they are. The poster sends that body with one
+reason line after it, as its own paragraph:
+
+```text
+Edited: <reason> (<label>)
+```
+
+The reason is the `--reason` file's one line; the label is `--signed`. The
+line breaks it adds follow the body's: CRLF when the body holds one, else LF.
+A reason names the kind of fix ("fixed a wrong link"), never the text taken
+out.
+
+Before it sends, the poster reads the item and refuses the edit, with nothing
+sent, when:
+
+- **another account wrote it** (`edit/author`), or it isn't where the options
+  say (`edit/target`): a comment on another issue or pull request, an issue
+  number that is a pull request's, or a thread's first comment, which the
+  poster never makes;
+- **it isn't signed by `--signed`** (`edit/unsigned`), on the item or on the
+  new body. A signature line is a whole line, outside a fence, a quote and a
+  closed HTML comment, that is exactly `Signed: <label>` or `Posted by <label>.`; a
+  body that also holds another label's signature line is refused too. A bare
+  label is never a signature, so a post signed only with its label, or a pull
+  request body with no signature line, can't be edited. Sign a post you may
+  need to edit with a `Signed: <label>` line;
+- **it is a review record** (`edit/record`, best effort), on the item or the
+  new body: a heading or a fold's summary that names a word ending in
+  `-lens`, a fold summary that opens "Lens dispositions" or "Crossed
+  findings", or the Lens dispositions header row, `Finding`, `Lens`,
+  `Disposition` and `Rerun` whatever its spacing. It skips fences on each
+  normalised and folded view of the text, so a shape quoted inside a fence can
+  be refused too. A record stays as it was posted; a correction is a new
+  comment;
+- **it holds a decision mark** (`edit/decision`, best effort), on the item or
+  the new body: the words "owner decision", in any case, spacing or markup, on
+  five views of the text, with a fixed set of look-alike letters folded first.
+  Text that only mentions the words can't be edited either;
+- **it holds what the content scan refuses** (`edit/leak`): a secret, an
+  email address or a hidden character. An edit can't remove it, since GitHub's
+  history keeps every version, so tell the owner instead;
+- **the new body drops, changes, adds or hides a reason line**
+  (`edit/reasons`): the body must end in exactly the item's reason lines, in
+  order. As a best effort, no other line may read as one, and nothing above
+  them may open an HTML comment or a fold it doesn't close. Reason lines pile
+  up, as the record of each change.
+
+The author, target, signature, leak and append-only reason checks are the
+edit's controls. The record and decision checks, and the reason lines' "in
+plain sight" part, are a best-effort backstop: they guess at how GitHub
+renders a body, and a form their readings don't see passes (What the scans
+don't cover).
+
+The scans that read a post read the edit too: the reason, and the body with
+its reason line.
+
+A repo's own rule can still say a text is never edited. In this repo, a
+probe's expected result and its run records stay as posted after a run
+(`docs/agents/changing-rules.md`, A probe the owner asks for); a correction
+there is a new comment.
 
 ## Options
 
@@ -97,6 +178,8 @@ only `--label`'s values are also scanned, with the title and the body.
 | `--base` | A branch | `input/branch` |
 | `--draft` | No value; opens the pull request as a draft | none |
 | `--issue`, `--pr`, `--comment` | A positive whole number | `input/number` |
+| `--reason` | An edit's reason: a file read as `--title-file` is; one line, which may end with one line break, at most 200 characters | the `file/` rules, `text/reason-lines`, `text/reason-length` |
+| `--signed` | The editing session's label: a lowercase letter or digit, then lowercase letters, digits and hyphens, at most 50 characters | `input/signed` |
 
 ## Results and exit codes
 
@@ -122,20 +205,29 @@ page and login are the ones the poster checked before it sent, never text from
 | 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
 
+An edit ends the same ways, with its own words. Its link is the item's,
+known before it sends. Its exit 1 `NEXT:` line says the edit landed and must
+never be sent again. Its exit 3 line names the item and says to look there for
+the reason line. A failed or unusable read of the item, a 404 included,
+is exit 4, with nothing sent. A dry run of an edit doesn't read the item, so
+the item's checks don't run.
+
 A fault inside the poster ends as exit 4 before it sends, exit 3 while it
 sends, and exit 1 after. A label GitHub gives back in another capitalisation
 is a `NOTE` line, not a mismatch.
 
 ### After exit 3: did it land?
 
-The `NEXT:` line names the page and the login to look for. Read the target's
-newest items by that login, and look for the post you meant to send:
+For a post, the `NEXT:` line names the page and the login to look for. Read
+the target's newest items by that login, and look for the post you meant to
+send:
 
 - **`issue`:** `gh issue list -R <owner/name> --author @me --state all --limit 5`
 - **`pull-request`:** `gh pr list -R <owner/name> --author @me --state all --limit 5`
 - **`issue-comment`:** `gh issue view <n> -R <owner/name> --comments`, or `gh pr view <n> -R <owner/name> --comments` on a pull request's conversation; its last comments
 - **`pull-request-review`:** `gh api --paginate repos/<owner/name>/pulls/<n>/reviews`, its last items
 - **`review-thread-reply`:** `gh api --paginate repos/<owner/name>/pulls/<n>/comments`, its last items
+- **`issue-edit`, `pull-request-edit`, `issue-comment-edit`, `review-thread-reply-edit`:** open the link the `NEXT:` line names and look for the edit's reason line at the end of the body; if it is there, never send the edit again, and tell the owner its link
 
 If the post is there, don't post again: treat it as unverified, and give the
 owner its URL. If it isn't, tell the owner, and post again only on their word.
@@ -174,6 +266,16 @@ nothing sent.
 | `text/body-length` | The body is over 65,536 characters |
 | `text/title-lines` | The title runs over more than one line |
 | `text/title-length` | The title is over 256 characters |
+| `input/signed` | `--signed` isn't a session label |
+| `text/reason-lines` | The reason runs over more than one line |
+| `text/reason-length` | The reason is over 200 characters |
+| `edit/author` | The item's author isn't the `gh` login |
+| `edit/target` | The item isn't where the options say, or is a pull request read as an issue, or a thread's first comment |
+| `edit/unsigned` | The item or the new body has no signature line for `--signed`, or has one for another label |
+| `edit/record` | The item or the new body is a review record |
+| `edit/decision` | The item or the new body holds the words "owner decision" |
+| `edit/leak` | The item holds what the content scan refuses: a secret, an email address or a hidden character |
+| `edit/reasons` | The new body doesn't end in exactly the item's reason lines, holds another line that reads as one, or opens a comment or fold above them it doesn't close |
 | `secret/token` | A credential's known shape |
 | `secret/url-userinfo` | A password in a link's user part |
 | `secret/env` | The value of a secret environment variable; the line names the variable, never the value |
@@ -282,9 +384,33 @@ no test holds them.
 - **A session that sets out to get past them.** They catch accidents.
 - **The poster itself.** Nothing checks the live file before a session runs
   it; the next dry run shows a changed one as drift (threat model, R14).
-- **Text already posted.** Posting again doesn't remove it, and GitHub's edit
-  history keeps every earlier version. Rotate a leaked secret, and delete the
-  comment or its history entry by hand.
+- **Text already posted.** Posting again doesn't remove it, and nor does an
+  edit: GitHub's edit history keeps every earlier version. An edit is never the
+  fix for a leak. Tell the owner; rotate a leaked secret, and the owner
+  deletes the comment or its history entry by hand.
+- **Who signed.** A label is plain text, so any session can sign with any
+  label and edit any post signed in the two forms, an owner's comment that
+  holds a session's pasted signature line included. The edit checks stop an
+  edit of owner-typed text with no signature line, of a review record, and of a
+  decision mark; they catch accidents.
+- **Text already relied on.** An edit can change a post someone has acted on,
+  such as an approved spec, a hand-off or a pull request body at merge, and in
+  a repo whose rule counts the owner's account's last edit, the item still
+  counts. The reason lines and GitHub's history show the change (threat model,
+  R2).
+- **The best-effort checks' gaps.** The record, decision and "in plain sight"
+  checks read the source text, not GitHub's rendered page, so a form their
+  readings don't see passes: a look-alike letter outside the fixed set; a
+  heading as an HTML element, or a setext heading whose lens name sits on an
+  earlier line; an older record layout; fence and comment markup that GitHub
+  reads differently from the poster; a fold or comment tag balanced by one in
+  a fence, a code span or a closed comment, or carried in a reason; and a
+  reason line forged with an entity, emphasis or an escape. They also refuse
+  some text that isn't a record, such as a record shape quoted inside a fence.
+  Reading GitHub's rendered page instead is #419.
+- **A change between the read and the write.** The poster reads the item, then
+  writes it; a change made between the two is overwritten unseen (threat
+  model, R60).
 - **A Claude home elsewhere.** The rules file names the default
   `~/.claude`; an install with `--claude-home` elsewhere puts the poster
   where the rule doesn't point.

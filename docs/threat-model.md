@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, R57 and R61, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57, R60 and R61, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -163,7 +163,10 @@ check can read them in one place. It adds no control and accepts no risk.
   as the word, and so is a word the page hides in a comment or tag; a copy
   with each link folded to its text and without emphasis and code span marks
   catches the word split by them (#392), a link address with one level of
-  parentheses or a quoted title included (#396).
+  parentheses or a quoted title included (#396). An edit's `--reason` and
+  `--signed` follow the same input rules, and the item it reads back from
+  GitHub before it writes is checked for its shape, its author, its place
+  and its text (The edit checks, #413).
 - **The tracker author checker.** Its fixed input shape, stops and escaped
   output (The tracker author checker's own checks).
 
@@ -172,7 +175,9 @@ table check's pairing of a state word with a Disposition word, R57 for a
 withheld row's state in a form or cell the table check does not read or
 fold, such as a look-alike letter from another script or a named character
 reference outside the poster's list, R13 for a secret the content scans
-miss, R14 for a rewritten tool, and R12 and
+miss, R14 for a rewritten tool, R2 for an edit's text in a form the edit
+checks don't fold, R60 for an item changed between the poster's read and
+its edit, and R12 and
 R15 for text a lens or a cloned repo hands a session, which no check in
 code reads.
 Prose a session reads is not validated in code; the rules and judgment in
@@ -188,7 +193,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47, R57 and R61
+  title Residual risk, R1 to R47, R57, R60 and R61
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -196,7 +201,7 @@ quadrantChart
   quadrant-3 Accept
   quadrant-4 Watch
   R1: [0.35, 0.72]
-  R2: [0.25, 0.68]
+  R2: [0.30, 0.68]
   R3: [0.80, 0.40]
   R4: [0.08, 0.95]
   R5: [0.18, 0.80]
@@ -242,6 +247,7 @@ quadrantChart
   R46: [0.15, 0.22]
   R47: [0.30, 0.55]
   R57: [0.15, 0.20]
+  R60: [0.06, 0.40]
   R61: [0.10, 0.15]
 ```
 
@@ -261,7 +267,7 @@ How to read it:
 - **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
   is bounded: public reports, a blocked team, and a posted security row's
   state word showing whether the item sits in published code.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R61.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -277,13 +283,14 @@ How to read it:
   lens. R44 needs another reader of the session's disk before the kept-local
   reports are deleted. R46 costs a cloud session skipped plugins or skills,
   a Result that overstates what is missing, or a stale plugin catalog, until
-  the next setup. R61 costs only a wrong behind warning; what is installed
-  doesn't change.
+  the next setup. R60 needs your own account to change an item in the moment
+  between the poster's read and its edit. R61 costs only a wrong behind
+  warning; what is installed doesn't change.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
 | R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `docs/agents/issue-tracker.md`, one link from the loaded `AGENTS.md`, and where GraphQL is refused a checker in code whose verdict a session follows by rule (ADR 0089); elsewhere, judgment (#261) | Rule, judgment |
-| R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment | Rule, judgment |
+| R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment. Since #413, an edit through the poster: its refusals of records, decision marks, unsigned text and leaks, and its append-only reason lines, as a backstop | Rule, judgment |
 | R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its scan as a backstop behind that read, which stays for everyone (#280) | Rule |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
 | R5 Refusal untested | Outside pull request | Here, this repo's tracker rule; elsewhere, judgment | Rule, judgment |
@@ -331,6 +338,7 @@ How to read it:
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
 | R61 Git folder steers the behind warning | A session that can write the clone | None; the warning never changes what is installed (ADR 0118) | — |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on five views of the text after the state word (#392, #396) | Rule |
+| R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write (#413) | — |
 
 ## Strangers on the tracker
 
@@ -378,6 +386,17 @@ months.
   it read could write it, and later sessions would count it. Older comments
   marked "by checked relay" are history and no longer count, so an open item
   that rests on one needs your word again, in chat (#220).
+  Since #413 a session can also edit, through the poster, text a session
+  posted and signed: any kind of session text that counts, by any session,
+  since the label is plain text and bound to none. The edited item keeps
+  counting, because your account made the last edit. The poster refuses an
+  edit of a review record, of a decision mark, of text with no signature
+  line and of text holding a leak, and keeps every earlier reason line in
+  plain sight; forms its checks don't read pass, such as an older record
+  layout or a look-alike letter outside its set. The visible, append-only
+  reason lines and GitHub's edit history are the control. Widened by the owner on 2026-10-25, in the lead's chat ("accept",
+  then "q5 a"), relayed by head-chef-field-test, from S10 q2 and q5 of the
+  spec on #413.
 - **R3. Review reports are public, and stay public.** Sessions post every
   lens report on the tracker word for word, security findings included. A
   comment stays readable after the fix. Security reports name where a secret
@@ -1245,6 +1264,28 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   name. Three body checks, `fence/unclosed`, `text/hard-wrap` and
   `link/relative`, keep a post from landing broken; they are not a security
   control.
+- **The edit checks** (#413). An edit replaces only a body, with one `PATCH`.
+  Before it sends, the poster reads the item and refuses it unless the `gh`
+  login wrote it and it sits where the options say (`edit/author`,
+  `edit/target`); the item and the new body must each carry a signature line
+  for `--signed` and no other (`edit/unsigned`), and neither may be a review
+  record (`edit/record`) or hold a decision mark (`edit/decision`), each read
+  on several views of the text; an item holding what the content scan refuses,
+  such as a secret or an email address, is never edited (`edit/leak`), since its history
+  keeps the old text; the new body must keep every earlier reason line, with
+  no other line shaped like one and nothing above them left open to hide them
+  (`edit/reasons`). The record and decision checks, and the reason lines' "in
+  plain sight" part, are best effort: they read the source text, not the
+  rendered page, and their gaps are named in `docs/poster.md`. These are a
+  backstop on R2, which they don't close: the label is plain text, and forms
+  the views don't fold pass.
+- **R60. A change between the read and the edit is overwritten unseen.** The
+  poster reads the item, checks it, then writes it with no conditional write,
+  so a change your own account makes in that moment, such as a decision mark
+  added in the browser, is replaced without being checked. Both writers are
+  your account and the window is one round trip. Accepted by the owner on
+  2026-10-25, in the lead's chat ("q6 a"), relayed by head-chef-field-test,
+  from S10 q6 of the spec on #413 (adversarial-lens, Design round, F6).
 - **R41. The poster doesn't pair a state word with a Disposition word.** It
   refuses a Lens dispositions row with no state word, and a withheld row
   whose Disposition isn't one bare word, but it lets `new` stand beside

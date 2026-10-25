@@ -926,7 +926,7 @@ test('the tools block lists every pact tool, on or off, says which this commit l
     'Tools:',
     '  poster: on',
     '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]',
-    "  WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts to GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
+    "  WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
   ]);
   assert.deepEqual(core.toolsBlock([], ['claude/tools/poster.mjs']).slice(1), ['  poster: off', '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]']);
   assert.deepEqual(core.toolsBlock([], []).slice(1), ['  poster: off (not in this commit)', '  No pact tool that can be turned on is in this commit.']);

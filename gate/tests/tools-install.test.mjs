@@ -50,7 +50,7 @@ test('the poster on: the dry run warns, it installs at pact/tools/poster.mjs byt
   const h = homeWith(t, ['poster']);
   const dry = installed(repo, h);
   assert.match(dry.stdout, /^Tools:\r?\n {2}poster: on\r?$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact tool poster; it installs to pact\/tools\/poster\.mjs and posts to GitHub as your gh account\. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee\.\r?$/m, dry.out);
+  assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact tool poster; it installs to pact\/tools\/poster\.mjs and posts and edits on GitHub as your gh account\. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}pact\/tools\/poster\.mjs\r?$/m, dry.out);
   assert.deepEqual(readFileSync(join(h, ...LIVE)), readFileSync(join(repo, 'claude', 'tools', 'poster.mjs')));
   const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));

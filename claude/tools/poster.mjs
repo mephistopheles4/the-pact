@@ -13,7 +13,19 @@
 //     pull-request-review   --pr <n>
 //     review-thread-reply   --pr <n> --comment <review comment id>
 //
+//   the edits (#413), each with --reason <file> --signed <label>:
+//     issue-edit                --issue <n>
+//     pull-request-edit         --pr <n>
+//     issue-comment-edit        --issue <n> --comment <id of the comment edited>
+//     review-thread-reply-edit  --pr <n> --comment <id of the reply edited>
+//
 //   everywhere: --dry-run   prints the gh arguments and the request's sizes, sends nothing
+//
+// An edit reads the item first and refuses one its login didn't write, one
+// not signed `Signed: <label>` or `Posted by <label>.`, a review record, a
+// decision mark, an item holding a leak the scan finds, and a body that
+// drops, forges or hides an earlier reason line. It sends the session's body
+// with `Edited: <reason> (<label>)` after it.
 //
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every option and file, and scans the
@@ -67,7 +79,15 @@ export const SURFACES = Object.freeze({
   'issue-comment': { options: ['issue'], needs: ['issue'] },
   'pull-request-review': { options: ['pr'], needs: ['pr'] },
   'review-thread-reply': { options: ['pr', 'comment'], needs: ['pr', 'comment'] },
+  'issue-edit': { options: ['issue', 'reason', 'signed'], needs: ['issue', 'reason', 'signed'] },
+  'pull-request-edit': { options: ['pr', 'reason', 'signed'], needs: ['pr', 'reason', 'signed'] },
+  'issue-comment-edit': { options: ['issue', 'comment', 'reason', 'signed'], needs: ['issue', 'comment', 'reason', 'signed'] },
+  'review-thread-reply-edit': { options: ['pr', 'comment', 'reason', 'signed'], needs: ['pr', 'comment', 'reason', 'signed'] },
 });
+
+/** The surfaces that edit a body the poster's login already posted (#413). */
+const EDITS = new Set(['issue-edit', 'pull-request-edit', 'issue-comment-edit', 'review-thread-reply-edit']);
+export const isEdit = surface => EDITS.has(surface);
 
 /** The documented command line for each surface, after `node poster.mjs`. */
 export const EXAMPLES = Object.freeze({
@@ -76,11 +96,16 @@ export const EXAMPLES = Object.freeze({
   'issue-comment': 'issue-comment --repo you/your-repo --body comment.md --issue 12 --as you',
   'pull-request-review': 'pull-request-review --repo you/your-repo --body review.md --pr 34',
   'review-thread-reply': 'review-thread-reply --repo you/your-repo --body reply.md --pr 34 --comment 5678',
+  'issue-edit': 'issue-edit --repo you/your-repo --body body.md --reason reason.txt --signed build-12 --issue 12',
+  'pull-request-edit': 'pull-request-edit --repo you/your-repo --body body.md --reason reason.txt --signed build-12 --pr 34',
+  'issue-comment-edit': 'issue-comment-edit --repo you/your-repo --body comment.md --reason reason.txt --signed build-12 --issue 12 --comment 4321',
+  'review-thread-reply-edit': 'review-thread-reply-edit --repo you/your-repo --body reply.md --reason reason.txt --signed build-12 --pr 34 --comment 8765',
 });
 
 const FILE_MAX = 256 * 1024;
 const BODY_MAX = 65536;
 const TITLE_MAX = 256;
+const REASON_MAX = 200;
 
 // ---------------------------------------------------------------- the command line
 
@@ -148,6 +173,7 @@ const REPO_RE = /^([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100})$/;
 const NUMBER_RE = /^[1-9][0-9]{0,15}$/;
 const BRANCH_RE = /^[A-Za-z0-9._/-]{1,255}$/;
 const LABEL_RE = /^[A-Za-z0-9 :._-]{1,50}$/;
+const SIGNED_RE = /^[a-z0-9][a-z0-9-]{0,49}$/;
 
 /** An owner and a name, or null. */
 export function parseRepo(s) {
@@ -160,6 +186,7 @@ export const isLogin = s => typeof s === 'string' && LOGIN_RE.test(s);
 export const isNumber = s => typeof s === 'string' && NUMBER_RE.test(s) && Number.isSafeInteger(Number(s));
 export const isBranch = s => typeof s === 'string' && BRANCH_RE.test(s) && !s.startsWith('-') && !s.includes('..');
 export const isLabel = s => typeof s === 'string' && LABEL_RE.test(s);
+export const isSigned = s => typeof s === 'string' && SIGNED_RE.test(s);
 
 /** An id from an answer, as text, when it is a safe positive integer that passes the number rule; else null. */
 export function idText(v) {
@@ -282,6 +309,31 @@ export function buildPlan(parsed) {
       else if (/[\r\n]/.test(title)) refuse('text/title-lines', 'title-file');
       else if (chars(title) > TITLE_MAX) refuse('text/title-length', 'title-file');
       else plan.title = title;
+    }
+  }
+  if (value('signed') !== null) {
+    if (isSigned(value('signed'))) plan.signed = value('signed');
+    else refuse('input/signed', 'signed');
+  }
+  if (value('reason') !== null) {
+    const r = readText(value('reason'));
+    if (r.rule) refuse(r.rule, 'reason');
+    else {
+      const reason = r.text.replace(/\r?\n$/, '');
+      if (reason.replace(/\p{Cf}/gu, '').trim() === '') refuse('file/empty', 'reason');
+      else if (/[\r\n]/.test(reason)) refuse('text/reason-lines', 'reason');
+      else if (chars(reason) > REASON_MAX) refuse('text/reason-length', 'reason');
+      else plan.reason = reason;
+    }
+  }
+  // An edit sends the session's body with its reason line after it (#413);
+  // the body as the session wrote it stays for the append-only check.
+  if (isEdit(surface) && plan.body !== undefined && plan.reason !== undefined && plan.signed !== undefined) {
+    plan.sessionBody = plan.body;
+    plan.body = composeEdit(plan.body, plan.reason, plan.signed);
+    if (chars(plan.body) > BODY_MAX) {
+      refuse('text/body-length', 'body');
+      delete plan.body;
     }
   }
   return { plan, refusals };
@@ -995,6 +1047,227 @@ function parseJson(s) {
   }
 }
 
+// ---------------------------------------------------------------- the edit checks (#413)
+
+/** A reason line, whatever its label, as `linesOf` splits it. */
+const REASON_LINE_RE = /^Edited: .+ \([a-z0-9][a-z0-9-]{0,49}\)$/;
+/** A line that reads as a reason line on the page, whatever it hides: format characters out, trimmed. */
+const REASON_SHAPE_RE = /^Edited:/;
+/** The two signature lines, whole: `Signed: <label>` and `Posted by <label>.` */
+const SIGNATURE_RE = /^(?:Signed: ([a-z0-9][a-z0-9-]{0,49})|Posted by ([a-z0-9][a-z0-9-]{0,49})\.)$/;
+const HEADING_RE = /^ {0,3}#{1,6}(?:[ \t]|$)/;
+const SETEXT_RE = /^ {0,3}(?:=+|-+)[ \t]*$/;
+const LENS_WORD_RE = /[A-Za-z]-lens(?![A-Za-z0-9-])/;
+const SUMMARY_RE = /<summary\b[^>]*>([\s\S]*?)(?:<\/summary\s*>|$)/gi;
+const CLOSED_COMMENT_RE = /<!--[\s\S]*?--!?>/g;
+const RECORD_HEADER = Object.freeze(['finding', 'lens', 'disposition', 'rerun']);
+/** The review procedure's two data folds, by their summary's opening words; a continued part repeats them (#401). */
+const RECORD_FOLD_RE = /^\s*(?:lens\s+dispositions|crossed\s+findings)\b/i;
+const DECISION = 'owner decision';
+/** Look-alikes, from Cyrillic, Greek, Armenian and Latin, of the letters of "owner decision", folded to those letters before the match. */
+const LOOKALIKES = new Map([
+  ...[0x43e, 0x41e, 0x3bf, 0x39f, 0x585].map(c => [cp(c), 'o']),
+  ...[0x461, 0x51d, 0x51c].map(c => [cp(c), 'w']),
+  ...[0x578, 0x39d].map(c => [cp(c), 'n']),
+  ...[0x435, 0x415, 0x395, 0x4bd].map(c => [cp(c), 'e']),
+  ...[0x433, 0x280].map(c => [cp(c), 'r']),
+  ...[0x501, 0x500].map(c => [cp(c), 'd']),
+  ...[0x441, 0x421, 0x3f2, 0x3f9].map(c => [cp(c), 'c']),
+  ...[0x456, 0x406, 0x3b9, 0x399, 0x131, 0x4cf].map(c => [cp(c), 'i']),
+  ...[0x455, 0x405].map(c => [cp(c), 's']),
+]);
+
+/** The session's body with its reason line after it: a line break if the body lacks one, a blank line, the line. The breaks are CRLF when the body holds one. */
+export function composeEdit(body, reason, label) {
+  const nl = body.includes('\r\n') ? '\r\n' : '\n';
+  return `${body}${/\r?\n$/.test(body) ? '' : nl}${nl}Edited: ${reason} (${label})`;
+}
+
+/** A body's lines, ended at a line feed, a carriage return or both, as CommonMark and the table check end them. */
+const linesOf = text => text.split(LINE_END_RE);
+
+/** The lines outside fences, as the table check reads fences. */
+function unfenced(lines) {
+  const out = [];
+  let fence = null;
+  for (const line of lines) {
+    if (fence) {
+      const m = line.match(FENCE_CLOSE_RE);
+      if (m && m[1][0] === fence[0] && m[1].length >= fence.length) fence = null;
+      continue;
+    }
+    const m = line.match(FENCE_OPEN_RE);
+    if (m && !(m[1][0] === '`' && m[2].includes('`'))) {
+      fence = m[1];
+      continue;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+/** The labels one reading of a body is signed with: each signature line outside a fence and a quote. A line straight after a quote line, with no blank line between, continues the quote on the page, so it is quoted too. */
+function signedIn(text) {
+  let quoted = false;
+  return unfenced(text.split('\n')).flatMap(line => {
+    if (line.trim() === '') quoted = false;
+    else if (QUOTE_RE.test(line)) quoted = true;
+    if (quoted) return [];
+    const m = line.match(SIGNATURE_RE);
+    return m ? [m[1] ?? m[2]] : [];
+  });
+}
+
+/**
+ * The labels a body is signed with: each signature line outside a fence, a
+ * quote and a closed HTML comment, in both of two readings, so a line either
+ * reading hides doesn't count. One blanks code spans before it drops closed
+ * comments, so a comment named in a code span hides nothing; the other drops
+ * closed comments first, so a code span the page doesn't see, such as one
+ * opened by an escaped backtick, can't unhide a comment.
+ */
+export function signatures(body) {
+  const lines = linesOf(body);
+  const spansFirst = signedIn(lines.map(blankCodeSpans).join('\n').replace(CLOSED_COMMENT_RE, ''));
+  const commentsFirst = signedIn(lines.join('\n').replace(CLOSED_COMMENT_RE, ''));
+  const left = [...commentsFirst];
+  return spansFirst.filter(l => {
+    const i = left.indexOf(l);
+    if (i < 0) return false;
+    left.splice(i, 1);
+    return true;
+  });
+}
+
+/** The reason lines at a body's end, in order: the run of reason lines and blank lines it ends with. */
+export function trailingReasons(body) {
+  const lines = linesOf(body);
+  const out = [];
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (lines[i].trim() === '') continue;
+    if (!REASON_LINE_RE.test(lines[i])) break;
+    out.unshift(lines[i]);
+  }
+  return out;
+}
+
+/**
+ * Whether the session's body keeps its reason lines in plain sight: every line
+ * outside a fence that reads as a reason line sits in the trailing run, and
+ * nothing before the run opens an HTML comment or a fold it doesn't close,
+ * which would hide the run on the page.
+ */
+function reasonsInSight(body) {
+  const run = trailingReasons(body).length;
+  const shaped = unfenced(linesOf(body)).filter(l => REASON_SHAPE_RE.test(l.replace(/\p{Cf}/gu, '').trim())).length;
+  if (shaped !== run) return false;
+  const lines = linesOf(body);
+  let end = lines.length;
+  for (let seen = 0; end > 0 && seen < run; end -= 1) if (REASON_LINE_RE.test(lines[end - 1])) seen += 1;
+  const before = lines.slice(0, end).map(blankCodeSpans).join('\n');
+  if (before.lastIndexOf('<!--') > before.lastIndexOf('-->')) return false;
+  const count = re => (before.match(re) ?? []).length;
+  return count(/<details\b/gi) <= count(/<\/details\s*>/gi);
+}
+
+/** Emphasis, code span and link marks folded away, two ways for links, as the table check reads a withheld row's state. */
+function folds(s) {
+  const fold = re => s.replace(re, '$1').replace(/[*_`~[\]]/g, '');
+  return [fold(/!?\[([^[\]]*)\](?:\([^()]*\)|\[[^[\]]*\])?/g), fold(/!?\[([^[\]]*)\](?:\((?:[^()"']|\([^()]*\)|"[^"]*"|'[^']*')*\)|\[[^[\]]*\])?/g)];
+}
+
+/** The views of a text the edit checks read: as written without format characters, the two normalised views, and each of those folded. */
+function views(text) {
+  const shown = normalise(text);
+  const kept = normalise(text, true);
+  return [text.replace(/\p{Cf}/gu, ''), shown, kept, ...folds(shown), ...folds(kept)];
+}
+
+/** Whether one reading's lines hold a record shape: a heading (ATX or setext) naming a lens, or the Lens dispositions header row. */
+function recordLine(line, i, all) {
+  if (LENS_WORD_RE.test(line) && (HEADING_RE.test(line) || (line.trim() !== '' && SETEXT_RE.test(all[i + 1] ?? '')))) return true;
+  const cells = tableCells(line);
+  if (!cells) return false;
+  const words = cells.map(c => c.text.replace(/[*_`~[\]]/g, '').trim().toLowerCase());
+  return words.length === RECORD_HEADER.length && words.every((w, j) => w === RECORD_HEADER[j]);
+}
+
+/**
+ * Whether a body is a review record: a heading (ATX or setext) or a fold's
+ * summary naming a lens, a fold summary opening "Lens dispositions" or
+ * "Crossed findings", or the Lens dispositions header row. A best-effort
+ * backstop, not a control (q12 on #413): fences are skipped on each folded
+ * view, the stricter of the readings the Test rounds tried, so a shape
+ * quoted inside a fence can be refused, and a summary is read anywhere.
+ */
+export function isRecord(body) {
+  const raw = body.replace(/\p{Cf}/gu, '');
+  for (const m of raw.matchAll(SUMMARY_RE)) {
+    if (views(m[1]).some(v => LENS_WORD_RE.test(v) || RECORD_FOLD_RE.test(v))) return true;
+  }
+  return views(raw).some(view => unfenced(linesOf(view)).some(recordLine));
+}
+
+/** Whether a body holds the decision mark, "owner decision", in any case, spacing, markup or folded look-alike letter. */
+export function hasDecision(body) {
+  return views(body).some(v => [...v].map(c => LOOKALIKES.get(c) ?? c).join('').replace(/\s+/g, ' ').toLowerCase().includes(DECISION));
+}
+
+/** The refusals a body earns as the text an edit leaves, `where` naming whose body it is. */
+function bodyRules(body, label, where) {
+  const out = [];
+  const signed = signatures(body);
+  if (!signed.includes(label) || signed.some(l => l !== label)) out.push({ rule: 'edit/unsigned', where });
+  if (isRecord(body)) out.push({ rule: 'edit/record', where });
+  if (hasDecision(body)) out.push({ rule: 'edit/decision', where });
+  return out;
+}
+
+/** The checks on the composed body, before gh is called. */
+export function editBodyChecks(plan) {
+  const out = bodyRules(plan.body, plan.signed, 'option --body');
+  if (!reasonsInSight(plan.body)) out.push({ rule: 'edit/reasons', where: 'option --body' });
+  return out;
+}
+
+/**
+ * The checks on the item GitHub returned, as { unusable, refusals }. An
+ * answer that isn't an object, or whose author or target field has the wrong
+ * type, is unusable; a null body counts as empty. An item whose text trips the
+ * content scan is refused (`edit/leak`): an edit never removes text from
+ * GitHub's history, so the owner is told instead.
+ */
+export function editItemChecks(plan, item, login, ctx = {}) {
+  const bad = { unusable: true, refusals: [] };
+  if (item === null || typeof item !== 'object' || Array.isArray(item)) return bad;
+  if (typeof item.user?.login !== 'string') return bad;
+  if (item.body !== null && typeof item.body !== 'string') return bad;
+  if (item.in_reply_to_id !== undefined && item.in_reply_to_id !== null && typeof item.in_reply_to_id !== 'number') return bad;
+  if (item.pull_request !== undefined && item.pull_request !== null && (typeof item.pull_request !== 'object' || Array.isArray(item.pull_request))) return bad;
+  const repo = `/repos/${plan.repo.owner}/${plan.repo.name}`.toLowerCase();
+  const sits = (url, path) => url.toLowerCase().endsWith(`${repo}/${path}`);
+  const refusals = [];
+  if (item.user.login !== login) refusals.push({ rule: 'edit/author', where: 'item' });
+  let target = true;
+  if (plan.surface === 'issue-comment-edit') {
+    if (typeof item.issue_url !== 'string') return bad;
+    target = sits(item.issue_url, `issues/${plan.issue}`);
+  }
+  if (plan.surface === 'review-thread-reply-edit') {
+    if (typeof item.pull_request_url !== 'string') return bad;
+    target = sits(item.pull_request_url, `pulls/${plan.pr}`) && idText(item.in_reply_to_id) !== null;
+  }
+  if (plan.surface === 'issue-edit' && item.pull_request !== undefined && item.pull_request !== null) target = false;
+  if (!target) refusals.push({ rule: 'edit/target', where: 'item' });
+  const body = item.body ?? '';
+  refusals.push(...bodyRules(body, plan.signed, 'item'));
+  if (scan([{ field: 'item', text: body }], { ...ctx, surface: plan.surface }).length) refusals.push({ rule: 'edit/leak', where: 'item' });
+  const kept = trailingReasons(plan.sessionBody);
+  const had = trailingReasons(body);
+  if (kept.length !== had.length || kept.some((l, i) => l !== had[i])) refusals.push({ rule: 'edit/reasons', where: 'option --body' });
+  return { unusable: false, refusals };
+}
+
 // ---------------------------------------------------------------- the NEXT line
 
 /**
@@ -1009,6 +1282,10 @@ const landedNext = form => `NEXT: the post landed. Never post it again. Tell the
 const LANDED_LINK = landedNext('the link below');
 const LANDED_PAGE = landedNext('the page below, where it sits');
 const LANDED_MISMATCH = landedNext('the link below and the fields named above');
+const editLanded = form => `NEXT: the edit landed. Never send it again. Tell the owner, with ${form}.`;
+const EDIT_LANDED_LINK = editLanded('the link below');
+const EDIT_LANDED_MISMATCH = editLanded('the link below and the fields named above');
+const editFailedNext = url => `NEXT: the edit may have landed. Look at ${url} for its reason line before anything else. If it is there, never send it again: tell the owner its link. If it isn't, tell the owner, and send it again only on their word. If you can't tell, tell the owner, and don't send it.`;
 
 // ---------------------------------------------------------------- one post
 
@@ -1062,6 +1339,15 @@ function postOf(plan) {
         url: id => `${web}/pull/${plan.pr}#discussion_r${id}`,
         near: `${web}/pull/${plan.pr}`,
       };
+    // An edit reads and writes the one item its options name, so its id and link are known before it sends.
+    case 'issue-edit':
+      return { path: `${repo}/issues/${plan.issue}`, request: { body: plan.body }, key: 'number', id: plan.issue, near: `${web}/issues/${plan.issue}` };
+    case 'pull-request-edit':
+      return { path: `${repo}/pulls/${plan.pr}`, request: { body: plan.body }, key: 'number', id: plan.pr, near: `${web}/pull/${plan.pr}` };
+    case 'issue-comment-edit':
+      return { path: `${repo}/issues/comments/${plan.comment}`, request: { body: plan.body }, key: 'id', id: plan.comment, near: `${web}/issues/${plan.issue}#issuecomment-${plan.comment}` };
+    case 'review-thread-reply-edit':
+      return { path: `${repo}/pulls/comments/${plan.comment}`, request: { body: plan.body }, key: 'id', id: plan.comment, near: `${web}/pull/${plan.pr}#discussion_r${plan.comment}` };
     default:
       throw new TypeError('no such surface');
   }
@@ -1135,6 +1421,8 @@ export function compare(plan, request, back, login, id, key) {
     else if (back.state !== 'COMMENTED') mismatches.push('MISMATCH state: the review is not a comment');
   }
   if (plan.surface === 'review-thread-reply' && idText(back.in_reply_to_id) !== plan.comment) mismatches.push('MISMATCH thread: it answers another comment');
+  if (plan.surface === 'issue-comment-edit') on('target', back.issue_url, `issues/${plan.issue}`);
+  if (plan.surface === 'review-thread-reply-edit') on('target', back.pull_request_url, `pulls/${plan.pr}`);
   return { unusable, mismatches, notes };
 }
 
@@ -1144,6 +1432,31 @@ function sizes(v) {
   if (Array.isArray(v)) return v.map(sizes);
   if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sizes(x)]));
   return v;
+}
+
+/**
+ * An edit, once the login and owner checks pass: read the item, check it,
+ * send one PATCH, read it back. `setPhase` tells post() when the PATCH is on
+ * its way and when it has been sent, so its catch names the right result.
+ */
+function editItem(plan, p, args, login, io, ctx, setPhase) {
+  const url = p.near;
+  const read = io.gh(ghArgs('GET', p.path, false));
+  if (!read.ok) return { code: 4, lines: [saidLine(read.stderr, ctx), 'RESULT: unavailable'] };
+  const c = editItemChecks(plan, parseJson(read.stdout), login, ctx);
+  if (c.unusable) return { code: 4, lines: ['the item read could not be read', 'RESULT: unavailable'] };
+  if (c.refusals.length) return refused(c.refusals);
+
+  setPhase('sending');
+  const sent = io.gh(args, JSON.stringify(p.request));
+  if (!sent.ok) return { code: 3, lines: [saidLine(sent.stderr, ctx), editFailedNext(url), 'RESULT: failed'] };
+  setPhase('sent');
+  const again = io.gh(ghArgs('GET', p.path, false));
+  if (!again.ok) return { code: 1, lines: [saidLine(again.stderr, ctx), EDIT_LANDED_LINK, `RESULT: unverified ${url}`] };
+  const back = compare(plan, p.request, parseJson(again.stdout), login, p.id, p.key);
+  if (back.unusable.length) return { code: 1, lines: [`the read-back could not be read: ${back.unusable.join(', ')}`, EDIT_LANDED_LINK, `RESULT: unverified ${url}`] };
+  if (back.mismatches.length) return { code: 1, lines: [...back.mismatches, ...back.notes, EDIT_LANDED_MISMATCH, `RESULT: mismatch ${url}`] };
+  return { code: 0, lines: [...back.notes, `RESULT: verified ${plan.surface} ${url} as ${login}`] };
 }
 
 const refused = refusals => ({ code: 2, lines: [...refusals.map(r => `REFUSED ${r.rule} ${r.where}`), `RESULT: refused ${refusals.length}`] });
@@ -1159,6 +1472,7 @@ export function post(argv, io) {
   // Held out here for the catch. The login is set only once it has passed every check, the link only once the post's id is read.
   let checkedLogin = null;
   let linked = false;
+  let edit = false;
   try {
     const parsed = parseArgs(argv);
     if (parsed.refusals.length) return refused(parsed.refusals);
@@ -1167,6 +1481,7 @@ export function post(argv, io) {
     const fields = [];
     if (plan.title !== undefined) fields.push({ field: 'title', text: plan.title });
     plan.labels.forEach((text, i) => fields.push({ field: `label ${i + 1}`, text }));
+    if (plan.reason !== undefined) fields.push({ field: 'reason', text: plan.reason });
     fields.push({ field: 'body', text: plan.body });
     const ctx = { env: io.env };
     // The table check and the prose checks run after the content scan, on the
@@ -1180,10 +1495,15 @@ export function post(argv, io) {
       return { code: 2, lines: [...r.lines.slice(0, -1), `NOTE: ${tables.length - TABLE_LISTED} more table refusals not listed`, `RESULT: refused ${hits.length + tables.length + prose.length}`] };
     }
     if (hits.length || tables.length || prose.length) return refused([...hits, ...tables, ...prose]);
+    edit = isEdit(plan.surface);
+    if (edit) {
+      const own = editBodyChecks(plan);
+      if (own.length) return refused(own);
+    }
 
     const p = postOf(plan);
     near = p.near;
-    const args = ghArgs('POST', p.path, true);
+    const args = ghArgs(edit ? 'PATCH' : 'POST', p.path, true);
     if (plan.dryRun) return { code: 0, lines: [`gh ${args.join(' ')}`, `request: ${JSON.stringify(sizes(p.request))}`, `RESULT: dry-run ${plan.surface}`] };
 
     const token = envValue(io.env, 'GH_TOKEN') || envValue(io.env, 'GITHUB_TOKEN');
@@ -1204,6 +1524,7 @@ export function post(argv, io) {
     if (!isLogin(owner)) return { code: 4, lines: [...(repoRead.ok ? ['the repo read gave no owner'] : [saidLine(repoRead.stderr, ctx)]), 'RESULT: unavailable'] };
     if (owner !== login) return refused([{ rule: 'owner/github', where: 'option --repo' }]);
     checkedLogin = login;
+    if (edit) return editItem(plan, p, args, login, io, ctx, s => { phase = s; });
 
     phase = 'sending';
     const sent = io.gh(args, JSON.stringify(p.request));
@@ -1223,6 +1544,8 @@ export function post(argv, io) {
     return { code: 0, lines: [...c.notes, `RESULT: verified ${plan.surface} ${url} as ${login}`] };
   } catch {
     if (phase === 'before') return { code: 4, lines: ['the poster failed before sending', 'RESULT: unavailable'] };
+    if (edit && phase === 'sending') return { code: 3, lines: ['the edit call failed', editFailedNext(near), 'RESULT: failed'] };
+    if (edit) return { code: 1, lines: ['the poster failed after sending', EDIT_LANDED_LINK, `RESULT: unverified ${near}`] };
     if (phase === 'sending') return { code: 3, lines: ['the post call failed', failedNext(near, checkedLogin), 'RESULT: failed'] };
     return { code: 1, lines: ['the poster failed after sending', linked ? LANDED_LINK : LANDED_PAGE, `RESULT: unverified ${near}`] };
   }
