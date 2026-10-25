@@ -571,16 +571,19 @@ const leadWord = (words, cell) => words.find(w => cell.startsWith(w) && !LETTER_
  * "withheld", whatever its case, spacing, punctuation or markup (#336). The
  * text is read as written and as the two normalised copies `scan` reads, so
  * a form that renders as the word is matched (#392) and a word the page
- * hides in a comment or tag still is; a fourth copy folds each link to its
- * text and drops emphasis and code span marks, which can split the word on
- * the page. A finding that quotes the withheld text after other words is not
+ * hides in a comment or tag still is; two more copies fold links to their
+ * text, one each way below (#396), and drop emphasis and code span marks,
+ * which can split the word on the page. A finding that quotes the withheld text after other words is not
  * matched.
  */
 function withheldAfter(cell, state) {
   const after = cell.slice(state.length);
   const shown = normalise(after);
-  const unmarked = shown.replace(/!?\[([^[\]]*)\](?:\([^()]*\)|\[[^[\]]*\])?/g, '$1').replace(/[*_`~[\]]/g, '');
-  return [after.replace(/\p{Cf}/gu, ''), shown, normalise(after, true), unmarked].some(view => {
+  // Two link folds, each bounded: one whose address holds no parenthesis (any quote is an address character), and one whose address may hold one level of parentheses and a quoted title; each alternative starts on its own character, so neither match can backtrack without bound.
+  const fold = re => shown.replace(re, '$1').replace(/[*_`~[\]]/g, '');
+  const plain = fold(/!?\[([^[\]]*)\](?:\([^()]*\)|\[[^[\]]*\])?/g);
+  const nested = fold(/!?\[([^[\]]*)\](?:\((?:[^()"']|\([^()]*\)|"[^"]*"|'[^']*')*\)|\[[^[\]]*\])?/g);
+  return [after.replace(/\p{Cf}/gu, ''), shown, normalise(after, true), plain, nested].some(view => {
     const rest = view.replace(/^[^\p{L}\p{N}]+/u, '').toLowerCase();
     return rest.startsWith('withheld') && !LETTER_RE.test(rest['withheld'.length] ?? '');
   });
