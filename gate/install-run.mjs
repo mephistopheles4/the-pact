@@ -86,6 +86,10 @@ async function main() {
     core.checkStagedBlob(rel, id, io.blobId(bytes));
     staged.set(rel, io.sha256(bytes));
   }
+  // The commit's history, which the bootstrap listed, for the behind line (#407).
+  const reachableBytes = io.readOptional(join(work, 'reachable'));
+  if (reachableBytes === null) core.stops.reachableMissing();
+  const reachable = core.parseReachable(reachableBytes, commit);
 
   const recordFile = join(home, '.pact-install.json');
   const recordBytes = io.readOptional(recordFile);
@@ -190,6 +194,8 @@ async function main() {
   if (securityLine) say(securityLine);
   const enoughNote = project ? null : core.enoughNoteLine(parsed, rendered.toString('utf8'));
   if (enoughNote) say(enoughNote);
+  const behind = project ? null : core.behindLine(record ? record.commit : null, commit, reachable);
+  if (behind) say(behind);
 
   // A project install ends here, never reaching the home copy, delete,
   // settings merge or record. The renderer runs again in project mode, the

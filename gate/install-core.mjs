@@ -269,6 +269,34 @@ export function checkStagedBlob(rel, id, actualId) {
   if (actualId !== id) refuse('stage-blob', `the bytes staged for ${rel.replace(/[^A-Za-z0-9._/-]/g, '?')} are not its blob.`);
 }
 
+// ------------------------------------------------------------ the checkout behind the last install (#407)
+
+/**
+ * The bootstrap's `git rev-list <commit>`, as a Set: each line 40 lower-case
+ * hex, one trailing empty line allowed, and the commit itself listed, since
+ * rev-list always lists its start. Its refusals name nothing from the file.
+ */
+export function parseReachable(bytes, commit) {
+  const lines = Buffer.from(bytes).toString('latin1').split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
+  if (!lines.includes(commit) || !lines.every(l => /^[0-9a-f]{40}$/.test(l))) refuse('reachable-malformed', "the install bootstrap's list of this commit's history is not in the form it writes.");
+  return new Set(lines);
+}
+
+/**
+ * The warning that this checkout is behind the last install's commit, or on
+ * another line, or null: none with no record, at that commit, or when it is in
+ * this commit's history, compared lower-cased. Only a commit id is printed;
+ * anything else in the record shows as fixed words (S5).
+ */
+export function behindLine(recordCommit, commit, reachable) {
+  if (recordCommit === null) return null;
+  const last = recordCommit.toLowerCase();
+  if (last === commit || reachable.has(last)) return null;
+  const named = /^[0-9a-f]{40}$/.test(last) ? ` ${last}` : ', a commit id the install does not read,';
+  return `WARN: the last install's commit${named} is not in this checkout's history: this checkout is behind it or on another line. Installing may roll the pact back; fast-forward the checkout first, unless you mean to.`;
+}
+
 // ------------------------------------------------------------ the install record
 
 const ci = (o, name) => {
@@ -1356,6 +1384,7 @@ export const stops = Object.freeze({
   preload: () => refuse('run-preload', 'NODE_OPTIONS is set, or the runner was started with an option; start the install with node gate/install.mjs.'),
   runArgs: () => refuse('run-args', 'the install runner was not started by the install bootstrap: run node gate/install.mjs.'),
   stageUnreadable: () => refuse('stage-unreadable', 'the stage could not be read.'),
+  reachableMissing: () => refuse('reachable-missing', "the install bootstrap wrote no list of this commit's history; run node gate/install.mjs from a clean checkout."),
   configLink: () => refuse('config-link', 'the user configuration file, or the pact folder that holds it, is a link or other reparse point.'),
   blocksLink: () => refuse('blocks-link', 'the configuration blocks folder is a link or other reparse point.'),
   blocksUnreadable: () => refuse('blocks-unreadable', 'the configuration blocks folder could not be read.'),

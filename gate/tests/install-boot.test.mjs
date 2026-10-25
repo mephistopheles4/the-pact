@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { test } from 'node:test';
 import { relativeImports } from './run.mjs';
-import { GATE } from './text.mjs';
+import { GATE, tokens } from './text.mjs';
 
 const BOOT = 'install.mjs';
 const text = f => readFileSync(join(GATE, f), 'utf8');
@@ -31,10 +31,26 @@ function bootProblems(src) {
     ['an array at() call', /\.at\(/],
     ['Object.hasOwn', /Object\.hasOwn\b/],
   ]) if (re.test(src.replace(/^#!.*\n/, ''))) out.push(`holds ${what}`);
-  const gitCalls = [...src.matchAll(/\bgit\(\[([^\]]*)\]/g)].map(m => m[1]);
+  // Every git call is one literal array (an index such as treeLine[1] inside
+  // it is fine), closed by ] and then ) or ,: a call extended past its bracket,
+  // or given a variable, is one this check can't read.
+  const gitCalls = [...src.matchAll(/\bgit\(\[((?:[^[\]]|\[[^[\]]*\])*)\][),]/g)].map(m => m[1]);
+  if (gitCalls.length !== [...src.matchAll(/\bgit\s*\(/g)].length) out.push('runs git through a call the check cannot read');
+  // And no other way to git (#407): the helper is defined once and only ever
+  // called on a literal array, the git path is found once and used only by the
+  // helper, and commit, which rev-list must list from, is declared once.
+  const tok = tokens(src);
+  const word = (i, v) => tok[i] && tok[i].t === 'word' && tok[i].v === v;
+  const punct = (i, v) => tok[i] && tok[i].t === 'p' && tok[i].v === v;
+  const at = v => tok.flatMap((x, i) => (word(i, v) ? [i] : []));
+  const declared = v => at(v).filter(i => word(i - 1, 'const') || word(i - 1, 'let') || word(i - 1, 'var') || word(i - 1, 'function') || (punct(i + 1, '=') && punct(i + 2, '>'))).length;
+  if (declared('git') !== 1 || at('git').some(i => !word(i - 1, 'const') && !(punct(i + 1, '(') && punct(i + 2, '[')))) out.push('runs git through a call the check cannot read');
+  if (declared('gitPath') !== 1 || at('gitPath').length !== 3 || at('findGit').length !== 2) out.push('runs git outside its helper');
+  if (declared('commit') !== 1) out.push('declares commit more than once');
   for (const c of gitCalls) {
     const sub = /^'([a-z-]+)'/.exec(c.trim());
-    if (!sub || !['rev-parse', 'config', 'cat-file', 'ls-tree', 'diff-index', 'ls-files'].includes(sub[1])) out.push(`runs git ${sub ? sub[1] : c.trim()}`);
+    // rev-list only from the commit the bootstrap checked (#407): the list of its history.
+    if (sub && sub[1] === 'rev-list' ? c.trim() !== "'rev-list', commit" : !sub || !['rev-parse', 'config', 'cat-file', 'ls-tree', 'diff-index', 'ls-files'].includes(sub[1])) out.push(`runs git ${sub ? sub[1] : c.trim()}`);
   }
   const configCalls = gitCalls.filter(c => c.trim().startsWith("'config'")).map(c => c.trim());
   if (JSON.stringify(configCalls) !== JSON.stringify(["'config', '--get', 'extensions.partialclone'", "'config', '--name-only', '--get-regexp', '^remote\\\\..*\\\\.promisor$'"])) out.push('reads git config beyond its two keys');
@@ -58,6 +74,19 @@ for (const [label, plant, says] of [
   ['uses a logical assignment', src => src.replace('let work = null;', 'let work = null;\nwork ??= null;'), 'holds a logical assignment'],
   ['uses .at()', src => src.replace('let work = null;', 'let work = [].at(-1);'), 'holds an array at() call'],
   ['runs git status', src => src.replace("git(['rev-parse', 'HEAD'])", "git(['status', '--porcelain'])"), 'runs git status'],
+  ['lists every ref\'s history', src => src.replace("git(['rev-list', commit])", "git(['rev-list', '--all'])"), 'runs git rev-list'],
+  ['lists the remotes\' history too', src => src.replace("git(['rev-list', commit])", "git(['rev-list', commit, '--remotes'])"), 'runs git rev-list'],
+  ['lists from HEAD, not the commit it checked', src => src.replace("git(['rev-list', commit])", "git(['rev-list', 'HEAD'])"), 'runs git rev-list'],
+  ['runs git log', src => src.replace("git(['rev-list', commit])", "git(['log', commit])"), 'runs git log'],
+  ['extends a git call past its bracket', src => src.replace("git(['rev-list', commit])", "git(['rev-list', commit].concat('--all'))"), 'runs git through a call the check cannot read'],
+  ['runs git with a variable', src => src.replace("git(['rev-list', commit])", 'git(listArgs)'), 'runs git through a call the check cannot read'],
+  ['puts a space before a git call\'s bracket', src => src.replace("git(['rev-list', commit])", "git (['rev-list', '--all'])"), 'runs git through a call the check cannot read'],
+  ['calls git under another name', src => src.replace("git(['rev-list', commit])", "(0, git)(['rev-list', '--all'])"), 'runs git through a call the check cannot read'],
+  ['calls git through call()', src => src.replace("git(['rev-list', commit])", "git.call(null, ['rev-list', '--all'])"), 'runs git through a call the check cannot read'],
+  ['runs git without its helper', src => src.replace("git(['rev-list', commit]).stdout", "spawnSync(gitPath, ['rev-list', '--all']).stdout"), 'runs git outside its helper'],
+  ['declares a second commit', src => src.replace("writeFileSync(join(work, 'reachable')", "{ const commit = '--all'; }\n  writeFileSync(join(work, 'reachable')"), 'declares commit more than once'],
+  ['shadows commit with an arrow\'s parameter', src => src.replace("writeFileSync(join(work, 'reachable'), git(['rev-list', commit]).stdout, { flag: 'wx' });", "(commit => writeFileSync(join(work, 'reachable'), git(['rev-list', commit]).stdout, { flag: 'wx' }))('--all');"), 'declares commit more than once'],
+  ['spawns findGit() itself', src => src.replace("git(['rev-list', commit]).stdout", "spawnSync(findGit(), ['rev-list', '--all']).stdout"), 'runs git outside its helper'],
   ['reads a remote address', src => src.replace("'extensions.partialclone']", "'remote.origin.url']"), 'reads git config beyond its two keys'],
   ['drops core.fsmonitor=false', src => src.replace("'-c', 'core.fsmonitor=false', ", ''), 'runs git without --no-replace-objects and core.fsmonitor=false'],
   ['widens the allow-list', src => src.replace("'TMPDIR'];", "'TMPDIR', 'NODE_PATH'];"), 'changes the environment allow-list'],

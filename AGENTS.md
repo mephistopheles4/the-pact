@@ -13,7 +13,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Dry run first,** from the repo root, on Node 24 or later, with
   `NODE_OPTIONS` cleared: `$env:NODE_OPTIONS = $null; node gate/install.mjs`
   in PowerShell, or `env -u NODE_OPTIONS node gate/install.mjs` in a POSIX
-  shell. Show the owner the dry run; on drift, stop and ask. Post only its
+  shell. Show the owner the dry run; on drift, or the dry run's warning that
+  the checkout is behind the last install, stop and ask. Post only its
   verdict and counts, as for any review-folder file.
 - **Apply only on the owner's go-ahead in chat,** with the apply command the
   dry run printed, and check that it exits zero.
