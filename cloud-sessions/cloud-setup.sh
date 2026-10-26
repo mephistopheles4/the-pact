@@ -2646,7 +2646,9 @@ round at a glance and the data stays as it is. In this order:
    else.
 5. **The crossed-findings fold:** a details element whose summary line reads
    `Crossed findings (N crossings, M lenses)`, holding items 6 to 13 in their
-   order, each as it would stand unfolded.
+   order, each as it would stand unfolded. Head no column "Disposition" in
+   any table in this fold or below it: a check reads such a table as the Lens
+   dispositions table.
 6. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
    inconclusive, then findings, then clear, raised to blocking when you sort a
    high `unchanged` finding as a security finding (see Findings and their
@@ -2672,9 +2674,6 @@ round at a glance and the data stays as it is. In this order:
 10. **Trade-offs.** A table of where, lens, severity, headline, the cost or
     level, the limit and the quality at stake, and what you did with it (see
     Trade-offs and accepted risks). Leave it out when no lens listed one.
-    Head no column "Disposition" here or in any other table below the Lens
-    dispositions fold: a check reads such a table as the Lens dispositions
-    table.
 11. **Notes.** A table of where, lens, severity and headline for each `noted`
     finding, with the notes the Follow-up issues cost overflows into. An
     overflow note's row keeps its own Disposition word, with "issues
@@ -2736,7 +2735,9 @@ holds renders as it would unfolded.
   link, no `click` or `href`, and no init directive. An open security
   finding is pinned by its part and class, never drawn as the steps of its
   path.
-- **Keep to forms you have seen render.** A diagram GitHub can't draw shows
+- **Keep to forms you have seen render:** the types in the table above, in
+  forms already seen in a posted round or rendered through GitHub's markdown
+  API. A diagram GitHub can't draw shows
   as an error box above the folds; it never touches the table.
 
 **Rules you apply by judgment:**
@@ -3105,7 +3106,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 8cc8da1902867e88e2ce8a088e19f313f37c5f669b14fc9ab98640eacff8c1af 'pact/review.md'
+check_hash 226eda83a3501957f8b1ad31d0f04a7a63bb5a13de2260c0f56b6e6a20876582 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3135,7 +3136,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 3b19b841c41e"
+  echo "pact cloud copy 2789542b43f1"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

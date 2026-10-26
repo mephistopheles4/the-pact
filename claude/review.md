@@ -369,7 +369,9 @@ round at a glance and the data stays as it is. In this order:
    else.
 5. **The crossed-findings fold:** a details element whose summary line reads
    `Crossed findings (N crossings, M lenses)`, holding items 6 to 13 in their
-   order, each as it would stand unfolded.
+   order, each as it would stand unfolded. Head no column "Disposition" in
+   any table in this fold or below it: a check reads such a table as the Lens
+   dispositions table.
 6. **Verdict.** The stricter of the lenses' own verdicts: blocking, then
    inconclusive, then findings, then clear, raised to blocking when you sort a
    high `unchanged` finding as a security finding (see Findings and their
@@ -395,9 +397,6 @@ round at a glance and the data stays as it is. In this order:
 10. **Trade-offs.** A table of where, lens, severity, headline, the cost or
     level, the limit and the quality at stake, and what you did with it (see
     Trade-offs and accepted risks). Leave it out when no lens listed one.
-    Head no column "Disposition" here or in any other table below the Lens
-    dispositions fold: a check reads such a table as the Lens dispositions
-    table.
 11. **Notes.** A table of where, lens, severity and headline for each `noted`
     finding, with the notes the Follow-up issues cost overflows into. An
     overflow note's row keeps its own Disposition word, with "issues
@@ -459,7 +458,9 @@ holds renders as it would unfolded.
   link, no `click` or `href`, and no init directive. An open security
   finding is pinned by its part and class, never drawn as the steps of its
   path.
-- **Keep to forms you have seen render.** A diagram GitHub can't draw shows
+- **Keep to forms you have seen render:** the types in the table above, in
+  forms already seen in a posted round or rendered through GitHub's markdown
+  API. A diagram GitHub can't draw shows
   as an error box above the folds; it never touches the table.
 
 **Rules you apply by judgment:**
