@@ -129,6 +129,8 @@ The lens runs alone and cannot wait mid-run, so each stop ends the run with the 
 - Less: a reproducible problem relevant to a claim that does not fail it (the old P3).
 - Least: an advisory, or a risk it could not reproduce (the old P4).
 
+**Decided** (2026-10-25, #421): the lens file labels these three `high`, `medium` and `low`, with the meanings the review procedure gives every lens; the levels themselves are unchanged. Its confidence scale shares the words, so the lens file names it as confidence, apart from severity (#423).
+
 ### 5. What tools does it need?
 
 **Confirmed** (2026-10-05): reads files; runs commands; loads deferred tools; drives a browser. It needs the shell and the browser because it runs the change. Limits: no file-editing or file-creating tools, no delegation. A shell can still write files and reach the network, so "writes nothing" and "no network beyond the claim" are Promised (C9, S4).

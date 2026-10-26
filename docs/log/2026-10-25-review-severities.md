@@ -13,3 +13,4 @@ The build adds the severity meanings, the evidence rule, the skip list, the Revi
 - The spec, revision 1: https://github.com/mephistopheles4/the-pact/issues/421#issuecomment-6402210244
 - The Design round's review: https://github.com/mephistopheles4/the-pact/issues/421#issuecomment-6402273716
 - The spec, revision 2: https://github.com/mephistopheles4/the-pact/issues/421#issuecomment-6402274167
+- 2026-10-26, #423: the Test round's medium (the glossary's `noted`) and its ten lows, fixed as wording and two test lines.

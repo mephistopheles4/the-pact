@@ -6,6 +6,8 @@
 - **`medium`** should be fixed in the change, or brought to the owner, and never blocks.
 - **`low`** can wait, as a note or a follow-up issue. A low `new` or `updated` finding that isn't security is `noted (auto)` unless its fix is mechanical and lands before the closing read, and a low finding never calls for a round on its own. Until now only an `unchanged` finding could be noted.
 
+This amends two rules of [ADR 0090](0090-lens-findings-carry-their-state-against-the-base.md): the verdict's condition, where a high `new` or `updated` finding now blocks only with its place and evidence, and `noted`, which now also covers a low `new` or `updated` finding.
+
 Each lens's own scale applies these meanings to its question; a lens brought from elsewhere uses them as given. `behaviour-lens`'s scale now reads `high`, `medium` and `low` like the others.
 
 The file also gains a skip list and a home for a repo's own review rules:
