@@ -1179,7 +1179,8 @@ What is particular to you:
   columns Claim, How it could be wrong, What I ran, Inputs that failed,
   Result. Result is held, failed, or not run with the reason.
 - **Each finding** sits on a listed claim. Its evidence says what was
-  expected, what happened, how confident you are (high, medium or low), and
+  expected, what happened, how confident you are (confidence: high, medium or low, apart from
+  severity), and
   how to reproduce it.
 - **How serious (severity):**
   - `high`: a claim fails reproducibly, or the change causes a
@@ -2482,7 +2483,7 @@ what a lens writes by its meaning.
 - **Verdict:** blocking when a finding is high, `new` or `updated`, and names
   its place and evidence; or high and a security finding by the lens's own
   class (the security pair) or marked `security?` (any other lens), whether
-  `new`, `updated` or `unchanged`. A high finding that is neither and lacks
+  `new`, `updated` or `unchanged`. A high finding that isn't a security or `security?` finding and lacks
   its place or evidence never makes the verdict blocking on its own; the lens
   says which is missing. Otherwise: inconclusive when it
   couldn't review something it was handed, an `E` row it didn't account for
@@ -2549,7 +2550,7 @@ change's own edit to that section apart, as an input; it takes effect for the
 next change. These rules can take items off the skip list, add paths to it
 only as generated files named with their generator, and add to what a lens
 checks. They never lift what this file says the security pair does, the
-security bar, the close-read exception above, or the read before posting.
+security bar, the never-skipped close-read paths above, or the read before posting.
 
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
 another lens's report. Never resume a lens.
@@ -2793,18 +2794,18 @@ whose class you can't tell as a security finding, for an `absent` finding.
 - At hand-off, name each high `noted` finding to me in chat, with the choice
   to file it, fix it in this change, or leave it as a note, and offer a full
   pass once.
-- Filing a `noted` finding counts against the Follow-up issues cost.
+- Filing any `noted` finding, `unchanged` or low, counts against the
+  Follow-up issues cost.
 
 **Sorting a low finding.** A low `new` or `updated` finding that isn't a
 security or `security?` finding is `noted (auto)`, unless its fix is
 mechanical and lands in a round before the closing read. A low finding never
 calls for a follow-up round on its own. After the closing read, a fix to a
 low finding is a later commit and needs a new closing read, so it is noted
-unless I ask for the fix. Filing one counts against the Follow-up issues
-cost. A low security or `security?` finding is sorted as any security finding
-is.
+unless I ask for the fix. A low security or `security?` finding is never
+`noted (auto)`: it comes to me as any security or `security?` row does.
 
-**A high finding without its place or evidence** comes to me with what is
+**A high `new` or `updated` finding without its place or evidence** comes to me with what is
 missing, and with the lens's verdict and yours when you lowered it. Its row is
 `open`, never `auto` and never `noted`. A review in flight when this rule is
 installed applies it from its next round.
@@ -3096,7 +3097,7 @@ check_hash() {
 }
 check_hash e7cb67b08cb5d9ea423fcc9362339da3c93b45caf6ae9ecfd6cc1239d8ef3452 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
-check_hash 2a2404a6c03371be26a18ab327e4c4e5c573af567dd044bd878c293e6ba58087 'agents/behaviour-lens.md'
+check_hash 031df11745d922e27898c1d901d1ad71c62d9307f36c0df7fc62beb0d50b7b09 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
 check_hash c9c7b83a04c401cd66125802f2174a90f3baaf91373b606c0983ecc9fe07fcbd 'agents/data-lens.md'
 check_hash 5095038b8e471ca8ef72411ec5289b443005e3a5fdd09622418c4a05c9f75232 'agents/executability-lens.md'
@@ -3104,7 +3105,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 171b791dce5ff14de2e189b8aa30330056b221340b094d8effa8b5c1a21b8818 'pact/review.md'
+check_hash 8cc8da1902867e88e2ce8a088e19f313f37c5f669b14fc9ab98640eacff8c1af 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3134,7 +3135,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy d8c712908aee"
+  echo "pact cloud copy 3b19b841c41e"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

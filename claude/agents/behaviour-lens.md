@@ -153,7 +153,8 @@ What is particular to you:
   columns Claim, How it could be wrong, What I ran, Inputs that failed,
   Result. Result is held, failed, or not run with the reason.
 - **Each finding** sits on a listed claim. Its evidence says what was
-  expected, what happened, how confident you are (high, medium or low), and
+  expected, what happened, how confident you are (confidence: high, medium or low, apart from
+  severity), and
   how to reproduce it.
 - **How serious (severity):**
   - `high`: a claim fails reproducibly, or the change causes a

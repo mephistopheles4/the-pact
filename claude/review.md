@@ -206,7 +206,7 @@ what a lens writes by its meaning.
 - **Verdict:** blocking when a finding is high, `new` or `updated`, and names
   its place and evidence; or high and a security finding by the lens's own
   class (the security pair) or marked `security?` (any other lens), whether
-  `new`, `updated` or `unchanged`. A high finding that is neither and lacks
+  `new`, `updated` or `unchanged`. A high finding that isn't a security or `security?` finding and lacks
   its place or evidence never makes the verdict blocking on its own; the lens
   says which is missing. Otherwise: inconclusive when it
   couldn't review something it was handed, an `E` row it didn't account for
@@ -273,7 +273,7 @@ change's own edit to that section apart, as an input; it takes effect for the
 next change. These rules can take items off the skip list, add paths to it
 only as generated files named with their generator, and add to what a lens
 checks. They never lift what this file says the security pair does, the
-security bar, the close-read exception above, or the read before posting.
+security bar, the never-skipped close-read paths above, or the read before posting.
 
 **Fresh and alone.** Dispatch each lens fresh and on its own, never shown
 another lens's report. Never resume a lens.
@@ -517,18 +517,18 @@ whose class you can't tell as a security finding, for an `absent` finding.
 - At hand-off, name each high `noted` finding to me in chat, with the choice
   to file it, fix it in this change, or leave it as a note, and offer a full
   pass once.
-- Filing a `noted` finding counts against the Follow-up issues cost.
+- Filing any `noted` finding, `unchanged` or low, counts against the
+  Follow-up issues cost.
 
 **Sorting a low finding.** A low `new` or `updated` finding that isn't a
 security or `security?` finding is `noted (auto)`, unless its fix is
 mechanical and lands in a round before the closing read. A low finding never
 calls for a follow-up round on its own. After the closing read, a fix to a
 low finding is a later commit and needs a new closing read, so it is noted
-unless I ask for the fix. Filing one counts against the Follow-up issues
-cost. A low security or `security?` finding is sorted as any security finding
-is.
+unless I ask for the fix. A low security or `security?` finding is never
+`noted (auto)`: it comes to me as any security or `security?` row does.
 
-**A high finding without its place or evidence** comes to me with what is
+**A high `new` or `updated` finding without its place or evidence** comes to me with what is
 missing, and with the lens's verdict and yours when you lowered it. Its row is
 `open`, never `auto` and never `noted`. A review in flight when this rule is
 installed applies it from its next round.
