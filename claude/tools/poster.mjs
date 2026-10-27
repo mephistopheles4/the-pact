@@ -1735,6 +1735,8 @@ export function editItemChecks(plan, item, login, ctx = {}) {
   }
   if (plan.surface === 'issue-edit' && item.pull_request !== undefined && item.pull_request !== null) target = false;
   if (!target) refusals.push({ rule: 'edit/target', where: 'item' });
+  // Refused on its place or its author, the item is read no further: another account's text never reaches the slow readers (#394 C27).
+  if (refusals.length) return { unusable: false, refusals };
   const body = item.body ?? '';
   refusals.push(...bodyRules(body, plan.signed, 'item'));
   if (scan([{ field: 'item', text: body }], { ...ctx, surface: plan.surface }).length) refusals.push({ rule: 'edit/leak', where: 'item' });

@@ -183,6 +183,15 @@ test('C5: an item by another author is refused as edit/author, with no PATCH', t
   }
 });
 
+// #394 C27: an item refused on where it sits or who wrote it is read no further, so another account's text never reaches the slow readers.
+test('C27: an item another login wrote is refused as edit/author alone, before its text is read', t => {
+  const email = 'alice' + '@' + 'example.org';
+  const w = world({ store: items(`Mail ${email}.\n\nSigned: ${LABEL}\n`, 'stranger') });
+  const r = edit(t, 'issue-comment-edit', w);
+  assert.deepEqual(r.lines.filter(l => l.startsWith('REFUSED ')), ['REFUSED edit/author item'], r.lines.join(' | '));
+  assert.equal(patches(w).length, 0);
+});
+
 // #413 C6
 test('C6: edit/unsigned takes only the two signature forms, on the item and on the new body', t => {
   const s = 'issue-comment-edit';
