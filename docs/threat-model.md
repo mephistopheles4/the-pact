@@ -1320,7 +1320,8 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
 - **The edit checks** (#413). An edit replaces only a body, with one `PATCH`.
   Before it sends, the poster reads the item and refuses it unless the `gh`
   login wrote it and it sits where the options say (`edit/author`,
-  `edit/target`); the item and the new body must each carry a signature line
+  `edit/target`), and an item another account wrote is read no further
+  (#394, its C27); the item and the new body must each carry a signature line
   for `--signed` and no other (`edit/unsigned`), and neither may be a review
   record (`edit/record`) or hold a decision mark (`edit/decision`), each read
   on several views of the text; an item holding what the content scan refuses,

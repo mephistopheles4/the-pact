@@ -117,7 +117,8 @@ sent, when:
 - **another account wrote it** (`edit/author`), or it isn't where the options
   say (`edit/target`): a comment on another issue or pull request, an issue
   number that is a pull request's, or a thread's first comment, which the
-  poster never makes;
+  poster never makes. An item another account wrote is read no further, so
+  its text never reaches the slower checks below (#394);
 - **it isn't signed by `--signed`** (`edit/unsigned`), on the item or on the
   new body. A signature line is a whole line, outside a fence, a quote and a
   closed HTML comment, that is exactly `Signed: <label>` or `Posted by <label>.`; a

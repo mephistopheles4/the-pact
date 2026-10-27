@@ -644,6 +644,8 @@ const SCAN_ENV = JSON.stringify({ MY_API_KEY: ENV_SECRET, PATH: '/usr/bin:/bin',
 const scanBase = () => ({ 'argv.json': JSON.stringify(ISSUE_ARGV('tier:thorough')), 'env.json': SCAN_ENV, 'body.md': 'A plain body.\n', 'title.txt': 'A plain title\n' });
 const inBody = text => tree => ({ ...tree, 'body.md': `A plain body with ${text} in it.\n` });
 const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n` });
+// #394: text in its own block between a comment opener and closer blocks apart. The page shows all of it, as a comment never spans a blank line; the wide copy, read over the whole text, removes it as one comment, so only the page copy reads the text.
+const pageOnly = text => inBody('<!-- x\n\n' + text + '\n\n-->');
 
 // #246 C7: each rule refuses a planted case in the body and in the title, and the output never holds it
 {
@@ -697,15 +699,15 @@ const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n
     { id: '394-C4-floor-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + ' -->'), fails: ['secret/token'], why: "a comment's contents with its tags removed, which only the floor reads" },
     { id: '394-C5-padded-no-semicolon', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#00000000173' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a numeric reference past the old digit cap, with no semicolon' },
     { id: '394-C6-form-feed', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#12;' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a control character the page drops' },
-    { id: '394-C7-page-decoded-tag', plant: inBody('&lt;b ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '&gt;'), fails: ['secret/token'], why: 'a decoded tag shape the page shows as text' },
+    { id: '394-C7-page-decoded-tag', plant: pageOnly('&lt;b ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '&gt;'), fails: ['secret/token'], why: 'a decoded tag shape the page shows as text, which only the page copy reads' },
     { id: '394-C8-bare-fenced-tag', plant: inBody('\n~~~\n<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10) + '">\n~~~\n'), fails: ['secret/token'], why: 'a tag the page shows as text in a fence, which only the bare copy keeps' },
-    { id: '394-C19-page-escaped-tag', plant: inBody('\\<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'an escaped tag shape split by a real tag, which only the page copy reads' },
+    { id: '394-C19-page-escaped-tag', plant: pageOnly('\\<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'an escaped tag shape split by a real tag, which only the page copy reads' },
     { id: '394-C20-page-code-span', plant: inBody('`<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '`' + GH_TOKEN_SHAPE.slice(10, 20) + '<i></i>' + GH_TOKEN_SHAPE.slice(20) + '">'), fails: ['secret/token'], why: 'a code span ending inside a tag shape, which only the page copy reads' },
     { id: '394-C22-filtered-tag-name', plant: inBody('<Title x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'a tag GitHub filters, shown as text' },
     { id: '394-C23-non-ascii-tag-space', plant: inBody('<b y="1"' + String.fromCharCode(0xa0) + 'x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'a tag shape with a no-break space, which the grammar rejects' },
     { id: '394-C21-legacy-no-semicolon', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&shy' + GH_TOKEN_SHAPE.slice(10) + '\n</div>\n' }), fails: ['secret/token'], why: 'a legacy name with no semicolon, in an HTML block' },
     { id: '394-C9-mark-fold', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20)), fails: ['secret/token'], why: 'bold marks inside the shape' },
-    { id: '394-C17-raw-html-grammar', plant: inBody(GH_TOKEN_SHAPE.slice(0, 8) + '<span title="x>y"></span>' + GH_TOKEN_SHAPE.slice(8, 16) + '<?x y?>' + GH_TOKEN_SHAPE.slice(16, 24) + '<!X y>' + GH_TOKEN_SHAPE.slice(24, 30) + '<![CDATA[z]]>' + GH_TOKEN_SHAPE.slice(30)), fails: ['secret/token'], why: 'raw HTML the page hides, as its grammar reads it' },
+    { id: '394-C17-raw-html-grammar', plant: pageOnly(GH_TOKEN_SHAPE.slice(0, 8) + '<span title="x>y"></span>' + GH_TOKEN_SHAPE.slice(8, 16) + '<?x y?>' + GH_TOKEN_SHAPE.slice(16, 24) + '<!X y>' + GH_TOKEN_SHAPE.slice(24, 30) + '<![CDATA[z]]>' + GH_TOKEN_SHAPE.slice(30)), fails: ['secret/token'], why: 'raw HTML the page hides, as its grammar reads it, which only the page copy reads' },
     { id: '394-C18-rejected-tag-run', plant: inBody('<b 1x="q" ' + GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20) + '>'), fails: ['secret/token'], why: 'a tag shape the grammar rejects, shown as text' },
     { id: '394-C24-pi-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<?x>' + GH_TOKEN_SHAPE.slice(10) + '?>'), fails: ['secret/token'], why: 'a processing instruction the page ends at its first >' },
     { id: '394-C24-cdata-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<![CDATA[x>' + GH_TOKEN_SHAPE.slice(10) + ']]>'), fails: ['secret/token'], why: 'a CDATA section the page ends at its first >' },
