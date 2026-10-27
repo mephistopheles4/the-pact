@@ -20,3 +20,8 @@ The pair's full follow-up read of that commit found three more places where the 
 - The Design round 2 review: https://github.com/mephistopheles4/the-pact/issues/394#issuecomment-6430232750
 - The spec, revision 3, approved: https://github.com/mephistopheles4/the-pact/issues/394#issuecomment-6430235851
 - Design closed, one ticket: https://github.com/mephistopheles4/the-pact/issues/394#issuecomment-6430320056
+- The follow-up to scan GitHub's rendered page: https://github.com/mephistopheles4/the-pact/issues/429
+- The Test review, the security pair's closing read: https://github.com/mephistopheles4/the-pact/issues/394#issuecomment-6435953936
+- The Test review, the QA pair's closing read: https://github.com/mephistopheles4/the-pact/issues/394#issuecomment-6435969407
+- The Test review, the QA pair's scoped follow-up: https://github.com/mephistopheles4/the-pact/issues/394#issuecomment-6436152259
+- The pull request: https://github.com/mephistopheles4/the-pact/pull/430
