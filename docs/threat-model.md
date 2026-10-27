@@ -730,8 +730,8 @@ session can act before you see it.
   copy reads differently from GitHub's page. Accepted by the owner's own
   word, relayed by the lead, on 2026-10-27 (q13 on #394), from the security
   pair's follow-up read of the first build of #394 (adversarial-lens and
-  data-lens), relayed by the lead; a further difference between the page
-  copy and the page falls under it, and the follow-up that scans GitHub's
+  data-lens), relayed by the lead; a further parser difference between the
+  page copy and the page falls under it, and the follow-up that scans GitHub's
   rendered output in place of modelling its parsers is filed as #429.
   A letter written against a key shape
   whose match it switches off is not accepted: it is open, to be fixed by
