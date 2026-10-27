@@ -192,10 +192,10 @@ test('C27: an item another login wrote is refused as edit/author alone, before i
   const r = edit(t, 'issue-comment-edit', w);
   assert.deepEqual(refused(r), ['REFUSED edit/author item'], r.lines.join(' | '));
   assert.equal(patches(w).length, 0);
-  // The session's own comment, named under another issue: in the wrong place, but its leak is still told.
-  const own = world({ store: items(`Mail ${email}.\n\nSigned: ${LABEL}\n`) });
+  // The session's own comment, named under another issue and unsigned: in the wrong place, but still read in full, so its leak is still told.
+  const own = world({ store: items(`Mail ${email}.\n`) });
   const o = edit(t, 'issue-comment-edit', own, { args: ['--issue', '5', '--comment', '9002'] });
-  assert.deepEqual(refused(o).sort(), ['REFUSED edit/leak item', 'REFUSED edit/target item'], o.lines.join(' | '));
+  assert.deepEqual(refused(o).sort(), ['REFUSED edit/leak item', 'REFUSED edit/target item', 'REFUSED edit/unsigned item'], o.lines.join(' | '));
 });
 
 // #413 C6
