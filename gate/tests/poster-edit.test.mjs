@@ -279,6 +279,8 @@ test('C8: edit/decision refuses the words in any case, spacing, markup, link or 
     '[Owner](https://example.com/x) decision, from chat.',
     'Own\u0435r d\u0435cision, from chat.',
     'Owner de&#99;ision, from chat.',
+    // #394 C12: a named reference outside the old list, a script letter NFKC folds to c.
+    'Owner de&cscr;ision, from chat.',
   ];
   for (const text of forms) {
     const body = `${text}${sig}`;

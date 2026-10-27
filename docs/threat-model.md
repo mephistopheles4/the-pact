@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, R57, R60 and R61, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57 and R60 to R62, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -159,11 +159,12 @@ check can read them in one place. It adds no control and accepts no risk.
 - **The poster.** Where the owner turns it on, its input rules, strict file
   reads, content scans and table check (The poster's own checks). The table
   check reads the text after a Finding cell's lead state word as written and
-  on both normalised views, so a form the page folds into "withheld" is read
-  as the word, and so is a word the page hides in a comment or tag; a copy
-  with each link folded to its text and without emphasis and code span marks
-  catches the word split by them (#392), a link address with one level of
-  parentheses or a quoted title included (#396). An edit's `--reason` and
+  on each normalised copy the content scan reads (#394), so a form the page
+  folds into "withheld" is read as the word, and so is a word the page hides
+  in a comment or tag; each copy with its links folded to their text and
+  without emphasis and code span marks catches the word split by them (#392),
+  a link address with one level of parentheses or a quoted title included
+  (#396). An edit's `--reason` and
   `--signed` follow the same input rules, and the item it reads back from
   GitHub before it writes is checked for its shape, its author, its place
   and its text (The edit checks, #413).
@@ -173,11 +174,11 @@ check can read them in one place. It adds no control and accepts no risk.
 The rest is covered by the accepted risks those sections name: R41 for the
 table check's pairing of a state word with a Disposition word, R57 for a
 withheld row's state in a form or cell the table check does not read or
-fold, such as a look-alike letter from another script or a named character
-reference outside the poster's list, R13 for a secret the content scans
-miss, R14 for a rewritten tool, R2 for an edit's text in a form the edit
+fold, such as a look-alike letter from another script, R13 for a secret the
+content scans miss, but for a letter written against a key shape whose match
+it switches off, which is open as #428, R14 for a rewritten tool, R2 for an edit's text in a form the edit
 checks don't fold, R60 for an item changed between the poster's read and
-its edit, and R12 and
+its edit, R62 for a body that slows the poster's page copy, and R12 and
 R15 for text a lens or a cloned repo hands a session, which no check in
 code reads.
 Prose a session reads is not validated in code; the rules and judgment in
@@ -193,7 +194,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47, R57, R60 and R61
+  title Residual risk, R1 to R47, R57 and R60 to R62
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -249,6 +250,7 @@ quadrantChart
   R57: [0.15, 0.20]
   R60: [0.06, 0.40]
   R61: [0.10, 0.15]
+  R62: [0.08, 0.06]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -267,7 +269,7 @@ How to read it:
 - **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
   is bounded: public reports, a blocked team, and a posted security row's
   state word showing whether the item sits in published code.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61, R62.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -285,7 +287,8 @@ How to read it:
   a Result that overstates what is missing, or a stale plugin catalog, until
   the next setup. R60 needs your own account to change an item in the moment
   between the poster's read and its edit. R61 costs only a wrong behind
-  warning; what is installed doesn't change.
+  warning; what is installed doesn't change. R62 costs a slow post, refused
+  or sent, never a leak.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -337,7 +340,8 @@ How to read it:
 | R46 Cloud plugins and skills step gaps | None; a cost to you | The Result names what was skipped or refused; the next setup retries (ADR 0091) | Boundary |
 | R47 Backups on disk | Readers of the Claude home folder | Unix modes; the prune's bound; on Windows, the Claude home folder's own access list, which the install leaves as it is (#272) | Boundary, outside the pact, rule |
 | R61 Git folder steers the behind warning | A session that can write the clone | None; the warning never changes what is installed (ADR 0118) | — |
-| R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on five views of the text after the state word (#392, #396) | Rule |
+| R62 Unclosed openers slow the poster's page copy | A careless or fooled session, on its own post | The body's size bound; nothing is sent while it runs (ADR 0122) | Boundary |
+| R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on the text after the state word as written, on each normalised copy and on each copy folded (#392, #396, #394) | Rule |
 | R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
@@ -714,6 +718,24 @@ session can act before you see it.
   rather than editing it to get past the scan. That is a backstop only some
   installs have; the read before posting stays for everyone. No test holds the
   security lenses' carried rules word for word; they hold by review.
+  Since #394 the scan's copies follow GitHub's page more closely, and three
+  classes of known-shape secret it still misses are accepted, in the owner's
+  words "look-alike letters, other renderers, the remaining combined tricks":
+  one written with look-alike letters from another script, one a renderer
+  other than GitHub's comments shows whole, and one split by two tricks at
+  once that no single copy reads together. Accepted by the owner's own word, relayed by
+  the lead, on 2026-10-26, from the Design review of #394 (data-lens and
+  adversarial-lens, rounds 1 and 2). A fourth class is accepted too: a
+  known-shape secret split by a raw-HTML or markdown structure that the page
+  copy reads differently from GitHub's page. Accepted by the owner's own
+  word, relayed by the lead, on 2026-10-27 (q13 on #394), from the security
+  pair's follow-up read of the first build of #394 (adversarial-lens and
+  data-lens), relayed by the lead; a further difference between the page
+  copy and the page falls under it, and the follow-up that scans GitHub's
+  rendered output in place of modelling its parsers is filed as #429.
+  A letter written against a key shape
+  whose match it switches off is not accepted: it is open, to be fixed by
+  #428.
 - **R14. A fooled session can leave something behind.** It can write files
   that later sessions or installs load: memory files, a repo's own Claude
   settings or rules, its server list, or your configuration blocks. With a
@@ -840,6 +862,18 @@ session can act before you see it.
   can already move HEAD. Accepted 2026-10-25 by the owner, from
   adversarial-lens's F3 at Test on #407: relayed by head-chef-field-test,
   then given in chat to the building session.
+- **R62. Unclosed openers slow the poster's page copy.** The page copy and
+  the wide copy read raw HTML with patterns whose comment,
+  processing-instruction, declaration and CDATA branches scan from each
+  unclosed opener to the end of a block, and in the wide copy to the end of
+  the text, so a body made of them takes time that grows with the square of
+  its length: at most about 650 ms per reader on the owner's host for a body
+  at the 65,536-character limit (#394, ADR 0122). It slows only the post
+  that holds it, nothing is sent while it runs, and no secret or personal
+  detail is involved. Accepted 2026-10-27 on the owner's standing word, in
+  their words "during this level-3 trial accept risks on my standing word",
+  relayed by the lead (q12 on #394), from adversarial-lens's F2 at Test on
+  #394.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -1269,7 +1303,18 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   title one line (`text/body-length`, `text/title-lines`,
   `text/title-length`). The content
   scans and the table check that follow are the backstop R3, R13 and R29
-  name. Three body checks, `fence/unclosed`, `text/hard-wrap` and
+  name. Since #394 they, and the edit checks, read each text as written and
+  as one set of normalised copies: the floor, built as before #394, so no form
+  refused then passes; a page copy, with block-quote markers stripped and the
+  source's raw HTML removed once, block by block, as GitHub's grammar and tag
+  filter read it and as its HTML parser ends a processing instruction or
+  CDATA section, escapes and code spans kept, then every HTML5 named
+  reference (the semicolon-less legacy names by longest prefix) and numeric
+  references of any length decoded, invisible and control characters
+  stripped and NFKC applied; a bare copy, decoded and stripped with nothing
+  removed; a wide copy, the page copy as the first build of #394 read it,
+  over the whole text with any Unicode spacing in a tag; and, for the
+  content scan, the page copy with its markdown marks folded. Three body checks, `fence/unclosed`, `text/hard-wrap` and
   `link/relative`, keep a post from landing broken; they are not a security
   control.
 - **The edit checks** (#413). An edit replaces only a body, with one `PATCH`.
@@ -1311,14 +1356,16 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   a Hardening trade-off, ADR 0090).
 - **R57. The table check doesn't read every form of a withheld row's state.**
   A state word beside a withheld row, written with a look-alike letter from
-  another script, a named character reference outside the poster's list, or
-  in a cell or wording the check doesn't read, or in markup it doesn't fold,
-  passes it. The review
+  another script, or in a cell or wording the check doesn't read, or in
+  markup it doesn't fold, passes it. The review
   procedure's rule for a withheld finding is the control; the check is only
   a backstop. Accepted by the owner on 2026-10-24, relayed by the lead, from
   the Test review of #391 and #392 (adversarial-lens and data-lens). "Or in
   markup it doesn't fold" added on the owner's word, relayed by the lead, on
-  2026-10-24, from #395's last Test read (q11, #396).
+  2026-10-24, from #395's last Test read (q11, #396). "A named character
+  reference outside the poster's list" dropped on 2026-10-26, since the
+  check reads every HTML5 named reference (#394, its C10), on the lead's call
+  under the owner's goal words, relayed.
 
 ## The tracker author checker's own checks
 

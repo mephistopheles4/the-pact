@@ -5,10 +5,11 @@
 // built at runtime from pieces, so this source holds no credential shape.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { makeGh, post, scan } from '../../claude/tools/poster.mjs';
+import { LEGACY_TABLE, NAMED_REFS, NAMED_TABLE, makeGh, post, scan } from '../../claude/tools/poster.mjs';
 import { childEnv } from './gate-run.mjs';
 import { REPO, assertFails, assertPasses } from './text.mjs';
 import { tempDir, writeTree } from './tree.mjs';
@@ -691,6 +692,25 @@ const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n
     { id: 'split-by-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x -->' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an HTML comment hides the shape' },
     { id: 'as-entities', plant: inBody([...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('')), fails: ['secret/token'], why: 'entities hide the shape' },
     { id: 'named-entity', plant: inBody(GH_TOKEN_SHAPE.replace('_', '&lowbar;')), fails: ['secret/token'], why: 'a named entity for the underscore' },
+    { id: '394-C1-named-zero-width', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&ZeroWidthSpace;' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a named reference outside the old list' },
+    { id: '394-C3-floor-dash', plant: inBody(SECRETS.sk.replace('-', '&dash;')), fails: ['secret/token'], why: "the old list's ASCII fold, which only the floor keeps" },
+    { id: '394-C4-floor-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + ' -->'), fails: ['secret/token'], why: "a comment's contents with its tags removed, which only the floor reads" },
+    { id: '394-C5-padded-no-semicolon', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#00000000173' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a numeric reference past the old digit cap, with no semicolon' },
+    { id: '394-C6-form-feed', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#12;' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a control character the page drops' },
+    { id: '394-C7-page-decoded-tag', plant: inBody('&lt;b ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '&gt;'), fails: ['secret/token'], why: 'a decoded tag shape the page shows as text' },
+    { id: '394-C8-bare-fenced-tag', plant: inBody('\n~~~\n<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10) + '">\n~~~\n'), fails: ['secret/token'], why: 'a tag the page shows as text in a fence, which only the bare copy keeps' },
+    { id: '394-C19-page-escaped-tag', plant: inBody('\\<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'an escaped tag shape split by a real tag, which only the page copy reads' },
+    { id: '394-C20-page-code-span', plant: inBody('`<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '`' + GH_TOKEN_SHAPE.slice(10, 20) + '<i></i>' + GH_TOKEN_SHAPE.slice(20) + '">'), fails: ['secret/token'], why: 'a code span ending inside a tag shape, which only the page copy reads' },
+    { id: '394-C22-filtered-tag-name', plant: inBody('<Title x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'a tag GitHub filters, shown as text' },
+    { id: '394-C23-non-ascii-tag-space', plant: inBody('<b y="1"' + String.fromCharCode(0xa0) + 'x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'a tag shape with a no-break space, which the grammar rejects' },
+    { id: '394-C21-legacy-no-semicolon', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&shy' + GH_TOKEN_SHAPE.slice(10) + '\n</div>\n' }), fails: ['secret/token'], why: 'a legacy name with no semicolon, in an HTML block' },
+    { id: '394-C9-mark-fold', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20)), fails: ['secret/token'], why: 'bold marks inside the shape' },
+    { id: '394-C17-raw-html-grammar', plant: inBody(GH_TOKEN_SHAPE.slice(0, 8) + '<span title="x>y"></span>' + GH_TOKEN_SHAPE.slice(8, 16) + '<?x y?>' + GH_TOKEN_SHAPE.slice(16, 24) + '<!X y>' + GH_TOKEN_SHAPE.slice(24, 30) + '<![CDATA[z]]>' + GH_TOKEN_SHAPE.slice(30)), fails: ['secret/token'], why: 'raw HTML the page hides, as its grammar reads it' },
+    { id: '394-C18-rejected-tag-run', plant: inBody('<b 1x="q" ' + GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20) + '>'), fails: ['secret/token'], why: 'a tag shape the grammar rejects, shown as text' },
+    { id: '394-C24-pi-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<?x>' + GH_TOKEN_SHAPE.slice(10) + '?>'), fails: ['secret/token'], why: 'a processing instruction the page ends at its first >' },
+    { id: '394-C24-cdata-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<![CDATA[x>' + GH_TOKEN_SHAPE.slice(10) + ']]>'), fails: ['secret/token'], why: 'a CDATA section the page ends at its first >' },
+    { id: '394-C25-quoted-tag', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n> ' + GH_TOKEN_SHAPE.slice(0, 10) + '<b a="x."\n> c="x">' + GH_TOKEN_SHAPE.slice(10) + '\n' }), fails: ['secret/token'], why: 'a tag carried onto the next line of a block quote' },
+    { id: '394-C26-html-block-nbsp', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&ZeroWidthSpace;' + GH_TOKEN_SHAPE.slice(10, 20) + '<b c' + String.fromCharCode(0xa0) + '="x">' + GH_TOKEN_SHAPE.slice(20) + '\n</div>\n' }), fails: ['secret/token'], why: 'a tag with a no-break space before =, which the HTML parser reads in an HTML block' },
     { id: 'in-a-fence', plant: inBody('\n```\n' + SECRETS.npm + '\n```\n'), fails: ['secret/token'], why: 'a secret in a code block is still a secret' },
   ];
   test('poster scan: base passes', async t => assertPasses(await run(base(), t)));
@@ -703,6 +723,20 @@ const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n
   }
   test('poster scan: base passes after the rows', async t => assertPasses(await run(base(), t)));
 }
+
+// #394 C2: the decoder's tables are the whole HTML5 table of names with a semicolon and its 106 legacy names. The digests are the ones the commands in ADR 0122 print from Python's html.entities.html5.
+test('the named-reference tables are the whole HTML5 table and its legacy names, by count, digest and parsed form', () => {
+  const sha = s => createHash('sha256').update(s).digest('hex');
+  const names = Object.keys(NAMED_REFS);
+  assert.equal(names.length, 2125);
+  assert.equal(sha(NAMED_TABLE), '5273dbcabfbdf39b1b6437251884d7938b5533c32a0c613e0ce2928fffedb54b');
+  const rebuilt = names.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).map(n => `${n}:${[...NAMED_REFS[n]].map(c => c.codePointAt(0).toString(16)).join('+')}`).join(',');
+  assert.equal(rebuilt, NAMED_TABLE);
+  const legacy = LEGACY_TABLE.split(',');
+  assert.equal(legacy.length, 106);
+  assert.equal(sha(LEGACY_TABLE), 'a30023eab2f395e24cfec10397844cb9565ef62b952557ccec6cc9bf8dad60c0');
+  assert.deepEqual(legacy.filter(n => !Object.hasOwn(NAMED_REFS, n)), [], 'every legacy name has its value in the table');
+});
 
 // #246 C7: what passes; the scan is not a word filter
 test('plain words that look like the rules pass the scan', t => {
