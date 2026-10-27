@@ -183,6 +183,21 @@ test('C5: an item by another author is refused as edit/author, with no PATCH', t
   }
 });
 
+// #394 C27: an item another account wrote is read no further, so its text never reaches the slow readers; an own item in the wrong place is still read.
+test('C27: an item another login wrote is refused as edit/author alone, before its text is read', t => {
+  const email = 'alice' + '@' + 'example.org';
+  const refused = r => r.lines.filter(l => l.startsWith('REFUSED '));
+  // Unsigned and holding an address, so the body rules and the scan would each add a refusal if they read it.
+  const w = world({ store: items(`Mail ${email}.\n`, 'stranger') });
+  const r = edit(t, 'issue-comment-edit', w);
+  assert.deepEqual(refused(r), ['REFUSED edit/author item'], r.lines.join(' | '));
+  assert.equal(patches(w).length, 0);
+  // The session's own comment, named under another issue and unsigned: in the wrong place, but still read in full, so its leak is still told.
+  const own = world({ store: items(`Mail ${email}.\n`) });
+  const o = edit(t, 'issue-comment-edit', own, { args: ['--issue', '5', '--comment', '9002'] });
+  assert.deepEqual(refused(o).sort(), ['REFUSED edit/leak item', 'REFUSED edit/target item', 'REFUSED edit/unsigned item'], o.lines.join(' | '));
+});
+
 // #413 C6
 test('C6: edit/unsigned takes only the two signature forms, on the item and on the new body', t => {
   const s = 'issue-comment-edit';
@@ -279,6 +294,8 @@ test('C8: edit/decision refuses the words in any case, spacing, markup, link or 
     '[Owner](https://example.com/x) decision, from chat.',
     'Own\u0435r d\u0435cision, from chat.',
     'Owner de&#99;ision, from chat.',
+    // #394 C12: a named reference outside the old list, a script letter NFKC folds to c.
+    'Owner de&cscr;ision, from chat.',
   ];
   for (const text of forms) {
     const body = `${text}${sig}`;

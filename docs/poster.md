@@ -117,7 +117,8 @@ sent, when:
 - **another account wrote it** (`edit/author`), or it isn't where the options
   say (`edit/target`): a comment on another issue or pull request, an issue
   number that is a pull request's, or a thread's first comment, which the
-  poster never makes;
+  poster never makes. An item another account wrote is read no further, so
+  its text never reaches the slower checks below (#394);
 - **it isn't signed by `--signed`** (`edit/unsigned`), on the item or on the
   new body. A signature line is a whole line, outside a fence, a quote and a
   closed HTML comment, that is exactly `Signed: <label>` or `Posted by <label>.`; a
@@ -135,7 +136,9 @@ sent, when:
   comment;
 - **it holds a decision mark** (`edit/decision`, best effort), on the item or
   the new body: the words "owner decision", in any case, spacing or markup, on
-  five views of the text, with a fixed set of look-alike letters folded first.
+  the text as written and on each normalised copy the content scan reads, each
+  also with its links and marks folded, with a fixed set of look-alike letters
+  folded first.
   Text that only mentions the words can't be edited either;
 - **it holds what the content scan refuses** (`edit/leak`): a secret, an
   email address or a hidden character. An edit can't remove it, since GitHub's
@@ -154,6 +157,12 @@ don't cover).
 
 The scans that read a post read the edit too: the reason, and the body with
 its reason line.
+
+Since #394 the edit checks read more forms of the text, so an edit of a post
+that passed before can now be refused. For `edit/record` or `edit/decision`,
+reword, or post a new comment. A new `edit/leak` means the item may already
+show a secret or an address on the page, and its history keeps it: tell the
+owner, and never edit around it.
 
 A repo's own rule can still say a text is never edited. In this repo, a
 probe's expected result and its run records stay as posted after a run
@@ -293,12 +302,37 @@ nothing sent.
 
 ## What the scans cover
 
-The content scan reads the title, each label and the body three ways: as
-written, and as a reader would see it with its HTML comments dropped and with
-their contents kept. Seeing it as a reader means removing invisible characters,
-markdown escapes and inline tags, decoding entities, and applying NFKC. The
-lists of shapes and names below are kept by hand from the poster's source;
-no test holds them.
+The content scan reads the title, each label and the body as written and as
+normalised copies, each meant to show the text as a reader sees it on
+GitHub's page (#394, ADR 0122):
+
+- **The floor,** two copies built as before #394, one with HTML comments
+  dropped and one with their contents kept: invisible characters, markdown
+  escapes and inline tags removed every round, the old short list of named
+  references decoded, NFKC applied. It is frozen, so no form refused before
+  #394 passes now.
+- **The page copy:** block-quote markers stripped, then the source's own raw
+  HTML removed once, block by block, as GitHub's grammar reads it (tags with
+  any quoted attribute value and ASCII spacing, but for the nine tag names
+  GitHub filters; comments, declarations, and processing instructions and
+  CDATA sections up to their first `>`), keeping backslash escapes
+  and code spans as text; then, until nothing changes, escapes removed, every
+  HTML5 named reference decoded (the semicolon-less legacy names by longest
+  prefix), numeric references of any length decoded, invisible and control
+  characters stripped, and NFKC applied. It never removes a tag twice, so
+  text that decoding makes tag-shaped stays, as the page shows it.
+- **The bare copy:** the same, removing nothing, for a tag the page shows as
+  text in a fence or elsewhere the page copy reads otherwise.
+- **The wide copy:** the same as the page copy, but read over the whole text
+  with any Unicode spacing in a tag and no tag filter, as the first build of
+  #394 read it, for a tag the HTML parser reads inside an HTML block where the
+  grammar doesn't, such as one with a no-break space before `=`.
+- **The page copy with its marks folded:** `*`, backticks, `~` and link
+  syntax dropped, `_` kept.
+
+Control characters are stripped though GitHub's comments show most of them
+as U+FFFD: stripping only ever adds refusals. The lists of shapes and names
+below are kept by hand from the poster's source; no test holds them.
 
 - **`secret/token`:** a fixed list of shapes: GitHub's tokens, old and
   fine-grained; `sk-` keys; live Stripe keys; npm, GitLab and Google API keys;
@@ -372,6 +406,13 @@ no test holds them.
   user name in plain prose passes, since it is often the login in the owner's
   own links.
 - **A secret with no known shape** and no environment variable behind it.
+- **A known shape split in a form no copy reads as the page does** (threat
+  model, R13): two tricks at once that no single copy reads together, a
+  look-alike letter from another script, a renderer other than GitHub's
+  comments, or a raw-HTML or markdown structure the page copy reads
+  differently from GitHub's page. A
+  letter written against the `sk-`, JSON web token or AWS key shapes switches
+  their match off; that is #428.
 - **Option values other than `--label`,** which are checked against patterns, not scanned.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
