@@ -77,3 +77,18 @@ test('the review file defines severities, a skip list, evidence to block, repo r
   for (const words of ['**How serious (severity):**', '`high`: a claim fails reproducibly', '`medium`: a reproducible problem relevant to a claim', '`low`: an advisory, or a risk you could not reproduce']) assert.ok(behaviour.includes(words), `C6: ${words}`);
   for (const [file, body] of installedTexts()) assert.ok(!/most serious:/.test(body), `C6: ${file} keeps the old scale`);
 });
+
+// #432 C1–C5: review diagrams pick their type by the reader's question.
+test('the review file picks a diagram type by the reader\'s question', () => {
+  const text = readFileSync(join(REPO, 'claude', 'review.md'), 'utf8').replace(/\s+/g, ' ');
+  const claims = {
+    C1: ['**Diagrams.** Before you pick a type, write the one sentence the diagram must explain: what I need to understand to decide, or to trust the result,', 'It is the diagram\'s heading, and it follows the labels rule. If no diagram can answer it, draw none.', 'Draw what the sentence asks, not the list of lenses:', 'each answering its sentence', 'each under its sentence as a short heading, always'],
+    C2: ['| The question | Mermaid type |', '| How did it fail, or how does it work now? | sequence diagram | | How does the state change? | state diagram | | What should I weigh? | quadrant chart, severity against likelihood, only when the lenses give both | | What happened across rounds? | timeline | | What does the data hold? | ER diagram | | What does a spec\'s structure or its claims cover? | flowchart or mindmap | | Where does it sit? | flowchart, boundaries as dashed boxes, each finding pinned on its part; only when location is the point |'],
+    C3: ['on flowcharts only: other types carry no fate colour, and the signal table and boxes carry fate'],
+    C4: ['An open security finding is pinned by its part and class on a flowchart, whatever the question, and never drawn as the steps of its path.', 'it names the part and class, never the steps of its path.', 'Once the round sorts it fixed, it is drawn as any fixed finding.'],
+    C5: ['**Use the types the table names.**', 'A diagram GitHub can\'t draw shows as an error box above the folds', 'seen by me on reading the round or by the session that posted it on opening the posted page, that session posts a correction comment, the one exception to one comment per review round.', 'only the diagram\'s heading sentence, the diagram redrawn as a flowchart, and a line naming the round it corrects: no base line, no fold, no Lens dispositions table, and no heading naming a lens.', 'no later round reads it', 'so the correction is a new comment'],
+  };
+  const missing = Object.entries(claims).flatMap(([claim, list]) => list.filter(words => !text.includes(words)).map(words => `${claim}: ${words}`));
+  assert.deepEqual(missing, []);
+  for (const [claim, old] of [['C1', 'Draw the situation, not the list of lenses'], ['C1', 'each drawing the situation'], ['C2', '| Findings across parts or trust boundaries |'], ['C2', '| Situation | Mermaid type |'], ['C5', 'Keep to forms you have seen render'], ['C5', 'forms already seen in a posted round']]) assert.ok(!text.includes(old), `${claim}: the old text is gone: ${old}`);
+});
