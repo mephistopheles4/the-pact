@@ -2623,7 +2623,7 @@ round at a glance and the data stays as it is. In this order:
      - **Taken:** 🔵; a blue pin, `#0969da33`.
      - **Fixed, or a clear lens:** 🟢; a green pin, `#2da44e33`.
      - **Dismissed, noted or skipped:** ⚪; no pin.
-   - **Diagrams,** one or more, each answering its sentence (see Diagrams
+   - **Diagrams,** none or more, each answering its sentence (see Diagrams
      below; none for small work), each in a centred block written exactly as
      `<div align="center">`, a blank line, the `mermaid` fence, a blank line
      and `</div>`, each under its sentence as a short heading, always.
@@ -2713,7 +2713,7 @@ holds renders as it would unfolded.
 
 **Diagrams.** Before you pick a type, write the one sentence the diagram must
 explain: what I need to understand to decide, or to trust the result, such as
-"how a raise could land while the write ahead of it failed". It is the
+"how a retry could run while the first write was still failing". It is the
 diagram's heading, and it follows the labels rule. If no diagram can answer
 it, draw none. Draw what the sentence asks, not the list of lenses:
 
@@ -2727,6 +2727,8 @@ it, draw none. Draw what the sentence asks, not the list of lenses:
 | What does a spec's structure or its claims cover? | flowchart or mindmap |
 | Where does it sit? | flowchart, boundaries as dashed boxes, each finding pinned on its part; only when location is the point |
 
+An open security finding is always a flowchart: see the labels bullet below.
+
 - **Pins are coloured by fate** (see Fates), on flowcharts only: other types
   carry no fate colour, and the signal table and boxes carry fate. Boundaries
   come from the project's threat model where it names them; else name the
@@ -2739,22 +2741,26 @@ it, draw none. Draw what the sentence asks, not the list of lenses:
 - **Labels are your own words,** never text copied from a report, and hold no
   link, no `click` or `href`, and no init directive. An open security
   finding is pinned by its part and class on a flowchart, whatever the
-  question, and never drawn as the steps of its path. Its sentence asks where
-  it sits, so the flowchart answers it, and the sentence, as a heading,
-  follows the labels rule: it names the part and class, never the steps of its
-  path. Once the round sorts it fixed, it is drawn as any fixed finding.
+  question, and never drawn as the steps of its path. It gets its own
+  diagram, whose sentence asks where it sits, so the flowchart answers it, and
+  that sentence, as a heading, follows the labels rule: it names the part and
+  class, never the steps of its path. Once the round sorts it fixed, it is
+  drawn as any fixed finding.
 - **Use the types the table names.** GitHub's docs give no full list of the
   types it renders, and state and ER diagrams have not yet been seen to render
   in a posted round. A diagram GitHub can't draw shows as an error box above
-  the folds; it never touches the table. When a posted diagram shows the error
-  box, seen by me on reading the round or by the session that posted it on
-  opening the posted page, that session posts a correction comment, the one
-  exception to one comment per review round. It holds only the diagram's
-  heading sentence, the diagram redrawn as a flowchart, and a line naming the
-  round it corrects: no base line, no fold, no Lens dispositions table, and no
-  heading naming a lens. It is not a review record, and no later round reads
-  it. A review comment is a review record, and an edit to a record is
-  refused, so the correction is a new comment.
+  the folds; it never touches the table.
+- **A diagram that fails to render.** When a posted diagram shows the error
+  box, seen by me on reading the round (I then tell the session that posted
+  it) or by that session on opening the posted page, that session posts a
+  correction comment, an exception to one comment per review round beside the
+  size rule's parts. It holds only a flowchart under a sentence asking where
+  it sits, which it writes itself (none when the failed diagram was already a
+  flowchart), a line naming the round it corrects, and its signature line: no
+  base line, no fold, no Lens dispositions table, and no heading naming a
+  lens. It is not a review record, and no later round reads it. The round's
+  own comment is a review record, and an edit to a record is refused, so the
+  correction is a new comment.
 
 **Rules you apply by judgment:**
 - **A crossing is the same place:** the same section or claim, the same file
@@ -3122,7 +3128,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 5ba5d76b2a9dd6ef9a2af00c09be26aa60b27ac8518c990c23cb7578455245c9 'pact/review.md'
+check_hash f85ddfc3dacef7c0379be5d9a5ce6cb57cae63f06b28dc65750707e522f56088 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3152,7 +3158,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy ddf8951da811"
+  echo "pact cloud copy 05c47736211b"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

@@ -6,9 +6,9 @@
 - **A table keyed by the question,** in this order: how it failed or works (sequence), how the state changes (state), what to weigh (quadrant, only when the lenses give both axes), what happened across rounds (timeline), what the data holds (ER), what a spec's structure or claims cover (flowchart or mindmap), and where it sits (flowchart, last, only when location is the point).
 - **Fate colours on flowcharts only.** Other types carry none; the signal table and boxes carry fate.
 - **An open security finding** stays pinned by part and class on a flowchart whatever the question, and its heading names the part and class, never the steps of its path. A fixed one is drawn as any fixed finding.
-- **The types are the ones the table names.** "Keep to forms you have seen render" is gone. A diagram GitHub can't draw still shows as an error box; the owner on reading, or the posting session on opening the posted page, then has the session post a correction comment: the heading sentence, the diagram redrawn as a flowchart, and a line naming the round. It is the one exception to one comment per review round, and not a review record.
+- **The types are the ones the table names.** "Keep to forms you have seen render" is gone. A diagram GitHub can't draw still shows as an error box. When the owner sees it on reading, who then tells the posting session, or that session sees it on opening the posted page, the session posts a correction comment: a flowchart under a sentence asking where it sits (none when the failed diagram was already a flowchart), a line naming the round, and its signature. It is an exception to one comment per review round, beside the size rule's parts, and not a review record.
 
-This amends the diagram bullet of [ADR 0117](0117-a-review-comment-opens-with-a-human-layer-and-folds-its-data.md), "Diagrams draw the situation".
+This amends the diagram bullet of [ADR 0117](0117-a-review-comment-opens-with-a-human-layer-and-folds-its-data.md), "Diagrams draw the situation", and adds an exception to that ADR's one comment per review round.
 
 ## Why
 

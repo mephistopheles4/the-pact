@@ -8,4 +8,11 @@ The build wrote one phrase-assertion test in `gate/tests/pact-call.test.mjs`, se
 
 ## Record
 
-- The plan and spec: https://github.com/mephistopheles4/the-pact/issues/432
+- The plan: https://github.com/mephistopheles4/the-pact/issues/432#issuecomment-6496446549
+- The spec, revision 1: https://github.com/mephistopheles4/the-pact/issues/432#issuecomment-6496546961
+- The Design round 1 review: https://github.com/mephistopheles4/the-pact/issues/432#issuecomment-6496842073
+- The spec, revision 2: https://github.com/mephistopheles4/the-pact/issues/432#issuecomment-6496842899
+- The spec, revision 3: https://github.com/mephistopheles4/the-pact/issues/432#issuecomment-6511013864
+- The Design round 2 review: https://github.com/mephistopheles4/the-pact/issues/432#issuecomment-6511266187
+- The spec, revision 4, approved: https://github.com/mephistopheles4/the-pact/issues/432#issuecomment-6511267595
+- The pull request: https://github.com/mephistopheles4/the-pact/pull/433
