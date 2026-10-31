@@ -73,7 +73,9 @@ The pact defends itself in two ways, and they are not equally strong.
   model reads it right. Most of the pact is rules. Examples: the offers
   paragraph, which has a session offer each lens with a reason, and the
   sensitive route, which a session recommends with its why when it sets out;
-  and "Stop and ask me", the points where a session must stop and ask you.
+  and "Stop and ask me", the points where a session must stop and ask you,
+  with the standing goal beside it (#434), which lets work that has gone
+  round twice take one bounded step while you are away.
 - **Judgment.** Since #261 the rules file states the owner's practices and
   leaves much to the model's judgment, as any shared `CLAUDE.md` does. Rules
   it used to carry, such as whose tracker text counts, are accepted as
@@ -81,7 +83,9 @@ The pact defends itself in two ways, and they are not equally strong.
   reached by a pointer in `AGENTS.md`.
 
 One rule is a fixed block: "Stop and ask me". No configuration edit can target
-it. Since ADR 0069 the gate holds no text word for word: the pact is vetted
+it. Since #434 the block also carries the standing goal, its bounded step, a
+lead's trade-off picks under it and what a goal never lifts, so their bounds
+travel with the guard they loosen. Since ADR 0069 the gate holds no text word for word: the pact is vetted
 like any skill. The gate checks install mechanics only: what each file is and
 where it goes, that each agent file still parses, the text scanner, the
 settings overlay, and the install's bookkeeping. What the pact's files say, and
@@ -1061,7 +1065,9 @@ safe, and a change made months ago is easy to forget.
   on pact tools the same way, each installed under `pact/tools/` with its
   rule rendered into the rules file (#280). A `skills` list names skill folders by repo, full commit and path, for the cloud setup to fetch (#183 T4b); the install checks its shape, prints a `skills:` block and fetches nothing. The repos and paths are your own text, so the dry run that names them is shared by verdict and counts only, like a custom model. No configuration
   edit can target the fixed "Stop and ask me" block, or a tool's rule part;
-  the renderer refuses.
+  the renderer refuses. The block carries the standing goal (#434), so no
+  configuration can widen or narrow the goal's bounds, and a tool's setting
+  sets no goal.
 - **The pact's default can loosen a rule too.** With no file of yours,
   `builder/default-config/` renders. A change to it, its preset, its
   generator or the installer's choice of it takes the sensitive route
@@ -1503,6 +1509,9 @@ Each tweak below is yours to make. The cost is what you give up.
 
 You cannot edit the fixed "Stop and ask me" block through configuration. That
 is deliberate; a committed edit to it installs, and you vet it like any other.
+Since #434 the block carries the standing goal too, so its one bounded step
+and a lead's trade-off picks under it can't be turned off or widened there
+either. A goal holds until its work ends or you end it.
 
 ## Known open issues at publication
 
