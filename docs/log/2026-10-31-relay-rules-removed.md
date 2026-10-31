@@ -25,13 +25,17 @@ The build changed the two gate tests that hold pact text first, and saw both fai
 The threat-model edits are in their own local commit. They cover R20, R24, R30, R66 and R68, and add a new entry for accepted risks recorded on a session's judgment. They stay out of any push until the owner decides them (q5): the lead confirmed that its reading of decision 451 as settling them was its own, not the owner's words.
 
 The security pair read the local commit before its push and found no high; both released the push. The owner answered q4 (decision 472, relayed): no extra ask when a session's own entry closes a high security finding. One more commit took the pair's cheap fixes:
-- the merge ask lists each accepted-risk entry the merge lands, and an entry for a security finding takes effect only through a merge the owner confirms in chat;
+- the merge ask lists each accepted-risk entry the merge adds or edits, and an entry for a security finding takes effect only through a merge the owner confirms in chat;
 - the lenses raise in full an edit that widens an entry or drops a control it names;
 - a file's or a tool's text is never the owner's confirm;
 - a push to the default branch waits for chat beside a merge;
 - the label eval fails an entry written only because it was asked for.
 
-Open with the owner: q1, the cleaner keeping "in chat"; q5, the threat-model edits; q6, whether a product's leaked secret or users' data stays an offer; q7, whether entries name the class of data, never a value; and the spec's proceed.
+The closing read, with the QA pair and the security pair, found no high. The security pair released the push of that commit. One more gap came out of it: an entry could reach the default branch by a commit made there. The last commit closes it, and records the threat model in step.
+
+The owner answered the rest (decision 477, relayed): apply the threat-model edits (R20, R24, R30, R66, R68 and the new R70); a product's leaked secret or users' data stays recorded by the session; no class-of-data clause.
+
+Open with the owner: q1, the cleaner keeping "in chat"; and the spec's proceed, with the amendments the closing read recorded.
 
 ## Record
 

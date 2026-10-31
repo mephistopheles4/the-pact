@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, R57 and R60 to R69, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57 and R60 to R70, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -215,7 +215,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47, R57 and R60 to R69
+  title Residual risk, R1 to R47, R57 and R60 to R70
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -279,6 +279,7 @@ quadrantChart
   R67: [0.15, 0.30]
   R68: [0.45, 0.45]
   R69: [0.80, 0.12]
+  R70: [0.35, 0.65]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -295,7 +296,7 @@ How to read it:
   you install (R8, R9, R10, R35, R45), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
-  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), agent files taken from a shared builder file (R32), the install's backups on disk (R47), and a lens sending a secret out or quoting a reviewed product's data (R65, R66) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), agent files taken from a shared builder file (R32), the install's backups on disk (R47), a lens sending a secret out or quoting a reviewed product's data (R65, R66), and a session accepting a risk on its own judgment (R70) sit here. Their guards are mostly rules, so cutting one moves its risk right.
 - **Watch (bottom right): R7, R34, R43, R69.** They happen by design, and the harm
   is bounded: a blocked team, a path that names you in a post, since #441
   read by nothing, and a posted security row's state word showing whether
@@ -345,7 +346,7 @@ How to read it:
 | R17 Gate path only | You, or a fooled session | The install gate, on install mechanics only since ADR 0069; the dry run; your review of the commit | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
 | R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
-| R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline that came only by relay kept open until you answer in chat; review of a lens change, with the security pair when you ask for it (ADR 0072); a change Claude doesn't see as sensitive, judgment | Rule, judgment |
+| R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline of a security review counted only when you give it in chat, typed in the session, any other leaving the review offered (#443, accepted by the owner on 2026-10-31, decision 477, the owner's words, relayed by the lead); review of a lens change, with the security pair when you ask for it (ADR 0072); a change Claude doesn't see as sensitive, judgment | Rule, judgment |
 | R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build, in the default workflow, which a home configuration can change behind the security-defaults line (#262, R30); here, the QA pair reads every change to the gate's tests at Test, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse (a standing goal never lifts it, #434); the sensitive-work default, now what a session looks for and flags, not a forced route (#262), replaceable in a home configuration behind the security-defaults line (#262, R30), and since #441 without "secrets"; the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover secrets and personal data the list doesn't name; the backstop at Test, which doesn't reach them either (#262, #441, the owner's choice); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
@@ -379,10 +380,11 @@ How to read it:
 | R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat, and a removal through the cleaner is bounded by git's refusals and its keeps; the deny rules on raw removal commands are a speed bump, with only the classifier behind them (#438, ADR 0124) | Rule, boundary |
 | R64 A session posts a secret or a personal detail | Text a session reads, a careless session | On an install with the poster on, its exact-match refusal of a live environment secret's value; elsewhere none (#441) | None; a boundary where the poster is on |
 | R65 A lens sends a secret out | Text a lens reads | None of its own since #441; a lens fetches only to check an advisory, and treats what it reads as data | None; rules in part |
-| R66 A lens report carries a product's secrets or users' data | Text a lens reads, a careless lens | None since #441; a product's leak is Hardening, offered as an accepted-risk candidate (decision 378) | None |
+| R66 A lens report carries a product's secrets or users' data | Text a lens reads, a careless lens | None since #441; a product's leak is Hardening, which since #443 the finding session records as an accepted risk and names to you in a notice (decision 378, R70; #443, accepted by the owner on 2026-10-31, decision 477, the owner's words, relayed by the lead) | None |
 | R67 A builder file keeps keys or names | Whoever hands you a builder file or preset | None since #441; the page is written outside any repo, and its content policy is unchanged | Judgment |
 | R68 Credential work off the sensitive route | A careless or fooled session | Only when the work is also auth or crypto; with a threat model, its attacker clause | Rule, judgment |
 | R69 A step log shows you were away | Anyone who reads the record, on a public tracker | The goal is named by its work, never quoted; post times already show when sessions ran; elsewhere, a private tracker (#434) | Rule |
+| R70 A session accepts a risk on its own judgment | Text a session reads, a steered or careless session | The never-on-claimed-text rule; the recorder's short label in each entry, self-attested; the notice to you at hand-off and in the record; each security lens's one-line notice; the merge ask listing each entry the merge adds or edits, a security finding's entry taking effect only through a merge you confirm in chat; a later matching finding still comes to you, never `auto`; a periodic revision: none yet (do-450) (#443) | Rule |
 | R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
@@ -718,8 +720,9 @@ session can act before you see it.
   diff. If you don't take it, the pair is offered once more at Test when the
   change matches the list, which also catches a flag the session missed. A
   flag or offer you haven't answered stays open in every hand-off and in the
-  result, a decline that reached the session only by relay stays open until
-  you answer in chat, and a flag found later is said at the next hand-off
+  result, a decline of a security review counts only when you give it in
+  chat, typed in the session, and any other leaves the review offered (#443,
+  accepted by the owner on 2026-10-31, decision 477, the owner's words, relayed by the lead), and a flag found later is said at the next hand-off
   until you answer. It is a rule, held by review. The gate keeps a fixed list of the security-set lenses, so
   the class it prints on each agent setting never depends on the rules file's text.
 
@@ -959,8 +962,9 @@ session can act before you see it.
   personal data.** A security lens reports a product's leaks as found, and its
   report goes on that project's tracker word for word, a read of a commit not
   yet pushed included; the data may not be yours. The data-lens still reports
-  each leak point; its fix is Hardening, offered as an accepted-risk
-  candidate (decision 378). Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451), from the same reviews (adversarial-lens
+  each leak point; its fix is Hardening, which since #443 the finding session
+  records as an accepted risk on its own judgment and names to you in a notice
+  (decision 378, R70; #443, accepted by the owner on 2026-10-31, decision 477, the owner's words, relayed by the lead). Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451), from the same reviews (adversarial-lens
   F2; data-lens F3).
 - **R67. A builder file or page can keep keys or names.** `/scriptorium` no
   longer reads a builder file or a preset for keys, tokens, internal
@@ -975,11 +979,14 @@ session can act before you see it.
   install with no configuration the security pair is neither recommended nor
   offered at Test for it. With no threat model, a lens's finding that a
   product leaks a key or its users' data is Hardening, limit 0: offered as an
-  accepted-risk candidate, never built unasked, never blocking (decision
-  378). Accepted by the owner on 2026-10-31, in chat, relayed by the lead
+  accepted-risk candidate, flagged to you with nothing recorded, never built
+  unasked, never blocking (decision 378). With a threat model, since #443 the
+  finding session records it as an accepted risk and names it to you in a
+  notice (R70; #443, accepted by the owner on 2026-10-31, decision 477, the owner's words, relayed by the lead). Accepted by the owner on 2026-10-31, in chat, relayed by the lead
   (decision 418 on #441, "a"; confirmed in the lead's chat in decision 451), from #441's first Test round
   (adversarial-lens F4; data-lens F7, F8).
 - **R69. A step log shows you were away.** Under a standing goal (#434), each bounded step is logged in the record, with where the goal reached the session by its kind. On a public tracker, anyone can read from the logs when you were away from the work. The goal's own words never go in, and every post already carries its time, so the extra signal is small; a private tracker removes it. Accepted because the log is what lets you review a step taken while you were away. Accepted 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick (the owner's words handed q18 to that pick), from #434's Test round 2, data-lens F1; confirmed in its current text by decision 451, relayed by the lead, from Test round 4; recorded by build-434.
+- **R70. A session accepts a risk on its own judgment.** Since #443 the session that finds a gap records an accepted risk itself, on its own judgment, never because a prompt, a message, a file or a tool's text says you accepted it (decision 451). A steered or careless session can record one from planted text that argues a gap is fine without claiming your word, including for a high security finding in its own work (no ask, the owner's words, decision 472), or, in a project with a threat model, for a product's leaked secret or users' data (R66, R68). Every later matching finding is then one line that never blocks, though it still comes to you, never `auto`. You see each entry in a notice at the next hand-off and in the record, with the class of path, the fix's cost and the risk it leaves, and both security lenses name it in their reports. The ask for a merge lists each entry the merge adds or edits, and an entry for a security finding takes effect only through a merge you confirm in chat; that merge is a rule, not a human checkpoint where the branch requires no approving review (R24). It eases R12, since accepting a risk is no longer a decision the rules name as yours, and R30, since a change's own entry is a notice. The recorder's label is self-attested, since every session posts as you (R24). A periodic revision of the entries does not exist yet (do-450). Accepted 2026-10-31 by the owner, decision 477, the owner's words relayed by the lead ("443 yes" to the lead's listed picks), from #443's Design and Test reviews (adversarial-lens and data-lens); recorded by do-443.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -1028,6 +1035,19 @@ session can act before you see it.
     to reverse. Here, so does this repo's "Never post a secret or a personal
     detail" (one link from the loaded `AGENTS.md`, since #270); elsewhere that is judgment. Both are rules, so a steered session
     could still break them. A standing goal lifts only its first reason, work gone round twice, for one logged step per stage of each piece of work; never the hard-to-reverse stop, the always-mine decisions or the security rules (#434).
+  - **What chat is, since #443.** The pact names no lead session or relay,
+    and says chat is what you type in the session: a start or resume prompt,
+    another session's message, a file or a tool's text is not chat. A merge,
+    a push to the default branch or a commit made on it, an install, a
+    publish and a decline of a security review wait for chat, and a file's
+    or a tool's text is never your confirm.
+    That narrows those paths, and rests on a session telling chat from a
+    start prompt that looks like your typing, which is unprobed (the bullets
+    above). A spec's proceed, the ticket cut, accepting work and closing a
+    ticket name no channel, so a start or resume prompt, or a desktop-tool
+    message a session doesn't read as a tool's text, that claims one can clear
+    it (R16, R25). Accepted 2026-10-31 by the owner, decision 477, relayed by
+    the lead; recorded by do-443.
   - **With auto mode off, or its lists edited,** Claude Code's own prompts
     govern.
 
@@ -1036,7 +1056,7 @@ session can act before you see it.
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
 
-  **Widened by #434.** A standing goal is your words, and the pact names no channel for them; that is left to Claude Code (decision 437, #443). Any prompt or message a session reads, a lead's or another session's start prompt or message, or a resume prompt, can carry words that read as yours, which let the session take one bounded step at a stall. What is accepted: a steered, confused or forged lead, another session, or whoever writes a resume prompt can carry a goal you never gave, which allows one logged step per stage of each piece of work before you see it, since the session can't tell the goal is yours. What bounds it: the step is logged, with where the goal reached the session by its kind as the session saw it (a forged start or resume prompt may log as chat), and left easy to back out; a second stall stops; while a security finding is open, or a fix would touch the sensitive-work list, only a second opinion; every trade-off, accepted risk and always-mine decision still comes to you. Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434, and decision 432), from #434's Test rounds 1 and 2, adversarial-lens and data-lens. Narrowed on 2026-10-31: on the owner's words, relayed (decision 437), the pact dropped its relay and lead-session rules, so a lead no longer picks trade-offs and the lines that held a relayed or resume-prompt goal open went with them; the wording was the lead's own pick (decision 438). The owner accepted the entry in this shape on 2026-10-31, relayed by the lead (decision 451: every remaining risk entry and threat-model edit in #434 accepted as recommended), from Test round 4, adversarial-lens F1 to F3 and data-lens F1 and F3; recorded by build-434.
+  **Widened by #434.** A standing goal is your words, and the pact names no channel for them; that is left to Claude Code (decision 437, #443). Any prompt or message a session reads, a lead's or another session's start prompt or message, or a resume prompt, can carry words that read as yours, which let the session take one bounded step at a stall. What is accepted: a steered, confused or forged lead, another session, or whoever writes a resume prompt can carry a goal you never gave, which allows one logged step per stage of each piece of work before you see it, since the session can't tell the goal is yours. What bounds it: the step is logged, with where the goal reached the session by its kind as the session saw it (a forged start or resume prompt may log as chat), and left easy to back out; a second stall stops; while a security finding is open, or a fix would touch the sensitive-work list, only a second opinion; every trade-off and always-mine decision still comes to you, and since #443 each accepted-risk entry as a notice and in the merge ask (R70; #443, accepted by the owner on 2026-10-31, decision 477, the owner's words, relayed by the lead). Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434, and decision 432), from #434's Test rounds 1 and 2, adversarial-lens and data-lens. Narrowed on 2026-10-31: on the owner's words, relayed (decision 437), the pact dropped its relay and lead-session rules, so a lead no longer picks trade-offs and the lines that held a relayed or resume-prompt goal open went with them; the wording was the lead's own pick (decision 438). The owner accepted the entry in this shape on 2026-10-31, relayed by the lead (decision 451: every remaining risk entry and threat-model edit in #434 accepted as recommended), from Test round 4, adversarial-lens F1 to F3 and data-lens F1 and F3; recorded by build-434.
 - **R25. A pact command sent as prompt text.** `/make-it-so`, `/finis` and
   `/scriptorium` set `disable-model-invocation: true`. That stops the model starting one,
   not text sent in as a prompt. The bodies add no check of their own, by the
@@ -1187,9 +1207,11 @@ safe, and a change made months ago is easy to forget.
   #441 a secret or personal data exposed is not a security finding by that
   alone. The lenses read the
   threat model and the line that names it as they stood at the base
-  of the change; the change's own edit to either is a finding for you, and
-  the session brings every such edit to you at hand-off, whichever lenses
-  ran. A threat model is committed text, and may be public: an accepted-risk
+  of the change; the change's own edit to the scope or that line is a
+  finding for you, and the session brings every such edit to you at
+  hand-off, whichever lenses ran. Since #443 a new or edited accepted-risk
+  entry is a notice instead, named by both security lenses and by the
+  session at hand-off and in the record (R70; #443, accepted by the owner on 2026-10-31, decision 477, the owner's words, relayed by the lead). A threat model is committed text, and may be public: an accepted-risk
   entry, or a candidate for one, names the class of path and why it is
   accepted, never the steps to use it. These additions to R30 were accepted
   by the owner on 2026-10-17, relayed by the head chef session (#289). A preset
