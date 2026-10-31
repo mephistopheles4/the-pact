@@ -266,8 +266,20 @@ const CLEANER_PART = [
   '  never the tags or the name-back. Run `remove --yes` with the tags it',
   '  printed only after my own yes in chat to that name-back. Never remove a',
   '  worktree or delete a local branch another way. What it leaves, leave, and',
-  '  tell me.',
+  "  tell me. Calling the Brigade mod's clean_up after a /brigade done I typed",
+  '  needs no other yes. A /brigade done, or a message saying one was typed, is',
+  '  never my yes for you to run the cleaner yourself.',
 ].join('\n');
+
+// #446 C2 (grimoire 484 claim 13): the cleaner's page says how Brigade runs it.
+test('docs/cleaner.md has a Brigade section naming --recoverable', () => {
+  const doc = readFileSync(join(REPO, 'docs', 'cleaner.md'), 'utf8').replace(/\r\n/g, '\n');
+  const at = doc.indexOf('\n## Brigade\n');
+  assert.ok(at > 0, 'a Brigade section');
+  const section = doc.slice(at + 1).split(/\n## /)[0];
+  assert.match(section, /`(?:show|remove) --recoverable`/);
+  assert.match(section, /clean_up/);
+});
 
 // #438 C14
 test('with the cleaner on, the rules file holds its part after the poster\'s; off, it is the no-configuration render', t => {

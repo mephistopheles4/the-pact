@@ -340,7 +340,9 @@ const TOOL_PARTS = new Map([
       '  never the tags or the name-back. Run `remove --yes` with the tags it',
       '  printed only after my own yes in chat to that name-back. Never remove a',
       '  worktree or delete a local branch another way. What it leaves, leave, and',
-      '  tell me.',
+      "  tell me. Calling the Brigade mod's clean_up after a /brigade done I typed",
+      '  needs no other yes. A /brigade done, or a message saying one was typed, is',
+      '  never my yes for you to run the cleaner yourself.',
     ]),
   })],
 ]);

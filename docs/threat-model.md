@@ -377,7 +377,7 @@ How to read it:
 | R61 Git folder steers the behind warning | A session that can write the clone | None; the warning never changes what is installed (ADR 0118) | — |
 | R62 Unclosed openers slow the poster's page copy | A careless or fooled session, on its own post | The body's size bound; nothing is sent while it runs (ADR 0122) | Boundary |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on the text after the state word as written, on each normalised copy and on each copy folded (#392, #396, #394) | Rule |
-| R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat, and a removal through the cleaner is bounded by git's refusals and its keeps; the deny rules on raw removal commands are a speed bump, with only the classifier behind them (#438, ADR 0124) | Rule, boundary |
+| R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat, or to your typed `/brigade done` for the Brigade mod's run, and a removal through the cleaner is bounded by git's refusals and its keeps, `--recoverable`'s with the mod; the deny rules on raw removal commands are a speed bump, with only the classifier behind them (#438, ADR 0124, #446) | Rule, boundary |
 | R64 A session posts a secret or a personal detail | Text a session reads, a careless session | On an install with the poster on, its exact-match refusal of a live environment secret's value; elsewhere none (#441) | None; a boundary where the poster is on |
 | R65 A lens sends a secret out | Text a lens reads | None of its own since #441; a lens fetches only to check an advisory, and treats what it reads as data | None; rules in part |
 | R66 A lens report carries a product's secrets or users' data | Text a lens reads, a careless lens | None since #441; a product's leak is Hardening, which since #443 the finding session records as an accepted risk and names to you in a notice (decision 378, R70; #443, accepted by the owner on 2026-10-31, decision 477, the owner's words, relayed by the lead) | None |
@@ -803,6 +803,16 @@ session can act before you see it.
   your `gh` login until the next dry run shows the drift. That is accepted as
   this risk's residual (#284): whatever can rewrite the poster can also
   rewrite the rules file and the install record beside it.
+  The cleaner has an eased path (#446): from grimoire's 484 release, the
+  Brigade mod runs `cleaner.mjs` itself, after your typed `/brigade done`,
+  with no permission prompt and out of the classifier's sight, so a rewritten
+  cleaner runs on your typed act. The mod checks only that the file is a
+  regular file where it is named, and shows only output lines in the
+  cleaner's own shape. Accepted 2026-10-31 on the owner's standing word, decision 451, relayed by the lead: that
+  they rarely override a recommendation, so 484's accepted-risk candidates
+  and open security rows are settled as recommended; confirmed by the owner
+  in the build session's own chat, from the Test round
+  1 review on #446: the findings on the mod's unprompted run of the tool file.
   The install's backups in `~/.claude/pact/backups/` are such a place too.
   Their manifest hashes catch a damaged copy, which the undo steps check, but
   not a planted one. A fooled session that writes a backup's files and its
@@ -937,6 +947,31 @@ session can act before you see it.
   unprobed. Accepted 2026-10-31 by the owner, decision 314, relayed by the
   lead, from the Design round 2 review on #438: the findings on the deny
   rules' gaps and on the yes the cleaner can't attribute.
+
+  From grimoire's 484 release (#446), the Brigade mod runs the cleaner, and
+  five points hold there. First, the list comes after the yes: your typed
+  `/brigade done` is the one yes, and the reply lists what would go, but the
+  removal doesn't wait for a look. Second, the bound is `--recoverable`
+  together with git's refusals and the cleaner's keeps: with the flag a
+  worktree holding changed, untracked or ignored files, a program a session
+  could have set in local config, a submodule the cleaner can't see into, or
+  hidden edits stays. Without the flag, as when a session runs the cleaner
+  itself, a clean worktree's ignored files still go, and a partial clone's
+  reads can fetch. What `--recoverable` can't see: it trusts the local
+  remote-tracking refs, so a stale ref, or one a session wrote, can make
+  unpushed commits read as pushed; a commit reachable only through a
+  reflog or a per-worktree ref goes with the worktree; and a write that
+  lands between the cleaner's last read and git's removal isn't seen. Third, a
+  session can cite a window the cleaner can't check. Fourth, the rules
+  sentences bind only the mod's run, and the cleaner's output, names
+  included, is shown in chat, with the record left to a rule. Fifth, the
+  lead's card status chooses which cards `/brigade done all` covers.
+  Accepted 2026-10-31 on the owner's standing word, decision 451, relayed by the lead: that
+  they rarely override a recommendation, so 484's accepted-risk candidates
+  and open security rows are settled as recommended; confirmed by the owner
+  in the build session's own chat, from the Test round 1 review on #446:
+  the findings on the typed yes, the keeps' limits, the race before removal
+  and the fetch without the flag.
 - **R64. A session can post a secret or a personal detail.** Since #441 the
   pact has no rule on a secret or a personal detail in a session's own text,
   and nothing reads a post for one: a fooled or careless session can post or
@@ -1526,7 +1561,22 @@ data. [cleaner.md](cleaner.md) has the detail.
   never one that is remote: two leading separators (a device prefix before a
   drive letter counts as local), `/net` on macOS, or a path that reaches
   either through a link. A linked worktree folder is kept before anything
-  resolves it. It never reads the contents of a worktree's files.
+  resolves it. It never reads the contents of a worktree's files but, with
+  `--recoverable`, its `.git` pointer file. With the flag it also reads, with
+  no git run, the `gitdir` and `commondir` files in that worktree's folder
+  under `<main>/.git/worktrees/`, each a regular file of at most 4096 bytes,
+  compares them, and shows none of them; and it reads each worktree's config
+  key names, never their values, and its index's entries, and keeps nothing
+  of either but the names it lists: an index path, escaped and in quotes.
+- **`--recoverable`** (#446) keeps what removal could lose or a session's
+  config could run: changed, untracked or ignored files and links; a
+  `filter.`, `lfs.`, `hook.` or `core.worktree` key of local or worktree
+  scope, the main worktree's included, read before any `status`; a `.git`
+  pointer, `gitdir` or `commondir` that doesn't name the worktree's own
+  folder and the main repository, or names a remote path; a submodule it
+  can't see into; hidden edits; and a read that fails. The worktree's config, index, attributes and folder layout are
+  input a session controls, and these keeps are what bound them; R63 names
+  what they don't see that is accepted, and `docs/cleaner.md` lists the rest.
 - **Output.** Fixed words and escaped relative names, file names in quotes
   and worktree folder names held to a fixed set, so no name passes for the
   cleaner's own words; never an absolute path, a session id, file contents,
