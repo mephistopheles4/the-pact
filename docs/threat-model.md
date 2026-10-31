@@ -1402,7 +1402,7 @@ data. [cleaner.md](cleaner.md) has the detail.
   that differs.
 - **What it reads.** Claude Code's session status files, which hold session
   ids and working folders, for their `cwd` only; it keeps nothing else from
-  them. It never reads a file's contents.
+  them. It never reads the contents of a worktree's files.
 - **Output.** Fixed words and escaped relative names, file names in quotes
   and worktree folder names held to a fixed set, so no name passes for the
   cleaner's own words; never an absolute path, a session id, file contents,

@@ -31,8 +31,8 @@ In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`.
   removes a worktree only when its fresh tag is among them, then deletes its
   branch with `git branch -d`, only when git exited 0 and the folder is gone.
 
-The rules file tells a session to show you the name-back as printed, in chat
-only, to give a record only the result line's counts, never the tags or the
+The rules file tells a session to show you the name-back as printed, in a
+fenced code block, in chat only, so no name's marks can restyle it, to give a record only the result line's counts, never the tags or the
 name-back, and to run `remove` only after your own yes to it in chat.
 
 ## What it keeps

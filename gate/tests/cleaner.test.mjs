@@ -119,6 +119,7 @@ test('show names changed, untracked and ignored files, a lock, a gone folder and
   mkdirSync(join(w, 'build'));
   writeFileSync(join(w, 'build', 'out.bin'), 'x');
   writeFileSync(join(w, process.platform === 'win32' ? 'x  kept- in use \'tag\'' : 'x  kept: in use "tag"'), 'x');
+  writeFileSync(join(w, process.platform === 'win32' ? '```fence' : '```<!--fence'), 'x');
   f.add('a b', '-b', 'ab');
   const odd = `odd\n${cp(0x202e)}name.txt`;
   if (process.platform !== 'win32') writeFileSync(join(w, odd), 'x');
@@ -138,6 +139,9 @@ test('show names changed, untracked and ignored files, a lock, a gone folder and
   // Windows names hold no colon or quote; elsewhere the quote inside is escaped.
   assert.match(busy, process.platform === 'win32' ? /^ {4}"x {2}kept- in use 'tag'"$/m : /^ {4}"x {2}kept: in use \\"tag\\""$/m, 'a name that dresses its line prints in quotes');
   if (process.platform !== 'win32') assert.match(busy, /^ {4}"odd\\u\{a\}\\u\{202e\}name\.txt"$/m, r.out);
+  // A run of backticks or a comment opener never starts a line, so it can't close the fenced block the rules file asks for.
+  assert.match(busy, /^ {4}"```(?:<!--)?fence"$/m, r.out);
+  assert.ok(r.lines.every(l => /^(?:worktree |RESULT: | {2}[a-z]| {4}(?:"|stash@|and \d))/.test(l)), 'every line starts with fixed words or an indent');
   assert.equal(block(r.out, '"a b"'), '  kept: a folder name the cleaner does not read\n', r.out);
   assert.match(block(r.out, 'stashed'), /^ {2}stash entries made on it, kept: the cleaner never touches stashes:\n {4}stash@\{0\}$/m, r.out);
   assert.match(block(r.out, 'locked'), /^ {2}locked, git will refuse$/m, r.out);
