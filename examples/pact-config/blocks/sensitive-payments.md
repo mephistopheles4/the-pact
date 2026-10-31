@@ -1,6 +1,6 @@
 Sensitive work gets more checking when I choose it. By default, sensitive
-work is auth, secrets, crypto, input validation, data migrations, payments
-and personal data: thorough, planned and built on Opus at high, with the
+work is auth, crypto, input validation, data migrations, payments and
+personal data: thorough, planned and built on Opus at high, with the
 security pair, `adversarial-lens` and `data-lens`, on the spec and the diff.
 That is the sensitive route. When the work matches that list, or you think it
 sensitive otherwise, say why in one line in your tier proposal and recommend

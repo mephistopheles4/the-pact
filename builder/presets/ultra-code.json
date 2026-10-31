@@ -402,7 +402,7 @@
     },
     {
       "cost": "Follow-up issues",
-      "counted": "Issues filed from one review",
+      "counted": "Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit",
       "limit": "2",
       "atLimit": "The rest listed as notes in the review's record; I pick which to file"
     }

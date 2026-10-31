@@ -78,11 +78,11 @@ function world({ store = items(), tamper = x => x, fail = {} } = {}) {
 }
 
 /** Edit on `surface` through `w`; '@name' arguments become file paths. */
-function edit(t, surface, w, { body = SIGNED, reason = REASON, signed = LABEL, extra = [], args = ARGS[surface] } = {}) {
+function edit(t, surface, w, { body = SIGNED, reason = REASON, signed = LABEL, extra = [], args = ARGS[surface], env = {} } = {}) {
   const dir = tempDir(t, 'pact-poster-edit-');
   writeTree(dir, { 'body.md': body, 'reason.txt': reason });
   const argv = [surface, '--repo', TARGET, '--body', join(dir, 'body.md'), '--reason', join(dir, 'reason.txt'), '--signed', signed, ...args, ...extra];
-  return post(argv, { gh: w.gh, env: {}, ...MACHINE });
+  return post(argv, { gh: w.gh, env, ...MACHINE });
 }
 
 const last = r => r.lines.at(-1);
@@ -155,21 +155,32 @@ test('C3: the request is one PATCH of { body }, the body followed by the reason 
 });
 
 // #413 C4
-test('C4: a secret or an email in the reason or the body is refused before gh is called, and an item holding one is never edited', t => {
-  const email = 'alice' + '@' + 'example.org';
-  for (const opts of [{ reason: `wrote to ${email}\n` }, { body: `Mail ${email}.\n\nSigned: ${LABEL}\n` }]) {
+test("C4: a live environment secret's value in the reason or the body is refused before gh is called, and an item holding one is never edited", t => {
+  const secret = 'zebra-quokka-42';
+  const env = { MY_API_KEY: secret };
+  for (const opts of [{ reason: `wrote ${secret}\n` }, { body: `Key ${secret}.\n\nSigned: ${LABEL}\n` }]) {
     const w = world();
-    const r = edit(t, 'issue-comment-edit', w, opts);
-    assert.ok(r.lines.some(l => l.startsWith('REFUSED personal/email ')), r.lines.join(' | '));
+    const r = edit(t, 'issue-comment-edit', w, { ...opts, env });
+    assert.ok(r.lines.some(l => l.startsWith('REFUSED secret/env ')), r.lines.join(' | '));
     assert.equal(w.calls.length, 0);
-    assert.ok(!r.lines.join('\n').includes('alice'));
+    assert.ok(!r.lines.join('\n').includes(secret));
   }
-  // An edit would leave the leak in GitHub's history, so the item is refused and the owner told instead.
-  const w = world({ store: items(`Mail ${email}.\n\nSigned: ${LABEL}\n`) });
-  const r = edit(t, 'issue-comment-edit', w);
+  // An edit would leave the value in GitHub's history, so the item is refused and the owner told instead.
+  const w = world({ store: items(`Key ${secret}.\n\nSigned: ${LABEL}\n`) });
+  const r = edit(t, 'issue-comment-edit', w, { env });
   assert.ok(refusedBy(r, 'edit/leak', 'item'), r.lines.join(' | '));
   assert.equal(patches(w).length, 0);
-  assert.ok(!r.lines.join('\n').includes('alice'));
+  assert.ok(!r.lines.join('\n').includes(secret));
+});
+
+// #441 C5: a token shape or an email address in the reason, the body or the item no longer stops an edit
+test('C5: an edit whose reason, body and item hold a token shape and an email address goes through', t => {
+  const email = 'alice' + '@' + 'example.org';
+  const token = 'gh' + 'p_' + 'A1'.repeat(18);
+  const w = world({ store: items(`Mail ${email}, key ${token}.\n\nSigned: ${LABEL}\n`) });
+  const r = edit(t, 'issue-comment-edit', w, { reason: `noted ${email}\n`, body: `Mail ${email}, key ${token}, and more.\n\nSigned: ${LABEL}\n` });
+  assert.equal(r.code, 0, r.lines.join(' | '));
+  assert.equal(patches(w).length, 1);
 });
 
 // #413 C5
@@ -185,16 +196,17 @@ test('C5: an item by another author is refused as edit/author, with no PATCH', t
 
 // #394 C27: an item another account wrote is read no further, so its text never reaches the slow readers; an own item in the wrong place is still read.
 test('C27: an item another login wrote is refused as edit/author alone, before its text is read', t => {
-  const email = 'alice' + '@' + 'example.org';
+  const secret = 'zebra-quokka-42';
+  const env = { MY_API_KEY: secret };
   const refused = r => r.lines.filter(l => l.startsWith('REFUSED '));
-  // Unsigned and holding an address, so the body rules and the scan would each add a refusal if they read it.
-  const w = world({ store: items(`Mail ${email}.\n`, 'stranger') });
-  const r = edit(t, 'issue-comment-edit', w);
+  // Unsigned and holding a live environment secret's value, so the body rules and the scan would each add a refusal if they read it.
+  const w = world({ store: items(`Key ${secret}.\n`, 'stranger') });
+  const r = edit(t, 'issue-comment-edit', w, { env });
   assert.deepEqual(refused(r), ['REFUSED edit/author item'], r.lines.join(' | '));
   assert.equal(patches(w).length, 0);
   // The session's own comment, named under another issue and unsigned: in the wrong place, but still read in full, so its leak is still told.
-  const own = world({ store: items(`Mail ${email}.\n`) });
-  const o = edit(t, 'issue-comment-edit', own, { args: ['--issue', '5', '--comment', '9002'] });
+  const own = world({ store: items(`Key ${secret}.\n`) });
+  const o = edit(t, 'issue-comment-edit', own, { args: ['--issue', '5', '--comment', '9002'], env });
   assert.deepEqual(refused(o).sort(), ['REFUSED edit/leak item', 'REFUSED edit/target item', 'REFUSED edit/unsigned item'], o.lines.join(' | '));
 });
 

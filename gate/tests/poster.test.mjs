@@ -377,12 +377,12 @@ for (const [where, fault, code, result, next, how = 'throw'] of [
 }
 
 // #246 C10: gh's error line is shown only when it trips no scan rule
-test('a gh error line holding a token is withheld', t => {
-  const w = world({ fail: { GET: `bad credentials for ${SECRETS.github}` } });
-  const r = run(t, 'issue-comment', w);
+test("a gh error line holding a live environment secret's value is withheld", t => {
+  const w = world({ fail: { GET: `bad credentials for ${ENV_SECRET}` } });
+  const r = run(t, 'issue-comment', w, { env: { MY_API_KEY: ENV_SECRET } });
   assert.equal(r.code, 4);
-  assert.ok(r.lines.includes('gh said: (withheld: secret/token)'), out(r));
-  assert.ok(!out(r).includes(SECRETS.github));
+  assert.ok(r.lines.includes('gh said: (withheld: secret/env)'), out(r));
+  assert.ok(!out(r).includes(ENV_SECRET));
 });
 
 // ---------------------------------------------------------------- C10: the last line is always the true result
@@ -425,17 +425,17 @@ test('a failed post call ends failed, exit 3, with only the first line of stderr
 });
 
 for (const [what, argv] of [
-  ['a token in the body', ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']],
+  ["a live environment secret's value in the body", ['issue-comment', '--repo', TARGET, '--body', '@body.md', '--issue', '5']],
   ['a misspelled option', ['issue-comment', '--repo', TARGET, '--body', '@plain.md', '--issue', '5', '--lable', 'x']],
 ]) {
   // #246 C6, C7: a refusal holds on a real post too, not only on a dry run
   test(`a real post with ${what} is refused before any gh call`, t => {
     const calls = [];
-    const r = post(place(t, { 'body.md': `See ${SECRETS.github}.\n`, 'plain.md': 'A plain body.\n' }, argv), { gh: (...a) => (calls.push(a), { ok: false }), env: {}, ...MACHINE });
+    const r = post(place(t, { 'body.md': `See ${ENV_SECRET}.\n`, 'plain.md': 'A plain body.\n' }, argv), { gh: (...a) => (calls.push(a), { ok: false }), env: { MY_API_KEY: ENV_SECRET }, ...MACHINE });
     assert.equal(r.code, 2, out(r));
     assert.match(last(r), /^RESULT: refused [1-9]/);
     assert.equal(calls.length, 0);
-    assert.ok(!out(r).includes(SECRETS.github));
+    assert.ok(!out(r).includes(ENV_SECRET));
   });
 }
 
@@ -640,7 +640,8 @@ test('a body file that is a link is refused, and gh is never called', t => {
   assert.equal(calls.length, 0);
 });
 
-const SCAN_ENV = JSON.stringify({ MY_API_KEY: ENV_SECRET, PATH: '/usr/bin:/bin', PWD: '/srv/work/project-dir' });
+// #441: the normalisation rows plant the token shape as a live environment secret's value, the one secret the scan still refuses.
+const SCAN_ENV = JSON.stringify({ MY_API_KEY: ENV_SECRET, DEPLOY_TOKEN: GH_TOKEN_SHAPE, PATH: '/usr/bin:/bin', PWD: '/srv/work/project-dir' });
 const scanBase = () => ({ 'argv.json': JSON.stringify(ISSUE_ARGV('tier:thorough')), 'env.json': SCAN_ENV, 'body.md': 'A plain body.\n', 'title.txt': 'A plain title\n' });
 const inBody = text => tree => ({ ...tree, 'body.md': `A plain body with ${text} in it.\n` });
 const inTitle = text => tree => ({ ...tree, 'title.txt': `A title with ${text}\n` });
@@ -653,67 +654,46 @@ const pageOnly = text => inBody('<!-- x\n\n' + text + '\n\n-->');
   const run = runTree;
   const everyRow = refusedQuietly;
   const rows = [
-    { id: 'token-github', plant: inBody(SECRETS.github), fails: ['secret/token'], why: 'a GitHub token' },
-    { id: 'token-pat', plant: inBody(SECRETS.pat), fails: ['secret/token'], why: 'a fine-grained GitHub token' },
-    { id: 'token-sk', plant: inBody(SECRETS.sk), fails: ['secret/token'], why: 'an sk- key' },
-    { id: 'token-live', plant: inBody(SECRETS.live), fails: ['secret/token'], why: 'a live payment key' },
-    { id: 'token-npm', plant: inBody(SECRETS.npm), fails: ['secret/token'], why: 'an npm token' },
-    { id: 'token-gitlab', plant: inBody(SECRETS.gitlab), fails: ['secret/token'], why: 'a GitLab token' },
-    { id: 'token-google', plant: inBody(SECRETS.google), fails: ['secret/token'], why: 'a Google API key' },
-    { id: 'token-aws', plant: inBody(SECRETS.aws), fails: ['secret/token'], why: 'an AWS access key id' },
-    { id: 'token-slack', plant: inBody(SECRETS.slack), fails: ['secret/token'], why: 'a Slack token' },
-    { id: 'token-jwt', plant: inBody(SECRETS.jwt), fails: ['secret/token'], why: 'a JWT' },
-    { id: 'token-pem', plant: inBody(SECRETS.pem), fails: ['secret/token'], why: 'a PEM private-key header' },
-    { id: 'token-conn', plant: inBody(SECRETS.conn), fails: ['secret/token'], why: 'a connection string with a key' },
-    { id: 'url-userinfo', plant: inBody(USERINFO), fails: ['secret/url-userinfo'], why: 'a password in a URL' },
     { id: 'env-value', plant: inBody(ENV_SECRET), fails: ['secret/env'], why: "a variable's value whose name ends in KEY" },
-    { id: 'email-mail-link', plant: inBody('[mail](mailto:' + 'alice@example.org)'), fails: ['personal/email'], why: 'an address in a mail link' },
-    { id: 'email-after-colon', plant: inBody('Contact:' + 'alice@example.org'), fails: ['personal/email'], why: 'an address straight after a colon' },
     { id: 'hidden-tag', plant: inBody('a' + String.fromCodePoint(0xe0041) + 'b'), fails: ['text/hidden'], why: 'a tag character a reader never sees' },
     { id: 'hidden-override', plant: inBody('a' + String.fromCharCode(0x202e) + 'b'), fails: ['text/hidden'], why: 'a direction override' },
-    { id: 'split-by-ignorable', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + String.fromCharCode(0x115f) + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a default-ignorable character that is not a format character' },
-    { id: 'fullwidth', plant: inBody([...GH_TOKEN_SHAPE].map(ch => String.fromCharCode(ch.charCodeAt(0) + 0xfee0)).join('')), fails: ['secret/token'], why: 'full-width letters NFKC folds' },
-    { id: 'split-by-escape', plant: inBody(GH_TOKEN_SHAPE.replace('_', '\\_')), fails: ['secret/token'], why: 'a markdown escape the page hides' },
-    { id: 'split-by-tag', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<b></b>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an inline tag the page hides' },
-    { id: 'encoded-in-comment', plant: inBody('<!-- ' + [...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('') + ' -->'), fails: ['secret/token'], why: 'the source still shows a comment' },
-    { id: 'after-open-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an unclosed comment marker hides nothing' },
-    { id: 'split-by-bang-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x --!>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a comment HTML parsers close at --!>' },
+    { id: 'split-by-ignorable', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + String.fromCharCode(0x115f) + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'a default-ignorable character that is not a format character' },
+    { id: 'fullwidth', plant: inBody([...GH_TOKEN_SHAPE].map(ch => String.fromCharCode(ch.charCodeAt(0) + 0xfee0)).join('')), fails: ['secret/env'], why: 'full-width letters NFKC folds' },
+    { id: 'split-by-escape', plant: inBody(GH_TOKEN_SHAPE.replace('_', '\\_')), fails: ['secret/env'], why: 'a markdown escape the page hides' },
+    { id: 'split-by-tag', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<b></b>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'an inline tag the page hides' },
+    { id: 'encoded-in-comment', plant: inBody('<!-- ' + [...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('') + ' -->'), fails: ['secret/env'], why: 'the source still shows a comment' },
+    { id: 'after-open-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'an unclosed comment marker hides nothing' },
+    { id: 'split-by-bang-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x --!>' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'a comment HTML parsers close at --!>' },
     { id: 'hidden-zero-width', plant: inBody('a' + ZWSP + 'b'), fails: ['text/hidden'], why: 'the zero-width alphabet' },
     { id: 'hidden-word-joiner', plant: inBody('a' + String.fromCharCode(0x2063) + 'b'), fails: ['text/hidden'], why: 'an invisible separator' },
     { id: 'hidden-selector', plant: inBody('a' + String.fromCodePoint(0xe0100) + 'b'), fails: ['text/hidden'], why: 'a supplementary variation selector' },
     { id: 'hidden-rare-selector', plant: inBody('a' + String.fromCharCode(0xfe00) + 'b'), fails: ['text/hidden'], why: 'a variation selector no emoji needs' },
-    { id: 'userinfo-empty-user', plant: inBody('redis://:' + 'hunter2pass@cache.example.com:6379'), fails: ['secret/url-userinfo'], why: 'a password with an empty user name' },
-    { id: 'userinfo-no-scheme', plant: inBody('//bob:' + 'hunter2pass@example.com/x'), fails: ['secret/url-userinfo'], why: 'a password in a link with no scheme' },
-    { id: 'email', plant: inBody('alice' + '@example.org'), fails: ['personal/email'], why: 'an email address' },
-    { id: 'title-token', plant: inTitle(SECRETS.github), fails: ['secret/token'], why: 'a token in the title' },
-    { id: 'title-url-userinfo', plant: inTitle(USERINFO), fails: ['secret/url-userinfo'], why: 'userinfo in the title' },
     { id: 'title-env', plant: inTitle(ENV_SECRET), fails: ['secret/env'], why: 'an env value in the title' },
-    { id: 'title-email', plant: inTitle('alice' + '@example.org'), fails: ['personal/email'], why: 'an email in the title' },
-    { id: 'label-token', plant: tree => withArgv(tree, () => ISSUE_ARGV('tier:thorough', 'AK' + 'IA' + rep('H8', 8))), fails: ['secret/token'], why: 'every label is scanned' },
-    { id: 'split-by-format-character', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a soft hyphen hides the shape' },
-    { id: 'split-by-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x -->' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'an HTML comment hides the shape' },
-    { id: 'as-entities', plant: inBody([...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('')), fails: ['secret/token'], why: 'entities hide the shape' },
-    { id: 'named-entity', plant: inBody(GH_TOKEN_SHAPE.replace('_', '&lowbar;')), fails: ['secret/token'], why: 'a named entity for the underscore' },
-    { id: '394-C1-named-zero-width', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&ZeroWidthSpace;' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a named reference outside the old list' },
-    { id: '394-C3-floor-dash', plant: inBody(SECRETS.sk.replace('-', '&dash;')), fails: ['secret/token'], why: "the old list's ASCII fold, which only the floor keeps" },
-    { id: '394-C4-floor-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + ' -->'), fails: ['secret/token'], why: "a comment's contents with its tags removed, which only the floor reads" },
-    { id: '394-C5-padded-no-semicolon', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#00000000173' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a numeric reference past the old digit cap, with no semicolon' },
-    { id: '394-C6-form-feed', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#12;' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/token'], why: 'a control character the page drops' },
-    { id: '394-C7-page-decoded-tag', plant: pageOnly('&lt;b ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '&gt;'), fails: ['secret/token'], why: 'a decoded tag shape the page shows as text, which only the page copy reads' },
-    { id: '394-C8-bare-fenced-tag', plant: inBody('\n~~~\n<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10) + '">\n~~~\n'), fails: ['secret/token'], why: 'a tag the page shows as text in a fence, which only the bare copy keeps' },
-    { id: '394-C19-page-escaped-tag', plant: pageOnly('\\<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'an escaped tag shape split by a real tag, which only the page copy reads' },
-    { id: '394-C20-page-code-span', plant: inBody('`<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '`' + GH_TOKEN_SHAPE.slice(10, 20) + '<i></i>' + GH_TOKEN_SHAPE.slice(20) + '">'), fails: ['secret/token'], why: 'a code span ending inside a tag shape, which only the page copy reads' },
-    { id: '394-C22-filtered-tag-name', plant: inBody('<Title x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'a tag GitHub filters, shown as text' },
-    { id: '394-C23-non-ascii-tag-space', plant: inBody('<b y="1"' + String.fromCharCode(0xa0) + 'x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/token'], why: 'a tag shape with a no-break space, which the grammar rejects' },
-    { id: '394-C21-legacy-no-semicolon', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&shy' + GH_TOKEN_SHAPE.slice(10) + '\n</div>\n' }), fails: ['secret/token'], why: 'a legacy name with no semicolon, in an HTML block' },
-    { id: '394-C9-mark-fold', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20)), fails: ['secret/token'], why: 'bold marks inside the shape' },
-    { id: '394-C17-raw-html-grammar', plant: pageOnly(GH_TOKEN_SHAPE.slice(0, 8) + '<span title="x>y"></span>' + GH_TOKEN_SHAPE.slice(8, 16) + '<?x y?>' + GH_TOKEN_SHAPE.slice(16, 24) + '<!X y>' + GH_TOKEN_SHAPE.slice(24, 30) + '<![CDATA[z]]>' + GH_TOKEN_SHAPE.slice(30)), fails: ['secret/token'], why: 'raw HTML the page hides, as its grammar reads it, which only the page copy reads' },
-    { id: '394-C18-rejected-tag-run', plant: inBody('<b 1x="q" ' + GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20) + '>'), fails: ['secret/token'], why: 'a tag shape the grammar rejects, shown as text' },
-    { id: '394-C24-pi-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<?x>' + GH_TOKEN_SHAPE.slice(10) + '?>'), fails: ['secret/token'], why: 'a processing instruction the page ends at its first >' },
-    { id: '394-C24-cdata-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<![CDATA[x>' + GH_TOKEN_SHAPE.slice(10) + ']]>'), fails: ['secret/token'], why: 'a CDATA section the page ends at its first >' },
-    { id: '394-C25-quoted-tag', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n> ' + GH_TOKEN_SHAPE.slice(0, 10) + '<b a="x."\n> c="x">' + GH_TOKEN_SHAPE.slice(10) + '\n' }), fails: ['secret/token'], why: 'a tag carried onto the next line of a block quote' },
-    { id: '394-C26-html-block-nbsp', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&ZeroWidthSpace;' + GH_TOKEN_SHAPE.slice(10, 20) + '<b c' + String.fromCharCode(0xa0) + '="x">' + GH_TOKEN_SHAPE.slice(20) + '\n</div>\n' }), fails: ['secret/token'], why: 'a tag with a no-break space before =, which the HTML parser reads in an HTML block' },
-    { id: 'in-a-fence', plant: inBody('\n```\n' + SECRETS.npm + '\n```\n'), fails: ['secret/token'], why: 'a secret in a code block is still a secret' },
+    { id: 'label-token', plant: tree => withArgv(tree, () => ISSUE_ARGV('tier:thorough', ENV_SECRET)), fails: ['secret/env'], why: 'every label is scanned' },
+    { id: 'split-by-format-character', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'a soft hyphen hides the shape' },
+    { id: 'split-by-comment', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<!-- x -->' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'an HTML comment hides the shape' },
+    { id: 'as-entities', plant: inBody([...GH_TOKEN_SHAPE].map(ch => `&#${ch.charCodeAt(0)};`).join('')), fails: ['secret/env'], why: 'entities hide the shape' },
+    { id: 'named-entity', plant: inBody(GH_TOKEN_SHAPE.replace('_', '&lowbar;')), fails: ['secret/env'], why: 'a named entity for the underscore' },
+    { id: '394-C1-named-zero-width', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&ZeroWidthSpace;' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'a named reference outside the old list' },
+    { id: '394-C3-floor-dash', plant: inBody(ENV_SECRET.replace('-', '&dash;')), fails: ['secret/env'], why: "the old list's ASCII fold, which only the floor keeps" },
+    { id: '394-C4-floor-comment', plant: inBody('<!-- ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + ' -->'), fails: ['secret/env'], why: "a comment's contents with its tags removed, which only the floor reads" },
+    { id: '394-C5-padded-no-semicolon', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#00000000173' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'a numeric reference past the old digit cap, with no semicolon' },
+    { id: '394-C6-form-feed', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '&#12;' + GH_TOKEN_SHAPE.slice(10)), fails: ['secret/env'], why: 'a control character the page drops' },
+    { id: '394-C7-page-decoded-tag', plant: pageOnly('&lt;b ' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '&gt;'), fails: ['secret/env'], why: 'a decoded tag shape the page shows as text, which only the page copy reads' },
+    { id: '394-C8-bare-fenced-tag', plant: inBody('\n~~~\n<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + SHY + GH_TOKEN_SHAPE.slice(10) + '">\n~~~\n'), fails: ['secret/env'], why: 'a tag the page shows as text in a fence, which only the bare copy keeps' },
+    { id: '394-C19-page-escaped-tag', plant: pageOnly('\\<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/env'], why: 'an escaped tag shape split by a real tag, which only the page copy reads' },
+    { id: '394-C20-page-code-span', plant: inBody('`<b title="' + GH_TOKEN_SHAPE.slice(0, 10) + '`' + GH_TOKEN_SHAPE.slice(10, 20) + '<i></i>' + GH_TOKEN_SHAPE.slice(20) + '">'), fails: ['secret/env'], why: 'a code span ending inside a tag shape, which only the page copy reads' },
+    { id: '394-C22-filtered-tag-name', plant: inBody('<Title x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/env'], why: 'a tag GitHub filters, shown as text' },
+    { id: '394-C23-non-ascii-tag-space', plant: inBody('<b y="1"' + String.fromCharCode(0xa0) + 'x="' + GH_TOKEN_SHAPE.slice(0, 10) + '<i></i>' + GH_TOKEN_SHAPE.slice(10) + '">'), fails: ['secret/env'], why: 'a tag shape with a no-break space, which the grammar rejects' },
+    { id: '394-C21-legacy-no-semicolon', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&shy' + GH_TOKEN_SHAPE.slice(10) + '\n</div>\n' }), fails: ['secret/env'], why: 'a legacy name with no semicolon, in an HTML block' },
+    { id: '394-C9-mark-fold', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20)), fails: ['secret/env'], why: 'bold marks inside the shape' },
+    { id: '394-C17-raw-html-grammar', plant: pageOnly(GH_TOKEN_SHAPE.slice(0, 8) + '<span title="x>y"></span>' + GH_TOKEN_SHAPE.slice(8, 16) + '<?x y?>' + GH_TOKEN_SHAPE.slice(16, 24) + '<!X y>' + GH_TOKEN_SHAPE.slice(24, 30) + '<![CDATA[z]]>' + GH_TOKEN_SHAPE.slice(30)), fails: ['secret/env'], why: 'raw HTML the page hides, as its grammar reads it, which only the page copy reads' },
+    { id: '394-C18-rejected-tag-run', plant: inBody('<b 1x="q" ' + GH_TOKEN_SHAPE.slice(0, 10) + '**' + GH_TOKEN_SHAPE.slice(10, 20) + '**' + GH_TOKEN_SHAPE.slice(20) + '>'), fails: ['secret/env'], why: 'a tag shape the grammar rejects, shown as text' },
+    { id: '394-C24-pi-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<?x>' + GH_TOKEN_SHAPE.slice(10) + '?>'), fails: ['secret/env'], why: 'a processing instruction the page ends at its first >' },
+    { id: '394-C24-cdata-first-gt', plant: inBody(GH_TOKEN_SHAPE.slice(0, 10) + '<![CDATA[x>' + GH_TOKEN_SHAPE.slice(10) + ']]>'), fails: ['secret/env'], why: 'a CDATA section the page ends at its first >' },
+    { id: '394-C25-quoted-tag', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n> ' + GH_TOKEN_SHAPE.slice(0, 10) + '<b a="x."\n> c="x">' + GH_TOKEN_SHAPE.slice(10) + '\n' }), fails: ['secret/env'], why: 'a tag carried onto the next line of a block quote' },
+    { id: '394-C26-html-block-nbsp', plant: tree => ({ ...tree, 'body.md': 'A plain body.\n\n<div>\n' + GH_TOKEN_SHAPE.slice(0, 10) + '&ZeroWidthSpace;' + GH_TOKEN_SHAPE.slice(10, 20) + '<b c' + String.fromCharCode(0xa0) + '="x">' + GH_TOKEN_SHAPE.slice(20) + '\n</div>\n' }), fails: ['secret/env'], why: 'a tag with a no-break space before =, which the HTML parser reads in an HTML block' },
+    { id: 'in-a-fence', plant: inBody('\n```\n' + ENV_SECRET + '\n```\n'), fails: ['secret/env'], why: 'a secret in a code block is still a secret' },
   ];
   test('poster scan: base passes', async t => assertPasses(await run(base(), t)));
   for (const r of rows) {
@@ -753,6 +733,17 @@ test('plain words that look like the rules pass the scan', t => {
   const r = post(argv, { gh: () => assert.fail('a dry run calls gh'), env: { MY_KEY: 'seven77', PATH: '/usr/bin:/bin', PWD: '/srv/work/project-dir' }, home: '/root', tmp: '/tmp', user: 'root', host: 'box' });
   assert.equal(r.code, 0, r.lines.join('\n'));
   assert.equal(last(r), 'RESULT: dry-run issue-comment');
+});
+
+// #441 C5: the poster refuses no token shape, URL password or email address; a body and a title holding them post as written
+test('a token shape, a URL password and an email address post', t => {
+  const body = `Shapes: ${Object.values(SECRETS).join(' ')}\n\nA link: ${USERINFO}, and mail to alice@example.org.\n`;
+  const title = `A title with ${SECRETS.github} and alice@example.org\n`;
+  const w = world();
+  const r = run(t, 'issue', w, { body, title });
+  assert.equal(r.code, 0, out(r));
+  assert.equal(last(r), `RESULT: verified issue ${POSTS.issue[3]} as ${ME}`);
+  assert.deepEqual(JSON.parse(w.calls[2].input), { title: title.trim(), body, labels: ['tier:thorough'] });
 });
 
 // #364 C1: with path/machine gone, the poster refuses no path: this machine's own home, temp, user and host names post too, in a body or a title, on either kind of machine

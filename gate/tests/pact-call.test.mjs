@@ -39,7 +39,7 @@ test('no installed file names the cross script', () => {
   assert.deepEqual([...files].filter(([, text]) => SCRIPT.test(text)).map(([rel]) => rel), []);
 });
 
-// #264: the no-secret read stays a written rule, and a report's owner section holds no line numbers, codes or paths.
+// #264, #441: the read before posting stays a written rule, and a report's owner section holds no line numbers, codes or paths.
 test('the review file holds the posting rules the script used to back', () => {
   const text = readFileSync(join(REPO, 'claude', 'review.md'), 'utf8').replace(/\s+/g, ' ');
   for (const words of ['**Read before you post.**', "A report's \"For the owner\" section holds no line numbers, codes or paths.", 'carries the info string `text`', 'Put every string you take from a report in a code span']) {
