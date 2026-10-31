@@ -256,7 +256,7 @@ test('the source holds the tool-poster part empty, after the record bullet', () 
 
 // ------------------------------------------------------------ the cleaner's part and deny rules (#438)
 
-// S2.4's text, byte for byte.
+// S2.4's text, byte for byte; #443 cut its relayed yes, which "my own yes in chat" already excludes.
 const CLEANER_PART = [
   '- **Clean up through the cleaner.** To remove leftover worktrees and their',
   '  branches, run `node ~/.claude/pact/tools/cleaner.mjs show` in a POSIX',
@@ -264,9 +264,9 @@ const CLEANER_PART = [
   '  PowerShell, from the repository. Show me its name-back as printed, in a',
   "  fenced code block, in chat only; a record gets its result line's counts,",
   '  never the tags or the name-back. Run `remove --yes` with the tags it',
-  '  printed only after my own yes in chat to that name-back, never on a',
-  '  relayed one. Never remove a worktree or delete a local branch another way.',
-  '  What it leaves, leave, and tell me.',
+  '  printed only after my own yes in chat to that name-back. Never remove a',
+  '  worktree or delete a local branch another way. What it leaves, leave, and',
+  '  tell me.',
 ].join('\n');
 
 // #438 C14

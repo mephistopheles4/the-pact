@@ -164,9 +164,13 @@ rested on, or that you had none.
   only by an accepted risk.
 - **Before the change.** Judge the change against the threat model as it
   stood at the base of the change: the file and the line that names it, both
-  as read there. The change's own edits to either come as a separate input,
-  and each is a finding for the owner, never applied in the same review. A
-  named file that is missing or lies outside the repo counts as no threat
+  as read there. The change's own edits to either come as a separate input.
+  An edit to the scope or to that line is a finding for the owner, never
+  applied in the same review; a new or edited accepted-risk entry is judged
+  against the base like any other line of the change, and named in your
+  report in one line, as a notice that never blocks. An edit that widens an
+  entry's class or drops a control it names is raised in full, as under
+  Undated or weakened entries. A named file that is missing or lies outside the repo counts as no threat
   model.
 - **One line for an accepted risk.** A finding that matches an accepted-risk
   entry is still reported, as one line marked accepted by the threat model,
