@@ -14,6 +14,8 @@ Test round 3, past the limit, found nothing high: the security pair released the
 
 Test round 4 found nothing high. The security pair asked that R24's class name every way a goal's words can now arrive, resume prompts and any session's message included, and that the step log say where the goal reached the session; integrity-lens asked for whole-bullet tests and found the log index line still naming a lead's pick. The owner's words, relayed (decision 451), accepted every remaining risk entry and threat-model edit as recommended, so R24 now names any prompt or message a session reads, R69 stands, and the step log names the goal's way in by its kind. The C1 and C4 tests now hold their bullets whole, and the C6 test catches more spellings.
 
+Test round 5 found nothing high, but each round still found new lows, so the session stopped and asked. The lead's own pick (decision 458) was one last commit, a merge of `main`, and a final round with no further one. The commit makes C2 and C3 hold their bullets whole and C6 catch more spellings. It has the log name the goal's way in, never a path, and has R24 say a forged start or resume prompt may log as chat. It adds to R16 that an unattended session's text can set a goal, has R25's note cite decision 451, and rewords the ADR's decision 453 sentence as the lead's proposal for #443. The two security mediums, the owner's word on R24 and R69, were taken on decision 451.
+
 Open until the owner answers in chat: Design adversarial-lens F2 and unstated-lens F1, that a lead whose say this widens should not approve it.
 
 ## Record
@@ -26,3 +28,5 @@ Open until the owner answers in chat: Design adversarial-lens F2 and unstated-le
 - The Test round 2 review: https://github.com/mephistopheles4/the-pact/issues/434#issuecomment-6546193440
 - The Test round 3 review: https://github.com/mephistopheles4/the-pact/issues/434#issuecomment-6546490021
 - The Test round 4 review: https://github.com/mephistopheles4/the-pact/issues/434#issuecomment-6546634765
+- The Test round 5 review: https://github.com/mephistopheles4/the-pact/issues/434#issuecomment-6546736402
+- The final Test round's review follows it on the issue.

@@ -117,9 +117,11 @@ test('under a goal, a stall allows one logged step per stage of each piece of wo
     'While a security finding is open, only the second opinion. A fix that would touch an item on the sensitive-work list counts as an open security finding.',
     'Take at most one step per stage of each piece of work, however often the stage is entered again.',
     'Log it in the record, with why, naming a model by its alias, or else as "a custom model", and name the step in the next hand-off and in the result.',
-    'The log says where the goal reached you, by its kind, never its words.',
+    'The log says where the goal reached you, by its kind, never a path or its words.',
     "If the work still doesn't converge, stop and ask as above, naming the step, which you leave easy to back out.",
   ]), []);
+  const bullet = /- \*\*The bounded step\.\*\* .*? (?=- \*\*Trade-offs under a goal\.\*\*)/.exec(fixedBlock())[0];
+  assert.equal(bullet, '- **The bounded step.** Under a standing goal, when the work has gone round twice without converging, you may take one step in place of stopping. The step is either one more round with a second opinion from another model Claude Code runs for me, never one reached through a tool or server, or the cheapest fix you can name that closes what is left; the reviewer that raised what is left reads that fix before the work counts as converged. While a security finding is open, only the second opinion. A fix that would touch an item on the sensitive-work list counts as an open security finding. Take at most one step per stage of each piece of work, however often the stage is entered again. Log it in the record, with why, naming a model by its alias, or else as "a custom model", and name the step in the next hand-off and in the result. The log says where the goal reached you, by its kind, never a path or its words. If the work still doesn\'t converge, stop and ask as above, naming the step, which you leave easy to back out. ', 'the bullet holds nothing else');
 });
 
 // #434 C3
@@ -128,6 +130,7 @@ test('under a goal, no cost limit overrides the step, and a trade-off still come
     '**Trade-offs under a goal.** No cost limit overrides that step. A trade-off the Cost limits would bring me still comes to me.',
     "A cost's rule that reopens a stage on a security finding still holds.",
   ]), []);
+  assert.ok(fixedBlock().includes("- **Trade-offs under a goal.** No cost limit overrides that step. A trade-off the Cost limits would bring me still comes to me. A cost's rule that reopens a stage on a security finding still holds. - **A goal never lifts** "), 'the bullet holds nothing else');
   const review = readFileSync(join(REPO, 'claude', 'review.md'), 'utf8').replace(/\s+/g, ' ');
   assert.ok(review.includes("`taken` when I take the limit's side, `fixed` when the fix is built anyway,"), 'the Disposition words read as before');
   assert.ok(!/standing goal|lead's pick/i.test(review), 'the review file gives a goal no say over a trade-off');
@@ -150,5 +153,5 @@ test('the stop-and-ask bullet is unchanged and still opens the fixed block', () 
 // #434 C6: the fixed block names no tool, no autonomy level, and no lead session or relay (decision 437).
 test('the fixed block names no tool, no level, no lead and no relay', () => {
   const block = fixedBlock().toLowerCase();
-  assert.deepEqual([/head.?chef/, /grimoire/, /\blevels?[ -]?(\d+|[ivx]+|one|two|three|four|five)\b|\bl\d\b|\blvl\b/, /autonomy level/, /\blead(s|er|ing)?\b/, /\brelay/].filter(word => word.test(block)).map(String), []);
+  assert.deepEqual([/head.?chef/, /grimoire/, /\blevels?[ :_-]*(\d+|[ivx]+|one|two|three|four|five)\b|\b(first|second|third|fourth|fifth|top) level\b|\bl\d\b|\blvl\b/, /autonomy level/, /\blead(s|ers?|ing)?\b/, /\brelay/].filter(word => word.test(block)).map(String), []);
 });

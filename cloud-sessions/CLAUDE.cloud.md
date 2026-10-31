@@ -273,7 +273,7 @@ whatever its "At the limit" says.
   work, however often the stage is entered again. Log it in the record, with
   why, naming a model by its alias, or else as "a custom model", and name
   the step in the next hand-off and in the result. The log says where the
-  goal reached you, by its kind, never its words. If the work still
+  goal reached you, by its kind, never a path or its words. If the work still
   doesn't converge, stop and ask as above, naming the step, which you leave
   easy to back out.
 - **Trade-offs under a goal.** No cost limit overrides that step. A

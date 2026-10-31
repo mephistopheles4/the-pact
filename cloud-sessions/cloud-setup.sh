@@ -826,7 +826,7 @@ whatever its "At the limit" says.
   work, however often the stage is entered again. Log it in the record, with
   why, naming a model by its alias, or else as "a custom model", and name
   the step in the next hand-off and in the result. The log says where the
-  goal reached you, by its kind, never its words. If the work still
+  goal reached you, by its kind, never a path or its words. If the work still
   doesn't converge, stop and ask as above, naming the step, which you leave
   easy to back out.
 - **Trade-offs under a goal.** No cost limit overrides that step. A
@@ -3147,7 +3147,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 84f2978cfd1fa22dbd145ed7c408f68438692902d945250720fe286b80a7c494 'CLAUDE.md'
+check_hash fbe36bfe4d20a8c94f8180f5446af57e6db247166ed20994f07b4338c6dd5ff7 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 031df11745d922e27898c1d901d1ad71c62d9307f36c0df7fc62beb0d50b7b09 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -3187,7 +3187,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy fa6ee38ba43d"
+  echo "pact cloud copy 0151572a8582"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

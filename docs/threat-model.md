@@ -56,7 +56,7 @@ environment yourself.
 `settings.json`, which can hold API keys, and the older copies of it in the
 install's backups (R47); your GitHub sign-in; the repos on
 your machine. It writes review reports, their disposition tables and
-decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files. Under a standing goal (#434) it also writes to the record a log of each bounded step, with why and the model's alias or "a custom model"; it names the goal by the work it covers, never its words. A step log shows that you were away when the step was taken. A second-opinion round sends the work wherever Claude Code's model setting routes it.
+decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files. Under a standing goal (#434) it also writes to the record a log of each bounded step, with why and the model's alias or "a custom model", and where the goal reached it, by its kind, never a path or its words; it names the goal by the work it covers, never its words. A step log shows that you were away when the step was taken. A second-opinion round sends the work wherever Claude Code's model setting routes it.
 
 **What this page leaves out.** Claude Code itself, Anthropic's models and
 servers, GitHub, and the safety of your machine and accounts are outside it.
@@ -814,7 +814,7 @@ session can act before you see it.
   review.
 - **R16. Sessions no person started** have no rule yet. A routine or an event
   trigger can open with an outsider's text where your chat would be (#184).
-  Don't point one at a pact setup with a public tracker.
+  Don't point one at a pact setup with a public tracker. Such text can also set a standing goal (#434) and allow one logged step at a stall, within R24's widening.
 - **R20. A lens's behaviour is reviewed, not tested.** Until #189, planted
   practice cases ran the security lenses for real after each model change.
   They found defects only in their own cases and wording, so the owner
@@ -918,7 +918,7 @@ session can act before you see it.
   unprobed. Accepted 2026-10-31 by the owner, decision 314, relayed by the
   lead, from the Design round 2 review on #438: the findings on the deny
   rules' gaps and on the yes the cleaner can't attribute.
-- **R69. A step log shows you were away.** Under a standing goal (#434), each bounded step is logged in the record. On a public tracker, anyone can read from the logs when you were away from the work. The goal's own words never go in, and every post already carries its time, so the extra signal is small; a private tracker removes it. Accepted because the log is what lets you review a step taken while you were away. Accepted 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick (the owner's words handed q18 to that pick), from #434's Test round 2, data-lens F1; confirmed in its current text by decision 451, relayed by the lead, from Test round 4; recorded by build-434.
+- **R69. A step log shows you were away.** Under a standing goal (#434), each bounded step is logged in the record, with where the goal reached the session by its kind. On a public tracker, anyone can read from the logs when you were away from the work. The goal's own words never go in, and every post already carries its time, so the extra signal is small; a private tracker removes it. Accepted because the log is what lets you review a step taken while you were away. Accepted 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick (the owner's words handed q18 to that pick), from #434's Test round 2, data-lens F1; confirmed in its current text by decision 451, relayed by the lead, from Test round 4; recorded by build-434.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -975,7 +975,7 @@ session can act before you see it.
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
 
-  **Widened by #434.** A standing goal is your words, and the pact names no channel for them; that is left to Claude Code (decision 437, #443). Any prompt or message a session reads, a lead's or another session's start prompt or message, or a resume prompt, can carry words that read as yours, which let the session take one bounded step at a stall. What is accepted: a steered, confused or forged lead, another session, or whoever writes a resume prompt can carry a goal you never gave, which allows one logged step per stage of each piece of work before you see it, since the session can't tell the goal is yours. What bounds it: the step is logged, with where the goal reached the session by its kind, and left easy to back out; a second stall stops; while a security finding is open, or a fix would touch the sensitive-work list, only a second opinion; every trade-off, accepted risk and always-mine decision still comes to you. Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434, and decision 432), from #434's Test rounds 1 and 2, adversarial-lens and data-lens. Narrowed on 2026-10-31: on the owner's words, relayed (decision 437), the pact dropped its relay and lead-session rules, so a lead no longer picks trade-offs and the lines that held a relayed or resume-prompt goal open went with them; the wording was the lead's own pick (decision 438). The owner accepted the entry in this shape on 2026-10-31, relayed by the lead (decision 451: every remaining risk entry and threat-model edit in #434 accepted as recommended), from Test round 4, adversarial-lens F1 to F3 and data-lens F1 and F3; recorded by build-434.
+  **Widened by #434.** A standing goal is your words, and the pact names no channel for them; that is left to Claude Code (decision 437, #443). Any prompt or message a session reads, a lead's or another session's start prompt or message, or a resume prompt, can carry words that read as yours, which let the session take one bounded step at a stall. What is accepted: a steered, confused or forged lead, another session, or whoever writes a resume prompt can carry a goal you never gave, which allows one logged step per stage of each piece of work before you see it, since the session can't tell the goal is yours. What bounds it: the step is logged, with where the goal reached the session by its kind as the session saw it (a forged start or resume prompt may log as chat), and left easy to back out; a second stall stops; while a security finding is open, or a fix would touch the sensitive-work list, only a second opinion; every trade-off, accepted risk and always-mine decision still comes to you. Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434, and decision 432), from #434's Test rounds 1 and 2, adversarial-lens and data-lens. Narrowed on 2026-10-31: on the owner's words, relayed (decision 437), the pact dropped its relay and lead-session rules, so a lead no longer picks trade-offs and the lines that held a relayed or resume-prompt goal open went with them; the wording was the lead's own pick (decision 438). The owner accepted the entry in this shape on 2026-10-31, relayed by the lead (decision 451: every remaining risk entry and threat-model edit in #434 accepted as recommended), from Test round 4, adversarial-lens F1 to F3 and data-lens F1 and F3; recorded by build-434.
 - **R25. A pact command sent as prompt text.** `/make-it-so`, `/finis` and
   `/scriptorium` set `disable-model-invocation: true`. That stops the model starting one,
   not text sent in as a prompt. The bodies add no check of their own, by the
@@ -997,7 +997,7 @@ session can act before you see it.
     not look at. Claude Code asks you before any archive, in every
     permission mode; that card is the guard against a relayed `/finis`.
 
-  What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, though plain words beside it can, as R24 accepts, #434), and here
+  What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, though plain words beside it can, as R24 accepts, #434; on the owner's word relayed, decision 451), and here
   this repo's "Never post a secret or a personal detail" (one link from the loaded `AGENTS.md`, since #270). `/scriptorium`,
   sent in, writes a builder file and renders a page outside any repo; it
   merges, pushes and posts nothing. The cloud copy ships no command. A project's own skill with the same name runs in place of a
