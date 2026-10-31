@@ -68,10 +68,10 @@ gate checks install mechanics only (ADR 0069), and the owner vets the pact's
 text as they would any skill.
 
 1. **The offers paragraph** in the pact's Lenses section, all of it: a lens
-   offered with a one-line reason, and answered by me; a decline that reaches
-   the session only by relay, prompt, message or file kept open in the result
-   until I answer in chat; the security pair, `adversarial-lens` and
-   `data-lens`, coming with the sensitive route; the one-line exception said
+   offered with a one-line reason, and answered by me; a decline of the
+   sensitive route or its offer at Test counted only when I give it in chat,
+   and any other leaving the review offered; the security pair,
+   `adversarial-lens` and `data-lens`, coming with the sensitive route; the one-line exception said
    aloud, and never for work that matches the list or is flagged sensitive; a
    repo's own rules requiring a pact lens hold; a skill I typed runs its
    lenses unasked, which never lifts the sensitive-route flag or its offer at
