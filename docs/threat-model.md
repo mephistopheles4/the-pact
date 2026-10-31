@@ -30,7 +30,7 @@ quadrantChart
   C6 Review rests on rules: [0.45, 0.56]
   C7 Whose account counts: [0.10, 0.78]
   C8 Local copies: [0.30, 0.55]
-  C9 Tools' own gaps: [0.30, 0.48]
+  C9 Tool gaps: [0.30, 0.48]
   K Costs: [0.62, 0.22]
 ```
 
@@ -40,7 +40,7 @@ The chart places each class by what is left after today's guards: text that stee
 | --- | --- | --- | --- | --- | --- | --- |
 | [C1](#c1) | Text a session reads can steer it | 0.56 | 0.86 | [R1](#r1), [R5](#r5), [R6](#r6), [R11](#r11), [R12](#r12), [R15](#r15), [R16](#r16), [R25](#r25) (its `/finis` part not accepted since the re-read) | This repo's tracker rule and author checker; Claude Code's own checks; judgment elsewhere | In auto mode a fooled session acts before you see it |
 | [C2](#c2) | Every session speaks as you | 0.40 | 0.70 | [R2](#r2), [R24](#r24), [R70](#r70) | Decision marks here; "Stop and ask me"; a merge, install or publish waits for chat | The record does not show which session or lead made a call |
-| [C3](#c3) | What is posted or passed on is public, and stays public | 0.80 | 0.75 | [R3](#r3), [R13](#r13), [R19](#r19), [R29](#r29), [R34](#r34), [R43](#r43), [R64](#r64), [R65](#r65), [R66](#r66), [R67](#r67), [R69](#r69) | Where the poster is on, its environment-secret and hidden-text refusals; a private tracker | Nothing reads a post for a secret or a personal detail |
+| [C3](#c3) | What is posted or passed on is public, and stays public | 0.80 | 0.75 | [R3](#r3), [R13](#r13), [R19](#r19), [R29](#r29), [R34](#r34), [R43](#r43), [R64](#r64), [R65](#r65), [R66](#r66), [R67](#r67), [R69](#r69) | Where the poster is on, its environment-secret and hidden-text refusals; a private tracker | Beyond the poster's environment-secret check, nothing reads a post for a secret or a personal detail |
 | [C4](#c4) | What you install, and this repo's CI, run code with your rights or a write token | 0.22 | 0.92 | [R8](#r8), [R9](#r9), [R10](#r10), [R26](#r26), [R27](#r27), [R28](#r28), [R35](#r35), [R36](#r36), [R45](#r45), [crypto-pins](#crypto-pins), [crypto-actions](#crypto-actions) | Pins by commit and hash; signatures at a bump; the dry run and your read of the diff | A pin is only as good as its bump; installed code runs what it holds |
 | [C5](#c5) | A fooled session, or your own configuration, can loosen the pact | 0.45 | 0.72 | [R14](#r14), [R17](#r17), [R22](#r22), [R30](#r30), [R31](#r31), [R32](#r32), [R61](#r61) | The dry run's drift, security-defaults and behind lines; Claude Code's protected paths | Most of it shows only afterwards |
 | [C6](#c6) | Review and routing rest on rules, not code | 0.45 | 0.56 | [R20](#r20), [R21](#r21), [R23](#r23), [R42](#r42), [R68](#r68) | The offers paragraph; the sensitive route; the QA pair at Test | No test runs a lens |
@@ -49,22 +49,22 @@ The chart places each class by what is left after today's guards: text that stee
 | [C9](#c9) | The pact tools' own gaps | 0.30 | 0.50 | [R41](#r41), [R57](#r57), [R60](#r60), [R62](#r62), [R63](#r63) | The review procedure's rules; the poster's checks as a backstop; git's refusals and the cleaner's keeps | A rule, not code, binds the cleaner's yes and the poster's table |
 | [K](#k) | Costs, with no attacker, and one send | 0.62 | 0.22 | [R7](#r7), [R37](#r37), [R46](#r46) | The cloud setup's Result section; the next setup retries | A blocked team; a gap until the next setup |
 
-Each entry link opens its full text in the fold [The threat sections, in full](#the-threat-sections-in-full); [Provenance](#provenance) gives each entry's class, score, date and source.
+Entry links go to the full text: most in [The threat sections, in full](#the-threat-sections-in-full), R19 and R43 under [Reporting a security hole](#reporting-a-security-hole), the SHA-1 residuals in the crypto fold. [Provenance](#provenance) gives each entry's class, score, date and source.
 
 ## Scale
 
-- **L and I** are likelihood and impact of what is left after today's guards, from 0 to 1. Likelihood asks how easy the path is and how often it comes up; impact asks what an attacker gets. They are judgement, carried from each entry's own score, and they rank; they do not measure.
+- **L and I** are likelihood and impact of what is left after today's guards, from 0 to 1: judgement, carried from each entry's own score. They rank; they do not measure.
 - **A class takes the highest L and the highest I among its entries,** per axis, so a class can sit higher than any one of its entries. Each entry's own score is in [Provenance](#provenance).
 - **C9 is drawn at 0.48** on the chart so that its label can be read beside C8; its score is 0.50.
 - **The two SHA-1 residuals** carry no score of their own; C4's place comes from its labelled entries.
 
 ## Scope
 
-**In scope:** anything that crosses a real boundary into or out of a pact session: a stranger's text on the tracker, an outside pull request, a cloned repo's files, a plugin or skill you install, upstream releases the cloud setup fetches and runs, text a session or a lens reads (another session's messages included), what a session posts or sends off the machine, other local accounts, and this repo's CI. A session, fooled or careless, stays in scope, though it runs as you; so do a file someone hands you to load, an account whose token a session holds, and a program that anything in scope started, supplied or steered. Safety stays in scope: loss of your work with no attacker.
+**In scope:** anything that crosses a real boundary into or out of a pact session: a stranger's text on the tracker, an outside pull request, a cloned repo's files, a plugin or skill you install, upstream releases the cloud setup fetches and runs, text a session or a lens reads (another session's messages included), what a session posts or sends off the machine, other local accounts, and this repo's CI. A session, fooled or careless, stays in scope, though it runs as you; so do this repo's publisher, a file someone hands you to load, an account whose token a session holds, and a program that anything in scope started, supplied or steered. Every attacker an entry named before this line stays in scope, unless a revision's merge list names it as a scope change. Safety stays in scope: loss of your work with no attacker.
 
-**Out of scope:** a program you run yourself, as you, on your own machine, that nothing in scope started, supplied or steered: it can already edit your rules file, settings and git config, so a guard against it guards nothing. Also out of scope, as before: Claude Code itself, Anthropic's models and servers, GitHub, and the safety of your machine and accounts. Your GitHub account is the root of trust: whoever controls it counts as you.
+**Out of scope:** a program you run yourself, as you, on your own machine, that nothing in scope started, supplied or steered: it can already edit your rules file, settings and git config, so a guard against it guards nothing. The cases entries already name stay in scope: your own edits (R17), a local process that writes the configuration (R30), and your own account's edit in the browser (R60). Also out of scope, as before: Claude Code itself, Anthropic's models and servers, GitHub, and the safety of your machine and accounts. Your GitHub account is the root of trust: whoever controls it counts as you.
 
-This line was written in the revision of 2026-10-31, and is in force from the merge the owner confirms. Every attacker an entry named before it stays in scope.
+This line was written in the revision of 2026-10-31, and is in force from the merge the owner confirms.
 
 ## Who is in scope
 
@@ -75,7 +75,8 @@ This line was written in the revision of 2026-10-31, and is in force from the me
 | A cloned repo | Its `CLAUDE.md`, `AGENTS.md`, skills, settings and mise config |
 | A plugin or skill you install, and its author | Hooks, servers and skill text that run or load with your rights |
 | Upstream releases the cloud setup fetches | Node, mise, the pinned skill repos and plugin marketplace, CI's actions |
-| A session, fooled or careless, or a lead | What it writes, posts, installs or records under your account |
+| This repo's publisher | A commit you install, and the clone's own project files |
+| A session, fooled or careless, or a lead (a session that starts other sessions and messages them) | What it writes, posts, installs or records under your account |
 | Whoever hands you a file to load | A builder file or a preset |
 | An account whose token a session holds | The login a session takes as yours |
 | Other local accounts, and other readers of the disk | Temporary folders, kept-local reports, the install's backups |
@@ -88,13 +89,14 @@ This line was written in the revision of 2026-10-31, and is in force from the me
 | --- | --- | --- | --- |
 | API keys in `settings.json` | The Claude home folder | A session's context, and from there a post or a send | [R13](#r13), [R64](#r64), [R65](#r65) (C3) |
 | Older copies of `settings.json` | The install's backups | A session that reads them | [R47](#r47) (C8) |
-| Your GitHub sign-in | `gh`'s store, or the environment | Every post; any process in a session | The scope line's root of trust; [R38](#r38); [R64](#r64) for a posted token |
+| Your GitHub sign-in | `gh`'s store, or the environment | Every post; any process in a session | The scope line's root of trust; [R38](#r38) for a foreign token; [R9](#r9), [R11](#r11) and [R65](#r65) for a process or a lens that reaches it; [R64](#r64) for a posted token |
 | The repos on your machine | Your disk | A session's context | No accepted risk; their instruction files are [R15](#r15) |
 | Tracker writes: reports, dispositions, decisions | GitHub, public on a public tracker | Anyone who reads it | [R3](#r3), [R43](#r43), [R66](#r66) (C3) |
-| Lens inputs and kept-local reports | The session's disk | Another reader of that disk | [R44](#r44) (C8) |
+| Kept-local reports and place lines | The session's disk | Another reader of that disk | [R44](#r44) (C8) |
+| Lens inputs: staged diffs, specs and bases | The session's disk | Another reader of that disk | No accepted risk |
 | Step logs under a standing goal | The record | Anyone who reads it | [R69](#r69) (C3) |
 | Second-opinion sends | Wherever Claude Code's model setting routes them | A model provider | The rules file's bounded step and Claude Code's model setting; no accepted risk |
-| Builder files and pages | A folder you name, or the temporary folder | Other local accounts; whoever you pass the file to | [R33](#r33) (C8), [R67](#r67) (C3) |
+| Builder files and pages | A folder you name, or the temporary folder | Other local accounts; whoever you pass the file to | [R33](#r33) for the page (C8); [R67](#r67) for the saved file's text (C3) |
 
 ## Boundaries
 
@@ -135,6 +137,7 @@ flowchart LR
   session --> B4
   readers --> B4
   locals --> B5
+  session --> B1
 
   style B1 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
   style B2 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
@@ -143,7 +146,7 @@ flowchart LR
   style B5 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
 ```
 
-Most classes come in as text a session reads; what leaves the machine and what sits on your disk carry the rest. K has no attacker and no boundary.
+C1 and C2 come in as text a session reads; what you install, your configuration, what leaves the machine and what sits on your disk carry the rest. K has no attacker and no boundary.
 
 | Boundary | Who crosses it | Classes |
 | --- | --- | --- |
@@ -155,7 +158,7 @@ Most classes come in as text a session reads; what leaves the machine and what s
 
 ## Rules and boundaries
 
-A boundary is enforced by code and holds even when a session is fooled: the install gate, each agent's tool list, the poster's and the cleaner's checks where they are on. A rule is text the model is asked to follow, and holds only while the model reads it right: most of the pact is rules, among them the offers paragraph, the sensitive route and "Stop and ask me". Since #261 the rules file leaves much to the model's judgment. One rule is a fixed block, "Stop and ask me", with the standing goal beside it; no configuration edit can target it. Since #265 the pact sets no ask rules: what stands before an action is Claude Code's own protected paths and its auto-mode classifier, both outside the pact.
+A boundary is enforced by code and holds even when a session is fooled: the install gate, each agent's tool list, the poster's and the cleaner's checks where they are on. A rule is text the model is asked to follow, and holds only while the model reads it right: most of the pact is rules, among them the offers paragraph, the sensitive route and "Stop and ask me". One rule is a fixed block, "Stop and ask me", with the standing goal beside it; no configuration edit can target it. Since #265 the pact sets no ask rules: what stands before an action is Claude Code's own protected paths and its auto-mode classifier, both outside the pact.
 
 <details>
 <summary>Rules and boundaries, in full</summary>
@@ -197,7 +200,7 @@ classifier, and the classifier's blocks. Both are outside the pact (ADR 0063).
 
 ## Crypto and data migrations here
 
-The pact encrypts nothing. Its backups keep copies of a file that can hold keys ([R47](#r47)). It uses hashes to detect change: git's object ids bind an install to its commit, SHA-256 hashes find drift and check the cloud setup's downloads, and two committed public keys check Node's and mise's checksum signatures at a pin bump. Two acceptances carry no label: the SHA-1 collision residuals of the cloud setup's repo pins ([crypto-pins](#crypto-pins), accepted 2026-10-18) and of CI's action pins ([crypto-actions](#crypto-actions), accepted 2026-10-19). What it migrates is the state an install leaves behind: the dry run shows that state's drift first, the install removes only what its record lists, and the rollback checks in `docs/agents/install.md` are its recovery.
+The pact encrypts nothing. Its backups keep copies of a file that can hold keys ([R47](#r47)). It uses hashes to detect change: git's object ids bind an install to its commit, SHA-256 hashes find drift and check the cloud setup's downloads, and two committed public keys check Node's and mise's checksum signatures at a pin bump. Two acceptances carry no label: the SHA-1 collision residuals of the cloud setup's repo pins ([crypto-pins](#crypto-pins), accepted 2026-10-18) and of CI's action pins ([crypto-actions](#crypto-actions), accepted 2026-10-19). Hashes detect change and never authenticate, but for the builder page's policy hashes and the cloud setup's pins; the fold lists every use. What it migrates is the state an install leaves behind: the dry run shows that state's drift first; the install removes what its record lists, the retired builder agents and an older pact's ask rules, and prunes its own old backups, which can't be recovered; the rollback checks in `docs/agents/install.md` are its recovery.
 
 <details>
 <summary>Crypto and data migrations here, in full</summary>
@@ -331,7 +334,7 @@ A stranger's comment, an outside pull request, a cloned repo's instruction files
 
 Entries: [R1](#r1), [R5](#r5), [R6](#r6), [R11](#r11), [R12](#r12), [R15](#r15), [R16](#r16), [R25](#r25). R25's `/finis` part is not accepted since the re-read of 2026-10-31 ([Open issues](#open-issues)).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="c2"></a>C2. Every session speaks as you
 
@@ -339,7 +342,7 @@ A session posts under your account, a lead can approve or move work through the 
 
 Entries: [R2](#r2), [R24](#r24), [R70](#r70).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="c3"></a>C3. What is posted or passed on is public, and stays public
 
@@ -347,7 +350,7 @@ Lens reports, security rows, step logs and a session's own posts go on the track
 
 Entries: [R3](#r3), [R13](#r13), [R19](#r19), [R29](#r29), [R34](#r34), [R43](#r43), [R64](#r64), [R65](#r65), [R66](#r66), [R67](#r67), [R69](#r69).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="c4"></a>C4. What you install, and this repo's CI, run code with your rights or a write token
 
@@ -355,7 +358,7 @@ This repo's publisher, any plugin or skill you install, the cloud setup's pinned
 
 Entries: [R8](#r8), [R9](#r9), [R10](#r10), [R26](#r26), [R27](#r27), [R28](#r28), [R35](#r35), [R36](#r36), [R45](#r45), and the two unlabelled acceptances [crypto-pins](#crypto-pins) and [crypto-actions](#crypto-actions).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="c5"></a>C5. A fooled session, or your own configuration, can loosen the pact
 
@@ -363,7 +366,7 @@ A session can leave a foothold that later sessions or installs load, install a c
 
 Entries: [R14](#r14), [R17](#r17), [R22](#r22), [R30](#r30), [R31](#r31), [R32](#r32), [R61](#r61).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="c6"></a>C6. Review and routing rest on rules, not code
 
@@ -371,7 +374,7 @@ No test runs a lens; the gate's tests are ordinary test code; publishing and cre
 
 Entries: [R20](#r20), [R21](#r21), [R23](#r23), [R42](#r42), [R68](#r68).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="c7"></a>C7. Whose account counts
 
@@ -379,7 +382,7 @@ A session takes whatever account its token belongs to as you; a commit counts by
 
 Entries: [R38](#r38), [R39](#r39), [R40](#r40).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="c8"></a>C8. Local copies sit unencrypted on disk
 
@@ -387,7 +390,7 @@ A written builder page, kept-local reports and the install's backups stay on dis
 
 Entries: [R33](#r33), [R44](#r44), [R47](#r47).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="c9"></a>C9. The pact tools' own gaps
 
@@ -395,7 +398,7 @@ The poster's table check and its read-then-edit window, its slow page copy on ho
 
 Entries: [R41](#r41), [R57](#r57), [R60](#r60), [R62](#r62), [R63](#r63).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### <a id="k"></a>K. Costs, with no attacker, and one send
 
@@ -403,7 +406,7 @@ Teams blocked, two cloud Node block gaps, and four cloud plugin and skill step g
 
 Entries: [R7](#r7), [R37](#r37), [R46](#r46).
 
-Folded on 2026-10-31 by rewrite-tm in the revision of 2026-10-31, from the entries above; in force from the merge the owner confirms.
+Folded 2026-10-31 by rewrite-tm from the entries above; in force from the merge the owner confirms.
 
 ### Retired
 
@@ -448,11 +451,13 @@ can't be turned off or widened there either. A goal holds until its work ends or
 
 ## Open issues
 
-These are open on this repo's tracker at the revision of 2026-10-31, and each names the entry it bears on:
+These are open at the revision of 2026-10-31: tracker issues, and any part not accepted since the re-read. Each names the entry it bears on.
 
 - **#180:** no setting yet for trusted accounts on a team repo ([R7](#r7)).
 - **#419:** the poster's edit checks read the source text, not GitHub's rendered page ([R2](#r2), [R60](#r60)).
-- **R25's `/finis` part, not accepted since the re-read of 2026-10-31:** Claude Code's desktop docs say it archives a session with no card in Auto and Bypass permissions modes, so the card R25 names as the guard against a relayed `/finis` does not stand in the mode the pact turns on ([R25](#r25)). It waits for the owner's answer.
+- **#442:** the cleaner follows link chains before resolving a path ([R63](#r63)).
+- **#449:** this repo's own rules on secrets and personal details ([R13](#r13), [R23](#r23), [R64](#r64)).
+- **R25's `/finis` part, not accepted since the re-read of 2026-10-31:** Claude Code's desktop docs say it archives with no card in Auto and Bypass permissions modes, so R25's guard against a relayed `/finis` does not stand in the mode the pact turns on; untracked files can then go once a pull request Claude opened has merged ([R25](#r25)). It waits for the owner's answer.
 
 ## Reporting a security hole
 
@@ -492,14 +497,15 @@ outsiders' code, and never runs.
 - **A change to a defence an entry names** edits the entry's text in [The threat sections, in full](#the-threat-sections-in-full), its row in [Controls by risk](#controls-by-risk), and its class's line in the table above if what stops it changes.
 - **A closed issue** edits the entry that names it, and [Open issues](#open-issues).
 - **A new acceptance** takes the next free label, R71 and on; R48 to R56, R58 and R59 were never used and stay unused. Its entry goes at the end of its section in the fold, with an anchor and a provenance line. It joins a class only if the class sentence already reaches it, and then raises the class's L or I if it scores higher; otherwise it is listed under its class as "not yet folded" until the next revision.
-- **A finding inside a class** is reported against the entry whose own text covers it, never as a new entry.
+- **A finding inside a class** is reported against the entry whose own text covers it, never as a new entry; a finding no entry's own text covers is raised in full, and becomes a new entry only if it is accepted.
 - **The next revision** is counted from the `Last revised:` line, by the rules file's "Threat-model revision".
-- `gate/tests/threat-model-cites.test.mjs` holds every R-label a live doc cites to an anchor here, and every entry anchor to a provenance line.
 
 <details>
 <summary>Controls by risk (the base table, 59 rows)</summary>
 
 ## Controls by risk
+
+The base page's table, moved as it stood at commit `65d271c`, the base of the revision of 2026-10-31. Its prose was written for the per-risk chart the page had then; each risk's score is now in [Provenance](#provenance), and R4 is retired.
 
 The chart places each accepted risk by what is left after today's guards.
 Likelihood asks how easy the path is and how often it comes up. Impact asks
@@ -567,7 +573,7 @@ How to read it:
 | R13 Lens quotes a secret | Text a lens reads | Since #441, nothing but this: on an install with the poster on, its refusal of a live environment secret's value, which sees no other secret (#280, #441) | None; a boundary where the poster is on |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071); a live agent file at agents/<name>.md for an agent the pact retired draws a fixed line on every dry run, and the install leaves it as is; the check reads that file name only, not an agent's own name line or a subfolder (#302); a rewritten pact tool shows as drift (#280) | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor). A skill source is pinned by full commit, and the checks refuse an owner or segment that could pass an option to git; a look-alike repo name is caught only by the reader of the dry run's `skills:` block and by ADR 0091's read before a pin is committed (#183 T4a). A repo's skill named like one the default lists is the one a session uses at home; the dry run's `skills:` block says so (#183 T4a) | Judgment |
-| R16 Unattended session | Whoever triggers it | None yet (#184) | — |
+| R16 Unattended session | Whoever triggers it | None (#184 closed as moot; re-accepted 2026-10-31) | — |
 | R17 Gate path only | You, or a fooled session | The install gate, on install mechanics only since ADR 0069; the dry run; your review of the commit | Boundary |
 | R18 Totals to this repo | Retired by #189 | — | — |
 | R19 Fix work public | Anyone who reads the tracker | Here, the escape placeholder in `AGENTS.md`; elsewhere, judgment; none in code (#199) | Rule, judgment |
@@ -576,7 +582,7 @@ How to read it:
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse (a standing goal never lifts it, #434); the sensitive-work default, now what a session looks for and flags, not a forced route (#262), replaceable in a home configuration behind the security-defaults line (#262, R30), and since #441 without "secrets"; the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover secrets and personal data the list doesn't name; the backstop at Test, which doesn't reach them either (#262, #441, the owner's choice); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me" and what a standing goal never lifts; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
-| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
+| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive, except in Auto and Bypass permissions modes (the `/finis` part not accepted since the re-read of 2026-10-31); none for a resume prompt; "Stop and ask me"; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check and in `gate-windows`: nothing outside `gate/tests/` loads a file inside it | Rule |
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a diff touching `.github/` or the lockdown test waits for the security pair's read or your word before any push (#351); a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
@@ -619,12 +625,12 @@ How to read it:
 
 ## Provenance
 
-Each line reads: id · class · score L/I · accepted · from · word · rests on · re-read. "Undated" entries give the commit that first recorded them. The base page these entries come from is at commit `65d271c`.
+Each line reads: id · class · score L/I · accepted (when) · from (the issues and reviews it came from) · word (whose word accepted it, and how it reached the session) · rests on (the controls or conditions it names) · re-read (what the revision of 2026-10-31 found). "Undated" entries give the commit that first recorded them. The base page these entries come from is at commit `65d271c`.
 
 - **R1** · C1 · score 0.35/0.72 · accepted undated; first recorded 2026-10-09 in a238554 · from #261, ADR 0089 · word not recorded · rests on this repo's tracker rule, the tracker author checker where GraphQL is refused, judgment elsewhere · re-read unchanged
 - **R2** · C2 · score 0.30/0.68 · accepted undated, first recorded 2026-10-09 in a238554; widened 2026-10-25 · from #220, #413 (S10 q2 and q5; adversarial-lens F1, F4 to F6) · word the owner in the lead's chat, relayed by head-chef-field-test · rests on the decision marks in this repo's tracker rule, the poster's edit refusals and append-only reason lines · re-read unchanged; #419 still open
 - **R3** · C3 · score 0.80/0.62 · accepted undated; first recorded 2026-10-09 in a238554 · from #264, #280, #441 · word not recorded · rests on, where the poster is on, its environment-secret and hidden-text refusals · re-read unchanged
-- **R4** · retired · score 0.08/0.95 · accepted undated; first recorded 2026-10-09 in a238554 · from – · word not recorded · rests on GitHub's own sign-in · re-read retired in the revision of 2026-10-31: what it accepts lies in what the page leaves out (the safety of your accounts); its sentence is in the scope line
+- **R4** · retired · score 0.08/0.95 · accepted undated; first recorded 2026-10-09 in a238554 · from – · word not recorded · rests on GitHub's own sign-in · re-read retired in the revision of 2026-10-31, with a dated line on its entry: what it accepts lies in what the page leaves out (the safety of your accounts); its sentence is in the scope line
 - **R5** · C1 · score 0.18/0.80 · accepted undated; first recorded 2026-10-09 in a238554 · from #261 · word not recorded · rests on this repo's tracker rule, judgment elsewhere · re-read unchanged
 - **R6** · C1 · score 0.08/0.66 · accepted undated; first recorded 2026-10-09 in a238554 · from #270 · word not recorded · rests on the five conditions in `docs/agents/issue-tracker.md` and your typed OK · re-read unchanged
 - **R7** · K · score 0.62/0.15 · accepted undated; first recorded 2026-10-09 in a238554 · from #180 · word not recorded · rests on none (#180) · re-read unchanged; #180 still open
@@ -636,7 +642,7 @@ Each line reads: id · class · score L/I · accepted · from · word · rests o
 - **R13** · C3 · score 0.45/0.62 · accepted 2026-10-26, 2026-10-27 · from #394 (data-lens, adversarial-lens; q13), #428, #429, #441 · word the owner's own word, relayed by the lead · rests on, where the poster is on, its environment-secret refusal · re-read fact fixed: #428 and #429 are closed
 - **R14** · C5 · score 0.20/0.72 · accepted undated, first recorded 2026-10-09 in 16b27d1; widened 2026-10-31 · from #262, #272, #280, #284, #446 (decision 451) · word the owner's standing word, relayed by the lead, confirmed in the build session's chat · rests on Claude Code's protected paths in part, the next dry run's drift and banned-key warnings · re-read unchanged: protected paths cover only some of these places (Claude Code docs, checked 2026-10-31)
 - **R15** · C1 · score 0.42/0.60 · accepted undated, first recorded 2026-10-09 in 16b27d1; widened 2026-10-19 · from #261, #183 T4a · word the owner in chat · rests on judgment, skill pins by full commit, the dry run's `skills:` block · re-read unchanged
-- **R16** · C1 · score 0.10/0.76 · accepted undated, first recorded 2026-10-09 in 16b27d1; re-accepted 2026-10-31 · from #184, #434 · word the re-acceptance, the owner's answer relayed by the lead (decision 514), recorded by rewrite-tm · rests on none · re-read condition lapsed: #184 closed as moot on 2026-10-12, an owner decision from chat; re-accepted without it
+- **R16** · C1 · score 0.10/0.76 · accepted undated, first recorded 2026-10-09 in 16b27d1; re-accepted 2026-10-31 · from #184, #434 · word the re-acceptance, the owner's answer relayed by the lead (decision 514), recorded by rewrite-tm · rests on none · re-read condition lapsed: #184 closed as moot on 2026-10-12, an owner decision from chat; re-accepted without it; its table row fact fixed
 - **R17** · C5 · score 0.20/0.44 · accepted undated; first recorded 2026-10-09 in 16b27d1 · from ADR 0069, #189, #262, ADR 0071 · word not recorded · rests on the install gate on install mechanics, the dry run, your review of the commit · re-read unchanged
 - **R18** · retired · score none · accepted undated; first recorded 2026-10-09 in 16b27d1 · from #189 · word not recorded · rests on – · re-read retired by #189
 - **R19** · C3 · score 0.20/0.74 · accepted undated, first recorded 2026-10-09 in 1391b0f; re-accepted 2026-10-31 · from #199, #261 · word the re-acceptance, the owner's answer relayed by the lead (decision 514), recorded by rewrite-tm · rests on the escape placeholder in `AGENTS.md` here, and `SECURITY.md` telling reporters · re-read condition lapsed: #199 closed as not planned on 2026-10-25, the owner choosing public fixes; re-accepted without it
@@ -645,8 +651,8 @@ Each line reads: id · class · score L/I · accepted · from · word · rests o
 - **R22** · C5 · score 0.45/0.62 · accepted undated; first recorded 2026-10-10 in 6456c33 · from #210, ADR 0049, #217, ADR 0052, #242, ADR 0059, #265, ADR 0063, #407, ADR 0118 · word the owner by name (#217, #265) · rests on auto mode's classifier, the install go-ahead rule · re-read unchanged; Claude Code's docs say a user message that names the exact action overrides a soft block, and do not mention a start prompt (checked 2026-10-31)
 - **R23** · C6 · score 0.30/0.56 · accepted undated, first recorded 2026-10-10 in d8d99d8; widened 2026-10-19 and 2026-10-24 · from #186, ADR 0056, #189, ADR 0050, #261, ADR 0060, #262, #351, #389, #434, #441 · word the owner: q4 relayed and q7 in chat (#351); relayed by the head chef (#389) · rests on "Stop and ask me", the sensitive-work default, this repo's read of every commit before a push · re-read unchanged
 - **R24** · C2 · score 0.40/0.70 · accepted undated, first recorded 2026-10-10 in 9579c66; widened and narrowed 2026-10-31 · from #220, ADR 0055, #265, #270, #434 (decisions 419, 432, 437, 438, 451), #443 (decision 477) · word the owner by name (#220); relayed by the lead (#434, #443) · rests on Claude Code's handling of sent-in messages, auto mode's blocks, "Stop and ask me", branch protection · re-read shrunk, fact fixed: Claude Code's docs now say a message from another session is quoted, attributed to its sender and never your consent; how auto mode judges one is not documented (checked 2026-10-31)
-- **R25a** · C1 · score 0.30/0.64 · accepted undated; first recorded 2026-10-11 in 3eff1d1 · from #229, #270, #434 (decision 451) · word the owner's decision (#229); relayed (decision 451) · rests on Claude Code's quoting of sent-in messages, its archive card, "Stop and ask me" · re-read shrunk: a command in another session's message arrives as plain text and never runs (Claude Code docs, checked 2026-10-31)
-- **R25b** · C1 · score 0.30/0.64 · accepted undated; first recorded 2026-10-11 in 3eff1d1 · from #229, #270, #434 (decision 451) · word the owner's decision (#229); relayed (decision 451) · rests on Claude Code's quoting of sent-in messages, its archive card, "Stop and ask me" · re-read grown, its /finis part not accepted since the re-read of 2026-10-31: Claude Code's desktop docs say an archive needs no card in Auto and Bypass permissions modes; fact fixed; merge-list item
+- **R25a** · C1 · score 0.30/0.64 · accepted undated; first recorded 2026-10-11 in 3eff1d1 · from #229, #270, #434 (decision 451) · word the owner's decision (#229); relayed (decision 451) · rests on Claude Code's quoting of sent-in messages, "Stop and ask me" · re-read shrunk: a command in another session's message arrives as plain text and never runs (Claude Code docs, checked 2026-10-31)
+- **R25b** · C1 · score 0.30/0.64 · accepted undated; first recorded 2026-10-11 in 3eff1d1 · from #229, #270, #434 (decision 451) · word the owner's decision (#229); relayed (decision 451) · rests on Claude Code's archive card, outside Auto and Bypass permissions modes; the command's outstanding-work check · re-read grown, its /finis part not accepted since the re-read of 2026-10-31: Claude Code's desktop docs say an archive needs no card in Auto and Bypass permissions modes; fact fixed; merge-list item
 - **R26** · C4 · score 0.15/0.30 · accepted undated; first recorded 2026-10-11 in dbbee8e · from ADR 0058 · word not recorded · rests on the premise test in `gate` and `gate-windows` · re-read unchanged
 - **R27** · C4 · score 0.20/0.55 · accepted undated, first recorded 2026-10-11 in dbbee8e; widened 2026-10-19 · from #239, #351 (q4) · word the owner's q4, relayed by the head chef · rests on only your account pushing branches, the security pair's read before a push that touches `.github/` · re-read unchanged
 - **R28** · C4 · score 0.12/0.52 · accepted undated; first recorded 2026-10-11 in dbbee8e · from #239 · word not recorded · rests on pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip · re-read unchanged
@@ -821,6 +827,9 @@ months.
   to R68.
 - <a id="r4"></a>**R4. Your GitHub account is the root of trust.** Anyone who controls it
   counts as you.
+  Retired in the revision of 2026-10-31: what it accepts lies in what this
+  page leaves out, the safety of your accounts; its sentence is in the scope
+  line.
 - <a id="r38"></a>**R38. A session takes whatever account its token belongs to as the
   owner.** With a token set, a session announces its login and goes on;
   nothing checks that the login is yours. Run with another account's token,
@@ -1481,8 +1490,10 @@ session can act before you see it.
     relayed `/finis`.
     Not accepted since the re-read of 2026-10-31; see Open issues: Claude
     Code's desktop docs now say it archives a session with no card in Auto
-    and Bypass permissions modes, and keeps the worktree on disk about 30
-    days.
+    and Bypass permissions modes. It keeps the worktree on disk about 30
+    days, ignored files included, except that untracked files can be
+    deleted without asking once a pull request Claude opened in the session
+    has merged, and "Archive anyway" discards the changes.
 
   What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, though plain words beside it can, as R24 accepts, #434; on the owner's word relayed, decision 451), and here
   this repo's "Never post a secret or a personal detail" (one link from the loaded `AGENTS.md`, since #270). `/scriptorium`,

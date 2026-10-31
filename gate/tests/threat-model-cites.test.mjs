@@ -1,10 +1,10 @@
-// Keeps the threat model's labels resolvable (#456): every R-label a live doc
-// cites has an anchor in docs/threat-model.md, and every entry anchor there has
-// a provenance line naming its class, K, or "retired". The threat model is
-// revised by class each month (claude/CLAUDE.md, "Threat-model revision"), and
-// about twenty live docs cite its labels, so a revision that loses one would
-// leave a cite pointing at nothing. Code is left out on purpose: most R-tokens
-// in code are a spec's row numbers, not labels.
+// Keeps the threat model's labels resolvable (#456 C7): every R-label a live doc
+// cites has an anchor in the threat model, and every entry anchor there has a
+// provenance line naming its class, K, or "retired". The threat model is
+// revised by class from time to time (the rules file's "Threat-model
+// revision"), and about twenty live docs cite its labels, so a revision that
+// loses one would leave a cite pointing at nothing. Code is left out on
+// purpose: most R-tokens in code are a spec's row numbers, not labels.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
