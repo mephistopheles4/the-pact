@@ -39,7 +39,8 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   fails when one is missing.
 - **Keep the threat model in step.** A change that alters a defence
   [`docs/threat-model.md`](../../docs/threat-model.md) names, or closes an issue it
-  lists, updates that page in the same PR.
+  lists, updates that page in the same PR, where its "Keeping this page in step"
+  section says.
 - **Keep the README in step with the rules.** A change to the tiers, the
   lenses, the models or the sensitive-work default in `claude/CLAUDE.md`, or to the
   roster in `claude/agents/`, updates in the same PR: the figure sources in
