@@ -1,6 +1,6 @@
 # Contract: integrity-lens
 
-Version: 0.4.0
+Version: 0.4.1
 
 - **Type:** agent
 - **Level:** Thorough
@@ -144,6 +144,7 @@ Extra keys: tools, model, effort
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.4.1 | 2026-10-31 | The body no longer restates C8: its line "You run nothing, write nothing and reach no network. You only read." is cut. C8 stays, held by the tools list, which Claude Code applies. | #450: the tools list already holds the rule, so the body sentence restated it | none |
 | 0.4.0 | 2026-10-17 | The lens also asks whether each test earns its place. Three new finding kinds: a test that backs nothing and a duplicate test (both low, never blocking alone, pointing to cut) and a cover that does not catch (high, pointing to strengthen). A test backs something when the evidence cites it, its probe catches a broken version, or its own text names what it backs. Only tests the change adds or edits can be cut findings. A deletion whose named cover catches the deleted test's broken versions is noted as covered, not a finding. Each finding says whether it points to strengthen or to cut. The cut list is an optional input. A dismissal for a project rule the lens was not handed is left out of the retirement count. | #276, on the owner's word relayed by the head chef: the lens's findings all pointed toward more tests | 1, 3, 4, 7, 8, 10, 13, 16, 17, 18 |
 | 0.3.0 | 2026-10-17 | The lens may be handed quality rows with an Enough, the cost rows they name and running counts, as inputs: a finding past a cost limit follows that row's "At the limit", and one past an Enough level alone goes to the owner as a trade-off; both are listed under Trade-offs and never make the verdict blocking on their own. A finding it is unsure is a security finding is marked "security?", for the sorting session to decide. | #304: records what #289 (T4 of #278) added to the lens file, the "Cost limits and trade-offs" section | 10 |
 | 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |

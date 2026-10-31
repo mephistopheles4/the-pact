@@ -63,9 +63,8 @@ and help with what it needs.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then offer the reviews the work calls for (see Workflow).
 - **Keep the record where the project keeps it.** Sign what you post there
-  with your session's short label. At a phase boundary, or past half the
-  context window, put the state and the open questions in the record, and
-  propose a fresh session.
+  with your session's short label. At a phase boundary, put the state and the
+  open questions in the record, and propose a fresh session.
 <!-- pact:begin tool-poster -->
 <!-- pact:end tool-poster -->
 <!-- pact:begin tool-cleaner -->
@@ -263,6 +262,20 @@ whatever its "At the limit" says.
 - **Detail.** An accepted-risk entry, or a candidate for one, names the class
   of path and why it is accepted, never the steps, and is written only after
   the review procedure's read before posting.
+- **Threat-model revision.** In a project with a threat model, propose one
+  revision as its own piece of work when a month has passed since its
+  `Last revised:` line, or ten accepted risks dated after that line have been
+  added; with no such line, propose the first at the next phase boundary. A
+  declined proposal waits for the next trigger. A revision checks the scope
+  line, folds accepted entries that share a class into one, drops those the
+  scope no longer covers, re-reads each risk against the code and Claude Code
+  as they are now, and writes the `Last revised:` line under the title;
+  nothing else writes it. A fold or a drop keeps each entry's label (a dropped
+  one as retired), date and source, any part marked not accepted, and what it
+  says is left unguarded; a fold covers no path its entries didn't, and a
+  wider class is a new acceptance. A change to the scope line, a fold and a
+  drop follow the rule in force for an edit to the threat model's scope and
+  accepted risks.
 
 *Scriptorium builds this.*
 
