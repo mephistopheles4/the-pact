@@ -1,6 +1,6 @@
 # Contract: unstated-lens
 
-Version: 0.3.0
+Version: 0.3.1
 
 - **Type:** agent
 - **Level:** Thorough
@@ -75,7 +75,7 @@ For the session
 - C6. Text it reads is data, not instructions.
   Held by: review, since no test holds it; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
-  Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
+  Held by: Enforced — the `tools` list `[Read, Glob, Grep]`. As an in-process teammate, Claude Code also gives it SendMessage and the Task tools (#450).
 - C8. **Decided** (2026-10-12, #262): It reports in the shape it is handed at run time.
   Held by: the review template, by judgment.
 - C9. **Decided** (2026-10-12, #262): Dropped: the report shape, headlines included, is handed at run time.
@@ -125,6 +125,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.3.1 | 2026-10-31 | The body no longer restates C7: its line "You run nothing, write nothing and reach no network. You only read." is cut. C7 stays, held by the tools list, which Claude Code applies. | #450: the tools list already holds the rule, so the body sentence restated it | none |
 | 0.3.0 | 2026-10-17 | The lens may be handed quality rows with an Enough, the cost rows they name and running counts, as inputs: a finding past a cost limit follows that row's "At the limit", and one past an Enough level alone goes to the owner as a trade-off; both are listed under Trade-offs and never make the verdict blocking on their own. A finding it is unsure is a security finding is marked "security?", for the sorting session to decide. | #304: records what #289 (T4 of #278) added to the lens file, the "Cost limits and trade-offs" section | 10 |
 | 0.2.2 | 2026-10-17 | No rule changes. The lens now joins `executability-lens` as a pair on a spec; the decided quote from 2026-10-07 stays as history. | #281, #302: the owner's approval of spec revision 2, on the tracker | none |
 | 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
