@@ -745,3 +745,57 @@ test('--recoverable also keeps on a local lfs. or hook. key, the main worktree\'
   }
   assert.ok(existsSync(cw));
 });
+
+// #446 C5 (Test, integrity-lens F1 to F4): the branches no earlier case reached.
+test('--recoverable keeps on a failed config read (the main worktree\'s keeps all), an admin folder outside .git/worktrees, and one worktree\'s failed read alone; without the flag a failed read makes the run unavailable', t => {
+  const kept = reason => new RegExp(`^ {2}kept: ${reason}$`, 'm');
+  // A config read that fails for one worktree keeps it as a program that could run (F1).
+  const f = makeRepo(t);
+  const one = f.add('one');
+  f.add('two');
+  const failConfigIn = dir => recording((file, args, opts) => {
+    if (args.includes('config') && dirOf({ args }) === dir) return { status: 128, stdout: '', stderr: 'fatal' };
+    return realGitOld && args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.45.0\n', stderr: '' } : spawnSync(file, args, opts);
+  });
+  const r1 = f.run(['show', '--recoverable'], { spawn: failConfigIn(one).spawn });
+  assert.match(block(r1.out, 'one'), kept('a filter program could run'), r1.out);
+  assert.match(block(r1.out, 'two'), /^ {2}tag [0-9a-f]{10}$/m, r1.out);
+  // The same for the main worktree keeps every worktree.
+  const r2 = f.run(['show', '--recoverable'], { spawn: failConfigIn(f.root).spawn });
+  assert.equal(tagsOf(r2.out).length, 0, r2.out);
+  assert.match(block(r2.out, 'two'), kept('a filter program could run'), r2.out);
+
+  // A .git file naming an admin folder outside <main>/.git/worktrees, whose gitdir and commondir both look right (F2).
+  const g = makeRepo(t);
+  const moved = g.add('moved');
+  const realAdmin = join(g.root, '.git', 'worktrees', 'moved');
+  const outside = join(tempDir(t, 'pact-cleaner-admin-'), 'moved');
+  mkdirSync(outside);
+  for (const n of ['HEAD', 'gitdir', 'commondir', 'index']) if (existsSync(join(realAdmin, n))) writeFileSync(join(outside, n), readFileSync(join(realAdmin, n)));
+  writeFileSync(join(outside, 'commondir'), `${join(g.root, '.git').replace(/\\/g, '/')}\n`);
+  writeFileSync(join(moved, '.git'), `gitdir: ${outside.replace(/\\/g, '/')}\n`);
+  const gr = g.run(['show', '--recoverable'], { spawn: recorded().spawn });
+  assert.match(block(gr.out, 'moved'), kept('its .git file names another git folder'), gr.out);
+
+  // One worktree's failed read in the main loop keeps it alone, and the other's tag stands (F3).
+  const h = makeRepo(t);
+  h.add('bad');
+  h.add('good');
+  const failRevList = recording((file, args, opts) => {
+    if (args.includes('rev-list') && args.at(-1) === 'refs/heads/bad') return { status: 128, stdout: '', stderr: 'fatal' };
+    return realGitOld && args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.45.0\n', stderr: '' } : spawnSync(file, args, opts);
+  });
+  const hr = h.run(['show', '--recoverable'], { spawn: failRevList.spawn });
+  assert.equal(hr.code, 0, hr.out);
+  assert.match(block(hr.out, 'bad'), kept('a read failed, so it is kept'), hr.out);
+  assert.match(block(hr.out, 'good'), /^ {2}branch good at [0-9a-f]{7}\n {2}tag [0-9a-f]{10}\n$/, hr.out);
+
+  // Without the flag, the same failure, or a failed status, makes the whole run unavailable, as at the base (F4).
+  const plain = h.run(['show'], { spawn: failRevList.spawn });
+  assert.equal(plain.code, 4, plain.out);
+  assert.equal(plain.lines.at(-1), 'RESULT: unavailable');
+  const failStatus = recording((file, args, opts) => (args.includes('status') ? { status: 128, stdout: '', stderr: 'fatal' } : spawnSync(file, args, opts)));
+  const ps = h.run(['show'], { spawn: failStatus.spawn });
+  assert.equal(ps.code, 4, ps.out);
+  assert.equal(ps.lines.at(-1), 'RESULT: unavailable');
+});
