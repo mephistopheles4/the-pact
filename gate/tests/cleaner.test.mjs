@@ -5,7 +5,7 @@
 // or stand in for it.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, ftruncateSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync, writeSync } from 'node:fs';
 import { delimiter, isAbsolute, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
 import { clean, esc, findGit, realOf } from '../../claude/tools/cleaner.mjs';
@@ -506,13 +506,26 @@ const recorded = () => recording((file, args) => (realGitOld && args.at(-1) === 
 /** The folder a recorded git call reads, from its `-C`. */
 const dirOf = call => call.args[call.args.indexOf('-C') + 1];
 const carries = args => args.some((a, i) => a === '-c' && args[i + 1] === 'status.showUntrackedFiles=normal');
+/** Rewrites a file in place: on Windows git hides a worktree's `.git` file, and a hidden file can't be opened to replace it. */
+function overwrite(p, text) {
+  const fd = openSync(p, 'r+');
+  try {
+    ftruncateSync(fd, 0);
+    writeSync(fd, text, 0);
+  } finally {
+    closeSync(fd);
+  }
+}
 
 // #446 C1
 test('--recoverable keeps, with no tag, a worktree holding ignored files or links, or hidden edits, and lists them; without it the first two are candidates as before', t => {
   const f = makeRepo(t);
   writeFileSync(join(f.add('envwt'), '.env'), 'IGNORED CONTENT\n');
   writeFileSync(join(f.root, '.git', 'info', 'exclude'), 'out\n');
-  symlinkSync(tempDir(t, 'pact-cleaner-ignored-'), join(f.add('lnkwt'), 'out'), process.platform === 'win32' ? 'junction' : 'dir');
+  // The link's target holds a file: git lists no empty folder, and on Windows a junction reads as a folder.
+  const linkTarget = tempDir(t, 'pact-cleaner-ignored-');
+  writeFileSync(join(linkTarget, 'kept.txt'), 'x');
+  symlinkSync(linkTarget, join(f.add('lnkwt'), 'out'), process.platform === 'win32' ? 'junction' : 'dir');
   const hidden = f.add('hidden');
   f.git(hidden, 'update-index', '--assume-unchanged', 'a.txt');
   writeFileSync(join(hidden, 'a.txt'), 'EDITED CONTENT\n');
@@ -720,7 +733,7 @@ test('--recoverable also keeps on a local lfs. or hook. key, the main worktree\'
   const pt = makeRepo(t);
   const pw = pt.add('pointed');
   const other = pt.add('other');
-  writeFileSync(join(pw, '.git'), readFileSync(join(other, '.git'), 'utf8'));
+  overwrite(join(pw, '.git'), readFileSync(join(other, '.git'), 'utf8'));
   const prec = recorded();
   const pr = pt.run(['show', '--recoverable'], { spawn: prec.spawn });
   assert.match(block(pr.out, 'pointed'), kept('its .git file names another git folder'), pr.out);
@@ -775,7 +788,7 @@ test('--recoverable keeps on a failed config read (the main worktree\'s keeps al
   mkdirSync(outside);
   for (const n of ['HEAD', 'gitdir', 'commondir', 'index']) if (existsSync(join(realAdmin, n))) writeFileSync(join(outside, n), readFileSync(join(realAdmin, n)));
   writeFileSync(join(outside, 'commondir'), `${join(g.root, '.git').replace(/\\/g, '/')}\n`);
-  writeFileSync(join(moved, '.git'), `gitdir: ${outside.replace(/\\/g, '/')}\n`);
+  overwrite(join(moved, '.git'), `gitdir: ${outside.replace(/\\/g, '/')}\n`);
   const gr = g.run(['show', '--recoverable'], { spawn: recorded().spawn });
   assert.match(block(gr.out, 'moved'), kept('its .git file names another git folder'), gr.out);
 
