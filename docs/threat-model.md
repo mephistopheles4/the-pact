@@ -56,7 +56,7 @@ environment yourself.
 `settings.json`, which can hold API keys, and the older copies of it in the
 install's backups (R47); your GitHub sign-in; the repos on
 your machine. It writes review reports, their disposition tables and
-decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files. Under a standing goal (#434) it also writes to the record a log of each bounded step, with why and the model's alias or "a custom model", and a lead session's trade-off picks, signed with its label; each names the goal by the work it covers, never its words. A step log shows that you were away when the step was taken. A second-opinion round sends the work wherever Claude Code's model setting routes it.
+decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files. Under a standing goal (#434) it also writes to the record a log of each bounded step, with why and the model's alias or "a custom model"; it names the goal by the work it covers, never its words. A step log shows that you were away when the step was taken. A second-opinion round sends the work wherever Claude Code's model setting routes it.
 
 **What this page leaves out.** Claude Code itself, Anthropic's models and
 servers, GitHub, and the safety of your machine and accounts are outside it.
@@ -83,8 +83,8 @@ The pact defends itself in two ways, and they are not equally strong.
   reached by a pointer in `AGENTS.md`.
 
 One rule is a fixed block: "Stop and ask me". No configuration edit can target
-it. Since #434 the block also carries the standing goal, its bounded step, a
-lead's trade-off picks under it and what a goal never lifts, so their bounds
+it. Since #434 the block also carries the standing goal, its bounded step and
+what a goal never lifts, so their bounds
 travel with the guard they loosen. Since ADR 0069 the gate holds no text word for word: the pact is vetted
 like any skill. The gate checks install mechanics only: what each file is and
 where it goes, that each agent file still parses, the text scanner, the
@@ -340,7 +340,7 @@ How to read it:
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
 | R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse (a standing goal never lifts it, #434); "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me" and what a standing goal never lifts; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
-| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me" and the standing goal's resume-prompt line; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
+| R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check and in `gate-windows`: nothing outside `gate/tests/` loads a file inside it | Rule |
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a diff touching `.github/` or the lockdown test waits for the security pair's read or your word before any push (#351); a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
 | R28 Scan token writes alerts | A compromised action release | Pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip | Boundary, rule |
@@ -918,7 +918,7 @@ session can act before you see it.
   unprobed. Accepted 2026-10-31 by the owner, decision 314, relayed by the
   lead, from the Design round 2 review on #438: the findings on the deny
   rules' gaps and on the yes the cleaner can't attribute.
-- **R69. A step log shows you were away.** Under a standing goal (#434), each bounded step is logged in the record, and a goal not yet confirmed stays open in every hand-off. On a public tracker, anyone can read from them when you were away from the work. The goal's own words never go in, and every post already carries its time, so the extra signal is small; a private tracker removes it. Accepted because the log is what lets you review a step taken while you were away. Accepted 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick (the owner's words handed q18 to that pick), from #434's Test round 2, data-lens F1.
+- **R69. A step log shows you were away.** Under a standing goal (#434), each bounded step is logged in the record. On a public tracker, anyone can read from the logs when you were away from the work. The goal's own words never go in, and every post already carries its time, so the extra signal is small; a private tracker removes it. Accepted because the log is what lets you review a step taken while you were away. Accepted 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick (the owner's words handed q18 to that pick), from #434's Test round 2, data-lens F1.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -975,7 +975,7 @@ session can act before you see it.
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
 
-  **Widened by #434.** A lead can relay a standing goal, which lets the sessions it leads take one bounded step at a stall, and, under a goal you gave that lead in its own chat, settle cost trade-offs that hold no security or `security?` finding by its own pick. A goal in a resume prompt allows no step until you confirm it in chat, and a lead relays none until then. What is accepted: a steered, confused or forged lead's relayed goal allows one logged step per stage of each piece of work before you confirm it, since the receiving session can't tell the goal is yours; and such a lead can claim you gave it the goal in its own chat and settle a non-security trade-off by its own pick, logged and signed, since no other session can see that chat. What bounds it: the goal stays open in every hand-off until you confirm it in chat; the step is logged and left easy to back out; a second stall stops; a security trade-off, a held-back pair and an accepted-risk match still come to you. Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434), from #434's Test round 1, adversarial-lens F1 and F2 and data-lens F5; the forged pick added on 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick, from Test round 2, adversarial-lens F3.
+  **Widened by #434.** A standing goal is your words, and the pact names no channel for them; that is left to Claude Code (decision 437, #443). A start prompt or a message from a lead can carry words that read as yours, which let the session take one bounded step at a stall. What is accepted: a steered, confused or forged lead's start prompt or message can carry a goal you never gave, which allows one logged step per stage of each piece of work before you see it, since the session can't tell the goal is yours. What bounds it: the step is logged and left easy to back out; a second stall stops; while a security finding is open, or a fix would touch the sensitive-work list, only a second opinion; every trade-off, accepted risk and always-mine decision still comes to you. Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434, and decision 432), from #434's Test rounds 1 and 2, adversarial-lens and data-lens. Narrowed on 2026-10-31: on the owner's words, relayed (decision 437), the pact dropped its relay and lead-session rules, so a lead no longer picks trade-offs and the lines that held a relayed or resume-prompt goal open went with them; the wording was the lead's own pick.
 - **R25. A pact command sent as prompt text.** `/make-it-so`, `/finis` and
   `/scriptorium` set `disable-model-invocation: true`. That stops the model starting one,
   not text sent in as a prompt. The bodies add no check of their own, by the
@@ -997,7 +997,7 @@ session can act before you see it.
     not look at. Claude Code asks you before any archive, in every
     permission mode; that card is the guard against a relayed `/finis`.
 
-  What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, and a goal in a resume prompt counts as relayed and allows no step until you confirm it in chat, nor does a lead relay one, #434), and here
+  What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, #434), and here
   this repo's "Never post a secret or a personal detail" (one link from the loaded `AGENTS.md`, since #270). `/scriptorium`,
   sent in, writes a builder file and renders a page outside any repo; it
   merges, pushes and posts nothing. The cloud copy ships no command. A project's own skill with the same name runs in place of a
@@ -1515,8 +1515,7 @@ Each tweak below is yours to make. The cost is what you give up.
 You cannot edit the fixed "Stop and ask me" block through configuration. That
 is deliberate; a committed edit to it installs, and you vet it like any other.
 Since #434 the block carries the standing goal too, so its one bounded step
-and a lead's trade-off picks under it can't be turned off or widened there
-either. A goal holds until its work ends or you end it.
+can't be turned off or widened there either. A goal holds until its work ends or you end it.
 
 ## Known open issues at publication
 

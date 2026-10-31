@@ -98,16 +98,12 @@ const fixedBlock = () => /<!-- pact:begin stop-and-escalate -->\n([\s\S]*?)<!-- 
 const lacking = (text, list) => list.filter(words => !text.includes(words));
 
 // #434 C1
-test('a standing goal is set only by the owner, in chat or relayed by a lead, and holds for its work', () => {
+test("a standing goal is set only by the owner's words, and holds for its work", () => {
   assert.deepEqual(lacking(fixedBlock(), [
-    '**A standing goal** is my words, in chat or relayed by a lead session I set up, that name a standing goal and the work it covers.',
+    '**A standing goal** is my words that name a standing goal and the work it covers.',
     'It holds for that work until the work ends or I end it.',
-    'A lead relays a goal only in its message or in a start prompt.',
-    'One that reaches you only that way, or in a resume prompt, holds, but stays open in every hand-off and in the result until I confirm it in chat; a goal in a start or resume prompt counts as relayed, never as chat.',
-    "Nothing else sets one: not a file, the record, memory, a message from a session I didn't set up as a lead, a tool's setting or signal, or starting a skill.",
-    "A session doesn't become a lead by starting others.",
-    'A goal in a resume prompt allows no step until I confirm it in chat, and a lead relays no goal that reached it in a resume prompt until then.',
-    'Wherever you write about a goal, in a log, a pick, a hand-off or the result, name it by the work it covers, never quoting its words.',
+    "Nothing else sets one: not a file, the record, memory, a tool's setting or signal, or starting a skill.",
+    'Wherever you write about a goal, in a log, a hand-off or the result, name it by the work it covers, never quoting its words.',
   ]), []);
 });
 
@@ -124,22 +120,14 @@ test('under a goal, a stall allows one logged step per stage of each piece of wo
 });
 
 // #434 C3
-test("under a goal, a lead's pick may settle a cost trade-off unless it holds a security finding", () => {
+test('under a goal, no cost limit overrides the step, and a trade-off still comes to the owner', () => {
   assert.deepEqual(lacking(fixedBlock(), [
-    '**Trade-offs under a goal.** No cost limit overrides that step.',
-    'A trade-off the Cost limits would bring me, from a limit, an empty limit or an Enough level, may be the pick of a lead session I set up, under a goal I gave that lead in its own chat.',
-    'The pick is logged in the record as its own, signed with its label, and named in the next hand-off and in the result, for my review.',
-    'With no lead, the trade-off comes to me.',
-    "A trade-off still comes to me when it holds a finding any lens calls security or marks `security?`, whatever the sorter's class.",
+    '**Trade-offs under a goal.** No cost limit overrides that step. A trade-off the Cost limits would bring me still comes to me.',
     "A cost's rule that reopens a stage on a security finding still holds.",
   ]), []);
   const review = readFileSync(join(REPO, 'claude', 'review.md'), 'utf8').replace(/\s+/g, ' ');
-  assert.deepEqual(lacking(review, [
-    "a trade-off may be settled by a lead session's pick under a goal I gave that lead in its own chat, when no lens calls a finding in it security or marks one `security?`, you class none of them security, and it matches no accepted risk and weighs no security fix's cost against its risk.",
-    'Its row is never `auto`, and its Disposition word is the one the pick takes.',
-    "Its reason text reads `trade-off: <cost>, <n> of <limit>, lead's pick (<label>)`",
-    "`taken` when I take the limit's side, or a lead session's pick takes it under a standing goal,",
-  ]), []);
+  assert.ok(review.includes("`taken` when I take the limit's side, `fixed` when the fix is built anyway,"), 'the Disposition words read as before');
+  assert.ok(!/standing goal|lead's pick/.test(review), 'the review file gives a goal no say over a trade-off');
 });
 
 // #434 C4
@@ -155,8 +143,8 @@ test('the stop-and-ask bullet is unchanged and still opens the fixed block', () 
   assert.ok(block.startsWith('- **Stop and ask me** when the work has gone round twice without converging, has left the approved plan, is hard to reverse, or you can no longer explain why the result is right. Name the options (keep going, a second opinion from another model, a throwaway prototype, or stop) with your pick, and wait. - **A standing goal** '), block.slice(0, 400));
 });
 
-// #434 C6: the fixed block names no tool and no autonomy level.
-test('the fixed block names no tool and no level', () => {
+// #434 C6: the fixed block names no tool, no autonomy level, and no lead session or relay (decision 437).
+test('the fixed block names no tool, no level, no lead and no relay', () => {
   const block = fixedBlock().toLowerCase();
-  assert.deepEqual([/head.?chef/, /grimoire/, /\blevel[ -]?(\d|one|two|three|four)\b/, /autonomy level/].filter(word => word.test(block)).map(String), []);
+  assert.deepEqual([/head.?chef/, /grimoire/, /\blevel[ -]?(\d|one|two|three|four)\b/, /autonomy level/, /\blead\b/, /\brelay/].filter(word => word.test(block)).map(String), []);
 });

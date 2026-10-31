@@ -648,18 +648,9 @@ file.
 - Within one piece of work, a finding I already took is not brought again; its
   row says "taken earlier", under the four conditions in Findings and their
   state.
-- Under a standing goal (the rules file's Guards), a trade-off may be settled
-  by a lead session's pick under a goal I gave that lead in its own chat,
-  when no lens calls a finding in it security or
-  marks one `security?`, you class none of them security, and it matches no
-  accepted risk and weighs no security fix's cost against its risk. Its row is
-  never `auto`, and its Disposition word is the one the pick takes. Its
-  reason text reads `trade-off: <cost>, <n> of <limit>, lead's pick (<label>)`,
-  leaving out `<n> of <limit>` for a cost with no count.
 
 **Disposition words.** A trade-off finding's row keeps the words below:
-`taken` when I take the limit's side, or a lead session's pick takes it
-under a standing goal, `fixed` when the fix is built anyway,
+`taken` when I take the limit's side, `fixed` when the fix is built anyway,
 `dismissed` when it is dropped. Its reason text starts `trade-off:` and names
 the cost. Add no word.
 
