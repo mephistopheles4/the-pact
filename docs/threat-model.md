@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, R57 and R60 to R63, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57, R60 to R63 and R69, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -214,7 +214,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47, R57 and R60 to R63
+  title Residual risk, R1 to R47, R57, R60 to R63 and R69
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -272,6 +272,7 @@ quadrantChart
   R61: [0.10, 0.15]
   R62: [0.08, 0.06]
   R63: [0.30, 0.50]
+  R69: [0.80, 0.12]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -287,9 +288,9 @@ How to read it:
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), agent files taken from a shared builder file (R32), and the install's backups on disk (R47) sit here. Their guards are mostly rules, so cutting one moves its risk right.
-- **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
-  is bounded: public reports, a blocked team, and a posted security row's
-  state word showing whether the item sits in published code.
+- **Watch (bottom right): R3, R7, R43, R69.** They happen by design, and the harm
+  is bounded: public reports, a blocked team, a posted security row's
+  state word showing whether the item sits in published code, and a step log showing when you were away.
 - **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61, R62, R63.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
@@ -366,6 +367,7 @@ How to read it:
 | R62 Unclosed openers slow the poster's page copy | A careless or fooled session, on its own post | The body's size bound; nothing is sent while it runs (ADR 0122) | Boundary |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on the text after the state word as written, on each normalised copy and on each copy folded (#392, #396, #394) | Rule |
 | R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat, and a removal through the cleaner is bounded by git's refusals and its keeps; the deny rules on raw removal commands are a speed bump, with only the classifier behind them (#438, ADR 0124) | Rule, boundary |
+| R69 A step log shows you were away | Anyone who reads the record, on a public tracker | The goal is named by its work, never quoted; post times already show when sessions ran; elsewhere, a private tracker (#434) | Rule |
 | R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
@@ -916,6 +918,7 @@ session can act before you see it.
   unprobed. Accepted 2026-10-31 by the owner, decision 314, relayed by the
   lead, from the Design round 2 review on #438: the findings on the deny
   rules' gaps and on the yes the cleaner can't attribute.
+- **R69. A step log shows you were away.** Under a standing goal (#434), each bounded step is logged in the record, and a goal not yet confirmed stays open in every hand-off. On a public tracker, anyone can read from them when you were away from the work. The goal's own words never go in, and every post already carries its time, so the extra signal is small; a private tracker removes it. Accepted because the log is what lets you review a step taken while you were away. Accepted 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick (the owner's words handed q18 to that pick), from #434's Test round 2, data-lens F1.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -972,7 +975,7 @@ session can act before you see it.
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
 
-  **Widened by #434.** A lead can relay a standing goal, which lets the sessions it leads take one bounded step at a stall, and, under a goal you gave that lead in its own chat, settle cost trade-offs that hold no security or `security?` finding by its own pick. A goal in a resume prompt allows no step until you confirm it in chat. What is accepted: a steered, confused or forged lead's relayed goal allows one logged step per stage of each piece of work before you confirm it, since the receiving session can't tell the goal is yours. What bounds it: the goal stays open in every hand-off until you confirm it in chat; the step is logged and left easy to back out; a second stall stops; a security trade-off, a held-back pair and an accepted-risk match still come to you. Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434), from #434's Test round 1, adversarial-lens F1 and F2 and data-lens F5.
+  **Widened by #434.** A lead can relay a standing goal, which lets the sessions it leads take one bounded step at a stall, and, under a goal you gave that lead in its own chat, settle cost trade-offs that hold no security or `security?` finding by its own pick. A goal in a resume prompt allows no step until you confirm it in chat, and a lead relays none until then. What is accepted: a steered, confused or forged lead's relayed goal allows one logged step per stage of each piece of work before you confirm it, since the receiving session can't tell the goal is yours; and such a lead can claim you gave it the goal in its own chat and settle a non-security trade-off by its own pick, logged and signed, since no other session can see that chat. What bounds it: the goal stays open in every hand-off until you confirm it in chat; the step is logged and left easy to back out; a second stall stops; a security trade-off, a held-back pair and an accepted-risk match still come to you. Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434), from #434's Test round 1, adversarial-lens F1 and F2 and data-lens F5; the forged pick added on 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick, from Test round 2, adversarial-lens F3.
 - **R25. A pact command sent as prompt text.** `/make-it-so`, `/finis` and
   `/scriptorium` set `disable-model-invocation: true`. That stops the model starting one,
   not text sent in as a prompt. The bodies add no check of their own, by the
@@ -994,7 +997,7 @@ session can act before you see it.
     not look at. Claude Code asks you before any archive, in every
     permission mode; that card is the guard against a relayed `/finis`.
 
-  What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, and a goal in a resume prompt counts as relayed and allows no step until you confirm it in chat, #434), and here
+  What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, and a goal in a resume prompt counts as relayed and allows no step until you confirm it in chat, nor does a lead relay one, #434), and here
   this repo's "Never post a secret or a personal detail" (one link from the loaded `AGENTS.md`, since #270). `/scriptorium`,
   sent in, writes a builder file and renders a page outside any repo; it
   merges, pushes and posts nothing. The cloud copy ships no command. A project's own skill with the same name runs in place of a
