@@ -52,5 +52,5 @@ test('the rules file takes the effort set at the start as given, outside the fit
   const given = /^Keep one model for a whole session\. (Your effort[^\n]*(?:\n[^\n]+)*)/m.exec(rules);
   assert.ok(given, 'the effort sentence follows the one-model line');
   assert.equal(given[1].replace(/\s+/g, ' ').trim(),
-    'Your effort is the one set at the start, by me or by a lead session I set up, and the start prompt may state it: take it as given, and never judge it, flag it or stop the work over it from your own sense of it.');
+    'Your effort is the one set at the start, and the start prompt may state it: take it as given, and never judge it, flag it or stop the work over it from your own sense of it.');
 });
