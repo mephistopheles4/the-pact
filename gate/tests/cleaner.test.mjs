@@ -6,9 +6,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { delimiter, join } from 'node:path';
+import { delimiter, isAbsolute, join, relative } from 'node:path';
 import { test } from 'node:test';
-import { clean, esc } from '../../claude/tools/cleaner.mjs';
+import { clean, esc, findGit } from '../../claude/tools/cleaner.mjs';
 import { tempDir } from './tree.mjs';
 
 const cp = String.fromCodePoint;
@@ -143,7 +143,9 @@ test('show names changed, untracked and ignored files, a lock, a gone folder and
   assert.match(busy, /^ {4}"```(?:<!--)?fence"$/m, r.out);
   assert.ok(r.lines.every(l => /^(?:worktree |RESULT: | {2}[a-z]| {4}(?:"|stash@|and \d))/.test(l)), 'every line starts with fixed words or an indent');
   assert.equal(block(r.out, '"a b"'), '  kept: a folder name the cleaner does not read\n', r.out);
-  assert.match(block(r.out, 'stashed'), /^ {2}stash entries made on it, kept: the cleaner never touches stashes:\n {4}stash@\{0\}$/m, r.out);
+  // Only the stash made on its own branch: busy-stash's entry belongs to neither block.
+  assert.match(block(r.out, 'stashed'), /^ {2}stash entries made on it, kept: the cleaner never touches stashes:\n {4}stash@\{0\}\n {2}tag /m, r.out);
+  assert.doesNotMatch(busy, /stash/, r.out);
   assert.match(block(r.out, 'locked'), /^ {2}locked, git will refuse$/m, r.out);
   assert.match(block(r.out, 'gone'), /^ {2}folder gone, only git's record goes$/m, r.out);
   assert.equal(esc(`a\r\n${cp(0x2066)}b\\${cp(0x2028)} c`), 'a\\u{d}\\u{a}\\u{2066}b\\\\\\u{2028} c');
@@ -170,6 +172,16 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
   assert.equal(rm.lines.at(-1), 'RESULT: removed 1 left 0 changed 0', rm.out);
   assert.ok(existsSync(used) && existsSync(here));
 
+  // The same, with both cwds reached through a link to the repository.
+  const via = join(tempDir(t, 'pact-cleaner-via-'), 'repo');
+  symlinkSync(f.root, via, process.platform === 'win32' ? 'junction' : 'dir');
+  const linked = f.add('linked');
+  writeFileSync(join(sessions, '4242.json'), JSON.stringify({ cwd: join(via, '.claude', 'worktrees', 'linked') }));
+  const lr = f.run(['show'], { cwd: join(via, '.claude', 'worktrees', 'here') });
+  assert.equal(block(lr.out, 'linked'), '  kept: in use\n', lr.out);
+  assert.equal(block(lr.out, 'here'), '  kept: in use\n', lr.out);
+  assert.ok(existsSync(linked));
+
   for (const [why, plant] of [
     ['no JSON', () => writeFileSync(join(sessions, 'bad.json'), '{"cwd": "BROKEN-SUBSTRING')],
     ['no string cwd', () => writeFileSync(join(sessions, 'bad.json'), '{"cwd": 5, "sessionId": "SESSIONID-88"}')],
@@ -182,6 +194,7 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
     const u = f.run(['show'], { cwd: here });
     assert.equal(u.code, 4, `${why}: ${u.out}`);
     assert.equal(u.lines.at(-1), 'RESULT: unavailable', why);
+    assert.equal(u.lines.at(-2), 'the cleaner is unavailable: the sessions check failed', why);
     assert.doesNotMatch(u.out, /BROKEN|SESSIONID|bad\.json|4242/, why);
   }
   rmSync(sessions, { force: true });
@@ -267,7 +280,9 @@ test('nothing outside the yes: changed facts and a worktree added after show are
   writeFileSync(join(ign, '.env'), 'x');
   rmSync(join(many, '25.env'));
   writeFileSync(join(many, '26.env'), 'x');
+  // On a copy branch too, so only the tag over the tip can catch it.
   f.git(moved, 'commit', '-q', '--allow-empty', '-m', 'new');
+  f.git(f.root, 'branch', 'moved-copy', 'moved');
   f.git(f.root, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/dev');
   f.add('late');
   const rm = f.run(['remove', '--yes', tags.join(',')]);
@@ -285,13 +300,13 @@ test('the default branch is kept while its worktree goes; a branch name outside 
   f.add('t', 'trunk');
   f.git(f.root, 'branch', 'odd+name');
   f.add('o', 'odd+name');
-  const side = f.add('side');
-  f.git(side, 'commit', '-q', '--allow-empty', '-m', 'side');
-  f.git(f.root, 'tag', 'trunk', 'side');
+  // A tag named trunk at a commit on no branch: a read of `trunk` rather than refs/heads/trunk would keep t.
+  const loose = f.git(f.root, 'commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'loose');
+  f.git(f.root, 'tag', 'trunk', loose);
   const r = f.run(['show']);
   const tip = f.git(f.root, 'rev-parse', '--short=7', 'refs/heads/trunk');
   assert.match(block(r.out, 't'), new RegExp(`^ {2}branch trunk at ${tip}\\n {2}branch kept: the default branch\\n {2}tag [0-9a-f]{10}\\n$`), r.out);
-  assert.equal(block(r.out, 'o'), '  kept: commits found nowhere else\n', r.out);
+  assert.equal(block(r.out, 'o'), '  kept: a branch name the cleaner does not read\n', r.out);
   const rm = f.run(['remove', '--yes', tagsOf(r.out).join(',')]);
   assert.equal(rm.code, 0, rm.out);
   assert.match(rm.out, /^worktree t: removed; branch trunk kept: the default branch$/m, rm.out);
@@ -310,8 +325,10 @@ test('every git call names git by an absolute path with the fixed flags and an e
   const d = f.add('d', '--detach');
   f.git(d, 'commit', '-q', '--allow-empty', '-m', 'x');
   const rec = recording();
-  const tags = tagsOf(f.run(['show'], { spawn: rec.spawn }).out);
-  assert.equal(f.run(['remove', '--yes', tags.join(',')], { spawn: rec.spawn }).code, 0);
+  // The four variables that point git elsewhere, in any case, reach the cleaner and must not reach git.
+  const env = { ...f.env, GIT_DIR: join(f.home, 'x'), git_work_tree: f.home, Git_Index_File: join(f.home, 'i'), GIT_COMMON_DIR: f.home };
+  const tags = tagsOf(f.run(['show'], { spawn: rec.spawn, env }).out);
+  assert.equal(f.run(['remove', '--yes', tags.join(',')], { spawn: rec.spawn, env }).code, 0);
   const files = new Set(rec.calls.map(c => c.file));
   assert.equal(files.size, 1);
   assert.match([...files][0], /^(?:[A-Za-z]:\\|\/)/);
@@ -357,6 +374,14 @@ test('a hook planted through core.hooksPath does not run, and a git in --repo, t
   const r = f.run(['remove', '--repo', f.root, '--yes', tags.join(',')], { env });
   assert.equal(r.code, 0, r.out);
   assert.ok(!existsSync(mark), 'neither the hook nor a stub ran');
+  // A relative PATH entry is skipped even where it resolves, from this process's folder, to a planted git.
+  const stubs = tempDir(t, 'pact-cleaner-stubs-');
+  for (const n of ['git', 'git.exe']) writeFileSync(join(stubs, n), stub);
+  const rel = relative(process.cwd(), stubs);
+  if (!isAbsolute(rel)) {
+    const found = findGit({ PATH: `${rel}${delimiter}${env.PATH}` });
+    assert.ok(found && isAbsolute(found) && !found.startsWith(stubs), found);
+  }
 });
 
 // #438 C11
@@ -371,6 +396,19 @@ test('a folder still there after git said it removed it: the branch is not tried
   assert.match(r.out, /^worktree stuck: left\n {2}the folder stays: remove it by hand\n {2}it holds a link: remove the link first\n {2}the branch stays: stuck$/m, r.out);
   assert.ok(!rec.calls.some(c => c.args.includes('branch')), 'the branch is not tried');
   assert.equal(r.lines.at(-1), 'RESULT: removed 0 left 1 changed 0');
+
+  // A file planted in the run's hooks folder before the removal call leaves the worktree untouched.
+  const g = makeRepo(t);
+  g.add('h');
+  const plant = recording((file, args) => {
+    const hooksArg = args.find(a => a.startsWith('core.hooksPath='));
+    if (args.includes('status')) writeFileSync(join(hooksArg.slice('core.hooksPath='.length), 'post-checkout'), 'x');
+    return null;
+  });
+  const hr = g.run(['remove', '--yes', tagsOf(g.run(['show']).out).join(',')], { spawn: plant.spawn });
+  assert.match(hr.out, /^worktree h: left, the run's hooks folder changed$/m, hr.out);
+  assert.ok(!plant.calls.some(c => c.args.includes('remove')), 'no removal call');
+  assert.ok(existsSync(g.wt('h')));
 });
 
 // #438 C12
@@ -388,6 +426,9 @@ test('a usage fault refuses with nothing run; no git, or one older than 2.36, is
   const old = f.run(['show'], { spawn: recording(() => ({ status: 0, stdout: 'git version 2.35.9\n', stderr: '' })).spawn });
   assert.equal(old.code, 4, old.out);
   assert.match(old.out, /older than 2\.36/);
+  // The floor itself runs.
+  const floor = f.run(['show'], { spawn: recording((file, args) => (args.at(-1) === 'version' ? { status: 0, stdout: 'git version 2.36.0\n', stderr: '' } : null)).spawn });
+  assert.equal(floor.code, 0, floor.out);
   // A run folder that can't be deleted at the end keeps the result line and prints no path.
   const held = f.run(['show'], { rm: () => { throw Object.assign(new Error(`EBUSY: ${f.home}`), { code: 'EBUSY' }); } });
   assert.equal(held.code, 0, held.out);

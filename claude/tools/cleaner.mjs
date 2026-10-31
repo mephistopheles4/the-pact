@@ -80,11 +80,20 @@ export function parseArgs(argv) {
 // ---------------------------------------------------------------- output
 
 const cp = String.fromCodePoint;
-const ESCAPED_RE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Zs}\\]/gu;
+const ESCAPED_RE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Zs}\\"]/gu;
 
-/** A name as printed: a backslash doubled, and every control, separator, format or direction character but the space as \u{hex}. */
-export function esc(s) {
-  return s.replace(ESCAPED_RE, ch => (ch === ' ' ? ' ' : ch === '\\' ? '\\\\' : `\\u{${ch.codePointAt(0).toString(16)}}`));
+/**
+ * A name as printed, in one pass: a backslash doubled, a quote escaped when
+ * the name goes in quotes, and every control, separator, format or
+ * direction character but the space as \u{hex}.
+ */
+export function esc(s, inQuotes = false) {
+  return s.replace(ESCAPED_RE, ch => {
+    if (ch === ' ') return ' ';
+    if (ch === '\\') return '\\\\';
+    if (ch === '"') return inQuotes ? '\\"' : '"';
+    return `\\u{${ch.codePointAt(0).toString(16)}}`;
+  });
 }
 
 // The bidi controls, held as code points so this file carries none itself.
@@ -169,6 +178,14 @@ export function parseStatus(out) {
 // ---------------------------------------------------------------- the reads
 
 const fold = (p, platform) => (platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
+/** A path's real path, so one reached through a link compares equal; the path as given when it doesn't exist. */
+const real = p => {
+  try {
+    return realpathSync.native(p);
+  } catch {
+    return resolve(p);
+  }
+};
 const within = (inner, outer, platform) => {
   const a = fold(inner, platform);
   const b = fold(outer, platform);
@@ -247,7 +264,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
   const main = realpathSync.native(records[0].worktree);
   if (isLink(join(main, '.claude'), platform) || isLink(join(main, '.claude', 'worktrees'), platform)) throw new Unavailable('the worktrees folder or its parent is a link');
   const container = join(main, '.claude', 'worktrees');
-  const used = [...sessionCwds(home), cwd];
+  const used = [...sessionCwds(home), cwd].map(real);
   const origin = read(git, main, ['for-each-ref', '--format=%(symref)', 'refs/remotes/origin/HEAD']).trim();
   const defaults = origin.startsWith('refs/remotes/origin/') ? [origin.slice('refs/remotes/origin/'.length)] : ['main', 'master'];
   const stashes = read(git, main, ['stash', 'list', '-z', '--format=%gd%x1f%gs']).split('\0').filter(Boolean).map(s => s.split('\x1f'));
@@ -261,7 +278,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
     const branch = typeof rec.branch === 'string' && rec.branch.startsWith('refs/heads/') ? rec.branch.slice('refs/heads/'.length) : null;
     const item = { name, path, branch, tip: rec.HEAD ?? '', keep: null };
     items.push(item);
-    if (used.some(c => within(c, path, platform))) {
+    if (used.some(c => within(c, real(path), platform))) {
       item.keep = 'in use';
       continue;
     }
@@ -274,9 +291,14 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
       item.keep = 'the folder is a link';
       continue;
     }
+    // A branch name outside the rule can't go in --exclude, so its commits go unread and the worktree stays.
+    if (branch !== null && !BRANCH_RE.test(branch)) {
+      item.keep = 'a branch name the cleaner does not read';
+      continue;
+    }
     const nowhere = branch === null
       ? read(git, main, ['rev-list', '--not', '--remotes', '--branches', '--not', '--end-of-options', item.tip])
-      : BRANCH_RE.test(branch) ? read(git, main, ['rev-list', '--not', '--remotes', `--exclude=${branch}`, '--branches', '--not', '--end-of-options', `refs/heads/${branch}`]) : 'unread';
+      : read(git, main, ['rev-list', '--not', '--remotes', `--exclude=${branch}`, '--branches', '--not', '--end-of-options', `refs/heads/${branch}`]);
     if (nowhere.trim()) {
       item.keep = 'commits found nowhere else';
       continue;
@@ -305,7 +327,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
 const short = tip => (/^[0-9a-f]{7,}$/.test(tip) ? tip.slice(0, 7) : 'unknown');
 
 /** A name in quotes, a quote inside it escaped, so it can't pass for the cleaner's own words. */
-const quoted = s => `"${esc(s).replace(/"/g, '\\"')}"`;
+const quoted = s => `"${esc(s, true)}"`;
 /** A worktree folder name: as it is when it fits the --worktree set, else quoted. */
 const folderName = s => (NAME_RE.test(s) ? s : quoted(s));
 

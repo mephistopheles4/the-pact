@@ -149,8 +149,11 @@ test('the cleaner on adds its deny rules beside the owner\'s and records them; o
   assert.equal(record().cleanerDeny, undefined);
 
   // A malformed record refuses; an install that never turned the cleaner on removes nothing.
-  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...record(), cleanerDeny: 'Bash(x)' }, null, 2)}\n`);
-  refused(install(repo, h), /^REFUSED: the install record's cleanerDeny is not a list of rule strings/m);
+  const good = record();
+  for (const bad of ['Bash(x)', ['Bash(x)', 5]]) {
+    writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...good, cleanerDeny: bad }, null, 2)}\n`);
+    refused(install(repo, h), /^REFUSED: the install record's cleanerDeny is not a list of rule strings/m);
+  }
   const fresh = homeWith(t, []);
   writeFileSync(join(fresh, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...CLEANER_DENY] } })}\n`);
   installed(repo, fresh);

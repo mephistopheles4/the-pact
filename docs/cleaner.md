@@ -42,8 +42,9 @@ name-back, and to run `remove` only after your own yes to it in chat.
   runs on), or the cleaner's own cwd. A Windows run doesn't see WSL sessions,
   or the other way.
 - **Commits found nowhere else:** a worktree whose branch, or detached HEAD,
-  has commits on no other branch and no remote. A branch name outside
-  letters, digits and `. _ / -` is counted as having such commits.
+  has commits on no other branch and no remote.
+- **A branch name outside** letters, digits and `. _ / -`: the cleaner can't
+  read its commits safely, so it keeps the worktree and the branch.
 - **A folder that is a link, or a folder name outside** letters, digits, `.`,
   `_` and `-`: it would be read through the link, or its name could pass for
   the cleaner's own words.
@@ -101,7 +102,10 @@ child process, so the cleaner itself is not denied.
   link", remove the link first, so nothing outside the worktree is deleted
   through it.
 - **"the branch stays"**: git refused `branch -d`, usually because the branch
-  is not merged into HEAD. Check it yourself before deleting it.
+  is not merged into HEAD. This happens to a branch whose commits are on
+  another branch or a remote but not merged: the name-back offers its
+  worktree, the folder goes, and the branch stays with no worktree, where
+  the cleaner no longer sees it. Check it yourself and delete it by hand.
 - **Exit 4 from the sessions check**: a file in `~/.claude/sessions/` did not
   read as JSON with a string `cwd`, or the folder could not be listed. Look at
   the files yourself. A stale status file keeps its worktree until you remove
