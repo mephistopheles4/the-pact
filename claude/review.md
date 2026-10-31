@@ -399,8 +399,8 @@ round at a glance and the data stays as it is. In this order:
 11. **Notes.** A table of where, lens, severity and headline for each `noted`
     finding, with the notes the Follow-up issues cost overflows into. An
     overflow note's row keeps its own Disposition word, with "issues
-    overflow" in its reason text; only an `unchanged` or a low finding is
-    `noted`.
+    overflow" or "no trigger" in its reason text; only an `unchanged` or a
+    low finding is `noted`.
     Leave it out when there are none.
 12. **Earlier findings,** per lens on a follow-up: each `E` number with
     `absent` or the finding that continues it.

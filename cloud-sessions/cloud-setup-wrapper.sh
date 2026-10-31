@@ -799,7 +799,7 @@ whatever its "At the limit" says.
 | --- | --- | --- | --- |
 | Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
 | Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |
-| Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |
+| Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |
 | Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |
 
 ## Guards
@@ -2678,8 +2678,8 @@ round at a glance and the data stays as it is. In this order:
 11. **Notes.** A table of where, lens, severity and headline for each `noted`
     finding, with the notes the Follow-up issues cost overflows into. An
     overflow note's row keeps its own Disposition word, with "issues
-    overflow" in its reason text; only an `unchanged` or a low finding is
-    `noted`.
+    overflow" or "no trigger" in its reason text; only an `unchanged` or a
+    low finding is `noted`.
     Leave it out when there are none.
 12. **Earlier findings,** per lens on a follow-up: each `E` number with
     `absent` or the finding that continues it.
@@ -3120,7 +3120,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash e7cb67b08cb5d9ea423fcc9362339da3c93b45caf6ae9ecfd6cc1239d8ef3452 'CLAUDE.md'
+check_hash 64100f712d8daa6a3dc0c6bfb1fa89db3c3db63a45d1fad4ec8bb1ebf4c41a54 'CLAUDE.md'
 check_hash 25faf2b5850fbf4ef07f6c9209cf471d709bde46d21364d414e0a0bfe4939381 'agents/adversarial-lens.md'
 check_hash 031df11745d922e27898c1d901d1ad71c62d9307f36c0df7fc62beb0d50b7b09 'agents/behaviour-lens.md'
 check_hash afbeabe636e3020f73b20559e809aed4138419a67f521ac3fa73723860cf81d4 'agents/conventions-lens.md'
@@ -3130,7 +3130,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash f85ddfc3dacef7c0379be5d9a5ce6cb57cae63f06b28dc65750707e522f56088 'pact/review.md'
+check_hash 6d4f73dc41c25dbcd0085fbc38e09bf598f17b2df815af555b5fa1228b4f0d00 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3160,7 +3160,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 05c47736211b"
+  echo "pact cloud copy b8c177015d13"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

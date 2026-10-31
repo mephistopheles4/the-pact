@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Ar215gtUJetBHF7HRLBptjy2gGKIwHxFpAEPy+xiz5c='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wAfb7O65JTCTkpR9LlRFgK43SRpzU84C67+agE9prfQ='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -524,7 +524,7 @@ const PACT = /* pact-data:begin */ {
    "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
    "lenses": "| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place? |\n| `executability-lens`, `unstated-lens` (the spec pair) | Would the spec, built as written, run end to end? What need did nobody write down? |\n| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |\n| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |",
    "qualities": "| Quality | Measure | Lens | Enough |\n| --- | --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens`, `integrity-lens`, `unstated-lens` | Tests added · Follow-up issues |\n| Performance efficiency | a budget: time, memory, size | `behaviour-lens` | |\n| Reliability | a failure, and the recovery accepted | `behaviour-lens` | |\n| Compatibility | named interfaces that stay stable: formats, flags, config keys, APIs | `conventions-lens` | |\n| Interaction capability | a task a new user completes | `reader-lens`, `behaviour-lens` | |\n| Security | an ASVS 5.0 level or chapters | `adversarial-lens`, `data-lens` | Hardening · Follow-up issues |\n| Maintainability | the repo's written rules | `conventions-lens`, `reader-lens` | |\n| Flexibility | the environments it must install and run on | `executability-lens`, `behaviour-lens` | |\n| Safety | the risky actions, the warning, the safe state on failure | `executability-lens` | |",
-   "cost-limits": "| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |\n| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |\n| Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |\n| Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |"
+   "cost-limits": "| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |\n| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |\n| Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |\n| Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |"
   },
   "defaults": {
    "moves": [
@@ -883,7 +883,7 @@ const PACT = /* pact-data:begin */ {
     },
     {
      "cost": "Follow-up issues",
-     "counted": "Issues filed from one review",
+     "counted": "Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit",
      "limit": "2",
      "atLimit": "The rest listed as notes in the review's record; I pick which to file"
     },
@@ -2740,7 +2740,7 @@ const PACT = /* pact-data:begin */ {
      },
      {
       "cost": "Follow-up issues",
-      "counted": "Issues filed from one review",
+      "counted": "Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit",
       "limit": "2",
       "atLimit": "The rest listed as notes in the review's record; I pick which to file"
      }
@@ -2885,7 +2885,7 @@ const DEFAULT_PARTS = Object.freeze({
   costLimits: [
     { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
     { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
-    { cost: 'Follow-up issues', counted: 'Issues filed from one review', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
+    { cost: 'Follow-up issues', counted: 'Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
     { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' },
   ],
 });
