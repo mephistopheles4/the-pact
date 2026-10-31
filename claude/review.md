@@ -636,7 +636,9 @@ change and named in the same notice.
    finding it came from, and the short label of the session that recorded it;
 3. name it to me at the next hand-off and in the record, in one line, with the
    class of path, the fix's cost and the risk it leaves, never the steps; it
-   asks nothing.
+   asks nothing. The ask for a merge lists each accepted-risk entry the merge
+   lands, and an entry for a security finding takes effect only through a
+   merge I confirm in chat.
 
 A Hardening candidate goes through the same steps.
 

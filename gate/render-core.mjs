@@ -411,7 +411,9 @@ whatever its "At the limit" says.
   recorded it. A Hardening candidate is recorded the same way. Name each
   entry you write to me at the next hand-off and in the record, in one line,
   with the class of path, the fix's cost and the risk it leaves, never the
-  steps; it asks nothing.
+  steps; it asks nothing. The ask for a merge lists each accepted-risk entry
+  the merge lands, and an entry for a security finding takes effect only
+  through a merge I confirm in chat.
   A finding that matches an entry is still reported, as one line marked
   accepted by the threat model, naming the entry and where it is recorded and
   keeping the severity and likelihood the finding would have had; it is not
