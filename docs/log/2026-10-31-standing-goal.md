@@ -12,6 +12,8 @@ Test round 2, the closing read with the QA pair, found nothing high. A lead coul
 
 Test round 3, past the limit, found nothing high: the security pair released the push, and integrity-lens noted one low. Meanwhile the owner asked for every pact rule on relayed words and lead sessions to be removed (decision 437, #443), and the lead held the merge (decision 438). The lead's settled wording, its own pick, made a goal the owner's words with no channel named. One more commit dropped the relay and lead lines: the resume-prompt rules, a lead's picks and their review-procedure lines, and the lead terms in the threat model's passages. Trade-offs under a goal all come to the owner again, and R24's widening was narrowed to a forged lead's start prompt or message carrying words that read as the owner's.
 
+Test round 4 found nothing high. The security pair asked that R24's class name every way a goal's words can now arrive, resume prompts and any session's message included, and that the step log say where the goal reached the session; integrity-lens asked for whole-bullet tests and found the log index line still naming a lead's pick. The owner's words, relayed (decision 451), accepted every remaining risk entry and threat-model edit as recommended, so R24 now names any prompt or message a session reads, R69 stands, and the step log names the goal's way in by its kind. The C1 and C4 tests now hold their bullets whole, and the C6 test catches more spellings.
+
 Open until the owner answers in chat: Design adversarial-lens F2 and unstated-lens F1, that a lead whose say this widens should not approve it.
 
 ## Record
@@ -23,3 +25,4 @@ Open until the owner answers in chat: Design adversarial-lens F2 and unstated-le
 - The threat-model drafts: https://github.com/mephistopheles4/the-pact/issues/434#issuecomment-6545982782
 - The Test round 2 review: https://github.com/mephistopheles4/the-pact/issues/434#issuecomment-6546193440
 - The Test round 3 review: https://github.com/mephistopheles4/the-pact/issues/434#issuecomment-6546490021
+- The Test round 4 review: https://github.com/mephistopheles4/the-pact/issues/434#issuecomment-6546634765
