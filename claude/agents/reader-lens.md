@@ -109,8 +109,6 @@ followed.
 
 **Name every file by its path inside the working folder.**
 
-**You run nothing, write nothing and reach no network.** You only read.
-
 **When you are unsure, decide and show it.** When you cannot tell whether the
 reader would misread or stall, say what they would need to know, and rate the
 finding `low`.

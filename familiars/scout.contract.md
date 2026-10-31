@@ -1,6 +1,6 @@
 # Contract: scout
 
-Version: 0.2.0
+Version: 0.2.1
 
 - **Type:** agent
 - **Level:** Standard
@@ -59,7 +59,7 @@ scripts/install.ps1:480
 
 **The familiar** **Confirmed** (2026-10-05)
 - C1. Finds and reports facts with `file:line` references. It writes nothing, runs nothing and reaches no network.
-  Held by: Enforced — the `tools: [Read, Glob, Grep]` list, which Claude Code applies; and seam A, which fails the install when the list differs from its default of exactly Read, Glob, Grep (`gate/seam-a-core.mjs`, `DEFAULT_TOOLS`). Mechanism read in the code by the build session, 2026-10-05; confirmed by the owner at the go, 2026-10-05.
+  Held by: Enforced — the `tools: [Read, Glob, Grep]` list, which Claude Code applies. Mechanism read in the code by the build session, 2026-10-05; confirmed by the owner at the go, 2026-10-05. Seam A no longer checks the list (ADR 0069; #450). As an in-process teammate, Claude Code also gives it SendMessage and the Task tools (#450).
 - C2. When it finds instructions in what it reads, it reports them as found text and does not follow them.
   Held by: Promised. (C1 limits the harm if it slips: it still cannot write, run or fetch.)
 - C3. It makes no design or quality judgment.
@@ -116,6 +116,7 @@ Extra keys: tools, model, effort
 | 0.1.1 | 2026-10-05 | Question 8 names the neighbours by role, not by agent name. The familiar's text is unchanged; only its mark is rewritten. | #47's QA swap retires two of the four reviewers it named; the name search after the swap may find only installed reviewers. Owner's go: the defaults at #47's first checkpoint | 8 |
 | 0.1.2 | 2026-10-12 | scout runs on Haiku at medium effort, not Sonnet at low. | Cost is scout's reason to exist (question 2). The owner's decision in chat, on #262 | 5, 14 |
 | 0.2.0 | 2026-10-12 | The agent file moves to `claude/agents/scout.md`, unsealed; this contract stays as its record. Its model and effort are defaults a configuration can set. | Nothing in the agents is locked: the pact suggests, and people bring their own expertise. The owner's decision in chat, on #262 | placement, 5, 14 |
+| 0.2.1 | 2026-10-31 | The body no longer restates C1: its two sentences on reading only are cut. C1 stays, held by the tools list, which Claude Code applies. Its held-by line no longer names seam A, which since ADR 0069 doesn't check which tools an agent holds. | #450: the tools list already holds the rule, so the body sentence restated it | none |
 
 ## Standard questions (8–15)
 

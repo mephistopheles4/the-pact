@@ -22,6 +22,7 @@ effort, and what never goes in. For what the pact is and why, read the
 | `athanor.json` | The repo's [athanor](https://github.com/mephistopheles4/athanor) configuration: the Linux run's image, and `full` and `fast` as its commands, for a local, offline run of the gate's tests (ADR 0096) | Never installed |
 | `cloud-sessions/` | The setup script for Claude Code cloud sessions, and the files that generate it | Run in a cloud environment's setup field |
 | `evals/` | The eval generator, a tool the owner runs on request (ADR 0119): `gen.mjs` writes each case in `cases/` with the pact's rules text as the appended system prompt and without, prints the `claude plugin eval` commands, and `check`s a first run; its README gives the limits | Never installed |
+| `docs/rule-reasons.md` | Why each rule is in the rules file: one row per rule, naming the gap no other guardrail covers. `gate/tests/rule-budget.test.mjs` holds it to the rules file one to one, and holds the rules file and each agent to a word budget (#450, ADR 0129) | Never installed |
 | `docs/img/` | The README's figures, and `build.mjs`, which renders them from their sources in `docs/img/src/` | Never installed |
 
 ## Pact commands

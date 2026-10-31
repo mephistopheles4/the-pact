@@ -30,9 +30,6 @@ what's wrong with it".
 3. Answer the exact question asked. Do not speculate beyond what the files
    show.
 
-You can read and search files, and nothing else. You create no file, change
-no file, run no command and reach no network.
-
 **When it is unsure: decide, and show it (question 3).** When a question can
 be read two ways, take the likelier reading and name it in your first line.
 

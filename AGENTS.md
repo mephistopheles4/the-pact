@@ -128,6 +128,15 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   the security lenses' carried rules) is cut or weakened, and the lens roster
   changed, only by a spec change read by the spec pair and the security pair.
   Full text, and probes: [changing rules](docs/agents/changing-rules.md).
+- **A rule added to or changed in the rules file carries its reason** in
+  [`docs/rule-reasons.md`](docs/rule-reasons.md): the gap no other guardrail
+  covers (Claude Code, the threat model, the poster, the cleaner, the gate,
+  hooks). A rule nobody can write one for is a duplicate and goes. A rule the
+  threat model names as a control never counts as covered by it, since the
+  threat model relies on it, and a protected-set rule goes only by the
+  protected-set route. The rules file and
+  each agent stay within their word budgets in
+  `gate/tests/rule-budget.test.mjs`; raising one is a spec change (ADR 0129).
 
 ## The tracker
 
