@@ -89,8 +89,10 @@ these. Its block gives the reason and lists the names (20, then a count):
 - **A work tree set in its config**, a `core.worktree` key of `local` or
   `worktree` scope, which would point the cleaner's reads at another folder:
   "its config points git at another folder". **A `.git` file that doesn't
-  name its own folder** under `<main>/.git/worktrees/`, read with no git run:
-  "its .git file names another git folder".
+  name its own folder** under `<main>/.git/worktrees/`, or whose folder's
+  `gitdir` doesn't name it back or whose `commondir` doesn't name the main
+  repository's `.git`, read with no git run and only from small regular
+  files: "its .git file names another git folder".
 - **A read that fails** for that worktree, or a record git calls prunable
   over a folder still there: "a read failed, so it is kept". The rest of the
   run goes on.

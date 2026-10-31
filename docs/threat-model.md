@@ -783,10 +783,12 @@ session can act before you see it.
   with no permission prompt and out of the classifier's sight, so a rewritten
   cleaner runs on your typed act. The mod checks only that the file is a
   regular file where it is named, and shows only output lines in the
-  cleaner's own shape. Accepted 2026-10-31 by the owner, decision 451,
-  relayed by the lead and confirmed by the owner in the build session's own
-  chat, from the Test round 1 review on #446: the findings on the mod's
-  unprompted run of the tool file.
+  cleaner's own shape. Accepted 2026-10-31 on the owner's standing word, decision 451, relayed by the lead, to settle
+  484's accepted-risk candidates and open security rows as recommended, in
+  their words "I almost never override a recommendation so let's not fool
+  ourselves and skip the decision fatigue", and confirmed by the owner in
+  the build session's own chat, from the Test round 1
+  review on #446: the findings on the mod's unprompted run of the tool file.
   The install's backups in `~/.claude/pact/backups/` are such a place too.
   Their manifest hashes catch a damaged copy, which the undo steps check, but
   not a planted one. A fooled session that writes a backup's files and its
@@ -943,10 +945,15 @@ session can act before you see it.
   sentences bind only the mod's run, and the cleaner's output, names
   included, is shown in chat, with the record left to a rule. Fifth, the
   lead's card status chooses which cards `/brigade done all` covers.
-  Accepted 2026-10-31 by the owner, decision 451, relayed by the lead and
-  confirmed by the owner in the build session's own chat, from the Test
-  round 1 review on #446: the findings on the typed yes, the keeps' limits,
-  the race before removal and the fetch without the flag.
+  Accepted 2026-10-31 on the owner's standing word, decision 451, relayed by the lead, to settle
+  484's accepted-risk candidates and open security rows as recommended, in
+  their words "I almost never override a recommendation so let's not fool
+  ourselves and skip the decision fatigue", and confirmed by the owner in
+  the build session's own chat, from grimoire 484's spec (S2.10's
+  accepted-risk candidates, the pruned remote branch among them) and the
+  Test rounds 1 and 2 reviews on #446: the findings on the typed yes, the
+  keeps' limits (forged stat data and `core.ignoreCase` from round 2), the
+  race before removal and the fetch without the flag.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -1464,15 +1471,20 @@ data. [cleaner.md](cleaner.md) has the detail.
   never one that is remote: two leading separators (a device prefix before a
   drive letter counts as local), `/net` on macOS, or a path that reaches
   either through a link. A linked worktree folder is kept before anything
-  resolves it. It never reads the contents of a worktree's files. With
-  `--recoverable` it also reads each worktree's config key names, never
-  their values, and its index's entries, and keeps nothing of either but the
-  names it lists: an index path, escaped and in quotes.
+  resolves it. It never reads the contents of a worktree's files but, with
+  `--recoverable`, its `.git` pointer file. With the flag it also reads, with
+  no git run, the `gitdir` and `commondir` files in that worktree's folder
+  under `<main>/.git/worktrees/`, each a regular file of at most 4096 bytes,
+  compares them, and shows none of them; and it reads each worktree's config
+  key names, never their values, and its index's entries, and keeps nothing
+  of either but the names it lists: an index path, escaped and in quotes.
 - **`--recoverable`** (#446) keeps what removal could lose or a session's
   config could run: changed, untracked or ignored files and links; a
-  `filter.`, `lfs.` or `hook.` key of local or worktree scope, read before any
-  `status`; a submodule it can't see into; hidden edits; and a read that
-  fails. The worktree's config, index, attributes and folder layout are
+  `filter.`, `lfs.`, `hook.` or `core.worktree` key of local or worktree
+  scope, the main worktree's included, read before any `status`; a `.git`
+  pointer, `gitdir` or `commondir` that doesn't name the worktree's own
+  folder and the main repository, or names a remote path; a submodule it
+  can't see into; hidden edits; and a read that fails. The worktree's config, index, attributes and folder layout are
   input a session controls, and these keeps are what bound them; R63 names
   what they don't see.
 - **Output.** Fixed words and escaped relative names, file names in quotes

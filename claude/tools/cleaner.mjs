@@ -327,6 +327,7 @@ const LOCAL_PROGRAM = /^(?:local|worktree)\t(?:filter|lfs|hook)\./i;
 const LOCAL_WORKTREE = /^(?:local|worktree)\tcore\.worktree$/i;
 const ELSEWHERE = 'its config points git at another folder';
 const POINTER = 'its .git file names another git folder';
+const POINTER_MAX = 4096;
 const FILTER = 'a filter program could run';
 const HIDES = 'hides edits from git';
 const IGNORED = 'holds ignored files, which are not in git';
@@ -351,13 +352,24 @@ export function configKeep(git, dir) {
  * it is pointed at another repository or a remote path. Read with no git run.
  */
 function pointsHome(main, path, platform) {
+  // A pointer file is one short line: a regular file, not a link, read only when small.
+  const small = p => {
+    const st = lstatSync(p);
+    return st.isFile() && st.size <= POINTER_MAX ? readFileSync(p, 'utf8') : null;
+  };
   const dotGit = join(path, '.git');
-  if (!lstatSync(dotGit).isFile()) return false;
-  const m = /^gitdir: (.+?)\r?\n?$/.exec(readFileSync(dotGit, 'utf8'));
+  const line = small(dotGit);
+  const m = line === null ? null : /^gitdir: (.+?)\r?\n?$/.exec(line);
   if (!m) return false;
   const admin = resolve(path, m[1]);
-  if (remote(admin, platform) || fold(dirname(admin), platform) !== fold(join(main, '.git', 'worktrees'), platform)) return false;
-  return fold(resolve(readFileSync(join(admin, 'gitdir'), 'utf8').trim()), platform) === fold(dotGit, platform);
+  if (remote(admin, platform) || fold(dirname(admin), platform) !== fold(join(main, '.git', 'worktrees'), platform) || isLink(admin, platform)) return false;
+  // git keeps both paths relative to the admin folder when they are relative.
+  const back = small(join(admin, 'gitdir'));
+  const common = small(join(admin, 'commondir'));
+  if (back === null || common === null) return false;
+  const commonDir = resolve(admin, common.trim());
+  if (remote(commonDir, platform) || fold(commonDir, platform) !== fold(join(main, '.git'), platform)) return false;
+  return fold(resolve(admin, back.trim()), platform) === fold(dotGit, platform);
 }
 
 /** Whether any part of `rel` under `root` is a link, the installer's way, walked from the root, never statting through one. */

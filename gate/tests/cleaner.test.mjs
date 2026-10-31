@@ -724,6 +724,15 @@ test('--recoverable also keeps on a local lfs. or hook. key, the main worktree\'
   assert.match(block(pr.out, 'pointed'), kept('its .git file names another git folder'), pr.out);
   assert.ok(!prec.calls.some(c => dirOf(c) === pw), 'no git call inside it');
   for (const c of prec.calls) for (const pin of ['core.checkStat=default', 'core.trustctime=true']) assert.ok(c.args.includes(pin), pin);
+  // The admin folder's commondir must name the main repository's git folder too (extra read, adversarial-lens F1).
+  const cd = makeRepo(t);
+  const cdw = cd.add('common');
+  const admin = join(cd.root, '.git', 'worktrees', 'common');
+  writeFileSync(join(admin, 'commondir'), `${makeRepo(t).root.replace(/\\/g, '/')}/.git\n`);
+  const crec = recorded();
+  const cmr = cd.run(['show', '--recoverable'], { spawn: crec.spawn });
+  assert.match(block(cmr.out, 'common'), kept('its .git file names another git folder'), cmr.out);
+  assert.ok(!crec.calls.some(c => dirOf(c) === cdw), 'no git call inside it');
 
   // A gitlink path that could climb out of the worktree is never joined (Test round 2, data-lens F3).
   const climb = makeRepo(t);
