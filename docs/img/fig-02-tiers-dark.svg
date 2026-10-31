@@ -36,8 +36,8 @@
 <rect x="44" y="338" width="712" height="185" fill="#1a1614" stroke="#d98a3c" stroke-width="2"/>
 <rect x="54" y="335" width="320.55" height="6" fill="#1a1614"/>
 <text x="60" y="342" font-size="11" font-weight="600" letter-spacing="1.76" fill="#d98a3c">SENSITIVE WORK · WHEN I CHOOSE IT</text>
-<text x="60" y="375.4" font-size="14" fill="#ece5df">By default, sensitive work is auth, secrets, crypto, input validation</text>
-<text x="60" y="396.4" font-size="14" fill="#ece5df">and data migrations. The sensitive route: thorough, planned and built</text>
+<text x="60" y="375.4" font-size="14" fill="#ece5df">By default, sensitive work is auth, crypto, input validation and data</text>
+<text x="60" y="396.4" font-size="14" fill="#ece5df">migrations. The sensitive route: thorough, planned and built</text>
 <text x="60" y="417.4" font-size="14" fill="#ece5df">on Opus at high, with the security pair on the spec and the diff.</text>
 <text x="60" y="443.55" font-size="13" fill="#ece5df" fill-opacity="0.8">The agent recommends the route, with its why, in its tier proposal,</text>
 <text x="60" y="463.55" font-size="13" fill="#ece5df" fill-opacity="0.8">and I take it or not. If I don't, the security pair is offered once</text>

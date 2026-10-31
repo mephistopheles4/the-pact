@@ -48,11 +48,11 @@ const asBody = text => () => ({ 'body.md': text });
  * exit 1 and "RESULT: fail"; the poster refuses with exit 2, which
  * `refusedQuietly` asserts on `real`.
  */
-function runBody(tree, t) {
+function runBody(tree, t, env = {}) {
   const dir = tempDir(t, 'pact-poster-table-');
   writeTree(dir, tree);
   const calls = [];
-  const r = post(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', '--dry-run'], { gh: (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' }), env: {}, ...MACHINE });
+  const r = post(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', '--dry-run'], { gh: (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' }), env, ...MACHINE });
   const lastLine = r.lines.at(-1) ?? '';
   return {
     code: r.code === 2 ? 1 : r.code,
@@ -170,9 +170,9 @@ test('a real post with a broken table is refused before any gh call', t => {
 
 // #280 C7: the scan and the table check number lines alike, so a body with lone carriage returns points to one line.
 test('with lone carriage returns, the scan and the table check name the same lines', t => {
-  const token = 'n' + 'pm_' + 'E5'.repeat(18);
-  const r = runBody({ 'body.md': [LABEL, '', token, HEADER, SEP, '| new a | b | changed | c |', ''].join('\r') }, t);
-  assert.deepEqual(r.real.lines, ['REFUSED secret/token body 3:1', 'REFUSED table/disposition body 6:15', 'RESULT: refused 2']);
+  const hidden = String.fromCharCode(0x200b) + 'x';
+  const r = runBody({ 'body.md': [LABEL, '', hidden, HEADER, SEP, '| new a | b | changed | c |', ''].join('\r') }, t);
+  assert.deepEqual(r.real.lines, ['REFUSED text/hidden body 3:1', 'REFUSED table/disposition body 6:15', 'RESULT: refused 2']);
 });
 
 // #280 C7, ADR 0076: a body full of broken rows names the first fifty and counts the rest, so the result line stays in view.
@@ -277,14 +277,18 @@ test('a Finding cell without a state word is refused as table/state at its colum
   for (const finding of ['', `${MARK} F1`, 'new withheld, see chat']) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| ${finding} | b | skipped, because ${MARK} | c |`)), [], `skipped: ${JSON.stringify(finding)}`);
 });
 
-// #280 C7: the secret scan still reads folds and fences; the check's reading rules never narrow it.
-test('a credential inside a fold or a fence is still refused by the secret scan', t => {
-  const token = 'n' + 'pm_' + 'E5'.repeat(18);
-  for (const text of [body(LABEL, '', '<details><summary>a</summary>', '', token, '', '</details>'), body(LABEL, '', `${FENCE4}text`, token, FENCE4)]) {
-    const r = runBody({ 'body.md': text }, t);
-    assert.equal(r.real.code, 2, r.out);
-    assert.deepEqual(r.fails, ['secret/token'], r.out);
-    assert.ok(!r.out.includes(token));
+// #280 C7, #441: the content scan still reads folds and fences; the check's reading rules never narrow it.
+test('a hidden character or a live environment secret inside a fold or a fence is still refused by the content scan', t => {
+  const secret = 'zebra-quokka-42';
+  const env = { MY_API_KEY: secret };
+  const hidden = 'a' + String.fromCharCode(0x200b) + 'b';
+  for (const [plant, rule] of [[secret, 'secret/env'], [hidden, 'text/hidden']]) {
+    for (const text of [body(LABEL, '', '<details><summary>a</summary>', '', plant, '', '</details>'), body(LABEL, '', `${FENCE4}text`, plant, FENCE4)]) {
+      const r = runBody({ 'body.md': text }, t, env);
+      assert.equal(r.real.code, 2, r.out);
+      assert.deepEqual(r.fails, [rule], r.out);
+      assert.ok(!r.out.includes(secret));
+    }
   }
 });
 
@@ -363,7 +367,7 @@ test('the review procedure carries open, the separate escape table, the unchecke
   assert.match(flat, /- `open`, for a finding I haven't settled yet\. It needs nothing after it; a later table gives the finding its final word\./);
   assert.ok(flat.includes('Escape and gap rows go in a table of their own under that review\'s Lens dispositions table, with no Disposition column.'));
   assert.ok(flat.includes("A tool may check this table's shape before it posts; where none does, the table is unchecked. A retrospective that counts these tables reads each one tolerantly and counts the rows it can't read."));
-  assert.ok(flat.includes('Where a tool refuses a report for hidden characters, keep the report local and tell me, as for a personal detail; never strip them to post it.'));
+  assert.ok(flat.includes('Where a tool refuses a report for hidden characters or a live environment-secret value, keep the report local, name where it sits and tell me in chat; never strip or rework it to post it.'));
   assert.doesNotMatch(review, /poster|tools\/|\.mjs/i);
 });
 

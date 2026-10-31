@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, R57 and R60 to R63, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57 and R60 to R68, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -120,8 +120,10 @@ actions, in every workflow, the gate workflow's two jobs included, pinned to ful
 over a worktree's facts, only detects a change between its name-back and its
 removal; it never authenticates who said yes (#438). The atomic writer takes random bytes only to
 name a temporary file. Transport is git's and GitHub's, outside this page. A
-change that adds a secret, key, signature or encryption step is new scope,
-and sensitive work under the default.
+change that adds a secret, key, signature or encryption step is new scope;
+a signature or encryption step, and a key made, kept or used for one, is
+crypto, sensitive work under the default; since #441 a secret alone, such
+as an API token, is not.
 
 **Data migrations.** The pact keeps no database. What it migrates is the state
 an install leaves behind: in the Claude home folder, and a project install's
@@ -189,9 +191,8 @@ check can read them in one place. It adds no control and accepts no risk.
 The rest is covered by the accepted risks those sections name: R41 for the
 table check's pairing of a state word with a Disposition word, R57 for a
 withheld row's state in a form or cell the table check does not read or
-fold, such as a look-alike letter from another script, R13 for a secret the
-content scans miss, but for a letter written against a key shape whose match
-it switches off, which is open as #428, R14 for a rewritten tool, R2 for an edit's text in a form the edit
+fold, such as a look-alike letter from another script, R13 for an
+environment secret's value the content scans miss, R14 for a rewritten tool, R2 for an edit's text in a form the edit
 checks don't fold, R60 for an item changed between the poster's read and
 its edit, R62 for a body that slows the poster's page copy, R63 for the
 cleaner's removals, and R12 and
@@ -210,7 +211,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47, R57 and R60 to R63
+  title Residual risk, R1 to R47, R57 and R60 to R68
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -219,7 +220,7 @@ quadrantChart
   quadrant-4 Watch
   R1: [0.35, 0.72]
   R2: [0.30, 0.68]
-  R3: [0.80, 0.40]
+  R3: [0.80, 0.62]
   R4: [0.08, 0.95]
   R5: [0.18, 0.80]
   R6: [0.08, 0.66]
@@ -229,7 +230,7 @@ quadrantChart
   R10: [0.22, 0.80]
   R11: [0.56, 0.86]
   R12: [0.30, 0.58]
-  R13: [0.24, 0.62]
+  R13: [0.45, 0.62]
   R14: [0.20, 0.72]
   R15: [0.42, 0.60]
   R16: [0.10, 0.76]
@@ -249,7 +250,7 @@ quadrantChart
   R31: [0.14, 0.42]
   R32: [0.18, 0.62]
   R33: [0.12, 0.34]
-  R34: [0.22, 0.24]
+  R34: [0.70, 0.28]
   R35: [0.08, 0.80]
   R36: [0.18, 0.78]
   R37: [0.15, 0.20]
@@ -268,34 +269,40 @@ quadrantChart
   R61: [0.10, 0.15]
   R62: [0.08, 0.06]
   R63: [0.30, 0.50]
+  R64: [0.60, 0.75]
+  R65: [0.25, 0.55]
+  R66: [0.45, 0.55]
+  R67: [0.15, 0.30]
+  R68: [0.45, 0.45]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
 
 How to read it:
 
-- **Act now (top right): R11.** Auto mode is on, and a public repo hands every
+- **Act now (top right): R3, R11, R64.** Auto mode is on, and a public repo hands every
   session text from strangers. Turning auto mode off is the tweak that moves
-  it most.
+  it most. Since #441 nothing reads a report for a secret before it is
+  posted, and a posted credential can be your GitHub sign-in (R4); keeping
+  the tracker private moves R3 and R64 most.
 - **Guard closely (top left): most of the rest.** Rare, but severe. The
   tracker rule (R1, R2), a foreign token taken as the owner (R38), the checker's origin check (R40), the rule on outsiders' code (R5, R6), commits credited by email (R39), trust in what
   you install (R8, R9, R10, R35, R45), a project's mise config marked trusted (R36), prompt injection (R12 to R16), a reported hole
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
-  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), agent files taken from a shared builder file (R32), and the install's backups on disk (R47) sit here. Their guards are mostly rules, so cutting one moves its risk right.
-- **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
-  is bounded: public reports, a blocked team, and a posted security row's
-  state word showing whether the item sits in published code.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61, R62, R63.** R17 needs your own edits, and the dry
+  thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), agent files taken from a shared builder file (R32), the install's backups on disk (R47), and a lens sending a secret out or quoting a reviewed product's data (R65, R66) sit here. Their guards are mostly rules, so cutting one moves its risk right.
+- **Watch (bottom right): R7, R34, R43.** They happen by design, and the harm
+  is bounded: a blocked team, a path that names you in a post, since #441
+  read by nothing, and a posted security row's state word showing whether
+  the item sits in published code.
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R37, R41, R42, R44, R46, R57, R60, R61, R62, R63, R67, R68.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
   a posted report; a rule and a search before posting guard it on every
   install, and where the poster is on, its scan is a backstop behind them
   (#280). R31 needs you to run a project install and pass over the
-  warning that leads its dry run. R33 needs another local account that can read the system's temporary folder. R34 needs a path that says something about
-  you, such as your user name in your home folder, to pass the read before
-  posting.
+  warning that leads its dry run. R33 needs another local account that can read the system's temporary folder.
   R37 costs a broken `node` command until the next setup, or tells mise's
   vendor which versions a session runs. R41, R42 and R57 need a session to break
   the review procedure's own rule on a table row or on the base it hands a
@@ -308,12 +315,15 @@ How to read it:
   or sent, never a leak. R63 needs a session to remove worktrees without your
   yes: through the cleaner it costs at most what git and the cleaner's keeps
   let go; past the deny rules, only the classifier stands in the way.
+  R67 needs a key or a name typed into a builder file that is then shared.
+  R68 needs credential work that is neither auth nor crypto, with no threat
+  model to catch its leak.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
 | R1 Tracker rule misread | Stranger on the tracker | Here, this repo's tracker rule in `docs/agents/issue-tracker.md`, one link from the loaded `AGENTS.md`, and where GraphQL is refused a checker in code whose verdict a session follows by rule (ADR 0089); elsewhere, judgment (#261) | Rule, judgment |
-| R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment. Since #413, an edit through the poster: its refusals of records, decision marks, unsigned text and leaks, and its append-only reason lines, as a backstop | Rule, judgment |
-| R3 Reports stay public | Anyone who reads the tracker | Secrets named by place, never by value; the review procedure's written no-secret read before a report is posted (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its scan as a backstop behind that read, which stays for everyone (#280) | Rule |
+| R2 Session posts as you | Text a session reads | Here, the decision marks in this repo's tracker rule; elsewhere, judgment. Since #413, an edit through the poster: its refusals of records, decision marks, unsigned text, hidden characters and a live environment secret's value, and its append-only reason lines, as a backstop | Rule, judgment |
+| R3 Reports stay public | Anyone who reads the tracker | Since #441, nothing for a secret or a personal detail but this: on an install with the poster on, its refusal of a live environment secret's value (#280, #441) | None; a boundary where the poster is on |
 | R4 Account taken | Whoever holds your login | GitHub's own sign-in | Outside the pact |
 | R5 Refusal untested | Outside pull request | Here, this repo's tracker rule; elsewhere, judgment | Rule, judgment |
 | R6 Container built wrong | Outside pull request | Here, the five conditions in `docs/agents/issue-tracker.md` and your typed OK; elsewhere, judgment | Rule, then a boundary; judgment |
@@ -323,7 +333,7 @@ How to read it:
 | R10 Cloud fetches | Upstream authors, or the pin bump | Skill repos and the plugin marketplace pinned by commit; each installed plugin's catalog entry checked, before it replaces the kept copy, for a pinned source and no declared or undeclared dependencies, servers, monitors or settings, and path-source plugins for links; every third-party command run token-free and timed (ADR 0091). mise and Node are pinned since #183 (R35). Not pinned: the image's `claude` CLI, what claude.ai syncs, security-guidance's SDK install (#340) | Boundary, rule |
 | R11 Auto mode on | Text a session reads | Claude Code's own checks: protected paths and the classifier's blocks | Outside the pact |
 | R12 Lens steered | Text a lens reads | Your review of each lens's tools in the commit you install (no allow-list since ADR 0069); the dry run lists a setting off the default, with no mark since #262 | Judgment |
-| R13 Lens quotes a secret | Text a lens reads | The security lenses' carried rule, a secret named by its place; the review procedure's written no-secret read before posting (#264); it applies to every report the session posts, those of lenses a started skill runs included (#262); on an install with the poster on, its secret scan as a backstop behind that read, which stays for everyone (#280); elsewhere, judgment | Rule, judgment |
+| R13 Lens quotes a secret | Text a lens reads | Since #441, nothing but this: on an install with the poster on, its refusal of a live environment secret's value, which sees no other secret (#280, #441) | None; a boundary where the poster is on |
 | R14 Foothold left behind | Text a session reads | Claude Code's protected paths, in part; the next dry run's drift and banned-key warnings, afterwards, unless the install record was rewritten too; a rewritten pact agent shows only under "Yours, left as is", not as drift (ADR 0071); a live agent file at agents/<name>.md for an agent the pact retired draws a fixed line on every dry run, and the install leaves it as is; the check reads that file name only, not an agent's own name line or a subfolder (#302); a rewritten pact tool shows as drift (#280) | Outside the pact, boundary |
 | R15 Repo files argue | A cloned repo | Judgment (#261 retired `no-skill-overrides` and the floor). A skill source is pinned by full commit, and the checks refuse an owner or segment that could pass an option to git; a look-alike repo name is caught only by the reader of the dry run's `skills:` block and by ADR 0091's read before a pin is committed (#183 T4a). A repo's skill named like one the default lists is the one a session uses at home; the dry run's `skills:` block says so (#183 T4a) | Judgment |
 | R16 Unattended session | Whoever triggers it | None yet (#184) | — |
@@ -333,7 +343,7 @@ How to read it:
 | R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline that came only by relay kept open until you answer in chat; review of a lens change, with the security pair when you ask for it (ADR 0072); a change Claude doesn't see as sensitive, judgment | Rule, judgment |
 | R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build, in the default workflow, which a home configuration can change behind the security-defaults line (#262, R30); here, the QA pair reads every change to the gate's tests at Test, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; "secrets" in the sensitive-work default, now what a session looks for and flags, not a forced route (#262), and replaceable in a home configuration behind the security-defaults line (#262, R30); the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover personal data the list doesn't name; the backstop at Test, which doesn't reach personal data outside the list (#262, the owner's choice); the review procedure's written no-secret read, which a session does before it posts anything (#264, #262); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
+| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; the sensitive-work default, now what a session looks for and flags, not a forced route (#262), replaceable in a home configuration behind the security-defaults line (#262, R30), and since #441 without "secrets"; the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover secrets and personal data the list doesn't name; the backstop at Test, which doesn't reach them either (#262, #441, the owner's choice); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
 | R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check and in `gate-windows`: nothing outside `gate/tests/` loads a file inside it | Rule |
@@ -344,7 +354,7 @@ How to read it:
 | R31 A project's qualities list and Cost limits | A cloned repo whose committed `.claude/pact-config.json` holds a `qualities` list, or a `costLimits` list with it | You run each project install, and its dry run leads with a security-defaults line pointing you at the lists in that file, with a note when the qualities have no Cost limits, and a note for cost rows no quality names, which limit the review itself there (ADR 0101); the renderer builds each table from one-line fields, at most nine rows, under fixed text, with bars escaped in qualities and refused in Cost limits, and a middle dot refused in an Enough level and a cost name (#262, #278, ADR 0068) | Boundary (a pointer), judgment |
 | R32 Agents from a shared file | Whoever hands you a builder file | The Presets checklist, which shows each agent file's tools ("every tool" when none are named), model and description, and names a replaced `scout` or security-set lens, before you take it; a shared file's agent rows start unticked, as do a preset's from your own `pact/presets/` folder, since a file there may be one someone handed you; a save writes nothing until you choose a folder; a new-named agent appears in no install output, and a pact-named one shows under "Yours, left as is", while the page takes a retired agent's file out of a loaded or shared file, with a note, and a file at agents/<name>.md for a retired agent draws a fixed dry-run line (#262, #302, ADR 0071) | Judgment |
 | R33 A written page stays on disk | Another local account that can read the system's temporary folder | The builder writes the page only into a new folder under the temporary folder or a path you name outside any repo, the kit, the Claude home folder and any `.claude` folder, never over a file; its closing note and the session's hand-over ask you to delete the folder | Judgment |
-| R34 A revealing path in a post | Anyone who reads the tracker | The read before posting, which looks for your user name and host name, in a path or not; neither it nor the poster checks a path as such (#326, #364, #368) | Rule |
+| R34 A revealing path in a post | Anyone who reads the tracker | None since #441: the read before posting no longer looks for your user name or host name, and the poster checks no path as such (#326, #364, #368, #441) | None |
 | R35 Cloud Node pins | Upstream release, or the pin bump | Pinned hashes checked before use; signatures checked against committed keys at each bump; a weekly advisory routine (ADR 0088) | Boundary, rule |
 | R36 Trusted mise config | A cloned repo, text a session reads | `paranoid` on in mise's global config, so mise refuses an untrusted project config; the `node`, `npm` and `npx` wrappers bypass mise's shims; here, the mise section in `AGENTS.md`; elsewhere, judgment (#183) | Boundary, rule, judgment |
 | R37 Cloud Node block hardening | None; a cost to you | The setup's Result section runs the `node` wrapper by path and marks the setup `INCOMPLETE` when it fails; mise's version lookup is off (`use_versions_host = false`) (#183) | Boundary |
@@ -362,6 +372,11 @@ How to read it:
 | R62 Unclosed openers slow the poster's page copy | A careless or fooled session, on its own post | The body's size bound; nothing is sent while it runs (ADR 0122) | Boundary |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on the text after the state word as written, on each normalised copy and on each copy folded (#392, #396, #394) | Rule |
 | R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat, and a removal through the cleaner is bounded by git's refusals and its keeps; the deny rules on raw removal commands are a speed bump, with only the classifier behind them (#438, ADR 0124) | Rule, boundary |
+| R64 A session posts a secret or a personal detail | Text a session reads, a careless session | On an install with the poster on, its exact-match refusal of a live environment secret's value; elsewhere none (#441) | None; a boundary where the poster is on |
+| R65 A lens sends a secret out | Text a lens reads | None of its own since #441; a lens fetches only to check an advisory, and treats what it reads as data | None; rules in part |
+| R66 A lens report carries a product's secrets or users' data | Text a lens reads, a careless lens | None since #441; a product's leak is Hardening, offered as an accepted-risk candidate (decision 378) | None |
+| R67 A builder file keeps keys or names | Whoever hands you a builder file or preset | None since #441; the page is written outside any repo, and its content policy is unchanged | Judgment |
+| R68 Credential work off the sensitive route | A careless or fooled session | Only when the work is also auth or crypto; with a threat model, its attacker clause | Rule, judgment |
 | R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
@@ -415,7 +430,8 @@ months.
   since the label is plain text and bound to none. The edited item keeps
   counting, because your account made the last edit. The poster refuses an
   edit of a review record, of a decision mark, of text with no signature
-  line and of text holding a leak, and keeps every earlier reason line in
+  line and of text holding hidden characters or a live environment secret's
+  value, and keeps every earlier reason line in
   plain sight; forms its checks don't read pass, such as an older record
   layout or a look-alike letter outside its set. The visible, append-only
   reason lines and GitHub's edit history are the control. Widened by the owner on 2026-10-25, in the lead's chat ("accept",
@@ -431,21 +447,16 @@ months.
   round on #413; #419 tracks them.
 - **R3. Review reports are public, and stay public.** Sessions post every
   lens report on the tracker word for word, security findings included. A
-  comment stays readable after the fix. Security reports name where a secret
-  lives, never its value, so they can still map where secrets are kept. Since
-  #264 the review procedure writes the read-before-posting as a rule: the
-  session reads each report for a secret or a personal detail and keeps one
-  that holds either local. The cross script never scanned for secrets; the
-  checks it dropped were shape and character checks. One of them, the
-  anchor-path check, kept full local paths, and the user name in them, out of
-  posted anchors; it is now the lens files' rule and the read. Since #280,
-  an install with the poster on (`docs/poster.md`) also scans each post for
-  secrets and email addresses (session ids too, until #366), and checks the
-  shape of a Lens dispositions table, before anything is sent. Both are a
-  backstop that only some installs have: they catch accidents and cover fixed
-  shapes, and they miss a secret with no known shape and every other personal
-  detail, such as names, phone numbers and postal addresses. The read before
-  posting stays the rule for everyone, with or without the poster.
+  comment stays readable after the fix. Since #441 the pact has no rule on a
+  secret or a personal detail in a report: a security report may quote a
+  secret's value, and a session posts a report as written, with no read for
+  either first. From #264 to #441 the review procedure's read before posting
+  looked for both, and the lens files named a secret by its place. Where the
+  poster is on (`docs/poster.md`), it refuses a post holding a live
+  environment secret's value or hidden characters, and checks the shape of a
+  Lens dispositions table, before anything is sent; it sees no other secret
+  and no personal detail. The leak classes this opens are accepted as R64
+  to R68.
 - **R4. Your GitHub account is the root of trust.** Anyone who controls it
   counts as you.
 - **R38. A session takes whatever account its token belongs to as the
@@ -535,7 +546,8 @@ once you install it.
   each lens with a one-line reason, and a skill you typed runs its own lenses
   unasked, which never lifts the sensitive-route flag or its offer at Test.
   Sensitive work is, by
-  default, auth, secrets, crypto, input validation and data migrations; a
+  default, auth, crypto, input validation and data migrations (secrets left
+  the list in #441); a
   session that sees it recommends the sensitive route, thorough, planned and
   built on Opus at high with the security pair, and you take it or not.
   Publishing is not on that list: work that publishes can run at a lower
@@ -641,13 +653,14 @@ once you install it.
   published, such as a package's contents, a release step or a personal
   detail in a committed file, can be built at the quick tier with no spec
   read. Two rules are left in the pact: the fixed "Stop and ask me", which
-  has a session ask you before something hard to reverse; and "secrets" in the
-  sensitive-work default, for keys and tokens, which since #262 a session
-  flags and recommends the sensitive route for, rather than forcing it; the
-  one-line exception never covers work that matches the list or is flagged
-  sensitive, but does cover personal data the list doesn't name, and the
-  backstop at Test doesn't reach that data either: the owner accepted this
-  to keep the stop rare (#262). "Never post a secret or a
+  has a session ask you before something hard to reverse; and the
+  sensitive-work default, which since #262 a session flags and recommends the
+  sensitive route for, rather than forcing it; the one-line exception never
+  covers work that matches the list or is flagged sensitive, but does cover
+  personal data the list doesn't name, and the backstop at Test doesn't reach
+  that data either: the owner accepted this to keep the stop rare (#262).
+  Since #441 "secrets" is off the default too, so a change that handles keys
+  and tokens is flagged only when it is also auth or crypto work. "Never post a secret or a
   personal detail" left the pact in #261, accepted as judgment; this repo's
   `docs/agents/issue-tracker.md` keeps it. Text that frames such a change as quick work can steer
   past the reviews, and your answer at the stop is then the only check. The
@@ -708,13 +721,13 @@ session can act before you see it.
 
 - **R11. Auto mode is on.** The pact turns it on, and every install turns it
   on again. In auto mode, the main thing between a fooled session and your
-  shell is Claude Code's own checks. The pact chose speed here. Since #283 the
-  `/scriptorium` session also reads the text of each preset in your presets
-  folder for secrets, in auto mode; a preset may be a file someone handed you
-  (R32), so the command treats that text as data. This was accepted as a
-  widening of this entry on 2026-10-17 from #283 (adversarial-lens), on the
-  owner's word, relayed by the head chef session (#283,
-  issuecomment-6243605644).
+  shell is Claude Code's own checks. The pact chose speed here. From #283 to
+  #441 the `/scriptorium` session also read the text of each preset in your
+  presets folder for secrets, in auto mode; a preset may be a file someone
+  handed you (R32), so the command treated that text as data. This was
+  accepted as a widening of this entry on 2026-10-17 from #283
+  (adversarial-lens), on the owner's word, relayed by the head chef session
+  (#283, issuecomment-6243605644). Since #441 it no longer reads them.
 - **R12. A lens can be steered.** A lens that runs code or fetches pages can
   be steered by what it reads, like any session. Since ADR 0069 nothing at
   install stops a commit that gives a lens more tools; you see it in the diff
@@ -728,16 +741,19 @@ session can act before you see it.
   that names a weaker one, by your choice.
 - **R13. A lens can quote a secret.** A read-only lens can still read any file
   your account can, and its report goes on the tracker word for word. Since
-  #261 the session-level rule "never post a secret" is accepted as judgment
-  in the pact (this repo's `docs/agents/issue-tracker.md` keeps it, one link from the loaded `AGENTS.md`, since #270), and four lenses don't carry
-  it in their own files; #192's lens half is the follow-up. Since #264 the
-  review procedure's posting section also asks the session to read every
-  report for a secret before it posts one. Since #280, where the poster is
-  on, its scan refuses a report holding a secret of a known shape or an
-  environment secret's value, and the session keeps that report local
-  rather than editing it to get past the scan. That is a backstop only some
-  installs have; the read before posting stays for everyone. No test holds the
-  security lenses' carried rules word for word; they hold by review.
+  #441 no lens carries a rule on naming a secret, and the review procedure no
+  longer reads a report for one before it posts: a quoted secret is posted.
+  This repo's `docs/agents/issue-tracker.md` keeps its own line, one link
+  from the loaded `AGENTS.md`, until the issue on this repo's own rules
+  lands. Where the poster is on, its scan refuses a report holding a live
+  environment secret's value, 8 characters or more, under a secret-like name
+  in the poster's own environment, and the session keeps that report local
+  rather than editing it to get past the scan. It sees no credential `gh`
+  keeps in a credential store and no key in a file, and on the default
+  install, where the poster is off, nothing stops a quoted secret. Until
+  #441 the scan also refused known credential shapes, and the classes below
+  were accepted for those shapes; they now hold for the environment secret's
+  value alone.
   Since #394 the scan's copies follow GitHub's page more closely, and three
   classes of known-shape secret it still misses are accepted, in the owner's
   words "look-alike letters, other renderers, the remaining combined tricks":
@@ -753,9 +769,9 @@ session can act before you see it.
   data-lens), relayed by the lead; a further parser difference between the
   page copy and the page falls under it, and the follow-up that scans GitHub's
   rendered output in place of modelling its parsers is filed as #429.
-  A letter written against a key shape
-  whose match it switches off is not accepted: it is open, to be fixed by
-  #428.
+  A letter written against a key shape whose match it switched off was open
+  as #428; with the shapes gone in #441, #428 and #429 are to close as not
+  planned once it merges.
 - **R14. A fooled session can leave something behind.** It can write files
   that later sessions or installs load: memory files, a repo's own Claude
   settings or rules, its server list, or your configuration blocks. With a
@@ -912,6 +928,51 @@ session can act before you see it.
   unprobed. Accepted 2026-10-31 by the owner, decision 314, relayed by the
   lead, from the Design round 2 review on #438: the findings on the deny
   rules' gaps and on the yes the cleaner can't attribute.
+- **R64. A session can post a secret or a personal detail.** Since #441 the
+  pact has no rule on a secret or a personal detail in a session's own text,
+  and nothing reads a post for one: a fooled or careless session can post or
+  quote a live token, a key, a user or host name in a path, or another
+  personal detail on a tracker, a public one included, and a token in
+  `gh`'s error line is shown. A posted secret stays in GitHub's edit
+  history, so rotating it rests on you noticing; for your GitHub sign-in that
+  is the account (R4). One control is left: where the poster is on, its
+  exact-match refusal of a value held in the poster's own environment under a
+  secret-like name, 8 characters or more (`secret/env`). It sees no
+  credential `gh` keeps in a credential store and no key in a file, and on
+  the default install, where the poster is off, nothing stops it. Accepted
+  because the rules cost more friction than they caught. Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451), from the
+  security pair's Design review of #441 and its first Test round
+  (adversarial-lens F1, F5, F6; data-lens F1, F2, F9).
+- **R65. A lens can send a secret to a third party.** No lens carries a rule
+  on a secret's value since #441, so a lens with web, shell or browser tools
+  can put a secret it read into a search, a fetched address, a browser action
+  or a command; its rules to fetch only for an advisory and to treat what it
+  reads as data cover this in part. Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451), from the same reviews
+  (adversarial-lens F3; data-lens F5).
+- **R66. A lens report can carry a reviewed product's secrets or its users'
+  personal data.** A security lens reports a product's leaks as found, and its
+  report goes on that project's tracker word for word, a read of a commit not
+  yet pushed included; the data may not be yours. The data-lens still reports
+  each leak point; its fix is Hardening, offered as an accepted-risk
+  candidate (decision 378). Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451), from the same reviews (adversarial-lens
+  F2; data-lens F3).
+- **R67. A builder file or page can keep keys or names.** `/scriptorium` no
+  longer reads a builder file or a preset for keys, tokens, internal
+  addresses or names before it saves or renders, so the saved file and the
+  page it renders keep whatever text they were given (R32, R33). Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451),
+  from the same reviews (adversarial-lens F7; data-lens F6).
+- **R68. Work that handles keys and tokens draws no sensitive route by
+  default, and a product's leaked secret is not a security finding by that
+  alone.** Since #441 "secrets" is off the sensitive-work default and the
+  security-finding definition has no exposure clause. Work that adds or moves
+  a credential is flagged only when it is also auth or crypto work, so on an
+  install with no configuration the security pair is neither recommended nor
+  offered at Test for it. With no threat model, a lens's finding that a
+  product leaks a key or its users' data is Hardening, limit 0: offered as an
+  accepted-risk candidate, never built unasked, never blocking (decision
+  378). Accepted by the owner on 2026-10-31, in chat, relayed by the lead
+  (decision 418 on #441, "a"; confirmed in the lead's chat in decision 451), from #441's first Test round
+  (adversarial-lens F4; data-lens F7, F8).
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -1111,8 +1172,9 @@ safe, and a change made months ago is easy to forget.
   your look at what you load, not a control the install runs. The rules
   file's Cost limits part also defines what counts as security for every
   lens, and no cost row narrows it: an attacker in scope in the threat model
-  as it stood before the change, an item on the sensitive-work list, or a
-  secret or personal data exposed to anyone but you. The lenses read the
+  as it stood before the change, or an item on the sensitive-work list; since
+  #441 a secret or personal data exposed is not a security finding by that
+  alone. The lenses read the
   threat model and the line that names it as they stood at the base
   of the change; the change's own edit to either is a finding for you, and
   the session brings every such edit to you at hand-off, whichever lenses
@@ -1304,15 +1366,17 @@ because they plant bad cases on purpose and raised alerts that were noise.
   the temp folder moved to a folder that names nobody, it refused ordinary
   scratch paths, so it went too. Until #368 the read before posting also
   looked for a home or temp folder path; it held back whole lens reports over
-  paths that named nobody, so it went. The read still looks for a user name
-  and a host name, in a path or not. Accepted by the
+  paths that named nobody, so it went. Until #441 the read still looked for
+  a user name and a host name, in a path or not; since then nothing does.
+  Accepted by the
   owner on 2026-10-17, in [#326's body](https://github.com/mephistopheles4/the-pact/issues/326)
   and in chat, relayed by the lead session; the tier and the declined sensitive route are in
   [issuecomment-6243713061](https://github.com/mephistopheles4/the-pact/issues/326#issuecomment-6243713061) (ADR 0086).
   Widened by the owner on 2026-10-22, in chat, from #364's finding that the
   rule refused scratch paths (ADR 0097). Widened again by the owner on
   2026-10-23, in chat, choosing to drop paths from the read before posting
-  and keep the user name, host name, email and secrets (ADR 0098).
+  and keep the user name, host name, email and secrets (ADR 0098). Widened
+  to no read at all in #441, accepted as R64.
 
 ## The poster's own checks
 
@@ -1363,7 +1427,7 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   for `--signed` and no other (`edit/unsigned`), and neither may be a review
   record (`edit/record`) or hold a decision mark (`edit/decision`), each read
   on several views of the text; an item holding what the content scan refuses,
-  such as a secret or an email address, is never edited (`edit/leak`), since its history
+  hidden characters or a live environment secret's value, is never edited (`edit/leak`), since its history
   keeps the old text; the new body must keep every earlier reason line, with
   no other line shaped like one and nothing above them left open to hide them
   (`edit/reasons`). The record and decision checks, and the reason lines' "in

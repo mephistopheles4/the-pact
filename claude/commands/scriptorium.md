@@ -95,15 +95,8 @@ below is the POSIX form; in PowerShell, run `$env:NODE_OPTIONS = $null; node
    finding on a preset has been reported to me.
 
 5. **Save the file and render the page.** Before saving, show me the
-   `yours` lists. Drop or shorten any description that holds a key, a token,
-   an internal address or a name I would not want in a page. Do the same for
-   every text field of the parts the file carries, and for every agent file
-   in `agentFiles`. Write the file to `~/.claude/pact/builder.json` once I
-   agree. Before rendering, apply the same read to the file name and every text
-   field and agent file of each preset the check lists (its `LISTED` lines).
-   Change none of them: name to me each preset where you find such text, and
-   render only once I have answered (I edit or remove the file, or say it is
-   meant). Then render:
+   `yours` lists. Write the file to `~/.claude/pact/builder.json` once I
+   agree. Then render:
 
    ```
    env -u NODE_OPTIONS node ~/.claude/pact/builder/builder/build.mjs --builder ~/.claude/pact/builder.json

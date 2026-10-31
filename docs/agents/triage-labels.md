@@ -29,7 +29,7 @@ Every issue carries one process tier, as a label. A tier says how much checking 
 | `tier:standard` | A short spec on the issue, read for what is unstated; one build session, ending with tests and the lenses the diff calls for offered, the QA pair always among them. |
 | `tier:thorough` | A spec read before the owner approves it, cut into tickets; one build session per ticket, each ending with tests and the lenses the diff calls for offered, the QA pair always among them. |
 
-By default, auth, secrets, crypto, input validation and data migrations are sensitive work: the session recommends the sensitive route, `tier:thorough` with the security pair, and the owner takes it or not. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
+By default, auth, crypto, input validation and data migrations are sensitive work: the session recommends the sensitive route, `tier:thorough` with the security pair, and the owner takes it or not. The suggested model and effort for each phase are a line on the issue next to the tier, not labels, for example "Plan: Opus, high. Build: Sonnet, medium."
 
 ## Creating the labels
 

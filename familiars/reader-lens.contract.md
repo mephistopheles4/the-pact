@@ -1,6 +1,6 @@
 # Contract: reader-lens
 
-Version: 0.3.0
+Version: 0.4.0
 
 - **Type:** agent
 - **Level:** Thorough
@@ -93,7 +93,7 @@ The owner first wrote "but maybe this doesn't apply to code", then challenged it
   Held by: review, since no test holds it; the practice cases were retired by #189.
 - C11. Dropped (#262): it names no other reviewer; it names what it stays out of by the question.
   Held by: Enforced — seam A.
-- C12. **A secret by its place, never its value.** It never writes a secret's value or a person's personal data in its report; evidence on a line that holds one is named by its place, as both places that ask for quoted evidence say. It reads the files it is handed and the working folder, nothing else; a file the diff adds or changes as a link counts as outside. It names every file by its path inside the working folder.
+- C12. **Files by their path inside the working folder.** It reads the files it is handed and the working folder, nothing else; a file the diff adds or changes as a link counts as outside. It names every file by its path inside the working folder.
   Held by: a word test holds the words, and review holds the rest; the practice cases were retired by #189.
 - C13. **The catalogue holds ten tells, in order.**
   Held by: Enforced — a word test counts them.
@@ -145,6 +145,7 @@ Nothing. Enforced by the tools list.
 
 | Version | Date | What changed | Why | Questions touched |
 |---|---|---|---|---|
+| 0.4.0 | 2026-10-31 | C12 keeps its rules on the files it reads and on naming files by their path inside the working folder; its secret and personal-data parts are cut. | #441: the owner removed the secret and personal-data rules | none |
 | 0.3.0 | 2026-10-17 | The lens may be handed quality rows with an Enough, the cost rows they name and running counts, as inputs: a finding past a cost limit follows that row's "At the limit", and one past an Enough level alone goes to the owner as a trade-off; both are listed under Trade-offs and never make the verdict blocking on their own. A finding it is unsure is a security finding is marked "security?", for the sorting session to decide. | #304: records what #289 (T4 of #278) added to the lens file, the "Cost limits and trade-offs" section | 10 |
 | 0.2.1 | 2026-10-16 | Wording only: each "Held by: review" line and the retired note say what holds the rule (review, since no test does) without naming a numbered move or a stage of the pact. | #270: the contracts are agnostic of the pact, so a line that named the pact is reworded by what it meant, or cut | none |
 | 0.2.0 | 2026-10-12 | agnostic of the pact: no tiers, moves, pairs or routes; the report shape is handed at run time (#262) | The owner decided the lens be agnostic of the pact (#262) | 1, 3, 4, 10, 11, 16, 17 |
