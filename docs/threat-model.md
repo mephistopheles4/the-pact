@@ -805,12 +805,11 @@ session can act before you see it.
   with no permission prompt and out of the classifier's sight, so a rewritten
   cleaner runs on your typed act. The mod checks only that the file is a
   regular file where it is named, and shows only output lines in the
-  cleaner's own shape. Accepted 2026-10-31 on the owner's standing word, decision 451, relayed by the lead, to settle
-  484's accepted-risk candidates and open security rows as recommended, in
-  their words "I almost never override a recommendation so let's not fool
-  ourselves and skip the decision fatigue", and confirmed by the owner in
-  the build session's own chat, from the Test round 1
-  review on #446: the findings on the mod's unprompted run of the tool file.
+  cleaner's own shape. Accepted 2026-10-31 on the owner's standing word, decision 451, relayed by the lead: that
+  they rarely override a recommendation, so 484's accepted-risk candidates
+  and open security rows are settled as recommended; confirmed by the owner
+  in the build session's own chat, from the Test round
+  1 review on #446: the findings on the mod's unprompted run of the tool file.
   The install's backups in `~/.claude/pact/backups/` are such a place too.
   Their manifest hashes catch a damaged copy, which the undo steps check, but
   not a planted one. A fooled session that writes a backup's files and its
@@ -957,25 +956,19 @@ session can act before you see it.
   itself, a clean worktree's ignored files still go, and a partial clone's
   reads can fetch. What `--recoverable` can't see: it trusts the local
   remote-tracking refs, so a stale ref, or one a session wrote, can make
-  unpushed commits read as pushed, and a pruned remote branch loses a
-  squash-merged branch's commits; a commit reachable only through a reflog
-  or a per-worktree ref goes with the worktree; index stat data a session
-  forged, or `core.ignoreCase` on a case-sensitive file system, can make an
-  edit or a file read as clean; and a write that lands between the
-  cleaner's last read and git's removal isn't seen. Third, a
+  unpushed commits read as pushed; a commit reachable only through a
+  reflog or a per-worktree ref goes with the worktree; and a write that
+  lands between the cleaner's last read and git's removal isn't seen. Third, a
   session can cite a window the cleaner can't check. Fourth, the rules
   sentences bind only the mod's run, and the cleaner's output, names
   included, is shown in chat, with the record left to a rule. Fifth, the
   lead's card status chooses which cards `/brigade done all` covers.
-  Accepted 2026-10-31 on the owner's standing word, decision 451, relayed by the lead, to settle
-  484's accepted-risk candidates and open security rows as recommended, in
-  their words "I almost never override a recommendation so let's not fool
-  ourselves and skip the decision fatigue", and confirmed by the owner in
-  the build session's own chat, from grimoire 484's spec (S2.10's
-  accepted-risk candidates, the pruned remote branch among them) and the
-  Test rounds 1 and 2 reviews on #446: the findings on the typed yes, the
-  keeps' limits (forged stat data and `core.ignoreCase` from round 2), the
-  race before removal and the fetch without the flag.
+  Accepted 2026-10-31 on the owner's standing word, decision 451, relayed by the lead: that
+  they rarely override a recommendation, so 484's accepted-risk candidates
+  and open security rows are settled as recommended; confirmed by the owner
+  in the build session's own chat, from the Test round 1 review on #446:
+  the findings on the typed yes, the keeps' limits, the race before removal
+  and the fetch without the flag.
 - **R64. A session can post a secret or a personal detail.** Since #441 the
   pact has no rule on a secret or a personal detail in a session's own text,
   and nothing reads a post for one: a fooled or careless session can post or
@@ -1561,7 +1554,7 @@ data. [cleaner.md](cleaner.md) has the detail.
   folder and the main repository, or names a remote path; a submodule it
   can't see into; hidden edits; and a read that fails. The worktree's config, index, attributes and folder layout are
   input a session controls, and these keeps are what bound them; R63 names
-  what they don't see.
+  what they don't see that is accepted, and `docs/cleaner.md` lists the rest.
 - **Output.** Fixed words and escaped relative names, file names in quotes
   and worktree folder names held to a fixed set, so no name passes for the
   cleaner's own words; never an absolute path, a session id, file contents,
