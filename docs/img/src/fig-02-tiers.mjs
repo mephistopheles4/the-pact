@@ -11,8 +11,8 @@ const ROWS = [
   ['Thorough', ['Too big for one session, or risky;', 'cut into tickets, each its own', 'session'], ['Opus, high'], ['Sonnet,', 'medium']],
 ];
 const FLOOR = [
-  'By default, sensitive work is auth, secrets, crypto, input validation',
-  'and data migrations. The sensitive route: thorough, planned and built',
+  'By default, sensitive work is auth, crypto, input validation and data',
+  'migrations. The sensitive route: thorough, planned and built',
   'on Opus at high, with the security pair on the spec and the diff.',
 ];
 const ROUTE = [

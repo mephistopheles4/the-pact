@@ -88,17 +88,16 @@ why; I set it, and can change it any time.
 
 <!-- pact:begin sensitive -->
 Sensitive work gets more checking when I choose it. By default, sensitive
-work is auth, secrets, crypto, input validation and data migrations:
-thorough, planned and built on Opus at high, with the security pair,
-`adversarial-lens` and `data-lens`, on the spec and the diff. That is the
-sensitive route. When the work matches that list, or you think it sensitive
-otherwise, say why in one line in your tier proposal and recommend the route;
-I take it or not. If I didn't take the route, offer the security pair once
-more at Test when the change matches the list. Beyond that one offer,
-sensitivity doesn't stop the run. A flag or an offer I haven't answered stays
-open, in one line, in every hand-off and in the result. If you find it later,
-say so in one line at the next hand-off or result, and keep saying it until I
-answer.
+work is auth, crypto, input validation and data migrations: thorough, planned
+and built on Opus at high, with the security pair, `adversarial-lens` and
+`data-lens`, on the spec and the diff. That is the sensitive route. When the
+work matches that list, or you think it sensitive otherwise, say why in one
+line in your tier proposal and recommend the route; I take it or not. If I
+didn't take the route, offer the security pair once more at Test when the
+change matches the list. Beyond that one offer, sensitivity doesn't stop the
+run. A flag or an offer I haven't answered stays open, in one line, in every
+hand-off and in the result. If you find it later, say so in one line at the
+next hand-off or result, and keep saying it until I answer.
 <!-- pact:end sensitive -->
 
 Keep one model for a whole session. Your effort is the one set at the start,
@@ -229,7 +228,7 @@ whatever its "At the limit" says.
 - **A security finding** is one that names an attacker in scope in the
   project's threat model, as it stood before the change under review; or
   touches an item on the sensitive-work list, auth meaning authentication
-  and authorization; or exposes a secret or personal data to anyone but me. With no threat model, the last two decide. The
+  and authorization. With no threat model, the last one decides. The
   project's threat model is the file its agent instructions name, else
   `docs/threat-model.md`. The session that sorts the findings holds it and
   decides whether a finding is a security finding. A lens outside the

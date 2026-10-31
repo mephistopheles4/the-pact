@@ -237,11 +237,11 @@ test('a refusal sends nothing, counts both rules, and a dry run refuses the same
 
 // #317 C4, S4 point 6: the prose refusals follow the content scan's and the table check's, any note on unlisted table refusals follows them, and one count covers all.
 test('the prose refusals come after the scan and the table check, before any note, in one count', t => {
-  const token = 'n' + 'pm_' + 'E5'.repeat(18);
+  const hidden = String.fromCharCode(0x200b) + 'x';
   const head = ['### Lens dispositions', '', '| Finding | Lens | Disposition | Rerun |', '| --- | --- | --- | --- |'];
   const wrapped = ['', 'A paragraph that stops here', 'and carries on.', ''];
-  const few = runBody({ 'body.md': [...head, '| new a | b | changed | c |', ...wrapped, token].join('\n') }, t);
-  assert.deepEqual(few.real.lines, ['REFUSED secret/token body 10:1', 'REFUSED table/disposition body 5:15', 'REFUSED text/hard-wrap body 8:1', 'RESULT: refused 3']);
+  const few = runBody({ 'body.md': [...head, '| new a | b | changed | c |', ...wrapped, hidden].join('\n') }, t);
+  assert.deepEqual(few.real.lines, ['REFUSED text/hidden body 10:1', 'REFUSED table/disposition body 5:15', 'REFUSED text/hard-wrap body 8:1', 'RESULT: refused 3']);
   const many = runBody({ 'body.md': [...head, ...Array(60).fill('|'), ...wrapped].join('\n') }, t);
   assert.equal(many.real.lines.length, 53, many.out);
   assert.equal(many.real.lines[50], 'REFUSED text/hard-wrap body 67:1');

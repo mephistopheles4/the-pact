@@ -104,7 +104,7 @@ export const DEFAULT_PARTS = Object.freeze({
     { id: 'standard', name: 'Standard', fits: 'Needs a short spec', plan: 'Opus, medium', build: 'Sonnet, medium' },
     { id: 'thorough', name: 'Thorough', fits: 'Too big for one session, or risky; cut into tickets, each its own session', plan: 'Opus, high', build: 'Sonnet, medium' },
   ],
-  sensitive: { items: ['auth', 'secrets', 'crypto', 'input validation', 'data migrations'], tier: 'thorough', plan: 'Opus, high', build: 'Opus, high' },
+  sensitive: { items: ['auth', 'crypto', 'input validation', 'data migrations'], tier: 'thorough', plan: 'Opus, high', build: 'Opus, high' },
   workflowGraph: {
     stages: [
       { id: 'plan', name: 'Plan', text: 'Kind, size and risk; a tier proposed.', model: 'plan', skipAt: [] },

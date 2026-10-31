@@ -29,9 +29,9 @@
 //
 // Every piece of free text comes from a file, so no prose reaches a command
 // line. Before anything is sent it checks every option and file, and scans the
-// exact text it would send for credential shapes, environment secrets, email
-// addresses and hidden text; it refuses no path or session id (#326, #364,
-// #366).
+// exact text it would send for a live environment secret's value and hidden
+// text; it refuses no token shape, email address, path or session id (#326,
+// #364, #366, #441).
 // Then it checks the shape of any Lens dispositions table in the body against
 // the review procedure's template (#280, T2), and refuses a body whose prose is
 // hard-wrapped, whose link has no scheme (#317, text/hard-wrap and
@@ -341,37 +341,12 @@ export function buildPlan(parsed) {
 
 // ---------------------------------------------------------------- the scan
 
+// The two content refusals: a live environment secret's value, and hidden
+// text. The token-shape, URL-password and email refusals went with #441.
 const RULE = Object.freeze({
-  token: 'secret/token',
-  userinfo: 'secret/url-userinfo',
   env: 'secret/env',
-  email: 'personal/email',
   hidden: 'text/hidden',
 });
-
-const TOKEN_RES = [
-  /gh[pousr]_[A-Za-z0-9]{36}/g,
-  /github_pat_[A-Za-z0-9_]{82}/g,
-  /(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{20,}/g,
-  /(?:sk|rk)_live_[A-Za-z0-9]{10,}/g,
-  /npm_[A-Za-z0-9]{36}/g,
-  /glpat-[A-Za-z0-9_-]{20}/g,
-  /AIza[0-9A-Za-z_-]{35}/g,
-  /(?<![A-Z0-9])(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}(?![A-Z0-9])/g,
-  /xox[abposr]-[A-Za-z0-9-]{10,}/g,
-  /(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}\.eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g,
-  /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----/g,
-  /(?:AccountKey|Password)=[^;\s'"`<>]+/gi,
-];
-// A password in a URL's user part: after an optional scheme, two slashes and a
-// user name that may be empty. The lookbehind starts a scheme only where one
-// can start, so a long run of text is tried once, not from every character.
-const USERINFO_RE = /(?<![A-Za-z0-9+.-])(?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/[^\s/@:]*:[^\s/@]+@/g;
-// An address may follow a colon, as in a mail link, but not the password in a
-// URL's user part: the look back skips exactly the shape secret/url-userinfo
-// refuses. It is capped, so a long word of colons costs a bounded step at each.
-const EMAIL_RE = /(?<![A-Za-z0-9._%+/-])(?<!\/\/[^\s/@:]{0,64}:)[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
-const EMAIL_OK = addr => addr.toLowerCase().endsWith('@users.noreply.github.com') || addr.toLowerCase() === 'noreply@anthropic.com';
 
 const ENV_WORDS = ['TOKEN', 'SECRET', 'KEY', 'PASSWORD', 'PASSWD', 'PWD', 'PAT', 'AUTH', 'CREDENTIAL', 'CREDENTIALS', 'COOKIE'];
 const ENV_SKIP = new Set(['PWD', 'OLDPWD', 'SSH_AUTH_SOCK']);
@@ -423,11 +398,8 @@ function hitsIn(text, ctx) {
   const add = (rule, list, note) => {
     for (const h of list) hits.push({ rule, index: h.index, note });
   };
-  for (const re of TOKEN_RES) add(RULE.token, matches(text, re));
-  add(RULE.userinfo, matches(text, USERINFO_RE));
   for (const [name, val] of envSecrets(ctx.env)) add(RULE.env, indexesOf(text, val).map(index => ({ index })), name);
   add(RULE.hidden, hiddenHits(text));
-  add(RULE.email, matches(text, EMAIL_RE).filter(h => !EMAIL_OK(h.text)));
   return hits.sort((a, b) => a.index - b.index);
 }
 
@@ -1503,8 +1475,8 @@ const LINE_BREAKS_RE = new RegExp(`[${cp(0x85)}${cp(0x2028)}${cp(0x2029)}]`, 'g'
 
 /**
  * gh's stderr as one line: its first line, JSON-escaped and capped. A line
- * that trips a scan rule, such as one holding a token, is withheld and only
- * the rule is named.
+ * that trips a scan rule, such as one holding a live environment secret's
+ * value, is withheld and only the rule is named.
  */
 export function saidLine(stderr, ctx) {
   const line = String(stderr ?? '').split(/\r?\n/)[0].slice(0, 300);

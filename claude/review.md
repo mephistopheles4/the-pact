@@ -13,8 +13,7 @@ brought from elsewhere runs the same way as the pact's.
 **Inputs, by what is reviewed.** A lens reads; it doesn't build. Give each
 lens its input as local files, with the absolute working folder when it reads
 the repo. Ask each lens to cite files by repo-relative path, and to add no
-list of the local files it read: a report that names a path holding a user
-name stays local, and a lens is never rerun to get a clean copy.
+list of the local files it read.
 - **A spec:** number its headings `S1`, `S2` and on. Give the section list,
   the spec and the request.
 - **A result:** number the acceptance claims `C1`, `C2` and on, from the
@@ -84,8 +83,8 @@ the state before the work began.
     edit can't be told counts for nothing, and the run is a first round. With
     no record, hand the rows from your own local copy of the last table.
   - **A withheld row** is handed as its row, plus one line you write yourself:
-    the kind of item and the place it sits (file and key; for a secret, its
-    file only, never its key), never its value and no text copied from the
+    the kind of item and the place it sits (file and key), never its value
+    and no text copied from the
     report. A lens that can reach the web gets the kind of item only. Never
     hand the lens the report. Keep that line locally with the table it
     belongs to, record or not; a fresh session without it hands the row
@@ -533,7 +532,7 @@ whose class you can't tell as a security finding, for an `absent` finding.
 - Any other is `noted`, marked `(auto)` since you sorted it. Fix it in this
   change only on my word.
 - A finding that guards data but isn't a security finding (data loss or
-  corruption, with no secret or personal data) is `noted` like any other. When
+  corruption) is `noted` like any other. When
   it is high, name it to me with the other high notes.
 - An `unchanged` trade-off follows its cost's "At the limit", as any trade-off
   does, with its trade-off words; it is not `noted`.
@@ -660,13 +659,8 @@ This section applies to every report and comment you post, those of lenses a
 skill runs included.
 
 - **Read before you post.** Before posting any report, review comment, Lens
-  dispositions table or line of your own prose, read it for a secret's value
-  or a personal detail: a user name, a host name or an email address. If you
-  find one, keep whatever holds it local, name where the value sits, and tell
-  me in chat. A path is no personal detail in itself, only by a user or host
-  name it holds. A report kept local stays out of the review comment too:
-  leave its rows and strings out, write "withheld, see chat" in their place,
-  and give me its path in chat, never in the record.
+  dispositions table or line of your own prose, read it against the rest of
+  this section.
 - **Verbatim reports go in a fold,** an HTML details element whose summary
   names the lens and its verdict, holding the report in a fenced block. The
   fence is at least three backticks, one more than the report's longest run of
@@ -686,10 +680,13 @@ skill runs included.
   `[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\xAD\x{61C}\x{180E}\x{200B}-\x{200F}\x{2028}-\x{202E}\x{2060}-\x{2069}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFF0}-\x{FFFF}\x{E0000}-\x{E0FFF}]`.
   Tab, line feed and carriage return are fine. Name any you find in the
   report's fold summary and don't block on them, but a hit in the tag or
-  variation-selector ranges can spell hidden text: decode it and put it
-  through the read above before you post. Where a tool refuses a report for
-  hidden characters, keep the report local and tell me, as for a personal
-  detail; never strip them to post it.
+  variation-selector ranges can spell hidden text: decode it and tell me in
+  chat what it spells before you post. Where a tool refuses a report for
+  hidden characters or a live environment-secret value, keep the report
+  local, name where it sits and tell me in chat; never strip or rework it to
+  post it. A report kept local stays out of the review comment too: leave its
+  rows and strings out, write "withheld, see chat" in their place, and give
+  me its path in chat, never in the record.
 - **A report's "For the owner" section holds no line numbers, codes or
   paths.**
 - **Where to post.** In the work's record, where the project keeps it. With no
