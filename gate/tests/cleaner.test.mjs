@@ -644,9 +644,11 @@ test('--recoverable: a system-scope LFS filter keeps nothing; a local showUntrac
 test('--recoverable also keeps on a local lfs. or hook. key, the main worktree\'s too, a changed or untracked file, a submodule path through a link, a submodule folder holding files, or a read that fails', t => {
   const kept = reason => new RegExp(`^ {2}kept: ${reason}$`, 'm');
   // A local LFS extension beside a system-scope LFS filter (F1), and a config-set hook (F2): no status runs.
-  for (const [key, value] of [['lfs.extension.x.clean', 'x'], ['hook.x.event', 'reference-transaction']]) {
+  // git 2.54 and later refuse every command while a hook's event has no command, so the hook case sets both.
+  for (const [key, value, ...more] of [['lfs.extension.x.clean', 'x'], ['hook.x.event', 'reference-transaction', 'hook.x.command', 'true']]) {
     const f = makeRepo(t);
     f.git(f.root, 'config', key, value);
+    if (more.length) f.git(f.root, 'config', ...more);
     const path = f.add('w');
     const rec = recorded();
     const r = f.run(['show', '--recoverable'], { spawn: rec.spawn });
