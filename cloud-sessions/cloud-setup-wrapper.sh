@@ -2820,7 +2820,8 @@ whose class you can't tell as a security finding, for an `absent` finding.
   to file it, fix it in this change, or leave it as a note, and offer a full
   pass once.
 - Filing any `noted` finding, `unchanged` or low, counts against the
-  Follow-up issues cost.
+  Follow-up issues cost; one I pick to file is filed on my word, trigger
+  or not.
 
 **Sorting a low finding.** A low `new` or `updated` finding that isn't a
 security or `security?` finding is `noted (auto)`, unless its fix is
@@ -3130,7 +3131,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 604857407aa5bc13d60ee86d6abbb2dda1cf09ac5df1953d2ac18b069389f3fe 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 6d4f73dc41c25dbcd0085fbc38e09bf598f17b2df815af555b5fa1228b4f0d00 'pact/review.md'
+check_hash 342c3886eea38ae17e04a4aa24e489f05ae1860067cb942f33a96a460aeec03b 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3160,7 +3161,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy b8c177015d13"
+  echo "pact cloud copy f8445543eecd"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
