@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, R57 and R60 to R62, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57 and R60 to R63, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -193,7 +193,8 @@ fold, such as a look-alike letter from another script, R13 for a secret the
 content scans miss, but for a letter written against a key shape whose match
 it switches off, which is open as #428, R14 for a rewritten tool, R2 for an edit's text in a form the edit
 checks don't fold, R60 for an item changed between the poster's read and
-its edit, R62 for a body that slows the poster's page copy, and R12 and
+its edit, R62 for a body that slows the poster's page copy, R63 for the
+cleaner's removals, and R12 and
 R15 for text a lens or a cloned repo hands a session, which no check in
 code reads.
 Prose a session reads is not validated in code; the rules and judgment in
@@ -209,7 +210,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47, R57 and R60 to R62
+  title Residual risk, R1 to R47, R57 and R60 to R63
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -266,6 +267,7 @@ quadrantChart
   R60: [0.06, 0.40]
   R61: [0.10, 0.15]
   R62: [0.08, 0.06]
+  R63: [0.30, 0.35]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -284,7 +286,7 @@ How to read it:
 - **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
   is bounded: public reports, a blocked team, and a posted security row's
   state word showing whether the item sits in published code.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61, R62.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61, R62, R63.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -303,7 +305,8 @@ How to read it:
   the next setup. R60 needs your own account to change an item in the moment
   between the poster's read and its edit. R61 costs only a wrong behind
   warning; what is installed doesn't change. R62 costs a slow post, refused
-  or sent, never a leak.
+  or sent, never a leak. R63 needs a session to remove worktrees without your
+  yes, and costs at most what git and the cleaner's keeps let go.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -357,6 +360,7 @@ How to read it:
 | R61 Git folder steers the behind warning | A session that can write the clone | None; the warning never changes what is installed (ADR 0118) | — |
 | R62 Unclosed openers slow the poster's page copy | A careless or fooled session, on its own post | The body's size bound; nothing is sent while it runs (ADR 0122) | Boundary |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on the text after the state word as written, on each normalised copy and on each copy folded (#392, #396, #394) | Rule |
+| R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat; the deny rules on raw removal commands, a speed bump with the classifier behind them; what a removal can take is bounded by git's refusals and the cleaner's keeps (#438, ADR 0124) | Rule, boundary |
 | R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
@@ -889,6 +893,18 @@ session can act before you see it.
   their words "during this level-3 trial accept risks on my standing word",
   relayed by the lead (q12 on #394), from adversarial-lens's F2 at Test on
   #394.
+- **R63. The cleaner's removals rest on a rule.** Where you turn the
+  cleaner on, two gaps stay open by design (#438, ADR 0124). Its deny rules
+  stop the common spellings of raw worktree and branch removals, not every
+  spelling, so a session can still remove one another way past them, with
+  only the classifier behind. And the cleaner can't tell whose yes it got:
+  only the rules file ties the yes to you, so a session that skips it can
+  run the name-back and the removal itself. What either can take is bounded:
+  git refuses changed, untracked or locked worktrees and unmerged branches,
+  and the cleaner keeps worktrees in use or holding commits found nowhere
+  else; a clean worktree's ignored files go with it. Accepted 2026-10-31 by
+  the owner, decision 314, relayed by the lead, from adversarial-lens's E3
+  and E4 and data-lens's F2 at Design on #438.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -1402,14 +1418,18 @@ data. [cleaner.md](cleaner.md) has the detail.
   that differs.
 - **What it reads.** Claude Code's session status files, which hold session
   ids and working folders, for their `cwd` only; it keeps nothing else from
-  them. It never reads the contents of a worktree's files.
+  them. It resolves each `cwd` on disk to its real path, to compare it, but
+  never one that starts with two separators, a network or device path. It
+  never reads the contents of a worktree's files.
 - **Output.** Fixed words and escaped relative names, file names in quotes
   and worktree folder names held to a fixed set, so no name passes for the
   cleaner's own words; never an absolute path, a session id, file contents,
-  a stash subject, or git's or Node's own output.
+  a stash subject, or git's or Node's own output. The rules-file part asks
+  for the name-back in a fenced code block, and no output line starts with a
+  fence character, so no name can restyle what you say yes to.
 - **The deny rules** are a speed bump with the classifier behind them, not a
   gate; and the cleaner can't tell whose yes it got: the rules file binds the
-  yes to the owner.
+  yes to the owner. Both are accepted as R63.
 
 ## The tracker author checker's own checks
 

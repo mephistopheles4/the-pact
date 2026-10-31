@@ -39,8 +39,11 @@ name-back, and to run `remove` only after your own yes to it in chat.
 
 - **In use:** a worktree that is, or holds, the `cwd` of a Claude Code
   session status file (`~/.claude/sessions/*.json`, on the system the cleaner
-  runs on), or the cleaner's own cwd. A Windows run doesn't see WSL sessions,
-  or the other way.
+  runs on), or the cleaner's own cwd, compared both as written and by real
+  path, so a link either way still keeps it. A network or device path (two
+  leading separators) is compared as written, never resolved, so a planted
+  one can't make the cleaner contact another host. A Windows run doesn't see
+  WSL sessions, or the other way.
 - **Commits found nowhere else:** a worktree whose branch, or detached HEAD,
   has commits on no other branch and no remote.
 - **A branch name outside** letters, digits and `. _ / -`: the cleaner can't

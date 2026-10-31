@@ -6,9 +6,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { delimiter, isAbsolute, join, relative } from 'node:path';
+import { delimiter, isAbsolute, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
-import { clean, esc, findGit } from '../../claude/tools/cleaner.mjs';
+import { clean, esc, findGit, realOf } from '../../claude/tools/cleaner.mjs';
 import { tempDir } from './tree.mjs';
 
 const cp = String.fromCodePoint;
@@ -181,6 +181,28 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
   assert.equal(block(lr.out, 'linked'), '  kept: in use\n', lr.out);
   assert.equal(block(lr.out, 'here'), '  kept: in use\n', lr.out);
   assert.ok(existsSync(linked));
+
+  // A cwd under a link inside a worktree that points out of it, and a cwd that no longer exists reached through a link to the repository.
+  const inner = f.add('inner');
+  symlinkSync(tempDir(t, 'pact-cleaner-out-'), join(inner, 'out'), process.platform === 'win32' ? 'junction' : 'dir');
+  f.add('gone-cwd');
+  writeFileSync(join(sessions, '4242.json'), JSON.stringify({ cwd: join(inner, 'out') }));
+  writeFileSync(join(sessions, '4343.json'), JSON.stringify({ cwd: join(via, '.claude', 'worktrees', 'gone-cwd', 'deleted') }));
+  const ir = f.run(['show'], { cwd: f.root });
+  assert.equal(block(ir.out, 'inner'), '  kept: in use\n', ir.out);
+  assert.equal(block(ir.out, 'gone-cwd'), '  kept: in use\n', ir.out);
+  rmSync(join(sessions, '4343.json'));
+
+  // A network or device path is compared as given, never resolved on disk.
+  const seen = [];
+  const rp = p => {
+    seen.push(p);
+    return p;
+  };
+  for (const p of ['\\\\nohost.invalid\\share\\x', '//nohost.invalid/share/x']) assert.equal(realOf(p, rp), resolve(p));
+  assert.deepEqual(seen, []);
+  assert.equal(realOf(join(f.root, 'missing', 'leaf'), rp), join(f.root, 'missing', 'leaf'), 'a missing leaf joins onto its deepest folder');
+  assert.ok(seen.length >= 1);
 
   for (const [why, plant] of [
     ['no JSON', () => writeFileSync(join(sessions, 'bad.json'), '{"cwd": "BROKEN-SUBSTRING')],

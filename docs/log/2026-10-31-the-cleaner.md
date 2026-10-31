@@ -6,6 +6,8 @@ A gate that reads shell text to tell worktree removals apart could not be made c
 
 The build wrote `claude/tools/cleaner.mjs` test-first, its twelve claims on real git in throwaway repositories (`gate/tests/cleaner.test.mjs`), then the install's deny rules and their record key, the rules file part and the builder's tool list. It keeps a worktree whose branch name is outside the allowed set, where the spec held two readings. The cloud copy installs no tool.
 
+Test ran five rounds, past the two-round limit on the lead's cost pick (decisions 337, 338, 343, 344, 346). The security pair closed two leak paths (a cleanup error printing the home path; tags in records) and two display paths (names dressing their lines; marks restyling the name-back, now shown in a code block). behaviour-lens found the in-use keep missed through a folder link, which sent the work back to Build; the keep now compares each path as written and by real path, and never resolves a network path. The owner accepted decision 314's gaps as R63 in the threat model.
+
 ## Record
 
 - The spec, revision 3: https://github.com/mephistopheles4/the-pact/issues/438#issuecomment-6544012367

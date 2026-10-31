@@ -178,14 +178,33 @@ export function parseStatus(out) {
 // ---------------------------------------------------------------- the reads
 
 const fold = (p, platform) => (platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
-/** A path's real path, so one reached through a link compares equal; the path as given when it doesn't exist. */
-const real = p => {
-  try {
-    return realpathSync.native(p);
-  } catch {
-    return resolve(p);
+// Two separators open a network or device path; resolving one on Windows can contact its host.
+const NET_RE = /^[\\/]{2}/;
+
+/**
+ * A path's real path, so one reached through a link compares equal: the
+ * deepest folder that exists, resolved, with the rest joined on. A network
+ * or device path is never resolved on disk. `rp` stands in for the
+ * real-path call in tests.
+ */
+export function realOf(p, rp = realpathSync.native) {
+  const given = resolve(p);
+  if (NET_RE.test(p) || NET_RE.test(given)) return given;
+  const rest = [];
+  for (let head = given; ; ) {
+    try {
+      return join(rp(head), ...rest);
+    } catch {
+      const up = dirname(head);
+      if (up === head) return given;
+      rest.unshift(basename(head));
+      head = up;
+    }
   }
-};
+}
+
+/** Every form a path is known by: as given, and its real path. */
+const forms = p => [...new Set([resolve(p), realOf(p)])];
 const within = (inner, outer, platform) => {
   const a = fold(inner, platform);
   const b = fold(outer, platform);
@@ -264,7 +283,7 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
   const main = realpathSync.native(records[0].worktree);
   if (isLink(join(main, '.claude'), platform) || isLink(join(main, '.claude', 'worktrees'), platform)) throw new Unavailable('the worktrees folder or its parent is a link');
   const container = join(main, '.claude', 'worktrees');
-  const used = [...sessionCwds(home), cwd].map(real);
+  const used = [...sessionCwds(home), cwd].flatMap(forms);
   const origin = read(git, main, ['for-each-ref', '--format=%(symref)', 'refs/remotes/origin/HEAD']).trim();
   const defaults = origin.startsWith('refs/remotes/origin/') ? [origin.slice('refs/remotes/origin/'.length)] : ['main', 'master'];
   const stashes = read(git, main, ['stash', 'list', '-z', '--format=%gd%x1f%gs']).split('\0').filter(Boolean).map(s => s.split('\x1f'));
@@ -278,7 +297,9 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
     const branch = typeof rec.branch === 'string' && rec.branch.startsWith('refs/heads/') ? rec.branch.slice('refs/heads/'.length) : null;
     const item = { name, path, branch, tip: rec.HEAD ?? '', keep: null };
     items.push(item);
-    if (used.some(c => within(c, real(path), platform))) {
+    // In use when any form of a cwd sits in any form of the worktree: a link either way keeps it.
+    const where = forms(path);
+    if (used.some(c => where.some(w => within(c, w, platform)))) {
       item.keep = 'in use';
       continue;
     }
