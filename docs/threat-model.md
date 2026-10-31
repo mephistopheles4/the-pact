@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, R57 and R60 to R68, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57 and R60 to R69, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -56,7 +56,7 @@ environment yourself.
 `settings.json`, which can hold API keys, and the older copies of it in the
 install's backups (R47); your GitHub sign-in; the repos on
 your machine. It writes review reports, their disposition tables and
-decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files.
+decisions it heard from you in chat to the tracker. It keeps lens inputs and reports as local files. Under a standing goal (#434) it also writes to the record a log of each bounded step, with why and the model's alias or "a custom model", and where the goal reached it, by its kind, never a path or its words; it names the goal by the work it covers, never its words. A step log shows that you were away when the step was taken. A second-opinion round sends the work wherever Claude Code's model setting routes it.
 
 **What this page leaves out.** Claude Code itself, Anthropic's models and
 servers, GitHub, and the safety of your machine and accounts are outside it.
@@ -73,7 +73,9 @@ The pact defends itself in two ways, and they are not equally strong.
   model reads it right. Most of the pact is rules. Examples: the offers
   paragraph, which has a session offer each lens with a reason, and the
   sensitive route, which a session recommends with its why when it sets out;
-  and "Stop and ask me", the points where a session must stop and ask you.
+  and "Stop and ask me", the points where a session must stop and ask you,
+  with the standing goal beside it (#434), which lets work that has gone
+  round twice take one bounded step under a goal you set.
 - **Judgment.** Since #261 the rules file states the owner's practices and
   leaves much to the model's judgment, as any shared `CLAUDE.md` does. Rules
   it used to carry, such as whose tracker text counts, are accepted as
@@ -81,7 +83,9 @@ The pact defends itself in two ways, and they are not equally strong.
   reached by a pointer in `AGENTS.md`.
 
 One rule is a fixed block: "Stop and ask me". No configuration edit can target
-it. Since ADR 0069 the gate holds no text word for word: the pact is vetted
+it. Since #434 the block also carries the standing goal, its bounded step and
+what a goal never lifts, so their bounds
+travel with the guard they loosen. Since ADR 0069 the gate holds no text word for word: the pact is vetted
 like any skill. The gate checks install mechanics only: what each file is and
 where it goes, that each agent file still parses, the text scanner, the
 settings overlay, and the install's bookkeeping. What the pact's files say, and
@@ -211,7 +215,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47, R57 and R60 to R68
+  title Residual risk, R1 to R47, R57 and R60 to R69
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -274,6 +278,7 @@ quadrantChart
   R66: [0.45, 0.55]
   R67: [0.15, 0.30]
   R68: [0.45, 0.45]
+  R69: [0.80, 0.12]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -291,10 +296,10 @@ How to read it:
   made public by its own fix work (R19), lenses no test runs (R20), an
   unprompted apply (R22), publishing work below the
   thorough tier (R23), a lead moving work (R24), a pact command sent as prompt text (R25), the code-scanning workflow's write token (R27, R28), the security defaults rewritten in a configuration (R30), agent files taken from a shared builder file (R32), the install's backups on disk (R47), and a lens sending a secret out or quoting a reviewed product's data (R65, R66) sit here. Their guards are mostly rules, so cutting one moves its risk right.
-- **Watch (bottom right): R7, R34, R43.** They happen by design, and the harm
+- **Watch (bottom right): R7, R34, R43, R69.** They happen by design, and the harm
   is bounded: a blocked team, a path that names you in a post, since #441
   read by nothing, and a posted security row's state word showing whether
-  the item sits in published code.
+  the item sits in published code, and a step log showing when you were away.
 - **Accept (bottom left): R17, R21, R26, R29, R31, R33, R37, R41, R42, R44, R46, R57, R60, R61, R62, R63, R67, R68.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
@@ -343,8 +348,8 @@ How to read it:
 | R20 Lens untested | Text a lens reads | The offers paragraph, and the sensitive route recommended with its why in the tier proposal, the security pair named, the security pair offered once more at Test on a list match when the route wasn't taken, which also catches a missed flag; an unanswered flag or offer kept open in every hand-off and in the result, and a decline that came only by relay kept open until you answer in chat; review of a lens change, with the security pair when you ask for it (ADR 0072); a change Claude doesn't see as sensitive, judgment | Rule, judgment |
 | R21 Test code ordinary | A careless or fooled edit | The QA pair offered at every build, in the default workflow, which a home configuration can change behind the security-defaults line (#262, R30); here, the QA pair reads every change to the gate's tests at Test, which the one-line exception never covers; elsewhere, where you decline the offer, judgment | Rule, judgment |
 | R22 Apply unprompted | A fooled session | Auto mode's classifier, reading the rules that make an install your call; the install go-ahead rule | Outside the pact, rule |
-| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse; the sensitive-work default, now what a session looks for and flags, not a forced route (#262), replaceable in a home configuration behind the security-defaults line (#262, R30), and since #441 without "secrets"; the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover secrets and personal data the list doesn't name; the backstop at Test, which doesn't reach them either (#262, #441, the owner's choice); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
-| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me"; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
+| R23 Publish below the floor | Text a session reads, a careless session | "Stop and ask me" before anything hard to reverse (a standing goal never lifts it, #434); the sensitive-work default, now what a session looks for and flags, not a forced route (#262), replaceable in a home configuration behind the security-defaults line (#262, R30), and since #441 without "secrets"; the one-line exception, which never covers work that matches the list or is flagged sensitive but does cover secrets and personal data the list doesn't name; the backstop at Test, which doesn't reach them either (#262, #441, the owner's choice); here, this repo's no-secret line, the read of every commit before a push, and, when the security pair is due or offered, the wait for your answer to its offer and, when it runs, for its read of the commit pushed (#351); elsewhere, judgment | Rule, judgment |
+| R24 A lead moves work | Text a lead reads | Claude Code's checks on sent-in messages; auto mode's blocks for messages, but not its soft blocks for start prompts; Claude Code's protected paths for the user settings folders; the classifier's soft blocks on disabling CI checks and granting repo permissions; branch protection where set; "Stop and ask me" and what a standing goal never lifts; here, this repo's tracker rule; elsewhere, judgment | Outside the pact, rule, judgment |
 | R25 Command sent as prompt | A lead, a resumed session, text a session reads | Claude Code's quoting of sent-in messages and its card before an archive; none for a resume prompt; "Stop and ask me"; `/scriptorium` writes only a builder file and a page outside any repo; the cloud copy ships no commands; elsewhere, judgment | Outside the pact, rule, judgment |
 | R26 Test files unscanned | A careless edit to shipped code | The premise test in the required `gate` check and in `gate-windows`: nothing outside `gate/tests/` loads a file inside it | Rule |
 | R27 Scan edits its own guard | A session fooled into pushing a branch | Only your account pushes branches; a diff touching `.github/` or the lockdown test waits for the security pair's read or your word before any push (#351); a fork's run is read-only; your review and merge keep it off `main`, while branch protection stands, which only the classifier's soft blocks guard (#265) | Boundary, rule |
@@ -377,6 +382,7 @@ How to read it:
 | R66 A lens report carries a product's secrets or users' data | Text a lens reads, a careless lens | None since #441; a product's leak is Hardening, offered as an accepted-risk candidate (decision 378) | None |
 | R67 A builder file keeps keys or names | Whoever hands you a builder file or preset | None since #441; the page is written outside any repo, and its content policy is unchanged | Judgment |
 | R68 Credential work off the sensitive route | A careless or fooled session | Only when the work is also auth or crypto; with a threat model, its attacker clause | Rule, judgment |
+| R69 A step log shows you were away | Anyone who reads the record, on a public tracker | The goal is named by its work, never quoted; post times already show when sessions ran; elsewhere, a private tracker (#434) | Rule |
 | R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
@@ -653,7 +659,7 @@ once you install it.
   published, such as a package's contents, a release step or a personal
   detail in a committed file, can be built at the quick tier with no spec
   read. Two rules are left in the pact: the fixed "Stop and ask me", which
-  has a session ask you before something hard to reverse; and the
+  has a session ask you before something hard to reverse, and which a standing goal never lifts for that reason (#434); and the
   sensitive-work default, which since #262 a session flags and recommends the
   sensitive route for, rather than forcing it; the one-line exception never
   covers work that matches the list or is flagged sensitive, but does cover
@@ -824,7 +830,7 @@ session can act before you see it.
   review.
 - **R16. Sessions no person started** have no rule yet. A routine or an event
   trigger can open with an outsider's text where your chat would be (#184).
-  Don't point one at a pact setup with a public tracker.
+  Don't point one at a pact setup with a public tracker. Such text can also set a standing goal (#434) and allow one logged step at a stall, within R24's widening.
 - **R20. A lens's behaviour is reviewed, not tested.** Until #189, planted
   practice cases ran the security lenses for real after each model change.
   They found defects only in their own cases and wording, so the owner
@@ -973,6 +979,7 @@ session can act before you see it.
   378). Accepted by the owner on 2026-10-31, in chat, relayed by the lead
   (decision 418 on #441, "a"; confirmed in the lead's chat in decision 451), from #441's first Test round
   (adversarial-lens F4; data-lens F7, F8).
+- **R69. A step log shows you were away.** Under a standing goal (#434), each bounded step is logged in the record, with where the goal reached the session by its kind. On a public tracker, anyone can read from the logs when you were away from the work. The goal's own words never go in, and every post already carries its time, so the extra signal is small; a private tracker removes it. Accepted because the log is what lets you review a step taken while you were away. Accepted 2026-10-31 by the owner, decision 432, relayed by the lead after the owner saw the lead's pick (the owner's words handed q18 to that pick), from #434's Test round 2, data-lens F1; confirmed in its current text by decision 451, relayed by the lead, from Test round 4; recorded by build-434.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -1020,7 +1027,7 @@ session can act before you see it.
   - **"Stop and ask me" still holds,** whoever asked, before anything hard
     to reverse. Here, so does this repo's "Never post a secret or a personal
     detail" (one link from the loaded `AGENTS.md`, since #270); elsewhere that is judgment. Both are rules, so a steered session
-    could still break them.
+    could still break them. A standing goal lifts only its first reason, work gone round twice, for one logged step per stage of each piece of work; never the hard-to-reverse stop, the always-mine decisions or the security rules (#434).
   - **With auto mode off, or its lists edited,** Claude Code's own prompts
     govern.
 
@@ -1028,6 +1035,8 @@ session can act before you see it.
   prompt's decision (R2), and an OK to run outsiders' code that arrives in a
   start prompt or another session's text. The owner accepted the rest by
   name (#220, ADR 0055).
+
+  **Widened by #434.** A standing goal is your words, and the pact names no channel for them; that is left to Claude Code (decision 437, #443). Any prompt or message a session reads, a lead's or another session's start prompt or message, or a resume prompt, can carry words that read as yours, which let the session take one bounded step at a stall. What is accepted: a steered, confused or forged lead, another session, or whoever writes a resume prompt can carry a goal you never gave, which allows one logged step per stage of each piece of work before you see it, since the session can't tell the goal is yours. What bounds it: the step is logged, with where the goal reached the session by its kind as the session saw it (a forged start or resume prompt may log as chat), and left easy to back out; a second stall stops; while a security finding is open, or a fix would touch the sensitive-work list, only a second opinion; every trade-off, accepted risk and always-mine decision still comes to you. Accepted by the owner on 2026-10-31, relayed by the lead (decision 419, option (e) on #434, and decision 432), from #434's Test rounds 1 and 2, adversarial-lens and data-lens. Narrowed on 2026-10-31: on the owner's words, relayed (decision 437), the pact dropped its relay and lead-session rules, so a lead no longer picks trade-offs and the lines that held a relayed or resume-prompt goal open went with them; the wording was the lead's own pick (decision 438). The owner accepted the entry in this shape on 2026-10-31, relayed by the lead (decision 451: every remaining risk entry and threat-model edit in #434 accepted as recommended), from Test round 4, adversarial-lens F1 to F3 and data-lens F1 and F3; recorded by build-434.
 - **R25. A pact command sent as prompt text.** `/make-it-so`, `/finis` and
   `/scriptorium` set `disable-model-invocation: true`. That stops the model starting one,
   not text sent in as a prompt. The bodies add no check of their own, by the
@@ -1049,7 +1058,7 @@ session can act before you see it.
     not look at. Claude Code asks you before any archive, in every
     permission mode; that card is the guard against a relayed `/finis`.
 
-  What still holds whoever sent the command: "Stop and ask me", and here
+  What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, though plain words beside it can, as R24 accepts, #434; on the owner's word relayed, decision 451), and here
   this repo's "Never post a secret or a personal detail" (one link from the loaded `AGENTS.md`, since #270). `/scriptorium`,
   sent in, writes a builder file and renders a page outside any repo; it
   merges, pushes and posts nothing. The cloud copy ships no command. A project's own skill with the same name runs in place of a
@@ -1122,7 +1131,9 @@ safe, and a change made months ago is easy to forget.
   on pact tools the same way, each installed under `pact/tools/` with its
   rule rendered into the rules file (#280). A `skills` list names skill folders by repo, full commit and path, for the cloud setup to fetch (#183 T4b); the install checks its shape, prints a `skills:` block and fetches nothing. The repos and paths are your own text, so the dry run that names them is shared by verdict and counts only, like a custom model. No configuration
   edit can target the fixed "Stop and ask me" block, or a tool's rule part;
-  the renderer refuses.
+  the renderer refuses. The block carries the standing goal (#434), so no
+  configuration can widen or narrow the goal's bounds, and a tool's setting
+  sets no goal.
 - **The pact's default can loosen a rule too.** With no file of yours,
   `builder/default-config/` renders. A change to it, its preset, its
   generator or the installer's choice of it takes the sensitive route
@@ -1567,6 +1578,8 @@ Each tweak below is yours to make. The cost is what you give up.
 
 You cannot edit the fixed "Stop and ask me" block through configuration. That
 is deliberate; a committed edit to it installs, and you vet it like any other.
+Since #434 the block carries the standing goal too, so its one bounded step
+can't be turned off or widened there either. A goal holds until its work ends or you end it.
 
 ## Known open issues at publication
 
