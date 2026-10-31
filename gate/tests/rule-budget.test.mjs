@@ -1,9 +1,9 @@
-// The pact's word budget and its reasons table (#450, decision 441). The rules
-// file, rendered from the default configuration with both pact tools on, and
-// each agent file stay within a budget, so adding a rule means cutting one.
-// Every rule in that render has a row in docs/rule-reasons.md naming the gap no
-// other guardrail covers, and every row names a rule. Raising a budget changes
-// a built-in default that bounds something, so it is a spec change (AGENTS.md).
+// The pact's word budget and its reasons table (ADR 0129). The rules file,
+// rendered from the default configuration with both pact tools on, and each
+// agent file stay within a budget, so adding a rule means cutting one. Every
+// rule in that render has a row in the reasons table naming the gap no other
+// guardrail covers, and every row names a rule. Raising a budget changes a
+// built-in default that bounds something, so it is a spec change.
 import assert from 'node:assert/strict';
 import { cpSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -35,7 +35,7 @@ const BUDGETS = Object.freeze({
 /** Words: runs of non-whitespace, so CRLF and LF count the same. */
 const words = text => text.split(/\s+/).filter(Boolean).length;
 
-/** Each `{ name, text }` whose words pass its budget, with the count. */
+/** One line per file whose words go past its budget: name, count and budget. */
 const overBudget = files => files.filter(f => words(f.text) > BUDGETS[f.name]).map(f => `${f.name}: ${words(f.text)} words, budget ${BUDGETS[f.name]}`);
 
 /** `source` rendered from the default configuration plus both pact tools. */
@@ -112,15 +112,18 @@ function reasonGaps(rules, rows) {
   ];
 }
 
+// #450 C3
 test('the rules file and each agent stay within their word budgets', t => {
   const files = [{ name: RULES, text: renderDefault(t) }, ...agentFiles()];
   assert.deepEqual(overBudget(files), []);
 });
 
+// #450 C3
 test('every agent file has a budget, and every budget names a file', () => {
   assert.deepEqual(agentFiles().map(f => f.name).sort(), Object.keys(BUDGETS).filter(k => k !== RULES).sort());
 });
 
+// #450 C3
 test('the budget check fails on a rules file padded past its budget', t => {
   const padded = join(tempDir(t, 'pact-budget-src-'), 'CLAUDE.md');
   const source = readFileSync(SOURCE, 'utf8');
@@ -128,10 +131,12 @@ test('the budget check fails on a rules file padded past its budget', t => {
   assert.equal(overBudget([{ name: RULES, text: renderDefault(t, padded) }]).length, 1);
 });
 
+// #450 C4, C6
 test('every rule in the rules file has its reason, and every reason its rule', t => {
   assert.deepEqual(reasonGaps(ruleNames(renderDefault(t)), reasonRows(readFileSync(REASONS, 'utf8'))), []);
 });
 
+// #450 C4
 test('the reasons check fails on a rule with no row, a row with no rule, an empty reason, and a rule named twice', t => {
   const rules = ruleNames(renderDefault(t));
   const rows = reasonRows(readFileSync(REASONS, 'utf8'));
@@ -143,6 +148,7 @@ test('the reasons check fails on a rule with no row, a row with no rule, an empt
   assert.deepEqual(reasonGaps([...rules, rules[0]], rows), [`a rule named twice: ${rules[0]}`]);
 });
 
+// #450 C4
 test('a rule is named by its bold span, joined across wraps, without inline code or trailing punctuation', () => {
   const text = ['## A section', '', '- **These decisions are always mine:** text', '', '**Before you run a lens, read the', 'review procedure, `~/.claude/pact/review.md`.** Cross the reports.', '', '| **Quick** | a table cell |', 'Text with **bold** inside.'].join('\n');
   assert.deepEqual(ruleNames(text), ['A section', 'These decisions are always mine', 'Before you run a lens, read the review procedure']);

@@ -266,18 +266,19 @@ whatever its "At the limit" says.
   revision as its own piece of work when a month has passed since its
   `Last revised:` line, or ten accepted risks dated after that line have been
   added; with no such line, or one dated in the future, propose the first at
-  the next phase boundary. After a decline, the next proposal waits a month,
-  or ten more accepted risks. A revision checks the scope line, folds accepted
-  entries that share a class into one, drops those the scope at the base no
-  longer covers, re-reads each risk against the code and Claude Code as they
-  are now, and writes the `Last revised:` line under the title;
-  nothing else writes it. A fold, a drop or a re-read keeps each entry's label
-  (a dropped one as retired), date and source, any part marked not accepted,
-  and what it says is left unguarded; a fold covers no path its entries
-  didn't, a wider class is a new acceptance, and a risk the re-read finds
-  grown is raised as a finding. A change to the scope line, a fold and a
-  drop follow the rule in force for an edit to the threat model's scope and
-  accepted risks.
+  the next phase boundary. After a decline I give in chat, note it with its
+  date in the record; the next proposal waits a month from that date, or ten
+  more accepted risks. A revision checks the scope line, folds accepted
+  entries that share a class into one, drops those the scope, as it stood
+  before the revision, no longer covers, re-reads each risk against the code
+  and Claude Code as they are now, and writes the `Last revised:` line under
+  the title; nothing else writes it, and a change that does is a finding for
+  me at hand-off. A fold, a drop or a re-read keeps each entry's label (a
+  dropped one as retired), date and source, any part marked not accepted, and
+  what it says is left unguarded; a fold covers no path its entries didn't, a
+  wider class is a new acceptance, and a risk the re-read finds grown is
+  raised in full as a finding. A change to the scope line, a fold and a drop
+  follow Accepted risks above, or the project's own rule where it sets one.
 
 *Scriptorium builds this.*
 
