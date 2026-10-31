@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { PACT_TOOLS as INSTALL_TOOLS } from '../install-core.mjs';
+import { CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS } from '../install-core.mjs';
 import { PACT_TOOLS } from '../shared.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
@@ -22,7 +22,7 @@ const GOOD = "console.log('a tool');\n";
 // #280 C3
 test('the pact tool list is one list: the install keeps the same names in the same order', () => {
   assert.deepEqual([...INSTALL_TOOLS], [...PACT_TOOLS]);
-  assert.deepEqual([...PACT_TOOLS], ['poster']);
+  assert.deepEqual([...PACT_TOOLS], ['poster', 'cleaner']);
   assert.ok(Object.isFrozen(PACT_TOOLS) && Object.isFrozen(INSTALL_TOOLS));
 });
 
@@ -252,4 +252,37 @@ test('the source holds the tool-poster part empty, after the record bullet', () 
   const src = readFileSync(SOURCE, 'utf8').replace(/\r\n/g, '\n');
   const i = src.indexOf('<!-- pact:begin tool-poster -->\n<!-- pact:end tool-poster -->\n');
   assert.ok(i > src.indexOf(KEEP_RECORD) && i < src.indexOf('- **Say a mismatch first.**'), 'between the record bullet and the next one');
+});
+
+// ------------------------------------------------------------ the cleaner's part and deny rules (#438)
+
+// S2.4's text, byte for byte.
+const CLEANER_PART = [
+  '- **Clean up through the cleaner.** To remove leftover worktrees and their',
+  '  branches, run `node ~/.claude/pact/tools/cleaner.mjs show` in a POSIX',
+  '  shell, or `node "$HOME/.claude/pact/tools/cleaner.mjs" show` in',
+  '  PowerShell, from the repository. Show me its name-back as printed, in chat',
+  "  only; a record gets its result line's counts, never the tags or the",
+  '  name-back. Run `remove --yes` with the tags it printed only after my own',
+  '  yes in chat to that name-back, never on a relayed one. Never remove a',
+  '  worktree or delete a local branch another way. What it leaves, leave, and',
+  '  tell me.',
+].join('\n');
+
+// #438 C14
+test('with the cleaner on, the rules file holds its part after the poster\'s; off, it is the no-configuration render', t => {
+  const none = rendered(renderWith(t, null));
+  const noNotice = s => s.replace(/\n\*\*Configuration in effect\.\*\*[^\n]*\n[^\n]*\n/, '');
+  const on = renderWith(t, '{"schema": 1, "tools": ["poster", "cleaner"]}');
+  assert.equal(on.code, 0, on.out);
+  assert.equal(noNotice(rendered(on)).replace(`${T2}\n${CLEANER_PART}\n`, ''), none, 'on, the render differs only by the two parts, the cleaner\'s second');
+  assert.equal(noNotice(rendered(renderWith(t, '{"schema": 1, "tools": []}'))), none);
+  assert.ok(!none.includes('cleaner'), 'off, no rule names the cleaner');
+});
+
+// #438 C13: the fixed list, pinned.
+test('the cleaner\'s deny rules are the sixteen fixed rules', () => {
+  const p = ['worktree remove *', '* worktree remove *', 'branch -d *', '* branch -d *', 'branch -D *', '* branch -D *', 'branch --delete *', '* branch --delete *'].map(x => `git ${x}`);
+  assert.deepEqual([...CLEANER_DENY], [...p.map(x => `Bash(${x})`), ...p.map(x => `PowerShell(${x})`)]);
+  assert.ok(Object.isFrozen(CLEANER_DENY));
 });

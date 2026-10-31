@@ -20,7 +20,7 @@ const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
 // names it: off by default. Seam A and the renderer read this one list; the
 // install keeps its own copy (install-core.mjs), held to this one by a test.
 // Adding a name is a change to gate code, so it needs a bad case (AGENTS.md).
-const PACT_TOOLS = Object.freeze(['poster']);
+const PACT_TOOLS = Object.freeze(['poster', 'cleaner']);
 // The builder kit (#203 S6; #262): what the builder reads, installed under
 // pact/builder/ in the repo's own layout whenever /scriptorium installs. Seam
 // A reads this copy; the install keeps its own (install-core.mjs), held to

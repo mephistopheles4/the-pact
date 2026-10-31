@@ -190,7 +190,10 @@ how every session in every repo behaves. So:
 
 ## Rolling back
 
-An older pact installs with that commit's own installer.
+An older pact installs with that commit's own installer. **If the cleaner is
+on,** turn it off and apply first, so its deny rules leave `settings.json`; a
+pact from before #438 refuses a configuration that names it, and never removes
+those rules.
 Rollback is supported only to commits on the published `main` from the Node
 install's cutover (#166, `6821d68`) on. **Before checking out a commit to
 roll back to,** check it, with no checkout:
