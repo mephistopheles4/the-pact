@@ -48,11 +48,11 @@ const asBody = text => () => ({ 'body.md': text });
  * exit 1 and "RESULT: fail"; the poster refuses with exit 2, which
  * `refusedQuietly` asserts on `real`.
  */
-function runBody(tree, t) {
+function runBody(tree, t, env = {}) {
   const dir = tempDir(t, 'pact-poster-table-');
   writeTree(dir, tree);
   const calls = [];
-  const r = post(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', '--dry-run'], { gh: (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' }), env: {}, ...MACHINE });
+  const r = post(['issue-comment', '--repo', TARGET, '--body', join(dir, 'body.md'), '--issue', '5', '--dry-run'], { gh: (...a) => (calls.push(a), { ok: false, stdout: '', stderr: '' }), env, ...MACHINE });
   const lastLine = r.lines.at(-1) ?? '';
   return {
     code: r.code === 2 ? 1 : r.code,
@@ -275,6 +275,21 @@ test('a Finding cell without a state word is refused as table/state at its colum
   // A finding that quotes the withheld text after other words is a finding, not a withheld row.
   for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat', `new ${MARK} quotes "withheld, see chat"`, `new withhelden ${MARK}`, `new 3 withheld reports ${MARK}`]) assert.deepEqual(rules(row(finding)), [], finding);
   for (const finding of ['', `${MARK} F1`, 'new withheld, see chat']) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| ${finding} | b | skipped, because ${MARK} | c |`)), [], `skipped: ${JSON.stringify(finding)}`);
+});
+
+// #280 C7, #441: the content scan still reads folds and fences; the check's reading rules never narrow it.
+test('a hidden character or a live environment secret inside a fold or a fence is still refused by the content scan', t => {
+  const secret = 'zebra-quokka-42';
+  const env = { MY_API_KEY: secret };
+  const hidden = 'a' + String.fromCharCode(0x200b) + 'b';
+  for (const [plant, rule] of [[secret, 'secret/env'], [hidden, 'text/hidden']]) {
+    for (const text of [body(LABEL, '', '<details><summary>a</summary>', '', plant, '', '</details>'), body(LABEL, '', `${FENCE4}text`, plant, FENCE4)]) {
+      const r = runBody({ 'body.md': text }, t, env);
+      assert.equal(r.real.code, 2, r.out);
+      assert.deepEqual(r.fails, [rule], r.out);
+      assert.ok(!r.out.includes(secret));
+    }
+  }
 });
 
 // #280 C7: the check is a line scan; a worst case at the size limit stays well inside its budget.

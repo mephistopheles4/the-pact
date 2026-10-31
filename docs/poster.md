@@ -5,10 +5,13 @@ session posted there, then reads back what landed and checks it against what
 it sent. It is a pact tool, off unless
 the `tools` list in `~/.claude/pact/config.json` names it (ADR 0074). When it's
 on, the install puts it at `~/.claude/pact/tools/poster.mjs`, and the rules
-file tells a session to post through it. Its scans are a backstop for
-accidents, not a guard: the review procedure's read before posting still comes
-first, on every install, with or without the poster (threat model, R3, R13 and
-R29). It needs Node 24 or later and `gh`, signed in.
+file tells a session to post through it. Its scans catch accidents, not a
+session that sets out to get past them. For a secret, its refusal of a live
+environment secret's value is the only check, and only where the poster is on
+(threat model, R3, R13 and R64). For hidden characters and a Lens
+dispositions table, the review procedure's read before posting still comes
+first, on every install, with or without the poster (R29). It needs Node 24 or
+later and `gh`, signed in.
 
 Permission rules on `gh` commands don't see the poster's calls, because the
 poster starts `gh` itself; to gate posting, put a rule on the poster's own

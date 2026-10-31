@@ -121,8 +121,9 @@ over a worktree's facts, only detects a change between its name-back and its
 removal; it never authenticates who said yes (#438). The atomic writer takes random bytes only to
 name a temporary file. Transport is git's and GitHub's, outside this page. A
 change that adds a secret, key, signature or encryption step is new scope;
-a signature or encryption step is crypto, sensitive work under the default,
-and since #441 a secret or key alone is not.
+a signature or encryption step, and a key made, kept or used for one, is
+crypto, sensitive work under the default; since #441 a secret alone, such
+as an API token, is not.
 
 **Data migrations.** The pact keeps no database. What it migrates is the state
 an install leaves behind: in the Claude home folder, and a project install's
@@ -372,7 +373,7 @@ How to read it:
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on the text after the state word as written, on each normalised copy and on each copy folded (#392, #396, #394) | Rule |
 | R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat, and a removal through the cleaner is bounded by git's refusals and its keeps; the deny rules on raw removal commands are a speed bump, with only the classifier behind them (#438, ADR 0124) | Rule, boundary |
 | R64 A session posts a secret or a personal detail | Text a session reads, a careless session | On an install with the poster on, its exact-match refusal of a live environment secret's value; elsewhere none (#441) | None; a boundary where the poster is on |
-| R65 A lens sends a secret out | Text a lens reads | None of its own since #441; a lens fetches only to check an advisory, and treats what it reads as data | Rule, judgment |
+| R65 A lens sends a secret out | Text a lens reads | None of its own since #441; a lens fetches only to check an advisory, and treats what it reads as data | None; rules in part |
 | R66 A lens report carries a product's secrets or users' data | Text a lens reads, a careless lens | None since #441; a product's leak is Hardening, offered as an accepted-risk candidate (decision 378) | None |
 | R67 A builder file keeps keys or names | Whoever hands you a builder file or preset | None since #441; the page is written outside any repo, and its content policy is unchanged | Judgment |
 | R68 Credential work off the sensitive route | A careless or fooled session | Only when the work is also auth or crypto; with a threat model, its attacker clause | Rule, judgment |
@@ -1374,7 +1375,8 @@ because they plant bad cases on purpose and raised alerts that were noise.
   Widened by the owner on 2026-10-22, in chat, from #364's finding that the
   rule refused scratch paths (ADR 0097). Widened again by the owner on
   2026-10-23, in chat, choosing to drop paths from the read before posting
-  and keep the user name, host name, email and secrets (ADR 0098).
+  and keep the user name, host name, email and secrets (ADR 0098). Widened
+  to no read at all in #441, accepted as R64.
 
 ## The poster's own checks
 
