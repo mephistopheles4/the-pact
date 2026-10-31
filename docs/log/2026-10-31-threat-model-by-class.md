@@ -12,8 +12,12 @@ The re-read checked every cited issue's state, every control in code by search, 
 - R24's desktop delivery is now documented, a shrink.
 - R25's archive card no longer stands in Auto and Bypass permissions modes, a growth. Its `/finis` part is not accepted until the owner answers.
 
+Test ran two rounds. Round 1, all six lenses on the first commit, found two highs and 34 other findings. The highs were R25's controls row still naming the archive card, and the move check taking its list of edits on trust. The fixes went into a second commit, and the owner took them, scope-line items included (decision 531). Round 2, the final one, was a narrow read of that commit by the security pair and integrity-lens, on the owner's word for usage; behaviour-lens and the standards pair were held back. It found nothing high. Two follow-ups were filed on the lead's own pick (decision 529): #460, for `/finis` to hand the archive back, and #461, for lens inputs left on disk. The owner confirmed the merge list in the lead's chat, relayed by the lead (decision 536). That took the scope line's condition reworded so a narrowing is confirmed by the owner and recorded on the page, and three phrase fixes, pushed without another lens read.
+
 ## Record
 
 - The spec, revision 2.1: https://github.com/mephistopheles4/the-pact/issues/456#issuecomment-6548758531
 - The Design round 1 review, in three parts: https://github.com/mephistopheles4/the-pact/issues/456#issuecomment-6548633227
 - The Design round 2 review, the final round, in three parts: https://github.com/mephistopheles4/the-pact/issues/456#issuecomment-6548755942
+- The Test round 1 review, in four parts: https://github.com/mephistopheles4/the-pact/issues/456#issuecomment-6549243665
+- The Test round 2 review, the final round, in two parts: https://github.com/mephistopheles4/the-pact/issues/456#issuecomment-6549354288

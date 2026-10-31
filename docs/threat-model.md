@@ -60,7 +60,7 @@ Entry links go to the full text: most in [The threat sections, in full](#the-thr
 
 ## Scope
 
-**In scope:** anything that crosses a real boundary into or out of a pact session: a stranger's text on the tracker, an outside pull request, a cloned repo's files, a plugin or skill you install, upstream releases the cloud setup fetches and runs, text a session or a lens reads (another session's messages included), what a session posts or sends off the machine, other local accounts, and this repo's CI. A session, fooled or careless, stays in scope, though it runs as you; so do this repo's publisher, a file someone hands you to load, an account whose token a session holds, and a program that anything in scope started, supplied or steered. Every attacker an entry named before this line stays in scope, unless a revision's merge list names it as a scope change. Safety stays in scope: loss of your work with no attacker.
+**In scope:** anything that crosses a real boundary into or out of a pact session: a stranger's text on the tracker, an outside pull request, a cloned repo's files, a plugin or skill you install, upstream releases the cloud setup fetches and runs, text a session or a lens reads (another session's messages included), what a session posts or sends off the machine, other local accounts, and this repo's CI. A session, fooled or careless, stays in scope, though it runs as you; so do this repo's publisher, a file someone hands you to load, an account whose token a session holds, and a program that anything in scope started, supplied or steered. Every attacker an entry named before this line stays in scope, unless a revision's merge list, confirmed by the owner, names it as a scope change, and the page records it with a dated line. Safety stays in scope: loss of your work with no attacker.
 
 **Out of scope:** a program you run yourself, as you, on your own machine, that nothing in scope started, supplied or steered: it can already edit your rules file, settings and git config, so a guard against it guards nothing. The cases entries already name stay in scope: your own edits (R17), a local process that writes the configuration (R30), and your own account's edit in the browser (R60). Also out of scope, as before: Claude Code itself, Anthropic's models and servers, GitHub, and the safety of your machine and accounts. Your GitHub account is the root of trust: whoever controls it counts as you.
 
@@ -505,7 +505,7 @@ outsiders' code, and never runs.
 
 ## Controls by risk
 
-The base page's table, moved as it stood at commit `65d271c`, the base of the revision of 2026-10-31. Its prose was written for the per-risk chart the page had then; each risk's score is now in [Provenance](#provenance), and R4 is retired.
+The base page's table, moved as it stood at commit `65d271c`, the base of the revision of 2026-10-31, with the fact fixes [Provenance](#provenance) records. Its prose was written for the per-risk chart the page had then; each risk's score is now in [Provenance](#provenance), and R4 is retired.
 
 The chart places each accepted risk by what is left after today's guards.
 Likelihood asks how easy the path is and how often it comes up. Impact asks
@@ -652,7 +652,7 @@ Each line reads: id · class · score L/I · accepted (when) · from (the issues
 - **R23** · C6 · score 0.30/0.56 · accepted undated, first recorded 2026-10-10 in d8d99d8; widened 2026-10-19 and 2026-10-24 · from #186, ADR 0056, #189, ADR 0050, #261, ADR 0060, #262, #351, #389, #434, #441 · word the owner: q4 relayed and q7 in chat (#351); relayed by the head chef (#389) · rests on "Stop and ask me", the sensitive-work default, this repo's read of every commit before a push · re-read unchanged
 - **R24** · C2 · score 0.40/0.70 · accepted undated, first recorded 2026-10-10 in 9579c66; widened and narrowed 2026-10-31 · from #220, ADR 0055, #265, #270, #434 (decisions 419, 432, 437, 438, 451), #443 (decision 477) · word the owner by name (#220); relayed by the lead (#434, #443) · rests on Claude Code's handling of sent-in messages, auto mode's blocks, "Stop and ask me", branch protection · re-read shrunk, fact fixed: Claude Code's docs now say a message from another session is quoted, attributed to its sender and never your consent; how auto mode judges one is not documented (checked 2026-10-31)
 - **R25a** · C1 · score 0.30/0.64 · accepted undated; first recorded 2026-10-11 in 3eff1d1 · from #229, #270, #434 (decision 451) · word the owner's decision (#229); relayed (decision 451) · rests on Claude Code's quoting of sent-in messages, "Stop and ask me" · re-read shrunk: a command in another session's message arrives as plain text and never runs (Claude Code docs, checked 2026-10-31)
-- **R25b** · C1 · score 0.30/0.64 · accepted undated; first recorded 2026-10-11 in 3eff1d1 · from #229, #270, #434 (decision 451) · word the owner's decision (#229); relayed (decision 451) · rests on Claude Code's archive card, outside Auto and Bypass permissions modes; the command's outstanding-work check · re-read grown, its /finis part not accepted since the re-read of 2026-10-31: Claude Code's desktop docs say an archive needs no card in Auto and Bypass permissions modes; fact fixed; merge-list item
+- **R25b** · C1 · score 0.30/0.64 · accepted undated; first recorded 2026-10-11 in 3eff1d1 · from #229, #270, #434 (decision 451) · word the owner's decision (#229); relayed (decision 451) · rests on Claude Code's archive card, outside Auto and Bypass permissions modes; the command's outstanding-work check; "Stop and ask me" · re-read grown, its /finis part not accepted since the re-read of 2026-10-31: Claude Code's desktop docs say an archive needs no card in Auto and Bypass permissions modes; fact fixed; merge-list item
 - **R26** · C4 · score 0.15/0.30 · accepted undated; first recorded 2026-10-11 in dbbee8e · from ADR 0058 · word not recorded · rests on the premise test in `gate` and `gate-windows` · re-read unchanged
 - **R27** · C4 · score 0.20/0.55 · accepted undated, first recorded 2026-10-11 in dbbee8e; widened 2026-10-19 · from #239, #351 (q4) · word the owner's q4, relayed by the head chef · rests on only your account pushing branches, the security pair's read before a push that touches `.github/` · re-read unchanged
 - **R28** · C4 · score 0.12/0.52 · accepted undated; first recorded 2026-10-11 in dbbee8e · from #239 · word not recorded · rests on pinned GitHub-owned actions, the 14-day cooldown, the Dependabot skip · re-read unchanged
@@ -1491,8 +1491,7 @@ session can act before you see it.
     Not accepted since the re-read of 2026-10-31; see Open issues: Claude
     Code's desktop docs now say it archives a session with no card in Auto
     and Bypass permissions modes. It keeps the worktree on disk about 30
-    days, ignored files included, except that untracked files can be
-    deleted without asking once a pull request Claude opened in the session
+    days, except that untracked files can be deleted without asking once a pull request Claude opened in the session
     has merged, and "Archive anyway" discards the changes.
 
   What still holds whoever sent the command: "Stop and ask me" (a command sets no standing goal, though plain words beside it can, as R24 accepts, #434; on the owner's word relayed, decision 451), and here
