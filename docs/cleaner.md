@@ -13,8 +13,8 @@ older Brigade's cleanup is denied.
 ## Use
 
 ```text
-node ~/.claude/pact/tools/cleaner.mjs show   [--repo <dir>] [--worktree <name>]...
-node ~/.claude/pact/tools/cleaner.mjs remove [--repo <dir>] [--worktree <name>]... --yes <tag>[,<tag>]...
+node ~/.claude/pact/tools/cleaner.mjs show   [--recoverable] [--repo <dir>] [--worktree <name>]...
+node ~/.claude/pact/tools/cleaner.mjs remove [--recoverable] [--repo <dir>] [--worktree <name>]... --yes <tag>[,<tag>]...
 ```
 
 In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`.
@@ -31,6 +31,9 @@ In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`.
 - `remove --yes` takes the tags `show` printed. It reads everything again and
   removes a worktree only when its fresh tag is among them, then deletes its
   branch with `git branch -d`, only when git exited 0 and the folder is gone.
+- `--recoverable` keeps more, so that only what can be recovered goes (see
+  [With `--recoverable`](#with---recoverable)). Give it to both commands: a
+  tag from a run without it never passes a run with it.
 
 The rules file tells a session to show you the name-back as printed, in a
 fenced code block, in chat only, so no name's marks can restyle it, to give a record only the result line's counts, never the tags or the
@@ -58,14 +61,78 @@ name-back, and to run `remove` only after your own yes to it in chat.
 
 A kept worktree has no tag, so `remove` can't take it.
 
+## With `--recoverable`
+
+With the flag, a worktree is also kept, with no tag, when it holds any of
+these. Its block gives the reason and lists the names (20, then a count):
+
+- **Changed or untracked files**: "holds changed or untracked files". git
+  refuses these too, but its own check can trust a cache in the worktree's
+  index, which a session can write.
+- **Ignored files or ignored links**, such as `.env`, which are not in git:
+  "holds ignored files, which are not in git".
+- **A program a session could have set**: a `filter.`, `lfs.` or `hook.` key
+  of `local` or `worktree` scope in the worktree's config or the main
+  worktree's (where `git branch -d` runs), a file that config includes
+  counting as its includer's scope; a config read that fails; or a populated
+  submodule, a gitlink in the worktree's index with a `.git` entry at its
+  path. "a filter program could run". No `status` runs for such a
+  worktree, and no git call runs inside a submodule. A key set in global,
+  system or command scope doesn't keep it: a writer there already reaches
+  every git call you run.
+- **A submodule path that goes through a link**, read without following it:
+  "a submodule path goes through a link". **A submodule folder that isn't
+  populated but holds files**, which git reads nothing of: "a submodule
+  folder holds files git does not see".
+- **Edits git is told not to check**: an assume-unchanged or skip-worktree
+  entry. "hides edits from git".
+- **A work tree set in its config**, a `core.worktree` key of `local` or
+  `worktree` scope, which would point the cleaner's reads at another folder:
+  "its config points git at another folder". **A `.git` file that doesn't
+  name its own folder** under `<main>/.git/worktrees/`, or whose folder's
+  `gitdir` doesn't name it back or whose `commondir` doesn't name the main
+  repository's `.git`, read with no git run and only from small regular
+  files: "its .git file names another git folder".
+- **A read that fails** for that worktree, or a record git calls prunable
+  over a folder still there: "a read failed, so it is kept". The rest of the
+  run goes on.
+
+A program or work tree the main worktree's config names keeps every
+worktree, a folder already gone included, since `git branch -d` runs there.
+
+Every git call then also carries `GIT_NO_LAZY_FETCH=1`,
+`-c status.showUntrackedFiles=normal`, `-c core.checkStat=default` and
+`-c core.trustctime=true`, so no setting hides an untracked or ignored file,
+or an edit, from the cleaner or from git's own check. The flag needs git
+2.45 or later; below it, the run is unavailable.
+
+What "recoverable" can't see: it trusts the local remote-tracking refs, so a
+stale ref, or one a session wrote, can make unpushed commits read as pushed;
+a commit reachable only through a reflog or a per-worktree ref goes with
+the worktree; and index stat data a session forged, or `core.ignoreCase` on
+a case-sensitive file system, can still make an edit or a file read as
+clean.
+
+## Brigade
+
+Grimoire's Brigade mod runs the cleaner itself, from 484's release on: after
+the lead archives or stops the sessions the owner named in a typed
+`/brigade done`, its `clean_up` tool runs `show --recoverable` and then
+`remove --recoverable` with the tags `show` printed, for exactly that typed
+window's folders and while it is open. The typed command is the owner's one
+yes; the rules file says calling `clean_up` after it needs no other, and that
+a `/brigade done` is never a session's yes to run the cleaner itself. That
+release meets the order rule above.
+
 ## What it never does
 
-It never passes `--force`, `-f`, `-D` or `--delete`, never pushes, prunes or
-calls a remote, never touches a stash, and never removes anything its
-name-back didn't name with the same facts. git's own refusals stand: a
-worktree with changed or untracked files, a lock or a submodule is left. A
-worktree's ignored files, such as `.env`, go with its folder; the name-back
-says so.
+It never passes `--force`, `-f`, `-D` or `--delete`, never pushes or prunes,
+never touches a stash, and never removes anything its name-back didn't name
+with the same facts. It asks no remote for anything, but in a partial clone
+a read without `--recoverable` could make git fetch a missing object. git's
+own refusals stand: a worktree with changed or untracked files, a lock or a
+submodule is left. Without `--recoverable`, a worktree's ignored files, such
+as `.env`, go with its folder; the name-back says so.
 
 It runs git by an absolute path from `PATH`, from an empty folder, with an
 empty hooks folder and `--no-optional-locks -c core.fsmonitor=false -c
@@ -81,9 +148,9 @@ file contents, a stash subject or git's own output.
 | 0 | `RESULT: shown <n> <tags>` or `RESULT: removed <r> left 0 changed 0` | done |
 | 1 | `RESULT: removed <r> left <l> changed <c>` | something named in `--yes` was left, or changed or gone since the name-back |
 | 2 | `RESULT: refused <count>` | a usage fault; nothing ran |
-| 4 | `RESULT: unavailable` | git missing or older than 2.36, `.claude` or `.claude/worktrees` a link, the sessions check failed, or a read failed |
+| 4 | `RESULT: unavailable` | git missing or older than 2.36 (2.45 with `--recoverable`), `.claude` or `.claude/worktrees` a link, the sessions check failed, or a read failed |
 
-It needs Node 24 and git 2.36 or later, and runs on Windows, Linux, WSL and
+It needs Node 24 and git 2.36 or later (2.45 with `--recoverable`), and runs on Windows, Linux, WSL and
 macOS. The cloud copy doesn't install it.
 
 ## Deny rules

@@ -3,8 +3,8 @@
 // and their local branches with its own fixed git commands, so no shell text
 // has to be read to tell a removal apart.
 //
-//   node cleaner.mjs show   [--repo <dir>] [--worktree <name>]...
-//   node cleaner.mjs remove [--repo <dir>] [--worktree <name>]... --yes <tag>[,<tag>]...
+//   node cleaner.mjs show   [--recoverable] [--repo <dir>] [--worktree <name>]...
+//   node cleaner.mjs remove [--recoverable] [--repo <dir>] [--worktree <name>]... --yes <tag>[,<tag>]...
 //
 // show names back each candidate with what it holds and ends its block with a
 // tag over everything it read. remove reads everything again and removes a
@@ -13,14 +13,20 @@
 // forces, never touches a stash, a remote or anything it did not name, and
 // keeps a worktree that is in use or holds commits found nowhere else.
 //
+// --recoverable (#446, for Brigade's one-act cleanup) also keeps a worktree
+// whose removal could lose what git does not hold, or run a program: ignored
+// files or links, a filter a session could have set, a populated submodule,
+// or edits git is told not to check. It needs git 2.45.
+//
 // Output is fixed words, names relative to .claude/worktrees/ or the
 // worktree, branch names, short hashes, stash refs and counts, every name
 // escaped. git's own output is never printed. The last line is a RESULT line:
 //   0  RESULT: shown <n> <tags>              or  removed <r> left 0 changed 0
 //   1  RESULT: removed <r> left <l> changed <c>
 //   2  RESULT: refused <count>     a usage fault; nothing run
-//   4  RESULT: unavailable         git missing or too old, a linked folder,
-//                                  the sessions check failed or a read failed
+//   4  RESULT: unavailable         git missing or too old (2.36, or 2.45 with
+//                                  --recoverable), a linked folder, the
+//                                  sessions check failed or a read failed
 //
 // Node 24 or later, ESM, node: built-ins only. Every rule is an exported
 // function that takes the process call and the environment as inputs; only
@@ -39,6 +45,8 @@ const BRANCH_RE = /^[A-Za-z0-9._][A-Za-z0-9._/-]*$/;
 const TAG_RE = /^[0-9a-f]{10}$/;
 const LISTED = 20;
 const GIT_FLOOR = [2, 36];
+// GIT_NO_LAZY_FETCH came in git 2.45.
+const RECOVERABLE_FLOOR = [2, 45];
 const GIT_VARS = new Set(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR']);
 
 class Unavailable extends Error {}
@@ -49,11 +57,17 @@ class Unavailable extends Error {}
 export function parseArgs(argv) {
   const refusals = [];
   const [command, ...rest] = argv;
-  const opts = { command, repo: null, worktrees: [], yes: null };
+  const opts = { command, repo: null, worktrees: [], yes: null, recoverable: false };
   if (command !== 'show' && command !== 'remove') return { opts, refusals: [{ rule: 'usage/command', where: 'argument 1' }] };
   for (let i = 0; i < rest.length; i += 1) {
     const at = `argument ${i + 2}`;
     const name = rest[i];
+    // A switch, with no value.
+    if (name === '--recoverable') {
+      if (opts.recoverable) refusals.push({ rule: 'usage/repeated', where: at });
+      opts.recoverable = true;
+      continue;
+    }
     const known = name === '--repo' || name === '--worktree' || (name === '--yes' && command === 'remove');
     if (!known) {
       refusals.push({ rule: 'usage/unknown-option', where: at });
@@ -129,13 +143,18 @@ export function gitEnv(env) {
 
 /**
  * A git runner: git by its absolute path, no shell, from an empty folder,
- * with the fixed flags and an empty hooks folder. `spawn` stands in for the
- * process call in tests. Returns { ok, stdout }; git's stderr is dropped.
+ * with the fixed flags and an empty hooks folder. With `recoverable`, every
+ * call also pins untracked files on, so no setting hides an untracked or
+ * ignored file from the cleaner or from git's own check, and fetches no
+ * missing object. `spawn` stands in for the process call in tests. Returns
+ * { ok, stdout }; git's stderr is dropped.
  */
-export function makeGit({ git, env, cwd, hooks, spawn = spawnSync }) {
-  const clean = gitEnv(env);
+export function makeGit({ git, env, cwd, hooks, recoverable = false, spawn = spawnSync }) {
+  const clean = recoverable ? { ...gitEnv(env), GIT_NO_LAZY_FETCH: '1' } : gitEnv(env);
+  // Stat trust pinned too, so a local setting can't make an edited file read as clean.
+  const pins = recoverable ? ['-c', 'status.showUntrackedFiles=normal', '-c', 'core.checkStat=default', '-c', 'core.trustctime=true'] : [];
   return (dir, args) => {
-    const r = spawn(git, ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-c', 'log.showSignature=false', '-c', `core.hooksPath=${hooks}`, '-C', dir, ...args], { cwd, env: clean, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
+    const r = spawn(git, ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-c', 'log.showSignature=false', '-c', `core.hooksPath=${hooks}`, ...pins, '-C', dir, ...args], { cwd, env: clean, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, windowsHide: true });
     return { ok: !r.error && r.status === 0, stdout: typeof r.stdout === 'string' ? r.stdout : '' };
   };
 }
@@ -293,6 +312,118 @@ function holdsLink(dir) {
   return false;
 }
 
+// --recoverable's keeps, read before any `status` runs. A filter driver's
+// program runs when `status` reads a changed file, and none of the fixed
+// flags stops it; git's status runs one inside each populated submodule too.
+// A session can write a filter into its repository's own config, or a key a
+// global or system driver reads from it (an LFS extension), or a hook set in
+// config, which the empty hooks folder doesn't cover; so a `filter.`, `lfs.`
+// or `hook.` key of local or worktree scope keeps the worktree, as a config
+// read that fails does; an included file counts in its includer's scope.
+// Global, system and command scope stay as they are: a writer there already
+// reaches every git call the owner runs.
+const LOCAL_PROGRAM = /^(?:local|worktree)\t(?:filter|lfs|hook)\./i;
+// A work tree set in config points git's reads at another folder than the one git's own check removes.
+const LOCAL_WORKTREE = /^(?:local|worktree)\tcore\.worktree$/i;
+const ELSEWHERE = 'its config points git at another folder';
+const POINTER = 'its .git file names another git folder';
+const POINTER_MAX = 4096;
+const FILTER = 'a filter program could run';
+const HIDES = 'hides edits from git';
+const IGNORED = 'holds ignored files, which are not in git';
+const CHANGED = 'holds changed or untracked files';
+const LINKED = 'a submodule path goes through a link';
+const UNSEEN = 'a submodule folder holds files git does not see';
+const READ_FAILED = 'a read failed, so it is kept';
+
+/** Why the config read from `dir` keeps a worktree: a program or a work tree a session could have set, or a read that fails; else null. */
+export function configKeep(git, dir) {
+  const config = git(dir, ['config', '--show-scope', '--list', '--name-only']);
+  if (!config.ok) return FILTER;
+  const keys = config.stdout.split('\n');
+  if (keys.some(l => LOCAL_PROGRAM.test(l))) return FILTER;
+  if (keys.some(l => LOCAL_WORKTREE.test(l))) return ELSEWHERE;
+  return null;
+}
+
+/**
+ * Whether the worktree's `.git` file names its own folder under
+ * `<main>/.git/worktrees/`, whose `gitdir` names it back, so no git call in
+ * it is pointed at another repository or a remote path. Read with no git run.
+ */
+function pointsHome(main, path, platform) {
+  // A pointer file is one short line: a regular file, not a link, read only when small.
+  const small = p => {
+    const st = lstatSync(p);
+    return st.isFile() && st.size <= POINTER_MAX ? readFileSync(p, 'utf8') : null;
+  };
+  const dotGit = join(path, '.git');
+  const line = small(dotGit);
+  const m = line === null ? null : /^gitdir: (.+?)\r?\n?$/.exec(line);
+  if (!m) return false;
+  const admin = resolve(path, m[1]);
+  if (remote(admin, platform) || fold(dirname(admin), platform) !== fold(join(main, '.git', 'worktrees'), platform) || isLink(admin, platform)) return false;
+  // git keeps both paths relative to the admin folder when they are relative.
+  const back = small(join(admin, 'gitdir'));
+  const common = small(join(admin, 'commondir'));
+  if (back === null || common === null) return false;
+  const commonDir = resolve(admin, common.trim());
+  if (remote(commonDir, platform) || fold(commonDir, platform) !== fold(join(main, '.git'), platform)) return false;
+  return fold(resolve(admin, back.trim()), platform) === fold(dotGit, platform);
+}
+
+/** Whether any part of `rel` under `root` is a link, the installer's way, walked from the root, never statting through one. */
+function throughLink(root, rel, platform) {
+  let cur = root;
+  for (const part of rel.split('/').filter(Boolean)) {
+    cur = join(cur, part);
+    if (!present(cur)) return false;
+    if (isLink(cur, platform)) return true;
+  }
+  return false;
+}
+
+/** Whether a folder holds anything; a missing one holds nothing. */
+function holdsAny(dir) {
+  try {
+    return readdirSync(dir).length > 0;
+  } catch (e) {
+    if (e.code === 'ENOENT') return false;
+    throw e;
+  }
+}
+
+/**
+ * Why --recoverable keeps the worktree at `path` before its status is read,
+ * with the names it lists, or null. No git call runs inside a submodule: a
+ * populated one is a gitlink in the worktree's index with a `.git` entry at
+ * its path, read without statting through a link. A read that fails keeps
+ * this worktree alone.
+ */
+export function heldBack(git, path, platform = process.platform) {
+  const config = configKeep(git, path);
+  if (config) return { keep: config, lists: [] };
+  try {
+    const entries = out => out.split('\0').filter(Boolean);
+    const gitlinks = entries(read(git, path, ['ls-files', '--stage', '-z'])).filter(e => e.startsWith('160000 ')).map(e => e.slice(e.indexOf('\t') + 1));
+    // An index path is the session's text: one that could climb out of the worktree is never joined.
+    if (gitlinks.some(p => p.split('/').some(part => part === '' || part === '.' || part === '..' || /[\\:]/.test(part)))) return { keep: READ_FAILED, lists: [] };
+    const linked = gitlinks.filter(p => throughLink(path, p, platform));
+    if (linked.length) return { keep: LINKED, lists: [['submodule paths', linked]] };
+    const populated = gitlinks.filter(p => present(join(path, p, '.git')));
+    if (populated.length) return { keep: FILTER, lists: [['populated submodules', populated]] };
+    // git leaves a submodule that isn't populated as an empty folder, and reads nothing inside it.
+    const unseen = gitlinks.filter(p => holdsAny(join(path, p)));
+    if (unseen.length) return { keep: UNSEEN, lists: [['submodule folders', unseen]] };
+    // ls-files -v marks an assume-unchanged entry with a lower-case letter and a skip-worktree one with S.
+    const hidden = entries(read(git, path, ['ls-files', '-v', '-z'])).filter(e => /^(?:[a-z]|S) /.test(e)).map(e => e.slice(2));
+    if (hidden.length) return { keep: HIDES, lists: [['files git does not check for edits', hidden]] };
+  } catch {
+    return { keep: READ_FAILED, lists: [] };
+  }
+  return null;
+}
+
 /** The tag: the first 10 hex of SHA-256 over the JSON of a candidate's full facts. */
 export const tagOf = facts => createHash('sha256').update(JSON.stringify(facts)).digest('hex').slice(0, 10);
 
@@ -300,7 +431,7 @@ export const tagOf = facts => createHash('sha256').update(JSON.stringify(facts))
  * Every candidate and keep, read fresh: the main worktree, then each linked
  * worktree directly under <main>/.claude/worktrees/, narrowed by --worktree.
  */
-export function readAll(git, { repo, worktrees, home, cwd, platform }) {
+export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable = false }) {
   const records = parseWorktrees(read(git, repo, ['worktree', 'list', '--porcelain', '-z']));
   if (!records.length) throw new Unavailable('a read failed');
   const main = realpathSync.native(records[0].worktree);
@@ -310,6 +441,9 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
   const origin = read(git, main, ['for-each-ref', '--format=%(symref)', 'refs/remotes/origin/HEAD']).trim();
   const defaults = origin.startsWith('refs/remotes/origin/') ? [origin.slice('refs/remotes/origin/'.length)] : ['main', 'master'];
   const stashes = read(git, main, ['stash', 'list', '-z', '--format=%gd%x1f%gs']).split('\0').filter(Boolean).map(s => s.split('\x1f'));
+  // `branch -d` runs from the main worktree, so a program its own config names keeps every worktree.
+  const mainKeep = recoverable ? configKeep(git, main) : null;
+  const mainHeld = mainKeep ? { keep: mainKeep, lists: [] } : null;
   const items = [];
   for (const rec of records.slice(1)) {
     if ('bare' in rec) continue;
@@ -320,60 +454,100 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
     const branch = typeof rec.branch === 'string' && rec.branch.startsWith('refs/heads/') ? rec.branch.slice('refs/heads/'.length) : null;
     const item = { name, path, branch, tip: rec.HEAD ?? '', keep: null };
     items.push(item);
-    // A linked folder is kept before anything resolves or reads through it.
-    if (isLink(path, platform)) {
-      item.keep = 'the folder is a link';
-      continue;
-    }
-    // In use when any form of a cwd sits in any form of the worktree: a link either way keeps it.
-    const where = forms(path);
-    if (used.some(c => where.some(w => within(c, w, platform)))) {
-      item.keep = 'in use';
-      continue;
-    }
-    // A name outside the --worktree set could dress its line.
-    if (!NAME_RE.test(name)) {
-      item.keep = 'a folder name the cleaner does not read';
-      continue;
-    }
-    // A branch name outside the rule can't go in --exclude, so its commits go unread and the worktree stays.
-    if (branch !== null && !BRANCH_RE.test(branch)) {
-      item.keep = 'a branch name the cleaner does not read';
-      continue;
-    }
-    const nowhere = branch === null
-      ? read(git, main, ['rev-list', '--not', '--remotes', '--branches', '--not', '--end-of-options', item.tip])
-      : read(git, main, ['rev-list', '--not', '--remotes', `--exclude=${branch}`, '--branches', '--not', '--end-of-options', `refs/heads/${branch}`]);
-    if (nowhere.trim()) {
-      item.keep = 'commits found nowhere else';
-      continue;
-    }
-    const gone = 'prunable' in rec || !present(path);
-    const lists = gone ? parseStatus('') : parseStatus(read(git, path, ['status', '--porcelain=v1', '-z', '--ignored', '--no-renames']));
-    // git leaves an ignored link, and with it the folder, so the name-back names it apart.
-    const lstatLink = p => {
-      try {
-        return lstatSync(p).isSymbolicLink();
-      } catch {
-        return false;
+    try {
+      // A linked folder is kept before anything resolves or reads through it.
+      if (isLink(path, platform)) {
+        item.keep = 'the folder is a link';
+        continue;
       }
-    };
-    const linked = new Set(lists.ignored.filter(n => lstatLink(join(path, n.replace(/[\\/]$/, '')))));
-    lists.ignoredLinks = lists.ignored.filter(n => linked.has(n));
-    lists.ignored = lists.ignored.filter(n => !linked.has(n));
-    const subjects = branch === null ? [] : [`WIP on ${branch}:`, `On ${branch}:`];
-    item.facts = {
-      main,
-      folder: name,
-      branch,
-      tip: item.tip,
-      locked: 'locked' in rec,
-      gone,
-      branchKept: branch !== null && defaults.includes(branch) ? 'the default branch' : null,
-      ...lists,
-      stashes: stashes.filter(([, s]) => subjects.some(p => s?.startsWith(p))).map(([ref]) => ref),
-    };
-    item.tag = tagOf(item.facts);
+      // In use when any form of a cwd sits in any form of the worktree: a link either way keeps it.
+      const where = forms(path);
+      if (used.some(c => where.some(w => within(c, w, platform)))) {
+        item.keep = 'in use';
+        continue;
+      }
+      // A name outside the --worktree set could dress its line.
+      if (!NAME_RE.test(name)) {
+        item.keep = 'a folder name the cleaner does not read';
+        continue;
+      }
+      // A branch name outside the rule can't go in --exclude, so its commits go unread and the worktree stays.
+      if (branch !== null && !BRANCH_RE.test(branch)) {
+        item.keep = 'a branch name the cleaner does not read';
+        continue;
+      }
+      const nowhere = branch === null
+        ? read(git, main, ['rev-list', '--not', '--remotes', '--branches', '--not', '--end-of-options', item.tip])
+        : read(git, main, ['rev-list', '--not', '--remotes', `--exclude=${branch}`, '--branches', '--not', '--end-of-options', `refs/heads/${branch}`]);
+      if (nowhere.trim()) {
+        item.keep = 'commits found nowhere else';
+        continue;
+      }
+      const gone = 'prunable' in rec || !present(path);
+      // A folder already gone holds nothing to lose; only git's record goes. A
+      // record git calls prunable over a folder still there is read by nothing.
+      // The main worktree's keep holds a gone record too, since `branch -d` runs there.
+      const held = !recoverable
+        ? null
+        : (mainHeld ?? (gone ? (present(path) ? { keep: READ_FAILED, lists: [] } : null) : pointsHome(main, path, platform) ? heldBack(git, path, platform) : { keep: POINTER, lists: [] }));
+      if (held) {
+        item.keep = held.keep;
+        item.keepLists = held.lists;
+        continue;
+      }
+      let status = '';
+      if (!gone) {
+        const r = git(path, ['status', '--porcelain=v1', '-z', '--ignored', '--no-renames']);
+        if (!r.ok && recoverable) {
+          item.keep = READ_FAILED;
+          continue;
+        }
+        if (!r.ok) throw new Unavailable('a read failed');
+        status = r.stdout;
+      }
+      const lists = parseStatus(status);
+      // git leaves an ignored link, and with it the folder, so the name-back names it apart.
+      const lstatLink = p => {
+        try {
+          return lstatSync(p).isSymbolicLink();
+        } catch {
+          return false;
+        }
+      };
+      const linked = new Set(lists.ignored.filter(n => lstatLink(join(path, n.replace(/[\\/]$/, '')))));
+      lists.ignoredLinks = lists.ignored.filter(n => linked.has(n));
+      lists.ignored = lists.ignored.filter(n => !linked.has(n));
+      // git's own check before a removal can trust a cache in the worktree's
+      // index, which a session can write, so with the flag the cleaner's own
+      // read of changed and untracked files keeps the worktree too.
+      if (recoverable && (lists.changed.length || lists.untracked.length || lists.ignored.length || lists.ignoredLinks.length)) {
+        item.keep = lists.changed.length || lists.untracked.length ? CHANGED : IGNORED;
+        item.keepLists = [['changed files', lists.changed], ['untracked files', lists.untracked], ['ignored files', lists.ignored], ['ignored links', lists.ignoredLinks]];
+        continue;
+      }
+      const subjects = branch === null ? [] : [`WIP on ${branch}:`, `On ${branch}:`];
+      item.facts = {
+        main,
+        folder: name,
+        branch,
+        tip: item.tip,
+        locked: 'locked' in rec,
+        gone,
+        branchKept: branch !== null && defaults.includes(branch) ? 'the default branch' : null,
+        ...lists,
+        stashes: stashes.filter(([, s]) => subjects.some(p => s?.startsWith(p))).map(([ref]) => ref),
+        // The flag joins the facts, so a tag from a run without it never passes a run with it.
+        ...(recoverable ? { recoverable: true } : {}),
+      };
+      item.tag = tagOf(item.facts);
+    } catch (e) {
+      // With the flag, one worktree's failing read keeps that worktree alone.
+      if (!recoverable) throw e;
+      item.keep = READ_FAILED;
+      item.keepLists = [];
+      delete item.facts;
+      delete item.tag;
+    }
   }
   return items;
 }
@@ -396,7 +570,7 @@ function listLines(title, names, show = quoted) {
 /** One candidate's name-back. */
 export function blockLines(item) {
   const out = [`worktree ${folderName(item.name)}`];
-  if (item.keep) return [...out, `  kept: ${item.keep}`];
+  if (item.keep) return [...out, `  kept: ${item.keep}`, ...(item.keepLists ?? []).flatMap(([title, names]) => listLines(title, names))];
   const f = item.facts;
   out.push(f.branch === null ? `  detached at ${short(f.tip)}` : `  branch ${esc(f.branch)} at ${short(f.tip)}`);
   if (f.gone) out.push("  folder gone, only git's record goes");
@@ -491,12 +665,14 @@ export function clean(argv, io) {
     made.push(cwd);
     const hooks = mkdtempSync(join(io.home, '.pact-cleaner-hooks-'));
     made.push(hooks);
-    const run = makeGit({ git, env: io.env, cwd, hooks, spawn: io.spawn });
+    const { recoverable } = opts;
+    const run = makeGit({ git, env: io.env, cwd, hooks, recoverable, spawn: io.spawn });
     const repo = resolve(io.cwd, opts.repo ?? '.');
     const v = /^git version (\d+)\.(\d+)/.exec(read(run, repo, ['version']));
-    if (!v || Number(v[1]) * 1000 + Number(v[2]) < GIT_FLOOR[0] * 1000 + GIT_FLOOR[1]) return unavailable('git is missing or older than 2.36');
+    const [major, minor] = recoverable ? RECOVERABLE_FLOOR : GIT_FLOOR;
+    if (!v || Number(v[1]) * 1000 + Number(v[2]) < major * 1000 + minor) return unavailable(`git is missing or older than ${major}.${minor}`);
     const platform = io.platform ?? process.platform;
-    const items = readAll(run, { repo, worktrees: opts.worktrees, home: io.home, cwd: io.cwd, platform });
+    const items = readAll(run, { repo, worktrees: opts.worktrees, home: io.home, cwd: io.cwd, platform, recoverable });
     if (opts.command === 'show') {
       const tags = items.filter(i => i.tag).map(i => i.tag);
       return { code: 0, lines: [...items.flatMap(blockLines), `RESULT: shown ${tags.length}${tags.length ? ` ${tags.join(',')}` : ''}`] };
