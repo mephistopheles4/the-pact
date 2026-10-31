@@ -20,7 +20,7 @@ const RULES = 'the rules file';
 // Each budget is the smallest multiple of 50 above the file's size after the
 // #450 cuts (S5.1), measured on the rebased branch.
 const BUDGETS = Object.freeze({
-  [RULES]: 3950,
+  [RULES]: 4000,
   'adversarial-lens': 1800,
   'behaviour-lens': 1450,
   'conventions-lens': 1100,
@@ -132,12 +132,15 @@ test('every rule in the rules file has its reason, and every reason its rule', t
   assert.deepEqual(reasonGaps(ruleNames(renderDefault(t)), reasonRows(readFileSync(REASONS, 'utf8'))), []);
 });
 
-test('the reasons check fails on a rule with no row, and on a row with no rule', t => {
+test('the reasons check fails on a rule with no row, a row with no rule, an empty reason, and a rule named twice', t => {
   const rules = ruleNames(renderDefault(t));
   const rows = reasonRows(readFileSync(REASONS, 'utf8'));
   const added = ruleNames(`${rules.map(r => `- **${r}.** Text.`).join('\n')}\n- **A rule nobody wrote a reason for.** Text.\n`);
   assert.deepEqual(reasonGaps(added, rows), ['a rule with no reason row: A rule nobody wrote a reason for']);
   assert.deepEqual(reasonGaps(rules, [...rows, { rule: 'A rule that is gone', reason: 'Once it covered a gap.' }]), ['a reason row naming no rule: A rule that is gone']);
+  const emptied = rows.map((r, i) => (i === 0 ? { ...r, reason: '' } : r));
+  assert.deepEqual(reasonGaps(rules, emptied), [`a reason row with no reason: ${rows[0].rule}`]);
+  assert.deepEqual(reasonGaps([...rules, rules[0]], rows), [`a rule named twice: ${rules[0]}`]);
 });
 
 test('a rule is named by its bold span, joined across wraps, without inline code or trailing punctuation', () => {

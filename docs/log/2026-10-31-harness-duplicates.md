@@ -8,6 +8,8 @@ Design ran two rounds. Round 1, the spec pair on revision 1, found 16 findings, 
 
 The removal of "accepted risks only on my word" went to #443 (decision 452).
 
+The build was rebased onto #434 and #443. #434's four new Guards rules got reasons rows (decision 469), and the budgets were measured again by the spec's rule. Test round 1 ran the security pair's full read of the squashed local commit, which released the push, and the QA pair. Its fixes widened the revision bullet: a re-read keeps what a fold or a drop keeps and raises a risk it finds grown, a future-dated line counts as none, drops rest on the scope at the base, and a declined proposal waits a month. That pushed the rules file past its budget, which rose to 4,000 as a spec change on the lead's pick (decision 488). The threat model's R70 now names the revision.
+
 ## Record
 
 - The spec, revision 3: https://github.com/mephistopheles4/the-pact/issues/450#issuecomment-6546849667

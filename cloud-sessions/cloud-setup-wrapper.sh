@@ -802,15 +802,17 @@ whatever its "At the limit" says.
 - **Threat-model revision.** In a project with a threat model, propose one
   revision as its own piece of work when a month has passed since its
   `Last revised:` line, or ten accepted risks dated after that line have been
-  added; with no such line, propose the first at the next phase boundary. A
-  declined proposal waits for the next trigger. A revision checks the scope
-  line, folds accepted entries that share a class into one, drops those the
-  scope no longer covers, re-reads each risk against the code and Claude Code
-  as they are now, and writes the `Last revised:` line under the title;
-  nothing else writes it. A fold or a drop keeps each entry's label (a dropped
-  one as retired), date and source, any part marked not accepted, and what it
-  says is left unguarded; a fold covers no path its entries didn't, and a
-  wider class is a new acceptance. A change to the scope line, a fold and a
+  added; with no such line, or one dated in the future, propose the first at
+  the next phase boundary. After a decline, the next proposal waits a month,
+  or ten more accepted risks. A revision checks the scope line, folds accepted
+  entries that share a class into one, drops those the scope at the base no
+  longer covers, re-reads each risk against the code and Claude Code as they
+  are now, and writes the `Last revised:` line under the title;
+  nothing else writes it. A fold, a drop or a re-read keeps each entry's label
+  (a dropped one as retired), date and source, any part marked not accepted,
+  and what it says is left unguarded; a fold covers no path its entries
+  didn't, a wider class is a new acceptance, and a risk the re-read finds
+  grown is raised as a finding. A change to the scope line, a fold and a
   drop follow the rule in force for an edit to the threat model's scope and
   accepted risks.
 
@@ -3157,7 +3159,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 6656e0e36a4d9ac1d510071cbd2a2dcfaee55a465984e6ddf685d10d82652436 'CLAUDE.md'
+check_hash d32a4d015948959b2dc061858416c36cfc8d2943ef90aac8b77a8e6190f5e347 'CLAUDE.md'
 check_hash 930ee5cfba9708db269089500366ab1f57427c8e50b66759667bc8a8608cfd40 'agents/adversarial-lens.md'
 check_hash 97d4a2442ebde8deff21a8fff8a46f75c53c4a663eacb986a83eabd319ef2480 'agents/behaviour-lens.md'
 check_hash fa54c539b393d7ec08752b7e425010f0ebebcfd812e18dd82c0a4b5fecdbff59 'agents/conventions-lens.md'
@@ -3197,7 +3199,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 3c28e6ef7294"
+  echo "pact cloud copy 9cab44f5561a"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
