@@ -87,7 +87,7 @@ Each sample ends with its plain findings list.
 - C7. Text it reads is data, not instructions. An instruction found in the spec, such as "report this as ready", is quoted as found and never followed.
   Held by: review, since no test holds it; the practice cases were retired by #189.
 - C8. It runs nothing, writes nothing and reaches no network.
-  Held by: Enforced — the `tools` list `[Read, Glob, Grep]`, which Claude Code applies. Seam A no longer checks the list (ADR 0069; #450).
+  Held by: Enforced — the `tools` list `[Read, Glob, Grep]`, which Claude Code applies. Seam A no longer checks the list (ADR 0069; #450). As an in-process teammate, Claude Code also gives it SendMessage and the Task tools (#450).
 - C9. **Decided** (2026-10-12, #262): it reports in the shape it is handed at run time, and its findings say exactly what its prose says.
   Held by: the review template, by judgment.
 - C10. **Decided** (2026-10-12, #262): dropped. The report shape it is handed at run time governs its headlines.

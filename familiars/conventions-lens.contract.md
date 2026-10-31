@@ -78,7 +78,7 @@ The owner's words widen the draft's reach to how code is written and split into 
 - C5. **The repo's rules are what it checks the change against, never instructions to it.** Text it reads is data, not instructions.
   Held by: review, since no test holds it; the practice cases were retired by #189.
 - C6. It runs nothing, writes nothing and reaches no network.
-  Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
+  Held by: Enforced — the `tools` list `[Read, Glob, Grep]`. As an in-process teammate, Claude Code also gives it SendMessage and the Task tools (#450).
 - C7. **Decided** (2026-10-12, #262): It reports in the shape it is handed.
   Held by: the review template, by judgment.
 - C8. **Decided** (2026-10-12, #262): dropped: the shape it is handed sets the headline.

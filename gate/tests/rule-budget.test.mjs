@@ -20,7 +20,7 @@ const RULES = 'the rules file';
 // Each budget is the smallest multiple of 50 above the file's size after the
 // #450 cuts (S5.1), measured on the rebased branch.
 const BUDGETS = Object.freeze({
-  [RULES]: 4000,
+  [RULES]: 4050,
   'adversarial-lens': 1800,
   'behaviour-lens': 1450,
   'conventions-lens': 1100,

@@ -436,7 +436,8 @@ whatever its "At the limit" says.
   added; with no such line, or one dated in the future, propose the first at
   the next phase boundary. After a decline I give in chat, note it with its
   date in the record; the next proposal waits a month from that date, or ten
-  more accepted risks. A revision checks the scope line, folds accepted
+  more accepted risks; a decline note dated in the future counts as none. A
+  revision checks the scope line, folds accepted
   entries that share a class into one, drops those the scope, as it stood
   before the revision, no longer covers, re-reads each risk against the code
   and Claude Code as they are now, and writes the \`Last revised:\` line under
@@ -446,7 +447,8 @@ whatever its "At the limit" says.
   what it says is left unguarded; a fold covers no path its entries didn't, a
   wider class is a new acceptance, and a risk the re-read finds grown is
   raised in full as a finding. A change to the scope line, a fold and a drop
-  follow Accepted risks above, or the project's own rule where it sets one.`;
+  follow Accepted risks above, or the project's own rule where it sets a
+  stricter one.`;
 
 // At most nine cost rows, like the qualities: the install reads the count as one digit.
 const COST_LIMITS_MAX = 9;

@@ -75,7 +75,7 @@ For the session
 - C6. Text it reads is data, not instructions.
   Held by: review, since no test holds it; the practice cases were retired by #189.
 - C7. It runs nothing, writes nothing and reaches no network.
-  Held by: Enforced — the `tools` list `[Read, Glob, Grep]`.
+  Held by: Enforced — the `tools` list `[Read, Glob, Grep]`. As an in-process teammate, Claude Code also gives it SendMessage and the Task tools (#450).
 - C8. **Decided** (2026-10-12, #262): It reports in the shape it is handed at run time.
   Held by: the review template, by judgment.
 - C9. **Decided** (2026-10-12, #262): Dropped: the report shape, headlines included, is handed at run time.

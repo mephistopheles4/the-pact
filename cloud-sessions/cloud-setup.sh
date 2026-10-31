@@ -803,7 +803,8 @@ whatever its "At the limit" says.
   added; with no such line, or one dated in the future, propose the first at
   the next phase boundary. After a decline I give in chat, note it with its
   date in the record; the next proposal waits a month from that date, or ten
-  more accepted risks. A revision checks the scope line, folds accepted
+  more accepted risks; a decline note dated in the future counts as none. A
+  revision checks the scope line, folds accepted
   entries that share a class into one, drops those the scope, as it stood
   before the revision, no longer covers, re-reads each risk against the code
   and Claude Code as they are now, and writes the `Last revised:` line under
@@ -813,7 +814,8 @@ whatever its "At the limit" says.
   what it says is left unguarded; a fold covers no path its entries didn't, a
   wider class is a new acceptance, and a risk the re-read finds grown is
   raised in full as a finding. A change to the scope line, a fold and a drop
-  follow Accepted risks above, or the project's own rule where it sets one.
+  follow Accepted risks above, or the project's own rule where it sets a
+  stricter one.
 
 *Scriptorium builds this.*
 
@@ -3158,7 +3160,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash df6a92eb73361d94c51a5c57a8a089f8e989fb99486ec15b9621896b6869655a 'CLAUDE.md'
+check_hash f9c0331b46902c55951276c288d013036d0ec85e2fd7d42e0a86e61a6f29458c 'CLAUDE.md'
 check_hash 930ee5cfba9708db269089500366ab1f57427c8e50b66759667bc8a8608cfd40 'agents/adversarial-lens.md'
 check_hash 97d4a2442ebde8deff21a8fff8a46f75c53c4a663eacb986a83eabd319ef2480 'agents/behaviour-lens.md'
 check_hash fa54c539b393d7ec08752b7e425010f0ebebcfd812e18dd82c0a4b5fecdbff59 'agents/conventions-lens.md'
@@ -3198,7 +3200,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy f29886cbf2a3"
+  echo "pact cloud copy e01d2b8c193d"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

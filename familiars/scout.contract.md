@@ -59,7 +59,7 @@ scripts/install.ps1:480
 
 **The familiar** **Confirmed** (2026-10-05)
 - C1. Finds and reports facts with `file:line` references. It writes nothing, runs nothing and reaches no network.
-  Held by: Enforced — the `tools: [Read, Glob, Grep]` list, which Claude Code applies. Mechanism read in the code by the build session, 2026-10-05; confirmed by the owner at the go, 2026-10-05. Seam A no longer checks the list (ADR 0069; #450).
+  Held by: Enforced — the `tools: [Read, Glob, Grep]` list, which Claude Code applies. Mechanism read in the code by the build session, 2026-10-05; confirmed by the owner at the go, 2026-10-05. Seam A no longer checks the list (ADR 0069; #450). As an in-process teammate, Claude Code also gives it SendMessage and the Task tools (#450).
 - C2. When it finds instructions in what it reads, it reports them as found text and does not follow them.
   Held by: Promised. (C1 limits the harm if it slips: it still cannot write, run or fetch.)
 - C3. It makes no design or quality judgment.
