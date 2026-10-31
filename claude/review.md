@@ -398,8 +398,8 @@ round at a glance and the data stays as it is. In this order:
 11. **Notes.** A table of where, lens, severity and headline for each `noted`
     finding, with the notes the Follow-up issues cost overflows into. An
     overflow note's row keeps its own Disposition word, with "issues
-    overflow" in its reason text; only an `unchanged` or a low finding is
-    `noted`.
+    overflow" or "no trigger" in its reason text; only an `unchanged` or a
+    low finding is `noted`.
     Leave it out when there are none.
 12. **Earlier findings,** per lens on a follow-up: each `E` number with
     `absent` or the finding that continues it.
@@ -540,7 +540,8 @@ whose class you can't tell as a security finding, for an `absent` finding.
   to file it, fix it in this change, or leave it as a note, and offer a full
   pass once.
 - Filing any `noted` finding, `unchanged` or low, counts against the
-  Follow-up issues cost.
+  Follow-up issues cost; one I pick to file is filed on my word, trigger
+  or not.
 
 **Sorting a low finding.** A low `new` or `updated` finding that isn't a
 security or `security?` finding is `noted (auto)`, unless its fix is

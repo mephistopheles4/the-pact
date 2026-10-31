@@ -796,7 +796,7 @@ whatever its "At the limit" says.
 | --- | --- | --- | --- |
 | Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
 | Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |
-| Follow-up issues | Issues filed from one review | 2 | The rest listed as notes in the review's record; I pick which to file |
+| Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |
 | Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |
 
 ## Guards
@@ -2655,8 +2655,8 @@ round at a glance and the data stays as it is. In this order:
 11. **Notes.** A table of where, lens, severity and headline for each `noted`
     finding, with the notes the Follow-up issues cost overflows into. An
     overflow note's row keeps its own Disposition word, with "issues
-    overflow" in its reason text; only an `unchanged` or a low finding is
-    `noted`.
+    overflow" or "no trigger" in its reason text; only an `unchanged` or a
+    low finding is `noted`.
     Leave it out when there are none.
 12. **Earlier findings,** per lens on a follow-up: each `E` number with
     `absent` or the finding that continues it.
@@ -2797,7 +2797,8 @@ whose class you can't tell as a security finding, for an `absent` finding.
   to file it, fix it in this change, or leave it as a note, and offer a full
   pass once.
 - Filing any `noted` finding, `unchanged` or low, counts against the
-  Follow-up issues cost.
+  Follow-up issues cost; one I pick to file is filed on my word, trigger
+  or not.
 
 **Sorting a low finding.** A low `new` or `updated` finding that isn't a
 security or `security?` finding is `noted (auto)`, unless its fix is
@@ -3095,7 +3096,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash 22ed74edb8af86424bcf2a2ec37a40f7e38d9a8641045c08c64679b91b4711bf 'CLAUDE.md'
+check_hash 61a8ea785bfed854b90ea7c43dd16226daab5f1fd3633b39e9f21d05c3171733 'CLAUDE.md'
 check_hash fa8fb1a8f212e9797742e5573b89de2e604b698c7e55eea827e91d609c4a0fab 'agents/adversarial-lens.md'
 check_hash 97d4a2442ebde8deff21a8fff8a46f75c53c4a663eacb986a83eabd319ef2480 'agents/behaviour-lens.md'
 check_hash ae3e1cca71ac0acb558f545dcaf0e4a71b9f42de759e7e64adec91ff3ec98cf7 'agents/conventions-lens.md'
@@ -3105,7 +3106,7 @@ check_hash a0be6cb4a442b91d6cf681d5c133daa3a984f0cc7f64e357e8df1f8c5ff10901 'age
 check_hash 69d05952a61b91460a9fa714dbe28b035676a4b1d8fc9ee57103dc98d0b27df8 'agents/reader-lens.md'
 check_hash 55b75908da16f1bce6e41f71ec1170fc06300fb91e35e61bf98b9121ea265587 'agents/scout.md'
 check_hash 7f6f336e5b91df18feebc258d7765079e4d127a5b7a2152e8be3d5fed5cc41f0 'agents/unstated-lens.md'
-check_hash 2d8f9139f7013e19198758f61e324c6930b47260b5090c5a10b8076c17c7cd55 'pact/review.md'
+check_hash 8c3dc1c456707a86513a332980735fdeeb0fc26572a651da267380bbb8b19132 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3135,7 +3136,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy dbe5cc9f6f96"
+  echo "pact cloud copy b20c7e060b2e"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

@@ -940,26 +940,26 @@ session can act before you see it.
   secret-like name, 8 characters or more (`secret/env`). It sees no
   credential `gh` keeps in a credential store and no key in a file, and on
   the default install, where the poster is off, nothing stops it. Accepted
-  because the rules cost more friction than they caught. Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account), from the
+  because the rules cost more friction than they caught. Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451), from the
   security pair's Design review of #441 and its first Test round
   (adversarial-lens F1, F5, F6; data-lens F1, F2, F9).
 - **R65. A lens can send a secret to a third party.** No lens carries a rule
   on a secret's value since #441, so a lens with web, shell or browser tools
   can put a secret it read into a search, a fetched address, a browser action
   or a command; its rules to fetch only for an advisory and to treat what it
-  reads as data cover this in part. Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account), from the same reviews
+  reads as data cover this in part. Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451), from the same reviews
   (adversarial-lens F3; data-lens F5).
 - **R66. A lens report can carry a reviewed product's secrets or its users'
   personal data.** A security lens reports a product's leaks as found, and its
   report goes on that project's tracker word for word, a read of a commit not
   yet pushed included; the data may not be yours. The data-lens still reports
   each leak point; its fix is Hardening, offered as an accepted-risk
-  candidate (decision 378). Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account), from the same reviews (adversarial-lens
+  candidate (decision 378). Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451), from the same reviews (adversarial-lens
   F2; data-lens F3).
 - **R67. A builder file or page can keep keys or names.** `/scriptorium` no
   longer reads a builder file or a preset for keys, tokens, internal
   addresses or names before it saves or renders, so the saved file and the
-  page it renders keep whatever text they were given (R32, R33). Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account),
+  page it renders keep whatever text they were given (R32, R33). Accepted by the owner on 2026-10-31, in chat, relayed by the lead: the class in decision 388 on #441, and again in decision 418 ("a", after seeing the risk to their GitHub account; confirmed in the lead's chat in decision 451),
   from the same reviews (adversarial-lens F7; data-lens F6).
 - **R68. Work that handles keys and tokens draws no sensitive route by
   default, and a product's leaked secret is not a security finding by that
@@ -971,7 +971,7 @@ session can act before you see it.
   product leaks a key or its users' data is Hardening, limit 0: offered as an
   accepted-risk candidate, never built unasked, never blocking (decision
   378). Accepted by the owner on 2026-10-31, in chat, relayed by the lead
-  (decision 418 on #441, "a"), from #441's first Test round
+  (decision 418 on #441, "a"; confirmed in the lead's chat in decision 451), from #441's first Test round
   (adversarial-lens F4; data-lens F7, F8).
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
