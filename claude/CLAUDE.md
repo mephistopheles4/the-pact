@@ -64,6 +64,8 @@ and help with what it needs.
   propose a fresh session.
 <!-- pact:begin tool-poster -->
 <!-- pact:end tool-poster -->
+<!-- pact:begin tool-cleaner -->
+<!-- pact:end tool-cleaner -->
 - **Say a mismatch first.** If the tier or model doesn't fit the work,
   say so in the first line, before any work.
 

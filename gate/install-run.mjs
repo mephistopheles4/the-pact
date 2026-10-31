@@ -279,6 +279,8 @@ async function main() {
   const liveBytes = io.readOptional(settingsFile);
   const liveSettings = liveBytes === null ? new Map() : core.readSettings(liveBytes.toString('utf8'));
   let merged = null;
+  // #438: the cleaner's deny rules come and go with it; settings left untouched keep the record's list.
+  let deny = { add: [], drop: [], record: record ? record.cleanerDeny : [] };
   let settings;
   let changes = [];
   let notes = [];
@@ -286,13 +288,14 @@ async function main() {
     settings = 'not a strict JSON object: left untouched';
     notes = ['WARN: settings.json is not a strict JSON object (a comment, a trailing comma or another root); the merge leaves it untouched, and nothing in it was checked.'];
   } else {
-    merged = core.mergeSettings(liveSettings, overlay);
+    deny = core.cleanerDenyPlan(liveSettings, toolsOn, record ? record.cleanerDeny : []);
+    merged = core.mergeSettings(liveSettings, overlay, deny);
     if (liveBytes === null) settings = 'would be created from the overlay';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
       notes = core.liveSettingsLines(liveSettings, overlay);
     }
-    changes = core.settingsChanges(liveSettings, overlay);
+    changes = core.settingsChanges(liveSettings, overlay, deny);
   }
   const settingsWill = settings.startsWith('would');
   const lastConfig = record ? record.config : new Map();
@@ -396,7 +399,7 @@ async function main() {
     io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow }), 0o600);
+  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record }), 0o600);
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;

@@ -89,12 +89,14 @@ test("ADR 0042 names the apply guard's four misses and supersedes ADR 0020", () 
   assert.match(adr, /^## Supersedes\n\n\[ADR 0020\]/m);
 });
 // #280 C4: the how-to quotes the Tools block's WARN line as the install prints it, and names the refusals a tools list can meet.
-test('docs/install.md quotes the poster WARN line word for word and names the tools refusals', () => {
+// #438: the cleaner's WARN line and path too.
+test('docs/install.md quotes each tool\'s WARN line word for word and names the tools refusals', () => {
   const howto = readFileSync(join(REPO, 'docs', 'install.md'), 'utf8').replace(/\r\n/g, '\n');
-  const block = toolsBlock(['poster'], ['claude/tools/poster.mjs']);
+  const block = toolsBlock(['poster', 'cleaner'], ['claude/tools/poster.mjs', 'claude/tools/cleaner.mjs']);
   assert.ok(howto.includes('**`Tools:`.**'), 'the block is named');
-  const warn = block.find(l => l.startsWith('  WARN: '));
-  assert.ok(howto.split('\n').includes(`  ${warn}`), 'the WARN line, as printed, in the fenced block');
+  const warns = block.filter(l => l.startsWith('  WARN: '));
+  assert.equal(warns.length, 2);
+  for (const warn of warns) assert.ok(howto.split('\n').includes(`  ${warn}`), 'the WARN line, as printed, in the fenced block');
   for (const id of ['unlisted-live', 'config-tools', 'project-key', 'tools-not-in-pact']) assert.ok(howto.includes(`\`${id}\``), id);
-  assert.ok(howto.includes('`pact/tools/poster.mjs`'), 'the installed path');
+  for (const p of ['`pact/tools/poster.mjs`', '`pact/tools/cleaner.mjs`']) assert.ok(howto.includes(p), 'the installed path');
 });

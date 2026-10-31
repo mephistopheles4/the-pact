@@ -295,7 +295,7 @@ parts:
   - **A command this commit doesn't hold.** A name the block marks
     `(not in this commit)` refuses. Leave it out of the list until a commit
     ships it.
-- **`Tools:`.** The pact's own tools, today only the poster, each `on` or
+- **`Tools:`.** The pact's own tools, the poster and the cleaner, each `on` or
   `off`, and `(not in this commit)` for one the commit doesn't hold. A tool
   is off unless you turn it on (ADR 0074): list its name in the `tools` key of
   `~/.claude/pact/config.json`, as `"tools": ["poster"]`, or tick it under
@@ -304,7 +304,14 @@ parts:
 
   ```text
     WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.
+    WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate. Turn it on only after the Brigade release that drops its own raw removals, or Brigade's cleanup is denied.
   ```
+
+  The cleaner on also adds sixteen deny rules on raw worktree and branch
+  removal commands to `settings.json`, each listed under `settings.json` as
+  `+ permissions.deny`, and records the ones it added in
+  `.pact-install.json`; turning it off removes only those, also listed. A
+  rule you wrote yourself stays. [cleaner.md](cleaner.md) lists them.
 
   The poster on also adds its rule to the rules file, so the rendered hash
   changes; `--review-folder` shows the rule. Taking the name out of the list
@@ -399,6 +406,9 @@ It installs these files under `~/.claude`:
 - `pact/tools/poster.mjs`, only while your `tools` list turns the poster on.
   It posts and edits on GitHub as your `gh` account. Taking it out of the
   list deletes it at the next install;
+- `pact/tools/cleaner.mjs`, only while your `tools` list turns the cleaner
+  on, with its deny rules in `settings.json`. Taking it out of the list
+  deletes it and the rules it added at the next install;
 - `pact/builder/`, the builder kit `/scriptorium` runs: the builder
   (`builder/build.mjs` and its parts module), the shipped page and presets,
   the pact's agents, the renderer it checks parts with, the brand mark, the
@@ -571,6 +581,10 @@ A pact from before the pact tools (#280) refuses a configuration with a
 `tools` key, so take the key out first. Its install then deletes the poster
 the record lists, as it does any file its own payload lacks.
 
+A pact from before the cleaner (#438) refuses a configuration that names
+`cleaner`, and never removes the cleaner's deny rules, so turn the cleaner off
+and apply before you roll back.
+
 A pact from before the pact commands (#203) refuses a configuration with a
 `commands` key, so take the key out first. Its install then deletes the
 commands the record lists, as it does any file its own payload lacks.
@@ -637,7 +651,7 @@ aside (Updating later) is not your first install's: if every such backup was
 taken that way, or you deleted the first one, follow Installed before backups. Then delete the pact files your
 current record lists: the agents, `pact/review.md`, the `pact/builder/`
 folder, each pact command in `commands/`, `/scriptorium` included,
-`pact/tools/poster.mjs` if it is listed, and `.pact-install.json`. Then do
+`pact/tools/poster.mjs` and `pact/tools/cleaner.mjs` if listed, and `.pact-install.json`. Then do
 steps 4 to 6 with that backup. If you had no `settings.json` before, step 5
 deletes it, with anything Claude Code wrote there since.
 

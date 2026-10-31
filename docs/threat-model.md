@@ -7,7 +7,7 @@ file rewritten and the install gate thinned by #261. A change that
 alters a defence named here, or closes an issue listed here, updates this page
 in the same pull request.
 
-Each accepted risk has a label, R1 to R47, R57 and R60 to R62, so other work can point at it. A
+Each accepted risk has a label, R1 to R47, R57 and R60 to R63, so other work can point at it. A
 retired risk keeps its label, so the others keep theirs: R18 is retired. Two
 are accepted without a label, in Crypto and data migrations here: the
 SHA-1 collision residuals of the cloud setup's pins and of CI's action pins.
@@ -39,6 +39,11 @@ Claude home folder, `~/.claude`:
   temporary folder or a path you name outside any repo, the Claude home
   folder and any `.claude` folder (#262, ADR 0070). It also reads your own presets from `pact/presets/`, a folder the install never writes, lists or deletes, and carries each one into the page in plain text, as it carries the builder file. `/make-it-so` and
   `/finis` install only when your configuration lists them.
+- **The cleaner, where you turn it on** (#438): `pact/tools/cleaner.mjs`,
+  which removes leftover worktrees under `.claude/worktrees/` and their
+  local branches with fixed git commands, and, while it is on, sixteen deny
+  rules on raw removal commands merged into `settings.json` (The cleaner's
+  own checks).
 - **Backups,** in `pact/backups/`: before each apply writes, a dated copy of
   each file it replaces, with a manifest. They hold copies of `settings.json`
   (R47).
@@ -111,7 +116,9 @@ and the render, not your sight of them (R22). The builder page's policy
 hashes: its content security policy names the SHA-256 of its inline script
 and style, and the browser runs only those. Others, among them the install's
 internal hand-offs, the project install's rules file and record, and CI's
-actions, in every workflow, the gate workflow's two jobs included, pinned to full commit ids, use hashes the same way. CI's action pins are git's object ids too, SHA-1 with collision detection, below the hash strength ASVS asks of integrity checks. The residual is a collision prepared by the author of a pinned action who wrote both commits; accepted by the owner on 2026-10-19, in chat, relayed by the head chef, from adversarial-lens's F5 in #351's Test review. The atomic writer takes random bytes only to
+actions, in every workflow, the gate workflow's two jobs included, pinned to full commit ids, use hashes the same way. CI's action pins are git's object ids too, SHA-1 with collision detection, below the hash strength ASVS asks of integrity checks. The residual is a collision prepared by the author of a pinned action who wrote both commits; accepted by the owner on 2026-10-19, in chat, relayed by the head chef, from adversarial-lens's F5 in #351's Test review. The cleaner's tag, the first 10 hex of a SHA-256
+over a worktree's facts, only detects a change between its name-back and its
+removal; it never authenticates who said yes (#438). The atomic writer takes random bytes only to
 name a temporary file. Transport is git's and GitHub's, outside this page. A
 change that adds a secret, key, signature or encryption step is new scope,
 and sensitive work under the default.
@@ -124,7 +131,10 @@ anything changes. The install deletes any unchanged file its record lists
 that the pact no longer ships; with no record, a first install deletes only
 the retired builder agents (#262); a retired lens's file that isn't the pact's
 own copy draws a warning and stays (#302); and the install takes out the ask
-rules an older pact set (#265). Since #272 an install also prunes its own old
+rules an older pact set (#265). Since #438 it adds the cleaner's deny rules to
+`settings.json` while the cleaner is on, records the ones it added under
+`cleanerDeny` in the install record, and removes only those when the cleaner
+is off; an older installer ignores the key and leaves the rules. Since #272 an install also prunes its own old
 backups, by the rules `docs/install.md` sets out; a pruned backup can't be
 recovered. After a rollback to an older installer, which never prunes, the
 backups are deleted by hand, as the rollback lines in `docs/agents/install.md`
@@ -140,7 +150,7 @@ The live run (C9) checks for clashes.
 
 ## Input validation here
 
-The pact's code reads outside input in four places. Each check is set out
+The pact's code reads outside input in five places. Each check is set out
 in full in its own section; this one gathers them, so the sensitive-list
 check can read them in one place. It adds no control and accepts no risk.
 
@@ -170,6 +180,11 @@ check can read them in one place. It adds no control and accepts no risk.
   and its text (The edit checks, #413).
 - **The tracker author checker.** Its fixed input shape, stops and escaped
   output (The tracker author checker's own checks).
+- **The cleaner.** Where the owner turns it on: its arguments, held to a
+  fixed command, folder names and tags by shape; git's NUL-separated output,
+  read as data and printed only as escaped relative names; and Claude Code's
+  session status files, where any file that doesn't read stops the run (The
+  cleaner's own checks).
 
 The rest is covered by the accepted risks those sections name: R41 for the
 table check's pairing of a state word with a Disposition word, R57 for a
@@ -178,7 +193,8 @@ fold, such as a look-alike letter from another script, R13 for a secret the
 content scans miss, but for a letter written against a key shape whose match
 it switches off, which is open as #428, R14 for a rewritten tool, R2 for an edit's text in a form the edit
 checks don't fold, R60 for an item changed between the poster's read and
-its edit, R62 for a body that slows the poster's page copy, and R12 and
+its edit, R62 for a body that slows the poster's page copy, R63 for the
+cleaner's removals, and R12 and
 R15 for text a lens or a cloned repo hands a session, which no check in
 code reads.
 Prose a session reads is not validated in code; the rules and judgment in
@@ -194,7 +210,7 @@ risks; they don't score them.
 
 ```mermaid
 quadrantChart
-  title Residual risk, R1 to R47, R57 and R60 to R62
+  title Residual risk, R1 to R47, R57 and R60 to R63
   x-axis Unlikely --> Likely
   y-axis Minor --> Severe
   quadrant-1 Act now
@@ -251,6 +267,7 @@ quadrantChart
   R60: [0.06, 0.40]
   R61: [0.10, 0.15]
   R62: [0.08, 0.06]
+  R63: [0.30, 0.50]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -269,7 +286,7 @@ How to read it:
 - **Watch (bottom right): R3, R7, R43.** They happen by design, and the harm
   is bounded: public reports, a blocked team, and a posted security row's
   state word showing whether the item sits in published code.
-- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61, R62.** R17 needs your own edits, and the dry
+- **Accept (bottom left): R17, R21, R26, R29, R31, R33, R34, R37, R41, R42, R44, R46, R57, R60, R61, R62, R63.** R17 needs your own edits, and the dry
   run shows them, though since #265 nothing prompts before the apply (R22). R21 needs an edit to this repo's tests that its review
   misses. R26 needs shipped code to start loading a test file past a test
   that refuses it. R29 needs a steered lens to carry hidden characters into
@@ -288,7 +305,9 @@ How to read it:
   the next setup. R60 needs your own account to change an item in the moment
   between the poster's read and its edit. R61 costs only a wrong behind
   warning; what is installed doesn't change. R62 costs a slow post, refused
-  or sent, never a leak.
+  or sent, never a leak. R63 needs a session to remove worktrees without your
+  yes: through the cleaner it costs at most what git and the cleaner's keeps
+  let go; past the deny rules, only the classifier stands in the way.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -342,6 +361,7 @@ How to read it:
 | R61 Git folder steers the behind warning | A session that can write the clone | None; the warning never changes what is installed (ADR 0118) | — |
 | R62 Unclosed openers slow the poster's page copy | A careless or fooled session, on its own post | The body's size bound; nothing is sent while it runs (ADR 0122) | Boundary |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on the text after the state word as written, on each normalised copy and on each copy folded (#392, #396, #394) | Rule |
+| R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat, and a removal through the cleaner is bounded by git's refusals and its keeps; the deny rules on raw removal commands are a speed bump, with only the classifier behind them (#438, ADR 0124) | Rule, boundary |
 | R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
@@ -874,6 +894,24 @@ session can act before you see it.
   their words "during this level-3 trial accept risks on my standing word",
   relayed by the lead (q12 on #394), from adversarial-lens's F2 at Test on
   #394.
+- **R63. The cleaner's removals rest on a rule.** Where you turn the
+  cleaner on, two gaps stay open by design (#438, ADR 0124). Its deny rules
+  stop the common spellings of raw worktree and branch removals, not every
+  spelling, so a session can still remove one another way past them, with
+  only the classifier behind. And the cleaner can't tell whose yes it got:
+  only the rules file ties the yes to you, so a session that skips it can
+  run the name-back and the removal itself. The two are bounded
+  differently. A removal through the cleaner without your yes takes at most
+  what git and the cleaner let go: git refuses changed, untracked or locked
+  worktrees and unmerged branches, the cleaner keeps worktrees in use or
+  holding commits found nowhere else, and a clean worktree's ignored files
+  go with it. A removal past the deny rules can force or delete the folder
+  outright, with only the classifier in the way, as before the cleaner.
+  Accepted because a complete reader of shell text can't be built (grimoire
+  PR 470 closed on new gaps after two review rounds) and a typed yes is
+  unprobed. Accepted 2026-10-31 by the owner, decision 314, relayed by the
+  lead, from the Design round 2 review on #438: the findings on the deny
+  rules' gaps and on the yes the cleaner can't attribute.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -1367,6 +1405,40 @@ on, and not against a rewritten poster (R14). Each refusal sends nothing.
   reference outside the poster's list" dropped on 2026-10-26, since the
   check reads every HTML5 named reference (#394, its C10), on the lead's call
   under the owner's goal words, relayed.
+
+## The cleaner's own checks
+
+The cleaner (`claude/tools/cleaner.mjs`, #438, ADR 0124), where the owner
+turns it on, removes worktrees and local branches, so what it guards is local
+data. [cleaner.md](cleaner.md) has the detail.
+
+- **Bound to what it named.** `remove` reads everything again and takes a
+  worktree only when the tag over its fresh facts is one `show` printed.
+- **git's refusals stand.** It never forces, deletes a remote branch, prunes
+  or touches a stash. It keeps a worktree in use by a session, or holding
+  commits found nowhere else, and the default branch.
+- **git runs fixed.** By an absolute path, no shell, from an empty folder,
+  with an empty hooks folder, no optional locks, no fsmonitor, and without
+  the variables that point git elsewhere. A linked `.claude` or
+  `.claude/worktrees` stops the run, and a linked worktree folder is kept;
+  a link is found as the installer finds one, by lstat and by a real path
+  that differs.
+- **What it reads.** Claude Code's session status files, which hold session
+  ids and working folders, for their `cwd` only; it keeps nothing else from
+  them. It resolves each `cwd` on disk to its real path, to compare it, but
+  never one that is remote: two leading separators (a device prefix before a
+  drive letter counts as local), `/net` on macOS, or a path that reaches
+  either through a link. A linked worktree folder is kept before anything
+  resolves it. It never reads the contents of a worktree's files.
+- **Output.** Fixed words and escaped relative names, file names in quotes
+  and worktree folder names held to a fixed set, so no name passes for the
+  cleaner's own words; never an absolute path, a session id, file contents,
+  a stash subject, or git's or Node's own output. The rules-file part asks
+  for the name-back in a fenced code block, and no output line starts with a
+  fence character, so no name can restyle what you say yes to.
+- **The deny rules** are a speed bump with the classifier behind them, not a
+  gate; and the cleaner can't tell whose yes it got: the rules file binds the
+  yes to the owner. Both are accepted as R63.
 
 ## The tracker author checker's own checks
 

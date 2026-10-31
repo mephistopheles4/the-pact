@@ -184,7 +184,7 @@ import { MARKER_RE, MAX_BYTES, PACT_COMMANDS, PACT_TOOLS, Refused, Report, SEGME
 // The open marks this version knows. Hard-coded, so no file can add one.
 // Adding a mark is a change to this list and to the pact source, a spec
 // change like any other change here.
-const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
+const OPEN_MARKS = Object.freeze(['config-notice', 'usage-pause', 'usage-pause-session', 'tool-poster', 'tool-cleaner', 'moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
 // The open marks an edit may target: every open mark but the notice slot, a
 // setting's part and a tool's part.
 const EDITABLE = Object.freeze(['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
@@ -327,6 +327,20 @@ const TOOL_PARTS = new Map([
       '  chat only, and never post it or edit it to get past the scan. If it ends',
       '  unavailable, refuses for a reason no text fix clears, or refuses twice for',
       "  a reason you can't explain, stop and tell me.",
+    ]),
+  })],
+  ['cleaner', Object.freeze({
+    mark: 'tool-cleaner',
+    template: Object.freeze([
+      '- **Clean up through the cleaner.** To remove leftover worktrees and their',
+      '  branches, run `node ~/.claude/pact/tools/cleaner.mjs show` in a POSIX',
+      '  shell, or `node "$HOME/.claude/pact/tools/cleaner.mjs" show` in',
+      '  PowerShell, from the repository. Show me its name-back as printed, in a',
+      "  fenced code block, in chat only; a record gets its result line's counts,",
+      '  never the tags or the name-back. Run `remove --yes` with the tags it',
+      '  printed only after my own yes in chat to that name-back, never on a',
+      '  relayed one. Never remove a worktree or delete a local branch another way.',
+      '  What it leaves, leave, and tell me.',
     ]),
   })],
 ]);

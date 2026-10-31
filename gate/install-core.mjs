@@ -22,12 +22,19 @@ export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium'
 // The pact's own tools (#280): the install's own copy of PACT_TOOLS in
 // gate/shared.mjs. A tool installs to TOOLS_DEST<name>.mjs only when the
 // configuration's tools list names it.
-export const PACT_TOOLS = Object.freeze(['poster']);
+export const PACT_TOOLS = Object.freeze(['poster', 'cleaner']);
 const TOOLS_DEST = 'pact/tools/';
 // What each tool does, said in its dry run WARN line after where it installs.
 const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
+  cleaner: ' and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate. Turn it on only after the Brigade release that drops its own raw removals, or Brigade\'s cleanup is denied.',
 });
+// The cleaner's deny rules (#438 S2.3): settings.json holds them only while
+// the cleaner is on. The install adds the ones not already there and records
+// those under cleanerDeny; turning the cleaner off removes only rules both
+// recorded and on this list, so an identical rule the owner wrote stays.
+const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *'];
+export const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The builder kit (#203 S6; #262), the install's own copy of seam A's list in
 // gate/shared.mjs: installed under pact/builder/ in the repo's own layout
 // whenever /scriptorium installs. Its gate files are the only gate files that
@@ -337,7 +344,10 @@ export function parseRecord(text) {
     else if (kind === 'block' && typeof ci(c, 'path') === 'string') config.set(`block ${ci(c, 'path')}`, sha);
   }
   const digest = ci(doc, 'digest');
+  const cleanerDeny = ci(doc, 'cleanerdeny') ?? [];
+  if (!Array.isArray(cleanerDeny) || cleanerDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerDeny is not a list of rule strings; fix or remove it.');
   return {
+    cleanerDeny,
     commit: psString(commit),
     digest: typeof digest === 'string' && /^[0-9a-f]{12}$/.test(digest) ? digest : null,
     files: asList(files).map(e => ({ path: typeof ci(e, 'path') === 'string' ? ci(e, 'path') : null, sha256: psString(ci(e, 'sha256')) })),
@@ -347,13 +357,15 @@ export function parseRecord(text) {
 }
 
 /** The record the install writes (S6, X6): commit, digest, config, files, gate, in today's shape. */
-export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow }) {
+export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [] }) {
   const doc = {
     commit,
     digest: digest ?? null,
     config: [...(userHash ? [{ kind: 'user', sha256: userHash }] : []), ...[...blockHashes].map(([path, sha256]) => ({ kind: 'block', path, sha256 }))],
     files: [...repoFiles].map(([path, sha256]) => ({ path, sha256 })),
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
+    // #438: the cleaner's deny rules this install added, only while there are any.
+    ...(cleanerDeny.length ? { cleanerDeny: [...cleanerDeny] } : {}),
   };
   return `${JSON.stringify(doc, null, 2)}\n`;
 }
@@ -1037,7 +1049,7 @@ function retiredIn(live) {
  * lists are unioned and sorted ordinally, so the owner's own rules survive.
  * Then the retired pact rules leave the ask list (#265), matched exactly.
  */
-export function mergeSettings(live, overlay) {
+export function mergeSettings(live, overlay, deny = NO_DENY) {
   const m = mergeDeep(live, overlay);
   for (const k of LIVE_OWN_SETTINGS) if (live.has(k)) m.set(k, live.get(k));
   const pa = isMap(live.get('permissions')) ? live.get('permissions') : new Map();
@@ -1045,7 +1057,29 @@ export function mergeSettings(live, overlay) {
   for (const k of ['allow', 'deny', 'ask']) if (pa.has(k) || pb.has(k)) m.get('permissions').set(k, union(pa.get(k), pb.get(k)));
   const mp = m.get('permissions');
   if (isMap(mp) && mp.has('ask')) mp.set('ask', mp.get('ask').filter(r => !RETIRED_ASK.includes(r)));
+  if (deny.add.length || deny.drop.length) {
+    if (!isMap(m.get('permissions'))) m.set('permissions', new Map());
+    const p = m.get('permissions');
+    p.set('deny', union(p.get('deny'), deny.add).filter(r => !deny.drop.includes(r)));
+  }
   return m;
+}
+
+const NO_DENY = Object.freeze({ add: [], drop: [], record: [] });
+
+/**
+ * The cleaner's deny rules for this install (#438 S2.3): on, the fixed rules
+ * not yet in the live deny list are added, and the record keeps those it
+ * already held that are still fixed rules, plus the added; off, only rules
+ * both recorded and fixed are dropped, and the record holds none.
+ */
+export function cleanerDenyPlan(live, toolsOn, recorded) {
+  const lp = live.get('permissions');
+  const had = isMap(lp) ? listOf(lp.get('deny')).map(ruleString) : [];
+  const ours = recorded.filter(r => CLEANER_DENY.includes(r));
+  if (!toolsOn.includes('cleaner')) return { add: [], drop: ours.filter(r => had.includes(r)), record: [] };
+  const add = CLEANER_DENY.filter(r => !had.includes(r));
+  return { add, drop: [], record: [...new Set([...ours, ...add])] };
 }
 
 const pathIn = (map, segs) => {
@@ -1058,7 +1092,7 @@ const pathIn = (map, segs) => {
 };
 
 /** What the merge changes, told from the overlay's side only (S6, L6): a live value is never printed. */
-export function settingsChanges(live, overlay) {
+export function settingsChanges(live, overlay, deny = NO_DENY) {
   const paths = [];
   for (const [top, v] of overlay) {
     if ((top === 'env' || top === 'permissions') && isMap(v)) for (const k of v.keys()) paths.push([top, k]);
@@ -1076,6 +1110,10 @@ export function settingsChanges(live, overlay) {
   }
   // A removal prints the pact's own retired rule, never a live entry (#265).
   for (const rule of retiredIn(live)) out.push(`  - permissions.ask: ${formatRule(rule)}`);
+  // The cleaner's rules are the pact's fixed list, so printing them shows no live entry (#438).
+  const shown = new Set(out);
+  for (const rule of deny.add) if (!shown.has(`  + permissions.deny: ${formatRule(rule)}`)) out.push(`  + permissions.deny: ${formatRule(rule)}`);
+  for (const rule of deny.drop) out.push(`  - permissions.deny: ${formatRule(rule)}`);
   return out;
 }
 

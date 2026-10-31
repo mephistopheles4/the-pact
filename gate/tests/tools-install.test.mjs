@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { CLEANER_DENY } from '../install-core.mjs';
 import { home, install, listTree, makeRepo, passed, refused } from './install-harness.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -115,4 +116,46 @@ test('bad case: the poster turned on in a commit that lacks it refuses at seam A
   const h = homeWith(t, ['poster']);
   const r = refusedUnchanged(repo, h, /^REFUSED: the check failed\./m);
   assert.match(r.stdout, /^seam-a\| FAIL tools-not-in-pact: --tools names poster, but the stage holds no claude\/tools\/poster\.mjs: it is not in this pact\r?$/m, r.out);
+});
+
+// #438 C13: the cleaner's deny rules come and go with it, and only those it added.
+test('the cleaner on adds its deny rules beside the owner\'s and records them; off removes only rules both recorded and fixed', t => {
+  const repo = makeRepo(t);
+  const h = homeWith(t, ['cleaner']);
+  const OWN = ['Bash(git branch -d *)', 'Bash(rm -rf ./mine *)'];
+  const FOREIGN = 'Bash(foreign *)';
+  writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: OWN } })}\n`);
+  const deny = () => JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.deny;
+  const record = () => JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
+  const added = CLEANER_DENY.filter(r => r !== OWN[0]);
+
+  const on = installed(repo, h);
+  for (const r of added) assert.ok(on.stdout.includes(`  + permissions.deny: ${r}`), r);
+  assert.ok(!on.stdout.includes('rm -rf ./mine'), 'the dry run shows no live entry');
+  assert.deepEqual(deny(), [...new Set([...OWN, ...CLEANER_DENY])].sort());
+  assert.deepEqual(record().cleanerDeny, added, 'an identical rule the owner wrote before is not recorded');
+  installed(repo, h);
+  assert.deepEqual(record().cleanerDeny, added, 'a second install keeps the record');
+
+  // A rule outside the sixteen that the record lists stays.
+  const r = record();
+  r.cleanerDeny.push(FOREIGN);
+  writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify(r, null, 2)}\n`);
+  writeFileSync(join(h, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...deny(), FOREIGN] } })}\n`);
+  writeFileSync(join(h, 'pact', 'config.json'), `${JSON.stringify({ schema: 1, tools: [] })}\n`);
+  const off = installed(repo, h);
+  for (const x of added) assert.ok(off.stdout.includes(`  - permissions.deny: ${x}`), x);
+  assert.deepEqual(deny(), [OWN[0], FOREIGN, OWN[1]].sort());
+  assert.equal(record().cleanerDeny, undefined);
+
+  // A malformed record refuses; an install that never turned the cleaner on removes nothing.
+  const good = record();
+  for (const bad of ['Bash(x)', ['Bash(x)', 5]]) {
+    writeFileSync(join(h, '.pact-install.json'), `${JSON.stringify({ ...good, cleanerDeny: bad }, null, 2)}\n`);
+    refused(install(repo, h), /^REFUSED: the install record's cleanerDeny is not a list of rule strings/m);
+  }
+  const fresh = homeWith(t, []);
+  writeFileSync(join(fresh, 'settings.json'), `${JSON.stringify({ permissions: { deny: [...CLEANER_DENY] } })}\n`);
+  installed(repo, fresh);
+  assert.deepEqual(JSON.parse(readFileSync(join(fresh, 'settings.json'), 'utf8')).permissions.deny, [...CLEANER_DENY].sort());
 });
