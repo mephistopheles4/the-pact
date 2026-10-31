@@ -29,9 +29,9 @@
 
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { lstatSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { lstatSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, delimiter, dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { basename, delimiter, dirname, isAbsolute, join, parse, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
@@ -178,18 +178,41 @@ export function parseStatus(out) {
 // ---------------------------------------------------------------- the reads
 
 const fold = (p, platform) => (platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
-// Two separators open a network or device path; resolving one on Windows can contact its host.
+// Two separators open a network or device path; resolving one on Windows can
+// contact its host. A device prefix before a drive letter is a local path.
 const NET_RE = /^[\\/]{2}/;
+const DEVICE_DRIVE_RE = /^[\\/]{2}[?.][\\/](?=[A-Za-z]:)/;
+const local = p => p.replace(DEVICE_DRIVE_RE, '');
+
+/** Whether reading `p` could reach another host: a network path, or on macOS an autofs path under /net. */
+const remote = (p, platform) => NET_RE.test(local(p)) || (platform === 'darwin' && /^\/net(?:\/|$)/.test(p));
+
+/** Whether a link on the way to `p` points at a remote path; a missing part ends the walk. */
+function linksOut(p, platform) {
+  const { root } = parse(p);
+  let cur = root;
+  for (const part of p.slice(root.length).split(sep).filter(Boolean)) {
+    cur = join(cur, part);
+    let st;
+    try {
+      st = lstatSync(cur);
+    } catch {
+      return false;
+    }
+    if (st.isSymbolicLink() && remote(readlinkSync(cur), platform)) return true;
+  }
+  return false;
+}
 
 /**
  * A path's real path, so one reached through a link compares equal: the
- * deepest folder that exists, resolved, with the rest joined on. A network
- * or device path is never resolved on disk. `rp` stands in for the
- * real-path call in tests.
+ * deepest folder that exists, resolved, with the rest joined on. A path that
+ * is remote, or reaches a remote path through a link, is never resolved on
+ * disk. `rp` stands in for the real-path call in tests.
  */
-export function realOf(p, rp = realpathSync.native) {
-  const given = resolve(p);
-  if (NET_RE.test(p) || NET_RE.test(given)) return given;
+export function realOf(p, rp = realpathSync.native, platform = process.platform) {
+  const given = resolve(local(p));
+  if (remote(p, platform) || remote(given, platform) || linksOut(given, platform)) return given;
   const rest = [];
   for (let head = given; ; ) {
     try {
@@ -204,7 +227,7 @@ export function realOf(p, rp = realpathSync.native) {
 }
 
 /** Every form a path is known by: as given, and its real path. */
-const forms = p => [...new Set([resolve(p), realOf(p)])];
+const forms = p => [...new Set([resolve(local(p)), realOf(p)])];
 const within = (inner, outer, platform) => {
   const a = fold(inner, platform);
   const b = fold(outer, platform);
@@ -297,19 +320,20 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
     const branch = typeof rec.branch === 'string' && rec.branch.startsWith('refs/heads/') ? rec.branch.slice('refs/heads/'.length) : null;
     const item = { name, path, branch, tip: rec.HEAD ?? '', keep: null };
     items.push(item);
+    // A linked folder is kept before anything resolves or reads through it.
+    if (isLink(path, platform)) {
+      item.keep = 'the folder is a link';
+      continue;
+    }
     // In use when any form of a cwd sits in any form of the worktree: a link either way keeps it.
     const where = forms(path);
     if (used.some(c => where.some(w => within(c, w, platform)))) {
       item.keep = 'in use';
       continue;
     }
-    // A name outside the --worktree set could dress its line; a linked folder would be read through its link.
+    // A name outside the --worktree set could dress its line.
     if (!NAME_RE.test(name)) {
       item.keep = 'a folder name the cleaner does not read';
-      continue;
-    }
-    if (isLink(path, platform)) {
-      item.keep = 'the folder is a link';
       continue;
     }
     // A branch name outside the rule can't go in --exclude, so its commits go unread and the worktree stays.
@@ -326,6 +350,17 @@ export function readAll(git, { repo, worktrees, home, cwd, platform }) {
     }
     const gone = 'prunable' in rec || !present(path);
     const lists = gone ? parseStatus('') : parseStatus(read(git, path, ['status', '--porcelain=v1', '-z', '--ignored', '--no-renames']));
+    // git leaves an ignored link, and with it the folder, so the name-back names it apart.
+    const lstatLink = p => {
+      try {
+        return lstatSync(p).isSymbolicLink();
+      } catch {
+        return false;
+      }
+    };
+    const linked = new Set(lists.ignored.filter(n => lstatLink(join(path, n.replace(/[\\/]$/, '')))));
+    lists.ignoredLinks = lists.ignored.filter(n => linked.has(n));
+    lists.ignored = lists.ignored.filter(n => !linked.has(n));
     const subjects = branch === null ? [] : [`WIP on ${branch}:`, `On ${branch}:`];
     item.facts = {
       main,
@@ -369,6 +404,7 @@ export function blockLines(item) {
   out.push(...listLines('changed files, git will refuse', f.changed));
   out.push(...listLines('untracked files, git will refuse', f.untracked));
   out.push(...listLines('ignored, deleted with the folder, with everything inside', f.ignored));
+  out.push(...listLines('ignored links, git leaves them and the folder stays', f.ignoredLinks));
   // Stash refs are git's own stash@{n}, never a name someone chose.
   out.push(...listLines('stash entries made on it, kept: the cleaner never touches stashes', f.stashes, esc));
   if (f.branchKept) out.push(`  branch kept: ${f.branchKept}`);

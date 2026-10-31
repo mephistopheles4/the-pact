@@ -267,7 +267,7 @@ quadrantChart
   R60: [0.06, 0.40]
   R61: [0.10, 0.15]
   R62: [0.08, 0.06]
-  R63: [0.30, 0.35]
+  R63: [0.30, 0.50]
 ```
 
 Each point is a risk's key; the table below gives its name and its controls.
@@ -306,7 +306,8 @@ How to read it:
   between the poster's read and its edit. R61 costs only a wrong behind
   warning; what is installed doesn't change. R62 costs a slow post, refused
   or sent, never a leak. R63 needs a session to remove worktrees without your
-  yes, and costs at most what git and the cleaner's keeps let go.
+  yes: through the cleaner it costs at most what git and the cleaner's keeps
+  let go; past the deny rules, only the classifier stands in the way.
 
 | Risk | Attacker | What stops it today | Kind |
 | --- | --- | --- | --- |
@@ -360,7 +361,7 @@ How to read it:
 | R61 Git folder steers the behind warning | A session that can write the clone | None; the warning never changes what is installed (ADR 0118) | — |
 | R62 Unclosed openers slow the poster's page copy | A careless or fooled session, on its own post | The body's size bound; nothing is sent while it runs (ADR 0122) | Boundary |
 | R57 Withheld state in an unread form | A careless or fooled session | The review procedure's rule for a withheld finding; the poster's table check as a backstop, on the text after the state word as written, on each normalised copy and on each copy folded (#392, #396, #394) | Rule |
-| R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat; the deny rules on raw removal commands, a speed bump with the classifier behind them; what a removal can take is bounded by git's refusals and the cleaner's keeps (#438, ADR 0124) | Rule, boundary |
+| R63 The cleaner's removals rest on a rule | A fooled or careless session, where the cleaner is on | The rules-file part binds the yes to you in chat, and a removal through the cleaner is bounded by git's refusals and its keeps; the deny rules on raw removal commands are a speed bump, with only the classifier behind them (#438, ADR 0124) | Rule, boundary |
 | R60 A change between the poster's read and its edit | Your own account, in the browser or another session | None: the poster reads the item, then writes it, with no conditional write; a session drafting from an earlier read widens the window to its drafting time (#413, #419) | — |
 
 ## Strangers on the tracker
@@ -899,12 +900,18 @@ session can act before you see it.
   spelling, so a session can still remove one another way past them, with
   only the classifier behind. And the cleaner can't tell whose yes it got:
   only the rules file ties the yes to you, so a session that skips it can
-  run the name-back and the removal itself. What either can take is bounded:
-  git refuses changed, untracked or locked worktrees and unmerged branches,
-  and the cleaner keeps worktrees in use or holding commits found nowhere
-  else; a clean worktree's ignored files go with it. Accepted 2026-10-31 by
-  the owner, decision 314, relayed by the lead, from adversarial-lens's E3
-  and E4 and data-lens's F2 at Design on #438.
+  run the name-back and the removal itself. The two are bounded
+  differently. A removal through the cleaner without your yes takes at most
+  what git and the cleaner let go: git refuses changed, untracked or locked
+  worktrees and unmerged branches, the cleaner keeps worktrees in use or
+  holding commits found nowhere else, and a clean worktree's ignored files
+  go with it. A removal past the deny rules can force or delete the folder
+  outright, with only the classifier in the way, as before the cleaner.
+  Accepted because a complete reader of shell text can't be built (grimoire
+  PR 470 closed on new gaps after two review rounds) and a typed yes is
+  unprobed. Accepted 2026-10-31 by the owner, decision 314, relayed by the
+  lead, from the Design round 2 review on #438: the findings on the deny
+  rules' gaps and on the yes the cleaner can't attribute.
 - **R24. A lead moves work.** A lead is a session that starts other sessions
   and sends them messages. Since #220 the pact says nothing about messages
   between sessions: Claude Code and the lead skill you run govern them. A
@@ -1419,8 +1426,10 @@ data. [cleaner.md](cleaner.md) has the detail.
 - **What it reads.** Claude Code's session status files, which hold session
   ids and working folders, for their `cwd` only; it keeps nothing else from
   them. It resolves each `cwd` on disk to its real path, to compare it, but
-  never one that starts with two separators, a network or device path. It
-  never reads the contents of a worktree's files.
+  never one that is remote: two leading separators (a device prefix before a
+  drive letter counts as local), `/net` on macOS, or a path that reaches
+  either through a link. A linked worktree folder is kept before anything
+  resolves it. It never reads the contents of a worktree's files.
 - **Output.** Fixed words and escaped relative names, file names in quotes
   and worktree folder names held to a fixed set, so no name passes for the
   cleaner's own words; never an absolute path, a session id, file contents,

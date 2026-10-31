@@ -70,7 +70,7 @@ function recording(answer = () => null) {
   const calls = [];
   const spawn = (file, args, opts) => {
     calls.push({ file, args, opts });
-    return answer(file, args) ?? spawnSync(file, args, opts);
+    return answer(file, args, opts) ?? spawnSync(file, args, opts);
   };
   return { calls, spawn };
 }
@@ -129,6 +129,11 @@ test('show names changed, untracked and ignored files, a lock, a gone folder and
   f.add('locked');
   f.git(f.root, 'worktree', 'lock', f.wt('locked'));
   rmSync(f.add('gone'), { recursive: true, force: true });
+  // An ignored link, which git leaves along with the folder.
+  writeFileSync(join(f.root, '.git', 'info', 'exclude'), 'out\n');
+  const outside = tempDir(t, 'pact-cleaner-ignored-');
+  writeFileSync(join(outside, 'kept.txt'), 'x');
+  symlinkSync(outside, join(f.add('lnk'), 'out'), process.platform === 'win32' ? 'junction' : 'dir');
 
   const r = f.run(['show']);
   assert.equal(r.code, 0, r.out);
@@ -148,6 +153,8 @@ test('show names changed, untracked and ignored files, a lock, a gone folder and
   assert.doesNotMatch(busy, /stash/, r.out);
   assert.match(block(r.out, 'locked'), /^ {2}locked, git will refuse$/m, r.out);
   assert.match(block(r.out, 'gone'), /^ {2}folder gone, only git's record goes$/m, r.out);
+  assert.match(block(r.out, 'lnk'), /^ {2}ignored links, git leaves them and the folder stays:\n {4}"out\/?"$/m, r.out);
+  assert.doesNotMatch(block(r.out, 'lnk'), /deleted with the folder/, r.out);
   assert.equal(esc(`a\r\n${cp(0x2066)}b\\${cp(0x2028)} c`), 'a\\u{d}\\u{a}\\u{2066}b\\\\\\u{2028} c');
   assert.doesNotMatch(r.out, /CONTENT|SUBJECT|fatal|error/i, r.out);
   assert.ok(r.lines.every(l => !/[\n\r]/.test(l)), 'one line per entry');
@@ -200,9 +207,27 @@ test('a worktree holding a session status file\'s cwd, or the cleaner\'s own, is
     return p;
   };
   for (const p of ['\\\\nohost.invalid\\share\\x', '//nohost.invalid/share/x']) assert.equal(realOf(p, rp), resolve(p));
+  assert.equal(realOf('/net/nohost.invalid/x', rp, 'darwin'), resolve('/net/nohost.invalid/x'), 'macOS autofs');
+  // A local path that reaches a share through a link is not resolved either (a dangling link stands in for the share).
+  const toShare = join(tempDir(t, 'pact-cleaner-share-'), 'share');
+  let linkMade = true;
+  try {
+    symlinkSync('//nohost.invalid/share', toShare, 'dir');
+  } catch {
+    linkMade = false; // creating a symbolic link on Windows needs Developer Mode or admin rights
+  }
+  if (linkMade) assert.equal(realOf(join(toShare, 'x'), rp), join(toShare, 'x'));
   assert.deepEqual(seen, []);
-  assert.equal(realOf(join(f.root, 'missing', 'leaf'), rp), join(f.root, 'missing', 'leaf'), 'a missing leaf joins onto its deepest folder');
-  assert.ok(seen.length >= 1);
+  // A missing leaf: the walk goes up until a folder resolves, then joins the rest back on.
+  const gone = join(f.root, 'missing', 'leaf');
+  const rpMissing = p => {
+    seen.push(p);
+    if (p.startsWith(join(f.root, 'missing'))) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    return p;
+  };
+  assert.equal(realOf(gone, rpMissing), gone);
+  assert.deepEqual(seen, [gone, join(f.root, 'missing'), f.root]);
+  if (process.platform === 'win32') assert.equal(realOf(`\\\\?\\${f.root}`), realpathSync.native(f.root), 'a device prefix before a drive letter is local');
 
   for (const [why, plant] of [
     ['no JSON', () => writeFileSync(join(sessions, 'bad.json'), '{"cwd": "BROKEN-SUBSTRING')],
@@ -431,6 +456,17 @@ test('a folder still there after git said it removed it: the branch is not tried
   assert.match(hr.out, /^worktree h: left, the run's hooks folder changed$/m, hr.out);
   assert.ok(!plant.calls.some(c => c.args.includes('remove')), 'no removal call');
   assert.ok(existsSync(g.wt('h')));
+
+  // Planted between the worktree's removal and the branch's: the branch is not tried.
+  const late = recording((file, args, opts) => {
+    if (!args.includes('remove')) return null;
+    const r = spawnSync(file, args, opts);
+    writeFileSync(join(args.find(a => a.startsWith('core.hooksPath=')).slice('core.hooksPath='.length), 'post-checkout'), 'x');
+    return r;
+  });
+  const lr = g.run(['remove', '--yes', tagsOf(g.run(['show']).out).join(',')], { spawn: late.spawn });
+  assert.match(lr.out, /^worktree h: left, the folder is gone\n {2}the branch stays: h$/m, lr.out);
+  assert.ok(!late.calls.some(c => c.args.includes('branch')), 'the branch is not tried');
 });
 
 // #438 C12

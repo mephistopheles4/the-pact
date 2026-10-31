@@ -25,7 +25,8 @@ In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`.
   `.`, `_` and `-`, not starting with `.` or `-`.
 - `show` names back each linked worktree directly under
   `<main>/.claude/worktrees/`: its branch and tip; its changed, untracked and
-  ignored files (20 names each, then a count); a lock; a folder already gone;
+  ignored files (20 names each, then a count), with ignored links named apart,
+  since git leaves them and the folder; a lock; a folder already gone;
   the stash entries made on its branch, by ref. Each block ends with a tag.
 - `remove --yes` takes the tags `show` printed. It reads everything again and
   removes a worktree only when its fresh tag is among them, then deletes its
@@ -40,9 +41,10 @@ name-back, and to run `remove` only after your own yes to it in chat.
 - **In use:** a worktree that is, or holds, the `cwd` of a Claude Code
   session status file (`~/.claude/sessions/*.json`, on the system the cleaner
   runs on), or the cleaner's own cwd, compared both as written and by real
-  path, so a link either way still keeps it. A network or device path (two
-  leading separators) is compared as written, never resolved, so a planted
-  one can't make the cleaner contact another host. A Windows run doesn't see
+  path, so a link either way still keeps it. A path written with two leading
+  separators, `/net` on macOS, or one that reaches such a path through a link,
+  is compared as written and never resolved on disk; a device prefix before a
+  drive letter counts as the plain drive path. A Windows run doesn't see
   WSL sessions, or the other way.
 - **Commits found nowhere else:** a worktree whose branch, or detached HEAD,
   has commits on no other branch and no remote.
