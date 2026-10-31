@@ -8,12 +8,12 @@ Review rounds, security rounds above all, kept ending in follow-up issues, each 
 
 ## What was weighed
 
-- **A second row, "untriggered follow-ups", at a limit of 0.** Not taken: it would need its own definition, and as a cost no quality's Enough names, it would limit the review itself, a second counting rule. One row keeps both Enough cells (Functional suitability, Security) and the review procedure's references working.
+- **A second row, "untriggered follow-up issues", at a limit of 0.** Not taken: it would need its own definition, and as a cost no quality's Enough names, it would limit the review itself, a second counting rule. One row keeps both Enough cells (Functional suitability, Security) and the review procedure's references working.
 - **The examples in the row.** Not taken: the builder caps Counted as at 160 characters, so the row carries the definition and this ADR the examples.
-- **Something that raises a filed follow-up as its trigger nears.** Not built; a session reads the open issues before the step itself. Left as a note on #444.
+- **Something that raises a filed follow-up issue as its trigger nears.** Not built; a session reads the open issues before the step itself. Left as a note on #444.
 
 A finding routed to a note is never dropped, and the security bar still holds for a security finding, whichever way it is routed.
 
 ## How this was decided
 
-- **2026-10-31.** The owner agreed in a lead session's chat that a follow-up needs a trigger and that it belongs in a pact cost limit, relayed by the headchef into #444. Standard tier; the spec go on revision 2 was the lead's own pick under the owner's level-3 command, not the owner's words. Built by do-444.
+- **2026-10-31.** The owner agreed in a lead session's chat that a follow-up issue needs a trigger and that it belongs in a pact cost limit, relayed by the headchef into #444. Standard tier; the spec go on revision 2 was the lead's own pick under the owner's level-3 command, not the owner's words. Built by do-444.
