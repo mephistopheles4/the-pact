@@ -5,10 +5,13 @@ session posted there, then reads back what landed and checks it against what
 it sent. It is a pact tool, off unless
 the `tools` list in `~/.claude/pact/config.json` names it (ADR 0074). When it's
 on, the install puts it at `~/.claude/pact/tools/poster.mjs`, and the rules
-file tells a session to post through it. Its scans are a backstop for
-accidents, not a guard: the review procedure's read before posting still comes
-first, on every install, with or without the poster (threat model, R3, R13 and
-R29). It needs Node 24 or later and `gh`, signed in.
+file tells a session to post through it. Its scans catch accidents, not a
+session that sets out to get past them. For a secret, its refusal of a live
+environment secret's value is the only check, and only where the poster is on
+(threat model, R3, R13 and R64). For hidden characters and a Lens
+dispositions table, the review procedure's read before posting still comes
+first, on every install, with or without the poster (R29). It needs Node 24 or
+later and `gh`, signed in.
 
 Permission rules on `gh` commands don't see the poster's calls, because the
 poster starts `gh` itself; to gate posting, put a rule on the poster's own
@@ -50,8 +53,8 @@ answered, then delete it. Before the session ends, delete every such file
 still there, whatever the owner's answer.
 
 **When a session dies, its files stay.** Nothing deletes a file the session
-didn't. A lens report kept after a refusal for a secret, a personal detail
-or hidden characters is an ordinary, unencrypted file
+didn't. A lens report kept after a refusal for hidden characters or a live
+environment secret's value is an ordinary, unencrypted file
 in that session's scratch folder, which the session named to the owner in chat
 when it kept the report. If the session is killed before it cleans up, delete
 that file by hand. The report may also stay in the session's saved
@@ -140,8 +143,8 @@ sent, when:
   also with its links and marks folded, with a fixed set of look-alike letters
   folded first.
   Text that only mentions the words can't be edited either;
-- **it holds what the content scan refuses** (`edit/leak`): a secret, an
-  email address or a hidden character. An edit can't remove it, since GitHub's
+- **it holds what the content scan refuses** (`edit/leak`): a hidden
+  character or a live environment secret's value. An edit can't remove it, since GitHub's
   history keeps every version, so tell the owner instead;
 - **the new body drops, changes, adds or hides a reason line**
   (`edit/reasons`): the body must end in exactly the item's reason lines, in
@@ -161,7 +164,7 @@ its reason line.
 Since #394 the edit checks read more forms of the text, so an edit of a post
 that passed before can now be refused. For `edit/record` or `edit/decision`,
 reword, or post a new comment. A new `edit/leak` means the item may already
-show a secret or an address on the page, and its history keeps it: tell the
+show a hidden character or a secret's value on the page, and its history keeps it: tell the
 owner, and never edit around it.
 
 A repo's own rule can still say a text is never edited. In this repo, a
@@ -210,7 +213,7 @@ page and login are the ones the poster checked before it sent, never text from
 | 0 | `RESULT: dry-run <surface>` | Nothing was sent | Nothing |
 | 1 | `RESULT: mismatch <url>` | Posted, but a field differs; a `MISMATCH` line names each field, and a `NEXT:` line says the post landed and must not be posted again | Never posts again; deletes the body file; tells the owner which field |
 | 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
-| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for a secret, a personal detail or hidden characters stays local, unedited, and the owner is told where it is, in chat; a table, wrap, link or fence refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
+| 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for hidden characters or a live environment secret's value stays local, unedited, and the owner is told where it is, in chat; a table, wrap, link or fence refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
 | 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
 | 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
 
@@ -283,12 +286,9 @@ nothing sent.
 | `edit/unsigned` | The item or the new body has no signature line for `--signed`, or has one for another label |
 | `edit/record` | The item or the new body is a review record |
 | `edit/decision` | The item or the new body holds the words "owner decision" |
-| `edit/leak` | The item holds what the content scan refuses: a secret, an email address or a hidden character |
+| `edit/leak` | The item holds what the content scan refuses: a hidden character or a live environment secret's value |
 | `edit/reasons` | The new body doesn't end in exactly the item's reason lines, holds another line that reads as one, or opens a comment or fold above them it doesn't close |
-| `secret/token` | A credential's known shape |
-| `secret/url-userinfo` | A password in a link's user part |
 | `secret/env` | The value of a secret environment variable; the line names the variable, never the value |
-| `personal/email` | An email address |
 | `text/hidden` | A hidden character |
 | `table/header` | A Lens dispositions table's header row isn't exactly `\| Finding \| Lens \| Disposition \| Rerun \|` |
 | `table/cells` | A row has the wrong number of cells, or an empty Lens cell |
@@ -331,30 +331,24 @@ GitHub's page (#394, ADR 0122):
   syntax dropped, `_` kept.
 
 Control characters are stripped though GitHub's comments show most of them
-as U+FFFD: stripping only ever adds refusals. The lists of shapes and names
-below are kept by hand from the poster's source; no test holds them.
+as U+FFFD: stripping only ever adds refusals. The lists of names below are
+kept by hand from the poster's source; no test holds them.
 
-- **`secret/token`:** a fixed list of shapes: GitHub's tokens, old and
-  fine-grained; `sk-` keys; live Stripe keys; npm, GitLab and Google API keys;
-  AWS access key ids; Slack tokens; JSON web tokens; private key headers; and
-  `AccountKey=` or `Password=` pairs.
-- **`secret/url-userinfo`:** a link of the form `scheme://user:password@host`.
+- **No token-shape, URL-password or email rule.** The scan refuses no
+  credential shape, password in a link or email address (#441): the pact has
+  no rule on a secret or a personal detail in a session's own text.
 - **`secret/env`:** the value, 8 characters or more, of any environment
   variable whose name has a part ending in `TOKEN`, `SECRET`, `KEY`,
   `PASSWORD`, `PASSWD`, `PWD`, `PAT`, `AUTH`, `CREDENTIAL`, `CREDENTIALS` or
   `COOKIE`, except `PWD`, `OLDPWD` and `SSH_AUTH_SOCK`.
 - **No path rule.** The scan refuses no path, this machine's own home and
-  temp folders, user name and host name included (#364, ADR 0097). The read
-  before posting looks for a user name or host name, in a path or not, and
-  for no path as such (#368, ADR 0098). A
+  temp folders, user name and host name included (#364, ADR 0097). A
   link whose target is a local path is still refused, by `link/relative`,
   since it lands as a dead link.
 - **No session-id rule.** The scan refuses no UUID, `session_` id or Claude
   Code session link, so a scratchpad path, a GitHub attachment link and
   Claude Code's attribution post on any surface (#366, ADR 0100). A session
   link opens only for the account that owns the session.
-- **`personal/email`:** an email address, except GitHub's `noreply` addresses
-  and Anthropic's `noreply` address.
 - **`text/hidden`:** tag characters (a subdivision flag aside), direction
   embeddings, overrides and isolates, the zero-width space, word joiners, the
   rarer variation selectors, and a byte-order mark inside the text. The
@@ -402,17 +396,14 @@ below are kept by hand from the poster's source; no test holds them.
 
 ## What the scans don't cover
 
-- **Other personal details:** names, phone numbers and postal addresses. The
-  user name in plain prose passes, since it is often the login in the owner's
-  own links.
-- **A secret with no known shape** and no environment variable behind it.
-- **A known shape split in a form no copy reads as the page does** (threat
-  model, R13): two tricks at once that no single copy reads together, a
-  look-alike letter from another script, a renderer other than GitHub's
+- **Any secret or personal detail** other than a live environment secret's
+  value: a token `gh` keeps in a credential store, a key in a file, a name,
+  an email address (#441).
+- **A refused value written in a form no copy reads as the page does**
+  (threat model, R13): two tricks at once that no single copy reads together,
+  a look-alike letter from another script, a renderer other than GitHub's
   comments, or a raw-HTML or markdown structure the page copy reads
-  differently from GitHub's page. A
-  letter written against the `sk-`, JSON web token or AWS key shapes switches
-  their match off; that is #428.
+  differently from GitHub's page.
 - **Option values other than `--label`,** which are checked against patterns, not scanned.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
@@ -453,7 +444,7 @@ below are kept by hand from the poster's source; no test holds them.
 - **A change between the read and the write.** The poster reads the item, then
   writes it; a change made between the two is overwritten unseen. A session
   that drafts from its own earlier read widens that window to its drafting
-  time, so a change made since, a removed personal detail included, comes
+  time, so a change made since, a removed line included, comes
   back (threat model, R60). A refusal when the item changed since that read
   is #419.
 - **A Claude home elsewhere.** The rules file names the default

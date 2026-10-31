@@ -20,7 +20,7 @@ When you build something that matters, what you say to an agent deserves the car
 
 ## Four moves
 
-The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. They are my practices, with or without AI, and I take each up as the work needs it. The agent follows my lead, and when a move seems to drop, it nudges once, lightly. Two guards sit under the moves: stop and ask when the work goes round twice, leaves the plan, is hard to reverse or can no longer be explained; and wait before expensive work when weekly usage is high.
+The pact is a small, runnable version of my [engineering playbook](https://aymandiab.com/work/engineering-workflow-playbook): how humans and AI agents build software together, with the human as the architect of intent and the agent as the executor. Four moves govern it. They are my practices, with or without AI, and I take each up as the work needs it. The agent follows my lead, and when a move seems to drop, it nudges once, lightly. Two guards sit under the moves: stop and ask when the work goes round twice (under a standing goal I set, after one bounded step), leaves the plan, is hard to reverse or can no longer be explained; and wait before expensive work when weekly usage is high.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-01-moves-dark.svg">
@@ -45,11 +45,11 @@ The moves name no skills. You put your own skills and commands on the stages of 
 
 ## How much checking
 
-Not every change needs a spec. Each piece of work gets a tier (quick, standard or thorough), and the tier says how much checking it needs. Sensitive work, by default auth, secrets, crypto, input validation and data migrations, gets more when I choose it. When the work matches that list, the agent says why in one line in its tier proposal and recommends the sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. If I don't take it, the security pair is offered once more at Test when the change matches the list, and a flag I haven't answered stays open in the result. The rules file's Workflow table says what each tier sets at each stage, from Plan to Maintain, and which lenses to offer there.
+Not every change needs a spec. Each piece of work gets a tier (quick, standard or thorough), and the tier says how much checking it needs. Sensitive work, by default auth, crypto, input validation and data migrations, gets more when I choose it. When the work matches that list, the agent says why in one line in its tier proposal and recommends the sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. If I don't take it, the security pair is offered once more at Test when the change matches the list, and a flag I haven't answered stays open in the result. The rules file's Workflow table says what each tier sets at each stage, from Plan to Maintain, and which lenses to offer there.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/fig-02-tiers-dark.svg">
-  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. What quick, standard and thorough work each fits, and the models that plan and build it. By default, auth, secrets, crypto, input validation and data migrations are sensitive work; the agent recommends the sensitive route, thorough and on Opus at high, and I take it or not." width="800">
+  <img src="docs/img/fig-02-tiers.svg" alt="FIG. 02, rigour follows risk. What quick, standard and thorough work each fits, and the models that plan and build it. By default, auth, crypto, input validation and data migrations are sensitive work; the agent recommends the sensitive route, thorough and on Opus at high, and I take it or not." width="800">
 </picture>
 
 <details>
@@ -61,7 +61,7 @@ Not every change needs a spec. Each piece of work gets a tier (quick, standard o
 | Standard | Needs a short spec | Opus, medium | Sonnet, medium |
 | Thorough | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |
 
-**Sensitive work · when I choose it.** By default, sensitive work is auth, secrets, crypto, input validation and data migrations. The sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. If I don't, the security pair is offered once more at Test on a list match, and a flag I haven't answered stays open in the result. Keep one model for a whole session.
+**Sensitive work · when I choose it.** By default, sensitive work is auth, crypto, input validation and data migrations. The sensitive route: thorough, planned and built on Opus at high, with the security pair on the spec and the diff. The agent recommends the route, with its why, in its tier proposal, and I take it or not. If I don't, the security pair is offered once more at Test on a list match, and a flag I haven't answered stays open in the result. Keep one model for a whole session.
 
 **Models.** Opus plans. Sonnet builds, and Opus builds quick work. The sensitive route runs on Opus at high effort.
 

@@ -408,8 +408,10 @@ test('bad cost limits: none or ten, an empty cost, a duplicate name in any case,
 });
 
 // #377 C2: the default ships the Lens pairs row after the three it had; Ultra Code keeps only those three.
+// #444 C1, C2: a follow-up issue names its trigger, and one with none counts past the limit.
 test('the default cost limits end with the Lens pairs row, and Ultra Code carries the other three', () => {
   assert.deepEqual(DEFAULT_PARTS.costLimits.map(c => c.cost), ['Tests added', 'Hardening', 'Follow-up issues', 'Lens pairs']);
+  assert.deepEqual(DEFAULT_PARTS.costLimits[2], { cost: 'Follow-up issues', counted: 'Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" });
   assert.deepEqual(DEFAULT_PARTS.costLimits[3], { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' });
   const ultra = shippedPresets(REPO, pactData(REPO)).find(p => p.id === 'ultra-code');
   assert.deepEqual(ultra.parts.costLimits, DEFAULT_PARTS.costLimits.slice(0, 3));

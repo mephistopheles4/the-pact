@@ -310,23 +310,23 @@ const TOOL_PARTS = new Map([
       '  Write each piece of free text to a file in a scratch folder outside the',
       '  repo, and run the poster from that folder, never from the repo. Sign a',
       '  post you may edit with a `Signed: <label>` line, and keep it when you',
-      '  edit. An edit never removes text: for a leaked secret or personal detail,',
-      "  tell me instead. An edit's `--reason` names the kind of fix, never the",
-      '  text.',
+      "  edit. An edit never removes text. An edit's `--reason` names the kind of",
+      '  fix, never the text.',
       '  Delete a file once its post ends, whatever the result (verified, failed,',
       '  unverified, mismatch or',
       '  unavailable), or once you drop it; keep one refused for a lens report',
       '  until I have answered, then delete it. Before the session ends, delete',
       '  every such file still there, whatever my answer. `verified` means what',
-      '  landed is what was sent: the scan is a backstop, and the review',
+      '  landed is what was sent. Its scan, for hidden characters and a live',
+      '  environment-secret value, is the only check on a secret; the review',
       "  procedure's read before posting still comes first. When it refuses your",
       '  own prose or a Lens dispositions table, fix it in place and post again;',
       '  never fold, fence, quote, relabel or move a table to get past the check,',
-      '  and never rerun a lens for it. A lens report it refuses for a secret, a',
-      '  personal detail or hidden characters stays local: tell me where it is, in',
-      '  chat only, and never post it or edit it to get past the scan. If it ends',
-      '  unavailable, refuses for a reason no text fix clears, or refuses twice for',
-      "  a reason you can't explain, stop and tell me.",
+      '  and never rerun a lens for it. A lens report it refuses for hidden',
+      '  characters or a live environment-secret value stays local: tell me where',
+      '  it is, in chat only, and never post it or edit it to get past the scan. If',
+      '  it ends unavailable, refuses for a reason no text fix clears, or refuses',
+      "  twice for a reason you can't explain, stop and tell me.",
     ]),
   })],
   ['cleaner', Object.freeze({
@@ -398,7 +398,7 @@ whatever its "At the limit" says.
 - **A security finding** is one that names an attacker in scope in the
   project's threat model, as it stood before the change under review; or
   touches an item on the sensitive-work list, auth meaning authentication
-  and authorization; or exposes a secret or personal data to anyone but me. With no threat model, the last two decide. The
+  and authorization. With no threat model, the last one decides. The
   project's threat model is the file its agent instructions name, else
   \`docs/threat-model.md\`. The session that sorts the findings holds it and
   decides whether a finding is a security finding. A lens outside the

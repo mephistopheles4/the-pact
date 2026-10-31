@@ -66,8 +66,8 @@ export function missingFromPage(page, names, examples) {
 
 test('docs/poster.md names every surface, option, result and rule id, and shows every example', () => {
   const ids = ruleIds(SOURCE);
-  // Guards on the reads themselves, so an empty or broken read can't pass: 39 rule ids, 4 common options and 7 results today.
-  assert.ok(ids.length >= 39, `expected at least 39 rule ids in the poster, found ${ids.length}`);
+  // Guards on the reads themselves, so an empty or broken read can't pass: 36 rule ids, 4 common options and 7 results today.
+  assert.ok(ids.length >= 36, `expected at least 36 rule ids in the poster, found ${ids.length}`);
   assert.ok(commonOptions(SOURCE).length >= 4, 'expected the poster COMMON list');
   assert.ok(sourceExits(SOURCE).length >= 7, 'expected the exit codes in the poster header');
   assert.deepEqual(missingFromPage(PAGE, requiredNames(SOURCE, SURFACES), EXAMPLES), []);
