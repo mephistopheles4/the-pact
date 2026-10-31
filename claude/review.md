@@ -649,8 +649,10 @@ file.
   row says "taken earlier", under the four conditions in Findings and their
   state.
 - Under a standing goal (the rules file's Guards), a trade-off may be settled
-  by a lead session's pick when no lens calls a finding in it security or
-  marks one `security?`, and you class none of them security. Its row is
+  by a lead session's pick under a goal I gave that lead in its own chat,
+  when no lens calls a finding in it security or
+  marks one `security?`, you class none of them security, and it matches no
+  accepted risk and weighs no security fix's cost against its risk. Its row is
   never `auto`, and its Disposition word is the one the pick takes. Its
   reason text reads `trade-off: <cost>, <n> of <limit>, lead's pick (<label>)`,
   leaving out `<n> of <limit>` for a cost with no count.
