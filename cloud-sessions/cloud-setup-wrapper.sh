@@ -614,8 +614,11 @@ and help with what it needs.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then offer the reviews the work calls for (see Workflow).
 - **Keep the record where the project keeps it.** Sign what you post there
-  with your session's short label. At a phase boundary, put the state and the
-  open questions in the record, and propose a fresh session.
+  with your session's short label. Open each issue, spec or ticket with my
+  ask, quoted exactly: the sentences that define the work or change its scope.
+  My examples become claims with measures. With no record, quote it in each
+  hand-off. At a phase boundary, put the state and the open questions in the
+  record, and propose a fresh session.
 - **Say a mismatch first.** If the tier or model doesn't fit the work,
   say so in the first line, before any work.
 
@@ -2338,7 +2341,8 @@ Tell each lens which other reviewers ran, by their questions.
 
 **The base.** Hand every lens run the base: the commit the work started from,
 by its short hash, and the request. A lens judges the work against the base,
-the state before the work began.
+the state before the work began. The request is my ask as the record quotes
+it, else the text of the issue or prompt.
 - **At Design,** the base is the commit the spec says, in its header line, it
   was drafted against. It must be an ancestor of the default branch's head,
   and the base the stage's last base line names must be an ancestor of it or
@@ -2505,8 +2509,9 @@ what a lens writes by its meaning.
 - **Spec drift,** on a closing read only: by the lens's own question, where
   the head departs from the approved spec, and where the approved spec
   departs from the request and the base. This holds over a lens's own
-  stay-out for this section. A drift item that is a defect is also a
-  finding, with its state; any other is for my information.
+  stay-out for this section. A drift item that is a defect, or a departure
+  from the ask I didn't ask for, is also a finding, with its state; any other
+  is for my information.
 - **Not checked:** what it didn't look at, and why. On a scoped follow-up, its
   first item is exactly "scoped follow-up: the rest of the change was not
   read", followed by the count of changed files outside its scope; it lists
@@ -3162,7 +3167,7 @@ check_hash() {
     echo "HASH MISMATCH: ~/.claude/$rel"; HASH_FAILED=$((HASH_FAILED + 1))
   fi
 }
-check_hash f9c0331b46902c55951276c288d013036d0ec85e2fd7d42e0a86e61a6f29458c 'CLAUDE.md'
+check_hash 967cef1b19538cfc0470bb290cdf16df059d11469666a7674aa9cccc51185724 'CLAUDE.md'
 check_hash 930ee5cfba9708db269089500366ab1f57427c8e50b66759667bc8a8608cfd40 'agents/adversarial-lens.md'
 check_hash 97d4a2442ebde8deff21a8fff8a46f75c53c4a663eacb986a83eabd319ef2480 'agents/behaviour-lens.md'
 check_hash fa54c539b393d7ec08752b7e425010f0ebebcfd812e18dd82c0a4b5fecdbff59 'agents/conventions-lens.md'
@@ -3172,7 +3177,7 @@ check_hash e3b82fdd78c21d826d883cbe31a1ef59fa9f0e4eb4570856f5fc0420fac97711 'age
 check_hash 38d3f570b19b600dc469dbc9d9b3bd0d6d0ecdbcf819f89a0f2d517a9a339682 'agents/reader-lens.md'
 check_hash 2bf2d78ff096159adea09ac030341e5bbe2e4dc73ff7730429c96d04c036a2ff 'agents/scout.md'
 check_hash caec0c14e75c4e35d093dfcd4e835a03729b07c6956b2e008ba7ee868aeff4f8 'agents/unstated-lens.md'
-check_hash fc6f0575918756f877ce282ae930501222071983e8c378732c9419255612dd2e 'pact/review.md'
+check_hash 708959fd205cd0868698876486cfbbc34ce47bc84d9d40e1ccfc6988c0953bf9 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -3202,7 +3207,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy e01d2b8c193d"
+  echo "pact cloud copy 4c5f8477e55b"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

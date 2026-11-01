@@ -28,7 +28,8 @@ Tell each lens which other reviewers ran, by their questions.
 
 **The base.** Hand every lens run the base: the commit the work started from,
 by its short hash, and the request. A lens judges the work against the base,
-the state before the work began.
+the state before the work began. The request is my ask as the record quotes
+it, else the text of the issue or prompt.
 - **At Design,** the base is the commit the spec says, in its header line, it
   was drafted against. It must be an ancestor of the default branch's head,
   and the base the stage's last base line names must be an ancestor of it or
@@ -195,8 +196,9 @@ what a lens writes by its meaning.
 - **Spec drift,** on a closing read only: by the lens's own question, where
   the head departs from the approved spec, and where the approved spec
   departs from the request and the base. This holds over a lens's own
-  stay-out for this section. A drift item that is a defect is also a
-  finding, with its state; any other is for my information.
+  stay-out for this section. A drift item that is a defect, or a departure
+  from the ask I didn't ask for, is also a finding, with its state; any other
+  is for my information.
 - **Not checked:** what it didn't look at, and why. On a scoped follow-up, its
   first item is exactly "scoped follow-up: the rest of the change was not
   read", followed by the count of changed files outside its scope; it lists

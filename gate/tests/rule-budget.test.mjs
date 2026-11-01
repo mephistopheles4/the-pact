@@ -18,9 +18,10 @@ const REASONS = join(REPO, 'docs', 'rule-reasons.md');
 const RULES = 'the rules file';
 
 // Each budget is the smallest multiple of 50 above the file's size after the
-// #450 cuts (S5.1), measured on the rebased branch.
+// #450 cuts (S5.1), measured on the rebased branch. The rules file's rose to
+// 4,100 for #462's sentence as a spec change, so no other rule was trimmed for it.
 const BUDGETS = Object.freeze({
-  [RULES]: 4050,
+  [RULES]: 4100,
   'adversarial-lens': 1800,
   'behaviour-lens': 1450,
   'conventions-lens': 1100,

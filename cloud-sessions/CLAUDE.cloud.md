@@ -59,8 +59,11 @@ and help with what it needs.
 - **Finish the build.** At the end of a build, run the tests and any gates the
   repo has, then offer the reviews the work calls for (see Workflow).
 - **Keep the record where the project keeps it.** Sign what you post there
-  with your session's short label. At a phase boundary, put the state and the
-  open questions in the record, and propose a fresh session.
+  with your session's short label. Open each issue, spec or ticket with my
+  ask, quoted exactly: the sentences that define the work or change its scope.
+  My examples become claims with measures. With no record, quote it in each
+  hand-off. At a phase boundary, put the state and the open questions in the
+  record, and propose a fresh session.
 - **Say a mismatch first.** If the tier or model doesn't fit the work,
   say so in the first line, before any work.
 

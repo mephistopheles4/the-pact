@@ -155,3 +155,17 @@ test('the fixed block names no tool, no level, no lead and no relay', () => {
   const block = fixedBlock().toLowerCase();
   assert.deepEqual([/head.?chef/, /grimoire/, /\blevels?[ :_-]*(\d+|[ivx]+|one|two|three|four|five)\b|\b(first|second|third|fourth|fifth|top) level\b|\bl\d\b|\blvl\b/, /autonomy level/, /\blead(s|ers?|ing)?\b/, /\brelay/].filter(word => word.test(block)).map(String), []);
 });
+
+// #462 C1–C2: the record opens with the owner's ask, quoted, and the closing read measures drift against it.
+test("the record opens with the owner's ask, and a drift from it is a finding", () => {
+  // Each sentence is looked for only in its own rule or section, from its opening bold text to the next one.
+  const part = (text, from, to) => { const i = text.indexOf(from); const j = i < 0 ? -1 : text.indexOf(to, i + from.length); return j < 0 ? '' : text.slice(i, j); };
+  const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\s+/g, ' ');
+  assert.deepEqual(lacking(part(rules, '- **Keep the record where the project keeps it.**', '- **'), [
+    'Open each issue, spec or ticket with my ask, quoted exactly: the sentences that define the work or change its scope. My examples become claims with measures. With no record, quote it in each hand-off.',
+  ]), [], 'C1');
+  const review = readFileSync(join(REPO, 'claude', 'review.md'), 'utf8').replace(/\s+/g, ' ');
+  assert.deepEqual(lacking(part(review, '**The base.**', '- **At Design,**'), ['The request is my ask as the record quotes it, else the text of the issue or prompt.']), [], 'C2: the base');
+  assert.deepEqual(lacking(part(review, '- **Spec drift,**', '- **Not checked:**'), ["A drift item that is a defect, or a departure from the ask I didn't ask for, is also a finding, with its state; any other is for my information."]), [], 'C2: Spec drift');
+  assert.ok(!review.includes('A drift item that is a defect is also a finding'), 'C2: the old Spec drift sentence is gone');
+});
