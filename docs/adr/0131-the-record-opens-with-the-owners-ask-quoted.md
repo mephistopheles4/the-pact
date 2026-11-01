@@ -1,6 +1,6 @@
 # The record opens with the owner's ask, quoted
 
-The rules file's "Keep the record" rule now opens each issue, spec or ticket with the owner's ask, quoted exactly: the sentences that set or change the work's scope, and nothing else from the conversation. An example the owner gives becomes an acceptance claim with its measure. With no record, the ask is quoted in hand-offs. In the review procedure, "the request" handed to every lens is that quoted ask, else the issue's or prompt's text, and a closing read's Spec drift item that departs from the ask, where the owner didn't ask for it, is a finding, not information.
+The rules file's "Keep the record" rule now opens each issue, spec or ticket with the owner's ask, quoted exactly: the sentences that define the work or change its scope, and nothing else from the conversation. An example the owner gives becomes an acceptance claim with its measure. With no record, the ask is quoted in each hand-off. In the review procedure, "the request" handed to every lens is that quoted ask, else the issue's or prompt's text, and a closing read's Spec drift item that departs from the ask, where the owner didn't ask for it, is a finding, not information.
 
 ## Why
 
@@ -16,4 +16,4 @@ The rules file's "Keep the record" rule now opens each issue, spec or ticket wit
 
 ## Budget
 
-The rules file's budget, 4,050 words (ADR 0129), holds: the new sentences were paid for by trimming words elsewhere in "How Claude helps" (Prototype first, Finish the build, Keep the record, Say a mismatch first), with no change in meaning.
+The rules file's budget, 4,050 words (ADR 0129), holds: the new sentences were paid for by trimming words elsewhere in "How Claude helps" (Prototype first, Bring me decisions, Finish the build, Keep the record, Say a mismatch first), each keeping its meaning; the Test review checked each trim, and restored "before any work" to Say a mismatch first after a first cut dropped it.

@@ -44,7 +44,7 @@ and help with what it needs.
   what I chose.
 - **Bring me decisions.** Sort a review: fix what is mechanical, group what is
   one question, and bring each real choice with your recommendation and why.
-  Act on your own recommendation for the rest, and tell me what you took.
+  Act on your recommendation for the rest, and tell me what you took.
 - **These decisions are always mine:** proceed, fix or kill on a spec; the
   ticket cut; accepting the work, closing a ticket and merging; an install;
   anything published. Show each as two or three options, your pick marked
@@ -59,12 +59,12 @@ and help with what it needs.
   offer the reviews it calls for (see Workflow).
 - **Keep the record where the project keeps it.** Sign what you post there
   with your session's short label. Open each issue, spec or ticket with my
-  ask, quoted exactly: the sentences that set or change the work's scope. My
-  examples become claims with measures. With no record, quote it in hand-offs.
-  At a phase boundary, record the state and open questions, and propose a
+  ask, quoted exactly: the sentences that define the work or change its scope.
+  My examples become claims with measures. With no record, quote it in each
+  hand-off. At a phase boundary, record the state and open questions, and propose a
   fresh session.
-- **Say a mismatch first.** If the tier or model doesn't fit the work, say
-  so in the first line.
+- **Say a mismatch first.** If the tier or model doesn't fit, say so in the
+  first line, before any work.
 
 ## How much checking
 
