@@ -32,7 +32,7 @@ This file is never installed.
 | Bring me decisions | How a review is sorted for the owner. No tool sorts findings. |
 | These decisions are always mine | The owner's map of decisions. The harness defers to durable authorization, and this list is that authorization's limits. A command only the owner can run is handed over and waited on: the harness says how to hand it over, not to wait. |
 | Finish the build | Offering the reviews the work calls for. The harness may run tests, but it knows no review roster. |
-| Keep the record where the project keeps it | State for the next session and the owner. Compaction keeps a summary inside this session only. |
+| Keep the record where the project keeps it | State for the next session and the owner. Compaction keeps a summary inside this session only. And the owner's ask, quoted: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent and drift from it can't be seen. |
 | Post through the poster | When to use the tool, and what it can't check: the scratch folder, deleting the file after, not working around a refusal. |
 | Clean up through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (threat model R63). |
 | Say a mismatch first | Fit of tier and model to the work. No tool judges it. |
