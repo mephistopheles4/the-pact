@@ -11,9 +11,9 @@ The rules file's "Keep the record" rule now opens each issue, spec or ticket wit
 
 ## What was weighed
 
-- **Quote the conversation.** Not taken: "we are overcorrecting by quoting everything, well end up having the whole transcript on github". Only the sentences that set or change the scope are quoted.
+- **Quote the conversation.** Not taken: "we are overcorrecting by quoting everything, well end up having the whole transcript on github". Only the sentences that define the work or change its scope are quoted.
 - **Run unstated-lens at Test, a named-gap rule, growth figures in reports.** Dropped when the owner narrowed the scope; each can be filed on its own.
 
 ## Budget
 
-The rules file's budget, 4,050 words (ADR 0129), holds: the new sentences were paid for by trimming words elsewhere in "How Claude helps" (Prototype first, Bring me decisions, Finish the build, Keep the record, Say a mismatch first), each keeping its meaning; the Test review checked each trim, and restored "before any work" to Say a mismatch first after a first cut dropped it.
+The rules file's budget (ADR 0129) rises from 4,050 to 4,100 words, a spec change, so the change adds only the sentences asked for. A first build trimmed other rules in "How Claude helps" to fit 4,050; those trims were edits nobody asked for, one of them changed a rule's meaning, and all were reverted. Any cut to make room belongs to #464.

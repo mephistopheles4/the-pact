@@ -159,7 +159,7 @@ test('the fixed block names no tool, no level, no lead and no relay', () => {
 // #462 C1–C2: the record opens with the owner's ask, quoted, and the closing read measures drift against it.
 test("the record opens with the owner's ask, and a drift from it is a finding", () => {
   // Each sentence is looked for only in its own rule or section, from its opening bold text to the next one.
-  const part = (text, from, to) => { const i = text.indexOf(from); return i < 0 ? '' : text.slice(i, text.indexOf(to, i + from.length)); };
+  const part = (text, from, to) => { const i = text.indexOf(from); const j = i < 0 ? -1 : text.indexOf(to, i + from.length); return j < 0 ? '' : text.slice(i, j); };
   const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\s+/g, ' ');
   assert.deepEqual(lacking(part(rules, '- **Keep the record where the project keeps it.**', '- **'), [
     'Open each issue, spec or ticket with my ask, quoted exactly: the sentences that define the work or change its scope. My examples become claims with measures. With no record, quote it in each hand-off.',
