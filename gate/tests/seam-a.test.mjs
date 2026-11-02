@@ -422,7 +422,7 @@ const READER = [
 
 for (const [name, rule, defect] of READER) {
   test(`reader: ${name} is ${rule ? `refused as ${rule}` : 'read'}`, t => {
-    const r = runSeamA(stage(t, { 'claude/settings.overlay.json': defect(realOverlay(), 'outputStyle') }));
+    const r = runSeamA(stage(t, { 'claude/settings.overlay.json': defect(realOverlay(), 'skipAutoPermissionPrompt') }));
     const rules = failRules(r.stdout);
     if (rule) assert.ok(rules.includes(rule), r.out);
     else assert.ok(!rules.includes('settings-read') && !rules.includes('settings-duplicate'), r.out);
