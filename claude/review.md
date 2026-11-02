@@ -17,10 +17,6 @@ lenses to offer, and when.
   another lens's report.
 - **A follow-up** round also gets the diff since the last round and the
   findings it raised then, numbered `E1`, `E2` and on.
-- **Count each round** against the Cost limits rows before you dispatch it.
-- **The mutation step.** Before a lens that checks whether the tests can fail,
-  run the repo's mutation tool if it has one, as its local binary, never
-  through a command that can fetch a package, and hand it the output.
 
 ## The report template
 
@@ -64,12 +60,6 @@ Ask each lens to report in this shape:
   lens and its verdict, holding the report in a fenced `text` block one
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image.
-- **Hidden characters.** Search each report for control, invisible and
-  direction-changing characters, with the pattern
-  `[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\xAD\x{61C}\x{180E}\x{200B}-\x{200F}\x{2028}-\x{202E}\x{2060}-\x{2069}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFF0}-\x{FFFF}\x{E0000}-\x{E0FFF}]`.
-  Where a tool refuses a report for hidden characters or a secret, keep it
-  local, tell me in chat where it is, and write "withheld, see chat" in its
-  place.
 - **Where to post.** In the work's record; with no record, in chat.
 
 ## Lens dispositions
