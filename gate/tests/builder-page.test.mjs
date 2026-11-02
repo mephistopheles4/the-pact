@@ -674,7 +674,7 @@ test('stub page: Add agent in the Agents panel saves agents/<name>.md, and the s
   assert.match(P.ids.output.text, /a save deletes nothing/);
 });
 
-// #203 S6, R25: each shipped command is one only the owner starts.
+// #203 S6: each shipped command is one only the owner starts.
 test('each shipped command, /scriptorium, /make-it-so and /finis, is one only the owner can start', () => {
   for (const name of ['scriptorium', 'make-it-so', 'finis']) {
     const command = readFileSync(join(REPO, 'claude', 'commands', `${name}.md`), 'utf8').replace(/\r\n/g, '\n');

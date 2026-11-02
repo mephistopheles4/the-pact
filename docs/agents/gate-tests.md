@@ -94,7 +94,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
     rest of Test;
   - the diff touches `.github/` or `gate/tests/workflow.test.mjs`: a pull
     request runs the branch's own copy of every workflow, the CodeQL one with
-    its write token, as soon as it opens (R27), so the push waits for the
+    its write token, as soon as it opens, so the push waits for the
     security pair's read or the owner's word;
   - the diff touches `.claude/settings.json` or `.claude/hooks/`: the hook
     runs in every session opened on the branch, before the permission check
@@ -301,7 +301,7 @@ before every Bash and PowerShell call, with a 15 s timeout.
   the tests already there. Each such test names one of:
   - a claim of the issue it was built for, as `#<issue> C<n>`;
   - an invariant already written down: a gate rule id (a row's rule ids
-    count), an ADR by number (`ADR 0047`), a threat-model risk (`R21`), or a
+    count), an ADR by number (`ADR 0047`), a threat-model class (`Review rests on rules`), or a
     rule of this repo by its section heading (`Writing a gate test`), whether
     the heading sits in `AGENTS.md` or in a doc under `docs/agents/`.
 

@@ -13,16 +13,14 @@ out of the report; say where they are instead.
 
 ## What counts
 
-[The threat model](docs/threat-model.md) says what the pact defends, which
-risks it accepts, and which issues were known and open at publication. Read it
-before you report.
+[The threat model](docs/threat-model.md) says which threats the pact accepts,
+and which issues are open. Read it before you report.
 
 - **A boundary that doesn't hold** is a hole. A boundary is a defence enforced
   by code, such as the install gate.
-- **A rule that a model fails to follow** is usually a known, accepted risk: a
-  rule is text the model is asked to follow, and the threat model says it can
-  fail. A new way to make one fail, or a worse outcome than the page states,
-  is still worth reporting.
+- **A rule that a model fails to follow** is usually an accepted threat: a
+  rule is text the model is asked to follow, and it can fail. A new way to make
+  one fail, or a threat no class on the page covers, is still worth reporting.
 - **Claude Code, Anthropic's models, GitHub, and plugins or skills from
   elsewhere** are outside the pact. Report a hole in one of them to its maker.
 - **grimoire,** the owner's separate skill collection, is outside the pact
@@ -42,5 +40,5 @@ and no bug bounty. Reports are handled as time allows.
 
 A fix is made and reviewed like any other work here, and those reviews are
 public. So a hole's details may become public once work on its fix starts,
-before the fix ships (accepted risk R19 in the threat model). Say in your
-report if you want credit.
+before the fix ships (accepted in the threat model, under Posts are public).
+Say in your report if you want credit.

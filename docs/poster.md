@@ -8,10 +8,9 @@ on, the install puts it at `~/.claude/pact/tools/poster.mjs`, and the rules
 file tells a session to post through it. Its scans catch accidents, not a
 session that sets out to get past them. For a secret, its refusal of a live
 environment secret's value is the only check, and only where the poster is on
-(threat model, R3, R13 and R64). For hidden characters and a Lens
-dispositions table, the review procedure's read before posting still comes
-first, on every install, with or without the poster (R29). It needs Node 24 or
-later and `gh`, signed in.
+(threat model, Posts are public). The review procedure's read before posting
+still comes first, on every install, with or without the poster. It needs
+Node 24 or later and `gh`, signed in.
 
 Permission rules on `gh` commands don't see the poster's calls, because the
 poster starts `gh` itself; to gate posting, put a rule on the poster's own
@@ -41,7 +40,7 @@ the home folder. A file planted in a repo can't run either way, because the
 poster runs from the scratch folder, never from the repo. A repo you have
 trusted can still change the environment either form resolves through; that
 sits behind Claude Code's workspace trust, as a repo's hooks do (threat
-model, R14).
+model, The pact gets loosened).
 
 Every piece of free text comes from a file, so no prose reaches a command
 line. Write the body, any title and any edit's reason to files in the scratch
@@ -400,7 +399,7 @@ kept by hand from the poster's source; no test holds them.
   value: a token `gh` keeps in a credential store, a key in a file, a name,
   an email address (#441).
 - **A refused value written in a form no copy reads as the page does**
-  (threat model, R13): two tricks at once that no single copy reads together,
+  (threat model, Posts are public): two tricks at once that no single copy reads together,
   a look-alike letter from another script, a renderer other than GitHub's
   comments, or a raw-HTML or markdown structure the page copy reads
   differently from GitHub's page.
@@ -416,7 +415,7 @@ kept by hand from the poster's source; no test holds them.
   only to write "withheld, see chat" in a withheld report's place.
 - **A session that sets out to get past them.** They catch accidents.
 - **The poster itself.** Nothing checks the live file before a session runs
-  it; the next dry run shows a changed one as drift (threat model, R14).
+  it; the next dry run shows a changed one as drift (threat model, The pact gets loosened).
 - **Text already posted.** Posting again doesn't remove it, and nor does an
   edit: GitHub's edit history keeps every earlier version. An edit is never the
   fix for a leak. Tell the owner; rotate a leaked secret, and the owner
@@ -425,12 +424,12 @@ kept by hand from the poster's source; no test holds them.
   label and edit any post signed in the two forms, an owner's comment that
   holds a session's pasted signature line included. The edit checks stop an
   edit of owner-typed text with no signature line, of a review record, and of a
-  decision mark; they catch accidents (threat model, R2).
+  decision mark; they catch accidents (threat model, Who counts as you).
 - **Text already relied on.** An edit can change a post someone has acted on,
   such as an approved spec, a hand-off or a pull request body at merge, and in
   a repo whose rule counts the owner's account's last edit, the item still
   counts. The reason lines and GitHub's history show the change (threat model,
-  R2).
+  Who counts as you).
 - **The best-effort checks' gaps.** The record, decision and "in plain sight"
   checks read the source text, not GitHub's rendered page, so a form their
   readings don't see passes: a look-alike letter outside the fixed set; a
@@ -440,13 +439,13 @@ kept by hand from the poster's source; no test holds them.
   a fence, a code span or a closed comment, or carried in a reason; and a
   reason line forged with an entity, emphasis or an escape. They also refuse
   some text that isn't a record, such as a record shape quoted inside a fence.
-  These gaps are accepted by class (threat model, R2); reading GitHub's
+  These gaps are accepted by class (threat model, Who counts as you); reading GitHub's
   rendered page instead is #419.
 - **A change between the read and the write.** The poster reads the item, then
   writes it; a change made between the two is overwritten unseen. A session
   that drafts from its own earlier read widens that window to its drafting
   time, so a change made since, a removed line included, comes
-  back (threat model, R60). A refusal when the item changed since that read
+  back. A refusal when the item changed since that read
   is #419.
 - **A Claude home elsewhere.** The rules file names the default
   `~/.claude`; an install with `--claude-home` elsewhere puts the poster

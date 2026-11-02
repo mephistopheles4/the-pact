@@ -209,7 +209,7 @@ roll back to,** check it, with no checkout:
 If any check fails, don't check the commit out, never run an installer from
 it, and stop to ask the owner. Check first, because an older commit's own
 `AGENTS.md` presents a PowerShell installer as the route, and nothing but
-this check stands before one (the threat model's R22). From a commit that
+this check stands before one (the threat model's class The pact gets loosened). From a commit that
 passes, check out exactly that id and run only `gate/install.mjs`, dry run
 first.
 
@@ -218,4 +218,4 @@ Since #272 each apply keeps backups in `~/.claude/pact/backups/`:
   copy what you want to keep first, and delete `pact/backups` by hand once
   you are sure.
 - **An older installer never touches `pact/backups`** unless the install
-  record was rewritten to list a path there (the threat model's R14).
+  record was rewritten to list a path there (the threat model's class The pact gets loosened).
