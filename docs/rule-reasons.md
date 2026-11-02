@@ -33,7 +33,7 @@ This file is never installed.
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |
-| Lenses are offers | The protected set: offers, and declines kept open. |
+| Lenses are offers | The protected set: lenses are offered, and the owner answers. |
 | Before you run a lens or post to the record, read `~/.claude/pact/review.md` | Points to the procedure, which no tool loads. |
 | Qualities | The owner's quality list, with the lens that checks each. No tool measures them. |
 | Trade-off points | What a spec must record about trade-offs. No tool reads a spec. |

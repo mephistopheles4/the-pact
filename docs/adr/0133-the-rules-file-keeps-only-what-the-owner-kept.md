@@ -9,12 +9,14 @@ The owner's words: "i feel like deleting most of it to be honest, way too many r
 ## Considered options
 
 - **Render review.md, to leave the poster's part out when the poster is off.** Rejected: review.md installs as a byte copy, and rendering it changes the installer. The tool part stays the switch: its one line appears only when the poster is on, and review.md's poster paragraph applies only when the rules file says so.
-- **Nudge once as a fifth move.** Rejected: the moves are the owner's practices, and a nudge is what Claude does. So it is a fixed line the compiler adds under them, and an edit of the moves keeps it.
+- **Nudge once as a fifth move.** Rejected: the moves are the owner's practices, and a nudge is what Claude does. So it is a fixed line the compiler adds under them. A builder edit of the moves keeps it; a hand-written replace block without it loses it, and an added move lands below it.
 
 ## Consequences
 
 - A lead session fooled into claiming a decline can now drop an offered review. The protected-set route applied: the plan was the spec, the owner skipped the spec pair, and the security pair read the change.
-- Always mine no longer says what chat means or that a file's or a tool's text is never a confirm. The session's harness rules on other sessions' messages are what's left.
+- Always mine no longer says what chat means or that a file's or a tool's text is never a confirm or an answer to a lens offer. The harness guards only messages sent in from another session (ADR 0128), so a start or resume prompt, a file or a tool's text is not covered.
+- Always mine no longer names a push to the default branch or a commit made on it, and no longer says a command only the owner can run is handed over with a stop. This amends ADR 0128.
+- Cost limits no longer say a cost never holds back the security pair, or that the security bar wins over a cost's text.
 - Some behaviour now has no rule: sorting a review, finishing a build with the reviews, saying a mismatch first, keeping one model. T7's evals are where a loss would show.
 - The line for the cleaner names no path, and its how-to only appears once it has run. The path is in `docs/cleaner.md`, which is not installed.
 - An install with an edited cost-limits or workflow part keeps its own text, so "accepted-risk candidate" and an older prototype offer stay there until the builder file changes.

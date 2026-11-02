@@ -440,9 +440,9 @@ test('cloud copy: the tools list is pinned empty, and the setup writes nothing u
   const setup = repoText(OUTPUTS.setup);
   assert.doesNotMatch(setup, /^write_config '[^']*tools\//m, 'no tool in the cloud copy');
   // review.md's poster paragraph applies only when the rules file says so, and the cloud rules file doesn't.
-  const review = repoText('claude/review.md');
-  assert.ok(setup.includes(review), 'the setup embeds the review file as it is');
-  assert.doesNotMatch(setup.replace(review, ''), /poster/, 'nothing of the poster outside the review file');
+  const paragraph = /^- \*\*The poster\.\*\* When your rules file says to post through the poster:[^\n]*\n(?: {2}[^\n]*\n)+/m.exec(repoText('claude/review.md'))?.[0];
+  assert.ok(paragraph && setup.includes(paragraph), 'the setup embeds the review file\'s poster paragraph, with its condition');
+  assert.doesNotMatch(setup.replace(paragraph, ''), /poster/, 'nothing of the poster outside that paragraph');
   assert.doesNotMatch(repoText(OUTPUTS.rules), /poster/, 'the cloud rules file never turns the paragraph on');
 });
 

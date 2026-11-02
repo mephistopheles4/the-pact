@@ -22,7 +22,7 @@ In this page, "a session" is the Claude Code session running the poster, and
 
 ## Running it
 
-Each shell gets its own command form, as the rules file gives them:
+Each shell gets its own command form, as `review.md` gives them:
 
 - **A POSIX shell** (Git Bash, Linux, macOS):
   `node ~/.claude/pact/tools/poster.mjs <surface> [options]`
@@ -214,7 +214,7 @@ page and login are the ones the poster checked before it sent, never text from
 | 1 | `RESULT: unverified <url>` | Posted, but the read-back failed or couldn't be read; a `NEXT:` line says the post landed and must not be posted again, with the link, or with only the page it sits on if the poster never read its id | Never posts again; deletes the body file; opens the URL and tells the owner |
 | 2 | `RESULT: refused <count>` | A usage fault or a content refusal; a `REFUSED` line names each rule and where it sits. Nothing was sent | Fixes its own prose, table or link in place and posts again. A lens report refused for hidden characters or a live environment secret's value stays local, unedited, and the owner is told where it is, in chat; a table, wrap, link or fence refusal inside one means its fence is too short: fix the fence. A refusal no text fix clears, or a second one it can't explain: stops and tells the owner |
 | 3 | `RESULT: failed` | The post call failed. The post may or may not have landed; a `NEXT:` line names the page to look at and the login to look for | Deletes the body file; checks whether it landed, as below; never posts again on its own |
-| 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as the rules file says. `gh auth status` and the network are what to check |
+| 4 | `RESULT: unavailable` | A read before posting failed (the login or the repo), or the poster failed before sending. Nothing was sent | Deletes the body file; stops and tells the owner, as `review.md` sayes file says. `gh auth status` and the network are what to check |
 
 An edit ends the same ways, with its own words. Its link is the item's,
 known before it sends. Its exit 1 `NEXT:` line says the edit landed and must
