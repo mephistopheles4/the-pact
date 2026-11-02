@@ -127,7 +127,7 @@ test('#272 C5: a live file changed while the install ran refuses before any inst
 
 // ADR 0094: a home install with no configuration renders the pact's default, so its apply carries the rendered hash.
 test('#272 C6: on Linux and macOS the backup folders are 0700 and its files 0600', t => {
-  if (WIN) return t.skip('Windows sets no mode bits; a backup takes its folder\'s access list (R47)');
+  if (WIN) return t.skip('Windows sets no mode bits; a backup takes its folder\'s access list');
   const repo = makeRepo(t);
   const h = ownHome(t);
   passed(applyBound(repo, h));

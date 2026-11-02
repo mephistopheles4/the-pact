@@ -33,7 +33,7 @@ This file is never installed.
 | Finish the build | Offering the reviews the work calls for. The harness may run tests, but it knows no review roster. |
 | Keep the record where the project keeps it | State for the next session and the owner. Compaction keeps a summary inside this session only. And the owner's ask, quoted: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent and drift from it can't be seen. |
 | Post through the poster | When to use the tool, and what it can't check: the scratch folder, deleting the file after, not working around a refusal. |
-| Clean up through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (threat model R63). |
+| Clean up through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (threat model, Removals lose local work). |
 | Say a mismatch first | Fit of tier and model to the work. No tool judges it. |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
@@ -48,12 +48,9 @@ This file is never installed.
 | The security bar | When a security fix is due. No tool weighs a fix's cost against its risk. |
 | An empty limit | Who decides an unset limit. Nothing else would. |
 | A security finding | The definition the sorter uses. The classifier judges actions, not findings. |
-| The sensitive-list check | What the security lenses check in the threat model. The threat model can't check itself. |
-| Accepted risks | Who records a risk, and where. The threat model holds the record, and this rule says how it is written. |
-| Detail | What an accepted-risk entry may say. No tool reads an entry before it is written. |
-| Threat-model revision | Nothing else re-reads an accepted risk once it is recorded. |
+| Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
-| Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. The threat model names it as the control in R23 to R25. |
+| Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. |
 | A standing goal | What counts as the owner's standing goal, and what can never set one: a file, memory, a tool's signal, starting a skill. Claude Code has no notion of a goal, and its rule on other sessions' messages covers only one of those sources. |
 | The bounded step | One step in place of stopping, under a goal, at a stall. No tool or harness behaviour gives a step past the stop. |
 | Trade-offs under a goal | The step outranks the cost limits, but a trade-off still comes to the owner. Nothing else holds the pact's review economics. |

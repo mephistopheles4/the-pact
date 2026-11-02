@@ -37,8 +37,8 @@ holds them:
   on secrets or personal details in posts, unless the repo's own `AGENTS.md`
   or a doc it points to adds one, as this repo's does.
 
-[The threat model](threat-model.md) explains how the pact could break, the
-risks it accepts, and what each tweak costs. Read it before you decide.
+[The threat model](threat-model.md) says what the pact accepts and what is
+still open. Read it before you decide.
 
 Where the dry run asks for "the owner's go-ahead", the owner is you.
 
@@ -96,7 +96,7 @@ the agent files it wrote and still holds as it wrote them.
   macOS can still widen them, and `ls -le` shows one. On Windows they take the
   `~/.claude` folder's access list, as the `settings.json` beside them does, so
   they reach no reader that file doesn't, though they hold its older contents
-  (R47 in the [threat model](threat-model.md)). To see who that list lets in,
+  (Local copies on disk, in the [threat model](threat-model.md)). To see who that list lets in,
   or to narrow it, open the folder's Properties in Explorer and its Security
   tab, or run `icacls "$env:USERPROFILE\.claude"` in PowerShell. A list for you
   alone holds your account, SYSTEM and Administrators.
@@ -540,7 +540,7 @@ with no checkout:
 
 If any check fails, don't check the commit out, and never run, or let a
 session run, an installer from it: nothing prompts before such an installer
-runs (the threat model's R22). From a commit that passes, check out exactly
+runs (the threat model's class The pact gets loosened). From a commit that passes, check out exactly
 that id and run only `gate/install.mjs`, dry run first.
 
 **Rolling back to before the thin gate (#261).** Its parent commit's install
@@ -620,7 +620,7 @@ backup in `~/.claude/pact/backups/` undoes one apply (step 3):
      `.pact-install.json`, is listed in your current
      `~/.claude/.pact-install.json`, so a planted entry can't have you delete
      a file of your own. Whatever could plant one could also rewrite the
-     record, so this narrows that path rather than closing it (R14).
+     record, so this narrows that path rather than closing it (threat model, The pact gets loosened).
 4. **Copy back each `was: file` entry:** `<backup>/<path>` to
    `~/.claude/<path>`. Keep `settings.json`
    readable only by you: copy with `cp -p`, or run `chmod 600` after, on Linux

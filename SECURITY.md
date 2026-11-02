@@ -14,7 +14,7 @@ out of the report; say where they are instead.
 ## What counts
 
 [The threat model](docs/threat-model.md) says what the pact defends, which
-risks it accepts, and which issues were known and open at publication. Read it
+threats it accepts, and which issues are open. Read it
 before you report.
 
 - **A boundary that doesn't hold** is a hole. A boundary is a defence enforced
@@ -42,5 +42,5 @@ and no bug bounty. Reports are handled as time allows.
 
 A fix is made and reviewed like any other work here, and those reviews are
 public. So a hole's details may become public once work on its fix starts,
-before the fix ships (accepted risk R19 in the threat model). Say in your
+before the fix ships (accepted in the threat model, under Posts are public). Say in your
 report if you want credit.

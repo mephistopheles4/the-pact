@@ -31,7 +31,7 @@ A pact command is a slash command that stands for an answer the owner gives
 often, meant to be typed by the owner. Each sets
 `disable-model-invocation: true`, so the model can't start it on its own.
 Text sent in as a prompt can still start one, as with any slash command;
-Claude Code's own handling of such text is the guard (threat model, R25). A
+Claude Code's own handling of such text is the guard (threat model, Text steers a session). A
 command is installed only when its name is in the `commands` list of
 `~/.claude/pact/config.json`, but `/scriptorium`, which every install puts in
 place with the builder kit. The cloud copy installs none yet.
