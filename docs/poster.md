@@ -44,8 +44,8 @@ model, The pact gets loosened).
 
 Every piece of free text comes from a file, so no prose reaches a command
 line. Write the body, any title and any edit's reason to files in the scratch
-folder. As the
-rules file says, delete a file once its post ends, whatever the result
+folder. As
+`review.md` says, delete a file once its post ends, whatever the result
 (verified, failed, unverified, mismatch or unavailable), or once you drop it.
 Keep a file holding a lens report that the poster refused until the owner has
 answered, then delete it. Before the session ends, delete every such file
@@ -447,6 +447,6 @@ kept by hand from the poster's source; no test holds them.
   time, so a change made since, a removed line included, comes
   back. A refusal when the item changed since that read
   is #419.
-- **A Claude home elsewhere.** The rules file names the default
+- **A Claude home elsewhere.** `review.md` names the default
   `~/.claude`; an install with `--claude-home` elsewhere puts the poster
   where the rule doesn't point.

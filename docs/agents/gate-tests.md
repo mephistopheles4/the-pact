@@ -103,8 +103,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
 
   A push that waits is squashed to one commit first, so the security pair's
   read of the diff covers every commit the push publishes. When the owner
-  declines the offer in chat, typed in that session, the push goes on that
-  answer. A decline frees only the wait for the offer: a
+  declines the offer, the push goes on that answer. A decline frees only the wait for the offer: a
   diff that touches `.github/`, the lockdown test, `.claude/settings.json` or
   `.claude/hooks/` still waits for the pair's read or the owner's word on the
   push itself.

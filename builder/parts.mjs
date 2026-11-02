@@ -154,7 +154,7 @@ export const DEFAULT_PARTS = Object.freeze({
   // The cost limits (#278): what the work may spend to reach the qualities, and what happens at each limit.
   costLimits: [
     { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
-    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
+    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as a note; never built unasked' },
     { cost: 'Follow-up issues', counted: 'Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
     { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' },
   ],
@@ -294,9 +294,12 @@ export function wrap(text, width = 77) {
 const row = cells => `|${cells.map(c => (c ? ` ${c} ` : ' ')).join('|')}|`;
 const rule = n => row(Array.from({ length: n }, () => '---'));
 
-export /** The moves: each a bullet with its lead-in in bold, its text wrapped under it. */
+// The line under the moves (#464 T4). It says what Claude does, so it is no move of mine and no entry in the moves data.
+export const NUDGE_LINE = '**Nudge once.** When a move seems to drop, mention it once, lightly, as an offer I can take or leave in a second. Then carry on with what I chose.';
+
+export /** The moves: each a bullet with its lead-in in bold, its text wrapped under it; then the line under them. */
 function compileMoves(p) {
-  return p.moves.map(m => [`- **${m.lead}.**`, ...wrap(m.text, 75).split('\n').map(l => `  ${l}`)].join('\n')).join('\n');
+  return `${p.moves.map(m => [`- **${m.lead}.**`, ...wrap(m.text, 75).split('\n').map(l => `  ${l}`)].join('\n')).join('\n')}\n\n${wrap(NUDGE_LINE)}`;
 }
 
 const tierName = (p, id) => (p.tiers.find(t => t.id === id) || { name: id }).name.toLowerCase();

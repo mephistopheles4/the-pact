@@ -439,7 +439,11 @@ test('cloud copy: the tools list is pinned empty, and the setup writes nothing u
   assert.ok(Object.isFrozen(CLOUD_TOOLS));
   const setup = repoText(OUTPUTS.setup);
   assert.doesNotMatch(setup, /^write_config '[^']*tools\//m, 'no tool in the cloud copy');
-  assert.doesNotMatch(setup, /poster/, 'nothing of the poster');
+  // review.md's poster paragraph applies only when the rules file says so, and the cloud rules file doesn't.
+  const review = repoText('claude/review.md');
+  assert.ok(setup.includes(review), 'the setup embeds the review file as it is');
+  assert.doesNotMatch(setup.replace(review, ''), /poster/, 'nothing of the poster outside the review file');
+  assert.doesNotMatch(repoText(OUTPUTS.rules), /poster/, 'the cloud rules file never turns the paragraph on');
 });
 
 test('cloud copy: the wrapper embeds cloud-setup.sh byte for byte', () => {

@@ -200,6 +200,15 @@
     "layout": {},
     "skills": [
       {
+        "id": "plan-prototype",
+        "stage": "plan",
+        "skill": "prototype",
+        "mode": "offered",
+        "when": "words",
+        "words": "when my intent is still forming",
+        "on": true
+      },
+      {
         "id": "design-spec",
         "stage": "design",
         "skill": "spec-driven-development",

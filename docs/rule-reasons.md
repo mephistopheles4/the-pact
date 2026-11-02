@@ -24,22 +24,17 @@ This file is never installed.
 | Think before doing | An intent clear enough to defend. No check can test that. |
 | Checkpoint the seams | It weighs hand-offs and decisions, not only tool actions, by how hard each is to undo. The harness's confirm-first rule covers tool actions only. |
 | Stay the owner | What counts as evidence: checks that could have failed. A passing check is all a tool reports. |
-| How Claude helps | The owner's pace and lead. The harness knows neither. |
-| Build what you were given | Start an approved spec test-first at once. The harness has no idea of an approved spec. |
-| Prototype first | The owner's way of shaping a spec. No tool chooses a throwaway over a plan. |
+| How Claude helps | What stays the owner's, and where the record's and the tools' how-to lives. |
 | Nudge once | How much to remind the owner of a dropped move. Nothing else knows the moves. |
-| Bring me decisions | How a review is sorted for the owner. No tool sorts findings. |
-| These decisions are always mine | The owner's map of decisions. The harness defers to durable authorization, and this list is that authorization's limits. A command only the owner can run is handed over and waited on: the harness says how to hand it over, not to wait. |
-| Finish the build | Offering the reviews the work calls for. The harness may run tests, but it knows no review roster. |
-| Keep the record where the project keeps it | State for the next session and the owner. Compaction keeps a summary inside this session only. And the owner's ask, quoted: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent and drift from it can't be seen. |
-| Post through the poster | When to use the tool, and what it can't check: the scratch folder, deleting the file after, not working around a refusal. |
-| Clean up through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (threat model, Removals lose local work). |
-| Say a mismatch first | Fit of tier and model to the work. No tool judges it. |
+| Always mine | The owner's map of decisions. The harness defers to durable authorization, and this list is that authorization's limits. |
+| Keep the record | Points to review.md's Posting section, which no tool loads. It holds the record's rules: no tool keeps the owner's words, so without the quote a paraphrase becomes the intent. |
+| Post through the poster | Says the tool is on, and points to what it can't check, in review.md: the scratch folder, deleting the file after, not working around a refusal. |
+| Remove worktrees only through the cleaner | It ties a removal to the owner's yes, which the cleaner can't tell (threat model, Removals lose local work). |
 | How much checking | The tiers, the sensitive route, and the effort line. A session is told its model but not its effort. |
 | Workflow | The owner's stages and which lens goes where. No tool sequences the work. |
 | Lenses | The lens roster: the owner's choice of reviewers, which no tool holds. |
 | Lenses are offers | The protected set: offers, and declines kept open. |
-| Before you run a lens or post to the record, read the pact's review procedure | Points to the procedure, which no tool loads. |
+| Before you run a lens or post to the record, read `~/.claude/pact/review.md` | Points to the procedure, which no tool loads. |
 | Qualities | The owner's quality list, with the lens that checks each. No tool measures them. |
 | Trade-off points | What a spec must record about trade-offs. No tool reads a spec. |
 | Business drivers | Which driver decides, and the default when none is written. No tool weighs a trade-off. |

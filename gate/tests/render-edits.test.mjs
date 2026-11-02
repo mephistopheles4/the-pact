@@ -222,11 +222,11 @@ test('with no configuration the diff is empty, and with a values-only one it sho
 // ------------------------------------------------------------ re-indenting is load-bearing (seam 2)
 
 // #261 C14
-test('an added move lands after the last one, at the part\'s indent, and seam A passes', t => {
+test('an added move lands at the end of the part, after the line under the moves, at the part\'s indent, and seam A passes', t => {
   const root = stage(t, { 'claude/agents/extra-agent.md': plainAgent('extra-agent') });
   const block = '- **Leave it better.**\n  Then run `extra-agent` on the diff.\n';
   renderStage(root, homeWith(t, cfg([{ mark: 'moves', op: 'add-after', file: 'x.md' }]), { 'x.md': block }));
-  assert.match(read(join(root, 'claude', 'CLAUDE.md')), /^ {2}when to stop it\. Checks that could have failed are the evidence\.\n- \*\*Leave it better\.\*\*\n {2}Then run `extra-agent` on the diff\.$/m);
+  assert.match(read(join(root, 'claude', 'CLAUDE.md')), /^offer I can take or leave in a second\. Then carry on with what I chose\.\n- \*\*Leave it better\.\*\*\n {2}Then run `extra-agent` on the diff\.$/m);
   const r = runSeamA(root);
   assert.equal(r.code, 0, r.out);
 });

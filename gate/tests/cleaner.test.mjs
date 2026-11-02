@@ -75,6 +75,17 @@ function recording(answer = () => null) {
   return { calls, spawn };
 }
 
+// #464 T4: the how-to the rules file gave up comes with the name-back.
+test('show prints how to use its tags just before the result line, only when it has tags; remove never prints it', t => {
+  const HOW = /^Show the blocks above as printed, in a fenced code block, in chat only;[^\n]*\nRun remove --yes with these tags only after the owner's own yes in chat[^\n]*\nCalling the Brigade mod's clean_up[^\n]*\nRESULT: shown 1 [0-9a-f]{10}\s*$/m;
+  const f = makeRepo(t);
+  assert.doesNotMatch(f.run(['show']).out, /Show the blocks/, 'nothing to remove, no how-to');
+  f.add('one');
+  const r = f.run(['show']);
+  assert.match(r.out, HOW);
+  assert.doesNotMatch(f.run(['remove', '--yes', tagsOf(r.out).join(',')]).out, /Show the blocks/);
+});
+
 // #438 C1
 test('show names each linked worktree under .claude/worktrees with its branch, never the main worktree or one elsewhere; a linked worktrees folder makes the run unavailable', t => {
   const f = makeRepo(t);
@@ -144,9 +155,9 @@ test('show names changed, untracked and ignored files, a lock, a gone folder and
   // Windows names hold no colon or quote; elsewhere the quote inside is escaped.
   assert.match(busy, process.platform === 'win32' ? /^ {4}"x {2}kept- in use 'tag'"$/m : /^ {4}"x {2}kept: in use \\"tag\\""$/m, 'a name that dresses its line prints in quotes');
   if (process.platform !== 'win32') assert.match(busy, /^ {4}"odd\\u\{a\}\\u\{202e\}name\.txt"$/m, r.out);
-  // A run of backticks or a comment opener never starts a line, so it can't close the fenced block the rules file asks for.
+  // A run of backticks or a comment opener never starts a line, so it can't close the fenced block show's own last lines ask for.
   assert.match(busy, /^ {4}"```(?:<!--)?fence"$/m, r.out);
-  assert.ok(r.lines.every(l => /^(?:worktree |RESULT: | {2}[a-z]| {4}(?:"|stash@|and \d))/.test(l)), 'every line starts with fixed words or an indent');
+  assert.ok(r.lines.every(l => /^(?:worktree |RESULT: |Show the blocks |Run remove --yes |Calling the Brigade | {2}[a-z]| {4}(?:"|stash@|and \d))/.test(l)), 'every line starts with fixed words or an indent');
   assert.equal(block(r.out, '"a b"'), '  kept: a folder name the cleaner does not read\n', r.out);
   // Only the stash made on its own branch: busy-stash's entry belongs to neither block.
   assert.match(block(r.out, 'stashed'), /^ {2}stash entries made on it, kept: the cleaner never touches stashes:\n {4}stash@\{0\}\n {2}tag /m, r.out);

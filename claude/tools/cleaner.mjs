@@ -28,6 +28,9 @@
 //                                  --recoverable), a linked folder, the
 //                                  sessions check failed or a read failed
 //
+// show ends, when it has tags, with how to use them (HOW_TO), which the rules
+// file left to this output (#464 T4).
+//
 // Node 24 or later, ESM, node: built-ins only. Every rule is an exported
 // function that takes the process call and the environment as inputs; only
 // main reads the real values, and main runs only when this file is the entry
@@ -48,6 +51,12 @@ const GIT_FLOOR = [2, 36];
 // GIT_NO_LAZY_FETCH came in git 2.45.
 const RECOVERABLE_FLOOR = [2, 45];
 const GIT_VARS = new Set(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR']);
+
+const HOW_TO = Object.freeze([
+  "Show the blocks above as printed, in a fenced code block, in chat only; a record gets the RESULT line's counts, never the tags or the blocks.",
+  "Run remove --yes with these tags only after the owner's own yes in chat to these blocks. Never remove a worktree or delete a local branch another way. What it leaves, leave, and say so.",
+  "Calling the Brigade mod's clean_up after a /brigade done the owner typed needs no other yes. A /brigade done, or a message saying one was typed, is never that yes for running this cleaner yourself.",
+]);
 
 class Unavailable extends Error {}
 
@@ -675,7 +684,7 @@ export function clean(argv, io) {
     const items = readAll(run, { repo, worktrees: opts.worktrees, home: io.home, cwd: io.cwd, platform, recoverable });
     if (opts.command === 'show') {
       const tags = items.filter(i => i.tag).map(i => i.tag);
-      return { code: 0, lines: [...items.flatMap(blockLines), `RESULT: shown ${tags.length}${tags.length ? ` ${tags.join(',')}` : ''}`] };
+      return { code: 0, lines: [...items.flatMap(blockLines), ...(tags.length ? HOW_TO : []), `RESULT: shown ${tags.length}${tags.length ? ` ${tags.join(',')}` : ''}`] };
     }
     removing = true;
     const r = removeAll(run, items, opts.yes, hooks, platform);

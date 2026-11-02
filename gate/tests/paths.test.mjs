@@ -33,15 +33,8 @@ test('isClaudeSegment reads .claude however it is cased or padded', () => {
 });
 
 // #261 C1
-test('the notice and the fit check never mention a project or its files', () => {
+test('the notice never mentions a project or its files', () => {
   const notice = moduleMatch(GATE, 'render', /const NOTICE_TEMPLATE = [\s\S]*?\n\];\n/);
   assert.ok(notice, 'the notice template is in the renderer');
   assert.doesNotMatch(notice[0], /project/i);
-  const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
-  // #261: the fit check is the "Say a mismatch first" bullet; it no longer names the digest.
-  const fit = /- \*\*Say a mismatch first\.\*\*[\s\S]*?\n\n/.exec(rules);
-  assert.ok(fit, 'the fit check is in the rules file');
-  assert.doesNotMatch(fit[0], /project/i);
-  // #306: a session cannot read its own effort, so the check names the tier and the model only.
-  assert.doesNotMatch(fit[0], /effort/i);
 });
