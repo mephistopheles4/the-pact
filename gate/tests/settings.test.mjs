@@ -142,7 +142,7 @@ test('bad case: a banned name spelled with an escape fails', t => {
 });
 
 test('a banned name inside a string value is not a banned key', t => {
-  const r = expectSettingsFail(t, overlayWith(o => (o.outputStyle = 'hooks')), 'settings-value');
+  const r = expectSettingsFail(t, overlayWith(o => (o.skipAutoPermissionPrompt = 'hooks')), 'settings-value');
   assert.ok(!failRules(r.stdout).includes('settings-banned'), r.out);
 });
 
@@ -171,11 +171,36 @@ test('bad case: defaultMode spelled Auto, or as a list, fails', t => {
 // ------------------------------------------------------------ seam A: default-deny
 
 test('bad case: an unlisted env name fails', t => {
-  expectSettingsFail(t, overlayWith(o => (o.env.NODE_OPTIONS = '--require=x')), 'settings-unlisted');
+  expectSettingsFail(t, overlayWith(o => (o.env = { NODE_OPTIONS: '--require=x' })), 'settings-unlisted');
 });
 
 test('bad case: a listed env name with another value fails', t => {
-  expectSettingsFail(t, overlayWith(o => (o.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = '0')), 'settings-value');
+  const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc['env.PACT_TEST'] = '1')));
+  expectSettingsFail(t, overlayWith(o => (o.env = { PACT_TEST: '0' })), 'settings-value', script);
+  const listed = runSeamA(stage(t, { [OVERLAY]: overlayWith(o => (o.env = { PACT_TEST: '1' })) }), script);
+  assert.equal(listed.code, 0, `control: the listed value passes\n${listed.out}`);
+});
+
+// #464 T2: the overlay holds only auto mode and its prompt, and the allow-list
+// no other value, so none of the seven the cut dropped can come back unreviewed.
+test('bad case: a key #464 cut from the overlay fails as unlisted', t => {
+  assert.deepEqual(JSON.parse(realOverlay()), { permissions: { defaultMode: 'auto' }, skipAutoPermissionPrompt: true });
+  assert.deepEqual(JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8')), {
+    'permissions.defaultMode': 'auto',
+    'permissions.allow': [],
+    'permissions.deny': [],
+    skipAutoPermissionPrompt: true,
+  });
+  const cut = {
+    outputStyle: 'Concise',
+    advisorModel: 'opus',
+    fallbackModel: ['opus', 'sonnet'],
+    showThinkingSummaries: true,
+    autoContinueAtUsageLimit: true,
+    skipWorkflowUsageWarning: true,
+  };
+  for (const [k, v] of Object.entries(cut)) expectSettingsFail(t, overlayWith(o => (o[k] = v)), 'settings-unlisted');
+  expectSettingsFail(t, overlayWith(o => (o.env = { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1' })), 'settings-unlisted');
 });
 
 test('bad case: an unlisted nested path fails', t => {
@@ -192,15 +217,18 @@ test('bad case: __proto__ and constructor keys fail', t => {
 });
 
 test('bad case: a key outside letters, digits and _ fails', t => {
-  expectSettingsFail(t, overlayWith(o => (o.env['A-B'] = '1')), 'settings-key');
+  expectSettingsFail(t, overlayWith(o => (o.env = { 'A-B': '1' })), 'settings-key');
 });
 
 test('bad case: a value of the wrong type fails', t => {
-  expectSettingsFail(t, overlayWith(o => (o.showThinkingSummaries = 'true')), 'settings-value');
+  expectSettingsFail(t, overlayWith(o => (o.skipAutoPermissionPrompt = 'true')), 'settings-value');
 });
 
-test('bad case: fallbackModel in another order fails', t => {
-  expectSettingsFail(t, overlayWith(o => o.fallbackModel.reverse()), 'settings-value');
+test('bad case: a listed list in another order fails', t => {
+  const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc.fallbackModel = ['opus', 'sonnet'])));
+  expectSettingsFail(t, overlayWith(o => (o.fallbackModel = ['sonnet', 'opus'])), 'settings-value', script);
+  const inOrder = runSeamA(stage(t, { [OVERLAY]: overlayWith(o => (o.fallbackModel = ['opus', 'sonnet'])) }), script);
+  assert.equal(inOrder.code, 0, `control: the listed order passes\n${inOrder.out}`);
 });
 
 test('bad case: an allow entry the allow-list does not hold fails', t => {
@@ -258,9 +286,9 @@ const decided = fn => {
 // ------------------------------------------------------------ seam A: strict reading
 
 test('bad case: a duplicate key fails, exactly or by case', t => {
-  expectSettingsFail(t, realOverlay().replace('{', '{\n  "outputStyle": "x",'), 'settings-duplicate');
-  expectSettingsFail(t, realOverlay().replace('{', '{\n  "OutputStyle": "Concise",'), 'settings-duplicate');
-  expectSettingsFail(t, realOverlay().replace('{', '{\n  "output\\u0053tyle": "Concise",'), 'settings-duplicate');
+  expectSettingsFail(t, realOverlay().replace('{', '{\n  "skipAutoPermissionPrompt": false,'), 'settings-duplicate');
+  expectSettingsFail(t, realOverlay().replace('{', '{\n  "SkipAutoPermissionPrompt": true,'), 'settings-duplicate');
+  expectSettingsFail(t, realOverlay().replace('{', '{\n  "skipAutoPermissionPromp\\u0074": true,'), 'settings-duplicate');
 });
 
 test('bad case: a byte-order mark, a non-object root, or invalid JSON fails', t => {
@@ -291,8 +319,8 @@ test('canary: seam A never echoes an overlay key or value', t => {
     t,
     overlayWith(o => {
       o[`${C}key`] = `${C}value`;
-      o.env[`${C}ENV`] = `${C}envvalue`;
-      o.outputStyle = `${C}style`;
+      o.env = { [`${C}ENV`]: `${C}envvalue` };
+      o.skipAutoPermissionPrompt = `${C}style`;
     }),
   );
   assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);

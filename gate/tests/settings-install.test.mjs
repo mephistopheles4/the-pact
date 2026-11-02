@@ -50,6 +50,29 @@ test('--apply removes the retired ask rules, keeps the owner\'s own, sets auto m
   assert.match(warns[0], /^WARN: SECURITY DEFAULTS: you have no configuration of your own, so the pact's default configuration \(Level 3 · Full\) renders; it edits workflow, which changes the pact's security defaults; .* The default is unchanged since the last install\.$/, again.out);
   assert.doesNotMatch(again.stdout, /retired ask rules/m, again.out);
 });
+// #464 T2: the overlay no longer sets these keys; a live file that holds them keeps them.
+test('--apply keeps the keys #464 cut from the overlay in a live file that holds them', t => {
+  const repo = makeRepo(t);
+  const h = home(t);
+  const mine = {
+    // Values the overlay never set, so writing the old defaults back would fail here.
+    env: { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '0' },
+    outputStyle: 'Explanatory',
+    advisorModel: 'sonnet',
+    fallbackModel: ['sonnet'],
+    showThinkingSummaries: false,
+    autoContinueAtUsageLimit: false,
+    skipWorkflowUsageWarning: false,
+  };
+  writeLive(h, mine);
+  const r = applyBound(repo, h);
+  assert.equal(r.code, 0, r.out);
+  const live = readLive(h);
+  for (const k of Object.keys(mine)) assert.deepEqual(live[k], mine[k], k);
+  assert.equal(live.permissions.defaultMode, 'auto');
+  assert.equal(live.skipAutoPermissionPrompt, true);
+});
+
 test('a live file the merge cannot read draws a plain warning, and -Apply refuses before writing anything', t => {
   const repo = makeRepo(t);
   const h = home(t);

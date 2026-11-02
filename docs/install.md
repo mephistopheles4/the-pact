@@ -192,16 +192,7 @@ parts:
     looks like one stays. Every install removes these exact strings again, so
     a rule you want back must differ from the listed text. The install's apply, a `gh` command on rulesets or branch
     protection, and a dry run that writes to a review folder no longer prompt
-    you (ADR 0063);
-  - keeps sessions going when a usage limit is reached
-    (`autoContinueAtUsageLimit`) and skips the workflow usage warning
-    (`skipWorkflowUsageWarning`);
-  - sets the output style to Concise (`outputStyle`), the advisor model to
-    Opus (`advisorModel`), the fallback models to Opus then Sonnet
-    (`fallbackModel`), and shows thinking summaries
-    (`showThinkingSummaries`);
-  - turns on the experimental agent-teams flag
-    (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`).
+    you (ADR 0063).
 - **`Backup: <n> file(s) to copy into pact/backups/ before the first write`.**
   What `--apply` copies first (step 3), ending `(settings.json included)` when
   the merge writes your settings. The dry run doesn't preview the prune: it

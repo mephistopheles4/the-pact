@@ -714,8 +714,7 @@ Claude home folder, `~/.claude`:
 - **Nine agents:** eight lenses and `scout`. A lens is a reviewer agent that
   asks one question from one angle. Most only read.
 - **Settings,** merged into `settings.json`. They turn on auto mode and skip
-  its opt-in prompt, keep sessions going when a usage limit is reached, turn
-  on an experimental agent-teams flag. Since #265 they set no ask rules (an
+  its opt-in prompt, and nothing else (#464). Since #265 they set no ask rules (an
   ask rule makes Claude Code ask before one kind of action), and the install
   takes out the ones an older pact added.
 - **The `/scriptorium` command and its builder kit,** in `commands/` and
