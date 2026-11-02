@@ -257,7 +257,7 @@ parts:
   repo, and gets one `NOTE:` line under the dry run's `Project:` heading,
   naming such rows by position; the install goes ahead. A project's `costLimits`
   refuses without its `qualities`, and an `acceptedRisks` key is refused as
-  any other key is: accepted risks live only in a threat model.
+  any other key is: accepted threat classes live only in a threat model.
 - **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and
   `/scriptorium`, each `on` or `off`, and `(not in this commit)` for one the
   commit doesn't hold yet. `/scriptorium` reads `on, always: part of the
