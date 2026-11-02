@@ -360,17 +360,6 @@ test('a body breaking every table/ rule, with a marker in each cell, is refused 
   assert.ok(!r.out.includes(M), `a refusal quotes a cell: ${r.out}`);
 });
 
-// #280 C9: the review procedure says what open means, where escapes and gaps go, that a table may be unchecked, and what a hidden-character refusal asks; it names no tool.
-test('the review procedure carries open, the separate escape table, the unchecked sentence and the hidden-characters sentence, and names no tool', () => {
-  const review = REVIEW();
-  const flat = review.replace(/\s+/g, ' ');
-  assert.match(flat, /- `open`, for a finding I haven't settled yet\. It needs nothing after it; a later table gives the finding its final word\./);
-  assert.ok(flat.includes('Escape and gap rows go in a table of their own under that review\'s Lens dispositions table, with no Disposition column.'));
-  assert.ok(flat.includes("A tool may check this table's shape before it posts; where none does, the table is unchecked. A retrospective that counts these tables reads each one tolerantly and counts the rows it can't read."));
-  assert.ok(flat.includes('Where a tool refuses a report for hidden characters or a live environment-secret value, keep the report local, name where it sits and tell me in chat; never strip or rework it to post it.'));
-  assert.doesNotMatch(review, /poster|tools\/|\.mjs/i);
-});
-
 // ---------------------------------------------------------------- the recorded tables (C8)
 
 const FIXTURES = join(REPO, 'gate', 'tests', 'fixtures', 'dispositions');

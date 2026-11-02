@@ -198,10 +198,10 @@ test('changed: a path only a test\'s text names, written out, in pieces or throu
   assert.deepEqual(r.unmapped, []);
 });
 
-test('changed: a new ADR picks docs-index, by the real docs-index source', () => {
-  const sources = changedTree({ 'docs-index.test.mjs': readFileSync(join(HERE, 'docs-index.test.mjs'), 'utf8') });
+test('changed: a new ADR picks a test that names its folder', () => {
+  const sources = changedTree({ 'adr-reader.test.mjs': 'for (const folder of ["docs/adr", "docs/log"]) {}\n' });
   const r = changedPicks(sources, ['docs/adr/0099-a-new-decision.md']);
-  assert.deepEqual([...r.files.keys()], ['docs-index.test.mjs']);
+  assert.deepEqual([...r.files.keys()], ['adr-reader.test.mjs']);
 });
 
 // Running the gate's tests: an unmapped payload path runs the fast tier and the smoke set.

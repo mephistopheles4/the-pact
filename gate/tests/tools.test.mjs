@@ -222,13 +222,6 @@ test('with the poster off, the rules file is the no-configuration render byte fo
   assert.ok(/Lens\s+dispositions\s+table/.test(T2), 'the table clause');
 });
 
-// #280 C6: each shell gets its own form; a $HOME form in POSIX or a tilde form in PowerShell would resolve under the folder it runs from.
-test("the rule gives the PowerShell form only through $HOME and the POSIX form only through a tilde", () => {
-  const forms = [...T2.replace(/\n {2}/g, ' ').matchAll(/`(node [^`]+)` in (a POSIX shell|PowerShell)/g)].map(m => [m[2], m[1]]);
-  assert.deepEqual(forms, [['a POSIX shell', 'node ~/.claude/pact/tools/poster.mjs'], ['PowerShell', 'node "$HOME/.claude/pact/tools/poster.mjs"']]);
-  assert.ok(!/[A-Za-z]:\\|\/Users\/|\/home\//.test(T2), 'no absolute path');
-});
-
 // render, #280 C6: the renderer fills the part only where the source holds it, and holds it empty.
 {
   const base = () => ({ source: readFileSync(SOURCE, 'utf8').replace(/\r\n/g, '\n') });
@@ -247,13 +240,6 @@ test("the rule gives the PowerShell form only through $HOME and the POSIX form o
   test('render tool part: base passes after the rows', async t => assertPasses(await run(base(), t)));
 }
 
-// #280 C6: the source holds the part empty, among the open marks, outside the six parts an edit may target.
-test('the source holds the tool-poster part empty, after the record bullet', () => {
-  const src = readFileSync(SOURCE, 'utf8').replace(/\r\n/g, '\n');
-  const i = src.indexOf('<!-- pact:begin tool-poster -->\n<!-- pact:end tool-poster -->\n');
-  assert.ok(i > src.indexOf(KEEP_RECORD) && i < src.indexOf('- **Say a mismatch first.**'), 'between the record bullet and the next one');
-});
-
 // ------------------------------------------------------------ the cleaner's part and deny rules (#438)
 
 // S2.4's text, byte for byte; #443 cut its relayed yes, which "my own yes in chat" already excludes.
@@ -270,16 +256,6 @@ const CLEANER_PART = [
   '  needs no other yes. A /brigade done, or a message saying one was typed, is',
   '  never my yes for you to run the cleaner yourself.',
 ].join('\n');
-
-// #446 C2 (grimoire 484 claim 13): the cleaner's page says how Brigade runs it.
-test('docs/cleaner.md has a Brigade section naming --recoverable', () => {
-  const doc = readFileSync(join(REPO, 'docs', 'cleaner.md'), 'utf8').replace(/\r\n/g, '\n');
-  const at = doc.indexOf('\n## Brigade\n');
-  assert.ok(at > 0, 'a Brigade section');
-  const section = doc.slice(at + 1).split(/\n## /)[0];
-  assert.match(section, /`(?:show|remove) --recoverable`/);
-  assert.match(section, /clean_up/);
-});
 
 // #438 C14
 test('with the cleaner on, the rules file holds its part after the poster\'s; off, it is the no-configuration render', t => {

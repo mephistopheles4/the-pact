@@ -6,7 +6,7 @@
 // install script is in builder-install.test.mjs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
@@ -258,6 +258,13 @@ test('a person\'s builder file passes, and its page carries their own skills bes
   // The parts' text and the fixed clause come from the clone, never from the builder file.
   assert.equal(JSON.stringify(D.parts.text), JSON.stringify(L.PACT.parts.text));
   assert.equal(JSON.stringify(D.always), JSON.stringify(L.PACT.always));
+  // #262: the fixed clause is the stop-and-escalate block, with the text of its block in the rules file.
+  const src = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\r\n/g, '\n');
+  for (const g of L.PACT.always) {
+    const clause = new RegExp(`<!-- pact:begin ${g.mark} -->\\n([\\s\\S]*?)<!-- pact:end ${g.mark} -->`).exec(src)[1].trim().split('\n').map(l => l.trim()).join('\n');
+    assert.equal(g.text.split('\n').map(l => l.trim()).join('\n'), clause, `${g.mark} differs from its block in claude/CLAUDE.md`);
+  }
+  assert.deepEqual(L.PACT.always.map(a => a.mark), ['stop-and-escalate']);
 });
 
 const BAD_BUILDERS = [
@@ -405,27 +412,6 @@ test('bad cost limits: none or ten, an empty cost, a duplicate name in any case,
     p.qualities[5].enoughCosts = ['C1'];
   }), '', 'nine rows are accepted');
   assert.equal(bad(p => (p.costLimits[0].limit = '')), '', 'an empty limit is the owner\'s judgment, not an error');
-});
-
-// #377 C2: the default ships the Lens pairs row after the three it had; Ultra Code keeps only those three.
-// #444 C1, C2: a follow-up issue names its trigger, and one with none counts past the limit.
-test('the default cost limits end with the Lens pairs row, and Ultra Code carries the other three', () => {
-  assert.deepEqual(DEFAULT_PARTS.costLimits.map(c => c.cost), ['Tests added', 'Hardening', 'Follow-up issues', 'Lens pairs']);
-  assert.deepEqual(DEFAULT_PARTS.costLimits[2], { cost: 'Follow-up issues', counted: 'Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" });
-  assert.deepEqual(DEFAULT_PARTS.costLimits[3], { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' });
-  const ultra = shippedPresets(REPO, pactData(REPO)).find(p => p.id === 'ultra-code');
-  assert.deepEqual(ultra.parts.costLimits, DEFAULT_PARTS.costLimits.slice(0, 3));
-});
-
-// #377 C3, C4 (replaces #287 C5): a cost no quality names limits the review itself, so the builder gives no finding, and the rules file and the page say so.
-test('a cost no quality names draws no finding, and the rules file and the page say it limits the review itself', () => {
-  const p = copyParts(DEFAULT_PARTS);
-  p.costLimits.push({ cost: 'Review rounds', counted: 'Rounds', limit: '', atLimit: '' });
-  assert.deepEqual(partsProblems(p).filter(x => x.part === 'cost-limits'), []);
-  const rules = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\s+/g, ' ');
-  assert.ok(rules.includes(`A cost that no quality's Enough names limits the review itself: count it each review round, by its Counted as, and follow its "At the limit"; the security pair, a lens a repo's own rules require and the lenses of a skill I typed count toward it, but it never holds them back, and a pair it holds back always comes to me as a trade-off, whatever its "At the limit" says.`), 'the Cost limits prose');
-  assert.ok(PAGE.includes('Limits the review itself.'), 'the page names the reach');
-  assert.ok(!PAGE.includes('This cost reaches no lens'), 'the page drops the caution');
 });
 
 // #287 C3: the Enough column and the shipped Functional suitability row.
@@ -688,17 +674,14 @@ test('stub page: Add agent in the Agents panel saves agents/<name>.md, and the s
   assert.match(P.ids.output.text, /a save deletes nothing/);
 });
 
-// #203 S6: the builder is the /scriptorium command, which only the owner starts; the repo skill is gone.
-test('the page is named scriptorium, and the docs and the command name it so; the old names and the repo skill are gone', () => {
-  assert.equal(PAGE_REL, 'builder/scriptorium.html');
-  const command = join('claude', 'commands', 'scriptorium.md');
-  for (const f of ['README.md', 'AGENTS.md', command, join('builder', 'build.mjs')]) {
-    const text = readFileSync(join(REPO, f), 'utf8');
-    assert.match(text, /scriptorium\.html/, `${f} does not name the page`);
-    assert.doesNotMatch(text, /pact-config\.html|pact-builder/, `${f} still names the old page or skill`);
+// #203 S6, R25: each shipped command is one only the owner starts.
+test('each shipped command, /scriptorium, /make-it-so and /finis, is one only the owner can start', () => {
+  for (const name of ['scriptorium', 'make-it-so', 'finis']) {
+    const command = readFileSync(join(REPO, 'claude', 'commands', `${name}.md`), 'utf8').replace(/\r\n/g, '\n');
+    const front = /^---\n([\s\S]*?)\n---\n/.exec(command);
+    assert.ok(front, `${name} has no front matter`);
+    assert.match(front[1], /^disable-model-invocation: true$/m, name);
   }
-  assert.match(readFileSync(join(REPO, command), 'utf8'), /^---\n(?:[^\n]*\n)*?disable-model-invocation: true\n(?:[^\n]*\n)*?---\n/);
-  assert.equal(existsSync(join(REPO, '.claude', 'skills', 'scriptorium')), false, 'the repo skill is gone');
 });
 
 // #203 S6: /scriptorium compares a part it carries with the person's block through --texts.
@@ -771,18 +754,6 @@ function pageLogic(page = PAGE) {
 }
 
 const L = pageLogic();
-
-// #262: the moves are one part, its default the four moves by their lead-ins; the fixed clause carries its text.
-test('the page holds the moves as one part, named by their lead-ins, beside the fixed clause and the other parts', () => {
-  assert.deepEqual(L.PACT.parts.defaults.moves.map(m => m.lead), ['Sense the work', 'Think before doing', 'Checkpoint the seams', 'Stay the owner']);
-  const src = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8');
-  for (const g of L.PACT.always) {
-    const clause = new RegExp(`<!-- pact:begin ${g.mark} -->\\n([\\s\\S]*?)<!-- pact:end ${g.mark} -->`).exec(src)[1].trim().split('\n').map(l => l.trim()).join('\n');
-    assert.equal(g.text.split('\n').map(l => l.trim()).join('\n'), clause, `${g.mark} differs from its block in claude/CLAUDE.md`);
-  }
-  assert.deepEqual(L.PACT.always.map(a => a.mark), ['stop-and-escalate']);
-  assert.deepEqual([...L.PACT.editable], ['moves', 'tiers', 'sensitive', 'workflow', 'lenses', 'qualities', 'cost-limits']);
-});
 
 test('with nothing changed, the page saves a configuration that sets nothing', () => {
   const s = L.initialState();

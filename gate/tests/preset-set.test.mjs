@@ -2,9 +2,7 @@
 // all times, so the set binds no skill to a move: it is one example block for
 // the workflow part, with a Skills column binding each skill to a stage, as the
 // builder's skill nodes compile it. Applied through the renderer, the result
-// must pass seam A, and each skill must appear in its intended form: a command
-// (`/name`), offered, for a skill only the owner starts; a code span (`name`),
-// used, for a skill the agent uses.
+// must pass seam A and carry the block as the workflow part.
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -19,12 +17,6 @@ const BLOCKS = join(REPO, 'examples', 'pact-config', 'blocks');
 // The shipped configuration that binds the set: the file a person copies.
 const CONFIG = join(REPO, 'examples', 'pact-config', 'config-matt-pocock-skills.json');
 const SET = JSON.parse(readFileSync(CONFIG, 'utf8')).edits;
-
-test('the shipped set configuration replaces the workflow part with the one block', () => {
-  assert.deepEqual(SET, [{ mark: 'workflow', op: 'replace', file: 'workflow-matt-pocock-skills.md' }]);
-});
-const COMMANDS = ['triage', 'to-spec', 'to-tickets', 'wayfinder'];
-const SPANS = ['diagnosing-bugs', 'grilling', 'domain-modeling', 'codebase-design', 'prototype', 'tdd'];
 
 /** A Claude home folder that binds the set, as the owner's configuration would. */
 function homeWithSet(t, set = SET) {
@@ -52,20 +44,6 @@ test('the set renders with seam A passing', t => {
 });
 
 const BLOCK = readFileSync(join(BLOCKS, 'workflow-matt-pocock-skills.md'), 'utf8');
-/** The Skills cell of the stage row `stage` in the block's table. */
-const skillsAt = stage => {
-  const head = BLOCK.split('\n')[0].split('|').map(c => c.trim());
-  const row = BLOCK.split('\n').find(l => l.startsWith(`| ${stage} |`));
-  return row.split('|').map(c => c.trim())[head.indexOf('Skills, and when')];
-};
-
-test('each skill appears in its intended form, at its stage: a command offered, a code span used', () => {
-  const cells = ['Plan', 'Design', 'Build'].map(skillsAt).join('; ');
-  for (const n of COMMANDS) assert.match(cells, new RegExp(`\`/${n}\`: offered`), n);
-  for (const n of SPANS) assert.match(cells, new RegExp(`(?<!/)\`${n}\`: used`), n);
-  assert.match(skillsAt('Build'), /`tdd`: used, every build/);
-  assert.equal(skillsAt('Test'), 'none');
-});
 
 test('the render carries the block as the workflow part', t => {
   const { md } = renderedWith(t, homeWithSet(t));

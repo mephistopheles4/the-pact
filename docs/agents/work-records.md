@@ -35,8 +35,7 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **Finding a decision or a log:** start from the indexes,
   [`docs/adr/README.md`](../../docs/adr/README.md) and
   [`docs/log/README.md`](../../docs/log/README.md), one line per file. Add a line
-  there with every new ADR or log entry; `gate/tests/docs-index.test.mjs`
-  fails when one is missing.
+  there with every new ADR or log entry.
 - **Keep the threat model in step.** A change that alters a defence
   [`docs/threat-model.md`](../../docs/threat-model.md) names, or closes an issue it
   lists, updates that page in the same PR, where its "Keeping this page in step"
@@ -48,7 +47,6 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
   (then rerun `node docs/img/build.mjs`), the README's prose, and the tables
   in [`docs/reference.md`](../../docs/reference.md). Reviewers reading such a diff
   check those too. `gate/tests/readme-figures.test.mjs` fails while an SVG is
-  stale, when the README shows an image that isn't there, and when a line
-  overflows its box; no test checks the figures' words.
+  stale and when a line overflows its box; no test checks the figures' words.
 - **Vocabulary:** [`CONTEXT.md`](../../CONTEXT.md), created when a term first needs
   pinning down. See [`docs/agents/domain.md`](domain.md).

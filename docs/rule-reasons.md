@@ -6,8 +6,7 @@ a row here naming the gap it covers that no other guardrail does: not Claude
 Code's harness, and not the pact's own threat model, poster, cleaner, gate or
 hooks. A rule nobody can write a row for is a duplicate and goes. A rule the
 threat model names as one of its controls never counts as covered by it,
-since the threat model relies on it. `gate/tests/rule-budget.test.mjs` holds
-this table and the rules file one to one.
+since the threat model relies on it.
 
 A rule is each `##` section, and each paragraph or list item that opens with
 bold text, named by that text. The renderer's configuration notice is not a

@@ -166,7 +166,7 @@ runs only, never a host run of `gate/tests/run.mjs`.
   run's bundle tests a real commit.
 - **A new file needs `git add` first** (or `athanor run --untracked`).
   athanor leaves untracked files out and says how many it left, so a new ADR
-  or test file is missing from the run, and the docs-index tests fail on it.
+  or test file is missing from the run.
 - **No `changed` tier:** the snapshot is its own `main`, so `changed` finds
   no changed paths and runs only `fast`, a pass that tests nothing of the
   change.

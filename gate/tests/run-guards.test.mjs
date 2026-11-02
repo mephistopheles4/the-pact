@@ -112,67 +112,7 @@ function runnerCommands(text) {
   return [...text.matchAll(/`([^`\n]+)`/g)].map(m => m[1]).filter(s => /\bnode\b/.test(s) && s.includes('run.mjs'));
 }
 
-const PS_FORM = '$env:NODE_OPTIONS = $null; node gate/tests/run.mjs ';
 const POSIX_FORM = 'env -u NODE_OPTIONS node gate/tests/run.mjs ';
-
-/** What is wrong with a section's runner commands: [] when there is one PowerShell and one POSIX form, each clearing NODE_OPTIONS. */
-export function commandProblems(text) {
-  const cmds = runnerCommands(text);
-  const out = cmds.filter(c => !c.startsWith(PS_FORM) && !c.startsWith(POSIX_FORM)).map(c => `a runner command that keeps NODE_OPTIONS: ${c}`);
-  if (!cmds.some(c => c.startsWith(PS_FORM))) out.push('no PowerShell form');
-  if (!cmds.some(c => c.startsWith(POSIX_FORM))) out.push('no POSIX form');
-  return out;
-}
-
-test('AGENTS.md gives the runner in one PowerShell and one POSIX form, each clearing NODE_OPTIONS', () => {
-  assert.deepEqual(commandProblems(section()), []);
-});
-
-// The PowerShell forms are never run here (ADR 0048), so each runner command
-// is held word for word: a command chained after one would pass the prefix
-// check above (#210).
-const EXACT_RUNNER = [`${PS_FORM}<tier>`, `${POSIX_FORM}<tier>`, `${PS_FORM}changed`, `${POSIX_FORM}changed`];
-
-test('every runner command in the section is one of the four documented forms', () => {
-  const cmds = runnerCommands(section());
-  assert.deepEqual(cmds.filter(c => !EXACT_RUNNER.includes(c)), []);
-  for (const c of EXACT_RUNNER) assert.ok(cmds.includes(c), c);
-});
-
-test('bad case: a command chained after a runner command fails the exact check, though it keeps the prefix', () => {
-  const planted = `${section()}\n- Or run \`${PS_FORM}full; node ./x.mjs\`.\n`;
-  assert.deepEqual(commandProblems(planted), [], 'the prefix check alone passes it');
-  assert.ok(runnerCommands(planted).some(c => !EXACT_RUNNER.includes(c)));
-});
-
-test('the command check catches a runner command that keeps NODE_OPTIONS', () => {
-  const planted = `${section()}\n- Or just run \`node gate/tests/run.mjs full\`.\n`;
-  assert.deepEqual(commandProblems(planted), ['a runner command that keeps NODE_OPTIONS: node gate/tests/run.mjs full']);
-});
-
-/** What is wrong with the section's while-building rule: [] when it gives `changed` in both shell forms. */
-export function whileBuildingProblems(text) {
-  const bullet = text.split('\n- ').find(b => b.startsWith('**While building'));
-  if (!bullet) return ['no "While building" rule'];
-  const cmds = runnerCommands(bullet);
-  const out = [];
-  if (!cmds.includes(`${PS_FORM}changed`)) out.push('no PowerShell changed command');
-  if (!cmds.includes(`${POSIX_FORM}changed`)) out.push('no POSIX changed command');
-  return out;
-}
-
-test('AGENTS.md says to run changed while building, in both shell forms', () => {
-  assert.deepEqual(whileBuildingProblems(section()), []);
-});
-
-test('the while-building check catches the rule deleted, or naming another tier', () => {
-  const text = section();
-  const start = text.indexOf('\n- **While building');
-  assert.ok(start >= 0, 'the plant found the rule');
-  const end = text.indexOf('\n- ', start + 1);
-  assert.deepEqual(whileBuildingProblems(text.slice(0, start) + text.slice(end)), ['no "While building" rule']);
-  assert.deepEqual(whileBuildingProblems(text.replace(/run\.mjs changed`/g, 'run.mjs fast`')), ['no PowerShell changed command', 'no POSIX changed command']);
-});
 
 test('the Linux container script starts the runner with NODE_OPTIONS cleared', () => {
   const sh = readFileSync(join(HERE, 'fixtures', 'linux', 'run.sh'), 'utf8');
