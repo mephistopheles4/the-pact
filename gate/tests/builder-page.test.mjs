@@ -258,6 +258,13 @@ test('a person\'s builder file passes, and its page carries their own skills bes
   // The parts' text and the fixed clause come from the clone, never from the builder file.
   assert.equal(JSON.stringify(D.parts.text), JSON.stringify(L.PACT.parts.text));
   assert.equal(JSON.stringify(D.always), JSON.stringify(L.PACT.always));
+  // #262: the fixed clause is the stop-and-escalate block, with the text of its block in the rules file.
+  const src = readFileSync(join(REPO, 'claude', 'CLAUDE.md'), 'utf8').replace(/\r\n/g, '\n');
+  for (const g of L.PACT.always) {
+    const clause = new RegExp(`<!-- pact:begin ${g.mark} -->\\n([\\s\\S]*?)<!-- pact:end ${g.mark} -->`).exec(src)[1].trim().split('\n').map(l => l.trim()).join('\n');
+    assert.equal(g.text.split('\n').map(l => l.trim()).join('\n'), clause, `${g.mark} differs from its block in claude/CLAUDE.md`);
+  }
+  assert.deepEqual(L.PACT.always.map(a => a.mark), ['stop-and-escalate']);
 });
 
 const BAD_BUILDERS = [
@@ -667,10 +674,14 @@ test('stub page: Add agent in the Agents panel saves agents/<name>.md, and the s
   assert.match(P.ids.output.text, /a save deletes nothing/);
 });
 
-// #203 S6, R25: the builder is the /scriptorium command, which only the owner starts.
-test('the shipped /scriptorium command is one only the owner can start', () => {
-  const command = readFileSync(join(REPO, 'claude', 'commands', 'scriptorium.md'), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(command, /^---\n(?:[^\n]*\n)*?disable-model-invocation: true\n(?:[^\n]*\n)*?---\n/);
+// #203 S6, R25: each shipped command is one only the owner starts.
+test('each shipped command, /scriptorium, /make-it-so and /finis, is one only the owner can start', () => {
+  for (const name of ['scriptorium', 'make-it-so', 'finis']) {
+    const command = readFileSync(join(REPO, 'claude', 'commands', `${name}.md`), 'utf8').replace(/\r\n/g, '\n');
+    const front = /^---\n([\s\S]*?)\n---\n/.exec(command);
+    assert.ok(front, `${name} has no front matter`);
+    assert.match(front[1], /^disable-model-invocation: true$/m, name);
+  }
 });
 
 // #203 S6: /scriptorium compares a part it carries with the person's block through --texts.
