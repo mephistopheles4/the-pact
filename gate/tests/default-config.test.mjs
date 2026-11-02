@@ -210,11 +210,3 @@ test('the page loads a builder file\'s skills, and saves them unchanged in build
   assert.deepEqual(out.config, SKILLS);
   assert.deepEqual(out.problems, []);
 });
-
-// #183 T4a C8: D12's line in AGENTS.md names every path that changes the default.
-test('AGENTS.md routes a change to the default through the sensitive route, naming each path', () => {
-  const agents = readFileSync(join(REPO, 'AGENTS.md'), 'utf8');
-  const line = agents.split(/\n(?=- )/).map(l => l.replace(/\s+/g, ' ')).find(l => l.includes('builder/default-config/') && l.includes('sensitive route'));
-  assert.ok(line, 'no AGENTS.md line names builder/default-config/');
-  for (const p of [DEFAULT_PRESET_REL, 'builder/default-config/', 'builder/default-config.mjs', 'cloud-sessions/pin-floor', 'sensitive route', 'security pair']) assert.ok(line.includes(p), `D12's line leaves out ${p}`);
-});

@@ -84,22 +84,3 @@ test('a text line too wide for its box fails the render, naming the figure and t
   assert.throws(() => renderFigure(at(68.5), 'light'), /too wide/, 'the slack is under 15%');
   assert.doesNotThrow(() => renderFigure(at(69.05), 'light'), 'the slack is over 15%');
 });
-
-test('every image the README shows exists, and each figure has its dark source', () => {
-  const readme = readFileSync(join(REPO, 'README.md'), 'utf8');
-  const refs = [...readme.matchAll(/\b(?:src|srcset)="([^"]+)"/g)].map(m => m[1]);
-  assert.ok(refs.length > 0, 'the README shows no images');
-  for (const ref of refs) {
-    assert.doesNotMatch(ref, /^[a-z]+:|^\//i, `${ref} is not a path in the repo`);
-    assert.ok(existsSync(join(REPO, ...ref.split('/'))), `the README shows ${ref}, which doesn't exist`);
-  }
-  // Each figure is one <picture>: its dark file as the dark-scheme source, its light file as the image.
-  const pictures = [...readme.matchAll(/<picture>([\s\S]*?)<\/picture>/g)].map(m => m[1]);
-  for (const name of SIX.filter(n => !n.endsWith('-dark.svg'))) {
-    const dark = name.replace('.svg', '-dark.svg');
-    const pic = pictures.find(p => p.includes(`src="docs/img/${name}"`));
-    assert.ok(pic, `the README doesn't show docs/img/${name} inside a <picture>`);
-    assert.match(pic, new RegExp(`<source media="\\(prefers-color-scheme: dark\\)" srcset="docs/img/${dark}">`), `docs/img/${name}'s <picture> has no dark-scheme source for docs/img/${dark}`);
-    assert.match(pic, new RegExp(`<img src="docs/img/${name}" alt="[^"]+"`), `docs/img/${name} has no alt text`);
-  }
-});

@@ -37,11 +37,9 @@ const INSTALL_NOT_PICKED = Object.freeze(['commands-install.test.mjs', 'config-i
 const FAST_NOT_PICKED = Object.freeze([
   'contained.test.mjs',
   'cores.test.mjs',
-  'docs-index.test.mjs',
   'fault-fixtures.test.mjs',
   'gate-run.test.mjs',
   'helper-imports.test.mjs',
-  'no-skill-names.test.mjs',
   'paths.test.mjs',
   'project-home.test.mjs',
   'purity-guard.test.mjs',
