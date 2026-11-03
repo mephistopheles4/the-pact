@@ -7,6 +7,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'no
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { applyBound, home, install, listTree, makeRepo, refused } from './install-harness.mjs';
+import { contractText } from './text.mjs';
 
 // #261 C7
 test('dry run on a clean tree passes and shows Node, the check and the gate', t => {
@@ -27,7 +28,7 @@ test('dry run on a clean tree passes and shows Node, the check and the gate', t 
 
 // #261 C3
 test('--apply installs today\'s agents byte for byte, records the gate, and the next dry run sees no gate change', t => {
-  const repo = makeRepo(t);
+  const repo = makeRepo(t, root => writeFileSync(join(root, 'familiars', 'scout.contract.md'), contractText()));
   const h = home(t);
   const r = applyBound(repo, h);
   assert.equal(r.code, 0, r.out);
@@ -67,8 +68,10 @@ test('--apply installs today\'s agents byte for byte, records the gate, and the 
   // #280 C2: the poster is off by default, so neither its install path nor any other copy of it is in the home folder.
   assert.ok(existsSync(join(repo, 'claude', 'tools', 'poster.mjs')), 'the control: the repo holds the poster');
   assert.ok(!existsSync(join(h, 'pact', 'tools', 'poster.mjs')) && !listTree(h).some(f => /poster/.test(f)), listTree(h).join('\n'));
-  // scout installs as agents/scout.md from claude/agents/ (#262 S18).
+  // scout installs as agents/scout.md from claude/agents/ (#262 S18); no contract ever reaches the home folder (#210, at Test).
   assert.deepEqual(readFileSync(join(h, 'agents', 'scout.md')), readFileSync(join(repo, 'claude', 'agents', 'scout.md')));
+  assert.ok(existsSync(join(repo, 'familiars', 'scout.contract.md')), 'the control: the repo holds a planted contract that could have installed');
+  assert.ok(!listTree(h).some(f => /contract/i.test(f)), listTree(h).join('\n'));
   const again = install(repo, h);
   assert.equal(again.code, 0, again.out);
   assert.match(again.stdout, /^Gate: unchanged since the last install$/m);

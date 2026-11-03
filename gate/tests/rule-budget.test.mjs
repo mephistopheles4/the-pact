@@ -75,3 +75,10 @@ test('the budget check fails on a rules file padded past its budget', t => {
   writeFileSync(padded, source.replace('\n## The moves\n', `\n${'padding '.repeat(BUDGETS[RULES])}\n\n## The moves\n`));
   assert.equal(overBudget([{ name: RULES, text: renderDefault(t, padded) }]).length, 1);
 });
+
+// #464 T5 C1
+test('the budget check fails on a lens one word past 300 and scout one past 200, and passes each at its budget', () => {
+  const at = n => 'word '.repeat(n);
+  assert.deepEqual(overBudget([{ name: 'data-lens', text: at(300) }, { name: 'scout', text: at(200) }]), []);
+  assert.equal(overBudget([{ name: 'data-lens', text: at(301) }, { name: 'scout', text: at(201) }]).length, 2);
+});

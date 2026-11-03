@@ -14,6 +14,8 @@ The owner's words: "i feel like deleting most of it to be honest, way too many r
 ## Consequences
 
 - A lens leans more on the model's own knowledge of its method. Nothing measures a lost catch yet; T7's evals are where it would show.
-- A lens with nothing to review no longer has written stops. It relies on the template's `inconclusive` verdict.
-- The ASVS chapter names are shortened, so a report may name a chapter by its short form.
+- A lens with nothing to review no longer has written stops. It relies on the template's `inconclusive` verdict, which covers only something it was handed.
+- The ASVS chapter names are shortened and data-lens's section lists go, so a report may name a chapter by its short form.
+- A change that makes an accepted path easier, with no control removed, draws no finding. A lens no longer says a security finding is never a trade-off; the rules file holds that bar.
+- No lens says its report may be public. The read before posting and the poster's scan remain.
 - Each contract's history stays in git only.
