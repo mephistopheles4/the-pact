@@ -1,5 +1,7 @@
 # The eval generator is a tool the owner runs
 
+Amended by [ADR 0136](0136-an-eval-round-is-evidence-the-owner-weighs.md) (2026-11-03): a round is evidence the owner weighs, never a gate.
+
 An eval instrument lives in the repo again: `evals/gen.mjs` and the cases in `evals/cases/` (#405). It writes each case twice, with the pact's rules text as the appended system prompt and without, and prints the `claude plugin eval` commands for the owner to type. It runs nothing, and nothing runs an eval: no CI job, hook or gate check. The gate's tests run the generator and `check` only, with no `claude` call. An eval run is not a probe under `docs/agents/changing-rules.md` and no evidence for a rule change; a rule still holds by review and by use (ADR 0069).
 
 ## What it partly reverses

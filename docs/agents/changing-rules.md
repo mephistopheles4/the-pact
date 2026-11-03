@@ -35,7 +35,9 @@ default, and the offers paragraph in its Lenses section, sit in
   renderer's list of agents a configuration may set, is a spec change.
 - **Everything is proved by use.** That means the repo's tests and gates
   pass, and a reviewer reads the change at Test. The gate's tests are
-  ordinary test code, the test runner and its helpers included.
+  ordinary test code, the test runner and its helpers included. A round of
+  [evals](../../evals/README.md) the owner runs is further evidence to weigh,
+  and no change waits on one (ADR 0136).
 - **The gate's tests are never a one-line change here.** The pact's one-line
   exception doesn't reach a change to the gate's tests, the test runner and
   its helpers included: the QA pair reads it at Test.

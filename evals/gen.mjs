@@ -16,7 +16,10 @@
 //
 // The rules text is the repo's default render (what a fresh install with no
 // configuration renders), or the file --rules names. --canary appends a code
-// word to it and adds a `canary` case that asks for the word.
+// word to it and adds a `canary` case that asks for the word. A case's own
+// with.txt names repo files, one path a line, to add to its with copy after the
+// rules text: the review procedure, a lens, a repo's rules. The without copy
+// never carries them.
 //
 // `check` reads a run's JSON (claude plugin eval --json) and passes only when
 // each case kept its own max_turns, its prompt holds only the case text, and
@@ -149,6 +152,18 @@ const within = (inner, outer) => {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 };
 
+/** The text a case's with.txt adds to its with copy: each repo file it names, in order, under a heading. */
+export function extraText(dir, name) {
+  const at = join(dir, name, 'with.txt');
+  if (!existsSync(at)) return '';
+  const repo = realpathSync.native(REPO);
+  return readFileSync(at, 'utf8').split(/\r?\n/).filter(Boolean).map(p => {
+    const file = resolve(REPO, p);
+    if (!isFile(file) || !within(realPath(file), repo)) refuse(`case ${name}: with.txt names something that is not a file in the repo`);
+    return `\nContents of ${p}:\n\n${readFileSync(file, 'utf8')}`;
+  }).join('');
+}
+
 /** One case source, checked: its name, its front matter, no tools, no system prompt of its own. */
 function readCase(dir, name) {
   if (!NAME.test(name)) refuse(`case ${JSON.stringify(name)}: the name must be lower-case letters, digits and hyphens`);
@@ -166,7 +181,7 @@ function readCase(dir, name) {
   if (keys.allowed_tools !== '[]') refuse(`case ${name}: it must grant no tool (allowed_tools: [])`);
   const graders = existsSync(join(dir, name, 'graders')) ? readdirSync(join(dir, name, 'graders')).sort() : [];
   for (const g of graders) if (!isFile(join(dir, name, 'graders', g))) refuse(`case ${name}: graders/ holds something that is not a file`);
-  return { name, source, keys, body: parts.body, graders: graders.map(g => [g, readFileSync(join(dir, name, 'graders', g))]) };
+  return { name, source, keys, body: parts.body, extra: extraText(dir, name), graders: graders.map(g => [g, readFileSync(join(dir, name, 'graders', g))]) };
 }
 
 /** The eval command for one run, the same line in PowerShell and a POSIX shell. */
@@ -192,13 +207,13 @@ export function generate({ out, rulesText, rulesFile, canary = false, casesDir =
   if (canary) text += `\nCanary: the pilot word is ${CANARY_WORD}.\n`;
 
   const cases = readdirSync(casesDir).sort().map(n => readCase(casesDir, n));
-  if (canary) cases.push({ name: 'canary', source: CANARY_PROMPT, keys: keysOf(sourceParts(CANARY_PROMPT).head), body: sourceParts(CANARY_PROMPT).body, graders: [['word.md', Buffer.from(CANARY_GRADER)]] });
+  if (canary) cases.push({ name: 'canary', source: CANARY_PROMPT, keys: keysOf(sourceParts(CANARY_PROMPT).head), body: sourceParts(CANARY_PROMPT).body, extra: '', graders: [['word.md', Buffer.from(CANARY_GRADER)]] });
 
   const files = new Map([[join('.claude-plugin', 'plugin.json'), MANIFEST]]);
   for (const c of cases) {
-    const w = withCopy(c.source, text);
+    const w = withCopy(c.source, text + c.extra);
     const back = evalRead(w);
-    const same = back.system === RULES_HEAD + text && back.body === c.body
+    const same = back.system === RULES_HEAD + text + c.extra && back.body === c.body
       && Object.entries(c.keys).every(([k, v]) => back.keys[k] === v);
     if (!same) refuse(`case ${c.name}: the with copy does not round trip through the eval's front-matter reading`);
     for (const [arm, prompt] of [['with', w], ['without', c.source]]) {
