@@ -35,9 +35,11 @@ In PowerShell, write the path as `"$HOME/.claude/pact/tools/cleaner.mjs"`.
   [With `--recoverable`](#with---recoverable)). Give it to both commands: a
   tag from a run without it never passes a run with it.
 
-The rules file tells a session to show you the name-back as printed, in a
-fenced code block, in chat only, so no name's marks can restyle it, to give a record only the result line's counts, never the tags or the
-name-back, and to run `remove` only after your own yes to it in chat.
+The rules file tells a session to remove worktrees only through the cleaner,
+after your yes in chat. `show`'s own last lines tell it the rest: show you the
+name-back as printed, in a fenced code block, in chat only, so no name's marks
+can restyle it, give a record only the result line's counts, never the tags or
+the name-back, and run `remove` only after your own yes to it in chat.
 
 ## What it keeps
 
@@ -120,7 +122,7 @@ the lead archives or stops the sessions the owner named in a typed
 `/brigade done`, its `clean_up` tool runs `show --recoverable` and then
 `remove --recoverable` with the tags `show` printed, for exactly that typed
 window's folders and while it is open. The typed command is the owner's one
-yes; the rules file says calling `clean_up` after it needs no other, and that
+yes; `show`'s output says calling `clean_up` after it needs no other, and that
 a `/brigade done` is never a session's yes to run the cleaner itself. That
 release meets the order rule above.
 

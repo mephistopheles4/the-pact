@@ -170,38 +170,9 @@ test('a project configuration may not hold tools', t => {
 
 // ------------------------------------------------------------ the rules file: the poster's part (C6)
 
-// The line says "or edit what you posted", names the signature an edit needs, and that an edit never removes a leak (#413, q3 and the Test round, the lead's picks under the owner's standing instruction, 2026-10-25).
-// The sentence on a lens report's fence is cut (#404, the lead's pick under the owner's standing instruction, 2026-10-25).
-// The stays-local list no longer names a path of this machine's, on the owner's word in chat (2026-10-21).
-// T2's approved text (#280, revision 5, with the three clauses #285 carries
-// and the four changes from #285's Test; the owner approved it as q2 on #285),
-// byte for byte.
-const T2 = [
-  '- **Post through the poster.** On a repo your gh login owns, post to GitHub,',
-  '  or edit what you posted, with `node ~/.claude/pact/tools/poster.mjs` in a',
-  '  POSIX shell, or `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell.',
-  '  Write each piece of free text to a file in a scratch folder outside the',
-  '  repo, and run the poster from that folder, never from the repo. Sign a',
-  '  post you may edit with a `Signed: <label>` line, and keep it when you',
-  "  edit. An edit never removes text. An edit's `--reason` names the kind of",
-  '  fix, never the text.',
-  '  Delete a file once its post ends, whatever the result (verified, failed,',
-  '  unverified, mismatch or',
-  '  unavailable), or once you drop it; keep one refused for a lens report',
-  '  until I have answered, then delete it. Before the session ends, delete',
-  '  every such file still there, whatever my answer. `verified` means what',
-  '  landed is what was sent. Its scan, for hidden characters and a live',
-  '  environment-secret value, is the only check on a secret; the review',
-  "  procedure's read before posting still comes first. When it refuses your",
-  '  own prose or a Lens dispositions table, fix it in place and post again;',
-  '  never fold, fence, quote, relabel or move a table to get past the check,',
-  '  and never rerun a lens for it. A lens report it refuses for hidden',
-  '  characters or a live environment-secret value stays local: tell me where',
-  '  it is, in chat only, and never post it or edit it to get past the scan. If',
-  '  it ends unavailable, refuses for a reason no text fix clears, or refuses',
-  "  twice for a reason you can't explain, stop and tell me.",
-].join('\n');
-const KEEP_RECORD = '- **Keep the record where the project keeps it.**';
+// #464 T4: the how-to moved into review.md's Posting section; the part is its one-line pointer.
+const T2 = '- **Post through the poster,** as that section says.';
+const KEEP_RECORD = '- **Keep the record** as';
 const rendered = r => readFileSync(join(r.out, 'CLAUDE.md'), 'utf8');
 
 // #280 C6, C7
@@ -218,8 +189,7 @@ test('with the poster off, the rules file is the no-configuration render byte fo
   assert.equal(noNotice(onText).replace(`${T2}\n`, ''), none, 'on, the render differs only by the part');
   assert.equal(onText.split(T2).length, 2, 'the part holds T2 text once, byte for byte');
   const after = onText.slice(onText.indexOf(KEEP_RECORD));
-  assert.match(after, /^- \*\*Keep the record[^\n]*\n(?: {2}[^\n]*\n)+- \*\*Post through the poster\.\*\*/, 'straight after the record bullet');
-  assert.ok(/Lens\s+dispositions\s+table/.test(T2), 'the table clause');
+  assert.match(after, /^- \*\*Keep the record\*\*[^\n]*\n- \*\*Post through the poster,\*\*/, 'straight after the record bullet');
 });
 
 // render, #280 C6: the renderer fills the part only where the source holds it, and holds it empty.
@@ -242,20 +212,8 @@ test('with the poster off, the rules file is the no-configuration render byte fo
 
 // ------------------------------------------------------------ the cleaner's part and deny rules (#438)
 
-// S2.4's text, byte for byte; #443 cut its relayed yes, which "my own yes in chat" already excludes.
-const CLEANER_PART = [
-  '- **Clean up through the cleaner.** To remove leftover worktrees and their',
-  '  branches, run `node ~/.claude/pact/tools/cleaner.mjs show` in a POSIX',
-  '  shell, or `node "$HOME/.claude/pact/tools/cleaner.mjs" show` in',
-  '  PowerShell, from the repository. Show me its name-back as printed, in a',
-  "  fenced code block, in chat only; a record gets its result line's counts,",
-  '  never the tags or the name-back. Run `remove --yes` with the tags it',
-  '  printed only after my own yes in chat to that name-back. Never remove a',
-  '  worktree or delete a local branch another way. What it leaves, leave, and',
-  "  tell me. Calling the Brigade mod's clean_up after a /brigade done I typed",
-  '  needs no other yes. A /brigade done, or a message saying one was typed, is',
-  '  never my yes for you to run the cleaner yourself.',
-].join('\n');
+// #464 T4: the how-to moved into the cleaner's own printed output.
+const CLEANER_PART = '- **Remove worktrees only through the cleaner,** after my yes in chat.';
 
 // #438 C14
 test('with the cleaner on, the rules file holds its part after the poster\'s; off, it is the no-configuration render', t => {

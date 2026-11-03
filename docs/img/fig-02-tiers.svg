@@ -42,7 +42,7 @@
 <text x="60" y="443.55" font-size="13" fill="#22262b" fill-opacity="0.8">The agent recommends the route, with its why, in its tier proposal,</text>
 <text x="60" y="463.55" font-size="13" fill="#22262b" fill-opacity="0.8">and I take it or not. If I don't, the security pair is offered once</text>
 <text x="60" y="483.55" font-size="13" fill="#22262b" fill-opacity="0.8">more at Test on a list match, and a flag I haven't answered stays</text>
-<text x="60" y="503.55" font-size="13" fill="#22262b" fill-opacity="0.8">open in the result. Keep one model for a whole session.</text>
+<text x="60" y="503.55" font-size="13" fill="#22262b" fill-opacity="0.8">open in the result.</text>
 <line x1="44" y1="545" x2="756" y2="545" stroke="#22262b" stroke-opacity="0.3" stroke-width="1"/>
 <text x="44" y="567.35" font-size="11" letter-spacing="1.76" fill="#22262b" fill-opacity="0.7">PLANS</text>
 <text x="44" y="586.55" font-size="13" font-weight="500" fill="#22262b">Opus</text>

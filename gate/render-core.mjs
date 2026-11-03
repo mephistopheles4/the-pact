@@ -297,53 +297,16 @@ const SETTINGS = new Map([
 ]);
 
 // Each pact tool's part of the rules file (#280): the open mark it fills, and
-// its fixed text. The text names the tool's installed path through the default
-// Claude home folder, in one form per shell, so the rules file holds no user
-// name. An install with --claude-home elsewhere is a test install.
+// its fixed text, one line since #464 T4: the poster's how-to is in review.md,
+// and the cleaner's comes with its own output.
 const TOOL_PARTS = new Map([
   ['poster', Object.freeze({
     mark: 'tool-poster',
-    template: Object.freeze([
-      '- **Post through the poster.** On a repo your gh login owns, post to GitHub,',
-      '  or edit what you posted, with `node ~/.claude/pact/tools/poster.mjs` in a',
-      '  POSIX shell, or `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell.',
-      '  Write each piece of free text to a file in a scratch folder outside the',
-      '  repo, and run the poster from that folder, never from the repo. Sign a',
-      '  post you may edit with a `Signed: <label>` line, and keep it when you',
-      "  edit. An edit never removes text. An edit's `--reason` names the kind of",
-      '  fix, never the text.',
-      '  Delete a file once its post ends, whatever the result (verified, failed,',
-      '  unverified, mismatch or',
-      '  unavailable), or once you drop it; keep one refused for a lens report',
-      '  until I have answered, then delete it. Before the session ends, delete',
-      '  every such file still there, whatever my answer. `verified` means what',
-      '  landed is what was sent. Its scan, for hidden characters and a live',
-      '  environment-secret value, is the only check on a secret; the review',
-      "  procedure's read before posting still comes first. When it refuses your",
-      '  own prose or a Lens dispositions table, fix it in place and post again;',
-      '  never fold, fence, quote, relabel or move a table to get past the check,',
-      '  and never rerun a lens for it. A lens report it refuses for hidden',
-      '  characters or a live environment-secret value stays local: tell me where',
-      '  it is, in chat only, and never post it or edit it to get past the scan. If',
-      '  it ends unavailable, refuses for a reason no text fix clears, or refuses',
-      "  twice for a reason you can't explain, stop and tell me.",
-    ]),
+    template: Object.freeze(['- **Post through the poster,** as that section says.']),
   })],
   ['cleaner', Object.freeze({
     mark: 'tool-cleaner',
-    template: Object.freeze([
-      '- **Clean up through the cleaner.** To remove leftover worktrees and their',
-      '  branches, run `node ~/.claude/pact/tools/cleaner.mjs show` in a POSIX',
-      '  shell, or `node "$HOME/.claude/pact/tools/cleaner.mjs" show` in',
-      '  PowerShell, from the repository. Show me its name-back as printed, in a',
-      "  fenced code block, in chat only; a record gets its result line's counts,",
-      '  never the tags or the name-back. Run `remove --yes` with the tags it',
-      '  printed only after my own yes in chat to that name-back. Never remove a',
-      '  worktree or delete a local branch another way. What it leaves, leave, and',
-      "  tell me. Calling the Brigade mod's clean_up after a /brigade done I typed",
-      '  needs no other yes. A /brigade done, or a message saying one was typed, is',
-      '  never my yes for you to run the cleaner yourself.',
-    ]),
+    template: Object.freeze(['- **Remove worktrees only through the cleaner,** after my yes in chat.']),
   })],
 ]);
 
@@ -373,23 +336,17 @@ const cell = v => v.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
 const QUALITIES_MAX = 9;
 // The home Cost limits part's fixed text (#287), which a project's Cost limits
 // render under word for word. A test holds it equal to claude/CLAUDE.md's.
-const COST_LIMITS_FIXED = `What the work may spend to reach those qualities. A cost says what is counted,
-its limit, and what happens at the limit. A quality's Enough says where more
-of it stops being worth it: an optional level, such as ASVS L1, then each cost
-limit it answers to, by name, joined by a middle dot. A cost holds back the
-lenses of every quality whose Enough names it. A cost that no quality's
-Enough names limits the review itself: count it each review round, by its
-Counted as, and follow its "At the limit"; the security pair, a lens a repo's own
-rules require and the lenses of a skill I typed count toward it, but it never
-holds them back, and a pair it holds back always comes to me as a trade-off,
-whatever its "At the limit" says.
+const COST_LIMITS_FIXED = `A cost names what is counted, its limit, and what happens at the limit. A
+quality's Enough names a level and the costs it answers to; those costs hold
+back that quality's lenses. A cost no Enough names limits the review itself,
+counted each round. The security pair, a repo's required lenses and a typed
+skill's lenses count toward it, but a pair it would hold back comes to me as a
+trade-off.
 
-- **One rule.** A finding that would go past a cost limit goes the way that
-  cost's "At the limit" says; a finding that would go past an Enough level
-  alone comes to me as a trade-off. Either way it names the cost or level, the
-  limit and the quality at stake, and is never dropped silently. This rule and
-  the security bar win over any cost's text: a cost can route a finding, never
-  remove it. I can override a cost on any finding.
+- **One rule.** A finding past a cost limit goes that cost's "At the limit" way;
+  one past an Enough level alone comes to me as a trade-off. Name the cost or
+  level, the limit and the quality. A cost routes a finding, never removes it,
+  and I can override any cost.
 - **The security bar.** A security fix is due unless its cost is grossly out
   of proportion to the risk it closes, and I see both.
 - **An empty limit** is my judgment: a finding that spends that cost comes to

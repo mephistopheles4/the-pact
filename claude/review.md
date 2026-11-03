@@ -61,6 +61,34 @@ Ask each lens to report in this shape:
   backtick longer than the report's longest run of backticks, so nothing in it
   renders as a mention, link or image.
 - **Where to post.** In the work's record; with no record, in chat.
+- **Keep the record where the project keeps it.** Sign what you post there
+  with your session's short label. Open each issue, spec or ticket with my
+  ask, quoted exactly: the sentences that define the work or change its scope.
+  My examples become claims with measures. With no record, quote it in each
+  hand-off. At a phase boundary, put the state and the open questions in the
+  record, and propose a fresh session.
+- **The poster.** When your rules file says to post through the poster: on a
+  repo your gh login owns, post to GitHub, or edit what you posted, with
+  `node ~/.claude/pact/tools/poster.mjs` in a POSIX shell, or
+  `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell. Write each piece
+  of free text to a file in a scratch folder outside the repo, and run the
+  poster from that folder, never from the repo. Sign a post you may edit with
+  a `Signed: <label>` line, and keep it when you edit. An edit never removes
+  text. An edit's `--reason` names the kind of fix, never the text. Delete a
+  file once its post ends, whatever the result (verified, failed, unverified,
+  mismatch or unavailable), or once you drop it; keep one refused for a lens
+  report until I have answered, then delete it. Before the session ends,
+  delete every such file still there, whatever my answer. `verified` means
+  what landed is what was sent. Its scan, for hidden characters and a live
+  environment-secret value, is the only check on a secret; the read before
+  posting still comes first. When it refuses your own prose or a Lens
+  dispositions table, fix it in place and post again; never fold, fence, quote,
+  relabel or move a table to get past the check, and never rerun a lens for
+  it. A lens report it refuses for hidden characters or a live
+  environment-secret value stays local: tell me where it is, in chat only, and
+  never post it or edit it to get past the scan. If it ends unavailable,
+  refuses for a reason no text fix clears, or refuses twice for a reason you
+  can't explain, stop and tell me.
 
 ## Lens dispositions
 

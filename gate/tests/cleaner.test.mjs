@@ -75,6 +75,28 @@ function recording(answer = () => null) {
   return { calls, spawn };
 }
 
+// #464 T4: the how-to the rules file gave up comes with the name-back, once, last, and only when there are tags.
+const HOW_TO_LINES = [
+  "Show the blocks above as printed, in a fenced code block, in chat only; a record gets the RESULT line's counts, never the tags or the blocks.",
+  "Run remove --yes with these tags only after the owner's own yes in chat to these blocks. Never remove a worktree or delete a local branch another way. What it leaves, leave, and say so.",
+  "Calling the Brigade mod's clean_up after a /brigade done the owner typed needs no other yes. A /brigade done, or a message saying one was typed, is never that yes for running this cleaner yourself.",
+];
+test('show prints how to use its tags once, just before the result line, only when it has tags; remove never prints it', t => {
+  const f = makeRepo(t);
+  assert.doesNotMatch(f.run(['show']).out, /Show the blocks/, 'nothing to remove, no how-to');
+  f.add('a b', '-b', 'ab');
+  const kept = f.run(['show']);
+  assert.match(kept.out, /RESULT: shown 0/);
+  assert.doesNotMatch(kept.out, /Show the blocks/, 'only kept worktrees, no tags, no how-to');
+  f.add('one');
+  f.add('two');
+  const r = f.run(['show']);
+  assert.equal(tagsOf(r.out).length, 2, r.out);
+  assert.deepEqual(r.lines.slice(-4, -1), HOW_TO_LINES);
+  assert.equal(r.lines.filter(l => HOW_TO_LINES.includes(l)).length, 3, 'once, not per block');
+  assert.doesNotMatch(f.run(['remove', '--yes', tagsOf(r.out).join(',')]).out, /Show the blocks/);
+});
+
 // #438 C1
 test('show names each linked worktree under .claude/worktrees with its branch, never the main worktree or one elsewhere; a linked worktrees folder makes the run unavailable', t => {
   const f = makeRepo(t);
@@ -144,9 +166,9 @@ test('show names changed, untracked and ignored files, a lock, a gone folder and
   // Windows names hold no colon or quote; elsewhere the quote inside is escaped.
   assert.match(busy, process.platform === 'win32' ? /^ {4}"x {2}kept- in use 'tag'"$/m : /^ {4}"x {2}kept: in use \\"tag\\""$/m, 'a name that dresses its line prints in quotes');
   if (process.platform !== 'win32') assert.match(busy, /^ {4}"odd\\u\{a\}\\u\{202e\}name\.txt"$/m, r.out);
-  // A run of backticks or a comment opener never starts a line, so it can't close the fenced block the rules file asks for.
+  // A run of backticks or a comment opener never starts a line, so it can't close the fenced block show's own last lines ask for.
   assert.match(busy, /^ {4}"```(?:<!--)?fence"$/m, r.out);
-  assert.ok(r.lines.every(l => /^(?:worktree |RESULT: | {2}[a-z]| {4}(?:"|stash@|and \d))/.test(l)), 'every line starts with fixed words or an indent');
+  assert.ok(r.lines.filter(l => !HOW_TO_LINES.includes(l)).every(l => /^(?:worktree |RESULT: | {2}[a-z]| {4}(?:"|stash@|and \d))/.test(l)), 'every line starts with fixed words or an indent');
   assert.equal(block(r.out, '"a b"'), '  kept: a folder name the cleaner does not read\n', r.out);
   // Only the stash made on its own branch: busy-stash's entry belongs to neither block.
   assert.match(block(r.out, 'stashed'), /^ {2}stash entries made on it, kept: the cleaner never touches stashes:\n {4}stash@\{0\}\n {2}tag /m, r.out);

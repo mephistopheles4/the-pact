@@ -398,7 +398,7 @@
       "cost": "Hardening",
       "counted": "Guards for paths that are not security findings, as Cost limits defines them",
       "limit": "0",
-      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+      "atLimit": "Reported as a note; never built unasked"
     },
     {
       "cost": "Follow-up issues",

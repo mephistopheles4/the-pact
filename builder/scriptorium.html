@@ -2,7 +2,7 @@
 <html lang="en" data-aviation-theme="deck">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-uUpJjSh6m4qkwBbeTN/WCfpbgczJYni1QVoSf7hoctg='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dqD34hoOj5BQN5FwtlfX7Wq30TwiFQa/4A3Xle6hPHI='; style-src 'sha256-5YB0jTns+QrQ0xBH5xSkdLMZhZ2wUecVOIdGKiwvrVM='; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scriptorium</title>
 <style>
@@ -518,13 +518,13 @@ const PACT = /* pact-data:begin */ {
    "cost-limits"
   ],
   "text": {
-   "moves": "- **Sense the work.**\n  What kind of work is it, how big, how risky, and do I know enough to plan\n  it? Size sets how much checking it needs. A target I can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it.\n- **Think before doing.**\n  I get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right.\n- **Checkpoint the seams.**\n  Where work is handed on, published or decided, anything costly waits for a\n  checkpoint. The harder a step is to undo, the heavier its checkpoint. When\n  in doubt, it's heavy.\n- **Stay the owner.**\n  I own a result when I can verify it, reconstruct why it is right, and know\n  when to stop it. Checks that could have failed are the evidence.",
+   "moves": "- **Sense the work.**\n  What kind of work is it, how big, how risky, and do I know enough to plan\n  it? Size sets how much checking it needs. A target I can know gets a plan;\n  an unknown one gets an experiment first. A bug is reproduced and traced to\n  its start before anyone fixes it.\n- **Think before doing.**\n  I get the intent clear enough to defend: what it is for, how it can go\n  wrong, and why each decision is right.\n- **Checkpoint the seams.**\n  Where work is handed on, published or decided, anything costly waits for a\n  checkpoint. The harder a step is to undo, the heavier its checkpoint. When\n  in doubt, it's heavy.\n- **Stay the owner.**\n  I own a result when I can verify it, reconstruct why it is right, and know\n  when to stop it. Checks that could have failed are the evidence.\n\n**Nudge once.** When a move seems to drop, mention it once, lightly, as an\noffer I can take or leave in a second. Then carry on with what I chose.",
    "tiers": "| Tier | Fits | Plan | Build |\n| --- | --- | --- | --- |\n| **Quick** | Small, one session, no plan needed | none | Opus, low |\n| **Standard** | Needs a short spec | Opus, medium | Sonnet, medium |\n| **Thorough** | Too big for one session, or risky; cut into tickets, each its own session | Opus, high | Sonnet, medium |",
    "sensitive": "Sensitive work gets more checking when I choose it. By default, sensitive\nwork is auth, crypto, input validation and data migrations: thorough, planned\nand built on Opus at high, with the security pair, `adversarial-lens` and\n`data-lens`, on the spec and the diff. That is the sensitive route. When the\nwork matches that list, or you think it sensitive otherwise, say why in one\nline in your tier proposal and recommend the route; I take it or not. If I\ndidn't take the route, offer the security pair once more at Test when the\nchange matches the list. Beyond that one offer, sensitivity doesn't stop the\nrun. A flag or an offer I haven't answered stays open, in one line, in every\nhand-off and in the result. If you find it later, say so in one line at the\nnext hand-off or result, and keep saying it until I answer.",
    "workflow": "| Stage | Quick | Standard | Thorough | Sensitive route | Lenses offered, and when | Other ways out |\n| --- | --- | --- | --- | --- | --- | --- |\n| Plan | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | |\n| Design | skipped | Opus, medium | Opus, high | Opus, high | `executability-lens`, `unstated-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route | |\n| Build | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | none | |\n| Test | Opus, low | Sonnet, medium | Sonnet, medium | Opus, high | `behaviour-lens`, `integrity-lens`: every build; `conventions-lens`, `reader-lens`: standard and above; `adversarial-lens`, `data-lens`: on the sensitive route; `adversarial-lens`, `data-lens`: once, when the change matches the list and the sensitive route wasn't taken | back to Build when a claim fails; back to Design when the intent has changed |\n| Deploy | I decide | I decide | I decide | I decide | none | |\n| Maintain | in the session, no plan | Opus, medium | Opus, high | Opus, high | none | back to Plan when a new change starts |",
    "lenses": "| Lens | Asks |\n| --- | --- |\n| `behaviour-lens`, `integrity-lens` (the QA pair) | Does the change do what was asked? Can the tests behind the pass actually fail, and does each one earn its place? |\n| `executability-lens`, `unstated-lens` (the spec pair) | Would the spec, built as written, run end to end? What need did nobody write down? |\n| `conventions-lens`, `reader-lens` (the standards pair) | Does the diff keep the repo's written rules? Can the next reader act on what it says? |\n| `adversarial-lens`, `data-lens` (the security pair) | Which attack paths does no control stop? Where can the data leak? |",
    "qualities": "| Quality | Measure | Lens | Enough |\n| --- | --- | --- | --- |\n| Functional suitability | the acceptance claims | `behaviour-lens`, `integrity-lens`, `unstated-lens` | Tests added · Follow-up issues |\n| Performance efficiency | a budget: time, memory, size | `behaviour-lens` | |\n| Reliability | a failure, and the recovery accepted | `behaviour-lens` | |\n| Compatibility | named interfaces that stay stable: formats, flags, config keys, APIs | `conventions-lens` | |\n| Interaction capability | a task a new user completes | `reader-lens`, `behaviour-lens` | |\n| Security | an ASVS 5.0 level or chapters | `adversarial-lens`, `data-lens` | Hardening · Follow-up issues |\n| Maintainability | the repo's written rules | `conventions-lens`, `reader-lens` | |\n| Flexibility | the environments it must install and run on | `executability-lens`, `behaviour-lens` | |\n| Safety | the risky actions, the warning, the safe state on failure | `executability-lens` | |",
-   "cost-limits": "| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |\n| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as an accepted-risk candidate; never built unasked |\n| Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |\n| Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |"
+   "cost-limits": "| Cost | Counted as | Limit | At the limit |\n| --- | --- | --- | --- |\n| Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |\n| Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as a note; never built unasked |\n| Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |\n| Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |"
   },
   "defaults": {
    "moves": [
@@ -878,7 +878,7 @@ const PACT = /* pact-data:begin */ {
      "cost": "Hardening",
      "counted": "Guards for paths that are not security findings, as Cost limits defines them",
      "limit": "0",
-     "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+     "atLimit": "Reported as a note; never built unasked"
     },
     {
      "cost": "Follow-up issues",
@@ -1591,6 +1591,15 @@ const PACT = /* pact-data:begin */ {
      ],
      "layout": {},
      "skills": [
+      {
+       "id": "plan-prototype",
+       "stage": "plan",
+       "skill": "prototype",
+       "mode": "offered",
+       "when": "words",
+       "words": "when my intent is still forming",
+       "on": true
+      },
       {
        "id": "design-spec",
        "stage": "design",
@@ -2735,7 +2744,7 @@ const PACT = /* pact-data:begin */ {
       "cost": "Hardening",
       "counted": "Guards for paths that are not security findings, as Cost limits defines them",
       "limit": "0",
-      "atLimit": "Reported as an accepted-risk candidate; never built unasked"
+      "atLimit": "Reported as a note; never built unasked"
      },
      {
       "cost": "Follow-up issues",
@@ -2883,7 +2892,7 @@ const DEFAULT_PARTS = Object.freeze({
   // The cost limits (#278): what the work may spend to reach the qualities, and what happens at each limit.
   costLimits: [
     { cost: 'Tests added', counted: 'Tests beyond one per acceptance claim', limit: '2 per change', atLimit: 'The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep' },
-    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as an accepted-risk candidate; never built unasked' },
+    { cost: 'Hardening', counted: 'Guards for paths that are not security findings, as Cost limits defines them', limit: '0', atLimit: 'Reported as a note; never built unasked' },
     { cost: 'Follow-up issues', counted: 'Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit', limit: '2', atLimit: "The rest listed as notes in the review's record; I pick which to file" },
     { cost: 'Lens pairs', counted: 'Lens pairs run in one review round; a lens offered alone counts as a pair', limit: '2', atLimit: 'The next pair becomes a trade-off for me: which pair it would replace, and what it would check' },
   ],
@@ -3023,9 +3032,12 @@ function wrap(text, width = 77) {
 const row = cells => `|${cells.map(c => (c ? ` ${c} ` : ' ')).join('|')}|`;
 const rule = n => row(Array.from({ length: n }, () => '---'));
 
-/** The moves: each a bullet with its lead-in in bold, its text wrapped under it. */
+// The line under the moves (#464 T4). It says what Claude does, so it is no move of mine and no entry in the moves data.
+const NUDGE_LINE = '**Nudge once.** When a move seems to drop, mention it once, lightly, as an offer I can take or leave in a second. Then carry on with what I chose.';
+
+/** The moves: each a bullet with its lead-in in bold, its text wrapped under it; then the line under them. */
 function compileMoves(p) {
-  return p.moves.map(m => [`- **${m.lead}.**`, ...wrap(m.text, 75).split('\n').map(l => `  ${l}`)].join('\n')).join('\n');
+  return `${p.moves.map(m => [`- **${m.lead}.**`, ...wrap(m.text, 75).split('\n').map(l => `  ${l}`)].join('\n')).join('\n')}\n\n${wrap(NUDGE_LINE)}`;
 }
 
 const tierName = (p, id) => (p.tiers.find(t => t.id === id) || { name: id }).name.toLowerCase();

@@ -248,7 +248,7 @@ const cRow = (over, base = C_ROWS[0]) => cFile([{ ...base, ...over }]);
 function homeFixedText() {
   const rules = readFileSync(new URL('../../claude/CLAUDE.md', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
   const from = rules.indexOf('## Cost limits\n\n') + '## Cost limits\n\n'.length;
-  return rules.slice(from, rules.indexOf('\n\n*Scriptorium builds this.*', from));
+  return rules.slice(from, rules.indexOf('\n\n<!-- pact:begin cost-limits', from));
 }
 
 // #288 C2, C7: a project's Cost limits replace the home list there, under the home part's own fixed text.

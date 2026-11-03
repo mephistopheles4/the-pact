@@ -56,7 +56,7 @@ test('the poster on: the dry run warns, it installs at pact/tools/poster.mjs byt
   assert.deepEqual(readFileSync(join(h, ...LIVE)), readFileSync(join(repo, 'claude', 'tools', 'poster.mjs')));
   const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.ok(record.files.some(f => f.path === 'pact/tools/poster.mjs'), 'the record lists the tool');
-  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^- \*\*Post through the poster\.\*\*/m, 'the rules file carries its rule');
+  assert.match(readFileSync(join(h, 'CLAUDE.md'), 'utf8'), /^- \*\*Post through the poster,\*\*/m, 'the rules file carries its rule');
   // Run from its install path, from an empty folder, with no gh on the path: it refuses before any gh call.
   const empty = tempDir(t, 'pact-poster-run-');
   const r = spawnSync(process.execPath, [join(h, ...LIVE)], { cwd: empty, encoding: 'utf8', env: { PATH: empty, SystemRoot: process.env.SystemRoot ?? '' } });
