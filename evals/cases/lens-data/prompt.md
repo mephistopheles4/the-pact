@@ -3,7 +3,7 @@ max_turns: 4
 allowed_tools: []
 ---
 
-You are reviewing this diff for where its data can leak. The issue it comes from says only "charge the customer's card". The project has no threat model.
+You are reviewing this diff for where its data can leak. The issue it comes from says only "charge the customer's card", and nothing names this payment service as approved. The project has no threat model.
 
 ```diff
 +def charge(card, customer):

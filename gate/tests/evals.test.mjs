@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { test } from 'node:test';
 import {
   CANARY_WORD,
@@ -168,13 +168,13 @@ test('C4: each refusal exits non-zero and writes nothing', t => {
 
 // #464 T7 C2
 test('a case\'s with.txt adds repo files to its with arm only, and a bad path refuses', t => {
-  const cases = withTxt => {
+  const cases = (first, last) => {
     const d = tempDir(t, 'pact-evals-cases-');
-    writeTree(d, { 'aaa/prompt.md': GOOD_CASE, 'aaa/with.txt': withTxt, 'zzz/prompt.md': GOOD_CASE });
+    writeTree(d, { 'aaa/prompt.md': GOOD_CASE, 'zzz/prompt.md': GOOD_CASE, ...(first && { 'aaa/with.txt': first }), ...(last && { 'zzz/with.txt': last }) });
     return d;
   };
   const o = out(t);
-  generate({ out: o, rulesText: 'r\n', casesDir: cases('claude/review.md\nAGENTS.md\n') });
+  generate({ out: o, rulesText: 'r\n', casesDir: cases('claude/review.md\r\nAGENTS.md\n') });
   const read = p => readFileSync(join(REPO, p), 'utf8');
   assert.equal(withText(o, 'aaa').system, `${RULES_HEAD}r\n\nContents of claude/review.md:\n\n${read('claude/review.md')}\nContents of AGENTS.md:\n\n${read('AGENTS.md')}`);
   assert.equal(withText(o, 'zzz').system, `${RULES_HEAD}r\n`, 'a case with no with.txt carries the rules alone');
@@ -182,9 +182,10 @@ test('a case\'s with.txt adds repo files to its with arm only, and a bad path re
   assert.deepEqual(readdirSync(join(o, 'evals', 'aaa-with')), ['prompt.md'], 'with.txt itself is not copied');
   const outside = join(tempDir(t, 'pact-evals-outside-'), 'x.md');
   writeFileSync(outside, 'x\n');
-  for (const bad of ['no-such-file.md', '../outside.md', outside, 'claude']) {
+  // An existing file outside the repo, named relatively; with the temp folder on another drive, relative() gives the absolute path.
+  for (const bad of ['no-such-file.md', relative(REPO, outside), outside, 'claude']) {
     const o2 = out(t);
-    assert.throws(() => generate({ out: o2, rulesText: 'r\n', casesDir: cases(`${bad}\n`) }), /with\.txt/, bad);
+    assert.throws(() => generate({ out: o2, rulesText: 'r\n', casesDir: cases(null, `${bad}\n`) }), /with\.txt/, bad); // In the last case, so a write before the refusal would show.
     assert.ok(!existsSync(o2), `${bad} wrote something`);
   }
 });

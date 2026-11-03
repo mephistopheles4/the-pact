@@ -1,5 +1,5 @@
 ---
 type: regex
-pattern: "not approved|unapproved|no approval|nothing approves"
+pattern: "(not|n't|without|no)\\b.{0,20}approv|unapproved|nothing approves"
 flags: i
 ---

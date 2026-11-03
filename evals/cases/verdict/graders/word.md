@@ -1,5 +1,5 @@
 ---
 type: regex
-pattern: "^\\W*findings\\b"
+pattern: "^\\W*(verdict\\W*)?findings\\b"
 flags: i
 ---
