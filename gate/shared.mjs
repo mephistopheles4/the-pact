@@ -21,13 +21,18 @@ const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
 // install keeps its own copy (install-core.mjs), held to this one by a test.
 // Adding a name is a change to gate code, so it needs a bad case (AGENTS.md).
 const PACT_TOOLS = Object.freeze(['poster', 'cleaner']);
+// The cleaner's deny rules (#438 S2.3), for the builder page to show (#464 T8).
+// The install keeps its own copy (install-core.mjs), which it acts on, held to
+// this one by a test.
+const CLEANER_PATTERNS = ['git worktree remove *', 'git * worktree remove *', 'git branch -d *', 'git * branch -d *', 'git branch -D *', 'git * branch -D *', 'git branch --delete *', 'git * branch --delete *'];
+const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${p})`), ...CLEANER_PATTERNS.map(p => `PowerShell(${p})`)]);
 // The builder kit (#203 S6; #262): what the builder reads, installed under
 // pact/builder/ in the repo's own layout whenever /scriptorium installs. Seam
 // A reads this copy; the install keeps its own (install-core.mjs), held to
 // this one by a test. The rules source is the staged, unrendered rules file,
 // copied by the install; the agents and the presets go by pattern.
 const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/default-config.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
-const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^builder\/presets\/[^/]+\.json$/, /^builder\/default-config\/config\.json$/, /^builder\/default-config\/blocks\/[^/]+\.md$/]);
+const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^claude\/commands\/[^/]+\.md$/, /^claude\/review\.md$/, /^claude\/settings\.overlay\.json$/, /^builder\/presets\/[^/]+\.json$/, /^builder\/default-config\/config\.json$/, /^builder\/default-config\/blocks\/[^/]+\.md$/]);
 const inKit = rel => BUILDER_KIT.includes(rel) || BUILDER_KIT_PATTERNS.some(re => re.test(rel));
 // The fixed blocks: marked parts of the rules file that no configuration edit
 // can target, which the builder shows as locked clauses. Since #262 the gate
@@ -243,6 +248,7 @@ const MARKER_RE = /^ *<!-- pact:(begin|end) ([a-z][a-z0-9-]*) -->$/;
 export {
   PACT_COMMANDS,
   PACT_TOOLS,
+  CLEANER_DENY,
   BUILDER_KIT,
   BUILDER_KIT_PATTERNS,
   inKit,

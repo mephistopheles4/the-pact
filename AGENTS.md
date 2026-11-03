@@ -85,8 +85,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   `$env:NODE_OPTIONS = $null; node cloud-sessions/gen.mjs` in PowerShell, or
   `env -u NODE_OPTIONS node cloud-sessions/gen.mjs` in a POSIX shell. Read
   every change to `cloud-sessions/` closely: it is published and runs as root.
-- After a change to the pact text, the renderer's lists, the example blocks
-  or a preset, run `node builder/build.mjs` to refresh
+- After a change to the pact text (`claude/review.md`, the commands and the
+  settings overlay included), the renderer's lists, the example blocks or a
+  preset, run `node builder/build.mjs` to refresh
   [`builder/scriptorium.html`](builder/scriptorium.html).
 - After a change to the pact text, the builder or
   `builder/presets/level-3-full.json`, run `node builder/default-config.mjs`

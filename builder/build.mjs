@@ -50,7 +50,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
+import { CLEANER_DENY, isInvisible, isRefused, readStrictJson, Refused, Report, scanText } from '../gate/shared.mjs';
 import { DEFAULT_PARTS, PART_MARKS, compileParts, copyParts, modelsProblems, partsProblems, partsTexts, dropRetired, reconcileTiers, RETIRED_AGENTS, skillsProblems, upgradeParts } from './parts.mjs';
 
 export const PAGE_REL = 'builder/scriptorium.html';
@@ -169,6 +169,49 @@ function parseSource(src) {
 
 const codeSpans = text => [...text.matchAll(/`([^`\n]+)`/g)].map(m => m[1]);
 
+/** The quoted lines of a template in gate/render-core.mjs's text, a setting's number shown as N. */
+function templateLines(renderSrc, re, name) {
+  const body = re.exec(renderSrc)?.[1];
+  if (!body) fail(`gate/render-core.mjs no longer declares ${name} in the expected form`);
+  return [...body.matchAll(/'([^']*)'|`([^`]*)`/g)].map(m => (m[1] ?? m[2]).replaceAll('${n}', 'N'));
+}
+
+/**
+ * The rules file as the page shows it: the source without its mark comments.
+ * A configurable part keeps its source text between two labels, and a rule
+ * that renders only when something is on stands at its place under a label
+ * saying what.
+ */
+function rulesText(src, renderSrc) {
+  const toolLines = mark => templateLines(renderSrc, new RegExp(`mark: '${mark}',\\s*template: Object\\.freeze\\(\\[([\\s\\S]*?)\\]\\)`), mark);
+  const before = {
+    'tool-poster': ['[Only while the poster is on, under Settings:]', ...toolLines('tool-poster')],
+    'tool-cleaner': ['[Only while the cleaner is on, under Settings:]', ...toolLines('tool-cleaner')],
+    'usage-pause': ['[The percentage is yours to set, under Settings:]'],
+    'usage-pause-session': ['[Only when you set this line, under Settings:]', ...templateLines(renderSrc, /const SESSION_TEMPLATE = n => \[([\s\S]*?)\];/, 'SESSION_TEMPLATE')],
+  };
+  for (const m of PART_MARKS) before[m] = [m === 'workflow' ? '[Editable on the canvas, apart from its fixed sentences. The page starts from the default configuration, which adds a Skills column:]' : '[Editable on this page, apart from its fixed sentences:]'];
+  return src.split('\n').flatMap(line => {
+    const m = MARK_RE.exec(line);
+    if (!m) return [line];
+    if (m[2] === 'begin') return before[m[3]] ?? [];
+    return PART_MARKS.includes(m[3]) ? ['[End of the editable part.]'] : [];
+  }).join('\n');
+}
+
+/** The pact's own text for the page's read-only dialog (#464 T8), byte for byte from the files under `root`. */
+function pactText(root, src, renderSrc) {
+  const read = rel => readFileSync(join(root, ...rel.split('/')), 'utf8');
+  const commands = readdirSync(join(root, 'claude', 'commands')).filter(f => f.endsWith('.md')).sort();
+  return {
+    rules: rulesText(src, renderSrc),
+    review: read('claude/review.md'),
+    commands: commands.map(f => ({ name: f.slice(0, -3), text: read(`claude/commands/${f}`) })),
+    settings: read('claude/settings.overlay.json'),
+    cleanerDeny: CLEANER_DENY.join('\n'),
+  };
+}
+
 /** The pact's half of the page data, always from the clone at `root`: the parts, locked clauses, the usage setting and the pact's agents. */
 export function pactData(root) {
   const src = readFileSync(rulesPath(root), 'utf8');
@@ -226,7 +269,7 @@ export function pactData(root) {
   const agentInfo = agentFiles.map(f => ({ ...info(join('claude', 'agents', f), f.slice(0, -3)), ...(classes[f.slice(0, -3)] ?? { security: null, egress: null }) }));
 
   const session = sessionFrom(renderSrc);
-  return { always, editable, setting, session, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices };
+  return { always, editable, setting, session, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
 }
 
 // ------------------------------------------------------------ the builder file
