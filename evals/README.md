@@ -3,14 +3,20 @@
 A tool the owner runs on request, never a standing step: no CI job, hook or
 gate check runs an eval (ADR 0119). The gate's tests run the generator and
 `check` only, with no `claude` call. It asks whether Claude follows a rule in the
-pact's text without that text, so a rule it passes bare is a candidate to cut.
-An eval run is not a probe under `docs/agents/changing-rules.md`, and it is no
-evidence for a rule change; a rule still holds by review and by use.
+pact's text, and whether it does so without that text, so a rule it passes bare
+is a candidate to cut.
+
+A round is evidence the owner weighs, never a gate (ADR 0136). With the wording
+tests gone, it is what shows whether a rule's behaviour survives a cut or a
+reword. No change waits on a round, a pass never stands in for the review at
+Test, and CI stays the Test evidence. An eval run is not a probe under
+`docs/agents/changing-rules.md`.
 
 `gen.mjs` writes each case in `cases/` twice, as a plugin folder
 `claude plugin eval` can read: `<case>-with` carries the rules text as its
-appended system prompt, and `<case>-without` is the case as it is. It prints
-the commands to run, and runs none of them.
+appended system prompt, with any files the case's `with.txt` names, and
+`<case>-without` is the case as it is. It prints the commands to run, and runs
+none of them.
 
 ## Limits
 
@@ -66,8 +72,9 @@ without copy must not. It prints case and field names, never a reply or a path.
 ## Adding a case
 
 A case is a folder in `cases/`, named in lower-case letters, digits and
-hyphens (not `canary`, which the built-in canary uses), holding `prompt.md`
-and `graders/*.md`:
+hyphens (not `canary`, which the built-in canary uses), holding `prompt.md`,
+`graders/*.md` and, when its rule lives outside the rules file, a `with.txt`
+naming repo files, one path a line, such as `claude/review.md`:
 
 ```markdown
 ---

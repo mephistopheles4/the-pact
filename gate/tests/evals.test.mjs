@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { test } from 'node:test';
 import {
   CANARY_WORD,
@@ -15,6 +15,7 @@ import {
   checkRun,
   defaultRules,
   evalRead,
+  extraText,
   generate,
 } from '../../evals/gen.mjs';
 import { childEnv, runCore } from './gate-run.mjs';
@@ -36,7 +37,7 @@ const withText = (o, c) => evalRead(readFileSync(join(o, 'evals', `${c}-with`, '
 test('C1: two copies per case, the without copy and the graders byte for byte', t => {
   const o = out(t);
   generate({ out: o, rulesText: 'rules text\n' });
-  assert.equal(CASES.length, 16);
+  assert.equal(CASES.length, 22);
   const manifest = JSON.parse(readFileSync(join(o, '.claude-plugin', 'plugin.json'), 'utf8'));
   assert.equal(manifest.name, 'pact-evals');
   assert.equal(manifest.version, '0.0.0');
@@ -62,7 +63,7 @@ test('C2: read the eval\'s way, each with copy keeps its keys, the rules text an
     const got = withText(o, c);
     assert.equal(got.keys.max_turns, src.keys.max_turns, c);
     assert.equal(got.keys.allowed_tools, src.keys.allowed_tools, c);
-    assert.equal(got.system, RULES_HEAD + RULES, c);
+    assert.equal(got.system, RULES_HEAD + RULES + extraText(CASES_DIR, c), c);
     assert.equal(got.body, src.body, c);
   }
   // A rules text holding the Unicode line breaks, DEL, a C1 control and a noncharacter round trips too.
@@ -163,6 +164,30 @@ test('C4: each refusal exits non-zero and writes nothing', t => {
   assert.notEqual(r.status, 0);
   assert.ok(!(r.stdout + r.stderr).includes(REPO), 'a refusal prints no path');
   assert.ok(!existsSync(join(REPO, 'evals', 'tmp-out')));
+});
+
+// #464 T7 C2
+test('a case\'s with.txt adds repo files to its with arm only, and a bad path refuses', t => {
+  const cases = (first, last) => {
+    const d = tempDir(t, 'pact-evals-cases-');
+    writeTree(d, { 'aaa/prompt.md': GOOD_CASE, 'zzz/prompt.md': GOOD_CASE, ...(first && { 'aaa/with.txt': first }), ...(last && { 'zzz/with.txt': last }) });
+    return d;
+  };
+  const o = out(t);
+  generate({ out: o, rulesText: 'r\n', casesDir: cases('claude/review.md\r\nAGENTS.md\n') });
+  const read = p => readFileSync(join(REPO, p), 'utf8');
+  assert.equal(withText(o, 'aaa').system, `${RULES_HEAD}r\n\nContents of claude/review.md:\n\n${read('claude/review.md')}\nContents of AGENTS.md:\n\n${read('AGENTS.md')}`);
+  assert.equal(withText(o, 'zzz').system, `${RULES_HEAD}r\n`, 'a case with no with.txt carries the rules alone');
+  assert.equal(readFileSync(join(o, 'evals', 'aaa-without', 'prompt.md'), 'utf8'), GOOD_CASE);
+  assert.deepEqual(readdirSync(join(o, 'evals', 'aaa-with')), ['prompt.md'], 'with.txt itself is not copied');
+  const outside = join(tempDir(t, 'pact-evals-outside-'), 'x.md');
+  writeFileSync(outside, 'x\n');
+  // An existing file outside the repo, named relatively; with the temp folder on another drive, relative() gives the absolute path.
+  for (const bad of ['no-such-file.md', relative(REPO, outside), outside, 'claude']) {
+    const o2 = out(t);
+    assert.throws(() => generate({ out: o2, rulesText: 'r\n', casesDir: cases(null, `${bad}\n`) }), /with\.txt/, bad); // In the last case, so a write before the refusal would show.
+    assert.ok(!existsSync(o2), `${bad} wrote something`);
+  }
 });
 
 // #405 C5
