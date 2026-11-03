@@ -1,6 +1,6 @@
 # Records are written only when due, and the push hold goes
 
-A log entry is written only for a change to the pact text or the gate, and an ADR only when a decision reverses or constrains something (#464 T6). Logs older than a month fold into `docs/log/older.md`, and the log index is gone. `AGENTS.md`'s keep-in-step list keeps only what a test checks: the cloud copy, the builder page, the default configuration and the README's figures. The push hold under Test evidence is deleted (decision 576). The read of every commit before a push stays.
+A log entry is written only for a change to the pact text or the gate, and an ADR only when a decision reverses or constrains something (#464 T6). Logs older than a month fold into `docs/log/older.md`, and the log index is gone. `AGENTS.md`'s keep-in-step list keeps only what a test checks: the cloud copy, the builder page, the default configuration and the README's figures. The push hold under Test evidence is deleted (decision 576). The read of every commit before a push stays, and a session reads a change to `.github/`, the lockdown test, `.claude/settings.json` or `.claude/hooks/` before pushing it (decision 601).
 
 ## Why
 
@@ -13,7 +13,7 @@ The owner's words: "i feel like deleting most of it to be honest, way too many r
 
 ## Consequences
 
-- A push no longer waits for the security pair or the owner's word, including a diff that touches `.github/`, the lockdown test, `.claude/settings.json` or `.claude/hooks/`. A pull request runs the branch's own workflows as soon as it opens, and the hook runs in every session opened on the branch, both before anyone has read the change.
+- A push no longer waits for the security pair or the owner's word, including a diff that touches `.github/`, the lockdown test, `.claude/settings.json` or `.claude/hooks/`. Only the session that wrote such a change reads it first, and a fooled session's read stops nothing. A pull request runs the branch's own workflows as soon as it opens, and the hook runs in every session opened on the branch.
 - Nothing now says a security escape's row carries only a placeholder until the fix ships. Escape rows and roster gaps go from the repo's rules and vocabulary, since review.md no longer defines them.
 - `docs/install.md`, the README's prose, `docs/reference.md` and the threat model can drift from what they describe, with nothing asking a session to update them.
 - A fold repoints links by hand, and no test checks them since T1 deleted the index checks. The first fold after this one takes in about 100 October logs.

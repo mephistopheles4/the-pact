@@ -64,6 +64,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   detail, or this machine's paths and names. Details:
   [gate tests](docs/agents/gate-tests.md). A `changed` run is never Test
   evidence.
+- Read a change to `.github/`, the lockdown test
+  (`gate/tests/workflow.test.mjs`), `.claude/settings.json` or
+  `.claude/hooks/` before pushing it.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.
 - **Post test output only from record mode** (`--record <file>`); read a
