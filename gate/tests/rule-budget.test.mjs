@@ -16,18 +16,20 @@ const RULES = 'the rules file';
 
 // Each budget is the smallest multiple of 50 above the file's size after the
 // #450 cuts (S5.1), measured on the rebased branch. The rules file's is the
-// same measure after the #464 T4 cut.
+// same measure after the #464 T4 cut. Each lens's is the 300 words #464 T5
+// set, and scout's the 200, counted over the whole file, frontmatter included.
+const LENS_BUDGET = 300;
 const BUDGETS = Object.freeze({
   [RULES]: 2250,
-  'adversarial-lens': 1800,
-  'behaviour-lens': 1450,
-  'conventions-lens': 1100,
-  'data-lens': 2000,
-  'executability-lens': 1600,
-  'integrity-lens': 1900,
-  'reader-lens': 1350,
-  scout: 600,
-  'unstated-lens': 1000,
+  'adversarial-lens': LENS_BUDGET,
+  'behaviour-lens': LENS_BUDGET,
+  'conventions-lens': LENS_BUDGET,
+  'data-lens': LENS_BUDGET,
+  'executability-lens': LENS_BUDGET,
+  'integrity-lens': LENS_BUDGET,
+  'reader-lens': LENS_BUDGET,
+  scout: 200,
+  'unstated-lens': LENS_BUDGET,
 });
 
 /** Words: runs of non-whitespace, so CRLF and LF count the same. */
@@ -72,4 +74,11 @@ test('the budget check fails on a rules file padded past its budget', t => {
   const source = readFileSync(SOURCE, 'utf8');
   writeFileSync(padded, source.replace('\n## The moves\n', `\n${'padding '.repeat(BUDGETS[RULES])}\n\n## The moves\n`));
   assert.equal(overBudget([{ name: RULES, text: renderDefault(t, padded) }]).length, 1);
+});
+
+// #464 T5 C1
+test('the budget check fails on a lens one word past 300 and scout one past 200, and passes each at its budget', () => {
+  const at = n => 'word '.repeat(n);
+  assert.deepEqual(overBudget([{ name: 'data-lens', text: at(300) }, { name: 'scout', text: at(200) }]), []);
+  assert.equal(overBudget([{ name: 'data-lens', text: at(301) }, { name: 'scout', text: at(201) }]).length, 2);
 });
