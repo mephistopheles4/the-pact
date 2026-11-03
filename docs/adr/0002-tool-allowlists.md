@@ -12,6 +12,6 @@
 
 ## How this was decided
 
-- **2026-09-26** — `plan-reviewer`'s first round ruled that an allowlist is access control, so the plan went through `security-reviewer` and the build through `security-builder`. The owner's dispositions of the nine security findings, and the fresh-session check of every agent's actual tools, are told in [the agent names and allowlists log](../log/2026-09-26-agent-names-and-allowlists.md). Built in `3828f29`.
+- **2026-09-26** — `plan-reviewer`'s first round ruled that an allowlist is access control, so the plan went through `security-reviewer` and the build through `security-builder`. The owner's dispositions of the nine security findings, and the fresh-session check of every agent's actual tools, are told in [the agent names and allowlists log](../log/older.md#plain-agent-names-and-allowlists-that-were-checked-against-the-real-tools). Built in `3828f29`.
 - **2026-09-26** — The fresh-session check found `LSP` and `TodoWrite` in no agent and not in the main session either: this Claude Code build does not have them. The owner removed both from the four lines in `d0ae7f1`, which changes nothing any agent can do. `ToolSearch` stays on `result-checker`, though it was not granted in that run, in case its browser tools are ever deferred.
 - **Accepted risk:** `builder` keeps `Skill`, which can load any skill from any repo. It had it before, so this is no regression. A probe found that a forked skill run from inside `builder` got `builder`'s tools, not wider ones.

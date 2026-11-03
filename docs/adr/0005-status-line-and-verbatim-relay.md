@@ -17,5 +17,5 @@ Superseded by [ADR 0010](0010-build-in-the-main-session-with-process-tiers.md) (
 
 ## How this was decided
 
-- **2026-09-27** — Planned alongside the gate; `plan-reviewer`'s first round scoped the missing-line rule to the three builders. Told in [the human-in-the-loop gate log](../log/2026-09-27-human-in-the-loop-gate.md). The plan and its five reviews are in `f2cee57`; the build is `c0c8179`.
+- **2026-09-27** — Planned alongside the gate; `plan-reviewer`'s first round scoped the missing-line rule to the three builders. Told in [the human-in-the-loop gate log](../log/older.md#the-human-in-the-loop-gate-five-review-rounds-and-a-probe-that-failed-on-its-first-run). The plan and its five reviews are in `f2cee57`; the build is `c0c8179`.
 - **2026-09-27** — The probe's expected results were committed before the run (`4ef48c8`). Run 1, in the session that installed the change, failed: `spec-builder` stopped correctly but opened with no status line (`71053bd`). The likely cause, not confirmed, is that the session had loaded agent definitions before the install. Run 2, in a fresh session, passed (`507a6ab`).
