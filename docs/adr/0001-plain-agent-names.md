@@ -11,6 +11,6 @@ Each agent is named for the job it does, so a person reading `CLAUDE.md`, a rout
 
 ## How this was decided
 
-- **2026-09-26** — The owner chose "plain job titles" from the options in the plan. The work, its plan reviews and its security review are told in [the agent names and allowlists log](../log/2026-09-26-agent-names-and-allowlists.md). Built in `3828f29`, which also holds the plan and its reviews verbatim.
+- **2026-09-26** — The owner chose "plain job titles" from the options in the plan. The work, its plan reviews and its security review are told in [the agent names and allowlists log](../log/older.md#plain-agent-names-and-allowlists-that-were-checked-against-the-real-tools). Built in `3828f29`, which also holds the plan and its reviews verbatim.
 - **2026-09-26** — A fresh session confirmed that all nine new names load and no old name does (the check report is in `d0ae7f1`).
 - **Not renamed:** the cloud-session scripts still carry the old names until the cloud setup is rewritten to clone this repo. History written before the rename keeps the names used at the time.

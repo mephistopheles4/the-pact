@@ -12,4 +12,4 @@ When an allowlisted agent needs a tool it does not have, it stops and reports wh
 ## How this was decided
 
 - **2026-09-26** — Added to the four allowlisted agents in `918eeb3`, right after the allowlists landed.
-- **2026-09-26** — A planted probe gave `security-builder` an approved task that needed a web lookup it has no tool for. The expected result was committed first (`eac4fbc`); the agent stopped, named the missing tools, reached nothing over the network and edited nothing (`0266fe5`). The probe and its limits are in [the missing-tool probe log](../log/2026-09-26-missing-tool-probe.md).
+- **2026-09-26** — A planted probe gave `security-builder` an approved task that needed a web lookup it has no tool for. The expected result was committed first (`eac4fbc`); the agent stopped, named the missing tools, reached nothing over the network and edited nothing (`0266fe5`). The probe and its limits are in [the missing-tool probe log](../log/older.md#a-missing-tool-gets-reported-and-the-probe-that-checked-it).

@@ -85,33 +85,6 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   machine's home or temp path, user name or host name, as the review
   procedure reads a post. If it finds one, it keeps the branch local and tells
   the owner in chat.
-- **When the push waits.** The session pushes without asking, on the
-  owner's standing go-ahead, unless one of these holds:
-  - the change is on the sensitive route, matches the sensitive-work list, or
-    is flagged sensitive, so the security pair is due or offered at Test: the
-    push waits for the owner's answer to the offer and, when the pair runs,
-    for its read of the local commit, which comes before the push and the
-    rest of Test;
-  - the diff touches `.github/` or `gate/tests/workflow.test.mjs`: a pull
-    request runs the branch's own copy of every workflow, the CodeQL one with
-    its write token, as soon as it opens, so the push waits for the
-    security pair's read or the owner's word;
-  - the diff touches `.claude/settings.json` or `.claude/hooks/`: the hook
-    runs in every session opened on the branch, before the permission check
-    (#383), so the push waits for the security pair's read or the owner's
-    word.
-
-  A push that waits is squashed to one commit first, so the security pair's
-  read of the diff covers every commit the push publishes. When the owner
-  declines the offer, the push goes on that answer. A decline frees only the wait for the offer: a
-  diff that touches `.github/`, the lockdown test, `.claude/settings.json` or
-  `.claude/hooks/` still waits for the pair's read or the owner's word on the
-  push itself.
-- **The pushed commit is the one the pair read.** The pair's report names
-  the commit it read, and the push publishes exactly that commit. A later
-  push on a branch that waited, one that changes what the pair read, waits
-  for the pair's follow-up read (a full read, never a scoped follow-up) or
-  the owner's word, as the first push did.
 - **A cancelled run on `main`** is re-run before an install or a rollback
   reads its result. No run of the gate workflow cancels another on `main`,
   but a run of another workflow that named the same concurrency group could.
@@ -222,8 +195,7 @@ before every Bash and PowerShell call, with a 15 s timeout.
 - **It is code that runs on load.** A checkout, pull, merge or rebase that
   changes the hook script or its settings file takes effect on the next shell
   call of every session open in that folder, before the permission check. So every change to
-  `.claude/settings.json` or `.claude/hooks/` is read closely, and its push
-  waits as above.
+  `.claude/settings.json` or `.claude/hooks/` is read closely.
 - **Keys stay out.** `.gitignore` ignores every `settings.json` but this one,
   which a gate test holds to the `hooks` key alone. Settings you save from
   Claude Code for this repo go to local scope, `.claude/settings.local.json`,
