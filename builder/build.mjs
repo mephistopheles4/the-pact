@@ -178,23 +178,24 @@ function templateLines(renderSrc, re, name) {
 
 /**
  * The rules file as the page shows it: the source without its mark comments.
- * A configurable part keeps its default text under a label saying where it is
- * edited, and a rule that renders only when something is on stands at its
- * place under a label saying what.
+ * A configurable part keeps its source text between two labels, and a rule
+ * that renders only when something is on stands at its place under a label
+ * saying what.
  */
 function rulesText(src, renderSrc) {
   const toolLines = mark => templateLines(renderSrc, new RegExp(`mark: '${mark}',\\s*template: Object\\.freeze\\(\\[([\\s\\S]*?)\\]\\)`), mark);
   const before = {
     'tool-poster': ['[Only while the poster is on, under Settings:]', ...toolLines('tool-poster')],
     'tool-cleaner': ['[Only while the cleaner is on, under Settings:]', ...toolLines('tool-cleaner')],
-    'usage-pause': ['[The percentage is yours to set, under Settings. The default:]'],
+    'usage-pause': ['[The percentage is yours to set, under Settings:]'],
     'usage-pause-session': ['[Only when you set this line, under Settings:]', ...templateLines(renderSrc, /const SESSION_TEMPLATE = n => \[([\s\S]*?)\];/, 'SESSION_TEMPLATE')],
   };
-  for (const m of PART_MARKS) before[m] = ['[Yours to edit on this page. The default:]'];
+  for (const m of PART_MARKS) before[m] = [m === 'workflow' ? '[Editable on the canvas, apart from its fixed sentences. The page starts from the default configuration, which adds a Skills column:]' : '[Editable on this page, apart from its fixed sentences:]'];
   return src.split('\n').flatMap(line => {
     const m = MARK_RE.exec(line);
     if (!m) return [line];
-    return m[2] === 'begin' ? (before[m[3]] ?? []) : [];
+    if (m[2] === 'begin') return before[m[3]] ?? [];
+    return PART_MARKS.includes(m[3]) ? ['[End of the editable part.]'] : [];
   }).join('\n');
 }
 

@@ -652,28 +652,37 @@ test('stub page: "The pact" shows the pact\'s text read-only, each file byte for
   P.button(P.ids.actions, 'The pact').click();
   const dialog = P.ids.pacttext;
   assert.match(dialog.text, /The pact's text, not configurable/);
+  // The stub makes any element on request, so the page's own markup shows the dialog exists; the attribute shows it opened.
+  assert.match(PAGE, /<dialog[^>]*\bid="pacttext"/);
+  assert.equal(dialog.attrs.open, '');
+  const commandNames = readdirSync(join(REPO, 'claude', 'commands')).map(f => `/${f.slice(0, -3)}`).sort();
+  assert.deepEqual(P.find(dialog, n => n.tag === 'summary').map(n => n.textContent), ['The rules file', 'The review procedure', ...commandNames, 'The settings keys']);
   assert.deepEqual(P.find(dialog, n => ['input', 'textarea', 'select'].includes(n.tag)), [], 'nothing in it can be edited');
   const shown = P.find(dialog, n => n.tag === 'pre').map(n => n.textContent);
   const source = rel => readFileSync(join(REPO, ...rel.split('/')), 'utf8');
   for (const rel of ['claude/review.md', 'claude/settings.overlay.json', ...readdirSync(join(REPO, 'claude', 'commands')).map(f => `claude/commands/${f}`)]) {
     assert.ok(shown.includes(source(rel)), `${rel} is shown byte for byte`);
   }
-  const rules = shown.find(s => s.startsWith('# The pact\n'));
+  const src = source('claude/CLAUDE.md');
+  const rules = shown.find(s => s.startsWith(`${src.split('\n')[0]}\n`));
   assert.ok(rules, 'the rules file is shown');
-  assert.doesNotMatch(rules, /<!-- pact:/);
+  assert.doesNotMatch(rules, /<!-- pact:|\$\{/);
   // Each line of the source but the marks, in the source's order: prose, fixed clauses and parts alike.
-  const lines = source('claude/CLAUDE.md').split('\n').filter(l => !l.includes('<!-- pact:') && l.trim());
+  const lines = src.split('\n').filter(l => !l.includes('<!-- pact:') && l.trim());
   let at = 0;
   for (const l of lines) {
     at = rules.indexOf(l, at);
     assert.ok(at >= 0, `the rules fold holds, in order: ${l}`);
     at += l.length;
   }
-  // The rules that render only when something is on: the renderer's own text, each under its label.
-  assert.match(rules, /Only while the poster is on[^\n]*\n- \*\*Post through the poster,\*\*/);
-  assert.match(rules, /Only while the cleaner is on[^\n]*\n- \*\*Remove worktrees only through the cleaner,\*\*/);
-  assert.match(rules, /Settings[^\n]*\n- \*\*Session usage\.\*\*/);
-  assert.match(rules, /Yours to edit[^\n]*\n- \*\*Sense the work\.\*\*/);
+  const body = mark => new RegExp(`<!-- pact:begin ${mark} -->\\n([\\s\\S]*?)\\n<!-- pact:end ${mark} -->`).exec(src)[1];
+  // Each part stands whole between its two labels, so a label can't run on over fixed text.
+  for (const mark of PART_MARKS) assert.match(rules.split(`\n${body(mark)}\n[End of the editable part.]`)[0].split('\n').at(-1), /^\[Editable /, mark);
+  assert.ok(rules.includes(`[The percentage is yours to set, under Settings:]\n${body('usage-pause')}`));
+  // The rules that render only when something is on stand at their mark, each a bullet under its label.
+  const beforePoster = src.split('<!-- pact:begin tool-poster -->')[0].trimEnd().split('\n').at(-1);
+  assert.match(rules, new RegExp(`${beforePoster.replace(/[.*+?^$()[\]{}|\\/]/g, '\\$&')}\\n\\[Only while the poster is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[Only while the cleaner is on[^\\n]*\\n- \\*\\*`));
+  assert.match(rules, /\[Only when you set this line, under Settings:\]\n- \*\*/);
   P.button(P.ids.actions, 'Export').click();
   assert.equal(P.ids.output.text, before);
 });

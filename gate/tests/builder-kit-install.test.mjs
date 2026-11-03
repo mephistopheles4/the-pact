@@ -76,7 +76,10 @@ test('the kit holds review.md, every command and the overlay, a page from the ki
   assert.deepEqual(readdirSync(join(h, 'commands')), ['scriptorium.md'], 'a command that is off stays out of the live folder');
   assert.equal(readFileSync(join(h, 'pact', 'review.md'), 'utf8'), fromRepo('claude/review.md'));
   assert.ok(!listTree(h).some(rel => /settings\.overlay\.json$/.test(rel) && !rel.replaceAll('\\', '/').includes('pact/builder/')), 'the overlay is copied only to the kit');
-  assert.equal(JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.defaultMode, 'auto', 'the overlay is still merged');
+  const overlay = JSON.parse(fromRepo('claude/settings.overlay.json'));
+  const merged = JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
+  assert.equal(merged.permissions.defaultMode, overlay.permissions.defaultMode, 'the overlay is still merged');
+  assert.equal(merged.skipAutoPermissionPrompt, overlay.skipAutoPermissionPrompt, 'the overlay is still merged');
 
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
