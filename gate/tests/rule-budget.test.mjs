@@ -16,18 +16,20 @@ const RULES = 'the rules file';
 
 // Each budget is the smallest multiple of 50 above the file's size after the
 // #450 cuts (S5.1), measured on the rebased branch. The rules file's is the
-// same measure after the #464 T4 cut.
+// same measure after the #464 T4 cut. Each lens's is the 300 words #464 T5
+// set, and scout's the 200, counted over the whole file, frontmatter included.
+const LENS_BUDGET = 300;
 const BUDGETS = Object.freeze({
   [RULES]: 2250,
-  'adversarial-lens': 1800,
-  'behaviour-lens': 1450,
-  'conventions-lens': 1100,
-  'data-lens': 2000,
-  'executability-lens': 1600,
-  'integrity-lens': 1900,
-  'reader-lens': 1350,
-  scout: 600,
-  'unstated-lens': 1000,
+  'adversarial-lens': LENS_BUDGET,
+  'behaviour-lens': LENS_BUDGET,
+  'conventions-lens': LENS_BUDGET,
+  'data-lens': LENS_BUDGET,
+  'executability-lens': LENS_BUDGET,
+  'integrity-lens': LENS_BUDGET,
+  'reader-lens': LENS_BUDGET,
+  scout: 200,
+  'unstated-lens': LENS_BUDGET,
 });
 
 /** Words: runs of non-whitespace, so CRLF and LF count the same. */

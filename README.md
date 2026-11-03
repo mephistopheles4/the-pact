@@ -107,7 +107,7 @@ Their reports go into the work's record word for word. The agent sorts the findi
 | `claude/agents/` | The lenses, in pairs, and `scout`, the search helper |
 | `claude/commands/` | The pact commands: `/scriptorium`, always installed, and `/make-it-so` and `/finis`, when you list them |
 | `claude/tools/` | The pact tools, off unless you list them: today the poster, which posts free text to GitHub, edits what a session posted, and reads it back, and the cleaner, which removes leftover worktrees and their branches after your yes |
-| `familiars/` | Each agent's contract |
+| `familiars/` | Empty: the agents' contracts are retired |
 | `gate/` | The install gate: the pact checks itself before it installs |
 | `builder/` | `scriptorium.html`, a page for building a configuration without writing JSON, and its presets; it installs with `/scriptorium` |
 | `cloud-sessions/` | Setup for Claude Code cloud sessions |
@@ -130,6 +130,6 @@ The full how-to, with the command for each shell, is in [docs/install.md](docs/i
 - **Node 24 or later,** the current LTS, to install and to run the gate's tests, on Windows, macOS or Linux.
 - **git.** The install reads the clone's committed files. On Windows, the gate's tests also use the `sh` that ships with Git for Windows.
 - **The models Opus and Sonnet,** and Fable for a second opinion when reviewers disagree.
-- **[grimoire](https://github.com/mephistopheles4/grimoire).** Each agent's contract follows its format; its skills are optional.
+- **[grimoire](https://github.com/mephistopheles4/grimoire).** Its skills are optional.
 - **[Matt Pocock's skills](https://github.com/mattpocock/skills),** optional: one of the builder's presets puts them on the workflow's stages.
 - **For this repo's own work,** optional: the GitHub CLI (`gh`) for its tracker, and Docker for the Linux test run, with [athanor](https://github.com/mephistopheles4/athanor) at `4121c28` or later to run it through `athanor.json`.

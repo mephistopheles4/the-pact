@@ -38,7 +38,7 @@ spec (revision 9), built in #261.
 From the spec for #35 (revision 7). The roster below is a hypothesis: use on
 real work selects it.
 
-- **Lens:** a reviewer agent that asks one question from one angle. Each lens is its own agent file with its own grimoire contract.
+- **Lens:** a reviewer agent that asks one question from one angle. Each lens is its own agent file.
 - **Pair:** two lenses in one area that look at the same work from different angles and never see each other's output.
 - **Anchor:** the shared tag that both lenses of a pair put on each finding, so that the session can match findings.
 - **Crossing:** an anchor that both lenses of a **joining pair** report on. The two lenses ask different questions, so a crossing means two different problems meet at one place, such as an attack path that reaches sensitive data. It is a priority signal. It is never "two reviewers confirmed it": no pair asks the same question twice.
