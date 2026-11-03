@@ -405,7 +405,8 @@ It installs these files under `~/.claude`:
   the pact's agents, the renderer it checks parts with, the brand mark, the
   example builder file, the pact's default configuration
   (`builder/default-config/`, which the install renders from its stage, and
-  its generator), and the rules as they stand before your
+  its generator), copies of `review.md`, the pact commands and the settings
+  overlay, for the page to show, and the rules as they stand before your
   configuration, as `claude/rules.source.md`. It holds no file named
   `CLAUDE.md`. The kit's builder writes a page only outside any repo, the
   Claude home folder and any `.claude` folder;

@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, personalPresets, personalPresetsDir, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
-import { BUILDER_KIT, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
+import { BUILDER_KIT, CLEANER_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -644,6 +644,50 @@ test('stub page: the page boots, Settings and Agents open, and an edited move sa
   assert.doesNotMatch(P.ids.output.text, /\r/);
 });
 
+// #464 T8 C1 to C4: every rule the pact installs is readable on the page, and reading it changes nothing a save writes.
+test('stub page: "The pact" shows the pact\'s text read-only, each file byte for byte, and changes nothing a save writes', () => {
+  const P = bootPage();
+  P.button(P.ids.actions, 'Export').click();
+  const before = P.ids.output.text;
+  P.button(P.ids.actions, 'The pact').click();
+  const dialog = P.ids.pacttext;
+  assert.match(dialog.text, /The pact's text, not configurable/);
+  // The stub makes any element on request, so the page's own markup shows the dialog exists; the attribute shows it opened.
+  assert.match(PAGE, /<dialog[^>]*\bid="pacttext"/);
+  assert.equal(dialog.attrs.open, '');
+  const commandNames = readdirSync(join(REPO, 'claude', 'commands')).map(f => `/${f.slice(0, -3)}`).sort();
+  assert.deepEqual(P.find(dialog, n => n.tag === 'summary').map(n => n.textContent), ['The rules file', 'The review procedure', ...commandNames, 'The settings keys', "The cleaner's deny rules"]);
+  assert.ok(P.find(dialog, n => n.tag === 'pre').some(n => n.textContent === CLEANER_DENY.join('\n')), 'each of the cleaner\'s deny rules is shown');
+  assert.deepEqual(P.find(dialog, n => ['input', 'textarea', 'select'].includes(n.tag)), [], 'nothing in it can be edited');
+  const shown = P.find(dialog, n => n.tag === 'pre').map(n => n.textContent);
+  const source = rel => readFileSync(join(REPO, ...rel.split('/')), 'utf8');
+  for (const rel of ['claude/review.md', 'claude/settings.overlay.json', ...readdirSync(join(REPO, 'claude', 'commands')).map(f => `claude/commands/${f}`)]) {
+    assert.ok(shown.includes(source(rel)), `${rel} is shown byte for byte`);
+  }
+  const src = source('claude/CLAUDE.md');
+  const rules = shown.find(s => s.startsWith(`${src.split('\n')[0]}\n`));
+  assert.ok(rules, 'the rules file is shown');
+  assert.doesNotMatch(rules, /<!-- pact:|\$\{/);
+  // Each line of the source but the marks, in the source's order: prose, fixed clauses and parts alike.
+  const lines = src.split('\n').filter(l => !l.includes('<!-- pact:') && l.trim());
+  let at = 0;
+  for (const l of lines) {
+    at = rules.indexOf(l, at);
+    assert.ok(at >= 0, `the rules fold holds, in order: ${l}`);
+    at += l.length;
+  }
+  const body = mark => new RegExp(`<!-- pact:begin ${mark} -->\\n([\\s\\S]*?)\\n<!-- pact:end ${mark} -->`).exec(src)[1];
+  // Each part stands whole between its two labels, so a label can't run on over fixed text.
+  for (const mark of PART_MARKS) assert.match(rules.split(`\n${body(mark)}\n[End of the editable part.]`)[0].split('\n').at(-1), /^\[Editable /, mark);
+  assert.ok(rules.includes(`[The percentage is yours to set, under Settings:]\n${body('usage-pause')}`));
+  // The rules that render only when something is on stand at their mark, each a bullet under its label.
+  const beforePoster = src.split('<!-- pact:begin tool-poster -->')[0].trimEnd().split('\n').at(-1);
+  assert.match(rules, new RegExp(`${beforePoster.replace(/[.*+?^$()[\]{}|\\/]/g, '\\$&')}\\n\\[Only while the poster is on[^\\n]*\\n- \\*\\*[^\\n]*\\n\\[Only while the cleaner is on[^\\n]*\\n- \\*\\*`));
+  assert.match(rules, /\[Only when you set this line, under Settings:\]\n- \*\*/);
+  P.button(P.ids.actions, 'Export').click();
+  assert.equal(P.ids.output.text, before);
+});
+
 // #183 T4a (adversarial F1): Export names each skill source the configuration carries before Save, and the page's
 // start state (the pact's default) gets the line exactly when the default names skills.
 test('stub page: Export names each skill source the configuration carries before Save, and says nothing when there are none', () => {
@@ -1167,7 +1211,7 @@ test('the builder kit builds a page from a builder file, refuses to rebuild itse
   const home = join(tempDir(t, 'pact-kit-'), 'claude-home');
   const kit = join(home, 'pact', 'builder');
   // The gate's own kit list, the agents and presets by their folders, so the test runs the kit that installs.
-  for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
+  for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'claude/commands', 'claude/review.md', 'claude/settings.overlay.json', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
   cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
@@ -1351,7 +1395,7 @@ test('taking a preset replaces only the ticked parts and agent files, and the wo
 function kitHome(t) {
   const home = join(tempDir(t, 'pact-own-'), 'claude-home');
   const kit = join(home, 'pact', 'builder');
-  for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
+  for (const rel of [...BUILDER_KIT.filter(r => r !== KIT_RULES_REL), 'claude/agents', 'claude/commands', 'claude/review.md', 'claude/settings.overlay.json', 'builder/presets']) cpSync(join(REPO, rel), join(kit, rel), { recursive: true });
   cpSync(join(REPO, 'claude', 'CLAUDE.md'), join(kit, 'claude', 'rules.source.md'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;

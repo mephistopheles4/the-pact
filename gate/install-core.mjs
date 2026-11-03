@@ -40,7 +40,7 @@ export const CLEANER_DENY = Object.freeze([...CLEANER_PATTERNS.map(p => `Bash(${
 // whenever /scriptorium installs. Its gate files are the only gate files that
 // ever install. The agents and the presets go by pattern.
 export const BUILDER_KIT = Object.freeze(['builder/build.mjs', 'builder/default-config.mjs', 'builder/parts.mjs', 'builder/scriptorium.html', 'claude/rules.source.md', 'docs/brand/scriptorium/scriptorium-mark.svg', 'examples/pact-config/builder.json', 'gate/render-core.mjs', 'gate/render.mjs', 'gate/shared.mjs']);
-export const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^builder\/presets\/[^/]+\.json$/, /^builder\/default-config\/config\.json$/, /^builder\/default-config\/blocks\/[^/]+\.md$/]);
+export const BUILDER_KIT_PATTERNS = Object.freeze([/^claude\/agents\/[^/]+\.md$/, /^claude\/commands\/[^/]+\.md$/, /^claude\/review\.md$/, /^claude\/settings\.overlay\.json$/, /^builder\/presets\/[^/]+\.json$/, /^builder\/default-config\/config\.json$/, /^builder\/default-config\/blocks\/[^/]+\.md$/]);
 export const inKit = rel => BUILDER_KIT.includes(rel) || BUILDER_KIT_PATTERNS.some(re => re.test(rel));
 const KIT_DEST = 'pact/builder/';
 // The unrendered rules file, which the install copies into the stage for the kit; never in a commit.
