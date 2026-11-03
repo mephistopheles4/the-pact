@@ -37,7 +37,7 @@ const withText = (o, c) => evalRead(readFileSync(join(o, 'evals', `${c}-with`, '
 test('C1: two copies per case, the without copy and the graders byte for byte', t => {
   const o = out(t);
   generate({ out: o, rulesText: 'rules text\n' });
-  assert.equal(CASES.length, 24);
+  assert.equal(CASES.length, 22);
   const manifest = JSON.parse(readFileSync(join(o, '.claude-plugin', 'plugin.json'), 'utf8'));
   assert.equal(manifest.name, 'pact-evals');
   assert.equal(manifest.version, '0.0.0');

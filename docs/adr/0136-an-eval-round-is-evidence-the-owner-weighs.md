@@ -21,6 +21,6 @@ The owner's words: "testing wording is a lost cause, and we should rely on evals
 ## Consequences
 
 - A case's `with.txt` adds repo files to its with arm, since many of the rules now live in `claude/review.md`, the lens files and a repo's own rules. A case's with text can differ from what a session would have loaded at that moment, because a session reads those files when it needs them.
-- A grader can go stale when its rule changes, and no check fails on it: T3 and T4 left two that did, and T7 rewrote one and retired the other. It misleads only the owner reading a round.
+- A grader can go stale when its rule changes, and no check fails on it: #441, T3 and T4 left four that did, and T7 rewrote one and retired three. It misleads only the owner reading a round.
 - Ten cases were added on the owner's word, to see whether the grading works before any more are written. The rest of the families sorted on #464 stay unbuilt, so most rules the wording tests covered have no case yet.
 - No case added here has run.
