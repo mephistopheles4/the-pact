@@ -6,7 +6,7 @@ The page gains a read-only dialog, "The pact's text, not configurable", with fol
 
 The builder kit gains `claude/review.md`, `claude/commands/*.md` and `claude/settings.overlay.json`, as patterns, so `checkKit` asks for nothing new. They are copies for the page to show. Live installs don't change: a command that is off stays out of `commands/`, and the overlay is still merged.
 
-The lens agents were already readable in Agents. The pact installs no hooks. The cleaner's deny rules are named but not listed, since they live in `gate/install-core.mjs`, outside the kit. The lines a project configuration writes are named too.
+The lens agents were already readable in Agents. The pact installs no hooks. The cleaner's sixteen deny rules have their own fold (decision 607), from a copy in `gate/shared.mjs`, since `gate/install-core.mjs` imports nothing and isn't in the kit; a test holds the two copies equal. The lines a project configuration writes are named as left out.
 
 ## Record
 

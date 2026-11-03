@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import { EXAMPLE_BUILDER_REL, PAGE_REL, buildPage, checkBuilder, pactData, personalPresets, personalPresetsDir, shippedPresets } from '../../builder/build.mjs';
 import { DEFAULT_PARTS, MODEL_RE, PART_MARKS, compileParts, copyParts, partsProblems, partsTexts, upgradeParts } from '../../builder/parts.mjs';
-import { BUILDER_KIT, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
+import { BUILDER_KIT, CLEANER_DENY, KIT_RULES_REL, PACT_COMMANDS, PACT_TOOLS, expectedCopySet, isStaged } from '../install-core.mjs';
 import { GATE, RENDER, REPO, lastLine } from './text.mjs';
 import { tempDir } from './tree.mjs';
 
@@ -656,7 +656,8 @@ test('stub page: "The pact" shows the pact\'s text read-only, each file byte for
   assert.match(PAGE, /<dialog[^>]*\bid="pacttext"/);
   assert.equal(dialog.attrs.open, '');
   const commandNames = readdirSync(join(REPO, 'claude', 'commands')).map(f => `/${f.slice(0, -3)}`).sort();
-  assert.deepEqual(P.find(dialog, n => n.tag === 'summary').map(n => n.textContent), ['The rules file', 'The review procedure', ...commandNames, 'The settings keys']);
+  assert.deepEqual(P.find(dialog, n => n.tag === 'summary').map(n => n.textContent), ['The rules file', 'The review procedure', ...commandNames, 'The settings keys', "The cleaner's deny rules"]);
+  assert.ok(P.find(dialog, n => n.tag === 'pre').some(n => n.textContent === CLEANER_DENY.join('\n')), 'each of the cleaner\'s deny rules is shown');
   assert.deepEqual(P.find(dialog, n => ['input', 'textarea', 'select'].includes(n.tag)), [], 'nothing in it can be edited');
   const shown = P.find(dialog, n => n.tag === 'pre').map(n => n.textContent);
   const source = rel => readFileSync(join(REPO, ...rel.split('/')), 'utf8');

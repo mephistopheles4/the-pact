@@ -8,7 +8,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { CLEANER_DENY, PACT_TOOLS as INSTALL_TOOLS } from '../install-core.mjs';
-import { PACT_TOOLS } from '../shared.mjs';
+import { CLEANER_DENY as SHARED_DENY, PACT_TOOLS } from '../shared.mjs';
 import { renderStage, runCore, runSeamA } from './gate-run.mjs';
 import { stage } from './payload.mjs';
 import { REPO, assertFails, assertPasses, moduleResult } from './text.mjs';
@@ -231,4 +231,7 @@ test('the cleaner\'s deny rules are the sixteen fixed rules', () => {
   const p = ['worktree remove *', '* worktree remove *', 'branch -d *', '* branch -d *', 'branch -D *', '* branch -D *', 'branch --delete *', '* branch --delete *'].map(x => `git ${x}`);
   assert.deepEqual([...CLEANER_DENY], [...p.map(x => `Bash(${x})`), ...p.map(x => `PowerShell(${x})`)]);
   assert.ok(Object.isFrozen(CLEANER_DENY));
+  // #464 T8: the copy the page shows is this one.
+  assert.deepEqual([...SHARED_DENY], [...CLEANER_DENY]);
+  assert.ok(Object.isFrozen(SHARED_DENY));
 });
