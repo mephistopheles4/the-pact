@@ -17,5 +17,5 @@ The owner's words: "i feel like deleting most of it to be honest, way too many r
 - Nothing now says a security escape's row carries only a placeholder until the fix ships. Escape rows and roster gaps go from the repo's rules and vocabulary, since review.md no longer defines them.
 - `docs/install.md`, the README's prose, `docs/reference.md` and the threat model can drift from what they describe, with nothing asking a session to update them.
 - A fold repoints links by hand, and no test checks them since T1 deleted the index checks. The first fold after this one takes in about 100 October logs.
-- This amends ADR 0007 (one log for each piece of work), ADR 0095 (when the push waits), ADR 0104 (a hook change's push waits) and ADR 0108 (this repo's push sentences and the full read that releases a push).
+- This amends ADR 0007 (one log for each piece of work), ADR 0043 (a rule keeps the README figures' words true; now nothing does), ADR 0051 (escapes and roster gaps stay), ADR 0095 (when the push waits), ADR 0104 (a hook change's push waits) and ADR 0108 (this repo's push sentences and the full read that releases a push).
 - The PR template's checkbox still says "the docs/log entry and its ADRs are included", which reads loosely when no log is due.

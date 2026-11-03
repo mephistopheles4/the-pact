@@ -36,7 +36,7 @@ Read this when you plan, close out or record work: plans, ADRs, logs, the PR che
 - **Finding a decision or a log:** decisions start from the index
   [`docs/adr/README.md`](../../docs/adr/README.md), one line per file; add a line
   there with every new ADR. Logs have no index: their file names carry the date
-  and the topic.
+  and the topic, and folded logs are titled in `docs/log/older.md`.
 - **The README's figures:** after a change to a source in `docs/img/src/`, rerun
   `node docs/img/build.mjs`. `gate/tests/readme-figures.test.mjs` fails while an
   SVG is stale and when a line overflows its box; no test checks the figures'

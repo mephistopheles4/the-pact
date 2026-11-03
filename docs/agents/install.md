@@ -33,10 +33,6 @@ how every session in every repo behaves. So:
   the pact's files say is vetted like any skill, by the owner reading them
   (ADR 0069). The gate's tests run through one runner; see
   [gate tests](gate-tests.md).
-- **Keep the how-to in step.** [`docs/install.md`](../../docs/install.md) quotes
-  the script's output, lists what the settings merge sets, and names every
-  agent the install puts in place, and the Tools block's WARN line. A change
-  to any of them updates the how-to in the same change.
 - **Install only on the owner's go-ahead.** Show the owner the dry run, then
   pass `--apply` only after they say so in chat. `--apply` refuses on drift or
   a dirty working tree.
