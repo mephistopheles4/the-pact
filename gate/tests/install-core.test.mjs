@@ -725,7 +725,7 @@ test('the copy set with the builder kit: each kit file pairs under pact/builder/
     ['builder/notes.txt', null],
     ['gate/shared.mjs', 'pact/builder/gate/shared.mjs'],
     ['examples/pact-config/builder.json', 'pact/builder/examples/pact-config/builder.json'],
-    ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
+    ['claude/commands/scriptorium.md', 'pact/builder/claude/commands/scriptorium.md'], ['claude/commands/scriptorium.md', 'commands/scriptorium.md'],
   ]);
   assert.deepEqual(core.expectedCopySet(rels, []), [['claude/CLAUDE.md', 'CLAUDE.md'], ['claude/agents/a.md', 'agents/a.md'], ['builder/notes.txt', null]], 'no kit without /scriptorium');
 });

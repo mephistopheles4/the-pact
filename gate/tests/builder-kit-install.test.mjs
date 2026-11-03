@@ -60,6 +60,39 @@ test('the builder kit installs with no commands list, holds the unrendered rules
   assert.match(inHome.stdout, /outside the Claude home folder/);
 });
 
+// #464 T8 C5, C6: the kit holds the text the page shows, and the live install is what it was.
+test('the kit holds review.md, every command and the overlay, a page from the kit shows them, and none of them goes live any new way', t => {
+  const repo = repoWithKit(t);
+  const h = home(t);
+  passed(applyBound(repo, h));
+  const kit = join(h, 'pact', 'builder');
+  const fromRepo = rel => readFileSync(join(repo, ...rel.split('/')), 'utf8');
+  const commands = readdirSync(join(repo, 'claude', 'commands')).sort();
+  assert.ok(commands.length > 1, 'the commit holds a command that is off');
+  assert.deepEqual(readdirSync(join(kit, 'claude', 'commands')).sort(), commands);
+  for (const rel of ['claude/review.md', 'claude/settings.overlay.json', ...commands.map(f => `claude/commands/${f}`)]) {
+    assert.equal(readFileSync(join(kit, ...rel.split('/')), 'utf8'), fromRepo(rel), `${rel} is in the kit`);
+  }
+  assert.deepEqual(readdirSync(join(h, 'commands')), ['scriptorium.md'], 'a command that is off stays out of the live folder');
+  assert.equal(readFileSync(join(h, 'pact', 'review.md'), 'utf8'), fromRepo('claude/review.md'));
+  assert.ok(!listTree(h).some(rel => /settings\.overlay\.json$/.test(rel) && !rel.replaceAll('\\', '/').includes('pact/builder/')), 'the overlay is copied only to the kit');
+  assert.equal(JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8')).permissions.defaultMode, 'auto', 'the overlay is still merged');
+
+  const env = { ...process.env };
+  delete env.NODE_OPTIONS;
+  delete env.CLAUDE_CONFIG_DIR;
+  const work = tempDir(t, 'pact-kit-text-');
+  const builder = join(work, 'builder.json');
+  writeFileSync(builder, `${JSON.stringify({ schema: 1 })}\n`);
+  const out = join(work, 'page.html');
+  const ok = spawnSync(process.execPath, [join(kit, 'builder', 'build.mjs'), '--builder', builder, '--out', out], { encoding: 'utf8', env, cwd: work });
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  const data = JSON.parse(/\/\* pact-data:begin \*\/ ([\s\S]*?) \/\* pact-data:end \*\//.exec(readFileSync(out, 'utf8'))[1]);
+  assert.equal(data.pactText.review, fromRepo('claude/review.md'));
+  assert.equal(data.pactText.settings, fromRepo('claude/settings.overlay.json'));
+  assert.deepEqual(data.pactText.commands.map(c => c.name), commands.map(f => f.slice(0, -3)));
+});
+
 // rules-source-in-tree: the rules source is the install's own copy, never a file a commit brings.
 test('bad case: a commit holding claude/rules.source.md refuses, and changes nothing', t => {
   const repo = repoWithKit(t, root => writeFileSync(join(root, 'claude', 'rules.source.md'), 'not the rules\n'));
