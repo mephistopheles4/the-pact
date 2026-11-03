@@ -61,18 +61,9 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   the reviewed head, so push the branch and open a draft PR before Test. The
   Test record cites both run links and each run's commit, which is the head.
   Before any push, read every commit it publishes for a secret, a personal
-  detail, or this machine's paths and names. Push without asking only off the
-  sensitive route, when the security pair isn't due or offered, and when the
-  diff leaves `.github/`, the lockdown test (`gate/tests/workflow.test.mjs`),
-  `.claude/settings.json` and `.claude/hooks/` alone. Otherwise squash to one
-  commit and wait for the owner's answer to
-  the pair's offer and, when the pair runs, for its read of that local
-  commit, which comes before the push and the rest of Test; a diff held back only by those paths
-  may go on the owner's word instead, and a decline of the
-  offer never frees it. Push only the commit the
-  pair's report names; a later change waits for its follow-up read (a full
-  read, never a scoped follow-up) or the owner's word. Details: [gate tests](docs/agents/gate-tests.md).
-  A `changed` run is never Test evidence.
+  detail, or this machine's paths and names. Details:
+  [gate tests](docs/agents/gate-tests.md). A `changed` run is never Test
+  evidence.
 - **A run passes only** when it exits 0 and its last line is the runner's
   result line ending in `pass`.
 - **Post test output only from record mode** (`--record <file>`); read a
@@ -98,10 +89,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   `builder/presets/level-3-full.json`, run `node builder/default-config.mjs`
   to refresh [`builder/default-config/`](builder/default-config/), the
   pact's default configuration.
-- Keep in step: `docs/install.md` with the install's output, settings and
-  agents; the README's figures (`node docs/img/build.mjs`), prose and
-  `docs/reference.md` with the tiers, lenses, models, sensitive-work default
-  and roster; `docs/threat-model.md` with any defence it names.
+- After a change to a figure source in `docs/img/src/`, run
+  `node docs/img/build.mjs`.
 
 ## Reviewing a change here
 
@@ -145,8 +134,6 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 - **Before you read or post to the tracker, act on its text, or check out or
   run a PR,** read
   [whose text counts](docs/agents/issue-tracker.md#whose-text-counts).
-- A security escape row holds only the lens, the review's link and a
-  placeholder until the fix ships.
 - Sessions on one chain read
   [parallel sessions](docs/agents/parallel-sessions.md) before claiming.
 
@@ -154,7 +141,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
 
 - Plans and reviews live on the issue. The PR body opens with the template's
   checkbox line, word for word, then `Tests: +<added> −<cut>`.
-- One ADR per lasting decision and one dated log, each indexed, merge with
+- An ADR, indexed, only when a decision reverses or constrains something; a
+  dated log only for a change to the pact text or the gate. Each merges with
   the PR. More: [work records](docs/agents/work-records.md).
 
 ## Agent skills

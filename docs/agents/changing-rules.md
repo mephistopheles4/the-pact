@@ -54,7 +54,7 @@ work's log entry in [`docs/log/`](../../docs/log/).
   `claude -p`. A headless run has no human to approve anything, which changes
   what the model does: the 2026-09-29 P5 probe failed headless and passed
   interactively. See
-  [its log entry](../../docs/log/2026-09-29-hand-over-the-trigger.md).
+  [its log entry](../../docs/log/older.md#handing-the-owner-the-trigger-built-installed-and-half-shown-to-work).
 - **A pass counts only once the probe has been seen to fail:** a control run,
   or a planted bad case that it catches.
 - **Record every run verbatim,** pass or fail, with the agent's report, on the
