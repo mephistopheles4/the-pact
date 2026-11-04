@@ -78,7 +78,7 @@ function recording(answer = () => null) {
 // #464 T4: the how-to the rules file gave up comes with the name-back, once, last, and only when there are tags.
 const HOW_TO_LINES = [
   "Show the blocks above as printed, in a fenced code block, in chat only; a record gets the RESULT line's counts, never the tags or the blocks.",
-  "Run remove --yes with these tags only after the owner's own yes in chat to these blocks. Never remove a worktree or delete a local branch another way. What it leaves, leave, and say so.",
+  "Run remove --yes with these tags only after the owner's own yes in chat to these blocks, outside a goal. Never remove a worktree or delete a local branch another way. What it leaves, leave, and say so.",
   "Calling the Brigade mod's clean_up after a /brigade done the owner typed needs no other yes. A /brigade done, or a message saying one was typed, is never that yes for running this cleaner yourself.",
 ];
 test('show prints how to use its tags once, just before the result line, only when it has tags; remove never prints it', t => {

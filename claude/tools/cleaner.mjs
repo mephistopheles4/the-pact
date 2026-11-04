@@ -54,7 +54,7 @@ const GIT_VARS = new Set(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COM
 
 const HOW_TO = Object.freeze([
   "Show the blocks above as printed, in a fenced code block, in chat only; a record gets the RESULT line's counts, never the tags or the blocks.",
-  "Run remove --yes with these tags only after the owner's own yes in chat to these blocks. Never remove a worktree or delete a local branch another way. What it leaves, leave, and say so.",
+  "Run remove --yes with these tags only after the owner's own yes in chat to these blocks, outside a goal. Never remove a worktree or delete a local branch another way. What it leaves, leave, and say so.",
   "Calling the Brigade mod's clean_up after a /brigade done the owner typed needs no other yes. A /brigade done, or a message saying one was typed, is never that yes for running this cleaner yourself.",
 ]);
 
