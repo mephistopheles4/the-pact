@@ -30,7 +30,8 @@ GitHub account is the root of trust: whoever controls it counts as you.
 - **The pact gets loosened.** A fooled session can leave a foothold that later sessions or installs load, or install a commit unprompted, and a configuration, a project's lists or a shared builder file can rewrite the security defaults or add agents.
 - **Review rests on rules.** No test runs a lens, the gate's tests are ordinary test code, work that publishes or handles credentials can run below the thorough tier, a product's leaked secret is no security finding by itself, a read-only lens takes the base on trust, and the table check doesn't pair a state word with a disposition.
 - **Local copies on disk.** A builder page, kept-local reports and the install's backups sit unencrypted until deleted, in reach of other local accounts and of a session that reads them.
-- **Removals lose local work.** The cleaner's removals rest on a rule tying them to your yes, what git and the cleaner keep bounds them, and a removal past its deny rules has only Claude Code's classifier in the way.
+- **Removals lose local work.** The cleaner's removals rest on a rule tying them to your yes, outside a goal, what git and the cleaner keep bounds them, and a removal past its deny rules has only Claude Code's classifier in the way.
+- **A standing goal decides alone.** Under a goal, a session uses its judgment on what the rules keep for you, on words from any prompt or message, a stranger's or a fooled session's included; usage holds only as a rule, Claude Code's permissions may read a start prompt as your ask, and the log corrects only what can be undone, never what was published or sent off the machine.
 
 ## Open issues
 

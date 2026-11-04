@@ -46,8 +46,6 @@ This file is never installed.
 | Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. |
-| A standing goal | What counts as the owner's standing goal, and what can never set one: a file, memory, a tool's signal, starting a skill. Claude Code has no notion of a goal, and its rule on other sessions' messages covers only one of those sources. |
-| The bounded step | One step in place of stopping, under a goal, at a stall. No tool or harness behaviour gives a step past the stop. |
-| Trade-offs under a goal | The step outranks the cost limits, but a trade-off still comes to the owner. Nothing else holds the pact's review economics. |
-| A goal never lifts | The stops and owner decisions a goal leaves standing. Only the pact holds them. |
+| A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. No harness behaviour says what counts as a goal or lets a session decide past the pact's own stops. |
+| Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. |
 | Usage | A pause on weekly usage. The harness has no such pause. |
