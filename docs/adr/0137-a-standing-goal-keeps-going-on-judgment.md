@@ -24,6 +24,10 @@ The owner's words: "i dont want our rules to fight it, if someone sets a goal an
 
 Under a goal, a fooled session's prompt can merge, install, publish and remove, and what is published or sent off the machine cannot be taken back from the log. The threat model's new class says so. Claude Code's permissions are the only wall besides the rules a session follows, and usage holds only as a rule.
 
+The log's old limits go too: ADR 0125 said a goal's log never quotes the goal's words and names where the goal reached the session "by its kind, never a path or its words". The new line says only "where it came from", so a path or a message's words can reach the record, which is public tracker posts. "Posts are public" in the threat model covers it; putting the limit back would add about eight words to the rule and is not taken.
+
+"These rules" means the pact's own text. A project's own chat-only stops, such as this repo's install go-ahead and mise trust rule in `AGENTS.md`, are not lifted by a goal.
+
 ## How this was decided
 
 - **2026-11-04.** Decided on #475, spec v2, thorough tier on the sensitive route. The owner's words, relayed by the lead session: "Nothing stops it", "Yes, go ahead" (the short rule, the tier and the review budget) and "Yes, proceed" (S1's words, S2 gone, no second spec round, the seven exceptions left out, the cloud paste after merge and on a rollback). The threat-model line was accepted on the owner's word, taking effect with the merge. The spec pair and the security pair read the spec in one round; all four blocked on a definition that fitted any ask, and the owner's "set" closed it.

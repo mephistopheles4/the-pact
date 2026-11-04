@@ -46,6 +46,6 @@ This file is never installed.
 | Accepted threat classes | What a finding inside a class needs, and who adds a class. The threat model holds the classes, and this rule says what they do. |
 | Guards | The stops the owner keeps, beyond the harness's confirm-first. |
 | Stop and ask me | A fixed stop that holds where the harness would take a durable authorization. |
-| A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. No harness behaviour says what counts as a goal or lets a session decide past the pact's own stops. |
+| A standing goal | What sets one, and that a session then decides, on judgment, what the rules would bring to the owner and logs it. The harness's own goal command only keeps a session going; the pact's stops still hold it, and only the pact's text lets a session decide past them. |
 | Usage still holds | A goal parks the work before usage runs out. The harness doesn't park work before a limit. |
 | Usage | A pause on weekly usage. The harness has no such pause. |
