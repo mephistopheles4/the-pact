@@ -6,10 +6,6 @@ commands. It is a pact tool, off by default (ADR 0074); turn it on by listing
 `cleaner` in the `tools` key of `~/.claude/pact/config.json`. ADR 0124 says
 why it works this way.
 
-**Turn it on only after the Brigade release that drops Brigade's own raw
-removals.** While the cleaner is on, its deny rules stop those commands, so an
-older Brigade's cleanup is denied.
-
 ## Use
 
 ```text
