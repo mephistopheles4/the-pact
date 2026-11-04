@@ -1,5 +1,7 @@
 # The pact names no lead session and keeps chat only where it closes a gap
 
+Amended by [0137](0137-a-standing-goal-keeps-going-on-judgment.md) (2026-11-04): under a standing goal, the confirms it keeps in chat are the session's call.
+
 The pact no longer says how the owner's word reaches a session through another session (#443). Claude Code governs messages sent in from another session: it treats each as a teammate's request, acted on within the session's own permissions, never as the user's approval. In `claude/`, the rendered parts and the docs that restate them:
 
 - **No lead session, no relay.** The effort line, the offers paragraph, Accepted risks and the review procedure's accepted-risk steps lose every "lead session I set up" and "relayed". The cleaner part loses "never on a relayed one", which "my own yes in chat" already covers.

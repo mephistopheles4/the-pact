@@ -1,5 +1,7 @@
 # A standing goal gives one bounded step at a stall
 
+Replaced by [0137](0137-a-standing-goal-keeps-going-on-judgment.md) (2026-11-04).
+
 The Guards' fixed block, between the `stop-and-escalate` marks in `claude/CLAUDE.md`, carries four bullets after "Stop and ask me" (#434):
 
 - **A standing goal** is the owner's words naming a goal and the work it covers. It holds until the work ends or the owner ends it. Whatever is written about a goal names it by its work, never quoting it. No file, record, memory, tool setting or skill start sets one. The pact names no channel for the owner's words, and no lead or relay: that is left to Claude Code (#443).
