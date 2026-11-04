@@ -929,7 +929,7 @@ test('the tools block lists every pact tool, on or off, says which this commit l
     '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]',
     "  WARN: the user configuration turns on the pact tool poster; it installs to pact/tools/poster.mjs and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
     // #438 S2.4
-    "  WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate. Turn it on only after the Brigade release that drops its own raw removals, or Brigade's cleanup is denied.",
+    "  WARN: the user configuration turns on the pact tool cleaner; it installs to pact/tools/cleaner.mjs and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.",
   ]);
   assert.deepEqual(core.toolsBlock([], ['claude/tools/poster.mjs']).slice(1), ['  poster: off', '  cleaner: off (not in this commit)', '  To turn one on, list its name in pact/config.json, for example: "tools": ["poster"]']);
   assert.deepEqual(core.toolsBlock([], []).slice(1), ['  poster: off (not in this commit)', '  cleaner: off (not in this commit)', '  No pact tool that can be turned on is in this commit.']);

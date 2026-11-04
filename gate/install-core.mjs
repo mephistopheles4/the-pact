@@ -27,7 +27,7 @@ const TOOLS_DEST = 'pact/tools/';
 // What each tool does, said in its dry run WARN line after where it installs.
 const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
-  cleaner: ' and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate. Turn it on only after the Brigade release that drops its own raw removals, or Brigade\'s cleanup is denied.',
+  cleaner: ' and removes worktrees and local branches in the repository it runs in. Its deny rules on raw removal commands are a speed bump, not a gate.',
 });
 // The cleaner's deny rules (#438 S2.3): settings.json holds them only while
 // the cleaner is on. The install adds the ones not already there and records
