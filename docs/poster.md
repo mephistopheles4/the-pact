@@ -294,7 +294,7 @@ nothing sent.
 | `table/disposition` | A Disposition cell doesn't start with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted`; or, in a row whose Finding cell is exactly `withheld, see chat`, it is anything but one bare `open`, `fixed`, `taken` or `dismissed` |
 | `table/skipped` | `skipped` isn't followed by `, because` |
 | `table/auto` | ` (auto` isn't followed by `:`, `)` or `, reversed` |
-| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or the word "withheld", in any case, spacing or markup, comes straight after a state word |
+| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or the word "withheld", in any case, spacing or markup, comes after a state word, after any marks and one severity word (`high`, `medium` or `low`) with its colon (#478) |
 | `fence/unclosed` | A fence is left open: the body ends inside it, or a `mermaid` fence runs into another fence or a fold's tag |
 | `text/hard-wrap` | A prose line stops mid-sentence and the next line continues the same paragraph, list item or quote |
 | `link/relative` | A link's target has no scheme and isn't an anchor on the same page |
@@ -403,7 +403,6 @@ kept by hand from the poster's source; no test holds them.
   a look-alike letter from another script, a renderer other than GitHub's
   comments, or a raw-HTML or markdown structure the page copy reads
   differently from GitHub's page.
-- **A withheld text after a severity mark and word** (#478): `new 🔴 high: withheld, see chat` is not refused. The guard against the word "withheld" after a state word skips only punctuation and symbols, so a severity word in between hides it. The review procedure forbids it, and a withheld row's Finding cell is exactly the withheld text.
 - **Option values other than `--label`,** which are checked against patterns, not scanned.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
