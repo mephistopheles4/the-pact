@@ -1089,14 +1089,17 @@ const leadWord = (words, cell) => words.find(w => cell.startsWith(w) && !LETTER_
  * a word the page hides in a comment or tag still is; each copy is also read
  * with its links folded to their text, both ways `folds` gives (#396), and
  * its emphasis and code span marks dropped, which can split the word on the
- * page. A finding that quotes the withheld text after other words is not
- * matched.
+ * page. A severity word (high, medium or low), a `security?` after it and the
+ * marks around them are skipped too, as the review procedure's Finding cell
+ * puts them before the finding (#478). A finding that quotes the withheld text after other words
+ * is not matched.
  */
 function withheldAfter(cell, state) {
   const after = cell.slice(state.length);
   const normalised = copies(after);
   return [after.replace(/\p{Cf}/gu, ''), ...normalised, ...normalised.flatMap(c => folds(c))].some(view => {
-    const rest = view.replace(/^[^\p{L}\p{N}]+/u, '').toLowerCase();
+    // #478: the template puts a severity mark, word and colon after the state word, so one severity word, and a `security?` after it, are skipped too.
+    const rest = view.replace(/^[^\p{L}\p{N}]+/u, '').toLowerCase().replace(/^(?:high|medium|low)(?![\p{L}\p{N}])[^\p{L}\p{N}]*(?:security\?[^\p{L}\p{N}]*)?/u, '');
     return rest.startsWith('withheld') && !LETTER_RE.test(rest['withheld'.length] ?? '');
   });
 }

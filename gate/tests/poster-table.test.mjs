@@ -252,7 +252,7 @@ test('each refusal names its line and column, and a rule broken twice is named t
 // #336 C4: a read row's Finding cell starts with a state word, or is exactly the withheld text, which takes no state word, whatever its case, spacing or markup; a refusal names the cell's place, never its text.
 test('a Finding cell without a state word is refused as table/state at its column, and a skipped row\'s Finding cell is not read', t => {
   const row = finding => body(LABEL, '', HEADER, SEP, `| ${finding} | b | fixed | c |`);
-  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat', `new withheld, see chat ${MARK}`, 'new Withheld, see chat', 'updated **withheld**, see chat', 'new withheld', 'new _withheld_, see chat', 'new `withheld`, see chat', 'new "withheld", see chat', 'Withheld, see chat', '**withheld, see chat**', 'new \u201Cwithheld\u201D, see chat', 'new ~~withheld~~, see chat', 'withheld,  see chat']) {
+  for (const finding of [`${MARK} F1`, `**new** ${MARK}`, `newer ${MARK}`, `New ${MARK}`, `withheld, see chat ${MARK}`, 'unchanged withheld, see chat', 'absent  withheld, see chat', 'new: withheld, see chat', `new withheld, see chat ${MARK}`, 'new Withheld, see chat', 'updated **withheld**, see chat', 'new withheld', 'new _withheld_, see chat', 'new `withheld`, see chat', 'new "withheld", see chat', 'Withheld, see chat', '**withheld, see chat**', 'new \u201Cwithheld\u201D, see chat', 'new ~~withheld~~, see chat', 'withheld,  see chat', /* #478: the template's own shape, a severity mark, word and colon before the text */ 'new 🔴 high: withheld, see chat', 'updated 🟠 medium: withheld, see chat', 'unchanged 🟡 low withheld, see chat', 'absent 🔴 HIGH: Withheld, see chat', 'new high: withheld, see chat', 'new 🔴 high security?: withheld, see chat', 'updated 🟠 medium (security?): withheld, see chat', 'unchanged 🟡 low, security? withheld, see chat']) {
     const r = runBody({ 'body.md': row(finding) }, t);
     refusedQuietly(r);
     assert.deepEqual(r.real.lines, ['REFUSED table/state body 5:3', 'RESULT: refused 1'], finding);
@@ -273,7 +273,7 @@ test('a Finding cell without a state word is refused as table/state at its colum
   // The bare-word rule is the withheld row's alone: an ordinary row may still be noted.
   assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| new ${MARK} | b | noted | c |`)), [], 'ordinary row: noted');
   // A finding that quotes the withheld text after other words is a finding, not a withheld row.
-  for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat', `new ${MARK} quotes "withheld, see chat"`, `new withhelden ${MARK}`, `new 3 withheld reports ${MARK}`]) assert.deepEqual(rules(row(finding)), [], finding);
+  for (const finding of [`new ${MARK}`, `updated ${MARK}`, `unchanged ${MARK}`, `absent ${MARK}`, 'withheld, see chat', `new ${MARK} quotes "withheld, see chat"`, `new withhelden ${MARK}`, `new 3 withheld reports ${MARK}`, /* #478 */ 'new 🟠 medium: it quotes "withheld, see chat" later', 'new 🟡 low: higher withheld text']) assert.deepEqual(rules(row(finding)), [], finding);
   for (const finding of ['', `${MARK} F1`, 'new withheld, see chat']) assert.deepEqual(rules(body(LABEL, '', HEADER, SEP, `| ${finding} | b | skipped, because ${MARK} | c |`)), [], `skipped: ${JSON.stringify(finding)}`);
 });
 
@@ -344,6 +344,16 @@ test("the check's state words are the review procedure's", () => {
   const sentence = flat.match(/The Finding cell starts with the finding's state word, one of ([^.]*?), in lower case and with no markup, then a space and the finding\./);
   assert.ok(sentence, 'the state-word sentence');
   assert.deepEqual([...sentence[1].matchAll(/`([a-z]+)`/g)].map(m => m[1]), [...DISPOSITIONS.states]);
+});
+
+// #478: the review procedure's marked Finding-cell example is one the check accepts, and the same cell with its mark before the state word is not.
+test("the check accepts the review procedure's marked Finding-cell example", () => {
+  const flat = REVIEW().replace(/\s+/g, ' ');
+  const example = flat.match(/as `(new [^`]*: the finding)`/);
+  assert.ok(example, 'the marked example');
+  const row = cell => ['Lens dispositions', '', `| ${DISPOSITIONS.header.join(' | ')} |`, '| --- | --- | --- | --- |', `| ${cell} | a-lens | open | |`].join('\n');
+  assert.deepEqual(tableCheck(row(example[1])).length, 0, 'the check accepts the example as written');
+  assert.notEqual(tableCheck(row(`\u{1F534} ${example[1].replace(' \u{1F534}', '')}`)).length, 0, 'control: a mark before the state word has no state word');
 });
 
 // #336 C10 (ASVS 5.0 V16): no refusal of any table/ rule holds the text of the cell it refuses.

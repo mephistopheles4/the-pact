@@ -294,7 +294,7 @@ nothing sent.
 | `table/disposition` | A Disposition cell doesn't start with `fixed`, `taken`, `dismissed`, `skipped`, `open` or `noted`; or, in a row whose Finding cell is exactly `withheld, see chat`, it is anything but one bare `open`, `fixed`, `taken` or `dismissed` |
 | `table/skipped` | `skipped` isn't followed by `, because` |
 | `table/auto` | ` (auto` isn't followed by `:`, `)` or `, reversed` |
-| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or the word "withheld", in any case, spacing or markup, comes straight after a state word |
+| `table/state` | A Finding cell doesn't start with a state word (`new`, `updated`, `unchanged` or `absent`), in a row that isn't `skipped` and whose Finding cell isn't exactly `withheld, see chat`; or the word "withheld", in any case, spacing or markup, comes after a state word, after any marks and one severity word (`high`, `medium` or `low`), a `security?` after it and the colon (#478) |
 | `fence/unclosed` | A fence is left open: the body ends inside it, or a `mermaid` fence runs into another fence or a fold's tag |
 | `text/hard-wrap` | A prose line stops mid-sentence and the next line continues the same paragraph, list item or quote |
 | `link/relative` | A link's target has no scheme and isn't an anchor on the same page |
@@ -407,12 +407,11 @@ kept by hand from the poster's source; no test holds them.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
   leading `|`, and any table inside a fence.
-- **The review comment's human layer** (#401): its title, signal table, boxes
-  and counts, and what its diagrams say. The content scans read all of it,
-  diagrams included; the table, wrap and link checks never read inside a
-  fence, and nothing checks the counts against the table or that a withheld
-  finding stays out. Since #464 no rule covers the layout; the procedure says
-  only to write "withheld, see chat" in a withheld report's place.
+- **The review comment's opening** (#401, #478): its title line, signal
+  table, 1 to 3 diagrams and count line, and what the diagrams say. The content scans read
+  all of it, diagrams included; the table, wrap and link checks never read
+  inside a fence, and nothing checks the counts against the table, the number
+  of diagrams, their labels or that a withheld finding stays out.
 - **A session that sets out to get past them.** They catch accidents.
 - **The poster itself.** Nothing checks the live file before a session runs
   it; the next dry run shows a changed one as drift (threat model, The pact gets loosened).
