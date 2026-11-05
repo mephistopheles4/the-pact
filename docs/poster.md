@@ -407,8 +407,8 @@ kept by hand from the poster's source; no test holds them.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
   leading `|`, and any table inside a fence.
-- **The review comment's opening** (#401, #478): its title line, 1 to 3
-  diagrams and count line, and what the diagrams say. The content scans read
+- **The review comment's opening** (#401, #478): its title line, signal
+  table, 1 to 3 diagrams and count line, and what the diagrams say. The content scans read
   all of it, diagrams included; the table, wrap and link checks never read
   inside a fence, and nothing checks the counts against the table, the number
   of diagrams, their labels or that a withheld finding stays out.

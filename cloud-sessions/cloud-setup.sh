@@ -1033,9 +1033,13 @@ Ask each lens to report in this shape:
   `auto`.
 - **One review comment per round.** Open it with a title line,
   `## <stage> round <n> on <head or spec revision>: <verdict>, <N> for you`,
-  N being the `open`, trade-off and `security?` rows waiting on me. Then 1 to 3
-  diagrams, then a count line with one count per Disposition word, summing to the
-  table's rows. Write this opening last, from the final Lens dispositions table.
+  N being the rows that need my decision (an `open`, trade-off or `security?`
+  row), not a drafted fix waiting on my word. Then a signal table, one row per
+  lens that ran: the lens, its signal (the fate of its most urgent row: for me,
+  waiting, taken, fixed, or dismissed) and one line in your own words. Then 1 to
+  3 diagrams, then a count line with one count per Disposition word, summing to
+  the table's rows. Write this opening last, from the final Lens dispositions
+  table.
   For a pair, then put the places both lenses flagged, then each lens's own
   findings, then the table, then each report verbatim in its own fold.
 
@@ -1051,7 +1055,7 @@ trust the result. It is the diagram's heading. The type follows the sentence:
 | --- | --- |
 | How did it fail, or how does it work now? | sequence diagram |
 | How does the state change? | state diagram |
-| What should I weigh? | quadrant chart, severity against likelihood, only when the lenses give both |
+| What should I weigh? | quadrant chart, severity against likelihood, only when the lenses give both and the points really separate |
 | What happened across rounds? | timeline |
 | What does the data hold? | ER diagram |
 | What does a spec's structure or its claims cover? | mindmap or flowchart |
@@ -1072,8 +1076,11 @@ when no other row answers the sentence.
 - **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
+- **A fix not yet decided** is labelled "proposed, not yet decided" in any
+  diagram that draws it, so it can't read as done.
 - **A withheld lens** has no part in a diagram or the title line's counts: those
-  cover posted findings only, and the title line says so.
+  cover posted findings only, and the title line says so. Its signal row says
+  only `withheld, see chat`, nothing about what was held back.
 - **A place that can't draw them** gets the title and count lines as plain text,
   with no diagram.
 
@@ -1224,7 +1231,7 @@ check_hash dc1d1cdc5d332b31164d4d40f5db965088120164b0e2707e86ac6152fc7c9e47 'age
 check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'agents/reader-lens.md'
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
-check_hash 171083279612223bf2440e5c0835bf80a7fc13b2581290772e2739e4989b637e 'pact/review.md'
+check_hash 40bc89874d773a8eee4bda04ac1d215486847ff18e22714696d2ad56e534c584 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1254,7 +1261,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 22c8e27f6d1c"
+  echo "pact cloud copy 1c9b1f018032"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

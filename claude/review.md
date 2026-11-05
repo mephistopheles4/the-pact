@@ -50,9 +50,13 @@ Ask each lens to report in this shape:
   `auto`.
 - **One review comment per round.** Open it with a title line,
   `## <stage> round <n> on <head or spec revision>: <verdict>, <N> for you`,
-  N being the `open`, trade-off and `security?` rows waiting on me. Then 1 to 3
-  diagrams, then a count line with one count per Disposition word, summing to the
-  table's rows. Write this opening last, from the final Lens dispositions table.
+  N being the rows that need my decision (an `open`, trade-off or `security?`
+  row), not a drafted fix waiting on my word. Then a signal table, one row per
+  lens that ran: the lens, its signal (the fate of its most urgent row: for me,
+  waiting, taken, fixed, or dismissed) and one line in your own words. Then 1 to
+  3 diagrams, then a count line with one count per Disposition word, summing to
+  the table's rows. Write this opening last, from the final Lens dispositions
+  table.
   For a pair, then put the places both lenses flagged, then each lens's own
   findings, then the table, then each report verbatim in its own fold.
 
@@ -68,7 +72,7 @@ trust the result. It is the diagram's heading. The type follows the sentence:
 | --- | --- |
 | How did it fail, or how does it work now? | sequence diagram |
 | How does the state change? | state diagram |
-| What should I weigh? | quadrant chart, severity against likelihood, only when the lenses give both |
+| What should I weigh? | quadrant chart, severity against likelihood, only when the lenses give both and the points really separate |
 | What happened across rounds? | timeline |
 | What does the data hold? | ER diagram |
 | What does a spec's structure or its claims cover? | mindmap or flowchart |
@@ -89,8 +93,11 @@ when no other row answers the sentence.
 - **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
   and class, on a flowchart, never as the steps of its path.
+- **A fix not yet decided** is labelled "proposed, not yet decided" in any
+  diagram that draws it, so it can't read as done.
 - **A withheld lens** has no part in a diagram or the title line's counts: those
-  cover posted findings only, and the title line says so.
+  cover posted findings only, and the title line says so. Its signal row says
+  only `withheld, see chat`, nothing about what was held back.
 - **A place that can't draw them** gets the title and count lines as plain text,
   with no diagram.
 
