@@ -5,11 +5,12 @@
 - **Every comment has 1 to 3 diagrams.** A round with few findings or none still gets one, drawing how the change works now or what the spec covers. A place that can't draw them gets the title and count lines as plain text.
 - **The sentence first, then the type.** The session writes the one sentence the diagram must explain, as its heading, and the type follows from a seven-row table: sequence, state, quadrant, timeline, ER, mindmap or flowchart, and a flowchart for location only.
 - **A flowchart is never the default.** A comment holds at most one, used only when no other row answers the sentence.
-- **The templates return:** the type table, the pin palette (fate colours on flowcharts only) and the centred block.
-- **The signal table returns:** one row per lens that ran, with the lens, its signal (the fate of its most urgent row, in words; the colour rule waits on the owner) and one line in the session's own words. N in the title line counts the rows that need the owner's decision, not a drafted fix waiting on the owner's word.
+- **The templates return:** the type table, the pin palette and the centred block. Pins are on flowcharts only and carry one colour meaning, the severity's: an open finding is red, orange or yellow by its severity and a fixed one green, replacing the fate colours.
+- **The signal table returns:** one row per lens that ran, with the lens, its signal (the mark of its most severe open finding, a neutral mark when none is open) and one line in the session's own words. N in the title line counts the rows that need the owner's decision, not a drafted fix waiting on the owner's word.
+- **Severity marks (revision 4):** 🔴 high, 🟠 medium, 🟡 low. The lens writes its mark beside each finding's severity in the report, inside the fence, with no fencing rule changed. In the Lens dispositions table the mark follows the state word, as `new 🔴 high: the finding`, with the header row exact; the poster's table check reads it unchanged, shown by a dry run. The findings above the folds carry the marks too. A withheld lens or row carries no mark or colour, and its Finding cell stays exactly the withheld text.
 - **Carried rules:** labels are the session's own words with no link or directive, an open security finding is shown by part and class and never as the steps of its path, a withheld lens stays out of the diagrams and the counts and its signal row says only `withheld, see chat`, a quadrant chart is drawn only when the lenses give both measures and the points really separate, and a fix not yet decided is labelled "proposed, not yet decided" in any diagram that draws it.
 
-The alert boxes, fate emoji, verdict line, crossed-findings fold, the fold around the table, the render-failure correction comment and the size-split rule stay cut. The poster is unchanged: its `fence/unclosed` check still guards the diagram fences.
+The alert boxes, verdict line, crossed-findings fold, the fold around the table, the render-failure correction comment and the size-split rule stay cut. The poster is unchanged: its `fence/unclosed` check still guards the diagram fences.
 
 This supersedes in part [ADR 0117](0117-a-review-comment-opens-with-a-human-layer-and-folds-its-data.md), whose human layer #466 cut, and [ADR 0123](0123-review-diagrams-pick-their-type-by-the-readers-question.md), whose sentence-first rule and type table come back here with the flowchart limit. Both stay as the record.
 
@@ -27,8 +28,8 @@ This supersedes in part [ADR 0117](0117-a-review-comment-opens-with-a-human-laye
 
 ## What it costs
 
-About 530 more words in `review.md`, read before a lens or a post and not loaded by every session; the rules file is unchanged. The verbatim report in the same comment may still hold the steps of a security path, which the threat model's "Posts are public" covers, so the label rule only keeps them out of the picture.
+About 570 more words in `review.md`, read before a lens or a post and not loaded by every session; the rules file is unchanged. The verbatim report in the same comment may still hold the steps of a security path, which the threat model's "Posts are public" covers, so the label rule only keeps them out of the picture.
 
 ## How this was decided
 
-- **2026-11-05** on #478, standard tier, specified and built by pact-478, relayed by backlog-lead. The owner's words came by relay, with "Yes, proceed", "mermaid can render in the chat btw" and "why do we need evals?" on spec revision 2, then "apply all 3, can we also restore the signals table?" on revision 3.
+- **2026-11-05** on #478, standard tier, specified and built by pact-478, relayed by backlog-lead. The owner's words came by relay, with "Yes, proceed", "mermaid can render in the chat btw" and "why do we need evals?" on spec revision 2, then "apply all 3, can we also restore the signals table?" on revision 3, and "Yes, keep the fence" on revision 4, where the owner asked for colour-coded severity labels on the lens findings; the one-colour-everywhere pins were the lead's pick, which the owner can reverse.

@@ -1012,9 +1012,9 @@ Ask each lens to report in this shape:
 - **Findings:** one per item, each with where it sits (a section, a claim, or
   a file and line), its severity, a one-line headline, the evidence and the
   smallest change that fixes it.
-  - Severity: `high` means the work can't be accepted as it stands, and names
-    its place and evidence; `medium` is fixed in this change or brought to me;
-    `low` can wait.
+  - Severity, written with its mark beside it: 🔴 `high` means the work can't
+    be accepted as it stands, and names its place and evidence; 🟠 `medium` is
+    fixed in this change or brought to me; 🟡 `low` can wait.
   - State: `new` (the work introduced it), `updated` (it was at the base and
     the work makes it worse, edits it or relies on it) or `unchanged` (at the
     base and untouched). On a follow-up, an `E` finding that no longer holds
@@ -1037,13 +1037,13 @@ Ask each lens to report in this shape:
   `## <stage> round <n> on <head or spec revision>: <verdict>, <N> for you`,
   N being the rows that need my decision (an `open`, trade-off or `security?`
   row), not a drafted fix waiting on my word. Then a signal table, one row per
-  lens that ran: the lens, its signal (the fate of its most urgent row: for me,
-  waiting, taken, fixed, or dismissed) and one line in your own words. Then 1 to
-  3 diagrams, then a count line with one count per Disposition word, summing to
+  lens that ran: the lens, its signal (the mark of its most severe `open`
+  finding, ⚪ when none is open) and one line in your own words. Then 1 to 3
+  diagrams, then a count line with one count per Disposition word, summing to
   the table's rows. Write this opening last, from the final Lens dispositions
   table.
   For a pair, then put the places both lenses flagged, then each lens's own
-  findings, then the table, then each report verbatim in its own fold.
+  findings, each with its severity mark, then the table, then each report verbatim in its own fold.
 
 ## Diagrams
 
@@ -1069,11 +1069,11 @@ when no other row answers the sentence.
 - **The block.** Each diagram sits under its sentence, written exactly as
   `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
   `</div>`.
-- **Pins,** on flowcharts only, are coloured by the finding's fate: waiting on me
-  `#cf222e33`, only waiting `#d4a72c33`, taken `#0969da33`, fixed `#2da44e33`;
-  dismissed, noted or skipped gets no pin. The border is the same colour without
-  its last two digits, `stroke-width:2px`, `3px` for a security finding. Boundary
-  boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
+- **Pins,** on flowcharts only, carry one colour meaning: an `open` finding takes
+  its severity's colour, `high` `#cf222e33`, `medium` `#bc4c0033`, `low`
+  `#d4a72c33`; a fixed one `#2da44e33`; every other row gets no pin. The border
+  is the same colour without its last two digits, `stroke-width:2px`, `3px` for a
+  security finding. Boundary boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
   `color:`.
 - **Labels** are your own words, never text from a report, and hold no link,
   `click`, `href` or init directive. An open security finding is shown by its part
@@ -1082,7 +1082,8 @@ when no other row answers the sentence.
   diagram that draws it, so it can't read as done.
 - **A withheld lens** has no part in a diagram or the title line's counts: those
   cover posted findings only, and the title line says so. Its signal row says
-  only `withheld, see chat`, nothing about what was held back.
+  only `withheld, see chat`, nothing about what was held back, and it carries
+  no severity mark or colour.
 - **A place that can't draw them** gets the title and count lines as plain text,
   with no diagram.
 
@@ -1132,8 +1133,9 @@ At every lens review, post a "Lens dispositions" table under a line naming
 
 The Finding cell starts with the finding's state word, one of `new`,
 `updated`, `unchanged` or `absent`, in lower case and with no markup, then a
-space and the finding. A `skipped` row needs none, and a withheld row's
-Finding cell is exactly "withheld, see chat".
+space and the finding. The finding starts with its severity mark and word and
+a colon, as `new 🔴 high: the finding`. A `skipped` row needs none, and a
+withheld row's Finding cell is exactly "withheld, see chat", with no mark.
 
 The Disposition cell starts with one of these words, in lower case and with no
 markup:
@@ -1233,7 +1235,7 @@ check_hash dc1d1cdc5d332b31164d4d40f5db965088120164b0e2707e86ac6152fc7c9e47 'age
 check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'agents/reader-lens.md'
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
-check_hash 40bc89874d773a8eee4bda04ac1d215486847ff18e22714696d2ad56e534c584 'pact/review.md'
+check_hash 92e7f68cc04d1450cefc0918a441137f034a31634f26df797107389c2e089320 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1263,7 +1265,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 1c9b1f018032"
+  echo "pact cloud copy aa1f2edf7372"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi
