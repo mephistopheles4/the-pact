@@ -1082,7 +1082,7 @@ when no other row answers the sentence.
   cover posted findings only, and the title line says so. Its signal row says
   only `withheld, see chat`, nothing about what was held back, and it carries
   no severity mark or colour.
-- **A place that can't draw them** gets the title and count lines as plain text,
+- **A place that can't draw them** gets the title line, signal table and count line as plain text,
   with no diagram.
 
 ## Posting
@@ -1233,7 +1233,7 @@ check_hash dc1d1cdc5d332b31164d4d40f5db965088120164b0e2707e86ac6152fc7c9e47 'age
 check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'agents/reader-lens.md'
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
-check_hash 92e7f68cc04d1450cefc0918a441137f034a31634f26df797107389c2e089320 'pact/review.md'
+check_hash f4ee26e6b643479e9bbcf5e9ba6764aa29bf503722c389d2d1db2936fc7edc4e 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1263,7 +1263,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy aa1f2edf7372"
+  echo "pact cloud copy 26c53ab0f767"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

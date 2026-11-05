@@ -99,7 +99,7 @@ when no other row answers the sentence.
   cover posted findings only, and the title line says so. Its signal row says
   only `withheld, see chat`, nothing about what was held back, and it carries
   no severity mark or colour.
-- **A place that can't draw them** gets the title and count lines as plain text,
+- **A place that can't draw them** gets the title line, signal table and count line as plain text,
   with no diagram.
 
 ## Posting
