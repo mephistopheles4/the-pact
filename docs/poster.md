@@ -407,12 +407,11 @@ kept by hand from the poster's source; no test holds them.
 - **The rest of the table:** the reason text, a `skipped` row's Finding cell, the
   Rerun cell, the Auto-takes list, escape and gap tables, a table with no
   leading `|`, and any table inside a fence.
-- **The review comment's human layer** (#401): its title, signal table, boxes
-  and counts, and what its diagrams say. The content scans read all of it,
-  diagrams included; the table, wrap and link checks never read inside a
-  fence, and nothing checks the counts against the table or that a withheld
-  finding stays out. Since #464 no rule covers the layout; the procedure says
-  only to write "withheld, see chat" in a withheld report's place.
+- **The review comment's opening** (#401, #478): its title line, 1 to 3
+  diagrams and count line, and what the diagrams say. The content scans read
+  all of it, diagrams included; the table, wrap and link checks never read
+  inside a fence, and nothing checks the counts against the table, the number
+  of diagrams, their labels or that a withheld finding stays out.
 - **A session that sets out to get past them.** They catch accidents.
 - **The poster itself.** Nothing checks the live file before a session runs
   it; the next dry run shows a changed one as drift (threat model, The pact gets loosened).

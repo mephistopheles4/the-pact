@@ -48,9 +48,51 @@ Ask each lens to report in this shape:
 - **You decide** which findings are security findings, by the rules file's
   Cost limits. A security or `security?` finding comes to me and is never
   `auto`.
-- **One review comment per round.** For a pair, put the places both lenses
-  flagged first, then each lens's own findings, then the Lens dispositions
-  table, then each report verbatim in its own fold.
+- **One review comment per round.** Open it with a title line,
+  `## <stage> round <n> on <head or spec revision>: <verdict>, <N> for you`,
+  N being the `open`, trade-off and `security?` rows waiting on me. Then 1 to 3
+  diagrams, then a count line with one count per Disposition word, summing to the
+  table's rows. Write this opening last, from the final Lens dispositions table.
+  For a pair, then put the places both lenses flagged, then each lens's own
+  findings, then the table, then each report verbatim in its own fold.
+
+## Diagrams
+
+Draw them generously: they are how I understand a round quickly. Each review
+comment has 1 to 3. A round with few findings or none still gets one, drawing how
+the change works now, or what the spec covers. Before you pick a type, write the
+one sentence the diagram must explain: what I need to understand to decide, or to
+trust the result. It is the diagram's heading. The type follows the sentence:
+
+| The question | Mermaid type |
+| --- | --- |
+| How did it fail, or how does it work now? | sequence diagram |
+| How does the state change? | state diagram |
+| What should I weigh? | quadrant chart, severity against likelihood, only when the lenses give both |
+| What happened across rounds? | timeline |
+| What does the data hold? | ER diagram |
+| What does a spec's structure or its claims cover? | mindmap or flowchart |
+| Where does it sit? | flowchart, boundaries as dashed boxes, each finding pinned on its part; only when location is the point |
+
+A flowchart is never the default: a comment holds at most one, and use it only
+when no other row answers the sentence.
+
+- **The block.** Each diagram sits under its sentence, written exactly as
+  `<div align="center">`, a blank line, the `mermaid` fence, a blank line and
+  `</div>`.
+- **Pins,** on flowcharts only, are coloured by the finding's fate: waiting on me
+  `#cf222e33`, only waiting `#d4a72c33`, taken `#0969da33`, fixed `#2da44e33`;
+  dismissed, noted or skipped gets no pin. The border is the same colour without
+  its last two digits, `stroke-width:2px`, `3px` for a security finding. Boundary
+  boxes have a transparent fill and a grey dashed border, `#8c959f`. Never set
+  `color:`.
+- **Labels** are your own words, never text from a report, and hold no link,
+  `click`, `href` or init directive. An open security finding is shown by its part
+  and class, on a flowchart, never as the steps of its path.
+- **A withheld lens** has no part in a diagram or the title line's counts: those
+  cover posted findings only, and the title line says so.
+- **A place that can't draw them** gets the title and count lines as plain text,
+  with no diagram.
 
 ## Posting
 
