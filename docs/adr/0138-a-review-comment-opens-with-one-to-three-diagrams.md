@@ -2,7 +2,7 @@
 
 `claude/review.md`'s "One review comment per round" bullet now opens the comment with a title line, a signal table, 1 to 3 Mermaid diagrams and a count line, written last from the final Lens dispositions table (#478). A new Diagrams section holds the rules:
 
-- **Every comment has 1 to 3 diagrams.** A round with few findings or none still gets one, drawing how the change works now or what the spec covers. A place that can't draw them gets the title and count lines as plain text.
+- **Every comment has 1 to 3 diagrams.** A round with few findings or none still gets one, drawing how the change works now or what the spec covers. A place that can't draw them gets the title line, signal table and count line as plain text.
 - **The sentence first, then the type.** The session writes the one sentence the diagram must explain, as its heading, and the type follows from a seven-row table: sequence, state, quadrant, timeline, ER, mindmap or flowchart, and a flowchart for location only.
 - **A flowchart is never the default.** A comment holds at most one, used only when no other row answers the sentence.
 - **The templates return:** the type table, the pin palette and the centred block. Pins are on flowcharts only and carry one colour meaning, the severity's: an open finding is red, orange or yellow by its severity and a fixed one green, replacing the fate colours.
