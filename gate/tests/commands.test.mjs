@@ -32,7 +32,7 @@ const line = text => t => ({ ...t, [CMD]: `${t[CMD]}${text}\n` });
     return moduleResult(r.code, r.stdout, r.stderr);
   };
   const rows = [
-    { id: 'unlisted-name', plant: t => ({ ...t, 'claude/commands/ship-it.md': GOOD }), fails: ['command-file-name'], why: 'a fourth command needs a gate change' },
+    { id: 'unlisted-name', plant: t => ({ ...t, 'claude/commands/ship-it.md': GOOD }), fails: ['command-file-name'], why: 'a fifth command needs a gate change' },
     { id: 'name-in-capitals', plant: () => ({ 'claude/commands/Finis.md': GOOD }), fails: ['command-file-name', 'commands-not-in-pact'], why: 'names are matched exactly, so finis is not in the stage' },
     { id: 'subfolder', plant: t => ({ ...t, 'claude/commands/more/finis.md': GOOD }), fails: ['command-path'], why: 'a command is exactly claude/commands/<name>.md' },
     { id: 'not-markdown', plant: t => ({ ...t, 'claude/commands/finis.txt': GOOD }), fails: ['command-file-name'], why: 'only a .md file is a command' },
