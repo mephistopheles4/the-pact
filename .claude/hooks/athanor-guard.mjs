@@ -3,8 +3,8 @@
 // before every Bash and PowerShell call in this repo, with the call as JSON on
 // standard input. AGENTS.md makes athanor the default for local runs of the
 // gate's tests (ADR 0099): `athanor run fast` while building, `athanor run` for
-// the full suite. The host runs `fast` and `full` only for `full` before an
-// install, or when athanor can't run. Sessions still skipped that order and
+// the full suite. The host runs `fast` and `full` only when athanor can't
+// run. Sessions still skipped that order and
 // nothing showed it, so this refuses a host `fast` or `full` run while athanor
 // is on the machine, and says how to name the fallback:
 // `--host-fallback=<reason>` on the same command, which the runner prints.
@@ -30,7 +30,7 @@ import { pathToFileURL } from 'node:url';
 // token in the command cannot come back out through it.
 const REFUSAL = [
   "Run the gate's tests through athanor: `athanor run fast` while building, `athanor run` for the full suite.",
-  'A host run of `fast` or `full` is the fallback only for `full` before an install, or when athanor can\'t run (no Docker, a copy older than 4121c28, or a run that ends 124, 125 or 137).',
+  'A host run of `fast` or `full` is the fallback only when athanor can\'t run (no Docker, a copy older than 4121c28, or a run that ends 124, 125 or 137).',
 "If that is why you are here, rerun the same command with `--host-fallback='<reason>'`, the reason quoted, so PowerShell keeps it one argument, and short, in your own plain words (no path, token or pasted error text), and say in your report that you used the fallback.",
   '`changed` and `--list` run on the host as they are. AGENTS.md, "Running the gate\'s tests", has the rest.',
 ].join(' ');

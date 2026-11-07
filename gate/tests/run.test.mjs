@@ -313,7 +313,7 @@ test('parseArgs: unknown tiers, reporters and options, and a missing value, are 
 // #383 (S3, claim 5): the named host fallback, in its = form only, on fast and full.
 test('parseArgs: --host-fallback=<reason> on fast and full; an empty reason, the space form and changed are usage errors', () => {
   assert.equal(parseArgs(['fast', '--host-fallback=no docker']).opts.hostFallback, 'no docker');
-  assert.equal(parseArgs(['full', '--host-fallback=before an install']).opts.hostFallback, 'before an install');
+  assert.equal(parseArgs(['full', '--host-fallback=no docker here']).opts.hostFallback, 'no docker here');
   assert.equal(parseArgs(['fast', "--host-fallback=athanor exited 125, Docker stopped (restarting it)."]).opts.hostFallback, 'athanor exited 125, Docker stopped (restarting it).');
   assert.equal(parseArgs(['full', '--host-fallback=athanor-run: exit 125; Docker down']).opts.hostFallback, 'athanor-run: exit 125; Docker down');
   assert.equal(parseArgs(['--host-fallback=no docker', 'fast']).opts.tier, 'fast', 'the flag may come before the tier');
