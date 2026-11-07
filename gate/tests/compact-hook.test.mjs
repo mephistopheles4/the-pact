@@ -157,6 +157,33 @@ test('#482 C8: a session_id outside [A-Za-z0-9-], a missing transcript and bad J
   assert.equal(existsSync(ctx.dir), false);
 });
 
+// #482 C4, C5: the install's own checks, each seen to refuse.
+test('#482: the install refuses a hook script path outside the Claude home folder and a window the renderer should never report, and fills only its two tokens', async () => {
+  const core = await import('../install-core.mjs');
+  const { createHash } = await import('node:crypto');
+  const overlay = core.readSettings(readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8'));
+  const home = join('/', 'tmp', 'claude-home');
+  const inside = join(home, 'pact', 'hooks', 'compact-handoff.mjs');
+  const filled = core.fillHooks(overlay, home, inside, 500000, 'linux');
+  const args = filled.get('hooks').get('Stop')[0].get('hooks')[0].get('args');
+  assert.deepEqual(args, [inside, '500000']);
+  assert.equal(filled.get('hooks').get('Stop')[0].get('hooks')[0].get('command'), 'node');
+  for (const outside of [join('/', 'tmp', 'elsewhere', 'compact-handoff.mjs'), join('/', 'tmp', 'claude-home-evil', 'x.mjs'), home]) {
+    assert.throws(() => core.fillHooks(overlay, home, outside, 500000, 'linux'), e => e instanceof core.Refusal && e.rule === 'hook-script-path', outside);
+  }
+  // The renderer's lines: an auto-compact window off the range or its step, or with no configuration, is refused.
+  const hash = b => createHash('sha256').update(b).digest('hex');
+  const cfg = hash('cfg');
+  const digest = hash(Buffer.from(`user ${cfg}\n`, 'ascii')).slice(0, 12);
+  const lines = value => ['RENDERED ' + hash('r'), 'DIFF ' + hash('d'), `CONFIG user ${cfg}`, `DIGEST ${digest}`, ...(value === null ? [] : [`VALUE auto-compact-window ${value}`]), 'COMMANDS none', 'TOOLS none', 'RESULT: pass'];
+  const parse = l => core.parseRenderLines(l, { project: false, hash });
+  assert.equal(parse(lines('600000')).values.get('auto-compact-window'), '600000');
+  assert.equal(core.compactWindow(parse(lines(null))), 400000);
+  assert.equal(core.compactWindow(parse(lines('0'))), 0);
+  for (const bad of ['99999', '1000001', '410001', '4e5', '-1']) assert.throws(() => parse(lines(bad)), e => e instanceof core.Refusal, bad);
+  assert.throws(() => parse(['RENDERED ' + hash('r'), 'DIFF ' + hash('d'), 'CONFIG none', 'VALUE auto-compact-window 600000', 'COMMANDS none', 'TOOLS none', 'RESULT: pass']), e => e instanceof core.Refusal);
+});
+
 // The parity test for the default and the hook names (#482): the installer's, the generator's and the renderer's copies agree.
 test('#482: the default window is one number in the renderer, the install and the cloud generator, and the hook names agree', async () => {
   const core = await import('../install-core.mjs');
