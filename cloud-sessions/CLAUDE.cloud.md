@@ -149,7 +149,7 @@ trade-off.
 
 | Cost | Counted as | Limit | At the limit |
 | --- | --- | --- | --- |
-| Tests added | Tests beyond one per acceptance claim | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
+| Tests added | Tests that earn no claim: none backs one, it repeats one that already does, or it pins how the work is done rather than what it does. | 2 per change | The finding becomes a trade-off for me: the test, the claim it would back, and its upkeep |
 | Hardening | Guards for paths that are not security findings, as Cost limits defines them | 0 | Reported as a note; never built unasked |
 | Follow-up issues | Issues filed from one review, each naming its trigger: an event or step that must not happen before it lands; one with no trigger counts as past the limit | 2 | The rest listed as notes in the review's record; I pick which to file |
 | Lens pairs | Lens pairs run in one review round; a lens offered alone counts as a pair | 2 | The next pair becomes a trade-off for me: which pair it would replace, and what it would check |

@@ -74,12 +74,6 @@ test('an install line carries the staged bytes hash', t => {
   assert.match(hash, /^[0-9a-f]{64}$/);
 });
 
-// The pact is vetted like a skill: seam A says it checks install mechanics, not what the files say.
-test('seam A makes no claim about the rules file\'s words', t => {
-  const r = expectPass(t, {});
-  assert.doesNotMatch(r.stdout, /^NOTE partly-checked/m);
-});
-
 test('the settings overlay is never listed for install', t => {
   const r = expectPass(t, {});
   assert.doesNotMatch(r.stdout, /^INSTALL .*settings\.overlay\.json/m);

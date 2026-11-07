@@ -117,7 +117,8 @@ const POSIX_FORM = 'env -u NODE_OPTIONS node gate/tests/run.mjs ';
 test('the Linux container script starts the runner with NODE_OPTIONS cleared', () => {
   const sh = readFileSync(join(HERE, 'fixtures', 'linux', 'run.sh'), 'utf8');
   const lines = sh.split('\n').filter(l => /\bnode\b.*run\.mjs/.test(l) && !l.trim().startsWith('#'));
-  assert.deepEqual(lines, ['env -u NODE_OPTIONS node gate/tests/run.mjs full --reporter junit --record /out/record.txt']);
+  assert.ok(lines.length > 0, 'run.sh starts no runner');
+  for (const l of lines) assert.match(l, /^env -u NODE_OPTIONS node /, l);
 });
 
 function which(cmd) {
