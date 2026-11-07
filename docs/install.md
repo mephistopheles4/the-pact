@@ -263,8 +263,8 @@ parts:
   naming such rows by position; the install goes ahead. A project's `costLimits`
   refuses without its `qualities`, and an `acceptedRisks` key is refused as
   any other key is: accepted threat classes live only in a threat model.
-- **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis` and
-  `/scriptorium`, each `on` or `off`, and `(not in this commit)` for one the
+- **`Commands:`.** The pact's own slash commands, `/make-it-so`, `/finis`,
+  `/scriptorium` and `/scry`, each `on` or `off`, and `(not in this commit)` for one the
   commit doesn't hold yet. `/scriptorium` reads `on, always: part of the
   pact, with the builder kit under pact/builder/`: it builds your own
   Scriptorium page, and installs whenever the commit holds it (ADR 0070).

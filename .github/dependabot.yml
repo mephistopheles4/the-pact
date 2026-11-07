@@ -10,3 +10,9 @@ updates:
       interval: weekly
     cooldown:
       default-days: 14
+    # codeql.yml pins init and analyze to one commit, and the gate fails if
+    # they differ, so their updates come as a single pull request.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action/*"

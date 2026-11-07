@@ -4,6 +4,44 @@ What the pact accepts, and what is still open. Read it before you install the
 pact, and before you change it. [`SECURITY.md`](../SECURITY.md) says how to
 report a hole.
 
+## Residual risk at a glance
+
+```mermaid
+quadrantChart
+  title Residual risk by accepted class
+  x-axis Unlikely --> Likely
+  y-axis Minor --> Severe
+  quadrant-1 Act now
+  quadrant-2 Guard closely
+  quadrant-3 Accept
+  quadrant-4 Watch
+  Text steers a session: [0.56, 0.86]
+  Who counts as you: [0.40, 0.78]
+  Posts are public: [0.80, 0.75]
+  What you install and CI run: [0.22, 0.92]
+  The pact gets loosened: [0.45, 0.72]
+  Review rests on rules: [0.45, 0.56]
+  Local copies on disk: [0.30, 0.55]
+  Removals lose local work: [0.32, 0.46]
+  A standing goal decides alone: [0.20, 0.64]
+```
+
+The chart places each class by what is left after today's guards. L and I are
+likelihood and impact, from 0 to 1: judgement, not measurement. They rank
+the classes; they do not size them. The open issues below are not drawn.
+
+| Class | L | I |
+| --- | --- | --- |
+| Text steers a session | 0.56 | 0.86 |
+| Who counts as you | 0.40 | 0.78 |
+| Posts are public | 0.80 | 0.75 |
+| What you install and CI run | 0.22 | 0.92 |
+| The pact gets loosened | 0.45 | 0.72 |
+| Review rests on rules | 0.45 | 0.56 |
+| Local copies on disk | 0.30 | 0.55 |
+| Removals lose local work | 0.32 | 0.46 |
+| A standing goal decides alone | 0.20 | 0.64 |
+
 ## Scope
 
 **In scope:** anything that crosses a real boundary into or out of a pact
@@ -20,6 +58,56 @@ nothing in scope started, supplied or steered, and your own edits and your own
 account's edit in the browser. Claude Code, Anthropic's models and
 servers, GitHub, and the safety of your machine and accounts are out too. Your
 GitHub account is the root of trust: whoever controls it counts as you.
+
+## Boundaries
+
+```mermaid
+flowchart LR
+  tracker["Strangers and outside PRs"]
+  repo["Cloned repos and plugins"]
+  upstream["Upstream releases"]
+  session["Fooled or careless sessions"]
+  readers["Readers of the tracker"]
+  locals["Other local accounts"]
+
+  subgraph B1["Text into a session"]
+    T1["Text steers a session"]
+    T2["A standing goal decides alone"]
+  end
+  subgraph B2["What you install, and CI"]
+    T3["What you install and CI run"]
+  end
+  subgraph B3["Your configuration and the install"]
+    T4["The pact gets loosened"]
+    T5["Review rests on rules"]
+  end
+  subgraph B4["What leaves the machine"]
+    T6["Posts are public"]
+    T7["Who counts as you"]
+  end
+  subgraph B5["Your disk"]
+    T8["Local copies on disk"]
+    T9["Removals lose local work"]
+  end
+
+  tracker --> B1
+  repo --> B1
+  repo --> B2
+  upstream --> B2
+  session --> B1
+  session --> B3
+  session --> B4
+  readers --> B4
+  locals --> B5
+
+  style B1 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B2 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B3 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B4 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+  style B5 fill:transparent,stroke:#8c959f,stroke-dasharray: 5 5
+```
+
+Each box is a boundary a class crosses; the arrows say who reaches it.
 
 ## Accepted threat classes
 

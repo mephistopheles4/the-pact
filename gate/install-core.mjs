@@ -19,7 +19,7 @@ export const AGENT_EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'm
 export const RETIRED = Object.freeze(['agents/builder.md', 'agents/spec-builder.md', 'agents/security-builder.md']);
 // The pact's own commands (#203): the install's own copy of PACT_COMMANDS in
 // gate/shared.mjs, so it works out its copy set without seam A's list.
-export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium', 'scry']);
 // The pact's own tools (#280): the install's own copy of PACT_TOOLS in
 // gate/shared.mjs. A tool installs to TOOLS_DEST<name>.mjs only when the
 // configuration's tools list names it.
