@@ -111,25 +111,31 @@ the worktree; and index stat data a session forged, or `core.ignoreCase` on
 a case-sensitive file system, can still make an edit or a file read as
 clean.
 
-## Brigade
+## A stopped session's lock
 
-Grimoire's Brigade mod runs the cleaner itself, from 484's release on: after
-the lead archives or stops the sessions the owner named in a typed
-`/brigade done`, its `clean_up` tool runs `show --recoverable` and then
-`remove --recoverable` with the tags `show` printed, for exactly that typed
-window's folders and while it is open. The typed command is the owner's one
-yes; `show`'s output says calling `clean_up` after it needs no other, and that
-a `/brigade done` is never a session's yes to run the cleaner itself. That
-release meets the order rule above.
+`claude --bg -w <name>` locks the worktree it makes, with the reason `claude
+session <name> (pid <digits>)`. The cleaner calls a lock a *session lock* only
+when its reason is exactly that, with the worktree's own folder name; any other
+reason, or none, is an *other lock*. A session still running is kept as "in
+use" before any lock is read, since its status file names the worktree as its
+cwd, so a session lock here is a stopped session's.
+
+`show` says `locked by a stopped session; remove unlocks it` for a session lock
+and `locked, git will refuse` for any other. The tag covers the lock's reason,
+so a lock added, dropped or changed after `show` reads as changed. `remove`
+runs `git worktree unlock`, then the same unforced `git worktree remove`. If
+git refuses, the cleaner locks the worktree again with the same reason, and
+says `the lock was not put back` if that fails too. Neither the reason nor the
+pid is ever printed.
 
 ## What it never does
 
 It never passes `--force`, `-f`, `-D` or `--delete`, never pushes or prunes,
 never touches a stash, and never removes anything its name-back didn't name
 with the same facts. It asks no remote for anything, but in a partial clone
-a read without `--recoverable` could make git fetch a missing object. git's
-own refusals stand: a worktree with changed or untracked files, a lock or a
-submodule is left. Without `--recoverable`, a worktree's ignored files, such
+a read without `--recoverable` could make git fetch a missing object. It
+unlocks a session lock and leaves any other lock. git's own refusals stand: a
+worktree with changed or untracked files, another lock or a submodule is left. Without `--recoverable`, a worktree's ignored files, such
 as `.env`, go with its folder; the name-back says so.
 
 It runs git by an absolute path from `PATH`, from an empty folder, with an

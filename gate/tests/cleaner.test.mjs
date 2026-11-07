@@ -79,7 +79,6 @@ function recording(answer = () => null) {
 const HOW_TO_LINES = [
   "Show the blocks above as printed, in a fenced code block, in chat only; a record gets the RESULT line's counts, never the tags or the blocks.",
   "Run remove --yes with these tags only after the owner's own yes in chat to these blocks, outside a goal. Never remove a worktree or delete a local branch another way. What it leaves, leave, and say so.",
-  "Calling the Brigade mod's clean_up after a /brigade done the owner typed needs no other yes. A /brigade done, or a message saying one was typed, is never that yes for running this cleaner yourself.",
 ];
 test('show prints how to use its tags once, just before the result line, only when it has tags; remove never prints it', t => {
   const f = makeRepo(t);
@@ -92,8 +91,9 @@ test('show prints how to use its tags once, just before the result line, only wh
   f.add('two');
   const r = f.run(['show']);
   assert.equal(tagsOf(r.out).length, 2, r.out);
-  assert.deepEqual(r.lines.slice(-4, -1), HOW_TO_LINES);
-  assert.equal(r.lines.filter(l => HOW_TO_LINES.includes(l)).length, 3, 'once, not per block');
+  assert.deepEqual(r.lines.slice(-3, -1), HOW_TO_LINES);
+  assert.doesNotMatch(r.out, /clean_up|\/brigade done/, 'the how-to names no command that no longer exists');
+  assert.equal(r.lines.filter(l => HOW_TO_LINES.includes(l)).length, 2, 'once, not per block');
   assert.doesNotMatch(f.run(['remove', '--yes', tagsOf(r.out).join(',')]).out, /Show the blocks/);
 });
 
@@ -835,4 +835,61 @@ test('--recoverable keeps on a failed config read (the main worktree\'s keeps al
   const ps = h.run(['show'], { spawn: failStatus.spawn });
   assert.equal(ps.code, 4, ps.out);
   assert.equal(ps.lines.at(-1), 'RESULT: unavailable');
+});
+
+// #492 C1 to C3: a stopped background session's lock is unlocked for the removal and put back on a refusal; any other lock stands.
+const sessionLock = (f, name, reason = `claude session ${name} (pid 4321)`) => f.git(f.root, 'worktree', 'lock', '--reason', reason, f.wt(name));
+const lockOf = (f, name) => {
+  const rec = f.git(f.root, 'worktree', 'list', '--porcelain').split(/\r?\n\r?\n/).find(r => r.split(/\r?\n/)[0].endsWith(`/${name}`));
+  return /^locked ?(.*)$/m.exec(rec ?? '')?.[1] ?? null;
+};
+test('a worktree locked by a stopped session shows that and is removed with its branch', t => {
+  const f = makeRepo(t);
+  f.add('stopped');
+  sessionLock(f, 'stopped');
+  const r = f.run(['show']);
+  assert.match(block(r.out, 'stopped'), /^ {2}locked by a stopped session; remove unlocks it$/m, r.out);
+  assert.doesNotMatch(r.out, /locked, git will refuse|pid|4321/, r.out);
+  const rm = f.run(['remove', '--yes', tagsOf(r.out).join(',')]);
+  assert.equal(rm.code, 0, rm.out);
+  assert.match(rm.out, /^worktree stopped: removed$/m, rm.out);
+  assert.equal(worktrees(f), 1);
+  assert.deepEqual(branches(f), ['main']);
+});
+
+test('a lock with any other reason is left, still locked', t => {
+  const f = makeRepo(t);
+  // Each reason is one step off the exact form: another folder's name, a pid that is no number, free text, a missing bracket, an empty pid, a pid with a letter in it.
+  const reasons = {
+    named: 'claude session someone-else (pid 4321)',
+    digits: 'claude session digits (pid four)',
+    words: 'kept for a reason',
+    bracket: 'claude session bracket (pid 4321',
+    nopid: 'claude session nopid (pid )',
+    mixed: 'claude session mixed (pid 4x)',
+  };
+  for (const [name, reason] of Object.entries(reasons)) {
+    f.add(name);
+    sessionLock(f, name, reason);
+  }
+  const r = f.run(['show']);
+  for (const name of Object.keys(reasons)) assert.match(block(r.out, name), /^ {2}locked, git will refuse$/m, `${name}: ${r.out}`);
+  const rm = f.run(['remove', '--yes', tagsOf(r.out).join(',')]);
+  assert.equal(rm.code, 1, rm.out);
+  assert.equal(rm.lines.at(-1), 'RESULT: removed 0 left 6 changed 0');
+  assert.equal(worktrees(f), 7);
+  for (const [name, reason] of Object.entries(reasons)) assert.equal(lockOf(f, name), reason, name);
+});
+
+test('a session-locked worktree that git refuses is locked again with the same reason', t => {
+  const f = makeRepo(t);
+  writeFileSync(join(f.add('busy'), 'a.txt'), 'changed\n');
+  sessionLock(f, 'busy');
+  const r = f.run(['show']);
+  const rm = f.run(['remove', '--yes', tagsOf(r.out).join(',')]);
+  assert.equal(rm.code, 1, rm.out);
+  assert.match(rm.out, /^worktree busy: left, git refused: it holds changed or untracked files$/m, rm.out);
+  assert.doesNotMatch(rm.out, /the lock was not put back/, rm.out);
+  assert.equal(lockOf(f, 'busy'), 'claude session busy (pid 4321)');
+  assert.ok(existsSync(f.wt('busy')));
 });

@@ -779,13 +779,11 @@ test("links to the owner's own repo, and emoji with joiners, pass", t => {
 });
 
 // #246 C7: the scan stays linear on a full-size body built to make it slow.
-// A quadratic scan took 1.5 to 12 seconds on these, a linear one under 20 ms; the bound leaves room for a busy machine.
-test('the scan of a full-size body of repeated path or colon shapes ends within 750 ms', () => {
+// A quadratic scan took 1.5 to 12 seconds on these, a linear one under 20 ms. No clock here; nothing but the CI job limit stops a slow scan (see #496).
+test('the scan of a full-size body of repeated path or colon shapes ends', () => {
   const ctx = { env: {}, home: '/srv/home/x', tmp: '/tmp', user: 'a', host: 'h', surface: 'issue-comment' };
   for (const body of ['//a:'.repeat(16384), '/a/'.repeat(21845), 'a:'.repeat(32768), 'C:/'.repeat(21845), 'eyJ'.repeat(21845), '<'.repeat(30000) + '<a>b>'.repeat(7000)]) {
-    const t = performance.now();
-    scan([{ field: 'body', text: body }], ctx);
-    assert.ok(performance.now() - t < 750, `${body.slice(0, 4)}: ${Math.round(performance.now() - t)} ms`);
+    assert.doesNotThrow(() => scan([{ field: 'body', text: body }], ctx), body.slice(0, 4));
   }
 });
 

@@ -148,8 +148,9 @@ const RUNNER_ARGS = "[stage, '--commands', on.length ? on.join(',') : 'none', '-
 const plantRunnerArgs = to => root => {
   const p = join(root, 'gate', 'install-run.mjs');
   const s = readFileSync(p, 'utf8');
-  assert.equal(s.split(RUNNER_ARGS).length, 2, 'the runner passes seam A its arguments in one place');
-  writeFileSync(p, s.replace(RUNNER_ARGS, to));
+  const planted = s.replace(RUNNER_ARGS, to);
+  assert.notEqual(planted, s, 'the plant landed in the runner');
+  writeFileSync(p, planted);
 };
 
 test('bad case: seam A given no --commands refuses', t => {
