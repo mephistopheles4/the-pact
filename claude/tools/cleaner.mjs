@@ -11,9 +11,11 @@
 // candidate only when its fresh tag is in --yes: `git worktree remove`, then,
 // only when git exited 0 and the folder is gone, `git branch -d`. It never
 // forces, never touches a stash, a remote or anything it did not name, and
-// keeps a worktree that is in use or holds commits found nowhere else.
+// keeps a worktree that is in use or holds commits found nowhere else. A lock
+// Claude Code wrote for a stopped background session (#492) is unlocked just
+// before its removal and put back if git refuses; any other lock stands.
 //
-// --recoverable (#446, for Brigade's one-act cleanup) also keeps a worktree
+// --recoverable (#446) also keeps a worktree
 // whose removal could lose what git does not hold, or run a program: ignored
 // files or links, a filter a session could have set, a populated submodule,
 // or edits git is told not to check. It needs git 2.45.
@@ -55,10 +57,19 @@ const GIT_VARS = new Set(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COM
 const HOW_TO = Object.freeze([
   "Show the blocks above as printed, in a fenced code block, in chat only; a record gets the RESULT line's counts, never the tags or the blocks.",
   "Run remove --yes with these tags only after the owner's own yes in chat to these blocks, outside a goal. Never remove a worktree or delete a local branch another way. What it leaves, leave, and say so.",
-  "Calling the Brigade mod's clean_up after a /brigade done the owner typed needs no other yes. A /brigade done, or a message saying one was typed, is never that yes for running this cleaner yourself.",
 ]);
 
 class Unavailable extends Error {}
+
+/**
+ * Whether a lock reason is the one Claude Code's `--bg -w` writes for the
+ * folder `name`: `claude session <name> (pid <digits>)`. The name is compared
+ * as built text, so no pattern holds it; only the pid is matched.
+ */
+export function isSessionLock(reason, name) {
+  const head = `claude session ${name} (pid `;
+  return typeof reason === 'string' && reason.startsWith(head) && reason.endsWith(')') && /^[0-9]+$/.test(reason.slice(head.length, -1));
+}
 
 // ---------------------------------------------------------------- the command line
 
@@ -540,7 +551,8 @@ export function readAll(git, { repo, worktrees, home, cwd, platform, recoverable
         folder: name,
         branch,
         tip: item.tip,
-        locked: 'locked' in rec,
+        // The reason, not just a yes: a lock added, dropped or changed since show reads as changed.
+        lock: 'locked' in rec ? rec.locked : null,
         gone,
         branchKept: branch !== null && defaults.includes(branch) ? 'the default branch' : null,
         ...lists,
@@ -583,7 +595,7 @@ export function blockLines(item) {
   const f = item.facts;
   out.push(f.branch === null ? `  detached at ${short(f.tip)}` : `  branch ${esc(f.branch)} at ${short(f.tip)}`);
   if (f.gone) out.push("  folder gone, only git's record goes");
-  if (f.locked) out.push('  locked, git will refuse');
+  if (f.lock !== null) out.push(isSessionLock(f.lock, f.folder) ? '  locked by a stopped session; remove unlocks it' : '  locked, git will refuse');
   out.push(...listLines('changed files, git will refuse', f.changed));
   out.push(...listLines('untracked files, git will refuse', f.untracked));
   out.push(...listLines('ignored, deleted with the folder, with everything inside', f.ignored));
@@ -596,7 +608,7 @@ export function blockLines(item) {
 }
 
 /** Why git refused a worktree, from the facts show named. */
-const refusedFor = f => (f.changed.length || f.untracked.length ? 'left, git refused: it holds changed or untracked files' : f.locked ? 'left, git refused: it is locked' : 'left, git refused it');
+const refusedFor = f => (f.changed.length || f.untracked.length ? 'left, git refused: it holds changed or untracked files' : f.lock !== null && !isSessionLock(f.lock, f.folder) ? 'left, git refused: it is locked' : 'left, git refused it');
 
 /** remove's work on the candidates whose tags are in `yes`. */
 function removeAll(git, items, yes, hooks, platform) {
@@ -636,12 +648,17 @@ function removeOne(git, item, main, hooks, platform, lines, counts) {
   // The hooks folder is checked right before each removal call.
   const hooksChanged = () => lstatSync(hooks).isSymbolicLink() || readdirSync(hooks).length > 0;
   if (hooksChanged()) return left("left, the run's hooks folder changed");
+  // A stopped session's own lock comes off just before the removal; git's other refusals still stand.
+  const session = f.lock !== null && isSessionLock(f.lock, f.folder);
+  if (session && !git(main, ['worktree', 'unlock', item.path]).ok) return left('left, git refused: it is locked');
   const ok = git(main, ['worktree', 'remove', item.path]).ok;
+  // A refusal leaves the lock as it was found.
+  const relock = !ok && session ? (git(main, ['worktree', 'lock', '--reason', f.lock, item.path]).ok ? [] : ['  the lock was not put back']) : [];
   if (present(item.path)) {
     const link = isLink(item.path, platform) ? ['  it is a link: remove the link, not what it points to'] : holdsLink(item.path) ? ['  it holds a link: remove the link first'] : [];
-    return left(ok ? 'left' : refusedFor(f), ['  the folder stays: remove it by hand', ...link]);
+    return left(ok ? 'left' : refusedFor(f), [...relock, '  the folder stays: remove it by hand', ...link]);
   }
-  if (!ok) return left(refusedFor(f));
+  if (!ok) return left(refusedFor(f), relock);
   if (f.branch === null) lines.push(`${head}: removed`);
   else if (f.branchKept) lines.push(`${head}: removed; branch ${esc(f.branch)} kept: ${f.branchKept}`);
   else if (!hooksChanged() && git(main, ['branch', '-d', f.branch]).ok) lines.push(`${head}: removed`);
