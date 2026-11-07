@@ -14,7 +14,7 @@ const CHARACTER_HITS_MAX = 20;
 // names it. Seam A and the renderer read this one list; the install keeps its
 // own copy (install-core.mjs), held to this one by a test. Adding a name is a
 // change to gate code, so it needs a bad case (AGENTS.md).
-const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium']);
+const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium', 'scry']);
 // The pact's own tools (#280), each a file claude/tools/<name>.mjs that
 // installs to pact/tools/<name>.mjs only when the configuration's tools list
 // names it: off by default. Seam A and the renderer read this one list; the
