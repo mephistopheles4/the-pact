@@ -1495,6 +1495,9 @@ test('C2: a bad personal preset is left out with a finding on every run, no mess
   const lines = findingLines(r.stdout);
   assert.deepEqual(findingLines(check.stdout), lines, 'the check and the page run print the same findings');
   assert.equal(lines.length, 9, 'one finding for each bad file, the odd name and the files past the limit');
+  for (const file of ['a-bad-tiers', 'a-empty', 'a-badkey', 'a-proto', 'a-pair', 'a-url', 'a-null-tier']) {
+    assert.equal(lines.filter(l => l.includes(`presets/${file}.json`)).length, 1, `exactly one finding names ${file}`);
+  }
   for (const bad of ['zebra', 'quokka', 'walrus', 'mango', 'a b']) assert.ok(!r.stdout.includes(bad) && !check.stdout.includes(bad), bad);
   const ids = pageLogic(text).PACT.ownPresets.map(p => p.id);
   assert.deepEqual(ids, ['a-pair', ...Array.from({ length: 9 }, (_, i) => `g${String(i + 1).padStart(2, '0')}`)]);

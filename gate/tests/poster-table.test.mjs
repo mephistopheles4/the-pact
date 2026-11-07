@@ -292,7 +292,7 @@ test('a hidden character or a live environment secret inside a fold or a fence i
   }
 });
 
-// #280 C7: the check is a line scan; a worst case at the size limit would hang a quadratic one. No clock: the runner's timeout is the bound.
+// #280 C7: the check is a line scan; a worst case at the size limit would hang a quadratic one. No clock here; nothing but the CI job limit stops a slow scan (see #496).
 test('a worst-case body at the 65,536-character limit is scanned line by line', t => {
   const unit = [`${FENCE3}a${'`'}b`, 'Lens dispositions', '| Finding | Lens | Disposition | Rerun |', SEP, '| new a | b | c (auto (auto (auto | d |', '|'.repeat(40), '~~~~', '| x |', '~~~~'].join('\n') + '\n';
   const fill = s => s.repeat(Math.ceil(65536 / s.length)).slice(0, 65536);

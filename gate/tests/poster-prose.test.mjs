@@ -250,7 +250,7 @@ test('the prose refusals come after the scan and the table check, before any not
 });
 
 // #317 C7: one pass over the lines. Each body below is at the size limit; a reader that searches ahead again from every run, or
-// retries a pattern from every `[` or `](`, would take minutes on one of them, so the test never ends. No clock: the runner's timeout is the bound.
+// retries a pattern from every `[` or `](`, would take minutes on one of them, so the test never ends. No clock here; nothing but the CI job limit stops a slow scan (see #496).
 test('a worst-case body at the 65,536-character limit is read in one pass', t => {
   const fill = s => s.repeat(Math.ceil(65536 / s.length)).slice(0, 65536);
   const rising = Array.from({ length: 300 }, (_, i) => `${'`'.repeat(i + 1)}x`).join(' ');

@@ -356,7 +356,7 @@ test('cloud copy: a malformed repo pin, a repo with no pin, an unused pin or a w
   const withHead = (head, repoPins = { 'a/b': sha }) => inputs({ templates: { setupHead: head }, repoPins });
   const ok = assemble(withHead(uses()));
   assert.equal(ok.setup.split(sha).length, 2, 'the pin appears once');
-  assert.match(ok.setup, new RegExp(`declare -rA REPO_PIN=.*\\["a/b"\\]=${sha}`));
+  assert.match(ok.setup, new RegExp(`^unset REPO_PIN\ndeclare -rA REPO_PIN=\\( \\["a/b"\\]=${sha} \\)$`, 'm'));
   for (const repoPins of [
     { 'a/b': sha.slice(1) },
     { 'a/b': sha.toUpperCase() },
@@ -497,6 +497,9 @@ test('cloud copy: the Result section prints the marker only on a full, hash-matc
   assert.ok(nodeAt > 0 && nodeAt < at, 'the Node check, by path, before the marker');
   assert.deepEqual(lines.filter(l => /NODE_FAILED=/.test(l)), ['  NODE_FAILED=version']);
   assert.ok(lines.indexOf('if [ -z "${NODE_FAILED:-}" ] && [ "$NODE_SEEN" != "v$NODE_VERSION" ]; then') > nodeAt);
+  // HASH_FAILED counts every mismatch, and nothing resets it after the checks.
+  assert.match(tail, /^ {4}echo "HASH MISMATCH: ~\/\.claude\/\$rel"; HASH_FAILED=\$\(\(HASH_FAILED \+ 1\)\)$/m);
+  assert.equal(lines.filter(l => /HASH_FAILED=/.test(l)).length, 2);
   // The token line tests for a value and never expands one.
   // #183 T3 C6: the proxy line asks the API with both variables unset.
   const tokenUses = lines.filter(l => /GH_TOKEN|GITHUB_TOKEN/.test(l));

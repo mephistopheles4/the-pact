@@ -121,6 +121,7 @@ test('athanor guard: the refusal echoes nothing from the command, and is the sam
   const { reason } = await ask('node gate/tests/run.mjs fast SECRET_TOKEN_abc123');
   assert.doesNotMatch(reason, /SECRET_TOKEN_abc123/);
   assert.equal(reason, (await ask('env -u NODE_OPTIONS node gate/tests/run.mjs full')).reason);
+  assert.match(reason, /--host-fallback=/, 'the refusal names the way out');
 });
 
 // The probe, against a fake athanor on a PATH of its own: a .cmd on Windows,

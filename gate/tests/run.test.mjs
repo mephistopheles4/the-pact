@@ -439,7 +439,7 @@ function runIn(p, args, { env = shellEnv(), cwd = tmpdir() } = {}) {
 const PASSING = "import { test } from 'node:test';\ntest('planted pass', () => {});\n";
 const FAILING = "import { test } from 'node:test';\ntest('planted fail', () => { throw new Error('planted'); });\n";
 
-test('shell: a passing pick exits 0; the cap, the reporter and each file reach node; the last line names the tier and count', t => {
+test('shell: a passing pick exits 0; the cap line, the reporter and each file reach node; the last line names the tier and count', t => {
   const names = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
   const p = plant(t, Object.fromEntries(names.map(n => [`${n}.test.mjs`, PASSING.replace('planted pass', `held ${n}`)])));
   const r = runIn(p, ['full', '--reporter', 'tap']);
@@ -447,7 +447,8 @@ test('shell: a passing pick exits 0; the cap, the reporter and each file reach n
   assert.match(r.stdout, /^TAP version 13$/m);
   for (const n of names) assert.match(r.stdout, new RegExp(`^ok \\d+ - held ${n}$`, 'm'));
   for (const n of names) assert.match(r.stderr, new RegExp(`^pick: gate/tests/${n}\\.test\\.mjs \\(fast tier\\)$`, 'm'));
-  assert.match(r.stderr, new RegExp(`^run: tier full, cap ${CAP}`, 'm'));
+  assert.equal(CAP, 4);
+  assert.match(r.stderr, /^run: tier full, cap 4/m);
   assert.equal(r.last, 'RESULT: full tier, 6 files, pass');
 });
 
