@@ -13,10 +13,6 @@
 // script compile with the same code (builder/parts.mjs), and a gate test holds
 // their files equal. A preset that sets agent files can't be the default: the
 // default writes no agent file.
-//
-// A change to the default takes the sensitive route with the security pair,
-// per AGENTS.md's line on a change to the default, since it changes the
-// security defaults of every install with no configuration.
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
