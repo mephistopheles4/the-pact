@@ -559,20 +559,27 @@ installer's own floor) and `node` on the PATH.
   acts only in a main session, never blocks, and on any error does nothing.
   `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, when set, replaces the window the hook
   reads. The `--autocompact` flag overrides the setting and the hook can't see
-  it.
+  it. The nudge line assumes the window you set: a model whose own context cap
+  is lower, or an override the hook can't see, can compact a session before
+  the nudge comes (every model has a 1M window today).
 - **Off.** `0` removes the pact's hook entries (and an event or `hooks` they
   leave empty), the script, and an `autoCompactWindow` the pact set; a value
   you set by hand stays, with a note.
 - **The cloud.** The cloud copy takes no configuration, so it always sets
   400000 and has no Off. To turn it off there, revert the cloud part of #482
   (`gen.mjs`'s `--compact on`, the hooks block in `tpl-config-tail.sh`), run
-  `node cloud-sessions/gen.mjs`, and merge that on the owner's word.
+  `node cloud-sessions/gen.mjs`, and merge that on the owner's word. After
+  that merge, paste the merged `cloud-sessions/cloud-setup-wrapper.sh` into the
+  cloud environment's setup field again and check the first session's setup
+  log for the generator's `pact cloud copy <marker>` line.
 - **Hand-offs stay.** The pact never deletes a hand-off or `.turn` file in
   `~/.claude/pact/handoff/`; clear them yourself when you like. They are
   notes a session wrote, kept unencrypted in a folder the hook creates for
   your account alone on Linux and macOS (on Windows the folder takes the
   Claude home folder's access), and they outlive turning the window off and
-  Claude Code's own transcript clean-up.
+  Claude Code's own transcript clean-up. On macOS an access control list the
+  folder inherits can grant another account access despite the owner-only
+  mode; check with `ls -le`.
 
 ## Roll back to an older version
 
