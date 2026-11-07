@@ -59,6 +59,26 @@ Ask each lens to report in this shape:
   table.
   For a pair, then put the places both lenses flagged, then each lens's own
   findings, each with its severity mark, then the table, then each report verbatim in its own fold.
+- **One status comment per record.** After each round's comment, post or edit
+  one status comment on the same issue or pull request, so I see the latest
+  round without reading them all. Its label is `status-<n>`, n the issue's or
+  pull request's number, never a session's, so any session can edit it. It
+  holds, in order: a title line, `## Status: <N> for you, after <stage> round
+  <n>`, N as in the round's title line; the round's signal table, copied as
+  posted; **Open for you**, one line per row counted in N (its severity mark
+  and word, its headline, a link to the round comment), or "None"; **Rounds,
+  newest first**, a link to each round comment named by its title line's stage,
+  round and head or revision; and `Signed: status-<n>`. It holds no Lens
+  dispositions table, crossed findings, report, diagram, or heading or fold
+  naming a lens, and never the words "owner decision": the edit checks would
+  refuse every later edit. Find it among the comments your gh login wrote,
+  read as JSON, holding the whole line `Signed: status-<n>`. None: post it.
+  One: edit it, keeping its signature line and every `Edited:` line; the
+  reason reads `after <stage> round <n> (<your label>)`. More than one: stop
+  and tell me. Post the round comment first. If
+  the status edit fails or is refused, the record stays whole: say in the
+  hand-off that the status is stale, and never post a second status comment.
+  The round comments stay the record; nothing reads the status comment back.
 
 ## Diagrams
 
@@ -123,7 +143,8 @@ when no other row answers the sentence.
   `node "$HOME/.claude/pact/tools/poster.mjs"` in PowerShell. Write each piece
   of free text to a file in a scratch folder outside the repo, and run the
   poster from that folder, never from the repo. Sign a post you may edit with
-  a `Signed: <label>` line, and keep it when you edit. An edit never removes
+  a `Signed: <label>` line, and keep it when you edit. Edit the status
+  comment with `issue-comment-edit --signed status-<n>`. An edit never removes
   text. An edit's `--reason` names the kind of fix, never the text. Delete a
   file once its post ends, whatever the result (verified, failed, unverified,
   mismatch or unavailable), or once you drop it; keep one refused for a lens

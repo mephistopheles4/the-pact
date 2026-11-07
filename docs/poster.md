@@ -160,6 +160,10 @@ don't cover).
 The scans that read a post read the edit too: the reason, and the body with
 its reason line.
 
+The routine use of `issue-comment-edit` is the review procedure's status
+comment, signed `status-<n>` and edited after each round (#412); it holds none
+of what `edit/record` and `edit/decision` refuse.
+
 Since #394 the edit checks read more forms of the text, so an edit of a post
 that passed before can now be refused. For `edit/record` or `edit/decision`,
 reword, or post a new comment. A new `edit/leak` means the item may already
