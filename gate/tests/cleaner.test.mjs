@@ -859,26 +859,31 @@ test('a worktree locked by a stopped session shows that and is removed with its 
 
 test('a lock with any other reason is left, still locked', t => {
   const f = makeRepo(t);
-  f.add('named');
-  f.add('digits');
-  f.add('words');
-  sessionLock(f, 'named', 'claude session someone-else (pid 4321)');
-  sessionLock(f, 'digits', 'claude session digits (pid four)');
-  sessionLock(f, 'words', 'kept for a reason');
+  // Each reason is one step off the exact form: another folder's name, a pid that is no number, free text, a missing bracket, an empty pid, a pid with a letter in it.
+  const reasons = {
+    named: 'claude session someone-else (pid 4321)',
+    digits: 'claude session digits (pid four)',
+    words: 'kept for a reason',
+    bracket: 'claude session bracket (pid 4321',
+    nopid: 'claude session nopid (pid )',
+    mixed: 'claude session mixed (pid 4x)',
+  };
+  for (const [name, reason] of Object.entries(reasons)) {
+    f.add(name);
+    sessionLock(f, name, reason);
+  }
   const r = f.run(['show']);
-  for (const name of ['named', 'digits', 'words']) assert.match(block(r.out, name), /^ {2}locked, git will refuse$/m, `${name}: ${r.out}`);
+  for (const name of Object.keys(reasons)) assert.match(block(r.out, name), /^ {2}locked, git will refuse$/m, `${name}: ${r.out}`);
   const rm = f.run(['remove', '--yes', tagsOf(r.out).join(',')]);
   assert.equal(rm.code, 1, rm.out);
-  assert.equal(rm.lines.at(-1), 'RESULT: removed 0 left 3 changed 0');
-  assert.equal(worktrees(f), 4);
-  assert.equal(lockOf(f, 'named'), 'claude session someone-else (pid 4321)');
-  assert.equal(lockOf(f, 'digits'), 'claude session digits (pid four)');
-  assert.equal(lockOf(f, 'words'), 'kept for a reason');
+  assert.equal(rm.lines.at(-1), 'RESULT: removed 0 left 6 changed 0');
+  assert.equal(worktrees(f), 7);
+  for (const [name, reason] of Object.entries(reasons)) assert.equal(lockOf(f, name), reason, name);
 });
 
 test('a session-locked worktree that git refuses is locked again with the same reason', t => {
   const f = makeRepo(t);
-  writeFileSync(join(f.add('busy'), 'new.txt'), 'x');
+  writeFileSync(join(f.add('busy'), 'a.txt'), 'changed\n');
   sessionLock(f, 'busy');
   const r = f.run(['show']);
   const rm = f.run(['remove', '--yes', tagsOf(r.out).join(',')]);
