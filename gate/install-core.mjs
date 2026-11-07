@@ -3,7 +3,8 @@
 // (gate/install-run.mjs) reads and writes; every choice it makes about what
 // it read is one of these. Each refusal is a Refusal with one rule id, a
 // string literal here, so a table row can name it. Where a check compares
-// paths, it does so without regard to case.
+// paths, it does so without regard to case, except the hook key (#482), which
+// folds case on Windows only.
 //
 // Nothing here runs on import. Imports nothing.
 
@@ -24,6 +25,13 @@ export const PACT_COMMANDS = Object.freeze(['make-it-so', 'finis', 'scriptorium'
 // configuration's tools list names it.
 export const PACT_TOOLS = Object.freeze(['poster', 'cleaner']);
 const TOOLS_DEST = 'pact/tools/';
+// The pact's hook script (#482), the install's own copy of PACT_HOOKS in gate/seam-a-core.mjs: claude/hooks/<name>.mjs installs to HOOKS_DEST<name>.mjs only while the auto-compact window is on.
+export const PACT_HOOKS = Object.freeze(['compact-handoff']);
+const HOOKS_DEST = 'pact/hooks/';
+export const HOOK_SCRIPT_REL = `${HOOKS_DEST}compact-handoff.mjs`;
+export const HOOK_EVENTS = Object.freeze(['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart']);
+const HOOK_SCRIPT_TOKEN = '__PACT_HOOK_SCRIPT__';
+const HOOK_WINDOW_TOKEN = '__PACT_WINDOW__';
 // What each tool does, said in its dry run WARN line after where it installs.
 const TOOL_WARNS = Object.freeze({
   poster: " and posts and edits on GitHub as your gh account. Permission rules on gh commands don't see its calls, and its scan is a backstop, not a guarantee.",
@@ -69,7 +77,9 @@ export const PROJECT_CAP = 64 * 1024;
 export const JSON_DEPTH_MAX = 64;
 // Settings that run a command, load code or reach a tool server: the names
 // seam A refuses in the overlay (BANNED_SETTINGS in gate/seam-a-core.mjs).
-export const BANNED_SETTINGS = Object.freeze(['hooks', 'mcpServers', 'statusLine', 'fileSuggestion', 'apiKeyHelper', 'awsAuthRefresh', 'awsCredentialExport', 'otelHeadersHelper', 'enabledPlugins', 'extraKnownMarketplaces', 'enableAllProjectMcpServers', 'enabledMcpjsonServers']);
+// `hooks` left this list in #482: the overlay carries the pact's own hooks
+// block, which the allow-list holds exactly.
+export const BANNED_SETTINGS = Object.freeze(['mcpServers', 'statusLine', 'fileSuggestion', 'apiKeyHelper', 'awsAuthRefresh', 'awsCredentialExport', 'otelHeadersHelper', 'enabledPlugins', 'extraKnownMarketplaces', 'enableAllProjectMcpServers', 'enabledMcpjsonServers']);
 // Banned in the overlay, but the owner's own in the live file, which the merge keeps.
 export const LIVE_OWN_SETTINGS = Object.freeze(['enabledPlugins', 'extraKnownMarketplaces']);
 // The ask rules the pact once set and retired (#265, ADR 0063): the 52 the
@@ -346,8 +356,11 @@ export function parseRecord(text) {
   const digest = ci(doc, 'digest');
   const cleanerDeny = ci(doc, 'cleanerdeny') ?? [];
   if (!Array.isArray(cleanerDeny) || cleanerDeny.some(r => typeof r !== 'string')) refuse('record-not-pact', 'the install record\'s cleanerDeny is not a list of rule strings; fix or remove it.');
+  // The auto-compact window this install set (#482); null when none, or not a window the install takes.
+  const recordedWindow = ci(doc, 'autocompactwindow');
   return {
     cleanerDeny,
+    autoCompactWindow: typeof recordedWindow === 'number' && compactWindowOk(recordedWindow) && recordedWindow > 0 ? recordedWindow : null,
     commit: psString(commit),
     digest: typeof digest === 'string' && /^[0-9a-f]{12}$/.test(digest) ? digest : null,
     files: asList(files).map(e => ({ path: typeof ci(e, 'path') === 'string' ? ci(e, 'path') : null, sha256: psString(ci(e, 'sha256')) })),
@@ -357,7 +370,7 @@ export function parseRecord(text) {
 }
 
 /** The record the install writes (S6, X6): commit, digest, config, files, gate, in today's shape. */
-export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [] }) {
+export function recordText({ commit, digest, userHash, blockHashes, repoFiles, gateNow, cleanerDeny = [], autoCompactWindow = 0 }) {
   const doc = {
     commit,
     digest: digest ?? null,
@@ -366,6 +379,8 @@ export function recordText({ commit, digest, userHash, blockHashes, repoFiles, g
     gate: [...gateNow].map(([path, sha256]) => ({ path, sha256 })),
     // #438: the cleaner's deny rules this install added, only while there are any.
     ...(cleanerDeny.length ? { cleanerDeny: [...cleanerDeny] } : {}),
+    // #482: the window the install set, only while it is on.
+    ...(autoCompactWindow > 0 ? { autoCompactWindow } : {}),
   };
   return `${JSON.stringify(doc, null, 2)}\n`;
 }
@@ -414,6 +429,17 @@ const RETIRED_BLOCK_RE = /^RETIRED-NAME block (moves|tiers|sensitive|workflow|le
 const EDIT_RE =/^EDIT (moves|tiers|sensitive|workflow|lenses|qualities|cost-limits) (?:(remove)|(replace|add-after) ([0-9a-f]{64}) ([A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+){0,7}))$/;
 const AGENT_RE = /^AGENT ([a-z-]+) (\S+) (\S+) ([0-9a-f]{64}) (plain|security-set) (default|override) (local|egress)$/;
 const VALUE_RE = /^VALUE (usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)$/;
+// #482: a home render may also report the auto-compact window; a project render never does.
+const HOME_VALUE_RE = /^VALUE (?:(usage-pause|usage-pause-session) (0|[1-9][0-9]?|100)|(auto-compact-window) (0|[1-9][0-9]{5,6}))$/;
+// The auto-compact window (#482): the install's own copy of the default in gate/render-core.mjs, as it keeps PACT_TOOLS. A test holds them equal.
+export const AUTO_COMPACT_DEFAULT = 400000;
+const AUTO_COMPACT_MIN = 100000;
+const AUTO_COMPACT_MAX = 1000000;
+const AUTO_COMPACT_STEP = 10000;
+/** Whether `n` is a window the install takes: 0 (off), or 100000 to 1000000 in steps of 10000. */
+export const compactWindowOk = n => n === 0 || (Number.isInteger(n) && n >= AUTO_COMPACT_MIN && n <= AUTO_COMPACT_MAX && (n - AUTO_COMPACT_MIN) % AUTO_COMPACT_STEP === 0);
+/** The window the install uses: the reported value, else the default. 0 is off. */
+export const compactWindow = parsed => (parsed.values.has('auto-compact-window') ? Number(parsed.values.get('auto-compact-window')) : AUTO_COMPACT_DEFAULT);
 const COMMANDS_RE = /^COMMANDS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 const TOOLS_RE = /^TOOLS (none|[a-z-]+(?:,[a-z-]+)*)$/;
 // A skill source's path (#183 T4a), as the renderer checks it: owner/name, a full commit, a relative folder whose last segment is the skill's name.
@@ -496,9 +522,12 @@ export function parseRenderLines(lines, { project, hash }) {
       if (!name || !modelOk || !AGENT_EFFORTS.includes(m[3])) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
       if (agentSets.has(name)) refuse('render-agent-twice', 'the renderer reported one agent setting twice.');
       agentSets.set(name, { model: m[2], effort: m[3], sha256: m[4], security: m[5] === 'security-set', override: m[6] === 'override', egress: m[7] === 'egress' });
-    } else if ((m = VALUE_RE.exec(l))) {
-      if (values.has(m[1])) refuse('render-value-twice', 'the renderer reported one setting twice.');
-      values.set(m[1], m[2]);
+    } else if ((m = HOME_VALUE_RE.exec(l))) {
+      const name = m[1] ?? m[3];
+      const value = m[2] ?? m[4];
+      if (name === 'auto-compact-window' && !compactWindowOk(Number(value))) refuse('render-unknown-line', 'the renderer printed a line the install does not read.');
+      if (values.has(name)) refuse('render-value-twice', 'the renderer reported one setting twice.');
+      values.set(name, value);
     } else if ((m = COMMANDS_RE.exec(l))) {
       if (commands) refuse('render-commands-twice', 'the renderer reported two commands lines.');
       const names = m[1] === 'none' ? [] : m[1].split(',');
@@ -791,7 +820,7 @@ export function parseProjectWrite(report, projectHash) {
  * pact/builder/. A staged file of no known kind pairs with null, which no
  * INSTALL line can match.
  */
-export function expectedCopySet(stagedRels, commands = [], tools = []) {
+export function expectedCopySet(stagedRels, commands = [], tools = [], compact = false) {
   const out = [];
   const kitOn = commands.includes(KIT_COMMAND);
   for (const rel of stagedRels) {
@@ -813,6 +842,11 @@ export function expectedCopySet(stagedRels, commands = [], tools = []) {
       const name = /^([^/]+)\.mjs$/.exec(m[1])?.[1];
       if (tools.includes(name)) out.push([rel, `${TOOLS_DEST}${name}.mjs`]);
       else if (!PACT_TOOLS.includes(name)) out.push([rel, null]);
+    } else if ((m = /^claude\/hooks\/(.*)$/.exec(rel))) {
+      // The pact's hook (#482): claude/hooks/<name>.mjs to pact/hooks/<name>.mjs, only while the window is on, never the general rule's hooks/ at the home root.
+      const name = /^([^/]+)\.mjs$/.exec(m[1])?.[1];
+      if (compact && PACT_HOOKS.includes(name)) out.push([rel, `${HOOKS_DEST}${name}.mjs`]);
+      else if (!PACT_HOOKS.includes(name)) out.push([rel, null]);
     } else if (rel === REVIEW_REL) out.push([rel, REVIEW_DEST]);
     else if ((m = /^claude\/(.+)$/.exec(rel))) out.push([rel, m[1]]);
     else out.push([rel, null]);
@@ -890,8 +924,8 @@ export function checkSkillClash(commands, present) {
 export function checkNewPaths(repoFiles, record, live) {
   const listed = new Set(record ? record.files.map(e => e.path) : []);
   for (const rel of repoFiles.keys()) {
-    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel.startsWith(TOOLS_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
-    const always = rel === REVIEW_DEST || rel.startsWith(KIT_DEST) || rel === `commands/${KIT_COMMAND}.md`;
+    if (!(rel.startsWith('commands/') || rel.startsWith(KIT_DEST) || rel.startsWith(TOOLS_DEST) || rel.startsWith(HOOKS_DEST) || rel === REVIEW_DEST) || listed.has(rel)) continue;
+    const always = rel === REVIEW_DEST || rel.startsWith(KIT_DEST) || rel.startsWith(HOOKS_DEST) || rel === `commands/${KIT_COMMAND}.md`;
     const next = always ? 'Move it out of the way, then install again.' : `Move it, or take its name out of the ${rel.startsWith(TOOLS_DEST) ? 'tools' : 'commands'} list.`;
     if (live(rel).exists) refuse('unlisted-live', `${formatPlain(rel)} already exists in the Claude home folder, and the install record does not list it, so the pact did not put it there. ${next}`);
   }
@@ -1048,9 +1082,22 @@ function retiredIn(live) {
  * objects merge, the plugin keys stay the owner's, and the allow, deny and ask
  * lists are unioned and sorted ordinally, so the owner's own rules survive.
  * Then the retired pact rules leave the ask list (#265), matched exactly.
+ * `hooks` never go through that deep merge: they merge by key (hooksPlan), and
+ * `autoCompactWindow` follows `compact.window` (#482).
  */
-export function mergeSettings(live, overlay, deny = NO_DENY) {
-  const m = mergeDeep(live, overlay);
+export function mergeSettings(live, overlay, deny = NO_DENY, compact = NO_COMPACT) {
+  // #482: hooks never go through the deep merge, which would replace an owner's list; they merge by key below.
+  const plain = new Map(overlay);
+  plain.delete('hooks');
+  const m = mergeDeep(live, plain);
+  if (compact.script !== null) {
+    const hp = hooksPlan(live, compact.window > 0 ? overlay.get('hooks') : null, compact);
+    if (hp.hooks === undefined) m.delete('hooks');
+    else m.set('hooks', hp.hooks);
+    const had = live.get('autoCompactWindow');
+    if (compact.window > 0) m.set('autoCompactWindow', new Num(String(compact.window)));
+    else if (compact.recorded !== null && had instanceof Num && had.raw === String(compact.recorded)) m.delete('autoCompactWindow');
+  }
   for (const k of LIVE_OWN_SETTINGS) if (live.has(k)) m.set(k, live.get(k));
   const pa = isMap(live.get('permissions')) ? live.get('permissions') : new Map();
   const pb = overlay.has('permissions') ? overlay.get('permissions') : new Map();
@@ -1066,6 +1113,156 @@ export function mergeSettings(live, overlay, deny = NO_DENY) {
 }
 
 const NO_DENY = Object.freeze({ add: [], drop: [], record: [] });
+
+// ------------------------------------------------------------ the pact's hooks (#482)
+
+/**
+ * What the hooks and the window need from the install: `window` (0 is off),
+ * `script` (the installed script's absolute path, or null for no hook handling),
+ * `recorded` (the window the last install set, or null) and `platform`.
+ */
+const NO_COMPACT = Object.freeze({ window: 0, script: null, recorded: null, platform: 'linux' });
+
+/** A path as the key compares it: forward slashes, doubled ones joined, and case folded on Windows. */
+const pathKey = (p, platform) => {
+  const s = String(p).replace(/\\/g, '/').replace(/\/+/g, '/');
+  return platform === 'win32' ? s.toLowerCase() : s;
+};
+
+/** The overlay with the hook script's path and the window put in place of the overlay's two tokens, after its hash check. The script must sit under the home folder. */
+export function fillHooks(overlay, home, script, window, platform = 'linux') {
+  const root = pathKey(home, platform).replace(/\/$/, '');
+  if (!pathKey(script, platform).startsWith(`${root}/`)) refuse('hook-script-path', "the hook script's install path is not under the Claude home folder.");
+  const fill = v => {
+    if (Array.isArray(v)) return v.map(fill);
+    if (isMap(v)) return new Map([...v].map(([k, x]) => [k, fill(x)]));
+    return v === HOOK_SCRIPT_TOKEN ? script : v === HOOK_WINDOW_TOKEN ? String(window) : v;
+  };
+  const out = new Map(overlay);
+  if (overlay.has('hooks')) out.set('hooks', fill(overlay.get('hooks')));
+  return out;
+}
+
+const innerHooks = group => (isMap(group) && Array.isArray(group.get('hooks')) ? group.get('hooks') : []);
+/**
+ * The pact's own inner hook (#482, round 1): exactly the overlay's entry, its
+ * one variable being the window, a decimal string. A hook that carries the
+ * script's path but differs in its command, type, timeout or arguments, or has
+ * another key, is not the pact's: it is left alone and draws the dry run's
+ * warning.
+ */
+const isPactHook = (h, key, platform) => {
+  if (!isMap(h) || h.size !== 4 || h.get('type') !== 'command' || h.get('command') !== 'node') return false;
+  const t = h.get('timeout');
+  const a = h.get('args');
+  return t instanceof Num && t.raw === '15' && Array.isArray(a) && a.length === 2 && typeof a[0] === 'string' && pathKey(a[0], platform) === key && typeof a[1] === 'string' && /^[0-9]{6,7}$/.test(a[1]);
+};
+const holdsPact = (group, key, platform) => innerHooks(group).some(h => isPactHook(h, key, platform));
+
+/** `group` with the pact's inner hooks taken out; null when that leaves it no inner hook. Other fields and hooks stay. */
+function stripPact(group, key, platform) {
+  const rest = innerHooks(group).filter(h => !isPactHook(h, key, platform));
+  if (!rest.length) return null;
+  const g = new Map(group);
+  g.set('hooks', rest);
+  return g;
+}
+
+/** The first group that holds a pact hook, brought up to the overlay's `want`: replaced whole when it holds nothing else, else only its first pact hook is replaced and its other pact hooks go. */
+function updatePact(group, want, key, platform) {
+  const inner = innerHooks(group);
+  if (inner.every(h => isPactHook(h, key, platform))) return want;
+  const at = inner.findIndex(h => isPactHook(h, key, platform));
+  const g = new Map(group);
+  g.set('hooks', inner.flatMap((h, i) => (i === at ? [want.get('hooks')[0]] : isPactHook(h, key, platform) ? [] : [h])));
+  return g;
+}
+
+/**
+ * The keyed merge of the pact's hooks (#482 S4, round 1). A pact entry is an
+ * inner hook equal to the overlay's for the event, its window aside (see
+ * isPactHook). With `overlayHooks` (on): the first group holding a pact entry
+ * is updated in place (only that inner hook, when the group holds others), a
+ * missing one is appended after the event's other groups, and a second pact
+ * entry elsewhere is taken out. With null (off): every pact inner hook is
+ * removed, a group left empty goes, then an event the removal left with no
+ * group, then `hooks` if the removal emptied it. Every other group, inner
+ * hook and field stays as it was, in order. Returns { hooks, events, skipped }: `hooks` is
+ * undefined when the key should be absent, `events` the [event, op] pairs
+ * the merge makes, `skipped` the events whose live value is not a list.
+ */
+export function hooksPlan(live, overlayHooks, compact) {
+  const key = pathKey(compact.script, compact.platform);
+  const liveHooks = live.get('hooks');
+  const events = [];
+  const skipped = [];
+  if (liveHooks !== undefined && !isMap(liveHooks)) return { hooks: liveHooks, events, skipped: overlayHooks ? [...HOOK_EVENTS] : [] };
+  const out = new Map(liveHooks ?? []);
+  if (overlayHooks) {
+    for (const [event, groups] of overlayHooks) {
+      for (const group of groups) {
+        const list = out.get(event);
+        if (list === undefined) {
+          out.set(event, [group]);
+          events.push([event, 'added']);
+        } else if (!Array.isArray(list)) skipped.push(event);
+        else {
+          const at = list.findIndex(g => holdsPact(g, key, compact.platform));
+          if (at < 0) {
+            out.set(event, [...list, group]);
+            events.push([event, 'added']);
+          } else {
+            // The first group holding a pact hook is updated in place; the pact hooks in any later group are taken out, a group they leave empty going with them.
+            const next = list.flatMap((g, i) => (i < at || !holdsPact(g, key, compact.platform) ? [g] : i === at ? [updatePact(g, group, key, compact.platform)] : stripPact(g, key, compact.platform) ?? []));
+            if (canonical(next) !== canonical(list)) {
+              out.set(event, next);
+              events.push([event, 'updated']);
+            }
+          }
+        }
+      }
+    }
+    return { hooks: out, events, skipped };
+  }
+  for (const [event, list] of [...out]) {
+    if (!Array.isArray(list)) continue;
+    // Only the pact's inner hooks go; a group left with none goes too, and every other group, hook and field stays.
+    const kept = list.flatMap(g => (holdsPact(g, key, compact.platform) ? stripPact(g, key, compact.platform) ?? [] : [g]));
+    if (canonical(kept) === canonical(list)) continue;
+    events.push([event, 'removed']);
+    if (kept.length) out.set(event, kept);
+    else out.delete(event);
+  }
+  return { hooks: events.length && out.size === 0 ? undefined : liveHooks === undefined ? undefined : out, events, skipped };
+}
+
+/** A live event's name as a dry-run line shows it: cleaned and cut, like the other live keys. */
+const eventShown = event => {
+  const n = formatPlain(event);
+  return n.length > 40 ? `${n.slice(0, 40)}...` : n;
+};
+
+/**
+ * The dry run's block for the window and its hooks: a header line, the
+ * autoCompactWindow change, and each pact hook event added, updated or
+ * removed. Names constants, the window's number and, for a hook removed or
+ * not addable, the live event, cleaned and cut by eventShown.
+ */
+export function compactLines(live, overlay, compact) {
+  const on = compact.window > 0;
+  const out = [`auto-compact-window: ${on ? `on, ${compact.window} tokens` : 'off'}`];
+  const had = live.get('autoCompactWindow');
+  if (on) {
+    if (!(had instanceof Num) || had.raw !== String(compact.window)) out.push(`  set autoCompactWindow = ${compact.window}`);
+  } else if (had !== undefined) {
+    if (compact.recorded !== null && had instanceof Num && had.raw === String(compact.recorded)) out.push('  - autoCompactWindow');
+    else out.push('  NOTE: settings.json holds an autoCompactWindow the pact did not set; it is left as it is.');
+  }
+  const hp = hooksPlan(live, on ? overlay.get('hooks') : null, compact);
+  for (const [event, op] of hp.events) out.push(`  hook ${eventShown(event)}: ${op}`);
+  for (const event of hp.skipped) out.push(`  WARN: settings.json hooks.${eventShown(event)} is not a list; the pact's hook was not added there.`);
+  return out;
+}
 
 /**
  * The cleaner's deny rules for this install (#438 S2.3): on, the fixed rules
@@ -1095,6 +1292,8 @@ const pathIn = (map, segs) => {
 export function settingsChanges(live, overlay, deny = NO_DENY) {
   const paths = [];
   for (const [top, v] of overlay) {
+    // The hooks block merges by key and prints its own lines (compactLines, #482).
+    if (top === 'hooks') continue;
     if ((top === 'env' || top === 'permissions') && isMap(v)) for (const k of v.keys()) paths.push([top, k]);
     else paths.push([top]);
   }
@@ -1134,19 +1333,29 @@ function bannedKeys(v) {
 
 /**
  * Warnings about the live file (S6, L7): a banned key, retired pact ask rules
- * still there (#265), a mode other than auto. The owner's own keys are named
+ * still there (#265), a mode other than auto, and (#482) a hook the pact did
+ * not install, once per event. The owner's own keys are named
  * once, capped; env names are only counted, since a name can say what a secret
  * is for.
  */
-export function liveSettingsLines(live, overlay) {
+export function liveSettingsLines(live, overlay, compact = NO_COMPACT) {
   const out = [];
   for (const k of bannedKeys(live)) if (!LIVE_OWN_SETTINGS.includes(k)) out.push(`WARN: settings.json holds ${k}, a command-running setting the pact never sets.`);
+  // #482: a hook the pact did not install, once per event; the pact's own, matched by key, draw nothing.
+  const lh = live.get('hooks');
+  if (isMap(lh) && compact.script !== null) {
+    const key = pathKey(compact.script, compact.platform);
+    for (const [event, groups] of lh) {
+      if (Array.isArray(groups) && groups.some(g => innerHooks(g).some(h => !isPactHook(h, key, compact.platform)))) out.push(`WARN: settings.json holds a hook the pact did not install: ${eventShown(event)}`);
+    }
+  }
   const lp = live.get('permissions');
   const retired = retiredIn(live).length;
   if (retired) out.push(`NOTE: settings.json holds ${retired} of the pact's retired ask rules; --apply removes them.`);
   const mode = isMap(lp) ? lp.get('defaultMode') : undefined;
   if (mode !== 'auto') out.push('WARN: settings.json: permissions.defaultMode is not auto; --apply sets it.');
-  const own = [...live.keys()].filter(k => !overlay.has(k) && (!BANNED_SETTINGS.includes(k) || LIVE_OWN_SETTINGS.includes(k))).sort();
+  const ownWindow = (v) => compact.window > 0 || (compact.recorded !== null && v instanceof Num && v.raw === String(compact.recorded));
+  const own = [...live.keys()].filter(k => !overlay.has(k) && !(k === 'autoCompactWindow' && ownWindow(live.get(k))) && (!BANNED_SETTINGS.includes(k) || LIVE_OWN_SETTINGS.includes(k))).sort();
   if (own.length) {
     const names = own.slice(0, 20).map(k => {
       const n = formatPlain(k);

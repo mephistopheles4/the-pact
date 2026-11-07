@@ -1003,6 +1003,40 @@ test('stub page: Save to a picked folder keeps its commands list, and writes not
   assert.deepEqual(await save(fakeFolder({ 'config.json': '{"schema":1,"commands":' })), {}, 'nothing is written');
   assert.deepEqual(JSON.parse((await save(fakeFolder({})))['config.json']), DEFAULT_CONFIG, 'no file there: the save goes as built');
 });
+// #482 C9: the auto-compact window, a slider beside the usage limits, on at 400000 by default.
+test('the auto-compact window starts on at 400000, saves nothing at the default, its value when set and 0 when Off, and refuses what the renderer refuses', () => {
+  assert.deepEqual(L.PACT.compact, { name: 'auto-compact-window', min: 100000, max: 1000000, step: 10000, off: 0, def: 400000 });
+  const s = L.initialState();
+  assert.equal(s.compact, 400000);
+  assert.equal(JSON.parse(L.buildFiles(s)[0].text).settings, undefined, 'the default is not written');
+  s.compact = 600000;
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'auto-compact-window': 600000 });
+  s.usage = 90;
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'usage-pause': 90, 'auto-compact-window': 600000 });
+  s.usage = 75;
+  s.compact = 0;
+  assert.deepEqual(JSON.parse(L.buildFiles(s)[0].text).settings, { 'auto-compact-window': 0 });
+  assert.deepEqual(L.problems(s), []);
+  for (const bad of [99999, 410001, 1000001, 1100000, 0.5, NaN, null]) {
+    s.compact = bad;
+    assert.ok(L.problems(s).some(p => p.level === 'error' && p.where === 'auto-compact-window'), String(bad));
+  }
+  for (const ok of [0, 100000, 400000, 1000000]) {
+    s.compact = ok;
+    assert.deepEqual(L.problems(s), [], String(ok));
+  }
+});
+
+// #482 C9: the control sits beside the usage limits, a range and a number with an On/Off chip.
+test('the settings section draws the auto-compact window right after the weekly limit, as a range, a number and an Off chip', () => {
+  const src = readFileSync(join(REPO, PAGE_REL), 'utf8');
+  const weekly = src.indexOf("limit('Weekly limit'");
+  const compact = src.indexOf("limit('Auto-compact window'");
+  assert.ok(weekly > 0 && compact > weekly);
+  assert.ok(!src.slice(weekly + 10, compact).includes("limit('"), 'no other limit between them');
+  assert.match(src.slice(compact, compact + 300), /state\.compact, cw\.min, cw\.max, cw\.def, v => \(state\.compact = v\), v => \(state\.compact = v\), 'tokens', cw\.step, cw\.off\)/);
+});
+
 // #262: a moves edit saves the whole part as one replace; an empty move stops a save.
 test('an edited move saves the moves part as one replace, and an empty move stops a save', () => {
   const s = L.initialState();

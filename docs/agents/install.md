@@ -85,6 +85,42 @@ how every session in every repo behaves. So:
   row. To roll back past either, remove those edits first. The `usage-pause-session` setting
   (#142) sets the 5-hour session limit beside the weekly `usage-pause`; unset,
   the rules file has no session line.
+- **The auto-compact window (#482, ADR 0140).** `auto-compact-window` is 0
+  (off) or 100000 to 1000000 tokens in steps of 10000, 400000 when unset, and
+  no project may set it. It has no part in the rules file, so the rules text is
+  the same at any value. With it on the install also copies
+  `claude/hooks/compact-handoff.mjs` to `pact/hooks/` and merges the overlay's
+  `hooks` block by key: a pact entry is an inner hook equal to the overlay's
+  for that event, its window aside, so the five are updated in place (only
+  that inner hook, when your own command shares its group) or added after an
+  event's other groups, a second copy is taken out, and every other hook stays
+  as it was. A hook that names the script but is not that entry draws the
+  dry run's warning and is left alone.
+  `hooks` is never run through the deep merge, which would replace an owner's
+  list. Seam A takes `--compact on|off`, exactly once, and holds the hooks block
+  to the allow-list, tokens included. The installer replaces the block's two
+  tokens, the script's path (checked to sit under the Claude home folder) and
+  the window, only after that check. Off removes the pact's entries, the script
+  and the `autoCompactWindow` it set; the install record's `autoCompactWindow`
+  holds the last window so a value you set by hand is never removed. The cloud
+  copy always sets 400000 and has no Off: `cloud-sessions/tpl-config-tail.sh`
+  runs the same keyed merge with jq. Hand-offs in `pact/handoff/` are never
+  deleted by the pact.
+- **The field checks (#482),** run by the owner in the first sessions after an
+  install; a session reports them and does not run them for the owner.
+  *Compaction point:* on Windows CLI, a session compacts near 365000 to 370000
+  with the hooks installed; fails if it compacts elsewhere. *Nudge and
+  hand-off:* the session gets the nudge past 320000 and writes
+  `~/.claude/pact/handoff/<session id>.md` with no permission prompt; fails on
+  no nudge, a nudge on every tool call, or a prompt for the write. *Across
+  compaction:* the first turn after compaction shows the "own notes" line and
+  the file's text, and the summary names the file; fails if either is
+  missing. *Surfaces:* the same three on the Desktop Code tab, a `claude --bg`
+  session, a cloud session and an Opus session; the Windows run also watches
+  whether a `node` in a cloned project's folder is run before the PATH's.
+  *On any failure:* at home, set `auto-compact-window` to `0` and install; in
+  the cloud, revert the cloud part of #482 (see the install how-to), merged on
+  the owner's word; either way, open an issue with what was seen.
 - **Agent settings.** The file's `agents` key may set any pact agent's
   `model` and `effort`, `scout` included (#262). The model is any model
   Claude Code takes: an alias such as `opus`, `sonnet`, `haiku`, `fable` or
@@ -187,7 +223,14 @@ how every session in every repo behaves. So:
 An older pact installs with that commit's own installer. **If the cleaner is
 on,** turn it off and apply first, so its deny rules leave `settings.json`; a
 pact from before #438 refuses a configuration that names it, and never removes
-those rules.
+those rules. **If the auto-compact window is on,** which it is by default
+(#482), set `auto-compact-window` to `0` and install first: an older
+installer keeps the live hook entries but deletes the script it doesn't know,
+so every session would call a missing file. Then take the key out of the
+configuration, since an older installer refuses it. Stop and ask when
+`settings.json` still holds a hook that calls `pact/hooks/compact-handoff.mjs`
+after that install (the older installer's own warning about any `hooks` key is
+not that), or a field check fails.
 Rollback is supported only to commits on the published `main` from the Node
 install's cutover (#166, `6821d68`) on. **Before checking out a commit to
 roll back to,** check it, with no checkout:

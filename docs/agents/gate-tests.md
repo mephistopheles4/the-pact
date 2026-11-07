@@ -28,7 +28,7 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
     - **What an agent-file change picks.** The test helpers are split by
       what they touch (ADR 0034), so an agent file picks only the tests that
       read agents: those that import `payload.mjs` or read them themselves.
-      Of the install files, that's the smoke set and nine others, 10 of 16.
+      Of the install files, that's the smoke set and nine others, 10 of 18.
     - **Some changes still cost about a full suite.** The pact's rules file,
       `claude/CLAUDE.md`, is read by nearly every test. A fixture edit, or a
       deleted or renamed test file, is named by the copy list's entry for the
@@ -130,7 +130,8 @@ runs only, never a host run of `gate/tests/run.mjs`.
   the host too when athanor can't run: no Docker, or an older copy.
 - **The image is the Linux run's** in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/): Node 24
-  pinned by digest, git, no PowerShell, and a user that isn't root. athanor
+  pinned by digest, git, jq (for the cloud setup's settings merge, #482), no
+  PowerShell, and a user that isn't root. athanor
   replaces its `CMD`, so the Linux run's own way in, which clones a git
   bundle of one commit, is unchanged.
 - **What it tests:** the tracked working tree, staged or not, as one

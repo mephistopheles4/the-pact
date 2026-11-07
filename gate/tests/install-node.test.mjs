@@ -45,7 +45,9 @@ test('node: --apply installs the files byte for byte, writes the record and the 
   passed(applyBound(repo, h));
   const record = JSON.parse(readFileSync(join(h, '.pact-install.json'), 'utf8'));
   assert.equal(record.commit, git(repo, 'rev-parse', 'HEAD').trim());
-  assert.deepEqual(Object.keys(record), ['commit', 'digest', 'config', 'files', 'gate']);
+  // #482: the default install records the window it set (C1).
+  assert.deepEqual(Object.keys(record), ['commit', 'digest', 'config', 'files', 'gate', 'autoCompactWindow']);
+  assert.equal(record.autoCompactWindow, 400000);
   for (const f of record.files.filter(f => f.path.startsWith('agents/'))) {
     assert.deepEqual(readFileSync(join(h, ...f.path.split('/'))), readFileSync(join(repo, 'claude', ...f.path.split('/'))), f.path);
   }

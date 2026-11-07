@@ -15,6 +15,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import {
   CLOUD_COMMANDS,
+  CLOUD_COMPACT_WINDOW,
   CLOUD_PINS,
   CLOUD_REPO_PINS,
   CLOUD_TOOLS,
@@ -430,7 +431,7 @@ test('cloud copy: the command list is pinned, and empty until the cloud channels
   assert.doesNotMatch(repoText(OUTPUTS.setup), /^write_config 'commands\//m, 'no command in the cloud copy');
   assert.equal(commandsArg([]), 'none');
   assert.equal(commandsArg(['make-it-so', 'finis']), 'make-it-so,finis');
-  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\), '--tools', commandsArg\(CLOUD_TOOLS\)\]\)/, 'seam A gets the constants');
+  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\), '--tools', commandsArg\(CLOUD_TOOLS\), '--compact', 'on'\]\)/, 'seam A gets the constants');
 });
 
 // #280 C1: the published root setup script never installs code that posts as the owner.
@@ -458,11 +459,12 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   const setup = repoText(OUTPUTS.setup);
   const blocks = [...setup.matchAll(new RegExp(`^write_config '([^']+)' <<'${CONFIG_DELIM}'\\n([\\s\\S]*?)^${CONFIG_DELIM}$`, 'gm'))];
   const source = dest =>
-    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : `claude/${dest}`;
+    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'pact/hooks/compact-handoff.mjs' ? 'claude/hooks/compact-handoff.mjs' : `claude/${dest}`;
   // The whole set, from the repo apart from seam A: the rules file, every
   // shipped agent (the lenses and scout, #262 S18) and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
-  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md'].sort();
+  // #482: the cloud copy also carries the compact hook, at pact/hooks/.
+  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md', 'pact/hooks/compact-handoff.mjs'].sort();
   assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {
@@ -605,6 +607,80 @@ test('cloud copy: both generated setup scripts parse under bash -n', { skip: WIN
   // Bad case: a script that doesn't parse is seen to fail.
   const bad = spawnSync('bash', ['-n'], { input: 'if true; then\n', encoding: 'utf8' });
   assert.notEqual(bad.status, 0);
+});
+
+// #482 C10: the cloud tail's settings merge, run under bash and jq against a temp CLAUDE_HOME.
+function runTail(home, tail) {
+  const overlay = repoText('claude/settings.overlay.json');
+  const body = tail.split('__SETTINGS_OVERLAY__').join(overlay).split('__COMPACT_WINDOW__').join('400000');
+  return spawnSync('bash', ['-c', `CLAUDE_HOME="$1"\nCONFIG_WRITTEN=0\n${body}`, 'tail', home], { encoding: 'utf8', env: childEnv() });
+}
+const EVENTS = ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart'];
+const cloudGroup = (home, event) => {
+  const group = { hooks: [{ type: 'command', command: 'node', args: [`${home}/pact/hooks/compact-handoff.mjs`, '400000'], timeout: 15 }] };
+  return event === 'SessionStart' ? { matcher: 'compact', ...group } : group;
+};
+test('#482 C10: the cloud tail writes the hook groups and the window as the install does, keeps an owner hook, and a merge that drops it is seen to fail', { skip: WIN && 'not run: bash and jq are not on a Windows runner by default' }, t => {
+  const tail = repoText('cloud-sessions/tpl-config-tail.sh');
+  const home = tempDir(t, 'pact-cloud-home-');
+  const owner = { hooks: [{ type: 'command', command: 'echo', args: ['mine'] }] };
+  const other = { hooks: [{ type: 'command', command: 'echo', args: ['other'] }] };
+  // A node hook of the pact's whole shape on another script of the same name differs only in its path: the owner's, not the pact's.
+  const ownerNode = { hooks: [{ type: 'command', command: 'node', args: ['/elsewhere/compact-handoff.mjs', '400000'], timeout: 15 }] };
+  // The owner's command inside the pact's group (whose pact hook carries an older window), a second pact group holding an owner command, and hooks that carry the script path but are not the pact's entry, each differing in one thing (#482 round 1).
+  const ownerInner = { type: 'command', command: 'echo', args: ['inside'] };
+  const ownerInner2 = { type: 'command', command: 'echo', args: ['inside the second group'] };
+  const pactHook = cloudGroup(home, 'PreCompact').hooks[0];
+  const older = { ...pactHook, args: [pactHook.args[0], '600000'] };
+  const lookalikes = [
+    { ...pactHook, command: 'bash' },
+    { ...pactHook, type: 'http' },
+    { ...pactHook, timeout: 30 },
+    { ...pactHook, statusMessage: 'x' },
+    { ...pactHook, args: [pactHook.args[0], '400000', '--extra'] },
+    { ...pactHook, args: [pactHook.args[0], 'abc'] },
+  ].map(x => ({ hooks: [x] }));
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({
+    theme: 'dark',
+    hooks: {
+      PostToolUse: [owner, ownerNode],
+      Notification: [other],
+      PreCompact: [{ hooks: [ownerInner, older] }],
+      UserPromptSubmit: [cloudGroup(home, 'UserPromptSubmit'), { hooks: [ownerInner2, cloudGroup(home, 'UserPromptSubmit').hooks[0]] }],
+      Elsewhere: lookalikes,
+    },
+  }));
+  // Both generated scripts carry the generator's window, not a number of their own.
+  for (const rel of [OUTPUTS.setup, OUTPUTS.wrapper]) assert.ok(repoText(rel).includes(`COMPACT_WINDOW='${CLOUD_COMPACT_WINDOW}'`), rel);
+  const r = runTail(home, tail);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /merged ~\/\.claude\/settings\.json/);
+  const s = JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'));
+  assert.equal(s.theme, 'dark');
+  assert.equal(s.autoCompactWindow, 400000);
+  assert.deepEqual(Object.keys(s.hooks).sort(), [...EVENTS, 'Notification', 'Elsewhere'].sort());
+  assert.deepEqual(s.hooks.PostToolUse, [owner, ownerNode, cloudGroup(home, 'PostToolUse')]);
+  assert.deepEqual(s.hooks.Notification, [other]);
+  assert.deepEqual(s.hooks.PreCompact, [{ hooks: [ownerInner, pactHook] }], 'only the pact hook in a shared group is replaced, and brought to the cloud window');
+  assert.deepEqual(s.hooks.UserPromptSubmit, [cloudGroup(home, 'UserPromptSubmit'), { hooks: [ownerInner2] }], 'a second pact hook is taken out of its group, which keeps the owner command');
+  assert.deepEqual(s.hooks.Elsewhere, lookalikes);
+  for (const e of EVENTS.filter(x => !['PostToolUse', 'PreCompact', 'UserPromptSubmit'].includes(x))) assert.deepEqual(s.hooks[e], [cloudGroup(home, e)], e);
+  // A second run updates in place.
+  assert.equal(runTail(home, tail).status, 0);
+  assert.deepEqual(JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')), s);
+  // On a fresh home the same groups land.
+  const fresh = tempDir(t, 'pact-cloud-home-');
+  assert.equal(runTail(fresh, tail).status, 0);
+  assert.deepEqual(JSON.parse(readFileSync(join(fresh, 'settings.json'), 'utf8')).hooks.Stop, [cloudGroup(fresh, 'Stop')]);
+  // Bad case: the overlay's hooks through the deep merge replace the owner's list, and the checks above see it.
+  const planted = tail.replace('(.[1] | del(.hooks)) as $b', '.[1] as $b');
+  assert.notEqual(planted, tail);
+  const bad = tempDir(t, 'pact-cloud-home-');
+  writeFileSync(join(bad, 'settings.json'), JSON.stringify({ hooks: { PostToolUse: [owner] } }));
+  runTail(bad, planted);
+  const badHooks = JSON.parse(readFileSync(join(bad, 'settings.json'), 'utf8')).hooks;
+  assert.notDeepEqual(badHooks.PostToolUse, [owner, cloudGroup(bad, 'PostToolUse')]);
+  assert.ok(!JSON.stringify(badHooks.PostToolUse).includes('mine'), 'the planted merge dropped the owner hook');
 });
 
 // #183 C6, C3: read, not run, as above. The Node block's hand checks are in

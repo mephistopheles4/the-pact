@@ -294,7 +294,16 @@ const SESSION_PROJECT_LINE = n =>
 const SETTINGS = new Map([
   ['usage-pause', Object.freeze({ mark: 'usage-pause', min: 0, max: 100, def: 75, template: USAGE_TEMPLATE, tighter: 'lower', projectLine: USAGE_PROJECT_LINE })],
   ['usage-pause-session', Object.freeze({ mark: 'usage-pause-session', min: 0, max: 100, def: null, template: SESSION_TEMPLATE, tighter: 'lower', projectLine: SESSION_PROJECT_LINE })],
+  // #482: the auto-compact window, in tokens. It has no part in the rules file (mark: null), so its value never changes the rules text. 0 turns it off. A project may not set it.
+  ['auto-compact-window', Object.freeze({ mark: null, min: 100000, max: 1000000, step: 10000, off: 0, def: 400000, template: null, tighter: null, projectLine: null })],
 ]);
+
+/** Whether `v` is a value the setting takes: a whole number in its range (on its step, if it has one), or its off value. */
+function settingOk(v, spec) {
+  if (spec.off !== undefined && v === spec.off && !Object.is(v, -0)) return true;
+  return wholeIn(v, spec.min, spec.max) && (spec.step === undefined || (v - spec.min) % spec.step === 0);
+}
+const settingRule = (name, spec) => (spec.step === undefined ? `${name} must be a whole number from ${spec.min} to ${spec.max}` : `${name} must be ${spec.off}, or a whole number from ${spec.min} to ${spec.max} in steps of ${spec.step}`);
 
 // Each pact tool's part of the rules file (#280): the open mark it fills, and
 // its fixed text, one line since #464 T4: the poster's how-to is in review.md,
@@ -836,9 +845,9 @@ function checkConfig(buf, report, shown = CONFIG_SHOWN) {
       for (const [name, spec] of SETTINGS) {
         if (!Object.hasOwn(doc.settings, name)) continue;
         const v = doc.settings[name];
-        if (wholeIn(v, spec.min, spec.max)) values.push([name, v]);
+        if (settingOk(v, spec)) values.push([name, v]);
         else {
-          fail('config-value', `${name} must be a whole number from ${spec.min} to ${spec.max}`);
+          fail('config-value', settingRule(name, spec));
           ok = false;
         }
       }
@@ -1137,6 +1146,7 @@ function swapsFor(lines, pairs, values, edits, digest, report, agents = [], tool
   const swaps = [];
   for (const [name, value] of values) {
     const spec = SETTINGS.get(name);
+    if (spec.mark === null) continue;
     const p = pairs.get(spec.mark);
     if (!p) return fail(spec.mark, 'the part is not in the source');
     const now = lines.slice(p.begin + 1, p.end);
@@ -1295,8 +1305,8 @@ function checkProject(buf, effective, report) {
   for (const [name, spec] of SETTINGS) {
     if (!Object.hasOwn(settings, name)) continue;
     const v = settings[name];
-    if (!wholeIn(v, spec.min, spec.max)) {
-      fail('project-value', `${name} must be a whole number from ${spec.min} to ${spec.max}`);
+    if (!settingOk(v, spec)) {
+      fail('project-value', settingRule(name, spec));
       ok = false;
     } else if (spec.tighter !== 'lower') {
       fail('project-direction', `${name} has no tightening direction, so a project may not set it`);

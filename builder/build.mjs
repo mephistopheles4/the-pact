@@ -138,6 +138,13 @@ function sessionFrom(renderSrc) {
   return { name: 'usage-pause-session', min: Number(m[1]), max: Number(m[2]) };
 }
 
+/** The auto-compact window's range, step, off value and default (#482), read from gate/render-core.mjs's text. */
+function compactFrom(renderSrc) {
+  const m = /\['auto-compact-window', Object\.freeze\(\{ mark: null, min: (\d+), max: (\d+), step: (\d+), off: (\d+), def: (\d+),/.exec(renderSrc);
+  if (!m) fail('gate/render-core.mjs no longer declares the auto-compact-window setting in the expected form');
+  return { name: 'auto-compact-window', min: Number(m[1]), max: Number(m[2]), step: Number(m[3]), off: Number(m[4]), def: Number(m[5]) };
+}
+
 /** The source's marked parts (name -> dedented text) and its sequence of lead-ins and marks. */
 function parseSource(src) {
   const parts = new Map();
@@ -269,7 +276,8 @@ export function pactData(root) {
   const agentInfo = agentFiles.map(f => ({ ...info(join('claude', 'agents', f), f.slice(0, -3)), ...(classes[f.slice(0, -3)] ?? { security: null, egress: null }) }));
 
   const session = sessionFrom(renderSrc);
-  return { always, editable, setting, session, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
+  const compact = compactFrom(renderSrc);
+  return { always, editable, setting, session, compact, parts: { marks: [...PART_MARKS], text: partText, defaults: DEFAULT_PARTS }, agents: agentInfo, agentChoices, pactText: pactText(root, src, renderSrc) };
 }
 
 // ------------------------------------------------------------ the builder file
