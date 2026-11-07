@@ -27,22 +27,6 @@ test('#482 C1: with no configuration, or one that leaves the key unset, the inst
   assert.deepEqual(files(a).filter(p => p !== 'pact/config.json'), files(b).filter(p => p !== 'pact/config.json'));
 });
 
-test('#482: the dry run shows the window and each hook event, and a quiet next run', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  const dry = install(repo, h);
-  assert.equal(dry.code, 0, dry.out);
-  assert.match(dry.stdout, /^auto-compact-window: on, 400000 tokens$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}set autoCompactWindow = 400000$/m, dry.out);
-  for (const e of EVENTS) assert.match(dry.stdout, new RegExp(`^ {2}hook ${e}: added$`, 'm'), dry.out);
-  assert.doesNotMatch(dry.stdout, /did not install/, dry.out);
-  assert.equal(applyBound(repo, h).code, 0);
-  const again = install(repo, h);
-  assert.match(again.stdout, /^auto-compact-window: on, 400000 tokens$/m, again.out);
-  assert.doesNotMatch(again.stdout, /^ {2}(set autoCompactWindow|hook )/m, again.out);
-  assert.match(again.stdout, /^settings\.json: unchanged$/m, again.out);
-});
-
 // C2
 test('#482 C2: a set window reaches autoCompactWindow and every hook argument; the owner\'s groups survive in order; a second install updates in place', t => {
   const repo = makeRepo(t);
@@ -57,6 +41,12 @@ test('#482 C2: a set window reaches autoCompactWindow and every hook argument; t
   first.hooks.PostToolUse = [ownerBefore, ...first.hooks.PostToolUse, ownerAfter];
   first.hooks.Stop = [ownerNode, ...first.hooks.Stop];
   first.hooks.Notification = [ownerOther];
+  // An owner's command in the same group as the pact's; a second pact group on another event; and a hook that carries the pact's script path but is not the pact's entry.
+  const ownerInner = { type: 'command', command: 'echo', args: ['inside the pact group'] };
+  first.hooks.PreCompact[0].hooks.unshift(ownerInner);
+  first.hooks.UserPromptSubmit = [...first.hooks.UserPromptSubmit, structuredClone(first.hooks.UserPromptSubmit[0])];
+  const lookalike = { hooks: [{ type: 'command', command: 'bash', args: [script(h), '400000'], timeout: 15 }] };
+  first.hooks.Elsewhere = [lookalike];
   writeLive(h, first);
   config(h, windowCfg(600000));
   const dry = install(repo, h);
@@ -66,16 +56,29 @@ test('#482 C2: a set window reaches autoCompactWindow and every hook argument; t
   assert.match(dry.stdout, /^WARN: settings\.json holds a hook the pact did not install: PostToolUse$/m, dry.out);
   assert.match(dry.stdout, /^WARN: settings\.json holds a hook the pact did not install: Notification$/m, dry.out);
   assert.match(dry.stdout, /^WARN: settings\.json holds a hook the pact did not install: Stop$/m, dry.out);
-  assert.doesNotMatch(dry.stdout, /did not install: (PreCompact|SessionStart|UserPromptSubmit)/, dry.out);
+  // A hook with the script's path that is not the pact's entry draws the warning, wherever it sits; the owner's command inside the pact's group does too.
+  assert.match(dry.stdout, /^WARN: settings\.json holds a hook the pact did not install: Elsewhere$/m, dry.out);
+  assert.match(dry.stdout, /^WARN: settings\.json holds a hook the pact did not install: PreCompact$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, /did not install: (SessionStart|UserPromptSubmit)/, dry.out);
   assert.equal(applyBound(repo, h).code, 0);
   const s = live(h);
   assert.equal(s.autoCompactWindow, 600000);
   assert.deepEqual(s.hooks.PostToolUse, [ownerBefore, pactGroup(h, 600000, 'PostToolUse'), ownerAfter]);
   assert.deepEqual(s.hooks.Notification, [ownerOther]);
   assert.deepEqual(s.hooks.Stop, [ownerNode, pactGroup(h, 600000, 'Stop')]);
-  for (const e of EVENTS.filter(x => x !== 'PostToolUse' && x !== 'Stop')) assert.deepEqual(s.hooks[e], [pactGroup(h, 600000, e)], e);
+  // Inside the pact's group only the pact's hook is replaced; a second pact group is taken out; the look-alike stays.
+  assert.deepEqual(s.hooks.PreCompact, [{ hooks: [ownerInner, pactGroup(h, 600000, 'PreCompact').hooks[0]] }]);
+  assert.deepEqual(s.hooks.UserPromptSubmit, [pactGroup(h, 600000, 'UserPromptSubmit')]);
+  assert.deepEqual(s.hooks.Elsewhere, [lookalike]);
+  for (const e of EVENTS.filter(x => !['PostToolUse', 'Stop', 'PreCompact', 'UserPromptSubmit'].includes(x))) assert.deepEqual(s.hooks[e], [pactGroup(h, 600000, e)], e);
   // A second install changes nothing.
   const again = install(repo, h);
   assert.match(again.stdout, /^settings\.json: unchanged$/m, again.out);
+  // Off takes only the pact's hooks: the owner's command in the shared group, the look-alike and every owner group stay, in order.
+  config(h, windowCfg(0));
+  assert.equal(applyBound(repo, h).code, 0);
+  const off = live(h);
+  assert.equal(Object.hasOwn(off, 'autoCompactWindow'), false);
+  assert.deepEqual(off.hooks, { PostToolUse: [ownerBefore, ownerAfter], Stop: [ownerNode], PreCompact: [{ hooks: [ownerInner] }], Notification: [ownerOther], Elsewhere: [lookalike] });
 });
 

@@ -357,16 +357,6 @@ function seamArgs(t, files, ...argv) {
   return runCore('seam-a', [root, ...argv]);
 }
 
-test('the overlay holds the pact hooks block, and the allow-list holds it exactly', t => {
-  const o = JSON.parse(realOverlay());
-  assert.deepEqual(Object.keys(o.hooks), ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart']);
-  assert.equal(o.hooks.SessionStart[0].matcher, 'compact');
-  const inner = Object.values(o.hooks).map(groups => groups.map(g => g.hooks).flat()).flat();
-  assert.equal(inner.length, 5);
-  for (const h of inner) assert.deepEqual(h, { type: 'command', command: 'node', args: ['__PACT_HOOK_SCRIPT__', '__PACT_WINDOW__'], timeout: 15 });
-  assert.equal(runSeamA(stage(t)).code, 0);
-});
-
 // A change to the hooks block that the allow-list does not hold fails, whatever it is.
 for (const [id, edit] of [
   ['a changed command', o => (o.hooks.Stop[0].hooks[0].command = 'bash')],

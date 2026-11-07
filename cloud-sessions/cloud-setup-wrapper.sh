@@ -1345,16 +1345,31 @@ COMPACT_SCRIPT="$CLAUDE_HOME/pact/hooks/compact-handoff.mjs"
 # joined and de-duplicated (jq's unique also sorts them), not replaced.
 # The overlay's hooks never go through that merge, which would replace an
 # owner's lists: each event is merged by key. A pact entry is an inner hook
-# whose first argument is the installed script's path; its group is updated in
-# place, or appended after the event's other groups. Then autoCompactWindow is set.
+# equal to the overlay's (its window aside) with the installed script's path as
+# its first argument. The first group holding one is updated in place, and
+# only that inner hook if the group holds others; a second pact entry elsewhere
+# is taken out; else the group is appended after the event's other groups.
+# Then autoCompactWindow is set.
 MERGE_PROGRAM='
   .[0] as $a | (.[1] | del(.hooks)) as $b | (.[1].hooks // {}) as $h
-  | def holds: type == "object" and any((.hooks // [])[]?; type == "object" and ((.args // [])[0]?) == $script);
+  | def pactHook:
+      type == "object" and (keys | sort) == ["args","command","timeout","type"]
+      and .type == "command" and .command == "node" and .timeout == 15
+      and (.args | type == "array" and length == 2 and .[0] == $script and (.[1] | type == "string" and test("^[0-9]{6,7}$")));
+    def holds: type == "object" and (.hooks | type == "array") and any(.hooks[]; pactHook);
     def put($event; $group):
       (.hooks[$event]) as $list
       | if $list == null then .hooks[$event] = [$group]
         elif ($list | type) != "array" then .
-        elif ($list | any(.[]; holds)) then .hooks[$event] = ($list | map(if holds then $group else . end))
+        elif ($list | any(.[]; holds)) then
+          ($list | map(holds) | index(true)) as $first
+          | .hooks[$event] = [ $list | to_entries[] | .key as $i | .value as $g
+              | if ($g | holds | not) then $g
+                elif $i == $first then
+                  (if ($g.hooks | all(.[]; pactHook)) then $group
+                   else ($g.hooks | map(pactHook) | index(true)) as $p
+                     | $g | .hooks = [ .hooks | to_entries[] | select((.value | pactHook | not) or .key == $p) | if .key == $p then $group.hooks[0] else .value end ] end)
+                else ($g | .hooks |= map(select(pactHook | not)) | if (.hooks | length) == 0 then empty else . end) end ]
         else .hooks[$event] = $list + [$group] end;
     ($a * $b)
   | reduce ("enabledPlugins", "extraKnownMarketplaces") as $k (.;
@@ -1462,7 +1477,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy bc5d8debc22c"
+  echo "pact cloud copy 6930432746d7"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

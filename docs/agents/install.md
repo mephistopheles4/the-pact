@@ -90,8 +90,12 @@ how every session in every repo behaves. So:
   no project may set it. It has no part in the rules file, so the rules text is
   the same at any value. With it on the install also copies
   `claude/hooks/compact-handoff.mjs` to `pact/hooks/` and merges the overlay's
-  `hooks` block by key: the pact's five entries are updated in place or added
-  after an event's other groups, and every other hook stays as it was.
+  `hooks` block by key: a pact entry is an inner hook equal to the overlay's
+  for that event, its window aside, so the five are updated in place (only
+  that inner hook, when your own command shares its group) or added after an
+  event's other groups, a second copy is taken out, and every other hook stays
+  as it was. A hook that names the script but is not that entry draws the
+  dry run's warning and is left alone.
   `hooks` is never run through the deep merge, which would replace an owner's
   list. Seam A takes `--compact on|off`, exactly once, and holds the hooks block
   to the allow-list, tokens included. The installer replaces the block's two

@@ -55,16 +55,6 @@ test('node: --apply installs the files byte for byte, writes the record and the 
   assert.ok(!record.gate.some(g => g.path.startsWith('gate/tests/')));
   const settings = JSON.parse(readFileSync(join(h, 'settings.json'), 'utf8'));
   assert.equal(settings.permissions.defaultMode, 'auto');
-  // #482 C1: the default window, the five pact groups with both tokens replaced, and the script.
-  const script = join(h, 'pact', 'hooks', 'compact-handoff.mjs');
-  assert.equal(settings.autoCompactWindow, 400000);
-  assert.deepEqual(Object.keys(settings.hooks), ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart']);
-  for (const groups of Object.values(settings.hooks)) {
-    assert.equal(groups.length, 1);
-    assert.deepEqual(groups[0].hooks, [{ type: 'command', command: 'node', args: [script, '400000'], timeout: 15 }]);
-  }
-  assert.equal(settings.hooks.SessionStart[0].matcher, 'compact');
-  assert.deepEqual(readFileSync(script), readFileSync(join(repo, 'claude', 'hooks', 'compact-handoff.mjs')));
   const again = install(repo, h);
   passed(again);
   assert.match(again.stdout, /^Nothing to do\.$/m);

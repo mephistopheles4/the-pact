@@ -539,10 +539,13 @@ installer's own floor) and `node` on the PATH.
   and five hook entries in `settings.json` that call it with `node`: on
   `PostToolUse`, `UserPromptSubmit`, `Stop`, `PreCompact` and `SessionStart`
   (matcher `compact`). Your own hooks, and other tools' hooks, stay as they
-  are, in the order they were: the pact's entries merge by key (an event plus
-  the script's path), are updated in place, and are added after the event's
-  other entries. The dry run warns once per event that holds a hook the pact
-  did not install, and lists each pact event it adds, updates or removes.
+  are, in the order they were: a pact entry is a hook exactly like the one the
+  overlay carries (its window aside) that calls the installed script. It is
+  updated in place, and only it: a command of yours in the same entry stays. A
+  missing one is added after the event's other entries, and a second copy is
+  taken out. The dry run warns once per event that holds a hook the pact did
+  not install, one that names the script but is not the pact's entry
+  included, and lists each pact event it adds, updates or removes.
 - **What the hook does.** Past the window minus 80000 tokens, it asks the
   session once per turn, until compaction, to update its hand-off file,
   `~/.claude/pact/handoff/<session id>.md`. It asks the compaction summary to

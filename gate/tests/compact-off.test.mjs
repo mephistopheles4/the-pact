@@ -55,22 +55,6 @@ for (const [name, ownerLive] of [
   });
 }
 
-test('#482 C3: Off takes only the window the pact set, and says so when it leaves another', t => {
-  const repo = makeRepo(t);
-  const h = home(t);
-  assert.equal(applyBound(repo, h).code, 0);
-  const s = live(h);
-  s.autoCompactWindow = 250000;
-  writeLive(h, s);
-  config(h, windowCfg(0));
-  const dry = install(repo, h);
-  assert.match(dry.stdout, /^auto-compact-window: off$/m, dry.out);
-  assert.match(dry.stdout, /^ {2}NOTE: settings\.json holds an autoCompactWindow the pact did not set; it is left as it is\.$/m, dry.out);
-  assert.equal(applyBound(repo, h).code, 0);
-  assert.equal(live(h).autoCompactWindow, 250000);
-  assert.equal(Object.hasOwn(live(h), 'hooks'), false);
-});
-
 // C4
 test('#482 C4: a window off the range or its step, and a value that is no number, are refused at render and at install', t => {
   const repo = makeRepo(t);

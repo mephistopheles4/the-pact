@@ -1139,17 +1139,50 @@ export function fillHooks(overlay, home, script, window, platform = 'linux') {
 }
 
 const innerHooks = group => (isMap(group) && Array.isArray(group.get('hooks')) ? group.get('hooks') : []);
-const isPactHook = (h, key, platform) => isMap(h) && Array.isArray(h.get('args')) && typeof h.get('args')[0] === 'string' && pathKey(h.get('args')[0], platform) === key;
+/**
+ * The pact's own inner hook (#482, round 1): exactly the overlay's entry, its
+ * one variable being the window, a decimal string. A hook that carries the
+ * script's path but differs in its command, type, timeout or arguments, or has
+ * another key, is not the pact's: it is left alone and draws the dry run's
+ * warning.
+ */
+const isPactHook = (h, key, platform) => {
+  if (!isMap(h) || h.size !== 4 || h.get('type') !== 'command' || h.get('command') !== 'node') return false;
+  const t = h.get('timeout');
+  const a = h.get('args');
+  return t instanceof Num && t.raw === '15' && Array.isArray(a) && a.length === 2 && typeof a[0] === 'string' && pathKey(a[0], platform) === key && typeof a[1] === 'string' && /^[0-9]{6,7}$/.test(a[1]);
+};
 const holdsPact = (group, key, platform) => innerHooks(group).some(h => isPactHook(h, key, platform));
 
+/** `group` with the pact's inner hooks taken out; null when that leaves it no inner hook. Other fields and hooks stay. */
+function stripPact(group, key, platform) {
+  const rest = innerHooks(group).filter(h => !isPactHook(h, key, platform));
+  if (!rest.length) return null;
+  const g = new Map(group);
+  g.set('hooks', rest);
+  return g;
+}
+
+/** The first group that holds a pact hook, brought up to the overlay's `want`: replaced whole when it holds nothing else, else only its first pact hook is replaced and its other pact hooks go. */
+function updatePact(group, want, key, platform) {
+  const inner = innerHooks(group);
+  if (inner.every(h => isPactHook(h, key, platform))) return want;
+  const at = inner.findIndex(h => isPactHook(h, key, platform));
+  const g = new Map(group);
+  g.set('hooks', inner.flatMap((h, i) => (i === at ? [want.get('hooks')[0]] : isPactHook(h, key, platform) ? [] : [h])));
+  return g;
+}
+
 /**
- * The keyed merge of the pact's hooks (#482 S4). A pact entry is an inner
- * hook whose first argument is the installed script's path, on an event.
- * With `overlayHooks` (on): a group holding a pact entry is updated in place,
- * a missing one is appended after the event's other groups. With null (off):
- * every group holding a pact entry is removed, then an event the removal left
- * with no group, then `hooks` if the removal emptied it. Every other group
- * stays as it was, in order. Returns { hooks, events, skipped }: `hooks` is
+ * The keyed merge of the pact's hooks (#482 S4, round 1). A pact entry is an
+ * inner hook equal to the overlay's for the event, its window aside (see
+ * isPactHook). With `overlayHooks` (on): the first group holding a pact entry
+ * is updated in place (only that inner hook, when the group holds others), a
+ * missing one is appended after the event's other groups, and a second pact
+ * entry elsewhere is taken out. With null (off): every pact inner hook is
+ * removed, a group left empty goes, then an event the removal left with no
+ * group, then `hooks` if the removal emptied it. Every other group, inner
+ * hook and field stays as it was, in order. Returns { hooks, events, skipped }: `hooks` is
  * undefined when the key should be absent, `events` the [event, op] pairs
  * the merge makes, `skipped` the events whose live value is not a list.
  */
@@ -1173,9 +1206,13 @@ export function hooksPlan(live, overlayHooks, compact) {
           if (at < 0) {
             out.set(event, [...list, group]);
             events.push([event, 'added']);
-          } else if (canonical(list[at]) !== canonical(group)) {
-            out.set(event, list.map((g, i) => (i === at ? group : g)));
-            events.push([event, 'updated']);
+          } else {
+            // The first group holding a pact hook is updated in place; the pact hooks in any later group are taken out, a group they leave empty going with them.
+            const next = list.flatMap((g, i) => (i < at || !holdsPact(g, key, compact.platform) ? [g] : i === at ? [updatePact(g, group, key, compact.platform)] : stripPact(g, key, compact.platform) ?? []));
+            if (canonical(next) !== canonical(list)) {
+              out.set(event, next);
+              events.push([event, 'updated']);
+            }
           }
         }
       }
@@ -1184,8 +1221,9 @@ export function hooksPlan(live, overlayHooks, compact) {
   }
   for (const [event, list] of [...out]) {
     if (!Array.isArray(list)) continue;
-    const kept = list.filter(g => !holdsPact(g, key, compact.platform));
-    if (kept.length === list.length) continue;
+    // Only the pact's inner hooks go; a group left with none goes too, and every other group, hook and field stays.
+    const kept = list.flatMap(g => (holdsPact(g, key, compact.platform) ? stripPact(g, key, compact.platform) ?? [] : [g]));
+    if (canonical(kept) === canonical(list)) continue;
     events.push([event, 'removed']);
     if (kept.length) out.set(event, kept);
     else out.delete(event);

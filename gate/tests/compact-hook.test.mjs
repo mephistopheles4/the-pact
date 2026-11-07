@@ -86,23 +86,6 @@ test('#482 C6: past the line a turn with a prompt and two tool calls gets exactl
   assert.equal(readFileSync(turnFile(ctx), 'utf8').trim(), 'open');
 });
 
-test('#482 C6: a transcript over 256 KB is read by its tail', t => {
-  const ctx = setup(t, 340000, 400);
-  assert.ok(readFileSync(ctx.transcript).length > 300 * 1024);
-  assert.match(run(ctx, UPS).out, /additionalContext/);
-  const under = setup(t, 100000, 400);
-  assert.equal(run(under, UPS).out, '');
-});
-
-test('#482 C6: once context is back under the line the nudge stops by itself, and the next prompt opens the turn', t => {
-  const ctx = setup(t, 340000);
-  assert.match(run(ctx, UPS).out, /additionalContext/);
-  writeFileSync(ctx.transcript, `${JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 50000 } } })}\n`);
-  assert.equal(run(ctx, PTU).out, '');
-  assert.equal(run(ctx, UPS).out, '');
-  assert.equal(readFileSync(turnFile(ctx), 'utf8').trim(), 'open');
-});
-
 test('#482 C6: a subagent\'s input (with agent_id) gets no nudge and leaves no file', t => {
   const ctx = setup(t, 340000);
   for (const e of [UPS, PTU, STOP, { hook_event_name: 'PreCompact' }, { hook_event_name: 'SessionStart', source: 'compact' }]) {

@@ -627,7 +627,19 @@ test('#482 C10: the cloud tail writes the hook groups and the window as the inst
   const other = { hooks: [{ type: 'command', command: 'echo', args: ['other'] }] };
   // A node hook on another script of the same name is the owner's, not the pact's.
   const ownerNode = { hooks: [{ type: 'command', command: 'node', args: ['/elsewhere/compact-handoff.mjs', '400000'] }] };
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ theme: 'dark', hooks: { PostToolUse: [owner, ownerNode], Notification: [other] } }));
+  // The owner's command inside the pact's group, a second pact group, and a hook that carries the script path but is not the pact's entry (#482 round 1).
+  const ownerInner = { type: 'command', command: 'echo', args: ['inside'] };
+  const lookalike = { hooks: [{ type: 'command', command: 'bash', args: [`${home}/pact/hooks/compact-handoff.mjs`, '400000'], timeout: 15 }] };
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({
+    theme: 'dark',
+    hooks: {
+      PostToolUse: [owner, ownerNode],
+      Notification: [other],
+      PreCompact: [{ hooks: [ownerInner, cloudGroup(home, 'PreCompact').hooks[0]] }],
+      UserPromptSubmit: [cloudGroup(home, 'UserPromptSubmit'), cloudGroup(home, 'UserPromptSubmit')],
+      Elsewhere: [lookalike],
+    },
+  }));
   // Both generated scripts carry the generator's window, not a number of their own.
   for (const rel of [OUTPUTS.setup, OUTPUTS.wrapper]) assert.ok(repoText(rel).includes(`COMPACT_WINDOW='${CLOUD_COMPACT_WINDOW}'`), rel);
   const r = runTail(home, tail);
@@ -636,10 +648,13 @@ test('#482 C10: the cloud tail writes the hook groups and the window as the inst
   const s = JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'));
   assert.equal(s.theme, 'dark');
   assert.equal(s.autoCompactWindow, 400000);
-  assert.deepEqual(Object.keys(s.hooks).sort(), [...EVENTS, 'Notification'].sort());
+  assert.deepEqual(Object.keys(s.hooks).sort(), [...EVENTS, 'Notification', 'Elsewhere'].sort());
   assert.deepEqual(s.hooks.PostToolUse, [owner, ownerNode, cloudGroup(home, 'PostToolUse')]);
   assert.deepEqual(s.hooks.Notification, [other]);
-  for (const e of EVENTS.filter(x => x !== 'PostToolUse')) assert.deepEqual(s.hooks[e], [cloudGroup(home, e)], e);
+  assert.deepEqual(s.hooks.PreCompact, [{ hooks: [ownerInner, cloudGroup(home, 'PreCompact').hooks[0]] }], 'only the pact hook in a shared group is replaced');
+  assert.deepEqual(s.hooks.UserPromptSubmit, [cloudGroup(home, 'UserPromptSubmit')], 'a second pact group is taken out');
+  assert.deepEqual(s.hooks.Elsewhere, [lookalike]);
+  for (const e of EVENTS.filter(x => !['PostToolUse', 'PreCompact', 'UserPromptSubmit'].includes(x))) assert.deepEqual(s.hooks[e], [cloudGroup(home, e)], e);
   // A second run updates in place.
   assert.equal(runTail(home, tail).status, 0);
   assert.deepEqual(JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')), s);
