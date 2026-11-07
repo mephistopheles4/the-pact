@@ -56,7 +56,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
   locally after a rebase or merge that brought in other work, and after a
-  final change set (through athanor).
+  final change set (through athanor). An install relies on CI's two jobs
+  passing on the commit it installs.
 - **Test evidence is CI's two jobs,** `gate` and `gate-windows`, passing on
   the reviewed head, so push the branch and open a draft PR before Test. The
   Test record cites both run links and each run's commit, which is the head.

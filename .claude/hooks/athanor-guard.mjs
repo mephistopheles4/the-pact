@@ -3,8 +3,8 @@
 // before every Bash and PowerShell call in this repo, with the call as JSON on
 // standard input. AGENTS.md makes athanor the default for local runs of the
 // gate's tests (ADR 0099): `athanor run fast` while building, `athanor run` for
-// the full suite. The host runs `fast` and `full` only for `full` before an
-// install, or when athanor can't run. Sessions still skipped that order and
+// the full suite. The host runs `fast` and `full` only when athanor can't
+// run. Sessions still skipped that order and
 // nothing showed it, so this refuses a host `fast` or `full` run while athanor
 // is on the machine, and says how to name the fallback:
 // `--host-fallback=<reason>` on the same command, which the runner prints.

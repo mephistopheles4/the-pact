@@ -9,7 +9,6 @@ Local runs of the gate's tests go through athanor by default (#369): `athanor ru
 
 ## What stays on the host
 
-- **`full` before an install:** the install runs on the host's system, and athanor's run skips the Windows-only cases.
 - **`changed`, for a quick pick:** athanor tests one synthetic commit with no base to diff against.
 - **Any run when athanor can't run:** no Docker, or a copy older than `4121c28`, which the owner updates.
 
