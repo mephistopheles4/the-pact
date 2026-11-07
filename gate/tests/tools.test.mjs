@@ -78,7 +78,7 @@ const args = (...a) => JSON.stringify(['--commands', 'none', ...a]);
 // #280 C3
 {
   const base = () => ({ [TOOL]: GOOD, argv: args('--tools', 'poster') });
-  const run = ({ argv, ...tree }, t) => seamWith(t, tree, JSON.parse(argv));
+  const run = ({ argv, ...tree }, t) => seamWith(t, tree, ['--compact', 'off', ...JSON.parse(argv)]);
   const rows = [
     { id: 'missing', plant: t => ({ ...t, argv: args() }), fails: ['tools-arg'], why: 'the list never defaults' },
     { id: 'given-twice', plant: t => ({ ...t, argv: args('--tools', 'poster', '--tools', 'poster') }), fails: ['tools-arg'], why: 'given twice, even the same' },
@@ -98,7 +98,7 @@ const args = (...a) => JSON.stringify(['--commands', 'none', ...a]);
 
 // #280 C3
 test('seam A takes --tools before or after --commands', t => {
-  const r = seamWith(t, { [TOOL]: GOOD }, ['--tools', 'poster', '--commands', 'none']);
+  const r = seamWith(t, { [TOOL]: GOOD }, ['--tools', 'poster', '--commands', 'none', '--compact', 'off']);
   assert.equal(r.code, 0, r.out);
 });
 

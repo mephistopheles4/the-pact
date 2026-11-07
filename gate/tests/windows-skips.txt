@@ -14,6 +14,7 @@
 # unreadable-file case skips there for the same reason (q11).
 agent-settings.test.mjs bad case: an agent file that is a link is refused
 cloud-sessions.test.mjs cloud copy: both generated setup scripts parse under bash -n
+cloud-sessions.test.mjs #482 C10: the cloud tail writes the hook groups and the window as the install does, keeps an owner hook, and a merge that drops it is seen to fail
 config-install.test.mjs bad case: an unreadable configuration file refuses, and -Apply writes nothing
 contained.test.mjs bad case: a dangling link planted at the temp name refuses, and nothing is created outside the folder
 install-backup.test.mjs #272 C6: on Linux and macOS the backup folders are 0700 and its files 0600

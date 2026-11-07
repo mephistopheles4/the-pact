@@ -104,6 +104,12 @@ test('a project value tighter than the user\'s own installs, and the digest cove
   assert.match(r.stdout, /^VALUE usage-pause 80$/m);
 });
 
+// #482 C4: the auto-compact window has no tightening direction, so a project may not set it, valid value or not.
+test('bad case: the auto-compact window in a project configuration refuses, naming the key', t => {
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"auto-compact-window": 300000}}\n')), 'project-direction', /auto-compact-window has no tightening direction, so a project may not set it/);
+  refusedWith(render(t, userHome(t), project(t, '{"schema": 1, "settings": {"auto-compact-window": 0}}\n')), 'project-direction', /auto-compact-window/);
+});
+
 test('bad case: a project value looser than the user\'s but tighter than the default refuses', t => {
   refusedWith(render(t, userHome(t, userFile(50)), project(t, projectFile(60))), 'project-looser', /usage-pause 60 is not tighter than the user's effective value, 50/);
 });

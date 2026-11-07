@@ -106,6 +106,7 @@ Their reports go into the work's record word for word. The agent sorts the findi
 | `claude/review.md` | The review procedure a session reads before it runs a lens |
 | `claude/agents/` | The lenses, in pairs, and `scout`, the search helper |
 | `claude/commands/` | The pact commands: `/scriptorium`, always installed, and `/make-it-so` and `/finis`, when you list them |
+| `claude/hooks/` | The auto-compact hook, installed by default (turn it off with `auto-compact-window` set to `0`): it asks a session to keep a hand-off file and puts it back after compaction. It needs Claude Code 2.1.318 or later |
 | `claude/tools/` | The pact tools, off unless you list them: today the poster, which posts free text to GitHub, edits what a session posted, and reads it back, and the cleaner, which removes leftover worktrees and their branches after your yes |
 | `familiars/` | Empty: the agents' contracts are retired |
 | `gate/` | The install gate: the pact checks itself before it installs |

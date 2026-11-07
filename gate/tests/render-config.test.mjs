@@ -173,7 +173,7 @@ test('a configured render of the real source passes seam A', t => {
   assert.ok(read(join(root, 'claude', 'CLAUDE.md')).includes('When it is above 90%'));
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
-  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none', '--tools', 'none'], { encoding: 'utf8', env });
+  const r = spawnSync(process.execPath, [SEAM_A, root, '--commands', 'none', '--tools', 'none', '--compact', 'off'], { encoding: 'utf8', env });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.equal(lastLine(r.stdout), 'RESULT: pass');
 });

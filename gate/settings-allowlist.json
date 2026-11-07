@@ -2,5 +2,43 @@
   "permissions.defaultMode": "auto",
   "permissions.allow": [],
   "permissions.deny": [],
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["__PACT_HOOK_SCRIPT__", "__PACT_WINDOW__"], "timeout": 15 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["__PACT_HOOK_SCRIPT__", "__PACT_WINDOW__"], "timeout": 15 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["__PACT_HOOK_SCRIPT__", "__PACT_WINDOW__"], "timeout": 15 }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["__PACT_HOOK_SCRIPT__", "__PACT_WINDOW__"], "timeout": 15 }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          { "type": "command", "command": "node", "args": ["__PACT_HOOK_SCRIPT__", "__PACT_WINDOW__"], "timeout": 15 }
+        ]
+      }
+    ]
+  }
 }

@@ -19,6 +19,11 @@ export function realOverlay() {
   return readFileSync(join(REPO, 'claude', 'settings.overlay.json'), 'utf8');
 }
 
+/** The pact's hook script (#482), as the repo holds it. */
+export function realHook() {
+  return readFileSync(join(REPO, 'claude', 'hooks', 'compact-handoff.mjs'), 'utf8');
+}
+
 /** The pact's own agent files, as { 'claude/agents/<file>': text }. */
 export function realAgents() {
   const out = {};
