@@ -1188,16 +1188,16 @@ Ask each lens to report in this shape:
   pull request's number, never a session's, so any session can edit it. It
   holds, in order: a title line, `## Status: <N> for you, after <stage> round
   <n>`, N as in the round's title line; the round's signal table, copied as
-  posted; **Open for you**, one line per row counted in N (its severity mark
+  posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
   and word, its headline, a link to the round comment), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
   round and head or revision; and `Signed: status-<n>`. It holds no Lens
   dispositions table, crossed findings, report, diagram, or heading or fold
   naming a lens, and never the words "owner decision": the edit checks would
   refuse every later edit. Find it among the comments your gh login wrote,
-  read as JSON, holding the whole line `Signed: status-<n>`. None: post it.
-  One: edit it, keeping its signature line and every `Edited:` line; the
-  reason reads `after <stage> round <n> (<your label>)`. More than one: stop
+  read as JSON, holding the whole line `Signed: status-<n>` outside a fence or
+  quote. None: post it. One: edit it, keeping its signature line and, at the
+  end as they were, every `Edited:` line; the reason reads `after <stage> round <n> (<your label>)`. More than one: stop
   and tell me. Post the round comment first. If
   the status edit fails or is refused, the record stays whole: say in the
   hand-off that the status is stale, and never post a second status comment.
@@ -1467,7 +1467,7 @@ check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'age
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
 check_hash 0a5e3671942d38ec07c1ff5461948792aa40300ea986aad02acf021bee913718 'pact/hooks/compact-handoff.mjs'
-check_hash f4691a22913d1fc40f822b2568cf3589548a820819e1ddf80c85391e6e38de57 'pact/review.md'
+check_hash 76011c6a030ed5003dddf3a3313770845e63dfbf04903e75f05e6264645a5b26 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
 echo "node: $NODE_SEEN"
@@ -1497,7 +1497,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy 21c0318c90e6"
+  echo "pact cloud copy 336d21fab9c1"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

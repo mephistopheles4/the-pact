@@ -65,16 +65,16 @@ Ask each lens to report in this shape:
   pull request's number, never a session's, so any session can edit it. It
   holds, in order: a title line, `## Status: <N> for you, after <stage> round
   <n>`, N as in the round's title line; the round's signal table, copied as
-  posted; **Open for you**, one line per row counted in N (its severity mark
+  posted, but reworded if it holds the words "owner decision"; **Open for you**, one line per row counted in N (its severity mark
   and word, its headline, a link to the round comment), or "None"; **Rounds,
   newest first**, a link to each round comment named by its title line's stage,
   round and head or revision; and `Signed: status-<n>`. It holds no Lens
   dispositions table, crossed findings, report, diagram, or heading or fold
   naming a lens, and never the words "owner decision": the edit checks would
   refuse every later edit. Find it among the comments your gh login wrote,
-  read as JSON, holding the whole line `Signed: status-<n>`. None: post it.
-  One: edit it, keeping its signature line and every `Edited:` line; the
-  reason reads `after <stage> round <n> (<your label>)`. More than one: stop
+  read as JSON, holding the whole line `Signed: status-<n>` outside a fence or
+  quote. None: post it. One: edit it, keeping its signature line and, at the
+  end as they were, every `Edited:` line; the reason reads `after <stage> round <n> (<your label>)`. More than one: stop
   and tell me. Post the round comment first. If
   the status edit fails or is refused, the record stays whole: say in the
   hand-off that the status is stale, and never post a second status comment.
