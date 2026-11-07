@@ -85,6 +85,25 @@ test('a configuration the page saves with a value and an added move installs thr
   assert.match(rules, /Values set: usage-pause 90\. Parts edited: moves \(replace\)\./);
 });
 
+// #482 C9: a saved window and a saved Off install as C2 and C3 say.
+test('the auto-compact window the page saves installs: a set value reaches the settings and the hooks, and Off installs no hook', t => {
+  const s = L.initialState();
+  s.compact = 600000;
+  const set = installSaved(t, s);
+  assert.deepEqual(set.files.map(f => f.path), ['pact/config.json']);
+  assert.match(set.rules, /Values set: auto-compact-window 600000\./);
+  const live = JSON.parse(readFileSync(join(set.h, 'settings.json'), 'utf8'));
+  assert.equal(live.autoCompactWindow, 600000);
+  assert.deepEqual(live.hooks.Stop[0].hooks[0].args, [join(set.h, 'pact', 'hooks', 'compact-handoff.mjs'), '600000']);
+  const off = L.initialState();
+  off.compact = 0;
+  const gone = installSaved(t, off);
+  assert.match(gone.rules, /Values set: auto-compact-window 0\./);
+  const none = JSON.parse(readFileSync(join(gone.h, 'settings.json'), 'utf8'));
+  assert.equal(Object.hasOwn(none, 'hooks') || Object.hasOwn(none, 'autoCompactWindow'), false);
+  assert.equal(existsSync(join(gone.h, 'pact', 'hooks', 'compact-handoff.mjs')), false);
+});
+
 // #203 S10: a commands list the page saves installs those commands, beside /scriptorium.
 test('a commands list the page saves installs /finis beside /scriptorium, and nothing it leaves unticked', t => {
   const s = L.initialState();

@@ -608,6 +608,51 @@ test('cloud copy: both generated setup scripts parse under bash -n', { skip: WIN
   assert.notEqual(bad.status, 0);
 });
 
+// #482 C10: the cloud tail's settings merge, run under bash and jq against a temp CLAUDE_HOME.
+function runTail(home, tail) {
+  const overlay = repoText('claude/settings.overlay.json');
+  const body = tail.split('__SETTINGS_OVERLAY__').join(overlay).split('__COMPACT_WINDOW__').join('400000');
+  return spawnSync('bash', ['-c', `CLAUDE_HOME="$1"\nCONFIG_WRITTEN=0\n${body}`, 'tail', home], { encoding: 'utf8', env: childEnv() });
+}
+const EVENTS = ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart'];
+const cloudGroup = (home, event) => {
+  const group = { hooks: [{ type: 'command', command: 'node', args: [`${home}/pact/hooks/compact-handoff.mjs`, '400000'], timeout: 15 }] };
+  return event === 'SessionStart' ? { matcher: 'compact', ...group } : group;
+};
+test('#482 C10: the cloud tail writes the hook groups and the window as the install does, keeps an owner hook, and a merge that drops it is seen to fail', { skip: WIN && 'not run: bash and jq are not on a Windows runner by default' }, t => {
+  const tail = repoText('cloud-sessions/tpl-config-tail.sh');
+  const home = tempDir(t, 'pact-cloud-home-');
+  const owner = { hooks: [{ type: 'command', command: 'echo', args: ['mine'] }] };
+  const other = { hooks: [{ type: 'command', command: 'echo', args: ['other'] }] };
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ theme: 'dark', hooks: { PostToolUse: [owner], Notification: [other] } }));
+  const r = runTail(home, tail);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /merged ~\/\.claude\/settings\.json/);
+  const s = JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8'));
+  assert.equal(s.theme, 'dark');
+  assert.equal(s.autoCompactWindow, 400000);
+  assert.deepEqual(Object.keys(s.hooks).sort(), [...EVENTS, 'Notification'].sort());
+  assert.deepEqual(s.hooks.PostToolUse, [owner, cloudGroup(home, 'PostToolUse')]);
+  assert.deepEqual(s.hooks.Notification, [other]);
+  for (const e of EVENTS.filter(x => x !== 'PostToolUse')) assert.deepEqual(s.hooks[e], [cloudGroup(home, e)], e);
+  // A second run updates in place.
+  assert.equal(runTail(home, tail).status, 0);
+  assert.deepEqual(JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')), s);
+  // On a fresh home the same groups land.
+  const fresh = tempDir(t, 'pact-cloud-home-');
+  assert.equal(runTail(fresh, tail).status, 0);
+  assert.deepEqual(JSON.parse(readFileSync(join(fresh, 'settings.json'), 'utf8')).hooks.Stop, [cloudGroup(fresh, 'Stop')]);
+  // Bad case: the overlay's hooks through the deep merge replace the owner's list, and the checks above see it.
+  const planted = tail.replace('(.[1] | del(.hooks)) as $b', '.[1] as $b');
+  assert.notEqual(planted, tail);
+  const bad = tempDir(t, 'pact-cloud-home-');
+  writeFileSync(join(bad, 'settings.json'), JSON.stringify({ hooks: { PostToolUse: [owner] } }));
+  runTail(bad, planted);
+  const badHooks = JSON.parse(readFileSync(join(bad, 'settings.json'), 'utf8')).hooks;
+  assert.notDeepEqual(badHooks.PostToolUse, [owner, cloudGroup(bad, 'PostToolUse')]);
+  assert.ok(!JSON.stringify(badHooks.PostToolUse).includes('mine'), 'the planted merge dropped the owner hook');
+});
+
 // #183 C6, C3: read, not run, as above. The Node block's hand checks are in
 // the test driver; this holds the order of its checks.
 test('cloud copy: the Node block checks every pin before anything runs or lands on the PATH', () => {

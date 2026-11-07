@@ -85,6 +85,24 @@ how every session in every repo behaves. So:
   row. To roll back past either, remove those edits first. The `usage-pause-session` setting
   (#142) sets the 5-hour session limit beside the weekly `usage-pause`; unset,
   the rules file has no session line.
+- **The auto-compact window (#482, ADR 0140).** `auto-compact-window` is 0
+  (off) or 100000 to 1000000 tokens in steps of 10000, 400000 when unset, and
+  no project may set it. It has no part in the rules file, so the rules text is
+  the same at any value. With it on the install also copies
+  `claude/hooks/compact-handoff.mjs` to `pact/hooks/` and merges the overlay's
+  `hooks` block by key: the pact's five entries are updated in place or added
+  after an event's other groups, and every other hook stays as it was.
+  `hooks` is never run through the deep merge, which would replace an owner's
+  list. Seam A takes `--compact on|off`, exactly once, and holds the hooks block
+  to the allow-list, tokens included. The installer replaces the block's two
+  tokens, the script's path (checked to sit under the Claude home folder) and
+  the window, only after that check. Off removes the pact's entries, the script
+  and the `autoCompactWindow` it set; the install record's `autoCompactWindow`
+  holds the last window so a value you set by hand is never removed. The cloud
+  copy always sets 400000 and has no Off: `cloud-sessions/tpl-config-tail.sh`
+  runs the same keyed merge with jq. Hand-offs in `pact/handoff/` are never
+  deleted by the pact. Field checks the owner runs, and what a failure does,
+  are in the spec (#482).
 - **Agent settings.** The file's `agents` key may set any pact agent's
   `model` and `effort`, `scout` included (#262). The model is any model
   Claude Code takes: an alias such as `opus`, `sonnet`, `haiku`, `fable` or
@@ -187,7 +205,12 @@ how every session in every repo behaves. So:
 An older pact installs with that commit's own installer. **If the cleaner is
 on,** turn it off and apply first, so its deny rules leave `settings.json`; a
 pact from before #438 refuses a configuration that names it, and never removes
-those rules.
+those rules. **If the auto-compact window is on,** which it is by default
+(#482), set `auto-compact-window` to `0` and install first: an older
+installer keeps the live hook entries but deletes the script it doesn't know,
+so every session would call a missing file. Stop and ask when the older
+installer's dry run warns that `settings.json` holds hooks after that
+install, or a field check fails.
 Rollback is supported only to commits on the published `main` from the Node
 install's cutover (#166, `6821d68`) on. **Before checking out a commit to
 roll back to,** check it, with no checkout:

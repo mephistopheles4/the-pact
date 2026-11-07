@@ -515,11 +515,50 @@ To change the pact's settings, such as the usage pause lines or a lens's
 model, see `examples/pact-config/` and the config builder in `builder/`. Two
 usage settings exist: `usage-pause`, the weekly line (75% by default), and
 `usage-pause-session`, the 5-hour session line, unset by default (#142). The
-builder's Settings dialog holds both. The canvas edits the workflow, Settings
+builder's Settings dialog holds both. A third, `auto-compact-window`, is
+described in the next section. The canvas edits the workflow, Settings
 the tiers and sensitive work, and the Agents dialog the lens roster, the
 qualities and the cost limits; `examples/pact-config/config-parts.json` edits `tiers`, `sensitive`, `workflow`, `lenses` and `qualities`, with the
 session line set. For a builder of your own, type `/scriptorium` in any
 session.
+
+## The auto-compact window and its hooks
+
+Every install, and every cloud session, sets Claude Code's auto-compact
+window and installs a small hook that carries a session through compaction
+(#482, ADR 0140). It needs Claude Code 2.1.318 or later, Node 24 or later (the
+installer's own floor) and `node` on the PATH.
+
+- **The setting.** `auto-compact-window` in `~/.claude/pact/config.json` is
+  a number of tokens, 100000 to 1000000 in steps of 10000, or `0` for off. It
+  is on at 400000 when the key is unset, and the builder's Settings dialog
+  shows it beside the usage limits. A project configuration may not set it.
+  The install writes it to `autoCompactWindow` in `settings.json`; Claude Code
+  then compacts a little below it, near 365000 to 370000 for 400000.
+- **What installs when it is on.** `~/.claude/pact/hooks/compact-handoff.mjs`,
+  and five hook entries in `settings.json` that call it with `node`: on
+  `PostToolUse`, `UserPromptSubmit`, `Stop`, `PreCompact` and `SessionStart`
+  (matcher `compact`). Your own hooks, and other tools' hooks, stay as they
+  are, in the order they were: the pact's entries merge by key (an event plus
+  the script's path), are updated in place, and are added after the event's
+  other entries. The dry run warns once per event that holds a hook the pact
+  did not install, and lists each pact event it adds, updates or removes.
+- **What the hook does.** Past the window minus 80000 tokens, it asks the
+  session once per turn, until compaction, to update its hand-off file,
+  `~/.claude/pact/handoff/<session id>.md`. It asks the compaction summary to
+  name that file, and after compaction puts the file's first 8 KB back into
+  context, marked as the session's own notes, data and not instructions. It
+  acts only in a main session, never blocks, and on any error does nothing.
+  `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, when set, replaces the window the hook
+  reads. The `--autocompact` flag overrides the setting and the hook can't see
+  it.
+- **Off.** `0` removes the pact's hook entries (and an event or `hooks` they
+  leave empty), the script, and an `autoCompactWindow` the pact set; a value
+  you set by hand stays, with a note.
+- **The cloud.** The cloud copy takes no configuration, so it always sets
+  400000 and has no Off. To turn it off there, merge a commit that does.
+- **Hand-offs stay.** The pact never deletes a hand-off or `.turn` file in
+  `~/.claude/pact/handoff/`; clear them yourself when you like.
 
 ## Roll back to an older version
 
@@ -572,6 +611,13 @@ place of the default. Its dry run names the last install's configuration digest,
 A pact from before the pact tools (#280) refuses a configuration with a
 `tools` key, so take the key out first. Its install then deletes the poster
 the record lists, as it does any file its own payload lacks.
+
+A pact from before the auto-compact window (#482) refuses a configuration
+with an `auto-compact-window` key, and its install keeps your live hook
+entries but deletes the hook script it doesn't know, so every session would
+call a missing file. Set `auto-compact-window` to `0` and install first, then
+roll back. Stop if the older installer's dry run warns that `settings.json`
+holds hooks after that install.
 
 A pact from before the cleaner (#438) refuses a configuration that names
 `cleaner`, and never removes the cleaner's deny rules, so turn the cleaner off
