@@ -8,15 +8,14 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import * as core from '../install-core.mjs';
 import { moduleMatch } from './gate-files.mjs';
-import { runSeamA } from './gate-run.mjs';
-import { realOverlay, stage } from './payload.mjs';
+import { renderStage, runCore, runSeamA } from './gate-run.mjs';
+import { realHook, realOverlay, stage } from './payload.mjs';
 import { GATE, assertFails, assertPasses, failRules, lastLine, moduleResult } from './text.mjs';
 import { tempDir } from './tree.mjs';
 import { OVERLAY, RETIRED_RULES, overlayWith, shown } from './settings-rules.mjs';
 
 // Command-running settings, refused by name in seam A's own code.
 const BANNED = [
-  'hooks',
   'mcpServers',
   'statusLine',
   'fileSuggestion',
@@ -92,7 +91,7 @@ test('a passing check prints exactly one SETTINGS line, with the hash of the ove
 /** A plant setting the banned top-level key `k` in the overlay. */
 const banned = k => tree => {
   const o = JSON.parse(tree[OVERLAY]);
-  o[k] = k === 'hooks' ? { PreToolUse: [] } : 'x';
+  o[k] = 'x';
   return { [OVERLAY]: `${JSON.stringify(o, null, 2)}\n` };
 };
 {
@@ -103,7 +102,6 @@ const banned = k => tree => {
   };
   const everyRow = r => assert.doesNotMatch(r.out, /^SETTINGS /m, r.out);
   const rows = [
-    { id: 'hooks', plant: banned('hooks'), fails: ['settings-banned'], says: /\(hooks\)/, why: 'hooks run commands' },
     { id: 'mcp-servers', plant: banned('mcpServers'), fails: ['settings-banned'], says: /\(mcpServers\)/, why: 'an MCP server runs a command' },
     { id: 'status-line', plant: banned('statusLine'), fails: ['settings-banned'], says: /\(statusLine\)/, why: 'a status line runs a command' },
     { id: 'file-suggestion', plant: banned('fileSuggestion'), fails: ['settings-banned'], says: /\(fileSuggestion\)/, why: 'file suggestion runs a command' },
@@ -133,11 +131,11 @@ test('the banned-settings table has a row for each banned name', () => {
 });
 
 test('bad case: a banned name nested inside an allowed key fails', t => {
-  expectSettingsFail(t, overlayWith(o => (o.permissions.hooks = {})), 'settings-banned');
+  expectSettingsFail(t, overlayWith(o => (o.permissions.mcpServers = {})), 'settings-banned');
 });
 
 test('bad case: a banned name spelled with an escape fails', t => {
-  const text = realOverlay().replace('{', '{\n  "hook\\u0073": {},');
+  const text = realOverlay().replace('{', '{\n  "mcpServer\\u0073": {},');
   expectSettingsFail(t, text, 'settings-banned');
 });
 
@@ -147,8 +145,8 @@ test('a banned name inside a string value is not a banned key', t => {
 });
 
 test('bad case: an allow-list that lists a banned name is refused, and the name stays banned', t => {
-  const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc.hooks = {})));
-  const r = expectSettingsFail(t, overlayWith(o => (o.hooks = {})), 'settings-banned', script);
+  const script = gateCopy(t, g => editSettingsAllowlist(g, doc => (doc.mcpServers = {})));
+  const r = expectSettingsFail(t, overlayWith(o => (o.mcpServers = {})), 'settings-banned', script);
   assert.ok(failRules(r.stdout).includes('settings-allowlist'), r.out);
 });
 
@@ -184,12 +182,17 @@ test('bad case: a listed env name with another value fails', t => {
 // #464 T2: the overlay holds only auto mode and its prompt, and the allow-list
 // no other value, so none of the seven the cut dropped can come back unreviewed.
 test('bad case: a key #464 cut from the overlay fails as unlisted', t => {
-  assert.deepEqual(JSON.parse(realOverlay()), { permissions: { defaultMode: 'auto' }, skipAutoPermissionPrompt: true });
+  // #482 added the pact's hooks block to both; the allow-list holds it exactly.
+  const o = JSON.parse(realOverlay());
+  const hooks = o.hooks;
+  delete o.hooks;
+  assert.deepEqual(o, { permissions: { defaultMode: 'auto' }, skipAutoPermissionPrompt: true });
   assert.deepEqual(JSON.parse(readFileSync(join(GATE, 'settings-allowlist.json'), 'utf8')), {
     'permissions.defaultMode': 'auto',
     'permissions.allow': [],
     'permissions.deny': [],
     skipAutoPermissionPrompt: true,
+    hooks,
   });
   const cut = {
     outputStyle: 'Concise',
@@ -341,4 +344,85 @@ test("the install's banned names are seam A's", () => {
 test("the install's retired ask rules are the pact's old rules, exactly", () => {
   assert.equal(RETIRED_RULES.length, 56);
   assert.deepEqual([...core.RETIRED_ASK].map(shown), RETIRED_RULES.map(shown));
+});
+
+// ------------------------------------------------------------ #482 C5: the hooks block and --compact
+
+const HOOK = 'claude/hooks/compact-handoff.mjs';
+const withHook = extra => ({ [HOOK]: realHook(), ...extra });
+/** Seam A's core on a rendered stage, with the given arguments after the stage root. */
+function seamArgs(t, files, ...argv) {
+  const root = stage(t, files);
+  renderStage(root);
+  return runCore('seam-a', [root, ...argv]);
+}
+
+test('the overlay holds the pact hooks block, and the allow-list holds it exactly', t => {
+  const o = JSON.parse(realOverlay());
+  assert.deepEqual(Object.keys(o.hooks), ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart']);
+  assert.equal(o.hooks.SessionStart[0].matcher, 'compact');
+  const inner = Object.values(o.hooks).map(groups => groups.map(g => g.hooks).flat()).flat();
+  assert.equal(inner.length, 5);
+  for (const h of inner) assert.deepEqual(h, { type: 'command', command: 'node', args: ['__PACT_HOOK_SCRIPT__', '__PACT_WINDOW__'], timeout: 15 });
+  assert.equal(runSeamA(stage(t)).code, 0);
+});
+
+// A change to the hooks block that the allow-list does not hold fails, whatever it is.
+for (const [id, edit] of [
+  ['a changed command', o => (o.hooks.Stop[0].hooks[0].command = 'bash')],
+  ['an extra event', o => (o.hooks.Notification = o.hooks.Stop)],
+  ['a missing token', o => (o.hooks.PreCompact[0].hooks[0].args[1] = '400000')],
+  ['an extra inner hook', o => o.hooks.PostToolUse[0].hooks.push({ type: 'command', command: 'node', args: ['x.mjs'], timeout: 15 })],
+  ['a changed timeout', o => (o.hooks.Stop[0].hooks[0].timeout = 600)],
+  ['a shell string in place of exec form', o => (o.hooks.Stop[0].hooks[0] = { type: 'command', command: 'node x.mjs' })],
+]) {
+  test(`bad case: the hooks block with ${id} fails`, t => {
+    expectSettingsFail(t, overlayWith(edit), 'settings-value');
+  });
+}
+
+test('bad case: an overlay with no defaultMode fails even with the hooks block', t => {
+  expectSettingsFail(t, overlayWith(o => delete o.permissions.defaultMode), 'settings-required');
+});
+
+test('bad case: a file in claude/hooks other than the pact script fails', t => {
+  for (const [rel, rule] of [
+    ['claude/hooks/other.mjs', 'hook-file-name'],
+    ['claude/hooks/compact-handoff.js', 'hook-file-name'],
+    ['claude/hooks/sub/compact-handoff.mjs', 'hook-path'],
+  ]) {
+    const r = seamArgs(t, withHook({ [rel]: 'x\n' }), '--commands', 'none', '--tools', 'none', '--compact', 'on');
+    assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
+    assert.ok(failRules(r.stdout).includes(rule), `${rel}: ${r.out}`);
+  }
+});
+
+test('--compact on lists the hook script for install at pact/hooks, and off stages nothing of it', t => {
+  const on = seamArgs(t, withHook(), '--commands', 'none', '--tools', 'none', '--compact', 'on');
+  assert.equal(on.code, 0, on.out);
+  assert.match(on.stdout, new RegExp(`^INSTALL [0-9a-f]{64} ${HOOK} pact/hooks/compact-handoff\.mjs$`, 'm'));
+  const off = seamArgs(t, withHook(), '--commands', 'none', '--tools', 'none', '--compact', 'off');
+  assert.equal(off.code, 0, off.out);
+  assert.doesNotMatch(off.stdout, /compact-handoff/);
+});
+
+test('bad case: --compact on with no hook script in the stage fails', t => {
+  const r = seamArgs(t, {}, '--commands', 'none', '--tools', 'none', '--compact', 'on');
+  assert.equal(lastLine(r.stdout), 'RESULT: fail', r.out);
+  assert.ok(failRules(r.stdout).includes('hooks-not-in-pact'), r.out);
+});
+
+test('bad case: --compact missing, given twice, without a value or with another value fails', t => {
+  const base = ['--commands', 'none', '--tools', 'none'];
+  for (const [what, argv] of [
+    ['missing', base],
+    ['twice', [...base, '--compact', 'on', '--compact', 'on']],
+    ['no value', [...base, '--compact']],
+    ['other value', [...base, '--compact', 'yes']],
+    ['capitals', [...base, '--compact', 'ON']],
+  ]) {
+    const r = seamArgs(t, withHook(), ...argv);
+    assert.equal(lastLine(r.stdout), 'RESULT: fail', `${what}\n${r.out}`);
+    assert.ok(failRules(r.stdout).some(x => x === 'compact-arg' || x === 'usage'), `${what}\n${r.out}`);
+  }
 });

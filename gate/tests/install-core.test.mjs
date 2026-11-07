@@ -1018,10 +1018,10 @@ test('the changes list each retired rule the merge removes, and nothing else abo
 // #265 C4: the retired rules draw a note; the banned-key and mode warnings stay.
 test('the live warnings: banned keys at any depth, retired ask rules, a mode not auto, own keys capped, env names only counted', () => {
   const own = Object.fromEntries(Array.from({ length: 22 }, (_, i) => [`k${String(i).padStart(2, '0')}`, 1]));
-  const live = core.readSettings(json({ ...own, enabledPlugins: {}, deep: { x: [{ hooks: {} }] }, env: { A: 1, B: 2, P: 3 }, permissions: { ask: ['r1', core.RETIRED_ASK[3], core.RETIRED_ASK[40]], defaultMode: 'plan' } }));
+  const live = core.readSettings(json({ ...own, enabledPlugins: {}, deep: { x: [{ mcpServers: {} }] }, env: { A: 1, B: 2, P: 3 }, permissions: { ask: ['r1', core.RETIRED_ASK[3], core.RETIRED_ASK[40]], defaultMode: 'plan' } }));
   const overlay = core.readSettings(json({ env: { P: '1' }, permissions: { defaultMode: 'auto' } }));
   const lines = core.liveSettingsLines(live, overlay);
-  assert.equal(lines[0], 'WARN: settings.json holds hooks, a command-running setting the pact never sets.');
+  assert.equal(lines[0], 'WARN: settings.json holds mcpServers, a command-running setting the pact never sets.');
   assert.equal(lines[1], "NOTE: settings.json holds 2 of the pact's retired ask rules; --apply removes them.");
   assert.equal(lines[2], 'WARN: settings.json: permissions.defaultMode is not auto; --apply sets it.');
   assert.match(lines[3], /^NOTE: live keys the pact does not set \(yours, not checked\): deep, enabledPlugins, k00, .* and 4 more$/);

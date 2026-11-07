@@ -183,10 +183,15 @@ async function main() {
   core.checkKit(on, staged.keys());
   // The tools that install: the renderer's TOOLS line alone, off by default (#280). They reach seam A as its --tools.
   const toolsOn = project ? [] : parsed.tools;
-  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none'], 'seam-a', 'the check');
-  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn), staged, commit);
+  // The auto-compact window (#482): the renderer's VALUE line, else the default; 0 is off, and a project install is always off. It reaches seam A as --compact.
+  const window = project ? 0 : core.compactWindow(parsed);
+  const { lines: seamLines } = runCheck(seamA, [stage, '--commands', on.length ? on.join(',') : 'none', '--tools', toolsOn.length ? toolsOn.join(',') : 'none', '--compact', window > 0 ? 'on' : 'off'], 'seam-a', 'the check');
+  const checked = core.matchCopySet(seamLines, core.expectedCopySet(staged.keys(), on, toolsOn, window > 0), staged, commit);
   const overlayBytes = readFileSync(live(stage, core.OVERLAY_REL));
-  const overlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
+  const checkedOverlay = core.checkOverlay(seamLines, io.sha256(overlayBytes), staged.get(core.OVERLAY_REL), overlayBytes.toString('utf8'));
+  // After the hash check, and only then: the hook script's path and the window replace the overlay's two tokens.
+  const hookScript = join(home, ...core.HOOK_SCRIPT_REL.split('/'));
+  const overlay = window > 0 ? core.fillHooks(checkedOverlay, home, hookScript, window, process.platform) : checkedOverlay;
   say(`Check: passed on commit ${commit}`);
   say("Not checked: what the pact's files say. The gate checks install mechanics only; vet the pact as you would any skill.");
   // Before every other warning (#262, S8). A project install never edits a part.
@@ -284,18 +289,22 @@ async function main() {
   let settings;
   let changes = [];
   let notes = [];
+  // #482: the hooks and the window, merged by key.
+  const compact = { window, script: hookScript, recorded: record ? record.autoCompactWindow : null, platform: process.platform };
+  let compactBlock = [`auto-compact-window: ${window > 0 ? `on, ${window} tokens` : 'off'}`];
   if (liveSettings === null) {
     settings = 'not a strict JSON object: left untouched';
     notes = ['WARN: settings.json is not a strict JSON object (a comment, a trailing comma or another root); the merge leaves it untouched, and nothing in it was checked.'];
   } else {
     deny = core.cleanerDenyPlan(liveSettings, toolsOn, record ? record.cleanerDeny : []);
-    merged = core.mergeSettings(liveSettings, overlay, deny);
+    merged = core.mergeSettings(liveSettings, overlay, deny, compact);
     if (liveBytes === null) settings = 'would be created from the overlay';
     else {
       settings = core.canonical(liveSettings) === core.canonical(merged) ? 'unchanged' : 'would be merged';
-      notes = core.liveSettingsLines(liveSettings, overlay);
+      notes = core.liveSettingsLines(liveSettings, overlay, compact);
     }
     changes = core.settingsChanges(liveSettings, overlay, deny);
+    compactBlock = core.compactLines(liveSettings, overlay, compact);
   }
   const settingsWill = settings.startsWith('would');
   const lastConfig = record ? record.config : new Map();
@@ -313,6 +322,7 @@ async function main() {
   say(`Unchanged: ${p.same}`);
   say(`settings.json: ${settings}`);
   if (settingsWill) for (const l of changes) say(l);
+  for (const l of compactBlock) say(l);
   for (const l of notes) say(l);
   // What --apply will copy first (#272, S9): the same inputs the backup takes.
   const settingsCopied = settingsWill && liveBytes !== null;
@@ -399,7 +409,7 @@ async function main() {
     io.writeReplacing(settingsFile, core.settingsText(merged), 0o600);
     say('merged settings.json');
   }
-  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record }), 0o600);
+  io.writeReplacing(recordFile, core.recordText({ commit, digest: parsed.digest, userHash: parsed.config.kind === 'user' ? parsed.config.sha256 : null, blockHashes: parsed.config.kind === 'user' ? parsed.blockHashes : new Map(), repoFiles, gateNow, cleanerDeny: deny.record, autoCompactWindow: liveSettings === null ? (record ? record.autoCompactWindow ?? 0 : 0) : window }), 0o600);
 
   // Verify: live against the checked bytes, and the guard in the settings Claude Code reads (X7).
   let bad = 0;

@@ -189,10 +189,10 @@ export function renderStage(root, claudeHome) {
  * --commands value and `tools` the --tools value, none by default, as the
  * install passes them with no configuration (#203, #280).
  */
-export function runSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none' } = {}) {
-  if (script !== SEAM_A) return childSeamA(root, script, { commands, tools });
+export function runSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none', compact = 'off' } = {}) {
+  if (script !== SEAM_A) return childSeamA(root, script, { commands, tools, compact });
   renderStage(root);
-  const { code, stdout, stderr, out } = runCore('seam-a', [root, '--commands', commands, '--tools', tools]);
+  const { code, stdout, stderr, out } = runCore('seam-a', [root, '--commands', commands, '--tools', tools, '--compact', compact]);
   return { code, stdout, stderr, out };
 }
 
@@ -201,9 +201,9 @@ export function runSeamA(root, script = SEAM_A, { commands = 'none', tools = 'no
  * runSeamA does: for a planted copy, and for the wrapper tests that keep a
  * child run of the real one (#155).
  */
-export function childSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none' } = {}) {
+export function childSeamA(root, script = SEAM_A, { commands = 'none', tools = 'none', compact = 'off' } = {}) {
   renderStage(root);
-  const r = spawnSync(process.execPath, [script, root, '--commands', commands, '--tools', tools], { encoding: 'utf8', env: childEnv() });
+  const r = spawnSync(process.execPath, [script, root, '--commands', commands, '--tools', tools, '--compact', compact], { encoding: 'utf8', env: childEnv() });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: r.stdout + r.stderr };
 }
 

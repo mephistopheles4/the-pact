@@ -71,7 +71,7 @@ function seamWith(t, tree, argv) {
 }
 {
   const base = () => ({ [CMD]: GOOD, argv: JSON.stringify(['--commands', 'finis', '--tools', 'none']) });
-  const run = ({ argv, ...tree }, t) => seamWith(t, tree, JSON.parse(argv));
+  const run = ({ argv, ...tree }, t) => seamWith(t, tree, ['--compact', 'off', ...JSON.parse(argv)]);
   const rows = [
     { id: 'missing', plant: t => ({ ...t, argv: JSON.stringify(['--tools', 'none']) }), fails: ['commands-arg'], why: 'the list never defaults' },
     { id: 'given-twice', plant: t => ({ ...t, argv: JSON.stringify(['--commands', 'finis', '--commands', 'finis', '--tools', 'none']) }), fails: ['commands-arg'], why: 'given twice, even the same' },

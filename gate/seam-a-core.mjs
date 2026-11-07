@@ -51,11 +51,14 @@ const OVERLAY = 'claude/settings.overlay.json';
 // The review procedure file (#261): one file, by exact path, to one fixed live path.
 const REVIEW_FILE = 'claude/review.md';
 const REVIEW_DEST = 'pact/review.md';
+// The pact's hook script (#482): exactly claude/hooks/<name>.mjs, installed to pact/hooks/<name>.mjs only with --compact on.
+const PACT_HOOKS = Object.freeze(['compact-handoff']);
 // Settings that run a command, load code or reach a tool server. Refused by
 // name as an object key at any depth of the overlay, whatever the settings
 // allow-list says. Hard-coded here so an allow-list edit cannot unban one.
+// `hooks` left this list in #482: the overlay carries the pact's own hooks
+// block, which the allow-list holds exactly, tokens included.
 const BANNED_SETTINGS = Object.freeze([
-  'hooks',
   'mcpServers',
   'statusLine',
   'fileSuggestion',
@@ -520,6 +523,7 @@ function classify(root, report) {
   const agents = [];
   const commands = [];
   const tools = [];
+  const hooks = [];
   const installs = [];
   const kit = [];
   let overlay = false;
@@ -562,6 +566,12 @@ function classify(root, report) {
         if (seg.length !== 3) report.fail('tool-path', rel, null, 'a subfolder in claude/tools; a tool is claude/tools/<name>.mjs');
         else if (!PACT_TOOLS.some(c => c === stem)) report.fail('tool-file-name', rel, null, 'a file in claude/tools that is not a pact tool; the gate lists them');
         else tools.push({ file: rel, stem, dest: `pact/tools/${seg[2]}` });
+      } else if (seg[1] === 'hooks') {
+        // A pact hook (#482): exactly claude/hooks/<name>.mjs, the name on PACT_HOOKS.
+        const stem = seg.length === 3 && seg[2].endsWith('.mjs') ? seg[2].slice(0, -4) : null;
+        if (seg.length !== 3) report.fail('hook-path', rel, null, 'a subfolder in claude/hooks; a hook is claude/hooks/<name>.mjs');
+        else if (!PACT_HOOKS.some(c => c === stem)) report.fail('hook-file-name', rel, null, 'a file in claude/hooks that is not a pact hook; the gate lists them');
+        else hooks.push({ file: rel, stem, dest: `pact/hooks/${seg[2]}` });
       } else report.fail('unclassified', rel, null, 'a payload file of no known kind');
       continue;
     }
@@ -570,7 +580,7 @@ function classify(root, report) {
     else if (!(seg[1] === '.gitkeep' || seg[1].endsWith('.contract.md') || seg[1].endsWith('.practice-test.md'))) report.fail('unclassified', rel, null, 'a file in familiars of no known kind');
   }
   if (!installs.some(i => i.review)) report.fail('review-file', REVIEW_FILE, null, 'the review procedure file is missing');
-  return { agents, commands, tools, installs, kit, overlay };
+  return { agents, commands, tools, hooks, installs, kit, overlay };
 }
 
 // ---------------------------------------------------------------- the rules
@@ -589,10 +599,10 @@ function checkAgent(a, parsed, report) {
   else if (desc.kind === 'text' && desc.value.trim() === '') report.fail('description', a.file, desc.line, 'an empty description');
 }
 
-function run(root, listed, listedTools, report) {
+function run(root, listed, listedTools, compact, report) {
   // @@TEST-CRASH-HOOK@@
   const settingsAllow = loadSettingsAllowlist(report);
-  const { agents, commands, tools, installs, kit, overlay } = classify(root, report);
+  const { agents, commands, tools, hooks, installs, kit, overlay } = classify(root, report);
   let settingsHash = checkSettings(root, overlay, settingsAllow, report);
 
   for (const a of agents) {
@@ -605,9 +615,14 @@ function run(root, listed, listedTools, report) {
   if (listed.includes('scriptorium')) installs.push(...kit);
   // Only those --tools names are installed (#280); a tool is off by default.
   for (const c of tools) if (listedTools.includes(c.stem)) installs.push(c);
+  // The hook script installs only with --compact on (#482).
+  if (compact) {
+    for (const name of PACT_HOOKS) if (!hooks.some(h => h.stem === name)) report.fail('hooks-not-in-pact', null, null, `--compact on, but the stage holds no claude/hooks/${name}.mjs: it is not in this pact`);
+    installs.push(...hooks);
+  }
   // Every other installed text file passes the text scanner: valid UTF-8, no
   // hidden or control characters, so what a reader sees is what the model reads.
-  for (const file of new Set([...installs, ...commands, ...tools, ...kit].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
+  for (const file of new Set([...installs, ...commands, ...tools, ...hooks, ...kit].map(i => i.file))) if (!agents.some(a => a.file === file)) scanText(readFileSync(join(root, ...file.split('/'))), file, report);
   for (const name of listed) {
     if (!commands.some(c => c.stem === name)) report.fail('commands-not-in-pact', null, null, `--commands names ${name}, but the stage holds no claude/commands/${name}.md: it is not in this pact`);
   }
@@ -655,9 +670,9 @@ function run(root, listed, listedTools, report) {
  * argument's text.
  */
 function parseArgs(argv, report) {
-  const usage = () => report.fail('usage', null, null, 'usage: node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...>');
+  const usage = () => report.fail('usage', null, null, 'usage: node seam-a.mjs <stage root> --commands <none | name,name,...> --tools <none | name,...> --compact <on | off>');
   if (argv.length === 0 || argv[0] === '' || argv[0].startsWith('-')) return usage();
-  const given = { '--commands': [], '--tools': [] };
+  const given = { '--commands': [], '--tools': [], '--compact': [] };
   for (let i = 1; i < argv.length; i += 2) {
     if (!Object.hasOwn(given, argv[i])) return usage();
     given[argv[i]].push(argv[i + 1]);
@@ -676,8 +691,12 @@ function parseArgs(argv, report) {
   };
   const commands = list('--commands', PACT_COMMANDS, { arg: 'commands-arg', name: 'commands-name', repeat: 'commands-repeat' }, 'command', 'commands');
   const tools = list('--tools', PACT_TOOLS, { arg: 'tools-arg', name: 'tools-name', repeat: 'tools-repeat' }, 'tool', 'tools');
+  // --compact (#482): exactly once, on or off.
+  const compactValues = given['--compact'];
+  if (compactValues.length !== 1) return report.fail('compact-arg', null, null, compactValues.length ? '--compact is given more than once' : 'no --compact: give on or off');
+  if (compactValues[0] !== 'on' && compactValues[0] !== 'off') return report.fail('compact-arg', null, null, '--compact takes on or off');
   if (commands === undefined || tools === undefined) return undefined;
-  return { root: argv[0], commands, tools };
+  return { root: argv[0], commands, tools, compact: compactValues[0] === 'on' };
 }
 
 /**
@@ -688,7 +707,7 @@ export function check(argv) {
   const report = new Report();
   try {
     const args = parseArgs(argv, report);
-    if (args) run(args.root, args.commands, args.tools, report);
+    if (args) run(args.root, args.commands, args.tools, args.compact, report);
   } catch {
     // Never a pass, and never the error's text: it can quote a file.
     report.fail('internal', null, null, 'the check itself failed');

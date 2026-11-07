@@ -430,7 +430,7 @@ test('cloud copy: the command list is pinned, and empty until the cloud channels
   assert.doesNotMatch(repoText(OUTPUTS.setup), /^write_config 'commands\//m, 'no command in the cloud copy');
   assert.equal(commandsArg([]), 'none');
   assert.equal(commandsArg(['make-it-so', 'finis']), 'make-it-so,finis');
-  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\), '--tools', commandsArg\(CLOUD_TOOLS\)\]\)/, 'seam A gets the constants');
+  assert.match(readFileSync(join(REPO, 'cloud-sessions', 'gen.mjs'), 'utf8'), /seamCheck\(\[stage, '--commands', commandsArg\(CLOUD_COMMANDS\), '--tools', commandsArg\(CLOUD_TOOLS\), '--compact', 'on'\]\)/, 'seam A gets the constants');
 });
 
 // #280 C1: the published root setup script never installs code that posts as the owner.
@@ -458,11 +458,12 @@ test('cloud copy: each embedded file is its repo copy, with its hash checked, an
   const setup = repoText(OUTPUTS.setup);
   const blocks = [...setup.matchAll(new RegExp(`^write_config '([^']+)' <<'${CONFIG_DELIM}'\\n([\\s\\S]*?)^${CONFIG_DELIM}$`, 'gm'))];
   const source = dest =>
-    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : `claude/${dest}`;
+    dest === 'CLAUDE.md' ? OUTPUTS.rules : dest === 'pact/review.md' ? 'claude/review.md' : dest === 'pact/hooks/compact-handoff.mjs' ? 'claude/hooks/compact-handoff.mjs' : `claude/${dest}`;
   // The whole set, from the repo apart from seam A: the rules file, every
   // shipped agent (the lenses and scout, #262 S18) and the review file.
   const lenses = git(REPO, ['ls-files', '-z', '--', 'claude/agents/*.md']).split('\0').filter(Boolean);
-  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md'].sort();
+  // #482: the cloud copy also carries the compact hook, at pact/hooks/.
+  const want = ['CLAUDE.md', ...lenses.map(p => p.slice('claude/'.length)), 'pact/review.md', 'pact/hooks/compact-handoff.mjs'].sort();
   assert.ok(lenses.length >= 9 && lenses.includes('claude/agents/scout.md'), lenses.join(', '));
   assert.deepEqual(blocks.map(m => m[1]).sort(), want);
   for (const [, dest, body] of blocks) {

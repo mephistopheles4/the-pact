@@ -62,6 +62,8 @@ export const CLOUD_COMMANDS = Object.freeze([]);
 // (#280). Empty, and frozen: the published root setup script never installs
 // code that posts as the owner. A cloud poster waits for its own trigger.
 export const CLOUD_TOOLS = Object.freeze([]);
+// The auto-compact window the cloud copy sets (#482), in tokens: the generator's own copy of the default in gate/render-core.mjs, held equal by a test. The cloud copy takes no configuration, so it has no Off.
+export const CLOUD_COMPACT_WINDOW = 400000;
 
 // The Node block's pins (#183), one shell variable each, written as plain
 // assignments at the top of the block. Bump them only by the procedure in
@@ -117,6 +119,7 @@ const WRAPPER_OPEN = `cat > /tmp/cloud-setup.sh <<'${SETUP_DELIM}'\n`;
 const WRAPPER_CLOSE = `${SETUP_DELIM}\nbash /tmp/cloud-setup.sh\n`;
 const PH = Object.freeze({
   overlay: '__SETTINGS_OVERLAY__',
+  window: '__COMPACT_WINDOW__',
   count: '__EXPECTED_COUNT__',
   hashes: '__EXPECTED_HASHES__',
   marker: '__PACT_CLOUD_MARKER__',
@@ -286,7 +289,7 @@ function seamA(files) {
       mkdirSync(dirname(p), { recursive: true });
       writeFileSync(p, buf, { flag: 'wx' });
     }
-    const r = seamCheck([stage, '--commands', commandsArg(CLOUD_COMMANDS), '--tools', commandsArg(CLOUD_TOOLS)]);
+    const r = seamCheck([stage, '--commands', commandsArg(CLOUD_COMMANDS), '--tools', commandsArg(CLOUD_TOOLS), '--compact', 'on']);
     if (r.failed || r.lines[r.lines.length - 1] !== 'RESULT: pass') {
       const rules = [...new Set(r.lines.map(l => /^FAIL ([a-z][a-z0-9-]*):/.exec(l)?.[1]).filter(Boolean))];
       refuse('cloud/seam-a', `seam A refused the stage (${rules.join(', ') || 'no rule named'})`);
@@ -459,7 +462,7 @@ export function assemble({ files, overlay, templates, pins, repoPins = CLOUD_REP
     config += `write_config '${f.dest}' <<'${CONFIG_DELIM}'\n${body}${CONFIG_DELIM}\n\n`;
     checks.push(`check_hash ${sha256(Buffer.from(body, 'utf8'))} '${f.dest}'`);
   }
-  config += fill(templates.configTail, PH.overlay, ov, TEMPLATES.configTail);
+  config += fill(fill(templates.configTail, PH.overlay, ov, TEMPLATES.configTail), PH.window, String(CLOUD_COMPACT_WINDOW), TEMPLATES.configTail);
 
   let tail = templates.setupTail;
   tail = fill(tail, PH.count, String(files.length + 1), TEMPLATES.setupTail); // every file, plus the settings merge
