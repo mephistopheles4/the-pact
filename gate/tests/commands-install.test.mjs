@@ -51,7 +51,7 @@ test('a listed command installs to commands/<name>.md, and dropping it from the 
   const h = homeWith(t, ['finis']);
   const dry = install(repo, h);
   passed(dry);
-  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: on, always: part of the pact, with the builder kit under pact\/builder\/\r?$/m, dry.out);
+  assert.match(dry.stdout, /^Commands:\r?\n {2}\/make-it-so: off\r?\n {2}\/finis: on\r?\n {2}\/scriptorium: on, always: part of the pact, with the builder kit under pact\/builder\/\r?\n {2}\/scry: off\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}To turn one on, list its name in pact\/config\.json, for example: "commands": \["make-it-so"\]\r?$/m, dry.out);
   assert.match(dry.stdout, /^ {2}WARN: the user configuration turns on the pact command \/finis; it installs to commands\/finis\.md\.\r?$/m, dry.out);
   assert.match(dry.stdout, /^Add: \d+\r?\n(?: {2}.*\r?\n)* {2}commands\/finis\.md\r?$/m, dry.out);
