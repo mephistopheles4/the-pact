@@ -3,7 +3,7 @@
 // (<home>/pact/hooks/), so every file it writes lands under that home.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { REPO } from './text.mjs';
@@ -28,7 +28,8 @@ function setup(t, used = 0, pad = 0) {
   lines.push(entry('assistant', { input_tokens: 10, cache_creation_input_tokens: used - 110, cache_read_input_tokens: 100 }));
   lines.push(JSON.stringify({ type: 'user', message: { content: 'tool result' } }));
   writeFileSync(transcript, `${lines.join('\n')}\n`);
-  return { h, script, transcript, dir: join(h, 'pact', 'handoff') };
+  // The session's own folder, apart from the home: nothing of the hook's may land in it.
+  return { h, script, transcript, dir: join(h, 'pact', 'handoff'), cwd: tempDir(t, 'pact-hook-cwd-') };
 }
 
 /** Run the hook for `input`; the window argument is 400000 unless `window` is given, and `env` adds to a clean environment. */
@@ -36,7 +37,7 @@ function run(ctx, input, { window = '400000', env = {} } = {}) {
   const clean = { ...process.env, ...env };
   delete clean.NODE_OPTIONS;
   if (!('CLAUDE_CODE_AUTO_COMPACT_WINDOW' in env)) delete clean.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
-  const r = spawnSync(process.execPath, [ctx.script, window], { input: typeof input === 'string' ? input : JSON.stringify({ session_id: SID, transcript_path: ctx.transcript, cwd: ctx.h, ...input }), encoding: 'utf8', env: clean });
+  const r = spawnSync(process.execPath, [ctx.script, window], { input: typeof input === 'string' ? input : JSON.stringify({ session_id: SID, transcript_path: ctx.transcript, cwd: ctx.cwd, ...input }), encoding: 'utf8', env: clean });
   return { code: r.status, out: r.stdout, err: r.stderr };
 }
 const context = r => JSON.parse(r.out).hookSpecificOutput;
@@ -60,6 +61,8 @@ test('#482 C6: the hook nudges past the line (window minus 80000) and not under 
   assert.ok(c.additionalContext.includes(handoff(past).replaceAll('\\', '/')), c.additionalContext);
   assert.equal(readFileSync(turnFile(past), 'utf8').trim(), 'nudged');
   assert.deepEqual(readdirSync(past.h).sort(), ['pact', 'transcript.jsonl'], 'nothing outside the home folder');
+  assert.deepEqual(readdirSync(past.cwd), [], 'nothing in the session\'s own folder');
+  if (process.platform !== 'win32') assert.equal(statSync(past.dir).mode & 0o777, 0o700, 'the hand-off folder is for its owner alone');
 });
 
 test('#482 C6: the env var\'s window is read first, then the argument', t => {
@@ -70,7 +73,7 @@ test('#482 C6: the env var\'s window is read first, then the argument', t => {
   assert.match(run(again, PTU, { env: { CLAUDE_CODE_AUTO_COMPACT_WINDOW: '200k' } }).out, /additionalContext/, 'a k suffix counts');
   const bad = setup(t, 150000);
   assert.equal(run(bad, PTU, { env: { CLAUDE_CODE_AUTO_COMPACT_WINDOW: 'lots' } }).out, '', 'an env var that is no token count falls back to the argument');
-  assert.equal(run(bad, PTU, { window: 'x' }).out, '', 'no window at all does nothing');
+  assert.equal(run(setup(t, 340000), PTU, { window: 'x' }).out, '', 'no window at all does nothing, past any default line');
 });
 
 test('#482 C6: past the line a turn with a prompt and two tool calls gets exactly one nudge; a turn with no prompt gets one on its first tool call; after Stop the next turn gets one again', t => {
@@ -135,9 +138,9 @@ test('#482 C7: SessionStart (compact) puts the hand-off back under the "own note
   assert.equal(rest.join('\n').trim(), 'Goal: ship\nNext: test');
   writeFileSync(handoff(ctx), `${'a'.repeat(8192)}TAIL-MARK-NOT-SHOWN`);
   const cut = context(run(ctx, SS)).additionalContext;
-  assert.ok(cut.includes('a'.repeat(8192)));
+  assert.ok(cut.endsWith(`${'a'.repeat(8192)}\n\n[cut at 8 KB]`), 'exactly 8 KB, then the mark');
+  assert.ok(!cut.includes('a'.repeat(8193)));
   assert.ok(!cut.includes('TAIL-MARK-NOT-SHOWN'));
-  assert.match(cut, /\[cut at 8 KB\]$/);
 });
 
 // C8
@@ -148,7 +151,7 @@ test('#482 C8: a session_id outside [A-Za-z0-9-], a missing transcript and bad J
       assert.deepEqual(run(ctx, { ...e, session_id: sid }), { code: 0, out: '', err: '' }, `${JSON.stringify(sid)} ${e.hook_event_name}`);
     }
     assert.equal(existsSync(ctx.dir), false, JSON.stringify(sid));
-    assert.equal(existsSync(join(ctx.h, 'pact', 'x')), false);
+    assert.deepEqual(readdirSync(join(ctx.h, 'pact')), ['hooks'], JSON.stringify(sid));
   }
   const ctx = setup(t, 340000);
   assert.deepEqual(run(ctx, { ...UPS, transcript_path: join(ctx.h, 'missing.jsonl') }), { code: 0, out: '', err: '' });
@@ -182,6 +185,8 @@ test('#482: the install refuses a hook script path outside the Claude home folde
   assert.equal(core.compactWindow(parse(lines('0'))), 0);
   for (const bad of ['99999', '1000001', '410001', '4e5', '-1']) assert.throws(() => parse(lines(bad)), e => e instanceof core.Refusal, bad);
   assert.throws(() => parse(['RENDERED ' + hash('r'), 'DIFF ' + hash('d'), 'CONFIG none', 'VALUE auto-compact-window 600000', 'COMMANDS none', 'TOOLS none', 'RESULT: pass']), e => e instanceof core.Refusal);
+  // A project render never reports the window: its line is one the install does not read.
+  assert.throws(() => core.parseProjectRenderLines(['RENDERED ' + hash('r'), 'CONFIG none', 'PROJECT ' + hash('p'), `DIGEST ${digest}`, 'VALUE auto-compact-window 300000', 'RESULT: pass'], hash), e => e instanceof core.Refusal && e.rule === 'project-render-unknown-line');
 });
 
 // The parity test for the default and the hook names (#482): the installer's, the generator's and the renderer's copies agree.

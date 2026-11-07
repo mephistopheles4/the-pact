@@ -208,7 +208,8 @@ pact from before #438 refuses a configuration that names it, and never removes
 those rules. **If the auto-compact window is on,** which it is by default
 (#482), set `auto-compact-window` to `0` and install first: an older
 installer keeps the live hook entries but deletes the script it doesn't know,
-so every session would call a missing file. Stop and ask when the older
+so every session would call a missing file. Then take the key out of the
+configuration, since an older installer refuses it. Stop and ask when the older
 installer's dry run warns that `settings.json` holds hooks after that
 install, or a field check fails.
 Rollback is supported only to commits on the published `main` from the Node

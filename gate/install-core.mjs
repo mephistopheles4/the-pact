@@ -1193,6 +1193,12 @@ export function hooksPlan(live, overlayHooks, compact) {
   return { hooks: events.length && out.size === 0 ? undefined : liveHooks === undefined ? undefined : out, events, skipped };
 }
 
+/** A live event's name as a dry-run line shows it: cleaned and cut, like the other live keys. */
+const eventShown = event => {
+  const n = formatPlain(event);
+  return n.length > 40 ? `${n.slice(0, 40)}...` : n;
+};
+
 /**
  * The dry run's block for the window and its hooks: a header line, the
  * autoCompactWindow change, and each pact hook event added, updated or
@@ -1209,8 +1215,8 @@ export function compactLines(live, overlay, compact) {
     else out.push('  NOTE: settings.json holds an autoCompactWindow the pact did not set; it is left as it is.');
   }
   const hp = hooksPlan(live, on ? overlay.get('hooks') : null, compact);
-  for (const [event, op] of hp.events) out.push(`  hook ${event}: ${op}`);
-  for (const event of hp.skipped) out.push(`  WARN: settings.json hooks.${event} is not a list; the pact's hook was not added there.`);
+  for (const [event, op] of hp.events) out.push(`  hook ${eventShown(event)}: ${op}`);
+  for (const event of hp.skipped) out.push(`  WARN: settings.json hooks.${eventShown(event)} is not a list; the pact's hook was not added there.`);
   return out;
 }
 
@@ -1295,7 +1301,7 @@ export function liveSettingsLines(live, overlay, compact = NO_COMPACT) {
   if (isMap(lh) && compact.script !== null) {
     const key = pathKey(compact.script, compact.platform);
     for (const [event, groups] of lh) {
-      if (Array.isArray(groups) && groups.some(g => innerHooks(g).some(h => !isPactHook(h, key, compact.platform)))) out.push(`WARN: settings.json holds a hook the pact did not install: ${formatPlain(event)}`);
+      if (Array.isArray(groups) && groups.some(g => innerHooks(g).some(h => !isPactHook(h, key, compact.platform)))) out.push(`WARN: settings.json holds a hook the pact did not install: ${eventShown(event)}`);
     }
   }
   const lp = live.get('permissions');
@@ -1303,7 +1309,8 @@ export function liveSettingsLines(live, overlay, compact = NO_COMPACT) {
   if (retired) out.push(`NOTE: settings.json holds ${retired} of the pact's retired ask rules; --apply removes them.`);
   const mode = isMap(lp) ? lp.get('defaultMode') : undefined;
   if (mode !== 'auto') out.push('WARN: settings.json: permissions.defaultMode is not auto; --apply sets it.');
-  const own = [...live.keys()].filter(k => !overlay.has(k) && !(k === 'autoCompactWindow' && compact.window > 0) && (!BANNED_SETTINGS.includes(k) || LIVE_OWN_SETTINGS.includes(k))).sort();
+  const ownWindow = (v) => compact.window > 0 || (compact.recorded !== null && v instanceof Num && v.raw === String(compact.recorded));
+  const own = [...live.keys()].filter(k => !overlay.has(k) && !(k === 'autoCompactWindow' && ownWindow(live.get(k))) && (!BANNED_SETTINGS.includes(k) || LIVE_OWN_SETTINGS.includes(k))).sort();
   if (own.length) {
     const names = own.slice(0, 20).map(k => {
       const n = formatPlain(k);

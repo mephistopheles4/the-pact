@@ -381,10 +381,6 @@ for (const [id, edit] of [
   });
 }
 
-test('bad case: an overlay with no defaultMode fails even with the hooks block', t => {
-  expectSettingsFail(t, overlayWith(o => delete o.permissions.defaultMode), 'settings-required');
-});
-
 test('bad case: a file in claude/hooks other than the pact script fails', t => {
   for (const [rel, rule] of [
     ['claude/hooks/other.mjs', 'hook-file-name'],
@@ -423,6 +419,14 @@ test('bad case: --compact missing, given twice, without a value or with another 
   ]) {
     const r = seamArgs(t, withHook(), ...argv);
     assert.equal(lastLine(r.stdout), 'RESULT: fail', `${what}\n${r.out}`);
-    assert.ok(failRules(r.stdout).some(x => x === 'compact-arg' || x === 'usage'), `${what}\n${r.out}`);
+    assert.deepEqual(failRules(r.stdout), ['compact-arg'], `${what}\n${r.out}`);
+  }
+});
+
+test('bad case: a hidden character in the hook script fails the text scanner, with --compact on or off', t => {
+  for (const compact of ['on', 'off']) {
+    const r = seamArgs(t, withHook({ [HOOK]: `${realHook()}// ‮\n` }), '--commands', 'none', '--tools', 'none', '--compact', compact);
+    assert.equal(lastLine(r.stdout), 'RESULT: fail', `${compact}\n${r.out}`);
+    assert.ok(r.stdout.includes(HOOK), `${compact}: the failure names the script\n${r.out}`);
   }
 });

@@ -1067,11 +1067,12 @@ function main() {
 
   const say = (name, text) => process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } })}\n`);
   const setTurn = word => {
-    mkdirSync(dir, { recursive: true });
+    // Owner-only, as the pact keeps its backups: the notes can hold what a session knew.
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
     writeFileSync(turn, `${word}\n`);
   };
   const nudge = name => {
-    say(name, `Your context is nearing the auto-compact window. Update your hand-off file now, at ${shown}: the goal, the state, the open questions and the next step. Then carry on.`);
+    say(name, `Your context is nearing the auto-compact window. Update your hand-off file now, at ${shown}: the goal, the state, the open questions and the next step. Leave out secrets, tokens and personal details. Then carry on.`);
     setTurn('nudged');
   };
 
@@ -1430,7 +1431,7 @@ check_hash dc1d1cdc5d332b31164d4d40f5db965088120164b0e2707e86ac6152fc7c9e47 'age
 check_hash 1ad0b19214ab28f21dd8d14f19a5f6409a293582c7505b73ad3b53e66af7d9fe 'agents/reader-lens.md'
 check_hash 89cc2ff2f8ac3febb0a17520197dfc26c6a1fc369a1ba1d0409975e9edcad0b8 'agents/scout.md'
 check_hash 775bd6307472e4c02983388f40d31740d2877530f83417a45b13c4d50b72335f 'agents/unstated-lens.md'
-check_hash 2f3808ab26eb2b3d7ef7ec33a3dcdaaee9860ded39a473f7bf5d98c1e278f339 'pact/hooks/compact-handoff.mjs'
+check_hash 81bf865e342d1e5b68ed4c4c17057f1a05dd076f183c5a0a93842f3f67bdf3a6 'pact/hooks/compact-handoff.mjs'
 check_hash f4ee26e6b643479e9bbcf5e9ba6764aa29bf503722c389d2d1db2936fc7edc4e 'pact/review.md'
 # Node: the wrapper, run by path, so the check doesn't rest on setup's own PATH.
 NODE_SEEN="$(/root/.local/bin/node --version 2>/dev/null || echo none)"
@@ -1461,7 +1462,7 @@ fi
 # The marker names this exact script. It prints only when every file was
 # written, every hash matched and the pinned Node is on the PATH.
 if [ "$CONFIG_WRITTEN" -eq "$EXPECTED_WRITES" ] && [ "$HASH_FAILED" -eq 0 ] && [ -z "${NODE_FAILED:-}" ]; then
-  echo "pact cloud copy b324b2b17537"
+  echo "pact cloud copy bc5d8debc22c"
 else
   echo "pact cloud copy INCOMPLETE ($CONFIG_WRITTEN of $EXPECTED_WRITES written, $HASH_FAILED hash mismatches${NODE_FAILED:+, node: $NODE_FAILED})"
 fi

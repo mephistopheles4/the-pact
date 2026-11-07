@@ -3,7 +3,7 @@
 // the refused values (C4) and the dry run's warnings (C11). The hook itself is
 // in compact-hook.test.mjs, the seam A checks in settings.test.mjs.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { EVENTS, config, files, live, pactGroup, script, windowCfg, withoutNotice, writeLive } from './compact-harness.mjs';
@@ -50,9 +50,12 @@ test('#482 C2: a set window reaches autoCompactWindow and every hook argument; t
   const ownerBefore = { hooks: [{ type: 'command', command: 'echo', args: ['before'] }] };
   const ownerAfter = { matcher: 'Bash', hooks: [{ type: 'command', command: 'echo', args: ['after'] }] };
   const ownerOther = { hooks: [{ type: 'command', command: 'echo', args: ['other'] }] };
+  // An owner's node hook on another script of the same name, and one on the pact's path in other letters' case, are not the pact's.
+  const ownerNode = { hooks: [{ type: 'command', command: 'node', args: [join(h, 'elsewhere', 'compact-handoff.mjs'), '400000'] }] };
   assert.equal(applyBound(repo, h).code, 0);
   const first = live(h);
   first.hooks.PostToolUse = [ownerBefore, ...first.hooks.PostToolUse, ownerAfter];
+  first.hooks.Stop = [ownerNode, ...first.hooks.Stop];
   first.hooks.Notification = [ownerOther];
   writeLive(h, first);
   config(h, windowCfg(600000));
@@ -62,13 +65,15 @@ test('#482 C2: a set window reaches autoCompactWindow and every hook argument; t
   assert.match(dry.stdout, /^ {2}hook PostToolUse: updated$/m, dry.out);
   assert.match(dry.stdout, /^WARN: settings\.json holds a hook the pact did not install: PostToolUse$/m, dry.out);
   assert.match(dry.stdout, /^WARN: settings\.json holds a hook the pact did not install: Notification$/m, dry.out);
-  assert.doesNotMatch(dry.stdout, /did not install: (Stop|PreCompact|SessionStart|UserPromptSubmit)/, dry.out);
+  assert.match(dry.stdout, /^WARN: settings\.json holds a hook the pact did not install: Stop$/m, dry.out);
+  assert.doesNotMatch(dry.stdout, /did not install: (PreCompact|SessionStart|UserPromptSubmit)/, dry.out);
   assert.equal(applyBound(repo, h).code, 0);
   const s = live(h);
   assert.equal(s.autoCompactWindow, 600000);
   assert.deepEqual(s.hooks.PostToolUse, [ownerBefore, pactGroup(h, 600000, 'PostToolUse'), ownerAfter]);
   assert.deepEqual(s.hooks.Notification, [ownerOther]);
-  for (const e of EVENTS.filter(x => x !== 'PostToolUse')) assert.deepEqual(s.hooks[e], [pactGroup(h, 600000, e)], e);
+  assert.deepEqual(s.hooks.Stop, [ownerNode, pactGroup(h, 600000, 'Stop')]);
+  for (const e of EVENTS.filter(x => x !== 'PostToolUse' && x !== 'Stop')) assert.deepEqual(s.hooks[e], [pactGroup(h, 600000, e)], e);
   // A second install changes nothing.
   const again = install(repo, h);
   assert.match(again.stdout, /^settings\.json: unchanged$/m, again.out);

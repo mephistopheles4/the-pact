@@ -11,7 +11,7 @@ import { applyBound, home, install, makeRepo } from './install-harness.mjs';
 // The base commit itself is not in a shallow CI checkout, so the feature-less payload stands for it.
 for (const [name, ownerLive] of [
   ['a live file with no hooks', { permissions: { allow: ['Read'] }, theme: 'dark' }],
-  ['a live file with owner hooks, one on an event of its own and an empty list', { hooks: { PostToolUse: [{ hooks: [{ type: 'command', command: 'echo', args: ['mine'] }] }], Notification: [] } }],
+  ['a live file with owner hooks, one on an event of its own and an empty list', { hooks: { PostToolUse: [{ hooks: [{ type: 'command', command: 'echo', args: ['mine'] }] }, { hooks: [{ type: 'command', command: 'node', args: ['/elsewhere/compact-handoff.mjs', '1'] }] }], Notification: [] } }],
 ]) {
   test(`#482 C3: Off installs what the pact installed without the feature, and on then off restores it (${name})`, t => {
     const repo = makeRepo(t);
@@ -25,19 +25,31 @@ for (const [name, ownerLive] of [
     const a = home(t);
     const b = home(t);
     for (const h of [a, b]) writeLive(h, ownerLive);
-    // A: on by default, then off. B: off, on the payload without the feature.
+    // A: on by default (with a configuration that leaves the key unset, so the rules are the same text as Off's), then off. B: off, on the payload without the feature.
+    config(a, {});
     assert.equal(applyBound(repo, a).code, 0);
     assert.ok(live(a).autoCompactWindow);
+    const onRules = readFileSync(join(a, 'CLAUDE.md'), 'utf8');
     config(a, windowCfg(0));
+    // The Off dry run names what it removes.
+    const dry = install(repo, a);
+    assert.match(dry.stdout, /^ {2}- autoCompactWindow$/m, dry.out);
+    for (const e of ['PostToolUse', 'UserPromptSubmit', 'Stop', 'PreCompact', 'SessionStart']) assert.match(dry.stdout, new RegExp(`^ {2}hook ${e}: removed$`, 'm'), dry.out);
+    assert.doesNotMatch(dry.stdout, /yours, not checked\): [^\n]*autoCompactWindow/, dry.out);
     const off = applyBound(repo, a);
     assert.equal(off.code, 0, off.out);
+    // The owner's hooks stand as they were written, an empty list included, whatever the other side did.
+    if (ownerLive.hooks) assert.deepEqual(live(a).hooks, ownerLive.hooks);
+    else assert.equal(Object.hasOwn(live(a), 'hooks') || Object.hasOwn(live(a), 'autoCompactWindow'), false);
+    // The rules file differs from the on install only in the notice's two lines.
+    const offRules = readFileSync(join(a, 'CLAUDE.md'), 'utf8');
+    assert.notEqual(offRules, onRules);
+    assert.equal(withoutNotice(offRules), withoutNotice(onRules));
     config(b, windowCfg(0));
     assert.equal(applyBound(base, b).code, 0);
     assert.equal(readFileSync(join(a, 'settings.json'), 'utf8'), readFileSync(join(b, 'settings.json'), 'utf8'));
     assert.deepEqual(files(a), files(b));
     for (const p of files(a)) assert.deepEqual(readFileSync(join(a, p)), readFileSync(join(b, p)), p);
-    // The notice's two lines may differ; here the one configuration makes them equal as well.
-    assert.equal(withoutNotice(readFileSync(join(a, 'CLAUDE.md'), 'utf8')), withoutNotice(readFileSync(join(b, 'CLAUDE.md'), 'utf8')));
     assert.equal(readdirSync(join(a, 'pact', 'hooks')).length, 0, 'the installed script is gone');
     assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(a, '.pact-install.json'), 'utf8')), 'autoCompactWindow'), false, 'the record holds no window');
   });
@@ -90,6 +102,10 @@ test('#482 C11: the dry run warns once per event for a hook the pact did not ins
   assert.doesNotMatch(dry.stdout, /the user configuration sets auto-compact-window/, dry.out);
   assert.doesNotMatch(dry.stdout, /the pact's default configuration sets auto-compact-window/, dry.out);
   assert.doesNotMatch(dry.stdout, /yours, not checked\): [^\n]*\bhooks\b/, 'hooks is not one of the yours');
+  // A user configuration that leaves the key unset names it no more than none does.
+  config(h, {});
+  const unset = install(repo, h);
+  assert.doesNotMatch(unset.stdout, /sets auto-compact-window/, unset.out);
   config(h, windowCfg(500000));
   const set = install(repo, h);
   assert.match(set.stdout, /^ {2}WARN: the user configuration sets auto-compact-window to 500000\.$/m, set.out);

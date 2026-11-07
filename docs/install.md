@@ -558,7 +558,10 @@ installer's own floor) and `node` on the PATH.
 - **The cloud.** The cloud copy takes no configuration, so it always sets
   400000 and has no Off. To turn it off there, merge a commit that does.
 - **Hand-offs stay.** The pact never deletes a hand-off or `.turn` file in
-  `~/.claude/pact/handoff/`; clear them yourself when you like.
+  `~/.claude/pact/handoff/`; clear them yourself when you like. They are
+  notes a session wrote, kept unencrypted in a folder the hook creates for
+  your account alone, and they outlive turning the window off and Claude
+  Code's own transcript clean-up.
 
 ## Roll back to an older version
 

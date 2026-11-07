@@ -82,11 +82,12 @@ function main() {
 
   const say = (name, text) => process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } })}\n`);
   const setTurn = word => {
-    mkdirSync(dir, { recursive: true });
+    // Owner-only, as the pact keeps its backups: the notes can hold what a session knew.
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
     writeFileSync(turn, `${word}\n`);
   };
   const nudge = name => {
-    say(name, `Your context is nearing the auto-compact window. Update your hand-off file now, at ${shown}: the goal, the state, the open questions and the next step. Then carry on.`);
+    say(name, `Your context is nearing the auto-compact window. Update your hand-off file now, at ${shown}: the goal, the state, the open questions and the next step. Leave out secrets, tokens and personal details. Then carry on.`);
     setTurn('nudged');
   };
 
