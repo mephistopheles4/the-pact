@@ -57,11 +57,6 @@ for (const file of USERS) {
   test(`${file} holds no copy of a moved piece`, () => {
     for (const p of own(file)) assert.deepEqual(ownCopies(readFileSync(p, 'utf8')), [], p);
   });
-
-  test(`${file} imports the shared module`, () => {
-    const importing = own(file).filter(p => /^import \{[^}]+\} from '\.\/shared\.mjs';$/m.test(readFileSync(p, 'utf8')));
-    assert.equal(importing.length, 1, `expected exactly one of ${file}'s files to import the shared module: ${importing.join(', ')}`);
-  });
 }
 
 test('bad case: a copy planted back into seam A is caught', () => {

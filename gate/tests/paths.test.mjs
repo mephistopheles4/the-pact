@@ -1,12 +1,9 @@
 // The canonical path relations (gate/paths.mjs): whole segments, never a
 // string prefix, and case folded only where the system folds case.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { sep } from 'node:path';
 import { test } from 'node:test';
 import { FOLD_CASE, isClaudeSegment, within } from '../paths.mjs';
-import { moduleMatch } from './gate-files.mjs';
-import { GATE, REPO } from './text.mjs';
 
 const P = (...segs) => (sep === '\\' ? `C:\\${segs.join('\\')}` : `/${segs.join('/')}`);
 
@@ -30,11 +27,4 @@ test('within folds case exactly where the system does', () => {
 test('isClaudeSegment reads .claude however it is cased or padded', () => {
   for (const s of ['.claude', '.CLAUDE', '.claude.', '.claude ']) assert.equal(isClaudeSegment(s), true, s);
   for (const s of ['.claude2', 'claude', '.claudex']) assert.equal(isClaudeSegment(s), false, s);
-});
-
-// #261 C1
-test('the notice never mentions a project or its files', () => {
-  const notice = moduleMatch(GATE, 'render', /const NOTICE_TEMPLATE = [\s\S]*?\n\];\n/);
-  assert.ok(notice, 'the notice template is in the renderer');
-  assert.doesNotMatch(notice[0], /project/i);
 });

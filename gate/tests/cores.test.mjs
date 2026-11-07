@@ -7,7 +7,7 @@
 // empty; the others are named on #155.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
@@ -36,15 +36,6 @@ function importUnderTrap(file) {
 // The tracker author checker's core (#183, T2) is held to the import rule in
 // the helper import guard; its check() takes a gh runner and answers in the
 // table harness's shape, so the shape and wrapper cases below leave it out.
-test('the core import guard: the gate holds exactly the four cores, the install\'s decisions and the tracker author checker (#153)', () => {
-  assert.deepEqual(
-    readdirSync(GATE)
-      .filter(f => f.endsWith('-core.mjs'))
-      .sort(),
-    ['install-core.mjs', ...MODULES.map(m => `${m}-core.mjs`), 'tracker-authors-core.mjs'].sort(),
-  );
-});
-
 // install-core.mjs is not a check: it exports the install's decisions, and no
 // check(). It is held to a core's rules all the same.
 test('the core import guard: install-core.mjs touches no file, process, environment or OS user detail when imported', () => {

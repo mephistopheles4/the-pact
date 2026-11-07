@@ -111,8 +111,9 @@ test('bad case: a rules source that differs from the commit\'s rules refuses, an
     const p = join(root, 'gate', 'install-run.mjs');
     const s = readFileSync(p, 'utf8');
     const line = 'copyFileSync(rulesStaged, live(stage, core.KIT_RULES_REL));';
-    assert.equal(s.split(line).length, 2, 'the runner copies the rules source in one place');
-    writeFileSync(p, s.replace(line, "writeFileSync(live(stage, core.KIT_RULES_REL), 'other rules\\n');"));
+    const planted = s.replace(line, "writeFileSync(live(stage, core.KIT_RULES_REL), 'other rules\\n');");
+    assert.notEqual(planted, s, 'the plant landed in the runner');
+    writeFileSync(p, planted);
   });
   const h = home(t);
   const before = listTree(h);

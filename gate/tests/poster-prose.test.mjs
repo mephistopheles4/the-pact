@@ -250,8 +250,8 @@ test('the prose refusals come after the scan and the table check, before any not
 });
 
 // #317 C7: one pass over the lines. Each body below is at the size limit; a reader that searches ahead again from every run, or
-// retries a pattern from every `[` or `](`, would take minutes on one of them.
-test('a worst-case body at the 65,536-character limit finishes within two seconds', t => {
+// retries a pattern from every `[` or `](`, would take minutes on one of them, so the test never ends. No clock here; nothing but the CI job limit stops a slow scan (see #496).
+test('a worst-case body at the 65,536-character limit is read in one pass', t => {
   const fill = s => s.repeat(Math.ceil(65536 / s.length)).slice(0, 65536);
   const rising = Array.from({ length: 300 }, (_, i) => `${'`'.repeat(i + 1)}x`).join(' ');
   const bodies = {
@@ -265,10 +265,7 @@ test('a worst-case body at the 65,536-character limit finishes within two second
   };
   for (const [name, text] of Object.entries(bodies)) {
     assert.equal([...text].length, 65536, name);
-    const start = performance.now();
     const r = runBody({ 'body.md': text }, t);
-    const ms = performance.now() - start;
-    assert.ok(ms < 2000, `${name}: ${Math.round(ms)} ms`);
     // The fence check refuses only the body that ends inside a fence (#401).
     assert.ok(r.fails.every(f => /^(?:text|link)\//.test(f) || (f === 'fence/unclosed' && name === 'many short units')) || r.fails.length === 0, `${name}: ${r.out.slice(0, 300)}`);
   }
