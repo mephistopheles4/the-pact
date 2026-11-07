@@ -907,6 +907,7 @@ test('the commands block lists every pact command, on or off, says which this co
     '  /make-it-so: off (not in this commit)',
     '  /finis: on',
     '  /scriptorium: off (not in this commit)',
+    '  /scry: off (not in this commit)',
     '  To turn one on, list its name in pact/config.json, for example: "commands": ["finis"]',
     '  WARN: the user configuration turns on the pact command /finis; it installs to commands/finis.md.',
   ]);

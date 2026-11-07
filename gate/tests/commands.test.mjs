@@ -92,7 +92,7 @@ function seamWith(t, tree, argv) {
 
 test('the pact command list is one list: the install keeps the same names in the same order', () => {
   assert.deepEqual([...INSTALL_COMMANDS], [...PACT_COMMANDS]);
-  assert.deepEqual([...PACT_COMMANDS], ['make-it-so', 'finis', 'scriptorium']);
+  assert.deepEqual([...PACT_COMMANDS], ['make-it-so', 'finis', 'scriptorium', 'scry']);
   assert.ok(Object.isFrozen(PACT_COMMANDS) && Object.isFrozen(INSTALL_COMMANDS));
 });
 
@@ -169,10 +169,10 @@ test('a project configuration may not hold commands', t => {
 
 // ------------------------------------------------------------ the shipped commands (#203, T2)
 
-const SHIPPED = ['make-it-so', 'finis'];
+const SHIPPED = ['make-it-so', 'finis', 'scry'];
 const shipped = name => readFileSync(join(REPO, 'claude', 'commands', `${name}.md`), 'utf8').replace(/\r\n/g, '\n');
 
-test('the shipped /make-it-so and /finis pass seam A and are listed to install', t => {
+test('the shipped /make-it-so, /finis and /scry pass seam A and are listed to install', t => {
   const root = stage(t, Object.fromEntries(SHIPPED.map(n => [`claude/commands/${n}.md`, shipped(n)])));
   const r = runSeamA(root, undefined, { commands: SHIPPED.join(',') });
   assert.equal(r.code, 0, r.out);
