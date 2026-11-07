@@ -30,7 +30,7 @@ import { pathToFileURL } from 'node:url';
 // token in the command cannot come back out through it.
 const REFUSAL = [
   "Run the gate's tests through athanor: `athanor run fast` while building, `athanor run` for the full suite.",
-  'A host run of `fast` or `full` is the fallback only for `full` before an install, or when athanor can\'t run (no Docker, a copy older than 4121c28, or a run that ends 124, 125 or 137).',
+  'A host run of `fast` or `full` is the fallback only when athanor can\'t run (no Docker, a copy older than 4121c28, or a run that ends 124, 125 or 137).',
 "If that is why you are here, rerun the same command with `--host-fallback='<reason>'`, the reason quoted, so PowerShell keeps it one argument, and short, in your own plain words (no path, token or pasted error text), and say in your report that you used the fallback.",
   '`changed` and `--list` run on the host as they are. AGENTS.md, "Running the gate\'s tests", has the rest.',
 ].join(' ');

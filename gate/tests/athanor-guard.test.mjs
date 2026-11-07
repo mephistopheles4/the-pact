@@ -73,10 +73,10 @@ test('athanor guard: changed, --list, a named fallback and other commands pass w
     'env -u NODE_OPTIONS node gate/tests/run.mjs changed',
     '$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed --base origin/main',
     'node gate/tests/run.mjs full --list',
-    'env -u NODE_OPTIONS node gate/tests/run.mjs full --host-fallback=before an install',
+    'env -u NODE_OPTIONS node gate/tests/run.mjs full --host-fallback=no docker here',
     'env -u NODE_OPTIONS node gate/tests/run.mjs fast "--host-fallback=no docker here"',
     '$env:NODE_OPTIONS = $null; node gate/tests/run.mjs fast --host-fallback="athanor exited 125"',
-    "$env:NODE_OPTIONS = $null; node gate/tests/run.mjs full --host-fallback='before an install'",
+    "$env:NODE_OPTIONS = $null; node gate/tests/run.mjs full --host-fallback='no docker here'",
     'athanor run',
     'athanor run fast',
     'node --test gate/tests/run.test.mjs',
@@ -121,7 +121,7 @@ test('athanor guard: the refusal echoes nothing from the command, and gives the 
   const { reason } = await ask('node gate/tests/run.mjs fast SECRET_TOKEN_abc123');
   assert.doesNotMatch(reason, /SECRET_TOKEN_abc123/);
   assert.equal(reason, (await ask('env -u NODE_OPTIONS node gate/tests/run.mjs full')).reason);
-  for (const says of ['`athanor run fast`', '`athanor run`', 'before an install', 'no Docker', '4121c28', '124, 125 or 137', "`--host-fallback='<reason>'`", 'quoted', 'own plain words', 'no path, token or pasted error text', 'report']) assert.ok(reason.includes(says), says);
+  for (const says of ['`athanor run fast`', '`athanor run`', 'no Docker', '4121c28', '124, 125 or 137', "`--host-fallback='<reason>'`", 'quoted', 'own plain words', 'no path, token or pasted error text', 'report']) assert.ok(reason.includes(says), says);
 });
 
 // The probe, against a fake athanor on a PATH of its own: a .cmd on Windows,

@@ -41,11 +41,11 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   adds what your change can reach (`--base <ref>`, `--list`).
 - **Local runs go through athanor by default** (the owner's Docker test
   runner, in a Linux container): `athanor run` runs `full`, and
-  `athanor run fast` runs `fast`. Run on the host only for `full` before an
-  install, for a quick `changed` pick, or when athanor can't run.
+  `athanor run fast` runs `fast`. Run on the host only for a quick
+  `changed` pick, or when athanor can't run.
 - **A hook holds you to that** (`.claude/settings.json`, ADR 0104): while
-  `athanor --version` works, it refuses a host `fast` or `full` run. For the
-  two host cases, add `--host-fallback='<reason>'` to the same command,
+  `athanor --version` works, it refuses a host `fast` or `full` run. When athanor can't run, add
+  `--host-fallback='<reason>'` to the same command,
   quoted so PowerShell keeps it one argument: a short reason in your own
   plain words (no path, token or pasted error text). Say in your report that
   you used the fallback. The runner prints the reason.
@@ -55,8 +55,8 @@ this repo; [`docs/reference.md`](docs/reference.md) says what is here.
   `$env:NODE_OPTIONS = $null; node gate/tests/run.mjs changed` in PowerShell, or
   `env -u NODE_OPTIONS node gate/tests/run.mjs changed` in a POSIX shell.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
-  locally before an install (on the host), after a rebase or merge that
-  brought in other work, and after a final change set (through athanor).
+  locally after a rebase or merge that brought in other work, and after a
+  final change set (through athanor).
 - **Test evidence is CI's two jobs,** `gate` and `gate-windows`, passing on
   the reviewed head, so push the branch and open a draft PR before Test. The
   Test record cites both run links and each run's commit, which is the head.

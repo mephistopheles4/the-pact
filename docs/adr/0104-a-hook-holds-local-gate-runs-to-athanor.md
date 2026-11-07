@@ -1,6 +1,6 @@
 # A hook holds local gate runs to athanor
 
-A PreToolUse hook in this repo's `.claude/settings.json` refuses a host run of the gate's tests at the `fast` or `full` tier while `athanor --version` works (#383). The host cases ADR 0099 keeps, `full` before an install and any run athanor can't do, go through `--host-fallback=<reason>`, which the runner prints. `changed` and `--list` pass as they are. This enforces [ADR 0099](0099-local-gate-runs-go-through-athanor-by-default.md).
+A PreToolUse hook in this repo's `.claude/settings.json` refuses a host run of the gate's tests at the `fast` or `full` tier while `athanor --version` works (#383). The host cases ADR 0099 keeps, any run athanor can't do, go through `--host-fallback=<reason>`, which the runner prints. `changed` and `--list` pass as they are. This enforces [ADR 0099](0099-local-gate-runs-go-through-athanor-by-default.md).
 
 ## Why
 

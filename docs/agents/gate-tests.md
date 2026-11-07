@@ -71,8 +71,8 @@ Read this before you pick a tier beyond what `AGENTS.md` gives, or write, change
   base that starts with a dash, or one that isn't a commit, exits 2. athanor
   can't run `changed`: its synthetic commit has no base to diff against.
 - **The full suite runs** at Test, by CI's two jobs on the reviewed head; and
-  locally before an install, after a rebase or merge that brought in other
-  work, and after a final change set. It doesn't run before and after each
+  locally after a rebase or merge that brought in other work, and after a
+  final change set. It doesn't run before and after each
   change.
 - **Test evidence is CI's two jobs passing on the reviewed head:** `gate` on
   Linux and `gate-windows` on Windows, each running `full` (ADR 0095). CI runs
@@ -125,9 +125,9 @@ runs only, never a host run of `gate/tests/run.mjs`.
   line, so the result line is the last but one.
 - **It is the default for local runs** (#369): `fast` while building, and
   `full` after a rebase or merge that brought in other work and after a final
-  change set. Before an install, run `full` on the host: the install runs on
-  the host's system, and athanor's run skips the Windows-only cases. Run on
-  the host too when athanor can't run: no Docker, or an older copy.
+  change set. An install relies on CI's `gate` and `gate-windows` passing on
+  the commit it installs (#494). Run on the host when athanor can't run: no Docker, or an older
+  copy.
 - **The image is the Linux run's** in
   [`gate/tests/fixtures/linux/`](../../gate/tests/fixtures/linux/): Node 24
   pinned by digest, git, jq (for the cloud setup's settings merge, #482), no
@@ -174,9 +174,8 @@ before every Bash and PowerShell call, with a 15 s timeout.
   out of the runner's cap, and so is a run wrapped in `bash -c`,
   `pwsh -Command`, `nohup` or `exec`, or started from inside `gate/tests/`.
 - **The fallback:** `--host-fallback='<reason>'`, in the `=` form only, on
-  `fast` and `full`. Use it for `full` before an install, and for any run when
-  athanor can't run: no Docker, a copy older than `4121c28`, or a run that
-  ends 124, 125 or 137. The probe can't tell those from a working athanor,
+  `fast` and `full`. Use it for any run when athanor can't run: no Docker, a copy older than
+  `4121c28`, or a run that ends 124, 125 or 137. The probe can't tell those from a working athanor,
   since every build reports `0.1.0`. Quote the reason, in either shell:
   unquoted, PowerShell splits it into separate arguments and the runner
   refuses them. Give a short reason in your own plain words: at most 80
